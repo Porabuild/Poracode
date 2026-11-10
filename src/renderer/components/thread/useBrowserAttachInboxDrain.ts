@@ -1,13 +1,6 @@
 import { useEffect, useEffectEvent } from "react";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
-
-export interface PickedBrowserAttachment {
-  readonly path: string;
-  readonly name: string;
-  readonly mimeType: string;
-  readonly selector: string;
-  readonly sourceUrl: string;
-}
+import type { PickedBrowserAttachment } from "@/renderer/components/composer/useAttachments";
 
 /**
  * Moves elements picked in the in-app browser for `inboxKey` (a thread id, or

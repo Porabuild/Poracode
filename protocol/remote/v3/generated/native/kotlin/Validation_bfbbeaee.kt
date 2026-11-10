@@ -97,6 +97,10 @@ internal val schema_9f20fb68ee791598: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("turn.started")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_9f329d4108aed026: RemoteSchema by lazy {
+    RemoteSchema(type = "array", maxItems = 256, items = schema_4e3a1013cf1d3a58, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_9f6b436502c63c75: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("agent-vision-watch")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

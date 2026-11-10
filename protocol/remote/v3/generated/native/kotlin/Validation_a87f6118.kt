@@ -37,6 +37,10 @@ internal val schema_13324e3fec19e623: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("location", "manifestPath"), properties = mapOf("includeAgentChats" to schema_feeb8bb50144d96d, "location" to schema_080f9cc154af9e27, "manifestPath" to schema_36fea325bf1aca70, "transcriptDir" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_134ccbcdbce97927: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("kind", "ok"), properties = mapOf("kind" to schema_9083db8e32ed061a, "ok" to schema_d2dd3595e1b5e5dc), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_135288c0feeec2fc: RemoteSchema by lazy {
     RemoteSchema(type = "array", maxItems = 16, items = schema_a76106fec07f8e2b, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

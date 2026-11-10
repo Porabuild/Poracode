@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fnv1a32 } from "../../fnv1a32";
 
 /**
  * Poracode-owned Devin profile configuration — format 2 (pure schema).
@@ -277,12 +278,7 @@ export function describeDevinProfileConfigUnavailability(
  * key names, not values.
  */
 export function devinStableHash(value: string): string {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash.toString(16).padStart(8, "0");
+  return fnv1a32(value).toString(16).padStart(8, "0");
 }
 
 /**

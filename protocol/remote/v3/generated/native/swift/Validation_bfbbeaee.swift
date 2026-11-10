@@ -93,6 +93,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_9f329d4108aed026 = RemoteSchema(type: "array", maxItems: 256, items: RemoteSchemas.schema_4e3a1013cf1d3a58, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_9f6b436502c63c75 = RemoteSchema(type: "string", literals: [.string("agent-vision-watch")], unknownPolicy: .strip)
 }
 

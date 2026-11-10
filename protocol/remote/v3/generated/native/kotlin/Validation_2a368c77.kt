@@ -17,6 +17,10 @@ internal val schema_522b0d7f41276332: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("hash", "message"), properties = mapOf("conflictFiles" to schema_0f732b9fceb2c6ac, "hash" to schema_bf0b727f7b1c6d07, "message" to schema_bf0b727f7b1c6d07, "reapplyConflicting" to schema_feeb8bb50144d96d, "stashPreserved" to schema_feeb8bb50144d96d, "stashReapplied" to schema_feeb8bb50144d96d), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_52895aaaf2e8a0f2: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("attachmentCount", "git", "itemCount", "turnCount"), properties = mapOf("attachmentCount" to schema_56aa0e45cbdce0d0, "git" to schema_6fc62da359394b16, "itemCount" to schema_56aa0e45cbdce0d0, "turnCount" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_5296d6b04d46b630: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_4c967d4ed16edbc1, schema_e0da1e0a5e3cd077, schema_a66324f9a46c480b), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

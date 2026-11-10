@@ -97,6 +97,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_03762dd017f2a872 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_cd9a361e554145c9, RemoteSchemas.schema_e30d1bfa71891ffd, RemoteSchemas.schema_0e5eb227708be551, RemoteSchemas.schema_73d7644dc835b94d, RemoteSchemas.schema_4734a988c0fc7988, RemoteSchemas.schema_404d099c5c6a9b12, RemoteSchemas.schema_cb09d6f7d6659d21], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_039b848cf1c1ad6c = RemoteSchema(type: "integer", defaultValue: .int(50), minimum: 1.0, maximum: 200.0, unknownPolicy: .strip)
 }
 
@@ -146,6 +150,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_0534fb6201293569 = RemoteSchema(type: "object", required: Set(["sound", "statuses"]), properties: ["sound": RemoteSchemas.schema_feeb8bb50144d96d, "statuses": RemoteSchemas.schema_72130deafac7a5ba], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_053ca1a8a132e83a = RemoteSchema(type: "array", maxItems: 500, items: RemoteSchemas.schema_b83973a63f086da7, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

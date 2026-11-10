@@ -251,4 +251,16 @@
     <string name="rich_chat_background_task_last_progress">Letzter Fortschritt vor %1$s</string>
     <string name="rich_chat_background_task_close">Aufgabendetails schließen</string>
     <string name="rich_chat_background_task_report_missing">Die Aufgabe wurde ohne Abschlussbericht beendet.</string>
+    <string name="rich_chat_html_visual_title">HTML-Vorschau</string>
+    <string name="rich_chat_html_visual_source">Quelltext</string>
+    <string name="rich_chat_html_visual_preview">Vorschau</string>
+    <string name="rich_chat_html_visual_copy_source">Quelltext kopieren</string>
+    <string name="rich_chat_html_visual_loading">Vorschau wird geladen…</string>
+    <string name="rich_chat_html_visual_incomplete">Unvollständiger HTML-Block. Es wird nur der Quelltext angezeigt.</string>
+    <string name="rich_chat_html_visual_unsupported">Nicht unterstütztes HTML-Format. Es wird nur der Quelltext angezeigt.</string>
+    <string name="rich_chat_html_visual_limited">Zu viele HTML-Vorschauen in dieser Nachricht. Es wird nur der Quelltext angezeigt.</string>
+    <string name="rich_chat_html_visual_too_large">Dieser HTML-Block ist für eine Vorschau zu groß. Es wird nur der Quelltext angezeigt.</string>
+    <string name="rich_chat_html_visual_unavailable">Interaktive Darstellung ist nicht verfügbar. Es wird nur der Quelltext angezeigt.</string>
+    <string name="rich_chat_html_visual_open_link_title">Link öffnen?</string>
+    <string name="rich_chat_html_visual_open_link">Öffnen</string>
 </resources>

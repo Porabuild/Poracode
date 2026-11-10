@@ -60,6 +60,7 @@ import {
 import { commandIntentDisplay } from "./commandSummary";
 import { LazyInlineDiffView } from "./LazyInlineDiffView";
 import { ReasoningInline } from "./ReasoningInline";
+import { isReadLikeToolPayload } from "./readLikeToolPayload";
 import { detectLanguageFromPath, type ViewportLanguage } from "./languageDetect";
 import {
   analyzeEditToolGroup,
@@ -698,15 +699,6 @@ function pickLazyReadPath(payload: ToolCallPayload): string | undefined {
 
 function pickFirstLocationPath(payload: ToolCallPayload): string | undefined {
   return payload.locations?.find((location) => location.path.length > 0)?.path;
-}
-
-function isReadLikeToolPayload(payload: ToolCallPayload): boolean {
-  const kind = payload.kind?.trim().toLowerCase();
-  if (kind === "read" || kind === "readfile") return true;
-  if (payload.name === "Read" || payload.name === "NotebookRead" || payload.name === "ReadFile")
-    return true;
-  const title = payload.title?.trim() || payload.name.trim();
-  return /^(?:view|read)(?:ing)?(?:\s|:|$)/i.test(title);
 }
 
 function ErrorIcon() {

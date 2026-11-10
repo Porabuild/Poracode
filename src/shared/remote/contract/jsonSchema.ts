@@ -147,22 +147,6 @@ function normalizeUnionSpelling(value: unknown): unknown {
  */
 const PATTERN_DUPLICATING_ZOD_FORMATS = new Set(["includes", "starts_with", "ends_with"]);
 
-function dropPatternDuplicatingFormats(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(dropPatternDuplicatingFormats);
-  if (!value || typeof value !== "object") return value;
-  const source = value as Record<string, unknown>;
-  const dropFormat =
-    typeof source.pattern === "string" &&
-    typeof source.format === "string" &&
-    PATTERN_DUPLICATING_ZOD_FORMATS.has(source.format);
-  const next: Record<string, unknown> = {};
-  for (const [key, nested] of Object.entries(source)) {
-    if (dropFormat && key === "format") continue;
-    next[key] = dropPatternDuplicatingFormats(nested);
-  }
-  return next;
-}
-
 export function zodToJsonSchema(schema: z.ZodType, io: "input" | "output"): unknown {
   if (schema === omittedResultSchema) {
     return { ...OMITTED_RESULT_JSON_SCHEMA };
@@ -174,6 +158,13 @@ export function zodToJsonSchema(schema: z.ZodType, io: "input" | "output"): unkn
     reused: "ref",
     override: (ctx) => {
       const json = ctx.jsonSchema as Record<string, unknown>;
+      if (
+        typeof json.pattern === "string" &&
+        typeof json.format === "string" &&
+        PATTERN_DUPLICATING_ZOD_FORMATS.has(json.format)
+      ) {
+        delete json.format;
+      }
       const zodSchema = ctx.zodSchema;
       if (!zodSchema || typeof zodSchema !== "object") return;
       const policy = zodObjectUnknownFieldPolicy(zodSchema as unknown as z.ZodType);
@@ -188,10 +179,7 @@ export function zodToJsonSchema(schema: z.ZodType, io: "input" | "output"): unkn
       if (transforms.length > 0) json["x-poracode-transforms"] = transforms;
     },
   });
-  const processed = dropPatternDuplicatingFormats(normalizeUnionSpelling(raw)) as Record<
-    string,
-    unknown
-  >;
+  const processed = normalizeUnionSpelling(raw) as Record<string, unknown>;
   annotatePortableTransforms(schema, processed, processed);
   processed.$schema = REMOTE_JSON_SCHEMA_DIALECT;
   return sortRecord(processed);

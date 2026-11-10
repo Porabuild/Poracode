@@ -768,6 +768,7 @@ test("session.remove deletes a gui thread and refuses virtual subsessions", asyn
     boundedProjectListPage: async () => ({ projects: [project] }),
     boundedThreadListPage: async () => ({ page: { threads: [parentThread] } }),
     threadRuntimeItemsPage: async () => ({ items, nextCursor: null }),
+    threadCompletedTurns: async () => [],
     sendThreadCommand: async (command: unknown) => {
       commands.push(command);
     },
@@ -971,6 +972,7 @@ test("session.fork refuses a running thread, virtual subsessions, and old hosts"
     boundedProjectListPage: async () => ({ projects: [project] }),
     boundedThreadListPage: async () => ({ page: { threads: [parent] } }),
     threadRuntimeItemsPage: async () => ({ items, nextCursor: null }),
+    threadCompletedTurns: async () => [],
     environment: async () => environment,
     sendThreadCommand: async (command: unknown) => {
       commands.push(command);
@@ -1463,6 +1465,7 @@ test("session info reports the crew as the model and the real model without one"
       },
     }),
     threadRuntimeItemsPage: async () => ({ items: [], nextCursor: null }),
+    threadCompletedTurns: async () => [],
   } as unknown as RemoteDesktopClient;
   const { value } = S.router(client);
   const modelOf = async (session: string) =>
@@ -1664,4 +1667,93 @@ test("requests follow the project of the session or folder they target", async (
   expect(await get("/api/session/ses_new")).toMatchObject({
     data: { projectID: "project-2", location: { directory: "C:/other" } },
   });
+});
+
+test("main-session history excludes subagent child items; the virtual subsession keeps them", async () => {
+  const project = remoteProjectSchema.parse({
+    id: "project-1",
+    name: "project",
+    location: { kind: "windows", path: "C:/repo" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const parentThread = {
+    id: "thread-1",
+    projectId: "project-1",
+    agentKind: "codex",
+    presentationMode: "gui",
+    config: { model: "m1" },
+    title: "Parent",
+    status: "idle",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-02T00:00:00.000Z",
+    archived: false,
+  };
+  const items = [
+    {
+      id: "u1",
+      type: "user_message",
+      state: "completed",
+      streams: {},
+      payload: { content: [{ kind: "text", text: "go" }] },
+    },
+    {
+      id: "task-1",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+      payload: { name: "Task", title: "Explore", status: "success", isSubAgent: true },
+    },
+    {
+      id: "child-1",
+      type: "tool_call",
+      state: "completed",
+      parentItemId: "task-1",
+      streams: {},
+      payload: { name: "Read", status: "success" },
+    },
+    {
+      id: "grandchild-1",
+      type: "tool_call",
+      state: "completed",
+      parentItemId: "child-1",
+      streams: {},
+      payload: { name: "Grep", status: "success" },
+    },
+  ];
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [project] }),
+    boundedThreadListPage: async () => ({ page: { threads: [parentThread] } }),
+    threadRuntimeItemsPage: async () => ({ items, nextCursor: null }),
+    threadCompletedTurns: async () => [],
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+
+  const main = (await (
+    await value.handle(new Request("http://poracode.invalid/api/session/ses_thread-1/message"))
+  ).json()) as MessageListOutput;
+  const toolNames = main.data.flatMap((message) =>
+    message.type === "assistant"
+      ? message.content
+          .filter((part) => part.type === "tool")
+          .map((part) => (part.type === "tool" ? part.name : ""))
+      : [],
+  );
+  // Only the parent Agent task survives — children and grandchildren are
+  // subagent-transcript items, not parent rows.
+  expect(toolNames).toEqual(["task"]);
+  expect(JSON.stringify(main.data)).not.toContain("child-1");
+
+  const sub = (await (
+    await value.handle(
+      new Request("http://poracode.invalid/api/session/ses_thread-1__task-1/message"),
+    )
+  ).json()) as MessageListOutput;
+  const subTools = sub.data.flatMap((message) =>
+    message.type === "assistant"
+      ? message.content
+          .filter((part) => part.type === "tool")
+          .map((part) => (part.type === "tool" ? part.name : ""))
+      : [],
+  );
+  expect(subTools).toEqual(["Read"]);
 });

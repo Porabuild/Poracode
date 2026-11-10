@@ -1,5 +1,6 @@
 import type { RuntimeEvent } from "./contracts";
 import { estimateRuntimeEventBytes } from "./runtimeEventSize";
+import { utf16SafeSliceEnd } from "./runtimeStreamRetentionPolicy";
 
 type ContentDelta = Extract<RuntimeEvent, { type: "content.delta" }>;
 
@@ -9,10 +10,15 @@ type ContentDelta = Extract<RuntimeEvent, { type: "content.delta" }>;
  * fragment keeps `replace`; the rest append, so applying the fragments in order
  * yields exactly the original text. A fragment never ends between the halves of
  * a surrogate pair. Any other event, or one that fits, is returned unchanged.
+ * Callers that already measured the event can reuse that estimate.
  */
-export function splitContentDelta(event: RuntimeEvent, maxEventBytes: number): RuntimeEvent[] {
+export function splitContentDelta(
+  event: RuntimeEvent,
+  maxEventBytes: number,
+  estimatedBytes?: number,
+): RuntimeEvent[] {
   if (event.type !== "content.delta") return [event];
-  const totalBytes = estimateRuntimeEventBytes(event);
+  const totalBytes = estimatedBytes ?? estimateRuntimeEventBytes(event);
   if (totalBytes <= maxEventBytes) return [event];
   const appendTemplate: ContentDelta = { ...event };
   delete appendTemplate.replace;
@@ -50,16 +56,10 @@ function fitFragment(
 ): { fragment: ContentDelta; end: number } {
   let end = Math.min(text.length, proposedEnd);
   for (;;) {
-    if (end < text.length && end - start > 1 && isHighSurrogate(text.charCodeAt(end - 1))) {
-      end -= 1;
-    }
+    if (end - start > 1) end = utf16SafeSliceEnd(text, end);
     const fragment: ContentDelta = { ...template, delta: text.slice(start, end) };
     const bytes = estimateRuntimeEventBytes(fragment);
     if (bytes <= maxEventBytes || end - start <= 1) return { fragment, end };
     end = start + Math.max(1, Math.floor(((end - start) * maxEventBytes * 0.95) / bytes));
   }
-}
-
-function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
 }

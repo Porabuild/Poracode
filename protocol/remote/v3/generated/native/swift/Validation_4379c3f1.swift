@@ -13,6 +13,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_f6f6c60cfab9884a = RemoteSchema(type: "object", required: Set(["branchRenamed", "kind", "replayed", "thread"]), properties: ["branch": RemoteSchemas.schema_36fea325bf1aca70, "branchRenamed": RemoteSchemas.schema_feeb8bb50144d96d, "kind": RemoteSchemas.schema_1fcbd5bc41d865ae, "replayed": RemoteSchemas.schema_feeb8bb50144d96d, "thread": RemoteSchemas.schema_b37f60804aab420f, "worktreePath": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_f7164d030c9bbeaf = RemoteSchema(type: "integer", minimum: 2.0, maximum: 6.0, unknownPolicy: .strip)
 }
 

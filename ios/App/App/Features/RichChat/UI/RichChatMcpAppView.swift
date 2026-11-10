@@ -1,6 +1,54 @@
 import SwiftUI
 import WebKit
 
+/// Credential-free web view running the bundled sandbox host (`mcp-app-host.js`)
+/// for MCP Apps and authored HTML previews.
+@MainActor
+enum RichChatSandboxWebView {
+  static let handlerName = "poracodeMcpApp"
+
+  static func make(
+    delegate: some WKScriptMessageHandler & WKNavigationDelegate, onMissingHost: () -> Void
+  ) -> WKWebView {
+    let configuration = WKWebViewConfiguration()
+    configuration.websiteDataStore = .nonPersistent()
+    configuration.userContentController.add(delegate, name: handlerName)
+    let view = WKWebView(frame: .zero, configuration: configuration)
+    view.navigationDelegate = delegate
+    view.isOpaque = false
+    view.backgroundColor = .clear
+    view.scrollView.isScrollEnabled = false
+    guard let url = Bundle.main.url(forResource: "mcp-app-host", withExtension: "js"),
+      let script = try? String(contentsOf: url, encoding: .utf8)
+    else {
+      onMissingHost()
+      return view
+    }
+    let escaped = script.replacingOccurrences(of: "</script", with: "<\\/script", options: .caseInsensitive)
+    view.loadHTMLString("<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head><body><script>\(escaped)</script></body></html>", baseURL: URL(string: "http://localhost/"))
+    return view
+  }
+
+  /// Only the host page loads in the main frame; nested sandbox frames stay CSP-bound.
+  static func policy(for action: WKNavigationAction, started: Bool) -> WKNavigationActionPolicy {
+    if action.targetFrame?.isMainFrame == false { return .allow }
+    return !started && ["about:blank", "http://localhost/"].contains(action.request.url?.absoluteString ?? "") ? .allow : .cancel
+  }
+
+  static func evaluate(_ view: WKWebView?, _ code: String, value: RichJSON) {
+    guard let data = try? JSONEncoder().encode(value),
+      let object = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
+    else { return }
+    view?.callAsyncJavaScript(code, arguments: ["value": object], in: nil, in: .page, completionHandler: nil)
+  }
+
+  static func tearDown(_ view: WKWebView) {
+    view.configuration.userContentController.removeScriptMessageHandler(forName: handlerName)
+    view.stopLoading()
+    view.loadHTMLString("", baseURL: nil)
+  }
+}
+
 struct RichChatMcpAppView: View {
   let app: RichMcpAppPresentation
   let actions: RichChatTimelineActions
@@ -35,20 +83,10 @@ private struct McpAppContentView: UIViewRepresentable {
   func makeCoordinator() -> Coordinator { Coordinator(self) }
 
   func makeUIView(context: Context) -> WKWebView {
-    let configuration = WKWebViewConfiguration()
-    configuration.websiteDataStore = .nonPersistent()
-    configuration.userContentController.add(context.coordinator, name: "poracodeMcpApp")
-    let view = WKWebView(frame: .zero, configuration: configuration)
+    let view = RichChatSandboxWebView.make(delegate: context.coordinator) {
+      DispatchQueue.main.async { onUnavailable() }
+    }
     context.coordinator.view = view
-    view.navigationDelegate = context.coordinator
-    view.isOpaque = false
-    view.backgroundColor = .clear
-    view.scrollView.isScrollEnabled = false
-    guard let url = Bundle.main.url(forResource: "mcp-app-host", withExtension: "js"),
-      let script = try? String(contentsOf: url, encoding: .utf8)
-    else { DispatchQueue.main.async { onUnavailable() }; return view }
-    let escaped = script.replacingOccurrences(of: "</script", with: "<\\/script", options: .caseInsensitive)
-    view.loadHTMLString("<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head><body><script>\(escaped)</script></body></html>", baseURL: URL(string: "http://localhost/"))
     return view
   }
 
@@ -64,9 +102,7 @@ private struct McpAppContentView: UIViewRepresentable {
     view.evaluateJavaScript("window.PoracodeMcpApp?.close()", completionHandler: nil)
     coordinator.tasks.values.forEach { $0.cancel() }
     coordinator.tasks.removeAll()
-    view.configuration.userContentController.removeScriptMessageHandler(forName: "poracodeMcpApp")
-    view.stopLoading()
-    view.loadHTMLString("", baseURL: nil)
+    RichChatSandboxWebView.tearDown(view)
   }
 
   private var hostContext: RichJSON {
@@ -95,15 +131,12 @@ private struct McpAppContentView: UIViewRepresentable {
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction) async -> WKNavigationActionPolicy {
-      if action.targetFrame?.isMainFrame == false { return .allow }
-      return !started && ["about:blank", "http://localhost/"].contains(action.request.url?.absoluteString ?? "") ? .allow : .cancel
+      RichChatSandboxWebView.policy(for: action, started: started)
     }
 
     func evaluate(_ code: String, value: RichJSON) {
-      guard !closed, let data = try? JSONEncoder().encode(value),
-        let object = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
-      else { return }
-      view?.callAsyncJavaScript(code, arguments: ["value": object], in: nil, in: .page, completionHandler: nil)
+      guard !closed else { return }
+      RichChatSandboxWebView.evaluate(view, code, value: value)
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {

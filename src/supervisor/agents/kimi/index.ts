@@ -2,7 +2,11 @@ import { kimiNativeMcpConfig } from "./nativeMcp";
 import type { PromptSegment } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
-import { createAcpStructuredSession } from "../acp";
+import {
+  createAcpStructuredSession,
+  createSharedAcpStructuredSession,
+  shutdownSharedAcpProcesses,
+} from "../acp";
 import { createAcpSubagentCoordinator } from "../acp/subagentCoordinator";
 import {
   assertOneShotControlsMapped,
@@ -148,7 +152,7 @@ export function createKimiAdapter(): AgentAdapter {
         (notification) => session?.ingestExternalSessionUpdate(notification),
         { subagents },
       );
-      session = createAcpStructuredSession(command, {
+      const sessionInput: CreateStructuredSessionInput = {
         ...input,
         // Kimi's ACP server rejects the protocol's standard stdio MCP shape
         // during session/new ("ACP stdio MCP server <name> does not declare a
@@ -177,7 +181,18 @@ export function createKimiAdapter(): AgentAdapter {
           subagents,
           onBackgroundLaunch: backgroundBridge.onBackgroundLaunch,
         }),
-      });
+      };
+      try {
+        session =
+          input.projectLocation.kind === "wsl"
+            ? createAcpStructuredSession(command, sessionInput)
+            : await createSharedAcpStructuredSession(command, sessionInput, {
+                scope: kimiDetectionSpec.kind,
+              });
+      } catch (error) {
+        backgroundBridge.dispose();
+        throw error;
+      }
       if (!session) {
         backgroundBridge.dispose();
         return undefined;
@@ -189,6 +204,7 @@ export function createKimiAdapter(): AgentAdapter {
       };
       return session;
     },
+    shutdown: () => shutdownSharedAcpProcesses(kimiDetectionSpec.kind),
 
     // The `kimi acp` stdio process that dispatch uses for the ACP
     // `authenticate`/`logout` handshake. On 0.33.0's v2 server `authenticate`

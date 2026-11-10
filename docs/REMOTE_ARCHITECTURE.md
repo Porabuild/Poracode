@@ -108,7 +108,7 @@ per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
 version is 14. The inventory describes:
 
-- 119 HTTP routes;
+- 121 HTTP routes;
 - 173 supervisor procedures;
 - 11 client-to-server WebSocket messages; and
 - 12 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).

@@ -42,6 +42,11 @@ msgstr "(브랜치 없음)"
 msgid "(optional)"
 msgstr "(선택 사항)"
 
+#. placeholder {0}: preview.source.git.changedFiles
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{0, plural, =0 {no uncommitted changes} one {# uncommitted change} other {# uncommitted changes}}"
+#~ msgstr "{0, plural, =0 {커밋되지 않은 변경 없음} other {커밋되지 않은 변경 #개}}"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -470,6 +475,7 @@ msgstr "{0}이 v{newVersion}로 업데이트되었습니다."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated."
@@ -733,6 +739,10 @@ msgstr "{minutes}분 전"
 msgid "{missingAuthLabel} needs authentication."
 msgstr "{missingAuthLabel}에는 인증이 필요합니다."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "{moved} · continued with {agentLabel}"
+msgstr "{moved} · {agentLabel}(으)로 계속"
+
 #: src/renderer/actions/workspaceActions.ts
 msgid "{movedCount, plural, one {Moved # project to {target}.} other {Moved # projects to {target}.}}"
 msgstr "{movedCount, plural, other {프로젝트 #개를 {target}(으)로 옮겼습니다.}}"
@@ -773,6 +783,14 @@ msgstr "{productName}이(가) v{0}(으)로 업데이트되었습니다."
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation}(비활성화)"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} isn't set up on another machine yet. Add it there to move this thread."
+msgstr "{projectName}이(가) 아직 다른 머신에 설정되어 있지 않습니다. 이 스레드를 이동하려면 해당 머신에 추가하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} on {targetLabel} isn't a Git repository, so its code can't move there."
+msgstr "{targetLabel}의 {projectName}은(는) Git 저장소가 아니므로 코드를 이동할 수 없습니다."
 
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
@@ -829,6 +847,18 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{providerLabel}의 {serverName}: {disabledLabel}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}, and no other chat agent is ready there. Set one up there first."
+msgstr "{targetLabel}에 {sourceAgentLabel}이(가) 설정되어 있지 않고 준비된 다른 채팅 에이전트도 없습니다. 먼저 그곳에 설정하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Choose the agent that continues there."
+#~ msgstr "{targetLabel}에 {sourceAgentLabel}이(가) 설정되어 있지 않습니다. 그곳에서 이어서 작업할 에이전트를 선택하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Pick the agent that continues there."
+msgstr "{targetLabel}에 {sourceAgentLabel}이(가) 설정되어 있지 않습니다. 그곳에서 이어서 작업할 에이전트를 선택하세요."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "{sourceCrewName} comes along."
 msgstr "{sourceCrewName}이(가) 함께 이동합니다."
@@ -840,6 +870,22 @@ msgstr "{sourceCrewName}은(는) 유지되지 않습니다: {targetProviderLabel
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, other {# 단계}}"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no project for this repository. Add it there first."
+#~ msgstr "{targetLabel}에 이 저장소의 프로젝트가 없습니다. 먼저 그곳에 추가하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no projects yet. Add one there first."
+#~ msgstr "{targetLabel}에 아직 프로젝트가 없습니다. 먼저 그곳에 하나 추가하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is offline. Connect to it first."
+msgstr "{targetLabel}이(가) 오프라인입니다. 먼저 연결하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is reached through this computer, so you can't open it while this computer is off."
+msgstr "{targetLabel}은(는) 이 컴퓨터를 통해 연결되므로 이 컴퓨터가 꺼져 있는 동안에는 열 수 없습니다."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #~ msgid "{totalAdditions} additions and {totalDeletions} deletions"
@@ -1508,6 +1554,7 @@ msgstr "대체 항목 추가"
 msgid "Add files, drop here, or paste an image"
 msgstr "파일을 추가하거나 여기에 놓거나 이미지를 붙여넣으세요"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "폴더 추가"
@@ -1568,6 +1615,10 @@ msgstr "반응 추가"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "리모트 추가"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "원격 연결 추가"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -1716,6 +1767,10 @@ msgstr "에이전트가 현재 비활성화되어 있습니다"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent not found"
 msgstr "에이전트를 찾을 수 없습니다."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Agent on {targetLabel}"
+#~ msgstr "{targetLabel}의 에이전트"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -2262,6 +2317,10 @@ msgstr "현재 스레드 보관"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Archive this session?"
 #~ msgstr "이 세션을 보관할까요?"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Archive this thread here after moving"
+#~ msgstr "이동 후 이 스레드를 여기에서 보관"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -2873,6 +2932,7 @@ msgstr "이 호스트에서 동시에 실행할 수 있는 단명 생성 도우�
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "이 호스트에서 동시에 실행할 수 있는 터미널 셸 수를 제한합니다. 논리적 실행 슬롯을 세며 OS 프로세스나 메모리가 아닙니다. 0 = 무제한."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
@@ -2911,6 +2971,11 @@ msgstr "브랜치 또는 태그"
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
 msgstr "브랜치 보호 규칙이 이 병합을 차단했습니다."
+
+#. placeholder {0}: preview.source.git.branch
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Branch: {0}"
+#~ msgstr "브랜치: {0}"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Branches"
@@ -3180,7 +3245,7 @@ msgstr "포트를 불러올 수 없습니다"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "원격 서버에 연결할 수 없습니다. 온라인 상태인지 확인한 후 다시 연결하세요."
 
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/providerTargetSelection.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Can't use this model selection on that surface"
 msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
@@ -3196,6 +3261,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -3574,6 +3640,10 @@ msgstr "확인 중"
 msgid "Checking {serverName}"
 msgstr "{serverName} 확인 중"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Checking {targetLabel}…"
+msgstr "{targetLabel} 확인 중…"
+
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "Checking for updates…"
 msgstr "업데이트 확인 중…"
@@ -3637,6 +3707,10 @@ msgstr "분기할 완료된 턴을 선택하세요."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "폴더 선택"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "{machine}에서 폴더 선택"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -4083,6 +4157,7 @@ msgstr "편집기 탭 닫기"
 msgid "Close environment actions"
 msgstr "환경 작업 닫기"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "확대된 시각화 닫기"
@@ -4529,6 +4604,10 @@ msgstr "커밋 및 PR 언어"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit & Push"
 msgstr "커밋 및 푸시"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Commit at least once before moving this thread."
+msgstr "이 스레드를 이동하기 전에 최소 한 번 커밋하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Commit failed: {detail}"
@@ -5003,11 +5082,11 @@ msgstr "컨텍스트"
 msgid "Context compacted"
 msgstr "컨텍스트가 압축됨"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "{before} 토큰에서 압축된 컨텍스트"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "압축된 컨텍스트:{before}→{after}토큰"
 
@@ -5016,11 +5095,11 @@ msgstr "압축된 컨텍스트:{before}→{after}토큰"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "컨텍스트 추출({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "{before} 토큰에서 수동으로 압축된 컨텍스트"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "수동으로 압축된 컨텍스트:{before}→{after}토큰"
 
@@ -5058,6 +5137,10 @@ msgstr "다른 제공업체에서 계속"
 msgid "Continue in..."
 msgstr "다음에서 계속..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Continue on {targetLabel}"
+#~ msgstr "Continue on {targetLabel}"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "데스크톱 주소에서 계속"
@@ -5065,6 +5148,14 @@ msgstr "다음에서 계속..."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "중지 조건이나 제한에 도달할 때까지 하나의 대화를 계속합니다."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Continue where you left off"
+msgstr "중단한 곳에서 계속하세요"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Continue where you left off."
+msgstr "중단한 곳에서 계속하세요."
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
@@ -5242,6 +5333,7 @@ msgstr "상대 경로 복사"
 msgid "Copy selection"
 msgstr "선택 항목 복사"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -6456,6 +6548,10 @@ msgstr "연결 해제"
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "사이드 채팅 분리"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Detached commit"
+msgstr "분리된 커밋"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -7839,6 +7935,7 @@ msgstr "펼쳐서 액세스를 검토하거나 취소합니다."
 msgid "Expand todo dock"
 msgstr "할 일 도크 확장"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "시각 자료 확대"
@@ -8380,6 +8477,10 @@ msgstr "완료됨 · 귀하의 의견을 기다리는 중"
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Finishing your report on GitHub…"
 msgstr "GitHub에서 보고서를 마무리하는 중…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Finishing…"
+msgstr "마무리하는 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
@@ -9426,6 +9527,14 @@ msgstr "매시간"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hours"
 msgstr "시간"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "How moving works"
+msgstr "이동 방식 안내"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "HTML 미리 보기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
@@ -10870,6 +10979,10 @@ msgstr "플러그인 불러오는 중…"
 msgid "Loading PR…"
 msgstr "PR 로드 중…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "미리 보기 로드 중…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "이전 실행 로드 중"
@@ -11721,6 +11834,10 @@ msgstr "메시지 검색을 사용할 수 없음"
 #~ msgid "Message the remote agent…"
 #~ msgstr "원격 에이전트에 메시지 보내기…"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Message to send after moving"
+#~ msgstr "이동 후 보낼 메시지"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
 msgstr "메시지"
@@ -12055,6 +12172,8 @@ msgid "Motion"
 msgstr "동작"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/MoveThreadAgentComposer.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Move"
 msgstr "이동"
 
@@ -12096,6 +12215,14 @@ msgstr "패널 이동"
 msgid "Move thread {0}"
 msgstr "스레드 {0} 이동"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Move to another machine"
+msgstr "다른 기기로 이동"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to another machine…"
+msgstr "다른 기기로 이동…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "클린 작업 트리로 이동"
@@ -12130,6 +12257,18 @@ msgstr "변경 사항을 포함해 작업 트리로 이동"
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "프로젝트 1개를 {0}(으)로 옮겼습니다."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost}"
+msgstr "{sourceHost}에서 이동됨"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost} to {targetHost}"
+msgstr "{sourceHost}에서 {targetHost}(으)로 이동됨"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+#~ msgid "Moved here from {sourceHost}"
+#~ msgstr "{sourceHost}에서 여기로 이동됨"
+
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
 msgstr "스레드와 변경 사항을 \"{newBranch}\"의 새 작업 트리로 옮겼습니다."
@@ -12141,6 +12280,10 @@ msgstr "스레드와 변경 사항을 \"{newBranch}\"의 새 작업 트리로 �
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread to a new worktree on \"{branch}\"."
 msgstr "스레드를 \"{branch}\"의 새 작업 트리로 옮겼습니다."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Moved to {label}."
+msgstr "{label}(으)로 이동했습니다."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -12211,8 +12354,6 @@ msgstr "이름을 입력해야 합니다."
 msgid "Name your project and choose where to create it."
 msgstr "프로젝트 이름을 지정하고 만들 위치를 선택하세요."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "네이티브"
@@ -12424,6 +12565,7 @@ msgstr "새 휴대폰, 태블릿, 브라우저는 페어링 후 여기에 표시
 msgid "New profile name"
 msgstr "새 프로필 이름"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "새 프로젝트"
@@ -12791,6 +12933,10 @@ msgstr "이 메시지에 대해 저장된 파일 체크포인트가 없습니다
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "\"{0}\"과(와) 일치하는 파일이 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No free branch name is left for {branch}."
+msgstr "{branch}에 사용할 수 있는 빈 브랜치 이름이 없습니다."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
@@ -13466,6 +13612,15 @@ msgstr "일회용 페어링 토큰"
 msgid "Online"
 msgstr "온라인"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Only chat threads can move to another machine."
+msgstr "채팅 스레드만 다른 기기로 이동할 수 있습니다."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Only the conversation moves: this folder isn't a Git repository."
+msgstr "대화만 이동합니다. 이 폴더는 Git 저장소가 아닙니다."
+
 #. placeholder {0}: i18n.number(state.totalBytes)
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
@@ -13771,8 +13926,8 @@ msgid "Open on source host"
 msgstr "소스 호스트에서 열기"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "SSH로 열기"
+#~ msgid "Open over SSH"
+#~ msgstr "SSH로 열기"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -14144,6 +14299,10 @@ msgstr "패키지 관리자"
 msgid "Package name or Git URL"
 msgstr "패키지 이름 또는 Git URL"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Packaging the thread…"
+msgstr "스레드를 패키징하는 중…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
 msgstr "페이지"
@@ -14176,6 +14335,10 @@ msgstr "휴대폰, 태블릿 또는 브라우저를 이 데스크톱과 페어�
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "다시 페어링"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Pair another machine in Settings to move threads to it."
+#~ msgstr "스레드를 이동하려면 설정에서 다른 기기를 페어링하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pair this device"
@@ -15068,6 +15231,7 @@ msgstr "화면 잠금 방지"
 msgid "Prevent system sleep"
 msgstr "시스템 절전 방지"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "미리 보기"
@@ -15286,6 +15450,10 @@ msgstr "프로젝트를 찾을 수 없습니다."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "프로젝트 노트"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Project on {targetLabel}"
+#~ msgstr "{targetLabel}의 프로젝트"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
@@ -15606,6 +15774,7 @@ msgid "Queue message"
 msgstr "메시지 대기열에 추가"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued"
 msgstr "대기열에 있음"
 
@@ -16057,7 +16226,6 @@ msgstr "원격 액세스 포트 {occupiedPort}이(가) 이미 사용 중입니�
 #~ msgid "Remote environments"
 #~ msgstr "원격 환경"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -16764,6 +16932,10 @@ msgstr "결과 복원"
 msgid "Restore thread"
 msgstr "스레드 복원"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Restoring it on {targetLabel}…"
+msgstr "{targetLabel}에서 복원하는 중…"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
@@ -16815,6 +16987,7 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
@@ -17413,8 +17586,7 @@ msgstr "{runOut} 후 소진"
 #~ msgstr "Cursor CLI를 통해 실행됩니다. 위의 환경 행에서 설치, 업데이트 및 로그인을 진행하세요."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "런타임"
 
@@ -17422,8 +17594,7 @@ msgstr "런타임"
 msgid "Runtime debug"
 msgstr "런타임 디버그"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "런타임 옵션"
 
@@ -17439,6 +17610,10 @@ msgstr "Devin과 같은 로그인"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
 msgstr "모든 기기에서 동일한 프로바이더 순서"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Same repository"
+#~ msgstr "같은 저장소"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Samsung Galaxy S24 Ultra"
@@ -18178,6 +18353,10 @@ msgstr "메시지 보내기"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "터미널에 입력 보내기"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Sending {sent} of {total}…"
+msgstr "{total} 중 {sent} 보내는 중…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -19045,6 +19224,7 @@ msgstr "풀 리퀘스트 정렬"
 #~ msgid "Sort threads"
 #~ msgstr "스레드 정렬"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "소스"
@@ -19252,8 +19432,6 @@ msgstr "우선순위와 다음 단계로 하루를 시작하세요."
 msgid "Start from a template"
 msgstr "템플릿으로 시작"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -19441,6 +19619,10 @@ msgstr "{0} 실행 중지"
 msgid "Stop {label}"
 msgstr "{label} 중지"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stop and move"
+msgstr "중지 후 이동"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "전달 중지"
@@ -19490,6 +19672,10 @@ msgstr "{label} 중지 중…"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping task…"
 msgstr "작업 중지 중…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stopping the agent here…"
+msgstr "여기에서 에이전트를 중지하는 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -19905,6 +20091,10 @@ msgstr "팀"
 msgid "Tell {0} what to do next..."
 msgstr "{0}에게 다음에 무엇을 해야 할지 알려주세요..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Tell {selectedAgentLabel} what to do next (optional)"
+msgstr "{selectedAgentLabel}에게 다음에 무엇을 해야 할지 알려주세요(선택 사항)"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell the target provider what to do next..."
 msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요..."
@@ -20065,9 +20255,17 @@ msgstr "이것은 Poracode 페어링 코드가 아닙니다."
 msgid "That label does not exist in this repository. Refresh the label list and try again."
 msgstr "해당 라벨은 이 저장소에 없습니다. 라벨 목록을 새로고침한 후 다시 시도하세요."
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "That machine is not available."
+msgstr "해당 기기를 사용할 수 없습니다."
+
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "이 페어링 코드는 더 이상 유효하지 않습니다. 데스크톱에서 설정 → 원격 액세스를 열고 '새 코드'를 누른 뒤 다시 페어링하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "That project is no longer on {targetLabel}."
+msgstr "해당 프로젝트는 더 이상 {targetLabel}에 없습니다."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "That prompt is no longer available."
@@ -20110,9 +20308,17 @@ msgstr "에이전트"
 msgid "The agent"
 msgstr "에이전트"
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent did not stop in time. Try the move again."
+msgstr "에이전트가 제시간에 중지되지 않았습니다. 이동을 다시 시도하세요."
+
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "The agent is still answering. Ask again when it finishes."
 msgstr "에이전트가 아직 답변 중입니다. 답변이 끝난 후 다시 질문하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The agent is working. Moving stops it here and resumes the work on {targetLabel}."
+msgstr "에이전트가 작업 중입니다. 이동하면 여기에서 중지되고 {targetLabel}에서 작업이 재개됩니다."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "The agent session reloads to apply the new context size; the conversation is kept."
@@ -20121,6 +20327,10 @@ msgstr "새 컨텍스트 크기를 적용하기 위해 에이전트 세션이 �
 #: src/renderer/components/thread/useThreadDockState.ts
 msgid "The agent stopped because of an error."
 msgstr "에이전트가 오류로 인해 중지되었습니다."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent was stopped here, but the move didn't finish: {reason}"
+msgstr "에이전트가 여기에서 중지되었지만 이동이 완료되지 않았습니다: {reason}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -20154,6 +20364,10 @@ msgstr "자동화를 계속하려면 승인이 필요합니다."
 #~ msgid "the base branch"
 #~ msgstr "기준 브랜치"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The branch name was taken there, so the work continues on {branch}."
+msgstr "그곳에서 브랜치 이름이 이미 사용 중이라 작업이 {branch}에서 계속됩니다."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "The candidates changed after judging. Compare them again."
 msgstr "평가 후 후보가 변경되었습니다. 다시 비교하세요."
@@ -20161,6 +20375,10 @@ msgstr "평가 후 후보가 변경되었습니다. 다시 비교하세요."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "후보가 아직 변경 사항을 만들지 않았습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The changes are too large to move ({size}). Commit or ignore large files first."
+msgstr "변경 사항이 너무 커서 이동할 수 없습니다({size}). 먼저 큰 파일을 커밋하거나 무시하세요."
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
@@ -20177,6 +20395,10 @@ msgstr "완료 확인에 실패하여 예약 작업이 일시 중지되었습니
 #: src/renderer/speech/hexVoice.ts
 msgid "The connected Poracode host is unavailable. Reconnect and try again."
 msgstr "연결된 Poracode 호스트를 사용할 수 없습니다. 다시 연결하고 다시 시도해 보세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The conversation and its code — commits and uncommitted changes — move to the other machine and continue there. Files ignored by Git, such as .env, stay here."
+msgstr "대화와 해당 코드(커밋 및 커밋되지 않은 변경 사항)가 다른 기기로 이동하여 그곳에서 계속됩니다. .env처럼 Git이 무시하는 파일은 여기에 남습니다."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
@@ -20429,6 +20651,18 @@ msgstr "MCP 서버 구성이 올바르지 않거나 예약된 이름을 사용�
 msgid "The MCP server is invalid."
 msgstr "MCP 서버가 올바르지 않습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The move expired. Start it again."
+msgstr "이동이 만료되었습니다. 다시 시작하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The moved thread could not be read. Start the move again."
+msgstr "이동한 스레드를 읽을 수 없습니다. 이동을 다시 시작하세요."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "The moved thread keeps its agent and model, so that agent needs to be set up on the other machine."
+#~ msgstr "이동한 스레드는 에이전트와 모델을 유지하므로 다른 기기에 해당 에이전트가 설정되어 있어야 합니다."
+
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 #~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
 #~ msgstr "새 컨텍스트 크기는 다음 메시지부터 적용됩니다. 해당 메시지를 보내기 전에 에이전트 세션을 다시 불러오며, 대화 내용은 유지됩니다."
@@ -20573,6 +20807,22 @@ msgid "The selected model compares snapshots of each candidate's changes under a
 msgstr "선택한 모델은 각 후보 변경 사항의 스냅샷을 익명 레이블로 비교합니다. 아무것도 병합하지 않고 우승자를 추천합니다."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is missing commits this thread needs. Fetch its latest changes and try again."
+msgstr "선택한 프로젝트에 이 스레드에 필요한 커밋이 없습니다. 최신 변경 사항을 가져온 후 다시 시도하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is unavailable."
+msgstr "선택한 프로젝트를 사용할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project isn't a Git repository."
+msgstr "선택한 프로젝트는 Git 저장소가 아닙니다."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The selected project on {label} doesn't share history with this repository."
+msgstr "{label}에서 선택한 프로젝트는 이 저장소와 기록을 공유하지 않습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
 msgstr "선택한 저장소가 더 이상 이 프로젝트의 소스 원격 저장소와 일치하지 않습니다. 계속하기 전에 새로 고치세요."
 
@@ -20713,6 +20963,10 @@ msgstr "스레드를 시작하지 못했습니다. 초안은 이 기기에 저�
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "스레드가 공급자 세션을 유지하므로 다음 메시지는 중단한 지점부터 이어집니다."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The thread moved, but your message was not sent. Send it from the moved thread."
+msgstr "스레드는 이동했지만 메시지는 전송되지 않았습니다. 이동한 스레드에서 보내세요."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "대기 중인 후속 메시지에 스레드 세션을 사용할 수 없습니다."
@@ -20721,6 +20975,10 @@ msgstr "대기 중인 후속 메시지에 스레드 세션을 사용할 수 없�
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "스레드가 새 브랜치의 별도 작업 트리에서 실행됩니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread's branch name can't be used on this machine."
+msgstr "이 스레드의 브랜치 이름은 이 기기에서 사용할 수 없습니다."
+
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "스레드의 호스트가 연결되어 있지 않습니다."
@@ -20728,6 +20986,10 @@ msgstr "스레드의 호스트가 연결되어 있지 않습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "이 worktree에 연결된 스레드가 변경되었습니다. 새로 고친 후 다시 시도하세요."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The transfer ended early. Try again."
+msgstr "전송이 일찍 끝났습니다. 다시 시도하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -20781,6 +21043,10 @@ msgstr "테마 및 채팅 글꼴 크기"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Theme name"
 msgstr "테마 이름"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Then tell the agent (optional)"
+#~ msgstr "그다음 에이전트에게 전달(선택 사항)"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
@@ -20998,6 +21264,10 @@ msgstr "이 호스트는 더 이상 구성되어 있지 않습니다."
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "이 호스트는 스냅샷을 제공합니다. 실시간 스트리밍은 사용할 수 없습니다."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "이 HTML 블록은 미리 보기에 너무 큽니다. 소스만 표시합니다."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -21280,6 +21550,15 @@ msgstr "승인된 폴더로 이 대화를 열 수 없습니다. 호스트를 업
 msgid "This thread does not support queued follow-ups."
 msgstr "이 스레드는 대기 중인 후속 메시지를 지원하지 않습니다."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread has no conversation to move yet."
+msgstr "이 스레드에는 아직 이동할 대화가 없습니다."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "This thread is already on {label}."
+msgstr "이 스레드는 이미 {label}에 있습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "이 스레드는 아직 방향 수정을 받을 준비가 되지 않았습니다."
@@ -21449,6 +21728,11 @@ msgstr "스레드 할 일 도크"
 msgid "Threads"
 msgstr "스레드"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Threads in WSL projects can't move to another machine yet."
+msgstr "WSL 프로젝트의 스레드는 아직 다른 기기로 이동할 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
@@ -21588,6 +21872,14 @@ msgstr "{0}의 토큰"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "파일을 편집하지 않도록 지시. 강제되지 않습니다."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "이 메시지에 HTML 미리 보기가 너무 많습니다. 소스만 표시합니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many moves are in progress. Try again shortly."
+msgstr "진행 중인 이동이 너무 많습니다. 잠시 후 다시 시도하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22400,6 +22692,10 @@ msgstr "스테이징되지 않음"
 msgid "Unsupported"
 msgstr "지원되지 않음"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "지원하지 않는 HTML 형식입니다. 소스만 표시합니다."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "지원되지 않는 마켓플레이스 요구 사항"
@@ -22438,14 +22734,17 @@ msgstr "업데이트"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "업데이트"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "{0} 업데이트"
@@ -22465,6 +22764,10 @@ msgstr "{0}을(를) {updateLabel}(으)로 업데이트"
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "세션을 가져오려면 {host}을(를) 업데이트하세요."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Update {label} to move threads between machines."
+msgstr "기기 간에 스레드를 이동하려면 {label}을(를) 업데이트하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -22609,6 +22912,7 @@ msgid "Updated {0}"
 msgstr "{0} 업데이트됨"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "업데이트 중"
 
@@ -22618,7 +22922,9 @@ msgstr "업데이트 중"
 msgid "Updating ({0}/{1})"
 msgstr "업데이트 중({0}/{1})"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "{0} 업데이트 중"
@@ -22791,8 +23097,8 @@ msgid "Use account"
 msgstr "계정 사용"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "기존 폴더 사용"
+#~ msgid "Use an existing folder"
+#~ msgstr "기존 폴더 사용"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23226,6 +23532,14 @@ msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "풀 리퀘스트를 열기 전에 모든 후보가 완료될 때까지 기다리세요."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the agent to finish before moving this thread."
+msgstr "이 스레드를 이동하기 전에 에이전트가 완료될 때까지 기다리세요."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Wait for the agent to finish."
+#~ msgstr "에이전트가 완료될 때까지 기다리세요."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Wait for the source conversation to finish before forking."
 msgstr "원본 대화가 끝난 후 분기하세요."
 
@@ -23499,7 +23813,6 @@ msgstr "이 환경에서 실행됩니다:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -23653,6 +23966,7 @@ msgstr "작업 영역 보기"
 msgid "Workspaces"
 msgstr "작업 영역"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
@@ -23662,6 +23976,7 @@ msgstr "작업 트리"
 msgid "Worktree {path} has uncommitted changes"
 msgstr "작업 트리 {path}에 커밋되지 않은 변경 사항이 있습니다"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "작업 트리 + 변경 사항"
@@ -23678,6 +23993,7 @@ msgstr "작업 트리 기본 폴더"
 msgid "Worktree location"
 msgstr "작업 트리 위치"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "작업 트리 모드"

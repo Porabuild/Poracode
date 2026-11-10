@@ -33,6 +33,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_134ccbcdbce97927 = RemoteSchema(type: "object", required: Set(["kind", "ok"]), properties: ["kind": RemoteSchemas.schema_9083db8e32ed061a, "ok": RemoteSchemas.schema_d2dd3595e1b5e5dc], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_135288c0feeec2fc = RemoteSchema(type: "array", maxItems: 16, items: RemoteSchemas.schema_a76106fec07f8e2b, unknownPolicy: .strip)
 }
 

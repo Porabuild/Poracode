@@ -25,11 +25,18 @@ import {
   readInstalledServiceRelease,
   readServiceRegistration,
   SERVER_SERVICE_REGISTRATION_FILE,
+  ServerServiceRefusedError,
   serverServiceRegistrationSchema,
   serverServiceRegistrationV1Schema,
+  type ServerServiceRegistration,
 } from "./serverServiceRegistration";
-import { qualifyLoadedService, renderServiceDefinition } from "./serverServiceManager";
-import type { RunningOwnerProbe } from "./serverUpgradeIdentity";
+import {
+  qualifyLoadedService,
+  renderLegacySystemdServiceDefinition,
+  renderServiceDefinition,
+  serviceDefinitionHash,
+} from "./serverServiceManager";
+import { RunningOwnerUnreachableError, type RunningOwnerProbe } from "./serverUpgradeIdentity";
 import { registeredServiceUpgradeIo } from "./serverServiceUpgrade";
 import { defaultUpgradeIo } from "./serverUpgrade";
 import {
@@ -363,6 +370,7 @@ describe("explicit installed-prefix service administration", () => {
     expect(registration).toMatchObject({
       state: "installed",
       installPrefix: realpathSync.native(f.prefix),
+      nodeExecutable: realpathSync.native(process.execPath),
       configPath: null,
       launcher: null,
     });
@@ -371,6 +379,20 @@ describe("explicit installed-prefix service administration", () => {
     expect(text).toContain(f.profile.replace(/\\/gu, "\\\\"));
     expect(text).not.toContain(f.release);
     expect(readServerUpgradeLockRecord(f.prefix)).toBeNull();
+  });
+  it("accepts the same lifecycle lock through a symlinked prefix", async () => {
+    const f = fixture();
+    await f.execute("install");
+    const alias = join(f.root, "prefix-alias");
+    symlinkSync(f.prefix, alias, "dir");
+    const lock = acquireServerUpgradeLock({ prefix: alias, releaseId: "alias-test" });
+    try {
+      await expect(
+        runServerService(f.profile, f.options("status"), { ...f.deps, existingLock: lock }),
+      ).resolves.toMatchObject({ state: "installed" });
+    } finally {
+      lock.release();
+    }
   });
   it("preserves future registration bytes and refuses before native effects", async () => {
     const f = fixture();
@@ -514,6 +536,19 @@ describe("explicit installed-prefix service administration", () => {
     expect(f.shutdown).not.toHaveBeenCalled();
     expect(f.calls.some(([action]) => ["stop", "restart", "kill"].includes(action!))).toBe(false);
   });
+  it("does not retire a service that started after migration's status snapshot", async () => {
+    const f = fixture();
+    await f.execute("install");
+    f.startOwner();
+    await expect(
+      runServerService(f.profile, f.options("uninstall"), {
+        ...f.deps,
+        expectedOwner: { generation: null, mainPid: "0", state: "inactive", allowRetired: false },
+      }),
+    ).rejects.toThrow(/service state changed/u);
+    expect(f.shutdown).not.toHaveBeenCalled();
+    expect(readServiceRegistration(f.prefix)?.state).toBe("installed");
+  });
   it("starts, proves the fresh owner, joins shutdown and removes only its registration", async () => {
     const f = fixture();
     await f.execute("install");
@@ -602,6 +637,175 @@ describe("explicit installed-prefix service administration", () => {
       renderServiceDefinition(registration) + "Environment=UNOWNED=value\n",
     );
     expect(() => qualifyLoadedService(registration, f.deps)).toThrow("replaced or edited");
+  });
+});
+
+describe("systemd service definition rendering", () => {
+  const registration = {
+    formatVersion: 1,
+    state: "prepared",
+    registrationId: "poracode-0123456789abcdef0123456789abcdef",
+    registrationNonce: "0".repeat(48),
+    manager: "systemd-user",
+    account: { kind: "uid", id: "1000" },
+    profileNamespace: "/profiles/main",
+    installPrefix: "/opt/poracode prefix",
+    nodeExecutable: "/opt/node/bin/node",
+    entrypointRelative: "current/lib/server.cjs",
+    configPath: null,
+    definition: {
+      locator: "/home/u/.config/systemd/user/poracode-0123456789abcdef0123456789abcdef.service",
+      sha256: "0".repeat(64),
+    },
+    launcher: null,
+  } as unknown as Parameters<typeof renderServiceDefinition>[0];
+
+  it("emits WorkingDirectory verbatim: absolute, unquoted, % escaped", () => {
+    const text = renderServiceDefinition(registration);
+    expect(text).toContain("WorkingDirectory=/opt/poracode prefix\n");
+    expect(text).not.toContain('WorkingDirectory="');
+    const percent = renderServiceDefinition({
+      ...registration,
+      installPrefix: "/opt/100%/prefix",
+    });
+    expect(percent).toContain("WorkingDirectory=/opt/100%%/prefix\n");
+  });
+
+  it("refuses relative paths, surrounding whitespace and control characters", () => {
+    for (const installPrefix of [
+      "opt/poracode",
+      "/opt/poracode ",
+      " /opt/poracode",
+      "/opt/pora\ncode",
+    ]) {
+      expect(() => renderServiceDefinition({ ...registration, installPrefix })).toThrow(
+        ServerServiceRefusedError,
+      );
+    }
+  });
+
+  it("keeps the legacy renderer byte-identical to the pre-fix quoting", () => {
+    const legacy = renderLegacySystemdServiceDefinition(registration);
+    expect(legacy).toContain('WorkingDirectory="/opt/poracode prefix"\n');
+    expect(legacy).not.toBe(renderServiceDefinition(registration));
+    expect(legacy.replace('WorkingDirectory="/opt/poracode prefix"', "WorkingDirectory=X")).toBe(
+      renderServiceDefinition(registration).replace(
+        "WorkingDirectory=/opt/poracode prefix",
+        "WorkingDirectory=X",
+      ),
+    );
+  });
+});
+
+describe("released nightly legacy definition", () => {
+  it("reproduces the captured registration's definition hash byte for byte", () => {
+    // Exact registration captured from nightly 2.0.0-nightly.202611091053
+    // (tmp/linux-systemd-harness/legacy-registration.json).
+    const registration: ServerServiceRegistration = {
+      formatVersion: 1,
+      state: "prepared",
+      registrationId: "poracode-51bc2766e31448bff80884430575643b",
+      registrationNonce: "0e1300fa2d731b6a15a3c715f7e4b4b16ac8e04b626dc83e",
+      manager: "systemd-user",
+      account: { kind: "uid", id: "1000" },
+      profileNamespace: "/home/poracode/.poracode",
+      installPrefix: "/home/poracode/.poracode/server",
+      nodeExecutable:
+        "/home/poracode/.poracode/server/releases/2.0.0-nightly.202611091053/runtime/node",
+      entrypointRelative: "current/lib/server.cjs",
+      configPath: null,
+      definition: {
+        locator:
+          "/home/poracode/.config/systemd/user/poracode-51bc2766e31448bff80884430575643b.service",
+        sha256: "105d7b6feb69ea9564a00679cb1bfcd6013b605a6c951d102ac0f9fde54a35a0",
+      },
+      launcher: null,
+    };
+    expect(serviceDefinitionHash(renderLegacySystemdServiceDefinition(registration))).toBe(
+      registration.definition.sha256,
+    );
+    expect(serviceDefinitionHash(renderServiceDefinition(registration))).not.toBe(
+      registration.definition.sha256,
+    );
+  });
+});
+
+describe("legacy quoted-WorkingDirectory systemd registration", () => {
+  /** Install, then downgrade the registration+unit to the pre-fix legacy form. */
+  async function legacyPrepared() {
+    const f = fixture();
+    await f.execute("install");
+    const installed = readServiceRegistration(f.prefix)!;
+    const legacyText = renderLegacySystemdServiceDefinition(installed);
+    writeFileSync(installed.definition.locator, legacyText);
+    const legacy = {
+      ...installed,
+      state: "prepared" as const,
+      definition: {
+        locator: installed.definition.locator,
+        sha256: serviceDefinitionHash(legacyText),
+      },
+    };
+    writeFileSync(
+      join(f.prefix, SERVER_SERVICE_REGISTRATION_FILE),
+      `${JSON.stringify(legacy, null, 2)}\n`,
+    );
+    f.manager.set("LoadState", "bad-setting");
+    return { f, registration: legacy };
+  }
+
+  it("renders the new unit unquoted on a fresh install", async () => {
+    const f = fixture();
+    await expect(f.execute("install")).resolves.toMatchObject({ state: "installed" });
+    const registration = readServiceRegistration(f.prefix)!;
+    const text = readFileSync(registration.definition.locator, "utf8");
+    expect(text).toContain(`WorkingDirectory=${registration.installPrefix}\n`);
+    expect(text).not.toContain('WorkingDirectory="');
+  });
+
+  it("refuses every action but uninstall --recover, preserving unit and registration bytes", async () => {
+    const { f, registration } = await legacyPrepared();
+    const unitBytes = readFileSync(registration.definition.locator);
+    const registrationPath = join(f.prefix, SERVER_SERVICE_REGISTRATION_FILE);
+    const registrationBytes = readFileSync(registrationPath);
+    const callsBefore = f.calls.length;
+    const attempts: ReadonlyArray<readonly [string, ...string[]]> = [
+      ["uninstall"],
+      ["install", "--recover"],
+      ["start"],
+      ["restart"],
+      ["stop"],
+    ];
+    for (const [action, ...extra] of attempts) {
+      await expect(f.execute(action, ...extra)).rejects.toThrow("compatible CLI");
+    }
+    expect(f.calls).toHaveLength(callsBefore);
+    expect(readFileSync(registration.definition.locator)).toEqual(unitBytes);
+    expect(readFileSync(registrationPath)).toEqual(registrationBytes);
+    expect(readServiceRegistration(f.prefix)?.state).toBe("prepared");
+  });
+
+  it("uninstall --recover removes the bad-setting unit, reloads and drops the registration", async () => {
+    const { f, registration } = await legacyPrepared();
+    await expect(f.execute("uninstall", "--recover")).resolves.toMatchObject({
+      state: "not-installed",
+    });
+    expect(existsSync(registration.definition.locator)).toBe(false);
+    expect(readServiceRegistration(f.prefix)).toBeNull();
+    expect(f.calls.some(([action]) => action === "daemon-reload")).toBe(true);
+    expect(f.calls.some(([action]) => action === "show")).toBe(true);
+  });
+
+  it("refuses the same legacy hash in state installed, byte-identical", async () => {
+    const { f, registration } = await legacyPrepared();
+    const installedLegacy = { ...registration, state: "installed" as const };
+    const registrationPath = join(f.prefix, SERVER_SERVICE_REGISTRATION_FILE);
+    writeFileSync(registrationPath, `${JSON.stringify(installedLegacy, null, 2)}\n`);
+    const before = readFileSync(registrationPath);
+    await expect(f.execute("uninstall", "--recover")).rejects.toThrow("compatible CLI");
+    await expect(f.execute("uninstall")).rejects.toThrow("compatible CLI");
+    expect(readFileSync(registrationPath)).toEqual(before);
+    expect(existsSync(registration.definition.locator)).toBe(true);
   });
 });
 
@@ -755,6 +959,60 @@ describe("version-2 Windows registered service custody", () => {
     expect(existsSync(join(f.prefix, "service-launcher-v1.exe"))).toBe(false);
     expect(existsSync(f.release)).toBe(true);
   });
+
+  it.each(["ready", "starting", "native inspection", "post-disable inspection"])(
+    "restores a Windows registration if a %s task starts during disable",
+    async (phase) => {
+      const f = fixture("win32");
+      await f.execute("install");
+      f.windowsCalls.length = 0;
+      let raced = false;
+      let inspectionFailed = false;
+      f.onWindowsRequest((request) => {
+        if (
+          request.operation === "inspect" &&
+          raced &&
+          phase === "post-disable inspection" &&
+          !inspectionFailed
+        ) {
+          inspectionFailed = true;
+          throw new Error("An orphaned launcher/host remains");
+        }
+        if (request.operation === "disable" && !raced) {
+          raced = true;
+          f.startOwner();
+          if (phase === "native inspection") throw new Error("An orphaned launcher/host remains");
+        }
+      });
+      const expectedOwner = {
+        generation: null,
+        mainPid: "0",
+        state: "inactive",
+        allowRetired: false,
+      };
+      const probe: NonNullable<ServiceLifecycleDeps["probe"]> = async (...args) => {
+        if (raced && phase === "starting")
+          throw new RunningOwnerUnreachableError("owner is still starting");
+        return f.probe(...args);
+      };
+      await expect(
+        runServerService(f.profile, f.options("uninstall"), { ...f.deps, expectedOwner, probe }),
+      ).rejects.toThrow(
+        phase === "native inspection"
+          ? /could not be disabled/u
+          : /state changed before migration/u,
+      );
+      expect(readServiceRegistration(f.prefix)?.state).toBe("installed");
+      expect(f.owner).not.toBeNull();
+      expect(f.shutdown).not.toHaveBeenCalled();
+      expect(f.windowsCalls.map((call) => call.operation)).toContain("enable");
+      f.onWindowsRequest(() => {});
+      await f.execute("stop");
+      await expect(
+        runServerService(f.profile, f.options("uninstall"), { ...f.deps, expectedOwner }),
+      ).resolves.toMatchObject({ state: "not-installed" });
+    },
+  );
 
   it("keeps prepared nonce/helper/config across failure and refuses recovery retargeting", async () => {
     const f = fixture("win32"),

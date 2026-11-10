@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { probeLeaseKernelLock } from "./serverDoctorIo";
+import { serviceNodeExecutable } from "./serverStandaloneRuntime";
 import {
   stopRegisteredOwner,
   type ServiceCliOptions,
@@ -58,12 +59,12 @@ export function installMacosService(
       formatVersion: 1,
       state: "prepared",
       registrationId: id,
-      registrationNonce: randomBytes(24).toString("hex"),
+      registrationNonce: deps.registrationNonce ?? randomBytes(24).toString("hex"),
       manager: "launchd-agent",
       account,
       profileNamespace: profile,
       installPrefix: selected.prefix,
-      nodeExecutable: realpathSync.native(process.execPath),
+      nodeExecutable: serviceNodeExecutable(selected.prefix),
       entrypointRelative: "current/lib/server.cjs",
       configPath: options.config ? resolve(options.config) : null,
       definition: { locator: path, sha256: "0".repeat(64) },

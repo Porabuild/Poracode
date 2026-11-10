@@ -180,6 +180,7 @@ export class RuntimeEventBuffer {
       const fragments = splitContentDelta(
         event,
         Math.min(this.maxEnvelopeBytesPerThread, this.maxLiveEventBytes),
+        bytes,
       );
       if (fragments.length > 1) {
         for (const fragment of fragments) {

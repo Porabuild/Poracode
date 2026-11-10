@@ -1,10 +1,8 @@
+import type { PickedBrowserAttachment } from "@/renderer/components/composer/useAttachments";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useBrowserAttachInbox, type BrowserAttachItem } from "@/renderer/state/browserAttachInbox";
-import {
-  useBrowserAttachInboxDrain,
-  type PickedBrowserAttachment,
-} from "./useBrowserAttachInboxDrain";
+import { useBrowserAttachInboxDrain } from "./useBrowserAttachInboxDrain";
 
 function item(threadId: string, id: string): BrowserAttachItem {
   return {

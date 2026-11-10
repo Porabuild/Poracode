@@ -138,6 +138,7 @@ export const promptClient = (overrides: Record<string, unknown> = {}) =>
     settings: async () => ({ agentSettings: {}, followUpBehavior: "steer" }),
     boundedThreadListPage: async () => ({ page: { threads: [promptFixture.thread] } }),
     threadRuntimeItemsPage: async () => ({ items: [], nextCursor: null }),
+    threadCompletedTurns: async () => [],
     setPendingSteer: async () => undefined,
     sendThreadInput: async () => ({}),
     ...overrides,
@@ -227,6 +228,7 @@ export const titleClient = (options: {
         };
       },
       threadRuntimeItemsPage: async () => ({ items: [], nextCursor: null }),
+      threadCompletedTurns: async () => [],
       startNewThread: async () => {
         calls.push({ name: "start", payload: null });
         return { threadId: "thread-new" };

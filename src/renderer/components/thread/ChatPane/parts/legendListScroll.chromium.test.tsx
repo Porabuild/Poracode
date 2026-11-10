@@ -28,6 +28,20 @@ function makeOlderRows(count: number): Row[] {
   }));
 }
 
+function anchoredEndSpaceFixture() {
+  const onReady = vi.fn<NonNullable<AnchoredEndSpaceConfig["onReady"]>>();
+  const onSizeChanged = vi.fn<NonNullable<AnchoredEndSpaceConfig["onSizeChanged"]>>();
+  const anchoredEndSpace: AnchoredEndSpaceConfig = {
+    anchorIndex: 198,
+    anchorOffset: 0,
+    onReady,
+    onSizeChanged,
+  };
+  const currentSize = (): number | undefined =>
+    onSizeChanged.mock.lastCall?.[0] ?? onReady.mock.lastCall?.[0]?.size;
+  return { onReady, onSizeChanged, anchoredEndSpace, currentSize };
+}
+
 function Transcript({
   rows,
   onStartReached,
@@ -306,14 +320,7 @@ describe("transcript history paging, reply space and hidden panes", () => {
   });
 
   it("parks the anchored prompt at the top when scrolled to the end", async () => {
-    const onReady = vi.fn<NonNullable<AnchoredEndSpaceConfig["onReady"]>>();
-    const onSizeChanged = vi.fn<NonNullable<AnchoredEndSpaceConfig["onSizeChanged"]>>();
-    const anchoredEndSpace: AnchoredEndSpaceConfig = {
-      anchorIndex: 198,
-      anchorOffset: 0,
-      onReady,
-      onSizeChanged,
-    };
+    const { onReady, anchoredEndSpace } = anchoredEndSpaceFixture();
     const rows = makeRows(200);
     const { container } = render(<Transcript rows={rows} anchoredEndSpace={anchoredEndSpace} />);
     const element = await vi.waitFor(() => scroller(container));
@@ -330,16 +337,7 @@ describe("transcript history paging, reply space and hidden panes", () => {
   });
 
   it("keeps the prompt parked while the reply still fits its reserved space", async () => {
-    const onReady = vi.fn<NonNullable<AnchoredEndSpaceConfig["onReady"]>>();
-    const onSizeChanged = vi.fn<NonNullable<AnchoredEndSpaceConfig["onSizeChanged"]>>();
-    const anchoredEndSpace: AnchoredEndSpaceConfig = {
-      anchorIndex: 198,
-      anchorOffset: 0,
-      onReady,
-      onSizeChanged,
-    };
-    const currentSize = (): number | undefined =>
-      onSizeChanged.mock.lastCall?.[0] ?? onReady.mock.lastCall?.[0]?.size;
+    const { onReady, anchoredEndSpace, currentSize } = anchoredEndSpaceFixture();
     const rows = makeRows(200);
     const { container, rerender } = render(
       <Transcript rows={rows} anchoredEndSpace={anchoredEndSpace} />,
@@ -365,14 +363,7 @@ describe("transcript history paging, reply space and hidden panes", () => {
   });
 
   it("follows the reply's tail once it outgrows the reserved space", async () => {
-    const onReady = vi.fn<NonNullable<AnchoredEndSpaceConfig["onReady"]>>();
-    const onSizeChanged = vi.fn<NonNullable<AnchoredEndSpaceConfig["onSizeChanged"]>>();
-    const anchoredEndSpace: AnchoredEndSpaceConfig = {
-      anchorIndex: 198,
-      anchorOffset: 0,
-      onReady,
-      onSizeChanged,
-    };
+    const { onReady, onSizeChanged, anchoredEndSpace } = anchoredEndSpaceFixture();
     const rows = makeRows(200);
     const { container, rerender } = render(
       <Transcript rows={rows} anchoredEndSpace={anchoredEndSpace} />,
@@ -390,16 +381,7 @@ describe("transcript history paging, reply space and hidden panes", () => {
   });
 
   it("recomputes the anchored end space when the footer resizes", async () => {
-    const onReady = vi.fn<NonNullable<AnchoredEndSpaceConfig["onReady"]>>();
-    const onSizeChanged = vi.fn<NonNullable<AnchoredEndSpaceConfig["onSizeChanged"]>>();
-    const anchoredEndSpace: AnchoredEndSpaceConfig = {
-      anchorIndex: 198,
-      anchorOffset: 0,
-      onReady,
-      onSizeChanged,
-    };
-    const currentSize = (): number | undefined =>
-      onSizeChanged.mock.lastCall?.[0] ?? onReady.mock.lastCall?.[0]?.size;
+    const { onReady, anchoredEndSpace, currentSize } = anchoredEndSpaceFixture();
     const rows = makeRows(200);
     const { container, rerender } = render(
       <Transcript rows={rows} anchoredEndSpace={anchoredEndSpace} footerHeight={20} />,

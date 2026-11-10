@@ -26,13 +26,66 @@ import {
   validateRuntimeArchive,
 } from "../lib/archive.mjs";
 import { downloadArtifact } from "../lib/artifact.mjs";
-import { acquireInstallLock, readReadyMarker } from "../lib/cache.mjs";
+import { acquireInstallLock, readReadyMarker, resolveRuntimeCacheRoot } from "../lib/cache.mjs";
+import { defaultCliInstallPrefix } from "../lib/installPaths.mjs";
+import { offerCommandInstall } from "../lib/installOffer.mjs";
 import { execServer, launcherVersion, resolveRuntimeDir, runCli } from "../lib/launcher.mjs";
 import { parseRuntimeManifest } from "../lib/manifest.mjs";
 import { ensureRuntime } from "../lib/install.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const tempDirs = [];
+
+void test("runtime cache is shared across profiles and old cache entries remain untouched", () => {
+  const home = tempDir("poracode-cache-path-");
+  const oldCache = join(home, ".poracode", "runtime", "2.0.0", "linux-x64");
+  mkdirSync(oldCache, { recursive: true });
+  writeFileSync(join(oldCache, ".poracode-runtime.json"), "old cache");
+  const root = join(home, ".local", "share", "poracode");
+  assert.equal(defaultCliInstallPrefix({ env: {}, home, platform: "linux" }), join(root, "server"));
+  assert.equal(
+    resolveRuntimeCacheRoot({ PORACODE_BASE_DIR: join(home, "other") }, home, "linux"),
+    join(root, "runtime-cache"),
+  );
+  assert.equal(readFileSync(join(oldCache, ".poracode-runtime.json"), "utf8"), "old cache");
+  assert.equal(
+    resolveRuntimeCacheRoot({ PORACODE_RUNTIME_CACHE_DIR: join(home, "override") }, home, "linux"),
+    join(home, "override"),
+  );
+  assert.equal(
+    defaultCliInstallPrefix({
+      env: { LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local" },
+      home: "C:\\Users\\u",
+      platform: "win32",
+    }),
+    "C:\\Users\\u\\AppData\\Local\\Poracode\\server",
+  );
+});
+
+void test("the npm launcher offers a command only in a bare interactive session", async () => {
+  const home = tempDir("poracode-install-offer-");
+  const calls = [];
+  const common = {
+    env: {},
+    home,
+    platform: "linux",
+    prompt: async () => {
+      calls.push("prompt");
+      return "yes";
+    },
+    install: async () => {
+      calls.push("install");
+    },
+  };
+  assert.equal(await offerCommandInstall({ ...common, interactive: false }), false);
+  assert.deepEqual(calls, []);
+  assert.equal(await offerCommandInstall({ ...common, interactive: true }), true);
+  assert.deepEqual(calls, ["prompt", "install"]);
+  mkdirSync(join(home, ".local", "bin"), { recursive: true });
+  writeFileSync(join(home, ".local", "bin", "poracode"), "foreign");
+  assert.equal(await offerCommandInstall({ ...common, interactive: true }), false);
+  assert.deepEqual(calls, ["prompt", "install"]);
+});
 after(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
@@ -82,6 +135,23 @@ function buildRuntimeTarball(root, options = {}) {
   );
   writeFileSync(join(stage, "lib", "server.cjs"), options.serverSource ?? STUB_SERVER);
   writeFileSync(join(stage, "resources", "wsl-helpers", "README.md"), "helpers\n");
+  if (options.standalone) {
+    // A self-contained runtime: its bundled "Node" delegates to this test's Node.
+    mkdirSync(join(stage, "runtime"), { recursive: true });
+    writeFileSync(join(stage, "runtime", "node"), `#!/bin/sh\nexec "${process.execPath}" "$@"\n`, {
+      mode: 0o755,
+    });
+    writeFileSync(
+      join(stage, "standalone.json"),
+      `${JSON.stringify({
+        formatVersion: 1,
+        kind: "poracode-standalone-runtime",
+        version,
+        target: options.standalone.target,
+        node: { version: "26.13.0", executable: "runtime/node" },
+      })}\n`,
+    );
+  }
   for (const script of [
     "server-release-install.mjs",
     "server-host-tools.mjs",
@@ -1332,9 +1402,65 @@ void test("runCli forwards the selected profile to the runtime without forwardin
   assert.equal(env.PORACODE_BASE_DIR, undefined);
 });
 
+void test("launcher cache custody reaches install commands but not foreground servers", async () => {
+  const root = tempDir("poracode-cli-custody-");
+  const { tarball, sha256: artifactSha } = buildRuntimeTarball(root);
+  const env = {
+    PORACODE_SERVER_TARBALL: tarball,
+    PORACODE_SERVER_TARBALL_SHA256: artifactSha,
+    PORACODE_RUNTIME_TARGET: "test-x64",
+    PORACODE_RUNTIME_CACHE_DIR: join(root, "cache"),
+    PORACODE_LAUNCHER_RUNTIME_ROOT: "stale-parent-value",
+  };
+  const captured = [];
+  const spawnImpl = (_command, _args, options) => {
+    captured.push(options.env);
+    const child = new EventEmitter();
+    child.kill = () => {};
+    queueMicrotask(() => child.emit("exit", 0, null));
+    return child;
+  };
+  await runCli(["up", "--local-only"], {
+    env,
+    installOptions: { run: hermeticRun, npm: "npm" },
+    spawnImpl,
+  });
+  await runCli(["serve"], { env, installOptions: { run: hermeticRun, npm: "npm" }, spawnImpl });
+  assert.equal(captured[0].PORACODE_LAUNCHER_RUNTIME_SHA256, artifactSha);
+  assert.equal(captured[1].PORACODE_LAUNCHER_RUNTIME_ROOT, undefined);
+  assert.equal(captured[1].PORACODE_LAUNCHER_RUNTIME_SHA256, undefined);
+});
+
+void test("parseRuntimeManifest reads formats 1 and 2 and pins standalone archives in 2", () => {
+  const url = "https://example.invalid/poracode-1.0.0-linux-x64.tar.gz";
+  const digest = "a".repeat(64);
+  assert.equal(
+    parseRuntimeManifest({
+      formatVersion: 1,
+      version: "1.0.0",
+      targets: { x: { url, sha256: digest } },
+    }).formatVersion,
+    1,
+  );
+  const standalone = {
+    formatVersion: 2,
+    version: "1.0.0",
+    targets: { "linux-x64": { url, sha256: digest, kind: "standalone", archive: "tar.gz" } },
+  };
+  assert.equal(parseRuntimeManifest(standalone).formatVersion, 2);
+  assert.throws(
+    () =>
+      parseRuntimeManifest({
+        ...standalone,
+        targets: { "linux-x64": { url, sha256: digest } },
+      }),
+    /standalone tar\.gz or zip/u,
+  );
+});
+
 void test("parseRuntimeManifest rejects malformed manifests", () => {
   assert.throws(
-    () => parseRuntimeManifest({ formatVersion: 2, version: "1.0.0", targets: {} }),
+    () => parseRuntimeManifest({ formatVersion: 3, version: "1.0.0", targets: {} }),
     /formatVersion/u,
   );
   assert.throws(
@@ -1349,5 +1475,73 @@ void test("parseRuntimeManifest rejects malformed manifests", () => {
         targets: { "linux-x64": { url: "https://example.invalid/a.tgz", sha256: "nope" } },
       }),
     /malformed sha256/u,
+  );
+});
+
+const posixOnly = { skip: process.platform === "win32" ? "POSIX standalone fixture" : false };
+
+void test(
+  "a standalone runtime installs without npm and runs on its bundled Node",
+  posixOnly,
+  async () => {
+    const { hostRuntimeTarget } = await import(
+      pathToFileURL(join(repoRoot, "scripts", "server-release-install.mjs")).href
+    );
+    const root = tempDir("poracode-cli-standalone-");
+    const { tarball, sha256: artifactSha } = buildRuntimeTarball(root, {
+      version: launcherVersion(),
+      standalone: { target: hostRuntimeTarget() },
+    });
+    let captured;
+    const code = await runCli(["doctor", "--json"], {
+      env: {
+        ...process.env,
+        PORACODE_SERVER_TARBALL: tarball,
+        PORACODE_SERVER_TARBALL_SHA256: artifactSha,
+        PORACODE_RUNTIME_CACHE_DIR: join(root, "cache"),
+      },
+      installOptions: { npm: join(root, "npm-must-not-run") },
+      spawnImpl: (command, args, options) => {
+        captured = { command, args, options };
+        const child = new EventEmitter();
+        child.kill = () => {};
+        queueMicrotask(() => child.emit("exit", 0, null));
+        return child;
+      },
+    });
+    assert.equal(code, 0);
+    const runtimeDir = dirname(dirname(captured.args[0]));
+    assert.equal(captured.command, join(runtimeDir, "runtime", "node"));
+    assert.deepEqual(captured.args.slice(1), ["doctor", "--json"]);
+    assert.ok(existsSync(join(runtimeDir, "standalone.json")));
+    assert.equal(existsSync(join(runtimeDir, "node_modules")), false);
+  },
+);
+
+void test("standaloneRuntimeNode fails closed on a foreign or mismatched marker", async () => {
+  const { standaloneRuntimeNode } = await import("../lib/standalone.mjs");
+  const runtimeDir = tempDir("poracode-cli-standalone-marker-");
+  assert.equal(standaloneRuntimeNode(runtimeDir), null);
+  const write = (marker) =>
+    writeFileSync(join(runtimeDir, "standalone.json"), `${JSON.stringify(marker)}\n`);
+  const valid = {
+    formatVersion: 1,
+    kind: "poracode-standalone-runtime",
+    version: "1.2.3",
+    target: "linux-x64",
+    node: { version: "26.13.0", executable: "runtime/node" },
+  };
+  write({ ...valid, formatVersion: 2 });
+  assert.throws(() => standaloneRuntimeNode(runtimeDir), /unknown format/u);
+  write({ ...valid, node: { version: "26.13.0", executable: "../node" } });
+  assert.throws(() => standaloneRuntimeNode(runtimeDir), /node executable path/u);
+  write(valid);
+  assert.throws(() => standaloneRuntimeNode(runtimeDir), /node executable missing/u);
+  mkdirSync(join(runtimeDir, "runtime"));
+  writeFileSync(join(runtimeDir, "runtime", "node"), "");
+  assert.throws(() => standaloneRuntimeNode(runtimeDir, { version: "9.9.9" }), /version mismatch/u);
+  assert.equal(
+    standaloneRuntimeNode(runtimeDir, { version: "1.2.3", target: "linux-x64" }),
+    join(runtimeDir, "runtime", "node"),
   );
 });

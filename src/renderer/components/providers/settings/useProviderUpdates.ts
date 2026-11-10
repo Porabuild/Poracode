@@ -9,6 +9,11 @@ import {
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import { machineKey } from "@/shared/machines";
 import { localizeCatalogMessage } from "@/shared/messages";
+import {
+  loadAcpRegistryListing,
+  useCombinedProviderRuntimeUpdates,
+  type CombinedProviderRuntimeUpdateEntry,
+} from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { getCombinedRuntimeUpdates } from "@/renderer/components/providers/providerComposer";
 import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { machineIdForStatus, type MachineDescriptor } from "@/renderer/state/machines";
@@ -48,8 +53,10 @@ export interface ProviderUpdateEntry {
    * common single-environment case stays a bare version string.
    */
   environments: readonly ProviderEnvironmentVersion[];
-  /** Version to update to; `undefined` when the provider is current. */
+  /** Binary/registry target; combined runtimes expose their targets in `runtimeUpdate`. */
   targetVersion: string | undefined;
+  /** Independently versioned runtimes, each compared with its own upstream. */
+  runtimeUpdate?: CombinedProviderRuntimeUpdateEntry;
   /** Current bulk/manual update phase; `undefined` when no update is pending. */
   updatePhase: ProviderUpdatePhase | undefined;
 }
@@ -91,8 +98,8 @@ function hasCombinedRuntimes(kind: string): boolean {
  * settings page per provider.
  *
  * Both update channels of the per-agent settings page are covered: ACP registry
- * instances update through the registry, every other provider updates its
- * binary once per environment it is installed in (Windows and each WSL distro).
+ * instances update through the registry, combined runtimes use their registered
+ * channels, and other providers update their binary in the selected environment.
  */
 export function useProviderUpdates(
   agents: readonly AgentStatus[],
@@ -104,6 +111,7 @@ export function useProviderUpdates(
   const pools = useHostAgentStatusPools(host.connectionKey);
   const machineEnvId = machineKey({ host: "local", env: machine.ref.env });
   const registryInstalled = useHostRegistryInstalledAgents(host);
+  const combinedUpdates = useCombinedProviderRuntimeUpdates(agents, {}, host);
   const [latestByKind, setLatestByKind] = useState<Readonly<Record<string, string>>>({});
   const [registryLatestById, setRegistryLatestById] = useState<Readonly<Record<string, string>>>(
     {},
@@ -153,8 +161,7 @@ export function useProviderUpdates(
   useEffect(() => {
     if (!hasRegistryKinds) return;
     let cancelled = false;
-    host
-      .listAcpRegistry()
+    loadAcpRegistryListing(host)
       .then((result) => {
         if (cancelled) return;
         setRegistryLatestById(
@@ -224,11 +231,16 @@ export function useProviderUpdates(
     if (statuses.length === 0) return EMPTY_ENTRY;
     const pendingUpdate = queue.pendingUpdates.get(hostScopedKey(host.key, kind));
     const pendingTargetVersion = pendingUpdate?.targetVersion;
-    // A provider whose surfaces ship as independently versioned runtimes has no
-    // single binary to compare here — its root version is whichever runtime is
-    // installed. Its update action lives on the provider page and the composer
-    // dock, which compare every runtime against its own upstream.
-    if (isAgentProfileKind(kind) || hasCombinedRuntimes(kind)) {
+    if (hasCombinedRuntimes(kind) && !isAgentProfileKind(kind)) {
+      return {
+        installedVersion: newestVersionOf(statuses),
+        environments: [],
+        targetVersion: undefined,
+        runtimeUpdate: combinedUpdates.entryFor(statuses[0]!),
+        updatePhase: pendingUpdate?.phase,
+      };
+    }
+    if (isAgentProfileKind(kind)) {
       return {
         installedVersion: newestVersionOf(statuses),
         environments: environmentsOf(statuses),
@@ -266,7 +278,11 @@ export function useProviderUpdates(
     };
   }
 
-  const outdatedKinds = kinds.filter((kind) => entryFor(kind).targetVersion !== undefined);
+  function hasUpdate(entry: ProviderUpdateEntry): boolean {
+    return entry.targetVersion !== undefined || entry.runtimeUpdate?.updateAvailable === true;
+  }
+
+  const outdatedKinds = kinds.filter((kind) => hasUpdate(entryFor(kind)));
 
   async function runBinaryUpdate(
     agent: AgentStatus,
@@ -311,6 +327,11 @@ export function useProviderUpdates(
   ): Promise<void> {
     const { agent } = target;
     const registryId = extractAcpGenericInstanceId(agent.kind);
+    if (hasCombinedRuntimes(agent.kind)) {
+      await combinedUpdates.updateStatus(agent, { toast: false });
+      toast.success(t`${agent.label} updated.`);
+      return;
+    }
     if (registryId === undefined) {
       await runBinaryUpdate(agent, onPhaseChange);
     } else {
@@ -325,16 +346,18 @@ export function useProviderUpdates(
 
   function updateKind(kind: string): void {
     const agent = agents.find((candidate) => candidate.kind === kind);
-    const targetVersion = entryFor(kind).targetVersion;
-    if (!agent || !targetVersion || isAgentProfileKind(kind)) return;
-    queue.updateKind({ agent, targetVersion, hostKey: host.key });
+    const entry = entryFor(kind);
+    if (!agent || !hasUpdate(entry) || isAgentProfileKind(kind)) return;
+    queue.updateKind({ agent, targetVersion: entry.targetVersion, hostKey: host.key });
   }
 
   function updateAll(): void {
     queue.updateAll(
       agents.flatMap((agent) => {
-        const targetVersion = entryFor(agent.kind).targetVersion;
-        return targetVersion ? [{ agent, targetVersion, hostKey: host.key }] : [];
+        const entry = entryFor(agent.kind);
+        return hasUpdate(entry)
+          ? [{ agent, targetVersion: entry.targetVersion, hostKey: host.key }]
+          : [];
       }),
     );
   }

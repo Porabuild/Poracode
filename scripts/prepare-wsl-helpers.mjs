@@ -1,7 +1,7 @@
 /**
  * Stages every Node helper that we run *inside* a WSL distro into
  * `resources/wsl-helpers/` so electron-builder can bundle them as
- * extraResources. Eight artefacts ride this pipeline:
+ * extraResources. Nine artefacts ride this pipeline:
  *
  *   1. `watcher.node` — @parcel/watcher Linux x64 native binding,
  *      downloaded via `npm pack`. Loaded by `bridge.mjs` for watch
@@ -16,6 +16,7 @@
  *   6. `commandcode-mcp-mod.mjs` — session-local MCP tool integration.
  *   7. `pi-mcp-extension.mjs` — terminal and RPC MCP tool integration.
  *   8. `mcp-stdio.mjs` — protocol-transparent MCP cwd launcher.
+ *   9. `mcp-relay.mjs` — SDK-free stdio relay to Poracode-served MCP endpoints.
  *
  * Idempotency: presence + non-zero size on `watcher.node` skips the
  * `npm pack` download. Other helpers are compared byte-for-byte before copy,
@@ -54,6 +55,7 @@ stageCursorSdkWorker();
 stageCommandCodeMcpMod();
 stagePiMcpExtension();
 stageMcpStdioWorker();
+stageMcpHttpRelayWorker();
 
 function stageWatcherBinary() {
   const dest = join(destDir, "watcher.node");
@@ -164,4 +166,10 @@ function stageMcpStdioWorker() {
   const src = join(repoRoot, "dist", "main", "mcpStdioWorker.mjs");
   assertSelfContainedWorker(src, "MCP stdio worker");
   copyIfChanged(src, join(destDir, "mcp-stdio.mjs"), "mcpStdioWorker.mjs");
+}
+
+function stageMcpHttpRelayWorker() {
+  const src = join(repoRoot, "dist", "main", "mcpHttpRelayWorker.mjs");
+  assertSelfContainedWorker(src, "MCP HTTP relay worker");
+  copyIfChanged(src, join(destDir, "mcp-relay.mjs"), "mcpHttpRelayWorker.mjs");
 }

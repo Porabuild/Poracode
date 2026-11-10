@@ -2,7 +2,11 @@ import { grokNativeMcpConfig } from "./nativeMcp";
 import { randomUUID } from "node:crypto";
 import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
-import { createAcpStructuredSession } from "../acp";
+import {
+  createAcpStructuredSession,
+  createSharedAcpStructuredSession,
+  shutdownSharedAcpProcesses,
+} from "../acp";
 import {
   assertOneShotControlsMapped,
   resolveCheckedOneShotBuilderSelection,
@@ -192,20 +196,26 @@ export function createGrokAdapter(): AgentAdapter {
         [...acpArgs, "agent", "stdio"],
         resolveAgentBinaryPath(input.projectLocation, "grok"),
       );
-      return createAcpStructuredSession(
-        command,
-        {
-          ...input,
-          // Grok ACP proxies ReadFile through the client, including SKILL.md
-          // loads from ~/.grok/bundled/skills and ~/.grok/skills. Without a
-          // home-dir carve-out the shared fs bridge rejects those paths as
-          // outside the project and every global/bundled skill fails.
-          acpFsAgentHomeDirs: [".grok"],
-          acpSessionUpdateTransform: createGrokAcpSessionUpdateTransform(),
-        },
-        { resolveModelConfig: resolveGrokAcpModel },
-      );
+      const sessionInput: CreateStructuredSessionInput = {
+        ...input,
+        // Grok ACP proxies ReadFile through the client, including SKILL.md
+        // loads from ~/.grok/bundled/skills and ~/.grok/skills. Without a
+        // home-dir carve-out the shared fs bridge rejects those paths as
+        // outside the project and every global/bundled skill fails.
+        acpFsAgentHomeDirs: [".grok"],
+        acpSessionUpdateTransform: createGrokAcpSessionUpdateTransform(),
+      };
+      const overrides = { resolveModelConfig: resolveGrokAcpModel };
+      return input.projectLocation.kind === "wsl"
+        ? createAcpStructuredSession(command, sessionInput, overrides)
+        : await createSharedAcpStructuredSession(
+            command,
+            sessionInput,
+            { scope: grokDetectionSpec.kind },
+            overrides,
+          );
     },
+    shutdown: () => shutdownSharedAcpProcesses(grokDetectionSpec.kind),
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);

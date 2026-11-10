@@ -3,6 +3,7 @@ import { TERMINAL_CURSOR_SYNC_V2_VERSION } from "@/shared/remote/protocol";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BrowseHostDirectoryResult } from "@/shared/contracts";
+import type { RemoteProjectCommandResponse } from "@/shared/remote";
 import {
   registerRemoteProcedureHost,
   resetRemoteProcedureRouterForTest,
@@ -373,8 +374,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // legacy response (and receives no unsupported declaration). The
           // explicit per-operation id the mode requires is minted in the
           // shared command seam, which also honors a caller's reused id.
+          let response: RemoteProjectCommandResponse;
           try {
-            await withClient(desktopId, (client) =>
+            response = await withClient(desktopId, (client) =>
               sendClientProjectCommand(client, command, {
                 ...options,
                 ...(hostSupportsProjectCommandResultsForConnection(desktopId)
@@ -393,6 +395,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           } else {
             await get().refreshServer(desktopId);
           }
+          return response;
         },
 
         browseHostDirectory: async (desktopId, path) => {

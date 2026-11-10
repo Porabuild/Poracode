@@ -77,6 +77,10 @@ internal val schema_f46da48437a0c164: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_0465e7aaae9c70d7, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_f48ab668e0f88dac: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("contextStrategy", "inheritedTurnCount", "threadId", "throughItemId", "title", "version"), properties = mapOf("contextStrategy" to schema_38041bf5caec6644, "inheritedTurnCount" to schema_23e05d248383ea40, "threadId" to schema_36fea325bf1aca70, "throughItemId" to schema_36fea325bf1aca70, "title" to schema_36fea325bf1aca70, "transfer" to schema_cbf87de41a5a2211, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_f4cab1817a71aa36: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("skills")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

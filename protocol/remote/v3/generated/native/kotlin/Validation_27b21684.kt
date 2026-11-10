@@ -93,6 +93,10 @@ internal val schema_7f6bd58bd8881ec0: RemoteSchema by lazy {
     RemoteSchema(type = "string", minLength = 1, maxLength = 100000, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_7f836db787c9df87: RemoteSchema by lazy {
+    RemoteSchema(type = "string", pattern = "^[A-Za-z0-9][A-Za-z0-9-]{7,63}$", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_7f86e779ad379105: RemoteSchema by lazy {
     RemoteSchema(type = "array", defaultValue = JsonArray(listOf()), items = schema_c04b1452d18edb3f, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

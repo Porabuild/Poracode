@@ -144,6 +144,49 @@ export async function resolveTuiLaunchForRun(
   return resolveCheckoutLaunch(layout, { ...options, platform, env, exists, directory });
 }
 
+/**
+ * Lets the installers fetch the TUI so the first `poracode` opens without a
+ * download: the PORACODE_TUI_BIN override wins, then the verified download
+ * cache (downloading on a miss when this install's manifest declares the
+ * target). Undefined when the install offers no TUI binary for this target.
+ * Starts no owner, creates no TUI home and needs no terminal.
+ */
+export async function prefetchTuiBinary(
+  input: { readonly capturedBuild?: HostBuildIdentity },
+  dependencies: {
+    readonly layout?: ServerInstallLayout;
+    readonly appVersion?: string;
+    readonly env?: NodeJS.ProcessEnv;
+    readonly platform?: NodeJS.Platform;
+    readonly arch?: string;
+    readonly fileExists?: (path: string) => boolean;
+    readonly fetchImpl?: typeof fetch;
+    readonly log?: (line: string) => void;
+  } = {},
+): Promise<string | undefined> {
+  const env = dependencies.env ?? process.env;
+  const platform = dependencies.platform ?? process.platform;
+  const layout = dependencies.layout ?? resolveServerInstallLayout({ libDir: __dirname });
+  const binary = resolveTuiBinary(layout, {
+    env,
+    platform,
+    ...(dependencies.fileExists !== undefined ? { fileExists: dependencies.fileExists } : {}),
+  });
+  if (binary) return binary;
+  const appVersion =
+    dependencies.appVersion ??
+    input.capturedBuild?.version ??
+    resolveServerVersion({ layout }).version;
+  return ensureTuiBinaryDownload(layout, {
+    env,
+    platform,
+    arch: dependencies.arch ?? process.arch,
+    appVersion,
+    ...(dependencies.fetchImpl !== undefined ? { fetchImpl: dependencies.fetchImpl } : {}),
+    ...(dependencies.log !== undefined ? { log: dependencies.log } : {}),
+  });
+}
+
 /** No TUI binary or checkout entrypoint exists for this install — a
  * configuration fact, not a crash: bare `poracode` falls back to serve+open. */
 export class TuiLaunchUnavailableError extends Error {

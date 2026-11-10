@@ -1,40 +1,18 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { AppWindow, Code2 } from "lucide-react";
 import type { AppBridge, McpUiHostContext } from "@modelcontextprotocol/ext-apps/app-bridge";
 import type { CallToolResult } from "@modelcontextprotocol/client";
 import type { McpAppReference } from "@/shared/contracts/mcpApps";
-import {
-  readManagedLoopbackActivation,
-  subscribeManagedLoopbackActivation,
-} from "@/renderer/hostTransport/loopbackHttpWsTransport";
-import {
-  getRemoteBridgeClient,
-  subscribeRemoteBridgeClient,
-} from "@/renderer/browser/remoteBridge";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
 import { Button } from "@/renderer/components/common/Button";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { InlineVisual } from "./InlineVisual";
 import { VisualSource } from "./VisualSource";
 import { CopyTextButton } from "./CopyTextButton";
+import { useMcpAppSandboxEndpoint } from "./mcpAppSandboxEndpoint";
 import { readBridge } from "@/renderer/bridge";
 import { submitThreadInput } from "@/renderer/actions/threadRuntimeActions";
-
-function sandboxEndpoint(): string | undefined {
-  // The bootstrap is public static code. App data and operations always use
-  // the authenticated owning-thread bridge, even for a different paired host.
-  return readManagedLoopbackActivation()?.endpoint ?? getRemoteBridgeClient()?.endpoint;
-}
-
-function subscribeEndpoint(listener: () => void): () => void {
-  const stopManaged = subscribeManagedLoopbackActivation(listener);
-  const stopRemote = subscribeRemoteBridgeClient(listener);
-  return () => {
-    stopManaged();
-    stopRemote();
-  };
-}
 
 interface McpAppCardProps {
   app: McpAppReference;
@@ -53,7 +31,7 @@ export function McpAppCard({ app, threadId, html, title, input, result }: McpApp
   useEffect(() => {
     actionsRef.current = actions;
   }, [actions]);
-  const endpoint = useSyncExternalStore(subscribeEndpoint, sandboxEndpoint, sandboxEndpoint);
+  const endpoint = useMcpAppSandboxEndpoint();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const bridgeRef = useRef<AppBridge | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "unavailable">("loading");

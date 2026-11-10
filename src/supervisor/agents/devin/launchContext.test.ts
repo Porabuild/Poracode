@@ -14,6 +14,7 @@ import {
   devinConfigNeedsVariantMapping,
   DevinCatalogUnavailableError,
   effectiveDevinUserConfigPath,
+  planDevinProfileMcpOverlay,
   prepareDevinProfileLaunch,
   prepareDevinProfileMcpOverlay,
   resolveDevinLaunchModel as resolveLaunchForOwner,
@@ -523,6 +524,69 @@ describe("private profile MCP overlay", () => {
       await expect(
         prepareDevinProfileMcpOverlay({ kind: "posix", path: "/p" }, context, []),
       ).rejects.toMatchObject({ name: "DevinProfilePolicyError" });
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it("plans a shared-process overlay that omits hosted servers and deletes same-named native entries", async () => {
+    const base = await mkdtemp(join(tmpdir(), "poracode-devin-plan-"));
+    try {
+      const configRoot = join(base, "account", "config");
+      await mkdir(join(configRoot, "devin"), { recursive: true });
+      await writeFile(
+        join(configRoot, "devin", "mcp_config.json"),
+        JSON.stringify({
+          mcpServers: {
+            browser: { command: "native-browser" },
+            personal: { command: "keep" },
+          },
+        }),
+      );
+      const context = {
+        env: { XDG_CONFIG_HOME: configRoot },
+        roots: {},
+      } as unknown as DevinExecutionContext;
+      const relayed = {
+        name: "fs",
+        transport: { type: "stdio" as const, command: "run" },
+      } as never;
+      const plan = await planDevinProfileMcpOverlay(
+        { kind: "posix", path: "/p" },
+        context,
+        [relayed],
+        ["browser"],
+      );
+      expect(plan).toBeDefined();
+      const materialized = await plan!.materialize();
+      const merged = JSON.parse(
+        await readFile(
+          join(materialized.env!.XDG_CONFIG_HOME!, "devin", "mcp_config.json"),
+          "utf8",
+        ),
+      );
+      // The hosted route's name cannot resolve to the account's own entry,
+      // the relayed server is injected, unrelated entries survive.
+      expect(merged.mcpServers).not.toHaveProperty("browser");
+      expect(merged.mcpServers.fs).toBeDefined();
+      expect(merged.mcpServers.personal).toEqual({ command: "keep" });
+      await materialized.cleanup();
+      // The plan key identifies the merged content: identical inputs share,
+      // different deletions do not.
+      const same = await planDevinProfileMcpOverlay(
+        { kind: "posix", path: "/p" },
+        context,
+        [relayed],
+        ["browser"],
+      );
+      expect(same!.key).toBe(plan!.key);
+      const different = await planDevinProfileMcpOverlay(
+        { kind: "posix", path: "/p" },
+        context,
+        [relayed],
+        ["browser", "personal"],
+      );
+      expect(different!.key).not.toBe(plan!.key);
     } finally {
       await rm(base, { recursive: true, force: true });
     }

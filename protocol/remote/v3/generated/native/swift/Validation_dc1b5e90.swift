@@ -5,6 +5,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_0dde37d4b96304ba = RemoteSchema(type: "integer", minimum: 1.0, maximum: 536870912.0, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_0dde9dcedeaf7090 = RemoteSchema(type: "object", required: Set(["staged", "unstaged"]), properties: ["staged": RemoteSchemas.schema_e51d77fd6734b53a, "unstaged": RemoteSchemas.schema_e51d77fd6734b53a], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -22,6 +26,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_0e40f389d72655d0 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_83c7c01b4046dd13, RemoteSchemas.schema_de00765ac7659be8, RemoteSchemas.schema_f9b76467f6b16682], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_0e5eb227708be551 = RemoteSchema(type: "object", required: Set(["haves", "kind", "threadId", "transferId"]), properties: ["haves": RemoteSchemas.schema_9f329d4108aed026, "kind": RemoteSchemas.schema_fc6406ea9b9267b2, "threadId": RemoteSchemas.schema_36fea325bf1aca70, "transferId": RemoteSchemas.schema_7f836db787c9df87], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -66,6 +74,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_114549e732be9b99 = RemoteSchema(type: "string", literals: [.string("terminal-watch-baseline-chunk")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_1150a8738e84591f = RemoteSchema(type: "object", required: Set(["agentKind", "git", "presentationMode", "threadId", "title"]), properties: ["agentKind": RemoteSchemas.schema_36fea325bf1aca70, "blocker": RemoteSchemas.schema_63ccc3fa64031cff, "git": RemoteSchemas.schema_8c2e2b2a66e23748, "presentationMode": RemoteSchemas.schema_6508684ba659826b, "threadId": RemoteSchemas.schema_36fea325bf1aca70, "title": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

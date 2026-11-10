@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { ChangelogRelease } from "@/shared/changelog";
 import { highlightHeadline } from "@/shared/changelogHighlights";
-import { useNewsLineStore } from "@/renderer/state/newsLineStore";
+import { useNewsLineStore, type DiscoveryHistory } from "@/renderer/state/newsLineStore";
 import { FEATURE_CATALOG, type FeatureContext } from "./featureCatalog";
 import { newFeaturesFromChangelog, pickDiscoveries } from "./featureDiscoveryPicks";
 import { seededRandom } from "./newsPlaylist";
@@ -25,14 +24,15 @@ export function useDiscoveryItems(options: {
   releases: readonly ChangelogRelease[];
   appVersion: string;
   visitStartedAt: number;
+  /** Discovery history as the visit started, so showings during the visit don't reshuffle it. */
+  history: DiscoveryHistory;
 }): NewsItem[] {
   const { t } = useLingui();
-  const { seed, context, hidden, releases, appVersion, visitStartedAt } = options;
-  const [historyAtVisit] = useState(() => useNewsLineStore.getState().discoveryHistory);
+  const { seed, context, hidden, releases, appVersion, visitStartedAt, history } = options;
   const store = useNewsLineStore.getState;
 
   const picks = pickDiscoveries(FEATURE_CATALOG, context, {
-    history: historyAtVisit,
+    history,
     hidden,
     newFeatures: newFeaturesFromChangelog(releases, appVersion, visitStartedAt),
     now: visitStartedAt,

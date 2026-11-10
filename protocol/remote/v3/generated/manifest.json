@@ -1142,6 +1142,29 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-transfer-command",
+      "method": "POST",
+      "path": "/api/thread-transfers/command",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "thread-transfer-upload",
+      "method": "POST",
+      "path": "/api/thread-transfers/{transferId}/package",
+      "queryParameters": [
+        "offset",
+        "total",
+        "sha256"
+      ],
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "experiment-state",
       "method": "GET",
       "path": "/api/experiments",

@@ -161,12 +161,17 @@ describe("computer-use helper contract", () => {
         join(process.cwd(), "scripts", "prepare-computer-use-helper.mjs"),
         "utf8",
       );
+      // The target table is shared by every native helper prepare spec.
+      const sharedPrepareSource = readFileSync(
+        join(process.cwd(), "scripts", "lib", "native-helper-prepare.mjs"),
+        "utf8",
+      );
       const afterPackSource = readFileSync(join(process.cwd(), "build", "after-pack.cjs"), "utf8");
       const artifactSource = readFileSync(
         join(process.cwd(), "scripts", "build-desktop-artifact.mjs"),
         "utf8",
       );
-      expect(prepareSource).toContain(
+      expect(sharedPrepareSource).toContain(
         'linux: [{ arch: "x64", id: "linux-x64", triple: "x86_64-unknown-linux-musl" }]',
       );
       expect(prepareSource).toContain(

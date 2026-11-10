@@ -197,6 +197,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_4734a988c0fc7988 = RemoteSchema(type: "object", required: Set(["kind", "transferId"]), properties: ["kind": RemoteSchemas.schema_9083db8e32ed061a, "transferId": RemoteSchemas.schema_7f836db787c9df87], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_473e9b7f4728cf72 = RemoteSchema(type: "object", properties: ["gui": RemoteSchemas.schema_feeb8bb50144d96d, "terminal": RemoteSchemas.schema_feeb8bb50144d96d], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -353,6 +357,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_4db742376cbe66fa = RemoteSchema(type: "array", maxItems: 16, items: RemoteSchemas.schema_36fea325bf1aca70, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_4dced7b84600297c = RemoteSchema(type: "object", required: Set(["agentKind", "forgeAccount", "forgeRepository", "prNumber", "projectLocation"]), properties: ["agentKind": RemoteSchemas.schema_36fea325bf1aca70, "forgeAccount": RemoteSchemas.schema_c2bb40b82b330cd4, "forgeRepository": RemoteSchemas.schema_36fea325bf1aca70, "instructions": RemoteSchemas.schema_e8ae3938f73bbe3d, "language": RemoteSchemas.schema_36fea325bf1aca70, "prNumber": RemoteSchemas.schema_23e05d248383ea40, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27, "selection": RemoteSchemas.schema_32c3720f649f40a1], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -370,6 +378,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_4e1c353012bcb7ec = RemoteSchema(type: "object", required: Set(["conclusion", "name", "number", "status"]), properties: ["completedAt": RemoteSchemas.schema_bf0b727f7b1c6d07, "conclusion": RemoteSchemas.schema_bf0b727f7b1c6d07, "name": RemoteSchemas.schema_bf0b727f7b1c6d07, "number": RemoteSchemas.schema_3d06117798bf5171, "startedAt": RemoteSchemas.schema_bf0b727f7b1c6d07, "status": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_4e3a1013cf1d3a58 = RemoteSchema(type: "string", pattern: "^[0-9a-f]{40}(?:[0-9a-f]{24})?$", unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

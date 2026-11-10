@@ -46,7 +46,10 @@ export async function downloadArtifact(entry, destination, options = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const maxBytes = options.maxBytes ?? RUNTIME_ARTIFACT_MAX_BYTES;
   const signal = options.signal;
-  if (!entry.url.startsWith("https://")) {
+  if (
+    !entry.url.startsWith("https://") &&
+    !(options.allowHttp && entry.url.startsWith("http://"))
+  ) {
     throw new Error(`Refusing to download a runtime over a non-https URL: ${entry.url}`);
   }
   let response;

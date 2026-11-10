@@ -1,4 +1,5 @@
 import { compareUnicodeCodePoints } from "../unicodeOrder";
+import { fnv1a32 } from "../../../fnv1a32";
 import { collisionSuffix, stableMemberName } from "./names";
 import { structuralSchemaHash } from "./schemaGraph";
 import type { JsonSchema, NativeBindingIr, NativeSchemaGraph, NativeTypeNode } from "./types";
@@ -301,7 +302,7 @@ export function unknownFieldPolicy(schema: JsonSchema): "strip" | "reject" | "pa
 }
 
 const DECLARED_SYMBOL =
-  /\b(?:struct|class|enum|protocol|typealias|func|fun|let|val|var|object|interface)\s+`?([A-Za-z_][A-Za-z0-9_]*)/u;
+  /\b(?:enum\s+class|struct|class|enum|protocol|typealias|func|fun|let|val|var|object|interface)\s+`?([A-Za-z_][A-Za-z0-9_]*)/u;
 
 /** The declared symbol (or, failing that, the whole text) identifies a declaration. */
 function declarationIdentity(declaration: readonly string[]): string {
@@ -310,16 +311,6 @@ function declarationIdentity(declaration: readonly string[]): string {
     if (symbol) return symbol;
   }
   return declaration.join("\n");
-}
-
-/** FNV-1a: a dependency-free, platform-independent 32-bit hash. */
-function fnv1a32(value: string): number {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash;
 }
 
 /**

@@ -24,6 +24,7 @@ function resetFindRoutingState(): void {
     prReviewContext: null,
     createProjectModalOpen: false,
     cloneProjectModalOpen: false,
+    remoteFolderPickerConnectionKey: null,
   });
   useAppStore.setState({ view: { kind: "home" } });
   useFindFocusStore.setState({ settingsFocusToken: 0, treeFocusToken: 0 });
@@ -97,6 +98,13 @@ describe("resolveFindTarget", () => {
   it("lets the command palette keep Ctrl+F", () => {
     useAppStore.setState({ view: { kind: "thread", panes: ["thread-1"] } });
     useCommandPaletteStore.setState({ isOpen: true });
+
+    expect(resolveFindTarget()).toBeNull();
+  });
+
+  it("does not search the thread behind a remote folder picker", () => {
+    useAppStore.setState({ view: { kind: "thread", panes: ["thread-1"] } });
+    usePanelStore.setState({ remoteFolderPickerConnectionKey: "mac" });
 
     expect(resolveFindTarget()).toBeNull();
   });

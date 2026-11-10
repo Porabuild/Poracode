@@ -269,6 +269,21 @@ export function resolveAcpMcpCapabilities(
   return advertised ?? assumed;
 }
 
+/**
+ * Connect a relayed host endpoint directly when the agent negotiates HTTP, so
+ * the agent spawns no stdio relay process for that server.
+ */
+export function preferDirectAcpMcpTransports<T extends ResolvedMcpServer>(
+  servers: readonly T[],
+  capabilities: AcpMcpCapabilities | undefined,
+): T[] {
+  return servers.map((server) =>
+    server.directTransport && capabilities?.http === true
+      ? { ...server, transport: server.directTransport }
+      : server,
+  );
+}
+
 export function gateAcpMcpServers<T extends object>(
   servers: T[],
   capabilities: AcpMcpCapabilities | undefined,

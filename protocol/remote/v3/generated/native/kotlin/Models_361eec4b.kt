@@ -82,12 +82,38 @@ enum class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DContext
 }
 
 @Serializable
-data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFrom_8edde8b52f(
+data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DTransfer_cbf87de41a(
+    @SerialName("fromAgentKind") val fromAgentKind: RemoteField<String> = RemoteField.Missing,
+    @SerialName("sourceHostId") val sourceHostId: RemoteField<String> = RemoteField.Missing,
+    @SerialName("sourceHostLabel") val sourceHostLabel: String,
+    @SerialName("sourceWorkingDirectory") val sourceWorkingDirectory: RemoteField<String> = RemoteField.Missing,
+    @SerialName("targetHostLabel") val targetHostLabel: RemoteField<String> = RemoteField.Missing,
+    @SerialName("transferId") val transferId: String,
+    @SerialName("transferredAt") val transferredAt: String,
+    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("fromAgentKind", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("sourceHostId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("sourceHostLabel", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("sourceWorkingDirectory", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("targetHostLabel", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("transferId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("transferredAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFrom_f48ab668e0(
     @SerialName("contextStrategy") val contextStrategy: RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DContextStrategy_38041bf5ca,
     @SerialName("inheritedTurnCount") val inheritedTurnCount: Long,
     @SerialName("threadId") val threadId: String,
     @SerialName("throughItemId") val throughItemId: String,
     @SerialName("title") val title: String,
+    @SerialName("transfer") val transfer: RemoteField<RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DTransfer_cbf87de41a> = RemoteField.Missing,
     @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72,
 ) {
     companion object {
@@ -97,6 +123,7 @@ data class RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFrom_8edde8b52
             RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("throughItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("title", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("transfer", "RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DForkedFromU2DTransfer_cbf87de41a", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }

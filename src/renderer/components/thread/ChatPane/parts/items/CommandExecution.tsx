@@ -21,6 +21,7 @@ import { getCommandExecutionCollapsedHeader } from "./collapsedHeaderCache";
 import { type CommandIntentKind } from "./commandSummary";
 import { extractAcpResultText } from "./acpToolPayload";
 import { useHistoryItemDetails, HistoryItemDetailPlaceholder } from "./useHistoryItemDetails";
+import { formatDuration } from "@/renderer/utils/formatTime";
 
 interface CommandExecutionProps {
   item: RuntimeChatItem;
@@ -114,9 +115,4 @@ function resolveCommandStatus(
     textClass: "text-danger",
     rightLabel: dur,
   };
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
 }

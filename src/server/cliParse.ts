@@ -3,6 +3,7 @@ import { parseServeCliOptions } from "./serverConfig";
 import { parseUpgradeCliOptions } from "./serverUpgrade";
 import { parseServiceCliOptions } from "./serverService";
 import { parseSetupCliOptions } from "./cliSetup";
+import { parseUpCliOptions } from "./cliUp";
 import { parseStatusCliOptions } from "./cliStatus";
 import { parseLogsCliOptions } from "./cliLogs";
 
@@ -23,9 +24,83 @@ export type ServerCliCommand =
   | "backup"
   | "init-tls"
   | "upgrade"
+  | "update"
+  | "uninstall"
+  | "install-command"
+  | "migrate-install"
+  | "install-activate"
+  | "up"
   | "stop"
   | "version"
   | "help";
+
+/** `update [VERSION] [--channel stable|nightly] [--prefix PATH] [--json]` */
+export function parseSelfUpdateCliOptions(args: readonly string[]): {
+  readonly version?: string;
+  readonly channel?: "stable" | "nightly";
+  readonly prefix?: string;
+  readonly json: boolean;
+} {
+  let version: string | undefined;
+  let channel: "stable" | "nightly" | undefined;
+  let prefix: string | undefined;
+  let json = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]!;
+    if (argument === "--json") json = true;
+    else if (argument === "--channel") {
+      const value = args[++index];
+      if (value !== "stable" && value !== "nightly")
+        throw new Error("--channel must be stable or nightly. Run update --help.");
+      channel = value;
+    } else if (argument === "--prefix") {
+      const value = args[++index];
+      if (!value?.trim() || value.startsWith("--"))
+        throw new Error("--prefix requires a path. Run update --help.");
+      prefix = value;
+    } else if (!argument.startsWith("-") && version === undefined) version = argument;
+    else throw new Error(`Unknown update argument ${argument}. Run update --help.`);
+  }
+  if (version !== undefined && channel !== undefined)
+    throw new Error("Pass a version or --channel, not both. Run update --help.");
+  return {
+    ...(version !== undefined ? { version } : {}),
+    ...(channel !== undefined ? { channel } : {}),
+    ...(prefix !== undefined ? { prefix } : {}),
+    json,
+  };
+}
+
+/** `uninstall [--prefix PATH] [--bin-dir PATH] [--yes] [--json]` */
+export function parseUninstallCliOptions(args: readonly string[]): {
+  readonly prefix?: string;
+  readonly binDir?: string;
+  readonly yes: boolean;
+  readonly json: boolean;
+} {
+  let prefix: string | undefined;
+  let binDir: string | undefined;
+  let yes = false;
+  let json = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]!;
+    if (argument === "--yes") yes = true;
+    else if (argument === "--json") json = true;
+    else if (argument === "--prefix" || argument === "--bin-dir") {
+      const value = args[++index];
+      if (!value?.trim() || value.startsWith("--"))
+        throw new Error(`${argument} requires a path. Run uninstall --help.`);
+      if (argument === "--prefix") prefix = value;
+      else binDir = value;
+    } else throw new Error(`Unknown uninstall argument ${argument}. Run uninstall --help.`);
+  }
+  return {
+    ...(prefix !== undefined ? { prefix } : {}),
+    ...(binDir !== undefined ? { binDir } : {}),
+    yes,
+    json,
+  };
+}
 
 export interface ActivateCliOptions {
   readonly json: boolean;
@@ -113,10 +188,12 @@ export interface TuiCliOptions {
   readonly serverName?: string;
   /** A saved server's name or id to open instead of the local host. */
   readonly server?: string;
+  /** Download and verify this install's TUI binary, then exit. */
+  readonly prefetch?: boolean;
 }
 
 const TUI_USAGE =
-  "Usage: poracode tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [--pair LINK [--name NAME] | --server NAME] [DIRECTORY]";
+  "Usage: poracode tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [--pair LINK [--name NAME] | --server NAME] [DIRECTORY] | poracode tui --prefetch";
 
 export function assertTuiTerminal(stdinIsTTY: boolean, stdoutIsTTY: boolean) {
   if (!stdinIsTTY || !stdoutIsTTY)
@@ -136,8 +213,22 @@ export function parseTuiCliOptions(args: readonly string[]): TuiCliOptions {
       pair: { type: "string" },
       name: { type: "string" },
       server: { type: "string" },
+      prefetch: { type: "boolean" },
     },
   });
+  if (parsed.values.prefetch === true) {
+    if (
+      parsed.positionals.length > 0 ||
+      parsed.values.continue !== undefined ||
+      parsed.values.session !== undefined ||
+      parsed.values.prompt !== undefined ||
+      parsed.values.auto !== undefined ||
+      parsed.values.pair !== undefined ||
+      parsed.values.name !== undefined ||
+      parsed.values.server !== undefined
+    )
+      throw new Error(TUI_USAGE);
+  }
   if (
     parsed.positionals.length > 1 ||
     parsed.values.session === "" ||
@@ -158,6 +249,7 @@ export function parseTuiCliOptions(args: readonly string[]): TuiCliOptions {
     ...(parsed.values.pair !== undefined ? { pairingUrl: parsed.values.pair } : {}),
     ...(parsed.values.name !== undefined ? { serverName: parsed.values.name.trim() } : {}),
     ...(parsed.values.server !== undefined ? { server: parsed.values.server } : {}),
+    ...(parsed.values.prefetch !== undefined ? { prefetch: parsed.values.prefetch } : {}),
   };
 }
 
@@ -195,6 +287,12 @@ export function parseServerCliCommand(
       "backup",
       "init-tls",
       "upgrade",
+      "update",
+      "uninstall",
+      "up",
+      "install-command",
+      "migrate-install",
+      "install-activate",
     ].includes(args[0]!) &&
     ["--help", "-h"].includes(args.at(-1)!)
   )
@@ -269,6 +367,30 @@ export function parseServerCliCommand(
   if (args[0] === "upgrade") {
     parseUpgradeCliOptions(args.slice(1));
     return "upgrade";
+  }
+  if (args[0] === "update") {
+    parseSelfUpdateCliOptions(args.slice(1));
+    return "update";
+  }
+  if (args[0] === "uninstall") {
+    parseUninstallCliOptions(args.slice(1));
+    return "uninstall";
+  }
+  if (args[0] === "install-command") {
+    if (args.length !== 1) throw new Error("Usage: poracode install-command");
+    return "install-command";
+  }
+  if (args[0] === "migrate-install") {
+    if (args.length !== 1) throw new Error("Usage: poracode migrate-install");
+    return "migrate-install";
+  }
+  if (args[0] === "install-activate") {
+    if (args.length !== 3) throw new Error("Usage: poracode install-activate PREFIX RELEASE");
+    return "install-activate";
+  }
+  if (args[0] === "up") {
+    parseUpCliOptions(args.slice(1));
+    return "up";
   }
   throw new Error(
     "Usage: poracode [tui [--continue|-c] [--session ID] [--prompt TEXT] [--auto] [--pair LINK [--name NAME] | --server NAME] [DIRECTORY] | " +

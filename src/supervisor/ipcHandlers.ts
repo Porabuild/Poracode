@@ -7,6 +7,13 @@ import {
 } from "@/shared/contracts";
 import { defineSupervisorIpcHandlers, type SupervisorIpcHandlerMap } from "@/shared/ipc";
 import { getProjectFsPath } from "@/shared/wsl";
+import {
+  exportThreadTransferGit,
+  importThreadTransferGit,
+  inspectThreadTransferGit,
+  probeThreadTransferRepositories,
+  threadTransferGitHaves,
+} from "./git/threadTransferGit";
 import type { SupervisorRuntime } from "./supervisorRuntime";
 
 /**
@@ -226,6 +233,11 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
         payload.ownerToken,
       ),
     gitRemoveWorktree: (payload) => runtime.gitRemoveWorktree(payload),
+    threadTransferInspectGit: (payload) => inspectThreadTransferGit(payload.projectLocation),
+    threadTransferRepoProbe: (payload) => probeThreadTransferRepositories(payload.projectLocations),
+    threadTransferGitHaves: (payload) => threadTransferGitHaves(payload.projectLocation),
+    threadTransferExportGit: (payload) => exportThreadTransferGit(payload),
+    threadTransferImportGit: (payload) => importThreadTransferGit(payload),
     gitPruneWorktrees: (payload) => runtime.gitPruneWorktrees(payload),
     gitDeleteBranch: (payload) =>
       payload.remote

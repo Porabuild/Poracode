@@ -89,6 +89,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_7f836db787c9df87 = RemoteSchema(type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9-]{7,63}$", unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_7f86e779ad379105 = RemoteSchema(type: "array", defaultValue: .array([]), items: RemoteSchemas.schema_c04b1452d18edb3f, unknownPolicy: .strip)
 }
 

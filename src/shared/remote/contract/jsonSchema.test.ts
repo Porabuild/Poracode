@@ -35,4 +35,14 @@ describe("zodToJsonSchema canonical form", () => {
     expect(schema.properties?.at?.format).toBe("date-time");
     expect(schema.properties?.link?.format).toBe("uri");
   });
+
+  it("preserves format fields in literal default data", () => {
+    const value = { pattern: "x", format: "starts_with" };
+    const schema = zodToJsonSchema(
+      z.object({ pattern: z.string(), format: z.string() }).default(value),
+      "output",
+    );
+
+    expect(schema).toHaveProperty("default", value);
+  });
 });

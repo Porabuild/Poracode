@@ -38,6 +38,85 @@ void test("the remote-v3 contract and core lint jobs lock the committed operatio
   assert.match(coreLock.run, /tests\/native-e2e\/vitest\.config\.ts/u);
 });
 
+void test("portable Swift suites run concurrently, join every suite, and propagate failures", async () => {
+  const native = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const step = native.jobs.ios.steps.find(
+    (item) => item.name === "Run portable Swift contract suites",
+  );
+  assert.ok(step, "the portable Swift contract step must stay present");
+  const temporaryRoot = fileURLToPath(new URL("../tmp/", import.meta.url));
+  await mkdir(temporaryRoot, { recursive: true });
+  const temporary = await mkdtemp(join(temporaryRoot, "swift-ci-"));
+  try {
+    const bin = join(temporary, "bin");
+    await mkdir(bin);
+    await writeFile(
+      join(bin, "swift"),
+      `#!${process.execPath}\n` +
+        `import fs from 'node:fs';\n` +
+        `const suite = process.argv[process.argv.indexOf('--package-path') + 1].split('/').pop();\n` +
+        `const events = process.env.RUNNER_TEMP + '/events.log';\n` +
+        `fs.appendFileSync(events, Date.now() + ' ' + suite + ' start\\n');\n` +
+        `console.log(suite + ' start');\n` +
+        `setTimeout(() => {\n` +
+        `  fs.appendFileSync(events, Date.now() + ' ' + suite + ' end\\n');\n` +
+        `  console.log(suite + ' end');\n` +
+        `  process.exit(process.env.FAIL_SUITE === suite ? 9 : 0);\n` +
+        `}, 100);\n`,
+      { mode: 0o755 },
+    );
+    for (const failSuite of ["", "BrowserMirror"]) {
+      const evidence = join(temporary, failSuite || "success");
+      await mkdir(evidence);
+      const result = spawnSync("bash", ["-c", step.run], {
+        cwd: temporary,
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          RUNNER_TEMP: evidence,
+          FAIL_SUITE: failSuite,
+        },
+        encoding: "utf8",
+        timeout: 15_000,
+      });
+      assert.ifError(result.error);
+      if (failSuite) assert.notEqual(result.status, 0, result.stdout + result.stderr);
+      else assert.equal(result.status, 0, result.stdout + result.stderr);
+      const events = await readFile(join(evidence, "events.log"), "utf8");
+      let active = 0;
+      let maximum = 0;
+      for (const line of events.trim().split("\n")) {
+        const [, , phase] = line.split(" ");
+        active += phase === "start" ? 1 : -1;
+        maximum = Math.max(maximum, active);
+      }
+      assert.ok(maximum >= 2, `suites did not overlap:\n${events}`);
+      for (const suite of [
+        "PortForwarding",
+        "BrowserMirror",
+        "GitHubOperations",
+        "AdvancedOperations",
+      ])
+        assert.match(
+          await readFile(join(evidence, "poracode-swift-contracts", `${suite}.log`), "utf8"),
+          new RegExp(`${suite} (start|end)`),
+        );
+    }
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+void test("Android unit tests use two isolated JVM forks", async () => {
+  const gradle = await readFile(
+    new URL("../android/app/build.gradle.kts", import.meta.url),
+    "utf8",
+  );
+  assert.match(gradle, /unitTests\s*\{[\s\S]*?all\s*\{\s*it\.maxParallelForks = 2\s*\}/u);
+});
+
 void test("API 37 workflow preserves shell state, joins its harness, and propagates failures", async () => {
   const workflow = parse(
     await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),

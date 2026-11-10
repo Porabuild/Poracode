@@ -13,15 +13,16 @@ import type {
   FileChangePayload,
   ToolCallPayload,
 } from "@/shared/contracts";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   getRuntimeItemPayload,
-  type RuntimeChatItem,
-} from "@/renderer/state/slices/runtimeEventSlice";
-import { getToolLikePayload, isToolLikeItem } from "@/shared/runtimeItemVisibility";
+  getToolLikePayload,
+  isToolLikeItem,
+} from "@/shared/runtimeItemVisibility";
 import { parseMcpName } from "@/shared/toolCallClassification";
 import { extractAcpDiffSummary, readAcpStringField } from "./acpToolPayload";
 import { commandIntentDisplay } from "./commandSummary";
-import { isContextCompactionToolCall } from "./ContextCompaction";
+import { isContextCompactionToolCall } from "./contextCompactionToolCall";
 import { isPlanProposalToolCall } from "./planProposalToolCall";
 import { deriveToolDisplay, isDelegatedAgentTool } from "./toolDisplay";
 

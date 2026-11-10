@@ -84,4 +84,28 @@ describe("shardDeclarations", () => {
       }),
     ).toThrow(/exceeds 450 lines/u);
   });
+
+  it("keeps Kotlin enum shard names stable when an enum is inserted", () => {
+    const emit = (names: readonly string[]) =>
+      shardDeclarations({
+        extension: "kt",
+        prefix: "Models",
+        header: ["// generated", "package example"],
+        maxLines: 8,
+        declarations: names.map((name) => [
+          "@Serializable",
+          `enum class ${name} {`,
+          "  A,",
+          "  B,",
+          "}",
+        ]),
+      });
+    const before = emit(["First", "Second"]);
+    const after = new Map(
+      emit(["Added", "First", "Second"]).map((file) => [file.path, file.contents]),
+    );
+
+    expect(before).toHaveLength(2);
+    for (const file of before) expect(after.get(file.path)).toBe(file.contents);
+  });
 });

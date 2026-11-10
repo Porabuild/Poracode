@@ -13,6 +13,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_52895aaaf2e8a0f2 = RemoteSchema(type: "object", required: Set(["attachmentCount", "git", "itemCount", "turnCount"]), properties: ["attachmentCount": RemoteSchemas.schema_56aa0e45cbdce0d0, "git": RemoteSchemas.schema_6fc62da359394b16, "itemCount": RemoteSchemas.schema_56aa0e45cbdce0d0, "turnCount": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_5296d6b04d46b630 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_4c967d4ed16edbc1, RemoteSchemas.schema_e0da1e0a5e3cd077, RemoteSchemas.schema_a66324f9a46c480b], unknownPolicy: .strip)
 }
 

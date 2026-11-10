@@ -91,16 +91,70 @@ stays off the SDK stream and out of the session import.
   native session. Terminal launches use native SQLite ID discovery without
   reading transcript content; overlapping discoveries in the same cwd stay
   unresolved on purpose.
-- Devin advertises only stdio MCP (verified on 3000.10.21), so remote MCP
-  servers are relayed through the existing tool-filter stdio worker. A
-  per-session configuration overlay makes injected servers visible to its
-  native MCP discovery tools while preserving existing config and durable
-  session storage.
+- Devin advertises HTTP and SSE MCP since 3000.12. Its disk overlay remote
+  shape (`{url, transport:"http", headers?: map}`) is turn-proven on
+  3000.12.28 (2026-11-08): Poracode-hosted endpoints therefore connect over
+  HTTP directly in both the overlay and `session/new` — the host applies
+  their tool policy, so no relay process spawns and `disabledTools`
+  filtering still holds. Non-hosted remote servers and filtered stdio
+  servers keep the stdio relays, and cloud launches still omit stdio
+  servers entirely. Devin routed a loopback MCP endpoint through an
+  unreachable `HTTP_PROXY` until `NO_PROXY` listed the host; the shared ACP
+  launch extends `NO_PROXY`/`no_proxy` for direct MCP endpoints whenever a
+  proxy variable reaches the agent (exported inside WSL via `command.env`).
+  The overlay preserves existing config and durable session storage.
+- Local native GUI threads share one pooled `devin acp` process per launch
+  identity (qualified on 3000.12.28: concurrent sessions keep isolated
+  cwd/config, per-session `session/cancel`/`close`, and `session/load`
+  replay routed to the addressed id only). The process spawns in a private
+  empty directory, so its stdio MCP servers start there rather than in any
+  project root. A process serves at most 8 sessions; unaddressed
+  diagnostics pulls are answered while exactly one session has agent work
+  in flight — or while several working sessions share the same project
+  (equal route keys answer identically). A member whose close fails after
+  its turn settled is quarantined instead of killing the process, and an
+  idle session closes quietly when the process dies. Agent shell
+  commands inherit the process env, so the pool keys on the normalized
+  project env: per-project exports (for example direnv's `GH_*`) never
+  cross projects, and only per-shell bookkeeping noise is ignored.
 - Terminal MCP injection is not supported: the CLI has no verified per-thread
   MCP override, and shared user/project config is left untouched.
 - Usage comes from the private CLI quota endpoint. Accounts without quota
   windows report unsupported; overage shows as a remaining credit balance.
   Account metadata is not parsed from undocumented CLI output.
+
+## Shared ACP agent processes
+
+GUI threads of these providers share one pooled ACP process per launch
+identity (pool mechanics live in `provider-runtime.md` "Shared agent
+processes"; each adapter scopes the pool to its own kind and keeps WSL on
+the dedicated per-thread path). Qualified live with two concurrent sessions
+in different project directories — isolated cwd/config/MCP, per-session
+cancel/close, `session/load` replay to the addressed id only:
+
+- Factory Droid 1.5.0 (`droid exec --output-format acp`)
+- Kimi Code 2.5.2 (`kimi acp`; qualified with the fs capability off, matching
+  Poracode's launch)
+- GitHub Copilot 1.0.107 (`copilot --acp --stdio`)
+- Grok 1.0.77 (`grok --no-auto-update agent stdio`)
+- DeepSeek Harness 0.2.2-rc.1 (`dsh acp --patch …`; reopens with
+  `session/resume`, which replays nothing)
+
+DeepSeek's Poracode permission policy is per session: native threads share
+one private policy directory, each thread writes `session-<id>.json` for its
+own session before every turn, and the plugin fails a step closed when that
+file is missing.
+
+Cursor is deliberately not pooled: it loads project rules and skills from
+the agent process's cwd and its model configuration is process-global, so
+pooled threads would lose their project rules and skills, and one thread's
+model change would switch every other thread on the process. Antigravity
+1.4.1 is not pooled because it does not advertise `session/close` and an
+unadvertised close leaves the session's helper process running. Command
+Code 1.88.5 is not pooled because one `cmd acp` process serves a single
+folder. Qoder and Qwen remain unqualified — the test account could not run
+any model; Qwen additionally does not advertise
+`sessionCapabilities.close`.
 
 ## OpenCode 2 (`opencode2`)
 

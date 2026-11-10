@@ -10,11 +10,12 @@ export interface ProviderUpdateTarget {
   /** Management host that runs the update; separates the same kind across machines. */
   hostKey: string;
   agent: AgentStatus;
-  targetVersion: string;
+  /** Undefined when the provider has several independently versioned runtimes. */
+  targetVersion: string | undefined;
 }
 
 export interface PendingProviderUpdateState {
-  targetVersion: string;
+  targetVersion: string | undefined;
   phase: ProviderUpdatePhase;
 }
 
