@@ -247,7 +247,7 @@ export class ComputerUseMcpIngress {
     const toolName = normalizeToolName(name);
     // A locked Mac is unlocked before the tool runs; when it stays locked the
     // tool still runs and is refused normally, with a note saying why.
-    const note = await this.lockedUse.prepare(threadId, toolName);
+    const note = ctx.interrupted?.() ? null : await this.lockedUse.prepare(threadId, toolName);
     const result = await this.dispatchObserved(name, args, ctx);
     if (toolName === "disable") await this.lockedUse.end(threadId, "disabled");
     if (note && result && typeof result === "object") this.resultNotes.set(result, note);
@@ -259,6 +259,9 @@ export class ComputerUseMcpIngress {
     args: Record<string, unknown>,
     ctx: ToolContext,
   ): Promise<unknown> {
+    // Refused calls from the continuing agent must not revive the overlay or
+    // vision preview after the user has ended computer use.
+    if (ctx.interrupted?.()) return await dispatchTool(name, args, ctx);
     if (!this.options.vision || !ctx.threadId || ["api", "status", "list_apps"].includes(name))
       return this.dispatchAction(name, args, ctx);
     if (name === "disable") {
