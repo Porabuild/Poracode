@@ -42,7 +42,7 @@ import { parseMachineKey } from "./machines";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { modelSelectionSchema } from "./selectionBinding.schemas.ts";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
-import { QWEN_DEFAULT_MODEL_ID, QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
+import { RETIRED_MODEL_REPLACEMENTS, retiredModelReplacement } from "./agents/retiredModels";
 import {
   ANTIGRAVITY_ACP_REGISTRY_ID,
   LEGACY_ANTIGRAVITY_ACP_KIND,
@@ -1051,40 +1051,69 @@ function normalizeObjectFromSchema<
   return normalized;
 }
 
-function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSettings {
-  const isRetiredQwenSelection = (agentKind: string, modelId: string) =>
-    agentKind === "qwen" && modelId === QWEN_RETIRED_PREVIEW_MODEL_ID;
-  const migrateUtilityModel = (provider: string, model: string) =>
-    isRetiredQwenSelection(provider, model) ? QWEN_DEFAULT_MODEL_ID : model;
-  const qwenProviderConfig = settings.providerConfigs.qwen;
-  const providerConfigs =
-    qwenProviderConfig?.model === QWEN_RETIRED_PREVIEW_MODEL_ID
-      ? {
-          ...settings.providerConfigs,
-          qwen: { ...qwenProviderConfig, model: QWEN_DEFAULT_MODEL_ID },
-        }
-      : settings.providerConfigs;
-  const qwenModelPreferences = settings.providerModelPreferences.qwen;
-  const retiredQwenModelPreference = qwenModelPreferences?.[QWEN_RETIRED_PREVIEW_MODEL_ID];
+/**
+ * Moves persisted selections of provider-retired models
+ * (`RETIRED_MODEL_REPLACEMENTS`) to their replacements. Recents and learned
+ * usage are derived, so their retired entries are discarded instead.
+ */
+function migrateRetiredModels(settings: SharedSettings): SharedSettings {
+  const replacementFor = (agentKind: string | undefined, modelId: string | undefined) =>
+    agentKind === undefined || modelId === undefined
+      ? undefined
+      : retiredModelReplacement(agentKind, modelId);
+  const isRetired = (agentKind: string | undefined, modelId: string | undefined) =>
+    replacementFor(agentKind, modelId) !== undefined;
+  const migrateModel = (agentKind: string, modelId: string) =>
+    replacementFor(agentKind, modelId) ?? modelId;
+
+  let providerConfigs = settings.providerConfigs;
   let providerModelPreferences = settings.providerModelPreferences;
-  if (qwenModelPreferences && retiredQwenModelPreference) {
-    const currentQwenModelPreferences = { ...qwenModelPreferences };
-    delete currentQwenModelPreferences[QWEN_RETIRED_PREVIEW_MODEL_ID];
-    providerModelPreferences = {
-      ...settings.providerModelPreferences,
-      qwen: {
-        ...currentQwenModelPreferences,
-        [QWEN_DEFAULT_MODEL_ID]:
-          currentQwenModelPreferences[QWEN_DEFAULT_MODEL_ID] ?? retiredQwenModelPreference,
-      },
-    };
+  const hiddenModels = { ...settings.hiddenModels };
+  for (const agentKind of Object.keys(RETIRED_MODEL_REPLACEMENTS)) {
+    const config = Object.hasOwn(providerConfigs, agentKind)
+      ? providerConfigs[agentKind]
+      : undefined;
+    const configReplacement =
+      config?.model === undefined ? undefined : replacementFor(agentKind, config.model);
+    if (config && configReplacement) {
+      providerConfigs = {
+        ...providerConfigs,
+        [agentKind]: { ...config, model: configReplacement },
+      };
+    }
+
+    const preferences = Object.hasOwn(providerModelPreferences, agentKind)
+      ? providerModelPreferences[agentKind]
+      : undefined;
+    let migratedPreferences: typeof preferences;
+    for (const [retiredId, replacementId] of Object.entries(
+      RETIRED_MODEL_REPLACEMENTS[agentKind]!,
+    )) {
+      const current = migratedPreferences ?? preferences;
+      const retiredPreference = current?.[retiredId];
+      if (!current || !retiredPreference) continue;
+      const next = { ...current };
+      delete next[retiredId];
+      next[replacementId] = next[replacementId] ?? retiredPreference;
+      migratedPreferences = next;
+    }
+    if (migratedPreferences) {
+      providerModelPreferences = { ...providerModelPreferences, [agentKind]: migratedPreferences };
+    }
+
+    const hidden = Object.hasOwn(hiddenModels, agentKind) ? hiddenModels[agentKind] : undefined;
+    if (hidden?.some((modelId) => isRetired(agentKind, modelId))) {
+      hiddenModels[agentKind] = [
+        ...new Set(hidden.map((modelId) => migrateModel(agentKind, modelId))),
+      ];
+    }
   }
 
   const seenFavorites = new Set<string>();
   const favoriteModels = settings.favoriteModels
     .map((entry) =>
-      isRetiredQwenSelection(entry.agentKind, entry.modelId)
-        ? { ...entry, modelId: QWEN_DEFAULT_MODEL_ID }
+      isRetired(entry.agentKind, entry.modelId)
+        ? { ...entry, modelId: migrateModel(entry.agentKind, entry.modelId) }
         : entry,
     )
     .filter((entry) => {
@@ -1094,38 +1123,24 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
       return true;
     });
 
-  const hiddenModels = { ...settings.hiddenModels };
-  if (hiddenModels.qwen?.includes(QWEN_RETIRED_PREVIEW_MODEL_ID)) {
-    hiddenModels.qwen = [
-      ...new Set(
-        hiddenModels.qwen.map((modelId) =>
-          modelId === QWEN_RETIRED_PREVIEW_MODEL_ID ? QWEN_DEFAULT_MODEL_ID : modelId,
-        ),
-      ),
-    ];
-  }
-
   return {
     ...settings,
     providerConfigs,
     providerModelPreferences,
     hiddenModels,
-    commitGenModel: migrateUtilityModel(settings.commitGenProvider, settings.commitGenModel),
-    titleGenModel: migrateUtilityModel(settings.titleGenProvider, settings.titleGenModel),
-    conflictResolverModel: migrateUtilityModel(
+    commitGenModel: migrateModel(settings.commitGenProvider, settings.commitGenModel),
+    titleGenModel: migrateModel(settings.titleGenProvider, settings.titleGenModel),
+    conflictResolverModel: migrateModel(
       settings.conflictResolverProvider,
       settings.conflictResolverModel,
     ),
-    experimentJudgeModel: migrateUtilityModel(
+    experimentJudgeModel: migrateModel(
       settings.experimentJudgeProvider,
       settings.experimentJudgeModel,
     ),
-    wslCommitGenModel: migrateUtilityModel(
-      settings.wslCommitGenProvider,
-      settings.wslCommitGenModel,
-    ),
-    wslTitleGenModel: migrateUtilityModel(settings.wslTitleGenProvider, settings.wslTitleGenModel),
-    wslConflictResolverModel: migrateUtilityModel(
+    wslCommitGenModel: migrateModel(settings.wslCommitGenProvider, settings.wslCommitGenModel),
+    wslTitleGenModel: migrateModel(settings.wslTitleGenProvider, settings.wslTitleGenModel),
+    wslConflictResolverModel: migrateModel(
       settings.wslConflictResolverProvider,
       settings.wslConflictResolverModel,
     ),
@@ -1133,36 +1148,33 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
     // Recents and learned usage are derived; discard retired entries instead of
     // letting them continue to influence the picker or Crossagents routing.
     recentModels: settings.recentModels.filter(
-      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+      (entry) => !isRetired(entry.agentKind, entry.modelId),
     ),
     agentSelectionUsage: settings.agentSelectionUsage.filter(
-      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+      (entry) => !isRetired(entry.agentKind, entry.modelId),
     ),
     crossagentSelectionUsage: settings.crossagentSelectionUsage.filter(
-      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+      (entry) => !isRetired(entry.agentKind, entry.modelId),
     ),
     crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map((entry) => {
-      const migratedFallbacks = entry.fallbacks?.map((fallback) =>
-        fallback.agentKind === "qwen" && fallback.modelId === QWEN_RETIRED_PREVIEW_MODEL_ID
-          ? { ...fallback, modelId: QWEN_DEFAULT_MODEL_ID }
-          : fallback,
-      );
+      const migratedFallbacks = entry.fallbacks?.map((fallback) => {
+        const replacement = replacementFor(fallback.agentKind, fallback.modelId);
+        return replacement === undefined ? fallback : { ...fallback, modelId: replacement };
+      });
+      const primaryReplacement = replacementFor(entry.agentKind, entry.modelId);
       const primary =
-        entry.agentKind === "qwen" && entry.modelId === QWEN_RETIRED_PREVIEW_MODEL_ID
-          ? { ...entry, modelId: QWEN_DEFAULT_MODEL_ID }
-          : entry;
+        primaryReplacement === undefined ? entry : { ...entry, modelId: primaryReplacement };
       return migratedFallbacks !== undefined
         ? { ...primary, fallbacks: migratedFallbacks }
         : primary;
     }),
-    crews: mapSavedCrewSelections(settings.crews, migrateCrewQwenSelection),
+    crews: mapSavedCrewSelections(settings.crews, migrateRetiredCrewSelection),
   };
 }
 
-function migrateCrewQwenSelection(selection: CrewMemberSelection): CrewMemberSelection {
-  return selection.agentKind === "qwen" && selection.model === QWEN_RETIRED_PREVIEW_MODEL_ID
-    ? { ...selection, model: QWEN_DEFAULT_MODEL_ID }
-    : selection;
+function migrateRetiredCrewSelection(selection: CrewMemberSelection): CrewMemberSelection {
+  const replacement = retiredModelReplacement(selection.agentKind, selection.model);
+  return replacement === undefined ? selection : { ...selection, model: replacement };
 }
 
 function mapSavedCrewSelections(
@@ -1878,7 +1890,7 @@ export function migrateSharedSettingsValues(
     ? settingsStringListSchema.safeParse(usage.data.disabledProviders)
     : undefined;
   return migrateAntigravityAcpAliasState(
-    migrateRetiredQwenPreviewModel({
+    migrateRetiredModels({
       ...normalized,
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       // Older orders remain valid; normalization appends newly supported sections.

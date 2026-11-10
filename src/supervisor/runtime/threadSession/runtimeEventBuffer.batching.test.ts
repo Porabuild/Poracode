@@ -520,3 +520,72 @@ describe("RuntimeEventBuffer held batch release", () => {
     },
   );
 });
+
+describe("RuntimeEventBuffer live-budget delta splitting (#994)", () => {
+  const MiB = 1024 * 1024;
+
+  function collect(options: RuntimeEventBufferOptions = {}) {
+    const sent: SupervisorEvent[] = [];
+    const onOverflow = vi.fn<NonNullable<RuntimeEventBufferOptions["onOverflow"]>>();
+    const buffer = new RuntimeEventBuffer(
+      (event) => {
+        sent.push(event);
+      },
+      { onOverflow, ...options },
+    );
+    return { buffer, sent, onOverflow };
+  }
+
+  it("splits a 3 MiB snapshot into envelope-sized deltas that rebuild the exact text", () => {
+    const { buffer, sent, onOverflow } = collect();
+    const text = 'line λ 😀 "quoted"\n'.repeat(Math.ceil((3 * MiB) / 20));
+    const snapshot: RuntimeEvent = {
+      type: "content.delta",
+      threadId: "t1",
+      itemId: "item-1",
+      stream: "assistant_text",
+      delta: text,
+      replace: true,
+    };
+    buffer.append("t1", snapshot);
+    buffer.flush();
+
+    const events = sent.flatMap(eventsOf);
+    expect(events.length).toBeGreaterThan(3);
+    const deltas = events.map((event) => {
+      if (event.type !== "content.delta") throw new Error("Expected a delta");
+      expect(runtimeEventSize.estimateRuntimeEventBytes(event)).toBeLessThanOrEqual(MiB);
+      return event;
+    });
+    expect(deltas.map((event) => event.delta).join("")).toBe(text);
+    expect(deltas[0]?.replace).toBe(true);
+    expect(deltas.slice(1).every((event) => event.replace === undefined)).toBe(true);
+    expect(onOverflow).not.toHaveBeenCalled();
+    expect(buffer.pendingStats()).toEqual({ events: 0, bytes: 0, threads: 0 });
+  });
+
+  it("keeps deltas within the live budget and non-delta events whole", () => {
+    const { buffer, sent } = collect();
+    const fits = delta("t1", "x".repeat(Math.floor(1.5 * MiB)));
+    const update = {
+      type: "item.updated",
+      threadId: "t1",
+      itemId: "item-2",
+      payload: { output: "y".repeat(3 * MiB) },
+    } as RuntimeEvent;
+    buffer.append("t1", fits);
+    buffer.append("t1", update);
+    buffer.flush();
+
+    expect(sent.flatMap(eventsOf)).toEqual([fits, update]);
+  });
+
+  it("still refuses a delta above the hard single-event bound instead of splitting it", () => {
+    const { buffer, sent, onOverflow } = collect({ maxSingleEventBytes: 4 * MiB });
+    buffer.append("t1", delta("t1", "z".repeat(5 * MiB)));
+    buffer.flush();
+
+    expect(onOverflow).toHaveBeenCalledWith(expect.objectContaining({ reason: "oversize" }));
+    expect(sent).toHaveLength(0);
+  });
+});

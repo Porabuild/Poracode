@@ -110,8 +110,10 @@ describe("remote v3 native binding generator", () => {
           schemaRoots: 564,
           structuralTypes: 1315,
           semanticValidators: 25,
-          swiftFiles: 81,
-          kotlinFiles: 69,
+          // Content-defined shards (emitterCommon.shardDeclarations) average
+          // ~200 lines, so a contract change rewrites only nearby files.
+          swiftFiles: 146,
+          kotlinFiles: 123,
           stateMachines: 5,
         },
       });
@@ -142,7 +144,9 @@ describe("remote v3 native binding generator", () => {
       },
     ]);
     const output = emitSwiftBindings(parseNativeBindingIr(ir, manifest), graph);
-    expect(output["Models001.swift"]).toContain(
+    const models = Object.entries(output).filter(([path]) => path.startsWith("Models_"));
+    expect(models).toHaveLength(1);
+    expect(models[0]?.[1]).toContain(
       '  case `normal` = "normal"\n' +
         '  case `true` = "true"\n' +
         '  case `false` = "false"\n' +

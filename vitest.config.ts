@@ -4,6 +4,7 @@ import { defineConfig, type TestProjectInlineConfiguration } from "vitest/config
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
 import { DurationShardSequencer } from "./src/build/durationShardSequencer.ts";
+import { FlakyTestReporter } from "./src/build/flakyTestReporter.ts";
 import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
 // Core CI shards exclude compiler fixtures in the project that collects them.
@@ -46,6 +47,20 @@ const maxWorkers =
     ? Math.max(2, Math.floor(availableParallelism() / 2 / gatePeers))
     : "50%";
 
+// CI retries a failed test once so a timing flake cannot turn a landed commit
+// red; FlakyTestReporter turns every pass-on-retry into a warning annotation
+// and a job-summary entry. Local runs never retry.
+const ci = Boolean(process.env.CI);
+const ciReporters = ci
+  ? {
+      reporters: [
+        "default",
+        ...(process.env.GITHUB_ACTIONS === "true" ? ["github-actions"] : []),
+        new FlakyTestReporter(),
+      ],
+    }
+  : {};
+
 export default defineConfig({
   plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
@@ -60,6 +75,8 @@ export default defineConfig({
     // the suite; per-test timeouts can still override.
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    retry: ci ? 1 : 0,
+    ...ciReporters,
     // `--shard` balances files by recorded CI duration instead of by count.
     sequence: { sequencer: DurationShardSequencer },
     coverage: {
@@ -75,7 +92,8 @@ export default defineConfig({
       rendererProject({
         name: "renderer",
         include: ["src/renderer/**/*.test.{ts,tsx}", "website/src/**/*.test.tsx"],
-        exclude: ["**/*.perf.test.ts", ...monacoTestFiles],
+        // Real-browser layout tests run through vitest.browser.config.ts.
+        exclude: ["**/*.perf.test.ts", "**/*.chromium.test.tsx", ...monacoTestFiles],
       }),
       rendererProject({
         name: "renderer-monaco",

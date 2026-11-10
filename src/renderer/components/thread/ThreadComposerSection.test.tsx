@@ -10,7 +10,15 @@ import {
   createComposerDraftStorage,
 } from "@/renderer/state/composerDraftStorage";
 import type { DraftContent } from "@/renderer/state/slices/types";
-import { act, createEvent, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  createEvent,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1302,6 +1310,7 @@ describe("ThreadComposerSection", () => {
       typeComposerText(input, "@bro");
       expect(screen.queryByRole("option")).not.toBeInTheDocument();
     } finally {
+      cleanup();
       if (rangeRectDescriptor) {
         Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeRectDescriptor);
       } else {
@@ -1390,6 +1399,7 @@ describe("ThreadComposerSection", () => {
       typeComposerText(input, "@vis");
       expect(screen.getByRole("option")).toHaveTextContent("Vision-MCP");
     } finally {
+      cleanup();
       if (rangeRectDescriptor) {
         Object.defineProperty(Range.prototype, "getBoundingClientRect", rangeRectDescriptor);
       } else {

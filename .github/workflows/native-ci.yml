@@ -13,7 +13,9 @@ permissions:
 
 concurrency:
   group: native-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Superseded PR pushes cancel; branch pushes finish so every landed commit
+  # gets a native verdict (GitHub keeps at most one pending run per group).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   BUN_INSTALL_GLOBAL_STORE: "0"
@@ -535,6 +537,14 @@ jobs:
       - name: Install compile SDK
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
 
+      # Kotlin compilation inside the emulator step competed with the emulator
+      # for runner memory, and the emulator died mid-instrumentation ("5554:
+      # Connection refused"). Build first so the boot step only installs and
+      # runs tests, matching the API 37 lane.
+      - name: Build Android runtime APKs before boot
+        working-directory: android
+        run: ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon --stacktrace
+
       - name: Enable KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -543,6 +553,12 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Boot Android 14 and run the minimum-supported runtime tests
+        id: api34_runtime
+        # Anything but a failed Gradle instrumentation run on a live emulator
+        # (a boot that never completed, unresponsive framework services, a
+        # device lost mid-run) is retried once below; that failure fails the
+        # job in "Require a passing Android 14 run".
+        continue-on-error: true
         uses: ReactiveCircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
           api-level: 34
@@ -555,15 +571,38 @@ jobs:
           # the runner; the API 26 image fit in 2048M, Android 14 needs more.
           ram-size: 4096M
           heap-size: 512M
+          # Leave room for the APK, test APK, and package-install staging.
+          disk-size: 6G
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           working-directory: android
-          script: |
-            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "14"
-            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "34"
-            test "$(adb shell getprop ro.build.version.codename | tr -d '\r')" = "REL"
-            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.poracode.app.MinimumSdkLaunchInstrumentedTest,com.poracode.app.transport.TlsPinPairingInstrumentedTest --no-daemon --stacktrace
-            printf '%s\n' '### Android 14 minimum-supported runtime evidence' '' '- API 34 emulator booted as Android 14 (REL).' '- The minSdk 34 APK launched and exposed the pairing entry point.' '- The minimum-SDK launch and TLS pin pairing tests passed.' >> "$GITHUB_STEP_SUMMARY"
+          # The action runs every script line in a separate shell.
+          script: bash ../scripts/ci-android-api34.sh
+
+      - name: Retry the Android 14 run on a fresh emulator after an infrastructure failure
+        id: api34_runtime_retry
+        if: ${{ steps.api34_runtime.outcome == 'failure' && hashFiles('android/build/ci/api34-test-failure') == '' }}
+        uses: ReactiveCircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          avd-name: poracode-pixel2-api34
+          cores: 2
+          ram-size: 4096M
+          heap-size: 512M
+          disk-size: 6G
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          working-directory: android
+          script: bash ../scripts/ci-android-api34.sh
+
+      - name: Require a passing Android 14 run
+        if: ${{ steps.api34_runtime.outcome == 'failure' && steps.api34_runtime_retry.outcome != 'success' }}
+        run: |
+          echo "::error::The Android 14 minimum-supported runtime tests failed." >&2
+          exit 1
 
       - name: Upload Android 14 minimum-supported runtime evidence
         if: ${{ !cancelled() }}

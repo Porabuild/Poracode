@@ -250,24 +250,80 @@ void test("API 34 minimum-supported runtime boots Android 14 and requires launch
   const job = workflow.jobs.android_api34_runtime;
   assert.ok(job, "The API 26 lane must be replaced by a required Android 14/API 34 lane");
   assert.deepEqual(job.needs, ["changes", "android"]);
-  const boot = job.steps.find(
+  const bootIndex = job.steps.findIndex(
     (item) => item.name === "Boot Android 14 and run the minimum-supported runtime tests",
   );
+  const boot = job.steps[bootIndex];
   assert.ok(boot, "The minimum-supported runtime boot step must stay present");
   assert.equal(boot.with["api-level"], 34);
-  assert.match(boot.with.script, /ro\.build\.version\.sdk \| tr -d '\\r'\)" = "34"/);
+  assert.equal(boot.with.script, "bash ../scripts/ci-android-api34.sh");
+  const script = await readFile(new URL("./ci-android-api34.sh", import.meta.url), "utf8");
+  assert.match(script, /ro\.build\.version\.sdk \| tr -d '\\r'\)" = "34"/);
   // Both minimum-floor classes stay required on the oldest supported release:
   // the cold-launch pairing entry point and the TLS pin pairing test.
   assert.ok(
-    boot.with.script.includes(
+    script.includes(
       "-Pandroid.testInstrumentationRunnerArguments.class=com.poracode.app.MinimumSdkLaunchInstrumentedTest,com.poracode.app.transport.TlsPinPairingInstrumentedTest",
     ),
   );
+  // APKs are compiled before the emulator boots so Gradle never competes with
+  // the emulator for runner memory.
+  const buildIndex = job.steps.findIndex(
+    (item) => item.name === "Build Android runtime APKs before boot",
+  );
+  assert.ok(buildIndex >= 0 && buildIndex < bootIndex, "APKs must be built before boot");
+  assert.match(job.steps[buildIndex].run, /assembleDebug assembleDebugAndroidTest/);
   const upload = job.steps.find(
     (item) => item.name === "Upload Android 14 minimum-supported runtime evidence",
   );
   assert.ok(upload, "The minimum-supported runtime evidence upload must stay present");
   assert.match(upload.with.name, /^android-api34-runtime-/);
+});
+
+void test("API 34 lane retries only infrastructure failures and still fails real test failures", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const steps = workflow.jobs.android_api34_runtime.steps;
+  const boot = steps.find((item) => item.id === "api34_runtime");
+  const retry = steps.find((item) => item.id === "api34_runtime_retry");
+  const require = steps.find((item) => item.name === "Require a passing Android 14 run");
+  assert.equal(boot["continue-on-error"], true);
+  assert.ok(retry, "an infrastructure failure gets one retry on a fresh emulator");
+  assert.match(retry.if, /steps\.api34_runtime\.outcome == 'failure'/);
+  assert.match(retry.if, /hashFiles\('android\/build\/ci\/api34-test-failure'\) == ''/);
+  assert.equal(retry["continue-on-error"], undefined, "a failed retry fails the job");
+  assert.deepEqual(retry.with, boot.with, "the retry boots the same emulator configuration");
+  assert.ok(require, "a real test failure must still fail the job");
+  assert.match(require.if, /steps\.api34_runtime\.outcome == 'failure'/);
+  assert.match(require.if, /steps\.api34_runtime_retry\.outcome != 'success'/);
+  assert.match(require.run, /exit 1/);
+  const script = await readFile(new URL("./ci-android-api34.sh", import.meta.url), "utf8");
+  // The marker is cleared first and written only when the instrumentation run
+  // failed while adb still saw the device; a device that never answers cannot
+  // hang the step.
+  assert.match(script, /android\/build\/ci\/api34-test-failure/);
+  const clear = script.indexOf('rm -f "$test_failure_marker"');
+  const write = script.indexOf(': > "$test_failure_marker"');
+  assert.ok(clear >= 0 && clear < write, "the marker is cleared before anything can write it");
+  assert.match(
+    script,
+    /if \[ "\$\(adb get-state[^\n]*\)" = "device" \]; then\n\s+mkdir -p "\$\(dirname "\$test_failure_marker"\)"\n\s+: > "\$test_failure_marker"\n\s+else/,
+  );
+  assert.match(script, /timeout \d+ adb wait-for-device/);
+});
+
+void test("CI and native runs cancel superseded pull request pushes but finish branch pushes", async () => {
+  for (const file of ["ci.yml", "native-ci.yml"]) {
+    const workflow = parse(
+      await readFile(new URL(`../.github/workflows/${file}`, import.meta.url), "utf8"),
+    );
+    assert.equal(
+      workflow.concurrency["cancel-in-progress"],
+      "${{ github.event_name == 'pull_request' }}",
+      `${file} must not cancel in-progress runs for landed commits`,
+    );
+  }
 });
 
 void test("iOS UI journeys keep the owned harness alive through a clean Xcode build", async () => {

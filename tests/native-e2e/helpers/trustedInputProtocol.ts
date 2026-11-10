@@ -865,6 +865,15 @@ export async function runSegmentedTrustedIdlePhase(input: {
             after.capturedAtMonotonicMs,
             (record) => record.startMs,
           );
+    const longAnimationFrames =
+      after === null || previousAfter === null
+        ? []
+        : recordsInWindow(
+            after.recentLongAnimationFrames ?? [],
+            previousAfter.capturedAtMonotonicMs,
+            after.capturedAtMonotonicMs,
+            (record) => record.startMs,
+          );
     const slowFrames =
       after === null || previousAfter === null
         ? []
@@ -891,6 +900,7 @@ export async function runSegmentedTrustedIdlePhase(input: {
       closingTotalPushed,
       futureStartSamples,
       longTasks,
+      longAnimationFrames,
       slowFrames,
       droppedEventTimings:
         (after?.droppedEventTimings ?? 0) - (previousAfter?.droppedEventTimings ?? 0),

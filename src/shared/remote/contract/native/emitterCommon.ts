@@ -300,22 +300,62 @@ export function unknownFieldPolicy(schema: JsonSchema): "strip" | "reject" | "pa
   return "strip";
 }
 
+const DECLARED_SYMBOL =
+  /\b(?:struct|class|enum|protocol|typealias|func|fun|let|val|var|object|interface)\s+`?([A-Za-z_][A-Za-z0-9_]*)/u;
+
+/** The declared symbol (or, failing that, the whole text) identifies a declaration. */
+function declarationIdentity(declaration: readonly string[]): string {
+  for (const line of declaration) {
+    const symbol = DECLARED_SYMBOL.exec(line)?.[1];
+    if (symbol) return symbol;
+  }
+  return declaration.join("\n");
+}
+
+/** FNV-1a: a dependency-free, platform-independent 32-bit hash. */
+function fnv1a32(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
+}
+
+/**
+ * Packs declarations into files of at most `maxLines` lines using
+ * content-defined boundaries: whether a file ends after a declaration depends
+ * only on that declaration's identity and size, and each file is named after
+ * its first declaration. Adding, removing or changing one declaration rewrites
+ * the file(s) around it instead of renumbering every later shard. File names
+ * are build inputs only (iOS uses a synchronized folder, Android a source
+ * directory); runtime compatibility is versioned separately.
+ */
 export function shardDeclarations(args: {
   readonly extension: string;
   readonly prefix: string;
   readonly header: readonly string[];
   readonly declarations: readonly (readonly string[])[];
   readonly maxLines?: number;
+  /** Mean file body length the content-defined boundaries aim for. */
+  readonly targetLines?: number;
 }): Array<{ readonly path: string; readonly contents: string }> {
   const maxLines = args.maxLines ?? 450;
+  const targetLines = args.targetLines ?? 200;
+  const minLines = Math.floor(targetLines / 3);
   const files: Array<{ path: string; contents: string }> = [];
+  const usedPaths = new Set<string>();
   let lines = [...args.header];
-  let index = 1;
+  let firstIdentity = "";
   const flush = () => {
     if (lines.length === args.header.length) return;
-    const path = `${args.prefix}${String(index).padStart(3, "0")}.${args.extension}`;
+    const stem = `${args.prefix}_${fnv1a32(firstIdentity).toString(16).padStart(8, "0")}`;
+    let path = `${stem}.${args.extension}`;
+    for (let suffix = 2; usedPaths.has(path); suffix += 1) {
+      path = `${stem}_${suffix}.${args.extension}`;
+    }
+    usedPaths.add(path);
     files.push({ path, contents: `${lines.join("\n")}\n` });
-    index += 1;
     lines = [...args.header];
   };
   for (const declaration of args.declarations) {
@@ -323,8 +363,16 @@ export function shardDeclarations(args: {
       throw new Error(`Generated declaration exceeds ${maxLines} lines`);
     }
     if (lines.length + declaration.length + 1 > maxLines) flush();
+    const identity = declarationIdentity(declaration);
     if (lines.length > args.header.length) lines.push("");
+    else firstIdentity = identity;
     lines.push(...declaration);
+    // A boundary follows a declaration with probability proportional to its
+    // size, so files average `targetLines` whatever the declaration lengths.
+    const bodyLines = lines.length - args.header.length;
+    if (bodyLines >= minLines && fnv1a32(identity) % targetLines < declaration.length + 1) {
+      flush();
+    }
   }
   flush();
   return files;

@@ -31,7 +31,14 @@ Open follow-ups carried over from completed V2–V6 plans (archived in git histo
 
 - **Android orphan pin on superseded pairing** — `PairingCoordinator.pair()` registers the speculative TLS pin before the `isCurrent` check, so a superseded mid-flight pair can leave a stale pin.
 - **Android pinned-client cache eviction** — `TlsCertPin` evicts its 8-entry cache in insertion (FIFO) order rather than least-recently-used.
-- **Mobile crash reporting and privacy controls** — audit current collection first; decide crash diagnostics and analytics separately; define consent/defaults, scrubbing, retention, symbolication and a kill switch before adding any SDK.
+- **Mobile crash diagnostics** — policy decided 2026-11-09; not built. Audit: neither native app captures crash data in-app (no SDK, MetricKit, exit-reason or uncaught-exception capture). Store channels already exist: TestFlight crash reports (iOS) and Play Console vitals (Android, `internal` track by default). Product analytics remain a separate decision. Build in-app capture against these rules:
+  - **Sources:** iOS `MXMetricManager` diagnostic payloads (crash, hang, CPU and disk-write exceptions; iOS 17 deployment target, delivered on the next launch). Android `ActivityManager.getHistoricalProcessExitReasons` (minSdk 34) plus a chained default uncaught-exception handler. No third-party SDK.
+  - **Consent and defaults:** capture is on by default but local only; a report leaves the device only through an explicit user share action. iOS inherits the OS "Share with App Developers" opt-in (MetricKit delivers nothing without it).
+  - **Scrubbing:** keep timestamps, app version and build, OS version, device model, categorical fields (exception type and code, signal, termination reason, exit reason and status, importance, PSS/RSS), and stack frames (iOS binary image plus offset; Android class, method and line). Drop exception messages, exit descriptions, ANR and native trace streams (`getTraceInputStream`), locale and region, paths, host names, and thread, session and user identifiers.
+  - **Retention:** the newest 20 reports, none older than 30 days, in app-private storage excluded from backups. Users can delete all reports; uninstalling removes them.
+  - **Symbolication:** off-device, after a user shares a report. `release-mobile.yml` already archives dSYMs; it must also archive the R8 `mapping.txt` (release builds set `isMinifyEnabled = true`).
+  - **Kill switch:** a Settings toggle in each app that stops capture and deletes stored reports, plus a build flag that compiles capture out.
+  - **Exposure:** a Settings › Diagnostics screen to view, share and delete reports, localized in every app locale. No wire change; sending reports to a paired host would be a separate versioned decision.
 
 ## Product
 
