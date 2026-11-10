@@ -1208,6 +1208,7 @@ export function SingleAgentSettings(props: {
                 key={providerMenuKey(provider)}
                 settingsKey={providerVisibilityKey(provider)}
                 provider={provider}
+                siblingProviders={modelVisibilityProviders}
                 {...(modelVisibilityProviders.length > 1
                   ? {
                       surfaceLabel: modelSurfaceLabel(provider, agent, providerEntry?.runtimeSlots),

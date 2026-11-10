@@ -920,6 +920,7 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{totalCount}개 중 {visibleCount}개 사용 가능"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount}개 중 {visibleCount}개 표시"
@@ -1922,6 +1923,12 @@ msgstr "스레드에 응답이 필요할 때 알림"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "All"
+msgstr "전체"
+
+#. Filter chip showing all providers or all model surfaces
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgctxt "modelVisibilityFilter"
 msgid "All"
 msgstr "전체"
 
@@ -3629,7 +3636,7 @@ msgstr "선택한 장치의 실시간 입력 레벨을 확인하세요."
 msgid "Check the supported languages before downloading."
 msgstr "다운로드하기 전에 지원되는 언어를 확인하세요."
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Checked"
 msgstr "선택됨"
 
@@ -4013,6 +4020,7 @@ msgstr "목표 지우기"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Clear search"
 msgstr "검색 지우기"
 
@@ -9345,6 +9353,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "사이드바에서 {label} 원 숨기기"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "모두 숨기기"
@@ -12054,6 +12063,10 @@ msgstr "모델을 즐겨찾기에서 제거함"
 msgid "Model rerouted from {fromModel} to {toModel}."
 msgstr "모델이 {fromModel}에서 {toModel}(으)로 전환되었습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgid "Model surface"
+msgstr "모델 인터페이스"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "모델 사용량"
@@ -13116,6 +13129,7 @@ msgstr "{agent}에 사용할 수 있는 모델이 없습니다. 설정에서 에
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "모델을 찾을 수 없습니다."
 
@@ -14486,7 +14500,7 @@ msgstr "이 대화 기록의 일부가 서버에서 손실되어 표시할 수 �
 msgid "Partial"
 msgstr "일부"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Partially checked"
 msgstr "일부 선택됨"
 
@@ -15625,6 +15639,7 @@ msgstr "공급자"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
@@ -18045,11 +18060,13 @@ msgid "Search MCP servers..."
 msgstr "MCP 서버 검색..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
 msgstr "모델 검색"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "모델 검색..."
 
@@ -18666,6 +18683,7 @@ msgstr "에이전트 검색 표시"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "모두 표시"
@@ -19886,6 +19904,7 @@ msgstr "지원:"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "고속 모드 지원"
 
@@ -22582,7 +22601,7 @@ msgstr "사용할 수 없는 제공자"
 #~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
 #~ msgstr "사용할 수 없는 제공자, 모델, 추론 수준 및 Fast 모드는 자동으로 건너뜁니다. 선택 해제된 제공자와 모델은 다시 선택할 때까지 건너뜁니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Unchecked"
 msgstr "선택 해제됨"
 

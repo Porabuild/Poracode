@@ -1,7 +1,7 @@
 import { useDeferredValue, useState, type Key, type ReactNode } from "react";
 import { Button, ListBox, Popover } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Check, Minus, Search, Zap } from "lucide-react";
+import { Search, Zap } from "lucide-react";
 import {
   buildProviderModelItems,
   type ProviderModelItem,
@@ -9,13 +9,16 @@ import {
 } from "@/renderer/components/common/ProviderModelMenu";
 import { modelFamilyMemberIds } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
 import { providerVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
+import { splitModelLabel } from "@/renderer/components/common/ProviderModelMenu/parts/splitModelLabel";
 import { modelFamilyPickerModels } from "@/shared/modelFamilySelection";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
+import { computeTargetToggleUpdates } from "./modelVisibilityCatalog";
 import {
   collectHeaderModelGroups,
   headerGroupState,
   type ModelVisibilityCheckState as CheckState,
 } from "./modelVisibilityGroups";
+import { checkAria, CheckStateHint, VisibilityCheckIndicator } from "./VisibilityCheckIndicator";
 
 /** Provider-level checkboxes: unchecked providers are skipped entirely. */
 export interface ModelVisibilityProviderToggle {
@@ -121,33 +124,36 @@ export function ModelVisibilityPopover(props: {
   function toggleGroup(headerId: string) {
     const entries = headerGroups.get(headerId);
     if (!entries || entries.length === 0) return;
-    const nextHidden = groupState(headerId) === "all";
-    const byKey = new Map<string, Set<string>>();
-    for (const entry of entries) {
-      let next = byKey.get(entry.hiddenModelsKey);
-      if (!next) {
-        next = new Set(hiddenByKey.get(entry.hiddenModelsKey) ?? []);
-        byKey.set(entry.hiddenModelsKey, next);
-      }
-      for (const modelId of entry.modelIds) {
-        if (nextHidden) next.add(modelId);
-        else next.delete(modelId);
-      }
-    }
-    for (const [key, next] of byKey) props.onHiddenIdsChange(key, [...next]);
+    const updates = computeTargetToggleUpdates(
+      entries,
+      groupState(headerId) === "all",
+      hiddenByKey,
+    );
+    for (const [key, next] of updates) props.onHiddenIdsChange(key, next);
   }
 
   // "Show all" and "Hide all" are inverses: both reset model visibility *and*
   // provider checkboxes, so "Hide all" leaves nothing usable and "Show all"
   // restores everything.
   function setAllHidden(hideAll: boolean) {
+    const byKey = new Map<string, Set<string>>();
     for (const entry of providerEntries) {
-      props.onHiddenIdsChange(
-        entry.key,
-        hideAll ? [...new Set(entry.models.flatMap((model) => entry.rowIds(model.id)))] : [],
-      );
-      if (uncheckedKinds.has(entry.provider.kind) === hideAll) continue;
-      props.providerToggle?.onCheckedChange(entry.provider.kind, !hideAll);
+      let set = byKey.get(entry.key);
+      if (!set) {
+        set = new Set<string>();
+        byKey.set(entry.key, set);
+      }
+      if (hideAll) {
+        for (const model of entry.models) {
+          for (const id of entry.rowIds(model.id)) set.add(id);
+        }
+      }
+      if (uncheckedKinds.has(entry.provider.kind) !== hideAll) {
+        props.providerToggle?.onCheckedChange(entry.provider.kind, !hideAll);
+      }
+    }
+    for (const [key, set] of byKey) {
+      props.onHiddenIdsChange(key, hideAll ? [...set] : []);
     }
   }
 
@@ -288,39 +294,6 @@ export function ModelVisibilityPopover(props: {
   );
 }
 
-function checkGlyph(state: CheckState, sizeClass = "size-3") {
-  const checkClass = state === "none" ? "opacity-0" : "opacity-100 text-foreground";
-  return state === "some" ? (
-    <Minus className={`${sizeClass} shrink-0 transition-opacity ${checkClass}`} />
-  ) : (
-    <Check className={`${sizeClass} shrink-0 transition-opacity ${checkClass}`} />
-  );
-}
-
-function checkAria(state: CheckState) {
-  return {
-    "aria-selected": state === "all",
-    "aria-checked":
-      state === "all"
-        ? ("true" as const)
-        : state === "none"
-          ? ("false" as const)
-          : ("mixed" as const),
-  };
-}
-
-function CheckStateHint(props: { state: CheckState }) {
-  const { t } = useLingui();
-  const labels = {
-    all: t`Checked`,
-    some: t`Partially checked`,
-    none: t`Unchecked`,
-  } as const;
-  // HeroUI's ListBox strips custom aria-checked, so expose the state to
-  // screen readers through the accessible name instead.
-  return <span className="sr-only">({labels[props.state]})</span>;
-}
-
 function ModelVisibilityRow(props: {
   item: ProviderModelItem;
   isVisible: boolean;
@@ -347,10 +320,10 @@ function ModelVisibilityRow(props: {
         textValue={item.label}
         isDisabled={isProviderUnchecked === true}
         {...checkAria(state)}
-        className={`poracode-menu-item group mx-1.5 flex h-6 cursor-default items-center pl-4 pr-2 text-[10px] font-normal italic tracking-normal text-muted/60${uncheckedClass}`}
+        className={`poracode-menu-item group mx-1.5 flex h-6 cursor-default items-center gap-1.5 pl-4 pr-2 text-[10px] font-normal italic tracking-normal text-muted/70${uncheckedClass}`}
       >
-        {checkGlyph(state)}
-        <span className="ml-1 min-w-0 truncate">{item.label}</span>
+        <VisibilityCheckIndicator state={state} size="sm" />
+        <span className="min-w-0 truncate">{item.label}</span>
         <CheckStateHint state={state} />
       </ListBox.Item>
     );
@@ -376,7 +349,7 @@ function ModelVisibilityRow(props: {
         {...checkAria(state)}
         className="poracode-menu-item group mx-1.5 mb-1 mt-2 flex h-8 cursor-default items-center gap-2 border-b border-border bg-overlay px-2 text-sm font-semibold text-foreground first:mt-0"
       >
-        {checkGlyph(state, "size-3.5")}
+        <VisibilityCheckIndicator state={state} />
         <ProviderIcon
           kind={item.providerKind}
           {...(item.providerIcon ? { icon: item.providerIcon } : {})}
@@ -390,9 +363,7 @@ function ModelVisibilityRow(props: {
   }
 
   if (item.type !== "model") return null;
-  const labelParts = item.label.split(" · ");
-  const name = labelParts[0] ?? item.label;
-  const hint = labelParts.length > 1 ? labelParts.slice(1).join(" · ") : undefined;
+  const { name, hint } = splitModelLabel(item.label);
   const mutedHint = [hint, item.contextDescription].filter(Boolean).join(" · ");
 
   return (
@@ -401,13 +372,17 @@ function ModelVisibilityRow(props: {
       textValue={item.label}
       isDisabled={isProviderUnchecked === true}
       aria-selected={isVisible}
-      className={`poracode-menu-item group mx-1.5 flex h-7 cursor-default items-center text-foreground${props.indent ? " pl-4" : ""}${uncheckedClass}`}
+      className={`poracode-menu-item group mx-1.5 flex h-7 cursor-default items-center gap-2 text-foreground${props.indent ? " pl-4" : ""}${uncheckedClass}`}
     >
-      <Check
-        className={`size-3 shrink-0 transition-opacity ${isVisible ? "opacity-100" : "opacity-0"}`}
-      />
-      <span className="ml-1 flex min-w-0 flex-1 items-center gap-1.5">
-        <span className="min-w-0 truncate">{name}</span>
+      <VisibilityCheckIndicator state={isVisible ? "all" : "none"} />
+      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+        <span
+          className={`min-w-0 truncate ${
+            isVisible ? "text-foreground" : "text-muted group-hover:text-foreground"
+          }`}
+        >
+          {name}
+        </span>
         {item.supportsFast ? (
           <Zap
             role="img"
