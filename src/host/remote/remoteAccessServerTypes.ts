@@ -508,6 +508,8 @@ export interface RemoteAccessServerOptions {
     checkpointItemId: string;
     operationKey: string;
   }): Promise<CheckpointRevertResult>;
+  /** Keep compound removal ordered against launches and checkpoint reverts. */
+  runThreadMutation?: import("@/host/supervisor/threadMutationCustody").RunThreadMutation;
   /**
    * Forwards a thread-metadata command to the desktop renderer, which owns
    * thread metadata and persists it. Returns false when no renderer window is

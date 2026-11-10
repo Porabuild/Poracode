@@ -26,6 +26,7 @@ import {
   dbGetProjects,
   dbGetThread,
   dbGetThreads,
+  dbAssertNoRunningCheckpointRevert,
   dbReorderProjectRelative,
   dbReorderThreadBlockRelative,
   dbSetProjectLastDraftConfig,
@@ -52,6 +53,7 @@ import { applyThreadMetadataCommand, threadMetadataClosesSession } from "./threa
 import { createRemoteThread } from "./threadCreation";
 import { importRemoteSession } from "./sessionImportCommand";
 import { dbForkThread } from "@/host/db/threadForks";
+import { withThreadMutationCustody } from "@/host/supervisor/threadMutationCustody";
 
 export { runRemoteProcedure } from "./threadProcedure";
 export { applyRemoteThreadSwitch, retargetRemoteThreadForSwitch } from "./threadSwitch";
@@ -303,16 +305,28 @@ export async function applyRemoteThreadCommand(
       return false;
     }
     case "delete-worktree-group": {
-      const groupThreads = dbGetThreads().filter((thread) => command.threadIds.includes(thread.id));
-      const worktreeBranch = groupThreads.find((thread) => thread.worktreeBranch)?.worktreeBranch;
-      await Promise.all(command.threadIds.map((threadId) => closeThreadBestEffort(ctx, threadId)));
-      await removeHostWorktree(ctx, {
-        projectId: command.projectId,
-        worktreePath: command.worktreePath,
-        ...(worktreeBranch ? { worktreeBranch } : {}),
-        expectedThreadIds: command.threadIds,
-      });
-      for (const threadId of command.threadIds) dbDeleteThread(threadId);
+      const remove = async () => {
+        // Preserve dbDeleteThread's refusal before any files are removed. The
+        // owning host lock prevents a new revert starting while cleanup awaits.
+        dbAssertNoRunningCheckpointRevert(command.threadIds);
+        const groupThreads = dbGetThreads().filter((thread) =>
+          command.threadIds.includes(thread.id),
+        );
+        const worktreeBranch = groupThreads.find((thread) => thread.worktreeBranch)?.worktreeBranch;
+        await Promise.all(
+          command.threadIds.map((threadId) => closeThreadBestEffort(ctx, threadId)),
+        );
+        await removeHostWorktree(ctx, {
+          projectId: command.projectId,
+          worktreePath: command.worktreePath,
+          ...(worktreeBranch ? { worktreeBranch } : {}),
+          expectedThreadIds: command.threadIds,
+        });
+        for (const threadId of command.threadIds) dbDeleteThread(threadId);
+      };
+      if (ctx.options.runThreadMutation)
+        await withThreadMutationCustody(ctx.options.runThreadMutation, command.threadIds, remove);
+      else await remove();
       return false;
     }
   }

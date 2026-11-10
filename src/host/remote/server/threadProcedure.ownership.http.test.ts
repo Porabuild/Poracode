@@ -8,6 +8,7 @@ import {
   dbGetProject,
   dbBeginWorktreeObservation,
   dbReconcileProjectWorktrees,
+  dbClaimCheckpointRevertOperation,
   dbUpsertProject,
   dbUpsertThread,
   initDatabase,
@@ -19,6 +20,9 @@ import {
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { GitStateService, type GitStateExecutor } from "@/host/gitState";
+import { SupervisorClient } from "@/host/supervisor/SupervisorClient";
+import { applyRemoteThreadCommand } from "./threadCommands";
+import type { RemoteServerContext } from "./context";
 import {
   REMOTE_PROTOCOL_VERSION_HEADER,
   REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
@@ -63,6 +67,7 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
   let info: RemoteAccessServerInfo;
   let token: string;
   let callSupervisor: ReturnType<typeof vi.fn<RemoteAccessServerOptions["callSupervisor"]>>;
+  let coordinator: SupervisorClient;
 
   beforeEach(async () => {
     if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
@@ -78,6 +83,16 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
       0,
     );
     callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => ({}) as never);
+    coordinator = new SupervisorClient({
+      appVersion: "test",
+      isDev: false,
+      baseDir: dir,
+      supervisorPath: join(dir, "unused.cjs"),
+      wslHelpersDir: dir,
+      secretStorageKey: "fixture",
+      onEvent: () => {},
+      onReset: () => {},
+    });
     const server = new RemoteAccessServer({
       truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
@@ -85,6 +100,8 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor,
+      runThreadMutation: (threadId, operation) =>
+        coordinator.runThreadMutation(threadId, operation),
     });
     servers.push(server);
     info = await server.start();
@@ -94,6 +111,7 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
 
   afterEach(async () => {
     await Promise.all(servers.splice(0).map((server) => server.dispose()));
+    await coordinator.dispose();
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
@@ -246,6 +264,84 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
     expect(dbGetThread("selected")).not.toBeNull();
     expect(dbGetThread("sibling")).not.toBeNull();
     expect(callSupervisor).not.toHaveBeenCalledWith("gitRemoveWorktree", expect.anything());
+  });
+
+  it("refuses a running checkpoint revert before removing any worktree files", async () => {
+    dbUpsertThread(
+      { ...testThread(), id: "selected", worktreePath: "/tmp/wt", worktreeBranch: "feature" },
+      0,
+    );
+    dbClaimCheckpointRevertOperation({
+      operationKey: "held-revert",
+      threadId: "selected",
+      checkpointItemId: "checkpoint",
+      projectLocationJson: null,
+      configJson: null,
+    });
+    const ctx = {
+      options: {
+        callSupervisor,
+        runThreadMutation: <Result>(threadId: string, operation: () => Promise<Result>) =>
+          coordinator.runThreadMutation(threadId, operation),
+      },
+    } as unknown as RemoteServerContext;
+    await expect(
+      applyRemoteThreadCommand(ctx, {
+        kind: "delete-worktree-group",
+        threadId: "selected",
+        projectId: "project-1",
+        worktreePath: "/tmp/wt",
+        threadIds: ["selected"],
+      }),
+    ).rejects.toMatchObject({ code: "CHECKPOINT_REVERT_ACTIVE" });
+    expect(dbGetThread("selected")).not.toBeNull();
+    expect(callSupervisor).not.toHaveBeenCalled();
+  });
+
+  it("holds deletion custody across awaited worktree removal so a new revert sees the deleted row", async () => {
+    dbUpsertThread(
+      { ...testThread(), id: "selected", worktreePath: "/tmp/wt", worktreeBranch: "feature" },
+      0,
+    );
+    const removing = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    callSupervisor.mockImplementation(async (name) => {
+      if (name === "gitListWorktrees")
+        return {
+          worktrees: [{ path: "/tmp/wt", branch: "feature", commit: "abc123", isMain: false }],
+        } as never;
+      if (name === "gitRemoveWorktree") {
+        removing.resolve();
+        await release.promise;
+      }
+      return undefined as never;
+    });
+    const deletion = fetch(new URL("/api/threads/selected/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+      body: JSON.stringify({
+        kind: "delete-worktree-group",
+        projectId: "project-1",
+        worktreePath: "/tmp/wt",
+        threadIds: ["selected"],
+      }),
+    });
+    await removing.promise;
+    let revertStarted = false;
+    const revert = coordinator.runThreadMutation("selected", async () => {
+      revertStarted = true;
+      return dbGetThread("selected");
+    });
+    await Promise.resolve();
+    expect(revertStarted).toBe(false);
+    release.resolve();
+    expect((await deletion).status).toBe(200);
+    await expect(revert).resolves.toBeNull();
+    expect(revertStarted).toBe(true);
   });
 
   it.each([

@@ -322,6 +322,8 @@ export class BackendDesktopServices {
           // B1: the desktop backend host owns the durable gap/notice store, so
           // the remote server advertises the capability and serves real state.
           runtimeHistoryGap: createRuntimeHistoryGapPort(host),
+          runThreadMutation: (threadId, operation) =>
+            supervisor.runThreadMutation(threadId, operation),
           revertCheckpoint: async (input) => {
             try {
               return await host.revertCheckpoint(input);

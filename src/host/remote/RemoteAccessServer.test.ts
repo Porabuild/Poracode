@@ -122,6 +122,7 @@ vi.mock("@/host/db", () => {
   const getProjects = vi.fn<() => Project[]>(() => []);
   const getRuntimeItemCommitted = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
   return {
+    dbAssertNoRunningCheckpointRevert: vi.fn<() => void>(),
     dbAppendThreadCompletedTurn: vi.fn<(...args: unknown[]) => void>(),
     dbApplyThreadRuntimeEvents: vi.fn<(...args: unknown[]) => void>(),
     // B4 legacy bulk-read pre-check: empty reservations keep every legacy
