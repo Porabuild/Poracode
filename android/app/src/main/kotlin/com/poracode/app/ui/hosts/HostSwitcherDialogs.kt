@@ -2,7 +2,6 @@ package com.poracode.app.ui.hosts
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -14,6 +13,8 @@ import androidx.compose.ui.res.stringResource
 import com.poracode.app.R
 import com.poracode.app.model.HostRecord
 import com.poracode.app.storage.HostCatalog
+import com.poracode.app.ui.components.PoracodeTextField
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * Local removal confirmation. A host-owned environment names its own removal;
@@ -47,7 +48,7 @@ internal fun HostRemovalDialog(
             )
         },
         confirmButton = {
-            Button(onClick = onConfirm) { Text(stringResource(R.string.hosts_remove_action)) }
+            FilledTonalButton(onClick = onConfirm) { Text(stringResource(R.string.hosts_remove_action)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
@@ -69,7 +70,7 @@ internal fun RenameHostDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.hosts_rename_title)) },
         text = {
-            OutlinedTextField(
+            PoracodeTextField(
                 value = label,
                 onValueChange = { if (it.length <= HostCatalog.MAX_HOST_LABEL_LENGTH) label = it },
                 label = { Text(stringResource(R.string.hosts_name_label)) },
@@ -77,7 +78,7 @@ internal fun RenameHostDialog(
             )
         },
         confirmButton = {
-            Button(
+            FilledTonalButton(
                 onClick = { onRename(normalized) },
                 enabled = normalized.isNotEmpty() && normalized != host.label,
             ) { Text(stringResource(R.string.hosts_rename_action)) }

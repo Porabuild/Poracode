@@ -256,6 +256,17 @@
     <string name="rich_chat_background_task_last_progress">Last progress %1$s ago</string>
     <string name="rich_chat_background_task_close">Close task details</string>
     <string name="rich_chat_background_task_report_missing">The task ended without a completion report.</string>
+    <string name="rich_chat_copy_message">Copy message</string>
+    <string name="rich_chat_add_to_composer">Add to composer</string>
+    <string name="rich_chat_file">File</string>
+    <string name="rich_chat_attach">Attach</string>
+    <string name="rich_chat_message_agent">Ask %1$s anything about this workspace</string>
+    <string name="rich_chat_worked_for">Worked for %1$s</string>
+    <string name="rich_chat_search_models">Search models...</string>
+    <string name="rich_chat_plugins">Plugins</string>
+    <string name="rich_chat_handoff_fork">Fork Conversation</string>
+    <string name="rich_chat_handoff_prompt">Tell the new provider what to do next…</string>
+    <string name="rich_chat_handoff_switch">Switch</string>
     <string name="rich_chat_html_visual_title">HTML preview</string>
     <string name="rich_chat_html_visual_source">Source</string>
     <string name="rich_chat_html_visual_preview">Preview</string>
@@ -268,4 +279,5 @@
     <string name="rich_chat_html_visual_unavailable">Interactive rendering is unavailable. Showing source only.</string>
     <string name="rich_chat_html_visual_open_link_title">Open link?</string>
     <string name="rich_chat_html_visual_open_link">Open</string>
+    <string name="rich_chat_scroll_to_bottom">Scroll to Bottom</string>
 </resources>

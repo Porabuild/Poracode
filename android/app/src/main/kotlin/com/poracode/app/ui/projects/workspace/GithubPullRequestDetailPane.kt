@@ -10,13 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Error
-import androidx.compose.material.icons.outlined.NorthEast
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -52,6 +44,8 @@ import com.poracode.app.session.projects.GithubOperationsEntry
 import com.poracode.app.session.projects.ForgeReviewEntry
 import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.protocol.forge.ForgeReviewOperation
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.serialization.json.*
 import com.poracode.app.ui.components.EmptyStateView
 
@@ -128,7 +122,7 @@ internal fun GithubPullRequestDetailPane(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton({ openFile = "" }) {
                             Icon(
-                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                PoracodeIcons.ArrowBack,
                                 stringResource(R.string.github_back_to_files),
                             )
                         }
@@ -251,7 +245,15 @@ private fun PullRequestOverviewSection(
         )
         return
     }
-    LazyColumn(modifier, contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+    LazyColumn(
+        modifier,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 16.dp,
+            bottom = 16.dp + WorkspaceBottomBarClearance,
+        ),
+    ) {
         pullRequestLabelItems(details.labels, metadata, openSheet)
         if (details.body.isNotBlank()) {
             item("description") {
@@ -386,7 +388,7 @@ private fun PullRequestChecksSection(checks: List<PullRequestCheckRow>, modifier
                 )
                 if (url != null) {
                     Icon(
-                        Icons.Outlined.NorthEast,
+                        PoracodeIcons.NorthEast,
                         stringResource(R.string.github_open_externally),
                         Modifier.padding(start = 2.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -409,10 +411,10 @@ internal fun SectionHeader(title: String) {
 }
 
 private fun statusIcon(tone: GithubStatusTone): ImageVector = when (tone) {
-    GithubStatusTone.Success -> Icons.Outlined.CheckCircle
-    GithubStatusTone.Failure -> Icons.Outlined.Error
-    GithubStatusTone.Pending -> Icons.Outlined.Schedule
-    GithubStatusTone.Neutral -> Icons.Outlined.RadioButtonUnchecked
+    GithubStatusTone.Success -> PoracodeIcons.CheckCircle
+    GithubStatusTone.Failure -> PoracodeIcons.Error
+    GithubStatusTone.Pending -> PoracodeIcons.Schedule
+    GithubStatusTone.Neutral -> PoracodeIcons.RadioButtonUnchecked
 }
 
 @Composable

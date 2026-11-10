@@ -14,7 +14,7 @@ struct GitOperationsPanel: View {
       worktreesSection
     }
     .navigationTitle(GitOperationsStrings.title)
-    .safeAreaInset(edge: .bottom) {
+    .poracodeBottomBar {
       GitOperationsCompactChrome(
         isBusy: controller.state.isBusy || !canWrite,
         onFetch: { perform(.gitFetch(.init(projectLocation: location))) },
@@ -95,25 +95,26 @@ struct GitOperationsPanel: View {
       }
       if let branches = controller.state.authoritative.branches {
         ForEach(branches.branches) { branch in
-          HStack {
-            Label(
-              GitOperationsStrings.branch(branch.name),
-              systemImage: branch.current ? "checkmark.circle.fill" : "arrow.triangle.branch"
-            )
-            Spacer()
-            Menu {
-              ForEach(GitOperationsPresentation.actions(on: .branch)) { descriptor in
-                actionButton(descriptor, enabled: branchActionEnabled(descriptor, branch: branch)) {
-                  performBranchAction(descriptor.procedure, branch: branch)
-                }
+          Label(
+            GitOperationsStrings.branch(branch.name),
+            systemImage: branch.current ? "checkmark.circle.fill" : "arrow.triangle.branch"
+          )
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .contentShape(Rectangle())
+          .contextMenu {
+            ForEach(GitOperationsPresentation.actions(on: .branch)) { descriptor in
+              actionButton(descriptor, enabled: branchActionEnabled(descriptor, branch: branch)) {
+                performBranchAction(descriptor.procedure, branch: branch)
               }
-            } label: {
-              Image(systemName: "ellipsis.circle")
             }
-            .disabled(!canRead)
-            .accessibilityLabel(GitOperationsStrings.quickActions)
           }
-          .accessibilityElement(children: .contain)
+          .accessibilityActions {
+            ForEach(GitOperationsPresentation.actions(on: .branch)) { descriptor in
+              actionButton(descriptor, enabled: branchActionEnabled(descriptor, branch: branch)) {
+                performBranchAction(descriptor.procedure, branch: branch)
+              }
+            }
+          }
         }
       }
     }
@@ -124,28 +125,32 @@ struct GitOperationsPanel: View {
     Section(GitOperationsStrings.worktrees) {
       if let worktrees = controller.state.authoritative.worktrees {
         ForEach(worktrees) { worktree in
-          HStack {
-            Label(
-              GitOperationsStrings.worktree(worktree.path),
-              systemImage: worktree.isMain ? "folder.fill" : "folder"
-            )
-            Spacer()
-            Menu {
-              ForEach(GitOperationsPresentation.actions(on: .worktree)) { descriptor in
-                actionButton(
-                  descriptor,
-                  enabled: worktreeActionEnabled(descriptor, worktree: worktree)
-                ) {
-                  performWorktreeAction(descriptor.procedure, worktree: worktree)
-                }
+          Label(
+            GitOperationsStrings.worktree(worktree.path),
+            systemImage: worktree.isMain ? "folder.fill" : "folder"
+          )
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .contentShape(Rectangle())
+          .contextMenu {
+            ForEach(GitOperationsPresentation.actions(on: .worktree)) { descriptor in
+              actionButton(
+                descriptor,
+                enabled: worktreeActionEnabled(descriptor, worktree: worktree)
+              ) {
+                performWorktreeAction(descriptor.procedure, worktree: worktree)
               }
-            } label: {
-              Image(systemName: "ellipsis.circle")
             }
-            .disabled(!canRead)
-            .accessibilityLabel(GitOperationsStrings.quickActions)
           }
-          .accessibilityElement(children: .contain)
+          .accessibilityActions {
+            ForEach(GitOperationsPresentation.actions(on: .worktree)) { descriptor in
+              actionButton(
+                descriptor,
+                enabled: worktreeActionEnabled(descriptor, worktree: worktree)
+              ) {
+                performWorktreeAction(descriptor.procedure, worktree: worktree)
+              }
+            }
+          }
         }
       }
     }
@@ -158,7 +163,7 @@ struct GitOperationsPanel: View {
         Task { await refreshAuthoritativeState() }
       }
       .disabled(!canRead)
-      Menu(GitOperationsStrings.quickActions, systemImage: "ellipsis.circle") {
+      Menu(GitOperationsStrings.quickActions, systemImage: "ellipsis") {
         ForEach(
           GitOperationsPresentation.actions(on: .repository).filter {
             $0.procedure != .gitCommit

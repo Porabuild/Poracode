@@ -92,6 +92,11 @@ jobs:
       - name: Turbo cache regression tests
         run: node --test scripts/turbo.test.mjs scripts/heavy-run-gate.test.mjs
 
+      # The Android theme presets are generated from the PWA theme source; a theme
+      # edit without regeneration must fail here. Needs Bun (set up above).
+      - name: Android theme generator regression test
+        run: node --test scripts/generate-android-themes.test.mjs
+
       - name: CI Node pin, dependency audit and quality KPI tests
         run: node --test scripts/node-version-pin.test.mjs scripts/dependency-audit-workflow.test.mjs scripts/quality-kpis.test.mjs scripts/browser-tests-workflow.test.mjs
 

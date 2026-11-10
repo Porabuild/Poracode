@@ -401,7 +401,7 @@ struct RichChatBackgroundTaskDetailsView: View {
     Button(RichChatStrings.retry) {
       Task { await suite.sessionActions.refreshInventory() }
     }
-    .buttonStyle(.bordered)
+    .poracodeGlassButtonStyle()
     .accessibilityIdentifier("background-task-output-retry")
   }
 
@@ -437,7 +437,7 @@ struct RichChatBackgroundTaskDetailsView: View {
         Button(RichChatStrings.retry) {
           reader.retry(identity: identity, action: action)
         }
-        .buttonStyle(.bordered)
+        .poracodeGlassButtonStyle()
         .accessibilityIdentifier("background-task-output-retry")
       }
     case .ready(let output):

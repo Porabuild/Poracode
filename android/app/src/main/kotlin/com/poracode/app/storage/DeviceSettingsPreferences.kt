@@ -67,7 +67,8 @@ enum class ContentLanguage(val languageTag: String?) {
 
 data class DeviceSettingsState(
     val appearanceMode: DeviceAppearanceMode = DeviceAppearanceMode.System,
-    val dynamicColor: Boolean = true,
+    /** Selected theme preset id, identical to the PWA/iOS ids (e.g. "default", "dracula"). */
+    val themeId: String = DEFAULT_THEME_ID,
     val chatTextSizeSp: Int = DEFAULT_CHAT_TEXT_SIZE_SP,
     val agentTerminalTextSizeSp: Int = DEFAULT_TERMINAL_TEXT_SIZE_SP,
     val projectTerminalTextSizeSp: Int = DEFAULT_TERMINAL_TEXT_SIZE_SP,
@@ -82,6 +83,7 @@ data class DeviceSettingsState(
     val notifyError: Boolean = true,
 ) {
     companion object {
+        const val DEFAULT_THEME_ID = "default"
         const val DEFAULT_TERMINAL_TEXT_SIZE_SP = 13
         const val DEFAULT_CHAT_TEXT_SIZE_SP = 14
         const val MIN_TERMINAL_TEXT_SIZE_SP = 8
@@ -93,7 +95,7 @@ data class DeviceSettingsState(
 private data class DeviceSettingsDocument(
     val version: Int,
     val appearanceMode: String = DeviceAppearanceMode.System.name,
-    val dynamicColor: Boolean = true,
+    val themeId: String? = null,
     val chatTextSizeSp: Int = DeviceSettingsState.DEFAULT_CHAT_TEXT_SIZE_SP,
     val agentTerminalTextSizeSp: Int = DeviceSettingsState.DEFAULT_TERMINAL_TEXT_SIZE_SP,
     val projectTerminalTextSizeSp: Int = DeviceSettingsState.DEFAULT_TERMINAL_TEXT_SIZE_SP,
@@ -144,7 +146,7 @@ class DeviceSettingsPreferences(
         it.copy(appearanceMode = mode)
     }
 
-    fun setDynamicColor(enabled: Boolean) = update { it.copy(dynamicColor = enabled) }
+    fun setThemeId(id: String) = update { it.copy(themeId = id) }
 
     fun setChatTextSizeSp(size: Int) = update { it.copy(chatTextSizeSp = size.clampTerminalSize()) }
 
@@ -217,7 +219,7 @@ class DeviceSettingsPreferences(
                 appearanceMode = DeviceAppearanceMode.entries.firstOrNull {
                     it.name == document.appearanceMode
                 } ?: DeviceAppearanceMode.System,
-                dynamicColor = document.dynamicColor,
+                themeId = document.themeId ?: DeviceSettingsState.DEFAULT_THEME_ID,
                 chatTextSizeSp = document.chatTextSizeSp.clampTerminalSize(),
                 agentTerminalTextSizeSp = document.agentTerminalTextSizeSp.clampTerminalSize(),
                 projectTerminalTextSizeSp = document.projectTerminalTextSizeSp.clampTerminalSize(),
@@ -244,7 +246,7 @@ class DeviceSettingsPreferences(
         val document = DeviceSettingsDocument(
             version = DOCUMENT_VERSION,
             appearanceMode = state.appearanceMode.name,
-            dynamicColor = state.dynamicColor,
+            themeId = state.themeId,
             chatTextSizeSp = state.chatTextSizeSp,
             agentTerminalTextSizeSp = state.agentTerminalTextSizeSp,
             projectTerminalTextSizeSp = state.projectTerminalTextSizeSp,

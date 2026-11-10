@@ -6,7 +6,7 @@
     <string name="settings_device_general">Chung</string>
     <string name="settings_device_general_description">Ngôn ngữ, phiên bản và thông tin thiết bị</string>
     <string name="settings_device_appearance">Giao diện</string>
-    <string name="settings_device_appearance_description">Chủ đề và màu hệ thống</string>
+    <string name="settings_device_appearance_description">Giao diện và cỡ chữ chat</string>
     <string name="settings_device_notifications">Thông báo</string>
     <string name="settings_device_notifications_description">Quyền và trạng thái đăng ký máy tính</string>
     <string name="settings_device_terminal">Thiết bị đầu cuối</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">Hệ thống</string>
     <string name="settings_appearance_light">Sáng</string>
     <string name="settings_appearance_dark">Tối</string>
-    <string name="settings_dynamic_color">Dùng màu của thiết bị</string>
     <string name="settings_notification_status">Trạng thái</string>
     <string name="settings_notification_registering">Đang đăng ký</string>
     <string name="settings_notification_available">Khả dụng</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Hiển thị thông báo khi đang dùng Poracode</string>
     <string name="settings_notification_categories">Thông báo về</string>
     <string name="settings_configuration_section">Cấu hình</string>
+    <string name="settings_appearance_mode">Chế độ</string>
+    <string name="settings_appearance_mode_description">Theo hệ thống của bạn, hoặc buộc dùng giao diện sáng hoặc tối.</string>
+    <string name="settings_theme">Chủ đề</string>
+    <string name="settings_notifications_enabled_description">Hiển thị thông báo khi trạng thái luồng thay đổi.</string>
+    <string name="settings_notification_sound_description">Phát âm thanh khi thông báo được hiển thị.</string>
+    <string name="settings_home_shortcut_reorder">Sắp xếp lại %1$s</string>
 </resources>

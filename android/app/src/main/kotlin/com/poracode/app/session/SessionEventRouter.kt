@@ -1,6 +1,7 @@
 package com.poracode.app.session
 
 import com.poracode.app.model.PersistedRuntimeItem
+import com.poracode.app.model.RemoteGitSummary
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.RemoteWebSocketServerMessage
 import com.poracode.app.model.asObjectOrNull
@@ -12,6 +13,7 @@ import com.poracode.app.protocol.ThreadHydrationCoordinator
 import com.poracode.app.protocol.ThreadRuntimeDomainState
 import com.poracode.app.push.RemoteUserNotificationEvent
 import com.poracode.app.push.RemoteNotificationReplayGate
+import com.poracode.app.session.replay.GitSummaryIndexCache
 import com.poracode.app.session.replay.HostReplayCacheUi
 import com.poracode.app.session.replay.ReplayOutcome
 import com.poracode.app.session.replay.SequencedEventApplier
@@ -96,7 +98,7 @@ class SessionEventRouter(
                 val replayOutcome = replayController.handle(message.event)
                 if (replayOutcome.handled) {
                     if (replayOutcome.applied) {
-                        mirrorReplayIntoState(replayOutcome)
+                        mirrorReplayCacheIntoState(replayOutcome.resetThreadIds)
                         onReplaySideEffects(replayOutcome, message.seq)
                         richChatEventSink(message.seq, message.event)
                         setLastSeenSeq(message.seq)
@@ -437,6 +439,13 @@ class SessionEventRouter(
         lastSeededSnapshotSeq = shell.snapshotSeq
     }
 
+    /** Union a bounded thread page's Git summaries into the replay cache (iOS `mergeGitSummaries` parity). */
+    fun mergeGitPageSummaries(summaries: Map<String, RemoteGitSummary>) {
+        if (summaries.isEmpty()) return
+        replayController.mergeGitSummaries(summaries)
+        mirrorReplayCacheIntoState()
+    }
+
     /**
      * Open the agent-statuses base install-buffer boundary before the HTTP
      * fetch. Returns the attempt token the matching seed must present.
@@ -460,9 +469,7 @@ class SessionEventRouter(
      * refresh. Transcript clears / fresh terminal baselines are delivered through
      * [onReplaySideEffects] so terminal/rich-chat controllers own their buffers.
      */
-    private fun mirrorReplayIntoState(outcome: ReplayOutcome) {
-        mirrorReplayCacheIntoState(outcome.resetThreadIds)
-    }
+    private val gitSummaryIndexCache = GitSummaryIndexCache()
 
     private fun mirrorReplayCacheIntoState(resetThreadIds: Set<String> = emptySet()) {
         val replay = replayController.state
@@ -475,6 +482,7 @@ class SessionEventRouter(
                 agentWslStatuses = replay.wslList,
                 agentWslLoaded = replay.wslLoaded,
                 gitStateRevision = replay.gitState.revision,
+                gitSummaryByTarget = gitSummaryIndexCache.indexFor(replay.gitState),
             )
             var next = s.copy(hostReplay = cache)
             val openId = s.openThreadId

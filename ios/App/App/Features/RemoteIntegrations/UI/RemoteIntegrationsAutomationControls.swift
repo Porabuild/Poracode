@@ -21,6 +21,7 @@ struct RemoteIntegrationsAutomationControls: View {
         }
         Toggle(RemoteAutomationsStrings.stopWhenDone, isOn: $draft.evaluateCompletion)
           .disabled(!supportsCompletionCheck && !draft.evaluateCompletion)
+          .poracodeSwitchStyle()
         if !supportsCompletionCheck {
           Text(RemoteAutomationsStrings.completionUnavailable).foregroundStyle(.secondary)
         }
@@ -40,6 +41,7 @@ struct RemoteIntegrationsAutomationControls: View {
           LabeledContent(RemoteAutomationsStrings.runLimit, value: draft.maxIterations == 0 ? RemoteAutomationsStrings.unlimited : String(draft.maxIterations))
         }
         Toggle(RemoteAutomationsStrings.stopOnError, isOn: $draft.stopOnError)
+        .poracodeSwitchStyle()
         Picker(RemoteAutomationsStrings.missedRuns, selection: $draft.misfirePolicy) {
           Text(RemoteAutomationsStrings.coalesce).tag("coalesce")
           Text(RemoteAutomationsStrings.skip).tag("skip")

@@ -2,8 +2,6 @@ package com.poracode.app.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.Text
@@ -28,6 +26,7 @@ import com.poracode.app.session.projects.ProjectOperationResult
 import com.poracode.app.session.projects.ProjectSessionRuntime
 import com.poracode.app.ui.richchat.RichChatMentionCatalog
 import com.poracode.app.ui.richchat.RichChatMentionOption
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.delay
 
 /**
@@ -94,7 +93,7 @@ internal fun HomeQuickComposeMentionChips(
                     label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     trailingIcon = {
                         Icon(
-                            Icons.Outlined.Close,
+                            PoracodeIcons.Close,
                             contentDescription = stringResource(
                                 R.string.rich_chat_remove_context,
                                 label,

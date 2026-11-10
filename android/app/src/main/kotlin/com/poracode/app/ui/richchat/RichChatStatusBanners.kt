@@ -12,6 +12,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.richchat.RichChatOperationFailure
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun RichChatStatusBanners(
@@ -49,7 +50,7 @@ internal fun RichChatStatusBanners(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f),
             )
-            Button(onClick = onRefresh) { Text(stringResource(R.string.rich_chat_retry)) }
+            FilledTonalButton(onClick = onRefresh) { Text(stringResource(R.string.rich_chat_retry)) }
         }
     }
     if (!canOperate) {

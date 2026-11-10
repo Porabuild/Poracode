@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,7 +30,9 @@ import com.poracode.app.model.WorktreeStorageMode
 import com.poracode.app.session.projects.ProjectCommandOutcome
 import com.poracode.app.session.projects.ProjectOperationFailure
 import com.poracode.app.session.projects.ProjectSessionRuntime
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.coroutines.launch
+import androidx.compose.material3.FilledTonalButton
 
 internal enum class ProjectWorktreeChoice { DesktopDefault, Custom, ProjectRelative }
 
@@ -134,7 +135,7 @@ internal fun ProjectWorktreeSettingsSection(
             }
         }
         if (choice == ProjectWorktreeChoice.Custom) {
-            OutlinedTextField(
+            PoracodeTextField(
                 value = basePath,
                 onValueChange = { basePath = it },
                 label = { Text(stringResource(R.string.projects_worktree_base_folder)) },
@@ -147,7 +148,7 @@ internal fun ProjectWorktreeSettingsSection(
         ScriptField(R.string.projects_cleanup_script, cleanupScript, { cleanupScript = it }, enabled)
         ScriptField(R.string.projects_copy_patterns, copyPatterns, { copyPatterns = it }, enabled)
         ProjectFailureText(failure)
-        Button(
+        FilledTonalButton(
             onClick = {
                 localBusy = true
                 failure = null
@@ -189,7 +190,7 @@ private fun ScriptField(
     onValueChange: (String) -> Unit,
     enabled: Boolean,
 ) {
-    OutlinedTextField(
+    PoracodeTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(stringResource(label)) },

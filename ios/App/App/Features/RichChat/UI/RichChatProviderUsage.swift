@@ -9,36 +9,18 @@ struct RichChatProviderUsagePresentation: Equatable {
   let providerID: String
   let label: String
   let snapshot: SettingsUsageSnapshot?
+  var ringLayout: SettingsUsageRingLayout? = nil
 
   var rings: RichChatUsageRings {
     let windows = snapshot?.windows ?? []
-    let baseID = providerID.split(separator: ":", maxSplits: 1).first.map(String.init) ?? providerID
-
-    func first(_ ids: [String]) -> Double? {
-      ids.lazy.compactMap { id in windows.first { $0.id == id }?.usedPercent }.first
-    }
-
-    if windows.contains(where: { $0.id == "daily" }) {
-      return RichChatUsageRings(outerPercent: first(["daily"]), innerPercent: first(["weekly"]))
-    }
-
-    switch baseID {
-    case "claude", "codex", "factory", "kimi", "qwen", "zai":
-      return RichChatUsageRings(
-        outerPercent: first(["session-5h"]),
-        innerPercent: first(["weekly", "monthly", "weekly-opus", "weekly-sonnet", "weekly-fable"])
-      )
-    case "cursor":
-      return RichChatUsageRings(
-        outerPercent: first(["weekly", "cursor-auto"]),
-        innerPercent: first(["cursor-api"])
-      )
-    default:
-      return RichChatUsageRings(
-        outerPercent: windows.max(by: { $0.usedPercent < $1.usedPercent })?.usedPercent,
-        innerPercent: nil
-      )
-    }
+    // Older hosts omit presentation metadata. Keep the ring unknown rather
+    // than guessing a different account or quota period; detail bars still work.
+    let outer = ringLayout?.outerWindowId.flatMap { id in windows.first { $0.id == id } }
+    let inner = ringLayout?.innerWindowId.flatMap { id in windows.first { $0.id == id } }
+    return RichChatUsageRings(
+      outerPercent: (outer ?? inner)?.usedPercent,
+      innerPercent: outer == nil ? nil : inner?.usedPercent
+    )
   }
 
   static func resolve(
@@ -48,23 +30,14 @@ struct RichChatProviderUsagePresentation: Equatable {
     usage: SettingsProviderUsage?
   ) -> RichChatProviderUsagePresentation {
     let snapshots = usage?.snapshots ?? []
-    let availableIDs = Set(snapshots.map(\.providerId))
     let baseKind = agentKind.split(separator: ":", maxSplits: 1).first.map(String.init) ?? agentKind
-    var candidates = [agentKind]
-    if let agentInstanceID, !agentInstanceID.isEmpty {
-      candidates.append("\(baseKind):\(agentInstanceID)")
-    }
-    let providerID =
-      candidates.first(where: availableIDs.contains)
-      ?? snapshots.first(where: {
-        $0.providerId.split(separator: ":", maxSplits: 1).first.map(String.init) == baseKind
-      })?.providerId
-      ?? agentKind
+    let providerID = agentInstanceID.flatMap { $0.isEmpty ? nil : "\(baseKind):\($0)" } ?? agentKind
     let resolvedLabel = label?.trimmingCharacters(in: .whitespacesAndNewlines)
     return RichChatProviderUsagePresentation(
       providerID: providerID,
       label: resolvedLabel.flatMap { $0.isEmpty ? nil : $0 } ?? baseKind.capitalized,
-      snapshot: snapshots.first { $0.providerId == providerID }
+      snapshot: snapshots.first { $0.providerId == providerID },
+      ringLayout: usage?.ringLayouts?[providerID]
     )
   }
 }

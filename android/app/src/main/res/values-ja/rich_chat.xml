@@ -251,6 +251,17 @@
     <string name="rich_chat_background_task_last_progress">最後の進捗報告は%1$s前</string>
     <string name="rich_chat_background_task_close">タスクの詳細を閉じる</string>
     <string name="rich_chat_background_task_report_missing">タスクは完了レポートなしで終了しました。</string>
+    <string name="rich_chat_copy_message">メッセージをコピー</string>
+    <string name="rich_chat_add_to_composer">コンポーザーに追加</string>
+    <string name="rich_chat_file">ファイル</string>
+    <string name="rich_chat_attach">添付する</string>
+    <string name="rich_chat_message_agent">このワークスペースについて%1$sに何でも質問してください</string>
+    <string name="rich_chat_worked_for">%1$s稼働しました</string>
+    <string name="rich_chat_search_models">モデルを検索...</string>
+    <string name="rich_chat_plugins">プラグイン</string>
+    <string name="rich_chat_handoff_fork">会話をフォーク</string>
+    <string name="rich_chat_handoff_prompt">新しいプロバイダーに次に行うことを伝える…</string>
+    <string name="rich_chat_handoff_switch">切り替え</string>
     <string name="rich_chat_html_visual_title">HTMLプレビュー</string>
     <string name="rich_chat_html_visual_source">ソース</string>
     <string name="rich_chat_html_visual_preview">プレビュー</string>
@@ -263,4 +274,5 @@
     <string name="rich_chat_html_visual_unavailable">インタラクティブ表示は利用できません。ソースのみ表示しています。</string>
     <string name="rich_chat_html_visual_open_link_title">リンクを開きますか？</string>
     <string name="rich_chat_html_visual_open_link">開く</string>
+    <string name="rich_chat_scroll_to_bottom">一番下までスクロール</string>
 </resources>

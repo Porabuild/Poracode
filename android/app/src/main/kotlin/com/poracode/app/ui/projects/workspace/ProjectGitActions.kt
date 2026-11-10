@@ -13,7 +13,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,10 +33,12 @@ import com.poracode.app.model.GitStatusResult
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.protocol.git.GitProcedure
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
+import androidx.compose.material3.FilledTonalButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,13 +165,13 @@ private fun GitActionsSheet(
         }
         item {
             GitFormSection(stringResource(R.string.git_commit_section)) {
-                OutlinedTextField(
+                PoracodeTextField(
                     commitMessage,
                     { commitMessage = it },
                     label = { Text(stringResource(R.string.git_commit_message)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(
+                FilledTonalButton(
                     onClick = {
                         submit(
                             GitProcedure.Commit,
@@ -183,14 +184,14 @@ private fun GitActionsSheet(
         }
         item {
             GitFormSection(stringResource(R.string.git_branch_section)) {
-                OutlinedTextField(
+                PoracodeTextField(
                     branch,
                     { branch = it },
                     label = { Text(stringResource(R.string.git_branch_name)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
+                    FilledTonalButton(
                         onClick = {
                             submit(
                                 GitProcedure.SwitchBranch,
@@ -225,19 +226,19 @@ private fun GitActionsSheet(
         }
         item {
             GitFormSection(stringResource(R.string.git_remote_section)) {
-                OutlinedTextField(
+                PoracodeTextField(
                     remoteName,
                     { remoteName = it },
                     label = { Text(stringResource(R.string.git_remote_name)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                PoracodeTextField(
                     remoteUrl,
                     { remoteUrl = it },
                     label = { Text(stringResource(R.string.git_remote_url)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Button(
+                FilledTonalButton(
                     onClick = {
                         submit(
                             GitProcedure.AddRemote,
@@ -253,13 +254,13 @@ private fun GitActionsSheet(
         }
         item {
             GitFormSection(stringResource(R.string.git_worktree_section)) {
-                OutlinedTextField(
+                PoracodeTextField(
                     worktreePath,
                     { worktreePath = it },
                     label = { Text(stringResource(R.string.git_worktree_path)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                PoracodeTextField(
                     sourceBranch,
                     { sourceBranch = it },
                     label = { Text(stringResource(R.string.git_source_branch)) },
@@ -297,7 +298,7 @@ private fun GitActionsSheet(
                 }
                 if (sourceBranch.isNotBlank()) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = {
+                        FilledTonalButton(onClick = {
                             submit(
                                 GitProcedure.PullFromSource,
                                 mapOf("sourceBranch" to JsonPrimitive(sourceBranch.trim())),
@@ -335,7 +336,7 @@ private fun GitActionsSheet(
         }
         if (!status.isRepo) {
             item {
-                Button(
+                FilledTonalButton(
                     onClick = { submit(GitProcedure.Init, emptyMap()) },
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth(),

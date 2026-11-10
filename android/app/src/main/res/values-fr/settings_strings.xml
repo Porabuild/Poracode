@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Utilisation des fournisseurs</string>
+    <string name="settings_usage_title">Utilisation</string>
     <string name="settings_usage_cached">Affichage de l’utilisation mise en cache.</string>
     <string name="settings_usage_empty">Aucune donnée d’utilisation des fournisseurs n’est disponible.</string>
     <string name="settings_usage_empty_title">Aucune donnée d’utilisation</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Quota atteint</string>
     <string name="settings_usage_unsupported">Non pris en charge</string>
     <string name="settings_usage_meter_description">Utilisation de %1$s : %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% par remise à zéro</string>
+    <string name="settings_usage_pace_over">Rythme trop rapide — épuisé trop tôt</string>
+    <string name="settings_usage_pace_ran_out">Épuisé</string>
+    <string name="settings_usage_pace_ran_out_resets">Épuisé · se réinitialise dans %1$s</string>
+    <string name="settings_usage_pace_runs_out_in">S’épuise dans %1$s</string>
+    <string name="settings_usage_pace_runs_out_early">S’épuise tôt</string>
     <string name="settings_profile_identity">Identité</string>
     <string name="settings_profile_identity_description">Ce profil est enregistré sur le bureau sélectionné.</string>
     <string name="settings_profile_name">Nom</string>

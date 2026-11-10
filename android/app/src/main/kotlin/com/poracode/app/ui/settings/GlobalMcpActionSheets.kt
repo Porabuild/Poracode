@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -25,6 +23,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.model.McpServer
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.components.PoracodeSwitch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +46,7 @@ internal fun GlobalMcpMoveSheet(
                 items(projects, key = GlobalMcpProject::id) { project ->
                     ListItem(
                         leadingContent = {
-                            Icon(Icons.Outlined.FolderOpen, contentDescription = null)
+                            Icon(PoracodeIcons.FolderOpen, contentDescription = null)
                         },
                         headlineContent = { Text(project.name) },
                         modifier = Modifier
@@ -83,7 +83,7 @@ internal fun GlobalMcpToolsSheet(
                     ListItem(
                         headlineContent = { Text(tool) },
                         trailingContent = {
-                            Switch(
+                            PoracodeSwitch(
                                 checked = checked,
                                 enabled = enabled,
                                 onCheckedChange = null,

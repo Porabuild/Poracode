@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">アーカイブ済みスレッドはありません</string>
     <string name="thread_status_starting_agent">エージェントを起動中…</string>
     <string name="thread_status_resuming">セッションを再開中…</string>
+    <string name="thread_lifecycle_pin_top">トップにピン留めする</string>
+    <string name="thread_lifecycle_archive_thread">アーカイブスレッド</string>
+    <string name="thread_lifecycle_delete_thread">スレッドの削除</string>
+    <string name="thread_lifecycle_notes">メモとタスク</string>
+    <string name="thread_lifecycle_open_terminal">ターミナルを開く</string>
+    <string name="thread_lifecycle_fork_thread">会話を分岐</string>
+    <string name="thread_lifecycle_continue_in">別のプロバイダーで続行する</string>
+    <string name="thread_lifecycle_move_worktree_changes">変更を含めてワークツリーに移動</string>
+    <string name="thread_lifecycle_move_worktree_clean">クリーンなワークツリーに移動</string>
+    <string name="thread_lifecycle_move_worktree_title">スレッドをワークツリーに移動しますか？</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">現在のランタイムを停止します。新しいワークツリーとブランチを作成し、未コミットの変更をそこへ移動してからスレッドを再開します。</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">現在のランタイムを停止します。クリーンなワークツリーとブランチを作成してからスレッドを再開します。</string>
+    <string name="thread_lifecycle_move_confirm">移動</string>
 </resources>

@@ -6,7 +6,7 @@
     <string name="settings_device_general">Général</string>
     <string name="settings_device_general_description">Langue, version et informations de l’appareil</string>
     <string name="settings_device_appearance">Apparence</string>
-    <string name="settings_device_appearance_description">Thème et couleurs du système</string>
+    <string name="settings_device_appearance_description">Thème et taille de police du chat</string>
     <string name="settings_device_notifications">Notifications</string>
     <string name="settings_device_notifications_description">Autorisation et inscription des ordinateurs</string>
     <string name="settings_device_terminal">Terminal</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">Système</string>
     <string name="settings_appearance_light">Clair</string>
     <string name="settings_appearance_dark">Sombre</string>
-    <string name="settings_dynamic_color">Utiliser les couleurs de l’appareil</string>
     <string name="settings_notification_status">État</string>
     <string name="settings_notification_registering">Inscription en cours</string>
     <string name="settings_notification_available">Disponible</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Afficher les notifications pendant l’utilisation de Poracode</string>
     <string name="settings_notification_categories">Notifier pour</string>
     <string name="settings_configuration_section">Configuration</string>
+    <string name="settings_appearance_mode">Mode</string>
+    <string name="settings_appearance_mode_description">Suivez votre système, ou forcez le thème clair ou sombre.</string>
+    <string name="settings_theme">Thème</string>
+    <string name="settings_notifications_enabled_description">Afficher les notifications lorsque l\'état du fil change.</string>
+    <string name="settings_notification_sound_description">Émettre un son lorsqu\'une notification est affichée.</string>
+    <string name="settings_home_shortcut_reorder">Réorganiser %1$s</string>
 </resources>

@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s，%2$s，%3$s</string>
-    <string name="settings_usage_title">提供商用量</string>
+    <string name="settings_usage_title">用量</string>
     <string name="settings_usage_cached">正在显示缓存的用量。</string>
     <string name="settings_usage_empty">没有可用的提供商用量。</string>
     <string name="settings_usage_empty_title">无使用数据</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">已达到配额</string>
     <string name="settings_usage_unsupported">不支持</string>
     <string name="settings_usage_meter_description">%1$s 用量，%2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% 重置时</string>
+    <string name="settings_usage_pace_over">节奏过快 — 提前用完</string>
+    <string name="settings_usage_pace_ran_out">已用尽</string>
+    <string name="settings_usage_pace_ran_out_resets">耗尽 · 在%1$s后重置</string>
+    <string name="settings_usage_pace_runs_out_in">将在%1$s后用完</string>
+    <string name="settings_usage_pace_runs_out_early">提早用完</string>
     <string name="settings_profile_identity">身份信息</string>
     <string name="settings_profile_identity_description">此个人资料存储在所选桌面上。</string>
     <string name="settings_profile_name">姓名</string>

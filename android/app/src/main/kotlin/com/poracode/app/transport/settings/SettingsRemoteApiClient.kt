@@ -127,7 +127,7 @@ class SettingsRemoteApiClient private constructor(
     ): T {
         val route = GeneratedRemoteV3SettingsContract.route(routeId)
         check(route.method == "GET")
-        return adapt(validate(http.requestText(route.path)))
+        return adapt(validate(http.requestText(route.path, retryableRead = true)))
     }
 
     private suspend fun <T> post(

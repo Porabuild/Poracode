@@ -4,4 +4,7 @@
     <string name="remote_notification_needs_attention">Requer atenção</string>
     <string name="remote_notification_error">Erro</string>
     <string name="remote_notification_dismiss">Dispensar notificação</string>
+    <string name="remote_notification_done_description">Tópico finalizado ou aguardando sua entrada.</string>
+    <string name="remote_notification_needs_attention_description">Aprovação ou resposta exigida de você.</string>
+    <string name="remote_notification_error_description">O agente encontrou um erro.</string>
 </resources>

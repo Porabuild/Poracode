@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,6 +30,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.AppSession
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.components.PoracodeAccentButton
 
 /**
  * Repair banners for the phases that must not be bypassed. Each one keeps its own
@@ -49,21 +47,21 @@ internal fun OnboardingRepairBanners(
 ) {
     if (localStoreInconsistent || state.phase == AppSession.Phase.LocalStoreInconsistent) {
         RepairBanner(
-            icon = Icons.Outlined.ErrorOutline,
+            icon = PoracodeIcons.ErrorOutline,
             title = stringResource(R.string.local_store_inconsistent_title),
             message = stringResource(R.string.local_store_inconsistent_message),
         )
     }
     if (protocolIncompatible || state.phase == AppSession.Phase.ProtocolIncompatible) {
         RepairBanner(
-            icon = Icons.Outlined.WarningAmber,
+            icon = PoracodeIcons.WarningAmber,
             title = stringResource(R.string.protocol_incompatible_title),
             message = stringResource(R.string.protocol_incompatible_message),
         )
     }
     if (state.sessionExpired || state.phase == AppSession.Phase.SessionExpired) {
         RepairBanner(
-            icon = Icons.Outlined.Lock,
+            icon = PoracodeIcons.Lock,
             title = stringResource(R.string.session_expired_title),
             message = stringResource(R.string.session_expired_message),
         )
@@ -134,7 +132,7 @@ internal fun CleartextNotice() {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Icon(
-            Icons.Outlined.WarningAmber,
+            PoracodeIcons.WarningAmber,
             contentDescription = null,
             modifier = Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.error,
@@ -167,7 +165,7 @@ internal fun ConnectButton(
     onClick: () -> Unit,
 ) {
     val connectCd = stringResource(R.string.connect_button)
-    Button(
+    PoracodeAccentButton(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()

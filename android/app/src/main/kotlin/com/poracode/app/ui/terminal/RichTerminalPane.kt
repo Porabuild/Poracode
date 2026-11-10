@@ -21,7 +21,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -75,10 +74,12 @@ import com.poracode.app.model.terminal.TerminalProcessState
 import com.poracode.app.session.richchat.RichChatOperationResult
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.transport.richchat.TerminalStartInput
+import com.poracode.app.ui.components.PoracodeTextField
 import com.poracode.remote.v3.generated.TerminalHardwareKey
 import com.poracode.remote.v3.generated.terminalHardwareKeySequence
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 fun RichTerminalPane(
@@ -97,6 +98,13 @@ fun RichTerminalPane(
     }
     LaunchedEffect(transcript, buffer) {
         document = buffer.update(transcript)
+    }
+    // Write device-attribute/status replies the controller derives from live
+    // PTY output back to the shell so queries do not stall on their fallback.
+    LaunchedEffect(runtime.terminal) {
+        runtime.terminal.queryReplies.collect { reply ->
+            runtime.terminal.write(reply)
+        }
     }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -302,7 +310,7 @@ Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
+            PoracodeTextField(
                 value = input,
                 onValueChange = { input = it.take(MAX_INPUT_UTF16_UNITS) },
                 enabled = writable,
@@ -341,7 +349,7 @@ Row(
                 enabled = writable,
                 onClick = { scope.launch { runtime.terminal.write("\u0003") } },
             ) { Text(stringResource(R.string.terminal_control_c)) }
-            Button(
+            FilledTonalButton(
                 enabled = writable && input.isNotEmpty(),
                 onClick = { sendInput(runtime, input, scope) { input = "" } },
                 modifier = Modifier.testTag("terminal_send"),

@@ -1,6 +1,5 @@
 package com.poracode.app.ui.home
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -15,10 +14,18 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -31,6 +38,7 @@ import com.poracode.app.model.RemoteThread
 import com.poracode.app.push.PushUiState
 import com.poracode.app.push.RemoteUserNotificationBanner
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.poracode.app.session.AppSession
 import com.poracode.app.session.HostPresentation
 import com.poracode.app.session.projects.ProjectSessionRuntime
@@ -38,7 +46,9 @@ import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.threads.ThreadSessionRuntime
 import com.poracode.app.storage.HomeShortcut
 import com.poracode.app.transport.RemoteWebSocketClient
+import com.poracode.app.ui.GitSummaryResolver
 import com.poracode.app.ui.components.EmptyStateView
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
 import com.poracode.app.ui.richchat.RichChatThreadScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,19 +84,75 @@ internal fun HomeScreen(
     notificationBanner: RemoteUserNotificationBanner?,
     onOpenNotification: (Long) -> Unit,
     onDismissNotification: (Long) -> Unit,
+    providerUsageControl: @Composable (RemoteThread?, com.poracode.app.model.AgentStatusEntry?) -> Unit = { _, _ -> },
 ) {
     // System back closes an open thread on phone layout.
-    BackHandler(enabled = state.openThreadId != null) {
-        onCloseThread()
-    }
+    val backModifier = rememberPredictiveBackModifier(
+        enabled = state.openThreadId != null,
+        onBack = onCloseThread,
+    )
     LaunchedEffect(notificationBanner?.id) {
         val id = notificationBanner?.id ?: return@LaunchedEffect
         delay(6_000)
         onDismissNotification(id)
     }
+    val homeScope = rememberCoroutineScope()
+    var moveInFlight by remember { mutableStateOf(false) }
+    var moveFailed by remember { mutableStateOf(false) }
+    val moveOpenThreadToWorktree: (Boolean) -> Unit = { bringChanges ->
+        val item = threads.firstOrNull {
+            it.id == state.openThreadId || it.thread.id == state.openThreadId ||
+                it.id == selectedPresentedThreadId
+        }
+        val target = openProjectTarget(state)
+        if (item != null && target != null && !moveInFlight) {
+            moveInFlight = true
+            homeScope.launch {
+                val moved = moveHomeThreadToWorktree(
+                    thread = item.thread,
+                    project = item.project,
+                    target = target,
+                    bringChanges = bringChanges,
+                    richChat = richChat,
+                    threadRuntime = threadRuntime,
+                    projectRuntime = projectRuntime,
+                    onOpenThread = onOpenThread,
+                )
+                moveInFlight = false
+                if (!moved) moveFailed = true
+            }
+        }
+    }
+    val handoffAgents = openProjectLocation(state)?.let { location ->
+        val mode = if (openThread(state)?.presentationMode == "terminal") {
+            com.poracode.app.model.threads.ThreadPresentationMode.Terminal
+        } else {
+            com.poracode.app.model.threads.ThreadPresentationMode.Gui
+        }
+        homeQuickComposeAgents(location, state.hostReplay, mode)
+    }.orEmpty()
+    if (moveFailed) {
+        AlertDialog(
+            onDismissRequest = { moveFailed = false },
+            title = { Text(stringResource(R.string.thread_lifecycle_failed)) },
+            text = { Text(stringResource(R.string.thread_lifecycle_failure_generic)) },
+            confirmButton = {
+                TextButton(onClick = { moveFailed = false }) {
+                    Text(stringResource(R.string.thread_lifecycle_close))
+                }
+            },
+        )
+    }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().then(backModifier)) {
         val tablet = maxWidth >= 840.dp
+        val openItem = threads.firstOrNull {
+            it.id == state.openThreadId || it.thread.id == state.openThreadId ||
+                it.id == selectedPresentedThreadId
+        }
+        val openHostOnline = openItem != null &&
+            openItem.connectionId == state.hostCatalog.selectedConnectionId &&
+            state.socketState == RemoteWebSocketClient.ConnectionState.Online
         if (tablet) {
             Row(Modifier.fillMaxSize()) {
                 ThreadListPane(
@@ -125,10 +191,31 @@ internal fun HomeScreen(
                 )
                 if (state.openThreadId != null) {
                     RichChatThreadScreen(
+                        providerUsageControl = providerUsageControl,
                         userHiddenModels = userHiddenModels,
                         runtime = richChat,
                         forksSupported = 1 in state.liveThreadForkVersions,
                         onOpenThread = onOpenThread,
+                        onMoveToWorktree = moveOpenThreadToWorktree,
+                        handoffAgents = handoffAgents,
+                        onOpenWorkspaceGit = {
+                            openProjectTarget(state)?.let { target ->
+                                onOpenProjectUtility(
+                                    target.identity.connectionId,
+                                    target.identity.projectId,
+                                    HomeProjectUtility.Workspace,
+                                )
+                            }
+                        },
+                        onOpenProjectUtility = { utility ->
+                            openProjectTarget(state)?.let { target ->
+                                onOpenProjectUtility(
+                                    target.identity.connectionId,
+                                    target.identity.projectId,
+                                    utility,
+                                )
+                            }
+                        },
                         threadLifecycleController = threadRuntime.controller,
                         thread = openThread(state),
                         catalogThread = state.openCatalogThread(),
@@ -142,9 +229,16 @@ internal fun HomeScreen(
                         onOpenAgentSettings = onOpenAgentSettings,
                         showBack = false,
                         gitSummary = openThread(state)?.let {
-                            state.hostReplay.gitSummariesByThread[it.id]
+                            GitSummaryResolver.forThread(
+                                it,
+                                state.hostReplay.gitSummariesByThread,
+                                state.hostReplay.gitSummaryByTarget,
+                            )
                         },
                         terminalTextSizeSp = terminalTextSizeSp,
+                        projectName = openItem?.project?.name,
+                        hostName = openItem?.hostName,
+                        hostOnline = openHostOnline,
                         modifier = Modifier.weight(1f),
                     )
                 } else {
@@ -158,10 +252,31 @@ internal fun HomeScreen(
         } else {
             if (state.openThreadId != null) {
                 RichChatThreadScreen(
+                    providerUsageControl = providerUsageControl,
                     userHiddenModels = userHiddenModels,
                     runtime = richChat,
                     forksSupported = 1 in state.liveThreadForkVersions,
                     onOpenThread = onOpenThread,
+                    onMoveToWorktree = moveOpenThreadToWorktree,
+                    handoffAgents = handoffAgents,
+                    onOpenWorkspaceGit = {
+                        openProjectTarget(state)?.let { target ->
+                            onOpenProjectUtility(
+                                target.identity.connectionId,
+                                target.identity.projectId,
+                                HomeProjectUtility.Workspace,
+                            )
+                        }
+                    },
+                    onOpenProjectUtility = { utility ->
+                        openProjectTarget(state)?.let { target ->
+                            onOpenProjectUtility(
+                                target.identity.connectionId,
+                                target.identity.projectId,
+                                utility,
+                            )
+                        }
+                    },
                     threadLifecycleController = threadRuntime.controller,
                     thread = openThread(state),
                     catalogThread = state.openCatalogThread(),
@@ -175,9 +290,16 @@ internal fun HomeScreen(
                     onOpenAgentSettings = onOpenAgentSettings,
                     showBack = true,
                     gitSummary = openThread(state)?.let {
-                        state.hostReplay.gitSummariesByThread[it.id]
+                        GitSummaryResolver.forThread(
+                            it,
+                            state.hostReplay.gitSummariesByThread,
+                            state.hostReplay.gitSummaryByTarget,
+                        )
                     },
                     terminalTextSizeSp = terminalTextSizeSp,
+                    projectName = openItem?.project?.name,
+                    hostName = openItem?.hostName,
+                    hostOnline = openHostOnline,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {

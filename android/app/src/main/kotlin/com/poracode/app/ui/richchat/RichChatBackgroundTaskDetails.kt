@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -46,10 +44,12 @@ import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.richchat.RichChatThreadLease
 import com.poracode.app.session.richchat.richChatBackgroundTaskReadKey
 import com.poracode.app.session.richchat.richChatBackgroundTaskStopKey
+import com.poracode.app.ui.theme.PoracodeIcons
 import java.text.NumberFormat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * Single selected-task detail surface. Output polls only while this sheet is
@@ -172,7 +172,7 @@ internal fun RichChatBackgroundTaskDetailsSheet(
                     modifier = Modifier.testTag("background-task-close"),
                 ) {
                     Icon(
-                        Icons.Outlined.Close,
+                        PoracodeIcons.Close,
                         contentDescription = stringResource(R.string.rich_chat_background_task_close),
                     )
                 }
@@ -203,7 +203,7 @@ internal fun RichChatBackgroundTaskDetailsSheet(
                 val stopKey = selection?.let { richChatBackgroundTaskStopKey(it, task) }
                 val pending = stopKey != null && stopState.key == stopKey && stopState.pending
                 val failure = stopState.failure.takeIf { stopState.key == stopKey }
-                Button(
+                FilledTonalButton(
                     onClick = { onStopTask(task) },
                     enabled = canOperate && !pending,
                     modifier = Modifier

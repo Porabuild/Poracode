@@ -186,6 +186,7 @@ describe("usage synchronous read scopes", () => {
     expect(await f.service.getProviderUsage({ providerIds: [id, id, "unknown"] })).toEqual({
       snapshots: [snapshot(id)],
       fromCache: true,
+      ringLayouts: { [id]: { outerWindowId: "weekly" } },
     });
     expect(f.counts()).toEqual({
       settingsReads: 2,
@@ -204,6 +205,7 @@ describe("usage synchronous read scopes", () => {
     expect(await f.service.getProviderUsage({})).toEqual({
       snapshots: f.ids.map((id) => snapshot(id)),
       fromCache: true,
+      ringLayouts: Object.fromEntries(f.ids.map((id) => [id, { outerWindowId: "weekly" }])),
     });
     expect(f.counts()).toEqual({
       settingsReads: 2,

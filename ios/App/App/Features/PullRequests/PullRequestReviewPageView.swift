@@ -75,7 +75,7 @@ struct PullRequestReviewPageView: View {
     content
       .navigationTitle(details?.title ?? route.title)
       .navigationBarTitleDisplayMode(.inline)
-      .safeAreaInset(edge: .top, spacing: 0) {
+      .poracodeTopBar {
         ScrollView(.horizontal, showsIndicators: false) {
         Picker(PullRequestsStrings.title, selection: $section) {
           ForEach(sections) { value in
@@ -87,7 +87,7 @@ struct PullRequestReviewPageView: View {
         .padding(.horizontal)
         .padding(.vertical, 8)
         }
-        .background(.bar)
+        .poracodeBarBackground()
       }
       .toolbar { toolbarContent }
       .task(id: loadIdentity) { await load() }
@@ -139,14 +139,14 @@ struct PullRequestReviewPageView: View {
       .overlay(alignment: .bottom) {
         if isScoped && forge.isCached {
           Text(PullRequestsStrings.guideText("Offline"))
-            .font(.footnote).padding().background(.regularMaterial, in: Capsule()).padding()
+            .font(.footnote).padding().poracodeGlassBackground(in: Capsule()).padding()
         } else
         if let failure = isScoped ? forge.failure : mutations.state.failure {
           Text(GitHubOperationsStrings.failure(failure))
             .font(.footnote)
             .foregroundStyle(.secondary)
             .padding()
-            .background(.regularMaterial, in: Capsule())
+            .poracodeGlassBackground(in: Capsule())
             .padding()
         }
       }
@@ -320,7 +320,7 @@ struct PullRequestReviewPageView: View {
           }
         }
       } label: {
-        Label(PullRequestsStrings.actions, systemImage: "ellipsis.circle")
+        Label(PullRequestsStrings.actions, systemImage: "ellipsis")
       }
       .disabled(context == nil)
     }

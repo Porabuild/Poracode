@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="projects_manage_title">Projeleri yönet</string>
+    <string name="projects_manage_title">Projeler</string>
     <string name="projects_add_title">Proje ekle</string>
     <string name="projects_add_existing">Mevcut proje ekle</string>
     <string name="projects_create_new">Yeni proje oluştur</string>

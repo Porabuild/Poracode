@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="remote_notification_done">Завершено</string>
+    <string name="remote_notification_done">Готово</string>
     <string name="remote_notification_needs_attention">Требует внимания</string>
     <string name="remote_notification_error">Ошибка</string>
     <string name="remote_notification_dismiss">Закрыть уведомление</string>
+    <string name="remote_notification_done_description">Тред завершён или ожидает вашего ввода.</string>
+    <string name="remote_notification_needs_attention_description">Требуется ваше подтверждение или ответ.</string>
+    <string name="remote_notification_error_description">Агент столкнулся с ошибкой.</string>
 </resources>

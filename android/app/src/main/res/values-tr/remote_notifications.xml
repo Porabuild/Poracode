@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="remote_notification_done">Tamamlandı</string>
+    <string name="remote_notification_done">Bitti</string>
     <string name="remote_notification_needs_attention">İlgilenmeniz gerekiyor</string>
     <string name="remote_notification_error">Hata</string>
     <string name="remote_notification_dismiss">Bildirimi kapat</string>
+    <string name="remote_notification_done_description">Konu bitti veya girişinizi bekliyor.</string>
+    <string name="remote_notification_needs_attention_description">Onayınız veya yanıtınız isteniyor.</string>
+    <string name="remote_notification_error_description">Temsilci bir hatayla karşılaştı.</string>
 </resources>

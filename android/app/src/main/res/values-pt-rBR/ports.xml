@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Encaminhamento de portas</string>
+    <string name="ports_title">Portas</string>
     <string name="ports_back">Voltar</string>
     <string name="ports_refresh">Atualizar portas</string>
     <string name="ports_target_port">Porta de destino</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">O encaminhamento pelo navegador não está configurado neste computador.</string>
     <string name="ports_failure_ambiguous">A solicitação pode ter sido concluída. A lista foi atualizada.</string>
     <string name="ports_failure_unavailable">O encaminhamento de portas não está disponível no momento.</string>
+    <string name="ports_intro">Servidores de desenvolvimento escutando no localhost do seu desktop.</string>
+    <string name="ports_forward_a_port">Encaminhar uma porta</string>
 </resources>

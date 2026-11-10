@@ -1,5 +1,7 @@
 package com.poracode.app.ui.settings
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,14 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +37,7 @@ import com.poracode.app.model.RemoteEnvironmentProjection
 import com.poracode.app.session.environments.EnvironmentManagementController
 import com.poracode.app.session.environments.EnvironmentManagementController.EnvironmentUiState
 import com.poracode.app.session.environments.EnvironmentManagementController.LoadState
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * Host-owned environment management (C1). Every action is an explicit user
@@ -220,7 +219,7 @@ private fun EnvironmentHeaderCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (state.capabilityAvailable && state.access.canRead && state.access.canManage) {
-            Button(
+            FilledTonalButton(
                 onClick = onCreate,
                 enabled = enabled,
                 modifier = Modifier.padding(top = 8.dp).testTag("environment_add"),
@@ -232,6 +231,7 @@ private fun EnvironmentHeaderCard(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun EnvironmentCard(
     state: EnvironmentUiState,
     environment: RemoteEnvironmentProjection,
@@ -249,7 +249,13 @@ private fun EnvironmentCard(
     Row(
         Modifier
             .fillMaxWidth()
-            .testTag("environment_row_${environment.environmentId}"),
+            .testTag("environment_row_${environment.environmentId}")
+            .combinedClickable(
+                onClickLabel = moreLabel,
+                onLongClickLabel = moreLabel,
+                onClick = { menuOpen = true },
+                onLongClick = { menuOpen = true },
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -276,13 +282,6 @@ private fun EnvironmentCard(
             )
         }
         Box {
-            IconButton(
-                onClick = { menuOpen = true },
-                enabled = !busy,
-                modifier = Modifier.semantics { contentDescription = moreLabel },
-            ) {
-                Icon(Icons.Outlined.MoreVert, contentDescription = null)
-            }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 if (state.access.canUse) {
                     if (environment.connected) {

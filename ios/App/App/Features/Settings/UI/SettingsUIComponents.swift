@@ -12,7 +12,7 @@ struct SettingsUnavailableView: View {
     } actions: {
       if let retry {
         Button(SettingsUIStrings.retry, action: retry)
-          .settingsProminentButtonStyle()
+          .poracodeGlassButtonStyle()
       }
     }
   }
@@ -71,7 +71,7 @@ struct SettingsRefreshFailureBanner: View {
         .font(.footnote)
       Spacer(minLength: 8)
       Button(SettingsUIStrings.retry, action: retry)
-        .buttonStyle(.bordered)
+        .poracodeSurfaceButtonStyle()
     }
     .padding(12)
     .frame(maxWidth: .infinity)
@@ -146,19 +146,6 @@ struct SettingsFilterBar: View {
 extension View {
   @ViewBuilder
   fileprivate func settingsGlassSurface() -> some View {
-    if #available(iOS 26.0, *) {
-      glassEffect(.regular, in: .rect(cornerRadius: 16))
-    } else {
-      background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-  }
-
-  @ViewBuilder
-  fileprivate func settingsProminentButtonStyle() -> some View {
-    if #available(iOS 26.0, *) {
-      buttonStyle(.glassProminent)
-    } else {
-      buttonStyle(.borderedProminent)
-    }
+    poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
   }
 }

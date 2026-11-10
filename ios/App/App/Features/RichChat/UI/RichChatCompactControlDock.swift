@@ -20,6 +20,7 @@ struct RichChatCompactControlDock: View {
   let refreshProviderUsage: @MainActor () async -> Void
 
   @State private var destination: RichChatCompactControlDestination?
+  @Namespace private var glassNamespace
 
   var body: some View {
     VStack(spacing: 7) {
@@ -43,7 +44,10 @@ struct RichChatCompactControlDock: View {
       }
 
       if !infoControls.isEmpty {
-        RichChatCompactInfoControls(controls: infoControls) { selected in
+        RichChatCompactInfoControls(
+          controls: infoControls,
+          glassNamespace: glassNamespace
+        ) { selected in
           destination = selected
         }
       }
@@ -51,6 +55,7 @@ struct RichChatCompactControlDock: View {
     .padding(.top, showsAnyContent ? 7 : 0)
     .sheet(item: $destination) { destination in
       destinationSheet(destination)
+        .poracodeZoomTransition(sourceID: destination.id, in: glassNamespace)
     }
   }
 
@@ -230,7 +235,7 @@ struct RichChatCompactControlDock: View {
       } label: {
         Image(systemName: "pencil")
       }
-      .buttonStyle(.bordered)
+      .poracodeSurfaceButtonStyle()
       .controlSize(.small)
       .accessibilityLabel(RichChatStrings.editSteer)
       Button(role: .destructive) {
@@ -238,7 +243,7 @@ struct RichChatCompactControlDock: View {
       } label: {
         Image(systemName: "xmark")
       }
-      .buttonStyle(.bordered)
+      .poracodeSurfaceButtonStyle(tint: .red)
       .controlSize(.small)
       .disabled(!canOperate)
       .accessibilityLabel(RichChatStrings.clearSteer)

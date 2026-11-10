@@ -12,13 +12,14 @@ struct RichChatComposerInlineConfiguration: View {
   var crew: RichChatCrewPresentation? = nil
   var openCrew: (() -> Void)? = nil
   var showsStatusIcons = true
+  let glassNamespace: Namespace.ID
   let open: () -> Void
 
   var body: some View {
     HStack(spacing: 5) {
       Button(action: open) {
         HStack(spacing: 5) {
-          HomeProviderIcon(kind: agentKind)
+          HomeProviderIcon(kind: agentKind, agentLabel: catalog.agentLabel)
             .foregroundStyle(.primary.opacity(0.92))
             .frame(width: 13, height: 13)
           Text(catalog.modelLabel(configuration.model))
@@ -41,6 +42,7 @@ struct RichChatComposerInlineConfiguration: View {
       .tint(.secondary)
       .allowsHitTesting(canOpen)
       .accessibilityLabel(RichChatStrings.composerControls)
+      .poracodeZoomSource(id: "richchat.composer-controls", in: glassNamespace)
       if let crew, let openCrew {
         let name = crew.name.isEmpty ? RichChatStrings.crew : crew.name
         Button(action: openCrew) {
@@ -130,6 +132,8 @@ struct RichChatComposerTrailingAction: View {
   let interrupt: () -> Void
   let send: () -> Void
 
+  @Environment(\.poracodeAccent) private var accent
+
   @ViewBuilder
   var body: some View {
     if (isTurnActive || isSending) && !hasPrompt {
@@ -149,9 +153,9 @@ struct RichChatComposerTrailingAction: View {
       Button(action: resume.perform) {
         Image(systemName: "play.fill")
           .font(.system(size: 12, weight: .semibold))
-          .foregroundStyle(Color.white)
+          .foregroundStyle(Color.primary)
           .frame(width: 32, height: 32)
-          .background(Color.accentColor.opacity(0.78), in: Circle())
+          .background(accent.opacity(0.2), in: Circle())
       }
       .buttonStyle(.plain)
       .disabled(importing || isResolvingRequest)
@@ -181,10 +185,10 @@ struct RichChatComposerTrailingAction: View {
     Button(action: send) {
       Image(systemName: "arrow.up")
         .font(.system(size: 13, weight: .semibold))
-        .foregroundStyle(hasPrompt ? Color.white : Color.secondary)
+        .foregroundStyle(hasPrompt ? Color.primary : Color.secondary)
         .frame(width: 32, height: 32)
         .background(
-          hasPrompt ? Color.accentColor.opacity(0.78) : Color.secondary.opacity(0.12),
+          hasPrompt ? accent.opacity(0.2) : Color.secondary.opacity(0.12),
           in: Circle()
         )
     }
@@ -204,6 +208,7 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
   @Binding var isExpanded: Bool
   let hasPrompt: Bool
   let hasTrailingAction: Bool
+  var placeholder: String = RichChatStrings.message
   let submit: () -> Void
   @ViewBuilder let summary: () -> Summary
   @ViewBuilder let toolbar: () -> Toolbar
@@ -237,7 +242,7 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
             Button {
               isExpanded = true
             } label: {
-              Text(hasPrompt ? text : RichChatStrings.message)
+              Text(hasPrompt ? text : placeholder)
                 .poracodeChatText(.body)
                 .foregroundStyle(hasPrompt ? .primary : .secondary)
                 .lineLimit(1)
@@ -246,7 +251,7 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
                 .padding(.vertical, 7)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(RichChatStrings.message)
+            .accessibilityLabel(placeholder)
             .accessibilityIdentifier("native-e2e.composer-collapsed")
             if !hasPrompt { summary() }
           }
@@ -279,13 +284,13 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
       selection: $selection,
       focused: $focused,
       lineLimit: lineLimit,
-      placeholder: RichChatStrings.message,
+      placeholder: placeholder,
       pointSize: PoracodeChatTextRole.body.pointSize(for: storedTextSize),
       submit: submit
     )
     .padding(.horizontal, 4)
     .padding(.vertical, 7)
-    .accessibilityLabel(RichChatStrings.message)
+    .accessibilityLabel(placeholder)
     .accessibilityIdentifier("native-e2e.composer")
   }
 }

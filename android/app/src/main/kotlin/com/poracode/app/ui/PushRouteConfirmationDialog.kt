@@ -11,6 +11,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.poracode.app.R
 import com.poracode.app.push.PendingPushRoute
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * Cross-host notification-tap confirmation. Names only the safe host display
@@ -35,7 +36,7 @@ fun PushRouteConfirmationDialog(
             )
         },
         confirmButton = {
-            Button(onClick = onConfirm) {
+            FilledTonalButton(onClick = onConfirm) {
                 Text(stringResource(R.string.push_route_confirm_switch))
             }
         },

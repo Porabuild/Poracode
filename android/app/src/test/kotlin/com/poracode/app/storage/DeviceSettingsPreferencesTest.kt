@@ -23,7 +23,6 @@ class DeviceSettingsPreferencesTest {
         val state = DeviceSettingsPreferences(MemoryStore()).state.value
 
         assertEquals(DeviceAppearanceMode.System, state.appearanceMode)
-        assertEquals(true, state.dynamicColor)
         assertEquals(14, state.chatTextSizeSp)
         assertEquals(13, state.agentTerminalTextSizeSp)
         assertEquals(13, state.projectTerminalTextSizeSp)
@@ -41,7 +40,6 @@ class DeviceSettingsPreferencesTest {
         val preferences = DeviceSettingsPreferences(store)
 
         preferences.setAppearanceMode(DeviceAppearanceMode.Dark)
-        preferences.setDynamicColor(false)
         preferences.setChatTextSizeSp(18)
         preferences.setAgentTerminalTextSizeSp(4)
         preferences.setProjectTerminalTextSizeSp(30)
@@ -53,7 +51,6 @@ class DeviceSettingsPreferencesTest {
 
         val state = DeviceSettingsPreferences(store).state.value
         assertEquals(DeviceAppearanceMode.Dark, state.appearanceMode)
-        assertEquals(false, state.dynamicColor)
         assertEquals(18, state.chatTextSizeSp)
         assertEquals(8, state.agentTerminalTextSizeSp)
         assertEquals(20, state.projectTerminalTextSizeSp)
@@ -74,8 +71,46 @@ class DeviceSettingsPreferencesTest {
         ).state.value
 
         assertEquals(DeviceAppearanceMode.Dark, state.appearanceMode)
-        assertEquals(false, state.dynamicColor)
         assertEquals(HomeShortcut.entries, state.homeShortcutOrder)
+    }
+
+    @Test
+    fun preUpgradeDocumentsWithoutThemeIdLoadAsDefault() {
+        // A v2 document written before themeId existed must decode as the default theme.
+        val released = """{"version":2,"appearanceMode":"Dark","chatTextSizeSp":16}"""
+        val state = DeviceSettingsPreferences(MemoryStore(released)).state.value
+
+        assertEquals("default", state.themeId)
+    }
+
+    @Test
+    fun themeIdPersistsAndReloads() {
+        val store = MemoryStore()
+        val preferences = DeviceSettingsPreferences(store)
+
+        preferences.setThemeId("dracula")
+        assertEquals("dracula", DeviceSettingsPreferences(store).state.value.themeId)
+
+        preferences.setThemeId("default")
+        assertEquals("default", DeviceSettingsPreferences(store).state.value.themeId)
+    }
+
+    @Test
+    fun releasedDocumentsWithTheRetiredDynamicColorFieldKeepEveryOtherPreference() {
+        val released = """{"version":2,"appearanceMode":"Light","dynamicColor":false,""" +
+            """"chatTextSizeSp":16,"contentLanguage":"German","notifyError":false}"""
+        val store = MemoryStore(released)
+        val preferences = DeviceSettingsPreferences(store)
+
+        val state = preferences.state.value
+        assertEquals(DeviceAppearanceMode.Light, state.appearanceMode)
+        assertEquals(16, state.chatTextSizeSp)
+        assertEquals(ContentLanguage.German, state.contentLanguage)
+        assertEquals(false, state.notifyError)
+
+        preferences.setNotifyDone(false)
+        assertEquals(false, store.value.orEmpty().contains("dynamicColor"))
+        assertEquals(DeviceAppearanceMode.Light, DeviceSettingsPreferences(store).state.value.appearanceMode)
     }
 
     @Test
@@ -93,9 +128,12 @@ class DeviceSettingsPreferencesTest {
     fun corruptAndOlderDocumentsCanBeReplacedByFirstExplicitChoice() {
         listOf("not-json", """{"version":0}""").forEach { raw ->
             val store = MemoryStore(raw)
-            DeviceSettingsPreferences(store).setDynamicColor(false)
+            DeviceSettingsPreferences(store).setAppearanceMode(DeviceAppearanceMode.Dark)
 
-            assertEquals(false, DeviceSettingsPreferences(store).state.value.dynamicColor)
+            assertEquals(
+                DeviceAppearanceMode.Dark,
+                DeviceSettingsPreferences(store).state.value.appearanceMode,
+            )
         }
     }
 

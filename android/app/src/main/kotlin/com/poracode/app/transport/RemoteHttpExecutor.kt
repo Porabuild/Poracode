@@ -44,6 +44,7 @@ internal class RemoteHttpExecutor(
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
         timeoutMs: Long? = null,
+        retryableRead: Boolean = false,
     ): String {
         var url = endpointUrl(path).toHttpUrl()
         if (query.isNotEmpty()) {
@@ -96,7 +97,13 @@ internal class RemoteHttpExecutor(
             }
         }
         try {
-            val result = executeRemoteRequest(liveClient, networkGate, request, deadlineNanos) { response ->
+            val result = executeRemoteRequest(
+                liveClient,
+                networkGate,
+                request,
+                deadlineNanos,
+                retryableRead = retryableRead,
+            ) { response ->
                 if (response.code == 304 && cachedRead != null) {
                     response.close()
                     readCache.body(cachedRead)
@@ -109,7 +116,8 @@ internal class RemoteHttpExecutor(
                 networkGate,
                 request.newBuilder().removeHeader("If-None-Match").build(),
                 deadlineNanos,
-                decode,
+                retryableRead = retryableRead,
+                process = decode,
             )
         } catch (error: RemoteClientException) {
             throw environment.normalizeFailure(error)
@@ -125,10 +133,11 @@ internal class RemoteHttpExecutor(
         authorized: Boolean = true,
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
+        retryableRead: Boolean = false,
     ): String {
         val request = buildRawRequest(path, method, query, body, authorized, extraHeaders)
         return try {
-            executeRemoteRequest(clientForRequest(), networkGate, request) {
+            executeRemoteRequest(clientForRequest(), networkGate, request, retryableRead = retryableRead) {
                 responseDecoder.text(it, expectedStatus)
             }
         } catch (error: RemoteClientException) {
@@ -142,6 +151,7 @@ internal class RemoteHttpExecutor(
         query: List<Pair<String, String>> = emptyList(),
         authorized: Boolean = true,
         expectedStatus: Int? = null,
+        retryableRead: Boolean = false,
     ): RemoteBinaryResponse {
         var url = endpointUrl(path).toHttpUrl()
         if (query.isNotEmpty()) {
@@ -158,7 +168,7 @@ internal class RemoteHttpExecutor(
         }
         environment.applyAuthority(requestBuilder)
         return try {
-            executeRemoteRequest(clientForRequest(), networkGate, requestBuilder.build()) {
+            executeRemoteRequest(clientForRequest(), networkGate, requestBuilder.build(), retryableRead = retryableRead) {
                 responseDecoder.binary(it, expectedStatus)
             }
         } catch (error: RemoteClientException) {
@@ -176,6 +186,7 @@ internal class RemoteHttpExecutor(
         path: String,
         query: List<Pair<String, String>> = emptyList(),
         destination: java.io.File,
+        retryableRead: Boolean = false,
     ) {
         var url = endpointUrl(path).toHttpUrl()
         if (query.isNotEmpty()) {
@@ -198,7 +209,7 @@ internal class RemoteHttpExecutor(
             .callTimeout(0, TimeUnit.MILLISECONDS)
             .build()
         try {
-            executeRemoteRequest(streamClient, networkGate, requestBuilder.build()) { response ->
+            executeRemoteRequest(streamClient, networkGate, requestBuilder.build(), retryableRead = retryableRead) { response ->
                 if (response.code != 200) {
                     // Preserve typed status/environment evidence (401/403/...)
                     // through the shared bounded decoder.

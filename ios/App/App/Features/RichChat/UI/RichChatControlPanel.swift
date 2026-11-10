@@ -149,7 +149,7 @@ struct RichChatAuthenticationRequiredView: View {
             .labelStyle(.iconOnly)
         }
       }
-      .buttonStyle(.bordered)
+      .poracodeGlassButtonStyle()
       .disabled(isRefreshing)
       .accessibilityLabel(SettingsUIStrings.refresh)
     }
@@ -173,7 +173,7 @@ struct RichChatPlanView: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
           Image(systemName: icon(step.status))
             .font(.caption.weight(.semibold))
-            .foregroundStyle(step.status == .inProgress ? Color.accentColor : .secondary)
+            .foregroundStyle(step.status == .inProgress ? Color.primary : .secondary)
             .symbolEffect(.pulse, isActive: step.status == .inProgress)
             .frame(width: 16)
           Text(step.text)
@@ -281,7 +281,7 @@ struct RichChatStatusView: View {
           Button(RichChatStrings.retry) {
             Task { await suite.refreshAuthoritativeHistory() }
           }
-          .buttonStyle(.bordered)
+          .poracodeGlassButtonStyle()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)

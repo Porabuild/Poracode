@@ -5,16 +5,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,6 +25,9 @@ import com.poracode.app.model.remoteintegrations.PrWatch
 import com.poracode.app.model.remoteintegrations.PrWatchKey
 import com.poracode.app.session.remoteintegrations.IntegrationSlot
 import com.poracode.app.session.remoteintegrations.RemoteIntegrationsState
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun RemotePrWatchesPane(
@@ -50,14 +48,14 @@ internal fun RemotePrWatchesPane(
     ) {
         item {
             IntegrationSectionCard(stringResource(R.string.remote_integrations_pr_target)) {
-                OutlinedTextField(
+                PoracodeTextField(
                     targetProject,
                     { targetProject = it },
                     label = { Text(stringResource(R.string.remote_integrations_project_id)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                PoracodeTextField(
                     targetNumber,
                     { targetNumber = it },
                     label = { Text(stringResource(R.string.remote_integrations_pr_number)) },
@@ -65,7 +63,7 @@ internal fun RemotePrWatchesPane(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 val key = targetNumber.toLongOrNull()?.let { PrWatchKey(targetProject.trim(), it) }
-                Button(
+                FilledTonalButton(
                     onClick = { composition.selectPr(checkNotNull(key)) },
                     enabled = access.canRead && key?.isValid == true && !loading,
                 ) { Text(stringResource(R.string.remote_integrations_load_watch)) }
@@ -77,7 +75,7 @@ internal fun RemotePrWatchesPane(
                 if (state.prWatch == null && !loading) {
                     IntegrationSectionCard(stringResource(R.string.remote_integrations_no_watch)) {
                         Text(stringResource(R.string.remote_integrations_no_watch_message))
-                        Button(
+                        FilledTonalButton(
                             onClick = {
                                 editor = PrWatchEditorDraft(
                                     projectId = key.projectId,
@@ -126,7 +124,7 @@ internal fun RemotePrWatchesPane(
             title = { Text(stringResource(R.string.remote_integrations_delete_watch_title)) },
             text = { Text(stringResource(R.string.remote_integrations_delete_watch_message)) },
             confirmButton = {
-                Button(onClick = {
+                FilledTonalButton(onClick = {
                     confirmDelete = false
                     state.prWatch?.draft?.key?.let(composition::deletePrWatch)
                 }) { Text(stringResource(R.string.remote_integrations_delete)) }
@@ -166,13 +164,13 @@ private fun PrWatchCard(
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             IconButton(onClick = onEdit, enabled = enabled) {
-                Icon(Icons.Outlined.Edit, stringResource(R.string.remote_integrations_edit_watch))
+                Icon(PoracodeIcons.Edit, stringResource(R.string.remote_integrations_edit_watch))
             }
             IconButton(onClick = onCheck, enabled = enabled && !watch.isChecking) {
-                Icon(Icons.Outlined.PlayArrow, stringResource(R.string.remote_integrations_check_now))
+                Icon(PoracodeIcons.PlayArrow, stringResource(R.string.remote_integrations_check_now))
             }
             IconButton(onClick = onDelete, enabled = enabled) {
-                Icon(Icons.Outlined.Delete, stringResource(R.string.remote_integrations_delete_watch))
+                Icon(PoracodeIcons.Delete, stringResource(R.string.remote_integrations_delete_watch))
             }
         }
     }

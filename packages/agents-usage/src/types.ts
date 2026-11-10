@@ -151,7 +151,18 @@ export const usageMechanismSchema = z.enum([
 ]);
 export type UsageMechanism = z.infer<typeof usageMechanismSchema>;
 
-/** Static description of how a provider's usage is obtained. */
+/** Ordered window candidates for the fast outer and slower inner quota rings. */
+export interface UsageRingSpec {
+  outer: readonly string[];
+  inner: readonly string[];
+}
+
+export interface UsageRingGroup extends UsageRingSpec {
+  key: string;
+  label: string;
+}
+
+/** Static description of how a provider's usage is obtained and presented. */
 export interface UsageProviderDescriptor {
   id: string;
   label: string;
@@ -165,6 +176,12 @@ export interface UsageProviderDescriptor {
   /** A cookie-backed provider also accepts a pasted API key. */
   apiKeyFallback?: boolean;
   windowIds: UsageWindowId[];
+  /** First reported window per slot wins; without a split, show the most constrained window. */
+  rings?: UsageRingSpec;
+  /** Provider-owned grouping for independently selectable model/account quota pools. */
+  ringGroups?:
+    | readonly UsageRingGroup[]
+    | ((windows?: readonly UsageWindow[]) => readonly UsageRingGroup[]);
   /** Slower default polling and escalating cooldowns for aggressively throttled APIs.
    * Explicit per-provider intervals override the default; cooldowns guard manual refreshes too. */
   refreshPolicy?: {

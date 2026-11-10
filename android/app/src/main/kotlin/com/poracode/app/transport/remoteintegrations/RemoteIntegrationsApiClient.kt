@@ -73,6 +73,7 @@ class RemoteIntegrationsApiClient private constructor(
         val raw = http.requestText(
             route.path,
             query = listOf("id" to query.getValue("id").jsonPrimitive.content),
+            retryableRead = true,
         )
         return RemoteIntegrationAdapters.scheduleRuns(
             RemoteV3IntegrationsContract.scheduleRunsResponse(raw),
@@ -112,13 +113,15 @@ class RemoteIntegrationsApiClient private constructor(
     override suspend fun automations(query: JsonObject): AutomationsSnapshot {
         val canonical = RemoteV3IntegrationsContract.automationsQuery(query.toString())
         val raw = http.requestText(RemoteV3IntegrationsContract.route(IntegrationRouteId.AutomationsSnapshot).path,
-            query = canonical.map { (key, value) -> key to value.jsonPrimitive.content })
+            query = canonical.map { (key, value) -> key to value.jsonPrimitive.content },
+            retryableRead = true)
         return RemoteIntegrationAdapters.automations(RemoteV3IntegrationsContract.automationsResponse(raw))
     }
     override suspend fun scheduleInbox(query: JsonObject): List<ScheduleRun> {
         val canonical = RemoteV3IntegrationsContract.inboxQuery(query.toString())
         val raw = http.requestText(RemoteV3IntegrationsContract.route(IntegrationRouteId.ScheduleInbox).path,
-            query = canonical.map { (key, value) -> key to value.jsonPrimitive.content })
+            query = canonical.map { (key, value) -> key to value.jsonPrimitive.content },
+            retryableRead = true)
         return RemoteIntegrationAdapters.scheduleRuns(RemoteV3IntegrationsContract.inboxResponse(raw))
     }
     override suspend fun scheduleRunCommand(command: JsonObject): ScheduleRunCommandResult {
@@ -137,6 +140,7 @@ class RemoteIntegrationsApiClient private constructor(
                 "projectId" to query.getValue("projectId").jsonPrimitive.content,
                 "prNumber" to query.getValue("prNumber").jsonPrimitive.content,
             ),
+            retryableRead = true,
         )
         return RemoteIntegrationAdapters.prWatch(
             RemoteV3IntegrationsContract.prWatchReadResponse(raw),
@@ -185,7 +189,7 @@ class RemoteIntegrationsApiClient private constructor(
     private suspend fun read(id: IntegrationRouteId): String {
         val route = RemoteV3IntegrationsContract.route(id)
         check(route.method == "GET" && route.bodyKind == "empty")
-        return http.requestText(route.path)
+        return http.requestText(route.path, retryableRead = true)
     }
 
     private suspend fun emptyMutation(id: IntegrationRouteId): String {

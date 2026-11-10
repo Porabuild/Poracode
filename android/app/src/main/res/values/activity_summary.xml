@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="rich_chat_activity_view">
+        <item quantity="one">%1$d view</item>
+        <item quantity="other">%1$d views</item>
+    </plurals>
+    <plurals name="rich_chat_activity_search">
+        <item quantity="one">%1$d search</item>
+        <item quantity="other">%1$d searches</item>
+    </plurals>
+    <plurals name="rich_chat_activity_edit">
+        <item quantity="one">%1$d edit</item>
+        <item quantity="other">%1$d edits</item>
+    </plurals>
+    <plurals name="rich_chat_activity_command">
+        <item quantity="one">%1$d command</item>
+        <item quantity="other">%1$d commands</item>
+    </plurals>
+    <plurals name="rich_chat_activity_tool">
+        <item quantity="one">%1$d tool</item>
+        <item quantity="other">%1$d tools</item>
+    </plurals>
+    <plurals name="rich_chat_activity_thought">
+        <item quantity="one">%1$d thought</item>
+        <item quantity="other">%1$d thoughts</item>
+    </plurals>
+    <plurals name="rich_chat_activity_mcp">
+        <item quantity="one">%d MCP</item>
+        <item quantity="other">%d MCPs</item>
+    </plurals>
+</resources>

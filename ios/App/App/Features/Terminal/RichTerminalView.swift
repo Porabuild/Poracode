@@ -116,7 +116,7 @@ struct RichTerminalView: View {
     .padding(.horizontal, 12)
     .padding(.vertical, 8)
     .foregroundStyle(.white)
-    .terminalControlChrome()
+    .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
   }
 
   private var inputBar: some View {
@@ -162,7 +162,7 @@ struct RichTerminalView: View {
       )
     }
     .padding(12)
-    .background(.bar)
+    .poracodeBarBackground()
   }
 
   private var canSend: Bool {
@@ -375,55 +375,47 @@ private struct TerminalKeyAccessory: View {
   let isEnabled: Bool
   let send: (String) -> Void
 
+  @Environment(\.poracodeAccent) private var accent
   @State private var modifiers = Set<TerminalVirtualModifier>()
 
   var body: some View {
     ScrollView(.horizontal, showsIndicators: false) {
-      HStack(spacing: 6) {
-        ForEach(TerminalVirtualModifier.allCases) { modifier in
-          Button {
-            if modifiers.contains(modifier) {
-              modifiers.remove(modifier)
-            } else {
-              modifiers.insert(modifier)
+      PoracodeGlassGroup(spacing: 4) {
+        HStack(spacing: 6) {
+          ForEach(TerminalVirtualModifier.allCases) { modifier in
+            Button {
+              if modifiers.contains(modifier) {
+                modifiers.remove(modifier)
+              } else {
+                modifiers.insert(modifier)
+              }
+            } label: {
+              Text(verbatim: modifier.label)
+                .frame(minWidth: 18)
             }
-          } label: {
-            Text(verbatim: modifier.label)
-              .frame(minWidth: 18)
+            .tint(modifiers.contains(modifier) ? accent : .secondary)
+            .accessibilityAddTraits(modifiers.contains(modifier) ? .isSelected : [])
           }
-          .tint(modifiers.contains(modifier) ? .accentColor : .secondary)
-          .accessibilityAddTraits(modifiers.contains(modifier) ? .isSelected : [])
-        }
 
-        Divider().frame(height: 22)
+          Divider().frame(height: 22)
 
-        ForEach(TerminalVirtualKey.allCases) { key in
-          Button {
-            send(TerminalVirtualKeyEncoder.encode(key, modifiers: modifiers))
-            modifiers.removeAll()
-          } label: {
-            Text(verbatim: key.label)
-              .frame(minWidth: 18)
+          ForEach(TerminalVirtualKey.allCases) { key in
+            Button {
+              send(TerminalVirtualKeyEncoder.encode(key, modifiers: modifiers))
+              modifiers.removeAll()
+            } label: {
+              Text(verbatim: key.label)
+                .frame(minWidth: 18)
+            }
           }
         }
       }
     }
-    .buttonStyle(.bordered)
+    .poracodeGlassButtonStyle()
     .controlSize(.small)
     .disabled(!isEnabled)
     .onChange(of: isEnabled) { _, enabled in
       if !enabled { modifiers.removeAll() }
-    }
-  }
-}
-
-extension View {
-  @ViewBuilder
-  fileprivate func terminalControlChrome() -> some View {
-    if #available(iOS 26.0, *) {
-      self.glassEffect(.regular, in: .rect(cornerRadius: 14))
-    } else {
-      self.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
     }
   }
 }

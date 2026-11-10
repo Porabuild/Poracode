@@ -1,55 +1,56 @@
 package com.poracode.app.ui.richchat
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.ui.components.PoracodeChoiceOption
+import com.poracode.app.ui.components.PoracodeChoiceSection
+import com.poracode.app.ui.components.PoracodeOptionList
+import com.poracode.app.ui.components.PoracodeOptionRow
+import com.poracode.app.ui.components.PoracodeSectionLabel
+import com.poracode.app.ui.components.PoracodeSheet
+import com.poracode.app.ui.components.PoracodeSheetDivider
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.components.PoracodeToggleRow
 import com.poracode.app.ui.components.modelFamilySelectorLabel
+import com.poracode.app.ui.theme.PoracodeTextStyles
+import com.poracode.app.ui.theme.PoracodeTheme
+import androidx.compose.material3.FilledTonalButton
 
 /** Segmented controls stay readable for the small, mutually exclusive option sets. */
 internal fun usesSegmentedComposerChoice(options: List<RichChatComposerOption>): Boolean =
     options.size in 2..3
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Deep-link target for the unified controls sheet: scroll it to a section so a
+ * composer "+" entry can land on Mode, the first-party plugin toggles, or the
+ * custom MCP server overrides without splitting the sheet into per-item
+ * surfaces. Plugins and MCP Servers stay distinct sections, as in the PWA.
+ */
+internal enum class RichChatComposerControlsFocus { MODE, PLUGINS, MCP_SERVERS }
+
 @Composable
 internal fun RichChatComposerControlsSheet(
     configuration: ThreadConfig,
@@ -58,139 +59,219 @@ internal fun RichChatComposerControlsSheet(
     onDismiss: () -> Unit,
     onSave: (ThreadConfig) -> Unit,
     hasStartedSession: Boolean = false,
+    focusSection: RichChatComposerControlsFocus? = null,
 ) {
     var draft by remember(configuration, catalog) {
         mutableStateOf(catalog.normalize(configuration))
     }
     var pendingContextChange by remember { mutableStateOf<ThreadConfig?>(null) }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    var modelQuery by remember { mutableStateOf("") }
+    val colors = PoracodeTheme.colors
+    val scrollState = rememberScrollState()
+    val modeRequester = remember { BringIntoViewRequester() }
+    val pluginsRequester = remember { BringIntoViewRequester() }
+    val mcpRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(focusSection, catalog.modes.size) {
+        when (focusSection) {
+            RichChatComposerControlsFocus.MODE ->
+                if (catalog.modes.size > 1) modeRequester.bringIntoView()
+            RichChatComposerControlsFocus.PLUGINS -> pluginsRequester.bringIntoView()
+            RichChatComposerControlsFocus.MCP_SERVERS -> mcpRequester.bringIntoView()
+            null -> Unit
+        }
+    }
+    PoracodeSheet(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.rich_chat_composer_controls),
+    ) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    stringResource(R.string.rich_chat_composer_controls),
-                    style = MaterialTheme.typography.headlineSmall,
+            Text(
+                catalog.agentLabel,
+                style = PoracodeTextStyles.rowDescription,
+                color = colors.muted,
+                modifier = Modifier.padding(start = 4.dp),
+            )
+
+            PoracodeSectionLabel(stringResource(R.string.rich_chat_model))
+            val modelOptions = catalog.modelEntries
+                .filterIsInstance<RichChatComposerModelEntry.Model>()
+                .map { entry ->
+                    PoracodeChoiceOption(
+                        entry.option.id,
+                        entry.option.label,
+                        entry.option.modelDescription,
+                    )
+                }
+            if (modelOptions.size > 6) {
+                PoracodeTextField(
+                    value = modelQuery,
+                    onValueChange = { modelQuery = it },
+                    placeholder = {
+                        Text(stringResource(R.string.rich_chat_search_models))
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                Text(
-                    catalog.agentLabel,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            }
+            if (modelQuery.isBlank()) {
+                catalog.modelEntries.forEach { entry ->
+                    when (entry) {
+                        is RichChatComposerModelEntry.Heading -> Text(
+                            entry.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colors.muted,
+                            modifier = Modifier.padding(start = 12.dp, top = 4.dp),
+                        )
+                        is RichChatComposerModelEntry.Model -> PoracodeOptionRow(
+                            option = PoracodeChoiceOption(
+                                entry.option.id,
+                                entry.option.label,
+                                entry.option.modelDescription,
+                            ),
+                            selected = entry.option.id == catalog.displaySelectionId(draft),
+                            onClick = { draft = catalog.applyModel(draft, entry.option.id) },
+                        )
+                    }
+                }
+            } else {
+                val visible = modelOptions.filter {
+                    it.label.contains(modelQuery, ignoreCase = true)
+                }
+                PoracodeOptionList(
+                    options = visible,
+                    selectedId = catalog.displaySelectionId(draft),
+                    onSelect = { draft = catalog.applyModel(draft, it) },
                 )
             }
 
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ComposerMenu(
-                    label = stringResource(R.string.rich_chat_model),
-                    entries = catalog.modelEntries,
-                    selection = catalog.displaySelectionId(draft),
-                ) { draft = catalog.applyModel(draft, it) }
-
-                catalog.selectorMenus(draft).forEach { selector ->
-                    ComposerMenu(
-                        label = modelFamilySelectorLabel(selector.labelKey),
-                        entries = flatComposerEntries(
-                            selector.options.map { option ->
-                                RichChatComposerOption(option.id, option.label)
-                            },
-                        ),
-                        selection = selector.selectionId,
-                    ) { draft = catalog.applySelector(draft, selector.selectorId, it) }
-                }
-
-                val efforts = catalog.effortOptions(draft.model)
-                if (efforts.size > 1) {
-                    ComposerMenu(
-                        label = stringResource(R.string.rich_chat_effort),
-                        entries = flatComposerEntries(efforts),
-                        selection = catalog.displayEffort(draft) ?: efforts.first().id,
-                    ) { draft = catalog.applyEffort(draft, it) }
-                }
-
-                val contexts = catalog.contextOptions(draft.model)
-                if (contexts.size > 1) {
-                    ComposerMenu(
-                        label = stringResource(R.string.rich_chat_context),
-                        entries = flatComposerEntries(contexts),
-                        selection = draft.contextSize ?: contexts.first().id,
-                    ) { draft = draft.copy(contextSize = it) }
-                }
+            catalog.selectorMenus(draft).forEach { selector ->
+                PoracodeChoiceSection(
+                    label = modelFamilySelectorLabel(selector.labelKey),
+                    options = selector.options.map { option ->
+                        PoracodeChoiceOption(option.id, option.label)
+                    },
+                    selectedId = selector.selectionId,
+                    onSelect = { draft = catalog.applySelector(draft, selector.selectorId, it) },
+                )
             }
 
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (catalog.supportsFast(draft.model)) {
-                    ComposerToggleChip(
-                        label = stringResource(R.string.rich_chat_fast_mode),
-                        checked = catalog.displayFast(draft) == true,
-                    ) { draft = catalog.applyFast(draft, it) }
-                }
-                if (catalog.supportsThinking(draft.model)) {
-                    ComposerToggleChip(
-                        label = stringResource(R.string.rich_chat_thinking),
-                        checked = draft.thinking == true,
-                    ) { draft = draft.copy(thinking = it) }
-                }
-                if (catalog.supportsWorkflows(draft.model)) {
-                    ComposerToggleChip(
-                        label = catalog.workflowLabel ?: stringResource(R.string.rich_chat_workflows),
-                        checked = draft.workflows == true,
-                    ) { draft = draft.copy(workflows = it) }
-                }
+            val efforts = catalog.effortOptions(draft.model)
+            if (efforts.size > 1) {
+                PoracodeChoiceSection(
+                    label = stringResource(R.string.rich_chat_effort),
+                    options = efforts.map {
+                        PoracodeChoiceOption(it.id, it.label, it.modelDescription)
+                    },
+                    selectedId = catalog.displayEffort(draft) ?: efforts.first().id,
+                    onSelect = { draft = catalog.applyEffort(draft, it) },
+                )
             }
-
+            val contexts = catalog.contextOptions(draft.model)
+            if (contexts.size > 1) {
+                PoracodeChoiceSection(
+                    label = stringResource(R.string.rich_chat_context),
+                    options = contexts.map {
+                        PoracodeChoiceOption(it.id, it.label, it.modelDescription)
+                    },
+                    selectedId = draft.contextSize ?: contexts.first().id,
+                    onSelect = { draft = draft.copy(contextSize = it) },
+                )
+            }
+            if (catalog.supportsFast(draft.model)) {
+                PoracodeToggleRow(
+                    label = stringResource(R.string.rich_chat_fast_mode),
+                    checked = catalog.displayFast(draft) == true,
+                ) { draft = catalog.applyFast(draft, it) }
+            }
+            if (catalog.supportsThinking(draft.model)) {
+                PoracodeToggleRow(
+                    label = stringResource(R.string.rich_chat_thinking),
+                    checked = draft.thinking == true,
+                ) { draft = draft.copy(thinking = it) }
+            }
+            if (catalog.supportsWorkflows(draft.model)) {
+                PoracodeToggleRow(
+                    label = catalog.workflowLabel ?: stringResource(R.string.rich_chat_workflows),
+                    checked = draft.workflows == true,
+                ) { draft = draft.copy(workflows = it) }
+            }
             if (catalog.modes.size > 1) {
-                ComposerChoice(
+                PoracodeChoiceSection(
                     label = stringResource(R.string.rich_chat_mode),
-                    options = catalog.modes,
-                    selection = draft.mode ?: catalog.modes.first().id,
-                ) { draft = draft.copy(mode = it) }
+                    options = catalog.modes.map {
+                        PoracodeChoiceOption(it.id, it.label, it.modelDescription)
+                    },
+                    selectedId = draft.mode ?: catalog.modes.first().id,
+                    onSelect = { draft = draft.copy(mode = it) },
+                    modifier = Modifier.bringIntoViewRequester(modeRequester),
+                )
             }
             if (catalog.approvalPolicies.size > 1) {
-                ComposerChoice(
+                PoracodeChoiceSection(
                     label = stringResource(R.string.rich_chat_permissions),
-                    options = catalog.approvalPolicies,
-                    selection = draft.approvalPolicy ?: catalog.approvalPolicies.first().id,
-                ) { draft = draft.copy(approvalPolicy = it) }
+                    options = catalog.approvalPolicies.map {
+                        PoracodeChoiceOption(it.id, it.label, it.modelDescription)
+                    },
+                    selectedId = draft.approvalPolicy ?: catalog.approvalPolicies.first().id,
+                    onSelect = { draft = draft.copy(approvalPolicy = it) },
+                )
             }
 
-            HorizontalDivider()
-            Text(
-                stringResource(R.string.rich_chat_mcp_servers),
-                style = MaterialTheme.typography.titleMedium,
+            PoracodeSheetDivider()
+            // First-party plugin servers (Browser, Crossagents, Chrome) plus
+            // Computer Use, matching the PWA Plugins submenu.
+            PoracodeSectionLabel(
+                stringResource(R.string.rich_chat_plugins),
+                modifier = Modifier.bringIntoViewRequester(pluginsRequester),
             )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ComposerToggleChip(
-                    label = stringResource(R.string.rich_chat_browser_mcp),
-                    checked = draft.browserMcp == true,
-                ) { draft = draft.copy(browserMcp = it) }
-                ComposerToggleChip(
-                    label = stringResource(R.string.rich_chat_crossagent_mcp),
-                    checked = draft.crossagentMcp == true,
-                ) { draft = draft.copy(crossagentMcp = it) }
-                ComposerToggleChip(
-                    label = stringResource(R.string.rich_chat_chrome_mcp),
-                    checked = draft.chromeMcp == true,
-                ) { draft = draft.copy(chromeMcp = it) }
-                ComposerToggleChip(
-                    label = stringResource(R.string.rich_chat_computer_use),
-                    checked = draft.computerUse == true,
-                ) { draft = draft.copy(computerUse = it) }
+            PoracodeToggleRow(
+                label = stringResource(R.string.rich_chat_browser_mcp),
+                checked = draft.browserMcp == true,
+            ) { draft = draft.copy(browserMcp = it) }
+            PoracodeToggleRow(
+                label = stringResource(R.string.rich_chat_crossagent_mcp),
+                checked = draft.crossagentMcp == true,
+            ) { draft = draft.copy(crossagentMcp = it) }
+            PoracodeToggleRow(
+                label = stringResource(R.string.rich_chat_chrome_mcp),
+                checked = draft.chromeMcp == true,
+            ) { draft = draft.copy(chromeMcp = it) }
+            PoracodeToggleRow(
+                label = stringResource(R.string.rich_chat_computer_use),
+                checked = draft.computerUse == true,
+            ) { draft = draft.copy(computerUse = it) }
+
+            // User-configured servers. The composer has no server inventory of
+            // its own (Settings owns discovery), so this section edits the
+            // per-thread overrides the thread already carries.
+            PoracodeSectionLabel(
+                stringResource(R.string.rich_chat_mcp_servers),
+                modifier = Modifier.bringIntoViewRequester(mcpRequester),
+            )
+            val mcpOverrides = draft.mcpServerOverrides.orEmpty()
+            if (mcpOverrides.isEmpty()) {
+                Text(
+                    stringResource(R.string.settings_integrations_no_mcp_servers),
+                    style = PoracodeTextStyles.rowDescription,
+                    color = colors.muted,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            } else {
+                mcpOverrides.entries.sortedBy { it.key }.forEach { (serverId, serverEnabled) ->
+                    PoracodeToggleRow(
+                        label = serverId,
+                        checked = serverEnabled,
+                    ) { next ->
+                        draft = draft.copy(
+                            mcpServerOverrides = mcpOverrides + (serverId to next),
+                        )
+                    }
+                }
             }
 
             Row(
@@ -202,7 +283,7 @@ internal fun RichChatComposerControlsSheet(
                 TextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.rich_chat_cancel))
                 }
-                Button(
+                FilledTonalButton(
                     onClick = {
                         val next = catalog.normalize(draft)
                         if (catalog.confirmsContextChange(configuration, next, hasStartedSession)) {
@@ -240,149 +321,4 @@ internal fun RichChatComposerControlsSheet(
             },
         )
     }
-}
-
-/** Flat menus (effort, context, mode, permissions) carry no headings. */
-private fun flatComposerEntries(
-    options: List<RichChatComposerOption>,
-): List<RichChatComposerModelEntry> = options.map { RichChatComposerModelEntry.Model(it) }
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ComposerMenu(
-    label: String,
-    entries: List<RichChatComposerModelEntry>,
-    selection: String,
-    onSelect: (String) -> Unit,
-) {
-    val options = entries.filterIsInstance<RichChatComposerModelEntry.Model>()
-        .map { it.option }
-    if (options.isEmpty()) return
-    var expanded by remember(label, selection) { mutableStateOf(false) }
-    val selected = options.firstOrNull { it.id == selection } ?: options.first()
-    val selectionDescription = "$label: ${selected.label}"
-    Box {
-        AssistChip(
-            onClick = { expanded = true },
-            label = {
-                Text(
-                    selectionDescription,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            trailingIcon = {
-                Icon(Icons.Outlined.ExpandMore, contentDescription = null)
-            },
-            modifier = Modifier.semantics(mergeDescendants = true) {
-                contentDescription = selectionDescription
-            },
-        )
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            entries.forEach { entry ->
-                when (entry) {
-                    is RichChatComposerModelEntry.Heading -> DropdownMenuItem(
-                        text = {
-                            Text(
-                                entry.label,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                        onClick = {},
-                        enabled = false,
-                        colors = MenuDefaults.itemColors(
-                            textColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                    )
-                    is RichChatComposerModelEntry.Model -> DropdownMenuItem(
-                        text = {
-                            // Provider-content pricing rides as a muted second line.
-                            if (entry.option.modelDescription == null) {
-                                Text(entry.option.label)
-                            } else {
-                                Column {
-                                    Text(entry.option.label)
-                                    Text(
-                                        entry.option.modelDescription,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        },
-                        leadingIcon = if (entry.option.id == selected.id) {
-                            { Icon(Icons.Outlined.Check, contentDescription = null) }
-                        } else {
-                            null
-                        },
-                        onClick = {
-                            onSelect(entry.option.id)
-                            expanded = false
-                        },
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ComposerChoice(
-    label: String,
-    options: List<RichChatComposerOption>,
-    selection: String,
-    onSelect: (String) -> Unit,
-) {
-    if (options.isEmpty()) return
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (usesSegmentedComposerChoice(options)) {
-            Row(Modifier.horizontalScroll(rememberScrollState())) {
-                SingleChoiceSegmentedButtonRow {
-                    options.forEachIndexed { index, option ->
-                        SegmentedButton(
-                            selected = option.id == selection,
-                            onClick = { onSelect(option.id) },
-                            shape = SegmentedButtonDefaults.itemShape(index, options.size),
-                        ) {
-                            Text(
-                                option.label,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
-        } else {
-            ComposerMenu(label, flatComposerEntries(options), selection, onSelect)
-        }
-    }
-}
-
-@Composable
-private fun ComposerToggleChip(
-    label: String,
-    checked: Boolean,
-    onChecked: (Boolean) -> Unit,
-) {
-    FilterChip(
-        selected = checked,
-        onClick = { onChecked(!checked) },
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        leadingIcon = if (checked) {
-            { Icon(Icons.Outlined.Check, contentDescription = null) }
-        } else {
-            null
-        },
-    )
 }

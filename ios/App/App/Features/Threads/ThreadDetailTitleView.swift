@@ -43,16 +43,23 @@ struct ThreadDetailTitleView: View {
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.primary)
             .lineLimit(1)
-          Text(metadata)
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+          HStack(spacing: 4) {
+            Text(project.name).lineLimit(1)
+            if !hostLabel.isEmpty {
+              HomeServerStatusGlyph(online: session.socketState == .online)
+                .accessibilityHidden(true)
+              Text(hostLabel).lineLimit(1)
+            }
+          }
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
         }
       }
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
-    .accessibilityLabel("\(agentLabel), \(statusLabel), \(metadata)")
+    .accessibilityLabel("\(thread.title), \(agentLabel), \(statusLabel), \(metadata)")
     .popover(isPresented: $showsStatus, arrowEdge: .top) {
       statusDetail
         .presentationCompactAdaptation(.sheet)
@@ -154,7 +161,7 @@ struct ThreadDetailTitleView: View {
     case "error": return .red
     case "finished": return .indigo
     case "inactive": return .secondary
-    default: return .accentColor
+    default: return .primary
     }
   }
 

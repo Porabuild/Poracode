@@ -56,7 +56,7 @@ struct ErrorStateView: View {
         } actions: {
             if let retry {
                 Button(retryTitle, action: retry)
-                    .buttonStyle(.borderedProminent)
+                    .poracodeGlassButtonStyle()
                     .accessibilityLabel(retryTitle)
             }
         }

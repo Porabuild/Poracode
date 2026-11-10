@@ -28,7 +28,7 @@ extension HomeQuickComposeView {
             Label(skill.name, systemImage: "xmark.circle.fill")
               .font(.caption2)
           }
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .controlSize(.small)
           .accessibilityLabel("\(RichChatStrings.removeSkill): \(skill.name)")
         }
@@ -40,7 +40,7 @@ extension HomeQuickComposeView {
             Label(attachment.name, systemImage: "xmark.circle.fill")
               .font(.caption2)
           }
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .controlSize(.small)
           .accessibilityLabel("\(RichChatStrings.removeAttachment): \(attachment.name)")
         }
@@ -52,7 +52,7 @@ extension HomeQuickComposeView {
             Label(path, systemImage: "xmark.circle.fill")
               .font(.caption2)
           }
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .controlSize(.small)
           .accessibilityLabel("\(RichChatStrings.removeFile): \(path)")
         }
@@ -65,7 +65,7 @@ extension HomeQuickComposeView {
             Label("@\(mcp.name)", systemImage: "xmark.circle.fill")
               .font(.caption2)
           }
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .controlSize(.small)
           .accessibilityLabel("\(SettingsIntegrationsStrings.disable): \(mcp.name)")
         }

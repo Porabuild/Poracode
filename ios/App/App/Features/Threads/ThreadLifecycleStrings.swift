@@ -37,8 +37,10 @@ enum ThreadLifecycleStrings {
     "thread.lifecycle.relaunch.prompt",
     "What should the agent do next?"
   )
-  static let pin = localized("thread.lifecycle.pin", "Pin")
+  static let pin = localized("thread.lifecycle.pin", "Pin to top")
   static let unpin = localized("thread.lifecycle.unpin", "Unpin")
+  static let notesTodos = localized("thread.lifecycle.notesTodos", "Notes & to-dos")
+  static let openTerminal = localized("thread.lifecycle.openTerminal", "Open terminal")
   static let markDone = localized("thread.lifecycle.done", "Mark Done")
   static let markNotDone = localized("thread.lifecycle.notDone", "Mark Not Done")
   static let acknowledge = localized("thread.lifecycle.acknowledge", "Acknowledge")

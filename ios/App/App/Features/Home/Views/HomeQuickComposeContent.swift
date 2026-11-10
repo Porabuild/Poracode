@@ -2,7 +2,7 @@ import SwiftUI
 
 extension HomeQuickComposeView {
   var composerSurface: some View {
-    HomeComposerSurface(isExpanded: isExpanded) {
+    HomeComposerSurface(isExpanded: isExpanded, glassNamespace: glassNamespace) {
       if isExpanded { expandedSurface } else { compactSurface }
     }
   }
@@ -34,7 +34,8 @@ extension HomeQuickComposeView {
           fixedProjectLabel
         }
         Spacer(minLength: 8)
-        presentationButton
+        // Presentation (Chat/CLI) lives in the + sheet's Mode section with
+        // the other launch options, as on desktop — no separate header chip.
       }
 
       if !skills.isEmpty || !attachments.isEmpty || !fileMentions.isEmpty
@@ -210,21 +211,6 @@ extension HomeQuickComposeView {
     }
     .buttonStyle(.plain)
     .accessibilityLabel(HomeStrings.model)
-  }
-
-  var presentationButton: some View {
-    Button {
-      selector = .add
-    } label: {
-      Label(
-        presentationMode == .gui ? HomeStrings.chat : HomeStrings.cli,
-        systemImage: presentationMode == .gui ? "bubble.left" : "terminal"
-      )
-      .font(.caption)
-      .foregroundStyle(.primary)
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel(HomeStrings.mode)
   }
 
   var effortMenu: some View {

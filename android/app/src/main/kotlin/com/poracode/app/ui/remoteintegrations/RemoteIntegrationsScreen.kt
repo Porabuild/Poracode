@@ -1,17 +1,10 @@
 package com.poracode.app.ui.remoteintegrations
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.SystemUpdate
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -21,7 +14,6 @@ import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -36,6 +28,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
+import com.poracode.app.ui.components.PoracodeTopAppBar
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
+import com.poracode.app.ui.theme.PoracodeIcons
 
 /** Adaptive, standalone surface. The app shell owns runtime creation and navigation. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,12 +64,12 @@ fun RemoteIntegrationsScreen(
     DisposableEffect(composition) {
         onDispose(composition::cancelTransientWork)
     }
-    BackHandler(onBack = onBack)
+    val backModifier = rememberPredictiveBackModifier(onBack = onBack)
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.then(backModifier),
         topBar = {
-            TopAppBar(
+            PoracodeTopAppBar(
                 title = {
                     Column {
                         Text(stringResource(R.string.remote_integrations_title))
@@ -84,7 +79,7 @@ fun RemoteIntegrationsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            PoracodeIcons.ArrowBack,
                             stringResource(R.string.remote_integrations_back),
                         )
                     }
@@ -95,7 +90,7 @@ fun RemoteIntegrationsScreen(
                         enabled = sectionCanRefresh(section, access, state.prKey != null),
                     ) {
                         Icon(
-                            Icons.Outlined.Refresh,
+                            PoracodeIcons.Refresh,
                             stringResource(R.string.remote_integrations_refresh),
                         )
                     }
@@ -199,9 +194,9 @@ private fun sectionLabel(section: RemoteIntegrationsSection): String = stringRes
 )
 
 private fun sectionIcon(section: RemoteIntegrationsSection): ImageVector = when (section) {
-    RemoteIntegrationsSection.Update -> Icons.Outlined.SystemUpdate
-    RemoteIntegrationsSection.Schedules -> Icons.Outlined.Schedule
-    RemoteIntegrationsSection.PrWatches -> Icons.Outlined.Visibility
+    RemoteIntegrationsSection.Update -> PoracodeIcons.SystemUpdate
+    RemoteIntegrationsSection.Schedules -> PoracodeIcons.Schedule
+    RemoteIntegrationsSection.PrWatches -> PoracodeIcons.Visibility
 }
 
 private fun sectionCanRefresh(

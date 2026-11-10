@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Использование провайдеров</string>
+    <string name="settings_usage_title">Использование</string>
     <string name="settings_usage_cached">Показаны кэшированные данные об использовании.</string>
     <string name="settings_usage_empty">Данные об использовании провайдеров недоступны.</string>
     <string name="settings_usage_empty_title">Нет данных об использовании</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Квота исчерпана</string>
     <string name="settings_usage_unsupported">Не поддерживается</string>
     <string name="settings_usage_meter_description">Использование %1$s: %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% к сбросу</string>
+    <string name="settings_usage_pace_over">Темп превышен — закончится раньше</string>
+    <string name="settings_usage_pace_ran_out">Исчерпано</string>
+    <string name="settings_usage_pace_ran_out_resets">Исчерпано · сброс через %1$s</string>
+    <string name="settings_usage_pace_runs_out_in">Закончится через %1$s</string>
+    <string name="settings_usage_pace_runs_out_early">Закончится раньше</string>
     <string name="settings_profile_identity">Личные данные</string>
     <string name="settings_profile_identity_description">Этот профиль хранится на выбранном рабочем столе.</string>
     <string name="settings_profile_name">Имя</string>

@@ -1,5 +1,6 @@
 package com.poracode.app.session.replay
 
+import com.poracode.app.model.RemoteGitSummary
 import kotlinx.serialization.json.JsonElement
 
 /**
@@ -56,6 +57,11 @@ class SequencedReplayController(private val cache: HostStateCache) {
     /** Snapshot-derived authoritative baseline (shell refresh / resync). */
     fun seedFromShell(shell: com.poracode.app.model.RemoteShellSnapshot, authoritative: Boolean = false) {
         cache.seedFromShell(shell, authoritative)
+    }
+
+    /** Union a bounded `thread-list` page's per-thread Git summaries into the cache. */
+    fun mergeGitSummaries(summaries: Map<String, RemoteGitSummary>) {
+        cache.mergeGitSummaries(summaries)
     }
 
     /**

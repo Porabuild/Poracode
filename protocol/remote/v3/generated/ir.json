@@ -15637,6 +15637,27 @@
             "fromCache": {
               "type": "boolean"
             },
+            "ringLayouts": {
+              "additionalProperties": {
+                "additionalProperties": true,
+                "properties": {
+                  "innerWindowId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "outerWindowId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
             "snapshots": {
               "items": {
                 "additionalProperties": true,
@@ -32822,6 +32843,27 @@
           "properties": {
             "fromCache": {
               "type": "boolean"
+            },
+            "ringLayouts": {
+              "additionalProperties": {
+                "additionalProperties": true,
+                "properties": {
+                  "innerWindowId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "outerWindowId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
             },
             "snapshots": {
               "items": {
@@ -60608,6 +60650,27 @@
             "fromCache": {
               "type": "boolean"
             },
+            "ringLayouts": {
+              "additionalProperties": {
+                "additionalProperties": true,
+                "properties": {
+                  "innerWindowId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "outerWindowId": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
             "snapshots": {
               "items": {
                 "additionalProperties": true,
@@ -84851,7 +84914,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:6739275d7fabb9b3cd35faa158a93f872d2afadcd6d5b77b66c9ab62596420ef",
+  "sourceHash": "sha256:ed400b5f4388c42f54755aa1a401a057ab57fbcb48b4388691d81d1b799af47a",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

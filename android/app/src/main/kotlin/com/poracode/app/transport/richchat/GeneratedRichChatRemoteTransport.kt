@@ -367,7 +367,7 @@ class GeneratedRichChatRemoteTransport(
     ): JsonElement {
         val body = prepare { GeneratedRemoteV3RichChatContract.procedureRequest(name, payload) }
         val raw = executeOperation(name, mutating) {
-            http.requestText(PROCEDURE_PATH, method = "POST", jsonBody = body)
+            http.requestText(PROCEDURE_PATH, "POST", jsonBody = body, retryableRead = !mutating)
         }
         return try {
             GeneratedRemoteV3RichChatContract.procedureResponse(name, raw)
@@ -389,7 +389,7 @@ class GeneratedRichChatRemoteTransport(
     ): JsonObject {
         val body = prepare { GeneratedRichChatSessionActionCodec.request(name, payload) }
         val raw = executeOperation(name, mutating) {
-            http.requestText(PROCEDURE_PATH, method = "POST", jsonBody = body)
+            http.requestText(PROCEDURE_PATH, "POST", jsonBody = body, retryableRead = !mutating)
         }
         return GeneratedRichChatSessionActionCodec.response(name, raw)
     }

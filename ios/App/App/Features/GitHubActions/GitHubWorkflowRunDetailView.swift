@@ -139,7 +139,7 @@ struct GitHubWorkflowRunDetailView: View {
             }
           }
         } label: {
-          Image(systemName: "ellipsis.circle")
+          Image(systemName: "ellipsis")
         }
         .disabled(mutations.state.isBusy)
         .accessibilityLabel(GitHubOperationsStrings.detail)

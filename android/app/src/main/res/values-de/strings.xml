@@ -80,12 +80,12 @@
     <string name="home_quick_compose_prompt">Planen, fragen, entwickeln…</string>
     <string name="home_quick_compose_camera_capture">Foto aufnehmen</string>
     <string name="home_more">Mehr</string>
+    <string name="home_more_browser">Browser</string>
+    <string name="home_more_refresh">Aktualisieren</string>
     <string name="home_connections">Verbindungen</string>
     <string name="home_new_thread">Neuer Thread</string>
     <string name="home_project">Projekt</string>
     <string name="home_project_host">%1$s — %2$s</string>
-    <string name="home_agent_value">Agent: %1$s</string>
-    <string name="home_model_value">Modell: %1$s</string>
     <string name="home_start">Starten</string>
     <string name="home_quick_compose_agent">KI-Agent</string>
     <string name="home_quick_compose_presentation">Darstellung</string>
@@ -166,4 +166,6 @@
     <string name="rich_chat_crew_policy_first">Crew zuerst</string>
     <string name="rich_chat_download_file">%1$s herunterladen</string>
     <string name="rich_chat_download_failed">Die Datei konnte nicht heruntergeladen werden.</string>
+    <string name="home_filter_by_project">Nach Projekt filtern</string>
+    <string name="common_more_actions">Weitere Aktionen</string>
 </resources>

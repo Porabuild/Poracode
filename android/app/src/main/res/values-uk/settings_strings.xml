@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Використання провайдерів</string>
+    <string name="settings_usage_title">Використання</string>
     <string name="settings_usage_cached">Показано кешовані дані використання.</string>
     <string name="settings_usage_empty">Дані використання провайдерів недоступні.</string>
     <string name="settings_usage_empty_title">Немає даних про використання</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Квоту вичерпано</string>
     <string name="settings_usage_unsupported">Не підтримується</string>
     <string name="settings_usage_meter_description">Використання %1$s: %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% до скидання</string>
+    <string name="settings_usage_pace_over">Темп перевищено — закінчиться раніше</string>
+    <string name="settings_usage_pace_ran_out">Вичерпано</string>
+    <string name="settings_usage_pace_ran_out_resets">Вичерпано · скидання через %1$s</string>
+    <string name="settings_usage_pace_runs_out_in">Закінчиться через %1$s</string>
+    <string name="settings_usage_pace_runs_out_early">Закінчиться раніше</string>
     <string name="settings_profile_identity">Особисті дані</string>
     <string name="settings_profile_identity_description">Цей профіль зберігається на вибраному робочому столі.</string>
     <string name="settings_profile_name">Ім’я</string>

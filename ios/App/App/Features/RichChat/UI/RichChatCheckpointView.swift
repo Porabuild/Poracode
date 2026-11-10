@@ -24,7 +24,7 @@ struct RichChatCheckpointView: View {
       )
       .frame(maxWidth: .infinity)
     }
-    .buttonStyle(.bordered)
+    .poracodeGlassButtonStyle()
     .disabled(controller.state.activeMutation != nil)
     .sheet(item: $presentation) { _ in
       RichChatCheckpointSheet(

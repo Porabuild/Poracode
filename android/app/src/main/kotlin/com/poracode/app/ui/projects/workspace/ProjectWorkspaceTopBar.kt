@@ -1,18 +1,14 @@
 package com.poracode.app.ui.projects.workspace
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.CallSplit
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.poracode.app.R
+import com.poracode.app.ui.components.PoracodeTopAppBar
+import com.poracode.app.ui.theme.PoracodeIcons
 
 /**
  * Top app bar for [ProjectWorkspaceScreen]: back navigation, branch/worktree entry points (Git
@@ -30,12 +26,12 @@ internal fun ProjectWorkspaceTopBar(
     onShowWorktrees: () -> Unit,
     onRefresh: () -> Unit,
 ) {
-    TopAppBar(
+    PoracodeTopAppBar(
         title = { Text(projectName) },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    PoracodeIcons.ArrowBack,
                     contentDescription = stringResource(R.string.back),
                 )
             }
@@ -47,7 +43,7 @@ internal fun ProjectWorkspaceTopBar(
                     enabled = access.canRead,
                 ) {
                     Icon(
-                        Icons.Outlined.CallSplit,
+                        PoracodeIcons.CallSplit,
                         contentDescription = stringResource(R.string.git_view_branches),
                     )
                 }
@@ -56,7 +52,7 @@ internal fun ProjectWorkspaceTopBar(
                     enabled = access.canRead,
                 ) {
                     Icon(
-                        Icons.Outlined.AccountTree,
+                        PoracodeIcons.AccountTree,
                         contentDescription = stringResource(R.string.git_view_worktrees),
                     )
                 }
@@ -70,7 +66,7 @@ internal fun ProjectWorkspaceTopBar(
                 },
             ) {
                 Icon(
-                    Icons.Outlined.Refresh,
+                    PoracodeIcons.Refresh,
                     contentDescription = stringResource(R.string.workspace_refresh),
                 )
             }

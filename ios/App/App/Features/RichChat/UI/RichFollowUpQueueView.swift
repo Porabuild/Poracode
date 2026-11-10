@@ -208,7 +208,7 @@ private struct RichFollowUpQueuePausedBanner: View {
       Button(RichChatStrings.queueResume) {
         Task { await conversation.resumeFollowUps() }
       }
-      .buttonStyle(.bordered)
+      .poracodeSurfaceButtonStyle()
       .controlSize(.small)
     }
     .padding(.horizontal, 12)

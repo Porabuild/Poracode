@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.poracode.app.ui.theme.PoracodeTheme
 
 /**
  * Viewfinder chrome: dimmed surround with a clear rounded scan window, accent corner
@@ -52,7 +53,7 @@ internal fun PairingScanOverlay(
     reducedMotion: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val accent = MaterialTheme.colorScheme.primary
+    val accent = PoracodeTheme.colors.accent
     val transition = rememberInfiniteTransition(label = "pairing-scan")
     // Reduced motion keeps the sweep pinned at its start value: no animation runs.
     val sweep by transition.animateFloat(

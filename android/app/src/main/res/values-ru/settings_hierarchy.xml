@@ -6,7 +6,7 @@
     <string name="settings_device_general">Основные</string>
     <string name="settings_device_general_description">Язык, версия и сведения об устройстве</string>
     <string name="settings_device_appearance">Оформление</string>
-    <string name="settings_device_appearance_description">Тема и системные цвета</string>
+    <string name="settings_device_appearance_description">Тема и размер шрифта чата</string>
     <string name="settings_device_notifications">Уведомления</string>
     <string name="settings_device_notifications_description">Разрешение и регистрация компьютеров</string>
     <string name="settings_device_terminal">Терминал</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">Системная</string>
     <string name="settings_appearance_light">Светлая</string>
     <string name="settings_appearance_dark">Тёмная</string>
-    <string name="settings_dynamic_color">Использовать цвета устройства</string>
     <string name="settings_notification_status">Состояние</string>
     <string name="settings_notification_registering">Регистрация</string>
     <string name="settings_notification_available">Доступно</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Показывать уведомления во время использования Poracode</string>
     <string name="settings_notification_categories">Уведомлять о</string>
     <string name="settings_configuration_section">Конфигурация</string>
+    <string name="settings_appearance_mode">Режим</string>
+    <string name="settings_appearance_mode_description">Следовать настройкам системы либо принудительно использовать светлую или тёмную тему.</string>
+    <string name="settings_theme">Тема</string>
+    <string name="settings_notifications_enabled_description">Показывать уведомления при изменении статуса треда.</string>
+    <string name="settings_notification_sound_description">Воспроизводить звук при показе уведомления.</string>
+    <string name="settings_home_shortcut_reorder">Изменить порядок %1$s</string>
 </resources>

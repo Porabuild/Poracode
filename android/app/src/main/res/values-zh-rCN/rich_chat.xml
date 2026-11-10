@@ -251,6 +251,17 @@
     <string name="rich_chat_background_task_last_progress">上次进度报告于 %1$s前</string>
     <string name="rich_chat_background_task_close">关闭任务详情</string>
     <string name="rich_chat_background_task_report_missing">任务已结束，但未收到完成报告。</string>
+    <string name="rich_chat_copy_message">复制消息</string>
+    <string name="rich_chat_add_to_composer">添加到编写器</string>
+    <string name="rich_chat_file">文件</string>
+    <string name="rich_chat_attach">附加</string>
+    <string name="rich_chat_message_agent">向%1$s询问有关此工作区的任何信息</string>
+    <string name="rich_chat_worked_for">已工作 %1$s</string>
+    <string name="rich_chat_search_models">搜索模型...</string>
+    <string name="rich_chat_plugins">插件</string>
+    <string name="rich_chat_handoff_fork">分支对话</string>
+    <string name="rich_chat_handoff_prompt">告诉新提供商接下来要做什么…</string>
+    <string name="rich_chat_handoff_switch">切换</string>
     <string name="rich_chat_html_visual_title">HTML 预览</string>
     <string name="rich_chat_html_visual_source">源代码</string>
     <string name="rich_chat_html_visual_preview">预览</string>
@@ -263,4 +274,5 @@
     <string name="rich_chat_html_visual_unavailable">交互式渲染不可用。仅显示源码。</string>
     <string name="rich_chat_html_visual_open_link_title">打开链接？</string>
     <string name="rich_chat_html_visual_open_link">打开</string>
+    <string name="rich_chat_scroll_to_bottom">滚动到底部</string>
 </resources>

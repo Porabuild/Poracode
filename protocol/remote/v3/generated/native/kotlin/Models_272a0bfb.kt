@@ -90,6 +90,21 @@ data class ProceduregetProviderUsageRequest_f2b9759b60(
 }
 
 @Serializable
+data class ProceduregetProviderUsageResultU2DRingLayoutsU2DValue_4b47ae3fc7(
+    @SerialName("innerWindowId") val innerWindowId: RemoteField<String> = RemoteField.Missing,
+    @SerialName("outerWindowId") val outerWindowId: RemoteField<String> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("innerWindowId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("outerWindowId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias ProceduregetProviderUsageResultU2DRingLayouts_80c5703401 = Map<String, ProceduregetProviderUsageResultU2DRingLayoutsU2DValue_4b47ae3fc7>
+
+@Serializable
 enum class ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DCostU2DPeriod_776626d203 {
     @SerialName("today") TODAY,
     @SerialName("7d") N7D,

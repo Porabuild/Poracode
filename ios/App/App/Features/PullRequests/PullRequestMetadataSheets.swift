@@ -76,7 +76,7 @@ struct PullRequestLabelsSheet: View {
           Button(GitHubOperationsStrings.cancel) { dismiss() }
         }
       }
-      .safeAreaInset(edge: .bottom, spacing: 0) {
+      .poracodeBottomBar {
         PoracodeBottomActionDock(placement: .trailing) {
           PoracodeCircleButton {
             Task { await apply() }
@@ -122,7 +122,7 @@ struct PullRequestLabelsSheet: View {
         Spacer(minLength: 8)
         if isSelected {
           Image(systemName: "checkmark")
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(.primary)
         }
       }
       .contentShape(Rectangle())
@@ -221,7 +221,7 @@ struct PullRequestReviewersSheet: View {
           Button(GitHubOperationsStrings.cancel) { dismiss() }
         }
       }
-      .safeAreaInset(edge: .bottom, spacing: 0) {
+      .poracodeBottomBar {
         PoracodeBottomActionDock(placement: .trailing) {
           PoracodeCircleButton {
             Task { await apply() }
@@ -278,7 +278,7 @@ struct PullRequestReviewersSheet: View {
         Spacer(minLength: 8)
         if isAdding {
           Image(systemName: "checkmark.circle.fill")
-            .foregroundStyle(Color.accentColor)
+            .foregroundStyle(.primary)
         } else {
           Image(systemName: "plus.circle")
             .foregroundStyle(.secondary)

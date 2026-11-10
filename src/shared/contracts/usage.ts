@@ -23,12 +23,7 @@ export type {
   UsageProviderDescriptor,
 } from "@poracode/agents-usage/types";
 
-import { usageSnapshotSchema, type UsageSnapshot } from "@poracode/agents-usage/types";
-import {
-  assertExactType,
-  type AssertExact,
-  type NormalizeExactOptionalProperties,
-} from "./exactType";
+import { usageSnapshotSchema } from "@poracode/agents-usage/types";
 
 export const providerUsagePayloadSchema = z.object({
   /** Restrict collection to these provider ids; omitted = all known providers. */
@@ -43,23 +38,20 @@ export const providerUsagePayloadSchema = z.object({
 });
 export type ProviderUsagePayload = z.infer<typeof providerUsagePayloadSchema>;
 
-export interface ProviderUsageResponse {
-  snapshots: UsageSnapshot[];
-  /** True when the snapshots came from the on-disk cache (a refresh may be in flight). */
-  fromCache: boolean;
-}
+export const providerUsageRingLayoutSchema = z.object({
+  outerWindowId: z.string().min(1).optional(),
+  innerWindowId: z.string().min(1).optional(),
+});
+export type ProviderUsageRingLayout = z.infer<typeof providerUsageRingLayoutSchema>;
 
 export const providerUsageResponseSchema = z.object({
   snapshots: z.array(usageSnapshotSchema),
+  /** True when the snapshots came from the on-disk cache (a refresh may be in flight). */
   fromCache: z.boolean(),
+  /** Owning-host selection of reported quota windows; absent on older hosts. */
+  ringLayouts: z.record(z.string(), providerUsageRingLayoutSchema).optional(),
 });
-
-assertExactType<
-  AssertExact<
-    z.output<typeof providerUsageResponseSchema>,
-    NormalizeExactOptionalProperties<ProviderUsageResponse>
-  >
->();
+export type ProviderUsageResponse = z.output<typeof providerUsageResponseSchema>;
 
 export const usageLoginPayloadSchema = z.object({
   /** Provider to launch the browser-overlay cookie login for (e.g. "grok"). */

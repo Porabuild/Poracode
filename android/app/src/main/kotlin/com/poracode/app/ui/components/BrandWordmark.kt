@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.em
+import com.poracode.app.ui.theme.PoracodeTheme
 
 /** Accessible name of the whole mark — it reads as one product name, not three parts. */
 private const val WORDMARK_LABEL = "Poracode"
@@ -45,7 +46,7 @@ fun BrandWordmark(
     modifier: Modifier = Modifier,
     style: TextStyle = LocalTextStyle.current,
     color: Color = Color.Unspecified,
-    dotColor: Color = MaterialTheme.colorScheme.primary,
+    dotColor: Color = PoracodeTheme.colors.accent,
     isHeading: Boolean = false,
 ) {
     val mark = buildAnnotatedString {

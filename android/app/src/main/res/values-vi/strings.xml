@@ -80,12 +80,12 @@
     <string name="home_quick_compose_prompt">Lập kế hoạch, hỏi, xây dựng…</string>
     <string name="home_quick_compose_camera_capture">Chụp ảnh</string>
     <string name="home_more">Thêm</string>
+    <string name="home_more_browser">Trình duyệt</string>
+    <string name="home_more_refresh">Làm mới</string>
     <string name="home_connections">Kết nối</string>
     <string name="home_new_thread">Luồng mới</string>
     <string name="home_project">Dự án</string>
     <string name="home_project_host">%1$s — %2$s</string>
-    <string name="home_agent_value">Tác nhân: %1$s</string>
-    <string name="home_model_value">Mô hình: %1$s</string>
     <string name="home_start">Bắt đầu</string>
     <string name="home_quick_compose_agent">Tác nhân</string>
     <string name="home_quick_compose_presentation">Chế độ hiển thị</string>
@@ -165,4 +165,6 @@
     <string name="rich_chat_crew_policy_first">Ưu tiên nhóm</string>
     <string name="rich_chat_download_file">Tải xuống %1$s</string>
     <string name="rich_chat_download_failed">Không thể tải xuống tệp.</string>
+    <string name="home_filter_by_project">Lọc theo dự án</string>
+    <string name="common_more_actions">Thêm tác vụ</string>
 </resources>

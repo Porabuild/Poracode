@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Użycie dostawców</string>
+    <string name="settings_usage_title">Użycie</string>
     <string name="settings_usage_cached">Wyświetlanie danych użycia z pamięci podręcznej.</string>
     <string name="settings_usage_empty">Brak dostępnych danych użycia dostawców.</string>
     <string name="settings_usage_empty_title">Brak danych o użyciu</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Limit osiągnięty</string>
     <string name="settings_usage_unsupported">Nieobsługiwane</string>
     <string name="settings_usage_meter_description">Użycie %1$s: %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% do resetu</string>
+    <string name="settings_usage_pace_over">Nadmierne tempo — kończy się wcześnie</string>
+    <string name="settings_usage_pace_ran_out">Skończyło się</string>
+    <string name="settings_usage_pace_ran_out_resets">Skończyło się · resetuje się za %1$s</string>
+    <string name="settings_usage_pace_runs_out_in">Wyczerpie się za %1$s</string>
+    <string name="settings_usage_pace_runs_out_early">Wyczerpie się wcześnie</string>
     <string name="settings_profile_identity">Tożsamość</string>
     <string name="settings_profile_identity_description">Ten profil jest przechowywany na wybranym pulpicie.</string>
     <string name="settings_profile_name">Nazwa</string>

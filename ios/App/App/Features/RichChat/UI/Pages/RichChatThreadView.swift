@@ -35,7 +35,7 @@ struct RichChatThreadView: View {
     }
     .navigationTitle(thread?.title ?? title)
     .navigationBarTitleDisplayMode(.inline)
-    .toolbarBackground(.hidden, for: .navigationBar)
+    .poracodeNavigationBarChrome()
     .toolbar {
       if let thread, let project {
         ToolbarItem(placement: .principal) {

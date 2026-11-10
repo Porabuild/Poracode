@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -16,7 +12,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,8 +35,11 @@ import com.poracode.app.model.UpdateProject
 import com.poracode.app.session.projects.ProjectCommandOutcome
 import com.poracode.app.session.projects.ProjectOperationFailure
 import com.poracode.app.session.projects.ProjectSessionRuntime
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import java.util.UUID
 import kotlinx.coroutines.launch
+import androidx.compose.material3.FilledTonalButton
 
 internal val PROJECT_ACTION_ICON_TOKENS = listOf(
     "play", "terminal", "rocket", "hammer", "wrench", "cog", "zap", "bug",
@@ -90,10 +88,10 @@ internal fun ProjectActionsSettingsSection(
                         onClick = { actions = actions.toMutableList().also { it.removeAt(index) } },
                         enabled = enabled,
                     ) {
-                        Icon(Icons.Outlined.Delete, stringResource(R.string.projects_delete_action))
+                        Icon(PoracodeIcons.Delete, stringResource(R.string.projects_delete_action))
                     }
                 }
-                OutlinedTextField(
+                PoracodeTextField(
                     value = action.name,
                     onValueChange = { value ->
                         actions = actions.updated(index, action.copy(name = value))
@@ -103,7 +101,7 @@ internal fun ProjectActionsSettingsSection(
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                PoracodeTextField(
                     value = action.command,
                     onValueChange = { value ->
                         actions = actions.updated(index, action.copy(command = value))
@@ -129,7 +127,7 @@ internal fun ProjectActionsSettingsSection(
                 style = MaterialTheme.typography.titleSmall,
             )
         }
-        OutlinedTextField(
+        PoracodeTextField(
             value = newName,
             onValueChange = { newName = it },
             label = { Text(stringResource(R.string.projects_action_name)) },
@@ -137,7 +135,7 @@ internal fun ProjectActionsSettingsSection(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        PoracodeTextField(
             value = newCommand,
             onValueChange = { newCommand = it },
             label = { Text(stringResource(R.string.projects_action_command)) },
@@ -161,11 +159,11 @@ internal fun ProjectActionsSettingsSection(
             },
             enabled = enabled && newName.isNotBlank() && newCommand.isNotBlank(),
         ) {
-            Icon(Icons.Outlined.Add, contentDescription = null)
+            Icon(PoracodeIcons.Add, contentDescription = null)
             Text(stringResource(R.string.projects_add_action))
         }
         ProjectFailureText(failure)
-        Button(
+        FilledTonalButton(
             onClick = {
                 localBusy = true
                 failure = null
@@ -201,7 +199,7 @@ private fun ProjectActionIconMenu(
     Box {
         TextButton(onClick = { expanded = true }, enabled = enabled) {
             Text(stringResource(R.string.projects_action_icon_value, value))
-            Icon(Icons.Outlined.ExpandMore, contentDescription = null)
+            Icon(PoracodeIcons.ExpandMore, contentDescription = null)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             PROJECT_ACTION_ICON_TOKENS.forEach { token ->

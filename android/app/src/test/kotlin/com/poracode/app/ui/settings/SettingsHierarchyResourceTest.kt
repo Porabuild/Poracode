@@ -11,7 +11,7 @@ class SettingsHierarchyResourceTest {
     fun hierarchyAndHostResourcesMatchInEverySupportedLocale() {
         val root = projectFile("app/src/main/res")
         val settings = values(root.resolve("values/settings_hierarchy.xml"))
-        assertEquals(50, settings.size)
+        assertEquals(55, settings.size)
         val hosts = values(root.resolve("values/hosts.xml"))
         assertEquals(7, hosts.size)
         LOCALES.forEach { locale ->

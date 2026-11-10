@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">보관된 스레드가 없습니다</string>
     <string name="thread_status_starting_agent">에이전트 시작 중…</string>
     <string name="thread_status_resuming">세션 재개 중…</string>
+    <string name="thread_lifecycle_pin_top">상단에 고정</string>
+    <string name="thread_lifecycle_archive_thread">아카이브 스레드</string>
+    <string name="thread_lifecycle_delete_thread">스레드 삭제</string>
+    <string name="thread_lifecycle_notes">메모 및 할 일</string>
+    <string name="thread_lifecycle_open_terminal">터미널 열기</string>
+    <string name="thread_lifecycle_fork_thread">대화 분기</string>
+    <string name="thread_lifecycle_continue_in">다른 제공업체에서 계속</string>
+    <string name="thread_lifecycle_move_worktree_changes">변경 사항과 함께 워크트리로 이동</string>
+    <string name="thread_lifecycle_move_worktree_clean">깨끗한 워크트리로 이동</string>
+    <string name="thread_lifecycle_move_worktree_title">스레드를 워크트리로 이동할까요?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">현재 런타임이 중지됩니다. 새 워크트리와 브랜치를 만들고 커밋되지 않은 변경 사항을 이동한 후 스레드를 다시 시작합니다.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">현재 런타임이 중지됩니다. 깨끗한 워크트리와 브랜치를 만든 후 스레드를 다시 시작합니다.</string>
+    <string name="thread_lifecycle_move_confirm">이동</string>
 </resources>

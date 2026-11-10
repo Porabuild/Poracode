@@ -187,7 +187,7 @@ final class ThreadStartExistingReachabilityTests: XCTestCase {
     XCTAssertTrue(view.contains("case .worktree(let group):"))
     XCTAssertTrue(view.contains("case .conversation(let group):"))
     XCTAssertTrue(view.contains("DisclosureGroup(isExpanded:"))
-    XCTAssertTrue(view.contains("ThreadLifecycleActionMenu("))
+    XCTAssertTrue(view.contains("ThreadLifecycleActionsContent("))
     XCTAssertTrue(view.contains("markAllDone(group.threads.map(\\.thread))"))
     XCTAssertTrue(view.contains("submitGroupRename()"))
     XCTAssertTrue(view.contains("lifecycle.deleteWorktreeGroup("))

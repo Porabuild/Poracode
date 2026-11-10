@@ -12,7 +12,7 @@ vocabulary, and the remote-v3 wire contract, but not UI code:
 | ---------------- | ------------------------------------ | ----------------------------------------------------------- | --------------------------------- |
 | Mobile web / PWA | React, same renderer as desktop      | `src/renderer` (compact layout)                             | Poracode PWA patterns + HeroUI v3 |
 | iOS app          | Swift / SwiftUI, native (no WebView) | `ios/App` (`App`, `AppTests`, `PoracodeActivities` targets) | Apple HIG                         |
-| Android app      | Kotlin / Jetpack Compose             | `android/`                                                  | Material 3                        |
+| Android app      | Kotlin / Jetpack Compose             | `android/`                                                  | Poracode PWA language (Compose)   |
 
 The native apps do not embed the web renderer; they are independent apps
 speaking remote-v3 to a desktop or headless host. The mobile web client is a
@@ -48,8 +48,10 @@ Mobile building blocks: `src/renderer/components/mobileComposer/`; PWA plumbing
 ## Platform design languages
 
 Behavior and layout logic stay in parity; visual expression is idiomatic per
-platform. Never port web CSS to native, clone iOS styling on Android, or bring
-Material patterns to iOS. Before styling, read
+platform. iOS follows Apple HIG; Android renders the compact PWA's design
+language (tokens, Geist, lucide icons, page chrome) through its own Compose
+design system. Never port web CSS to native, clone iOS styling on Android, or
+bring Material patterns to iOS. Before styling, read
 [references/design.md](references/design.md) for the per-platform rules
 (neutral icon and menu color, bottom thumb-reachable actions and the shared
 components that implement them, drawers, tabs, density, and visual

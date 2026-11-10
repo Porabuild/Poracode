@@ -102,6 +102,19 @@ object RichChatUiLogic {
     }
 
     /**
+     * One-line label for a compact activity row: the host-provided title,
+     * name, or command when present, otherwise the first line of [itemText].
+     */
+    fun activityTitle(item: RichRuntimeItem): String {
+        val payload = item.payload as? JsonObject
+        val named = payload?.let {
+            listOf("title", "name", "command", "path", "summary")
+                .firstNotNullOfOrNull { key -> it[key].displayScalar()?.takeIf(String::isNotBlank) }
+        }
+        return (named ?: itemText(item)).lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+    }
+
+    /**
      * The host settles a sub-agent task whose run ended without its terminal
      * report by completing the tool row with this exact app-authored error.
      * Generic [itemText] prefers the row's title/name, which would hide it, so
@@ -379,4 +392,41 @@ object RichChatUiLogic {
         thread?.sessionRef?.providerSessionId.orEmpty(),
         thread?.sessionRef?.executionIdentity.orEmpty(),
     ).joinToString("|")
+
+    /** Units a completed-turn duration may report, coarsest first. */
+    enum class RichDurationUnit { Hour, Minute, Second }
+
+    /**
+     * iOS `completedTurnDuration` parity: under an hour reports minutes and
+     * seconds, an hour or more reports hours and minutes, at most two units,
+     * leading zero units dropped. Null below the one-second display floor.
+     */
+    fun completedTurnDurationParts(milliseconds: Long): List<Pair<Int, RichDurationUnit>>? {
+        if (milliseconds < 1_000L) return null
+        val totalSeconds = milliseconds / 1_000L
+        if (milliseconds >= 3_600_000L) {
+            val hours = (totalSeconds / 3_600L).toInt()
+            val minutes = ((totalSeconds % 3_600L) / 60L).toInt()
+            return buildList {
+                add(hours to RichDurationUnit.Hour)
+                if (minutes > 0) add(minutes to RichDurationUnit.Minute)
+            }
+        }
+        val minutes = (totalSeconds / 60L).toInt()
+        val seconds = (totalSeconds % 60L).toInt()
+        return buildList {
+            if (minutes > 0) add(minutes to RichDurationUnit.Minute)
+            if (seconds > 0 || minutes == 0) add(seconds to RichDurationUnit.Second)
+        }
+    }
+
+    /**
+     * `thread-runtime-truncate` removes everything after the chosen item, so a
+     * blank id or the last visible item is never offered (iOS parity).
+     */
+    fun canTruncate(itemId: String, lastVisibleItemId: String?): Boolean {
+        val trimmed = itemId.trim()
+        if (trimmed.isEmpty()) return false
+        return trimmed != lastVisibleItemId?.trim()
+    }
 }

@@ -1,35 +1,25 @@
 package com.poracode.app.ui.hosts
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Computer
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.QrCodeScanner
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
@@ -37,11 +27,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,7 +38,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,8 +51,19 @@ import com.poracode.app.model.HostRecord
 import com.poracode.app.session.AppSession
 import com.poracode.app.session.HostUiCatalog
 import com.poracode.app.storage.HostCatalog
+import com.poracode.app.ui.components.PoracodeBottomBar
+import com.poracode.app.ui.components.PoracodeCircleButton
+import com.poracode.app.ui.components.PoracodeHazeHost
+import com.poracode.app.ui.components.PoracodeListRow
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.components.PoracodeTopAppBar
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
 import com.poracode.app.ui.onboarding.PairingScanScreen
 import com.poracode.app.transport.RemoteWebSocketClient
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.theme.PoracodeTextStyles
+import com.poracode.app.ui.theme.PoracodeTheme
+import com.poracode.app.ui.components.PoracodeAccentButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,35 +117,32 @@ fun HostSwitcherScreen(
         )
         return
     }
-    BackHandler(onBack = onBack)
+    val backModifier = rememberPredictiveBackModifier(onBack = onBack)
     Scaffold(
+        modifier = backModifier,
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.hosts_title)) },
+            PoracodeTopAppBar(
+                title = { Text(stringResource(R.string.home_connections)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            PoracodeIcons.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                         )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showAdd = true }, enabled = actionsEnabled) {
-                        Icon(Icons.Outlined.Add, stringResource(R.string.hosts_add))
                     }
                 },
             )
         },
     ) { padding ->
-        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+        PoracodeHazeHost { backdrop ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+        BoxWithConstraints(Modifier.fillMaxSize().then(backdrop)) {
             if (maxWidth >= 840.dp) {
                 Row(Modifier.fillMaxSize()) {
                     HostList(
                         catalog, selectedDetail, { selectedDetail = it.connectionId }, selectHost,
                         { pendingRemoval = it }, { pendingRename = it }, onOpenProjects,
                         onOpenDesktopSettings, selectedConnectionState, actionsEnabled,
-                        { showAdd = true },
                         openDetails = true,
                         modifier = Modifier.width(360.dp),
                     )
@@ -176,11 +173,23 @@ fun HostSwitcherScreen(
                     catalog, selectedDetail, { selectedDetail = it.connectionId }, selectHost,
                     { pendingRemoval = it }, { pendingRename = it }, onOpenProjects,
                     onOpenDesktopSettings, selectedConnectionState, actionsEnabled,
-                    { showAdd = true },
                     openDetails = false,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+        }
+        PoracodeBottomBar(
+            Modifier.align(Alignment.BottomCenter),
+            trailing = {
+                PoracodeCircleButton(
+                    icon = PoracodeIcons.Add,
+                    contentDescription = stringResource(R.string.hosts_add),
+                    onClick = { showAdd = true },
+                    enabled = actionsEnabled,
+                )
+            },
+        )
+        }
         }
     }
     pendingRemoval?.let { host ->
@@ -223,11 +232,15 @@ private fun HostList(
     onOpenDesktopSettings: (ClientConnectionId) -> Unit,
     selectedConnectionState: RemoteWebSocketClient.ConnectionState,
     actionsEnabled: Boolean,
-    onAdd: () -> Unit,
     openDetails: Boolean,
     modifier: Modifier,
 ) {
-    LazyColumn(modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val colors = PoracodeTheme.colors
+    LazyColumn(
+        modifier.padding(12.dp),
+        contentPadding = PaddingValues(bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         if (catalog.hosts.isEmpty()) {
             item { Text(stringResource(R.string.hosts_empty)) }
         }
@@ -240,72 +253,84 @@ private fun HostList(
             } else {
                 catalog.connectionStates[host.connectionId]
             }
-            Card(
-                modifier = Modifier.fillMaxWidth().then(
-                    if (openDetails || !selected) {
-                        Modifier.clickable {
-                            if (openDetails) onDetail(host) else onSelect(host.connectionId)
-                        }
-                    } else {
-                        Modifier
-                    },
-                ),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (host.connectionId == selectedDetail) {
-                        MaterialTheme.colorScheme.secondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                ),
+            val colors = PoracodeTheme.colors
+            val details = listOf(
+                hostModeLabel(host),
+                when {
+                    connectionState != null -> hostConnectionStateLabel(connectionState)
+                    selected -> stringResource(R.string.hosts_selected)
+                    secondary -> stringResource(R.string.hosts_kept_ready)
+                    else -> stringResource(R.string.socket_idle)
+                },
+                host.httpBaseUrl,
+            ).joinToString(" · ")
+            var menuExpanded by remember { mutableStateOf(false) }
+            PoracodeListRow(
+                onClick = if (openDetails || !selected) {
+                    { if (openDetails) onDetail(host) else onSelect(host.connectionId) }
+                } else {
+                    null
+                },
+                onLongClick = { menuExpanded = true },
+                onLongClickLabel = stringResource(R.string.common_more_actions),
+                selected = host.connectionId == selectedDetail &&
+                    host.connectionId != catalog.selectedConnectionId,
             ) {
-                Row(
-                    Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(Icons.Outlined.Computer, contentDescription = null)
-                    Column(Modifier.weight(1f)) {
-                        Text(host.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            hostModeLabel(host),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Icon(
+                    PoracodeIcons.Laptop,
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                    tint = colors.muted,
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        host.label,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                        color = colors.foreground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (connectionState ==
+                                        RemoteWebSocketClient.ConnectionState.Online
+                                    ) {
+                                        colors.success
+                                    } else {
+                                        colors.muted
+                                    },
+                                ),
                         )
                         Text(
-                            when {
-                                connectionState != null -> hostConnectionStateLabel(connectionState)
-                                selected -> stringResource(R.string.hosts_selected)
-                                secondary -> stringResource(R.string.hosts_kept_ready)
-                                else -> stringResource(R.string.socket_idle)
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            host.httpBaseUrl,
+                            details,
+                            style = PoracodeTextStyles.rowDescription,
+                            color = colors.muted,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    HostRowMenu(
-                        host = host,
-                        selected = selected,
-                        onSelect = onSelect,
-                        onRename = onRename,
-                        onOpenProjects = onOpenProjects,
-                        onOpenDesktopSettings = onOpenDesktopSettings,
-                        onRemove = onRemove,
-                        enabled = actionsEnabled,
-                    )
                 }
-            }
-        }
-        item {
-            TextButton(onClick = onAdd, enabled = actionsEnabled) {
-                Icon(Icons.Outlined.Add, contentDescription = null)
-                Text(stringResource(R.string.hosts_add), Modifier.padding(start = 8.dp))
+                HostRowMenu(
+                    expanded = menuExpanded,
+                    onDismiss = { menuExpanded = false },
+                    host = host,
+                    selected = selected,
+                    onSelect = onSelect,
+                    onRename = onRename,
+                    onOpenProjects = onOpenProjects,
+                    onOpenDesktopSettings = onOpenDesktopSettings,
+                    onRemove = onRemove,
+                    enabled = actionsEnabled,
+                )
             }
         }
     }
@@ -323,7 +348,7 @@ private fun HostDetail(
             Text(stringResource(R.string.hosts_choose_detail))
             return@Column
         }
-        Icon(Icons.Outlined.Computer, contentDescription = null)
+        Icon(PoracodeIcons.Computer, contentDescription = null)
         Text(host.label, style = MaterialTheme.typography.headlineSmall)
         Text(hostModeLabel(host), color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (host.environment != null) {
@@ -363,24 +388,24 @@ private fun AddHostPanel(
     ) {
         Text(stringResource(R.string.hosts_add), style = MaterialTheme.typography.headlineSmall)
         Text(stringResource(R.string.hosts_add_description))
-        Button(onClick = onScan, enabled = !pairingBusy, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Outlined.QrCodeScanner, contentDescription = null)
+        PoracodeAccentButton(onClick = onScan, enabled = !pairingBusy, modifier = Modifier.fillMaxWidth()) {
+            Icon(PoracodeIcons.QrCodeScanner, contentDescription = null)
             Text(stringResource(R.string.pair_scan_card_title), Modifier.padding(start = 8.dp))
         }
-        OutlinedTextField(
+        PoracodeTextField(
             link, { link = it }, label = { Text(stringResource(R.string.pairing_link_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             enabled = !pairingBusy,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        PoracodeTextField(
             endpoint, { endpoint = it },
             label = { Text(stringResource(R.string.server_base_url)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             enabled = !pairingBusy,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        PoracodeTextField(
             token, { token = it },
             label = { Text(stringResource(R.string.one_time_pairing_token)) },
             visualTransformation = PasswordVisualTransformation(),
@@ -388,7 +413,7 @@ private fun AddHostPanel(
             enabled = !pairingBusy,
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(
+        PoracodeAccentButton(
             onClick = {
                 onPair(AppSession.PairingInput(link, endpoint, token))
             },
@@ -402,6 +427,8 @@ private fun AddHostPanel(
 
 @Composable
 private fun HostRowMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
     host: HostRecord,
     selected: Boolean,
     onSelect: (ClientConnectionId) -> Unit,
@@ -411,35 +438,31 @@ private fun HostRowMenu(
     onRemove: (HostRecord) -> Unit,
     enabled: Boolean,
 ) {
-    var expanded by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { expanded = true }, enabled = enabled) {
-            Icon(Icons.Outlined.MoreVert, stringResource(R.string.hosts_more_actions, host.label))
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.hosts_rename)) },
-                leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                leadingIcon = { Icon(PoracodeIcons.Edit, contentDescription = null) },
                 onClick = {
-                    expanded = false
+                    onDismiss()
                     onRename(host)
                 },
                 enabled = enabled,
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.projects_manage_title)) },
-                leadingIcon = { Icon(Icons.Outlined.Folder, contentDescription = null) },
+                leadingIcon = { Icon(PoracodeIcons.Folder, contentDescription = null) },
                 onClick = {
-                    expanded = false
+                    onDismiss()
                     onOpenProjects(host.connectionId)
                 },
                 enabled = enabled,
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.hosts_desktop_settings)) },
-                leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                leadingIcon = { Icon(PoracodeIcons.Settings, contentDescription = null) },
                 onClick = {
-                    expanded = false
+                    onDismiss()
                     onOpenDesktopSettings(host.connectionId)
                 },
                 enabled = enabled,
@@ -447,9 +470,9 @@ private fun HostRowMenu(
             if (!selected) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.hosts_switch)) },
-                    leadingIcon = { Icon(Icons.Outlined.Computer, contentDescription = null) },
+                    leadingIcon = { Icon(PoracodeIcons.Computer, contentDescription = null) },
                     onClick = {
-                        expanded = false
+                        onDismiss()
                         onSelect(host.connectionId)
                     },
                     enabled = enabled,
@@ -457,9 +480,9 @@ private fun HostRowMenu(
             }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.hosts_remove)) },
-                leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                leadingIcon = { Icon(PoracodeIcons.Delete, contentDescription = null) },
                 onClick = {
-                    expanded = false
+                    onDismiss()
                     onRemove(host)
                 },
                 enabled = enabled,

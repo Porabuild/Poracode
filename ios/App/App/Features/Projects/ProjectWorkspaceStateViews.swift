@@ -66,7 +66,7 @@ struct ProjectWorkspaceFailureView: View {
     } actions: {
       if let retry {
         Button(ProjectWorkspaceStrings.retry, action: retry)
-          .poracodeProminentButtonStyle()
+          .poracodeGlassButtonStyle()
       }
     }
     .accessibilityElement(children: .contain)

@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.EditOff
-import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -24,6 +21,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun RichChatCrewChip(
@@ -42,7 +40,7 @@ internal fun RichChatCrewChip(
                 Text("+${crew.helperCount}", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        leadingIcon = { Icon(Icons.Outlined.Groups, contentDescription = null) },
+        leadingIcon = { Icon(PoracodeIcons.Groups, contentDescription = null) },
         modifier = Modifier.semantics { contentDescription = description },
     )
 }
@@ -116,7 +114,7 @@ private fun ReadOnlyCrewMember(
             if (fast) Text(stringResource(R.string.rich_chat_fast_mode), style = MaterialTheme.typography.labelSmall)
             if (noEdits) {
                 Icon(
-                    Icons.Outlined.EditOff,
+                    PoracodeIcons.EditOff,
                     contentDescription = stringResource(R.string.rich_chat_crew_no_edits),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">Архівних тредів немає</string>
     <string name="thread_status_starting_agent">Запуск агента…</string>
     <string name="thread_status_resuming">Відновлення сеансу…</string>
+    <string name="thread_lifecycle_pin_top">Закріпити вгорі</string>
+    <string name="thread_lifecycle_archive_thread">Архівувати тред</string>
+    <string name="thread_lifecycle_delete_thread">Видалити тред</string>
+    <string name="thread_lifecycle_notes">Нотатки й завдання</string>
+    <string name="thread_lifecycle_open_terminal">Открыть терминал</string>
+    <string name="thread_lifecycle_fork_thread">Відгалузити розмову</string>
+    <string name="thread_lifecycle_continue_in">Продовжити в іншому провайдері</string>
+    <string name="thread_lifecycle_move_worktree_changes">Перемістити в робоче дерево зі змінами</string>
+    <string name="thread_lifecycle_move_worktree_clean">Перемістити в чисте робоче дерево</string>
+    <string name="thread_lifecycle_move_worktree_title">Перемістити гілку в робоче дерево?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">Поточне середовище виконання буде зупинено. Буде створено нове робоче дерево й гілку, а незафіксовані зміни перенесено туди до відновлення гілки.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">Поточне середовище виконання буде зупинено. Перед відновленням гілки буде створено чисте робоче дерево й нову гілку.</string>
+    <string name="thread_lifecycle_move_confirm">Перемістити</string>
 </resources>
