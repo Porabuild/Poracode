@@ -17,6 +17,7 @@ import {
 /** One instance per supervisor process; support from a predecessor cannot authorize this child. */
 export function createWorkspaceRuntimeRequestHandler(threads: {
   startThread(input: StartThreadRuntimeInput): Promise<StartThreadResult>;
+  startThreadForIpc?(input: StartThreadRuntimeInput): Promise<StartThreadResult>;
   ensureThreadRunning(input: StartThreadRuntimeInput): Promise<StartThreadResult>;
   controlThreadExecution?(
     input: ControlThreadExecutionPayload,
@@ -48,6 +49,9 @@ export function createWorkspaceRuntimeRequestHandler(threads: {
         request.scope,
       );
     const input: StartThreadRuntimeInput = { ...request.launch, workspaceScope: request.scope };
+    if (request.procedure === "startThread" && threads.startThreadForIpc) {
+      return threads.startThreadForIpc(input);
+    }
     return threads[request.procedure](input);
   };
 }

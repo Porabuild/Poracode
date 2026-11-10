@@ -3,10 +3,12 @@ import {
   HOST_RESOURCE_BUSY_CODE,
   HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
 } from "@/shared/hostResourceAdmission";
+import { THREAD_LAUNCH_FAILED_REFUSAL_CODE } from "@/shared/threadLaunchRefusal";
 import {
   THREAD_SESSION_ABSENCE_REFUSAL_CODE,
   ThreadSessionAbsenceRefusalError,
 } from "@/shared/threadSessionRefusal";
+import { wrapConfirmedIpcThreadLaunchFailure } from "./runtime/threadSession/unpublishedStartFailure";
 import {
   HostResourceBusyError,
   HostResourcePolicyUnavailableError,
@@ -118,6 +120,53 @@ describe("handleSupervisorIpcFailure", () => {
       replyTo: "request-7",
       ok: false,
       error: "backend reported: Unknown thread session: caller-visible-id",
+    });
+  });
+
+  it("carries the typed launch-failed code only for startThread errors wrapped per-attempt", () => {
+    const shared = new Error("Provider session failed during open");
+    const capture = vi.fn<(error: unknown, operation: string) => void>();
+    expect(
+      handleSupervisorIpcFailure(
+        wrapConfirmedIpcThreadLaunchFailure(shared),
+        "startThread",
+        "request-8",
+        capture,
+      ),
+    ).toEqual({
+      replyTo: "request-8",
+      ok: false,
+      error: "Provider session failed during open",
+      errorCode: THREAD_LAUNCH_FAILED_REFUSAL_CODE,
+    });
+    expect(capture).toHaveBeenCalledExactlyOnceWith(shared, "startThread");
+
+    // Reusing the exact same Error object in an unwrapped concurrent attempt
+    // keeps it untyped (no shared WeakSet cross-talk).
+    expect(handleSupervisorIpcFailure(shared, "startThread", "request-9", () => {})).toEqual({
+      replyTo: "request-9",
+      ok: false,
+      error: "Provider session failed during open",
+    });
+
+    const gitBusy = new GitProcessAdmissionError(
+      GIT_ADMISSION_QUEUE_FULL_CODE,
+      { gitClass: "short", units: 1, limit: 8, active: 8, queued: 64, retryAfterMs: 500 },
+      "Git short admission queue is full.",
+    );
+    expect(
+      handleSupervisorIpcFailure(
+        wrapConfirmedIpcThreadLaunchFailure(gitBusy),
+        "startThread",
+        "request-10",
+        () => {},
+      ),
+    ).toEqual({
+      replyTo: "request-10",
+      ok: false,
+      error: gitBusy.message,
+      errorCode: GIT_ADMISSION_QUEUE_FULL_CODE,
+      retryAfterMs: 500,
     });
   });
 });

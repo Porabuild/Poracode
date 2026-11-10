@@ -104,6 +104,7 @@ export async function listClientSubmissions(): Promise<ClientDraftSubmission[]> 
 export async function listClientSubmissionsForDraft(
   scope: string,
   draftId?: string,
+  predicate?: (record: ClientDraftSubmission) => boolean,
 ): Promise<ClientDraftSubmission[]> {
   return transact<ClientDraftSubmission[]>(["submissions"], "readonly", (tx, done) => {
     const store = tx.objectStore("submissions");
@@ -118,7 +119,11 @@ export async function listClientSubmissionsForDraft(
         const cursor = request.result;
         if (cursor) {
           const record = cursor.value as ClientDraftSubmission;
-          if (record.formatVersion !== FORMAT_VERSION || record.state === "accepted") {
+          if (
+            record.formatVersion !== FORMAT_VERSION ||
+            record.state === "accepted" ||
+            (predicate && !predicate(record))
+          ) {
             cursor.continue();
             return;
           }

@@ -562,6 +562,13 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
       if (source)
         moved.set(key(kind, to), { draftId: source.draftId, revision: source.revision + 1 });
     },
+    currentDraft(kind: DraftKind, id: string) {
+      try {
+        return readRecord(kind, id)?.content;
+      } catch {
+        return undefined;
+      }
+    },
     currentIdentity(kind: DraftKind, id: string) {
       try {
         const record = readRecord(kind, id);

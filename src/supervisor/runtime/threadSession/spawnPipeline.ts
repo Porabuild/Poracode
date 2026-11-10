@@ -119,6 +119,7 @@ import {
 import {
   publishUnpublishedStartInterruption,
   retainUnpublishedStartSessionRef,
+  type StartThreadAttemptOutcome,
 } from "./unpublishedStartFailure";
 import { describeSpawnFailure, sanitizeEnv, sanitizedProcessEnv } from "./spawnDiagnostics";
 import type { SessionRuntimeLifecycle } from "./sessionRuntimeLifecycle";
@@ -428,6 +429,7 @@ export class SpawnPipeline {
       resourceLease?: HostResourceLease;
       /** Live generation being replaced; successor starts only after its release. */
       predecessorLease?: HostResourceLease;
+      attemptOutcome?: StartThreadAttemptOutcome;
     },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
@@ -811,6 +813,7 @@ export class SpawnPipeline {
               structuredSession.openThread!(launchConfig, payload.sessionRef),
             )
           : await structuredSession.openThread(launchConfig, payload.sessionRef);
+        if (payload.attemptOutcome) payload.attemptOutcome.providerSessionTouched = true;
       } catch (error) {
         // Capture before dispose: some handles retire their getter with their
         // transport. Failed configuration must not lose an allocated identity.
@@ -819,6 +822,9 @@ export class SpawnPipeline {
           allocatedRef = structuredSession.getSessionRef?.();
         } catch {
           // A broken optional getter must not bypass owned-handle retirement.
+        }
+        if (allocatedRef && payload.attemptOutcome) {
+          payload.attemptOutcome.providerSessionTouched = true;
         }
         // Custody follows the presentation this pipeline actually opened, not
         // the base terminal capability: a GUI runtime's declared resume support
@@ -1004,6 +1010,7 @@ export class SpawnPipeline {
         },
         { ...initialTurnText, config: launchConfig },
       );
+      if (payload.attemptOutcome) payload.attemptOutcome.launchTurnDispatched = true;
       void structuredSession
         .startTurn(
           initialPrompt,
@@ -1601,12 +1608,10 @@ export class SpawnPipeline {
     // GUI threads have no terminal scrollback, and clearing the slice would
     // wipe the optimistic user_message we may have already painted ahead of
     // structured-session setup. Skip the reset for any GUI-presentation
-    // thread (initial launch, resume, restart all run through here).
+    // thread, and emit for terminal threads only once `createPty` succeeds so
+    // a pre-spawn failure never wipes persisted scrollback.
     const isGuiPresentation =
       input.presentationMode !== undefined && input.presentationMode !== "terminal";
-    if (!isGuiPresentation) {
-      ctx.options.emit({ type: "thread-reset", threadId: input.threadId });
-    }
 
     const agentEnv = this.resolveAgentProcessEnv(input.adapter, input.projectLocation);
     const cliHookEnvInjected = Boolean(input.extraEnv?.PORACODE_HOOK_URL);
@@ -1761,6 +1766,9 @@ export class SpawnPipeline {
       session.initialInstructionsApplied = true;
       ctx.outputPipeline.emitState(session);
     };
+    if (!isGuiPresentation) {
+      ctx.options.emit({ type: "thread-reset", threadId: input.threadId });
+    }
     ctx.sessionRuntimeLifecycle.attach(session);
     // The process effect exists once the runtime is published: a PTY spawn
     // succeeded and/or a structured handle is attached. Idempotent.

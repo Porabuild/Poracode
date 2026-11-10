@@ -14,6 +14,7 @@ import {
   RemoteDesktopClient,
   type RemoteFetch,
 } from "@/shared/remote/client";
+import { ThreadLaunchFailedRefusalError } from "@/shared/threadLaunchRefusal";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -287,6 +288,26 @@ describe.skipIf(!sqliteAvailable)("startThread procedure receipt wiring", () => 
       .catch((value: unknown) => value);
     expect(retry).toMatchObject({ status: 409, code: "command_outcome_uncertain" });
     expect(callSupervisor).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers a confirmed pre-runtime launch failure on procedure startThread with a definite 422 and records failed", async () => {
+    const client = new RemoteDesktopClient(info.httpBaseUrl, token, passthroughFetch());
+    const commandId = "thread-start-item:user-4";
+    const payload = { ...startPayload, threadId: "t3", userMessageItemId: "user-4" };
+    callSupervisor.mockImplementationOnce(async () => {
+      throw new ThreadLaunchFailedRefusalError("Gemini CLI binary missing");
+    });
+
+    const error = await client
+      .callRemoteProcedure("startThread", payload)
+      .catch((value: unknown) => value);
+    expect(error).toMatchObject({
+      status: 422,
+      code: "thread_launch_failed",
+      message: "Gemini CLI binary missing",
+    });
+    expect(remoteMutationMayHaveCommitted(error)).toBe(false);
+    expect(receiptRow(commandId)?.state).toBe("failed");
   });
 
   /**

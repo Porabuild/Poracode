@@ -26,7 +26,6 @@ import {
   remoteRuntimeGapAcknowledgeResultSchema,
 } from "@/shared/remote";
 import { runtimeHistoryNoticeTokensEqual } from "@/shared/runtimeHistoryNotice";
-import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
 import {
   THREAD_SESSION_ABSENCE_REFUSAL_CODE,
   isThreadSessionAbsenceRefusal,
@@ -69,6 +68,7 @@ import {
   applyRemoteThreadSwitch,
   ensureRemoteThreadRunning,
 } from "./threadCommands";
+import { isPlainThreadStartPreEffectFailure, rethrowPlainThreadStartRefusal } from "./threadSwitch";
 
 /**
  * POST /api/threads/{threadId}<suffix> endpoints that validate the body (merged
@@ -187,33 +187,41 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
     const mcpSnapshot =
       ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId, config.mcpServerOverrides) ??
       emptyMcpLaunchSnapshot();
-    const result = await runRemoteCommand({
-      commandId: remoteCommandId(req),
-      route: url.pathname,
-      principalId: session?.sessionId ?? null,
-      requestPayload: payload,
-      // A plain restart's whole operation is the supervisor call (the B1
-      // pre-launch touch is evidence, not a command effect), so an admission
-      // refusal is definite. A provider switch retargets the durable row and
-      // dispatches the renderer before that call — earlier effects exist, so
-      // no predicate: the receipt and the first response stay uncertain.
-      ...(payload.providerSwitch ? {} : { isPreEffectFailure: isHostResourceAdmissionRefusal }),
-      operation: (markDispatched) => {
-        // A provider switch marks at its own true effect boundary: the switch
-        // validates before any retarget, renderer dispatch or supervisor call
-        // and marks only past that, so a rejected validation is a definite
-        // failure while everything from the retarget on stays uncertain.
-        if (payload.providerSwitch) {
-          return applyRemoteThreadSwitch(
-            ctx,
-            { ...payload, config, threadId, ...mcpSnapshot },
-            markDispatched,
-          );
-        }
-        markDispatched();
-        return ctx.options.callSupervisor("startThread", { ...payload, config, ...mcpSnapshot });
-      },
-    });
+    let result: unknown;
+    try {
+      result = await runRemoteCommand({
+        commandId: remoteCommandId(req),
+        route: url.pathname,
+        principalId: session?.sessionId ?? null,
+        requestPayload: payload,
+        // A plain restart's whole operation is the supervisor call (the B1
+        // pre-launch touch is evidence, not a command effect), so an admission
+        // refusal or confirmed pre-runtime launch failure is definite. A
+        // provider switch retargets the durable row and dispatches the renderer
+        // before that call — earlier effects exist, so no predicate: the
+        // receipt and the first response stay uncertain.
+        ...(payload.providerSwitch
+          ? {}
+          : { isPreEffectFailure: isPlainThreadStartPreEffectFailure }),
+        operation: (markDispatched) => {
+          // A provider switch marks at its own true effect boundary: the switch
+          // validates before any retarget, renderer dispatch or supervisor call
+          // and marks only past that, so a rejected validation is a definite
+          // failure while everything from the retarget on stays uncertain.
+          if (payload.providerSwitch) {
+            return applyRemoteThreadSwitch(
+              ctx,
+              { ...payload, config, threadId, ...mcpSnapshot },
+              markDispatched,
+            );
+          }
+          markDispatched();
+          return ctx.options.callSupervisor("startThread", { ...payload, config, ...mcpSnapshot });
+        },
+      });
+    } catch (error) {
+      rethrowPlainThreadStartRefusal(error, payload.providerSwitch);
+    }
     writeJson(res, 200, result);
   },
 

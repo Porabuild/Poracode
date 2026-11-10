@@ -12,6 +12,7 @@ import {
   RemoteClientError,
   RemoteDesktopClient,
 } from "@/shared/remote/client";
+import { ThreadLaunchFailedRefusalError } from "@/shared/threadLaunchRefusal";
 import { ThreadSessionAbsenceRefusalError } from "@/shared/threadSessionRefusal";
 import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import {
@@ -20,10 +21,11 @@ import {
   dbGetState,
   dbSetState,
   dbUpsertProject,
+  dbUpsertThread,
   initDatabase,
 } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
-import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
+import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -624,5 +626,59 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
     });
     expect(callSupervisor).toHaveBeenCalledTimes(1);
     expect(receiptRow("send-legacy-1")?.state).toBe("uncertain");
+  });
+
+  it("answers a confirmed pre-runtime launch failure on existing-thread start with a definite 422 and records failed", async () => {
+    dbUpsertProject(
+      {
+        id: "p1",
+        name: "Managed",
+        location: { kind: "posix", path: "/tmp/p1" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+    dbUpsertThread({ ...testThread(), id: "t1", projectId: "p1" }, 0);
+    callSupervisor.mockImplementationOnce(async () => {
+      throw new ThreadLaunchFailedRefusalError("Claude session limit reached");
+    });
+    const client = new RemoteDesktopClient(info.httpBaseUrl, token);
+    const error = await client
+      .startThread(
+        {
+          threadId: "t1",
+          projectLocation: { kind: "posix", path: "/tmp/p1" },
+          agentKind: "claude",
+          config: { model: "sonnet" },
+          prompt: "start from draft",
+          initialSize: { cols: 80, rows: 24 },
+        },
+        { commandId: "start-launch-failed-1" },
+      )
+      .catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(RemoteClientError);
+    const remoteError = error as RemoteClientError;
+    expect(remoteError.status).toBe(422);
+    expect(remoteError.code).toBe("thread_launch_failed");
+    expect(remoteError.message).toBe("Claude session limit reached");
+    expect(remoteMutationMayHaveCommitted(error)).toBe(false);
+    expect(receiptRow("start-launch-failed-1")?.state).toBe("failed");
+
+    callSupervisor.mockImplementationOnce(async () => ({ threadId: "t1" }) as never);
+    await expect(
+      client.startThread(
+        {
+          threadId: "t1",
+          projectLocation: { kind: "posix", path: "/tmp/p1" },
+          agentKind: "claude",
+          config: { model: "sonnet" },
+          prompt: "start from draft",
+          initialSize: { cols: 80, rows: 24 },
+        },
+        { commandId: "start-launch-failed-2" },
+      ),
+    ).resolves.toEqual({ threadId: "t1" });
+    expect(receiptRow("start-launch-failed-2")?.state).toBe("completed");
   });
 });
