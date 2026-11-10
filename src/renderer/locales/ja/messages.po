@@ -919,6 +919,7 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{visibleCount}/{totalCount}が使用可能"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount}/{totalCount}が表示されます"
@@ -1923,6 +1924,12 @@ msgstr "スレッドが対応を必要としたら通知"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "全期間"
+
+#. Filter chip showing all providers or all model surfaces
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgctxt "modelVisibilityFilter"
+msgid "All"
+msgstr "すべて"
 
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
@@ -3628,7 +3635,7 @@ msgstr "選択したデバイスからのライブ入力レベルを確認しま
 msgid "Check the supported languages before downloading."
 msgstr "ダウンロードする前にサポートされている言語を確認してください。"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Checked"
 msgstr "チェック済み"
 
@@ -4012,6 +4019,7 @@ msgstr "目標をクリア"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Clear search"
 msgstr "検索をクリア"
 
@@ -9344,6 +9352,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを非表示にする"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "すべて隠す"
@@ -12052,6 +12061,10 @@ msgstr "モデルをお気に入りから削除しました"
 msgid "Model rerouted from {fromModel} to {toModel}."
 msgstr "モデルが {fromModel} から {toModel} に切り替えられました。"
 
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgid "Model surface"
+msgstr "モデルサーフェス"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "モデルの使用状況"
@@ -13114,6 +13127,7 @@ msgstr "{agent} で利用できるモデルがありません。設定でエー�
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "モデルが見つかりません"
 
@@ -14484,7 +14498,7 @@ msgstr "この会話の履歴の一部がサーバー上で失われ、表示で
 msgid "Partial"
 msgstr "一部のみ"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Partially checked"
 msgstr "一部チェック済み"
 
@@ -15623,6 +15637,7 @@ msgstr "プロバイダー"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
@@ -18043,11 +18058,13 @@ msgid "Search MCP servers..."
 msgstr "MCPサーバーを検索..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
 msgstr "モデルを検索する"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "モデルを検索..."
 
@@ -18664,6 +18681,7 @@ msgstr "エージェントの検出を表示"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "すべて表示"
@@ -19884,6 +19902,7 @@ msgstr "サポート:"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "高速モードに対応"
 
@@ -22580,7 +22599,7 @@ msgstr "利用できないプロバイダー"
 #~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
 #~ msgstr "利用できないプロバイダー、モデル、推論レベル、Fast モードは自動的にスキップされます。チェックを外したプロバイダーとモデルは、再度チェックするまでスキップされます。"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Unchecked"
 msgstr "チェック解除"
 

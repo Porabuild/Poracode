@@ -93,7 +93,9 @@ const DEFAULT_LABEL = (id: string) =>
     .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
     .join(" ");
 
-function makeProviderSortKey(userOrder: readonly string[] | undefined): (kind: string) => number {
+export function makeProviderSortKey(
+  userOrder: readonly string[] | undefined,
+): (kind: string) => number {
   const trimmed = userOrder?.filter((k) => k.length > 0) ?? [];
   if (trimmed.length === 0) {
     return (kind) => {
