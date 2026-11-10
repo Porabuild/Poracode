@@ -34,7 +34,7 @@ export interface DesktopHostServicesDeps {
   readonly paths: PoracodePaths;
   readonly dirs: DesktopResourceDirs;
   readonly shellState: ShellStateStore;
-  /** The composed backend host client (overlay exit interrupts its threads). */
+  /** The composed backend host client. */
   readonly backendHost: BackendHostClient;
 }
 
@@ -100,18 +100,13 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
   // embedded `browser` server. They live side by side (composed in the shared
   // module below, identical to the standalone server).
 
-  // Exiting the badge interrupts the session's thread. Session activity also
-  // feeds the "computer-use" keep-awake condition.
+  // Escape and the badge exit cancel computer-use tools, leaving the agent's
+  // turn running. Session activity also feeds the keep-awake condition.
   const overlay = new ComputerUseDesktopOverlay({
     onActivityState: (state) =>
       setComputerUseThreads(state.level === "hidden" ? [] : state.threadIds),
     onExit: (threadIds) => {
       desktopApp.computerUseMcpIngress?.interruptActiveActions(threadIds);
-      for (const threadId of threadIds) {
-        void deps.backendHost.call("interruptThread", { threadId }).catch((error) => {
-          console.error(`[poracode] failed to interrupt computer-use thread ${threadId}:`, error);
-        });
-      }
     },
   });
   desktopApp.computerUseDesktopOverlay = overlay;
