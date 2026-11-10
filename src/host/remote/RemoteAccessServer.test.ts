@@ -5615,7 +5615,12 @@ describe("RemoteAccessServer", () => {
     const dispatched: unknown[] = [];
     let rendererAvailable = true;
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
-      async () => undefined as never,
+      async (name) =>
+        (name === "gitListWorktrees"
+          ? {
+              worktrees: [{ path: "/repo/wt", branch: "feat/x", commit: "abc123", isMain: false }],
+            }
+          : undefined) as never,
     );
     const server = createTestServer({
       truncateThreadRuntime: () => {},

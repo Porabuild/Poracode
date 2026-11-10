@@ -8,6 +8,8 @@ import type {
   GitProjectSnapshotResult,
   GitStatusResult,
   GitWorktreeStatusBatchResult,
+  GitWorktreeInfo,
+  GitWorktreeListResult,
   Project,
   ProjectLocation,
   GhPollPullRequestsPayload,
@@ -26,6 +28,7 @@ export interface GitStateExecutor {
     projectLocation: ProjectLocation;
     includeGhCheck: boolean;
   }): Promise<GitProjectSnapshotResult>;
+  gitListWorktrees(input: { projectLocation: ProjectLocation }): Promise<GitWorktreeListResult>;
   getGitStatus(input: { projectLocation: ProjectLocation }): Promise<GitStatusResult>;
   gitWorktreeStatusBatch(input: {
     projectLocation: ProjectLocation;
@@ -67,6 +70,10 @@ export interface GitStateServiceOptions {
   readonly getProject: (projectId: string) => Project | null;
   readonly getProjects: () => readonly Project[];
   readonly onPatch?: ((patch: GitStatePatch) => void) | undefined;
+  /** Start before the Git await; false rejects an older cross-client observation. */
+  readonly beginWorktreeObservation?:
+    | ((projectId: string) => (worktrees: readonly GitWorktreeInfo[]) => boolean)
+    | undefined;
   readonly now?: (() => Date) | undefined;
   readonly pollIntervalMs?: number | undefined;
   readonly remoteFetchIntervalMs?: number | undefined;

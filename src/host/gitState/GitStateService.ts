@@ -123,7 +123,7 @@ export class GitStateService {
       return;
     }
     if (event.type !== "git-changed" && event.type !== "project-tree-changed") return;
-    void this.refreshInterestedProject(event.projectId);
+    void this.refreshInterestedProject(event.projectId, event.type === "git-changed");
   }
 
   async refreshProject(
@@ -134,11 +134,20 @@ export class GitStateService {
     await this.dedupe(
       `project:${projectId}`,
       async () => {
+        const observe = this.options.beginWorktreeObservation?.(projectId);
         const result = await this.options.executor.gitProjectSnapshot({
           projectLocation: project.location,
           includeGhCheck: true,
         });
         if (this.disposed) return;
+        const currentProject = this.options.getProject(projectId);
+        if (
+          !currentProject ||
+          projectLocationKey(currentProject.location) !== projectLocationKey(project.location)
+        )
+          return;
+        const worktrees =
+          result.worktrees && observe?.(result.worktrees) === false ? undefined : result.worktrees;
         const refreshedAt = this.timestamp();
         const projectRef = { hostId: this.options.hostId, projectId };
         const projectKey = gitProjectKey(projectRef);
@@ -151,7 +160,7 @@ export class GitStateService {
               ref: projectRef,
               ...(result.status ? { status: result.status } : {}),
               ...(result.branches ? { branches: result.branches } : {}),
-              ...(result.worktrees ? { worktrees: result.worktrees } : {}),
+              ...(worktrees ? { worktrees } : {}),
               ...(result.ghAvailable !== null ? { ghAvailable: result.ghAvailable } : {}),
               refreshedAt,
             },
@@ -172,6 +181,31 @@ export class GitStateService {
       },
       options.afterMutation,
     );
+  }
+
+  private async refreshWorktrees(projectId: string): Promise<void> {
+    const project = this.requireProject(projectId);
+    await this.dedupe(`worktrees:${projectId}`, async () => {
+      const observe = this.options.beginWorktreeObservation?.(projectId);
+      const { worktrees } = await this.options.executor.gitListWorktrees({
+        projectLocation: project.location,
+      });
+      if (this.disposed) return;
+      const currentProject = this.options.getProject(projectId);
+      if (
+        !currentProject ||
+        projectLocationKey(currentProject.location) !== projectLocationKey(project.location)
+      )
+        return;
+      if (observe?.(worktrees) === false) return;
+      const ref = { hostId: this.options.hostId, projectId };
+      const key = gitProjectKey(ref);
+      this.publish({
+        projects: {
+          [key]: { ...this.snapshot.projects[key], ref, worktrees, refreshedAt: this.timestamp() },
+        },
+      });
+    });
   }
 
   async refreshTarget(input: {
@@ -546,8 +580,24 @@ export class GitStateService {
       }
       if (this.disposed) return;
       const tasks = new Map<string, Promise<void>>();
+      const rootProjects = new Set(
+        interests
+          .filter((interest) => interest.kind === "target" && !interest.worktreePath)
+          .map((interest) => interest.projectId),
+      );
       for (const interest of interests) {
         if (interest.kind === "target") {
+          // A worktree-only client still needs registry observations to follow
+          // moves/renames in its saved thread links after reconnect or a poll.
+          if (
+            interest.worktreePath &&
+            !rootProjects.has(interest.projectId) &&
+            this.options.beginWorktreeObservation
+          ) {
+            const projectKey = `worktrees:${interest.projectId}`;
+            if (!tasks.has(projectKey))
+              tasks.set(projectKey, this.refreshWorktrees(interest.projectId));
+          }
           const key = JSON.stringify(interest);
           tasks.set(key, this.refreshTarget(interest));
           continue;
@@ -612,12 +662,28 @@ export class GitStateService {
     );
   }
 
-  private async refreshInterestedProject(projectId: string): Promise<void> {
+  private async refreshInterestedProject(
+    projectId: string,
+    registryChanged = false,
+  ): Promise<void> {
     if (this.disposed) return;
     const interests = [...this.interestsByOwner.values()]
       .flat()
       .filter((interest) => interest.projectId === projectId);
-    if (interests.length === 0) return;
+    if (interests.length === 0) {
+      // Desktop status-only polling does not request a project snapshot. The
+      // host still repairs its durable links when its Git watcher signals a change.
+      if (
+        registryChanged &&
+        this.options.beginWorktreeObservation &&
+        this.options.getProject(projectId)
+      ) {
+        await this.track(async () => {
+          await Promise.allSettled([this.refreshWorktrees(projectId)]);
+        });
+      }
+      return;
+    }
     await this.refreshInterests(interests);
   }
 

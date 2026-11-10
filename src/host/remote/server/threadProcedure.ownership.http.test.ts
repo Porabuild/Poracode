@@ -2,13 +2,27 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { closeDatabase, dbUpsertProject, initDatabase } from "@/host/db";
+import {
+  closeDatabase,
+  dbGetThread,
+  dbGetProject,
+  dbBeginWorktreeObservation,
+  dbReconcileProjectWorktrees,
+  dbUpsertProject,
+  dbUpsertThread,
+  initDatabase,
+} from "@/host/db";
 import {
   GIT_ADMISSION_QUEUE_FULL_CODE,
   GitProcessAdmissionRefusalError,
 } from "@/shared/gitProcessAdmission";
-import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
+import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { GitStateService, type GitStateExecutor } from "@/host/gitState";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -91,6 +105,148 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ procedure, payload }),
     });
+
+  it.each(["gitProjectSnapshot", "gitListWorktrees"])(
+    "repairs existing saved branch and path links after a %s observation",
+    async (procedure) => {
+      const thread = {
+        ...testThread(),
+        worktreePath: "/tmp/old-wt",
+        worktreeBranch: "old-name",
+      };
+      dbUpsertThread(thread, 0);
+      const worktree = {
+        path: "/tmp/new-wt",
+        branch: "old-name",
+        commit: "abc123",
+        isMain: false,
+      };
+      callSupervisor.mockResolvedValue({
+        status: null,
+        branches: null,
+        ghAvailable: null,
+        worktrees: [worktree],
+      } as never);
+      expect(
+        (await call(procedure, { projectLocation: { kind: "posix", path: "/tmp/repo" } })).status,
+      ).toBe(200);
+      expect(dbGetThread(thread.id)?.worktreePath).toBe(worktree.path);
+
+      callSupervisor.mockResolvedValue({
+        status: null,
+        branches: null,
+        ghAvailable: null,
+        worktrees: [{ ...worktree, branch: "new-name" }],
+      } as never);
+      expect(
+        (await call(procedure, { projectLocation: { kind: "posix", path: "/tmp/repo" } })).status,
+      ).toBe(200);
+      expect(dbGetThread(thread.id)?.worktreeBranch).toBe("new-name");
+    },
+  );
+
+  it.each(["procedure", "service"])(
+    "does not roll back a newer %s observation when an older snapshot completes",
+    async (source) => {
+      const thread = {
+        ...testThread(),
+        worktreePath: "/tmp/old-wt",
+        worktreeBranch: "same-branch",
+      };
+      dbUpsertThread(thread, 0);
+      const older = Promise.withResolvers<unknown>();
+      const reading = Promise.withResolvers<void>();
+      const moved = { path: "/tmp/new-wt", branch: "same-branch", commit: "abc123", isMain: false };
+      const snapshot = { status: null, branches: null, ghAvailable: false, worktrees: [moved] };
+      callSupervisor.mockImplementationOnce(async () => {
+        reading.resolve();
+        return older.promise as never;
+      });
+      const oldResponse = call("gitProjectSnapshot", {
+        projectLocation: { kind: "posix", path: "/tmp/repo" },
+      });
+      await reading.promise;
+      let newerStatus = 200;
+      if (source === "procedure") {
+        callSupervisor.mockResolvedValueOnce({ worktrees: [moved] } as never);
+        newerStatus = (
+          await call("gitListWorktrees", {
+            projectLocation: { kind: "posix", path: "/tmp/repo" },
+          })
+        ).status;
+      } else {
+        const service = new GitStateService({
+          hostId: "desktop-test",
+          getProject: dbGetProject,
+          getProjects: () => [],
+          executor: { gitProjectSnapshot: async () => snapshot } as unknown as GitStateExecutor,
+          beginWorktreeObservation: (projectId) => {
+            const observation = dbBeginWorktreeObservation(projectId);
+            return (worktrees) =>
+              dbReconcileProjectWorktrees(projectId, worktrees, observation) !== null;
+          },
+        });
+        await service.refreshProject("project-1");
+        await service.dispose();
+      }
+      expect(newerStatus).toBe(200);
+      expect(dbGetThread(thread.id)?.worktreePath).toBe(moved.path);
+      older.resolve({ ...snapshot, worktrees: [{ ...moved, path: "/tmp/old-wt" }] });
+      expect((await oldResponse).status).toBe(200);
+      expect(dbGetThread(thread.id)?.worktreePath).toBe(moved.path);
+    },
+  );
+
+  it("retains all thread rows when a moved worktree has an unrequested sibling", async () => {
+    dbUpsertThread(
+      {
+        ...testThread(),
+        id: "selected",
+        worktreePath: "/tmp/old-wt",
+        worktreeBranch: "same-branch",
+      },
+      0,
+    );
+    dbUpsertThread(
+      {
+        ...testThread(),
+        id: "sibling",
+        worktreePath: "/tmp/new-wt",
+        worktreeBranch: "same-branch",
+      },
+      1,
+    );
+    callSupervisor.mockImplementation(async (name) =>
+      name === "gitListWorktrees"
+        ? ({
+            worktrees: [
+              { path: "/tmp/new-wt", branch: "same-branch", commit: "abc123", isMain: false },
+            ],
+          } as never)
+        : (undefined as never),
+    );
+    const response = await fetch(new URL("/api/threads/selected/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+      body: JSON.stringify({
+        kind: "delete-worktree-group",
+        projectId: "project-1",
+        worktreePath: "/tmp/old-wt",
+        threadIds: ["selected"],
+      }),
+    });
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "worktree_threads_changed" },
+    });
+    expect(dbGetThread("selected")).not.toBeNull();
+    expect(dbGetThread("sibling")).not.toBeNull();
+    expect(callSupervisor).not.toHaveBeenCalledWith("gitRemoveWorktree", expect.anything());
+  });
 
   it.each([
     ["dbDeleteThread", { threadId: "t1" }],
