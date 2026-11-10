@@ -107,7 +107,7 @@ private fun GitChangesChip(summary: RemoteGitSummary, onClick: () -> Unit) {
         Icon(
             PoracodeIcons.AccountTree,
             contentDescription = null,
-            tint = colors.gitBranchTone,
+            tint = colors.muted,
             modifier = Modifier.size(14.dp),
         )
         if (added > 0) {

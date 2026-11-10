@@ -597,11 +597,8 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(infoControls.contains(".frame(minWidth: 28, minHeight: 28)"))
     XCTAssertTrue(infoControls.contains(".fixedSize(horizontal: true, vertical: false)"))
     XCTAssertTrue(infoControls.contains("struct RichChatProgressRing: View"))
-    XCTAssertTrue(
-      infoControls.contains(
-        "RichChatProgressRing(percent: control.progressPercent, diameter: 22, lineWidth: 2)"
-      )
-    )
+    XCTAssertTrue(infoControls.contains("control.progressPercent.map"))
+    XCTAssertFalse(infoControls.contains("RichChatProgressRing(percent: control.progressPercent"))
     XCTAssertTrue(
       infoControls.contains(
         "RichChatProgressRing(percent: rings.outerPercent, diameter: 22, lineWidth: 2)"
