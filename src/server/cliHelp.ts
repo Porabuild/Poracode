@@ -440,7 +440,13 @@ const COMMAND_HELP: Record<string, string> = {
     "    in a terminal, because a restart stops running agent turns). Lingering and elevation are explained, never\n" +
     "    changed. In an interactive terminal it shows a pairing QR code (as pairings create --qr) unless only this\n" +
     "    machine can connect; --no-pair skips that.\n" +
-    "    From an npm or package-manager install, up uses the one-line installer's prefix when one exists, else saves settings only.\n",
+    "    From npm or a package manager, up installs a verified release in the shared prefix when needed; it never downgrades a newer service.\n",
+  "install-command":
+    "  install-command\n    Install a persistent command using the shared runtime prefix; existing foreign commands are preserved.\n",
+  "migrate-install":
+    "  migrate-install\n    Resume CLI installation and channel-profile migration without moving profile data.\n",
+  "install-activate":
+    "  install-activate PREFIX RELEASE\n    Select an installed release while holding the prefix lifecycle lock.\n",
   uninstall:
     "  uninstall [--prefix PATH] [--bin-dir PATH] [--yes] [--json]\n" +
     "    Remove an install made by the one-line installer: the background service registered for it (stopped first),\n" +

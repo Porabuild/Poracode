@@ -475,6 +475,7 @@ msgstr "{0} mis à jour vers v{newVersion}."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated."
@@ -15786,6 +15787,7 @@ msgid "Queue message"
 msgstr "Mettre le message en file d’attente"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued"
 msgstr "Dans la file d’attente"
 
@@ -22751,14 +22753,17 @@ msgstr "mise à jour"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "Mise à jour"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "Mettre à jour {0}"
@@ -22926,6 +22931,7 @@ msgid "Updated {0}"
 msgstr "{0} mis à jour"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "Mise à jour"
 
@@ -22935,7 +22941,9 @@ msgstr "Mise à jour"
 msgid "Updating ({0}/{1})"
 msgstr "Mise à jour ({0}/{1})"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "Mise à jour de {0}"

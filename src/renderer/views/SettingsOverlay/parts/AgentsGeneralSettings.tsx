@@ -6,6 +6,7 @@ import { PixelLoader } from "@/renderer/components/common";
 import { agentManagementHostForMachine } from "@/renderer/components/providers/settings/agentManagementHost";
 import { useSelectedMachine } from "@/renderer/state/machines";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { refreshAgentDiscovery } from "@/renderer/actions/agentDiscoveryActions";
 import { ModelOrderSection } from "./ModelOrderSection";
 import { ModelVisibilitySection } from "./ModelVisibilitySection";
 import { SettingsPage } from "./SettingsForm";
@@ -13,16 +14,18 @@ import { SettingsPage } from "./SettingsForm";
 export function AgentsGeneralSettings() {
   const { t } = useLingui();
   const machine = useSelectedMachine();
+  const host = agentManagementHostForMachine(machine);
+  const discoveryScanning = useAgentStatusesStore((s) => s.discoveryScanning);
   const [refreshingMachines, setRefreshingMachines] = useState<string[]>([]);
-  const isRefreshing = refreshingMachines.includes(machine.id);
+  const isRefreshing =
+    refreshingMachines.includes(machine.id) || (!host.isRemote && discoveryScanning);
   const refreshAgents = async () => {
     if (isRefreshing || machine.status !== "online") return;
-    useAgentStatusesStore.getState().setDiscoveryHidden(true);
     setRefreshingMachines((current) => [...current, machine.id]);
     try {
-      await agentManagementHostForMachine(machine).rediscoverAgents(
-        machine.ref.env.kind === "wsl" ? [machine.ref.env.distro] : [],
-      );
+      const wslDistros = machine.ref.env.kind === "wsl" ? [machine.ref.env.distro] : [];
+      if (host.isRemote) await host.rediscoverAgents(wslDistros);
+      else await refreshAgentDiscovery(wslDistros, { background: true });
     } catch (error) {
       toast.danger(error instanceof Error ? error.message : t`Unable to refresh ${machine.label}.`);
     } finally {

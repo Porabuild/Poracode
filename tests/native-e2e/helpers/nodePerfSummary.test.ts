@@ -435,4 +435,54 @@ describe("node performance summary", () => {
       queueMaxima: {},
     });
   });
+
+  it("summarizes renderer memory from appMetrics so churn and leaks are distinguishable", () => {
+    const appSample = (tabKiB: number, gpuKiB: number) => ({
+      kind: "sample",
+      formatVersion: 2,
+      appMetrics: {
+        sampledMonotonicMs: 1,
+        processes: [
+          { pid: 1, type: "Tab", workingSetKiB: tabKiB },
+          { pid: 2, type: "Tab", workingSetKiB: 100 },
+          { pid: 3, type: "GPU", workingSetKiB: gpuKiB },
+          { pid: 4, type: "Tab", workingSetKiB: "bad" },
+          { pid: 5, workingSetKiB: 7 },
+        ],
+      },
+    });
+    // GC sawtooth: high peaks, flat floor (churn, not retention).
+    const churn = summarize([
+      { ...start, role: "desktop-main" },
+      ...[900, 1_900, 1_000, 2_000, 1_000, 1_900].map((kib) => appSample(kib, 50)),
+    ]);
+    expect(churn.chromiumProcesses).toEqual({
+      Tab: {
+        samples: 6,
+        workingSetKiBFirst: 1_000,
+        workingSetKiBMax: 2_100,
+        workingSetKiBLast: 2_000,
+        workingSetKiBMiddleFloor: 1_100,
+        workingSetKiBLateFloor: 1_100,
+      },
+      GPU: {
+        samples: 6,
+        workingSetKiBFirst: 50,
+        workingSetKiBMax: 50,
+        workingSetKiBLast: 50,
+        workingSetKiBMiddleFloor: 50,
+        workingSetKiBLateFloor: 50,
+      },
+    });
+    // A floor that keeps rising is retained memory.
+    const leak = summarize([
+      { ...start, role: "desktop-main" },
+      ...[500, 900, 1_400, 1_800, 2_300, 2_700].map((kib) => appSample(kib, 50)),
+    ]);
+    expect(leak.chromiumProcesses?.Tab?.workingSetKiBLateFloor).toBeGreaterThan(
+      leak.chromiumProcesses?.Tab?.workingSetKiBMiddleFloor ?? Number.POSITIVE_INFINITY,
+    );
+    // Roles without appMetrics keep the previous shape.
+    expect(summarize([start, measuredSample(5)])).not.toHaveProperty("chromiumProcesses");
+  });
 });

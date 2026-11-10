@@ -1,7 +1,6 @@
 /**
  * Versioned runtime cache and its install lock. The cache is deliberately a
- * sibling of the profile data (`<base>/runtime/<version>/<target>`), never
- * inside the server's owned `<namespace>.host-v1` root.
+ * independent of profiles (`<storage-root>/runtime-cache/<version>/<target>`).
  *
  * Correctness does not rest on the lock. An entry is built in a unique private
  * staging directory and published with one atomic rename (see `install.mjs`),
@@ -21,22 +20,23 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, join, resolve, win32 } from "node:path";
 import { installCancelled, installLockForeign, installLockTimeout } from "./errors.mjs";
 import { scratchId } from "./hostTools.mjs";
+import { defaultCliStorageRoot } from "./installPaths.mjs";
 
 export const RUNTIME_READY_FILE = ".poracode-runtime.json";
 export const LOCK_RECORD_VERSION = 1;
 const LOCK_STALE_MS = 10 * 60 * 1000;
 const LOCK_BUSY_CODES = new Set(["EEXIST", "ENOTEMPTY", "EPERM", "ENOTDIR", "ENOENT", "EBUSY"]);
 
-export function resolveRuntimeCacheRoot(env = process.env, home = homedir()) {
+export function resolveRuntimeCacheRoot(env = process.env, home, platform = process.platform) {
   const override = env.PORACODE_RUNTIME_CACHE_DIR?.trim();
   if (override) return resolve(override);
-  const declaredBase = env.PORACODE_BASE_DIR?.trim();
-  const base = declaredBase && isAbsolute(declaredBase) ? declaredBase : join(home, ".poracode");
-  return join(base, "runtime");
+  const root = defaultCliStorageRoot({ env, platform, ...(home ? { home } : {}) });
+  // Existing generation-1 cache entries remain valid but are not moved while
+  // an older launcher might be using them. The new location is populated on demand.
+  return platform === "win32" ? win32.join(root, "runtime-cache") : join(root, "runtime-cache");
 }
 
 export function readReadyMarker(runtimeDir) {

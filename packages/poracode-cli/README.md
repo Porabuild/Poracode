@@ -94,9 +94,12 @@ download path.
   runtime is the same self-contained archive, so on Linux it needs glibc and
   `libatomic1`; minimal images such as `debian:bookworm-slim` lack it
   (`apt-get install libatomic1`).
-- The cache lives at `<PORACODE_BASE_DIR or ~/.poracode>/runtime/<version>/<target>`,
-  separate from profile data. A verified install is reused without network
+- The cache lives beside the install prefix at `<storage root>/runtime-cache/<version>/<target>`,
+  separate from all profiles. A verified install is reused without network
   access. `PORACODE_RUNTIME_CACHE_DIR` overrides the cache root.
+- `poracode up` can register a background service using the shared prefix;
+  the service runs a verified release independent of the npm cache. A bare
+  interactive invocation offers to install a persistent command.
 - A missing target, a checksum mismatch, or an unreachable release fails with
   an actionable error. The manifest in a published version lists exactly the
   target keys its release matrix qualified — the defined standalone machine

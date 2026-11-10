@@ -316,22 +316,22 @@ final class RichChatSessionConfigControlsTests: XCTestCase {
         configuration: ThreadConfig(model: "adaptive", effort: "medium"),
         sessionConfigOptions: inventory
       )
-      XCTAssertEqual(catalog.models.map(\.id), staticCatalog.models.map(\.id), "\(inventory)")
-      XCTAssertEqual(catalog.models.map(\.label), staticCatalog.models.map(\.label), "\(inventory)")
+      XCTAssertEqual(catalog.models.map(\.id), staticCatalog.models.map(\.id), "\(String(describing: inventory))")
+      XCTAssertEqual(catalog.models.map(\.label), staticCatalog.models.map(\.label), "\(String(describing: inventory))")
       XCTAssertEqual(
         catalog.effortOptions(for: "adaptive").map(\.id),
-        staticCatalog.effortOptions(for: "adaptive").map(\.id), "\(inventory)"
+        staticCatalog.effortOptions(for: "adaptive").map(\.id), "\(String(describing: inventory))"
       )
-      XCTAssertEqual(catalog.modelSections(), staticCatalog.modelSections(), "\(inventory)")
+      XCTAssertEqual(catalog.modelSections(), staticCatalog.modelSections(), "\(String(describing: inventory))")
       XCTAssertEqual(
         catalog.modeOptions(for: "adaptive").map(\.id),
-        staticCatalog.modeOptions(for: "adaptive").map(\.id), "\(inventory)"
+        staticCatalog.modeOptions(for: "adaptive").map(\.id), "\(String(describing: inventory))"
       )
       XCTAssertEqual(
         catalog.contextOptions(for: "adaptive").map(\.id),
-        staticCatalog.contextOptions(for: "adaptive").map(\.id), "\(inventory)"
+        staticCatalog.contextOptions(for: "adaptive").map(\.id), "\(String(describing: inventory))"
       )
-      XCTAssertNil(catalog.effortDefault(for: "adaptive"), "\(inventory)")
+      XCTAssertNil(catalog.effortDefault(for: "adaptive"), "\(String(describing: inventory))")
     }
   }
 

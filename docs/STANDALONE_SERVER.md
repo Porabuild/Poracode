@@ -70,19 +70,20 @@ staging directory, confirm the archive's target and that its launcher reports
 the expected version, and only then publish it. The install uses the §3.1
 prefix layout, so `poracode service` (§7.2) and `poracode upgrade` (§9) manage
 it: `<prefix>/releases/<version>` with `<prefix>/current` (a junction on
-Windows) pointing at the active one. The default prefix is `~/.poracode/server`
+Windows) pointing at the active one. The default prefix is `~/.local/share/poracode/server`
 (`%LOCALAPPDATA%\Poracode\server` on Windows). Re-running the installer
 switches versions; earlier releases are kept.
 
-| Variable                    | Meaning                                                           |
-| --------------------------- | ----------------------------------------------------------------- |
-| `PORACODE_CHANNEL`          | `stable` (default) or `nightly`                                   |
-| `PORACODE_VERSION`          | exact version to install (overrides the channel)                  |
-| `PORACODE_INSTALL_DIR`      | install prefix                                                    |
-| `PORACODE_BIN_DIR`          | command directory (`~/.local/bin`; `%LOCALAPPDATA%\Poracode\bin`) |
-| `PORACODE_RELEASE_BASE_URL` | mirror for `releases/download`                                    |
-| `PORACODE_NO_MODIFY_PATH=1` | never edit shell startup files or the user `PATH`                 |
-| `PORACODE_NO_TUI=1`         | skip the terminal UI download; the first `poracode` downloads it  |
+| Variable                     | Meaning                                                           |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `PORACODE_CHANNEL`           | `stable` (default) or `nightly`                                   |
+| `PORACODE_VERSION`           | exact version to install (overrides the channel)                  |
+| `PORACODE_INSTALL_DIR`       | install prefix                                                    |
+| `PORACODE_BIN_DIR`           | command directory (`~/.local/bin`; `%LOCALAPPDATA%\Poracode\bin`) |
+| `PORACODE_RELEASE_BASE_URL`  | mirror for `releases/download`                                    |
+| `PORACODE_NO_MODIFY_PATH=1`  | never edit shell startup files or the user `PATH`                 |
+| `PORACODE_NO_TUI=1`          | skip the terminal UI download; the first `poracode` downloads it  |
+| `PORACODE_MIGRATE_SERVICE=1` | allow the installer to stop a running service during migration    |
 
 On macOS and Linux the command is a link to `<prefix>/current/bin/poracode`; on
 Windows a `poracode.cmd` shim calls `<prefix>\current\bin\poracode.cmd`. An
@@ -120,9 +121,41 @@ service and shows a pairing QR code and link, exactly as
 `poracode pairings create --qr` does, unless only this machine can connect;
 `--no-pair` skips that, and non-interactive runs never create a grant.
 `--no-service` only saves the settings. From an npm (`npx`) or
-package-manager install, `up` uses the one-line installer's prefix when one
-exists; otherwise it saves the settings and explains that the managed service
-needs the one-line installer.
+package-manager install, `up` uses the shared install prefix. If it does not
+yet contain a release, `up` downloads and verifies the running version before
+registering the service. A newer installed service is never downgraded. A bare
+interactive `npx poracode` also offers to install the command; it never replaces
+an existing command owned by another installation.
+
+Nightly releases use `~/.poracode-nightly` by default; stable releases use
+`~/.poracode`. An existing nightly service using the stable default is moved to
+the nightly profile. Its old profile data stays untouched; an existing nightly
+profile is used without copying the stable profile into it. Explicit custom
+profiles remain explicit. `PORACODE_BASE_DIR` or `--base-dir` selects a profile.
+Remote-access settings and pairing grants stay with their original profile; run
+`poracode up` for the nightly profile to configure access and pair devices.
+On macOS and Linux, rerunning the installer moves the active command and an
+existing default-prefix service to the new install prefix. The migration can be
+retried after an interruption. Once no process
+is using the old installation or npm cache, their directories move intact under
+the shared storage root's `legacy` directory. If a process still uses them, a
+service config points inside them, or usage cannot be determined, they stay in
+place and the CLI reports their paths. An import of the old profile will copy
+any directories still there.
+If the existing service is running, stop it first or set
+`PORACODE_MIGRATE_SERVICE=1` when rerunning the installer; migration stops its
+running agent turns. On Windows, stop the existing task explicitly before a
+profile change even when that flag is set: Task Scheduler's environment cannot
+be verified from the invoking shell. An installer migration leaves the replacement
+stopped; check the Windows account environment, then start it and check service
+status. Running `poracode up` after stopping the old task starts the replacement.
+The
+automatic move refuses an existing destination with an environment-supplied
+credential key because the task's key cannot be qualified from the shell; after
+checking the account environment, install that destination service explicitly.
+`poracode update` already performs a service restart.
+An old CLI's first `update` installs a newer CLI in its old prefix; the next
+`update` can perform the migration using the newer CLI.
 
 `poracode uninstall [--yes]` removes the background service registered for the
 install (its owner is stopped first), the prefix, the command link the
@@ -186,8 +219,8 @@ credentials remain separate from provider logins.
 
 - Pin the version (`poracode@<version>`). There is no mutable `latest` runtime
   URL and no unverified download path.
-- The cache lives at `<PORACODE_BASE_DIR or ~/.poracode>/runtime/<version>/<target>`,
-  separate from profile data. A verified install is reused without network
+- The cache lives beside the install prefix at `<storage root>/runtime-cache/<version>/<target>`,
+  separate from all profiles. A verified install is reused without network
   access; `PORACODE_RUNTIME_CACHE_DIR` overrides the cache root.
 - A missing target, a checksum mismatch, or an unreachable release fails with an
   actionable error. Targets present in the package's manifest are the published

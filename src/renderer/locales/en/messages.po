@@ -475,6 +475,7 @@ msgstr "{0} updated to v{newVersion}."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated."
@@ -15796,6 +15797,7 @@ msgid "Queue message"
 msgstr "Queue message"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued"
 msgstr "Queued"
 
@@ -22761,14 +22763,17 @@ msgstr "update"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "Update"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "Update {0}"
@@ -22936,6 +22941,7 @@ msgid "Updated {0}"
 msgstr "Updated {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "Updating"
 
@@ -22945,7 +22951,9 @@ msgstr "Updating"
 msgid "Updating ({0}/{1})"
 msgstr "Updating ({0}/{1})"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "Updating {0}"

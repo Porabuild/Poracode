@@ -36,6 +36,8 @@ import {
 import { acquireServerUpgradeLock, type ServerUpgradeLock } from "./serverUpgradeLock";
 import { defaultUpgradeIo, upgradeServerPrefix } from "./serverUpgrade";
 import { registeredServiceUpgradeIo } from "./serverServiceUpgrade";
+import { assertChannelProfileNamespace } from "./cliProfileNamespace";
+import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
 import {
   DEFAULT_QUALIFICATION_TIMEOUT_MS,
   UpgradeJournalUnreadableError,
@@ -261,6 +263,7 @@ async function continueStagedCandidate(input: {
         "changed after the crash. Inspect the journal and current target before recovering.",
     );
   const paths = currentHostRootPaths();
+  assertChannelProfileNamespace(identity.version!, paths.profileNamespace);
   const expected = buildExpectedCandidate({
     paths,
     release: identity,
@@ -369,6 +372,7 @@ export async function resumeServerUpgrade(
   });
   const retryIo = io;
   try {
+    refusePendingCliInstallMigration(prefix);
     io = await registeredServiceUpgradeIo(
       io,
       prefix,

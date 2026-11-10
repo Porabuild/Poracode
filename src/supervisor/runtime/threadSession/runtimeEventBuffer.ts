@@ -1,7 +1,11 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { coalesceRuntimeEvents } from "@/shared/coalesce";
-import { estimateRuntimeEventBytes } from "@/shared/runtimeEventSize";
+import { splitContentDelta } from "@/shared/runtimeContentDeltaSplit";
+import {
+  estimateRuntimeEventBytes,
+  REMOTE_LIVE_EVENT_DEFAULT_MAX_BYTES,
+} from "@/shared/runtimeEventSize";
 
 const RUNTIME_EVENT_BATCH_MS = 16;
 const RUNTIME_EVENT_ENVELOPE_ESTIMATED_OVERHEAD_BYTES = 256;
@@ -22,6 +26,12 @@ const DEFAULT_MAX_ENVELOPE_BYTES_PER_THREAD = 1024 * 1024;
 const DEFAULT_MAX_ENVELOPE_BYTES_TOTAL = DEFAULT_MAX_ENVELOPE_BYTES_PER_THREAD;
 /** A canonical event above this is refused explicitly (session stop), never split. */
 const DEFAULT_MAX_SINGLE_EVENT_BYTES = 8 * 1024 * 1024;
+/**
+ * A text delta above this cannot stream live to paired clients (the host's
+ * per-event budget, minus room for the broadcast wrapper) and would force a
+ * resync (#994), so it is split into envelope-sized deltas first.
+ */
+const DEFAULT_MAX_LIVE_EVENT_BYTES = REMOTE_LIVE_EVENT_DEFAULT_MAX_BYTES - 64 * 1024;
 
 export const RUNTIME_EVENT_MAX_ENVELOPE_BYTES_PER_THREAD = DEFAULT_MAX_ENVELOPE_BYTES_PER_THREAD;
 export const RUNTIME_EVENT_MAX_ENVELOPE_BYTES_TOTAL = DEFAULT_MAX_ENVELOPE_BYTES_TOTAL;
@@ -46,6 +56,8 @@ export interface RuntimeEventBufferOptions {
   maxEnvelopeBytesPerThread?: number;
   maxEnvelopeBytesTotal?: number;
   maxSingleEventBytes?: number;
+  /** `content.delta` events above this (and within `maxSingleEventBytes`) are split losslessly. */
+  maxLiveEventBytes?: number;
   /**
    * Remaining canonical bytes the host will credit right now. `Infinity` when
    * no credit window is negotiated (legacy host). Bytes counted here include
@@ -91,6 +103,9 @@ interface RuntimeEventChunk {
  * backpressure (or an exhausted credit window) pauses flushing the caps trigger
  * the overflow hook instead of growing without limit. A single event above the
  * hard single-event bound is refused explicitly; it is never split or truncated.
+ * Below that bound, a `content.delta` too large to stream live to paired
+ * clients is split into consecutive envelope-sized deltas that rebuild the
+ * exact text (#994); every other event keeps its shape.
  *
  * Credit accounting: every emitted envelope carries its exact estimated byte
  * size to the sender, which charges that same value to the negotiated window.
@@ -114,6 +129,9 @@ export class RuntimeEventBuffer {
   private readonly maxEnvelopeBytesPerThread: number;
   private readonly maxEnvelopeBytesTotal: number;
   private readonly maxSingleEventBytes: number;
+  private readonly maxLiveEventBytes: number;
+  /** JSON escaping costs at most 6 bytes per UTF-16 unit, so merges stay live. */
+  private readonly maxMergedDeltaChars: number;
   private readonly canonicalCapacity: () => number;
   private readonly onOverflow: RuntimeEventBufferOptions["onOverflow"];
   private timer: ReturnType<typeof setTimeout> | undefined;
@@ -139,6 +157,8 @@ export class RuntimeEventBuffer {
       options.maxEnvelopeBytesPerThread ?? DEFAULT_MAX_ENVELOPE_BYTES_PER_THREAD;
     this.maxEnvelopeBytesTotal = options.maxEnvelopeBytesTotal ?? DEFAULT_MAX_ENVELOPE_BYTES_TOTAL;
     this.maxSingleEventBytes = options.maxSingleEventBytes ?? DEFAULT_MAX_SINGLE_EVENT_BYTES;
+    this.maxLiveEventBytes = options.maxLiveEventBytes ?? DEFAULT_MAX_LIVE_EVENT_BYTES;
+    this.maxMergedDeltaChars = Math.floor(this.maxLiveEventBytes / 6);
     this.canonicalCapacity = options.canonicalCapacity ?? (() => Number.POSITIVE_INFINITY);
     this.onOverflow = options.onOverflow;
   }
@@ -156,6 +176,23 @@ export class RuntimeEventBuffer {
       });
       return;
     }
+    if (bytes > this.maxLiveEventBytes) {
+      const fragments = splitContentDelta(
+        event,
+        Math.min(this.maxEnvelopeBytesPerThread, this.maxLiveEventBytes),
+        bytes,
+      );
+      if (fragments.length > 1) {
+        for (const fragment of fragments) {
+          this.appendAccepted(threadId, fragment, estimateRuntimeEventBytes(fragment));
+        }
+        return;
+      }
+    }
+    this.appendAccepted(threadId, event, bytes);
+  }
+
+  private appendAccepted(threadId: string, event: RuntimeEvent, bytes: number): void {
     let batch = this.pending.get(threadId);
     if (!batch) {
       batch = { events: [], bytes: 0, overflowNotified: false };
@@ -299,7 +336,7 @@ export class RuntimeEventBuffer {
    * (coalesced) for the next credit grant.
    */
   private emitOneThread(threadId: string, batch: PendingBatch): void {
-    const merged = coalesceRuntimeEvents(batch.events);
+    const merged = coalesceRuntimeEvents(batch.events, this.maxMergedDeltaChars);
     const chunks = this.chunkEvents(merged);
     let emitted = 0;
     for (const { events: chunk } of chunks) {
@@ -354,7 +391,7 @@ export class RuntimeEventBuffer {
     };
 
     outer: for (const [threadId, batch] of entries) {
-      const merged = coalesceRuntimeEvents(batch.events);
+      const merged = coalesceRuntimeEvents(batch.events, this.maxMergedDeltaChars);
       mergedByThread.set(threadId, merged);
       const chunks = this.chunkEvents(merged);
       chunkEstimatesFresh = true;

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { homedir } from "node:os";
 import {
   parseActivateCliOptions,
   parseBackupCliOptions,
@@ -17,6 +18,7 @@ import { queryCompletion, renderCompletion } from "../../packages/poracode-cli/l
 import { parseAdminCli, buildAdminCommand } from "./cliAdmin";
 import { serverConfigFileSchema, SERVER_LOG_LEVELS } from "./serverConfig";
 import { REMOTE_STANDARD_SCOPES } from "@/shared/remote/protocol/core";
+import * as cliProfiles from "./cliProfileNamespace";
 
 describe("desktop packaged CLI entry", () => {
   const originalArgv = process.argv;
@@ -30,6 +32,7 @@ describe("desktop packaged CLI entry", () => {
   };
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     process.argv = originalArgv;
     process.exitCode = originalExitCode;
   });
@@ -72,6 +75,39 @@ describe("desktop packaged CLI entry", () => {
     expect(process.exitCode).toBe(1);
     expect(output.mock.calls.map(([value]) => String(value)).join("")).toContain("native Node.js");
   });
+
+  it("directs desktop up users to the desktop's remote access settings", () => {
+    process.argv = ["electron", "bootstrap.mjs", "up"];
+    const output = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    runDesktopCli({ formatVersion: 1, build });
+    expect(process.exitCode).toBe(1);
+    expect(output.mock.calls.map(([value]) => String(value)).join("")).toContain("Remote access");
+  });
+
+  it.each([
+    ["2.0.0-nightly.202611100001", ".poracode"],
+    ["2.0.0", ".poracode-nightly"],
+  ])(
+    "refuses the other channel's default profile for desktop build %s",
+    (version, otherProfile) => {
+      vi.stubEnv("PORACODE_BASE_DIR", "");
+      process.argv = [
+        "electron",
+        "bootstrap.mjs",
+        "--base-dir",
+        join(homedir(), otherProfile),
+        "configure",
+        "--port",
+        "1234",
+      ];
+      const output = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+      runDesktopCli({ formatVersion: 1, build: { ...build, version } });
+      expect(process.exitCode).toBe(1);
+      expect(output.mock.calls.map(([value]) => String(value)).join("")).toContain(
+        "other channel's default profile",
+      );
+    },
+  );
 });
 
 describe("standalone completion routing", () => {
@@ -89,6 +125,22 @@ describe("standalone completion routing", () => {
       const output = vi.spyOn(process.stdout, "write").mockReturnValue(true);
       runCli();
       expect(output).toHaveBeenCalledExactlyOnceWith(renderCompletion(args));
+    },
+  );
+
+  it.each([["--version"], ["--help"]])(
+    "answers %j without reading damaged profile metadata",
+    (...args) => {
+      process.argv = ["node", "server.cjs", ...args];
+      const resolveProfile = vi
+        .spyOn(cliProfiles, "defaultCliProfileNamespace")
+        .mockImplementation(() => {
+          throw new Error("future profile record");
+        });
+      vi.spyOn(process.stdout, "write").mockReturnValue(true);
+      vi.spyOn(process.stderr, "write").mockReturnValue(true);
+      runCli();
+      expect(resolveProfile).not.toHaveBeenCalled();
     },
   );
 

@@ -49,6 +49,7 @@ describe("changelogHighlightPool", () => {
 
   it("keys highlights by content so reordering a release keeps their history", () => {
     const change = { kind: "added" as const, label: "Themes", text: "Custom themes." };
+    expect(highlightId("1.8.2", change)).toBe("1.8.2:15ko09q");
     expect(highlightId("1.8.2", change)).toBe(highlightId("1.8.2", { ...change }));
     expect(highlightId("1.8.2", change)).not.toBe(highlightId("1.8.1", change));
     expect(highlightId("1.8.2", change)).not.toBe(

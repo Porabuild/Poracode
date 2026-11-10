@@ -48,6 +48,7 @@ import {
 import { PrincipalOverloadError, type PrincipalSocketLease } from "./principalAdmission";
 import { buildTerminalWatchResultMessage, unavailableWatchResult } from "./terminalCursorSync";
 import { MAX_TERMINAL_WATCHES_PER_CLIENT, handleReliableTerminalWatch } from "./wsTerminalWatch";
+import { reportEventInterestFailures } from "./eventInterestFailures";
 
 export {
   DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS,
@@ -387,7 +388,7 @@ function handleConnection(
   if (boundedCatalogChanges && session.scopes.includes("session:read")) {
     ctx.boundedCatalogChangeClients.add(ws);
   }
-  void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+  reportEventInterestFailures(ctx.notifyEventInterestsChanged());
   const gitStateInterestOwnerId = `${session.sessionId}:${randomUUID()}`;
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
@@ -438,7 +439,7 @@ function handleConnection(
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
     notifyPairingChanged(ctx);
-    void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    reportEventInterestFailures(ctx.notifyEventInterestsChanged());
   });
   try {
     ctx.auth.markSessionConnected(session.sessionId);
@@ -603,13 +604,13 @@ function handleConnection(
         }
         ctx.terminalCursorSync.clearReliable(ws, message.id);
         terminalWatches?.add(message.id);
-        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+        reportEventInterestFailures(ctx.notifyEventInterestsChanged());
       }
       if (message.type === "terminal-unwatch") {
         ctx.terminalWatches.get(ws)?.delete(message.id);
         ctx.principalAdmission.releaseWatch(ws, message.id);
         ctx.terminalCursorSync.clearReliable(ws, message.id);
-        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+        reportEventInterestFailures(ctx.notifyEventInterestsChanged());
       }
       if (message.type === "terminal-watch-baseline-ack") {
         // Credit release for a v2 chunked baseline. Stale watchIds are
@@ -624,7 +625,7 @@ function handleConnection(
       if (message.type === "thread-item-interests") {
         if (!session.scopes.includes("session:read")) return;
         ctx.itemInterests.set(ws, new Set(message.threadIds));
-        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+        reportEventInterestFailures(ctx.notifyEventInterestsChanged());
       }
       if (message.type === "git-state-interests") {
         if (!session.scopes.includes("session:read")) return;

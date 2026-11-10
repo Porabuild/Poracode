@@ -59,7 +59,7 @@ export function installMacosService(
       formatVersion: 1,
       state: "prepared",
       registrationId: id,
-      registrationNonce: randomBytes(24).toString("hex"),
+      registrationNonce: deps.registrationNonce ?? randomBytes(24).toString("hex"),
       manager: "launchd-agent",
       account,
       profileNamespace: profile,
