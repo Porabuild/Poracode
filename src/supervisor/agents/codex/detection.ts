@@ -18,46 +18,46 @@ import {
 import { probeCodexAccount, probeCodexCapabilities, type CodexProbeResult } from "./probe";
 import { codexAuthPath } from "./sessionFiles";
 
-const CODEX_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
+const CODEX_BUILT_IN_SLASH_COMMANDS: NonNullable<AgentCapability["slashCommands"]> = [
+  {
+    id: "model",
+    label: "model - Choose what model and reasoning effort to use",
+    description: "Choose what model and reasoning effort to use",
+  },
+  {
+    id: "presets",
+    label: "presets - Choose a collaboration mode and reasoning effort preset",
+    description: "Choose a collaboration mode and reasoning effort preset",
+  },
+  {
+    id: "daybreak",
+    label: "daybreak - Turn Daybreak on or off",
+    description: "Turn Daybreak on or off",
+  },
+  {
+    id: "ide",
+    label: "ide - Manage IDE context integration",
+    description: "Manage IDE context integration",
+  },
   {
     id: "permissions",
     label: "permissions - Set what Codex can do without asking first",
     description: "Set what Codex can do without asking first",
   },
   {
-    id: "agent",
-    label: "agent - Switch the active agent thread",
-    description: "Switch the active agent thread",
+    id: "keymap",
+    label: "keymap - List active keybindings and keymap diagnostics",
+    description: "List active keybindings and keymap diagnostics",
   },
   {
-    id: "apps",
-    label: "apps - Browse apps and insert them into your prompt",
-    description: "Browse apps and insert them into your prompt",
+    id: "vim",
+    label: "vim - Toggle Vim composer navigation",
+    description: "Toggle Vim composer navigation",
   },
   {
-    id: "plugins",
-    label: "plugins - Browse installed and discoverable plugins",
-    description: "Browse installed and discoverable plugins",
-  },
-  {
-    id: "clear",
-    label: "clear - Clear the terminal and start a fresh chat",
-    description: "Clear the terminal and start a fresh chat",
-  },
-  {
-    id: "compact",
-    label: "compact - Summarize the visible conversation to free tokens",
-    description: "Summarize the visible conversation to free tokens",
-  },
-  {
-    id: "copy",
-    label: "copy - Copy the latest completed Codex output",
-    description: "Copy the latest completed Codex output",
-  },
-  {
-    id: "diff",
-    label: "diff - Show the Git diff",
-    description: "Show the Git diff",
+    id: "setup-default-sandbox",
+    label: "setup-default-sandbox - Set up elevated agent sandbox",
+    description: "Set up elevated agent sandbox",
   },
   {
     id: "experimental",
@@ -65,19 +65,209 @@ const CODEX_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
     description: "Toggle experimental features",
   },
   {
-    id: "feedback",
-    label: "feedback - Send logs to the Codex maintainers",
-    description: "Send logs to the Codex maintainers",
+    id: "approve",
+    label: "approve - Configure tool call approval mode",
+    description: "Configure tool call approval mode",
+  },
+  {
+    id: "memories",
+    label: "memories - Manage memory usage and reset stored memories",
+    description: "Manage memory usage and reset stored memories",
+  },
+  {
+    id: "skills",
+    label: "skills - Use skills to improve how Codex performs specific tasks",
+    description: "Use skills to improve how Codex performs specific tasks",
+  },
+  {
+    id: "import",
+    label: "import - Import setup, this project, and recent chats from Claude Code",
+    description: "Import setup, this project, and recent chats from Claude Code",
+  },
+  {
+    id: "hooks",
+    label: "hooks - Inspect configured lifecycle hooks",
+    description: "Inspect configured lifecycle hooks",
+  },
+  {
+    id: "review",
+    label: "review - Review my current changes and find issues",
+    description: "Review my current changes and find issues",
+  },
+  {
+    id: "rename",
+    label: "rename - Rename the current thread",
+    description: "Rename the current thread",
+  },
+  {
+    id: "new",
+    label: "new - Start a new chat during a conversation",
+    description: "Start a new chat during a conversation",
+  },
+  {
+    id: "archive",
+    label: "archive - Archive the current thread and start a new one",
+    description: "Archive the current thread and start a new one",
+  },
+  {
+    id: "delete",
+    label: "delete - Permanently delete the current thread and start a new one",
+    description: "Permanently delete the current thread and start a new one",
+  },
+  {
+    id: "resume",
+    label: "resume - Resume a saved chat",
+    description: "Resume a saved chat",
+  },
+  {
+    id: "fork",
+    label: "fork - Fork the current chat",
+    description: "Fork the current chat",
+  },
+  {
+    id: "worktree",
+    label: "worktree - Manage Git worktrees, start a detached session, or configure auto-clean",
+    description: "Manage Git worktrees, start a detached session, or configure auto-clean",
+  },
+  {
+    id: "app",
+    label: "app - Open this thread in the Codex desktop app",
+    description: "Open this thread in the Codex desktop app",
   },
   {
     id: "init",
-    label: "init - Generate an AGENTS.md scaffold",
-    description: "Generate an AGENTS.md scaffold",
+    label: "init - Create an AGENTS.md file with instructions for Codex",
+    description: "Create an AGENTS.md file with instructions for Codex",
   },
   {
-    id: "logout",
-    label: "logout - Sign out of Codex",
-    description: "Sign out of Codex",
+    id: "compact",
+    label: "compact - Summarize conversation to prevent hitting the context limit",
+    description: "Summarize conversation to prevent hitting the context limit",
+  },
+  {
+    id: "config",
+    label: "config - Edit configuration settings",
+    description: "Edit configuration settings",
+  },
+  {
+    id: "recap",
+    label: "recap - Summarize where this session stands after returning",
+    description: "Summarize where this session stands after returning",
+  },
+  {
+    id: "plan",
+    label: "plan - Switch to Plan mode",
+    description: "Switch to Plan mode",
+  },
+  {
+    id: "voice",
+    label: "voice - Start or stop voice mode",
+    description: "Start or stop voice mode",
+  },
+  {
+    id: "goal",
+    label: "goal - Set, edit, pause, resume, or clear the thread goal",
+    description: "Set, edit, pause, resume, or clear the thread goal",
+  },
+  {
+    id: "agents",
+    label: "agents - Switch the active agent thread",
+    description: "Switch the active agent thread",
+  },
+  {
+    id: "side",
+    label: "side - Open an ephemeral side conversation, or return to the parent thread",
+    description: "Open an ephemeral side conversation, or return to the parent thread",
+  },
+  {
+    id: "btw",
+    label: "btw - Open an ephemeral side conversation, or return to the parent thread",
+    description: "Open an ephemeral side conversation, or return to the parent thread",
+  },
+  {
+    id: "copy",
+    label: "copy - Copy the latest Codex output to your clipboard",
+    description: "Copy the latest Codex output to your clipboard",
+  },
+  {
+    id: "export",
+    label: "export - Save the current conversation to a markdown file",
+    description: "Save the current conversation to a markdown file",
+  },
+  {
+    id: "raw",
+    label: "raw - Toggle raw profile and raw prompt submission",
+    description: "Toggle raw profile and raw prompt submission",
+  },
+  {
+    id: "tui",
+    label: "tui - Switch between the classic and scrollable TUI",
+    description: "Switch between the classic and scrollable TUI",
+  },
+  {
+    id: "diff",
+    label: "diff - Show git diff (including untracked files)",
+    description: "Show git diff (including untracked files)",
+  },
+  {
+    id: "mention",
+    label: "mention - Mention a file",
+    description: "Mention a file",
+  },
+  {
+    id: "status",
+    label: "status - Show current session configuration and token usage",
+    description: "Show current session configuration and token usage",
+  },
+  {
+    id: "daemon",
+    label: "daemon - Manage the background subagent daemon",
+    description: "Manage the background subagent daemon",
+  },
+  {
+    id: "warnings",
+    label: "warnings - Toggle model warnings for this session",
+    description: "Toggle model warnings for this session",
+  },
+  {
+    id: "cd",
+    label: "cd - Change the working directory for future commands",
+    description: "Change the working directory for future commands",
+  },
+  {
+    id: "pwd",
+    label: "pwd - Show the current working directory",
+    description: "Show the current working directory",
+  },
+  {
+    id: "usage",
+    label: "usage - Show rate limit usage",
+    description: "Show rate limit usage",
+  },
+  {
+    id: "debug-config",
+    label: "debug-config - Show config layers and requirement sources for debugging",
+    description: "Show config layers and requirement sources for debugging",
+  },
+  {
+    id: "title",
+    label: "title - Configure which items appear in the terminal title",
+    description: "Configure which items appear in the terminal title",
+  },
+  {
+    id: "statusline",
+    label: "statusline - Configure which items appear in the status line",
+    description: "Configure which items appear in the status line",
+  },
+  {
+    id: "theme",
+    label: "theme - Choose a syntax highlighting theme",
+    description: "Choose a syntax highlighting theme",
+  },
+  {
+    id: "pets",
+    label: "pets - Adopt a terminal companion",
+    description: "Adopt a terminal companion",
   },
   {
     id: "mcp",
@@ -85,39 +275,39 @@ const CODEX_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
     description: "List configured MCP tools",
   },
   {
-    id: "mention",
-    label: "mention - Attach a file to the conversation",
-    description: "Attach a file to the conversation",
+    id: "apps",
+    label: "apps - Manage apps",
+    description: "Manage apps",
   },
   {
-    id: "model",
-    label: "model - Choose the active model",
-    description: "Choose the active model",
+    id: "plugins",
+    label: "plugins - Browse plugins",
+    description: "Browse plugins",
   },
   {
-    id: "fast",
-    label: "fast - Toggle Fast mode for supported models",
-    description: "Toggle Fast mode for supported models",
+    id: "logout",
+    label: "logout - Log out of Codex",
+    description: "Log out of Codex",
   },
   {
-    id: "plan",
-    label: "plan - Switch to plan mode and optionally send a prompt",
-    description: "Switch to plan mode and optionally send a prompt",
+    id: "quit",
+    label: "quit - Exit Codex",
+    description: "Exit Codex",
   },
   {
-    id: "goal",
-    label: "goal - Set or view an experimental goal",
-    description: "Set or view an experimental goal",
+    id: "exit",
+    label: "exit - Exit Codex",
+    description: "Exit Codex",
   },
   {
-    id: "personality",
-    label: "personality - Choose a communication style",
-    description: "Choose a communication style",
+    id: "feedback",
+    label: "feedback - Send logs to maintainers",
+    description: "Send logs to maintainers",
   },
   {
     id: "ps",
-    label: "ps - Show background terminals and recent output",
-    description: "Show background terminals and recent output",
+    label: "ps - List background terminals",
+    description: "List background terminals",
   },
   {
     id: "stop",
@@ -125,69 +315,14 @@ const CODEX_BUILT_IN_SLASH_COMMANDS: AgentCapability["slashCommands"] = [
     description: "Stop all background terminals",
   },
   {
-    id: "fork",
-    label: "fork - Fork the current conversation",
-    description: "Fork the current conversation",
+    id: "clear",
+    label: "clear - Clear the terminal and start a new chat",
+    description: "Clear the terminal and start a new chat",
   },
   {
-    id: "side",
-    label: "side - Start an ephemeral side conversation",
-    description: "Start an ephemeral side conversation",
-  },
-  {
-    id: "resume",
-    label: "resume - Resume a saved conversation",
-    description: "Resume a saved conversation",
-  },
-  {
-    id: "new",
-    label: "new - Start a new conversation",
-    description: "Start a new conversation",
-  },
-  {
-    id: "quit",
-    label: "quit - Exit the CLI",
-    description: "Exit the CLI",
-  },
-  {
-    id: "exit",
-    label: "exit - Exit the CLI",
-    description: "Exit the CLI",
-  },
-  {
-    id: "review",
-    label: "review - Ask Codex to review your working tree",
-    description: "Ask Codex to review your working tree",
-  },
-  {
-    id: "status",
-    label: "status - Display session configuration and token usage",
-    description: "Display session configuration and token usage",
-  },
-  {
-    id: "debug-config",
-    label: "debug-config - Print config layer and requirement diagnostics",
-    description: "Print config layer and requirement diagnostics",
-  },
-  {
-    id: "statusline",
-    label: "statusline - Configure TUI status-line fields",
-    description: "Configure TUI status-line fields",
-  },
-  {
-    id: "title",
-    label: "title - Configure terminal title fields",
-    description: "Configure terminal title fields",
-  },
-  {
-    id: "keymap",
-    label: "keymap - Remap TUI keyboard shortcuts",
-    description: "Remap TUI keyboard shortcuts",
-  },
-  {
-    id: "sandbox-add-read-dir",
-    label: "sandbox-add-read-dir - Grant sandbox read access to an extra directory",
-    description: "Grant sandbox read access to an extra directory",
+    id: "subagents",
+    label: "subagents - View running and completed subagents",
+    description: "View running and completed subagents",
   },
 ];
 
@@ -225,6 +360,9 @@ export const codexDefaultCapabilities: AgentCapability = {
 };
 
 export function probeResultToCapabilityPartial(probe: CodexProbeResult): Partial<AgentCapability> {
+  const slashCommands = probe.slashCommands?.some((command) => command.section !== "skills")
+    ? probe.slashCommands
+    : [...CODEX_BUILT_IN_SLASH_COMMANDS, ...(probe.slashCommands ?? [])];
   return {
     ...(probe.liveVoice
       ? { liveVoice: { transport: "webrtc" as const, dataChannel: "oai-events" } }
@@ -235,7 +373,7 @@ export function probeResultToCapabilityPartial(probe: CodexProbeResult): Partial
     ...(probe.modelEfforts ? { modelEfforts: probe.modelEfforts } : {}),
     ...(probe.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
     ...(probe.sandboxModes?.length ? { sandboxModes: probe.sandboxModes } : {}),
-    ...(probe.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
+    slashCommands,
     ...(probe.disabledSkillNames ? { disabledSkillNames: probe.disabledSkillNames } : {}),
     // Only models whose `model/list` entry advertises the Fast/priority service
     // tier can opt into Fast — the probe filters these from per-model tier data

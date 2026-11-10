@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
-import * as commandSummary from "./commandSummary";
+import * as commandActionsDisplay from "./commandActionsDisplay";
 import {
   analyzeEditToolGroup,
   categorizeItem,
@@ -24,13 +24,16 @@ describe("categorizeItem", () => {
       streams: {},
       detailsDeferred: true,
     };
-    const parse = vi.spyOn(commandSummary, "commandIntentDisplay");
+    const parse = vi.spyOn(commandActionsDisplay, "commandPayloadDisplay");
     try {
       expect(analyzeEditToolGroup([item]).editOnly).toBe(false);
       expect(segmentToolGroupRows([item])).toEqual([{ kind: "item", item }]);
       expect(summarizeToolCalls([item])[0]?.category).toBe("searched");
       expect(categorizeItem(item)).toBe("searched");
-      expect(parse).toHaveBeenCalledExactlyOnceWith("rg history src");
+      expect(parse).toHaveBeenCalledExactlyOnceWith(
+        { command: "rg history src" },
+        "rg history src",
+      );
       const patched = { ...item, payload: { command: "pnpm run test" } };
       expect(categorizeItem(patched)).toBe("executed");
       expect(parse).toHaveBeenCalledTimes(2);
@@ -50,6 +53,29 @@ describe("categorizeItem", () => {
     expect(categorizeItem(item)).toBe("searched");
     item.payload = { command: "pnpm run test" };
     expect(categorizeItem(item)).toBe("executed");
+  });
+
+  it("categorizes provider-classified command actions", () => {
+    const makeCommand = (actions: { kind: string; path?: string; query?: string }[]) =>
+      ({
+        id: `cmd-${actions.map((a) => a.kind).join("-")}`,
+        type: "command_execution",
+        state: "completed",
+        payload: { command: "pwsh -Command ...", actions },
+        streams: {},
+      }) as RuntimeChatItem;
+
+    expect(categorizeItem(makeCommand([{ kind: "read", path: "/repo/a.ts" }]))).toBe("viewed");
+    expect(categorizeItem(makeCommand([{ kind: "list", path: "/repo" }]))).toBe("viewed");
+    expect(categorizeItem(makeCommand([{ kind: "search", query: "foo" }]))).toBe("searched");
+    expect(
+      categorizeItem(
+        makeCommand([
+          { kind: "read", path: "/repo/a.ts" },
+          { kind: "search", query: "foo" },
+        ]),
+      ),
+    ).toBe("searched");
   });
 
   it("maps reasoning items to the thought category and keeps them groupable", () => {
