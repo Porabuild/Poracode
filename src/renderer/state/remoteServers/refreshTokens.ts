@@ -23,6 +23,7 @@
  */
 
 import { desktopTokenVaultKey, vaultCryptoKey } from "./tokenVault";
+import { TokenVaultDatabase } from "./tokenVaultDatabase";
 
 export interface ConnectionRefreshSubject {
   readonly kind: "connection";
@@ -99,49 +100,19 @@ function legacyRemoteEnvironmentVaultKey(subject: RemoteEnvironmentGrantSubject)
   return `${LEGACY_ENVIRONMENT_VAULT_KEY_PREFIX}${subject.parentConnectionId}.${subject.environmentId}`;
 }
 
-let refreshVaultDatabase: Promise<IDBDatabase> | null = null;
-
-function openRefreshVaultDatabase(): Promise<IDBDatabase> {
-  refreshVaultDatabase ??= new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open("lightcode-mobile-vault");
-    request.onupgradeneeded = () => {
-      // Matches the token vault's store; upgrades stay owned by that module.
-      if (!request.result.objectStoreNames.contains("entries")) {
-        request.result.createObjectStore("entries", { keyPath: "key" });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Unable to open the token vault."));
-  }).catch((error: unknown) => {
-    refreshVaultDatabase = null;
-    throw error;
-  });
-  return refreshVaultDatabase;
-}
+const refreshVaultDatabase = new TokenVaultDatabase(() => {});
 
 /**
  * Reads one vault record. A throwing `result` getter (WebKit, see
  * `TokenVaultDatabase.request`) rejects instead of escaping `onsuccess`.
  */
-function readVaultRecord<T>(database: IDBDatabase, key: string): Promise<T | undefined> {
-  return new Promise<T | undefined>((resolve, reject) => {
-    const transaction = database.transaction("entries", "readonly");
-    const request = transaction.objectStore("entries").get(key);
-    request.onsuccess = () => {
-      try {
-        resolve(request.result);
-      } catch (error) {
-        reject(error);
-      }
-    };
-    request.onerror = () => reject(request.error ?? new Error("Unable to read the token vault."));
-  });
+function readVaultRecord<T>(key: string): Promise<T | undefined> {
+  return refreshVaultDatabase.request("readonly", "read", (store) => store.get(key));
 }
 
 async function refreshVaultCryptoKey(): Promise<CryptoKey | null> {
   if (typeof crypto === "undefined" || typeof crypto.subtle === "undefined") return null;
-  const database = await openRefreshVaultDatabase();
-  const record = await readVaultRecord<{ cryptoKey?: CryptoKey }>(database, "cryptoKey");
+  const record = await readVaultRecord<{ cryptoKey?: CryptoKey }>("cryptoKey");
   return record?.cryptoKey ?? null;
 }
 
@@ -150,26 +121,35 @@ async function refreshVaultCryptoKey(): Promise<CryptoKey | null> {
  * A shared copy that still matches it was not written by another realm since.
  */
 const observedRefreshSlots = new Map<string, VaultSlotCiphertext | null>();
+/** Failed reads are retryable even when the separate bearer slot restored. */
+const failedRefreshReads = new Set<string>();
+
+export function refreshTokenHydrationFailed(subject: RefreshSubject): boolean {
+  return failedRefreshReads.has(refreshSubjectVaultKey(subject));
+}
 
 async function readRefreshVaultRecord(vaultKey: string): Promise<string | null> {
   try {
     if (typeof indexedDB === "undefined") return null;
     const cryptoKey = await refreshVaultCryptoKey();
     if (!cryptoKey) return null;
-    const database = await openRefreshVaultDatabase();
     const record = await readVaultRecord<{ iv?: Uint8Array<ArrayBuffer>; data?: ArrayBuffer }>(
-      database,
       vaultKey,
     );
     observedRefreshSlots.set(vaultKey, slotCiphertext(record));
-    if (!record?.iv || !record.data) return null;
+    if (!record?.iv || !record.data) {
+      failedRefreshReads.delete(vaultKey);
+      return null;
+    }
     const plaintext = await crypto.subtle.decrypt(
       { name: "AES-GCM", iv: record.iv },
       cryptoKey,
       record.data,
     );
+    failedRefreshReads.delete(vaultKey);
     return new TextDecoder().decode(plaintext);
   } catch (error) {
+    failedRefreshReads.add(vaultKey);
     console.warn("[remoteServers] unable to read the persisted refresh token", error);
     return null;
   }
@@ -179,7 +159,8 @@ async function encryptRefreshToken(
   token: string,
 ): Promise<{ iv: Uint8Array<ArrayBuffer>; data: ArrayBuffer } | null> {
   if (typeof crypto === "undefined" || typeof crypto.subtle === "undefined") return null;
-  // Fresh pairing can save its grant before its bearer creates the shared key.
+  // A grant may be the first vault write; key creation stays owned by
+  // tokenVault. Existing key/ciphertext records and slot names remain valid.
   const cryptoKey = (await refreshVaultCryptoKey()) ?? (await vaultCryptoKey());
   return encryptWithKey(cryptoKey, token);
 }
@@ -194,31 +175,39 @@ async function encryptWithKey(cryptoKey: CryptoKey, token: string): Promise<Vaul
   return { iv, data };
 }
 
-async function putRefreshVaultRecord(
+async function updateRefreshVaultRecord(
   vaultKey: string,
-  encrypted: { iv: Uint8Array<ArrayBuffer>; data: ArrayBuffer },
-): Promise<void> {
-  const database = await openRefreshVaultDatabase();
-  await new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction("entries", "readwrite");
-    transaction
-      .objectStore("entries")
-      .put({ key: vaultKey, iv: encrypted.iv, data: encrypted.data });
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error("Vault write failed."));
-  });
-  observedRefreshSlots.set(vaultKey, encrypted);
-}
-
-async function deleteRefreshVaultRecord(vaultKey: string): Promise<void> {
-  const database = await openRefreshVaultDatabase();
-  await new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction("entries", "readwrite");
-    transaction.objectStore("entries").delete(vaultKey);
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error ?? new Error("Vault delete failed."));
-  });
-  observedRefreshSlots.set(vaultKey, null);
+  encrypted: VaultSlotCiphertext | null,
+  isCurrent: () => boolean = () => true,
+): Promise<boolean> {
+  const written = await refreshVaultDatabase.transact<boolean>(
+    "readwrite",
+    "Unable to update the token vault.",
+    () => true,
+    (store, succeed, fail) => {
+      // Recheck once the transaction is active, after older transactions
+      // (including a superseding pairing) have committed.
+      const read = store.get(vaultKey);
+      read.onsuccess = () => {
+        if (!isCurrent()) {
+          succeed(false);
+          return;
+        }
+        try {
+          if (encrypted) store.put({ key: vaultKey, iv: encrypted.iv, data: encrypted.data });
+          else store.delete(vaultKey);
+          succeed(true);
+        } catch (error) {
+          fail(error);
+        }
+      };
+    },
+  );
+  if (written) {
+    observedRefreshSlots.set(vaultKey, encrypted);
+    failedRefreshReads.delete(vaultKey);
+  }
+  return written;
 }
 
 /** In-memory refresh tokens, the synchronous source for client lifecycles.
@@ -264,9 +253,10 @@ export function __resetRefreshTokensForTest(): void {
   refreshTokensBySubject.clear();
   refreshSubjectOwners.clear();
   refreshWriteQueues.clear();
+  refreshWriteEpochs.clear();
   observedRefreshSlots.clear();
-  void refreshVaultDatabase?.then((database) => database.close()).catch(() => undefined);
-  refreshVaultDatabase = null;
+  failedRefreshReads.clear();
+  refreshVaultDatabase.close();
 }
 
 /**
@@ -340,6 +330,8 @@ export function revokeConnectionIncarnation(connectionId: string): void {
  * delayed writer unable to overwrite a newer grant.
  */
 const refreshWriteQueues = new Map<string, Promise<unknown>>();
+/** A committed re-pair retires every queued mutation from the previous grant. */
+const refreshWriteEpochs = new Map<string, symbol>();
 
 /** Resolves once every slot write this realm queued for the subject settled. */
 export function refreshSlotWritesSettled(subject: RefreshSubject): Promise<void> {
@@ -387,9 +379,8 @@ function enqueueRefreshSlotWrite<Result>(
  * A missing IndexedDB/crypto key or a failed transaction resolves `false`
  * (existing best-effort callers `void` the result; migration counts only
  * `true` as persisted). With an owner, the write is refused when that owner no
- * longer owns the subject at call time; once accepted it is serialized in the
- * slot's queue, so a later removal/re-pair (which enqueues after it) always
- * wins and a delayed writer that fires after removal is rejected outright.
+ * longer owns the subject, including after encryption. Writes are serialized,
+ * and a re-pair may supersede a retired incarnation's pending writes.
  */
 export function writeRefreshTokenToVault(
   subject: RefreshSubject,
@@ -397,13 +388,17 @@ export function writeRefreshTokenToVault(
   owner?: symbol,
 ): Promise<boolean> {
   if (owner && !ownsRefreshSubject(subject, owner)) return Promise.resolve(false);
+  const key = refreshSubjectVaultKey(subject);
+  const epoch = refreshWriteEpochs.get(key);
+  const isCurrent = () =>
+    refreshWriteEpochs.get(key) === epoch && (!owner || ownsRefreshSubject(subject, owner));
   return enqueueRefreshSlotWrite(subject, async () => {
     try {
+      if (!isCurrent()) return false;
       if (typeof indexedDB === "undefined") return false;
       const encrypted = await encryptRefreshToken(token);
       if (!encrypted) return false;
-      await putRefreshVaultRecord(refreshSubjectVaultKey(subject), encrypted);
-      return true;
+      return await updateRefreshVaultRecord(key, encrypted, isCurrent);
     } catch (error) {
       console.warn("[remoteServers] unable to persist the refresh token", error);
       return false;
@@ -418,12 +413,14 @@ export function writeRefreshTokenToVault(
  * removal still fences every existing claim.
  */
 export async function deleteRefreshTokenFromVault(subject: RefreshSubject): Promise<void> {
+  const key = refreshSubjectVaultKey(subject);
+  const epoch = refreshWriteEpochs.get(key);
   refreshTokensBySubject.delete(refreshSubjectVaultKey(subject));
   refreshSubjectOwners.delete(refreshSubjectVaultKey(subject));
   await enqueueRefreshSlotWrite(subject, async () => {
     try {
       if (typeof indexedDB === "undefined") return;
-      await deleteRefreshVaultRecord(refreshSubjectVaultKey(subject));
+      await updateRefreshVaultRecord(key, null, () => refreshWriteEpochs.get(key) === epoch);
     } catch (error) {
       console.warn("[remoteServers] unable to delete the persisted refresh token", error);
     }
@@ -489,29 +486,29 @@ async function decryptSlot(cryptoKey: CryptoKey, slot: VaultSlotCiphertext): Pro
 }
 
 /** Reads several slots in one transaction, so they come from one committed state. */
-function readVaultRecords(database: IDBDatabase, keys: readonly string[]): Promise<unknown[]> {
-  return new Promise<unknown[]>((resolve, reject) => {
-    const transaction = database.transaction("entries", "readonly");
-    const store = transaction.objectStore("entries");
-    const results: unknown[] = [];
-    keys.forEach((key, index) => {
-      const request = store.get(key);
-      request.onsuccess = () => {
-        try {
-          results[index] = request.result;
-        } catch (error) {
-          // A throwing WebKit result getter is a failed read, never a miss.
-          reject(error);
-          transaction.abort();
-        }
-      };
-    });
-    transaction.oncomplete = () => resolve(results);
-    transaction.onerror = () =>
-      reject(transaction.error ?? new Error("Unable to read the token vault."));
-    transaction.onabort = () =>
-      reject(transaction.error ?? new Error("Unable to read the token vault."));
-  });
+function readVaultRecords(keys: readonly string[]): Promise<unknown[]> {
+  return refreshVaultDatabase.transact(
+    "readonly",
+    "Unable to read the token vault.",
+    () => true,
+    (store, succeed, fail) => {
+      const results: unknown[] = [];
+      let remaining = keys.length;
+      for (const [index, key] of keys.entries()) {
+        const request = store.get(key);
+        request.onsuccess = () => {
+          try {
+            results[index] = request.result;
+          } catch (error) {
+            fail(error);
+            return;
+          }
+          remaining -= 1;
+          if (remaining === 0) succeed(results);
+        };
+      }
+    },
+  );
 }
 
 /**
@@ -525,8 +522,7 @@ export async function readSharedCredential(
 ): Promise<SharedCredentialRead> {
   if (!vaultAvailable()) return { status: "unavailable" };
   try {
-    const database = await openRefreshVaultDatabase();
-    const [keyRecord, grantRecord, bearerRecord] = await readVaultRecords(database, [
+    const [keyRecord, grantRecord, bearerRecord] = await readVaultRecords([
       "cryptoKey",
       refreshSubjectVaultKey(subject),
       ...(bearerConnectionKey !== undefined ? [desktopTokenVaultKey(bearerConnectionKey)] : []),
@@ -535,12 +531,14 @@ export async function readSharedCredential(
     if (!cryptoKey) return { status: "unavailable" };
     const refreshSlot = slotCiphertext(grantRecord);
     const bearerSlot = slotCiphertext(bearerRecord);
-    return {
+    const credential: SharedCredentialRead = {
       status: "ok",
       refreshToken: refreshSlot ? await decryptSlot(cryptoKey, refreshSlot) : undefined,
       accessToken: bearerSlot ? await decryptSlot(cryptoKey, bearerSlot) : undefined,
       refreshSlot,
     };
+    failedRefreshReads.delete(refreshSubjectVaultKey(subject));
+    return credential;
   } catch (error) {
     console.warn("[remoteServers] unable to read the shared credential", error);
     return { status: "failed" };
@@ -559,8 +557,11 @@ export function commitSharedCredential(input: {
   readonly refreshToken: string | undefined;
   readonly bearer?: { readonly connectionKey: string; readonly accessToken: string };
   readonly isCurrent: () => boolean;
+  /** Only pairing, after retiring the old incarnation: do not wait for its
+   * suspended encryption. Its ownership/CAS fences still refuse late writes. */
+  readonly supersedePendingWrites?: true;
 }): Promise<SharedCredentialCommit> {
-  return enqueueRefreshSlotWrite(input.subject, async (): Promise<SharedCredentialCommit> => {
+  const commit = async (): Promise<SharedCredentialCommit> => {
     if (!input.isCurrent()) return "conflict";
     if (!vaultAvailable()) return "unavailable";
     try {
@@ -572,48 +573,56 @@ export function commitSharedCredential(input: {
       const bearer = input.bearer
         ? await encryptWithKey(cryptoKey, input.bearer.accessToken)
         : null;
-      const database = await openRefreshVaultDatabase();
       const grantKey = refreshSubjectVaultKey(input.subject);
       if (!input.isCurrent()) return "conflict";
-      return await new Promise<SharedCredentialCommit>((resolve) => {
-        const transaction = database.transaction("entries", "readwrite");
-        const store = transaction.objectStore("entries");
-        let conflict = false;
-        const read = store.get(grantKey);
-        read.onsuccess = () => {
-          let stored: VaultSlotCiphertext | null;
-          try {
-            stored = slotCiphertext(read.result);
-          } catch {
-            transaction.abort();
-            return;
-          }
-          if (!input.isCurrent() || !sameCiphertext(stored, input.expected)) {
-            conflict = true;
-            transaction.abort();
-            return;
-          }
-          if (grant) store.put({ key: grantKey, iv: grant.iv, data: grant.data });
-          else store.delete(grantKey);
-          if (input.bearer && bearer) {
-            store.put({
-              key: desktopTokenVaultKey(input.bearer.connectionKey),
-              iv: bearer.iv,
-              data: bearer.data,
-            });
-          }
-        };
-        transaction.oncomplete = () => {
-          observedRefreshSlots.set(grantKey, grant);
-          resolve("committed");
-        };
-        transaction.onabort = () => resolve(conflict ? "conflict" : "failed");
-      });
+      const outcome = await refreshVaultDatabase.transact<SharedCredentialCommit>(
+        "readwrite",
+        "Unable to write the token vault.",
+        () => true,
+        (store, succeed, fail) => {
+          const read = store.get(grantKey);
+          read.onsuccess = () => {
+            try {
+              const stored = slotCiphertext(read.result);
+              if (!input.isCurrent() || !sameCiphertext(stored, input.expected)) {
+                succeed("conflict");
+                return;
+              }
+              if (grant) store.put({ key: grantKey, iv: grant.iv, data: grant.data });
+              else store.delete(grantKey);
+              if (input.bearer && bearer) {
+                store.put({
+                  key: desktopTokenVaultKey(input.bearer.connectionKey),
+                  iv: bearer.iv,
+                  data: bearer.data,
+                });
+              }
+              succeed("committed");
+            } catch (error) {
+              fail(error);
+            }
+          };
+        },
+      );
+      if (outcome === "committed") {
+        observedRefreshSlots.set(grantKey, grant);
+        if (input.supersedePendingWrites) refreshWriteEpochs.set(grantKey, Symbol("pairing"));
+      }
+      return outcome;
     } catch (error) {
       console.warn("[remoteServers] unable to commit the shared credential", error);
       return "failed";
     }
-  });
+  };
+  if (input.supersedePendingWrites) {
+    const result = commit();
+    refreshWriteQueues.set(
+      refreshSubjectVaultKey(input.subject),
+      result.catch(() => undefined),
+    );
+    return result;
+  }
+  return enqueueRefreshSlotWrite(input.subject, commit);
 }
 
 /** Retire a legacy remote-environment slot after a strict successful write. */
@@ -622,7 +631,7 @@ async function deleteLegacyRemoteEnvironmentSlot(
 ): Promise<void> {
   try {
     if (typeof indexedDB === "undefined") return;
-    await deleteRefreshVaultRecord(legacyRemoteEnvironmentVaultKey(subject));
+    await updateRefreshVaultRecord(legacyRemoteEnvironmentVaultKey(subject), null);
   } catch (error) {
     // Retryable: the next hydration retires it again; the new slot wins.
     console.warn("[remoteServers] unable to delete the legacy refresh grant", error);

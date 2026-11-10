@@ -24,12 +24,17 @@ import {
   ensureConnectionIncarnation,
   forgetRefreshTokenForSubject,
   ownsConnectionIncarnation,
+  readSharedCredential,
+  refreshSlotWritesSettled,
+  refreshTokenHydrationFailed,
   refreshTokenForDesktop,
   rememberRefreshToken,
 } from "./refreshTokens";
 import {
   commitSharedRefresh,
+  runCredentialExclusive,
   runSharedRefresh,
+  SharedCredentialRefusedError,
   type SharedCredentialCustody,
 } from "./sharedCredentials";
 import { noteDesktopTokenCommitted } from "./tokenVault";
@@ -118,6 +123,44 @@ export function createRemoteServerClientBindings(
         remoteConnectionKey(entry) === connectionKey ? { ...entry, accessToken } : entry,
       ),
     }));
+  };
+
+  /** A transient startup vault failure must not become a permanently empty
+   * bearer. Retry custody before making requests, without overwriting a
+   * connection removed, re-paired or rotated while the read was pending. */
+  const restoreStoredCredentials = (connectionKey: string): Promise<void> | undefined => {
+    const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+    const subject = connectionRefreshSubject(connectionKey);
+    if (
+      !server ||
+      server.transport?.kind === "environment" ||
+      (server.accessToken && !refreshTokenHydrationFailed(subject))
+    )
+      return;
+    const incarnation = ensureConnectionIncarnation(connectionKey);
+    return runCredentialExclusive(subject, async () => {
+      await refreshSlotWritesSettled(subject);
+      const read = await readSharedCredential(subject, connectionKey);
+      const current = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+      if (
+        !ownsConnectionIncarnation(connectionKey, incarnation) ||
+        !current ||
+        current.endpoint !== server.endpoint ||
+        current.accessToken !== server.accessToken
+      )
+        return;
+      if (read.status === "failed") throw new SharedCredentialRefusedError();
+      if (read.status !== "ok") return;
+      if (shared && shared.durableServer(connectionKey)?.endpoint !== server.endpoint) {
+        throw new SharedCredentialRefusedError();
+      }
+      if (read.refreshToken) rememberRefreshToken(connectionKey, read.refreshToken);
+      if (read.accessToken) {
+        noteDesktopTokenCommitted(connectionKey, read.accessToken);
+        shared?.acknowledgeBearer(connectionKey, read.accessToken);
+        persistAccessToken(connectionKey, read.accessToken);
+      }
+    });
   };
 
   /**
@@ -277,6 +320,8 @@ export function createRemoteServerClientBindings(
     invoke: (client: RemoteDesktopClient) => Promise<Result>,
   ): Promise<Result> => {
     try {
+      const restore = restoreStoredCredentials(desktopId);
+      if (restore) await restore;
       const result = await invoke(requireClient(desktopId));
       const status = get().runtime[desktopId]?.status;
       if (status === "error" || status === "offline") {
@@ -333,6 +378,7 @@ export function createRemoteServerClientBindings(
     setRemoteServerFailure,
     reportRemoteServerError,
     persistAccessToken,
+    restoreStoredCredentials,
     clientForServer,
     requireClient,
     directImagesFor,

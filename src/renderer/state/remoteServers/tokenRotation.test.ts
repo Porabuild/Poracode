@@ -12,12 +12,17 @@ import {
   connectionRefreshSubject,
   hydrateRefreshTokens,
   refreshTokenForSubject,
+  refreshSubjectVaultKey,
   writeRefreshTokenToVault,
 } from "./refreshTokens";
 import { __resetTokenVaultForTest, getDesktopToken, setDesktopToken } from "./tokenVault";
 import type { RemoteClientFactory, RemoteServerRecord } from "./types";
 import { createRemoteServerClientBindings } from "./storeClient";
-import { failVaultKeyReads, webKitKeyRestoreError } from "./webKitResultFailure.testFixtures";
+import {
+  failVaultKeyReads,
+  failVaultReads,
+  webKitKeyRestoreError,
+} from "./webKitResultFailure.testFixtures";
 import * as refreshTokens from "./refreshTokens";
 import { SharedCredentialRefusedError } from "./sharedCredentials";
 
@@ -197,6 +202,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   // Join accepted grant writes before resetting their process-local queue.
   await writeRefreshTokenToVault(subject, "test-cleanup");
   __resetRemoteServersStoreForTest();
@@ -220,8 +226,8 @@ describe("persisted connection token rotation", () => {
     });
     useRemoteServersStore.getState().setSocketFactory(socket);
     const persist = vi
-      .spyOn(refreshTokens, "writeRefreshTokenToVault")
-      .mockResolvedValueOnce(false);
+      .spyOn(refreshTokens, "commitSharedCredential")
+      .mockResolvedValueOnce("failed");
     try {
       await expect(
         useRemoteServersStore.getState().pairServer({ endpoint: ENDPOINT, token: "pair-qa" }),
@@ -352,6 +358,100 @@ describe("persisted connection token rotation", () => {
       expect(server.refreshAttempts()).toBe(accessToken === "access-0" ? 0 : 1);
     },
   );
+
+  it.each(["moved", "removed"] as const)(
+    "refuses another realm's credentials when its saved connection was %s",
+    async (change) => {
+      const server = host();
+      await loadReleasedPairing(server.fetch);
+      useRemoteServersStore.setState({ servers: [record] });
+      await storage.getItem(STORAGE_KEY);
+      const document = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as {
+        state: { servers: RemoteServerRecord[] };
+      };
+      document.state.servers =
+        change === "removed" ? [] : [{ ...record, endpoint: "https://replacement.example/" }];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(document));
+      await setDesktopToken(CONNECTION_ID, "replacement-access");
+      await writeRefreshTokenToVault(subject, "replacement-refresh");
+      __resetRefreshTokensForTest();
+      __resetTokenVaultForTest();
+      server.fetch.mockClear();
+
+      await expect(ticket()).rejects.toThrow(
+        "The saved remote credentials could not be confirmed.",
+      );
+      expect(server.fetch).not.toHaveBeenCalled();
+      expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("");
+      expect(refreshTokenForSubject(subject)).toBeUndefined();
+    },
+  );
+
+  it("retries a failed refresh-slot read even when the expired bearer restored successfully", async () => {
+    const server = host();
+    await loadReleasedPairing(server.fetch);
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const failure = failVaultReads(refreshSubjectVaultKey(subject), webKitKeyRestoreError(), []);
+    await useRemoteServersStore.persist.rehydrate();
+    expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("expired-access");
+    expect(refreshTokenForSubject(subject)).toBeUndefined();
+    server.fetch.mockClear();
+
+    await expect(ticket()).rejects.toThrow("The saved remote credentials could not be confirmed.");
+    expect(server.fetch).not.toHaveBeenCalled();
+    failure.mockRestore();
+
+    await expect(ticket()).resolves.toBe("ticket");
+    expect(server.refreshAttempts()).toBe(1);
+    expect(refreshTokenForSubject(subject)).toBe("refresh-1");
+  });
+
+  it("recovers a released pairing after a cold startup could not restore its vault key", async () => {
+    const server = host();
+    await loadReleasedPairing(server.fetch);
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const escaped: unknown[] = [];
+    const failure = failVaultKeyReads(webKitKeyRestoreError(), escaped);
+
+    await useRemoteServersStore.persist.rehydrate();
+    expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("");
+    expect(refreshTokenForSubject(subject)).toBeUndefined();
+    failure.mockRestore();
+
+    await expect(ticket()).resolves.toBe("ticket");
+    expect(server.refreshAttempts()).toBe(1);
+    expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("access-1");
+    expect(escaped).toEqual([]);
+    expect(localStorage.getItem(STORAGE_KEY)).not.toContain("access-1");
+    __resetTokenVaultForTest();
+    expect(await getDesktopToken(CONNECTION_ID)).toBe("access-1");
+    __resetRefreshTokensForTest();
+    await hydrateRefreshTokens({ subjects: [subject] });
+    expect(refreshTokenForSubject(subject)).toBe("refresh-1");
+  });
+
+  it("keeps an unreadable saved pairing retryable without sending a missing bearer to the host", async () => {
+    const server = host();
+    await loadReleasedPairing(server.fetch);
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const failure = failVaultKeyReads(webKitKeyRestoreError(), []);
+    await useRemoteServersStore.persist.rehydrate();
+    server.fetch.mockClear();
+
+    await expect(ticket()).rejects.toThrow("The saved remote credentials could not be confirmed.");
+    expect(server.fetch).not.toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().servers).toHaveLength(1);
+    failure.mockRestore();
+
+    await expect(ticket()).resolves.toBe("ticket");
+    expect(server.refreshAttempts()).toBe(1);
+  });
 
   it("reuses the rotated bearer across sequential clients instead of exhausting refresh limits", async () => {
     const server = host();

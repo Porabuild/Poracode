@@ -197,6 +197,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         setRemoteServerFailure,
         reportRemoteServerError,
         persistAccessToken,
+        restoreStoredCredentials,
         clientForServer,
         requireClient,
         directImagesFor,
@@ -251,17 +252,18 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       const pairing = createPairingActions({
         set,
         get,
-        flushPersistence: remoteServersStorage.flush,
         setRemoteServerFailure,
         checkHostUpdateInBackground,
         startRemoteServerEventStream,
         closeRemoteServerEventSocket,
+        persistPairing: (server) => remoteServersStorage.commitPairing(server),
       });
       const session = createSessionReconnectActions({
         set,
         get,
         setRemoteServerFailure,
         clientForServer,
+        restoreStoredCredentials,
         withClient,
         disposeSessionRenewal,
         checkHostUpdateInBackground,
