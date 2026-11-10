@@ -1,4 +1,5 @@
 import type { Thread } from "@/shared/contracts";
+import { threadAttentionStatus } from "@/shared/threadAttention";
 
 export type StatusTone =
   | "inactive"
@@ -10,18 +11,19 @@ export type StatusTone =
   | "done";
 
 export function getStatusTone(
-  thread: Pick<Thread, "status" | "done">,
+  thread: Pick<Thread, "status" | "done"> & Partial<Pick<Thread, "attention">>,
   opts?: { hasBackgroundActivity?: boolean; isWaitingForBackground?: boolean },
 ): StatusTone {
+  const status = threadAttentionStatus(thread.status, thread.attention);
   if (thread.done) {
     return "done";
   }
 
-  if (thread.status === "error") {
+  if (status === "error") {
     return "error";
   }
 
-  if (thread.status === "needs_approval" || thread.status === "needs_reply") {
+  if (status === "needs_approval" || status === "needs_reply") {
     return "attention";
   }
 

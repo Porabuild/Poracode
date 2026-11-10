@@ -231,7 +231,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     });
   });
 
-  it("keeps reply-form metadata on the canonical steer without sending it to the provider", async () => {
+  it("preserves reply-form metadata in canonical messages and structured turn options", async () => {
     const harness = createHarness();
     const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(async () => {});
     harness.session.structuredSession!.steerTurn = steerTurn;
@@ -254,7 +254,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
       "Which scope?\nFocused",
       { model: "model-2" },
       undefined,
-      { userMessageItemId: "user-optimistic" },
+      { userMessageItemId: "user-optimistic", questionAnswer },
     );
   });
 
