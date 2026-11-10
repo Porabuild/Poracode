@@ -84,6 +84,7 @@ internal fun HomeScreen(
     notificationBanner: RemoteUserNotificationBanner?,
     onOpenNotification: (Long) -> Unit,
     onDismissNotification: (Long) -> Unit,
+    providerUsageControl: @Composable (RemoteThread?, com.poracode.app.model.AgentStatusEntry?) -> Unit = { _, _ -> },
 ) {
     // System back closes an open thread on phone layout.
     val backModifier = rememberPredictiveBackModifier(
@@ -190,6 +191,7 @@ internal fun HomeScreen(
                 )
                 if (state.openThreadId != null) {
                     RichChatThreadScreen(
+                        providerUsageControl = providerUsageControl,
                         userHiddenModels = userHiddenModels,
                         runtime = richChat,
                         forksSupported = 1 in state.liveThreadForkVersions,
@@ -250,6 +252,7 @@ internal fun HomeScreen(
         } else {
             if (state.openThreadId != null) {
                 RichChatThreadScreen(
+                    providerUsageControl = providerUsageControl,
                     userHiddenModels = userHiddenModels,
                     runtime = richChat,
                     forksSupported = 1 in state.liveThreadForkVersions,

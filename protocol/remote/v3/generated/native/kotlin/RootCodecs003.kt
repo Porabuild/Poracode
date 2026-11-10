@@ -443,8 +443,8 @@ val RemoteRootCodecs.routeU2EProjectU2DSettingsU2EPath: RemoteRootCodec<Routepro
 val RemoteRootCodecs.routeU2EProjectU2DSettingsU2EResponse: RemoteRootCodec<RouteprojectU2DSettingsResponse_c1417bffe5>
     get() = RemoteRootCodec("route.project-settings.response", serializer<RouteprojectU2DSettingsResponse_c1417bffe5>(), schema_c1417bffe520aa1c)
 
-val RemoteRootCodecs.routeU2EProviderU2DUsageU2EResponse: RemoteRootCodec<ProceduregetProviderUsageResult_b0304b9d9d>
-    get() = RemoteRootCodec("route.provider-usage.response", serializer<ProceduregetProviderUsageResult_b0304b9d9d>(), schema_b0304b9d9dfc2690)
+val RemoteRootCodecs.routeU2EProviderU2DUsageU2EResponse: RemoteRootCodec<ProceduregetProviderUsageResult_4c22b67e11>
+    get() = RemoteRootCodec("route.provider-usage.response", serializer<ProceduregetProviderUsageResult_4c22b67e11>(), schema_4c22b67e111cba1f)
 
 val RemoteRootCodecs.routeU2EPushU2DConfigU2EResponse: RemoteRootCodec<RoutepushU2DConfigResponse_f0c513c014>
     get() = RemoteRootCodec("route.push-config.response", serializer<RoutepushU2DConfigResponse_f0c513c014>(), schema_f0c513c0146099c2)

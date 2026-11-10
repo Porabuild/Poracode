@@ -1,5 +1,15 @@
 import SwiftUI
 
+enum RichChatTimelineScrollPolicy {
+  static func shouldFollowBottom(
+    isFollowingBottom: Bool,
+    latestItemType: String?
+  ) -> Bool {
+    isFollowingBottom || latestItemType == RichItemType.userMessage
+  }
+}
+
+
 /// Projects normalized transcript entries into the small reusable item
 /// components. Scroll ownership remains in `RichChatTimelineView`; this layer
 /// owns only hierarchy, indentation, and activity grouping.
@@ -124,7 +134,7 @@ struct RichChatActivityGroupSummary: Equatable {
     var editSeen = false
     var editMissingDiff = false
     for member in members {
-      let category = Self.category(for: member.item.type)
+      let category = Self.category(for: member.item)
       counts[category, default: 0] += 1
       guard category == .edit else { continue }
       editSeen = true
@@ -163,8 +173,28 @@ struct RichChatActivityGroupSummary: Equatable {
     return (Int(clamping: added), Int(clamping: removed))
   }
 
-  /// Maps a transcript item type onto the canonical activity buckets the PWA
-  /// and Android summaries share; unknown activity folds into `tool`.
+  /// Canonical tool hints are already normalized at the provider boundary.
+  /// Missing/unknown hints retain the generic tool bucket for older hosts.
+  static func category(for item: RichRuntimeItem) -> RichChatStrings.RichChatActivityCategory {
+    guard ["tool_call", "dynamic_tool_call", "mcp_tool_call"].contains(item.type) else {
+      return category(for: item.type)
+    }
+    let payload = item.payload?.objectValue
+    if item.type == "mcp_tool_call" || !(payload?["serverId"]?.stringValue ?? "").isEmpty {
+      return .mcp
+    }
+    if payload?["isSubAgent"]?.boolValue == true || payload?["isCrossagent"]?.boolValue == true {
+      return .command
+    }
+    switch payload?["kind"]?.stringValue {
+    case "read": return .view
+    case "search", "fetch": return .search
+    case "edit", "delete", "move": return .edit
+    case "execute": return .command
+    default: return .tool
+    }
+  }
+
   static func category(for type: String) -> RichChatStrings.RichChatActivityCategory {
     switch type {
     case RichItemType.reasoning: .thought
@@ -172,6 +202,7 @@ struct RichChatActivityGroupSummary: Equatable {
     case "web_search": .search
     case "file_change": .edit
     case "command_execution": .command
+    case "mcp_tool_call": .mcp
     default: .tool
     }
   }
@@ -199,7 +230,7 @@ private struct RichChatActivityGroupSummaryView: View {
       Label {
         Text(RichChatStrings.activityCategoryCount(segment.category, segment.count))
       } icon: {
-        Image(systemName: systemImage(for: segment.category))
+        RichChatIcon(.init(category: segment.category))
       }
       if segment.hasDiff {
         if segment.added > 0 {
@@ -216,16 +247,6 @@ private struct RichChatActivityGroupSummaryView: View {
     }
   }
 
-  private func systemImage(for category: RichChatStrings.RichChatActivityCategory) -> String {
-    switch category {
-    case .view: "photo"
-    case .search: "globe"
-    case .edit: "pencil"
-    case .command: "terminal"
-    case .tool: "wrench.and.screwdriver"
-    case .thought: "brain.head.profile"
-    }
-  }
 }
 
 private struct RichChatTimelineNodeView: View {

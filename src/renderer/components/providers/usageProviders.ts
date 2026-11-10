@@ -1,7 +1,7 @@
-import { antigravityRingGroups } from "@poracode/agents-usage/antigravity";
 import { msg } from "@lingui/core/macro";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
-import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
+import type { UsageSnapshot, UsageWindow, UsageRingGroup } from "@poracode/agents-usage/types";
+export type { UsageRingGroup } from "@poracode/agents-usage/types";
 import { baseAgentKind, agentProfileKind, type AgentInstanceConfigMap } from "@/shared/contracts";
 import { USAGE_PROFILE_SUPPORT } from "./usageProfileRegistry";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -22,13 +22,6 @@ export { isClaudeUsageProvider } from "./claude/usageProfileSupport";
  * user swaps between groups by right-clicking the circle; `key` is the persisted
  * selection and `label` names it in the swap menu.
  */
-export type UsageRingGroup = {
-  key: string;
-  label: string;
-  outer: readonly string[];
-  inner: readonly string[];
-};
-
 export type UsageProvider = {
   id: string;
   label: string;
@@ -63,82 +56,36 @@ const USAGE_PROVIDER_BY_ID = new Map(
 
 /** Renderer-only presentation, keyed by provider id; merged onto the catalog. */
 const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
-  // Antigravity reports quota groups (Gemini, Claude+GPT, Gemini 4 Argon, ...),
-  // each with 5h (outer) and/or weekly (inner) windows. The circle shows one
-  // group at a time — Gemini by default — and right-click swaps between groups.
-  // All reported windows render as bars in the expanded usage card.
-  antigravity: {
-    ringGroups: antigravityRingGroups,
-  },
-  claude: {
-    rings: {
-      outer: ["session-5h"],
-      inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet", "weekly-fable"],
-    },
-  },
-  codex: {
-    rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "weekly-opus", "weekly-sonnet"] },
-  },
-  commandcode: {
-    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
-  },
-  // Copilot uses GitHub's OAuth device flow through the in-app browser.
   copilot: { supportsBrowserLogin: true },
-  cursor: {
-    rings: { outer: ["weekly", "cursor-auto"], inner: ["cursor-api"] },
-  },
-  // Droid signs in via the in-app app.factory.ai browser session. The standard
-  // pool's 5h window is the fast outer ring; weekly/monthly the slower inner one.
-  // On a legacy (per-cycle) account only `monthly` (Standard) is ring-eligible —
-  // the glance ring intentionally tracks the Standard pool; the separate
-  // `factory:premium` pool still renders as a bar in the expanded detail panel.
-  factory: {
-    supportsBrowserLogin: true,
-    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
-  },
-  fx: { rings: { outer: ["session-5h"], inner: ["weekly", "monthly", "daily"] } },
+  factory: { supportsBrowserLogin: true },
   grok: { supportsBrowserLogin: true },
-  opencode: {
-    supportsBrowserLogin: true,
-    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
-  },
-  // z.ai authenticates with a pasted API key, not a browser session.
-  // The ring tracks token rate-limits only: the 5h window plus the weekly window
-  // when the plan returns one. The monthly MCP-tools quota is a different kind of
-  // limit, so it's deliberately omitted from the ring (it still shows as a card bar).
-  zai: {
-    rings: { outer: ["session-5h"], inner: ["weekly"] },
-  },
-  devin: { rings: { outer: ["daily"], inner: ["weekly"] } },
-  // Kimi For Coding reads the Kimi Code CLI credential automatically; the
-  // API-key paste is the fallback for users without a CLI sign-in. The 5h
-  // request rate limit is the fast outer ring, the weekly membership quota the
-  // slower inner one.
-  kimi: {
-    rings: { outer: ["session-5h"], inner: ["weekly"] },
-  },
-  // The 5h window is the fast ring, weekly the slower one.
-  muse: {
-    supportsBrowserLogin: true,
-    rings: { outer: ["session-5h"], inner: ["weekly"] },
-  },
-  qwen: {
-    supportsBrowserLogin: true,
-    rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
-  },
-  qoder: {
-    supportsBrowserLogin: true,
-  },
+  opencode: { supportsBrowserLogin: true },
+  muse: { supportsBrowserLogin: true },
+  qwen: { supportsBrowserLogin: true },
+  qoder: { supportsBrowserLogin: true },
 };
 
 const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = USAGE_PROVIDER_DESCRIPTORS.map(
-  (d) => ({ id: d.id, label: d.label, ...RENDERER_META[d.id] }),
+  (d) => ({
+    id: d.id,
+    label: d.label,
+    ...(d.rings ? { rings: d.rings } : {}),
+    ...(d.ringGroups ? { ringGroups: d.ringGroups } : {}),
+    ...RENDERER_META[d.id],
+  }),
 );
 
 export const USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = STATIC_USAGE_PROVIDERS;
 
 function rendererMeta(providerId: string): Omit<UsageProvider, "id" | "label"> | undefined {
-  return RENDERER_META[providerId] ?? RENDERER_META[baseAgentKind(providerId)];
+  const base = baseAgentKind(providerId);
+  const descriptor = USAGE_PROVIDER_BY_ID.get(providerId) ?? USAGE_PROVIDER_BY_ID.get(base);
+  const ui = RENDERER_META[providerId] ?? RENDERER_META[base];
+  return {
+    ...(descriptor?.rings ? { rings: descriptor.rings } : {}),
+    ...(descriptor?.ringGroups ? { ringGroups: descriptor.ringGroups } : {}),
+    ...ui,
+  };
 }
 
 function profileUsageProviders(
@@ -249,72 +196,7 @@ export function usesSharedWindowReset(providerId: string): boolean {
   return rendererMeta(providerId)?.sharedWindowReset === true;
 }
 
-function firstWindowMatching(
-  windows: readonly UsageWindow[],
-  ids: readonly string[],
-): UsageWindow | undefined {
-  for (const id of ids) {
-    const match = windows.find((w) => w.id === id);
-    if (match) return match;
-  }
-  return undefined;
-}
-
-/** The selectable ring groups for a provider, or [] when it has none. */
-export function usageRingGroups(
-  providerId: string,
-  windows?: readonly UsageWindow[],
-): readonly UsageRingGroup[] {
-  const groups = rendererMeta(providerId)?.ringGroups;
-  return typeof groups === "function" ? groups(windows) : (groups ?? []);
-}
-
-/** Resolve the selected ring group for a provider, defaulting to the first. */
-function resolveRingGroup(
-  groups: readonly UsageRingGroup[],
-  selectedKey: string | undefined,
-): UsageRingGroup | undefined {
-  return groups.find((g) => g.key === selectedKey) ?? groups[0];
-}
-
-function ringsFromSpec(
-  windows: readonly UsageWindow[],
-  spec: { outer: readonly string[]; inner: readonly string[] },
-): { outer?: UsageWindow; inner?: UsageWindow } | undefined {
-  const outer = firstWindowMatching(windows, spec.outer);
-  const inner = firstWindowMatching(windows, spec.inner);
-  if (outer && inner) return { outer, inner };
-  if (outer) return { outer };
-  if (inner) return { outer: inner };
-  return undefined;
-}
-
-/**
- * Pick the ring(s) for a provider circle. Providers with selectable ring groups
- * (Antigravity) render the user-selected group; providers with a real
- * short-vs-long split (per their `rings` spec) render the faster window as the
- * outer ring and the slower one as the inner ring — like a clock's hands.
- * Everyone else renders a single ring on the most-constrained window.
- */
-export function pickUsageRings(
-  providerId: string,
-  windows: readonly UsageWindow[] | undefined,
-  selectedRingGroup?: string,
-): { outer?: UsageWindow; inner?: UsageWindow } {
-  if (!windows || windows.length === 0) return {};
-  const meta = rendererMeta(providerId);
-  const groups = usageRingGroups(providerId, windows);
-  if (groups.length > 0) {
-    const group = resolveRingGroup(groups, selectedRingGroup);
-    const fromGroup = group ? ringsFromSpec(windows, group) : undefined;
-    if (fromGroup) return fromGroup;
-  } else if (meta?.rings) {
-    const fromSpec = ringsFromSpec(windows, meta.rings);
-    if (fromSpec) return fromSpec;
-  }
-  const worst = [...windows].sort((a, b) => b.usedPercent - a.usedPercent)[0];
-  return worst ? { outer: worst } : {};
-}
+export { pickUsageRings, usageRingGroups } from "@poracode/agents-usage/providers";
 
 /**
  * Whether a provider earns a circle in the sidebar rail. A signed-out provider

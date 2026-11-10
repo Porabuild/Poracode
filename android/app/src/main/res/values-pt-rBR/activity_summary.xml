@@ -30,4 +30,9 @@
         <item quantity="other">%1$d pensamentos</item>
         <item quantity="many">%1$d pensamentos</item>
     </plurals>
+    <plurals name="rich_chat_activity_mcp">
+        <item quantity="one">%d MCP</item>
+        <item quantity="many">%d MCPs</item>
+        <item quantity="other">%d MCPs</item>
+    </plurals>
 </resources>

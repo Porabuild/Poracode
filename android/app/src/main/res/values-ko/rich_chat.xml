@@ -274,4 +274,5 @@
     <string name="rich_chat_html_visual_unavailable">대화형 표시를 사용할 수 없습니다. 소스만 표시합니다.</string>
     <string name="rich_chat_html_visual_open_link_title">링크를 여시겠습니까?</string>
     <string name="rich_chat_html_visual_open_link">열기</string>
+    <string name="rich_chat_scroll_to_bottom">맨 아래로 스크롤</string>
 </resources>

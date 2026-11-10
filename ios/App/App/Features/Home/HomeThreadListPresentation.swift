@@ -194,9 +194,10 @@ enum HomeThreadListPresentation {
 
 enum HomeDeviceName {
   static func display(_ label: String) -> String {
-    let prefixes = ["Poracode on ", "Pora.code on "]
+    let prefixes = ["Poracode on ", "Pora.code on ", "Lightcode on "]
     for prefix in prefixes where label.lowercased().hasPrefix(prefix.lowercased()) {
-      return String(label.dropFirst(prefix.count))
+      let name = String(label.dropFirst(prefix.count))
+      return name.isEmpty ? label : name
     }
     return label
   }

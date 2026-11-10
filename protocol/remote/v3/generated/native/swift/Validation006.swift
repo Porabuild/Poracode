@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_522013c70826ee65 = RemoteSchema(type: "string", literals: [.string("unavailable"), .string("busy"), .string("invalid_request"), .string("not_ready"), .string("failed"), .string("cancelled"), .string("timeout"), .string("disconnected"), .string("incompatible"), .string("unsupported"), .string("download_failed"), .string("integrity"), .string("permission_denied")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_522b0d7f41276332 = RemoteSchema(type: "object", required: Set(["hash", "message"]), properties: ["conflictFiles": RemoteSchemas.schema_0f732b9fceb2c6ac, "hash": RemoteSchemas.schema_bf0b727f7b1c6d07, "message": RemoteSchemas.schema_bf0b727f7b1c6d07, "reapplyConflicting": RemoteSchemas.schema_feeb8bb50144d96d, "stashPreserved": RemoteSchemas.schema_feeb8bb50144d96d, "stashReapplied": RemoteSchemas.schema_feeb8bb50144d96d], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_52895aaaf2e8a0f2 = RemoteSchema(type: "object", required: Set(["attachmentCount", "git", "itemCount", "turnCount"]), properties: ["attachmentCount": RemoteSchemas.schema_56aa0e45cbdce0d0, "git": RemoteSchemas.schema_6fc62da359394b16, "itemCount": RemoteSchemas.schema_56aa0e45cbdce0d0, "turnCount": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_6350bebbf3d13115 = RemoteSchema(type: "string", minLength: 1, maxLength: 24, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_636da2bdcbf5818d = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_6db96506f253ef73, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_637f685cb2418b8c = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_9ff1236d4782edc7, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
 }

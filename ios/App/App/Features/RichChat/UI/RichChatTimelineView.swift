@@ -1,14 +1,5 @@
 import SwiftUI
 
-enum RichChatTimelineScrollPolicy {
-  static func shouldFollowBottom(
-    isFollowingBottom: Bool,
-    latestItemType: String?
-  ) -> Bool {
-    isFollowingBottom || latestItemType == RichItemType.userMessage
-  }
-}
-
 private enum RichChatTimelineScrollAnchor: Hashable {
   case bottom
 }
@@ -84,8 +75,10 @@ struct RichChatTimelineView: View {
                 let rawAnchor = controller.state.completedTurns
                   .first(where: { $0.startedAtMilliseconds == displayTurn.startedAtMilliseconds })?.anchorItemID
               {
-                Button(RichChatMessageActionStrings.forkAction, systemImage: "arrow.triangle.branch") {
+                Button {
                   requestFork(rawAnchor)
+                } label: {
+                  Label { Text(RichChatMessageActionStrings.forkAction) } icon: { RichChatIcon(.fork) }
                 }
                 .font(.caption)
                 .tint(.secondary)
@@ -103,6 +96,9 @@ struct RichChatTimelineView: View {
               }
             }
           }
+          Color.clear
+            .frame(height: compactOverlayClearance)
+            .accessibilityHidden(true)
           Color.clear
             .frame(height: 1)
             .id(RichChatTimelineScrollAnchor.bottom)
@@ -130,6 +126,10 @@ struct RichChatTimelineView: View {
           completedInitialScroll = true
         }
       }
+      .onChange(of: compactOverlayClearance) { _, _ in
+        guard followsBottom else { return }
+        proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
+      }
       .onChange(of: projection?.rawItems.last) { _, item in
         guard
           RichChatTimelineScrollPolicy.shouldFollowBottom(
@@ -142,7 +142,7 @@ struct RichChatTimelineView: View {
           proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
         }
       }
-      .overlay(alignment: .bottomTrailing) {
+      .overlay(alignment: .bottom) {
         if completedInitialScroll && !bottomIsVisible {
           PoracodeCircleButton {
             followsBottom = true
@@ -150,11 +150,10 @@ struct RichChatTimelineView: View {
               proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
             }
           } label: {
-            Image(systemName: "arrow.down")
+            RichChatIcon(.arrowDown)
               .font(.subheadline.weight(.semibold))
           }
           .accessibilityLabel(RichChatStrings.scrollToBottom)
-          .padding(.trailing, 12)
           .padding(.bottom, compactOverlayClearance + 12)
           .transition(.scale.combined(with: .opacity))
         }

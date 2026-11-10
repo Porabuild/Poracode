@@ -75,6 +75,21 @@ data class ProceduregetProviderUsageRequest_f2b9759b60(
 }
 
 @Serializable
+data class ProceduregetProviderUsageResultU2DRingLayoutsU2DValue_4b47ae3fc7(
+    @SerialName("innerWindowId") val innerWindowId: RemoteField<String> = RemoteField.Missing,
+    @SerialName("outerWindowId") val outerWindowId: RemoteField<String> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("innerWindowId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("outerWindowId", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias ProceduregetProviderUsageResultU2DRingLayouts_80c5703401 = Map<String, ProceduregetProviderUsageResultU2DRingLayoutsU2DValue_4b47ae3fc7>
+
+@Serializable
 enum class ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DCostU2DPeriod_776626d203 {
     @SerialName("today") TODAY,
     @SerialName("7d") N7D,
@@ -262,13 +277,15 @@ data class ProceduregetProviderUsageResultU2DSnapshotsU2DItem_20d7b1e748(
 }
 
 @Serializable
-data class ProceduregetProviderUsageResult_b0304b9d9d(
+data class ProceduregetProviderUsageResult_4c22b67e11(
     @SerialName("fromCache") val fromCache: Boolean,
+    @SerialName("ringLayouts") val ringLayouts: RemoteField<ProceduregetProviderUsageResultU2DRingLayouts_80c5703401> = RemoteField.Missing,
     @SerialName("snapshots") val snapshots: List<ProceduregetProviderUsageResultU2DSnapshotsU2DItem_20d7b1e748>,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("fromCache", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("ringLayouts", "ProceduregetProviderUsageResultU2DRingLayouts_80c5703401", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("snapshots", "List<ProceduregetProviderUsageResultU2DSnapshotsU2DItem_20d7b1e748>", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
@@ -414,33 +431,5 @@ data class ProcedureghGetWorkflowDefinitionRequest_30b422e470(
             RemoteFieldDescriptor("ref", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("workflowId", "Long", true, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
         ), listOf())
-    }
-}
-
-@Serializable(with = ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4.Serializer::class)
-sealed interface ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 {
-    data class Option1(val value: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
-    data class Option2(val value: Double) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
-    data class Option3(val value: Boolean) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
-    object Serializer : KSerializer<ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4")
-        override fun deserialize(decoder: Decoder): ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesString(element)) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesNumber(element, integer = false)) { Option2(jsonDecoder.json.decodeFromJsonElement<Double>(element)) }
-            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesBoolean(element)) { Option3(jsonDecoder.json.decodeFromJsonElement<Boolean>(element)) }
-            return RemoteUnionCodec.first("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4", matches)
-        }
-        override fun serialize(encoder: Encoder, value: ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<Double>(value.value)
-                is Option3 -> jsonEncoder.json.encodeToJsonElement<Boolean>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
     }
 }

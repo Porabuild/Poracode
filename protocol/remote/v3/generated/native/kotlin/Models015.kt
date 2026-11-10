@@ -6,6 +6,38 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProcedurepauseThreadFollowUpsRequest_d42717fff2(
+    @SerialName("id") val id: String,
+    @SerialName("threadId") val threadId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironmentU2DRuntime_1f6ff7bae5 {
+    @SerialName("host") HOST,
+    @SerialName("wsl") WSL,
+}
+
+@Serializable
+data class ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironment_6b3ef80f7d(
+    @SerialName("projectScoped") val projectScoped: Boolean,
+    @SerialName("runtime") val runtime: ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironmentU2DRuntime_1f6ff7bae5,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("projectScoped", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtime", "ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironmentU2DRuntime_1f6ff7bae5", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class ProcedureprobeMcpServerResultU2DOptionU2D1U2DServerInfo_820293e02a(
     @SerialName("name") val name: RemoteField<String> = RemoteField.Missing,
     @SerialName("version") val version: RemoteField<String> = RemoteField.Missing,
@@ -392,57 +424,6 @@ data class ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("kind", "ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1U2DKind_236d6f96ed", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable(with = ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992.Serializer::class)
-sealed interface ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992 {
-    data class Option1(val value: ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1_c538d0467a) : ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992
-    data class Option2(val value: ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment_4cd2587996) : ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992
-    object Serializer : KSerializer<ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992")
-        override fun deserialize(decoder: Decoder): ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992 supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("native")))) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1_c538d0467a>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("wsl")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment_4cd2587996>(element)) }
-            return RemoteUnionCodec.single("ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992", matches)
-        }
-        override fun serialize(encoder: Encoder, value: ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992 supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1_c538d0467a>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment_4cd2587996>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
-    }
-}
-
-@Serializable
-data class ProcedurerefreshAgentStatusesRequestU2DScope_be6dbda06a(
-    @SerialName("agentKinds") val agentKinds: List<String>,
-    @SerialName("envs") val envs: RemoteField<List<ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992>> = RemoteField.Missing,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("agentKinds", "List<String>", true, false, null, null, null, null, 1, null, null, null, listOf()),
-            RemoteFieldDescriptor("envs", "List<ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992>", false, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedurerefreshAgentStatusesRequest_0cf7156720(
-    @SerialName("scope") val scope: RemoteField<ProcedurerefreshAgentStatusesRequestU2DScope_be6dbda06a> = RemoteField.Missing,
-    @SerialName("wslDistros") val wslDistros: RemoteField<List<String>> = RemoteField.Missing,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("scope", "ProcedurerefreshAgentStatusesRequestU2DScope_be6dbda06a", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("wslDistros", "List<String>", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

@@ -594,7 +594,8 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(dock.contains("gitSummary.totalDeletions"))
     XCTAssertTrue(dock.contains("thread?.worktreePath?.isEmpty == false"))
     XCTAssertTrue(dock.contains("point.3.connected.trianglepath.dotted"))
-    XCTAssertTrue(infoControls.contains(".frame(width: 28, height: 28)"))
+    XCTAssertTrue(infoControls.contains(".frame(minWidth: 28, minHeight: 28)"))
+    XCTAssertTrue(infoControls.contains(".fixedSize(horizontal: true, vertical: false)"))
     XCTAssertTrue(infoControls.contains("struct RichChatProgressRing: View"))
     XCTAssertTrue(
       infoControls.contains(

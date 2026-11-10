@@ -6,6 +6,173 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class WebSocketClientMessageU2DOptionU2D11U2DType_25e47114d3 {
+    @SerialName("thread-item-interests") THREADU2DITEMU2DINTERESTS,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D11_93bef3a552(
+    @SerialName("threadIds") val threadIds: List<String>,
+    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D11U2DType_25e47114d3,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("threadIds", "List<String>", true, false, null, null, null, null, null, 200, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D11U2DType_25e47114d3", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D1U2DType_9f6b436502 {
+    @SerialName("agent-vision-watch") AGENTU2DVISIONU2DWATCH,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D1_9eaa25e68d(
+    @SerialName("threadId") val threadId: String,
+    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D1U2DType_9f6b436502,
+    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72,
+    @SerialName("watchId") val watchId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, 256, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D1U2DType_9f6b436502", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("watchId", "String", true, false, null, null, 1, 128, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D2U2DType_f802abb4a3 {
+    @SerialName("agent-vision-unwatch") AGENTU2DVISIONU2DUNWATCH,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D2_107db71e16(
+    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D2U2DType_f802abb4a3,
+    @SerialName("watchId") val watchId: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D2U2DType_f802abb4a3", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("watchId", "String", true, false, null, null, 1, 128, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D3U2DType_fe79d48b8a {
+    @SerialName("ping") PING,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D3_1709690cf0(
+    @SerialName("id") val id: RemoteField<String> = RemoteField.Missing,
+    @SerialName("sentAt") val sentAt: RemoteField<Double> = RemoteField.Missing,
+    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D3U2DType_fe79d48b8a,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("id", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("sentAt", "Double", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D3U2DType_fe79d48b8a", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D4U2DType_3f5bcd72f9 {
+    @SerialName("browser-watch") BROWSERU2DWATCH,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D4_2b7b34c95b(
+    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D4U2DType_3f5bcd72f9,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D4U2DType_3f5bcd72f9", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D5U2DType_225e53f995 {
+    @SerialName("browser-unwatch") BROWSERU2DUNWATCH,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D5_0e8f58f429(
+    @SerialName("type") val type: WebSocketClientMessageU2DOptionU2D5U2DType_225e53f995,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("type", "WebSocketClientMessageU2DOptionU2D5U2DType_225e53f995", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D1_75aa7b0623(
+    @SerialName("kind") val kind: RoutedeviceU2DActionRequestU2DOptionU2D1U2DKind_ef917452dc,
+    @SerialName("x") val x: Double,
+    @SerialName("y") val y: Double,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "RoutedeviceU2DActionRequestU2DOptionU2D1U2DKind_ef917452dc", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("x", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("y", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D2U2DKind_00ebeb8fef {
+    @SerialName("scroll") SCROLL,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D2_41ffeb2050(
+    @SerialName("deltaX") val deltaX: Double,
+    @SerialName("deltaY") val deltaY: Double,
+    @SerialName("kind") val kind: WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D2U2DKind_00ebeb8fef,
+    @SerialName("x") val x: Double,
+    @SerialName("y") val y: Double,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("deltaX", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("deltaY", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D2U2DKind_00ebeb8fef", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("x", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("y", "Double", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D3U2DKind_19030914d1 {
+    @SerialName("insert-text") INSERTU2DTEXT,
+}
+
+@Serializable
+data class WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D3_8906d017ba(
+    @SerialName("kind") val kind: WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D3U2DKind_19030914d1,
+    @SerialName("text") val text: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("kind", "WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D3U2DKind_19030914d1", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("text", "String", true, false, null, null, 1, 1024, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 enum class WebSocketClientMessageU2DOptionU2D6U2DInputU2DOptionU2D4U2DKey_7df0b39f18 {
     @SerialName("enter") ENTER,
     @SerialName("backspace") BACKSPACE,
@@ -264,180 +431,4 @@ enum class WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2
     @SerialName("forbidden") FORBIDDEN,
     @SerialName("not-found") NOTU2DFOUND,
     @SerialName("unavailable") UNAVAILABLE,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D2_b9d24da842(
-    @SerialName("code") val code: WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D2U2DCode_c8425979fd,
-    @SerialName("reason") val reason: RemoteField<String> = RemoteField.Missing,
-    @SerialName("retryable") val retryable: Boolean,
-    @SerialName("status") val status: ProcedurebeginMcpServerOauthResultU2DOptionU2D3U2DStatus_c086073e61,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("code", "WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D2U2DCode_c8425979fd", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("reason", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("retryable", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("status", "ProcedurebeginMcpServerOauthResultU2DOptionU2D3U2DStatus_c086073e61", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable(with = WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee.Serializer::class)
-sealed interface WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee {
-    data class Option1(val value: WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D1_ab08aad343) : WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee
-    data class Option2(val value: WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D2_b9d24da842) : WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee
-    object Serializer : KSerializer<WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee")
-        override fun deserialize(decoder: Decoder): WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "status", listOf(JsonPrimitive("ready")))) { Option1(jsonDecoder.json.decodeFromJsonElement<WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D1_ab08aad343>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "status", listOf(JsonPrimitive("error")))) { Option2(jsonDecoder.json.decodeFromJsonElement<WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D2_b9d24da842>(element)) }
-            return RemoteUnionCodec.single("WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee", matches)
-        }
-        override fun serialize(encoder: Encoder, value: WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D1_ab08aad343>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResultU2DOptionU2D2_b9d24da842>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
-    }
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D10U2DCursorSync_c533fb8759(
-    @SerialName("result") val result: WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee,
-    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72,
-    @SerialName("watchId") val watchId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("result", "WebSocketServerMessageU2DOptionU2D10U2DCursorSyncU2DResult_80f7976aee", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("watchId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D10U2DType_0797160858 {
-    @SerialName("terminal-watch-result") TERMINALU2DWATCHU2DRESULT,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D10_4655073d71(
-    @SerialName("cursorSync") val cursorSync: WebSocketServerMessageU2DOptionU2D10U2DCursorSync_c533fb8759,
-    @SerialName("id") val id: String,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D10U2DType_0797160858,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("cursorSync", "WebSocketServerMessageU2DOptionU2D10U2DCursorSync_c533fb8759", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D10U2DType_0797160858", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D11U2DCursorSync_9dd9855628(
-    @SerialName("chunkCount") val chunkCount: Long,
-    @SerialName("chunkIndex") val chunkIndex: Long,
-    @SerialName("data") val data: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
-    @SerialName("fromCursor") val fromCursor: Long,
-    @SerialName("generation") val generation: RemoteField<String>,
-    @SerialName("processState") val processState: ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DProcessState_f156a9bc12,
-    @SerialName("resumeServed") val resumeServed: Boolean,
-    @SerialName("terminalSize") val terminalSize: RemoteField<ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09>,
-    @SerialName("toCursor") val toCursor: Long,
-    @SerialName("version") val version: RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItemU2DIntensityU2DOptionU2D3_f8ba039a2f,
-    @SerialName("watchId") val watchId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("chunkCount", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("chunkIndex", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("data", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("fromCursor", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("generation", "String", true, true, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("processState", "ProcedurereadTerminalSnapshotResultU2DOptionU2D1U2DProcessState_f156a9bc12", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("resumeServed", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("terminalSize", "ProcedureensureThreadRunningRequestU2DInitialSize_55ee222c09", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("toCursor", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("version", "RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmapU2DCellsU2DItemU2DIntensityU2DOptionU2D3_f8ba039a2f", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("watchId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf("terminal.cursor.baseline-chunk-utf16"))
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D11U2DType_114549e732 {
-    @SerialName("terminal-watch-baseline-chunk") TERMINALU2DWATCHU2DBASELINEU2DCHUNK,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D11_e65689e97e(
-    @SerialName("cursorSync") val cursorSync: WebSocketServerMessageU2DOptionU2D11U2DCursorSync_9dd9855628,
-    @SerialName("id") val id: String,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D11U2DType_114549e732,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("cursorSync", "WebSocketServerMessageU2DOptionU2D11U2DCursorSync_9dd9855628", true, false, null, null, null, null, null, null, null, null, listOf("terminal.cursor.baseline-chunk-utf16")),
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D11U2DType_114549e732", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D12U2DSpace_22c1b4b934 {
-    @SerialName("ipc") IPC,
-    @SerialName("loopback") LOOPBACK,
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D12U2DType_829c74ec0a {
-    @SerialName("desktop-event") DESKTOPU2DEVENT,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D12_f1c1581e17(
-    @SerialName("event") val event: JsonElement,
-    @SerialName("seq") val seq: Long,
-    @SerialName("space") val space: RemoteField<WebSocketServerMessageU2DOptionU2D12U2DSpace_22c1b4b934> = RemoteField.Missing,
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D12U2DType_829c74ec0a,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("event", "JsonElement", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("seq", "Long", true, false, null, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("space", "WebSocketServerMessageU2DOptionU2D12U2DSpace_22c1b4b934", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D12U2DType_829c74ec0a", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class WebSocketServerMessageU2DOptionU2D1U2DType_83c210ec93 {
-    @SerialName("agent-vision-frame") AGENTU2DVISIONU2DFRAME,
-}
-
-@Serializable
-data class WebSocketServerMessageU2DOptionU2D1_48916cddaa(
-    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D1U2DType_83c210ec93,
-    @SerialName("vision") val vision: RemoteField<RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1_1e25c599a6>,
-    @SerialName("watchId") val watchId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D1U2DType_83c210ec93", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("vision", "RoutethreadU2DAgentU2DVisionResponseU2DOptionU2D1_1e25c599a6", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("watchId", "String", true, false, null, null, 1, 128, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

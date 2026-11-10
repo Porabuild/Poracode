@@ -74,6 +74,7 @@ private fun activitySummaryPriority(iconKey: String): Int = when (iconKey) {
     RichItemTypes.WEB_SEARCH -> 1
     RichItemTypes.FILE_CHANGE -> 2
     RichItemTypes.COMMAND_EXECUTION -> 3
+    RichItemTypes.MCP_TOOL_CALL -> 4
     RichItemTypes.TOOL_CALL -> 5
     else -> 6
 }
@@ -84,6 +85,7 @@ internal fun activitySummaryPluralRes(iconKey: String): Int = when (iconKey) {
     RichItemTypes.WEB_SEARCH -> R.plurals.rich_chat_activity_search
     RichItemTypes.FILE_CHANGE -> R.plurals.rich_chat_activity_edit
     RichItemTypes.COMMAND_EXECUTION -> R.plurals.rich_chat_activity_command
+    RichItemTypes.MCP_TOOL_CALL -> R.plurals.rich_chat_activity_mcp
     RichItemTypes.REASONING -> R.plurals.rich_chat_activity_thought
     else -> R.plurals.rich_chat_activity_tool
 }

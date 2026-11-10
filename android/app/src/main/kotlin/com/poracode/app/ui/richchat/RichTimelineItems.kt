@@ -464,25 +464,6 @@ private val TYPE_PREFIXED_ACTIVITIES = setOf(
     RichItemTypes.WEB_SEARCH,
 )
 
-/** Icon vocabulary for activity rows, keyed by canonical item type. */
-internal fun activityIconKey(item: RichRuntimeItem): String = when (item.type) {
-    RichItemTypes.TOOL_CALL, RichItemTypes.DYNAMIC_TOOL_CALL, RichItemTypes.MCP_TOOL_CALL -> RichItemTypes.TOOL_CALL
-    else -> item.type
-}
-
-internal fun activityIcon(key: String): ImageVector = when (key) {
-    RichItemTypes.REASONING -> PoracodeIcons.Brain
-    RichItemTypes.COMMAND_EXECUTION -> PoracodeIcons.Terminal
-    RichItemTypes.FILE_CHANGE -> PoracodeIcons.Edit
-    RichItemTypes.WEB_SEARCH -> PoracodeIcons.Search
-    RichItemTypes.IMAGE_VIEW -> PoracodeIcons.Eye
-    RichItemTypes.PLAN, RichItemTypes.GOAL -> PoracodeIcons.Checklist
-    RichItemTypes.ERROR -> PoracodeIcons.ErrorOutline
-    RichItemTypes.USER_MESSAGE, RichItemTypes.QUESTION_ANSWER -> PoracodeIcons.MarkChatUnread
-    RichItemTypes.ASSISTANT_MESSAGE -> PoracodeIcons.AutoAwesome
-    else -> PoracodeIcons.Build
-}
-
 @Composable
 private fun itemTypeLabel(type: String): String = stringResource(
     when (type) {

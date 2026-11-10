@@ -306,7 +306,7 @@ private fun SettingsUsageCard(
 }
 
 @Composable
-private fun SettingsUsageMeterRow(window: SettingsUsageMeter, nowMillis: Long) {
+internal fun SettingsUsageMeterRow(window: SettingsUsageMeter, nowMillis: Long) {
     val colors = PoracodeTheme.colors
     val projection = SettingsUsagePresentation.projection(window, nowMillis)
     val pace = SettingsUsagePresentation.pace(window, nowMillis)
@@ -423,7 +423,7 @@ private fun SettingsUsagePaceNote(pace: SettingsUsagePace) {
 }
 
 @Composable
-private fun usageToneColor(tone: SettingsUsageTone): Color {
+internal fun usageToneColor(tone: SettingsUsageTone): Color {
     val colors = PoracodeTheme.colors
     return when (tone) {
         SettingsUsageTone.Normal -> colors.foreground
@@ -462,7 +462,7 @@ private fun localizedEnvironment(value: String): String = when (value.lowercase(
 }
 
 @Composable
-private fun localizedUsageStatus(value: String): String = when (value) {
+internal fun localizedUsageStatus(value: String): String = when (value) {
     "ok" -> stringResource(R.string.settings_usage_available)
     "auth-missing" -> stringResource(R.string.settings_agent_signed_out)
     "app-not-running" -> stringResource(R.string.settings_usage_app_not_running)

@@ -279,4 +279,5 @@
     <string name="rich_chat_html_visual_unavailable">Etkileşimli görüntüleme kullanılamıyor. Yalnızca kaynak kod gösteriliyor.</string>
     <string name="rich_chat_html_visual_open_link_title">Bağlantı açılsın mı?</string>
     <string name="rich_chat_html_visual_open_link">Aç</string>
+    <string name="rich_chat_scroll_to_bottom">En alta kaydır</string>
 </resources>

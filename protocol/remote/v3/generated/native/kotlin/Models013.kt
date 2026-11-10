@@ -6,6 +6,33 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class ProcedurehexVoiceRequestU2DOptionU2D8U2DAction_11da754926 {
+    @SerialName("append") APPEND,
+}
+
+@Serializable
+data class ProcedurehexVoiceRequestU2DOptionU2D8_5a9666a2c5(
+    @SerialName("action") val action: ProcedurehexVoiceRequestU2DOptionU2D8U2DAction_11da754926,
+    @SerialName("audioBase64") val audioBase64: String,
+    @SerialName("id") val id: String,
+    @SerialName("offset") val offset: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("action", "ProcedurehexVoiceRequestU2DOptionU2D8U2DAction_11da754926", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("audioBase64", "String", true, false, null, null, 4, 262144, null, null, "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$", null, listOf()),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
+            RemoteFieldDescriptor("offset", "Long", true, false, 0.0, 9600044.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class ProcedurehexVoiceRequestU2DOptionU2D9U2DAction_c408d3b674 {
+    @SerialName("finish") FINISH,
+}
+
+@Serializable
 data class ProcedurehexVoiceRequestU2DOptionU2D9_5ffdb22692(
     @SerialName("action") val action: ProcedurehexVoiceRequestU2DOptionU2D9U2DAction_c408d3b674,
     @SerialName("id") val id: String,
@@ -404,38 +431,4 @@ data class ProcedureimportSkillsResult_82088d0ad1(
 enum class ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa {
     @SerialName("skills-sh") SKILLSU2DSH,
     @SerialName("skills-directory") SKILLSU2DDIRECTORY,
-}
-
-@Serializable
-data class ProcedureinstallMarketplaceSkillRequest_0093611cbb(
-    @SerialName("availability") val availability: RemoteField<ProcedureimportSkillsRequestU2DSkillsU2DItemU2DAvailability_9c8337f42f> = RemoteField.Missing,
-    @SerialName("destinationScope") val destinationScope: ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11,
-    @SerialName("marketplace") val marketplace: ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa,
-    @SerialName("marketplaceSkillId") val marketplaceSkillId: String,
-    @SerialName("projectLocation") val projectLocation: RemoteField<ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154> = RemoteField.Missing,
-    @SerialName("replace") val replace: RemoteField<Boolean> = RemoteField.Missing,
-    @SerialName("wslDistro") val wslDistro: RemoteField<String> = RemoteField.Missing,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("availability", "ProcedureimportSkillsRequestU2DSkillsU2DItemU2DAvailability_9c8337f42f", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("destinationScope", "ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("marketplace", "ProcedureinstallMarketplaceSkillRequestU2DMarketplace_118f67a0fa", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("marketplaceSkillId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("replace", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("wslDistro", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProcedureinstallMarketplaceSkillResult_d6e0ba68c8(
-    @SerialName("installed") val installed: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("installed", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

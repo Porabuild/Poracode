@@ -279,4 +279,5 @@
     <string name="rich_chat_html_visual_unavailable">Widok interaktywny jest niedostępny. Wyświetlany jest tylko kod źródłowy.</string>
     <string name="rich_chat_html_visual_open_link_title">Otworzyć link?</string>
     <string name="rich_chat_html_visual_open_link">Otwórz</string>
+    <string name="rich_chat_scroll_to_bottom">Przewiń na dół</string>
 </resources>

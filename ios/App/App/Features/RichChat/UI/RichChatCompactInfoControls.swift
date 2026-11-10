@@ -72,12 +72,7 @@ struct RichChatCompactInfoControls: View {
   let select: (RichChatCompactControlDestination) -> Void
 
   var body: some View {
-    HStack(spacing: 10) {
-      if let contextControl {
-        PoracodeCompactControlGroup {
-          contextButton(contextControl)
-        }
-      }
+    HStack(spacing: 6) {
       if !groupedControls.isEmpty {
         ScrollView(.horizontal, showsIndicators: false) {
           PoracodeCompactControlGroup {
@@ -91,6 +86,11 @@ struct RichChatCompactInfoControls: View {
         .scrollClipDisabled()
       }
       Spacer(minLength: 0)
+      if let contextControl {
+        PoracodeCompactControlGroup {
+          contextButton(contextControl)
+        }
+      }
       if let usageControl {
         PoracodeCompactControlGroup {
           Button {
@@ -137,13 +137,13 @@ struct RichChatCompactInfoControls: View {
     Button {
       select(control.destination)
     } label: {
-      ZStack {
-        RichChatProgressRing(percent: control.progressPercent, diameter: 22, lineWidth: 2)
-        Image(systemName: control.systemImage)
-          .font(.system(size: 8, weight: .semibold))
-          .foregroundStyle(.secondary)
-      }
-      .frame(width: 28, height: 28)
+      Text(control.progressPercent.map { ($0 / 100).formatted(.percent.precision(.fractionLength(0))) } ?? "—")
+      .font(.system(size: 11, weight: .medium, design: .monospaced))
+      .foregroundStyle(.primary)
+      .lineLimit(1)
+      .frame(minWidth: 28, minHeight: 28)
+      .fixedSize(horizontal: true, vertical: false)
+      .padding(.horizontal, 4)
       .contentShape(Circle())
     }
     .buttonStyle(.plain)
@@ -169,11 +169,16 @@ struct RichChatCompactInfoControls: View {
 
   private func controlLabel(_ control: RichChatCompactInfoControl) -> some View {
     HStack(spacing: 5) {
-      Image(systemName: control.systemImage)
-        .resizable()
-        .scaledToFit()
-        .frame(width: 13, height: 13)
-        .foregroundStyle(control.tone.color)
+      if control.gitChanges != nil {
+        RichChatIcon(.gitBranch)
+          .foregroundStyle(control.tone.color)
+      } else {
+        Image(systemName: control.systemImage)
+          .resizable()
+          .scaledToFit()
+          .frame(width: 13, height: 13)
+          .foregroundStyle(control.tone.color)
+      }
       if let changes = control.gitChanges {
         if changes.insertions > 0 {
           Text("+\(changes.insertions)").foregroundStyle(.green)

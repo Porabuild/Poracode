@@ -26,6 +26,9 @@ layout logic stay in parity; visual expression is idiomatic per platform.
   or small status indicators for real semantic state (selection, active work,
   warning, failure, connectivity); provider identity alone is not a colored
   state.
+  Transcript actions and activity use the PWA's Lucide template assets, generated
+  by `scripts/generate-ios-chat-icons.mjs`; keep the shared meanings and glyphs
+  aligned with Android and the PWA instead of choosing unrelated SF Symbols.
 - **Primary-action reachability:** on phone layouts, put a page's safe, central
   action in the bottom thumb-reachable area at the lower trailing side, not the
   top bar or horizontal center. Reuse `PoracodeBottomActionDock` for one action
@@ -158,7 +161,8 @@ page chrome come from the Poracode design system in
 - **Shared components** (`ui/components/`): reuse these instead of restyling
   Material components per screen.
   - Headers: `PoracodeHomeHeader`, `PoracodePageHeader`, and
-    `PoracodeTopAppBar`, all 48 dp.
+    `PoracodeTopAppBar`, all 48 dp, with plain `PoracodeIconButton` actions and
+    no divider beneath the header. Glass circles belong to floating controls.
   - Bottom row: `PoracodeBottomBar` with `PoracodeCircleButton` and
     `PoracodeFloatingPill`. Search or refresh sits lower leading; add or more
     sits lower trailing. Lists under it reserve about 96 dp of bottom padding.

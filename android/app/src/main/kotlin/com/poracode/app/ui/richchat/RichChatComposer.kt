@@ -53,7 +53,6 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.foundation.shape.CircleShape
 import com.poracode.app.R
-import com.poracode.app.chat.RichContextUsage
 import com.poracode.app.chat.RichPromptSegment
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.AgentStatusEntry
@@ -76,7 +75,6 @@ data class PickedAttachmentUpload(
 fun RichChatComposer(
     contextKey: String,
     userHiddenModels: kotlinx.serialization.json.JsonObject? = null,
-    contextUsage: RichContextUsage?,
     draft: String,
     attachments: List<UploadedAttachment>,
     sending: Boolean,
@@ -200,9 +198,6 @@ fun RichChatComposer(
             ),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-            // Context usage keeps its own disclosure above the card; the model
-            // controls live in the card's toolbar like the PWA composer.
-            RuntimeContextUsageDock(contextKey, contextUsage) {}
             if (slashSuggestions.isNotEmpty()) {
                 RichChatSlashSuggestions(
                     options = slashSuggestions,

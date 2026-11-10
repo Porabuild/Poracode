@@ -415,11 +415,13 @@ internal fun HomeDestinationScreenContent(
     deviceSettingsState: DeviceSettingsState,
     userHiddenModels: kotlinx.serialization.json.JsonObject?,
     onRefreshModelVisibility: () -> Unit,
+    providerUsageControl: @Composable (com.poracode.app.model.RemoteThread?, com.poracode.app.model.AgentStatusEntry?) -> Unit,
 ) {
     androidx.compose.runtime.LaunchedEffect(state.hostCatalog.selectedConnectionId, state.openThreadId) {
         onRefreshModelVisibility()
     }
     HomeScreen(
+        providerUsageControl = providerUsageControl,
         userHiddenModels = userHiddenModels,
         onRefreshModelVisibility = onRefreshModelVisibility,
         state = state,

@@ -31,7 +31,10 @@ data class SettingsProviderUsageRow(
     val status: String,
     val plan: String?,
     val meters: List<SettingsUsageMeter>,
+    val ringLayout: SettingsUsageRingLayout? = null,
 )
+
+data class SettingsUsageRingLayout(val outerWindowId: String?, val innerWindowId: String?)
 
 data class SettingsAgentsProjection(
     val agents: List<SettingsAgentRow>,
@@ -80,6 +83,9 @@ internal fun projectAgents(
             displayName = SettingsUsagePresentation.providerLabel(providerId),
             status = value.string("status") ?: "unknown",
             plan = value.string("plan"),
+            ringLayout = (usage?.ringLayouts?.get(providerId) as? JsonObject)?.let {
+                SettingsUsageRingLayout(it.string("outerWindowId"), it.string("innerWindowId"))
+            },
             meters = value.objects("windows").mapNotNull { window ->
                 val id = window.string("id") ?: return@mapNotNull null
                 val label = window.string("label") ?: return@mapNotNull null

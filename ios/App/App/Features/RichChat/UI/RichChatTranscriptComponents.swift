@@ -48,7 +48,7 @@ struct RichChatTranscriptItemView: View {
           if let duration {
             Text(duration)
               .poracodeChatText(.metadata)
-              .foregroundStyle(.tertiary)
+              .foregroundStyle(.secondary)
               .padding(.top, 2)
           }
         }
@@ -63,7 +63,7 @@ struct RichChatTranscriptItemView: View {
         RichChatActivityRow(
           title: RichChatPresentation.typeLabel(for: item),
           text: bodyText,
-          systemImage: activitySystemImage,
+          icon: activityIcon,
           duration: duration,
           isWorking: isWorking
         )
@@ -78,22 +78,18 @@ struct RichChatTranscriptItemView: View {
     actions.completedTurnLabel(itemID: item.id)
   }
 
-  private var activitySystemImage: String {
-    switch item.type {
-    case "command_execution": "terminal"
-    case "file_change": "doc.badge.gearshape"
-    case "web_search": "globe"
-    case "image_view": "photo"
-    default: "wrench.and.screwdriver"
-    }
+  private var activityIcon: RichChatIcon.Kind {
+    RichChatIcon.Kind(category: RichChatActivityGroupSummary.category(for: item))
   }
 
   @ViewBuilder
   private var messageActions: some View {
     if actions.canCopy(item: item, text: text) {
-      Button(RichChatMessageActionStrings.copy, systemImage: "doc.on.doc") {
+      Button {
         UIPasteboard.general.string = text
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+      } label: {
+        Label { Text(RichChatMessageActionStrings.copy) } icon: { RichChatIcon(.copy) }
       }
     }
     if let plan = actions.revertPlan(itemID: item.id),
@@ -107,8 +103,10 @@ struct RichChatTranscriptItemView: View {
       }
     }
     if actions.canTruncate(itemID: item.id), let requestTruncate = actions.requestTruncate {
-      Button(RichChatStrings.truncateAction, systemImage: "scissors", role: .destructive) {
+      Button(role: .destructive) {
         requestTruncate(item.id)
+      } label: {
+        Label { Text(RichChatStrings.truncateAction) } icon: { RichChatIcon(.truncate) }
       }
       .accessibilityLabel(RichChatStrings.truncateAccessibilityLabel)
     }
@@ -122,13 +120,13 @@ struct RichChatTranscriptItemView: View {
     if !isWorking, hasInlineAction {
       HStack(spacing: 14) {
         if actions.canCopy(item: item, text: text) {
-          actionButton(RichChatMessageActionStrings.copy, systemImage: "doc.on.doc") {
+          actionButton(RichChatMessageActionStrings.copy, icon: .copy) {
             UIPasteboard.general.string = text
             UINotificationFeedbackGenerator().notificationOccurred(.success)
           }
         }
         if actions.canTruncate(itemID: item.id), let requestTruncate = actions.requestTruncate {
-          actionButton(RichChatStrings.truncateAction, systemImage: "scissors") {
+          actionButton(RichChatStrings.truncateAction, icon: .truncate) {
             requestTruncate(item.id)
           }
         }
@@ -136,7 +134,7 @@ struct RichChatTranscriptItemView: View {
           let anchor = actions.forkAnchorItemID(for: item.id),
           let requestFork = actions.requestFork
         {
-          actionButton(RichChatMessageActionStrings.forkAction, systemImage: "arrow.triangle.branch") {
+          actionButton(RichChatMessageActionStrings.forkAction, icon: .fork) {
             requestFork(anchor)
           }
         }
@@ -155,11 +153,10 @@ struct RichChatTranscriptItemView: View {
   }
 
   private func actionButton(
-    _ label: String, systemImage: String, action: @escaping () -> Void
+    _ label: String, icon: RichChatIcon.Kind, action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
-      Image(systemName: systemImage)
-        .contentTransition(.symbolEffect(.replace))
+      RichChatIcon(icon)
     }
     .buttonStyle(.plain)
     .accessibilityLabel(label)

@@ -1,4 +1,4 @@
-import { toEpochMs, usedPercentFromRemaining } from "../formatters";
+import { toEpochMs, usedPercentFromRemaining } from "../formatters.ts";
 import type { UsageWindow } from "../types";
 
 /**

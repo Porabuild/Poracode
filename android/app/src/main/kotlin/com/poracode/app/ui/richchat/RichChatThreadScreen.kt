@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.SnackbarHost
@@ -81,6 +80,7 @@ internal fun RichChatThreadScreen(
     onOpenProjectUtility: (HomeProjectUtility) -> Unit = {},
     projectName: String? = null, hostName: String? = null, hostOnline: Boolean = false,
     modifier: Modifier = Modifier,
+    providerUsageControl: @Composable (RemoteThread?, AgentStatusEntry?) -> Unit = { _, _ -> },
 ) {
     val backModifier = rememberPredictiveBackModifier(enabled = showBack, onBack = onBack)
     val state by runtime.chat.state.collectAsStateWithLifecycle()
@@ -294,8 +294,15 @@ internal fun RichChatThreadScreen(
             onOpenThread = onOpenThread,
         )
     }
-    Scaffold(
+    RichChatThreadSurface(
         modifier = modifier.then(backModifier),
+        hasComposer = !ThreadPresentationPolicy.isTerminal(thread?.presentationMode),
+        gitSummary = gitSummary, contextUsage = state.transcript?.contextUsage,
+        onOpenWorkspaceGit = onOpenWorkspaceGit,
+        providerUsageControl = { providerUsageControl(thread, agentStatus) },
+        auxiliaryControls = {
+            RichChatCompactRuntimeDock(runtime, agentStatus, projectLocation, canOperate, onOpenAgentSettings)
+        },
         containerColor = com.poracode.app.ui.theme.PoracodeTheme.colors.background,
         snackbarHost = { SnackbarHost(fileDownloadSnackbarHost) },
         topBar = {
@@ -303,7 +310,6 @@ internal fun RichChatThreadScreen(
                 title = title,
                 agentLabel = agentStatus?.label,
                 thread = thread,
-                gitSummary = gitSummary,
                 showBack = showBack,
                 hasSelection = state.selection != null,
                 refreshing = refreshing,
@@ -359,7 +365,6 @@ internal fun RichChatThreadScreen(
                     canConfigure = canConfigure,
                     currentThread = currentThreadForComposer,
                     followUpQueue = state.transcript?.followUpQueue,
-                    contextUsage = state.transcript?.contextUsage,
                     mentionItems = state.transcript?.itemsInOrder.orEmpty(),
                     workspaceFiles = workspaceFiles,
                     mentionThreads = mentionThreads,
@@ -412,7 +417,7 @@ internal fun RichChatThreadScreen(
                 )
             }
         },
-    ) { padding ->
+    ) { padding, layout ->
         if (ThreadPresentationPolicy.isTerminal(thread?.presentationMode)) {
             RichTerminalPane(
                 runtime = runtime,
@@ -421,12 +426,12 @@ internal fun RichChatThreadScreen(
                 textSizeSp = terminalTextSizeSp,
                 modifier = Modifier.padding(padding),
             )
-            return@Scaffold
+            return@RichChatThreadSurface
         }
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding).then(layout.backdrop),
         ) {
             RichChatForkOrigin(thread, onOpenThread)
             // Mirrors iOS's merged status view: a checkpoint restore/rollback/load failure is
@@ -474,11 +479,11 @@ internal fun RichChatThreadScreen(
                     message = stringResource(R.string.rich_chat_empty_message),
                 )
                 RichChatLoadPhase.Loaded -> RichChatLoadedTranscript(
+                    layout = layout,
                     runtime = runtime,
                     threadId = threadId,
                     agentStatus = agentStatus,
                     projectLocation = projectLocation,
-                    gitSummary = gitSummary,
                     canOperate = canOperate,
                     onOpenAgentSettings = onOpenAgentSettings,
                     onTruncateItem = { pendingTruncateItemId = it },
@@ -486,7 +491,6 @@ internal fun RichChatThreadScreen(
                     requestFork = requestFork,
                     forkBoundaryItemId = forkBoundaryItemId,
                     fileDownloadSnackbarHost = fileDownloadSnackbarHost,
-                    onOpenWorkspaceGit = onOpenWorkspaceGit,
                 )
             }
         }

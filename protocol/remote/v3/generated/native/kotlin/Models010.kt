@@ -5,6 +5,34 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+@Serializable(with = ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4.Serializer::class)
+sealed interface ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 {
+    data class Option1(val value: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
+    data class Option2(val value: Double) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
+    data class Option3(val value: Boolean) : ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4
+    object Serializer : KSerializer<ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4")
+        override fun deserialize(decoder: Decoder): ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 supports JSON only")
+            val element = jsonDecoder.decodeJsonElement()
+            val matches = mutableListOf<RemoteUnionMatch<ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesString(element)) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesNumber(element, integer = false)) { Option2(jsonDecoder.json.decodeFromJsonElement<Double>(element)) }
+            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesBoolean(element)) { Option3(jsonDecoder.json.decodeFromJsonElement<Boolean>(element)) }
+            return RemoteUnionCodec.first("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4", matches)
+        }
+        override fun serialize(encoder: Encoder, value: ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DDefaultValue_1994cc63e4 supports JSON only")
+            val element = when (value) {
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<Double>(value.value)
+                is Option3 -> jsonEncoder.json.encodeToJsonElement<Boolean>(value.value)
+            }
+            jsonEncoder.encodeJsonElement(element)
+        }
+    }
+}
+
 @Serializable
 enum class ProcedureghGetWorkflowDefinitionResultU2DDefinitionU2DInputsU2DItemU2DType_f450768848 {
     @SerialName("boolean") BOOLEAN,
@@ -408,42 +436,4 @@ data class ProcedureghPollPullRequestsResultU2DOptionU2D2U2DProblem_a663eabb01(
 @Serializable
 enum class ProcedureghPollPullRequestsResultU2DOptionU2D2U2DStatus_45cf23babe {
     @SerialName("blocked") BLOCKED,
-}
-
-@Serializable
-data class ProcedureghPollPullRequestsResultU2DOptionU2D2_938eaedae8(
-    @SerialName("problem") val problem: ProcedureghPollPullRequestsResultU2DOptionU2D2U2DProblem_a663eabb01,
-    @SerialName("status") val status: ProcedureghPollPullRequestsResultU2DOptionU2D2U2DStatus_45cf23babe,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("problem", "ProcedureghPollPullRequestsResultU2DOptionU2D2U2DProblem_a663eabb01", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("status", "ProcedureghPollPullRequestsResultU2DOptionU2D2U2DStatus_45cf23babe", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable(with = ProcedureghPollPullRequestsResult_729d8ec224.Serializer::class)
-sealed interface ProcedureghPollPullRequestsResult_729d8ec224 {
-    data class Option1(val value: ProcedureghPollPullRequestsResultU2DOptionU2D1_cbf9eddea4) : ProcedureghPollPullRequestsResult_729d8ec224
-    data class Option2(val value: ProcedureghPollPullRequestsResultU2DOptionU2D2_938eaedae8) : ProcedureghPollPullRequestsResult_729d8ec224
-    object Serializer : KSerializer<ProcedureghPollPullRequestsResult_729d8ec224> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedureghPollPullRequestsResult_729d8ec224")
-        override fun deserialize(decoder: Decoder): ProcedureghPollPullRequestsResult_729d8ec224 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedureghPollPullRequestsResult_729d8ec224 supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<ProcedureghPollPullRequestsResult_729d8ec224>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "status", listOf(JsonPrimitive("ready")))) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedureghPollPullRequestsResultU2DOptionU2D1_cbf9eddea4>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "status", listOf(JsonPrimitive("blocked")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedureghPollPullRequestsResultU2DOptionU2D2_938eaedae8>(element)) }
-            return RemoteUnionCodec.single("ProcedureghPollPullRequestsResult_729d8ec224", matches)
-        }
-        override fun serialize(encoder: Encoder, value: ProcedureghPollPullRequestsResult_729d8ec224) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedureghPollPullRequestsResult_729d8ec224 supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedureghPollPullRequestsResultU2DOptionU2D1_cbf9eddea4>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedureghPollPullRequestsResultU2DOptionU2D2_938eaedae8>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
-    }
 }

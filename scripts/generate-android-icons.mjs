@@ -6,7 +6,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+
+import { loadLucideIconNodes } from "./lib/lucide-icon-nodes.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(join(repoRoot, "package.json"));
@@ -145,6 +147,7 @@ const ICONS = {
   VisibilityOff: ["eye-off"],
   WarningAmber: ["triangle-alert"],
   Wifi: ["wifi"],
+  Wrench: ["wrench"],
 };
 
 const num = (value) => Number(value);
@@ -197,13 +200,7 @@ function elementPath([tag, attrs]) {
 }
 
 async function iconPaths(name) {
-  const file = join(lucideRoot, "dist/esm/icons", `${name}.mjs`);
-  const icon = await import(pathToFileURL(file).href);
-  if (icon.__iconNode) return icon.__iconNode.map(elementPath);
-  // Renamed icons are re-export aliases of their canonical module.
-  const alias = readFileSync(file, "utf8").match(/from '\.\/([a-z0-9-]+)\.mjs'/)?.[1];
-  if (!alias) throw new Error(`lucide icon ${name} has no icon node`);
-  return iconPaths(alias);
+  return (await loadLucideIconNodes(lucideRoot, name)).map(elementPath);
 }
 
 const entries = [];

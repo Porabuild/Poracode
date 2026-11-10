@@ -350,6 +350,7 @@ export function categorizeItem(item: RuntimeChatItem): GroupCategory {
 
 function deriveItemCategory(item: RuntimeChatItem): GroupCategory {
   if (item.type === "reasoning") return "thought";
+  if (item.type === "image_view") return "viewed";
   if (item.type === "command_execution") return categorizeCommandExecution(item);
   if (item.type === "file_change") return "edited";
   if (item.type === "web_search") return "searched";

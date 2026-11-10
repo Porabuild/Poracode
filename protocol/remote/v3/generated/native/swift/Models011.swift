@@ -39,6 +39,23 @@ public struct ProceduregetProviderUsageRequest_f2b9759b60: Codable, Sendable, Re
   }
 }
 
+public struct ProceduregetProviderUsageResultU2DRingLayoutsU2DValue_4b47ae3fc7: Codable, Sendable, RemoteModelMetadata {
+  public var innerWindowId: RemoteField<String> = .missing
+  public var outerWindowId: RemoteField<String> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "innerWindowId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "outerWindowId", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case innerWindowId = "innerWindowId"
+    case outerWindowId = "outerWindowId"
+  }
+}
+
+public typealias ProceduregetProviderUsageResultU2DRingLayouts_80c5703401 = [String: ProceduregetProviderUsageResultU2DRingLayoutsU2DValue_4b47ae3fc7]
+
 public enum ProceduregetProviderUsageResultU2DSnapshotsU2DItemU2DCostU2DPeriod_776626d203: String, Codable, Sendable {
   case `today` = "today"
   case `n7d` = "7d"
@@ -259,17 +276,20 @@ public struct ProceduregetProviderUsageResultU2DSnapshotsU2DItem_20d7b1e748: Cod
   }
 }
 
-public struct ProceduregetProviderUsageResult_b0304b9d9d: Codable, Sendable, RemoteModelMetadata {
+public struct ProceduregetProviderUsageResult_4c22b67e11: Codable, Sendable, RemoteModelMetadata {
   public var fromCache: Bool
+  public var ringLayouts: RemoteField<ProceduregetProviderUsageResultU2DRingLayouts_80c5703401> = .missing
   public var snapshots: [ProceduregetProviderUsageResultU2DSnapshotsU2DItem_20d7b1e748]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "fromCache", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "ringLayouts", typeName: "ProceduregetProviderUsageResultU2DRingLayouts_80c5703401", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "snapshots", typeName: "[ProceduregetProviderUsageResultU2DSnapshotsU2DItem_20d7b1e748]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
     case fromCache = "fromCache"
+    case ringLayouts = "ringLayouts"
     case snapshots = "snapshots"
   }
 }
@@ -422,26 +442,5 @@ public struct ProcedureghGetPrChecksRequest_50e8e4265c: Codable, Sendable, Remot
   private enum CodingKeys: String, CodingKey {
     case branch = "branch"
     case projectLocation = "projectLocation"
-  }
-}
-
-public struct ProcedureghGetWorkflowDefinitionRequest_30b422e470: Codable, Sendable, RemoteModelMetadata {
-  public var ghAccount: RemoteField<ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff> = .missing
-  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
-  public var ref: RemoteField<String> = .missing
-  public var workflowId: Int64
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "ghAccount", typeName: "ProcedurecloneRepoRequestU2DSourceU2DOptionU2D2U2DAccount_5646cf57ff", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "ref", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "workflowId", typeName: "Int64", required: true, nullable: false, minimum: 1, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case ghAccount = "ghAccount"
-    case projectLocation = "projectLocation"
-    case ref = "ref"
-    case workflowId = "workflowId"
   }
 }

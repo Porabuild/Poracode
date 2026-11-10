@@ -287,8 +287,8 @@ val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<
 val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60>
     get() = RemoteRootCodec("procedure.refreshProviderUsage.request", serializer<ProceduregetProviderUsageRequest_f2b9759b60>(), schema_f2b9759b60404656)
 
-val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_b0304b9d9d>
-    get() = RemoteRootCodec("procedure.refreshProviderUsage.result", serializer<ProceduregetProviderUsageResult_b0304b9d9d>(), schema_b0304b9d9dfc2690)
+val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_4c22b67e11>
+    get() = RemoteRootCodec("procedure.refreshProviderUsage.result", serializer<ProceduregetProviderUsageResult_4c22b67e11>(), schema_4c22b67e111cba1f)
 
 val RemoteRootCodecs.procedureU2ERelocateProjectU2ERequest: RemoteRootCodec<ProcedurerelocateProjectRequest_51fc061b3e>
     get() = RemoteRootCodec("procedure.relocateProject.request", serializer<ProcedurerelocateProjectRequest_51fc061b3e>(), schema_51fc061b3ecc735c)

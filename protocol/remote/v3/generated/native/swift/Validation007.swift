@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_636da2bdcbf5818d = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_6db96506f253ef73, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_637f685cb2418b8c = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_9ff1236d4782edc7, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_63a5f0fcbab4a3a8 = RemoteSchema(type: "object", required: Set(["id", "label", "selection"]), properties: ["brief": RemoteSchemas.schema_ba7dfbe6c754d186, "fallbacks": RemoteSchemas.schema_60a3d8687bc0025b, "id": RemoteSchemas.schema_020cad6f356d7c67, "label": RemoteSchemas.schema_6350bebbf3d13115, "noEdits": RemoteSchemas.schema_d2dd3595e1b5e5dc, "parallel": RemoteSchemas.schema_6fb5e1ff4ba2dc63, "selection": RemoteSchemas.schema_c33d76cdf9c7d5d7], additionalAllowed: false, unknownPolicy: .reject)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_763e82793f2a210a = RemoteSchema(type: "object", required: Set(["config", "connectionId", "offerSdp", "threadId"]), properties: ["config": RemoteSchemas.schema_281d24bbbaa46745, "connectionId": RemoteSchemas.schema_d855999aed5e6438, "offerSdp": RemoteSchemas.schema_e78ddc126c04f09d, "threadId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_7675a7cd6ae22dbd = RemoteSchema(type: "object", additionalSchema: RemoteSchemas.schema_d68bbd085678f807, propertyNames: RemoteSchemas.schema_bf0b727f7b1c6d07, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_76767b687c50a873 = RemoteSchema(type: "object", required: Set(["adapterKind", "id", "installKind", "installedAt", "name", "version"]), properties: ["adapterKind": RemoteSchemas.schema_36fea325bf1aca70, "icon": RemoteSchemas.schema_bf0b727f7b1c6d07, "id": RemoteSchemas.schema_36fea325bf1aca70, "installKind": RemoteSchemas.schema_e5d4267d1db7cbbf, "installations": RemoteSchemas.schema_9e2c34c2585a7941, "installedAt": RemoteSchemas.schema_36fea325bf1aca70, "name": RemoteSchemas.schema_36fea325bf1aca70, "version": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }

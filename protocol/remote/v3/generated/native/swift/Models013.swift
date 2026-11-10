@@ -1,5 +1,31 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct ProcedureghMergePrRequest_39d6579ca7: Codable, Sendable, RemoteModelMetadata {
+  public var admin: RemoteField<Bool> = .missing
+  public var method: RemoteField<ProcedureforgeMergePrAtHeadRequestU2DMethod_7237330838> = .missing
+  public var prNumber: Int64
+  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "admin", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "method", typeName: "ProcedureforgeMergePrAtHeadRequestU2DMethod_7237330838", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "prNumber", typeName: "Int64", required: true, nullable: false, minimum: 1, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case admin = "admin"
+    case method = "method"
+    case prNumber = "prNumber"
+    case projectLocation = "projectLocation"
+  }
+}
+
+public enum ProcedureghPollPullRequestsRequestU2DState_b191f81602: String, Codable, Sendable {
+  case `all` = "all"
+  case `open` = "open"
+}
+
 public struct ProcedureghPollPullRequestsRequest_559c498a02: Codable, Sendable, RemoteModelMetadata {
   public var branch: RemoteField<String> = .missing
   public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
@@ -415,35 +441,5 @@ public struct ProceduregitFinishMergeResult_41bff5c730: Codable, Sendable, Remot
     case stashPreserved = "stashPreserved"
     case stashReapplied = "stashReapplied"
     case success = "success"
-  }
-}
-
-public struct ProceduregitGetWorktreeOwnerResult_3a27703aea: Codable, Sendable, RemoteModelMetadata {
-  public var ownerToken: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "ownerToken", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case ownerToken = "ownerToken"
-  }
-}
-
-public struct ProceduregitGetWorktreeSourceBranchRequest_6900ba2bd9: Codable, Sendable, RemoteModelMetadata {
-  public var branch: String
-  public var projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154
-  public var sourceBranchOverride: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "branch", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "sourceBranchOverride", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case branch = "branch"
-    case projectLocation = "projectLocation"
-    case sourceBranchOverride = "sourceBranchOverride"
   }
 }

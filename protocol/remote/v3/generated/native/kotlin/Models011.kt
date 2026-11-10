@@ -6,6 +6,44 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProcedureghPollPullRequestsResultU2DOptionU2D2_938eaedae8(
+    @SerialName("problem") val problem: ProcedureghPollPullRequestsResultU2DOptionU2D2U2DProblem_a663eabb01,
+    @SerialName("status") val status: ProcedureghPollPullRequestsResultU2DOptionU2D2U2DStatus_45cf23babe,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("problem", "ProcedureghPollPullRequestsResultU2DOptionU2D2U2DProblem_a663eabb01", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("status", "ProcedureghPollPullRequestsResultU2DOptionU2D2U2DStatus_45cf23babe", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable(with = ProcedureghPollPullRequestsResult_729d8ec224.Serializer::class)
+sealed interface ProcedureghPollPullRequestsResult_729d8ec224 {
+    data class Option1(val value: ProcedureghPollPullRequestsResultU2DOptionU2D1_cbf9eddea4) : ProcedureghPollPullRequestsResult_729d8ec224
+    data class Option2(val value: ProcedureghPollPullRequestsResultU2DOptionU2D2_938eaedae8) : ProcedureghPollPullRequestsResult_729d8ec224
+    object Serializer : KSerializer<ProcedureghPollPullRequestsResult_729d8ec224> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedureghPollPullRequestsResult_729d8ec224")
+        override fun deserialize(decoder: Decoder): ProcedureghPollPullRequestsResult_729d8ec224 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedureghPollPullRequestsResult_729d8ec224 supports JSON only")
+            val element = jsonDecoder.decodeJsonElement()
+            val matches = mutableListOf<RemoteUnionMatch<ProcedureghPollPullRequestsResult_729d8ec224>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "status", listOf(JsonPrimitive("ready")))) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedureghPollPullRequestsResultU2DOptionU2D1_cbf9eddea4>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "status", listOf(JsonPrimitive("blocked")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedureghPollPullRequestsResultU2DOptionU2D2_938eaedae8>(element)) }
+            return RemoteUnionCodec.single("ProcedureghPollPullRequestsResult_729d8ec224", matches)
+        }
+        override fun serialize(encoder: Encoder, value: ProcedureghPollPullRequestsResult_729d8ec224) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedureghPollPullRequestsResult_729d8ec224 supports JSON only")
+            val element = when (value) {
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedureghPollPullRequestsResultU2DOptionU2D1_cbf9eddea4>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedureghPollPullRequestsResultU2DOptionU2D2_938eaedae8>(value.value)
+            }
+            jsonEncoder.encodeJsonElement(element)
+        }
+    }
+}
+
+@Serializable
 data class ProcedureghPostPrCommentRequest_189279e83c(
     @SerialName("body") val body: String,
     @SerialName("prNumber") val prNumber: Long,
@@ -399,44 +437,6 @@ data class ProceduregitMergeToSourceResult_0bd6eab0e2(
             RemoteFieldDescriptor("fastForward", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("merged", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("newSourceCommit", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class ProceduregitProjectSnapshotRequest_7e2ac4b648(
-    @SerialName("includeGhCheck") val includeGhCheck: RemoteField<Boolean> = RemoteField.Missing,
-    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("includeGhCheck", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-typealias ProceduregitProjectSnapshotResultU2DBranches_86a79adde4 = ProceduregitListBranchesResult_cbe0ba2411?
-
-typealias ProceduregitProjectSnapshotResultU2DGhAvailable_78c0e367e5 = Boolean?
-
-typealias ProceduregitProjectSnapshotResultU2DStatus_98139abfca = ProceduregetGitStatusResult_c1d4a9f752?
-
-typealias ProceduregitProjectSnapshotResultU2DWorktrees_694e88722e = List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>?
-
-@Serializable
-data class ProceduregitProjectSnapshotResult_d581274b50(
-    @SerialName("branches") val branches: RemoteField<ProceduregitListBranchesResult_cbe0ba2411>,
-    @SerialName("ghAvailable") val ghAvailable: RemoteField<Boolean>,
-    @SerialName("status") val status: RemoteField<ProceduregetGitStatusResult_c1d4a9f752>,
-    @SerialName("worktrees") val worktrees: RemoteField<List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>>,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("branches", "ProceduregitListBranchesResult_cbe0ba2411", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("ghAvailable", "Boolean", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("status", "ProceduregetGitStatusResult_c1d4a9f752", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktrees", "List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>", true, true, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

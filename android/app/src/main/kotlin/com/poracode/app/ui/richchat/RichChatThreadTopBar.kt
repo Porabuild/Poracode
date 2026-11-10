@@ -13,14 +13,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import com.poracode.app.R
+import com.poracode.app.session.HostPresentation
 import com.poracode.app.model.HOME_PROJECT_ID
 import com.poracode.app.model.ProjectLocation
-import com.poracode.app.model.RemoteGitSummary
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.threads.ThreadLifecycleController
-import com.poracode.app.ui.GitSummaryText
-import com.poracode.app.ui.components.PoracodeCircleButton
+import com.poracode.app.ui.components.PoracodeIconButton
 import com.poracode.app.ui.components.PoracodePageHeader
 import com.poracode.app.ui.components.PoracodeProjectHostLine
 import com.poracode.app.ui.home.HomeProjectUtility
@@ -31,15 +30,14 @@ import com.poracode.app.ui.thread.ThreadLifecycleActionsSheet
 import com.poracode.app.ui.thread.ThreadSheetAction
 
 /**
- * Compact thread header from the PWA: back chevron, one-line title over an agent,
- * status, and git line, and one "Thread actions" circle whose drawer carries
+ * Compact thread header from the PWA: back chevron, one-line title over the
+ * project and connected host, and one plain "Thread actions" icon whose drawer carries
  * refresh, close, and the lifecycle actions.
  */
 @Composable
 internal fun RichChatThreadTopBar(
     title: String,
     thread: RemoteThread?,
-    gitSummary: RemoteGitSummary?,
     showBack: Boolean,
     hasSelection: Boolean,
     refreshing: Boolean,
@@ -73,7 +71,14 @@ internal fun RichChatThreadTopBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 thread?.let {
-                    if (it.status == "launching") {
+                    if (projectName != null && hostName != null) {
+                        PoracodeProjectHostLine(
+                            project = projectName,
+                            host = HostPresentation.desktopTitle(hostName),
+                            online = hostOnline,
+                            modifier = androidx.compose.ui.Modifier.weight(1f, fill = false),
+                        )
+                    } else if (it.status == "launching") {
                         Text(
                             stringResource(
                                 R.string.thread_status_line,
@@ -87,13 +92,6 @@ internal fun RichChatThreadTopBar(
                             color = colors.muted.copy(alpha = 0.7f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = androidx.compose.ui.Modifier.weight(1f, fill = false),
-                        )
-                    } else if (projectName != null && hostName != null) {
-                        PoracodeProjectHostLine(
-                            project = projectName,
-                            host = hostName,
-                            online = hostOnline,
                             modifier = androidx.compose.ui.Modifier.weight(1f, fill = false),
                         )
                     } else {
@@ -111,11 +109,10 @@ internal fun RichChatThreadTopBar(
                         )
                     }
                 }
-                GitSummaryText.CompactLine(summary = gitSummary)
             }
         },
         trailing = {
-            PoracodeCircleButton(
+            PoracodeIconButton(
                 icon = PoracodeIcons.MoreHoriz,
                 contentDescription = stringResource(R.string.thread_lifecycle_actions),
                 onClick = { actionsOpen = true },

@@ -61,6 +61,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.poracode.app.R
 import com.poracode.app.chat.RichCompletedTurn
@@ -101,6 +102,8 @@ fun RichTimelineView(
     onForkItem: ((String) -> Unit)? = null,
     forkBoundaryItemId: String? = null,
     modifier: Modifier = Modifier,
+    backdrop: Modifier = Modifier,
+    bottomOverlayClearance: Dp = 0.dp,
     contentPadding: PaddingValues = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 16.dp),
 ) {
     val projection = RichTimeline.project(transcript.itemsInOrder)
@@ -132,7 +135,7 @@ fun RichTimelineView(
 
     LaunchedEffect(entries.size, headerCount, initialScrollComplete) {
         if (!initialScrollComplete && entries.isNotEmpty()) {
-            listState.scrollToItem(headerCount + entries.lastIndex)
+            listState.scrollToItem(headerCount + entries.size)
             initialScrollComplete = true
         }
     }
@@ -173,85 +176,87 @@ fun RichTimelineView(
             }
         }
     }
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .semantics { contentDescription = timelineDescription },
-        state = listState,
-        contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        if (hasOlder || loadingOlder) {
-            item(key = "older") {
-                TextButton(
-                    onClick = onLoadOlder,
-                    enabled = !loadingOlder,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        stringResource(
-                            if (loadingOlder) {
-                                R.string.rich_chat_loading_older
-                            } else {
-                                R.string.rich_chat_load_older
-                            },
-                        ),
-                        color = PoracodeTheme.colors.muted,
-                    )
-                }
-            }
-        }
-        entries.forEach { entry ->
-            when (entry) {
-                is RichTimelineEntry.Item -> item(key = entry.node.item.id) {
-                    Column {
-                        RichTimelineNode(
-                            entry.node,
-                            runtime,
-                            canMutate && entry.node.item.id !in inheritedIds,
-                            onTruncateItem,
-                            revertableItemIds,
-                            onRevertItem,
-                            canTruncateItem = canTruncateItem,
-                            depth = 0,
-                            trailingActions = { forkFooter(entry) },
+    RichTimelineScrollContainer(listState, initialScrollComplete, modifier, bottomOverlayClearance) {
+        LazyColumn(
+            modifier = backdrop
+                .fillMaxSize()
+                .semantics { contentDescription = timelineDescription },
+            state = listState,
+            contentPadding = contentPadding,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (hasOlder || loadingOlder) {
+                item(key = "older") {
+                    TextButton(
+                        onClick = onLoadOlder,
+                        enabled = !loadingOlder,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            stringResource(
+                                if (loadingOlder) {
+                                    R.string.rich_chat_loading_older
+                                } else {
+                                    R.string.rich_chat_load_older
+                                },
+                            ),
+                            color = PoracodeTheme.colors.muted,
                         )
-                        workedForLabel(entry, displayedTurns)?.let { label ->
-                            Text(
-                                label,
-                                modifier = Modifier.padding(top = 2.dp),
-                                style = PoracodeTextStyles.rowDescription,
-                                color = colors.muted,
-                            )
-                        }
-                    }
-                }
-                is RichTimelineEntry.Group -> item(key = entry.stableId) {
-                    Column {
-                        RichTimelineGroup(
-                            entry,
-                            runtime,
-                            canMutate && entry.members.all { it.item.id !in inheritedIds },
-                            onTruncateItem,
-                            revertableItemIds,
-                            onRevertItem,
-                            canTruncateItem,
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) { forkFooter(entry) }
-                        workedForLabel(entry, displayedTurns)?.let { label ->
-                            Text(
-                                label,
-                                modifier = Modifier.padding(top = 2.dp),
-                                style = PoracodeTextStyles.rowDescription,
-                                color = colors.muted,
-                            )
-                        }
                     }
                 }
             }
+            entries.forEach { entry ->
+                when (entry) {
+                    is RichTimelineEntry.Item -> item(key = entry.node.item.id) {
+                        Column {
+                            RichTimelineNode(
+                                entry.node,
+                                runtime,
+                                canMutate && entry.node.item.id !in inheritedIds,
+                                onTruncateItem,
+                                revertableItemIds,
+                                onRevertItem,
+                                canTruncateItem = canTruncateItem,
+                                depth = 0,
+                                trailingActions = { forkFooter(entry) },
+                            )
+                            workedForLabel(entry, displayedTurns)?.let { label ->
+                                Text(
+                                    label,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                    style = PoracodeTextStyles.rowDescription,
+                                    color = colors.muted,
+                                )
+                            }
+                        }
+                    }
+                    is RichTimelineEntry.Group -> item(key = entry.stableId) {
+                        Column {
+                            RichTimelineGroup(
+                                entry,
+                                runtime,
+                                canMutate && entry.members.all { it.item.id !in inheritedIds },
+                                onTruncateItem,
+                                revertableItemIds,
+                                onRevertItem,
+                                canTruncateItem,
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) { forkFooter(entry) }
+                            workedForLabel(entry, displayedTurns)?.let { label ->
+                                Text(
+                                    label,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                    style = PoracodeTextStyles.rowDescription,
+                                    color = colors.muted,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            item(key = "bottom-space") { Spacer(Modifier.height(8.dp)) }
         }
-        item(key = "bottom-space") { Spacer(Modifier.height(8.dp)) }
-    }
+        }
 }
 
 /** Collapsed activity summary (`1 view · 1 search · 1 thought ⌄`) that expands into its rows. */

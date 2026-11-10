@@ -42,7 +42,7 @@ import com.poracode.app.ui.theme.PoracodeTheme
 
 /**
  * Home header (`MobilePageHeader variant="home"`): a centered title over the
- * page background with optional leading and trailing circle actions.
+ * page background with optional leading and trailing plain icon actions.
  */
 @Composable
 fun PoracodeHomeHeader(

@@ -83,7 +83,7 @@ fun Modifier.poracodeFloatingSurface(shape: Shape = CircleShape, pressed: Boolea
     return surface.border(1.dp, colors.hairline.copy(alpha = colors.hairline.alpha * 0.55f), shape)
 }
 
-/** Shared 44 dp glass circle used by compact header and bottom-row actions (`MobileCircleButton`). */
+/** Shared 44 dp glass circle used by floating and bottom-row actions (`MobileCircleButton`). */
 @Composable
 fun PoracodeCircleButton(
     icon: ImageVector,

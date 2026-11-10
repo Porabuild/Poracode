@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:6739275d7fabb9b3cd35faa158a93f872d2afadcd6d5b77b66c9ab62596420ef"
+    const val sourceHash = "sha256:ed400b5f4388c42f54755aa1a401a057ab57fbcb48b4388691d81d1b799af47a"
     const val manifestHash = "sha256:aa02ce63840c7b523ef2c18c1f3ffbd9151673f9b2ce7c1a6350f481486a0928"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -98,7 +98,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("project-notes-read", "GET", "/api/projects/{projectId}/notes", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteprojectU2DNotesU2DReadResponse_d1eba06c8a", listOf()),
         RemoteRouteDescriptor("project-notes-write", "POST", "/api/projects/{projectId}/notes", "bearer", listOf("session:operate"), "json", "json", 200, "RouteprojectU2DNotesU2DWriteRequest_7b212bbb53", "ProcedurelistAcpRegistryRequest_81055c9199", listOf()),
         RemoteRouteDescriptor("project-settings", "GET", "/api/projects/{projectId}/settings", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RouteprojectU2DSettingsResponse_c1417bffe5", listOf()),
-        RemoteRouteDescriptor("provider-usage", "GET", "/api/provider-usage", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "ProceduregetProviderUsageResult_b0304b9d9d", listOf()),
+        RemoteRouteDescriptor("provider-usage", "GET", "/api/provider-usage", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "ProceduregetProviderUsageResult_4c22b67e11", listOf()),
         RemoteRouteDescriptor("push-config", "GET", "/api/push/config", "bearer", listOf("session:operate"), "empty", "json", 200, "RemoteUnit", "RoutepushU2DConfigResponse_f0c513c014", listOf()),
         RemoteRouteDescriptor("push-register", "POST", "/api/push/register", "bearer", listOf("session:operate"), "json", "json", 200, "RoutepushU2DRegisterRequest_98c9ef3e40", "RoutepushU2DRegisterResponse_9633843f8b", listOf()),
         RemoteRouteDescriptor("push-unregister", "POST", "/api/push/unregister", "bearer", listOf("session:operate"), "json", "json", 200, "RoutepushU2DUnregisterRequest_8f934fd77b", "RoutepushU2DRegisterResponse_9633843f8b", listOf()),
@@ -203,7 +203,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("getGitStatus", "session:read", "projectLocation", "json", "ProceduregetGitStatusRequest_c4d99dd3e3", "ProceduregetGitStatusResult_c1d4a9f752"),
         RemoteProcedureDescriptor("getLatestAgentVersion", "session:read", "desktop", "json", "ProceduregetLatestAgentVersionRequest_50280a13d2", "ProceduregetLatestAgentVersionResult_bfe4502f31"),
         RemoteProcedureDescriptor("getMcpOauthStatus", "session:read", "optionalProjectLocation", "json", "ProceduregetMcpOauthStatusRequest_c51ef8291e", "ProceduregetMcpOauthStatusResult_51733da614"),
-        RemoteProcedureDescriptor("getProviderUsage", "session:read", "desktop", "json", "ProceduregetProviderUsageRequest_f2b9759b60", "ProceduregetProviderUsageResult_b0304b9d9d"),
+        RemoteProcedureDescriptor("getProviderUsage", "session:read", "desktop", "json", "ProceduregetProviderUsageRequest_f2b9759b60", "ProceduregetProviderUsageResult_4c22b67e11"),
         RemoteProcedureDescriptor("getThreadFollowUpQueue", "session:read", "thread", "json", "ProcedurecancelExtractContextRequest_09b78d9c1d", "ProceduregetThreadFollowUpQueueResult_91dcfb42aa"),
         RemoteProcedureDescriptor("ghCancelWorkflowRun", "session:operate", "projectLocation", "omitted", "ProcedureghCancelWorkflowRunRequest_eb12aad287", "RemoteUnit"),
         RemoteProcedureDescriptor("ghCheckAvailable", "session:read", "projectLocation", "json", "ProceduregetGitStatusRequest_c4d99dd3e3", "ProcedureghCheckAvailableResult_e3b2f05936"),
@@ -289,7 +289,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("readTerminalSnapshot", "session:read", "thread", "json", "ProcedurecancelExtractContextRequest_09b78d9c1d", "ProcedurereadTerminalSnapshotResult_b67f4828f0"),
         RemoteProcedureDescriptor("readThreadBackgroundTasks", "session:read", "thread", "json", "ProcedurecancelExtractContextRequest_09b78d9c1d", "ProcedurereadThreadBackgroundTasksResult_f5906c75b7"),
         RemoteProcedureDescriptor("refreshAgentStatuses", "session:operate", "desktop", "json", "ProcedurerefreshAgentStatusesRequest_0cf7156720", "ProcedurerefreshAgentStatusesResult_e5e44e3ce8"),
-        RemoteProcedureDescriptor("refreshProviderUsage", "session:operate", "desktop", "json", "ProceduregetProviderUsageRequest_f2b9759b60", "ProceduregetProviderUsageResult_b0304b9d9d"),
+        RemoteProcedureDescriptor("refreshProviderUsage", "session:operate", "desktop", "json", "ProceduregetProviderUsageRequest_f2b9759b60", "ProceduregetProviderUsageResult_4c22b67e11"),
         RemoteProcedureDescriptor("relocateProject", "projects:manage", "project", "json", "ProcedurerelocateProjectRequest_51fc061b3e", "ProcedurerelocateProjectResult_c6ca4f58c0"),
         RemoteProcedureDescriptor("removeQueuedThreadFollowUp", "session:operate", "thread", "omitted", "ProcedurepauseThreadFollowUpsRequest_d42717fff2", "RemoteUnit"),
         RemoteProcedureDescriptor("renameProjectEntry", "session:operate", "projectLocation", "omitted", "ProcedurerenameProjectEntryRequest_4a22ffc9b4", "RemoteUnit"),

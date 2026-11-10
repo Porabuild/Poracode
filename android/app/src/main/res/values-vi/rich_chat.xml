@@ -279,4 +279,5 @@
     <string name="rich_chat_html_visual_unavailable">Không thể hiển thị tương tác. Chỉ hiển thị mã nguồn.</string>
     <string name="rich_chat_html_visual_open_link_title">Mở liên kết?</string>
     <string name="rich_chat_html_visual_open_link">Mở</string>
+    <string name="rich_chat_scroll_to_bottom">Cuộn xuống cuối</string>
 </resources>

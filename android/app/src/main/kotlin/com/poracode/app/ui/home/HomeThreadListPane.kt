@@ -59,7 +59,7 @@ import com.poracode.app.ui.components.EmptyStateView
 import com.poracode.app.ui.components.ErrorStateView
 import com.poracode.app.ui.components.LoadingStateView
 import com.poracode.app.ui.components.PoracodeBottomBar
-import com.poracode.app.ui.components.PoracodeCircleButton
+import com.poracode.app.ui.components.PoracodeIconButton
 import com.poracode.app.ui.components.PoracodeFloatingPill
 import com.poracode.app.ui.components.PoracodeHazeHost
 import com.poracode.app.ui.components.PoracodeHomeHeader
@@ -150,7 +150,7 @@ internal fun ThreadListPane(
                 },
                 trailing = {
                     Box {
-                        PoracodeCircleButton(
+                        PoracodeIconButton(
                             icon = PoracodeIcons.FilterList,
                             contentDescription = stringResource(R.string.home_filter_projects),
                             onClick = { filterExpanded = true },

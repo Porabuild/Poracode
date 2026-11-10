@@ -36,4 +36,10 @@
         <item quantity="many">%1$d думок</item>
         <item quantity="other">%1$d думки</item>
     </plurals>
+    <plurals name="rich_chat_activity_mcp">
+        <item quantity="one">%d MCP</item>
+        <item quantity="few">%d MCP</item>
+        <item quantity="many">%d MCP</item>
+        <item quantity="other">%d MCP</item>
+    </plurals>
 </resources>

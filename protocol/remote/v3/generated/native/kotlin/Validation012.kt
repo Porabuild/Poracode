@@ -5,6 +5,14 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_bf04d82b24729e4a: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("type"), properties = mapOf("type" to schema_53dc1dce3c536b94), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_bf0b727f7b1c6d07: RemoteSchema by lazy {
+    RemoteSchema(type = "string", unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_bf3a4ed0e5798352: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_7a4831c3c01cfb91, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -439,12 +447,4 @@ internal val schema_cd0a57f27ae4fccb: RemoteSchema by lazy {
 
 internal val schema_cd0f41825028e154: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("defaultSerial", "devices"), properties = mapOf("defaultSerial" to schema_97d85a5eaee82b97, "devices" to schema_0a18d7dfd6025fad), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_cd124b21d98c4aa2: RemoteSchema by lazy {
-    RemoteSchema(type = "object", properties = mapOf("actions" to schema_9f0df99b7a4b0249, "cleanupScript" to schema_bf0b727f7b1c6d07, "setupScript" to schema_bf0b727f7b1c6d07, "worktreeCopyPatterns" to schema_0f732b9fceb2c6ac), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_cd357f47aa772b6a: RemoteSchema by lazy {
-    RemoteSchema(type = "array", items = schema_0288aefad61e0244, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

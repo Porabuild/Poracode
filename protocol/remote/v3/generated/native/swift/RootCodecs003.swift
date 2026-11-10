@@ -73,7 +73,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ERefreshProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_b0304b9d9d> = .init(id: "procedure.refreshProviderUsage.result", schema: RemoteSchemas.schema_b0304b9d9dfc2690)
+  static let procedureU2ERefreshProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_4c22b67e11> = .init(id: "procedure.refreshProviderUsage.result", schema: RemoteSchemas.schema_4c22b67e111cba1f)
 }
 
 public extension RemoteRootCodecs {

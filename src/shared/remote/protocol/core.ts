@@ -48,6 +48,8 @@ import { gitStatePatchSchema } from "../../gitState";
 // GitHub polling adds an opt-in read procedure and optional project status.
 // Old snapshots stay valid; native Git state entries preserve unknown fields.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
+// Optional provider-usage ringLayouts adds display metadata only: v14 readers
+// ignore unknown fields, and new readers accept previous responses without it.
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 /**

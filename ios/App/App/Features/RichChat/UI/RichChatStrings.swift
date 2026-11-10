@@ -171,7 +171,7 @@ enum RichChatStrings {
 
   /// Canonical activity buckets shared with the PWA/Android summary wording.
   enum RichChatActivityCategory: String, Sendable, CaseIterable {
-    case view, search, edit, command, tool, thought
+    case view, search, edit, command, mcp, tool, thought
   }
 
   /// "1 view" / "2 tools" style count word for one activity category. The

@@ -18,4 +18,7 @@
     <plurals name="rich_chat_activity_thought">
         <item quantity="other">%1$d개 생각</item>
     </plurals>
+    <plurals name="rich_chat_activity_mcp">
+        <item quantity="other">%d MCP</item>
+    </plurals>
 </resources>

@@ -6,6 +6,44 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class ProceduregitProjectSnapshotRequest_7e2ac4b648(
+    @SerialName("includeGhCheck") val includeGhCheck: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("includeGhCheck", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+typealias ProceduregitProjectSnapshotResultU2DBranches_86a79adde4 = ProceduregitListBranchesResult_cbe0ba2411?
+
+typealias ProceduregitProjectSnapshotResultU2DGhAvailable_78c0e367e5 = Boolean?
+
+typealias ProceduregitProjectSnapshotResultU2DStatus_98139abfca = ProceduregetGitStatusResult_c1d4a9f752?
+
+typealias ProceduregitProjectSnapshotResultU2DWorktrees_694e88722e = List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>?
+
+@Serializable
+data class ProceduregitProjectSnapshotResult_d581274b50(
+    @SerialName("branches") val branches: RemoteField<ProceduregitListBranchesResult_cbe0ba2411>,
+    @SerialName("ghAvailable") val ghAvailable: RemoteField<Boolean>,
+    @SerialName("status") val status: RemoteField<ProceduregetGitStatusResult_c1d4a9f752>,
+    @SerialName("worktrees") val worktrees: RemoteField<List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>>,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("branches", "ProceduregitListBranchesResult_cbe0ba2411", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("ghAvailable", "Boolean", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("status", "ProceduregetGitStatusResult_c1d4a9f752", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("worktrees", "List<ProceduregitListWorktreesResultU2DWorktreesU2DItem_0288aefad6>", true, true, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class ProceduregitPruneWorktreesRequest_922ae6d8b3(
     @SerialName("activeWorktreePaths") val activeWorktreePaths: List<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
     @SerialName("projectLocation") val projectLocation: ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154,
@@ -408,31 +446,4 @@ data class ProcedurehexVoiceRequestU2DOptionU2D7_9501e4a8a7(
             RemoteFieldDescriptor("model", "String", true, false, null, null, 1, 128, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-enum class ProcedurehexVoiceRequestU2DOptionU2D8U2DAction_11da754926 {
-    @SerialName("append") APPEND,
-}
-
-@Serializable
-data class ProcedurehexVoiceRequestU2DOptionU2D8_5a9666a2c5(
-    @SerialName("action") val action: ProcedurehexVoiceRequestU2DOptionU2D8U2DAction_11da754926,
-    @SerialName("audioBase64") val audioBase64: String,
-    @SerialName("id") val id: String,
-    @SerialName("offset") val offset: Long,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("action", "ProcedurehexVoiceRequestU2DOptionU2D8U2DAction_11da754926", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("audioBase64", "String", true, false, null, null, 4, 262144, null, null, "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$", null, listOf()),
-            RemoteFieldDescriptor("id", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
-            RemoteFieldDescriptor("offset", "Long", true, false, 0.0, 9600044.0, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class ProcedurehexVoiceRequestU2DOptionU2D9U2DAction_c408d3b674 {
-    @SerialName("finish") FINISH,
 }

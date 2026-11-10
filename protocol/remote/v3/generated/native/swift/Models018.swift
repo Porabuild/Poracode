@@ -1,5 +1,51 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct ProcedureprobeMcpServerResultU2DOptionU2D1U2DServerInfo_820293e02a: Codable, Sendable, RemoteModelMetadata {
+  public var name: RemoteField<String> = .missing
+  public var version: RemoteField<String> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "name", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "version", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case name = "name"
+    case version = "version"
+  }
+}
+
+public enum ProcedureprobeMcpServerResultU2DOptionU2D1U2DStatus_7ce40fcb9f: String, Codable, Sendable {
+  case `available` = "available"
+}
+
+public struct ProcedureprobeMcpServerResultU2DOptionU2D1_d92866345c: Codable, Sendable, RemoteModelMetadata {
+  public var environment: ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironment_6b3ef80f7d
+  public var latencyMs: Int64
+  public var serverInfo: RemoteField<ProcedureprobeMcpServerResultU2DOptionU2D1U2DServerInfo_820293e02a> = .missing
+  public var status: ProcedureprobeMcpServerResultU2DOptionU2D1U2DStatus_7ce40fcb9f
+  public var toolCount: Int64
+  public var tools: RemoteField<[String]> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "environment", typeName: "ProcedureprobeMcpServerResultU2DOptionU2D1U2DEnvironment_6b3ef80f7d", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "latencyMs", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "serverInfo", typeName: "ProcedureprobeMcpServerResultU2DOptionU2D1U2DServerInfo_820293e02a", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "status", typeName: "ProcedureprobeMcpServerResultU2DOptionU2D1U2DStatus_7ce40fcb9f", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "toolCount", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "tools", typeName: "[String]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case environment = "environment"
+    case latencyMs = "latencyMs"
+    case serverInfo = "serverInfo"
+    case status = "status"
+    case toolCount = "toolCount"
+    case tools = "tools"
+  }
+}
+
 public enum ProcedureprobeMcpServerResultU2DOptionU2D2U2DErrorU2DAuthScheme_2d52ff1140: String, Codable, Sendable {
   case `oauth` = "oauth"
   case `bearer` = "bearer"
@@ -390,58 +436,4 @@ public typealias ProcedurereadThreadBackgroundTasksResult_f5906c75b7 = [Procedur
 
 public enum ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1U2DKind_236d6f96ed: String, Codable, Sendable {
   case `native` = "native"
-}
-
-public struct ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1_c538d0467a: Codable, Sendable, RemoteModelMetadata {
-  public var kind: ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1U2DKind_236d6f96ed
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "kind", typeName: "ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1U2DKind_236d6f96ed", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case kind = "kind"
-  }
-}
-
-public enum ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992: Codable, Sendable {
-  case option1(ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1_c538d0467a)
-  case option2(ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment_4cd2587996)
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    var matches: [(Int, ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992)] = []
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("native")]), let value = try? container.decode(ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItemU2DOptionU2D1_c538d0467a.self) {
-      matches.append((1, .option1(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("wsl")]), let value = try? container.decode(ProcedureconnectThreadVoiceRequestU2DConfigU2DExecutionEnvironment_4cd2587996.self) {
-      matches.append((2, .option2(value)))
-    }
-    guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992" : "Ambiguous union ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
-    }
-    self = matches[0].1
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    switch self {
-    case .option1(let value): try container.encode(value)
-    case .option2(let value): try container.encode(value)
-    }
-  }
-}
-
-public struct ProcedurerefreshAgentStatusesRequestU2DScope_be6dbda06a: Codable, Sendable, RemoteModelMetadata {
-  public var agentKinds: [String]
-  public var envs: RemoteField<[ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992]> = .missing
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "agentKinds", typeName: "[String]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: 1, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "envs", typeName: "[ProcedurerefreshAgentStatusesRequestU2DScopeU2DEnvsU2DItem_2583fd7992]", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case agentKinds = "agentKinds"
-    case envs = "envs"
-  }
 }
