@@ -21,6 +21,24 @@ export const HOST_IMPORT_RECEIPT_FILE = "host-import.json";
 export const HOST_ACTIVATION_MANIFEST_VERSION = 1;
 const MAX_MANIFEST_BYTES = 4_096;
 
+/**
+ * Directory names Poracode's own CLI tooling creates inside the profile
+ * namespace before any owned host exists. None can hold custodial profile
+ * state — the legacy profile layout never uses these names (see
+ * `src/shared/poracodePaths.ts`), so a namespace holding only these
+ * directories still counts as empty for first start:
+ * - `server`: the one-line installer's default prefix (`~/.poracode/server`);
+ * - `runtime`: the npx launcher cache (`<PORACODE_BASE_DIR>/runtime`);
+ * - `tls`: `init-tls` / `up --lan` certificate material (`<profile>/tls`).
+ * Only real directories qualify: a regular file or a symlink under one of
+ * these names still counts as namespace content.
+ */
+const NON_CUSTODIAL_NAMESPACE_DIRECTORIES: ReadonlySet<string> = new Set([
+  "server",
+  "runtime",
+  "tls",
+]);
+
 export interface HostRootManifest {
   readonly layoutVersion: typeof HOST_ROOT_LAYOUT_VERSION;
   readonly profileNamespace: string;
@@ -170,7 +188,10 @@ export interface PrepareOwnedHostRootOptions {
    * there is no custody lineage to review, so the owned root may start
    * empty beside it and the namespace is left untouched. The standalone
    * server keeps the strict default: an arbitrary nonempty
-   * PORACODE_BASE_DIR still requires an explicit import.
+   * PORACODE_BASE_DIR still requires an explicit import, except that
+   * directories Poracode's own CLI tooling creates before first start
+   * (`server`, `runtime`, `tls` — see
+   * NON_CUSTODIAL_NAMESPACE_DIRECTORIES) do not count as content.
    */
   readonly allowNonCustodialNamespace?: boolean;
 }
@@ -193,9 +214,17 @@ export function prepareOwnedHostRoot(
     throw new Error("The owned Poracode root contains state without a valid host-root manifest.");
   }
   const namespaceHasDatabase = existsSync(join(lease.paths.profileNamespace, "state.sqlite"));
+  const isToolingDirectory = (entry: string): boolean => {
+    if (!NON_CUSTODIAL_NAMESPACE_DIRECTORIES.has(entry)) return false;
+    try {
+      return lstatSync(join(lease.paths.profileNamespace, entry)).isDirectory();
+    } catch {
+      return false;
+    }
+  };
   if (
     existsSync(lease.paths.profileNamespace) &&
-    readdirSync(lease.paths.profileNamespace).length > 0 &&
+    readdirSync(lease.paths.profileNamespace).some((entry) => !isToolingDirectory(entry)) &&
     !(options.allowNonCustodialNamespace && !namespaceHasDatabase)
   ) {
     throw new HostImportRequiredError(lease.paths);

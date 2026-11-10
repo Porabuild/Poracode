@@ -262,4 +262,16 @@
     <string name="rich_chat_handoff_fork">分支对话</string>
     <string name="rich_chat_handoff_prompt">告诉新提供商接下来要做什么…</string>
     <string name="rich_chat_handoff_switch">切换</string>
+    <string name="rich_chat_html_visual_title">HTML 预览</string>
+    <string name="rich_chat_html_visual_source">源代码</string>
+    <string name="rich_chat_html_visual_preview">预览</string>
+    <string name="rich_chat_html_visual_copy_source">复制源代码</string>
+    <string name="rich_chat_html_visual_loading">正在加载预览…</string>
+    <string name="rich_chat_html_visual_incomplete">HTML 代码块不完整。仅显示源码。</string>
+    <string name="rich_chat_html_visual_unsupported">不支持的 HTML 格式。仅显示源代码。</string>
+    <string name="rich_chat_html_visual_limited">此消息中的 HTML 预览过多。仅显示源代码。</string>
+    <string name="rich_chat_html_visual_too_large">此 HTML 块过大，无法预览。仅显示源代码。</string>
+    <string name="rich_chat_html_visual_unavailable">交互式渲染不可用。仅显示源码。</string>
+    <string name="rich_chat_html_visual_open_link_title">打开链接？</string>
+    <string name="rich_chat_html_visual_open_link">打开</string>
 </resources>

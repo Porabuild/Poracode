@@ -24,7 +24,7 @@ The news line is the single rotating line below the full-page new-thread compose
 | Tips          | `newsTips.ts`                                                            | Command palette registry and the user's key bindings                                                            | This device                                                     |
 | Promotions    | `src/shared/communityLinks.ts`                                           | Fixed GitHub/X links                                                                                            | Shared settings `dismissedPromotions`, every client of the host |
 
-Choices are seeded once per visit so the line is stable while it is open; opening a draft again (`viewSlice`'s `draftVisit`) re-seeds the rotation. Dismissals and settings apply live.
+Choices are seeded once per visit so the line is stable while it is open; opening a draft again (`viewSlice`'s `draftVisit`) re-seeds the rotation. Dismissals and settings apply live. Moving the open draft to another project or machine (`moveDraft`) stays in the visit: the draft view remounts, and the line resumes the same rotation, item, and pause from `newsVisit.ts` without replaying its entrance or counting the item again.
 
 ## Feature discovery
 

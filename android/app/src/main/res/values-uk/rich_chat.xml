@@ -262,4 +262,16 @@
     <string name="rich_chat_handoff_fork">Розгалузити розмову</string>
     <string name="rich_chat_handoff_prompt">Скажіть новому провайдеру, що робити далі…</string>
     <string name="rich_chat_handoff_switch">Перемкнути</string>
+    <string name="rich_chat_html_visual_title">Попередній перегляд HTML</string>
+    <string name="rich_chat_html_visual_source">Вихідний код</string>
+    <string name="rich_chat_html_visual_preview">Попередній перегляд</string>
+    <string name="rich_chat_html_visual_copy_source">Копіювати вихідний код</string>
+    <string name="rich_chat_html_visual_loading">Завантаження попереднього перегляду…</string>
+    <string name="rich_chat_html_visual_incomplete">Блок HTML не завершено. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_unsupported">Непідтримуваний формат HTML. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_limited">У цьому повідомленні забагато попередніх переглядів HTML. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_too_large">Цей блок HTML завеликий для попереднього перегляду. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_unavailable">Інтерактивне відображення недоступне. Показано лише вихідний код.</string>
+    <string name="rich_chat_html_visual_open_link_title">Відкрити посилання?</string>
+    <string name="rich_chat_html_visual_open_link">Відкрити</string>
 </resources>

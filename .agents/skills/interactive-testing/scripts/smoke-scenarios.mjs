@@ -40,8 +40,15 @@ export const functionalAreas = [
   },
   {
     id: "inline-visuals",
-    title: "App-native visual data and source-only HTML/MCP fallback",
-    patterns: [/inlineVisual/i, /nativeVisual/i, /VisualSource/, /mcpAppResource/i, /mcpAppResult/],
+    title: "App-native visual data, sandboxed HTML pages, and source fallback",
+    patterns: [
+      /inlineVisual/i,
+      /nativeVisual/i,
+      /htmlVisual/i,
+      /VisualSource/,
+      /mcpAppResource/i,
+      /mcpAppResult/,
+    ],
     automated: ["baseline"],
     manual: ["changed-surface"],
   },

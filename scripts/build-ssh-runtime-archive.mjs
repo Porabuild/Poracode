@@ -157,21 +157,33 @@ export function buildSshRuntimeArchive(options = {}) {
     for (const name of closure.manifestFiles) {
       cpSync(join(mainBundleDir, name), join(stage, name));
     }
+    // Apple notarization rejects an unsigned Mach-O nested inside an archive
+    // in the app bundle, and electron-builder cannot sign a binary inside this
+    // tarball, so macOS relay builds stay out; a remote macOS SSH host then
+    // falls back to the JS relay (nativeMcpRelayBinaryPath() returns undefined
+    // and launchHelper uses mcp-relay.mjs, as for HTTPS and WSL).
+    const wslHelpersFilter = (source) => {
+      const segments = relative(wslHelpersDir, source).split(sep).join("/").split("/");
+      return !(segments[0] === "mcp-relay" && segments[1]?.startsWith("darwin-"));
+    };
     const resources = [
       ["agent-plugins", agentPluginsDir, true],
-      ["wsl-helpers", wslHelpersDir, true],
+      ["wsl-helpers", wslHelpersDir, true, wslHelpersFilter],
       ["skills", skillsDir, false],
       ["plugins", pluginsDir, false],
       ...(closure.resources.some((resource) => resource.kind === "pty-job-owner")
         ? [["pty-job-owner", ptyJobOwnerDir, true]]
         : []),
     ];
-    for (const [name, sourceDir, required] of resources) {
+    for (const [name, sourceDir, required, filter] of resources) {
       if (!existsSync(sourceDir)) {
         if (required) throw new Error(`Required SSH runtime resource is missing: ${sourceDir}`);
         continue;
       }
-      cpSync(sourceDir, join(stage, name), { recursive: true });
+      cpSync(sourceDir, join(stage, name), {
+        recursive: true,
+        ...(filter === undefined ? {} : { filter }),
+      });
     }
     verifyRuntimeResources(closure.resources, {
       agentPlugins: { path: join(stage, "agent-plugins"), layout: "staged" },

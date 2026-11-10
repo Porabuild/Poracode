@@ -1,4 +1,9 @@
-preload = ["@opentui/solid/preload"]
+# The second preload lets the transcript run the desktop's presentation modules
+# (src/desktop/bunPlugin.ts); compiled builds register the same plugin.
+preload = ["@opentui/solid/preload", "./src/desktop/preload.ts"]
+
+[test]
+preload = ["@opentui/solid/preload", "./src/desktop/preload.ts"]
 
 [install]
 saveTextLockfile = true

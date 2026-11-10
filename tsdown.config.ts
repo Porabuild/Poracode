@@ -244,6 +244,21 @@ export default defineConfig(
       target: "node22" as const,
     },
     {
+      // One process per relayed server per agent session: keep the MCP SDK and
+      // zod out of this bundle so each relay stays small.
+      entry: { mcpHttpRelayWorker: "src/supervisor/mcp/mcpHttpRelayWorker.ts" },
+      clean: false,
+      outDir: "dist/main",
+      platform: "node" as const,
+      format: "esm" as const,
+      target: "node22" as const,
+      sourcemap,
+      dts: false,
+      minify: isProd,
+      define: buildDefines,
+      deps,
+    },
+    {
       entry: { mcpStdioWorker: "src/supervisor/mcp/mcpStdioWorker.ts" },
       deps: { alwaysBundle: [/^cross-spawn(?:\/|$)/] },
       clean: false,

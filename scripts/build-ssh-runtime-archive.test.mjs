@@ -79,6 +79,13 @@ function writeFixture() {
   );
   writeFileSync(join(agentPluginsDir, "codex", "plugin.json"), "{}\n");
   writeFileSync(join(wslHelpersDir, "README.md"), "helpers\n");
+  mkdirSync(join(wslHelpersDir, "mcp-relay", "darwin-universal"), { recursive: true });
+  mkdirSync(join(wslHelpersDir, "mcp-relay", "linux-x64"), { recursive: true });
+  writeFileSync(
+    join(wslHelpersDir, "mcp-relay", "darwin-universal", "poracode-mcp-relay"),
+    "mach-o\n",
+  );
+  writeFileSync(join(wslHelpersDir, "mcp-relay", "linux-x64", "poracode-mcp-relay"), "elf\n");
   writeFileSync(join(skillsDir, "demo", "SKILL.md"), "skill\n");
   writeFileSync(join(pluginsDir, "demo", "plugin.json"), "{}\n");
   writeFileSync(
@@ -246,6 +253,12 @@ void test("buildSshRuntimeArchive emits the loader manifest from the frozen clos
   assert.ok(existsSync(join(extract, "server.ssh-runtime-manifest.json")));
   assert.ok(existsSync(join(extract, "agent-plugins", "codex", "plugin.json")));
   assert.ok(existsSync(join(extract, "wsl-helpers", "README.md")));
+  // macOS relay builds stay out of the archive (unsigned Mach-O fails Apple
+  // notarization); other relay targets and helpers still ship.
+  assert.equal(existsSync(join(extract, "wsl-helpers", "mcp-relay", "darwin-universal")), false);
+  assert.ok(
+    existsSync(join(extract, "wsl-helpers", "mcp-relay", "linux-x64", "poracode-mcp-relay")),
+  );
   assert.ok(existsSync(join(extract, "skills", "demo", "SKILL.md")));
   assert.ok(existsSync(join(extract, "plugins", "demo", "plugin.json")));
   assert.ok(existsSync(join(extract, "npm-shrinkwrap.json")));

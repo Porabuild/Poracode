@@ -298,6 +298,32 @@ enum RichChatStrings {
   static let retry = value("rich_chat_retry", "Try Again")
   static let cancel = value("rich_chat_cancel", "Cancel")
 
+  static let htmlVisualTitle = value("rich_chat_html_visual_title", "HTML preview")
+  static let htmlVisualSource = value("rich_chat_html_visual_source", "Source")
+  static let htmlVisualPreview = value("rich_chat_html_visual_preview", "Preview")
+  static let htmlVisualCopySource = value("rich_chat_html_visual_copy_source", "Copy source")
+  static let htmlVisualLoading = value("rich_chat_html_visual_loading", "Loading preview…")
+  static let htmlVisualIncomplete = value(
+    "rich_chat_html_visual_incomplete", "Incomplete HTML block. Showing source only."
+  )
+  static let htmlVisualUnsupported = value(
+    "rich_chat_html_visual_unsupported", "Unsupported HTML format. Showing source only."
+  )
+  static let htmlVisualLimited = value(
+    "rich_chat_html_visual_limited",
+    "Too many HTML previews in this message. Showing source only."
+  )
+  static let htmlVisualTooLarge = value(
+    "rich_chat_html_visual_too_large",
+    "This HTML block is too large to preview. Showing source only."
+  )
+  static let htmlVisualUnavailable = value(
+    "rich_chat_html_visual_unavailable",
+    "Interactive rendering is unavailable. Showing source only."
+  )
+  static let htmlVisualOpenLinkTitle = value("rich_chat_html_visual_open_link_title", "Open link?")
+  static let htmlVisualOpenLink = value("rich_chat_html_visual_open_link", "Open")
+
   static func downloadFile(_ fileName: String) -> String {
     String(
       format: value("rich_chat_download_file", "Download %@"),

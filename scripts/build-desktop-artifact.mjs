@@ -334,6 +334,9 @@ async function main() {
     ];
     if (arch && platform !== "mac") helperArgs.push("--arch", arch);
     run("node", helperArgs, { cwd: repoRoot });
+    const relayArgs = ["scripts/prepare-mcp-relay.mjs", "--require", "--platform", platform];
+    if (arch && platform !== "mac") relayArgs.push("--arch", arch);
+    run("node", relayArgs, { cwd: repoRoot });
     if (platform === "mac") {
       run("node", ["scripts/prepare-locked-computer-use.mjs"], { cwd: repoRoot });
     }

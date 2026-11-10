@@ -1,5 +1,5 @@
 diff --git a/packages/tui/src/feature-plugins/system/storybook/link-clicks.tsx b/packages/tui/src/feature-plugins/system/storybook/link-clicks.tsx
-index 6c87b96..ae39294 100644
+index 6c87b96..91964f2 100644
 --- a/packages/tui/src/feature-plugins/system/storybook/link-clicks.tsx
 +++ b/packages/tui/src/feature-plugins/system/storybook/link-clicks.tsx
 @@ -15,14 +15,14 @@ const text = `Click, double-click, drag, right-click, or Ctrl/Shift+click the li
@@ -20,3 +20,13 @@ index 6c87b96..ae39294 100644
  
  - A list item ending in https://example.com/a/very/long/path/that/keeps/going/until/it/wraps/around`
  
+@@ -86,6 +86,9 @@ function LinkClicksStory(props: { context: Plugin.Context }) {
+           anchors: createTimelineAnchors(),
+           groupExpanded: () => true,
+           setGroupExpanded: () => {},
++          // poracode: the story's rows keep no plugin disclosure.
++          savedDisclosure: () => undefined,
++          setDisclosure: () => {},
+           thinkingMode: () => "show",
+           markdownMode,
+           groupExploration: () => false,

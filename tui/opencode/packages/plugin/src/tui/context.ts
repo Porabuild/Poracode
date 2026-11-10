@@ -24,7 +24,14 @@ import type {
   VcsInfo,
 } from "@opencode/client"
 import type { ResolvedTheme } from "@opencode/theme/tui"
-import type { CliRenderer, KeyEvent, MarkdownCodeBlockRenderer, Renderable } from "@opentui/core"
+import type {
+  CliRenderer,
+  KeyEvent,
+  MarkdownCodeBlockRenderer,
+  MarkdownOptions,
+  Renderable,
+  SyntaxStyle,
+} from "@opentui/core"
 import type { JSX } from "@opentui/solid"
 import type { Store } from "solid-js/store"
 
@@ -177,6 +184,62 @@ export interface PanelInput {
   readonly toggleFullscreen: () => void
 }
 
+/** poracode: one transcript entry — a message, an assistant part, or a derived turn row. */
+export type TranscriptEntry =
+  | { readonly type: "message"; readonly messageID: string }
+  | { readonly type: "part"; readonly messageID: string; readonly partID: string }
+  | { readonly type: "assistant-footer"; readonly messageID: string }
+  | { readonly type: "compaction-queued"; readonly inboxID: string }
+  | { readonly type: "turn-usage"; readonly messageIDs: readonly string[] }
+
+/** poracode: one transcript row — an entry, or a run of entries the host grouped. */
+export type TranscriptRow =
+  | TranscriptEntry
+  | {
+      readonly type: "group"
+      /** Derived from the run's first entry, so stable while the run grows. */
+      readonly id: string
+      readonly kind: string
+      /** A later row closed the run. */
+      readonly completed: boolean
+      /** Leaf entries in transcript order, flattened across nested groups. */
+      readonly entries: readonly TranscriptEntry[]
+      /** Parts blocked on a permission request; they belong outside the run's summary. */
+      readonly pending: readonly { readonly messageID: string; readonly partID: string }[]
+    }
+
+/** poracode: the `session.transcript.row` slot input. */
+export interface TranscriptRowInput {
+  readonly sessionID: string
+  readonly row: TranscriptRow
+  /** The newest transcript row, ignoring turn footers. */
+  readonly live: boolean
+  /** Content width available to the row. */
+  readonly width: number
+  /** Renders the host's presentation of this row. */
+  readonly fallback: () => JSX.Element
+  /** Renders the host's presentation of one entry, e.g. a markdown text part. */
+  readonly entry: (entry: TranscriptEntry) => JSX.Element
+  /** Opens the host's actions for a message (copy, revert, fork, or pending-steer choices). */
+  readonly actions: (messageID: string) => void
+  /** poracode: the host's image strip for a user message (honors the Transcript images setting). */
+  readonly images: (messageID: string) => JSX.Element
+  /** poracode: the host's markdown presentation, for text parts a claim renders itself. */
+  readonly markdown: {
+    /** "rendered" conceals markdown syntax; "source" shows it. */
+    readonly mode: "source" | "rendered"
+    /** Code-block renderers other plugins registered; a claim composes them before its own. */
+    readonly renderNode: MarkdownOptions["renderNode"] | undefined
+  }
+  /** Drops the row's spacing while the claim presents nothing for it. */
+  readonly hide: (hidden: boolean) => void
+  /** Per-session disclosure state; `set` keeps `anchor` on its viewport row through the resulting layout change. */
+  readonly disclosure: {
+    get(key: string): boolean | undefined
+    set(key: string, expanded: boolean, anchor?: Renderable | null): void
+  }
+}
+
 /**
  * The host UI's slot tree. Every path is one slot: a named boundary a plugin
  * may render around, inside, or take over. Paths are absolute and
@@ -196,7 +259,32 @@ export interface SlotMap {
   readonly "prompt.footer.status": PromptFooterInput
   readonly "prompt.footer.file": PromptFooterInput
   readonly "session.composer.top": { readonly sessionID: string }
+  /** poracode: the prompt's agent/model metadata row. */
+  readonly "prompt.metadata": {
+    readonly sessionID?: string
+    readonly mode: "normal" | "shell"
+    /** Title-cased agent ("Build", "Plan"); undefined while catalogs load. */
+    readonly agent?: string
+    /** The prompt auto-accepts permission requests. */
+    readonly auto: boolean
+    readonly model: string
+    readonly provider: string
+    /** Selected model variant id; undefined for the model default. */
+    readonly variant?: string
+    readonly muted: boolean
+    /** Columns available to the row (the host's own metadata width). */
+    readonly width: number
+  }
   readonly "session.panel": PanelInput
+  /** poracode: each transcript row of the open session. */
+  readonly "session.transcript.row": TranscriptRowInput
+  /** poracode: pinned prompt header shown while its rows are scrolled out of view. */
+  readonly "session.transcript.top": {
+    readonly sessionID: string
+    readonly messageID?: string
+    readonly width: number
+    readonly jump: (messageID: string) => void
+  }
   readonly "sidebar.content": { readonly sessionID: string }
   readonly "sidebar.footer": { readonly sessionID: string }
 }
@@ -553,6 +641,8 @@ export interface Context {
   readonly attention: Attention
   readonly theme: ResolvedTheme
   readonly themeMode: "dark" | "light"
+  /** poracode: the active theme's syntax style for code, diff, and markdown renderables. */
+  readonly syntax: SyntaxStyle
   readonly markdown: {
     registerCodeBlockRenderer(language: string, render: MarkdownCodeBlockRenderer): () => void
   }

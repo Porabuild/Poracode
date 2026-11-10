@@ -101,7 +101,7 @@ Pair the Poracode web app with your desktop to follow live threads, read termina
 
 ### Standalone Server
 
-Run the same backend without Electron and connect desktop, browser, iOS, or Android clients to it. The version-pinned `poracode` launcher, release artifact, service, container, security, backup, and upgrade paths are documented in [Standalone server: run, install, operate](docs/STANDALONE_SERVER.md). Until an npm-enabled release publishes the launcher, use the verified release artifact described there.
+Run the same backend without Electron and connect desktop, browser, iOS, or Android clients to it. The one-line installer, the version-pinned `poracode` launcher, release artifact, service, container, security, backup, and upgrade paths are documented in [Standalone server: run, install, operate](docs/STANDALONE_SERVER.md).
 
 ### Remote Machines over SSH
 
@@ -136,6 +136,17 @@ Download the latest release for your platform from the [releases page](https://g
 | macOS    | DMG (Apple silicon or Intel)  |
 | Windows  | NSIS installer (x64 or Arm64) |
 | Linux    | AppImage or `.deb` (x64)      |
+
+### Command line
+
+The `poracode` CLI (terminal UI, server, web app, and one-shot prompts) installs from a self-contained release archive that carries its own Node.js, so no Node, npm, or compiler is needed:
+
+```sh
+curl -fsSL https://poracode.com/install.sh | sh      # macOS and Linux
+irm https://poracode.com/install.ps1 | iex           # Windows PowerShell
+```
+
+Stable releases before 2.0.0 do not include these archives; until a 2.x stable release is out, install the nightly train: `curl -fsSL https://poracode.com/install.sh | PORACODE_CHANNEL=nightly sh` (PowerShell: `$env:PORACODE_CHANNEL = 'nightly'; irm https://poracode.com/install.ps1 | iex`). `PORACODE_VERSION` pins a release. On Linux the bundled Node.js needs glibc and `libatomic1`; minimal images such as `debian:bookworm-slim` lack it (`apt-get install libatomic1`). The npm launcher is already published: `npx poracode@nightly` runs the nightly train without installing, and `npx poracode@latest` will once a 2.x stable release is out (Node.js 20.11 or newer, for `npx` only). Details: [Standalone server](docs/STANDALONE_SERVER.md#2-install-the-cli).
 
 ### Getting Started
 

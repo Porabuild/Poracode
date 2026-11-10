@@ -18,6 +18,7 @@ import {
   MCP_APP_SANDBOX_HTML,
   buildMcpAppCsp,
   readMcpAppCsp,
+  type McpAppCsp,
 } from "../mcpAppSandbox";
 
 /** Both opaque origin and the exact proxy window are required for every message. */
@@ -76,6 +77,37 @@ export class McpAppFrameTransport implements Transport {
     this.closed = true;
     window.removeEventListener("message", this.receive);
     this.onclose?.();
+  }
+}
+
+/** Loads the trusted proxy that later receives the untrusted document. */
+export function loadMcpAppSandbox(
+  frame: HTMLIFrameElement,
+  endpoint: string,
+  csp: McpAppCsp,
+  inlineSandbox = false,
+): void {
+  if (inlineSandbox) {
+    // Native shells have no host DOM, storage, or credentials. The fixed
+    // script remains outside the app frame; a leading meta policy constrains
+    // both sandboxed frames before any server-controlled HTML is delivered.
+    const policy = buildMcpAppCsp(csp)
+      .replace("sandbox allow-scripts; ", "")
+      .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;");
+    const proxy = MCP_APP_SANDBOX_HTML.replace(
+      "<head>",
+      `<head><meta http-equiv="Content-Security-Policy" content="${policy}">`,
+    ).replace(
+      "new URLSearchParams(location.hash.slice(1)).get('parent')",
+      JSON.stringify(window.location.origin),
+    );
+    frame.srcdoc = proxy;
+  } else {
+    const url = new URL(MCP_APP_SANDBOX_PATH, endpoint);
+    url.searchParams.set("csp", JSON.stringify(csp));
+    url.hash = new URLSearchParams({ parent: window.location.origin }).toString();
+    frame.src = url.href;
   }
 }
 
@@ -225,28 +257,7 @@ export async function mountMcpApp(options: McpAppViewOptions): Promise<AppBridge
   try {
     await bridge.connect(transport);
     options.signal.throwIfAborted();
-    if (options.inlineSandbox) {
-      // Native shells have no host DOM, storage, or credentials. The fixed
-      // script remains outside the app frame; a leading meta policy constrains
-      // both sandboxed frames before any server-controlled HTML is delivered.
-      const policy = buildMcpAppCsp(csp)
-        .replace("sandbox allow-scripts; ", "")
-        .replaceAll("&", "&amp;")
-        .replaceAll('"', "&quot;");
-      const proxy = MCP_APP_SANDBOX_HTML.replace(
-        "<head>",
-        `<head><meta http-equiv="Content-Security-Policy" content="${policy}">`,
-      ).replace(
-        "new URLSearchParams(location.hash.slice(1)).get('parent')",
-        JSON.stringify(window.location.origin),
-      );
-      options.frame.srcdoc = proxy;
-    } else {
-      const url = new URL(MCP_APP_SANDBOX_PATH, options.endpoint);
-      url.searchParams.set("csp", JSON.stringify(csp));
-      url.hash = new URLSearchParams({ parent: window.location.origin }).toString();
-      options.frame.src = url.href;
-    }
+    loadMcpAppSandbox(options.frame, options.endpoint, csp, options.inlineSandbox);
     return bridge;
   } catch (error) {
     clearTimeout(timeout);

@@ -186,11 +186,22 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/poracode-swift-contracts"
-          for suite in PortForwarding BrowserMirror GitHubOperations AdvancedOperations; do
+          suites=(PortForwarding BrowserMirror GitHubOperations AdvancedOperations)
+          pids=()
+          for suite in "${suites[@]}"; do
+            echo "Starting $suite"
             swift test --package-path "ios/App/AppTests/$suite" \
-              --scratch-path "$RUNNER_TEMP/poracode-swift-contracts/$suite" --jobs 2 \
-              2>&1 | tee "$RUNNER_TEMP/poracode-swift-contracts/$suite.log"
+              --scratch-path "$RUNNER_TEMP/poracode-swift-contracts/$suite" --jobs 1 \
+              > "$RUNNER_TEMP/poracode-swift-contracts/$suite.log" 2>&1 &
+            pids+=("$!")
           done
+          status=0
+          for index in "${!suites[@]}"; do
+            suite="${suites[$index]}"
+            if ! wait "${pids[$index]}"; then status=1; fi
+            cat "$RUNNER_TEMP/poracode-swift-contracts/$suite.log"
+          done
+          exit "$status"
 
       - name: Build iOS tests for Simulator
         working-directory: ios/App

@@ -8,7 +8,6 @@ import type {
   SessionMessageIdle,
   SessionMessageInfo,
   SessionMessageSystem,
-  SessionMessageSynthetic,
   SessionMessageUser,
   SessionStructuredError,
 } from "@opencode/client";
@@ -17,14 +16,16 @@ import {
   goalItemPayloadSchema,
   messageItemPayloadSchema,
   providerHandoffItemPayloadSchema,
-  questionAnswerItemPayloadSchema,
   reasoningItemPayloadSchema,
 } from "@/shared/contracts/runtimeEvent";
-import type { Thread } from "@/shared/contracts";
-import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
+import { isThreadTurnActive, type Thread } from "@/shared/contracts";
+import type { PersistedCompletedTurn, PersistedRuntimeItem } from "@/shared/ipc/schemas";
 import { z } from "zod";
-import { bounded, mapToolItem, record, stringValue } from "./toolMapping";
+import { bounded, mapToolItem, PORACODE_ITEM_KEY, record, stringValue } from "./toolMapping";
 import { messageId } from "./ids";
+
+/** Names the runtime item a notice came from, so the transcript can present it as the desktop does. */
+const itemMetadata = (type: string) => ({ [PORACODE_ITEM_KEY]: { type, payload: null } });
 
 const HISTORY_CURSOR_PREFIX = "rmi1.";
 const historyCursorPayloadSchema = z.object({
@@ -42,6 +43,7 @@ export function historyMessages(
   thread: Thread,
   items: readonly PersistedRuntimeItem[],
   includeLatestIdle = false,
+  completedTurns?: readonly PersistedCompletedTurn[],
 ): SessionMessageInfo[] {
   const messages: SessionMessageInfo[] = [];
   const fallbackTime = timestamp(thread.createdAt);
@@ -51,10 +53,33 @@ export function historyMessages(
   const lastTurnEnded = includeLatestIdle
     ? timestampOrUndefined(thread.lastTurnEndedAt)
     : undefined;
+  // A non-completed tool item is live only while its turn is still running and
+  // it sits after the last user message; anything older (an interrupted or
+  // ended turn) projects as a terminal row like the desktop's plain items.
+  const turnLive = isThreadTurnActive(thread.status);
+  let lastUserIndex = -1;
+  items.forEach((item, index) => {
+    if (item.type === "user_message") lastUserIndex = index;
+  });
+  // Completed turns carry real start/end times and an anchor item inside the
+  // turn. Each user-message-delimited segment that contains an anchor gets the
+  // turn's times plus an idle marker, so every turn footer reads per-turn
+  // instead of only the latest one. The latest segment still prefers the
+  // thread's lastTurn* fields when they exist.
+  const turnByAnchor = new Map<string, PersistedCompletedTurn>();
+  for (const turn of completedTurns ?? [])
+    if (turn.anchorItemId !== null) turnByAnchor.set(turn.anchorItemId, turn);
   let assistant: SessionMessageAssistant | undefined;
+  let segmentUser: SessionMessageUser | undefined;
+  let segmentTurn: PersistedCompletedTurn | undefined;
 
-  const flushAssistant = (latest = false) => {
+  const flushAssistant = (latest = false, turn?: PersistedCompletedTurn) => {
     if (!assistant) return;
+    if (turn) {
+      const ended = timestampOrUndefined(turn.endedAt);
+      if (ended !== undefined) assistant.time.completed = ended;
+      assistant.finish ??= "stop";
+    }
     if (latest && lastTurnStarted !== undefined) assistant.time.created = lastTurnStarted;
     if (latest && lastTurnEnded !== undefined) {
       assistant.time.completed = lastTurnEnded;
@@ -64,6 +89,21 @@ export function historyMessages(
     }
     messages.push(assistant);
     assistant = undefined;
+  };
+  const stampSegmentTurn = () => {
+    if (!segmentTurn) return;
+    const started = timestampOrUndefined(segmentTurn.startedAt);
+    if (segmentUser && started !== undefined) segmentUser.time.created = started;
+  };
+  const pushTurnIdle = (turn: PersistedCompletedTurn) => {
+    const ended = timestampOrUndefined(turn.endedAt);
+    if (ended === undefined) return;
+    messages.push({
+      id: messageId(`idle-${thread.id}-turn-${turn.anchorItemId ?? ended}`),
+      time: { created: ended },
+      type: "idle",
+      outcome: "succeeded",
+    } satisfies SessionMessageIdle);
   };
   const currentAssistant = (item: PersistedRuntimeItem) => {
     assistant ??= {
@@ -77,9 +117,13 @@ export function historyMessages(
     return assistant;
   };
 
-  for (const item of items) {
+  for (const [index, item] of items.entries()) {
     if (item.type === "user_message") {
-      flushAssistant();
+      flushAssistant(false, segmentTurn);
+      stampSegmentTurn();
+      if (segmentTurn) pushTurnIdle(segmentTurn);
+      segmentTurn = undefined;
+      segmentUser = undefined;
       const payload = messageItemPayloadSchema.safeParse(item.payload);
       const blocks = payload.success ? payload.data.content : [];
       const user: SessionMessageUser = {
@@ -113,8 +157,12 @@ export function historyMessages(
         }),
       };
       messages.push(user);
+      segmentUser = user;
       continue;
     }
+
+    const anchoredTurn = turnByAnchor.get(item.id);
+    if (anchoredTurn && segmentTurn === undefined) segmentTurn = anchoredTurn;
 
     if (item.type === "assistant_message") {
       const payload = messageItemPayloadSchema.safeParse(item.payload);
@@ -154,7 +202,8 @@ export function historyMessages(
       item.type === "dynamic_tool_call" ||
       item.type === "web_search" ||
       item.type === "plan" ||
-      item.type === "image_view"
+      item.type === "image_view" ||
+      item.type === "question_answer"
     ) {
       const definition = mapToolItem(item.type, item.payload, {
         threadId: thread.id,
@@ -170,35 +219,39 @@ export function historyMessages(
           errorMessage,
       );
       const failed = payload.status === "error" || Boolean(errorMessage);
+      const live = item.state !== "completed" && turnLive && index > lastUserIndex;
       const metadata = { ...definition.metadata, output };
-      const state: SessionMessageAssistantTool["state"] =
-        item.state !== "completed"
-          ? { status: "running", input: definition.input, metadata }
-          : failed
-            ? {
-                status: "error",
-                input: definition.input,
-                error: { type: "tool_error", message: errorMessage || "Tool failed" },
-                metadata,
-                content: [{ type: "text", text: output || errorMessage || "Tool failed" }],
-              }
-            : {
-                status: "completed",
-                input: definition.input,
-                metadata,
-                content: [{ type: "text", text: output || "Completed" }],
-              };
+      const state: SessionMessageAssistantTool["state"] = live
+        ? { status: "running", input: definition.input, metadata }
+        : failed
+          ? {
+              status: "error",
+              input: definition.input,
+              error: { type: "tool_error", message: errorMessage || "Tool failed" },
+              metadata,
+              content: [{ type: "text", text: output || errorMessage || "Tool failed" }],
+            }
+          : {
+              status: "completed",
+              input: definition.input,
+              metadata,
+              content: [{ type: "text", text: output || "Completed" }],
+            };
+      // The item's own completed turn carries real start/end times; the
+      // thread-level lastTurn* fields only describe the latest turn.
+      const segmentStarted = segmentTurn ? timestampOrUndefined(segmentTurn.startedAt) : undefined;
+      const segmentEnded = segmentTurn ? timestampOrUndefined(segmentTurn.endedAt) : undefined;
+      const started = segmentStarted ?? lastTurnStarted ?? fallbackTime;
+      const ended = segmentEnded ?? lastTurnEnded;
       const tool: SessionMessageAssistantTool = {
         type: "tool",
         id: item.id,
         name: definition.name,
         executed: true,
         time: {
-          created: lastTurnStarted ?? fallbackTime,
-          ran: lastTurnStarted ?? fallbackTime,
-          ...(item.state === "completed" && lastTurnEnded !== undefined
-            ? { completed: lastTurnEnded }
-            : {}),
+          created: started,
+          ran: started,
+          ...(item.state === "completed" && ended !== undefined ? { completed: ended } : {}),
         },
         state,
       };
@@ -216,13 +269,16 @@ export function historyMessages(
         const failedAssistant = currentAssistant(item);
         failedAssistant.error = error;
         failedAssistant.finish = "error";
-        flushAssistant();
+        // An error item after the last user message closes the latest turn —
+        // it still needs the turn's start/end times for the footer row.
+        flushAssistant(index > lastUserIndex, segmentTurn);
         messages.push({
           id: messageId(item.id),
           time: { created: fallbackTime },
           type: "system",
           text: message,
           description: "Provider error",
+          metadata: itemMetadata(item.type),
         } satisfies SessionMessageSystem);
       }
       continue;
@@ -238,6 +294,15 @@ export function historyMessages(
           type: "system",
           text: `Provider changed from ${payload.data.fromAgentKind} to ${payload.data.toAgentKind}.`,
           description: "Provider handoff",
+          metadata: {
+            [PORACODE_ITEM_KEY]: {
+              type: item.type,
+              payload: {
+                fromAgentKind: payload.data.fromAgentKind,
+                toAgentKind: payload.data.toAgentKind,
+              },
+            },
+          },
         } satisfies SessionMessageSystem);
       continue;
     }
@@ -254,40 +319,25 @@ export function historyMessages(
           type: "system",
           text: payload.data.objective,
           description: `Goal ${payload.data.status ?? payload.data.action ?? "updated"}`,
+          metadata: itemMetadata(item.type),
         } satisfies SessionMessageSystem);
       continue;
     }
-
-    if (item.type === "question_answer") {
-      flushAssistant();
-      const payload = questionAnswerItemPayloadSchema.safeParse(item.payload);
-      if (payload.success)
-        messages.push({
-          id: messageId(item.id),
-          time: { created: fallbackTime },
-          type: "synthetic",
-          text: payload.data.questions
-            .map((question) => {
-              const answer =
-                question.customAnswer ||
-                question.selected.map((selection) => selection.label).join(", ");
-              return `${question.question}: ${answer}`;
-            })
-            .join("\n"),
-          description: "Question answered",
-        } satisfies SessionMessageSynthetic);
-    }
   }
 
-  flushAssistant(true);
-  if (
+  flushAssistant(true, segmentTurn);
+  stampSegmentTurn();
+  // Completed turns can lag the latest turn; its start still comes from the thread.
+  if (!segmentTurn && segmentUser && lastTurnStarted !== undefined)
+    segmentUser.time.created = lastTurnStarted;
+  const latestIdle =
     includeLatestIdle &&
     lastTurnEnded !== undefined &&
     (thread.status === "idle" ||
       thread.status === "inactive" ||
       thread.status === "finished" ||
-      thread.status === "error")
-  ) {
+      thread.status === "error");
+  if (latestIdle) {
     const error =
       thread.status === "error" || thread.errorMessage
         ? { type: "provider_error", message: thread.errorMessage ?? "Provider failed" }
@@ -299,6 +349,8 @@ export function historyMessages(
       outcome: error ? "failed" : "succeeded",
       ...(error ? { error } : {}),
     } satisfies SessionMessageIdle);
+  } else if (segmentTurn) {
+    pushTurnIdle(segmentTurn);
   }
   return messages.reverse();
 }
@@ -308,6 +360,10 @@ export async function historyMessagePage(
   limit: number,
   cursor: string | undefined,
   fetchPage: (beforePosition: number | undefined, pageSize: number) => Promise<RuntimeItemsPage>,
+  options?: {
+    includeItem?: (item: PersistedRuntimeItem) => boolean;
+    completedTurns?: readonly PersistedCompletedTurn[];
+  },
 ): Promise<MessageListOutput> {
   let beforePosition = cursor === undefined ? undefined : decodeHistoryCursor(cursor, thread.id);
   let nextCursor: number | null = null;
@@ -322,9 +378,13 @@ export async function historyMessagePage(
       nextCursor = null;
       break;
     }
-    items = [...page.items, ...items];
+    // Child items (subagent turns) belong to their virtual subsession, not
+    // the parent transcript. Filtering happens on the accumulated set — the
+    // raw page still drives the cursor guards below.
+    const include = options?.includeItem ?? (() => true);
+    items = [...page.items.filter(include), ...items];
     nextCursor = page.nextCursor;
-    const messages = historyMessages(thread, items, cursor === undefined);
+    const messages = historyMessages(thread, items, cursor === undefined, options?.completedTurns);
     const oldestRunComplete = items[0]?.type === "user_message";
     if ((messages.length >= limit && oldestRunComplete) || nextCursor === null) break;
     if (
@@ -337,7 +397,7 @@ export async function historyMessagePage(
   }
 
   return {
-    data: historyMessages(thread, items, cursor === undefined),
+    data: historyMessages(thread, items, cursor === undefined, options?.completedTurns),
     cursor: {
       previous: null,
       next: nextCursor === null ? null : encodeHistoryCursor(thread.id, nextCursor),

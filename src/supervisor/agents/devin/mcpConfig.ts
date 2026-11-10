@@ -11,42 +11,61 @@ import {
   writeFile,
 } from "node:fs/promises";
 import JSON5 from "json5";
+import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
+import type { AcpSharedProcessPrepare } from "../acp";
 import { quotePosixShellArg, readAgentCommandOutput } from "../base";
 
 /**
  * Devin session MCP serialization for the disk-catalog overlay.
  *
- * Corrected live evidence (devin 3000.11.3, tmp/devin/probe/results/):
- * native `session/new` injection works for stdio entries and spec-exact
- * remote entries (`{type:"http"|"sse", name, url, headers:[{name,value}]}`),
- * and the overlay disk catalog works for stdio — all with real
- * tools/list + tools/call round trips inside a prompt turn. Direct native
- * injection is therefore proven and is NOT the reason this overlay serializes
- * everything as stdio.
+ * Live evidence (devin 3000.12.28, 2026-11-08, tmp/devin-http-probe/):
+ * the disk remote shape `{url, transport:"http", headers?: map}` is
+ * turn-proven — Devin sent the configured header, ran tools/list and
+ * tools/call inside a prompt turn, and deduplicated a single MCP session
+ * when the overlay and `session/new` name the same server. Poracode-hosted
+ * endpoints reach Devin over this shape directly (no relay process); the
+ * host applies each server's tool policy itself, so `disabledTools`
+ * filtering still holds without a stdio proxy.
  *
- * The relay is retained because Poracode's per-server `disabledTools`
- * filtering is enforced by its stdio tool-filter proxy
- * (`prepareMcpToolFilters(..., { remoteViaStdio: true })`); a natively
- * injected remote server bypasses that proxy, and Devin's documented native
- * filter (`disabled_tools` in config.json / `permissions` patterns) has
- * different, coarser semantics. Switching a server to direct native
- * injection requires the filter guarantee to be re-established first.
+ * Only `http` is serialized: the disk SSE shape is documented but was never
+ * turn-proven, so `sse` transports keep failing closed here — callers route
+ * them through relays instead.
  */
-export function mergeDevinMcpConfig(raw: string, servers: readonly ResolvedMcpServer[]) {
+export function mergeDevinMcpConfig(
+  raw: string,
+  servers: readonly ResolvedMcpServer[],
+  deleteNames?: readonly string[],
+) {
   const config: unknown = JSON5.parse(raw);
   if (!config || typeof config !== "object" || Array.isArray(config))
     throw new Error("Invalid Devin MCP configuration");
   const current = (config as Record<string, unknown>).mcpServers ?? {};
   if (!current || typeof current !== "object" || Array.isArray(current))
     throw new Error("Invalid Devin MCP server catalog");
+  // Shared-process overlays drop catalog entries that must not resolve
+  // inside the pooled agent (for example names a per-session route owns).
+  for (const name of deleteNames ?? []) {
+    delete (current as Record<string, unknown>)[name];
+  }
   const injected = Object.fromEntries(
     servers.map((server) => {
-      if (server.transport.type !== "stdio")
-        throw new Error("Devin session MCP requires a stdio relay");
-      const { command, args, env } = server.transport;
+      const transport = server.transport;
+      if (transport.type === "http") {
+        return [
+          server.name,
+          {
+            url: transport.url,
+            transport: "http",
+            ...(Object.keys(transport.headers).length > 0 ? { headers: transport.headers } : {}),
+          },
+        ];
+      }
+      if (transport.type !== "stdio")
+        throw new Error(`Devin session MCP does not support the ${transport.type} transport`);
+      const { command, args, env } = transport;
       return [server.name, { command, ...(args ? { args } : {}), ...(env ? { env } : {}) }];
     }),
   );
@@ -134,25 +153,50 @@ export async function prepareDevinMcpConfigForRoots(
   roots: DevinMcpConfigRoots,
   servers: readonly ResolvedMcpServer[],
 ) {
+  return (await planDevinMcpConfigForRoots(roots, servers)).materialize();
+}
+
+/**
+ * Plan a shared-process overlay for explicit roots: read and merge the disk
+ * catalog NOW so plan-time errors surface exactly as the eager prepare did,
+ * then materialize the private overlay root once per pooled process —
+ * returning the spawn env and the cleanup the pool runs after exit. The key
+ * covers everything materialize() produces, so only identical overlays share
+ * a process.
+ */
+export async function planDevinMcpConfigForRoots(
+  roots: DevinMcpConfigRoots,
+  servers: readonly ResolvedMcpServer[],
+  deleteNames?: readonly string[],
+): Promise<AcpSharedProcessPrepare> {
   const { root: original, variable, overlayParent } = roots;
   await mkdir(join(original, "devin", "cli"), { recursive: true });
-  const root = await mkdtemp(join(overlayParent, ".poracode-devin-config-"));
-  const cleanup = () => rm(root, { recursive: true, force: true });
-  try {
-    await chmod(root, 0o700);
-    await mirrorEntries(original, root, "devin");
-    await mkdir(join(root, "devin"));
-    await mirrorEntries(join(original, "devin"), join(root, "devin"), "mcp_config.json");
-    const config = mergeDevinMcpConfig(
-      await optionalFile(join(original, "devin", "mcp_config.json")),
-      servers,
-    );
-    await writeFile(join(root, "devin", "mcp_config.json"), config, { mode: 0o600 });
-    return { env: { [variable]: root }, cleanup };
-  } catch (error) {
-    await cleanup();
-    throw error;
-  }
+  const config = mergeDevinMcpConfig(
+    await optionalFile(join(original, "devin", "mcp_config.json")),
+    servers,
+    deleteNames,
+  );
+  const key = createHash("sha256")
+    .update(JSON.stringify({ variable, root: original, overlayParent, config }))
+    .digest("hex");
+  return {
+    key,
+    materialize: async () => {
+      const root = await mkdtemp(join(overlayParent, ".poracode-devin-config-"));
+      const cleanup = () => rm(root, { recursive: true, force: true });
+      try {
+        await chmod(root, 0o700);
+        await mirrorEntries(original, root, "devin");
+        await mkdir(join(root, "devin"));
+        await mirrorEntries(join(original, "devin"), join(root, "devin"), "mcp_config.json");
+        await writeFile(join(root, "devin", "mcp_config.json"), config, { mode: 0o600 });
+        return { env: { [variable]: root }, cleanup };
+      } catch (error) {
+        await cleanup();
+        throw error;
+      }
+    },
+  };
 }
 
 async function prepareWslConfig(location: ProjectLocation, servers: readonly ResolvedMcpServer[]) {

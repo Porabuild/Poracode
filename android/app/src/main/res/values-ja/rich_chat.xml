@@ -262,4 +262,16 @@
     <string name="rich_chat_handoff_fork">会話をフォーク</string>
     <string name="rich_chat_handoff_prompt">新しいプロバイダーに次に行うことを伝える…</string>
     <string name="rich_chat_handoff_switch">切り替え</string>
+    <string name="rich_chat_html_visual_title">HTMLプレビュー</string>
+    <string name="rich_chat_html_visual_source">ソース</string>
+    <string name="rich_chat_html_visual_preview">プレビュー</string>
+    <string name="rich_chat_html_visual_copy_source">ソースをコピー</string>
+    <string name="rich_chat_html_visual_loading">プレビューを読み込み中…</string>
+    <string name="rich_chat_html_visual_incomplete">HTMLブロックが未完了です。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_unsupported">未対応のHTML形式です。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_limited">このメッセージのHTMLプレビューが多すぎます。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_too_large">このHTMLブロックはプレビューするには大きすぎます。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_unavailable">インタラクティブ表示は利用できません。ソースのみ表示しています。</string>
+    <string name="rich_chat_html_visual_open_link_title">リンクを開きますか？</string>
+    <string name="rich_chat_html_visual_open_link">開く</string>
 </resources>

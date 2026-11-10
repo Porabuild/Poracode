@@ -262,4 +262,16 @@
     <string name="rich_chat_handoff_fork">Bifurcar conversa</string>
     <string name="rich_chat_handoff_prompt">Diga ao novo provedor o que fazer a seguir…</string>
     <string name="rich_chat_handoff_switch">Alternar</string>
+    <string name="rich_chat_html_visual_title">Prévia HTML</string>
+    <string name="rich_chat_html_visual_source">Código-fonte</string>
+    <string name="rich_chat_html_visual_preview">Prévia</string>
+    <string name="rich_chat_html_visual_copy_source">Copiar código-fonte</string>
+    <string name="rich_chat_html_visual_loading">Carregando prévia…</string>
+    <string name="rich_chat_html_visual_incomplete">Bloco HTML incompleto. Exibindo apenas o código-fonte.</string>
+    <string name="rich_chat_html_visual_unsupported">Formato HTML não compatível. Exibindo apenas o código-fonte.</string>
+    <string name="rich_chat_html_visual_limited">Há muitas prévias HTML nesta mensagem. Exibindo apenas o código-fonte.</string>
+    <string name="rich_chat_html_visual_too_large">Este bloco HTML é grande demais para a prévia. Exibindo apenas o código-fonte.</string>
+    <string name="rich_chat_html_visual_unavailable">A exibição interativa não está disponível. Exibindo apenas o código-fonte.</string>
+    <string name="rich_chat_html_visual_open_link_title">Abrir link?</string>
+    <string name="rich_chat_html_visual_open_link">Abrir</string>
 </resources>

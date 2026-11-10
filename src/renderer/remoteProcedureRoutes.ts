@@ -113,6 +113,19 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   cancelScheduleCompletionEvaluation:
     "local-shell: host-owned cancellation of a schedule evaluation; the renderer never issues it and no remote route exists",
 
+  // The owning host's thread-transfer service calls these Git steps on its
+  // own supervisor; clients move threads through the thread-transfer routes.
+  threadTransferInspectGit:
+    "local-shell: the owning host's transfer service inspects thread Git state on its own supervisor; clients use the thread-transfer routes",
+  threadTransferRepoProbe:
+    "local-shell: the owning host's transfer service probes the target repository on its own supervisor; clients use the thread-transfer routes",
+  threadTransferGitHaves:
+    "local-shell: the owning host's transfer service lists target-side commits on its own supervisor; clients use the thread-transfer routes",
+  threadTransferExportGit:
+    "local-shell: the owning host's transfer service exports the thread's Git package on its own supervisor; clients use the thread-transfer routes",
+  threadTransferImportGit:
+    "local-shell: the owning host's transfer service imports the Git package on its own supervisor; clients use the thread-transfer routes",
+
   // R1: host-custody thread/project deletion — the renderer's real deletes ride
   // the thread-command / project-command registry routes, which own
   // notifications and housekeeping; the raw DB row deletes stay preload-only.

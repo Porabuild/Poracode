@@ -42,6 +42,11 @@ msgstr "(sin rama)"
 msgid "(optional)"
 msgstr "(opcional)"
 
+#. placeholder {0}: preview.source.git.changedFiles
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{0, plural, =0 {no uncommitted changes} one {# uncommitted change} other {# uncommitted changes}}"
+#~ msgstr "{0, plural, =0 {sin cambios sin confirmar} one {# cambio sin confirmar} other {# cambios sin confirmar}}"
+
 #. placeholder {0}: candidates.length
 #. placeholder {0}: props.candidates.length
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -470,6 +475,7 @@ msgstr "{0} actualizado a v{newVersion}."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated."
@@ -733,6 +739,10 @@ msgstr "hace {minutes}m"
 msgid "{missingAuthLabel} needs authentication."
 msgstr "{missingAuthLabel} necesita autenticación."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "{moved} · continued with {agentLabel}"
+msgstr "{moved} · continuado con {agentLabel}"
+
 #: src/renderer/actions/workspaceActions.ts
 msgid "{movedCount, plural, one {Moved # project to {target}.} other {Moved # projects to {target}.}}"
 msgstr "{movedCount, plural, one {Se movió # proyecto a {target}.} other {Se movieron # proyectos a {target}.}}"
@@ -773,6 +783,14 @@ msgstr "{productName} se actualizó a la v{0}."
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectHeader.tsx
 msgid "{projectLocation} (disabled)"
 msgstr "{projectLocation} (deshabilitado)"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} isn't set up on another machine yet. Add it there to move this thread."
+msgstr "{projectName} aún no está configurado en otra máquina. Agrégalo allí para mover este hilo."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{projectName} on {targetLabel} isn't a Git repository, so its code can't move there."
+msgstr "{projectName} en {targetLabel} no es un repositorio de Git, por lo que su código no se puede mover allí."
 
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 msgid "{projectName} Settings"
@@ -829,6 +847,18 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{serverName} de {providerLabel}: {disabledLabel}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}, and no other chat agent is ready there. Set one up there first."
+msgstr "{sourceAgentLabel} no está configurado en {targetLabel} y allí no hay otro agente de chat listo. Configura uno allí primero."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Choose the agent that continues there."
+#~ msgstr "{sourceAgentLabel} no está configurado en {targetLabel}. Elige el agente que continúa allí."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{sourceAgentLabel} isn't set up on {targetLabel}. Pick the agent that continues there."
+msgstr "{sourceAgentLabel} no está configurado en {targetLabel}. Elige el agente que continúa allí."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "{sourceCrewName} comes along."
 msgstr "{sourceCrewName} te acompaña."
@@ -840,6 +870,22 @@ msgstr "{sourceCrewName} se queda atrás: {targetProviderLabel} no puede liderar
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "{stepCount, plural, one {# step} other {# steps}}"
 msgstr "{stepCount, plural, one {# paso} other {# pasos}}"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no project for this repository. Add it there first."
+#~ msgstr "{targetLabel} no tiene ningún proyecto para este repositorio. Agrégalo allí primero."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "{targetLabel} has no projects yet. Add one there first."
+#~ msgstr "{targetLabel} aún no tiene proyectos. Agrega uno allí primero."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is offline. Connect to it first."
+msgstr "{targetLabel} está sin conexión. Conéctate primero."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "{targetLabel} is reached through this computer, so you can't open it while this computer is off."
+msgstr "{targetLabel} se alcanza a través de este equipo, así que no podrás abrirlo mientras este equipo esté apagado."
 
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 #~ msgid "{totalAdditions} additions and {totalDeletions} deletions"
@@ -1508,6 +1554,7 @@ msgstr "Añadir alternativa"
 msgid "Add files, drop here, or paste an image"
 msgstr "Añade archivos, suéltalos aquí o pega una imagen"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Add folder"
 msgstr "Añadir carpeta"
@@ -1568,6 +1615,10 @@ msgstr "Añadir reacción"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Add Remote"
 msgstr "Agregar remoto"
+
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
+msgid "Add remote connection"
+msgstr "Añadir conexión remota"
 
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -1716,6 +1767,10 @@ msgstr "El agente está deshabilitado actualmente"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Agent not found"
 msgstr "Agente no encontrado"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Agent on {targetLabel}"
+#~ msgstr "Agente en {targetLabel}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -2262,6 +2317,10 @@ msgstr "Archivar el hilo actual"
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #~ msgid "Archive this session?"
 #~ msgstr "¿Archivar esta sesión?"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Archive this thread here after moving"
+#~ msgstr "Archivar este hilo aquí después de moverlo"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -2873,6 +2932,7 @@ msgstr "Limita cuántos ayudantes de generación efímeros (títulos de hilos, m
 msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
 msgstr "Limita cuántos shells de terminal pueden ejecutarse a la vez en este host. Cuenta ranuras lógicas de ejecución, no procesos del sistema operativo ni memoria. 0 = ilimitado."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
@@ -2911,6 +2971,11 @@ msgstr "Rama o etiqueta"
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Branch protection rules blocked this merge."
 msgstr "Las reglas de protección de ramas bloquearon esta fusión."
+
+#. placeholder {0}: preview.source.git.branch
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Branch: {0}"
+#~ msgstr "Rama: {0}"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Branches"
@@ -3180,7 +3245,7 @@ msgstr "No se pudieron cargar los puertos"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "No se puede conectar con el servidor remoto. Comprueba que esté en línea y vuelve a conectarlo."
 
-#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/providerTargetSelection.ts
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Can't use this model selection on that surface"
 msgstr "No se puede usar esta selección de modelo en esta interfaz"
@@ -3196,6 +3261,7 @@ msgstr "No se puede usar esta selección de modelo en esta interfaz"
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -3574,6 +3640,10 @@ msgstr "Comprobando"
 msgid "Checking {serverName}"
 msgstr "Comprobando {serverName}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Checking {targetLabel}…"
+msgstr "Comprobando {targetLabel}…"
+
 #: src/renderer/views/MainView/parts/CheckForUpdatesButton.tsx
 msgid "Checking for updates…"
 msgstr "Buscando actualizaciones…"
@@ -3637,6 +3707,10 @@ msgstr "Elige un turno completado desde el que bifurcar."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Choose a folder"
 msgstr "Elige una carpeta"
+
+#: src/renderer/views/MainView/parts/CreateProject/MachineFolderPicker.tsx
+msgid "Choose a folder on {machine}"
+msgstr "Elige una carpeta en {machine}"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
@@ -4083,6 +4157,7 @@ msgstr "Cerrar pestaña del editor"
 msgid "Close environment actions"
 msgstr "Cerrar acciones del entorno"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Close expanded visual"
 msgstr "Cerrar visualización ampliada"
@@ -4529,6 +4604,10 @@ msgstr "Idioma de commits y PR"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/commitActions.ts
 msgid "Commit & Push"
 msgstr "Hacer commit y push"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Commit at least once before moving this thread."
+msgstr "Haz al menos un commit antes de mover este hilo."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Commit failed: {detail}"
@@ -5003,11 +5082,11 @@ msgstr "Contexto"
 msgid "Context compacted"
 msgstr "Contexto compactado"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted from {before} tokens"
 msgstr "Contexto compactado desde {before} tokens"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context compacted: {before} → {after} tokens"
 msgstr "Contexto compactado: {before} → {after} tokens"
 
@@ -5016,11 +5095,11 @@ msgstr "Contexto compactado: {before} → {after} tokens"
 #~ msgid "Context extraction ({0})"
 #~ msgstr "Extracción del contexto ({0})"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted from {before} tokens"
 msgstr "Contexto compactado manualmente desde {before} tokens"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts
 msgid "Context manually compacted: {before} → {after} tokens"
 msgstr "Contexto compactado manualmente: {before} → {after} tokens"
 
@@ -5058,6 +5137,10 @@ msgstr "Continuar en otro proveedor"
 msgid "Continue in..."
 msgstr "Continuar en..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Continue on {targetLabel}"
+#~ msgstr "Continuar en {targetLabel}"
+
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Continuar en la dirección del escritorio"
@@ -5065,6 +5148,14 @@ msgstr "Continuar en..."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Continue one conversation until a stop condition or limit is reached."
 msgstr "Continúa una conversación hasta que se alcance una condición de detención o un límite."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Continue where you left off"
+msgstr "Continúa donde lo dejaste"
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Continue where you left off."
+msgstr "Continúa donde lo dejaste."
 
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
 msgid "Continue with incomplete history"
@@ -5242,6 +5333,7 @@ msgstr "Copiar ruta relativa"
 msgid "Copy selection"
 msgstr "Copiar selección"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/McpAppCard.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
@@ -6456,6 +6548,10 @@ msgstr "Desconectar"
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 msgid "Detach side chat"
 msgstr "Separar chat lateral"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Detached commit"
+msgstr "Commit desacoplado"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "detached HEAD"
@@ -7839,6 +7935,7 @@ msgstr "Expandir para revisar o revocar el acceso."
 msgid "Expand todo dock"
 msgstr "Expandir panel de tareas"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Expand visual"
 msgstr "Ampliar visualización"
@@ -8380,6 +8477,10 @@ msgstr "Finalizado · Esperando tu entrada"
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Finishing your report on GitHub…"
 msgstr "Finalizando tu informe en GitHub…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Finishing…"
+msgstr "Finalizando…"
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 #~ msgid "First-class Antigravity CLI integration using Poracode's native runtime."
@@ -9426,6 +9527,14 @@ msgstr "Cada hora"
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Hours"
 msgstr "Horas"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "How moving works"
+msgstr "Cómo funciona el traslado"
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "HTML preview"
+msgstr "Vista previa HTML"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx
 msgid "HTML source"
@@ -10870,6 +10979,10 @@ msgstr "Cargando plugins…"
 msgid "Loading PR…"
 msgstr "Cargando PR…"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Loading preview…"
+msgstr "Cargando vista previa…"
+
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "Loading previous runs"
 msgstr "Cargando ejecuciones anteriores"
@@ -11721,6 +11834,10 @@ msgstr "Búsqueda de mensajes no disponible"
 #~ msgid "Message the remote agent…"
 #~ msgstr "Escribe al agente remoto…"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Message to send after moving"
+#~ msgstr "Mensaje para enviar después de mover"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "Messages"
 msgstr "Mensajes"
@@ -12055,6 +12172,8 @@ msgid "Motion"
 msgstr "Movimiento"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/components/thread/MoveThreadAgentComposer.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Move"
 msgstr "Mover"
 
@@ -12096,6 +12215,14 @@ msgstr "Mover panel"
 msgid "Move thread {0}"
 msgstr "Mover el hilo {0}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Move to another machine"
+msgstr "Mover a otra máquina"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to another machine…"
+msgstr "Mover a otra máquina…"
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 msgid "Move to clean worktree"
 msgstr "Mover a worktree limpio"
@@ -12130,6 +12257,18 @@ msgstr "Mover a worktree con cambios"
 #~ msgid "Moved 1 project to {0}."
 #~ msgstr "Se movió 1 proyecto a {0}."
 
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost}"
+msgstr "Movido desde {sourceHost}"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+msgid "Moved from {sourceHost} to {targetHost}"
+msgstr "Movido de {sourceHost} a {targetHost}"
+
+#: src/renderer/components/thread/ThreadForkControls.tsx
+#~ msgid "Moved here from {sourceHost}"
+#~ msgstr "Movido aquí desde {sourceHost}"
+
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread and your changes to a new worktree on \"{newBranch}\"."
 msgstr "Se movieron el hilo y tus cambios a un nuevo worktree en \"{newBranch}\"."
@@ -12141,6 +12280,10 @@ msgstr "Se movieron el hilo y tus cambios a un nuevo worktree en \"{newBranch}\"
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Moved the thread to a new worktree on \"{branch}\"."
 msgstr "Se movió el hilo a un nuevo worktree en \"{branch}\"."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Moved to {label}."
+msgstr "Movido a {label}."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBranch}\" is now clean."
@@ -12211,8 +12354,6 @@ msgstr "El nombre es obligatorio."
 msgid "Name your project and choose where to create it."
 msgstr "Nombra tu proyecto y elige dónde crearlo."
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Nativo"
@@ -12424,6 +12565,7 @@ msgstr "Los nuevos teléfonos, tabletas y navegadores aparecerán aquí después
 msgid "New profile name"
 msgstr "Nombre del nuevo perfil"
 
+#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "New project"
 msgstr "Nuevo proyecto"
@@ -12791,6 +12933,10 @@ msgstr "No hay punto de control de archivos guardado para este mensaje."
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "No files match \"{0}\"."
 msgstr "Ningún archivo coincide con \"{0}\"."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No free branch name is left for {branch}."
+msgstr "No queda ningún nombre de rama libre para {branch}."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>paste a clone URL</1>."
@@ -13466,6 +13612,15 @@ msgstr "Token de emparejamiento de un solo uso"
 msgid "Online"
 msgstr "En línea"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Only chat threads can move to another machine."
+msgstr "Solo los hilos de chat pueden moverse a otra máquina."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Only the conversation moves: this folder isn't a Git repository."
+msgstr "Solo se mueve la conversación: esta carpeta no es un repositorio de Git."
+
 #. placeholder {0}: i18n.number(state.totalBytes)
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
@@ -13771,8 +13926,8 @@ msgid "Open on source host"
 msgstr "Abrir en el servidor de origen"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Open over SSH"
-msgstr "Abrir por SSH"
+#~ msgid "Open over SSH"
+#~ msgstr "Abrir por SSH"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
@@ -14144,6 +14299,10 @@ msgstr "Gestor de paquetes"
 msgid "Package name or Git URL"
 msgstr "Nombre del paquete o URL de Git"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Packaging the thread…"
+msgstr "Empaquetando el hilo…"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
 msgstr "Página"
@@ -14176,6 +14335,10 @@ msgstr "Empareja un teléfono, una tableta o un navegador con este escritorio."
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "Emparejar de nuevo"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Pair another machine in Settings to move threads to it."
+#~ msgstr "Empareja otra máquina en Ajustes para mover hilos a ella."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pair this device"
@@ -15068,6 +15231,7 @@ msgstr "Evitar el bloqueo de pantalla"
 msgid "Prevent system sleep"
 msgstr "Evitar la suspensión del sistema"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
 msgstr "Vista previa"
@@ -15286,6 +15450,10 @@ msgstr "No se encontró el proyecto."
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Project notes"
 msgstr "Notas del proyecto"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Project on {targetLabel}"
+#~ msgstr "Proyecto en {targetLabel}"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Project Settings"
@@ -15606,6 +15774,7 @@ msgid "Queue message"
 msgstr "Poner mensaje en cola"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued"
 msgstr "En cola"
 
@@ -16057,7 +16226,6 @@ msgstr "El puerto de acceso remoto {occupiedPort} ya está en uso. Detén el otr
 #~ msgid "Remote environments"
 #~ msgstr "Entornos remotos"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
@@ -16764,6 +16932,10 @@ msgstr "Restaurar resultado"
 msgid "Restore thread"
 msgstr "Restaurar hilo"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Restoring it on {targetLabel}…"
+msgstr "Restaurándolo en {targetLabel}…"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Results"
@@ -16815,6 +16987,7 @@ msgstr "Solo el uso conservado en este host."
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/components/thread/SideChat/SideChatThreadView.tsx
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
@@ -17413,8 +17586,7 @@ msgstr "Se agota en {runOut}"
 #~ msgstr "Se ejecuta mediante la CLI de Cursor. Instálala, actualízala e inicia sesión desde las filas de entorno anteriores."
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime"
 msgstr "Runtime"
 
@@ -17422,8 +17594,7 @@ msgstr "Runtime"
 msgid "Runtime debug"
 msgstr "Depuración de runtime"
 
-#: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
+#: src/renderer/views/MainView/parts/CreateProject/ProjectRuntimePicker.tsx
 msgid "Runtime options"
 msgstr "Opciones de runtime"
 
@@ -17439,6 +17610,10 @@ msgstr "El mismo inicio de sesión que Devin"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
 msgstr "Mismo orden de proveedores en todas las máquinas"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Same repository"
+#~ msgstr "Mismo repositorio"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "Samsung Galaxy S24 Ultra"
@@ -18178,6 +18353,10 @@ msgstr "Enviar mensaje"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Send terminal input"
 msgstr "Enviar entrada al terminal"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Sending {sent} of {total}…"
+msgstr "Enviando {sent} de {total}…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
@@ -19045,6 +19224,7 @@ msgstr "Ordenar pull requests"
 #~ msgid "Sort threads"
 #~ msgstr "Ordenar hilos"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Source"
 msgstr "Código fuente"
@@ -19252,8 +19432,6 @@ msgstr "Empieza cada día con prioridades y próximos pasos."
 msgid "Start from a template"
 msgstr "Empezar con una plantilla"
 
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Start from scratch"
@@ -19441,6 +19619,10 @@ msgstr "Detener las ejecuciones de {0}"
 msgid "Stop {label}"
 msgstr "Detener {label}"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stop and move"
+msgstr "Detener y mover"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Stop forwarding"
 msgstr "Detener reenvío"
@@ -19490,6 +19672,10 @@ msgstr "Deteniendo {label}…"
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Stopping task…"
 msgstr "Deteniendo tarea…"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Stopping the agent here…"
+msgstr "Deteniendo el agente aquí…"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
@@ -19905,6 +20091,10 @@ msgstr "Equipo"
 msgid "Tell {0} what to do next..."
 msgstr "Indica a {0} qué hacer a continuación..."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "Tell {selectedAgentLabel} what to do next (optional)"
+msgstr "Indica a {selectedAgentLabel} qué hacer a continuación(opcional)"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "Tell the target provider what to do next..."
 msgstr "Indica al proveedor de destino qué hacer a continuación..."
@@ -20065,9 +20255,17 @@ msgstr "Eso no es un código de emparejamiento de Poracode."
 msgid "That label does not exist in this repository. Refresh the label list and try again."
 msgstr "Esa etiqueta no existe en este repositorio. Actualiza la lista de etiquetas e inténtalo de nuevo."
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "That machine is not available."
+msgstr "Esa máquina no está disponible."
+
 #: src/mobile/routeComponents.tsx
 #~ msgid "That pairing code is no longer valid. Open Settings → Remote Access on the desktop, press New code, and pair again."
 #~ msgstr "Ese código de emparejamiento ya no es válido. Abre Ajustes → Acceso remoto en el escritorio, pulsa «Nuevo código» y vuelve a emparejar."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "That project is no longer on {targetLabel}."
+msgstr "Ese proyecto ya no está en {targetLabel}."
 
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "That prompt is no longer available."
@@ -20110,9 +20308,17 @@ msgstr "el agente"
 msgid "The agent"
 msgstr "El agente"
 
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent did not stop in time. Try the move again."
+msgstr "El agente no se detuvo a tiempo. Vuelve a intentar el traslado."
+
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "The agent is still answering. Ask again when it finishes."
 msgstr "El agente sigue respondiendo. Vuelve a preguntar cuando termine."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The agent is working. Moving stops it here and resumes the work on {targetLabel}."
+msgstr "El agente está trabajando. Al moverlo se detiene aquí y el trabajo continúa en {targetLabel}."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 msgid "The agent session reloads to apply the new context size; the conversation is kept."
@@ -20121,6 +20327,10 @@ msgstr "La sesión del agente se reinicia para aplicar el nuevo tamaño de conte
 #: src/renderer/components/thread/useThreadDockState.ts
 msgid "The agent stopped because of an error."
 msgstr "El agente se detuvo debido a un error."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The agent was stopped here, but the move didn't finish: {reason}"
+msgstr "El agente se detuvo aquí, pero el traslado no se completó: {reason}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #~ msgid "The API key below is used by Cursor CLI, ACP, and SDK for this profile."
@@ -20154,6 +20364,10 @@ msgstr "La automatización necesita aprobación antes de poder continuar."
 #~ msgid "the base branch"
 #~ msgstr "la rama base"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The branch name was taken there, so the work continues on {branch}."
+msgstr "El nombre de la rama ya estaba en uso allí, así que el trabajo continúa en {branch}."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "The candidates changed after judging. Compare them again."
 msgstr "Los candidatos cambiaron después de la evaluación. Compáralos de nuevo."
@@ -20161,6 +20375,10 @@ msgstr "Los candidatos cambiaron después de la evaluación. Compáralos de nuev
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Los candidatos aún no han realizado ningún cambio."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The changes are too large to move ({size}). Commit or ignore large files first."
+msgstr "Los cambios son demasiado grandes para moverlos ({size}). Confirma o ignora primero los archivos grandes."
 
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
@@ -20177,6 +20395,10 @@ msgstr "Falló la comprobación de finalización; se pausó la tarea programada.
 #: src/renderer/speech/hexVoice.ts
 msgid "The connected Poracode host is unavailable. Reconnect and try again."
 msgstr "El host Poracode conectado no está disponible. Vuelve a conectarte y vuelve a intentarlo."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The conversation and its code — commits and uncommitted changes — move to the other machine and continue there. Files ignored by Git, such as .env, stay here."
+msgstr "La conversación y su código (commits y cambios sin confirmar) se mueven a la otra máquina y continúan allí. Los archivos que Git ignora, como .env, se quedan aquí."
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRunDetails.tsx
 msgid "The conversation is no longer available. This saved result is still accessible."
@@ -20429,6 +20651,18 @@ msgstr "La configuración del servidor MCP no es válida o usa un nombre reserva
 msgid "The MCP server is invalid."
 msgstr "El servidor MCP no es válido."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The move expired. Start it again."
+msgstr "El traslado caducó. Vuelve a iniciarlo."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The moved thread could not be read. Start the move again."
+msgstr "No se pudo leer el hilo movido. Vuelve a iniciar el traslado."
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "The moved thread keeps its agent and model, so that agent needs to be set up on the other machine."
+#~ msgstr "El hilo movido conserva su agente y su modelo, así que ese agente debe estar configurado en la otra máquina."
+
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 #~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
 #~ msgstr "El nuevo tamaño del contexto se aplica a partir de tu próximo mensaje. La sesión del agente se recarga antes de enviar ese mensaje; la conversación se conserva."
@@ -20573,6 +20807,22 @@ msgid "The selected model compares snapshots of each candidate's changes under a
 msgstr "El modelo seleccionado compara instantáneas de los cambios de cada candidato con etiquetas anónimas. Recomienda un ganador sin fusionar nada."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is missing commits this thread needs. Fetch its latest changes and try again."
+msgstr "Al proyecto seleccionado le faltan commits que necesita este hilo. Obtén sus cambios más recientes e inténtalo de nuevo."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project is unavailable."
+msgstr "El proyecto seleccionado no está disponible."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The selected project isn't a Git repository."
+msgstr "El proyecto seleccionado no es un repositorio de Git."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The selected project on {label} doesn't share history with this repository."
+msgstr "El proyecto seleccionado en {label} no comparte historial con este repositorio."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "The selected repository no longer matches this project's source remote. Refresh before continuing."
 msgstr "El repositorio seleccionado ya no coincide con el remoto de origen de este proyecto. Actualiza antes de continuar."
 
@@ -20713,6 +20963,10 @@ msgstr "No se pudo iniciar el hilo. Tu borrador sigue guardado en este dispositi
 msgid "The thread keeps its provider session, so your next message continues where you left off."
 msgstr "El hilo conserva su sesión del proveedor, así que tu próximo mensaje continúa donde lo dejaste."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+msgid "The thread moved, but your message was not sent. Send it from the moved thread."
+msgstr "El hilo se movió, pero tu mensaje no se envió. Envíalo desde el hilo movido."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "La sesión del hilo no está disponible para los seguimientos en cola."
@@ -20721,6 +20975,10 @@ msgstr "La sesión del hilo no está disponible para los seguimientos en cola."
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "El hilo se ejecutará en un worktree separado en una nueva rama."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread's branch name can't be used on this machine."
+msgstr "El nombre de la rama del hilo no se puede usar en esta máquina."
+
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "El host del hilo no está conectado."
@@ -20728,6 +20986,10 @@ msgstr "El host del hilo no está conectado."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "Los hilos vinculados a este worktree han cambiado. Actualiza la vista y vuelve a intentarlo."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "The transfer ended early. Try again."
+msgstr "La transferencia terminó antes de tiempo. Inténtalo de nuevo."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -20781,6 +21043,10 @@ msgstr "Tema y tamaño de fuente del chat"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Theme name"
 msgstr "Nombre del tema"
+
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#~ msgid "Then tell the agent (optional)"
+#~ msgstr "Luego dile al agente (opcional)"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
@@ -20998,6 +21264,10 @@ msgstr "Este host ya no está configurado."
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "This host provides snapshots. Live streaming is unavailable."
 msgstr "Este host proporciona capturas. La transmisión en directo no está disponible."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "This HTML block is too large to preview. Showing source only."
+msgstr "Este bloque HTML es demasiado grande para la vista previa. Solo se muestra el código fuente."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -21280,6 +21550,15 @@ msgstr "Este hilo no puede abrirse con sus carpetas autorizadas. Actualiza el ho
 msgid "This thread does not support queued follow-ups."
 msgstr "Este hilo no admite seguimientos en cola."
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread has no conversation to move yet."
+msgstr "Este hilo aún no tiene ninguna conversación que mover."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "This thread is already on {label}."
+msgstr "Este hilo ya está en {label}."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Este hilo no está listo para una redirección."
@@ -21449,6 +21728,11 @@ msgstr "Panel de tareas del hilo"
 msgid "Threads"
 msgstr "Hilos"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Threads in WSL projects can't move to another machine yet."
+msgstr "Los hilos de proyectos WSL aún no pueden moverse a otra máquina."
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Threads marked done that have not been touched for this many days are archived automatically on app launch. Set to 0 to disable."
@@ -21588,6 +21872,14 @@ msgstr "Tokens de {0}"
 #: src/renderer/components/thread/CrewDockSection.tsx
 msgid "Told not to edit files. Not enforced."
 msgstr "Indicación de no editar archivos. No se aplica."
+
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Too many HTML previews in this message. Showing source only."
+msgstr "Demasiadas vistas previas HTML en este mensaje. Solo se muestra el código fuente."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Too many moves are in progress. Try again shortly."
+msgstr "Hay demasiados traslados en curso. Inténtalo de nuevo en breve."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Too many remote requests are in progress. Try again in a moment."
@@ -22400,6 +22692,10 @@ msgstr "sin preparar"
 msgid "Unsupported"
 msgstr "No compatible"
 
+#: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
+msgid "Unsupported HTML format. Showing source only."
+msgstr "Formato HTML no compatible. Solo se muestra el código fuente."
+
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 msgid "Unsupported marketplace requirements"
 msgstr "Requisitos de marketplace no compatibles"
@@ -22438,14 +22734,17 @@ msgstr "actualización"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "Actualizar"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "Actualizar {0}"
@@ -22465,6 +22764,10 @@ msgstr "Actualizar {0} a {updateLabel}"
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Update {host} to import its sessions."
 msgstr "Actualiza {host} para importar sus sesiones."
+
+#: src/renderer/actions/threadTransferActions.ts
+msgid "Update {label} to move threads between machines."
+msgstr "Actualiza {label} para mover hilos entre máquinas."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Update all"
@@ -22609,6 +22912,7 @@ msgid "Updated {0}"
 msgstr "Actualizado {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "Actualizando"
 
@@ -22618,7 +22922,9 @@ msgstr "Actualizando"
 msgid "Updating ({0}/{1})"
 msgstr "Actualizando ({0}/{1})"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "Actualizando {0}"
@@ -22791,8 +23097,8 @@ msgid "Use account"
 msgstr "Usar cuenta"
 
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
-msgid "Use an existing folder"
-msgstr "Usar una carpeta existente"
+#~ msgid "Use an existing folder"
+#~ msgstr "Usar una carpeta existente"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
@@ -23226,6 +23532,14 @@ msgid "Wait for every candidate to finish before opening a pull request."
 msgstr "Espera a que todos los candidatos terminen antes de abrir una pull request."
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Wait for the agent to finish before moving this thread."
+msgstr "Espera a que el agente termine antes de mover este hilo."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#~ msgid "Wait for the agent to finish."
+#~ msgstr "Espera a que el agente termine."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Wait for the source conversation to finish before forking."
 msgstr "Espera a que termine la conversación de origen antes de bifurcarla."
 
@@ -23499,7 +23813,6 @@ msgstr "Se ejecutará en este entorno:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -23653,6 +23966,7 @@ msgstr "Vista del espacio de trabajo"
 msgid "Workspaces"
 msgstr "Espacios de trabajo"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree"
@@ -23662,6 +23976,7 @@ msgstr "Worktree"
 msgid "Worktree {path} has uncommitted changes"
 msgstr "El worktree {path} tiene cambios sin confirmar"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree + changes"
 msgstr "Worktree + cambios"
@@ -23678,6 +23993,7 @@ msgstr "Carpeta base de worktrees"
 msgid "Worktree location"
 msgstr "Ubicación del worktree"
 
+#: src/renderer/components/thread/MoveThreadDialog.tsx
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Worktree mode"
 msgstr "Modo worktree"

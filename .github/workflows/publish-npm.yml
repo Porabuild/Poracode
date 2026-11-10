@@ -1,0 +1,134 @@
+name: Publish npm launcher
+run-name: Publish poracode ${{ inputs.version }} (${{ inputs.dist_tag }}) for run ${{ inputs.source_run_id }}
+
+# Publishes the `poracode` npm launcher. npm allows up to 10 trusted
+# publishers per package (docs.npmjs.com/trusted-publishers); one dispatched
+# workflow keeps a single trusted-publisher entry to audit and gives a manual
+# entry point to publish an earlier release — dispatch it with that release
+# run's id. It publishes the exact qualified package from that run's aggregate
+# artifact (never a rebuild), and only when the public release carries the
+# same launcher manifest.
+#
+# Maintainer setup (once): publish the placeholder with
+# `node scripts/npm-claim-placeholder.mjs --publish`, then run
+# `npm trust github poracode --file publish-npm.yml --repo Porabuild/Poracode --allow-publish`
+# and set the repository variable NPM_PUBLISH_ENABLED=true.
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Release workflow run whose qualified artifact is published"
+        required: true
+        type: string
+      version:
+        description: "Released version; the public GitHub release v<version> must exist"
+        required: true
+        type: string
+      source_ref:
+        description: "Release source commit"
+        required: true
+        type: string
+      dist_tag:
+        description: "npm dist-tag: latest for releases, nightly for nightlies"
+        required: true
+        type: choice
+        options:
+          - latest
+          - nightly
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish poracode@${{ inputs.version }} (${{ inputs.dist_tag }})
+    if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - name: Verify the source run and the public release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          WORKFLOW_PATH=$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID" --jq .path)
+          case "$WORKFLOW_PATH" in
+            .github/workflows/release.yml | .github/workflows/release-nightly.yml) ;;
+            *)
+              echo "::error::run $SOURCE_RUN_ID is $WORKFLOW_PATH, not a release workflow"
+              exit 1
+              ;;
+          esac
+          DRAFT=$(gh release view "v$RELEASE_VERSION" --repo "$REPOSITORY" --json isDraft --jq .isDraft)
+          if [ "$DRAFT" != "false" ]; then
+            echo "::error::v$RELEASE_VERSION is not a public release"
+            exit 1
+          fi
+          gh release download "v$RELEASE_VERSION" --repo "$REPOSITORY" \
+            --pattern poracode-runtime-manifest.json --dir "$RUNNER_TEMP/published"
+        shell: bash
+
+      - name: Checkout the release source
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "26"
+
+      - name: Download the aggregate qualified artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: ${{ runner.temp }}/release-assets
+          pattern: poracode-server-artifact-qualified-*
+          merge-multiple: true
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Require the public release to carry the qualified manifest
+        env:
+          ASSETS: ${{ runner.temp }}/release-assets
+        run: cmp "$RUNNER_TEMP/published/poracode-runtime-manifest.json" "$ASSETS/poracode-runtime-manifest.json"
+        shell: bash
+
+      - name: Set the release version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
+        shell: bash
+
+      - name: Pack and publish the exact qualified package
+        env:
+          ASSETS: ${{ runner.temp }}/release-assets
+          DIST_TAG: ${{ inputs.dist_tag }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          ARGS=()
+          for metadata in "$ASSETS"/standalone-*.json; do
+            ARGS+=(--standalone "$metadata")
+          done
+          if [ "${#ARGS[@]}" -eq 0 ]; then
+            echo "::error::no qualified standalone archive metadata to publish"
+            exit 1
+          fi
+          # The script refuses a prerelease under latest and a release under nightly.
+          node scripts/publish-npm-package.mjs "${ARGS[@]}" \
+            --manifest "$ASSETS/poracode-runtime-manifest.json" \
+            --tag "$DIST_TAG" \
+            --trusted-publishing
+        shell: bash

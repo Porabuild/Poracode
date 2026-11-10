@@ -119,7 +119,11 @@ information per tool call) in their own widgets.
    closed vocabulary of generic blocks (title, icon token, category, and
    sections such as diff, terminal output, key-value args, markdown, table,
    image) derived once in shared TS and sent over the wire, so each client
-   implements only the block vocabulary.
+   implements only the block vocabulary. The TUI transcript
+   (`tui/src/plugin/transcript`) already runs those renderer modules directly
+   through `tui/src/desktop/presentation.ts`, so keep them free of React and
+   app-store imports (name items with the type-only
+   `state/slices/runtimeChatItem.ts`).
 4. **A new tool-call kind** means: map it in the supervisor's canonical mapping,
    give it display metadata in the shared presentation layer, and add a shared
    fixture item. It never means a bespoke Swift or Kotlin card; if a client

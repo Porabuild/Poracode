@@ -37,6 +37,8 @@ export interface ViewSlice {
   /**
    * Bumped whenever a draft is opened. Client-only surfaces use it to re-roll
    * per-visit content (the news line) even though the draft view stays mounted.
+   * Moving the open draft to another project row (`moveDraft`) keeps the visit,
+   * so the draft view it remounts resumes that content instead.
    */
   draftVisit: number;
   pendingComposerFocusThreadId: string | null;
@@ -60,6 +62,13 @@ export interface ViewSlice {
   clearChatPromptAnchor: (threadId: string) => void;
   setPendingActiveThread: (threadId: string | null) => void;
   openDraft: (projectId: string) => void;
+  /**
+   * Point the open draft at another project row (another project, or the same
+   * project on another machine) within the current visit, so per-visit content
+   * such as the news line continues. From any other view it opens a draft and
+   * starts a visit, like `openDraft`.
+   */
+  moveDraft: (projectId: string) => void;
   openDraftSideBySide: (projectId: string) => void;
   openHome: () => void;
   openPullRequests: () => void;
@@ -158,6 +167,11 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
     set((state) => ({
       view: { kind: "draft", projectId },
       draftVisit: state.draftVisit + 1,
+    })),
+  moveDraft: (projectId) =>
+    set((state) => ({
+      view: { kind: "draft", projectId },
+      ...(state.view.kind === "draft" ? {} : { draftVisit: state.draftVisit + 1 }),
     })),
   openDraftSideBySide: (projectId) =>
     set((state) => {

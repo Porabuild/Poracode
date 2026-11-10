@@ -78,6 +78,9 @@ async function buildTarget(target) {
     pathToFileURL(tuiRequire.resolve("@opentui/solid/bun-plugin")).href
   );
   const pluginRuntimePlugin = await makePluginRuntimePlugin();
+  const { desktopPresentationPlugin } = await import(
+    pathToFileURL(join(tuiRoot, "src", "desktop", "bunPlugin.ts")).href
+  );
 
   const nativeRedirect = {
     name: "poracode-native-target",
@@ -94,7 +97,12 @@ async function buildTarget(target) {
     entrypoints: [join(tuiRoot, "src", "main.ts")],
     tsconfig: join(tuiRoot, "tsconfig.json"),
     target: "bun",
-    plugins: [createSolidTransformPlugin(), pluginRuntimePlugin, nativeRedirect],
+    plugins: [
+      createSolidTransformPlugin(),
+      pluginRuntimePlugin,
+      desktopPresentationPlugin,
+      nativeRedirect,
+    ],
     external: ["@opencode/simulation/frontend"],
     compile: { target: spec.bun, outfile },
   });

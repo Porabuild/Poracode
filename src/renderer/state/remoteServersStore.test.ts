@@ -3830,9 +3830,9 @@ describe("useRemoteServersStore", () => {
   });
 
   it("runs a remote project command then refreshes the snapshot", async () => {
-    const projectCommand = vi.fn<() => Promise<{ projects: unknown[] }>>(async () => ({
-      projects: [proj, proj2],
-    })) as unknown as RemoteDesktopClient["projectCommand"];
+    const projectCommand = vi.fn<() => Promise<{ projects: unknown[]; project: unknown }>>(
+      async () => ({ projects: [proj, proj2], project: proj2 }),
+    ) as unknown as RemoteDesktopClient["projectCommand"];
     useRemoteServersStore
       .getState()
       .setClientFactory(
@@ -3842,12 +3842,14 @@ describe("useRemoteServersStore", () => {
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
 
-    await useRemoteServersStore
+    const response = await useRemoteServersStore
       .getState()
       .runProjectCommand("d1", { kind: "add-existing", path: "/r/two" });
 
     expect(projectCommand).toHaveBeenCalledWith({ kind: "add-existing", path: "/r/two" });
     expect(useRemoteServersStore.getState().runtime.d1?.projects).toHaveLength(2);
+    // Callers learn which row the command touched without re-reading the catalog.
+    expect(response.project).toEqual(proj2);
   });
 
   it("loads sensitive project settings into the projected project row", async () => {

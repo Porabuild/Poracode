@@ -1,11 +1,21 @@
 import type { CreateStructuredSessionInput, StructuredSessionHandle } from "../base/types";
+import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 
-import { createAcpStructuredSession } from "../acp";
+import {
+  createAcpStructuredSession,
+  createSharedAcpStructuredSession,
+  type AcpSessionOverrides,
+  type AcpSharedProcessPrepare,
+} from "../acp";
 import { prepareAgentLocationEnvironment } from "../base";
 import { prepareMcpToolFilters } from "../../mcp/McpToolFilterService";
 import { resolveAgentBinaryPath } from "../binaryResolver";
-import { prepareDevinMcpConfig } from "./mcpConfig";
+import {
+  devinMcpDefaultRoots,
+  planDevinMcpConfigForRoots,
+  prepareDevinMcpConfig,
+} from "./mcpConfig";
 import { createDevinAcpTransform } from "./acpTransform";
 import { warmDevinModels } from "./modelCatalog";
 import {
@@ -16,6 +26,7 @@ import {
 import {
   DevinProfilePolicyError,
   devinConfigNeedsVariantMapping,
+  planDevinProfileMcpOverlay,
   prepareDevinProfileLaunch,
   prepareDevinProfileMcpOverlay,
 } from "./launchContext";
@@ -46,14 +57,16 @@ import type { DevinAdapterContexts, devinDefaultAccountContext } from "./adapter
 /**
  * Structured (GUI/ACP) session composition. Extracted from `index.ts`
  * (God-file rule): identity validation, MCP policy (cloud omission /
- * profile overlay / stdio relays), the neutral persona catalog, the
- * negotiated-menu model resolver, and the cloud-target-gated session
- * actions — one provider-owned composition with no shared seams.
+ * profile overlay / hosted HTTP endpoints / stdio relays), the neutral
+ * persona catalog, the negotiated-menu model resolver, and the
+ * cloud-target-gated session actions — one provider-owned composition with
+ * no shared seams.
  */
 
 export function createDevinStructuredSessionLauncher(
   contexts: DevinAdapterContexts,
   defaultAccountContext: typeof devinDefaultAccountContext,
+  kind: string,
 ) {
   return async (
     input: CreateStructuredSessionInput,
@@ -129,31 +142,75 @@ export function createDevinStructuredSessionLauncher(
         (input.mcpServers ?? []).filter(
           (server) => server.transport.type !== "stdio" && !server.disabledTools?.length,
         )
-      : await prepareMcpToolFilters(input.mcpServers ?? [], input.projectLocation, {
-          remoteViaStdio: true,
-        });
-    // Disk-catalog overlay: the default account uses the shared overlay; a
-    // redirected profile builds its own PRIVATE overlay from its config
-    // root, preserving the account's resources and credential root. A cloud
-    // runtime cannot see a host config path, so no overlay is built for it —
-    // faking a local scope/path there would pretend host injection works.
-    const overlay = isCloud
+      : // Poracode-hosted endpoints connect over HTTP directly — the host
+        // applies each server's tool policy itself — while every other
+        // server stays on the stdio relays the disk overlay and
+        // `session/new` share.
+        await prepareDevinLocalMcpServers(input.mcpServers ?? [], input.projectLocation);
+    // Local native GUI threads share one pooled `devin acp` process per
+    // launch identity; cloud relays and WSL commands keep dedicated
+    // per-thread processes (cloud is single-session, WSL env rides argv).
+    const useSharedProcess = !isCloud && input.projectLocation.kind !== "wsl";
+    // Disk-catalog overlay for the dedicated path: the default account uses
+    // the shared overlay; a redirected profile builds its own PRIVATE overlay
+    // from its config root, preserving the account's resources and credential
+    // root. A cloud runtime cannot see a host config path, so no overlay is
+    // built for it — faking a local scope/path there would pretend host
+    // injection works.
+    const overlay =
+      isCloud || useSharedProcess
+        ? undefined
+        : context?.env && (context.env.XDG_CONFIG_HOME || context.env.APPDATA)
+          ? await prepareDevinProfileMcpOverlay(input.projectLocation, context, mcpServers).catch(
+              (error) => {
+                // A policy/config failure is NOT ordinary MCP enrichment: the
+                // profile's own MCP catalog is unreadable or unparseable, and
+                // degrading would hide that behind a working-looking session.
+                // Transient overlay-mechanics failures still degrade to
+                // injection-only.
+                if (error instanceof DevinProfilePolicyError) {
+                  throw profileUnavailable("mcp-policy-unavailable", error.message);
+                }
+                return undefined;
+              },
+            )
+          : await prepareDevinMcpConfig(input.projectLocation, mcpServers);
+    // Shared-process overlay: only the relayed (stdio) servers belong on the
+    // process-scoped disk catalog. Hosted endpoints are per-thread routes
+    // with per-thread bearer tokens and reach each session through
+    // `session/new` only, and same-named native catalog entries are deleted
+    // so a hosted name never resolves to the user's own disk config inside
+    // the pooled process. The plan reads+merges now (plan-time errors match
+    // the eager prepare); the pool materializes the private root once.
+    const sharedRelayedServers = mcpServers.filter(
+      (server) => server.directTransport === undefined,
+    );
+    const sharedHostedNames = mcpServers
+      .filter((server) => server.directTransport !== undefined)
+      .map((server) => server.name);
+    const sharedMcpPrepare = !useSharedProcess
       ? undefined
       : context?.env && (context.env.XDG_CONFIG_HOME || context.env.APPDATA)
-        ? await prepareDevinProfileMcpOverlay(input.projectLocation, context, mcpServers).catch(
-            (error) => {
-              // A policy/config failure is NOT ordinary MCP enrichment: the
-              // profile's own MCP catalog is unreadable or unparseable, and
-              // degrading would hide that behind a working-looking session.
-              // Transient overlay-mechanics failures still degrade to
-              // injection-only.
+        ? await planDevinProfileMcpOverlay(
+            input.projectLocation,
+            context,
+            sharedRelayedServers,
+            sharedHostedNames,
+          )
+            .catch((error) => {
               if (error instanceof DevinProfilePolicyError) {
                 throw profileUnavailable("mcp-policy-unavailable", error.message);
               }
               return undefined;
-            },
-          )
-        : await prepareDevinMcpConfig(input.projectLocation, mcpServers);
+            })
+            .then((prepare) =>
+              prepare === undefined ? undefined : degradeProfilePrepareMaterialize(prepare),
+            )
+        : await planDevinMcpConfigForRoots(
+            devinMcpDefaultRoots(),
+            sharedRelayedServers,
+            sharedHostedNames,
+          );
     await prepareAgentLocationEnvironment(input.projectLocation);
     // Neutral persona catalog for THIS session's execution context — served
     // Poracode-side (no agent RPC), so only for locations the scan can
@@ -212,149 +269,164 @@ export function createDevinStructuredSessionLauncher(
         context?.env,
       );
       const acpTransform = createDevinAcpTransform();
-      const session = createAcpStructuredSession(
-        { ...command, ...(overlay?.env ? { env: { ...command.env, ...overlay.env } } : {}) },
-        {
-          ...input,
-          mcpServers,
-          acpSessionUpdateTransform: acpTransform,
-          // Diagnostics are host IDE data, so a cloud execution cannot be
-          // paired with a local workspace's findings. Only a local session
-          // with the supervisor's project-bound source advertises the pull.
-          acpClientCapabilitiesMeta: devinAcpClientCapabilitiesMeta({
-            requestDiagnostics: !isCloud && input.readHostDiagnostics !== undefined,
-          }),
-          ...(!isCloud && input.readHostDiagnostics
+      const sessionInput: CreateStructuredSessionInput = {
+        ...input,
+        mcpServers,
+        acpSessionUpdateTransform: acpTransform,
+        // Diagnostics are host IDE data, so a cloud execution cannot be
+        // paired with a local workspace's findings. Only a local session
+        // with the supervisor's project-bound source advertises the pull.
+        acpClientCapabilitiesMeta: devinAcpClientCapabilitiesMeta({
+          requestDiagnostics: !isCloud && input.readHostDiagnostics !== undefined,
+        }),
+        ...(!isCloud && input.readHostDiagnostics
+          ? {
+              acpExtensionRequestHandler: createDevinDiagnosticsRequestHandler(
+                input.readHostDiagnostics,
+              ),
+            }
+          : {}),
+        // Confirmed `_cognition.ai/*` RPCs plus the Poracode-side
+        // `native-personas.list` as neutral session actions; the shared
+        // session injects its live extMethod transport and addresses
+        // them by id only (no raw RPC tunnel). Cloud-only archive is
+        // composed for cloud targets and filtered out of the local
+        // surface, where the method answers -32601.
+        acpSessionActions: (transport) => {
+          const targetDescriptors = devinAcpSessionActionDescriptors(transport, {
+            target: isCloud ? "cloud" : "local",
+          });
+          // Live config pair (`devin.config.list`/`set`) when the shared
+          // seam carries both transport members; the descriptors compose
+          // after the vendor RPCs and before the Poracode-side persona
+          // scan, which always stays last.
+          const configDescriptors = devinAcpLiveConfigActionDescriptors(transport);
+          const descriptors = [...targetDescriptors, ...configDescriptors];
+          return personasAction ? [...descriptors, personasAction] : descriptors;
+        },
+        // Provider-owned pure normalizer: cloud options carry
+        // `category: null`, so `devin_version` — the cloud model select —
+        // is given the semantic `model` category (native ids/values/meta
+        // preserved) and the shared reduction folds it into the thread
+        // config after a confirmed write. Local wires no normalizer: the
+        // native `speed` select keeps its native category and is bound
+        // through DEVIN_ACP_FAST_CONFIG_BINDING in the behavior below.
+        ...(devinAcpConfigOptionsNormalizerFor(isCloud ? "cloud" : "local")
+          ? {
+              acpConfigOptionsNormalizer: devinAcpConfigOptionsNormalizerFor(
+                isCloud ? "cloud" : "local",
+              )!,
+            }
+          : {}),
+        // The one qualified custom-answer flag is projected onto the shared
+        // form. Reply normalization still reads the original request.
+        acpElicitationPresentation: projectQualifiedAllowOtherPresentation,
+        // A cloud agent runs outside the host's filesystem: client-hosted
+        // text IO, terminal operations, and agent-origin host image reads
+        // are refused. The image gate is independent of the text callback.
+        ...(isCloud
+          ? {
+              acpFsTextCapability: false,
+              acpTerminalCapability: false,
+              acpLocalResourceResolution: false,
+            }
+          : {}),
+      };
+      const sessionOverrides: AcpSessionOverrides = {
+        // Throwing resolver: an explicit selection the live session does
+        // not accept fails the turn visibly (wrapped by the shared seam
+        // into AcpConfigSelectionError) instead of falling back to the
+        // legacy session/set_model request and prompting on whatever
+        // model the agent holds. Cloud keeps an EMPTY family list and
+        // resolves the `devin_version` role through the cloud contracts
+        // (native-default intent → live current value; explicit ids only
+        // when the live menu advertises them). Local resolves the stored
+        // family onto the session's ADVERTISED representative with the
+        // separate thought-level control carrying effort — on regular
+        // variants and catalog-classified composite pairs alike.
+        ...(isCloud
+          ? {
+              configureOpenedSession: configureDevinCloudSetup(context?.cloudDefaults),
+              allowUnlistedSelectValue: allowDevinCloudRepositorySelection,
+            }
+          : {}),
+        // Negotiated at initialize; installed 3000.11.234 accepts a plain
+        // concurrent native session/prompt with no steering marker.
+        promptSteering: DEVIN_ACP_PROMPT_STEERING,
+        resolveModelConfig: createDevinAcpModelResolver({
+          families: families ?? [],
+          ...(isCloud ? { cloud: true } : {}),
+        }),
+        resolveMode: (config, availableModeIds) => resolveDevinAcpMode(config, availableModeIds),
+        // Root's neutral strict selection: a model selection the live
+        // session does not advertise is a typed visible error, never a
+        // silent keep-the-raw-id fallback after open.
+        behavior: {
+          strictConfigSelection: true,
+          // Live two-turn proof: prompt totals reset each turn (including
+          // cached input); vendor stats echo those same totals. Count only
+          // the standard reply, and retain usage_update as context truth.
+          // Cloud counter semantics require their own qualification.
+          ...(!isCloud
             ? {
-                acpExtensionRequestHandler: createDevinDiagnosticsRequestHandler(
-                  input.readHostDiagnostics,
-                ),
-              }
-            : {}),
-          // Confirmed `_cognition.ai/*` RPCs plus the Poracode-side
-          // `native-personas.list` as neutral session actions; the shared
-          // session injects its live extMethod transport and addresses
-          // them by id only (no raw RPC tunnel). Cloud-only archive is
-          // composed for cloud targets and filtered out of the local
-          // surface, where the method answers -32601.
-          acpSessionActions: (transport) => {
-            const targetDescriptors = devinAcpSessionActionDescriptors(transport, {
-              target: isCloud ? "cloud" : "local",
-            });
-            // Live config pair (`devin.config.list`/`set`) when the shared
-            // seam carries both transport members; the descriptors compose
-            // after the vendor RPCs and before the Poracode-side persona
-            // scan, which always stays last.
-            const configDescriptors = devinAcpLiveConfigActionDescriptors(transport);
-            const descriptors = [...targetDescriptors, ...configDescriptors];
-            return personasAction ? [...descriptors, personasAction] : descriptors;
-          },
-          // Provider-owned pure normalizer: cloud options carry
-          // `category: null`, so `devin_version` — the cloud model select —
-          // is given the semantic `model` category (native ids/values/meta
-          // preserved) and the shared reduction folds it into the thread
-          // config after a confirmed write. Local wires no normalizer: the
-          // native `speed` select keeps its native category and is bound
-          // through DEVIN_ACP_FAST_CONFIG_BINDING in the behavior below.
-          ...(devinAcpConfigOptionsNormalizerFor(isCloud ? "cloud" : "local")
-            ? {
-                acpConfigOptionsNormalizer: devinAcpConfigOptionsNormalizerFor(
-                  isCloud ? "cloud" : "local",
-                )!,
-              }
-            : {}),
-          // The one qualified custom-answer flag is projected onto the shared
-          // form. Reply normalization still reads the original request.
-          acpElicitationPresentation: projectQualifiedAllowOtherPresentation,
-          // A cloud agent runs outside the host's filesystem: client-hosted
-          // text IO, terminal operations, and agent-origin host image reads
-          // are refused. The image gate is independent of the text callback.
-          ...(isCloud
-            ? {
-                acpFsTextCapability: false,
-                acpTerminalCapability: false,
-                acpLocalResourceResolution: false,
+                promptUsageCounterKind: "per-call" as const,
+                promptUsageReportsContext: false,
+                // Folded replies repeat one native userMessageId; the hook
+                // turns that into one ledger sample (additive identity,
+                // no stored-data migration) instead of double-counting.
+                promptUsageSampleId: devinAcpPromptUsageSampleId,
+                // Live receipt (root-live-config-qualification-2.json): a
+                // local 3000.11.3 session accepted a `model` setter WHILE a
+                // prompt was pending, echoed the dependent thought level,
+                // and the follow-up ran on the new model. Cloud is NOT
+                // qualified for mid-prompt writes and keeps the shared
+                // default reject.
+                allowConfigWritesDuringPrompt: true,
+                // The native fast/standard quality select (exact capture:
+                // tmp/devin/checkpoint-l-native-pair-controls.json) binds
+                // the shared ThreadConfig.fast toggle: the shared seam
+                // classifies the bound select by exact id plus its exact
+                // advertised value pair, folds the agent's native echo back
+                // to the boolean, and pushes the exact native value on a
+                // toggle — ids and values are never rewritten and no
+                // `true`/`false` wire aliases are invented. Cloud declares
+                // nothing: the Fast model tier (`devin-fast-opus`) stays
+                // the sole cloud model choice.
+                fastConfigBinding: DEVIN_ACP_FAST_CONFIG_BINDING,
+                // Catalog variant identity encodes the level: after a
+                // model acknowledgement the shared strict target validation
+                // consults this provider-owned proof instead of demanding
+                // an independent reasoning select from every target model.
+                // Cloud declares nothing — the `devin_version` role carries
+                // no graded effort, so a meaningful level beside a version
+                // write stays a typed rejection, never a silent drop.
+                modelCarriesEffort: (config, sessionOptions) =>
+                  devinAcknowledgedModelCarriesEffort(families ?? [], config, sessionOptions),
+                // Live capture (fixtures/exec-terminal.json): exec is
+                // reported before terminal/create and has no content reference.
+                unreferencedTerminalCorrelation: "attribute-on-create" as const,
               }
             : {}),
         },
-        {
-          // Throwing resolver: an explicit selection the live session does
-          // not accept fails the turn visibly (wrapped by the shared seam
-          // into AcpConfigSelectionError) instead of falling back to the
-          // legacy session/set_model request and prompting on whatever
-          // model the agent holds. Cloud keeps an EMPTY family list and
-          // resolves the `devin_version` role through the cloud contracts
-          // (native-default intent → live current value; explicit ids only
-          // when the live menu advertises them). Local resolves the stored
-          // family onto the session's ADVERTISED representative with the
-          // separate thought-level control carrying effort — on regular
-          // variants and catalog-classified composite pairs alike.
-          ...(isCloud
-            ? {
-                configureOpenedSession: configureDevinCloudSetup(context?.cloudDefaults),
-                allowUnlistedSelectValue: allowDevinCloudRepositorySelection,
-              }
-            : {}),
-          // Negotiated at initialize; installed 3000.11.234 accepts a plain
-          // concurrent native session/prompt with no steering marker.
-          promptSteering: DEVIN_ACP_PROMPT_STEERING,
-          resolveModelConfig: createDevinAcpModelResolver({
-            families: families ?? [],
-            ...(isCloud ? { cloud: true } : {}),
-          }),
-          resolveMode: (config, availableModeIds) => resolveDevinAcpMode(config, availableModeIds),
-          // Root's neutral strict selection: a model selection the live
-          // session does not advertise is a typed visible error, never a
-          // silent keep-the-raw-id fallback after open.
-          behavior: {
-            strictConfigSelection: true,
-            // Live two-turn proof: prompt totals reset each turn (including
-            // cached input); vendor stats echo those same totals. Count only
-            // the standard reply, and retain usage_update as context truth.
-            // Cloud counter semantics require their own qualification.
-            ...(!isCloud
-              ? {
-                  promptUsageCounterKind: "per-call" as const,
-                  promptUsageReportsContext: false,
-                  // Folded replies repeat one native userMessageId; the hook
-                  // turns that into one ledger sample (additive identity,
-                  // no stored-data migration) instead of double-counting.
-                  promptUsageSampleId: devinAcpPromptUsageSampleId,
-                  // Live receipt (root-live-config-qualification-2.json): a
-                  // local 3000.11.3 session accepted a `model` setter WHILE a
-                  // prompt was pending, echoed the dependent thought level,
-                  // and the follow-up ran on the new model. Cloud is NOT
-                  // qualified for mid-prompt writes and keeps the shared
-                  // default reject.
-                  allowConfigWritesDuringPrompt: true,
-                  // The native fast/standard quality select (exact capture:
-                  // tmp/devin/checkpoint-l-native-pair-controls.json) binds
-                  // the shared ThreadConfig.fast toggle: the shared seam
-                  // classifies the bound select by exact id plus its exact
-                  // advertised value pair, folds the agent's native echo back
-                  // to the boolean, and pushes the exact native value on a
-                  // toggle — ids and values are never rewritten and no
-                  // `true`/`false` wire aliases are invented. Cloud declares
-                  // nothing: the Fast model tier (`devin-fast-opus`) stays
-                  // the sole cloud model choice.
-                  fastConfigBinding: DEVIN_ACP_FAST_CONFIG_BINDING,
-                  // Catalog variant identity encodes the level: after a
-                  // model acknowledgement the shared strict target validation
-                  // consults this provider-owned proof instead of demanding
-                  // an independent reasoning select from every target model.
-                  // Cloud declares nothing — the `devin_version` role carries
-                  // no graded effort, so a meaningful level beside a version
-                  // write stays a typed rejection, never a silent drop.
-                  modelCarriesEffort: (config, sessionOptions) =>
-                    devinAcknowledgedModelCarriesEffort(families ?? [], config, sessionOptions),
-                  // Live capture (fixtures/exec-terminal.json): exec is
-                  // reported before terminal/create and has no content reference.
-                  unreferencedTerminalCorrelation: "attribute-on-create" as const,
-                }
-              : {}),
-          },
-        },
-      );
+      };
+      const session = useSharedProcess
+        ? await createSharedAcpStructuredSession(
+            command,
+            sessionInput,
+            {
+              scope: kind,
+              ...(sharedMcpPrepare ? { prepare: sharedMcpPrepare } : {}),
+              // Diagnostics pulls carry no sessionId; route them only when
+              // exactly one session on the process has agent work in flight.
+              unaddressedRequests: "single-active-session",
+            },
+            sessionOverrides,
+          )
+        : createAcpStructuredSession(
+            { ...command, ...(overlay?.env ? { env: { ...command.env, ...overlay.env } } : {}) },
+            sessionInput,
+            sessionOverrides,
+          );
       if (!session) {
         await overlay?.cleanup();
         return undefined;
@@ -381,4 +453,48 @@ export function createDevinStructuredSessionLauncher(
       throw error;
     }
   };
+}
+
+/**
+ * Overlay materialization mechanics (private root, mirrors, writes) degrade
+ * to injection-only exactly as the eager dedicated-path prepare did — only
+ * plan-time policy failures fail the launch. A degraded materialize returns
+ * no env, so the spawn keeps the profile context's own config redirect and
+ * `session/new` still carries every server.
+ */
+function degradeProfilePrepareMaterialize(
+  prepare: AcpSharedProcessPrepare,
+): AcpSharedProcessPrepare {
+  return {
+    ...prepare,
+    materialize: async () => {
+      try {
+        return await prepare.materialize();
+      } catch {
+        return { cleanup: async () => {} };
+      }
+    },
+  };
+}
+
+/**
+ * Local MCP catalog for Devin. Servers carrying `directTransport` are
+ * Poracode-hosted endpoints whose host already applies the server's tool
+ * policy, so they connect over HTTP in both the disk overlay and
+ * `session/new` and spawn no relay process. Every other server keeps the
+ * stdio-relay path (`remoteViaStdio`), which is what keeps non-hosted
+ * remote servers reachable and `disabledTools` filtering enforced.
+ */
+async function prepareDevinLocalMcpServers(
+  servers: readonly ResolvedMcpServer[],
+  location: ProjectLocation,
+): Promise<ResolvedMcpServer[]> {
+  const relayed = servers.filter((server) => server.directTransport === undefined);
+  const prepared = await prepareMcpToolFilters(relayed, location, { remoteViaStdio: true });
+  let next = 0;
+  return servers.map((server) =>
+    server.directTransport === undefined
+      ? prepared[next++]!
+      : { ...server, transport: server.directTransport },
+  );
 }

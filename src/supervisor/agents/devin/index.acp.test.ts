@@ -2,29 +2,55 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ThreadConfig, ProjectLocation } from "@/shared/contracts";
+import type { ThreadConfig, ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import type { CreateStructuredSessionInput } from "../base/types";
+import { buildAcpMcpServers } from "../userMcp";
+import { prepareMcpToolFilters } from "../../mcp/McpToolFilterService";
 import { projectQualifiedAllowOtherPresentation } from "./acp/allowOtherPresentation";
 
-const mocks = vi.hoisted(() => ({
-  createAcpStructuredSession: vi.fn<(...args: unknown[]) => unknown>(() => ({
+const mocks = vi.hoisted(() => {
+  const createAcpStructuredSession = vi.fn<(...args: unknown[]) => unknown>(() => ({
     dispose: async () => {},
     attachExternalSessionUpdateSource: () => {},
-  })),
-  warmDevinModels: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
-  prepareDevinMcpConfig: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
-  prepareDevinProfileMcpOverlay: vi.fn<(...args: unknown[]) => Promise<unknown>>(
-    async () => undefined,
-  ),
-  prepareDevinSessionRecordLaunch: vi.fn<(...args: unknown[]) => Promise<unknown>>(
-    async () => undefined,
-  ),
-  provenIdentity: vi.fn<(...args: unknown[]) => Promise<string>>(async () => "unused"),
-  volatileScope: vi.fn<(...args: unknown[]) => Promise<string>>(async () => "vol:fixed"),
-  defaultScope: vi.fn<
-    (...args: unknown[]) => Promise<{ generation: string; volatileGeneration: string }>
-  >(async () => ({ generation: "gen-default", volatileGeneration: "vol:default" })),
-}));
+  }));
+  // The shared factory's fourth argument is the adapter overrides; delegate
+  // to the dedicated mock so existing call-shape assertions keep working
+  // while the shared mock records scope/prepare/unaddressedRequests itself.
+  const createSharedAcpStructuredSession = vi.fn<(...args: unknown[]) => Promise<unknown>>(
+    async (command: unknown, input: unknown, _shared: unknown, overrides: unknown) =>
+      createAcpStructuredSession(command, input, overrides),
+  );
+  return {
+    createAcpStructuredSession,
+    createSharedAcpStructuredSession,
+    warmDevinModels: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
+    prepareDevinMcpConfig: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
+    // Deterministic prepare key derived from exactly what the plan receives:
+    // the relayed servers and the names a per-session route deletes. Hosted
+    // route URLs/tokens never reach the plan, so they cannot move the key.
+    planDevinMcpConfigForRoots: vi.fn<(...args: unknown[]) => Promise<unknown>>(
+      async (_roots: unknown, servers: unknown, deleteNames: unknown) => ({
+        key: `plan:${JSON.stringify({ servers, deleteNames })}`,
+        materialize: async () => ({ env: {}, cleanup: async () => {} }),
+      }),
+    ),
+    prepareDevinProfileMcpOverlay: vi.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => undefined,
+    ),
+    planDevinProfileMcpOverlay: vi.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => undefined,
+    ),
+    shutdownSharedAcpProcesses: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
+    prepareDevinSessionRecordLaunch: vi.fn<(...args: unknown[]) => Promise<unknown>>(
+      async () => undefined,
+    ),
+    provenIdentity: vi.fn<(...args: unknown[]) => Promise<string>>(async () => "unused"),
+    volatileScope: vi.fn<(...args: unknown[]) => Promise<string>>(async () => "vol:fixed"),
+    defaultScope: vi.fn<
+      (...args: unknown[]) => Promise<{ generation: string; volatileGeneration: string }>
+    >(async () => ({ generation: "gen-default", volatileGeneration: "vol:default" })),
+  };
+});
 
 /** The stable user id the mocked proof always returns. */
 const PROVEN_USER = "user-proved";
@@ -32,6 +58,8 @@ const PROVEN_USER = "user-proved";
 vi.mock("../acp", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../acp")>()),
   createAcpStructuredSession: mocks.createAcpStructuredSession,
+  createSharedAcpStructuredSession: mocks.createSharedAcpStructuredSession,
+  shutdownSharedAcpProcesses: mocks.shutdownSharedAcpProcesses,
 }));
 vi.mock("./modelCatalog", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./modelCatalog")>()),
@@ -41,12 +69,15 @@ vi.mock("./volatileCatalog", () => ({
   resolveDevinVolatileCatalogScope: mocks.volatileScope,
   resolveDevinDefaultCatalogScope: mocks.defaultScope,
 }));
-vi.mock("./mcpConfig", () => ({
+vi.mock("./mcpConfig", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./mcpConfig")>()),
   prepareDevinMcpConfig: mocks.prepareDevinMcpConfig,
+  planDevinMcpConfigForRoots: mocks.planDevinMcpConfigForRoots,
 }));
 vi.mock("./launchContext", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./launchContext")>()),
   prepareDevinProfileMcpOverlay: mocks.prepareDevinProfileMcpOverlay,
+  planDevinProfileMcpOverlay: mocks.planDevinProfileMcpOverlay,
   prepareDevinProfileLaunch: async () => {},
 }));
 vi.mock("./sessionFiles", async (importOriginal) => ({
@@ -195,6 +226,298 @@ describe("Devin structured-session wiring", () => {
     expect(input).not.toHaveProperty("acpLocalResourceResolution");
   });
 
+  it("hands session/new the same stdio relays as the disk overlay", async () => {
+    const helpers = await mkdtemp(join(tmpdir(), "devin-mcp-helpers-"));
+    try {
+      for (const name of ["mcp-filter.mjs", "mcp-relay.mjs", "mcp-stdio.mjs"])
+        await writeFile(join(helpers, name), "");
+      vi.stubEnv("PORACODE_WSL_HELPERS_DIR", helpers);
+      // A server wrapped by a launch helper keeps its marker through the
+      // pipeline: the second pass must not wrap it again.
+      const [relayed] = await prepareMcpToolFilters(
+        [
+          {
+            id: "sentry",
+            name: "sentry",
+            timeoutMs: 30_000,
+            disabledTools: ["delete_project"],
+            transport: { type: "stdio" as const, command: "srv", args: [], env: {} },
+          },
+        ],
+        { kind: "posix", path: "/repo" },
+      );
+      await createDevinAdapter().createStructuredSession?.({
+        ...guiInput({ model: "" }),
+        mcpServers: [relayed!],
+      });
+      const input = mocks.createAcpStructuredSession.mock.calls.at(-1)?.[1] as {
+        mcpServers: unknown[];
+      };
+      // Already relayed and no direct endpoint: not wrapped again.
+      expect(input.mcpServers).toEqual([relayed]);
+      // Local native launches share a pooled process: the relayed catalog is
+      // planned once for the process overlay, not prepared per session.
+      expect(mocks.planDevinMcpConfigForRoots).toHaveBeenCalledWith(
+        expect.anything(),
+        [relayed],
+        [],
+      );
+      expect(mocks.prepareDevinMcpConfig).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(helpers, { recursive: true, force: true });
+    }
+  });
+
+  it("connects hosted endpoints over HTTP in session/new and the disk overlay", async () => {
+    const helpers = await mkdtemp(join(tmpdir(), "devin-mcp-helpers-"));
+    try {
+      for (const name of ["mcp-filter.mjs", "mcp-relay.mjs", "mcp-stdio.mjs"])
+        await writeFile(join(helpers, name), "");
+      vi.stubEnv("PORACODE_WSL_HELPERS_DIR", helpers);
+      const route = {
+        type: "http" as const,
+        url: "http://127.0.0.1:9300/route-1/mcp",
+        headers: { Authorization: "Bearer route-token" },
+      };
+      const hosted = {
+        id: "browser",
+        name: "browser",
+        timeoutMs: 30_000,
+        disabledTools: ["secret_tool"],
+        transport: route,
+        directTransport: route,
+      };
+      const remote = {
+        id: "remote",
+        name: "remote",
+        timeoutMs: 30_000,
+        transport: { type: "http" as const, url: "https://mcp.example.com", headers: {} },
+      };
+      const filteredStdio = {
+        id: "fs",
+        name: "fs",
+        timeoutMs: 30_000,
+        disabledTools: ["danger"],
+        transport: { type: "stdio" as const, command: "srv", args: [], env: {} },
+      };
+      await createDevinAdapter().createStructuredSession?.({
+        ...guiInput({ model: "" }),
+        mcpServers: [hosted, remote, filteredStdio],
+      });
+      const input = mocks.createAcpStructuredSession.mock.calls.at(-1)?.[1] as {
+        mcpServers: ResolvedMcpServer[];
+      };
+      const [hostedOut, remoteOut, filteredOut] = input.mcpServers;
+      // The hosted endpoint keeps its HTTP transport and directTransport —
+      // the shared ACP layer serializes it as the proven session/new shape.
+      expect(hostedOut).toMatchObject({
+        name: "browser",
+        transport: { type: "http", url: route.url, headers: route.headers },
+      });
+      expect(hostedOut).toHaveProperty("directTransport");
+      expect(buildAcpMcpServers(input.mcpServers)).toContainEqual({
+        type: "http",
+        name: "browser",
+        url: route.url,
+        headers: [{ name: "Authorization", value: "Bearer route-token" }],
+      });
+      // Non-hosted remote and filtered stdio servers stay on stdio relays.
+      for (const relayed of [remoteOut, filteredOut]) {
+        expect(relayed!.transport.type).toBe("stdio");
+        expect(relayed).not.toHaveProperty("directTransport");
+      }
+      const wire = buildAcpMcpServers(input.mcpServers);
+      for (const name of ["remote", "fs"]) {
+        expect(wire.find((entry) => entry.name === name)).toMatchObject({
+          command: expect.any(String),
+          args: [expect.stringContaining("mcp-filter.mjs")],
+        });
+      }
+      // The shared-process overlay plans ONLY the relayed servers and
+      // deletes same-named native catalog entries a hosted route owns;
+      // hosted endpoints reach each session through session/new alone.
+      expect(mocks.planDevinMcpConfigForRoots).toHaveBeenCalledWith(
+        expect.anything(),
+        [remoteOut, filteredOut],
+        ["browser"],
+      );
+      expect(mocks.prepareDevinMcpConfig).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(helpers, { recursive: true, force: true });
+    }
+  });
+
+  it("gives the WSL overlay the same direct HTTP entries", async () => {
+    const route = {
+      type: "http" as const,
+      url: "http://172.30.0.1:9300/route-1/mcp",
+      headers: { Authorization: "Bearer route-token" },
+    };
+    const hosted = {
+      id: "browser",
+      name: "browser",
+      timeoutMs: 30_000,
+      transport: route,
+      directTransport: route,
+    };
+    await createDevinAdapter().createStructuredSession?.({
+      ...guiInput({ model: "" }),
+      projectLocation: {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/u/proj",
+        uncPath: "\\\\wsl$\\Ubuntu\\home\\u\\proj",
+      },
+      mcpServers: [hosted],
+    });
+    const input = mocks.createAcpStructuredSession.mock.calls.at(-1)?.[1] as {
+      mcpServers: ResolvedMcpServer[];
+    };
+    expect(input.mcpServers[0]!.transport).toMatchObject({ type: "http", url: route.url });
+    expect(mocks.prepareDevinMcpConfig).toHaveBeenCalledWith(expect.anything(), [
+      expect.objectContaining({
+        transport: expect.objectContaining({ type: "http", url: route.url }),
+      }),
+    ]);
+    // WSL keeps the dedicated per-thread process and its eager overlay.
+    expect(mocks.createSharedAcpStructuredSession).not.toHaveBeenCalled();
+    expect(mocks.planDevinMcpConfigForRoots).not.toHaveBeenCalled();
+  });
+
+  it("launches local native GUI threads on the shared pooled-process factory", async () => {
+    await createDevinAdapter().createStructuredSession?.(guiInput({ model: "" }));
+    expect(mocks.createSharedAcpStructuredSession).toHaveBeenCalledTimes(1);
+    const [command, input, shared, overrides] =
+      mocks.createSharedAcpStructuredSession.mock.calls[0]!;
+    expect(command).toBeDefined();
+    expect(input).toBeDefined();
+    expect(overrides).toBeDefined();
+    // Pool scope is the adapter kind; unaddressed diagnostics pulls route to
+    // the single working session only.
+    expect(shared).toMatchObject({
+      scope: "devin",
+      unaddressedRequests: "single-active-session",
+      prepare: expect.objectContaining({
+        key: expect.any(String),
+        materialize: expect.any(Function),
+      }),
+    });
+    // The dedicated factory is not used for a shared local launch — the
+    // delegation mock records the same call shape, so assert via the shared
+    // mock's own call count instead.
+    expect(mocks.planDevinMcpConfigForRoots).toHaveBeenCalledTimes(1);
+  });
+
+  it("scopes the shared pool to a profile adapter's own kind", async () => {
+    await profileAdapter({ instanceId: "work" }).createStructuredSession?.(guiInput({ model: "" }));
+    expect(mocks.createSharedAcpStructuredSession).toHaveBeenCalledTimes(1);
+    const shared = mocks.createSharedAcpStructuredSession.mock.calls[0]![2] as Record<
+      string,
+      unknown
+    >;
+    expect(shared).toMatchObject({
+      scope: "devin:work",
+      unaddressedRequests: "single-active-session",
+    });
+  });
+
+  it("keeps the shared prepare key stable across hosted route tokens and sensitive to the relayed set", async () => {
+    const helpers = await mkdtemp(join(tmpdir(), "devin-mcp-helpers-"));
+    try {
+      for (const name of ["mcp-filter.mjs", "mcp-relay.mjs", "mcp-stdio.mjs"])
+        await writeFile(join(helpers, name), "");
+      vi.stubEnv("PORACODE_WSL_HELPERS_DIR", helpers);
+      const hostedRoute = (token: string) => ({
+        type: "http" as const,
+        url: `http://127.0.0.1:9300/${token}/mcp`,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const hostedFor = (token: string) => ({
+        id: "browser",
+        name: "browser",
+        timeoutMs: 30_000,
+        transport: hostedRoute(token),
+        directTransport: hostedRoute(token),
+      });
+      const relayed = {
+        id: "fs",
+        name: "fs",
+        timeoutMs: 30_000,
+        transport: { type: "stdio" as const, command: "srv", args: [], env: {} },
+      };
+      const sharedPrepareKey = () =>
+        (
+          mocks.createSharedAcpStructuredSession.mock.calls.at(-1)![2] as {
+            prepare?: { key: string };
+          }
+        ).prepare?.key;
+
+      await createDevinAdapter().createStructuredSession?.({
+        ...guiInput({ model: "" }),
+        mcpServers: [hostedFor("route-a"), relayed],
+      });
+      const keyA = sharedPrepareKey();
+      await createDevinAdapter().createStructuredSession?.({
+        ...guiInput({ model: "" }),
+        mcpServers: [hostedFor("route-b"), relayed],
+      });
+      // Different hosted URL + bearer token: the per-session route never
+      // reaches the process-scoped plan, so the prepare key is identical.
+      expect(sharedPrepareKey()).toBe(keyA);
+      expect(mocks.planDevinMcpConfigForRoots).toHaveBeenLastCalledWith(
+        expect.anything(),
+        [expect.objectContaining({ name: "fs" })],
+        ["browser"],
+      );
+
+      await createDevinAdapter().createStructuredSession?.({
+        ...guiInput({ model: "" }),
+        mcpServers: [hostedFor("route-b"), { ...relayed, id: "fs2", name: "fs2" }],
+      });
+      // A different relayed-server set changes what materialize() produces,
+      // so it must produce a different prepare key.
+      expect(sharedPrepareKey()).not.toBe(keyA);
+    } finally {
+      vi.unstubAllEnvs();
+      await rm(helpers, { recursive: true, force: true });
+    }
+  });
+
+  it("retires pooled processes through the adapter shutdown hook", async () => {
+    const adapter = createDevinAdapter();
+    await adapter.shutdown?.();
+    expect(mocks.shutdownSharedAcpProcesses).toHaveBeenCalledWith("devin");
+    await profileAdapter({ instanceId: "work" }).shutdown?.();
+    expect(mocks.shutdownSharedAcpProcesses).toHaveBeenCalledWith("devin:work");
+  });
+
+  it("fails an isolated-profile launch as mcp-policy-unavailable when the shared plan hits a policy error", async () => {
+    const base = await mkdtemp(join(tmpdir(), "poracode-devin-policy-"));
+    const original = process.env.XDG_DATA_HOME;
+    process.env.XDG_DATA_HOME = base;
+    try {
+      const { DevinProfilePolicyError } = await import("./launchContext");
+      mocks.planDevinProfileMcpOverlay.mockRejectedValueOnce(
+        new DevinProfilePolicyError("catalog unreadable"),
+      );
+      // An isolated account redirects XDG_CONFIG_HOME, so the shared path
+      // plans through the profile overlay — a policy failure fails the
+      // launch exactly as the eager dedicated-path prepare did.
+      await expect(
+        profileAdapter({ auth: { kind: "isolated", ownerId: "work" } }).createStructuredSession?.(
+          guiInput({ model: "" }),
+        ),
+      ).rejects.toMatchObject({ code: "mcp-policy-unavailable" });
+      expect(mocks.createSharedAcpStructuredSession).not.toHaveBeenCalled();
+    } finally {
+      if (original === undefined) delete process.env.XDG_DATA_HOME;
+      else process.env.XDG_DATA_HOME = original;
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
   it("passes cloud setup only through the shared factory options and rejects CLI ignore", async () => {
     const adapter = profileAdapter({ runtimeTarget: "cloud", cloudDefaults: { repositories: [] } });
     await adapter.createStructuredSession?.(guiInput({ model: DEVIN_CLOUD_DEFAULT_MODEL_ID }));
@@ -228,10 +551,18 @@ describe("Devin structured-session wiring", () => {
       dispose: async () => {},
       attachExternalSessionUpdateSource: () => {},
     }));
+    mocks.createSharedAcpStructuredSession.mockClear();
+    mocks.createSharedAcpStructuredSession.mockImplementation(
+      async (command: unknown, input: unknown, _shared: unknown, overrides: unknown) =>
+        mocks.createAcpStructuredSession(command, input, overrides),
+    );
     mocks.warmDevinModels.mockReset();
     mocks.warmDevinModels.mockImplementation(async () => undefined);
     mocks.prepareDevinMcpConfig.mockClear();
+    mocks.planDevinMcpConfigForRoots.mockClear();
     mocks.prepareDevinProfileMcpOverlay.mockClear();
+    mocks.planDevinProfileMcpOverlay.mockClear();
+    mocks.shutdownSharedAcpProcesses.mockClear();
     mocks.prepareDevinSessionRecordLaunch.mockClear();
     mocks.prepareDevinSessionRecordLaunch.mockResolvedValue(undefined);
     mocks.provenIdentity.mockClear();
@@ -821,6 +1152,10 @@ describe("Devin structured-session wiring", () => {
     // nor the shared supervisor-root overlay is faked onto it.
     expect(mocks.prepareDevinProfileMcpOverlay).not.toHaveBeenCalled();
     expect(mocks.prepareDevinMcpConfig).not.toHaveBeenCalled();
+    expect(mocks.planDevinProfileMcpOverlay).not.toHaveBeenCalled();
+    expect(mocks.planDevinMcpConfigForRoots).not.toHaveBeenCalled();
+    // Cloud relays are single-session: the dedicated factory owns the spawn.
+    expect(mocks.createSharedAcpStructuredSession).not.toHaveBeenCalled();
     // Cloud-only archive IS composed on the cloud target.
     const cloudActions = (
       (input as Record<string, unknown>).acpSessionActions as (t: unknown) => Array<{ id: string }>

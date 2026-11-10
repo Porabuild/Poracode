@@ -267,4 +267,16 @@
     <string name="rich_chat_handoff_fork">Konuşmayı çatalla</string>
     <string name="rich_chat_handoff_prompt">Yeni sağlayıcıya sırada ne yapacağını söyleyin…</string>
     <string name="rich_chat_handoff_switch">Geç</string>
+    <string name="rich_chat_html_visual_title">HTML önizlemesi</string>
+    <string name="rich_chat_html_visual_source">Kaynak</string>
+    <string name="rich_chat_html_visual_preview">Önizleme</string>
+    <string name="rich_chat_html_visual_copy_source">Kaynağı kopyala</string>
+    <string name="rich_chat_html_visual_loading">Önizleme yükleniyor…</string>
+    <string name="rich_chat_html_visual_incomplete">HTML bloğu tamamlanmamış. Yalnızca kaynak kod gösteriliyor.</string>
+    <string name="rich_chat_html_visual_unsupported">Desteklenmeyen HTML biçimi. Yalnızca kaynak gösteriliyor.</string>
+    <string name="rich_chat_html_visual_limited">Bu mesajda çok fazla HTML önizlemesi var. Yalnızca kaynak gösteriliyor.</string>
+    <string name="rich_chat_html_visual_too_large">Bu HTML bloğu önizleme için çok büyük. Yalnızca kaynak gösteriliyor.</string>
+    <string name="rich_chat_html_visual_unavailable">Etkileşimli görüntüleme kullanılamıyor. Yalnızca kaynak kod gösteriliyor.</string>
+    <string name="rich_chat_html_visual_open_link_title">Bağlantı açılsın mı?</string>
+    <string name="rich_chat_html_visual_open_link">Aç</string>
 </resources>

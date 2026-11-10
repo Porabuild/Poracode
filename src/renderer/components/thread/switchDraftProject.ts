@@ -97,7 +97,7 @@ export function switchDraftProject(
     if (paneId) {
       store.replacePaneId(paneId, makeDraftPaneId(nextProjectId));
     } else {
-      store.openDraft(nextProjectId);
+      store.moveDraft(nextProjectId);
     }
   });
 }

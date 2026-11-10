@@ -79,6 +79,13 @@ describe("ReasoningInline", () => {
 
     expect(preview).toHaveTextContent(target);
   });
+
+  it("renders a row-length Thought preview whole inside the CSS-truncated span", () => {
+    const thought = "Checking the registry before the next release step. ".repeat(5).trimEnd();
+    const view = renderInline({ ...makeReasoningItem(thought), state: "completed" });
+
+    expect(getPreview(view.container).textContent).toBe(thought);
+  });
 });
 
 function renderInline(item: RuntimeChatItem) {

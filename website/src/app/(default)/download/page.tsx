@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getLocaleMessages } from "@/lib/i18n/messages";
-import { getLatestRelease } from "@/lib/releases";
+import { getLatestRelease, getNpmLauncherVersion } from "@/lib/releases";
 import { createPageMetadata } from "@/lib/seo";
 import { DownloadContent } from "@/app/download/download-content";
 
@@ -14,10 +14,10 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default async function DownloadPage() {
-  const release = await getLatestRelease();
+  const [release, npmVersion] = await Promise.all([getLatestRelease(), getNpmLauncherVersion()]);
   return (
     <I18nProvider messages={getLocaleMessages()}>
-      <DownloadContent release={release} />
+      <DownloadContent release={release} npxAvailable={npmVersion !== null} />
     </I18nProvider>
   );
 }

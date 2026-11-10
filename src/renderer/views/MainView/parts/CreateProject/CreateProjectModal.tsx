@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, FolderOpen, Monitor } from "lucide-react";
-import { Button, Dropdown, Label, Modal } from "@heroui/react";
+import { FolderOpen } from "lucide-react";
+import { Button, Label, Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Input, TuxIcon } from "@/renderer/components/common";
+import { Input } from "@/renderer/components/common";
 import {
   buildScratchTargetPath,
   scratchKindForChoice,
@@ -15,15 +15,24 @@ import {
 import { getProjectFsPath } from "@/shared/wsl";
 import { readBridge } from "@/renderer/bridge";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
-import { commitCreateProject } from "@/renderer/actions/createProjectActions";
+import {
+  commitCreateProject,
+  commitRemoteCreateProject,
+  machinePathLocation,
+  resolveMachineHomeLocation,
+} from "@/renderer/actions/createProjectActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { MachineFolderPicker } from "./MachineFolderPicker";
+import { machineConnectionKey, useMachinePlatform, useProjectMachines } from "./projectMachines";
+import { ProjectRuntimePicker } from "./ProjectRuntimePicker";
 
 /**
- * Modal for the "Start from scratch" flow: name a project, choose a runtime
- * (Native / WSL when distros exist) and a parent folder, then create the new
- * directory on disk. "Use an existing folder" does not use this modal — it goes
- * straight to the system folder picker.
+ * Modal for the "New project" flow: name a project, choose a runtime
+ * (Local / WSL when distros exist / a reachable paired machine) and a parent
+ * folder, then create the new directory there. A paired machine browses its own
+ * folders and creates and registers the project itself. "Add folder" does
+ * not use this modal.
  */
 export function CreateProjectModal() {
   const open = usePanelStore((s) => s.createProjectModalOpen);
@@ -61,6 +70,10 @@ function CreateProjectForm() {
 
   const choice: RuntimeChoice =
     runtimeKey === "native" ? { kind: "native" } : { kind: "wsl", distro: runtimeKey };
+  const machines = useProjectMachines();
+  const machineKey = machineConnectionKey(runtimeKey);
+  const machinePlatform = useMachinePlatform(machineKey);
+  const [machinePickerOpen, setMachinePickerOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -99,18 +112,19 @@ function CreateProjectForm() {
     setPrevDefaultDirKey(defaultDirKey);
     if (lastForRuntime) {
       setDefaultDir(lastForRuntime);
-    } else if (runtimeKey !== "native") {
+    } else if (runtimeKey !== "native" && !machineKey) {
       setDefaultDir(wslHomeDir(runtimeKey));
     } else {
       setDefaultDir("");
     }
   }
   useEffect(() => {
-    if (lastForRuntime || runtimeKey !== "native") {
+    const onMachine = machineConnectionKey(runtimeKey);
+    if (lastForRuntime || (runtimeKey !== "native" && !onMachine)) {
       return;
     }
     let active = true;
-    void loadHomeScopeLocation()
+    void (onMachine ? resolveMachineHomeLocation(onMachine) : loadHomeScopeLocation())
       .then((location) => {
         if (active) setDefaultDir(getProjectFsPath(location));
       })
@@ -121,11 +135,19 @@ function CreateProjectForm() {
   }, [runtimeKey, lastForRuntime]);
 
   const scratchParent = dir || defaultDir;
-  const scratchKind = scratchKindForChoice(choice, platform);
-  const showRuntime = distros.length > 0;
+  const scratchKind = machineKey
+    ? machinePathLocation(machineKey, scratchParent, machinePlatform).kind
+    : scratchKindForChoice(choice, platform);
+  const showRuntime = distros.length > 0 || machines.length > 0 || machineKey !== undefined;
 
   const nameError = validateProjectName(name);
-  const parentError = validateScratchParent(scratchParent, choice);
+  // A machine's folder browser only returns folders that exist on it, so any
+  // chosen folder works; this computer also checks the native/WSL match.
+  const parentError = machineKey
+    ? scratchParent
+      ? null
+      : t`Choose a folder…`
+    : validateScratchParent(scratchParent, choice);
   const validationError = nameError ?? parentError;
   // Only surface a runtime/path *mismatch* inline (not the "nothing picked yet"
   // case, which would flash an error while the home dir is still resolving).
@@ -143,6 +165,10 @@ function CreateProjectForm() {
   const pickerLeaf = pickerPath ? splitPathLeaf(pickerPath) : null;
 
   async function handleBrowse() {
+    if (machineKey) {
+      setMachinePickerOpen(true);
+      return;
+    }
     const picked = await readBridge().pickFolder(scratchParent || undefined);
     if (!picked) return;
     setDir(picked);
@@ -153,7 +179,9 @@ function CreateProjectForm() {
     setBusy(true);
     setSubmitError(null);
     try {
-      await commitCreateProject({ mode: "scratch", choice, dir: scratchParent, name });
+      await (machineKey
+        ? commitRemoteCreateProject({ connectionKey: machineKey, parentDir: scratchParent, name })
+        : commitCreateProject({ mode: "scratch", choice, dir: scratchParent, name }));
       usePanelStore.getState().closeCreateProjectModal();
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : t`Couldn't create the project.`);
@@ -162,14 +190,12 @@ function CreateProjectForm() {
     }
   }
 
-  const runtimeLabel = runtimeKey === "native" ? t`Native` : runtimeKey;
-
   return (
     <>
       <Modal.CloseTrigger />
       <Modal.Header>
         <Modal.Heading>
-          <Trans>Start from scratch</Trans>
+          <Trans>New project</Trans>
         </Modal.Heading>
         <p className="mt-1 text-xs text-muted">
           <Trans>Name your project and choose where to create it.</Trans>
@@ -195,45 +221,12 @@ function CreateProjectForm() {
         </div>
 
         {showRuntime ? (
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted">
-              <Trans>Runtime</Trans>
-            </Label>
-            <Dropdown>
-              <Button aria-label={t`Runtime`} variant="tertiary" className="justify-between">
-                <span className="flex items-center gap-2">
-                  {runtimeKey === "native" ? (
-                    <Monitor className="size-4 text-muted" />
-                  ) : (
-                    <TuxIcon className="size-4 text-muted" />
-                  )}
-                  {runtimeLabel}
-                </span>
-                <ChevronDown className="size-3.5 text-muted/60" />
-              </Button>
-              <Dropdown.Popover className="min-w-[--trigger-width]">
-                <Dropdown.Menu
-                  aria-label={t`Runtime options`}
-                  selectionMode="single"
-                  selectedKeys={[runtimeKey]}
-                  onAction={(key) => setRuntimeKey(String(key))}
-                >
-                  <Dropdown.Item id="native" textValue={t`Native`}>
-                    <Monitor className="size-4 shrink-0 text-muted" />
-                    <Label>
-                      <Trans>Native</Trans>
-                    </Label>
-                  </Dropdown.Item>
-                  {distros.map((distro) => (
-                    <Dropdown.Item key={distro} id={distro} textValue={distro}>
-                      <TuxIcon className="size-4 shrink-0 text-muted" />
-                      <Label>{distro}</Label>
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
-          </div>
+          <ProjectRuntimePicker
+            runtimeKey={runtimeKey}
+            distros={distros}
+            machines={machines}
+            onChange={setRuntimeKey}
+          />
         ) : null}
 
         <div className="flex flex-col gap-1.5">
@@ -277,6 +270,17 @@ function CreateProjectForm() {
           <Trans>Create project</Trans>
         </Button>
       </Modal.Footer>
+      {machinePickerOpen && machineKey ? (
+        <MachineFolderPicker
+          connectionKey={machineKey}
+          initialPath={scratchParent}
+          onClose={() => setMachinePickerOpen(false)}
+          onSelect={(path) => {
+            setDir(path);
+            setSubmitError(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

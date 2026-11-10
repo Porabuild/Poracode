@@ -180,6 +180,7 @@ private struct RichChatPromptMessage: View {
         role: .body,
         collapses: true,
         rendersMarkdown: false,
+        rendersVisuals: false,
         isAssistant: false,
         supplements: supplements,
         images: images,
@@ -211,6 +212,7 @@ private struct RichChatAssistantMessage: View {
           role: .body,
           collapses: false,
           rendersMarkdown: true,
+          rendersVisuals: !isWorking,
           isAssistant: true,
           supplements: supplements,
           images: images,
@@ -259,6 +261,8 @@ private struct RichChatMessageContent: View {
   let role: PoracodeChatTextRole
   let collapses: Bool
   let rendersMarkdown: Bool
+  /// Settled replies render `poracode-html` fences as sandboxed previews.
+  let rendersVisuals: Bool
   let isAssistant: Bool
   let supplements: [RichMessageSupplementPresentation]
   let images: [RichImagePresentation]
@@ -268,7 +272,11 @@ private struct RichChatMessageContent: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 7) {
       if !text.isEmpty {
-        if rendersMarkdown {
+        if rendersMarkdown,
+          let blocks = RichInlineVisualParser.blocks(for: text, settled: rendersVisuals)
+        {
+          RichChatInlineVisualBlocksView(blocks: blocks)
+        } else if rendersMarkdown {
           RichChatMarkdownView(source: text)
         } else {
           RichChatMessageText(

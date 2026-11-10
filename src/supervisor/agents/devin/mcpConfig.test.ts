@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   mergeDevinMcpConfig,
+  planDevinMcpConfigForRoots,
   prepareDevinMcpConfig,
   prepareDevinMcpConfigForRoots,
 } from "./mcpConfig";
@@ -41,7 +42,7 @@ it("overlays the session catalog without modifying existing config or losing oth
   });
   await writeFile(join(original, "devin", "mcp_config.json"), existing);
   const overlay = await prepareDevinMcpConfig({ kind: "posix", path: original }, servers);
-  const root = Object.values(overlay.env)[0]!;
+  const root = Object.values(overlay.env!)[0]!;
   expect(await readFile(join(root, "devin", "config.json"), "utf8")).toBe("original-settings");
   expect(await readFile(join(root, "other-app", "settings.json"), "utf8")).toBe("other");
   expect(JSON.parse(await readFile(join(root, "devin", "mcp_config.json"), "utf8"))).toMatchObject({
@@ -68,33 +69,62 @@ it("rejects malformed existing catalogs rather than discarding user configuratio
   );
 });
 
-it("keeps remote servers on the tool-filter stdio relay even though native injection is proven", () => {
-  // Corrected live evidence (devin 3000.11.3, tmp/devin/probe/results/):
-  // native session/new injection DOES work — stdio entries and spec-exact
-  // `{type:"http"|"sse", name, url, headers:[{name,value}]}` entries all
-  // completed real tools/list + tools/call round trips inside prompt turns.
-  // The overlay still serializes remote servers to the stdio relay for a
-  // different reason: Poracode's per-server `disabledTools` filtering is
-  // enforced by its stdio tool-filter proxy, and a natively injected remote
-  // server would bypass it. Direct native injection must not be adopted per
-  // server until that filter guarantee is re-established.
-  const remote = (transport: {
-    type: "http" | "sse";
-    url: string;
-    headers: Record<string, string>;
-  }) => [{ id: "poracode", timeoutMs: 15000, name: "poracode", transport }];
+it("serializes hosted http servers in the proven disk shape and keeps stdio unchanged", () => {
+  // devin 3000.12.28 (2026-11-08, tmp/devin-http-probe/): the disk remote
+  // shape {url, transport:"http", headers?: map} completed real
+  // tools/list + tools/call round trips inside a prompt turn.
+  const httpServers = [
+    {
+      id: "poracode",
+      timeoutMs: 15000,
+      name: "poracode",
+      transport: {
+        type: "http" as const,
+        url: "http://127.0.0.1:8080/mcp",
+        headers: { Authorization: "Bearer fixture-token" },
+      },
+    },
+    {
+      id: "poracode-plain",
+      timeoutMs: 15000,
+      name: "poracode-plain",
+      transport: { type: "http" as const, url: "http://127.0.0.1:8081/mcp", headers: {} },
+    },
+  ];
+  expect(JSON.parse(mergeDevinMcpConfig('{"mcpServers":{}}', httpServers))).toMatchObject({
+    mcpServers: {
+      poracode: {
+        url: "http://127.0.0.1:8080/mcp",
+        transport: "http",
+        headers: { Authorization: "Bearer fixture-token" },
+      },
+      "poracode-plain": { url: "http://127.0.0.1:8081/mcp", transport: "http" },
+    },
+  });
+  const plain = JSON.parse(mergeDevinMcpConfig('{"mcpServers":{}}', httpServers)).mcpServers[
+    "poracode-plain"
+  ];
+  expect(plain).not.toHaveProperty("headers");
+  expect(JSON.parse(mergeDevinMcpConfig('{"mcpServers":{}}', servers))).toMatchObject({
+    mcpServers: { poracode: { command: "node", env: { TOKEN: "fixture-token" } } },
+  });
+});
+
+it("rejects sse transports: the disk SSE shape is documented but unproven", () => {
   expect(() =>
-    mergeDevinMcpConfig(
-      '{"mcpServers":{}}',
-      remote({ type: "http", url: "https://fixture.test/mcp", headers: {} }),
-    ),
-  ).toThrow("Devin session MCP requires a stdio relay");
-  expect(() =>
-    mergeDevinMcpConfig(
-      '{"mcpServers":{}}',
-      remote({ type: "sse", url: "https://fixture.test/sse", headers: {} }),
-    ),
-  ).toThrow("Devin session MCP requires a stdio relay");
+    mergeDevinMcpConfig('{"mcpServers":{}}', [
+      {
+        id: "poracode",
+        timeoutMs: 15000,
+        name: "poracode",
+        transport: {
+          type: "sse" as const,
+          url: "https://fixture.test/sse",
+          headers: {},
+        },
+      },
+    ]),
+  ).toThrow("Devin session MCP does not support the sse transport");
 });
 
 it("accepts the CLI's JSONC catalog format", () => {
@@ -114,7 +144,7 @@ it("keeps the first native session database outside the temporary overlay", asyn
   vi.stubEnv(process.platform === "win32" ? "APPDATA" : "XDG_CONFIG_HOME", original);
   const overlay = await prepareDevinMcpConfig({ kind: "posix", path: original }, servers);
   await writeFile(
-    join(Object.values(overlay.env)[0]!, "devin", "cli", "sessions.db"),
+    join(Object.values(overlay.env!)[0]!, "devin", "cli", "sessions.db"),
     "first session",
   );
   await overlay.cleanup();
@@ -139,7 +169,7 @@ it("overlays a profile context's roots without touching them and cleans only the
     { root: configRoot, variable: "XDG_CONFIG_HOME", overlayParent },
     servers,
   );
-  const overlayDir = overlay.env.XDG_CONFIG_HOME!;
+  const overlayDir = overlay.env!.XDG_CONFIG_HOME!;
   expect(overlayDir.startsWith(overlayParent)).toBe(true);
   // Resources inside the account config root are preserved through the overlay…
   expect(await readFile(join(overlayDir, "devin", "config.json"), "utf8")).toBe("account-settings");
@@ -155,4 +185,64 @@ it("overlays a profile context's roots without touching them and cleans only the
   await expect(stat(overlayDir)).rejects.toMatchObject({ code: "ENOENT" });
   await expect(stat(join(overlayParent, "devin"))).rejects.toMatchObject({ code: "ENOENT" });
   expect(await readFile(join(configRoot, "devin", "config.json"), "utf8")).toBe("account-settings");
+});
+
+it("deletes same-named native catalog entries a per-session route owns", () => {
+  // Shared-process overlays must not let a hosted route's name resolve to the
+  // user's own disk entry inside the pooled agent.
+  const merged = JSON.parse(
+    mergeDevinMcpConfig(
+      '{"mcpServers":{"browser":{"command":"native-browser"},"personal":{"command":"keep"}}}',
+      servers,
+      ["browser"],
+    ),
+  );
+  expect(merged.mcpServers).not.toHaveProperty("browser");
+  expect(merged.mcpServers.personal).toEqual({ command: "keep" });
+  expect(merged.mcpServers.poracode).toBeDefined();
+});
+
+it("plans a shared-process overlay once and materializes the private root per process", async () => {
+  const original = await mkdtemp(join(tmpdir(), "devin-plan-test-"));
+  roots.push(original);
+  const overlayParent = await mkdtemp(join(tmpdir(), "devin-plan-parent-"));
+  roots.push(overlayParent);
+  await mkdir(join(original, "devin"), { recursive: true });
+  await writeFile(
+    join(original, "devin", "mcp_config.json"),
+    '{"mcpServers":{"browser":{"command":"native-browser"},"personal":{"command":"keep"}}}',
+  );
+  const plan = await planDevinMcpConfigForRoots(
+    { root: original, variable: "XDG_CONFIG_HOME", overlayParent },
+    servers,
+    ["browser"],
+  );
+  // Planning reads+merges eagerly: each materialize() builds a fresh private
+  // root carrying the already-merged catalog.
+  const first = await plan.materialize();
+  const second = await plan.materialize();
+  const firstRoot = first.env?.XDG_CONFIG_HOME;
+  const secondRoot = second.env?.XDG_CONFIG_HOME;
+  expect(firstRoot).toBeDefined();
+  expect(secondRoot).toBeDefined();
+  expect(firstRoot).not.toBe(secondRoot);
+  expect(firstRoot!.startsWith(overlayParent)).toBe(true);
+  const merged = JSON.parse(await readFile(join(firstRoot!, "devin", "mcp_config.json"), "utf8"));
+  expect(merged.mcpServers).not.toHaveProperty("browser");
+  expect(merged.mcpServers.poracode).toBeDefined();
+  // Identical plan inputs produce identical keys; different inputs differ.
+  const samePlan = await planDevinMcpConfigForRoots(
+    { root: original, variable: "XDG_CONFIG_HOME", overlayParent },
+    servers,
+    ["browser"],
+  );
+  expect(samePlan.key).toBe(plan.key);
+  const differentPlan = await planDevinMcpConfigForRoots(
+    { root: original, variable: "XDG_CONFIG_HOME", overlayParent },
+    servers,
+    ["browser", "personal"],
+  );
+  expect(differentPlan.key).not.toBe(plan.key);
+  await first.cleanup();
+  await second.cleanup();
 });

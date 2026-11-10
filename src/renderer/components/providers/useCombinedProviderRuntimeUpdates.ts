@@ -167,7 +167,7 @@ export function useCombinedProviderRuntimeUpdates(
     if (!resolver) {
       return { supported: false, runtimes: [], updateAvailable: false, pending: false };
     }
-    const key = statusKey(status);
+    const key = hostScopedKey(host.key, statusKey(status));
     const runtimes = resolver({ agentStatus: status }).map((runtime) => {
       const installedVersion = verifiedVersions[`${key}:${runtime.id}`] ?? runtime.installedVersion;
       const probedLatestVersion =
@@ -200,7 +200,7 @@ export function useCombinedProviderRuntimeUpdates(
   async function updateStatus(status: AgentStatus, options: UpdateOptions = {}): Promise<void> {
     const resolver = getCombinedRuntimeUpdates(status.kind);
     if (!resolver) return;
-    const key = statusKey(status);
+    const key = hostScopedKey(host.key, statusKey(status));
     const runtimes = resolver({ agentStatus: status });
     try {
       const resolved = await Promise.all(
@@ -256,7 +256,7 @@ export function useCombinedProviderRuntimeUpdates(
                 agentId: registryAgentId,
                 target,
               });
-              host.recordRegistryInstalls(result.installed);
+              host.recordRegistryInstalls(result.installed, [registryAgentId]);
               resetAcpRegistryListingCache();
               const record = result.installed.find((installed) => installed.id === registryAgentId);
               expectedVersion =
