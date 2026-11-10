@@ -105,7 +105,7 @@ describe("UsageService", () => {
     }
   });
 
-  it.each([4, 6, 7, 8, 9, 10, 11, 12, 14])(
+  it.each([4, 6, 7, 8, 9, 10, 11, 12, 14, 15])(
     "discards snapshots from obsolete collector cache version %i",
     async (version) => {
       const cachePath = tempCachePath();
@@ -161,10 +161,72 @@ describe("UsageService", () => {
     expect(await service.getProviderUsage({})).toEqual({ snapshots: [], fromCache: false });
     expect((await service.refreshProviderUsage({ force: true })).snapshots).toEqual([fresh]);
     expect(JSON.parse(readFileSync(cachePath, "utf8"))).toMatchObject({
-      version: 15,
+      version: 16,
       snapshots: [fresh],
     });
     service.stop();
+  });
+
+  it("recollects a v15 balance-only Devin snapshot with an exhausted weekly quota", async () => {
+    const cachePath = tempCachePath();
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 15,
+        snapshots: [
+          {
+            providerId: "devin",
+            status: "ok",
+            plan: "Max",
+            windows: [],
+            credits: { balance: -0.238996, currency: "USD" },
+            fetchedAt: NOW,
+          },
+        ],
+      }),
+    );
+    const service = new UsageService({
+      emit: () => {},
+      cachePath,
+      host: {
+        ...makeHost({ devin: { accessToken: "fixture" } }),
+        http: {
+          request: async () => ({
+            status: 200,
+            headers: {},
+            body: JSON.stringify({
+              userStatus: {
+                planStatus: {
+                  planInfo: { planName: "Max", hideDailyQuota: true },
+                  weeklyQuotaResetAtUnix: "1800000000",
+                  overageBalanceMicros: "-238996",
+                },
+              },
+            }),
+          }),
+        },
+      },
+      providerIds: ["devin"],
+      profileSources: () => [],
+      localCollectors: [],
+    });
+    try {
+      expect(await service.getProviderUsage({ providerIds: ["devin"] })).toEqual({
+        snapshots: [],
+        fromCache: false,
+      });
+      expect(
+        (await service.refreshProviderUsage({ providerIds: ["devin"], force: true })).snapshots,
+      ).toMatchObject([
+        {
+          providerId: "devin",
+          windows: [{ id: "weekly", usedPercent: 100, resetsAt: 1800000000000 }],
+          credits: { balance: -0.238996, currency: "USD" },
+        },
+      ]);
+    } finally {
+      service.stop();
+    }
   });
 
   it("refresh defaults to Claude and Codex only, emits per-provider then a terminal event", async () => {
@@ -535,7 +597,7 @@ describe("UsageService", () => {
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 15,
+        version: 16,
         snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW - 600_000 }],
       }),
     );
@@ -942,7 +1004,7 @@ describe("UsageService", () => {
       credits: { balance: 20 },
       fetchedAt: NOW - 6 * 60 * 60_000,
     };
-    writeFileSync(cachePath, JSON.stringify({ version: 15, snapshots: [previous] }));
+    writeFileSync(cachePath, JSON.stringify({ version: 16, snapshots: [previous] }));
     let failed = true;
     const options = {
       emit: () => {},
