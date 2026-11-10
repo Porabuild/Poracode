@@ -215,15 +215,15 @@ describe("UsageService", () => {
         snapshots: [],
         fromCache: false,
       });
-      expect(
-        (await service.refreshProviderUsage({ providerIds: ["devin"], force: true })).snapshots,
-      ).toMatchObject([
+      const refreshed = await service.refreshProviderUsage({ providerIds: ["devin"], force: true });
+      expect(refreshed.snapshots).toMatchObject([
         {
           providerId: "devin",
           windows: [{ id: "weekly", usedPercent: 100, resetsAt: 1800000000000 }],
           credits: { balance: -0.238996, currency: "USD" },
         },
       ]);
+      expect(refreshed.ringLayouts).toEqual({ devin: { outerWindowId: "weekly" } });
     } finally {
       service.stop();
     }
