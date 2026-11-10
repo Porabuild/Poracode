@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Button, Checkbox, toast } from "@heroui/react";
+import { Button, Checkbox, Disclosure, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, NativeMcpSetupPayload, NativeMcpSetupStatus } from "@/shared/contracts";
 import { hookEnvForAgentStatus, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { readBridge } from "@/renderer/bridge";
-import { localEnvLabel } from "@/renderer/utils/machineLabels";
 
 function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
   const { t } = useLingui();
@@ -13,6 +12,7 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
   const envKey = hookEnvKey(input.env);
   useEffect(() => {
     let cancelled = false;
@@ -54,116 +54,129 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
       .finally(() => setPending(false));
   };
   return (
-    <section className="mt-6 border-t border-border/10 pt-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-sm font-medium">
-          <Trans>Native MCP setup</Trans> · {localEnvLabel(input.env)}
-        </p>
-        <Button
-          size="sm"
-          variant="tertiary"
-          isDisabled={pending}
-          onPress={() => {
-            setStatus(undefined);
-            setRefresh((value) => value + 1);
-          }}
-        >
-          <Trans>Refresh</Trans>
-        </Button>
-      </div>
-      <p className="mb-2 text-xs text-muted">
-        <Trans>
-          Optional: copy selected user MCP servers into this CLI's native configuration for all its
-          sessions. Commands, arguments, and credentials are copied only when you click Install.
-          Changes are not synced automatically.
-        </Trans>
-      </p>
-      {status?.configPath ? (
-        <p className="mb-3 break-all font-mono text-xs text-muted">{status.configPath}</p>
-      ) : null}
-      {failed || status?.issue ? (
-        <p role="alert" className="text-xs text-danger">
-          <Trans>Unable to read native MCP configuration.</Trans>
-        </p>
-      ) : null}
-      {status && !status.issue ? (
-        <>
-          {!status.candidates.length ? (
+    <Disclosure
+      className="mt-6 border-t border-border/10 pt-3"
+      isExpanded={isExpanded}
+      onExpandedChange={setIsExpanded}
+    >
+      <Disclosure.Heading>
+        <Disclosure.Trigger className="flex w-full items-center gap-3 py-1 text-left text-sm">
+          <span className="flex-1 font-medium">
+            <Trans>Native MCP setup</Trans>
+          </span>
+          <Disclosure.Indicator className="size-3.5 shrink-0 text-muted" />
+        </Disclosure.Trigger>
+      </Disclosure.Heading>
+      <Disclosure.Content>
+        <Disclosure.Body className="pt-2">
+          <div className="mb-2 flex items-start justify-between gap-3">
             <p className="text-xs text-muted">
-              <Trans>Add user MCP servers in MCP Servers settings to install them here.</Trans>
+              <Trans>
+                Optional: copy selected user MCP servers into this CLI's native configuration for
+                all its sessions. Commands, arguments, and credentials are copied only when you
+                click Install. Changes are not synced automatically.
+              </Trans>
             </p>
-          ) : null}
-          <div className="space-y-2">
-            {status.candidates.map((candidate) => (
-              <div key={candidate.id}>
-                <Checkbox
-                  isSelected={selected.includes(candidate.id)}
-                  isDisabled={pending || !candidate.eligible || candidate.conflict}
-                  onChange={(checked) =>
-                    setSelected((current) =>
-                      checked
-                        ? [...current, candidate.id]
-                        : current.filter((id) => id !== candidate.id),
-                    )
-                  }
-                >
-                  <Checkbox.Content>
-                    <Checkbox.Control>
-                      <Checkbox.Indicator />
-                    </Checkbox.Control>
-                    {candidate.name}
-                  </Checkbox.Content>
-                </Checkbox>
-                <p className="ml-6 break-all text-xs text-muted">
-                  {candidate.target} ·{" "}
-                  {candidate.conflict
-                    ? t`Existing or edited native entry; left unchanged`
-                    : !candidate.eligible
-                      ? t`Disabled server or unsupported native options`
-                      : candidate.installed
-                        ? t`Installed`
-                        : t`Not installed`}
-                </p>
-              </div>
-            ))}
-          </div>
-          {status.candidates.length ? (
             <Button
-              className="mt-3"
               size="sm"
-              variant="secondary"
-              isDisabled={pending || !selected.length}
-              isPending={pending}
-              onPress={() => apply(selected, [])}
+              variant="tertiary"
+              isDisabled={pending}
+              onPress={() => {
+                setStatus(undefined);
+                setRefresh((value) => value + 1);
+              }}
             >
-              <Trans>Install</Trans>
+              <Trans>Refresh</Trans>
             </Button>
+          </div>
+          {status?.configPath ? (
+            <p className="mb-3 break-all font-mono text-xs text-muted">{status.configPath}</p>
           ) : null}
-          {status.installedNames.map((name) => (
-            <div key={name} className="mt-2 flex items-center justify-between gap-3 text-xs">
-              <span>
-                {name} · <Trans>Installed</Trans>
-              </span>
-              <Button
-                size="sm"
-                variant="tertiary"
-                isDisabled={pending}
-                aria-label={t`Uninstall ${name}`}
-                onPress={() => apply([], [name])}
-              >
-                <Trans>Uninstall</Trans>
-              </Button>
-            </div>
-          ))}
-          {status.modifiedNames.length ? (
-            <p className="mt-2 text-xs text-warning">
-              <Trans>Existing or edited native entry; left unchanged</Trans>:{" "}
-              {status.modifiedNames.join(", ")}
+          {failed || status?.issue ? (
+            <p role="alert" className="text-xs text-danger">
+              <Trans>Unable to read native MCP configuration.</Trans>
             </p>
           ) : null}
-        </>
-      ) : null}
-    </section>
+          {status && !status.issue ? (
+            <>
+              {!status.candidates.length ? (
+                <p className="text-xs text-muted">
+                  <Trans>Add user MCP servers in MCP Servers settings to install them here.</Trans>
+                </p>
+              ) : null}
+              <div className="space-y-2">
+                {status.candidates.map((candidate) => (
+                  <div key={candidate.id}>
+                    <Checkbox
+                      isSelected={selected.includes(candidate.id)}
+                      isDisabled={pending || !candidate.eligible || candidate.conflict}
+                      onChange={(checked) =>
+                        setSelected((current) =>
+                          checked
+                            ? [...current, candidate.id]
+                            : current.filter((id) => id !== candidate.id),
+                        )
+                      }
+                    >
+                      <Checkbox.Content>
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        {candidate.name}
+                      </Checkbox.Content>
+                    </Checkbox>
+                    <p className="ml-6 break-all text-xs text-muted">
+                      {candidate.target} ·{" "}
+                      {candidate.conflict
+                        ? t`Existing or edited native entry; left unchanged`
+                        : !candidate.eligible
+                          ? t`Disabled server or unsupported native options`
+                          : candidate.installed
+                            ? t`Installed`
+                            : t`Not installed`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              {status.candidates.length ? (
+                <Button
+                  className="mt-3"
+                  size="sm"
+                  variant="secondary"
+                  isDisabled={pending || !selected.length}
+                  isPending={pending}
+                  onPress={() => apply(selected, [])}
+                >
+                  <Trans>Install</Trans>
+                </Button>
+              ) : null}
+              {status.installedNames.map((name) => (
+                <div key={name} className="mt-2 flex items-center justify-between gap-3 text-xs">
+                  <span>
+                    {name} · <Trans>Installed</Trans>
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    isDisabled={pending}
+                    aria-label={t`Uninstall ${name}`}
+                    onPress={() => apply([], [name])}
+                  >
+                    <Trans>Uninstall</Trans>
+                  </Button>
+                </div>
+              ))}
+              {status.modifiedNames.length ? (
+                <p className="mt-2 text-xs text-warning">
+                  <Trans>Existing or edited native entry; left unchanged</Trans>:{" "}
+                  {status.modifiedNames.join(", ")}
+                </p>
+              ) : null}
+            </>
+          ) : null}
+        </Disclosure.Body>
+      </Disclosure.Content>
+    </Disclosure>
   );
 }
 export function NativeMcpSettings(props: { agentKind: string; statuses: readonly AgentStatus[] }) {
