@@ -951,6 +951,7 @@ export class SpawnPipeline {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
+          ...(payload.questionAnswer ? { questionAnswer: payload.questionAnswer } : {}),
           ...structuredTurnTextOptions(session, { ...initialTurnText, config: launchConfig }),
         };
         void structuredSession
@@ -1401,6 +1402,7 @@ export class SpawnPipeline {
             : undefined;
         const startOptions = {
           userMessageItemId: optimisticItemId,
+          ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
           ...textOptions,
           ...(onPromptSubmitted ? { onPromptSubmitted } : {}),
         };

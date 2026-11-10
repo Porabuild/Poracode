@@ -1,8 +1,39 @@
 import { describe, expect, it, vi } from "vitest";
 import { messageItemPayloadSchema } from "@/shared/contracts";
 import { StructuredTurnQueue, type StructuredTurnQueueContext } from "./structuredTurnQueue";
+import { createFollowUpQueueHarness } from "../threadSessionManager.followUpQueueTestHarness";
 
 describe("StructuredTurnQueue answer metadata", () => {
+  it.each(["idle", "working"] as const)(
+    "forwards source identity through a %s session",
+    async (status) => {
+      const h = createFollowUpQueueHarness();
+      h.session.status = status;
+      const questionAnswer = {
+        sourceItemId: "question-message",
+        questions: [{ header: "", question: "Scope?", selected: [{ label: "Small" }] }],
+      };
+      try {
+        await h.manager.sendThreadInput({
+          threadId: h.session.threadId,
+          prompt: "Scope?\nSmall",
+          config: h.session.config,
+          questionAnswer,
+        });
+        const send = status === "working" ? h.steerTurn : h.startTurn;
+        expect(send).toHaveBeenCalledExactlyOnceWith(
+          "Scope?\nSmall",
+          h.session.config,
+          undefined,
+          expect.objectContaining({ questionAnswer }),
+        );
+      } finally {
+        h.finish();
+        await h.manager.dispose();
+      }
+    },
+  );
+
   it("keeps answers on the durable user message while preserving ordinary prompt content and identity", () => {
     const emit = vi.fn<StructuredTurnQueueContext["emit"]>();
     const queue = new StructuredTurnQueue({

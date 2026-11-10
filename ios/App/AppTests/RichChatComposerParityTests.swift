@@ -725,6 +725,20 @@ final class RichChatComposerParityTests: XCTestCase {
   }
 
   func testThreadHeaderTreatsLiveBackgroundWorkAsWorking() {
+    for status in ["working", "idle", "finished"] {
+      XCTAssertEqual(
+        ThreadStatusPresentation.resolvedStatus(
+          status: status, attention: "needs_reply", hasBackgroundActivity: false
+        ),
+        "needs_reply"
+      )
+    }
+    XCTAssertEqual(
+      ThreadStatusPresentation.resolvedStatus(
+        status: "error", attention: "needs_reply", hasBackgroundActivity: false
+      ),
+      "error"
+    )
     XCTAssertEqual(
       ThreadStatusPresentation.resolvedStatus(
         status: "finished",

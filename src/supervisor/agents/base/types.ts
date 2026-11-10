@@ -18,6 +18,7 @@ import type {
   BackgroundTask,
   ProjectLocation,
   PromptSegment,
+  QuestionAnswerItemPayload,
   ProviderRevertAnchor,
   RuntimeEvent,
   SessionConfigOptions,
@@ -115,6 +116,8 @@ export interface StructuredSessionListener {
 
 export interface StartTurnOptions {
   userMessageItemId?: string;
+  /** Canonical reply metadata to preserve when echoing the user's message. */
+  questionAnswer?: QuestionAnswerItemPayload;
   /** Called only after the provider accepts the outgoing prompt. */
   onPromptSubmitted?: () => void;
   /**

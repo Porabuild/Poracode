@@ -1,4 +1,5 @@
-import type { ThreadStatus } from "@/shared/contracts";
+import type { ThreadAttention, ThreadStatus } from "@/shared/contracts";
+import { threadAttentionStatus } from "@/shared/threadAttention";
 import type { SupervisorEvent } from "@/shared/ipc";
 import {
   buildAlertPayload,
@@ -97,7 +98,10 @@ function emptyLiveState(): DeviceLiveState {
  */
 export class PushCoordinator {
   private readonly activeThreads = new Map<string, ActiveThreadSnapshot>();
-  private readonly lastStatusByThread = new Map<string, ThreadStatus>();
+  private readonly lastStateByThread = new Map<
+    string,
+    { status: ThreadStatus; attention: ThreadAttention }
+  >();
   private readonly liveState = new Map<string, DeviceLiveState>();
   private readonly work: PushWorkScope;
   private readonly now: () => number;
@@ -110,7 +114,7 @@ export class PushCoordinator {
   dispose(): Promise<void> {
     const closing = this.work.dispose();
     this.activeThreads.clear();
-    this.lastStatusByThread.clear();
+    this.lastStateByThread.clear();
     this.liveState.clear();
     return closing;
   }
@@ -124,13 +128,19 @@ export class PushCoordinator {
 
   private handleThreadState(event: Extract<SupervisorEvent, { type: "thread-state" }>): void {
     const now = this.now();
-    const status = event.status;
-    const prevStatus = this.lastStatusByThread.get(event.threadId);
-    this.lastStatusByThread.set(event.threadId, status);
+    const status = threadAttentionStatus(event.status, event.attention);
+    const previous = this.lastStateByThread.get(event.threadId);
+    const prevStatus = previous
+      ? threadAttentionStatus(previous.status, previous.attention)
+      : undefined;
+    this.lastStateByThread.set(event.threadId, {
+      status: event.status,
+      attention: event.attention,
+    });
 
     const hadAnyActive = this.activeThreads.size > 0;
     const existing = this.activeThreads.get(event.threadId);
-    if (ACTIVE_STATUSES.has(status)) {
+    if (ACTIVE_STATUSES.has(event.status)) {
       const info = this.threadInfo(event.threadId);
       this.activeThreads.set(event.threadId, {
         threadId: event.threadId,
@@ -147,7 +157,8 @@ export class PushCoordinator {
     const causedStart = !hadAnyActive && hasAnyActive;
     const causedEnd = hadAnyActive && !hasAnyActive;
 
-    const changed = status !== prevStatus;
+    const changed =
+      status !== prevStatus && (status !== "finished" || event.status !== previous?.status);
     const suppressNotification = event.forceCloseActiveTurn === true;
     const attentionAlert =
       changed && !suppressNotification && ATTENTION_STATUSES.has(status)

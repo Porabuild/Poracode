@@ -78,6 +78,7 @@ import { readCodexTurnSummaries } from "./threadTurnSummaries";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 import { readRecord } from "./canonicalMapping/readers";
 import { readCodexImageViewPreview } from "./canonicalMapping/toolExtraction";
+import { CodexAsyncQuestionAttention } from "./asyncQuestionAttention";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
@@ -244,6 +245,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private wslDistro: string | undefined;
   private imageViewPaths: Map<string, string | undefined> | undefined;
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
+  private asyncQuestionAttention: CodexAsyncQuestionAttention | undefined;
   private currentConfig: ThreadConfig | undefined;
   private activeTurnId: string | undefined;
   /**
@@ -405,15 +407,24 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       forwarded.push(event);
     }
     if (forwarded.length === 0) return;
+    const questionAttention = (this.asyncQuestionAttention ??= new CodexAsyncQuestionAttention());
+    const attentionChanged = questionAttention.observe(forwarded);
     for (const event of forwarded) {
       this.logCodexEventDebug("poracode:runtime", event);
     }
     if (!this.listener?.onRuntimeEvent) {
       this.bufferedRuntimeEvents.push(...forwarded);
+      if (attentionChanged) this.emitDerivedUpdate();
       return;
     }
     for (const event of forwarded) {
       this.listener.onRuntimeEvent(event);
+    }
+    if (
+      attentionChanged &&
+      (questionAttention.needsReply || this.currentThreadStatus.type === "active")
+    ) {
+      this.emitDerivedUpdate();
     }
   }
 
@@ -636,7 +647,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     // Re-emit meaningful state so the listener doesn't miss updates that fired
     // before attachment. Plain `idle` from thread creation is already the
     // runtime default and should not participate in live turn status.
-    const shouldReplayStatus = this.currentThreadStatus.type !== "idle";
+    const shouldReplayStatus =
+      this.currentThreadStatus.type !== "idle" || this.asyncQuestionAttention?.needsReply === true;
     if (this.activated && this.remoteThreadId && shouldReplayStatus) {
       const sessionRef = toSessionRef(this.remoteThreadId);
       this.emitUpdate({
@@ -878,6 +890,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         itemType: "user_message",
         payload: {
           content: buildPromptContentBlocks(prompt, segments),
+          ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
         },
       },
       { type: "item.completed", threadId: this.threadId, itemId: userItemId },
@@ -1013,7 +1026,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         threadId: this.threadId,
         itemId: userItemId,
         itemType: "user_message",
-        payload: { content: buildPromptContentBlocks(prompt, segments) },
+        payload: {
+          content: buildPromptContentBlocks(prompt, segments),
+          ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
+        },
       },
       { type: "item.completed", threadId: this.threadId, itemId: userItemId },
     ]);
@@ -1314,6 +1330,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.pendingTurnInterrupt = false;
     this.activeTurnId = undefined;
     this.activeTurnIds.clear();
+    this.asyncQuestionAttention = undefined;
     await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
     return {
       providerSessionId: threadId,
@@ -1367,6 +1384,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
 
     this.remoteThreadId = newThreadId;
+    this.asyncQuestionAttention = undefined;
     this.rpc.claimThread(newThreadId);
     this.ensureContextWindowReload().recordApplied(rollbackConfig);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: newThreadId };
@@ -1876,8 +1894,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private emitUpdate(update: StructuredSessionUpdate): void {
-    this.logCodexEventDebug("poracode:update", update);
-    this.listener?.onUpdate(update);
+    const next = this.asyncQuestionAttention?.apply(update) ?? update;
+    this.logCodexEventDebug("poracode:update", next);
+    this.listener?.onUpdate(next);
   }
 
   private logCodexEventDebug(direction: CodexEventDebugDirection, payload: unknown): void {

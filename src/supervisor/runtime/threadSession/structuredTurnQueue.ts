@@ -63,6 +63,7 @@ export class StructuredTurnQueue {
     }
     const startOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
+      ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
       ...structuredTurnTextOptions(session, turn),
     };
     const startTurn = session.structuredSession.startTurn(
