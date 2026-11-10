@@ -4,7 +4,6 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, NativeMcpSetupPayload, NativeMcpSetupStatus } from "@/shared/contracts";
 import { hookEnvForAgentStatus, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { readBridge } from "@/renderer/bridge";
-import { localEnvLabel } from "@/renderer/utils/machineLabels";
 
 function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
   const { t } = useLingui();
@@ -63,7 +62,7 @@ function NativeMcpEnvironment({ input }: { input: NativeMcpSetupPayload }) {
       <Disclosure.Heading>
         <Disclosure.Trigger className="flex w-full items-center gap-3 py-1 text-left text-sm">
           <span className="flex-1 font-medium">
-            <Trans>Native MCP setup</Trans> · {localEnvLabel(input.env)}
+            <Trans>Native MCP setup</Trans>
           </span>
           <Disclosure.Indicator className="size-3.5 shrink-0 text-muted" />
         </Disclosure.Trigger>
