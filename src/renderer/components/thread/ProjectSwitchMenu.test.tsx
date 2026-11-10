@@ -316,13 +316,7 @@ describe("ProjectSwitchMenu", () => {
     });
     const tooltip = await screen.findByRole("tooltip");
     expect(tooltip).toHaveTextContent("MacBook 16");
-    expect(within(tooltip).getByTitle("Online")).toHaveClass(
-      "bg-success",
-      "right-0",
-      "bottom-0",
-      "ring-1",
-      "ring-background",
-    );
+    expect(within(tooltip).getByTitle("Online")).toHaveClass("bg-success", "right-0", "bottom-0");
     expect(tooltip).not.toHaveTextContent(/Online|Offline/);
   });
 

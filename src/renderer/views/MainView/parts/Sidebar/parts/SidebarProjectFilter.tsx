@@ -501,7 +501,10 @@ export function SidebarProjectFilter(props: {
                       remote={remote}
                       showEnvironment={row.environments.length === 1}
                     />
-                    <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="min-w-0 truncate">{project.name}</span>
+                      <span className="shrink-0 text-[8px] text-muted">{rowCount(row)}</span>
+                    </span>
                     {row.environments.length > 1 ? (
                       <ProjectEnvironmentIndicator
                         members={row.environments}
@@ -512,7 +515,6 @@ export function SidebarProjectFilter(props: {
                         {serverName}
                       </span>
                     ) : null}
-                    <span className="shrink-0 text-xs text-muted">{rowCount(row)}</span>
                     {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
                   </button>
                   {isHomeProject(project) ? (
@@ -679,9 +681,11 @@ export function SidebarProjectFilter(props: {
             return (
               <Dropdown.Item key={row.id} id={row.id} textValue={project.name}>
                 <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
-                <Label className="min-w-0 truncate">{project.name}</Label>
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <Label className="min-w-0 truncate">{project.name}</Label>
+                  <span className="shrink-0 text-[8px] text-muted">{rowCount(row)}</span>
+                </div>
                 <ProjectEnvironmentIndicator members={row.environments} machineFor={machineFor} />
-                <span className="ms-auto shrink-0 text-xs text-muted">{rowCount(row)}</span>
                 <Dropdown.ItemIndicator />
                 {isHomeProject(project) ? null : (
                   <ProjectRowMenuButton
@@ -710,7 +714,7 @@ export function SidebarProjectFilter(props: {
                       remote={remote}
                       showEnvironment={false}
                     />
-                    <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
+                    <Label className="min-w-0 flex-1 truncate opacity-50">{project.name}</Label>
                     <ProjectEnvironmentIndicator
                       members={row.environments}
                       machineFor={machineFor}

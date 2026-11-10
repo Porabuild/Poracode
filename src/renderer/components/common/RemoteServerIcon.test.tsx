@@ -8,7 +8,8 @@ describe("RemoteServerIcon", () => {
     render(<RemoteServerIcon status="online" />);
 
     const light = screen.getByTitle("Online");
-    expect(light).toHaveClass("right-0", "bottom-0", "ring-1", "ring-background", "bg-success");
+    expect(light).toHaveClass("right-0", "bottom-0", "bg-success");
+    expect(light).not.toHaveClass("ring-1", "ring-background");
     expect(light.parentElement).toHaveClass("relative", "size-4", "shrink-0");
     expect(light.parentElement?.querySelector("svg")).toHaveClass("size-full");
   });
