@@ -6,6 +6,12 @@ import {
   remoteGitCallPayloadSchema,
 } from "@/shared/remote";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
+import type { GitProjectSnapshotResult, GitWorktreeListResult } from "@/shared/contracts";
+import {
+  dbBeginWorktreeObservation,
+  dbFindProjectByLocation,
+  dbReconcileProjectWorktrees,
+} from "@/host/db";
 import { ipcProcedureMap, parseRemoteProcedureResultValue } from "@/shared/ipc";
 import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
 import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
@@ -101,6 +107,12 @@ export async function runRemoteProcedure(
       500,
     );
   }
+  const observedLocation =
+    name === "gitProjectSnapshot" || name === "gitListWorktrees"
+      ? (parsedPayload as IpcProcedurePayload<"gitListWorktrees">).projectLocation
+      : undefined;
+  const observedProject = observedLocation ? dbFindProjectByLocation(observedLocation) : null;
+  const observation = observedProject ? dbBeginWorktreeObservation(observedProject.id) : undefined;
   let raw: unknown;
   try {
     // `startThread` is delivered through this generic passthrough on the
@@ -156,11 +168,12 @@ export async function runRemoteProcedure(
   } catch (error) {
     throw mapSupervisorProcedureError(name, error);
   }
+  let result: unknown;
   try {
     // `unknown` is explicit: the schema here is the supervisor allowlist's
     // result-schema union, and inference over that union is not stable — the
     // route's own return type is `unknown` anyway.
-    return parseRemoteProcedureResultValue<unknown>(resultSchema, raw);
+    result = parseRemoteProcedureResultValue<unknown>(resultSchema, raw);
   } catch {
     throw new RemoteHttpError(
       "invalid_procedure_result",
@@ -168,6 +181,20 @@ export async function runRemoteProcedure(
       500,
     );
   }
+  // Desktop and browser refreshes use this passthrough directly, while native
+  // interests use GitStateService. Both observations repair the host's saved links.
+  if (
+    observedProject &&
+    observedLocation &&
+    dbFindProjectByLocation(observedLocation)?.id === observedProject.id
+  ) {
+    const { worktrees } = result as GitProjectSnapshotResult | GitWorktreeListResult;
+    if (worktrees) {
+      const changedIds = dbReconcileProjectWorktrees(observedProject.id, worktrees, observation);
+      if (changedIds?.length) ctx.publishThreadsChanged(changedIds);
+    }
+  }
+  return result;
 }
 
 /** The only procedures whose known domain error is mapped for remote clients. */

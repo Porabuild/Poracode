@@ -121,6 +121,7 @@ describe.skipIf(!sqliteAvailable)("project watch leases over /api/git/call", () 
       projectWatches: leases,
       callSupervisor: (async (name: string) => {
         if (name === "getThreadSnapshots") return [];
+        if (name === "gitListWorktrees") return { worktrees: [] };
         // A watch procedure reaching the supervisor directly would bypass the
         // leases; fail loudly instead.
         if (

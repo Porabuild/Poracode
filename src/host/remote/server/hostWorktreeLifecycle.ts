@@ -3,8 +3,14 @@ import type { ProjectLocation } from "@/shared/contracts";
 import type { GitStateSnapshot } from "@/shared/gitState";
 import { createShellPromptGate } from "@/shared/shellPromptReady";
 import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
-import { buildWorktreeLocation } from "@/shared/worktree";
+import {
+  buildWorktreeLocation,
+  normalizeWorktreePathForComparison,
+  resolveRegisteredWorktree,
+} from "@/shared/worktree";
+import { msg } from "@/shared/messages";
 import { dbGetProjects, dbGetThreads } from "@/host/db";
+import { assertRemoteGitMutationExperimentSafe } from "../experimentOwnership";
 import { RemoteHttpError } from "../auth";
 import type { RemoteBroadcastEvent, RemoteServerContext } from "./context";
 
@@ -220,49 +226,121 @@ export async function removeHostWorktree(
     readonly projectId: string;
     readonly worktreePath: string;
     readonly worktreeBranch?: string;
+    readonly expectedThreadIds?: readonly string[];
   },
 ): Promise<void> {
   const project = requireProject(input.projectId);
+  const pathKey = (value: string) =>
+    normalizeWorktreePathForComparison(value, project.location.kind === "windows");
+  const observedPaths = new Map([[pathKey(input.worktreePath), input.worktreePath]]);
+  const readWorktree = async (path: string, branch: string | undefined) => {
+    const { worktrees } = await ctx.options.callSupervisor("gitListWorktrees", {
+      projectLocation: project.location,
+    });
+    const worktree = resolveRegisteredWorktree(
+      worktrees,
+      path,
+      branch,
+      project.location.kind === "windows",
+    );
+    if (worktree?.isMain) {
+      throw new RemoteHttpError("worktree_remove_failed", "Cannot remove the main worktree.", 500);
+    }
+    return worktree;
+  };
+  const assertRemovalSafe = (path: string, branch: string | undefined) => {
+    observedPaths.set(pathKey(path), path);
+    if (input.expectedThreadIds) {
+      const linked = dbGetThreads().filter(
+        (thread) =>
+          thread.projectId === input.projectId &&
+          thread.worktreePath &&
+          observedPaths.has(pathKey(thread.worktreePath)),
+      );
+      const expected = new Set(input.expectedThreadIds);
+      if (linked.length !== expected.size || linked.some((thread) => !expected.has(thread.id))) {
+        throw new RemoteHttpError(
+          "worktree_threads_changed",
+          msg("remote.worktree.threadsChanged"),
+          409,
+        );
+      }
+    }
+    assertRemoteGitMutationExperimentSafe("gitRemoveWorktree", {
+      projectLocation: project.location,
+      path,
+    });
+    if (branch)
+      assertRemoteGitMutationExperimentSafe("gitDeleteBranch", {
+        projectLocation: project.location,
+        branch,
+      });
+  };
+  let worktree = await readWorktree(input.worktreePath, input.worktreeBranch);
+  let worktreePath = worktree?.path ?? input.worktreePath;
+  let worktreeBranch = worktree?.branch === "detached" ? undefined : worktree?.branch;
+  assertRemovalSafe(worktreePath, worktreeBranch);
   const cleanupScript = project.scripts?.cleanupScript;
-  if (cleanupScript) {
-    await runHostWorktreeScript(ctx, project.location, input.worktreePath, cleanupScript, {
+  if (cleanupScript && worktree) {
+    await runHostWorktreeScript(ctx, project.location, worktreePath, cleanupScript, {
       waitForExit: true,
       shellId: `shell:host-worktree-${randomUUID()}`,
     }).catch((error) => {
-      console.warn(`[remote] cleanup script failed for ${input.worktreePath}:`, error);
+      console.warn(`[remote] cleanup script failed for ${worktreePath}:`, error);
     });
   }
-  try {
-    await ctx.options.callSupervisor("gitRemoveWorktree", {
-      projectLocation: project.location,
-      path: input.worktreePath,
-      force: true,
-      deleteBranch: false,
-      ...(input.worktreeBranch ? { expectedBranch: input.worktreeBranch } : {}),
-    });
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    if (!detail.toLowerCase().includes("not found")) {
-      throw new RemoteHttpError(
-        "worktree_remove_failed",
-        detail || "Unable to remove worktree.",
-        500,
-      );
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (cleanupScript || attempt > 0) {
+      worktree = await readWorktree(worktreePath, worktreeBranch);
+      worktreePath = worktree?.path ?? worktreePath;
+      worktreeBranch = worktree?.branch === "detached" ? undefined : worktree?.branch;
+    }
+    assertRemovalSafe(worktreePath, worktreeBranch);
+    // An absent old link is already removed; never target a new registration
+    // that might appear at that path after this observation.
+    if (!worktree) break;
+    try {
+      await ctx.options.callSupervisor("gitRemoveWorktree", {
+        projectLocation: project.location,
+        path: worktreePath,
+        force: true,
+        deleteBranch: false,
+        ...(worktreeBranch ? { expectedBranch: worktreeBranch } : {}),
+      });
+      break;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      if (
+        worktreeBranch &&
+        attempt < 2 &&
+        detail.startsWith(
+          msg("experiment.merge.worktreeBranchMismatch", { expected: worktreeBranch, actual: "" }),
+        )
+      )
+        continue;
+      if (!detail.toLowerCase().includes("not found")) {
+        throw new RemoteHttpError(
+          "worktree_remove_failed",
+          detail || "Unable to remove worktree.",
+          500,
+        );
+      }
+      worktreeBranch = undefined;
+      break;
     }
   }
-  await ctx.options.projectWatches
-    ?.unpinWorktree(input.projectId, input.worktreePath)
-    .catch(() => undefined);
-  if (!input.worktreeBranch) return;
-  const force = !worktreeHasUnmergedPullRequest(
-    ctx.options.gitState?.getSnapshot(),
-    input.projectId,
-    input.worktreePath,
+  for (const path of observedPaths.values()) {
+    await ctx.options.projectWatches?.unpinWorktree(input.projectId, path).catch(() => undefined);
+  }
+  if (!worktreeBranch) return;
+  const snapshot = ctx.options.gitState?.getSnapshot();
+  const force = [...observedPaths.values()].every(
+    (path) => !worktreeHasUnmergedPullRequest(snapshot, input.projectId, path),
   );
   try {
     await ctx.options.callSupervisor("gitDeleteBranch", {
       projectLocation: project.location,
-      branch: input.worktreeBranch,
+      branch: worktreeBranch,
       force,
     });
   } catch (error) {

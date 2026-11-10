@@ -1097,6 +1097,8 @@ export const DATABASE_MIGRATIONS = [
   },
 ] as const satisfies readonly DatabaseMigration[];
 
+// Worktree link reconciliation refreshes existing path/branch columns from Git;
+// old rows remain valid and are repaired on observation, without a schema bump.
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
 
 export interface MigrationRollbackPolicyEntry {
