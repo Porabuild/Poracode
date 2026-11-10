@@ -3,6 +3,7 @@ import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
 import { resolveThreadImageAuthority } from "../thread/threadImageAuthority";
 import { galleryImageResource } from "../thread/ChatPane/parts/items/threadGalleryImageReadiness";
 import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
+import type { EnvironmentImagePriority } from "@/shared/remote/clientEnvironmentImages";
 import { memo, useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
@@ -31,9 +32,9 @@ export interface LightboxImage {
   /** Stable cache coordinate; only the currently displayed original is requested. */
   resource?: {
     key: string;
-    subscribe: (listener: () => void) => () => void;
+    subscribe: (listener: () => void, priority?: EnvironmentImagePriority) => () => void;
     getSnapshot: () => string;
-    request: () => void;
+    request: (priority?: EnvironmentImagePriority) => void;
   };
 }
 
