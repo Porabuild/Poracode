@@ -11246,7 +11246,7 @@ msgstr "Low contrast"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Machine"
 
@@ -21326,7 +21326,7 @@ msgstr "This Mac's screen unlock rule has been customized, for example by device
 msgid "this machine"
 msgstr "this machine"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "This machine"
 

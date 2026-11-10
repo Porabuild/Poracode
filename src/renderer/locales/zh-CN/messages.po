@@ -11237,7 +11237,7 @@ msgstr "对比度较低"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "在保护遮罩显示期间降低受支持显示器的亮度，并在 Mac 再次锁定时恢复原来的亮度。"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "设备"
 
@@ -21316,7 +21316,7 @@ msgstr "这台 Mac 的屏幕解锁规则已被自定义（例如由设备管理�
 msgid "this machine"
 msgstr "此设备"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "此设备"
 

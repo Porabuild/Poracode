@@ -11237,7 +11237,7 @@ msgstr "Tương phản thấp"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Giảm độ sáng trên các màn hình được hỗ trợ khi màn che hiển thị, rồi khôi phục độ sáng trước đó khi máy Mac khóa lại."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Máy"
 
@@ -21317,7 +21317,7 @@ msgstr "Quy tắc mở khóa màn hình của máy Mac này đã bị tùy chỉ
 msgid "this machine"
 msgstr "máy này"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Máy này"
 

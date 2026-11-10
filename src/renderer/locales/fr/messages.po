@@ -11237,7 +11237,7 @@ msgstr "Contraste faible"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Réduit la luminosité des écrans compatibles pendant que l’écran de protection est visible, puis rétablit la luminosité précédente lorsque le Mac se verrouille à nouveau."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Machine"
 
@@ -21316,7 +21316,7 @@ msgstr "La règle de déverrouillage de l'écran de ce Mac a été personnalisé
 msgid "this machine"
 msgstr "cette machine"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Cette machine"
 

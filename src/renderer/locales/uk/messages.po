@@ -11237,7 +11237,7 @@ msgstr "Низький контраст"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Знижує яскравість підтримуваних дисплеїв, поки видно захисний екран, і відновлює попередню яскравість, коли Mac знову блокується."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Комп’ютер"
 
@@ -21317,7 +21317,7 @@ msgstr "Правило розблокування екрана на цьому M
 msgid "this machine"
 msgstr "цей комп’ютер"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Цей комп’ютер"
 

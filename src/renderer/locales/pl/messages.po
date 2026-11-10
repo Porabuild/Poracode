@@ -11237,7 +11237,7 @@ msgstr "Niski kontrast"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Zmniejsza jasność obsługiwanych ekranów, gdy widoczna jest osłona, a po ponownym zablokowaniu Maca przywraca poprzednią jasność."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Komputer"
 
@@ -21317,7 +21317,7 @@ msgstr "Reguła odblokowywania ekranu tego Maca została dostosowana, na przykł
 msgid "this machine"
 msgstr "ten komputer"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Ten komputer"
 

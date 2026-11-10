@@ -11236,7 +11236,7 @@ msgstr "低いコントラスト"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "保護画面の表示中は対応ディスプレイの輝度を下げ、Mac が再びロックされると元の輝度に戻します。"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "マシン"
 
@@ -21315,7 +21315,7 @@ msgstr "この Mac の画面ロック解除ルールは、デバイス管理な�
 msgid "this machine"
 msgstr "このマシン"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "このマシン"
 
