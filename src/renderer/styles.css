@@ -3759,16 +3759,18 @@ html[data-native-material="on"] [data-overlay-surface]:has(.poracode-sidebar-asi
    sidebar reveals the desktop, not the app underneath (which would bleed through
    the tint). visibility:hidden keeps the app mounted — preserving scroll, chat,
    and terminal state — while painting nothing. Hide every shell, then keep the
-   overlay's own shell visible. Gated on [data-overlay-visible] (set only while
-   the overlay is fully shown) so on open/close the base app fades in/out with
-   the overlay instead of flashing bare desktop underneath. */
-html[data-native-material="on"]
-  #root:has([data-overlay-surface][data-overlay-visible] .poracode-sidebar-aside)
-  .poracode-shell {
+   overlay's own shell visible. Gated on [data-glass-overlay-visible], which
+   useGlassOverlaySidebar sets only while a sidebar sits inside a surface that
+   carries [data-overlay-visible] (the overlay is fully shown), so on open/close
+   the base app fades in/out with the overlay instead of flashing bare desktop
+   underneath. Do not express this as `#root:has(…)`: a relational selector on
+   the app root makes every element inserted or removed in the window restyle
+   it. */
+html[data-native-material="on"][data-glass-overlay-visible] #root .poracode-shell {
   visibility: hidden;
 }
-html[data-native-material="on"]
-  #root:has([data-overlay-surface][data-overlay-visible] .poracode-sidebar-aside)
+html[data-native-material="on"][data-glass-overlay-visible]
+  #root
   [data-overlay-surface]
   .poracode-shell {
   visibility: visible;
