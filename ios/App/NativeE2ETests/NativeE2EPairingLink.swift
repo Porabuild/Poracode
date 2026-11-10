@@ -66,10 +66,7 @@ enum PairingLinkEntry {
       field.tap()
       // A late-landing earlier paste would otherwise be appended to, doubling
       // the URL; start every attempt from an empty field.
-      let stale = fieldValue(field)
-      if !stale.isEmpty {
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: stale.count))
-      }
+      clear(field)
       field.press(forDuration: 1)
       let paste = app.menuItems["Paste"]
       if paste.waitForExistence(timeout: 5) {
@@ -123,6 +120,20 @@ enum PairingLinkEntry {
       still on the pairing screen with \(characters) character(s) in the link field and \
       Connect \(submit.isEnabled ? "enabled, so no pairing request was made" : "disabled, so a pairing is in flight")
       """
+  }
+
+  /// Delete leftover text. A tap can drop the caret mid-text, and deleting
+  /// backwards from there leaves the tail behind (a failed run held 138
+  /// characters: the 81-character URL pasted in front of a 57-character
+  /// remainder), so put the caret at the end and repeat until the field is
+  /// empty.
+  private static func clear(_ field: XCUIElement) {
+    for _ in 0..<3 {
+      let remaining = fieldValue(field)
+      if remaining.isEmpty { return }
+      field.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+      field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: remaining.count))
+    }
   }
 
   private static func fieldValue(_ field: XCUIElement) -> String {

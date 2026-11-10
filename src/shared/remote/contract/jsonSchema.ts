@@ -138,6 +138,15 @@ function normalizeUnionSpelling(value: unknown): unknown {
   return next;
 }
 
+/**
+ * Zod 4.6 started emitting its string-check names (`startsWith()` and friends)
+ * as non-standard `format` keywords next to the `pattern` that already encodes
+ * the check. Native validators only consult `format` when no `pattern` exists,
+ * so the keyword is redundant; drop it to keep the v3 canonical form and its
+ * hashes stable across Zod upgrades.
+ */
+const PATTERN_DUPLICATING_ZOD_FORMATS = new Set(["includes", "starts_with", "ends_with"]);
+
 export function zodToJsonSchema(schema: z.ZodType, io: "input" | "output"): unknown {
   if (schema === omittedResultSchema) {
     return { ...OMITTED_RESULT_JSON_SCHEMA };
@@ -149,6 +158,13 @@ export function zodToJsonSchema(schema: z.ZodType, io: "input" | "output"): unkn
     reused: "ref",
     override: (ctx) => {
       const json = ctx.jsonSchema as Record<string, unknown>;
+      if (
+        typeof json.pattern === "string" &&
+        typeof json.format === "string" &&
+        PATTERN_DUPLICATING_ZOD_FORMATS.has(json.format)
+      ) {
+        delete json.format;
+      }
       const zodSchema = ctx.zodSchema;
       if (!zodSchema || typeof zodSchema !== "object") return;
       const policy = zodObjectUnknownFieldPolicy(zodSchema as unknown as z.ZodType);

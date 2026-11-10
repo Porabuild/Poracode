@@ -10,12 +10,18 @@ import {
   unlinkSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { join, posix, win32 } from "node:path";
-import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { basename, isAbsolute, join, posix, relative, resolve, win32 } from "node:path";
+import { canonicalHostPath, resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
+import {
+  defaultCliBinDirectory,
+  defaultCliStorageRoot,
+} from "../../packages/poracode-cli/lib/installPaths.mjs";
 import { promptCli } from "./cliPrompts";
 import { runServerService } from "./serverService";
+import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
+import { acquireServerUpgradeLock, type ServerUpgradeLock } from "./serverUpgradeLock";
 import {
   readServiceRegistration,
   ServerServiceRefusedError,
@@ -40,6 +46,27 @@ const INSTALLER_SHIM_MARKER = "rem poracode-installer-shim v1";
 const INSTALLER_SHIM_LAUNCHER = /^"([^"\r\n]+)" %\*\s*$/mu;
 const POSIX_LAUNCHER_SUFFIX = "/current/bin/poracode";
 const WINDOWS_LAUNCHER_SUFFIX = "\\current\\bin\\poracode.cmd";
+const MANAGED_PREFIX_ENTRIES = new Set([
+  "current",
+  "releases",
+  "service-registration.json",
+  "service-definition-v1.json",
+  "service-launcher-v1.exe",
+  "upgrade-journal.json",
+  "upgrade.lock",
+  "legacy-install-migration.json",
+  "service-profile-migration.json",
+  ".legacy-migration",
+]);
+
+function refuseUnownedPrefixEntries(prefix: string): void {
+  const unknown = readdirSync(prefix).filter((name) => !MANAGED_PREFIX_ENTRIES.has(name));
+  if (unknown.length) {
+    throw new SelfUpdateError(
+      `The install prefix contains files not owned by the installer (${unknown.join(", ")}); move them before uninstalling.`,
+    );
+  }
+}
 
 /**
  * True when a command entry's launcher is `<prefix>/current/bin/poracode[.cmd]`
@@ -84,10 +111,13 @@ export function launcherTargetsPrefix(
  * `prefix`: it carries the shim marker and either names the prefix literally
  * or launches `<prefix>\current\bin\poracode.cmd` through a junctioned spelling.
  */
-export function installerShimTargetsPrefix(text: string, prefix: string): boolean {
+export function installerShimTargetsPrefix(text: string, prefix: string, binDir?: string): boolean {
   if (!text.includes(INSTALLER_SHIM_MARKER)) return false;
   if (text.toLowerCase().includes(prefix.toLowerCase())) return true;
   const launcher = INSTALLER_SHIM_LAUNCHER.exec(text)?.[1];
+  if (launcher && binDir && launcher.toLowerCase().startsWith("%~dp0")) {
+    return launcherTargetsPrefix(win32.resolve(binDir, launcher.slice(5)), prefix, "win32");
+  }
   return launcher !== undefined && launcherTargetsPrefix(launcher, prefix, "win32");
 }
 
@@ -110,18 +140,21 @@ export function removeOwnedCommandLinks(input: {
   const env = input.env ?? process.env;
   const removed: string[] = [];
   // The installers honor PORACODE_BIN_DIR; so does the uninstall.
-  const binDir = input.binDir ?? (env.PORACODE_BIN_DIR?.trim() || undefined);
+  const binDir =
+    input.binDir ??
+    defaultCliBinDirectory({ env, platform, ...(input.home ? { home: input.home } : {}) });
   if (platform === "win32") {
-    const localAppData =
-      env.LOCALAPPDATA?.trim() || win32.join(input.home ?? homedir(), "AppData", "Local");
-    const shim = win32.join(binDir ?? win32.join(localAppData, "Poracode", "bin"), "poracode.cmd");
-    if (existsSync(shim) && installerShimTargetsPrefix(readFileSync(shim, "utf8"), input.prefix)) {
+    const shim = win32.join(binDir, "poracode.cmd");
+    if (
+      existsSync(shim) &&
+      installerShimTargetsPrefix(readFileSync(shim, "utf8"), input.prefix, binDir)
+    ) {
       unlinkSync(shim);
       removed.push(shim);
     }
     return removed;
   }
-  const link = join(binDir ?? join(input.home ?? homedir(), ".local", "bin"), "poracode");
+  const link = join(binDir, "poracode");
   try {
     if (
       lstatSync(link).isSymbolicLink() &&
@@ -211,30 +244,65 @@ export async function runSelfUninstall(
     readonly home?: string;
     readonly profile?: string;
     readonly readRegistration?: (prefix: string) => ServerServiceRegistration | null;
-    readonly removeService?: (profileNamespace: string, prefix: string) => Promise<unknown>;
+    readonly removeService?: (
+      profileNamespace: string,
+      prefix: string,
+      lock: ServerUpgradeLock,
+    ) => Promise<unknown>;
   },
 ): Promise<SelfUninstallResult> {
   const install = resolveInstallerPrefix({
     ...(options.prefix !== undefined ? { explicitPrefix: options.prefix } : {}),
     releaseRoot: deps.releaseRoot,
   });
+  refusePendingCliInstallMigration(install.prefix);
+  const env = deps.env ?? process.env;
+  const platform = deps.platform ?? process.platform;
+  const storageRoot = defaultCliStorageRoot({
+    env,
+    platform,
+    ...(deps.home ? { home: deps.home } : {}),
+  });
+  const cacheRoot = env.PORACODE_RUNTIME_CACHE_DIR?.trim()
+    ? resolve(env.PORACODE_RUNTIME_CACHE_DIR.trim())
+    : platform === "win32"
+      ? win32.join(storageRoot, "runtime-cache")
+      : join(storageRoot, "runtime-cache");
+  if (existsSync(cacheRoot)) {
+    const fromPrefix = relative(canonicalHostPath(install.prefix), canonicalHostPath(cacheRoot));
+    if (
+      !fromPrefix ||
+      (!isAbsolute(fromPrefix) &&
+        fromPrefix !== ".." &&
+        !fromPrefix.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`))
+    ) {
+      throw new SelfUpdateError(
+        `The shared runtime cache ${cacheRoot} is inside ${install.prefix}; move the cache or select a different prefix before uninstalling.`,
+      );
+    }
+  }
   const probeOwner = deps.probeOwner ?? defaultProbeOwner;
   const profile =
     deps.profile ?? (process.env.PORACODE_BASE_DIR?.trim() || resolvePoracodeBaseDir());
   const readRegistration = deps.readRegistration ?? readServiceRegistration;
   const removeService =
     deps.removeService ??
-    ((profileNamespace: string, prefix: string) =>
-      runServerService(profileNamespace, {
-        action: "uninstall",
-        prefix,
-        recover: false,
-        json: false,
-      }));
+    ((profileNamespace: string, prefix: string, lock: ServerUpgradeLock) =>
+      runServerService(
+        profileNamespace,
+        {
+          action: "uninstall",
+          prefix,
+          recover: false,
+          json: false,
+        },
+        { existingLock: lock },
+      ));
   // Safety preflight, run before the prompt and again after the confirmation:
   // an unusable or unfinished registration, or a server this uninstall may not
   // stop, refuses before anything is removed.
   const preflight = async (): Promise<ServerServiceRegistration | null> => {
+    refuseUnownedPrefixEntries(install.prefix);
     let registration: ServerServiceRegistration | null;
     try {
       registration = readRegistration(install.prefix);
@@ -287,66 +355,82 @@ export async function runSelfUninstall(
     // A long confirmation leaves a window for a service or owner to appear.
     registration = await preflight();
   }
-  let removedService: string | null = null;
-  if (registration !== null) {
-    try {
-      await removeService(registration.profileNamespace, install.prefix);
-    } catch (error) {
-      if (error instanceof ServerServiceRefusedError)
-        throw new SelfUpdateError(
-          `Could not remove the background service: ${error.message} Nothing else was removed.`,
-        );
-      throw error;
+  const lock = acquireServerUpgradeLock({
+    prefix: install.prefix,
+    releaseId: basename(install.currentDir),
+  });
+  try {
+    refusePendingCliInstallMigration(install.prefix);
+    if (realpathSync(join(install.prefix, "current")) !== install.currentDir) {
+      throw new SelfUpdateError(
+        "The selected release changed before uninstall acquired its lock; retry.",
+      );
     }
-    removedService = registration.registrationId;
-  }
-  // The service's owner should be gone now; anything still running keeps the
-  // prefix (and the command link) in place.
-  if ((await probeOwner()) !== null) {
-    throw new SelfUpdateError(
-      registration !== null
-        ? "Removed the background service, but a Poracode server still runs for this profile; stop it with poracode stop, then run uninstall again."
-        : "A Poracode server is running for this profile; stop it with poracode stop first.",
-    );
-  }
-  const platform = deps.platform ?? process.platform;
-  const removedCommands = removeOwnedCommandLinks({
-    prefix: install.prefix,
-    ...(options.binDir !== undefined ? { binDir: options.binDir } : {}),
-    platform,
-    ...(deps.env ? { env: deps.env } : {}),
-    ...(deps.home ? { home: deps.home } : {}),
-  });
-  const removedCaches = removeInstalledTuiCaches(install.prefix, {
-    env: deps.env ?? process.env,
-    platform,
-    home: deps.home ?? homedir(),
-  });
-  let prefixRemoval: "removed" | "scheduled" = "removed";
-  if (platform === "win32") {
-    // This process runs the prefix's own node.exe, which Windows keeps locked;
-    // a detached shell retries the removal until this CLI has exited.
-    const command = windowsDeferredRemovalCommand(install.prefix);
-    const child = spawn(command.file, command.args, {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: true,
-      windowsVerbatimArguments: true,
+    registration = await preflight();
+    let removedService: string | null = null;
+    if (registration !== null) {
+      try {
+        await removeService(registration.profileNamespace, install.prefix, lock);
+      } catch (error) {
+        if (error instanceof ServerServiceRefusedError)
+          throw new SelfUpdateError(
+            `Could not remove the background service: ${error.message} Nothing else was removed.`,
+          );
+        throw error;
+      }
+      removedService = registration.registrationId;
+    }
+    // The service's owner should be gone now; anything still running keeps the
+    // prefix (and the command link) in place.
+    if ((await probeOwner()) !== null) {
+      throw new SelfUpdateError(
+        registration !== null
+          ? "Removed the background service, but a Poracode server still runs for this profile; stop it with poracode stop, then run uninstall again."
+          : "A Poracode server is running for this profile; stop it with poracode stop first.",
+      );
+    }
+    refuseUnownedPrefixEntries(install.prefix);
+    lock.assertHeld();
+    const removedCommands = removeOwnedCommandLinks({
+      prefix: install.prefix,
+      ...(options.binDir !== undefined ? { binDir: options.binDir } : {}),
+      platform,
+      ...(deps.env ? { env: deps.env } : {}),
+      ...(deps.home ? { home: deps.home } : {}),
     });
-    child.unref();
-    prefixRemoval = "scheduled";
-  } else {
-    rmSync(install.prefix, { recursive: true, force: true });
+    const removedCaches = removeInstalledTuiCaches(install.prefix, {
+      env: deps.env ?? process.env,
+      platform,
+      home: deps.home ?? homedir(),
+    });
+    let prefixRemoval: "removed" | "scheduled" = "removed";
+    if (platform === "win32") {
+      // This process runs the prefix's own node.exe, which Windows keeps locked;
+      // a detached shell retries the removal until this CLI has exited.
+      const command = windowsDeferredRemovalCommand(install.prefix);
+      const child = spawn(command.file, command.args, {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+        windowsVerbatimArguments: true,
+      });
+      child.unref();
+      prefixRemoval = "scheduled";
+    } else {
+      rmSync(install.prefix, { recursive: true, force: true });
+    }
+    return {
+      ok: true,
+      prefix: install.prefix,
+      removedService,
+      removedCommands,
+      removedCaches,
+      prefixRemoval,
+      keptProfile: profile,
+    };
+  } finally {
+    lock.release();
   }
-  return {
-    ok: true,
-    prefix: install.prefix,
-    removedService,
-    removedCommands,
-    removedCaches,
-    prefixRemoval,
-    keptProfile: profile,
-  };
 }
 
 export async function runSelfUninstallCli(

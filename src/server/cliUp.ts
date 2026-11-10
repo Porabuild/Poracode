@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { userInfo } from "node:os";
-import { join } from "node:path";
+import { homedir, userInfo } from "node:os";
+import { join, resolve } from "node:path";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { detectLanIpv4Address, detectTailnetIpv4Address } from "@/host/remote/config";
 import {
@@ -27,6 +27,13 @@ import {
 } from "./cliUpReachability";
 import { defaultInstallerPrefix, resolveInstallerPrefix, SelfUpdateError } from "./installerPrefix";
 import { readStandaloneRuntimeMarker } from "../../scripts/server-release-install.mjs";
+import { installServiceRelease } from "./cliServiceInstall";
+import { compareCliReleaseVersions, isNightlyRelease } from "./cliReleaseVersion";
+import { assertChannelProfileNamespace, serviceProfileForRelease } from "./cliProfileNamespace";
+import { migrateLegacyService } from "./cliInstallMigration";
+import { migrateDefaultLegacyInstall } from "./cliLegacyMigrationCli";
+import { runSelfUpdate } from "./cliSelfUpdate";
+import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
 import { runConfigure } from "./cliConfigure";
 import { writeInitTlsMaterial } from "./initTlsWrite";
 import { runServerService, type ServiceCliOptions } from "./serverService";
@@ -175,7 +182,7 @@ export interface UpResult {
   readonly prefix?: string;
   readonly configured: readonly string[];
   readonly tlsCreated: boolean;
-  readonly service: "installed-started" | "restarted" | "running" | "skipped" | "unavailable";
+  readonly service: "installed-started" | "restarted" | "running" | "skipped";
   readonly reachability: UpReachability | "custom";
   readonly reachable: boolean;
   readonly tailnetAddress?: string;
@@ -188,9 +195,8 @@ export interface UpResult {
 
 /**
  * The prefix the managed service needs: an explicit --prefix, or this
- * install's own installer prefix. npm and package-manager installs have
- * neither; they may still borrow a one-line install's prefix when one exists
- * at the installer's default location on this machine.
+ * install's own installer prefix, or the shared per-user prefix. An absent
+ * prefix needs a verified copy of this release before it can host a service.
  */
 function resolveUpServicePrefix(
   options: UpCliOptions,
@@ -200,17 +206,34 @@ function resolveUpServicePrefix(
     readonly home?: string;
     readonly platform?: NodeJS.Platform;
   },
-): { readonly prefix: string; readonly fallback: boolean } | undefined {
+): {
+  readonly prefix: string;
+  readonly fallback: boolean;
+  readonly needsInstall: boolean;
+  readonly currentVersion?: string;
+} {
   if (options.prefix !== undefined) {
+    const prefix = resolve(options.prefix);
+    if (!existsSync(join(prefix, "current"))) return { prefix, fallback: true, needsInstall: true };
     const install = resolveInstallerPrefix({
       explicitPrefix: options.prefix,
       releaseRoot: deps.releaseRoot,
     });
-    return { prefix: install.prefix, fallback: false };
+    return {
+      prefix: install.prefix,
+      fallback: true,
+      needsInstall: false,
+      currentVersion: install.currentVersion,
+    };
   }
   try {
     const install = resolveInstallerPrefix({ releaseRoot: deps.releaseRoot });
-    return { prefix: install.prefix, fallback: false };
+    return {
+      prefix: install.prefix,
+      fallback: false,
+      needsInstall: false,
+      currentVersion: install.currentVersion,
+    };
   } catch (error) {
     if (!(error instanceof SelfUpdateError)) throw error;
   }
@@ -219,12 +242,19 @@ function resolveUpServicePrefix(
     ...(deps.home !== undefined ? { home: deps.home } : {}),
     ...(deps.platform !== undefined ? { platform: deps.platform } : {}),
   });
-  if (!existsSync(join(fallbackPrefix, "current"))) return undefined;
+  if (!existsSync(join(fallbackPrefix, "current"))) {
+    return { prefix: fallbackPrefix, fallback: true, needsInstall: true };
+  }
   const install = resolveInstallerPrefix({
     explicitPrefix: fallbackPrefix,
     releaseRoot: deps.releaseRoot,
   });
-  return { prefix: install.prefix, fallback: true };
+  return {
+    prefix: install.prefix,
+    fallback: true,
+    needsInstall: false,
+    currentVersion: install.currentVersion,
+  };
 }
 
 /** `true` when the profile already has a running owner; probe failures count as running. */
@@ -274,9 +304,14 @@ export async function runUp(
     readonly tailnetAddress?: () => string | undefined;
     readonly lanAddress?: () => string | undefined;
     readonly readRegistration?: (prefix: string) => ServerServiceRegistration | null;
+    readonly installServiceRelease?: typeof installServiceRelease;
+    readonly updateServiceRelease?: typeof runSelfUpdate;
+    readonly migrateService?: typeof migrateLegacyService;
+    readonly migrateDefaultInstall?: typeof migrateDefaultLegacyInstall;
+    readonly explicitProfile?: boolean;
   },
 ): Promise<UpResult> {
-  const serviceTarget = resolveUpServicePrefix(options, {
+  let serviceTarget = resolveUpServicePrefix(options, {
     releaseRoot: deps.releaseRoot,
     ...(deps.env !== undefined ? { env: deps.env } : {}),
     ...(deps.home !== undefined ? { home: deps.home } : {}),
@@ -337,40 +372,96 @@ export async function runUp(
   };
 
   if (options.service) {
+    refusePendingCliInstallMigration(serviceTarget.prefix);
     const platform = deps.platform ?? process.platform;
-    if (serviceTarget === undefined) {
-      service = "unavailable";
-      // The running train decides which installer one-liner can help: a nightly
-      // build needs PORACODE_CHANNEL=nightly because stable has no archives yet.
-      const version =
-        deps.version ??
-        (() => {
-          try {
-            return readStandaloneRuntimeMarker(deps.releaseRoot)?.version;
-          } catch {
-            return undefined;
-          }
-        })();
-      const nightly = version !== undefined && /-nightly\./u.test(version);
-      const installCommand = nightly
-        ? platform === "win32"
-          ? "$env:PORACODE_CHANNEL = 'nightly'; irm https://poracode.com/install.ps1 | iex"
-          : "curl -fsSL https://poracode.com/install.sh | PORACODE_CHANNEL=nightly sh"
-        : platform === "win32"
-          ? "irm https://poracode.com/install.ps1 | iex"
-          : "curl -fsSL https://poracode.com/install.sh | sh";
-      notes.push(
-        "This poracode came from npm or a package manager, whose layout cannot host the " +
-          "managed background service. Install the CLI with the one-line installer, then " +
-          `run poracode up again: ${installCommand}`,
-      );
-      await applyPlan();
-      if (plan.write) notes.push("Saved settings apply the next time the server starts.");
-    } else {
-      if (serviceTarget.fallback) {
-        notes.push(
-          `Using the one-line installer's prefix ${serviceTarget.prefix} for the background service.`,
+    const env = deps.env ?? process.env;
+    const version =
+      deps.version ??
+      (() => {
+        try {
+          return readStandaloneRuntimeMarker(deps.releaseRoot)?.version;
+        } catch {
+          return undefined;
+        }
+      })();
+    if (version) assertChannelProfileNamespace(version, deps.profile, deps.home);
+    let legacyRestartConfirmed = false;
+    if (serviceTarget.fallback && platform !== "win32" && !env.PORACODE_INSTALL_DIR?.trim()) {
+      const legacyPrefix = join(deps.home ?? homedir(), ".poracode", "server");
+      const legacyRegistration = readServiceRegistration(legacyPrefix);
+      if (legacyRegistration && legacyPrefix !== serviceTarget.prefix) {
+        const previous = resolveInstallerPrefix({
+          explicitPrefix: legacyPrefix,
+          releaseRoot: deps.releaseRoot,
+        });
+        if (!version || isNightlyRelease(version) !== isNightlyRelease(previous.currentVersion)) {
+          throw new Error(
+            "Stable and nightly use separate profiles and prefixes; the existing service was not changed.",
+          );
+        }
+        const desired =
+          serviceProfileForRelease(
+            version,
+            legacyRegistration.profileNamespace,
+            deps.home ?? homedir(),
+          ) ?? legacyRegistration.profileNamespace;
+        if (desired !== resolveHostRootPaths(deps.profile).profileNamespace)
+          throw new Error(
+            "The existing service belongs to a different profile; nothing was changed.",
+          );
+        const running = await (deps.ownerRunning ?? defaultOwnerRunning)(
+          legacyRegistration.profileNamespace,
         );
+        if (running && interactive && !(await (deps.confirmRestart ?? confirmServiceRestart)()))
+          throw new Error("Nothing was changed; the existing service keeps its current profile.");
+        legacyRestartConfirmed = running && interactive;
+        const migrated = await (deps.migrateDefaultInstall ?? migrateDefaultLegacyInstall)({
+          releaseRoot: deps.releaseRoot,
+          env,
+          ...(deps.home ? { home: deps.home } : {}),
+          platform,
+          installIfMissing: true,
+          allowRunning: true,
+          ...(deps.explicitProfile ? { explicitProfile: deps.profile } : {}),
+        });
+        if (!migrated || migrated.profile !== desired)
+          throw new Error(
+            "The existing service migration did not complete; inspect its migration journal.",
+          );
+        const installed = resolveInstallerPrefix({
+          explicitPrefix: migrated.prefix,
+          releaseRoot: deps.releaseRoot,
+        });
+        serviceTarget = {
+          prefix: installed.prefix,
+          fallback: true,
+          needsInstall: false,
+          currentVersion: installed.currentVersion,
+        };
+        notes.push(
+          `Moved the existing service to ${desired}; its previous profile and data were preserved.`,
+        );
+        if (running && !interactive)
+          notes.push("The profile change stopped any running agent turns.");
+      }
+    }
+    if (serviceTarget.needsInstall) {
+      if (version === undefined) {
+        throw new Error(
+          "This release has no self-contained runtime marker; use a published standalone CLI to install the background service.",
+        );
+      }
+      await (deps.installServiceRelease ?? installServiceRelease)({
+        prefix: serviceTarget.prefix,
+        version,
+        releaseRoot: deps.releaseRoot,
+        ...(deps.env !== undefined ? { env: deps.env } : {}),
+      });
+      notes.push(`Installed a verified Poracode ${version} runtime in ${serviceTarget.prefix}.`);
+    }
+    {
+      if (serviceTarget.fallback) {
+        notes.push(`Using the shared prefix ${serviceTarget.prefix} for the background service.`);
       }
       const base = { prefix: serviceTarget.prefix, recover: false, json: false } as const;
       const runService = deps.service ?? runServerService;
@@ -388,17 +479,123 @@ export async function runUp(
             registration.state === "prepared" ? "installed" : "removed"
           }. Finish removing it with poracode service uninstall --prefix ${serviceTarget.prefix} --recover, then run poracode up again. Nothing was changed.`,
         );
-      if (registration !== null) {
-        if (plan.restartNeeded) {
-          const ownerRunning = await (deps.ownerRunning ?? defaultOwnerRunning)(deps.profile);
-          if (ownerRunning && interactive) {
-            const confirmed = await (deps.confirmRestart ?? confirmServiceRestart)();
-            if (!confirmed)
-              throw new Error(
-                "Nothing was changed; the background service keeps its current settings.",
-              );
+      let migrationRestartConfirmed = legacyRestartConfirmed;
+      if (
+        registration !== null &&
+        registration.profileNamespace !== resolveHostRootPaths(deps.profile).profileNamespace
+      ) {
+        const home = deps.home ?? homedir();
+        const selectedVersion = serviceTarget.currentVersion ?? version;
+        const selectedProfile = resolveHostRootPaths(deps.profile).profileNamespace;
+        const expected =
+          selectedVersion &&
+          serviceProfileForRelease(selectedVersion, registration.profileNamespace, home);
+        if (expected && selectedProfile === expected) {
+          const running = await (deps.ownerRunning ?? defaultOwnerRunning)(
+            registration.profileNamespace,
+          );
+          if (running && interactive && !(await (deps.confirmRestart ?? confirmServiceRestart)())) {
+            throw new Error("Nothing was changed; the existing service keeps its current profile.");
           }
+          migrationRestartConfirmed = running && interactive;
+          const result = await (deps.migrateService ?? migrateLegacyService)({
+            oldPrefix: serviceTarget.prefix,
+            newPrefix: serviceTarget.prefix,
+            releaseRoot: deps.releaseRoot,
+            targetProfile: selectedProfile,
+            allowRunning: true,
+            ...(deps.home ? { home: deps.home } : {}),
+          });
+          registration = (deps.readRegistration ?? readServiceRegistration)(serviceTarget.prefix);
+          if (!registration || registration.profileNamespace !== selectedProfile)
+            throw new Error(
+              "The service profile migration did not complete; inspect its migration journal.",
+            );
+          notes.push(
+            `Moved the service to ${selectedProfile}; the previous profile and its data were preserved.`,
+          );
+          if (result.wasRunning && !interactive)
+            notes.push("The profile change stopped any running agent turns.");
+        } else {
+          throw new Error(
+            `The background service uses profile ${registration.profileNamespace}, not ${deps.profile}. ` +
+              `Use --base-dir ${registration.profileNamespace} to manage the existing service, or choose a separate --prefix. Nothing was changed.`,
+          );
+        }
+      }
+      const order =
+        version !== undefined && serviceTarget.currentVersion !== undefined
+          ? compareCliReleaseVersions(version, serviceTarget.currentVersion)
+          : undefined;
+      if (
+        version &&
+        serviceTarget.currentVersion &&
+        isNightlyRelease(version) !== isNightlyRelease(serviceTarget.currentVersion)
+      ) {
+        throw new Error(
+          "Stable and nightly use separate profiles and prefixes; the existing service was not changed.",
+        );
+      }
+      if (
+        serviceTarget.fallback &&
+        version !== undefined &&
+        serviceTarget.currentVersion !== undefined &&
+        order === undefined
+      ) {
+        throw new Error(
+          "Cannot safely compare the running and installed releases. Nothing was changed.",
+        );
+      }
+      const upgrade = serviceTarget.fallback && order === 1;
+      let planApplied = false;
+      let ownerRunning = false;
+      let upgradedService = false;
+      if (serviceTarget.fallback && order === -1) {
+        notes.push(`Keeping the newer installed Poracode ${serviceTarget.currentVersion}.`);
+      }
+      if (upgrade || (registration !== null && plan.restartNeeded)) {
+        ownerRunning = await (deps.ownerRunning ?? defaultOwnerRunning)(deps.profile);
+        if (upgrade && registration === null && ownerRunning) {
+          throw new Error(
+            "A server is running outside this service. Stop it before updating the shared runtime; nothing was changed.",
+          );
+        }
+        if (
+          ownerRunning &&
+          interactive &&
+          !migrationRestartConfirmed &&
+          !(await (deps.confirmRestart ?? confirmServiceRestart)())
+        ) {
+          throw new Error(
+            "Nothing was changed; the background service keeps its current settings.",
+          );
+        }
+      }
+      if (upgrade && version !== undefined) {
+        if (registration !== null) {
           await applyPlan();
+          planApplied = true;
+        }
+        const result = await (deps.updateServiceRelease ?? runSelfUpdate)(
+          { version, prefix: serviceTarget.prefix, json: false },
+          {
+            releaseRoot: deps.releaseRoot,
+            onlyIfNewer: true,
+            ...(deps.env !== undefined ? { env: deps.env } : {}),
+          },
+        );
+        if (!result.ok) {
+          throw new Error(
+            `Could not update the service runtime: ${result.detail}${planApplied ? " The new settings were saved." : ""}`,
+          );
+        }
+        upgradedService = result.outcome === "upgraded";
+        notes.push(result.detail);
+        if (ownerRunning && !interactive) notes.push("The update stopped any running agent turns.");
+      }
+      if (registration !== null) {
+        if (plan.restartNeeded && !upgradedService) {
+          if (!planApplied) await applyPlan();
           await runService(deps.profile, { ...base, action: "restart" });
           service = "restarted";
           if (ownerRunning && !interactive)
@@ -406,12 +603,12 @@ export async function runUp(
         } else {
           // Nothing changed: qualify and return a running owner, or start a
           // stopped service. Never restart when nothing changed.
-          await applyPlan();
+          if (!planApplied) await applyPlan();
           await runService(deps.profile, { ...base, action: "start" });
-          service = "running";
+          service = upgradedService && ownerRunning ? "restarted" : "running";
         }
       } else {
-        await applyPlan();
+        if (!planApplied) await applyPlan();
         await runService(deps.profile, { ...base, action: "install" });
         await runService(deps.profile, { ...base, action: "start" });
         service = "installed-started";
@@ -432,8 +629,8 @@ export async function runUp(
   if (view.reachability === "tailnet" && tailnetAddress === undefined) {
     notes.push(
       tailnetUnavailableNote({
-        hasService: options.service && serviceTarget !== undefined,
-        ...(serviceTarget !== undefined ? { prefix: serviceTarget.prefix } : {}),
+        hasService: options.service,
+        ...(options.service ? { prefix: serviceTarget.prefix } : {}),
       }),
     );
   }
@@ -444,7 +641,7 @@ export async function runUp(
   }
 
   return {
-    ...(serviceTarget !== undefined ? { prefix: serviceTarget.prefix } : {}),
+    ...(options.service ? { prefix: serviceTarget.prefix } : {}),
     configured: plan.write ? plan.configureArgs : [],
     tlsCreated,
     service,
@@ -463,8 +660,9 @@ export async function runUpCli(
   options: UpCliOptions,
   profile: string,
   releaseRoot: string,
+  explicitProfile = false,
 ): Promise<void> {
-  const result = await runUp(options, { profile, releaseRoot });
+  const result = await runUp(options, { profile, releaseRoot, explicitProfile });
   if (result.configured.length > 0) {
     process.stdout.write(
       `Saved remote access settings: ${result.configured.filter((arg) => arg.startsWith("--")).join(" ")}\n`,
@@ -480,9 +678,7 @@ export async function runUpCli(
         ? "Restarted the background service with the new settings.\n"
         : result.service === "running"
           ? "The background service is running.\n"
-          : result.service === "unavailable"
-            ? "No background service was set up for this install.\n"
-            : "No background service was changed (--no-service).\n",
+          : "No background service was changed (--no-service).\n",
   );
   for (const note of result.notes) process.stdout.write(`${note}\n`);
   const interactive = process.stdin.isTTY === true && process.stdout.isTTY === true;

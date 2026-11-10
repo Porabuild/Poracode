@@ -80,7 +80,7 @@ describe("remote v3 native binding generator", () => {
         // the optional review-thread diff side adds one field; optional async reply source IDs
         // preserve wire versions; the optional `deferBodies` history query parameter adds one
         // structural type (its literal).
-        // Optional response-only quota ring IDs add two structural types and one Kotlin chunk.
+        // Optional response-only quota ring IDs add two structural types.
         // Optional sessionId on the token-exchange result moves the source hash only.
         // Optional crew favorites/usage and model recency move only the source hash.
         // The optional `ready.epoch` and the eventEpoch/lastSeenEpoch handshake
@@ -113,8 +113,10 @@ describe("remote v3 native binding generator", () => {
           schemaRoots: 569,
           structuralTypes: 1352,
           semanticValidators: 25,
-          swiftFiles: 83,
-          kotlinFiles: 71,
+          // Content-defined shards (emitterCommon.shardDeclarations) average
+          // ~200 lines, so a contract change rewrites only nearby files.
+          swiftFiles: 150,
+          kotlinFiles: 126,
           stateMachines: 5,
         },
       });
@@ -145,7 +147,9 @@ describe("remote v3 native binding generator", () => {
       },
     ]);
     const output = emitSwiftBindings(parseNativeBindingIr(ir, manifest), graph);
-    expect(output["Models001.swift"]).toContain(
+    const models = Object.entries(output).filter(([path]) => path.startsWith("Models_"));
+    expect(models).toHaveLength(1);
+    expect(models[0]?.[1]).toContain(
       '  case `normal` = "normal"\n' +
         '  case `true` = "true"\n' +
         '  case `false` = "false"\n' +

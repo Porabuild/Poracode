@@ -1,0 +1,54 @@
+name: Dependency audit
+
+# Production dependency advisories (high and critical). Runs when manifests or
+# the lockfile change, and weekly so advisories published against unchanged
+# dependencies still surface. It is deliberately not a required check: a new
+# upstream advisory must not block unrelated merges.
+on:
+  pull_request:
+    branches: [master, poracode/v2, poracode/v4-integration]
+    paths:
+      - "package.json"
+      - "bun.lock"
+      - "bunfig.toml"
+      - "website/package.json"
+      - "packages/*/package.json"
+      - ".github/workflows/dependency-audit.yml"
+  push:
+    branches: [master]
+    paths:
+      - "package.json"
+      - "bun.lock"
+      - "bunfig.toml"
+      - "website/package.json"
+      - "packages/*/package.json"
+      - ".github/workflows/dependency-audit.yml"
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  audit:
+    name: Production dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: none
+
+      # Reads bun.lock directly; no install is needed. Dev-only tooling
+      # advisories are reported by `bun audit` locally but do not fail here.
+      - name: Audit production dependencies
+        run: bun audit --production --audit-level=high

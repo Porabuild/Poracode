@@ -5,7 +5,7 @@ import { defaultInstallerPrefix } from "./installerPrefix";
 describe("installerPrefix", () => {
   it("resolves the installer's default prefix like the installers do", () => {
     expect(defaultInstallerPrefix({ platform: "linux", env: {}, home: "/home/u" })).toBe(
-      "/home/u/.poracode/server",
+      "/home/u/.local/share/poracode/server",
     );
     expect(
       defaultInstallerPrefix({

@@ -1,2 +1,8 @@
 * text=auto eol=lf
 tui/opencode/** text eol=lf linguist-vendored
+# Tool output: collapsed in GitHub diffs and excluded from language stats.
+# Regenerate instead of editing (`bun run protocol:remote:v3:generate`,
+# `scripts/update-test-durations.mjs`, `scripts/generate-main-promotion-messages.mjs`).
+protocol/remote/v3/generated/** linguist-generated=true
+src/build/testDurations.json linguist-generated=true
+src/main/i18n/promotionMessages.generated.ts linguist-generated=true

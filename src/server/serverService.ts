@@ -1,13 +1,17 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { requestOwnerShutdown } from "./ownerShutdown";
-import { probeLeaseKernelLock } from "./serverDoctorIo";
+import { probeLeaseKernelLock, redactDiagnosticLine } from "./serverDoctorIo";
 import { serviceNodeExecutable } from "./serverStandaloneRuntime";
-import { acquireServerUpgradeLock, type ServerUpgradeLock } from "./serverUpgradeLock";
+import {
+  acquireServerUpgradeLock,
+  SERVER_UPGRADE_LOCK_FILE,
+  type ServerUpgradeLock,
+} from "./serverUpgradeLock";
 import { readServerUpgradeJournalState, isTerminalUpgradePhase } from "./serverUpgradeJournal";
 import {
   probeRunningOwner,
@@ -41,6 +45,7 @@ import {
 } from "./serverServiceManager";
 import { installWindowsService, uninstallWindowsService } from "./windowsServiceLifecycle";
 import { installMacosService, uninstallMacosService } from "./macosServiceLifecycle";
+import { refusePendingCliInstallMigration } from "./cliInstallMigrationJournal";
 
 export const SERVICE_USAGE =
   "service install|start|stop|restart|status|uninstall --prefix <installed-prefix> [--config <path> (install only)] [--recover (install/uninstall only)] [--json]";
@@ -116,12 +121,32 @@ export function parseServiceCliOptions(args: readonly string[]): ServiceCliOptio
 }
 
 export interface ServiceLifecycleDeps extends ServerServiceManagerDeps {
+  /** Preallocated custody identity for a resumable install migration. */
+  readonly registrationNonce?: string;
+  /** Migration pins the selected code while its registration moves. */
+  readonly expectedRelease?: { readonly version: string; readonly entrypointSha256: string };
+  /** Migration holds this prefix lock across its preflight and retirement. */
+  readonly existingLock?: ServerUpgradeLock;
+  readonly expectedOwner?: {
+    readonly generation: string | null;
+    readonly mainPid: string;
+    readonly state: string;
+    readonly allowRetired: boolean;
+  };
   readonly probe?: typeof probeRunningOwner;
   readonly lease?: typeof probeLeaseKernelLock;
   readonly shutdown?: typeof requestOwnerShutdown;
   readonly readOwner?: typeof readHostOwnerRecord;
   readonly now?: () => number;
   readonly sleep?: (ms: number) => Promise<void>;
+}
+export class ServiceOwnerChangedBeforeRetirementError extends ServerServiceRefusedError {
+  constructor(
+    message = "The service state changed before migration could retire it; retry after inspecting its status.",
+  ) {
+    super(message);
+    this.name = "ServiceOwnerChangedBeforeRetirementError";
+  }
 }
 const wait = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 const JOIN_MS = 30_000;
@@ -149,6 +174,29 @@ export function qualifyRegisteredOwner(
     );
 }
 
+export function assertExpectedServiceOwner(
+  expected: ServiceLifecycleDeps["expectedOwner"],
+  owner: RunningOwnerProbe | null,
+  state: Record<string, string>,
+): void {
+  if (expected) {
+    const retired =
+      expected.allowRetired &&
+      expected.generation !== null &&
+      owner === null &&
+      state.MainPID === "0" &&
+      ["inactive", "failed"].includes(state.ActiveState ?? "");
+    if (
+      !retired &&
+      ((owner?.generation ?? null) !== expected.generation ||
+        state.MainPID !== expected.mainPid ||
+        state.ActiveState !== expected.state)
+    ) {
+      throw new ServiceOwnerChangedBeforeRetirementError();
+    }
+  }
+}
+
 export async function stopRegisteredOwner(
   registration: ServerServiceRegistration,
   lock: Pick<ServerUpgradeLock, "assertHeld">,
@@ -156,9 +204,20 @@ export async function stopRegisteredOwner(
   selectedOwner?: RunningOwnerProbe,
 ): Promise<void> {
   const paths = resolveHostRootPaths(registration.profileNamespace);
-  const state = qualifyLoadedService(registration, deps);
-  const owner =
-    selectedOwner ?? (await (deps.probe ?? probeRunningOwner)(paths, { pinGeneration: true }));
+  let state: ReturnType<typeof qualifyLoadedService>;
+  let owner: RunningOwnerProbe | null;
+  try {
+    state = qualifyLoadedService(registration, deps);
+    owner =
+      selectedOwner ?? (await (deps.probe ?? probeRunningOwner)(paths, { pinGeneration: true }));
+  } catch (error) {
+    if (deps.expectedOwner)
+      throw new ServiceOwnerChangedBeforeRetirementError(
+        `The service state changed before migration could retire it; inspect status and retry. ${redactDiagnosticLine(error instanceof Error ? error.message : String(error))}`,
+      );
+    throw error;
+  }
+  assertExpectedServiceOwner(deps.expectedOwner, owner, state);
   const initialGeneration =
     owner?.generation ?? (deps.readOwner ?? readHostOwnerRecord)(paths)?.generation;
   lock.assertHeld();
@@ -274,6 +333,11 @@ export async function runServerService(
   options: ServiceCliOptions,
   deps: ServiceLifecycleDeps = {},
 ) {
+  if (!deps.expectedRelease && options.action !== "status")
+    refusePendingCliInstallMigration(options.prefix);
+  if (deps.registrationNonce !== undefined && !/^[a-f0-9]{48}$/u.test(deps.registrationNonce)) {
+    throw new ServerServiceRefusedError("Invalid preallocated service registration identity.");
+  }
   const context = serviceManagerContext(deps); // Refuse unqualified managers before file/native effects.
   if (options.action === "install" && process.versions.electron)
     throw new ServerServiceRefusedError(
@@ -281,16 +345,35 @@ export async function runServerService(
     );
   const selected = readInstalledServiceRelease(options.prefix);
   const profile = resolveHostRootPaths(profileNamespace).profileNamespace;
+  if (
+    deps.existingLock &&
+    realpathSync.native(deps.existingLock.path) !==
+      realpathSync.native(join(selected.prefix, SERVER_UPGRADE_LOCK_FILE))
+  ) {
+    throw new ServerServiceRefusedError(
+      "The supplied migration lock belongs to a different prefix.",
+    );
+  }
   const lock =
-    options.action === "status"
+    deps.existingLock ??
+    (options.action === "status"
       ? null
-      : acquireServerUpgradeLock({ prefix: selected.prefix, releaseId: selected.releaseId });
+      : acquireServerUpgradeLock({ prefix: selected.prefix, releaseId: selected.releaseId }));
   const assertCurrent = () => {
     lock?.assertHeld();
     if (JSON.stringify(readInstalledServiceRelease(selected.prefix)) !== JSON.stringify(selected))
       throw new ServerServiceRefusedError(
         "The selected current release changed while preparing the service command; retry explicitly.",
       );
+    if (
+      deps.expectedRelease &&
+      (selected.build.version !== deps.expectedRelease.version ||
+        selected.build.entrypointSha256 !== deps.expectedRelease.entrypointSha256)
+    ) {
+      throw new ServerServiceRefusedError(
+        "The selected release differs from the migration's recorded build; no service change was attempted.",
+      );
+    }
   };
   try {
     assertCurrent();
@@ -406,7 +489,7 @@ export async function runServerService(
           formatVersion: 1,
           state: "prepared",
           registrationId: id,
-          registrationNonce: randomBytes(24).toString("hex"),
+          registrationNonce: deps.registrationNonce ?? randomBytes(24).toString("hex"),
           manager: "systemd-user",
           account: context.account,
           profileNamespace: profile,
@@ -560,6 +643,6 @@ export async function runServerService(
       ownerGeneration: owner?.generation ?? null,
     };
   } finally {
-    lock?.release();
+    if (!deps.existingLock) lock?.release();
   }
 }

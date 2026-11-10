@@ -26,6 +26,9 @@ export type ServerCliCommand =
   | "upgrade"
   | "update"
   | "uninstall"
+  | "install-command"
+  | "migrate-install"
+  | "install-activate"
   | "up"
   | "stop"
   | "version"
@@ -287,6 +290,9 @@ export function parseServerCliCommand(
       "update",
       "uninstall",
       "up",
+      "install-command",
+      "migrate-install",
+      "install-activate",
     ].includes(args[0]!) &&
     ["--help", "-h"].includes(args.at(-1)!)
   )
@@ -369,6 +375,18 @@ export function parseServerCliCommand(
   if (args[0] === "uninstall") {
     parseUninstallCliOptions(args.slice(1));
     return "uninstall";
+  }
+  if (args[0] === "install-command") {
+    if (args.length !== 1) throw new Error("Usage: poracode install-command");
+    return "install-command";
+  }
+  if (args[0] === "migrate-install") {
+    if (args.length !== 1) throw new Error("Usage: poracode migrate-install");
+    return "migrate-install";
+  }
+  if (args[0] === "install-activate") {
+    if (args.length !== 3) throw new Error("Usage: poracode install-activate PREFIX RELEASE");
+    return "install-activate";
   }
   if (args[0] === "up") {
     parseUpCliOptions(args.slice(1));
