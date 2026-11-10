@@ -70,7 +70,11 @@ import { storableAttachment, useAttachments } from "@/renderer/components/compos
 import type { VoiceInputHandle } from "@/renderer/components/composer/VoiceInputButton";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
-import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
+import { useBrowserAttachInboxDrain } from "./useBrowserAttachInboxDrain";
+import {
+  drainComposerInputsInto,
+  useComposerInputInbox,
+} from "@/renderer/state/composerInputInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
   BranchSelector,
@@ -410,9 +414,6 @@ export function ThreadDraftComposerArea(props: {
   const fallbackInboxKey = `draft:${props.project.id}`;
   const projectId = props.project.id;
 
-  const pendingPickedAttachments = useBrowserAttachInbox((s) =>
-    inboxKey ? s.itemsByThread[inboxKey] : undefined,
-  );
   const pendingComposerInputs = useComposerInputInbox((s) => s.itemsByComposer[inboxKey]);
   const pendingFallbackComposerInputs = useComposerInputInbox((s) =>
     inboxKey === fallbackInboxKey ? undefined : s.itemsByComposer[fallbackInboxKey],
@@ -420,25 +421,10 @@ export function ThreadDraftComposerArea(props: {
   const submittedRef = useRef(false);
   const draftVoice = useDraftLiveVoice(submittedRef, inboxKey);
   const { liveVoiceActive, pendingOperationCount, cancel: cancelDraftVoice } = draftVoice;
-  const addPickedRef = useRef(attachments.addPicked);
-  addPickedRef.current = (input) => {
+  useBrowserAttachInboxDrain(inboxKey, (input) => {
     cancelDraftVoice();
     attachments.addPicked(input);
-  };
-  useEffect(() => {
-    if (!inboxKey) return;
-    if (!pendingPickedAttachments || pendingPickedAttachments.length === 0) return;
-    const drained = useBrowserAttachInbox.getState().drain(inboxKey);
-    for (const item of drained) {
-      addPickedRef.current({
-        path: item.attachmentPath,
-        name: item.attachmentName,
-        mimeType: item.mimeType,
-        selector: item.selector,
-        sourceUrl: item.sourceUrl,
-      });
-    }
-  }, [pendingPickedAttachments, inboxKey]);
+  });
   const initialPendingWorktreeSelection =
     useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null;
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(
@@ -1299,18 +1285,10 @@ export function ThreadDraftComposerArea(props: {
     ) {
       return;
     }
-    const keys = inboxKey === fallbackInboxKey ? [inboxKey] : [fallbackInboxKey, inboxKey];
-    let composerHasContent = composer.serializeSegments().length > 0;
-    for (const key of keys) {
-      const items = useComposerInputInbox.getState().drain(key);
-      for (const segments of items) {
-        const separator: PromptSegment[] = composerHasContent
-          ? [{ kind: "text", content: "\n\n" }]
-          : [];
-        composer.insertSegments([...separator, ...segments], { atEnd: true, focus: false });
-        composerHasContent = true;
-      }
-    }
+    drainComposerInputsInto(
+      composer,
+      inboxKey === fallbackInboxKey ? [inboxKey] : [fallbackInboxKey, inboxKey],
+    );
   }, [
     fallbackInboxKey,
     inboxKey,

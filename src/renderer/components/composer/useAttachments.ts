@@ -34,6 +34,14 @@ export interface Attachment {
   uploading?: boolean;
 }
 
+export interface PickedBrowserAttachment {
+  readonly path: string;
+  readonly name: string;
+  readonly mimeType: string;
+  readonly selector: string;
+  readonly sourceUrl: string;
+}
+
 /**
  * Renderable URL for an image attachment. Prefers the local pasted bytes
  * (`previewUrl`), then a caller-supplied remote resolver (the paired desktop's
@@ -274,13 +282,7 @@ export function useAttachments(
     }
   }
 
-  function addPicked(input: {
-    path: string;
-    name: string;
-    mimeType: string;
-    selector: string;
-    sourceUrl: string;
-  }) {
+  function addPicked(input: PickedBrowserAttachment) {
     updateAttachments((prev) => [
       ...prev,
       {

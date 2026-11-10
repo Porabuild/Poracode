@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded PR pushes cancel; branch pushes finish so every landed commit
+  # gets a verdict (GitHub keeps at most one pending run per group).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # CI checkouts do not benefit from the worktree-oriented global virtual
@@ -89,6 +91,9 @@ jobs:
 
       - name: Turbo cache regression tests
         run: node --test scripts/turbo.test.mjs scripts/heavy-run-gate.test.mjs
+
+      - name: CI Node pin, dependency audit and quality KPI tests
+        run: node --test scripts/node-version-pin.test.mjs scripts/dependency-audit-workflow.test.mjs scripts/quality-kpis.test.mjs scripts/browser-tests-workflow.test.mjs
 
       - name: Architecture boundary audit and analyzer tests
         run: bun run architecture:check

@@ -1,8 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { isRemoteOmittedField, payloadHasOmittedField, readRemoteImageRef } from "@/shared/remote";
 import type { RuntimeEvent } from "@/shared/contracts";
-import { capBroadcastEvent, maxBroadcastEventBytes, trimEventBuffer } from "./eventSizeGuard";
+import { REMOTE_LIVE_EVENT_DEFAULT_MAX_BYTES } from "@/shared/runtimeEventSize";
+import {
+  capBroadcastEvent,
+  DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES,
+  maxBroadcastEventBytes,
+  trimEventBuffer,
+} from "./eventSizeGuard";
 import type { BufferedSupervisorEvent, RemoteBroadcastEvent } from "./context";
+
+describe("shared live-event budget", () => {
+  it("matches the host's default per-event broadcast budget that producers split against", () => {
+    expect(maxBroadcastEventBytes(DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES)).toBe(
+      REMOTE_LIVE_EVENT_DEFAULT_MAX_BYTES,
+    );
+  });
+});
 
 /**
  * A bulk-text payload. Cap tests use text rather than an image because inline

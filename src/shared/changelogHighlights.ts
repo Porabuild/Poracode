@@ -4,6 +4,7 @@ import {
   type ChangelogChangeKind,
   type ChangelogRelease,
 } from "@/shared/changelog";
+import { fnv1a32 } from "./fnv1a32";
 
 /** One changelog point the news line can feature. */
 export interface ChangelogHighlight {
@@ -30,18 +31,8 @@ export const HIGHLIGHT_MAX_SHOWINGS = 2;
 
 const KIND_WEIGHT: Record<ChangelogChangeKind, number> = { added: 3, improved: 2, fixed: 1 };
 
-/** FNV-1a, enough to key a sentence without storing it. */
-function hashText(text: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(36);
-}
-
 export function highlightId(version: string, change: ChangelogChange): string {
-  return `${version}:${hashText(`${change.label ?? ""}\u0000${change.text}`)}`;
+  return `${version}:${fnv1a32(`${change.label ?? ""}\u0000${change.text}`).toString(36)}`;
 }
 
 /** Every point from the newest releases the user can be running, newest first. */

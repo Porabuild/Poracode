@@ -42,6 +42,47 @@ export interface RendererPerfLongTaskRecord {
   readonly durationMs: number;
 }
 
+/** One script that ran in a long animation frame (`PerformanceScriptTiming`). */
+export interface RendererPerfFrameScriptRecord {
+  /** What called the script, e.g. `DOMWindow.onmessage` or `HTMLElement.onclick`. */
+  readonly invoker: string | null;
+  readonly invokerType: string | null;
+  /** Bundle file name only: directories (user paths), query and hash are dropped. */
+  readonly sourceFile: string | null;
+  readonly sourceFunctionName: string | null;
+  readonly sourceCharPosition: number | null;
+  readonly durationMs: number;
+  readonly forcedStyleAndLayoutMs: number | null;
+}
+
+/**
+ * One long animation frame (W3C Long Animation Frames). Unlike a `longtask`
+ * entry it attributes the frame to the scripts that ran in it, so a stalled
+ * interaction can be traced to code instead of only being timed.
+ */
+export interface RendererPerfLongAnimationFrameRecord {
+  readonly startMs: number;
+  readonly durationMs: number;
+  /** Time beyond 50 ms that could delay input; null when the entry has none. */
+  readonly blockingDurationMs: number | null;
+  /** Style, layout and paint at the end of the frame; null when absent. */
+  readonly renderMs: number | null;
+  /** Longest first, at most {@link MAX_FRAME_SCRIPTS}. */
+  readonly scripts: readonly RendererPerfFrameScriptRecord[];
+}
+
+/** Structural `PerformanceLongAnimationFrameTiming` shape. */
+export interface LongAnimationFrameEntryLike {
+  readonly startTime?: unknown;
+  readonly duration?: unknown;
+  readonly blockingDuration?: unknown;
+  readonly renderStart?: unknown;
+  readonly scripts?: unknown;
+}
+
+export const MAX_FRAME_SCRIPTS = 5;
+const MAX_ATTRIBUTION_TEXT = 160;
+
 /** Structural `PerformanceEventTiming` shape (W3C Event Timing §2.1). */
 export interface EventTimingEntryLike {
   readonly name?: unknown;
@@ -95,4 +136,70 @@ export function adaptLongTaskEntry(entry: LongTaskEntryLike): RendererPerfLongTa
   if (!isFiniteNumber(entry.startTime) || !isFiniteNumber(entry.duration)) return null;
   if (entry.duration < 0) return null;
   return { startMs: entry.startTime, durationMs: entry.duration };
+}
+
+function nonNegative(value: unknown): number | null {
+  return isFiniteNumber(value) && value >= 0 ? value : null;
+}
+
+function attributionText(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0
+    ? value.slice(0, MAX_ATTRIBUTION_TEXT)
+    : null;
+}
+
+/** File name of a script URL or path; never its directories, query or hash. */
+export function sourceFileName(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0) return null;
+  const path = value.split(/[?#]/u, 1)[0] ?? "";
+  const name = path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
+  return attributionText(name);
+}
+
+function adaptFrameScript(script: unknown): RendererPerfFrameScriptRecord | null {
+  if (typeof script !== "object" || script === null) return null;
+  const fields = script as Record<string, unknown>;
+  const durationMs = nonNegative(fields.duration);
+  if (durationMs === null) return null;
+  // Script-evaluation invokers are the script URL itself; keep only its name.
+  const invoker =
+    typeof fields.invoker === "string" && /^(?:[a-z][a-z0-9+.-]*:|[/\\])/iu.test(fields.invoker)
+      ? sourceFileName(fields.invoker)
+      : attributionText(fields.invoker);
+  return {
+    invoker,
+    invokerType: attributionText(fields.invokerType),
+    sourceFile: sourceFileName(fields.sourceURL),
+    sourceFunctionName: attributionText(fields.sourceFunctionName),
+    sourceCharPosition: nonNegative(fields.sourceCharPosition),
+    durationMs,
+    forcedStyleAndLayoutMs: nonNegative(fields.forcedStyleAndLayoutDuration),
+  };
+}
+
+/** Adapts one `long-animation-frame` entry; null when its timing is malformed. */
+export function adaptLongAnimationFrameEntry(
+  entry: LongAnimationFrameEntryLike,
+): RendererPerfLongAnimationFrameRecord | null {
+  if (!isFiniteNumber(entry.startTime) || !isFiniteNumber(entry.duration)) return null;
+  if (entry.duration < 0) return null;
+  const endMs = entry.startTime + entry.duration;
+  const renderMs =
+    isFiniteNumber(entry.renderStart) &&
+    entry.renderStart >= entry.startTime &&
+    entry.renderStart <= endMs
+      ? endMs - entry.renderStart
+      : null;
+  const scripts = (Array.isArray(entry.scripts) ? entry.scripts : [])
+    .map(adaptFrameScript)
+    .filter((script): script is RendererPerfFrameScriptRecord => script !== null)
+    .sort((left, right) => right.durationMs - left.durationMs)
+    .slice(0, MAX_FRAME_SCRIPTS);
+  return {
+    startMs: entry.startTime,
+    durationMs: entry.duration,
+    blockingDurationMs: nonNegative(entry.blockingDuration),
+    renderMs,
+    scripts,
+  };
 }

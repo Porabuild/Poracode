@@ -5,6 +5,7 @@ import {
   DEVIN_PROFILE_CONFIG_FORMAT_LEGACY,
   describeDevinProfileConfigUnavailability,
   devinProfileConfigGeneration,
+  devinStableHash,
   parseDevinProfileConfig,
 } from "./profileConfig";
 
@@ -28,6 +29,10 @@ function previousFormat1GuardRefusal(
 }
 
 describe("Devin profile config (format 2)", () => {
+  it("preserves the previous persisted profile hash", () => {
+    expect(devinStableHash("profile\0😀")).toBe("fc1fd9ef");
+  });
+
   it("parses an empty payload as the native-default profile at the latest format", () => {
     expect(parseDevinProfileConfig(undefined)).toEqual({
       status: "ok",

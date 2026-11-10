@@ -101,8 +101,11 @@ describe.skipIf(process.platform === "win32")("codex probe mock-QA guard", () =>
 
   it("spawns and executes the fixture binary without the flag (real-mode parity)", async () => {
     realModeEnv();
+    // The probe resolves as soon as the fixture exits; the generous limit only
+    // matters on a loaded CI shard, where a 3 s timeout killed the fixture
+    // before the shell had executed the sentinel write.
     await expect(
-      probeCodexAccount(posixLocation(), { wslExecPath: fixtureCommand, timeoutMs: 3_000 }),
+      probeCodexAccount(posixLocation(), { wslExecPath: fixtureCommand, timeoutMs: 10_000 }),
     ).resolves.toBeUndefined();
     expect(spawnCalls).toHaveBeenCalledOnce();
     expect(spawnCalls.mock.calls[0]?.[0]).toBe(fixtureCommand);
