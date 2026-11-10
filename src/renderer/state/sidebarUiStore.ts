@@ -28,6 +28,11 @@ interface SidebarUiState {
    */
   flatListProjectFilter: string[] | null;
   /**
+   * Compact home list: show done threads instead of active ones. Session-scoped
+   * (not persisted) so a relaunch always opens on the active list.
+   */
+  flatListShowDone: boolean;
+  /**
    * Footer nav (workspace switcher, shortcuts, Settings, Hide sidebar) shown
    * as a compact icon row instead of labeled rows. Persisted; additive to the
    * v1 envelope like `flatListProjectFilter` — older payloads lack the key and
@@ -43,6 +48,7 @@ interface SidebarUiState {
   toggleWorktreeCollapsed: (key: string) => void;
   revealMoreThreads: (projectId: string, pageSize?: number) => void;
   setFlatListProjectFilter: (projectIds: string[] | null) => void;
+  setFlatListShowDone: (showDone: boolean) => void;
   toggleFooterCollapsed: () => void;
   setEditingThreadId: (id: string | null) => void;
 }
@@ -71,6 +77,7 @@ export const useSidebarUiStore = create<SidebarUiState>()(
       collapsedWorktrees: {},
       threadListLimits: {},
       flatListProjectFilter: null,
+      flatListShowDone: false,
       footerCollapsed: false,
       editingThreadId: null,
 
@@ -147,6 +154,8 @@ export const useSidebarUiStore = create<SidebarUiState>()(
           }
           return { flatListProjectFilter: next };
         }),
+      setFlatListShowDone: (flatListShowDone) =>
+        set((state) => (state.flatListShowDone === flatListShowDone ? {} : { flatListShowDone })),
       toggleFooterCollapsed: () => set((state) => ({ footerCollapsed: !state.footerCollapsed })),
       setEditingThreadId: (editingThreadId) => set({ editingThreadId }),
     }),
