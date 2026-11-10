@@ -1389,6 +1389,7 @@ msgstr "Działania"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1703,6 +1704,10 @@ msgstr "Dodatkowe argumenty przekazywane do każdej nowej powłoki panelu termin
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "Dodatkowe argumenty przekazywane do każdej nowej powłoki Windows. Wartości zawierające spacje ujmij w cudzysłowy."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Adjust your project filter."
+msgstr "Dostosuj filtr projektów."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt"
@@ -5205,6 +5210,10 @@ msgstr "Kontroluj, które pliki pojawiają się w wyszukiwaniu wzmianek @plik. Z
 msgid "Conversation"
 msgstr "Rozmowa"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Conversations from all paired desktops will appear here."
+msgstr "Tutaj pojawią się rozmowy ze wszystkich sparowanych komputerów."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Convert to draft"
 msgstr "Zamień na wersję roboczą"
@@ -7060,6 +7069,7 @@ msgstr "zrobione"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -8407,6 +8417,10 @@ msgstr "Filtruj umiejętności według stanu"
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 msgid "Filter table"
 msgstr "Filtruj tabelę"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Filter threads"
+msgstr "Filtruj wątki"
 
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
@@ -12740,6 +12754,10 @@ msgstr "Brak aktywnego celu w tej sesji."
 msgid "No active tasks."
 msgstr "Brak aktywnych zadań."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No active threads"
+msgstr "Brak aktywnych wątków"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
 #~ msgstr "Brak aktywnych przepływów pracy"
@@ -12871,6 +12889,10 @@ msgstr "Brak strumieni treści."
 msgid "No conversation yet. Be the first to comment."
 msgstr "Nie ma jeszcze rozmowy. Bądź pierwszą osobą, która skomentuje."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No conversations yet"
+msgstr "Brak rozmów"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "No crews yet"
 msgstr "Nie ma jeszcze ekip"
@@ -12918,6 +12940,10 @@ msgstr "Brak dostępnych różnic dla {0}"
 #: src/renderer/components/diff/DiffCardList.tsx
 #~ msgid "No diff for {visiblePath}"
 #~ msgstr "Brak różnicy dla {visiblePath}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No done threads"
+msgstr "Brak ukończonych wątków"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -13052,9 +13078,9 @@ msgstr "Brak pasujących harmonogramów."
 #~ msgid "No matching tasks."
 #~ msgstr "Brak pasujących zadań."
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "No matching threads"
-#~ msgstr "Brak pasujących wątków"
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No matching threads"
+msgstr "Brak pasujących wątków"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -18295,6 +18321,10 @@ msgstr "Wybierz kandydata {0} ({label}) jako zwycięzcę"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "Wybierz urządzenie"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Select Done in the filter to see finished threads."
+msgstr "Wybierz „Gotowe” w filtrze, aby zobaczyć zakończone wątki."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Select lines in the plan to comment on them."

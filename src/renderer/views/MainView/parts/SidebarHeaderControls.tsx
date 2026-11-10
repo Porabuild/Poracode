@@ -46,6 +46,11 @@ function MobileSidebarHeaderControls(props: { connected: boolean }) {
           value={projectFilter.activeProjectFilter}
           onChange={projectFilter.setFlatListProjectFilter}
           mobileIconTrigger
+          statusView={{
+            showDone: projectFilter.showDone,
+            doneCount: projectFilter.doneThreadCount,
+            onChange: projectFilter.setFlatListShowDone,
+          }}
         />
       ) : null}
       {props.connected ? null : (

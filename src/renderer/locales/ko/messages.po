@@ -1389,6 +1389,7 @@ msgstr "작업"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1703,6 +1704,10 @@ msgstr "새 터미널 패널 셸마다 전달할 추가 인수입니다. 공백�
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "새 Windows 셸마다 전달할 추가 인수입니다. 공백이 포함된 값은 따옴표로 묶으세요."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Adjust your project filter."
+msgstr "프로젝트 필터를 조정하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt"
@@ -5205,6 +5210,10 @@ msgstr "@file 멘션 검색에 표시되는 파일을 제어합니다. 프로젝
 msgid "Conversation"
 msgstr "대화"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Conversations from all paired desktops will appear here."
+msgstr "페어링된 모든 데스크톱의 대화가 여기에 표시됩니다."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Convert to draft"
 msgstr "초안으로 전환"
@@ -7060,6 +7069,7 @@ msgstr "완료"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -8407,6 +8417,10 @@ msgstr "상태별로 스킬 필터링"
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 msgid "Filter table"
 msgstr "표 필터링"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Filter threads"
+msgstr "스레드 필터"
 
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
@@ -12740,6 +12754,10 @@ msgstr "이 세션에 활성 목표가 없습니다."
 msgid "No active tasks."
 msgstr "진행 중인 작업이 없습니다."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No active threads"
+msgstr "활성 스레드 없음"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
 #~ msgstr "활성 워크플로 없음"
@@ -12871,6 +12889,10 @@ msgstr "콘텐츠 스트림이 없습니다."
 msgid "No conversation yet. Be the first to comment."
 msgstr "아직 대화가 없습니다. 가장 먼저 댓글을 남겨보세요."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No conversations yet"
+msgstr "아직 대화가 없습니다"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "No crews yet"
 msgstr "아직 크루가 없습니다"
@@ -12918,6 +12940,10 @@ msgstr "{0}에 대한 차이점이 없습니다."
 #: src/renderer/components/diff/DiffCardList.tsx
 #~ msgid "No diff for {visiblePath}"
 #~ msgstr "{visiblePath}에는 차이가 없습니다."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No done threads"
+msgstr "완료된 스레드 없음"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -13052,9 +13078,9 @@ msgstr "일치하는 일정이 없습니다."
 #~ msgid "No matching tasks."
 #~ msgstr "일치하는 작업이 없습니다."
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "No matching threads"
-#~ msgstr "일치하는 스레드 없음"
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No matching threads"
+msgstr "일치하는 스레드 없음"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -18295,6 +18321,10 @@ msgstr "후보 {0}({label}): 우승자로 선택"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "기기 선택"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Select Done in the filter to see finished threads."
+msgstr "필터에서 ‘완료’를 선택하면 끝난 스레드를 볼 수 있습니다."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Select lines in the plan to comment on them."

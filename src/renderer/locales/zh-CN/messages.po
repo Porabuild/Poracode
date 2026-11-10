@@ -1389,6 +1389,7 @@ msgstr "操作"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1703,6 +1704,10 @@ msgstr "传递给每个新终端面板 shell 的附加参数。包含空格的�
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "传递给每个新 Windows shell 的其他参数。包含空格的值请用引号括起来。"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Adjust your project filter."
+msgstr "请调整项目筛选条件。"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt"
@@ -5205,6 +5210,10 @@ msgstr "控制哪些文件出现在 @file 提及搜索中。可在各项目的�
 msgid "Conversation"
 msgstr "对话"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Conversations from all paired desktops will appear here."
+msgstr "来自所有已配对桌面设备的对话都会显示在这里。"
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Convert to draft"
 msgstr "转为草稿"
@@ -7060,6 +7069,7 @@ msgstr "完成"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -8407,6 +8417,10 @@ msgstr "按状态筛选技能"
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 msgid "Filter table"
 msgstr "筛选表格"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Filter threads"
+msgstr "筛选线程"
 
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
@@ -12739,6 +12753,10 @@ msgstr "此会话中没有活动目标。"
 msgid "No active tasks."
 msgstr "没有正在进行的任务。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No active threads"
+msgstr "没有活跃的线程"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
 #~ msgstr "没有活动的工作流"
@@ -12870,6 +12888,10 @@ msgstr "没有内容流。"
 msgid "No conversation yet. Be the first to comment."
 msgstr "还没有对话。成为第一个发表评论的人。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No conversations yet"
+msgstr "暂无对话"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "No crews yet"
 msgstr "暂无团队"
@@ -12917,6 +12939,10 @@ msgstr "{0}没有可用的差异"
 #: src/renderer/components/diff/DiffCardList.tsx
 #~ msgid "No diff for {visiblePath}"
 #~ msgstr "{visiblePath}没有差异"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No done threads"
+msgstr "没有已完成的线程"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -13051,9 +13077,9 @@ msgstr "没有匹配的计划。"
 #~ msgid "No matching tasks."
 #~ msgstr "没有匹配的任务。"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "No matching threads"
-#~ msgstr "没有匹配的线程"
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No matching threads"
+msgstr "没有匹配的线程"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -18294,6 +18320,10 @@ msgstr "选择候选项 {0}（{label}）作为优胜者"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "选择设备"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Select Done in the filter to see finished threads."
+msgstr "在筛选器中选择“完成”即可查看已完成的线程。"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Select lines in the plan to comment on them."

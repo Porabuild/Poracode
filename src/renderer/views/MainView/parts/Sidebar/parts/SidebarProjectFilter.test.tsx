@@ -250,6 +250,57 @@ describe("SidebarProjectFilter", () => {
     expect(labels[4]).toContain("Gamma");
   });
 
+  it("offers Active and Done views above the projects in the compact sheet", async () => {
+    responsiveMenuState.mobile = true;
+    const onViewChange = vi.fn<(showDone: boolean) => void>();
+    render(
+      <SidebarProjectFilter
+        projects={projects}
+        filterableProjectIds={new Set(projects.map((candidate) => candidate.id))}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+        mobileIconTrigger
+        statusView={{ showDone: false, doneCount: 7, onChange: onViewChange }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter threads" }));
+    const dialog = await screen.findByRole("dialog", { name: "Filter threads" });
+    const labels = within(dialog)
+      .getAllByRole("button")
+      .map((button) => button.textContent?.trim() ?? "")
+      .filter((text) => text.length > 0);
+    expect(labels.slice(0, 4)).toEqual(["Active", "Done7", "All projects", expect.any(String)]);
+    expect(within(dialog).getByRole("button", { name: "Active" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Done/ }));
+    expect(onViewChange).toHaveBeenCalledWith(true);
+  });
+
+  it("marks the compact filter trigger active while Done is selected", () => {
+    responsiveMenuState.mobile = true;
+    render(
+      <SidebarProjectFilter
+        projects={projects}
+        filterableProjectIds={new Set(projects.map((candidate) => candidate.id))}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+        mobileIconTrigger
+        statusView={{
+          showDone: true,
+          doneCount: 1,
+          onChange: vi.fn<(showDone: boolean) => void>(),
+        }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Filter threads" })).toHaveClass("text-accent");
+  });
+
   it("keeps connection details out of the mobile sheet's dialog description", async () => {
     responsiveMenuState.mobile = true;
     const mirrored = {

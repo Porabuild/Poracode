@@ -1389,6 +1389,7 @@ msgstr "Дії"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1703,6 +1704,10 @@ msgstr "Додаткові аргументи для кожної нової о�
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "Додаткові аргументи, що передаються кожній новій оболонці Windows. Значення з пробілами беріть у лапки."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Adjust your project filter."
+msgstr "Змініть фільтр проєктів."
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt"
@@ -5205,6 +5210,10 @@ msgstr "Керуйте тим, які файли з'являються у пош
 msgid "Conversation"
 msgstr "Розмова"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Conversations from all paired desktops will appear here."
+msgstr "Тут з’являться розмови з усіх спарених комп’ютерів."
+
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Convert to draft"
 msgstr "Перетворити на чернетку"
@@ -7060,6 +7069,7 @@ msgstr "готово"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -8407,6 +8417,10 @@ msgstr "Фільтрувати навички за станом"
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisualTable.tsx
 msgid "Filter table"
 msgstr "Фільтрувати таблицю"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Filter threads"
+msgstr "Фільтр тредів"
 
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
@@ -12740,6 +12754,10 @@ msgstr "У цьому сеансі немає активної цілі."
 msgid "No active tasks."
 msgstr "Немає активних завдань."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No active threads"
+msgstr "Активних тредів немає"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
 #~ msgstr "Немає активних робочих процесів"
@@ -12871,6 +12889,10 @@ msgstr "Немає потоків вмісту."
 msgid "No conversation yet. Be the first to comment."
 msgstr "Розмови ще немає. Прокоментуйте першим."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No conversations yet"
+msgstr "Розмов ще немає"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "No crews yet"
 msgstr "Команд ще немає"
@@ -12918,6 +12940,10 @@ msgstr "Немає доступного diff для {0}"
 #: src/renderer/components/diff/DiffCardList.tsx
 #~ msgid "No diff for {visiblePath}"
 #~ msgstr "Немає diff для {visiblePath}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No done threads"
+msgstr "Завершених тредів немає"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -13052,9 +13078,9 @@ msgstr "Відповідних розкладів немає."
 #~ msgid "No matching tasks."
 #~ msgstr "Немає відповідних завдань."
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "No matching threads"
-#~ msgstr "Відповідних тредів немає"
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No matching threads"
+msgstr "Відповідних тредів немає"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -18295,6 +18321,10 @@ msgstr "Вибрати кандидата {0} ({label}) переможцем"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "Вибрати пристрій"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Select Done in the filter to see finished threads."
+msgstr "Виберіть «Завершено» у фільтрі, щоб побачити завершені треди."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Select lines in the plan to comment on them."
