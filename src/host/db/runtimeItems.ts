@@ -254,6 +254,67 @@ export function dbReadThreadRuntimeItems(threadId: string): PersistedRuntimeItem
   });
 }
 
+/**
+ * Synchronous committed-prefix read bounded through `anchorItemId` (plus any
+ * post-anchor descendants whose `parent_item_id` resolves into the inherited
+ * prefix). Avoids decoding post-anchor turns or stream chunks during a fork.
+ */
+export function dbReadThreadRuntimeItemsThroughAnchor(
+  threadId: string,
+  anchorItemId: string,
+): PersistedRuntimeItem[] {
+  const sqlite = getSqlite();
+  return readRuntimeSnapshot(sqlite, () => {
+    const anchorRow = sqlite
+      .prepare("SELECT position FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")
+      .get(threadId, anchorItemId) as { position: number } | undefined;
+    if (!anchorRow) return [];
+    const prefixRows = sqlite
+      .prepare(
+        `SELECT item_id, type, state, payload, streams, parent_item_id
+         FROM thread_runtime_items
+         WHERE thread_id = ? AND position <= ?
+         ORDER BY position ASC`,
+      )
+      .all(threadId, anchorRow.position) as PersistedRuntimeItemRow[];
+    const postChildRefs = sqlite
+      .prepare(
+        `SELECT item_id, parent_item_id
+         FROM thread_runtime_items
+         WHERE thread_id = ? AND position > ? AND parent_item_id IS NOT NULL
+         ORDER BY position ASC`,
+      )
+      .all(threadId, anchorRow.position) as Array<{ item_id: string; parent_item_id: string }>;
+    if (postChildRefs.length === 0) {
+      return mapRuntimeItemRows(sqlite, threadId, prefixRows);
+    }
+    const inheritedIds = new Set(prefixRows.map((row) => row.item_id));
+    const postDescendantIds: string[] = [];
+    for (const ref of postChildRefs) {
+      if (inheritedIds.has(ref.parent_item_id)) {
+        inheritedIds.add(ref.item_id);
+        postDescendantIds.push(ref.item_id);
+      }
+    }
+    if (postDescendantIds.length === 0) {
+      return mapRuntimeItemRows(sqlite, threadId, prefixRows);
+    }
+    const postRows: PositionedPersistedRuntimeItemRow[] = [];
+    for (const chunk of chunkValues(postDescendantIds, SQLITE_IN_CHUNK_SIZE)) {
+      const rows = sqlite
+        .prepare(
+          `SELECT item_id, position, type, state, payload, streams, parent_item_id
+           FROM thread_runtime_items
+           WHERE thread_id = ? AND item_id IN (${placeholders(chunk.length)})`,
+        )
+        .all(threadId, ...chunk) as PositionedPersistedRuntimeItemRow[];
+      postRows.push(...rows);
+    }
+    postRows.sort((a, b) => a.position - b.position);
+    return mapRuntimeItemRows(sqlite, threadId, [...prefixRows, ...postRows]);
+  });
+}
+
 /** Capture the committed pre-turn position, including buffered prior turns. */
 export function dbGetThreadRuntimeItemCursor(threadId: string): Promise<number> {
   return readThreadWithFence(threadId, () =>
@@ -430,12 +491,13 @@ export function dbReadRunningToolCallItems(
   itemId: string;
   payload: unknown;
 }> {
-  const statement = getSqlite().prepare(
+  const sqlite = getSqlite();
+  const statement = sqlite.prepare(
     `SELECT thread_id, item_id, payload
      FROM thread_runtime_items
      WHERE type = 'tool_call'
        AND (state != 'completed'
-         ${includeLegacyCompleted ? "OR CASE WHEN json_valid(payload) THEN json_extract(payload, '$.status') END = 'running'" : ""})
+         ${includeLegacyCompleted ? "OR ((instr(payload, 'running') > 0 OR instr(payload, char(92) || 'u') > 0) AND CASE WHEN json_valid(payload) THEN json_extract(payload, '$.status') END = 'running')" : ""})
        ${threadId === undefined ? "" : "AND thread_id = ?"}`,
   );
   const rows = (threadId === undefined ? statement.all() : statement.all(threadId)) as Array<{
@@ -443,6 +505,9 @@ export function dbReadRunningToolCallItems(
     item_id: string;
     payload: string | null;
   }>;
+  if (includeLegacyCompleted && threadId === undefined) {
+    sqlite.pragma("shrink_memory");
+  }
   return rows.map((row) => ({
     threadId: row.thread_id,
     itemId: row.item_id,

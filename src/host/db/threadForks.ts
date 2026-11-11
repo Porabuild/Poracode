@@ -20,6 +20,7 @@ import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import {
   dbGetThreadCompletedTurns,
   dbReadThreadRuntimeItems,
+  dbReadThreadRuntimeItemsThroughAnchor,
   fenceRefusalError,
   replaceThreadRuntimeSnapshotUnchecked,
 } from "./runtimeItems";
@@ -50,9 +51,11 @@ export async function dbForkThread(
     if (!canForkThread(source)) {
       throw new Error(msg("thread.forkSourceActive"));
     }
+    const turns = dbGetThreadCompletedTurns(source.id);
+    const anchor = command.throughItemId ?? turns.at(-1)?.anchorItemId ?? undefined;
     const snapshot = selectThreadForkSnapshot(
-      dbReadThreadRuntimeItems(source.id),
-      dbGetThreadCompletedTurns(source.id),
+      anchor ? dbReadThreadRuntimeItemsThroughAnchor(source.id, anchor) : [],
+      turns,
       command.throughItemId,
     );
     // Copy owned attachment files before the write transaction so file IO

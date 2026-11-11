@@ -361,4 +361,21 @@ describe.skipIf(!sqliteAvailable)("delegated-agent boot settle (real SQLite)", (
     expect(items(THREAD_A).get("malformed")).toMatchObject({ state: "completed" });
     expect(items(THREAD_A).get("no-payload")).toMatchObject({ state: "started" });
   });
+
+  it("detects legacy completed rows with unicode-escaped running status", () => {
+    getSqlite()
+      .prepare(`INSERT INTO thread_runtime_items
+      (thread_id, item_id, position, type, state, payload, streams, parent_item_id)
+      VALUES (?, ?, ?, 'tool_call', 'completed', ?, '{}', NULL)`)
+      .run(
+        THREAD_A,
+        "escaped-running",
+        1,
+        '{"name":"Delegate","status":"r\\u0075nning","isSubAgent":true}',
+      );
+    expect(dbReadRunningToolCallItems(undefined, true).map((row) => row.itemId)).toEqual([
+      "escaped-running",
+    ]);
+    expect(settleOrphanedDelegatedAgentRuns(true)).toMatchObject({ threads: 1, items: 1 });
+  });
 });

@@ -57,6 +57,8 @@ export function initReadOnlyDatabase(dbPath: string): void {
     preflightConversationSearchGeneration(sqlite);
     sqlite.pragma("query_only = ON");
     sqlite.pragma("busy_timeout = 250");
+    sqlite.pragma("cache_size = -4096");
+    sqlite.pragma("temp_store = FILE");
     assertRequiredDatabaseSchema(sqlite);
     assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
     assertConversationSearchReady(sqlite);
@@ -89,6 +91,8 @@ export function initDatabase(
   sqlite.pragma("synchronous = NORMAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
+  sqlite.pragma("cache_size = -8192");
+  sqlite.pragma("temp_store = FILE");
   // SQLite lower() handles ASCII only; schedule search uses the same deterministic
   // Unicode normalization for persisted text and the user's query.
   sqlite.function("schedule_search_text", { deterministic: true }, (value: unknown) =>
@@ -354,6 +358,7 @@ export function initDatabase(
       "DELETE FROM checkpoint_revert_operations WHERE outcome != 'running' AND updated_at < ?",
     )
     .run(receiptCutoff);
+  sqlite.pragma("shrink_memory");
 
   console.log("[db] initialized");
   return sqlite;

@@ -243,6 +243,80 @@ describe.skipIf(!sqliteAvailable)("independent thread forks", () => {
     },
   );
 
+  it("inherits post-anchor descendants without loading unrelated later turns", async () => {
+    await dbReplaceThreadRuntimeSnapshot(
+      "thread-1",
+      [
+        {
+          id: "u1",
+          type: "user_message",
+          state: "completed",
+          payload: { content: [{ kind: "text", text: "Turn 1" }] },
+          streams: {},
+        },
+        {
+          id: "sub1",
+          type: "tool_call",
+          state: "completed",
+          payload: { name: "Task", status: "success" },
+          streams: {},
+        },
+        {
+          id: "a1",
+          type: "assistant_message",
+          state: "completed",
+          streams: { assistant_text: "First answer" },
+        },
+        {
+          id: "u2",
+          type: "user_message",
+          state: "completed",
+          payload: { content: [{ kind: "text", text: "Turn 2" }] },
+          streams: {},
+        },
+        {
+          id: "sub1-child",
+          type: "assistant_message",
+          state: "completed",
+          parentItemId: "sub1",
+          streams: { assistant_text: "Late child under prefix subagent" },
+        },
+        {
+          id: "sub1-grandchild",
+          type: "tool_call",
+          state: "completed",
+          parentItemId: "sub1-child",
+          payload: { name: "Read", status: "success" },
+          streams: {},
+        },
+        {
+          id: "u2-child",
+          type: "tool_call",
+          state: "completed",
+          parentItemId: "u2",
+          payload: { name: "Read", status: "success" },
+          streams: {},
+        },
+        {
+          id: "a2",
+          type: "assistant_message",
+          state: "completed",
+          streams: { assistant_text: "Second answer" },
+        },
+      ],
+      turns,
+      null,
+    );
+    await dbForkThread(command);
+    expect((await dbGetThreadRuntimeItems("fork")).map((item) => item.id)).toEqual([
+      "u1",
+      "sub1",
+      "a1",
+      "sub1-child",
+      "sub1-grandchild",
+    ]);
+  });
+
   it("migrates a previous-version database without changing its conversations", () => {
     const sqlite = getSqlite();
     sqlite.exec("DROP TABLE thread_fork_contexts; ALTER TABLE threads DROP COLUMN forked_from");
