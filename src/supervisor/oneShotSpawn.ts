@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { spawn as spawnPty } from "node-pty";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import type { ProjectLocation } from "@/shared/contracts";
-import { terminateProcessTree } from "@/shared/processTree";
 import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import {
   buildAgentCommand,
@@ -13,6 +12,7 @@ import {
 import { ensureNodePtySpawnHelperExecutable } from "./nodePty";
 import { markOneShotOutput, stripOneShotBanner } from "./oneShotOutputMarker";
 import { processEnvRecord } from "./processEnv";
+import { disposeNodePtyAfterExit, terminateNodePty } from "./pty/nodePtyTeardown";
 
 export interface OneShotSpecOptions {
   /**
@@ -187,11 +187,7 @@ export function spawnAgentPty(
     let timedOut = false;
 
     const killPty = () => {
-      if (process.platform === "win32") {
-        terminateProcessTree(pty.pid);
-        return;
-      }
-      pty.kill();
+      terminateNodePty(pty);
     };
     const onAbort = () => {
       killPty();
@@ -210,6 +206,7 @@ export function spawnAgentPty(
       signal?.removeEventListener("abort", onAbort);
       dataDisposable.dispose();
       exitDisposable.dispose();
+      disposeNodePtyAfterExit(pty);
 
       const text = stripOneShotBanner(stripAnsiPreservingLayout(output)).trim();
       if (signal?.aborted) {

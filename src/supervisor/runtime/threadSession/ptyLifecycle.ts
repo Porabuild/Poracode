@@ -1,6 +1,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
-import { terminateProcessTree } from "@/shared/processTree";
+import type { IPty } from "node-pty";
 import { managedPtyCustody } from "../../pty/managedPty";
+import { disposeNodePtyAfterExit, terminateNodePty } from "../../pty/nodePtyTeardown";
 import type { SessionRuntime, ShellSessionRuntime } from "../sessionTypes";
 
 /**
@@ -29,6 +30,11 @@ export class PtyLifecycle {
   }
 
   resolveExit(session: SessionRuntime | ShellSessionRuntime): void {
+    this.finishExitTracking(session);
+    disposeNodePtyAfterExit(session.pty);
+  }
+
+  private finishExitTracking(session: SessionRuntime | ShellSessionRuntime): void {
     session.ptyExited = true;
     this.exitResolvers.get(session)?.();
     this.exitResolvers.delete(session);
@@ -51,8 +57,7 @@ export class PtyLifecycle {
     } catch (error) {
       if (isPtyResizeAfterExitError(error)) {
         if (managedPtyCustody(pty)) return;
-        session.ptyExited = true;
-        this.resolveExit(session);
+        this.finishExitTracking(session);
         return;
       }
       throw error;
@@ -100,49 +105,34 @@ export class PtyLifecycle {
     if (!session.pty) {
       return;
     }
-    const managed = managedPtyCustody(session.pty);
-    if (managed) {
-      void managed
-        .close()
-        .catch(() => console.warn("[supervisor] Managed terminal retirement remains unconfirmed."));
-      return;
-    }
-    if (session.ptyExited) {
-      return;
-    }
-    if (process.platform === "win32") {
-      terminateProcessTree(session.pty.pid);
-      return;
-    }
-    try {
-      process.kill(session.pty.pid, 0);
-    } catch {
-      return;
-    }
-    session.pty.kill();
+    this.killTrackedPty(session.pty, session.ptyExited === true);
   }
 
   killShell(session: ShellSessionRuntime): void {
-    const managed = managedPtyCustody(session.pty);
+    this.killTrackedPty(session.pty, session.ptyExited === true);
+  }
+
+  private killTrackedPty(pty: IPty, ptyExited: boolean): void {
+    const managed = managedPtyCustody(pty);
     if (managed) {
       void managed
         .close()
         .catch(() => console.warn("[supervisor] Managed terminal retirement remains unconfirmed."));
       return;
     }
-    if (session.ptyExited) {
+    if (ptyExited) {
       return;
     }
     if (process.platform === "win32") {
-      terminateProcessTree(session.pty.pid);
+      terminateNodePty(pty);
       return;
     }
     try {
-      process.kill(session.pty.pid, 0);
+      process.kill(pty.pid, 0);
     } catch {
       return;
     }
-    session.pty.kill();
+    terminateNodePty(pty);
   }
 }
 
