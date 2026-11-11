@@ -251,6 +251,17 @@
     <string name="rich_chat_background_task_last_progress">Останнє оновлення %1$s тому</string>
     <string name="rich_chat_background_task_close">Закрити відомості про завдання</string>
     <string name="rich_chat_background_task_report_missing">Завдання завершилося без звіту про виконання.</string>
+    <string name="rich_chat_copy_message">Копіювати повідомлення</string>
+    <string name="rich_chat_add_to_composer">Додати до Composer</string>
+    <string name="rich_chat_file">Файл</string>
+    <string name="rich_chat_attach">Прикріпити</string>
+    <string name="rich_chat_message_agent">Запитайте %1$s про що завгодно в цьому робочому просторі</string>
+    <string name="rich_chat_worked_for">Працював %1$s</string>
+    <string name="rich_chat_search_models">Пошук моделей...</string>
+    <string name="rich_chat_plugins">Плагіни</string>
+    <string name="rich_chat_handoff_fork">Розгалузити розмову</string>
+    <string name="rich_chat_handoff_prompt">Скажіть новому провайдеру, що робити далі…</string>
+    <string name="rich_chat_handoff_switch">Перемкнути</string>
     <string name="rich_chat_html_visual_title">Попередній перегляд HTML</string>
     <string name="rich_chat_html_visual_source">Вихідний код</string>
     <string name="rich_chat_html_visual_preview">Попередній перегляд</string>
@@ -263,4 +274,5 @@
     <string name="rich_chat_html_visual_unavailable">Інтерактивне відображення недоступне. Показано лише вихідний код.</string>
     <string name="rich_chat_html_visual_open_link_title">Відкрити посилання?</string>
     <string name="rich_chat_html_visual_open_link">Відкрити</string>
+    <string name="rich_chat_scroll_to_bottom">Прокрутити вниз</string>
 </resources>

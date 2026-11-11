@@ -432,16 +432,26 @@ const COMMAND_HELP: Record<string, string> = {
     "    otherwise the new release installs beside the previous one, which is kept.\n",
   up:
     "  up [--tailnet | --lan | --local-only] [--relay-url URL] [--prefix PATH] [--no-service] [--no-pair]\n" +
-    "    Make an install from the one-line installer reachable from your other devices in one step.\n" +
-    "    --tailnet binds the Tailscale interface; --lan creates self-signed TLS once and binds all interfaces (never plaintext);\n" +
-    "    --local-only returns to loopback; --relay-url registers a relay. Then installs and starts the managed user service\n" +
-    "    (restarts it when already registered). Lingering and elevation are explained, never changed. In an interactive\n" +
-    "    terminal it waits for the service and shows a pairing QR code (as pairings create --qr); --no-pair skips that.\n" +
-    "    From an npm or package-manager install, up uses the one-line installer's prefix when one exists, else saves settings only.\n",
+    "    Make this machine reachable from your other devices and keep its server running as a background service.\n" +
+    "    Without a choice it asks: Tailscale (--tailnet), the local network over HTTPS with a self-signed certificate\n" +
+    "    (--lan; never plaintext), or this machine only (--local-only). Scripts must name a choice the first time;\n" +
+    "    later runs keep the saved one. --relay-url also registers a relay.\n" +
+    "    It installs and starts the managed user service, restarting it only when a setting changed (asking first\n" +
+    "    in a terminal, because a restart stops running agent turns). Lingering and elevation are explained, never\n" +
+    "    changed. In an interactive terminal it shows a pairing QR code (as pairings create --qr) unless only this\n" +
+    "    machine can connect; --no-pair skips that.\n" +
+    "    From npm or a package manager, up installs a verified release in the shared prefix when needed; it never downgrades a newer service.\n",
+  "install-command":
+    "  install-command\n    Install a persistent command using the shared runtime prefix; existing foreign commands are preserved.\n",
+  "migrate-install":
+    "  migrate-install\n    Resume CLI installation and channel-profile migration without moving profile data.\n",
+  "install-activate":
+    "  install-activate PREFIX RELEASE\n    Select an installed release while holding the prefix lifecycle lock.\n",
   uninstall:
     "  uninstall [--prefix PATH] [--bin-dir PATH] [--yes] [--json]\n" +
-    "    Remove an install made by the one-line installer, the command link it created, and the terminal UI cache of the installed versions. Profile data and PATH entries are kept.\n" +
-    "    Refuses while a managed service or a server for this profile runs. Scripts and --json require --yes.\n",
+    "    Remove an install made by the one-line installer: the background service registered for it (stopped first),\n" +
+    "    the command link it created, and the terminal UI cache of the installed versions. Profile data and PATH\n" +
+    "    entries are kept. Refuses while another server for this profile runs. Scripts and --json require --yes.\n",
   upgrade:
     "  upgrade (--from TARBALL | --resume [--from TARBALL] | --abandon-journal --confirm) [--prefix PATH] [--json]\n" +
     "    Stage and explicitly upgrade the selected installed prefix, or recover its existing journal. Some resume states require --confirm.\n" +

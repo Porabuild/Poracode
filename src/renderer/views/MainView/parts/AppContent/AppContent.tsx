@@ -10,6 +10,7 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { continuesInPlace } from "@/shared/continueProviderRanking";
+import { friendlyError } from "@/shared/messages";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -20,6 +21,7 @@ import {
   useProjectIds,
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
+import { materializeDraftSegments } from "@/renderer/actions/clientDraftSubmission";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { markThreadDone } from "@/renderer/actions/threadActions";
 import {
@@ -138,15 +140,26 @@ export function AppContent() {
     const switchesInPlace =
       intent === "switch" && continuesInPlace(sourcePresentationMode, targetPresentationMode);
     if (switchesInPlace) {
-      await switchThreadProviderInPlace({
-        thread: sourceThread,
-        targetAgentKind,
-        targetConfig,
-        prompt,
-        segments,
-        handoffContext,
-        targetLabel,
-      });
+      try {
+        const materializedSegments = segments
+          ? await materializeDraftSegments(
+              sourceThread,
+              segments,
+              entityHost(sourceThread)?.hostId ?? sourceThread.id,
+            )
+          : undefined;
+        await switchThreadProviderInPlace({
+          thread: sourceThread,
+          targetAgentKind,
+          targetConfig,
+          prompt,
+          segments: materializedSegments,
+          handoffContext,
+          targetLabel,
+        });
+      } catch (error) {
+        toast.danger(friendlyError(error));
+      }
       return;
     }
 
@@ -158,6 +171,19 @@ export function AppContent() {
       handoffContext.strategy === "context-file" ? handoffContext.extracted : null;
     const isFork = intent === "fork";
     const readsSourceThread = isFork && handoffContext.strategy === "thread-transcript";
+    const hostThreadId = crypto.randomUUID();
+    const rowIdentity = entityHost(project)?.projectThreadRow(hostThreadId) ?? {
+      threadId: hostThreadId,
+    };
+    let materializedSegments: PromptSegment[] | undefined;
+    try {
+      materializedSegments = segments
+        ? await materializeDraftSegments(project, segments, hostThreadId)
+        : undefined;
+    } catch (error) {
+      toast.danger(friendlyError(error));
+      return;
+    }
 
     // The title is the user's own label for the task, and the task is what
     // carries over — so inherit it instead of generating a new one. A fork is
@@ -190,7 +216,7 @@ export function AppContent() {
     // The replacement is created and launched on the source project's host,
     // like any new thread there (its rows carry that host's identity).
     const thread = useAppStore.getState().createThread({
-      ...(entityHost(project)?.projectThreadRow(crypto.randomUUID()) ?? {}),
+      ...rowIdentity,
       projectId: project.id,
       agentKind: targetAgentKind,
       config: targetConfig,
@@ -204,11 +230,11 @@ export function AppContent() {
     });
 
     const launch = readsSourceThread
-      ? buildForkMentionLaunchInput({ sourceThread, prompt, segments })
+      ? buildForkMentionLaunchInput({ sourceThread, prompt, segments: materializedSegments })
       : await buildHandoffLaunchInput({
           threadId: thread.id,
           prompt,
-          segments,
+          segments: materializedSegments,
           extractedContext,
         });
     queueThreadLaunch(

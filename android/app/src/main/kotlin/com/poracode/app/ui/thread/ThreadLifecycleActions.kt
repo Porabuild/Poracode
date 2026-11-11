@@ -1,16 +1,10 @@
 package com.poracode.app.ui.thread
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
@@ -28,90 +23,166 @@ import com.poracode.app.model.threads.ThreadLifecycleCommand
 import com.poracode.app.session.threads.ThreadLifecycleController
 import com.poracode.app.session.threads.ThreadOperationFailure
 import com.poracode.app.session.threads.ThreadOperationResult
+import com.poracode.app.ui.components.PoracodeSheet
+import com.poracode.app.ui.components.PoracodeSheetAction
+import com.poracode.app.ui.components.PoracodeSheetDivider
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.components.PoracodeTone
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.theme.PoracodeTheme
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.material3.FilledTonalButton
 
+/** A screen-owned entry shown above the lifecycle actions in the thread actions drawer. */
+data class ThreadSheetAction(
+    val label: String,
+    val icon: ImageVector,
+    val enabled: Boolean = true,
+    val tone: PoracodeTone = PoracodeTone.Neutral,
+    val onClick: () -> Unit,
+)
+
+/**
+ * Thread actions drawer (the PWA's long-press / "Thread actions" sheet): rename,
+ * relaunch, pin, done, acknowledge, archive, and delete, plus any screen actions.
+ * Confirmation and text-entry dialogs outlive the drawer that opened them.
+ */
 @Composable
-fun ThreadLifecycleActions(
+fun ThreadLifecycleActionsSheet(
     thread: RemoteThread,
     projectLocation: ProjectLocation,
     controller: ThreadLifecycleController,
     enabled: Boolean,
+    visible: Boolean,
+    onDismiss: () -> Unit,
     onThreadRemoved: () -> Unit,
+    contextActions: List<ThreadSheetAction> = emptyList(),
+    nativeActions: List<ThreadSheetAction> = emptyList(),
 ) {
     val controllerState by controller.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    var expanded by rememberSaveable(thread.id) { mutableStateOf(false) }
     var dialog by remember(thread.id) { mutableStateOf<ThreadActionDialog?>(null) }
     var failure by remember(thread.id) { mutableStateOf<ThreadOperationFailure?>(null) }
+    val actionsEnabled = enabled && controllerState.active == null
     fun select(action: () -> Unit) {
-        expanded = false
+        onDismiss()
         action()
     }
 
-    IconButton(
-        onClick = { expanded = true },
-        enabled = enabled && controllerState.active == null,
-    ) {
-        Icon(
-            Icons.Outlined.MoreVert,
-            contentDescription = stringResource(R.string.thread_lifecycle_actions),
-        )
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-        actionItem(R.string.thread_lifecycle_rename) {
-            select { dialog = ThreadActionDialog.Rename(thread.title) }
-        }
-        actionItem(R.string.thread_lifecycle_relaunch) {
-            select { dialog = ThreadActionDialog.Relaunch("") }
-        }
-        actionItem(
-            if (thread.isStarred) R.string.thread_lifecycle_unpin else R.string.thread_lifecycle_pin,
+    if (visible) {
+        PoracodeSheet(
+            onDismissRequest = onDismiss,
+            title = thread.title.ifBlank { stringResource(R.string.untitled_thread) },
         ) {
-            select {
-                launch(scope, { failure = it }) {
-                    controller.execute(
-                        ThreadLifecycleCommand.SetStarred(thread.id, !thread.isStarred),
-                    )
-                }
+            PoracodeSheetAction(
+                label = stringResource(R.string.thread_lifecycle_rename),
+                icon = PoracodeIcons.Edit,
+                enabled = actionsEnabled,
+                onClick = { select { dialog = ThreadActionDialog.Rename(thread.title) } },
+            )
+            contextActions.forEach { action ->
+                PoracodeSheetAction(
+                    label = action.label,
+                    icon = action.icon,
+                    enabled = action.enabled,
+                    tone = action.tone,
+                    onClick = { select(action.onClick) },
+                )
             }
-        }
-        actionItem(
-            if (thread.isDone) R.string.thread_lifecycle_not_done else R.string.thread_lifecycle_done,
-        ) {
-            select {
-                launch(scope, { failure = it }) {
-                    controller.execute(ThreadLifecycleCommand.SetDone(thread.id, !thread.isDone))
-                }
-            }
-        }
-        actionItem(R.string.thread_lifecycle_acknowledge) {
-            select {
-                launch(scope, { failure = it }) {
-                    controller.execute(ThreadLifecycleCommand.Acknowledge(thread.id))
-                }
-            }
-        }
-        actionItem(
-            if (thread.isArchived) {
-                R.string.thread_lifecycle_unarchive
-            } else {
-                R.string.thread_lifecycle_archive
-            },
-        ) {
-            select {
-                if (thread.isArchived) {
-                    launch(scope, { failure = it }) {
-                        controller.execute(ThreadLifecycleCommand.Unarchive(thread.id))
+            PoracodeSheetAction(
+                label = stringResource(
+                    if (thread.isDone) R.string.thread_lifecycle_not_done else R.string.thread_lifecycle_done,
+                ),
+                icon = PoracodeIcons.CheckCircle,
+                enabled = actionsEnabled,
+                onClick = {
+                    select {
+                        launch(scope, { failure = it }) {
+                            controller.execute(ThreadLifecycleCommand.SetDone(thread.id, !thread.isDone))
+                        }
                     }
-                } else {
-                    dialog = ThreadActionDialog.Archive
-                }
+                },
+            )
+            PoracodeSheetAction(
+                label = stringResource(
+                    if (thread.isStarred) {
+                        R.string.thread_lifecycle_unpin
+                    } else {
+                        R.string.thread_lifecycle_pin_top
+                    },
+                ),
+                icon = PoracodeIcons.Star,
+                enabled = actionsEnabled,
+                onClick = {
+                    select {
+                        launch(scope, { failure = it }) {
+                            controller.execute(
+                                ThreadLifecycleCommand.SetStarred(thread.id, !thread.isStarred),
+                            )
+                        }
+                    }
+                },
+            )
+            nativeActions.forEach { action ->
+                PoracodeSheetAction(
+                    label = action.label,
+                    icon = action.icon,
+                    enabled = action.enabled,
+                    tone = action.tone,
+                    onClick = { select(action.onClick) },
+                )
             }
-        }
-        actionItem(R.string.thread_lifecycle_delete) {
-            select { dialog = ThreadActionDialog.Delete }
+            PoracodeSheetAction(
+                label = stringResource(R.string.thread_lifecycle_relaunch),
+                icon = PoracodeIcons.PlayArrow,
+                enabled = actionsEnabled,
+                onClick = { select { dialog = ThreadActionDialog.Relaunch("") } },
+            )
+            PoracodeSheetAction(
+                label = stringResource(R.string.thread_lifecycle_acknowledge),
+                icon = PoracodeIcons.Check,
+                enabled = actionsEnabled,
+                onClick = {
+                    select {
+                        launch(scope, { failure = it }) {
+                            controller.execute(ThreadLifecycleCommand.Acknowledge(thread.id))
+                        }
+                    }
+                },
+            )
+            PoracodeSheetDivider()
+            PoracodeSheetAction(
+                label = stringResource(
+                    if (thread.isArchived) {
+                        R.string.thread_lifecycle_unarchive
+                    } else {
+                        R.string.thread_lifecycle_archive_thread
+                    },
+                ),
+                icon = PoracodeIcons.Archive,
+                tone = PoracodeTone.Warning,
+                enabled = actionsEnabled,
+                onClick = {
+                    select {
+                        if (thread.isArchived) {
+                            launch(scope, { failure = it }) {
+                                controller.execute(ThreadLifecycleCommand.Unarchive(thread.id))
+                            }
+                        } else {
+                            dialog = ThreadActionDialog.Archive
+                        }
+                    }
+                },
+            )
+            PoracodeSheetAction(
+                label = stringResource(R.string.thread_lifecycle_delete_thread),
+                icon = PoracodeIcons.Delete,
+                tone = PoracodeTone.Danger,
+                enabled = actionsEnabled,
+                onClick = { select { dialog = ThreadActionDialog.Delete } },
+            )
         }
     }
 
@@ -161,6 +232,7 @@ fun ThreadLifecycleActions(
         ThreadActionDialog.Delete -> ConfirmationDialog(
             title = stringResource(R.string.thread_lifecycle_delete_confirmation),
             action = stringResource(R.string.thread_lifecycle_delete),
+            destructive = true,
             onDismiss = { dialog = null },
             onConfirm = {
                 dialog = null
@@ -179,17 +251,12 @@ fun ThreadLifecycleActions(
             title = { Text(stringResource(R.string.thread_lifecycle_failed)) },
             text = { Text(stringResource(ThreadLifecycleUiLogic.failureMessage(problem))) },
             confirmButton = {
-                Button(onClick = { failure = null }) {
+                FilledTonalButton(onClick = { failure = null }) {
                     Text(stringResource(R.string.thread_lifecycle_close))
                 }
             },
         )
     }
-}
-
-@Composable
-private fun actionItem(label: Int, action: () -> Unit) {
-    DropdownMenuItem(text = { Text(stringResource(label)) }, onClick = action)
 }
 
 @Composable
@@ -207,7 +274,7 @@ private fun TextEntryDialog(
         title = { Text(title) },
         text = {
             Column {
-                OutlinedTextField(
+                PoracodeTextField(
                     value = value,
                     onValueChange = { value = it },
                     label = { Text(label) },
@@ -215,10 +282,10 @@ private fun TextEntryDialog(
             }
         },
         dismissButton = {
-            Button(onClick = onDismiss) { Text(stringResource(R.string.thread_lifecycle_cancel)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.thread_lifecycle_cancel)) }
         },
         confirmButton = {
-            Button(onClick = { onSubmit(normalized) }, enabled = normalized.isNotEmpty()) {
+            FilledTonalButton(onClick = { onSubmit(normalized) }, enabled = normalized.isNotEmpty()) {
                 Text(stringResource(R.string.thread_lifecycle_submit))
             }
         },
@@ -231,14 +298,28 @@ private fun ConfirmationDialog(
     action: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    destructive: Boolean = false,
 ) {
+    val colors = PoracodeTheme.colors
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         dismissButton = {
-            Button(onClick = onDismiss) { Text(stringResource(R.string.thread_lifecycle_cancel)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.thread_lifecycle_cancel)) }
         },
-        confirmButton = { Button(onClick = onConfirm) { Text(action) } },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = if (destructive) {
+                    androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = colors.danger,
+                        contentColor = colors.dangerForeground,
+                    )
+                } else {
+                    androidx.compose.material3.ButtonDefaults.buttonColors()
+                },
+            ) { Text(action) }
+        },
     )
 }
 

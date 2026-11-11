@@ -185,6 +185,16 @@ internal class HomeQuickComposeCatalog(
     fun applyFast(configuration: ThreadConfig, fast: Boolean): ThreadConfig =
         families.applyFastEdit(configuration, fast) ?: configuration
 
+    /** Membership-resolved label: a family member reads its family row label. */
+    fun modelLabel(modelId: String): String {
+        families.familyForModel(modelId)?.let { return it.family.label }
+        return models.firstOrNull { it.id == modelId }?.label ?: humanized(modelId)
+    }
+
+    fun effortLabel(modelId: String, effort: String): String =
+        effortOptions(modelId).firstOrNull { it.id == effort }?.label
+            ?: humanized(effort)
+
     /**
      * The family-derived display for the current selection — encoded
      * Effort/Fast read from the member, never written back — or null when no

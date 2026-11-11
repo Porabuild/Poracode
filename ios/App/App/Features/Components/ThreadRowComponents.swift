@@ -9,20 +9,23 @@ struct PoracodeThreadRow: View {
   var hostName: String?
   var hostIsOnline: Bool?
   var gitSummary: GitThreadSummary?
+  var agentLabel: String?
   var hasDraft = false
   var showsRelativeTime = true
   var isOpening = false
   var showsGitBranch = false
 
-  @Environment(\.colorScheme) private var colorScheme
-  @Environment(\.poracodeTheme) private var theme
-
   var body: some View {
     HStack(alignment: .center, spacing: 10) {
       HomeProviderStatusIcon(
         kind: thread.agentKind,
-        status: thread.status,
-        isDone: thread.isDone
+        status: ThreadStatusPresentation.resolvedStatus(
+          status: thread.status,
+          attention: thread.attention,
+          hasBackgroundActivity: false
+        ),
+        isDone: thread.isDone,
+        agentLabel: agentLabel
       )
       .frame(width: 16, height: 16)
 
@@ -33,14 +36,14 @@ struct PoracodeThreadRow: View {
         }
       }
     }
-    .frame(maxWidth: .infinity, minHeight: 52, maxHeight: 52, alignment: .leading)
+    .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44, alignment: .leading)
     .contentShape(Rectangle())
   }
 
   private var titleLine: some View {
     HStack(spacing: 6) {
       Text(thread.title)
-        .font(.caption.weight(.medium))
+        .font(.footnote.weight(.medium))
         .foregroundStyle(thread.isDone ? .secondary : .primary)
         .strikethrough(thread.isDone, color: .secondary)
         .lineLimit(1)
@@ -53,7 +56,7 @@ struct PoracodeThreadRow: View {
       }
       if hasDraft {
         Circle()
-          .fill(palette.accent)
+          .fill(Color.primary)
           .frame(width: 5, height: 5)
           .accessibilityLabel(HomeStrings.unsentDraft)
       }
@@ -91,7 +94,7 @@ struct PoracodeThreadRow: View {
       ThreadGitSummaryBadge(summary: gitSummary, showsBranch: showsGitBranch)
         .fixedSize(horizontal: true, vertical: false)
     }
-    .font(.system(size: 10))
+    .font(.caption2)
     .foregroundStyle(.secondary)
     .lineLimit(1)
   }
@@ -103,14 +106,11 @@ struct PoracodeThreadRow: View {
   private var relativeTime: String? {
     PoracodeThreadRelativeDate.format(thread.updatedAt)
   }
-
-  private var palette: PoracodeThemeVariant {
-    theme.variant(for: colorScheme)
-  }
 }
 
 struct HomeProviderIcon: View {
   let kind: String
+  var agentLabel: String? = nil
 
   var body: some View {
     ZStack(alignment: .bottomTrailing) {
@@ -121,8 +121,12 @@ struct HomeProviderIcon: View {
           .scaledToFit()
       } else {
         Text(fallbackInitial)
-          .font(.system(size: 10, weight: .bold, design: .rounded))
+          .font(.system(size: 8, weight: .heavy, design: .rounded))
           .frame(maxWidth: .infinity, maxHeight: .infinity)
+          .overlay {
+            RoundedRectangle(cornerRadius: 3.5, style: .continuous)
+              .stroke(lineWidth: 0.9)
+          }
       }
 
       if let profileBadge {
@@ -145,7 +149,7 @@ struct HomeProviderIcon: View {
   }
 
   private var fallbackInitial: String {
-    normalizedKind.first.map { String($0).uppercased() } ?? "?"
+    ProviderIconPresentation.providerInitial(agentLabel ?? kind)
   }
 
   private var profileBadge: String? {
@@ -156,6 +160,17 @@ struct HomeProviderIcon: View {
 }
 
 enum ProviderIconPresentation {
+  /// Generic provider glyph letter, matching the PWA/Android rule: the text
+  /// after the last `:` (profile/kind suffix) then its first letter or digit.
+  static func providerInitial(_ label: String) -> String {
+    let name = label.components(separatedBy: ":").last ?? label
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let character = trimmed.first(where: { $0.isLetter || $0.isNumber }) else {
+      return "•"
+    }
+    return String(character).uppercased()
+  }
+
   static func normalizedKind(_ kind: String) -> String {
     let value = kind.lowercased()
     return value.hasPrefix("claude-profile:") ? "claude" : value
@@ -185,6 +200,7 @@ private struct HomeProviderStatusIcon: View {
   let kind: String
   let status: String
   let isDone: Bool
+  var agentLabel: String? = nil
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -218,7 +234,7 @@ private struct HomeProviderStatusIcon: View {
   }
 
   private var providerMark: some View {
-    HomeProviderIcon(kind: kind)
+    HomeProviderIcon(kind: kind, agentLabel: agentLabel)
   }
 
   private var shouldAnimate: Bool {

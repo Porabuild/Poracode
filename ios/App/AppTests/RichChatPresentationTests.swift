@@ -590,7 +590,7 @@ final class RichChatPresentationTests: XCTestCase {
     )
   }
 
-  func testThreadProviderUsagePrefersExactInstanceThenFallsBackToBaseProvider() {
+  func testThreadProviderUsagePreservesExactProfileOwnership() {
     let base = providerUsageSnapshot("codex", percent: 20)
     let work = providerUsageSnapshot("codex:work", percent: 80)
     let usage = SettingsProviderUsage(snapshots: [base, work], fromCache: false)
@@ -601,7 +601,8 @@ final class RichChatPresentationTests: XCTestCase {
       label: "Codex Work",
       usage: usage
     )
-    XCTAssertEqual(exact.providerID, "codex")
+    XCTAssertEqual(exact.providerID, "codex:work")
+    XCTAssertEqual(exact.snapshot?.windows.first?.usedPercent, 80)
 
     let scoped = RichChatProviderUsagePresentation.resolve(
       agentKind: "codex:work",
@@ -618,7 +619,31 @@ final class RichChatPresentationTests: XCTestCase {
       label: nil,
       usage: SettingsProviderUsage(snapshots: [base], fromCache: false)
     )
-    XCTAssertEqual(fallback.providerID, "codex")
+    XCTAssertEqual(fallback.providerID, "codex:missing")
+    XCTAssertNil(fallback.snapshot)
+  }
+
+  func testPreviousProviderUsageResponseKeepsUnknownRingsAndDetailedWindows() throws {
+    let value = try JSONDecoder().decode(SettingsProviderUsage.self, from: Data("{\"snapshots\":[],\"fromCache\":true}".utf8))
+    XCTAssertNil(value.ringLayouts)
+    let presentation = RichChatProviderUsagePresentation(providerID: "agent", label: "Agent", snapshot: providerUsageSnapshot("agent", percent: 75))
+    XCTAssertEqual(presentation.rings, RichChatUsageRings(outerPercent: nil, innerPercent: nil))
+    XCTAssertEqual(presentation.snapshot?.windows.first?.usedPercent, 75)
+  }
+
+  func testCanonicalActivityCategoriesMatchTheSharedPwaFixture() throws {
+    let fixture = try loadRichChatFixture("rich-activity-categories.json")
+    XCTAssertEqual(fixture["version"]?.exactInt64Value, 1)
+    for value in try richFixtureArray(XCTUnwrap(fixture["cases"])) {
+      let row = try richFixtureObject(value)
+      let rawItem = try XCTUnwrap(row["item"])
+      let item = try XCTUnwrap(RichContentDecoder.decodeRuntimeItems(.array([rawItem])).first)
+      XCTAssertEqual(
+        RichChatActivityGroupSummary.category(for: item).rawValue,
+        row["category"]?.stringValue,
+        row["name"]?.stringValue ?? "activity category"
+      )
+    }
   }
 
   func testCursorUsageRingsShowTheSharedWeeklyPool() {
@@ -626,7 +651,8 @@ final class RichChatPresentationTests: XCTestCase {
       let presentation = RichChatProviderUsagePresentation(
         providerID: providerID,
         label: "Cursor",
-        snapshot: providerUsageSnapshot(providerID, percent: 9)
+        snapshot: providerUsageSnapshot(providerID, percent: 9),
+        ringLayout: SettingsUsageRingLayout(outerWindowId: "weekly")
       )
       XCTAssertEqual(presentation.rings, RichChatUsageRings(outerPercent: 9, innerPercent: nil))
     }

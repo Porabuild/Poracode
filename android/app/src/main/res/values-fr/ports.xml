@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Redirection de ports</string>
+    <string name="ports_title">Ports</string>
     <string name="ports_back">Retour</string>
     <string name="ports_refresh">Actualiser les ports</string>
     <string name="ports_target_port">Port cible</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">La redirection par navigateur n’est pas configurée sur cet ordinateur.</string>
     <string name="ports_failure_ambiguous">La requête a peut-être abouti. La liste a été actualisée.</string>
     <string name="ports_failure_unavailable">La redirection de ports est actuellement indisponible.</string>
+    <string name="ports_intro">Serveurs de développement à l\'écoute sur le localhost de votre bureau.</string>
+    <string name="ports_forward_a_port">Transférer un port</string>
 </resources>

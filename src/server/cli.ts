@@ -92,6 +92,14 @@ import { connectHostAdministration, runAdminCli, reportAdminError } from "./cliA
 import { runSelfUpdateCli } from "./cliSelfUpdate";
 import { runSelfUninstallCli } from "./cliSelfUninstall";
 import { parseUpCliOptions, runUpCli } from "./cliUp";
+import {
+  assertChannelProfileNamespace,
+  defaultCliProfileNamespace,
+  legacyProfileNotice,
+} from "./cliProfileNamespace";
+import { installCliCommand } from "./cliInstallCommand";
+import { migrateDefaultLegacyInstall } from "./cliLegacyMigrationCli";
+import { activateInstalledRelease } from "./cliInstallActivate";
 import { CLI_ADMIN_HELP, CLI_PROFILE_HELP, cliCommandHelp } from "./cliHelp";
 import { extractBaseDir, runConfigure } from "./cliConfigure";
 import {
@@ -684,6 +692,7 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
   let command: ReturnType<typeof parseServerCliCommand>;
   let args: string[];
   let baseDirArgument: string | undefined;
+  let explicitProfile = Boolean(process.env.PORACODE_BASE_DIR?.trim());
   try {
     const raw = process.argv.slice(2);
     // Completion words are data, including any --base-dir being completed.
@@ -694,7 +703,10 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
     const parsed = extractBaseDir(raw);
     args = parsed.args;
     baseDirArgument = parsed.baseDir;
-    if (baseDirArgument) process.env.PORACODE_BASE_DIR = baseDirArgument;
+    if (baseDirArgument) {
+      process.env.PORACODE_BASE_DIR = baseDirArgument;
+      explicitProfile = true;
+    }
     command = parseServerCliCommand(args, args.length === 0 && isInteractiveInvocation());
   } catch (error) {
     reportAdminError(error, process.argv.includes("--json"));
@@ -724,7 +736,66 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
     }
     return;
   }
-  if (capturedBuild && (command === "update" || command === "uninstall" || command === "up")) {
+  if (command === "install-activate" && !capturedBuild) {
+    try {
+      activateInstalledRelease(args[1]!, args[2]!);
+    } catch (error) {
+      reportAdminError(error, false);
+    }
+    return;
+  }
+  // Version, help and completion must remain usable even when profile or
+  // service metadata is damaged. Profile-using commands share one namespace.
+  if (!capturedBuild && !process.env.PORACODE_BASE_DIR?.trim()) {
+    try {
+      const version = resolveServerVersion().version;
+      process.env.PORACODE_BASE_DIR = defaultCliProfileNamespace(version);
+      const notice = legacyProfileNotice(version, process.env.PORACODE_BASE_DIR);
+      if (notice) process.stderr.write(`[poracode-server] ${notice}\n`);
+    } catch (error) {
+      reportAdminError(error, args.includes("--json"));
+      return;
+    }
+  }
+  if (
+    ![
+      "status-json",
+      "doctor",
+      "logs",
+      "backup",
+      "stop",
+      "migrate-install",
+      "install-command",
+    ].includes(command) &&
+    !(command === "service" && ["status", "stop", "uninstall"].includes(args[1] ?? ""))
+  ) {
+    try {
+      assertChannelProfileNamespace(
+        capturedBuild?.version ?? resolveServerVersion().version,
+        profileNamespace(),
+      );
+    } catch (error) {
+      reportAdminError(error, args.includes("--json"));
+      return;
+    }
+  }
+  if (capturedBuild && command === "up") {
+    reportAdminError(
+      new Error(
+        "The desktop app manages remote access itself. Open Settings → Remote access to configure it, or use the standalone CLI for a separate background service.",
+      ),
+      args.includes("--json"),
+    );
+    return;
+  }
+  if (
+    capturedBuild &&
+    (command === "update" ||
+      command === "uninstall" ||
+      command === "install-command" ||
+      command === "migrate-install" ||
+      command === "install-activate")
+  ) {
     reportAdminError(
       new Error(
         "This command manages installs made by the one-line installer. The desktop app's CLI updates and uninstalls with the desktop app.",
@@ -821,26 +892,92 @@ function dispatchCli(capturedBuild?: HostBuildIdentity): void {
                                 : command === "upgrade"
                                   ? runUpgrade(parseUpgradeCliOptions(args.slice(1)))
                                   : command === "update"
-                                    ? runSelfUpdateCli(
-                                        parseSelfUpdateCliOptions(args.slice(1)),
-                                        resolve(__dirname, ".."),
-                                      )
+                                    ? (async () => {
+                                        const options = parseSelfUpdateCliOptions(args.slice(1));
+                                        const releaseRoot = resolve(__dirname, "..");
+                                        const migration =
+                                          options.prefix === undefined
+                                            ? await migrateDefaultLegacyInstall({
+                                                releaseRoot,
+                                                installIfMissing: true,
+                                                allowRunning: true,
+                                                ...(explicitProfile
+                                                  ? { explicitProfile: profileNamespace() }
+                                                  : {}),
+                                              })
+                                            : null;
+                                        if (migration?.profile && !explicitProfile)
+                                          process.env.PORACODE_BASE_DIR = migration.profile;
+                                        if (migration?.moved.length)
+                                          process.stderr.write(
+                                            `Archived legacy CLI files at ${migration.moved.join(", ")}.\n`,
+                                          );
+                                        if (migration?.retained.length)
+                                          process.stderr.write(
+                                            `Legacy CLI files remain in use or need inspection: ${migration.retained.join(", ")}.\n`,
+                                          );
+                                        await runSelfUpdateCli(
+                                          {
+                                            ...options,
+                                            ...(migration ? { prefix: migration.prefix } : {}),
+                                          },
+                                          releaseRoot,
+                                        );
+                                      })()
                                     : command === "uninstall"
                                       ? runSelfUninstallCli(
                                           parseUninstallCliOptions(args.slice(1)),
                                           resolve(__dirname, ".."),
                                         )
-                                      : command === "up"
-                                        ? runUpCli(
-                                            parseUpCliOptions(args.slice(1)),
-                                            profileNamespace(),
-                                            resolve(__dirname, ".."),
-                                          )
-                                        : serve(
-                                            parseServeCliOptions(args),
-                                            args[0] !== "serve",
-                                            capturedBuild,
-                                          );
+                                      : command === "install-command"
+                                        ? installCliCommand({
+                                            releaseRoot: resolve(__dirname, ".."),
+                                          }).then((result) => {
+                                            process.stdout.write(
+                                              `Installed command: ${result.command} (Poracode ${result.version})\n`,
+                                            );
+                                            if (result.pathNeedsUpdate)
+                                              process.stdout.write(
+                                                `Add its directory to PATH to run poracode.\n`,
+                                              );
+                                          })
+                                        : command === "migrate-install"
+                                          ? migrateDefaultLegacyInstall({
+                                              releaseRoot: resolve(__dirname, ".."),
+                                              ...(explicitProfile
+                                                ? { explicitProfile: profileNamespace() }
+                                                : {}),
+                                            }).then((result) => {
+                                              if (result) {
+                                                process.stderr.write(
+                                                  `Active CLI installation: ${result.prefix}.\n`,
+                                                );
+                                                if (result.profile)
+                                                  process.stderr.write(
+                                                    `Service profile: ${result.profile}. The previous profile was left untouched; run poracode up and pair devices for this profile if needed.\n`,
+                                                  );
+                                                if (result.moved.length)
+                                                  process.stderr.write(
+                                                    `Archived legacy CLI files at ${result.moved.join(", ")}.\n`,
+                                                  );
+                                                if (result.retained.length)
+                                                  process.stderr.write(
+                                                    `Legacy CLI files remain in use or need inspection: ${result.retained.join(", ")}.\n`,
+                                                  );
+                                              }
+                                            })
+                                          : command === "up"
+                                            ? runUpCli(
+                                                parseUpCliOptions(args.slice(1)),
+                                                profileNamespace(),
+                                                resolve(__dirname, ".."),
+                                                explicitProfile,
+                                              )
+                                            : serve(
+                                                parseServeCliOptions(args),
+                                                args[0] !== "serve",
+                                                capturedBuild,
+                                              );
   operation.catch(async (error) => {
     await performanceDiagnostics?.stop();
     if (error instanceof HeadlessCompositionShutdownError) {

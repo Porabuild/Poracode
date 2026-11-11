@@ -55,4 +55,35 @@ describe("coalesceRuntimeEvents", () => {
       ]),
     ).toEqual([{ ...base, delta: "correct tail", replace: true }]);
   });
+
+  it("stops merging appends past the merged-length bound and keeps replace precedence", () => {
+    const base = {
+      type: "content.delta" as const,
+      threadId: "t",
+      itemId: "i",
+      stream: "assistant_text" as const,
+    };
+    expect(
+      coalesceRuntimeEvents(
+        [
+          { ...base, delta: "aaaa", replace: true },
+          { ...base, delta: "bbbb" },
+          { ...base, delta: "cc" },
+        ],
+        6,
+      ),
+    ).toEqual([
+      { ...base, delta: "aaaa", replace: true },
+      { ...base, delta: "bbbbcc" },
+    ]);
+    expect(
+      coalesceRuntimeEvents(
+        [
+          { ...base, delta: "aaaa" },
+          { ...base, delta: "new", replace: true },
+        ],
+        2,
+      ),
+    ).toEqual([{ ...base, delta: "new", replace: true }]);
+  });
 });

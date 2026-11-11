@@ -1,6 +1,7 @@
 package com.poracode.app.ui.projects.workspace
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,22 +13,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.Clear
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +42,8 @@ import com.poracode.app.model.ProjectFileEntry
 import com.poracode.app.model.ProjectFileEntryType
 import com.poracode.app.session.projects.ProjectWorkspaceEntry
 import com.poracode.app.session.projects.ProjectEntryMutation
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.delay
 
 /** Debounce delay before a typed query auto-searches, matching the PWA/iOS live-search feel. */
@@ -87,20 +86,20 @@ internal fun ProjectFileBrowserPane(
         }
     }
     Column(modifier.fillMaxSize()) {
-        OutlinedTextField(
+        PoracodeTextField(
             value = searchText,
             onValueChange = onSearchTextChange,
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             enabled = canSearch,
             singleLine = true,
             label = { Text(stringResource(R.string.workspace_search_files)) },
-            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+            leadingIcon = { Icon(PoracodeIcons.Search, contentDescription = null) },
             trailingIcon = {
                 Row {
                     if (showingSearch || searchText.isNotEmpty()) {
                         IconButton(onClick = onClearSearch) {
                             Icon(
-                                Icons.Outlined.Clear,
+                                PoracodeIcons.Clear,
                                 contentDescription = stringResource(
                                     R.string.workspace_clear_search,
                                 ),
@@ -112,7 +111,7 @@ internal fun ProjectFileBrowserPane(
                         enabled = canSearch && searchText.isNotBlank(),
                     ) {
                         Icon(
-                            Icons.Outlined.Search,
+                            PoracodeIcons.Search,
                             contentDescription = stringResource(R.string.workspace_search_action),
                         )
                     }
@@ -170,7 +169,12 @@ internal fun ProjectFileBrowserPane(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    bottom = WorkspaceBottomBarClearance,
+                ),
+            ) {
                 items(entries.orEmpty(), key = { "${it.type}:${it.path}" }) { file ->
                     ProjectFileRow(
                         file, rootPath, canBrowse, canOpenFile, canMutate && !mutating,
@@ -196,7 +200,7 @@ private fun DirectoryBreadcrumb(
     ) {
         IconButton(onClick = { onUp(projectParentPath(path)) }, enabled = enabled && path.isNotEmpty()) {
             Icon(
-                Icons.Outlined.ArrowUpward,
+                PoracodeIcons.ArrowUpward,
                 contentDescription = stringResource(R.string.workspace_up_folder),
             )
         }
@@ -212,6 +216,7 @@ private fun DirectoryBreadcrumb(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun ProjectFileRow(
     file: ProjectFileEntry,
     rootPath: String,
@@ -232,13 +237,21 @@ private fun ProjectFileRow(
         },
         file.name,
     )
+    var rowMenuExpanded by remember(file.path) { mutableStateOf(false) }
+    val actionsLabel = stringResource(R.string.workspace_file_actions, file.name)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
-            .clickable(enabled = enabled) {
-                if (directory) onOpenDirectory(file.path) else onOpenFile(file.path)
-            }
+            .combinedClickable(
+                enabled = enabled,
+                onClickLabel = actionsLabel,
+                onLongClickLabel = actionsLabel,
+                onClick = {
+                    if (directory) onOpenDirectory(file.path) else onOpenFile(file.path)
+                },
+                onLongClick = { rowMenuExpanded = true },
+            )
             .semantics {
                 role = Role.Button
                 contentDescription = description
@@ -250,13 +263,20 @@ private fun ProjectFileRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                if (directory) Icons.Outlined.Folder else Icons.Outlined.Description,
+                if (directory) PoracodeIcons.Folder else PoracodeIcons.Description,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             WorkspaceMetadata(file.name, file.path, Modifier.weight(1f))
-            ProjectFileRowActions(file, rootPath, canMutate, onMutation)
-            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
+            ProjectFileRowActions(
+                expanded = rowMenuExpanded,
+                onDismiss = { rowMenuExpanded = false },
+                entry = file,
+                rootPath = rootPath,
+                enabled = canMutate,
+                onMutation = onMutation,
+            )
+            Icon(PoracodeIcons.KeyboardArrowRight, contentDescription = null)
         }
     }
 }

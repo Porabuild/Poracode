@@ -23,6 +23,7 @@ const electronMock = vi.hoisted(() => {
     });
     destroy = vi.fn<() => void>(() => {
       this.destroyed = true;
+      this.visible = false;
       this.handlers.get("closed")?.();
     });
     loadURL = vi.fn<(url: string) => Promise<void>>(async () => undefined);
@@ -207,6 +208,11 @@ describe("ComputerUseDesktopOverlay", () => {
       height: 34,
     });
     expect(targetOverlay?.setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
+    expect(targetOverlay?.options).toMatchObject({
+      transparent: process.platform !== "darwin",
+      hasShadow: process.platform === "darwin",
+      ...(process.platform === "darwin" ? { roundedCorners: true } : {}),
+    });
     const overlayHtml = decodeURIComponent(
       targetOverlay!.loadURL.mock.calls.at(-1)![0].split(",", 2)[1]!,
     );
@@ -219,6 +225,59 @@ describe("ComputerUseDesktopOverlay", () => {
 
     overlay.dispose();
   });
+
+  it.runIf(process.platform === "darwin")(
+    "replaces the native badge with a transparent takeover and restores it afterwards",
+    async () => {
+      const overlay = new ComputerUseDesktopOverlay({
+        onExit: vi.fn<(threadIds: string[]) => void>(),
+      });
+      overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
+      await Promise.resolve();
+      const badge = electronMock.BrowserWindow.instances[0]!;
+      expect(badge.options).toMatchObject({
+        transparent: false,
+        hasShadow: true,
+        roundedCorners: true,
+      });
+
+      overlay.setActivity({
+        kind: "action",
+        threadId: "thread-1",
+        toolName: "click",
+        delivery: "foreground",
+        active: true,
+      });
+      await Promise.resolve();
+      expect(badge.destroyed).toBe(true);
+      const takeover = electronMock.BrowserWindow.instances.filter((window) => !window.destroyed);
+      expect(takeover).toHaveLength(2);
+      for (const window of takeover) {
+        expect(window.options).toMatchObject({
+          transparent: true,
+          hasShadow: false,
+        });
+        expect(window.setIgnoreMouseEvents).toHaveBeenLastCalledWith(true);
+      }
+
+      overlay.setActivity({
+        kind: "action",
+        threadId: "thread-1",
+        toolName: "click",
+        delivery: "foreground",
+        active: false,
+      });
+      vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
+      await Promise.resolve();
+      expect(takeover[0]!.destroyed).toBe(true);
+      const restoredBadge = electronMock.BrowserWindow.instances.at(-1)!;
+      expect(restoredBadge.options).toMatchObject({ transparent: false, hasShadow: true });
+      expect(restoredBadge.visible).toBe(true);
+      expect(restoredBadge.setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
+      overlay.dispose();
+      expect(electronMock.BrowserWindow.instances.every((window) => window.destroyed)).toBe(true);
+    },
+  );
 
   it("ends background control when the badge's exit button is used", async () => {
     const onExit = vi.fn<(threadIds: string[]) => void>();
@@ -243,6 +302,55 @@ describe("ComputerUseDesktopOverlay", () => {
 
     overlay.dispose();
   });
+
+  it.runIf(process.platform === "darwin")(
+    "ignores a pending badge load aborted by replacement with a takeover",
+    async () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const overlay = new ComputerUseDesktopOverlay({
+        onExit: vi.fn<(threadIds: string[]) => void>(),
+      });
+      try {
+        overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
+        await Promise.resolve();
+        const badge = electronMock.BrowserWindow.instances[0]!;
+        let rejectLoad: ((error: Error) => void) | undefined;
+        badge.loadURL.mockImplementationOnce(
+          () =>
+            new Promise<void>((_resolve, reject) => {
+              rejectLoad = reject;
+            }),
+        );
+        overlay.setActivity({
+          kind: "action",
+          threadId: "thread-1",
+          toolName: "click",
+          delivery: "background",
+          target: "Notepad",
+          active: false,
+        });
+        overlay.setActivity({
+          kind: "action",
+          threadId: "thread-1",
+          toolName: "click",
+          delivery: "foreground",
+          active: true,
+        });
+        expect(badge.destroyed).toBe(true);
+        expect(rejectLoad).toBeTypeOf("function");
+        rejectLoad?.(new Error("ERR_ABORTED"));
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(consoleError).not.toHaveBeenCalled();
+        const takeover = electronMock.BrowserWindow.instances.filter((window) => !window.destroyed);
+        expect(takeover).toHaveLength(2);
+        expect(takeover.every((window) => window.visible)).toBe(true);
+      } finally {
+        overlay.dispose();
+        consoleError.mockRestore();
+      }
+    },
+  );
 
   it("ignores other open requests from the badge page", async () => {
     const onExit = vi.fn<(threadIds: string[]) => void>();
@@ -399,7 +507,6 @@ describe("ComputerUseDesktopOverlay", () => {
     });
     overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
     await Promise.resolve();
-    const windows = [...electronMock.BrowserWindow.instances];
 
     overlay.setActivity({
       kind: "action",
@@ -416,7 +523,9 @@ describe("ComputerUseDesktopOverlay", () => {
       active: false,
     });
     vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
-    expect(windows.every((window) => window.visible)).toBe(true);
+    await Promise.resolve();
+    const windows = electronMock.BrowserWindow.instances.filter((window) => !window.destroyed);
+    expect(windows.some((window) => window.visible)).toBe(true);
 
     overlay.setActivity({ kind: "session", threadId: "thread-1", active: false });
     expect(windows.every((window) => !window.visible)).toBe(true);
@@ -459,7 +568,7 @@ describe("ComputerUseDesktopOverlay", () => {
     overlay.dispose();
   });
 
-  it("interrupts active threads when Escape returns control to the user", async () => {
+  it("exits computer use when Escape returns control to the user", async () => {
     const onExit = vi.fn<(threadIds: string[]) => void>();
     const overlay = new ComputerUseDesktopOverlay({ onExit });
     overlay.setActivity({

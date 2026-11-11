@@ -106,8 +106,8 @@ fun PoracodeApp(
     LaunchedEffect(useDarkTheme) { onThemeDarkChanged(useDarkTheme) }
     PoracodeTheme(
         darkTheme = useDarkTheme,
-        dynamicColor = deviceSettingsState.dynamicColor,
         chatTextSizeSp = deviceSettingsState.chatTextSizeSp,
+        themeId = deviceSettingsState.themeId,
     ) {
         Surface(modifier = Modifier.fillMaxSize()) {
             when (rootPresentation) {
@@ -242,6 +242,18 @@ fun PoracodeApp(
                                         ?.get("hiddenModels") as? kotlinx.serialization.json.JsonObject
                                 },
                                 onRefreshModelVisibility = settings.controller::refreshModelVisibility,
+                                providerUsageControl = { thread, agent ->
+                                    com.poracode.app.ui.richchat.RichChatProviderUsageControl(
+                                        composition = settings,
+                                        expectedConnectionId = state.hostCatalog.selectedConnectionId?.value,
+                                        thread = thread,
+                                        agentLabel = agent?.label,
+                                        onOpenUsage = {
+                                            navigation.settingsConnectionId = state.hostCatalog.selectedConnectionId?.value
+                                            navigation.settingsPane = com.poracode.app.ui.settings.SettingsPane.Usage.name
+                                        },
+                                    )
+                                },
                             )
                         }
                     }

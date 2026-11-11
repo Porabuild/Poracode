@@ -17,6 +17,7 @@ import { createLocalUsageCollectors, type LocalUsageCollector } from "./localUsa
 import { createNodeUsageHost } from "./usageHost";
 import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
 import { withMacKeychainAuthorizationRetry } from "./macKeychain";
+import { providerUsageResponse } from "./usageRingPresentation";
 
 /**
  * Periodic/on-demand provider usage collection, modeled on AgentStatusService:
@@ -50,7 +51,10 @@ import { withMacKeychainAuthorizationRetry } from "./macKeychain";
 // v14 resolves Kimi's configured OAuth identity and region, so discard v13
 // snapshots that may report a missing login or quota from the legacy account.
 // v15 replaces legacy monthly allowance bars on unified accounts with shared weekly quota.
-const USAGE_CACHE_VERSION = 15;
+// v16 refreshes Devin snapshots that omitted exhausted quota windows.
+const USAGE_CACHE_VERSION = 16;
+// Ring layouts are response-only and recomputed from current descriptors and
+// settings; they do not require cache invalidation.
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const REFRESH_POLICIES = new Map(allUsageProviderDescriptors().map((d) => [d.id, d.refreshPolicy]));
@@ -274,7 +278,11 @@ export class UsageService {
       });
     }
 
-    return { snapshots: cached, fromCache: this.loadedFromCache && cached.length > 0 };
+    return providerUsageResponse(
+      cached,
+      this.loadedFromCache && cached.length > 0,
+      settings.usage.selectedRingGroups,
+    );
   }
 
   /** Forces a live collection of the requested providers and emits the results. */
@@ -416,10 +424,11 @@ export class UsageService {
     snapshots = [...committed, ...cooling].filter(
       (snapshot) => this.snapshots.get(snapshot.providerId) === snapshot,
     );
-    return {
-      snapshots: showEstimatedCost ? snapshots : snapshots.map(withoutEstimatedCost),
-      fromCache: false,
-    };
+    return providerUsageResponse(
+      showEstimatedCost ? snapshots : snapshots.map(withoutEstimatedCost),
+      false,
+      this.readUsageSettings().selectedRingGroups,
+    );
   }
 
   /**

@@ -7,7 +7,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,6 +25,9 @@ import com.poracode.app.model.RemoteEnvironmentCreateRequest
 import com.poracode.app.model.RemoteEnvironmentProjection
 import com.poracode.app.model.RemoteEnvironmentUpdatePatch
 import com.poracode.app.session.environments.EnvironmentManagementController.PendingTrust
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.components.PoracodeSwitch
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun TrustAcceptDialog(
@@ -46,7 +48,7 @@ internal fun TrustAcceptDialog(
             )
         },
         confirmButton = {
-            Button(
+            FilledTonalButton(
                 onClick = onAccept,
                 modifier = Modifier.testTag("environment_trust_accept"),
             ) {
@@ -74,7 +76,7 @@ internal fun EnvironmentConfirmDialog(
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = {
-            Button(onClick = onConfirm, modifier = Modifier.testTag("environment_confirm")) {
+            FilledTonalButton(onClick = onConfirm, modifier = Modifier.testTag("environment_confirm")) {
                 Text(confirmLabel)
             }
         },
@@ -98,7 +100,7 @@ internal fun AdoptLegacyDialog(
         text = {
             Column {
                 Text(stringResource(R.string.environments_adopt_message))
-                OutlinedTextField(
+                PoracodeTextField(
                     value = value,
                     onValueChange = { value = it },
                     label = { Text(stringResource(R.string.environments_adopt_field)) },
@@ -111,7 +113,7 @@ internal fun AdoptLegacyDialog(
             }
         },
         confirmButton = {
-            Button(
+            FilledTonalButton(
                 onClick = { onConfirm(value.trim()) },
                 enabled = value.isNotBlank(),
                 modifier = Modifier.testTag("environment_adopt_confirm"),
@@ -169,14 +171,14 @@ internal fun EnvironmentEditorDialog(
         },
         text = {
             Column {
-                OutlinedTextField(
+                PoracodeTextField(
                     value = label,
                     onValueChange = { label = it },
                     label = { Text(stringResource(R.string.environments_field_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().testTag("environment_field_label"),
                 )
-                OutlinedTextField(
+                PoracodeTextField(
                     value = targetValue,
                     onValueChange = { targetValue = it },
                     label = { Text(stringResource(R.string.environments_field_target)) },
@@ -186,7 +188,7 @@ internal fun EnvironmentEditorDialog(
                         .padding(top = 8.dp)
                         .testTag("environment_field_target"),
                 )
-                OutlinedTextField(
+                PoracodeTextField(
                     value = port,
                     onValueChange = { port = it.filter(Char::isDigit) },
                     label = { Text(stringResource(R.string.environments_field_port)) },
@@ -198,7 +200,7 @@ internal fun EnvironmentEditorDialog(
                         .padding(top = 8.dp)
                         .testTag("environment_field_port"),
                 )
-                OutlinedTextField(
+                PoracodeTextField(
                     value = credentialRef,
                     onValueChange = {
                         credentialRef = it
@@ -225,7 +227,7 @@ internal fun EnvironmentEditorDialog(
                         stringResource(R.string.environments_field_enabled),
                         Modifier.weight(1f),
                     )
-                    Switch(
+                    PoracodeSwitch(
                         checked = desiredEnabled,
                         onCheckedChange = { desiredEnabled = it },
                         modifier = Modifier.testTag("environment_field_enabled"),
@@ -234,7 +236,7 @@ internal fun EnvironmentEditorDialog(
             }
         },
         confirmButton = {
-            Button(
+            FilledTonalButton(
                 onClick = {
                     if (editing == null) {
                         onCreate(

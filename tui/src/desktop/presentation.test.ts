@@ -19,7 +19,7 @@ test("desktop presentation modules load in the TUI runtime with English labels",
     getCommandExecutionCollapsedHeader(item("command_execution", { command: "rg -n foo src" }), {
       command: "rg -n foo src",
     }).display,
-  ).toEqual({ title: 'Search: "foo"', kind: "search" });
+  ).toEqual({ title: 'Search: "foo" in src', kind: "search" });
   expect(deriveWebSearchDisplay({ query: "bun test" }, (d) => i18n._(d)).title).toBe("bun test");
   expect(
     summarizeToolCalls([

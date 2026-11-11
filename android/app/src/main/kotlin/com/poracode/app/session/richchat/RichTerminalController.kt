@@ -13,6 +13,7 @@ import com.poracode.app.transport.richchat.TerminalStartInput
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -34,6 +35,9 @@ class RichTerminalController(
     private val epochs = RichTerminalOperationEpochs()
     private val detachedCleanup = RichTerminalDetachedCleanup(session, gateway, lifecycle)
 
+    private val queryReplyBridge = RichTerminalQueryReplies()
+    val queryReplies: SharedFlow<String> get() = queryReplyBridge.replies
+
     suspend fun start(input: TerminalStartInput): RichChatOperationResult<RichTerminalLease> {
         val host = prepareHost(RichChatCapability.TerminalOperate) ?: return currentRejection()
         val token = begin(input.shellId, host, OP_START)
@@ -42,6 +46,7 @@ class RichTerminalController(
             if (!canPublish(token)) return@run RichChatOperationResult.Stale
             val lease = RichTerminalLease(host, input.shellId, token.generation)
             mutableState.value = RichTerminalState(lease = lease)
+            queryReplyBridge.reset()
             RichChatOperationResult.Success(lease)
         }
     }
@@ -161,6 +166,7 @@ class RichTerminalController(
         if (lease.host.key != sourceHost) return false
         return when (frame) {
             is TerminalServerFrame.Cursor -> {
+                queryReplyBridge.offer(frame.frame)
                 val applied = applyFrame(lease, frame.frame)
                 // A BASELINE carries authoritative process/dimension state
                 // even when the reconciler ignores its payload — the v2

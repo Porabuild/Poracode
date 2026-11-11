@@ -128,6 +128,7 @@ internal fun buildSessionControllerGraph(
         onLiveSocketInstalled = {
             browserMirrorBridge.installOnLiveSocket()
             catalog.onSocketInstalled()
+            events.recomputeGitInterests()
         },
         agentStatusesBootstrap = AgentStatusesBootstrap(
             scope,
@@ -157,6 +158,7 @@ internal fun buildSessionControllerGraph(
         requestResync = ::requestResync,
         requestLegacyRefresh = { live.refreshSnapshot() },
         currentEventSeq = { live.lastSeenSeq?.toLong() ?: 0L },
+        onGitSummaries = { events.mergeGitPageSummaries(it) },
     )
     resync = ResyncEngine(
         scope = scope,
@@ -238,7 +240,10 @@ internal fun buildSessionControllerGraph(
         state = state,
         updateState = updateState,
         api = { live.api },
-        applyThreadInterests = { ids, epoch -> live.applyThreadInterests(ids, epoch) },
+        applyThreadInterests = { ids, epoch ->
+            live.applyThreadInterests(ids, epoch)
+            events.recomputeGitInterests()
+        },
         handleApiException = { live.failures.handleApiException(it) },
         requestAuthoritativeRefresh = { resync.requestUserAuthoritativeRefresh() },
         applyLiveEvent = { event, seq -> events.applyLiveEvent(event, seq) },

@@ -63,7 +63,25 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
-          WORKFLOW_PATH=$(gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID" --jq .path)
+          # GitHub's API sometimes answers 5xx or an empty body (an HTTP 500 on
+          # the manifest download failed a nightly's npm publish). These calls
+          # only read, so retry them; only a successful attempt's output is kept.
+          retry() {
+            local attempt output
+            output=$(mktemp)
+            for attempt in 1 2 3 4; do
+              if "$@" > "$output"; then
+                cat "$output"
+                return 0
+              fi
+              if [ "$attempt" -lt 4 ]; then
+                echo "GitHub API call failed (attempt $attempt of 4); retrying." >&2
+                sleep $((attempt * 10))
+              fi
+            done
+            return 1
+          }
+          WORKFLOW_PATH=$(retry gh api "repos/$REPOSITORY/actions/runs/$SOURCE_RUN_ID" --jq .path)
           case "$WORKFLOW_PATH" in
             .github/workflows/release.yml | .github/workflows/release-nightly.yml) ;;
             *)
@@ -71,13 +89,13 @@ jobs:
               exit 1
               ;;
           esac
-          DRAFT=$(gh release view "v$RELEASE_VERSION" --repo "$REPOSITORY" --json isDraft --jq .isDraft)
+          DRAFT=$(retry gh release view "v$RELEASE_VERSION" --repo "$REPOSITORY" --json isDraft --jq .isDraft)
           if [ "$DRAFT" != "false" ]; then
             echo "::error::v$RELEASE_VERSION is not a public release"
             exit 1
           fi
-          gh release download "v$RELEASE_VERSION" --repo "$REPOSITORY" \
-            --pattern poracode-runtime-manifest.json --dir "$RUNNER_TEMP/published"
+          retry gh release download "v$RELEASE_VERSION" --repo "$REPOSITORY" \
+            --pattern poracode-runtime-manifest.json --dir "$RUNNER_TEMP/published" --clobber
         shell: bash
 
       - name: Checkout the release source
@@ -88,7 +106,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "26"
+          node-version: "26.13.0"
 
       - name: Download the aggregate qualified artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8

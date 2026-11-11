@@ -5,8 +5,10 @@
  * Providers disagree on what the payload carries: Grok and Codex name the tool
  * (`Web search` / `webSearch`) and keep the query separate, Claude folds the
  * whole call into `query`, and OpenCode reuses the type for page fetches whose
- * `name` is the fetched URL. Only the first shape gets the `Web search: <query>`
- * prefix treatment — the others already read as a complete label on their own.
+ * `name` is the fetched URL. Structured provider actions (`open_page`,
+ * `find_in_page`, multi-query `search`) get dedicated titles; only the generic
+ * search shape gets the `Web search: <query>` prefix treatment — the others
+ * already read as a complete label on their own.
  */
 
 import { msg } from "@lingui/core/macro";
@@ -39,6 +41,34 @@ export function deriveWebSearchDisplay(
     hasDetails: hasAuxFields(payload),
     ...(resultCount != null ? { resultCount } : {}),
   };
+
+  const action = readPayloadString(payload, "action");
+  const url = readPayloadString(payload, "url");
+  const pattern = readPayloadString(payload, "pattern");
+  const queries = readPayloadStringArray(payload, "queries");
+
+  if (action === "open_page" && url) {
+    const prefix = `${t(msg`Open page`)}: `;
+    return { ...base, title: `${prefix}${url}`, parts: { prefix, path: url } };
+  }
+  if (action === "find_in_page") {
+    if (pattern && url) {
+      return { ...base, title: t(msg`Find "${pattern}" in ${url}`) };
+    }
+    if (pattern) {
+      return { ...base, title: `${t(msg`Find in page`)}: "${pattern}"` };
+    }
+    if (url) {
+      const prefix = `${t(msg`Open page`)}: `;
+      return { ...base, title: `${prefix}${url}`, parts: { prefix, path: url } };
+    }
+  }
+  if ((action === "search" || action === undefined) && queries && queries.length > 1) {
+    const joined = queries.join(" · ");
+    const prefix = `${label}: `;
+    return { ...base, title: `${prefix}${joined}`, parts: { prefix, path: joined } };
+  }
+
   if (query && isGenericWebSearchName(name)) {
     const prefix = `${label}: `;
     return { ...base, title: `${prefix}${query}`, parts: { prefix, path: query } };
@@ -59,13 +89,23 @@ function isGenericWebSearchName(name: string | undefined): boolean {
 function hasAuxFields(payload: unknown): boolean {
   if (!payload || typeof payload !== "object") return false;
   const p = payload as Record<string, unknown>;
-  return p.args !== undefined || p.result !== undefined;
+  return p.args != null || p.result != null;
 }
 
 function readPayloadString(payload: unknown, key: string): string | undefined {
   if (!payload || typeof payload !== "object") return undefined;
   const value = (payload as Record<string, unknown>)[key];
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function readPayloadStringArray(payload: unknown, key: string): string[] | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const value = (payload as Record<string, unknown>)[key];
+  if (!Array.isArray(value)) return undefined;
+  const strings = value.filter(
+    (item): item is string => typeof item === "string" && item.length > 0,
+  );
+  return strings.length > 0 ? strings : undefined;
 }
 
 /**

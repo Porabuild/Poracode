@@ -6,44 +6,63 @@ struct ProjectWorkspaceBottomControls: View {
   @Binding var isSearchPresented: Bool
   @Binding var query: String
   @Binding var requestedCreationType: AdvancedProjectEntryType?
+  @Namespace private var glassNamespace
+
+  var body: some View {
+    PoracodeBottomActionStrip {
+      leading
+    } center: {
+      center
+    } trailing: {
+      trailing
+    }
+  }
 
   @ViewBuilder
-  var body: some View {
+  private var leading: some View {
     if isSearchPresented {
-      PoracodeBottomActionStrip {
-        PoracodeCircleButton {
-          query = ""
-          isSearchPresented = false
-        } label: {
-          Image(systemName: "xmark")
-        }
-        .accessibilityLabel(AdvancedOperationsStrings.cancel)
-      } center: {
-        PoracodeBottomSearchField(
-          text: $query,
-          prompt: ProjectWorkspaceStrings.searchFiles
-        )
-        .frame(maxWidth: 220)
-      } trailing: {
-        createMenu
+      PoracodeCircleButton {
+        query = ""
+        isSearchPresented = false
+      } label: {
+        Image(systemName: "xmark")
       }
+      .accessibilityLabel(AdvancedOperationsStrings.cancel)
+      .poracodeGlassID("workspace.leading", in: glassNamespace)
+    } else if mode == .files {
+      PoracodeCircleButton {
+        isSearchPresented = true
+      } label: {
+        Image(systemName: "magnifyingglass")
+      }
+      .accessibilityLabel(ProjectWorkspaceStrings.searchFiles)
+      .poracodeGlassID("workspace.leading", in: glassNamespace)
+    }
+  }
+
+  @ViewBuilder
+  private var center: some View {
+    if isSearchPresented {
+      PoracodeBottomSearchField(
+        text: $query,
+        prompt: ProjectWorkspaceStrings.searchFiles
+      )
+      .frame(maxWidth: 220)
+      .poracodeGlassID("workspace.center", in: glassNamespace)
     } else {
-      PoracodeBottomActionStrip {
-        if mode == .files {
-          PoracodeCircleButton {
-            isSearchPresented = true
-          } label: {
-            Image(systemName: "magnifyingglass")
-          }
-          .accessibilityLabel(ProjectWorkspaceStrings.searchFiles)
-        }
-      } center: {
-        ProjectWorkspaceModePicker(selection: $mode)
-      } trailing: {
-        if mode == .files {
-          createMenu
-        }
-      }
+      ProjectWorkspaceModePicker(
+        selection: $mode,
+        glassID: "workspace.center",
+        glassNamespace: glassNamespace
+      )
+    }
+  }
+
+  @ViewBuilder
+  private var trailing: some View {
+    if isSearchPresented || mode == .files {
+      createMenu
+        .poracodeGlassID("workspace.trailing", in: glassNamespace)
     }
   }
 

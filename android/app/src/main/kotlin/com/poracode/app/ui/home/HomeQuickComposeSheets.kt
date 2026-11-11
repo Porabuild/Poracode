@@ -10,10 +10,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,7 +17,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +33,9 @@ import com.poracode.app.R
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.RemoteProject
 import com.poracode.app.session.projects.ProjectSessionRuntime
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
+import androidx.compose.material3.FilledTonalButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,7 +70,7 @@ internal fun HomeQuickComposeWorktreeSheet(
                 title = stringResource(R.string.home_quick_compose_current_branch),
                 detail = currentBranch ?: stringResource(R.string.home_quick_compose_project_default),
                 selected = selected?.path == null,
-                icon = Icons.Outlined.Code,
+                icon = PoracodeIcons.Code,
                 onClick = onSelect,
             )
             if (worktrees.isEmpty()) {
@@ -90,7 +88,7 @@ internal fun HomeQuickComposeWorktreeSheet(
                             ?: stringResource(R.string.home_quick_compose_existing_worktree),
                         detail = worktree.path,
                         selected = selected?.path == worktree.path,
-                        icon = Icons.Outlined.AccountTree,
+                        icon = PoracodeIcons.AccountTree,
                         onClick = onSelect,
                     )
                 }
@@ -120,7 +118,7 @@ internal fun HomeQuickComposeNewWorktreeSheet(
                 stringResource(R.string.git_add_worktree),
                 style = MaterialTheme.typography.headlineSmall,
             )
-            OutlinedTextField(
+            PoracodeTextField(
                 value = branch,
                 onValueChange = onBranchChange,
                 enabled = !busy,
@@ -137,7 +135,7 @@ internal fun HomeQuickComposeNewWorktreeSheet(
                     enabled = !busy,
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.git_cancel)) }
-                Button(
+                FilledTonalButton(
                     onClick = onCreate,
                     enabled = branch.isNotBlank() && !busy,
                     modifier = Modifier.weight(1f),
@@ -269,7 +267,7 @@ internal fun HomeQuickComposeSlashCommandSheet(
                 commands.forEach { command ->
                     ListItem(
                         leadingContent = {
-                            Icon(Icons.Outlined.Terminal, contentDescription = null)
+                            Icon(PoracodeIcons.Terminal, contentDescription = null)
                         },
                         headlineContent = {
                             Text(command.invocation)

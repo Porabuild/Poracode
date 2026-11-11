@@ -1,4 +1,7 @@
 import { toError, toErrorMessage } from "@/shared/errorMessage";
+import { isGitProcessAdmissionRefusal } from "@/shared/gitProcessAdmission";
+import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
+import { isThreadSessionAbsenceRefusal } from "@/shared/threadSessionRefusal";
 import type { AgentKind, SessionRef } from "@/shared/contracts";
 import type { RuntimeEventRouter } from "./runtimeEventRouter";
 
@@ -8,6 +11,48 @@ type AllocatedSession = {
   canResumeWithConfig: boolean;
 };
 const allocatedSessions = new WeakMap<Error, Map<string, AllocatedSession>>();
+
+export interface StartThreadAttemptOutcome {
+  confirmedPreRuntimeFailure?: boolean;
+  providerSessionTouched?: boolean;
+  launchTurnDispatched?: boolean;
+}
+
+class ConfirmedIpcThreadLaunchFailureCarrier extends Error {
+  readonly rawError: unknown;
+
+  constructor(rawError: unknown) {
+    super(toErrorMessage(rawError), rawError instanceof Error ? { cause: rawError } : undefined);
+    this.name = "ConfirmedIpcThreadLaunchFailureCarrier";
+    this.rawError = rawError;
+  }
+}
+
+export function isEligiblePreRuntimeLaunchFailure(error: unknown): boolean {
+  return (
+    !isHostResourceAdmissionRefusal(error) &&
+    !isGitProcessAdmissionRefusal(error) &&
+    !isThreadSessionAbsenceRefusal(error)
+  );
+}
+
+export function wrapConfirmedIpcThreadLaunchFailure(error: unknown): Error {
+  if (error instanceof ConfirmedIpcThreadLaunchFailureCarrier) return error;
+  return new ConfirmedIpcThreadLaunchFailureCarrier(error);
+}
+
+export function unwrapConfirmedIpcThreadLaunchFailure(error: unknown): {
+  rawError: unknown;
+  confirmedLaunchFailure: boolean;
+} {
+  if (error instanceof ConfirmedIpcThreadLaunchFailureCarrier) {
+    return {
+      rawError: error.rawError,
+      confirmedLaunchFailure: isEligiblePreRuntimeLaunchFailure(error.rawError),
+    };
+  }
+  return { rawError: error, confirmedLaunchFailure: false };
+}
 
 /**
  * An open can allocate a native resource before later configuration fails.

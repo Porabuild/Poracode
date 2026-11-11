@@ -7,6 +7,12 @@ import com.poracode.app.model.RemoteThread
 import com.poracode.app.protocol.ThreadPresentationPolicy
 
 object HostPresentation {
+    /** The host brand prefix is redundant inside Poracode, as in the PWA. */
+    fun desktopTitle(label: String): String = label.replaceFirst(
+        Regex("^(?:Poracode|Lightcode)\\s+on\\s+", RegexOption.IGNORE_CASE),
+        "",
+    ).ifEmpty { label }
+
     data class UnifiedThreadItem(
         val connectionId: ClientConnectionId,
         val hostName: String,

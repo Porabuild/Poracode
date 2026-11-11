@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Inbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -24,6 +20,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.poracode.app.ui.theme.PoracodeIcons
+import androidx.compose.material3.FilledTonalButton
 
 /** Wordmark-only in-app continuation of the platform launch screen. */
 @Composable
@@ -75,7 +73,7 @@ fun EmptyStateView(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
-            Icons.Outlined.Inbox,
+            PoracodeIcons.Inbox,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -108,7 +106,7 @@ fun ErrorStateView(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
-            Icons.Outlined.ErrorOutline,
+            PoracodeIcons.ErrorOutline,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.error,
@@ -122,7 +120,7 @@ fun ErrorStateView(
         )
         if (onRetry != null) {
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onRetry) {
+            FilledTonalButton(onClick = onRetry) {
                 Text(
                     retryLabel
                         ?: androidx.compose.ui.res.stringResource(com.poracode.app.R.string.retry),
@@ -144,7 +142,7 @@ fun OfflineBanner(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
-            Icons.Outlined.CloudOff,
+            PoracodeIcons.CloudOff,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )

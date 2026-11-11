@@ -108,7 +108,7 @@ struct RemoteIntegrationsScheduleRunsView: View {
 
   private func statusColor(_ status: RemoteIntegrationsScheduleRunStatus) -> Color {
     switch status {
-    case .running, .waiting: .accentColor
+    case .running, .waiting: .primary
     case .succeeded: .green
     case .failed: .red
     case .interrupted, .cancelled, .skipped: .secondary

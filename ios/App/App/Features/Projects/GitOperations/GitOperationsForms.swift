@@ -38,6 +38,7 @@ struct GitOperationsFormView: View {
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
           Toggle(GitOperationsStrings.createBranch, isOn: $createBranch)
+          .poracodeSwitchStyle()
         }
       }
       .navigationTitle(title)

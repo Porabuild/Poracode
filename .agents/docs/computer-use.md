@@ -154,8 +154,8 @@ same, unambiguous title; pass the window's `title` to `get_window` to allow it.
 - `badge`: a session or background action is active. The overlay is
   click-through and does not take keyboard focus.
 - `takeover`: a foreground action is active. Every display gets the takeover
-  border and Escape interrupts the participating thread(s); Escape is suppressed
-  while a requested key chord is being sent.
+  border and Escape cancels computer-use calls while the agent turn keeps running;
+  Escape is suppressed while a requested key chord is being sent.
 
 Activity resolves delivery from the requested mode before dispatch. Explicit
 foreground operations keep the border and Escape shortcut for the whole

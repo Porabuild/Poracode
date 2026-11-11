@@ -50,7 +50,7 @@ describe("app-owned agent discovery", () => {
   it("hides without cancelling and keeps the finished scan's rows open behind the pill", async () => {
     const scan = deferred();
     bridge.refreshAgentStatuses.mockReturnValue(scan.promise);
-    refreshAgentDiscovery(["Ubuntu"]);
+    void refreshAgentDiscovery(["Ubuntu"]);
     useAgentStatusesStore.getState().setDiscoveryHidden(true);
     expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(true);
     expect(bridge.cancelAgentDiscovery).not.toHaveBeenCalled();
@@ -66,7 +66,7 @@ describe("app-owned agent discovery", () => {
   it("cancels the supervisor scan and ignores its late refresh result", async () => {
     const scan = deferred();
     bridge.refreshAgentStatuses.mockReturnValue(scan.promise);
-    refreshAgentDiscovery([]);
+    void refreshAgentDiscovery([]);
     cancelAgentDiscovery();
     expect(bridge.cancelAgentDiscovery).toHaveBeenCalledOnce();
     expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(false);
@@ -89,7 +89,7 @@ describe("app-owned agent discovery", () => {
     useAgentStatusesStore.setState({ agentStatuses: [known], windowsLoaded: true });
     bridge.refreshAgentStatuses.mockReturnValue(new Promise(() => {}));
     bridge.cancelAgentDiscovery.mockReturnValue(cancellation.promise);
-    refreshAgentDiscovery([]);
+    void refreshAgentDiscovery([]);
     // A full sweep can publish an empty list before the remaining probes settle.
     useAgentStatusesStore.setState({ agentStatuses: [] });
     cancelAgentDiscovery();
@@ -101,9 +101,9 @@ describe("app-owned agent discovery", () => {
   });
   it("reopens a running hidden scan instead of starting a second refresh", () => {
     bridge.refreshAgentStatuses.mockReturnValue(new Promise(() => {}));
-    refreshAgentDiscovery([]);
+    void refreshAgentDiscovery([]);
     useAgentStatusesStore.getState().setDiscoveryHidden(true);
-    refreshAgentDiscovery([]);
+    void refreshAgentDiscovery([]);
     expect(bridge.refreshAgentStatuses).toHaveBeenCalledOnce();
     expect(useAgentStatusesStore.getState().discoveryHidden).toBe(false);
   });
@@ -111,9 +111,9 @@ describe("app-owned agent discovery", () => {
     const cancellation = deferred();
     bridge.cancelAgentDiscovery.mockReturnValue(cancellation.promise);
     bridge.refreshAgentStatuses.mockReturnValue(new Promise(() => {}));
-    refreshAgentDiscovery([]);
+    void refreshAgentDiscovery([]);
     cancelAgentDiscovery();
-    refreshAgentDiscovery([]);
+    void refreshAgentDiscovery([]);
     cancellation.resolve(empty);
     await vi.advanceTimersByTimeAsync(0);
     expect(useAgentStatusesStore.getState().inFirstLaunchDiscovery).toBe(true);

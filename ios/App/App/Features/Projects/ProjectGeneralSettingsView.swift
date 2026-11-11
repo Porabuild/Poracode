@@ -64,8 +64,10 @@ struct ProjectGeneralSettingsView: View {
               }
             )
           )
+          .poracodeSwitchStyle()
         }
         Toggle(ProjectManagementStrings.disabled, isOn: $draft.disabled)
+        .poracodeSwitchStyle()
       }
 
       if let draftError {

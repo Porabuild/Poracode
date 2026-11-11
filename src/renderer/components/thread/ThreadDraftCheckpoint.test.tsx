@@ -122,31 +122,33 @@ it("restores text and attachments without inventing a new draft revision", async
   second.unmount();
 });
 
-it("refuses another dispatch of an unchanged uncertain draft after reopening", async () => {
+it("retires the submission outbox copy and never shows recovery controls after a failed draft launch", async () => {
   const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
   try {
     const onStart = vi
-      .fn<() => Promise<void>>()
-      .mockRejectedValue(
+      .fn<() => Promise<"accepted" | void>>()
+      .mockRejectedValueOnce(
         new RemoteClientError("Unknown delivery", 409, "command_outcome_uncertain"),
-      );
+      )
+      .mockResolvedValueOnce("accepted");
     const first = form(onStart);
     fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
-    await waitFor(async () =>
-      expect(await listClientSubmissions()).toEqual([
-        expect.objectContaining({ state: "uncertain" }),
-      ]),
-    );
+    await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
     const before = composerDraftStorage()!.currentIdentity("project", project.id);
     first.unmount();
     const second = form(onStart);
     expect(composerDraftStorage()!.currentIdentity("project", project.id)).toEqual(before);
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
-    await waitFor(() =>
-      expect(report).toHaveBeenCalledWith(expect.stringContaining("Couldn't confirm this command")),
-    );
-    expect(onStart).toHaveBeenCalledOnce();
-    expect(await listClientSubmissions()).toHaveLength(1);
+    await waitFor(() => expect(onStart).toHaveBeenCalledTimes(2));
+    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+    expect(useAppStore.getState().draftContents[project.id]).toBeUndefined();
     second.unmount();
   } finally {
     report.mockRestore();
@@ -159,6 +161,7 @@ it("captures browser focus before attachment preparation and keeps it out of rec
     browserFocus: { activeTab: { tabId: activeTab, title: "Page" } },
   }));
   let finish!: () => void;
+  let rejectStart!: (error: Error) => void;
   const materialize = vi.spyOn(draftSubmission, "materializeDraftSegments").mockImplementationOnce(
     (_target, segments) =>
       new Promise((resolve) => {
@@ -167,11 +170,12 @@ it("captures browser focus before attachment preparation and keeps it out of rec
   );
   const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
   try {
-    const onStart = vi
-      .fn<() => Promise<void>>()
-      .mockRejectedValue(
-        new RemoteClientError("Unknown delivery", 409, "command_outcome_uncertain"),
-      );
+    const onStart = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectStart = reject;
+        }),
+    );
     const view = form(onStart, capture);
     fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
     expect(capture).toHaveBeenCalledOnce();
@@ -192,6 +196,10 @@ it("captures browser focus before attachment preparation and keeps it out of rec
       }),
     );
     expect(records[0]?.fingerprint).not.toContain("browserFocus");
+    await act(async () => {
+      rejectStart(new RemoteClientError("Unknown delivery", 409, "command_outcome_uncertain"));
+    });
+    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
     view.unmount();
   } finally {
     materialize.mockRestore();
@@ -211,7 +219,8 @@ it("retains the draft when required submit-time context rejects", async () => {
     await waitFor(() => expect(report).toHaveBeenCalledWith("context unavailable"));
     expect(onStart).not.toHaveBeenCalled();
     expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
-    expect(await listClientSubmissions()).toEqual([expect.objectContaining({ state: "failed" })]);
+    expect(await listClientSubmissions()).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
     view.unmount();
   } finally {
     report.mockRestore();

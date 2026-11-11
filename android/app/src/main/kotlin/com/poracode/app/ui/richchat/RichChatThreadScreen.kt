@@ -1,22 +1,15 @@
 package com.poracode.app.ui.richchat
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
+import com.poracode.app.chat.RichHandoffSummary
 import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.ProjectFileEntry
 import com.poracode.app.model.ProjectLocation
@@ -49,6 +43,9 @@ import com.poracode.app.session.threads.ThreadLifecycleController
 import com.poracode.app.ui.components.EmptyStateView
 import com.poracode.app.ui.components.ErrorStateView
 import com.poracode.app.ui.components.LoadingStateView
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
+import com.poracode.app.ui.home.HomeProjectUtility
+import com.poracode.app.ui.home.canMoveThreadToWorktree
 import com.poracode.app.ui.terminal.RichTerminalPane
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -57,7 +54,7 @@ import kotlinx.serialization.json.contentOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RichChatThreadScreen(
+internal fun RichChatThreadScreen(
     runtime: RichChatSessionRuntime,
     userHiddenModels: kotlinx.serialization.json.JsonObject? = null,
     threadLifecycleController: ThreadLifecycleController,
@@ -77,9 +74,15 @@ fun RichChatThreadScreen(
     terminalTextSizeSp: Int = 13,
     forksSupported: Boolean = false,
     onOpenThread: (String) -> Unit = {},
+    onOpenWorkspaceGit: () -> Unit = {},
+    onMoveToWorktree: ((Boolean) -> Unit)? = null,
+    handoffAgents: List<AgentStatusEntry> = emptyList(),
+    onOpenProjectUtility: (HomeProjectUtility) -> Unit = {},
+    projectName: String? = null, hostName: String? = null, hostOnline: Boolean = false,
     modifier: Modifier = Modifier,
+    providerUsageControl: @Composable (RemoteThread?, AgentStatusEntry?) -> Unit = { _, _ -> },
 ) {
-    if (showBack) BackHandler(onBack = onBack)
+    val backModifier = rememberPredictiveBackModifier(enabled = showBack, onBack = onBack)
     val state by runtime.chat.state.collectAsStateWithLifecycle()
     val checkpointState by runtime.checkpoints.state.collectAsStateWithLifecycle()
     val sessionActionsState by runtime.sessionActions.state.collectAsStateWithLifecycle()
@@ -125,6 +128,8 @@ fun RichChatThreadScreen(
     var pendingRevertItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
     val fileDownloadSnackbarHost = remember { SnackbarHostState() }
     var showCloseDialog by rememberSaveable(threadId) { mutableStateOf(false) }
+    var pendingMoveBringChanges by rememberSaveable(threadId) { mutableStateOf<Boolean?>(null) }
+    var showHandoff by rememberSaveable(threadId) { mutableStateOf(false) }
     val openBackgroundTask = rememberRichChatBackgroundTaskDetails(runtime, state, sessionActionsState.actionIds, canOperate, scope)
     val canMutate = canOperate && state.selection != null && !mutating && !refreshing
     var forkIntent by rememberSaveable(threadId, state.selection?.host?.connectionId, state.selection?.host?.bindingGeneration, stateSaver = RichChatForkIntent.Saver) { mutableStateOf<RichChatForkIntent?>(null) }
@@ -238,23 +243,73 @@ fun RichChatThreadScreen(
         }
     }
 
-    forkIntent?.let { intent ->
-        RichChatForkDialog(
-            runtime = runtime,
-            intent = intent,
-            canFork = canFork,
-            onDismiss = { forkIntent = null },
+    RichChatForkDialogHost(
+        runtime = runtime,
+        intent = forkIntent,
+        canFork = canFork,
+        onDismiss = { forkIntent = null },
+        onOpenThread = onOpenThread,
+    )
+    pendingMoveBringChanges?.let { bringChanges ->
+        AlertDialog(
+            onDismissRequest = { pendingMoveBringChanges = null },
+            title = { Text(stringResource(R.string.thread_lifecycle_move_worktree_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        if (bringChanges) {
+                            R.string.thread_lifecycle_move_worktree_changes_message
+                        } else {
+                            R.string.thread_lifecycle_move_worktree_clean_message
+                        },
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingMoveBringChanges = null
+                    onMoveToWorktree?.invoke(bringChanges)
+                }) { Text(stringResource(R.string.thread_lifecycle_move_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingMoveBringChanges = null }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+    if (showHandoff && thread != null) {
+        val handoffSummary = remember(state.transcript, agentStatus?.label, thread.agentKind) {
+            RichHandoffSummary.transcriptSummary(
+                items = state.transcript?.itemsInOrder.orEmpty(),
+                sourceLabel = agentStatus?.label ?: thread.agentKind,
+            )
+        }
+        RichChatHandoffSheet(
+            thread = thread,
+            agents = handoffAgents,
+            summary = handoffSummary,
+            controller = threadLifecycleController,
+            onDismiss = { showHandoff = false },
             onOpenThread = onOpenThread,
         )
     }
-    Scaffold(
-        modifier = modifier,
+    RichChatThreadSurface(
+        modifier = modifier.then(backModifier),
+        hasComposer = !ThreadPresentationPolicy.isTerminal(thread?.presentationMode),
+        gitSummary = gitSummary, contextUsage = state.transcript?.contextUsage,
+        onOpenWorkspaceGit = onOpenWorkspaceGit,
+        providerUsageControl = { providerUsageControl(thread, agentStatus) },
+        auxiliaryControls = {
+            RichChatCompactRuntimeDock(runtime, agentStatus, projectLocation, canOperate, onOpenAgentSettings)
+        },
+        containerColor = com.poracode.app.ui.theme.PoracodeTheme.colors.background,
         snackbarHost = { SnackbarHost(fileDownloadSnackbarHost) },
         topBar = {
             RichChatThreadTopBar(
                 title = title,
+                agentLabel = agentStatus?.label,
                 thread = thread,
-                gitSummary = gitSummary,
                 showBack = showBack,
                 hasSelection = state.selection != null,
                 refreshing = refreshing,
@@ -266,6 +321,27 @@ fun RichChatThreadScreen(
                 projectLocation = projectLocation,
                 onBack = onBack,
                 onShowCloseDialog = { showCloseDialog = true },
+                onOpenProjectUtility = onOpenProjectUtility,
+                onOpenWorkspaceGit = onOpenWorkspaceGit,
+                onForkThread = state.transcript?.completedTurns?.lastOrNull()?.anchorItemId?.let { anchor ->
+                    requestFork?.let { fork -> { fork(anchor) } }
+                },
+                onMoveToWorktree = if (
+                    onMoveToWorktree != null && canMutate && canMoveThreadToWorktree(thread)
+                ) {
+                    { pendingMoveBringChanges = it }
+                } else {
+                    null
+                },
+                onContinueInProvider = if (
+                    canMutate && thread != null &&
+                    handoffAgents.any { it.installed && it.kind != thread.agentKind }
+                ) {
+                    { showHandoff = true }
+                } else {
+                    null
+                },
+                projectName = projectName, hostName = hostName, hostOnline = hostOnline,
             )
         },
         bottomBar = {
@@ -289,7 +365,6 @@ fun RichChatThreadScreen(
                     canConfigure = canConfigure,
                     currentThread = currentThreadForComposer,
                     followUpQueue = state.transcript?.followUpQueue,
-                    contextUsage = state.transcript?.contextUsage,
                     mentionItems = state.transcript?.itemsInOrder.orEmpty(),
                     workspaceFiles = workspaceFiles,
                     mentionThreads = mentionThreads,
@@ -342,7 +417,7 @@ fun RichChatThreadScreen(
                 )
             }
         },
-    ) { padding ->
+    ) { padding, layout ->
         if (ThreadPresentationPolicy.isTerminal(thread?.presentationMode)) {
             RichTerminalPane(
                 runtime = runtime,
@@ -351,12 +426,12 @@ fun RichChatThreadScreen(
                 textSizeSp = terminalTextSizeSp,
                 modifier = Modifier.padding(padding),
             )
-            return@Scaffold
+            return@RichChatThreadSurface
         }
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(padding),
+                .padding(padding).then(layout.backdrop),
         ) {
             RichChatForkOrigin(thread, onOpenThread)
             // Mirrors iOS's merged status view: a checkpoint restore/rollback/load failure is
@@ -403,95 +478,20 @@ fun RichChatThreadScreen(
                     title = stringResource(R.string.rich_chat_empty_title),
                     message = stringResource(R.string.rich_chat_empty_message),
                 )
-                RichChatLoadPhase.Loaded -> {
-                    val transcript = state.transcript ?: return@Column
-                    BoxWithConstraints(Modifier.fillMaxSize()) {
-                        val revertableItemIds = remember(transcript.itemsInOrder) {
-                            RichChatUiLogic.revertableUserItemIds(transcript.itemsInOrder)
-                        }
-                        val controlContent: @Composable (Modifier) -> Unit = { controlModifier ->
-                            RichChatControlPanel(
-                                runtime = runtime,
-                                items = transcript.itemsInOrder,
-                                agentStatus = agentStatus,
-                                requests = transcript.openRequests,
-                                pendingSteer = transcript.pendingSteer,
-                                backgroundTasks = state.backgroundTasks.orEmpty(),
-                                sessionActionIds = sessionActionsState.actionIds,
-                                onOpenBackgroundTask = openBackgroundTask,
-                                checkpointState = checkpointState,
-                                projectLocation = projectLocation,
-                                selection = state.selection,
-                                config = state.config,
-                                canOperate = canOperate,
-                                busy = mutating || refreshing,
-                                onOpenAgentSettings = onOpenAgentSettings,
-                                modifier = controlModifier,
-                            )
-                        }
-                        val timelineContent: @Composable (Modifier) -> Unit = { timelineModifier ->
-                            RichTimelineView(
-                                transcript,
-                                state.olderCursor,
-                                state.olderTurnsCursor,
-                                state.loadingOlder || refreshing,
-                                runtime,
-                                onLoadOlder = { scope.launch { runtime.chat.loadOlder() } },
-                                canMutate = canMutate,
-                                onTruncateItem = { pendingTruncateItemId = it },
-                                revertableItemIds = revertableItemIds,
-                                onRevertItem = { pendingRevertItemId = it },
-                                onForkItem = requestFork,
-                                forkBoundaryItemId = forkBoundaryItemId,
-                                modifier = timelineModifier,
-                            )
-                        }
-                        val fileActions = projectLocation?.let {
-                            RichChatFileActions(
-                                runtime.media, it, context.cacheDir,
-                                fileDownloadSnackbarHost,
-                                "${threadId}:${state.selection?.generation}",
-                            )
-                        }
-                        CompositionLocalProvider(
-                            LocalRichChatFileActions provides fileActions,
-                        ) {
-                            if (maxWidth >= 760.dp) {
-                                Row(Modifier.fillMaxSize()) {
-                                    timelineContent(Modifier.weight(1f))
-                                    VerticalDivider()
-                                    controlContent(
-                                        Modifier
-                                            .width(320.dp)
-                                            .verticalScroll(rememberScrollState())
-                                            .padding(12.dp),
-                                    )
-                                }
-                            } else {
-                                Column(Modifier.fillMaxSize()) {
-                                    timelineContent(Modifier.weight(1f))
-                                    RichChatCompactControlDock(
-                                        runtime = runtime,
-                                        items = transcript.itemsInOrder,
-                                        agentStatus = agentStatus,
-                                        requests = transcript.openRequests,
-                                        pendingSteer = transcript.pendingSteer,
-                                        backgroundTasks = state.backgroundTasks.orEmpty(),
-                                        sessionActionIds = sessionActionsState.actionIds,
-                                        onOpenBackgroundTask = openBackgroundTask,
-                                        checkpointState = checkpointState,
-                                        projectLocation = projectLocation,
-                                        selection = state.selection,
-                                        config = state.config,
-                                        canOperate = canOperate,
-                                        busy = mutating || refreshing,
-                                        onOpenAgentSettings = onOpenAgentSettings,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                RichChatLoadPhase.Loaded -> RichChatLoadedTranscript(
+                    layout = layout,
+                    runtime = runtime,
+                    threadId = threadId,
+                    agentStatus = agentStatus,
+                    projectLocation = projectLocation,
+                    canOperate = canOperate,
+                    onOpenAgentSettings = onOpenAgentSettings,
+                    onTruncateItem = { pendingTruncateItemId = it },
+                    onRevertItem = { pendingRevertItemId = it },
+                    requestFork = requestFork,
+                    forkBoundaryItemId = forkBoundaryItemId,
+                    fileDownloadSnackbarHost = fileDownloadSnackbarHost,
+                )
             }
         }
     }

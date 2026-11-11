@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Mức sử dụng nhà cung cấp</string>
+    <string name="settings_usage_title">Mức sử dụng</string>
     <string name="settings_usage_cached">Đang hiển thị mức sử dụng đã lưu đệm.</string>
     <string name="settings_usage_empty">Không có dữ liệu sử dụng nhà cung cấp.</string>
     <string name="settings_usage_empty_title">Không có dữ liệu sử dụng</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Đã đạt hạn mức</string>
     <string name="settings_usage_unsupported">Không được hỗ trợ</string>
     <string name="settings_usage_meter_description">Mức sử dụng %1$s: %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% khi đặt lại</string>
+    <string name="settings_usage_pace_over">Vượt nhịp độ — hết sớm</string>
+    <string name="settings_usage_pace_ran_out">Đã hết</string>
+    <string name="settings_usage_pace_ran_out_resets">Đã hết · đặt lại sau %1$s</string>
+    <string name="settings_usage_pace_runs_out_in">Sẽ hết sau %1$s</string>
+    <string name="settings_usage_pace_runs_out_early">Hết sớm</string>
     <string name="settings_profile_identity">Danh tính</string>
     <string name="settings_profile_identity_description">Hồ sơ này được lưu trên máy tính đã chọn.</string>
     <string name="settings_profile_name">Tên</string>

@@ -36,6 +36,7 @@ import com.poracode.app.session.settingsintegrations.OauthLifecycle
 import com.poracode.app.session.settingsintegrations.SettingsIntegrationsFailure
 import com.poracode.app.session.settingsintegrations.SettingsIntegrationsSlot
 import com.poracode.app.session.settingsintegrations.SettingsIntegrationsState
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun McpSettingsPane(
@@ -73,7 +74,7 @@ internal fun McpSettingsPane(
         item { SectionTitle(stringResource(R.string.settings_integrations_mcp_discovery)) }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
+                FilledTonalButton(
                     enabled = access.canRead && access.online,
                     onClick = {
                         callbacks.onDiscoverMcp(McpDiscoveryRequest(McpDiscoveryScope.User))
@@ -179,7 +180,7 @@ private fun McpServerRow(
         }
         if (probe != null) ProbeSummary(probe)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
+            FilledTonalButton(
                 enabled = canOperate && external.unsupportedReason == null,
                 onClick = onImport,
             ) { Text(stringResource(R.string.settings_integrations_import)) }
@@ -187,7 +188,7 @@ private fun McpServerRow(
                 enabled = canOperate && external.unsupportedReason == null,
                 onClick = onProbe,
             ) { Text(stringResource(R.string.settings_integrations_probe)) }
-            if (external.server.transport is McpTransport.Http) Button(
+            if (external.server.transport is McpTransport.Http) FilledTonalButton(
                 enabled = canOperate && external.unsupportedReason == null,
                 onClick = onOauth,
             ) { Text(stringResource(R.string.settings_integrations_authorize)) }
@@ -225,7 +226,7 @@ private fun OauthCard(lifecycle: OauthLifecycle, onLaunch: () -> Unit) {
                 OauthLifecycle.PausedInBackground -> R.string.settings_integrations_oauth_background
             })
             Text(message)
-            if (lifecycle is OauthLifecycle.LaunchRequired) Button(onClick = onLaunch) {
+            if (lifecycle is OauthLifecycle.LaunchRequired) FilledTonalButton(onClick = onLaunch) {
                 Text(stringResource(R.string.settings_integrations_open_browser))
             }
         }

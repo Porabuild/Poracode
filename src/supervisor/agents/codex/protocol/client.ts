@@ -29,8 +29,6 @@ import type {
   ThreadTurnsListResponse,
   ThreadResumeParams,
   ThreadResumeResponse,
-  ThreadRollbackParams,
-  ThreadRollbackResponse,
   ThreadSettingsUpdateParams,
   ThreadSettingsUpdateResponse,
   ThreadStartParams,
@@ -44,6 +42,9 @@ import type {
   TurnSteerParams,
   TurnSteerResponse,
 } from "@poracode/codex-protocol";
+import type { ThreadRollbackParams, ThreadRollbackResponse } from "./legacy";
+
+export type { ThreadRollbackParams, ThreadRollbackResponse } from "./legacy";
 
 type InitializeRequestParams = Omit<InitializeParams, "clientInfo"> & {
   clientInfo: Omit<InitializeParams["clientInfo"], "title"> & {
@@ -76,8 +77,6 @@ export type {
   ThreadReadResponse,
   ThreadResumeParams,
   ThreadResumeResponse,
-  ThreadRollbackParams,
-  ThreadRollbackResponse,
   ThreadSettingsUpdateParams,
   ThreadSettingsUpdateResponse,
   ThreadStartParams,

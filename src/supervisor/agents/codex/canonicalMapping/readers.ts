@@ -67,10 +67,18 @@ export interface CodexItemPayload {
   /** Generic tool output. */
   output?: unknown;
   result?: unknown;
+  /** Codex `imageGeneration` fields (0.167+ supports `fileId` without inline `result`). */
+  revisedPrompt?: string | null;
+  savedPath?: string | null;
+  fileId?: string | null;
+  generationId?: string | null;
+  failure?: unknown;
   /** Web search may carry a results array. */
   results?: unknown;
   /** Responses-style web search action (`search`, `open_page`, `find_in_page`). */
   action?: unknown;
+  /** Provider-classified command parts (`read`/`listFiles`/`search`/`unknown`). */
+  commandActions?: unknown;
 }
 
 export function readItem(

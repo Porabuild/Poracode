@@ -16,10 +16,13 @@ import {
   dbDeleteThread,
   dbGetThread,
   dbIsThreadPurgeEligible,
+  dbReconcileProjectWorktrees,
   dbSelectPurgeCandidateThreadIds,
   dbUpsertThread,
 } from "@/host/db";
 import { SupervisorClient, SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
+import type { GitStateServiceOptions } from "@/host/gitState";
+import { gitProjectKey } from "@/shared/gitState";
 import {
   agentStatusesResponseSchema,
   type PrWatch,
@@ -37,6 +40,7 @@ const mocks = vi.hoisted(() => ({
   threadsDeletedListeners: [] as Array<(threadIds: readonly string[]) => void>,
   liveThreadIds: [] as string[],
   retireWatchThread: null as ((watch: PrWatch, threadId: string) => Promise<boolean>) | null,
+  gitStateOptions: null as GitStateServiceOptions | null,
 }));
 
 // Real SupervisorClient restarts run against fake children (see the project
@@ -79,6 +83,8 @@ vi.mock("@/host/db", () => ({
   dbInterruptScheduleRuns: vi.fn<() => undefined>(),
   dbIsThreadPurgeEligible: vi.fn<() => boolean>(() => false),
   dbListThreadIds: vi.fn<() => string[]>(() => mocks.liveThreadIds),
+  dbReconcileProjectWorktrees: vi.fn<() => string[]>(() => []),
+  dbBeginWorktreeObservation: vi.fn<() => object>(() => ({})),
   dbSelectPurgeCandidateThreadIds: vi.fn<() => string[]>(() => []),
   dbUpdateScheduleRun: vi.fn<() => undefined>(),
   dbUpsertThread: vi.fn<() => undefined>(),
@@ -122,6 +128,9 @@ vi.mock("@/host/gitState", async (importOriginal) => ({
   ProjectWatchLeases: (await importOriginal<typeof import("@/host/gitState")>()).ProjectWatchLeases,
   createGitStateExecutor: () => ({}),
   GitStateService: class {
+    constructor(options: GitStateServiceOptions) {
+      mocks.gitStateOptions = options;
+    }
     start = () => {};
     dispose = () => {};
     observeSupervisorEvent = () => {};
@@ -203,6 +212,48 @@ function createDurable(
     ...overrides,
   } as unknown as BackendDurableServicesOptions);
 }
+
+it.each([true, false])(
+  "publishes corrected worktree links to clients with hasRendererWindow=%s",
+  async (hasRendererWindow) => {
+    const publishThreadsChanged = vi.fn<(ids: readonly string[]) => void>();
+    const onGitPatch = vi.fn<BackendDurableServicesOptions["onGitPatch"]>();
+    const durable = createDurable({ hasRendererWindow, publishThreadsChanged, onGitPatch });
+    const ref = { hostId: "device-1", projectId: "fixture-home" };
+    const worktrees = [
+      { path: "/repo/renamed-wt", branch: "renamed-branch", commit: "abc123", isMain: false },
+    ];
+    const patch = {
+      revision: 1,
+      projects: {
+        [gitProjectKey(ref)]: { ref, worktrees, refreshedAt: "2026-11-10T00:00:00.000Z" },
+      },
+    };
+    vi.mocked(dbReconcileProjectWorktrees).mockReturnValueOnce(["thread-1", "archived-sibling"]);
+    try {
+      const observe = mocks.gitStateOptions?.beginWorktreeObservation?.(ref.projectId);
+      expect(observe?.(worktrees)).toBe(true);
+      mocks.gitStateOptions?.onPatch?.(patch);
+      expect(dbReconcileProjectWorktrees).toHaveBeenCalledWith(
+        ref.projectId,
+        worktrees,
+        expect.any(Object),
+      );
+      expect(publishThreadsChanged).toHaveBeenCalledExactlyOnceWith([
+        "thread-1",
+        "archived-sibling",
+      ]);
+      expect(onGitPatch).toHaveBeenCalledExactlyOnceWith(patch);
+
+      publishThreadsChanged.mockClear();
+      observe?.(worktrees);
+      mocks.gitStateOptions?.onPatch?.({ ...patch, revision: 2 });
+      expect(publishThreadsChanged).not.toHaveBeenCalled();
+    } finally {
+      await durable.dispose();
+    }
+  },
+);
 
 describe("headless routing durability", () => {
   it("still confirms a persistence failure if diagnostic reporting itself throws", async () => {

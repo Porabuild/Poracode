@@ -38,6 +38,7 @@ class RichChatRemoteBodyExecutor internal constructor(
                 path = plan.path,
                 query = plan.query,
                 expectedStatus = plan.expectedStatus,
+                retryableRead = true,
             )
             val mediaType = response.contentType?.substringBefore(';')?.trim()?.lowercase()
             if (mediaType == null || !mediaType.startsWith("image/") || mediaType.length > 127) {

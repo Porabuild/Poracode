@@ -1,13 +1,14 @@
+import {
+  matchesSubmissionRecoveryContent,
+  parseSubmissionRecoveryContent,
+} from "@/renderer/actions/clientDraftSubmission";
 import { clientDraftPersistenceError } from "@/renderer/state/composerDrafts/persistenceError";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
-import {
-  composerDraftStorage,
-  draftContentSchema,
-  type DraftKind,
-} from "@/renderer/state/composerDraftStorage";
+import { useAppStore } from "@/renderer/state/appStore";
+import { composerDraftStorage, type DraftKind } from "@/renderer/state/composerDraftStorage";
 import {
   discardClientSubmission,
   listClientSubmissionsForDraft,
@@ -27,6 +28,11 @@ export function DraftRecoveryNotice(props: {
   const [record, setRecord] = useState<ClientDraftSubmission | undefined>();
   const [busyKey, setBusyKey] = useState<string>();
   const [copiedKey, setCopiedKey] = useState<string>();
+  const storeDraft = useAppStore((state) =>
+    props.kind === "project"
+      ? state.draftContents[props.ownerId]
+      : state.threadDraftContents[props.ownerId],
+  );
   const scope = JSON.stringify([props.kind, props.ownerId]);
   const scopeRef = useRef(scope);
   useLayoutEffect(() => {
@@ -41,6 +47,9 @@ export function DraftRecoveryNotice(props: {
       void listClientSubmissionsForDraft(
         JSON.stringify([props.kind, props.ownerId]),
         identity?.draftId,
+        props.kind === "project"
+          ? (candidate) => candidate.target === "local-checkpoint"
+          : undefined,
       )
         .then((records) => {
           if (!active || refreshGeneration !== generation) return;
@@ -49,6 +58,7 @@ export function DraftRecoveryNotice(props: {
               (candidate) =>
                 (candidate.scope === JSON.stringify([props.kind, props.ownerId]) ||
                   candidate.draftId === identity?.draftId) &&
+                (props.kind !== "project" || candidate.target === "local-checkpoint") &&
                 (candidate.state === "failed" ||
                   candidate.state === "uncertain" ||
                   candidate.state === "prepared" ||
@@ -68,22 +78,28 @@ export function DraftRecoveryNotice(props: {
     };
   }, [props.kind, props.ownerId]);
   const identity = composerDraftStorage()?.currentIdentity(props.kind, props.ownerId);
-  if (!record || props.pending || (record.scope !== scope && record.draftId !== identity?.draftId))
+  if (
+    !record ||
+    props.pending ||
+    (props.kind === "project" && record.target !== "local-checkpoint") ||
+    (record.scope !== scope && record.draftId !== identity?.draftId)
+  )
     return null;
   const uncertain = record.state === "uncertain" || record.state === "dispatching";
   const operationKey = JSON.stringify([scope, record.id, record.revision, record.fingerprint]);
+  if (!uncertain && copiedKey !== operationKey) {
+    const currentDraft =
+      storeDraft ?? composerDraftStorage()?.currentDraft(props.kind, props.ownerId);
+    if (matchesSubmissionRecoveryContent(record, currentDraft)) {
+      return null;
+    }
+  }
   const busy = busyKey === operationKey;
   const finish = async (restore: boolean) => {
     setBusyKey(operationKey);
     try {
       if (restore) {
-        const envelope = record.content as {
-          checkpoint?: { content?: unknown };
-          recoveryContent?: unknown;
-        };
-        const content = draftContentSchema.parse(
-          envelope.recoveryContent ?? envelope.checkpoint?.content,
-        );
+        const content = parseSubmissionRecoveryContent(record);
         props.onRestore(content);
         const storage = composerDraftStorage();
         if (!storage) throw clientDraftPersistenceError();

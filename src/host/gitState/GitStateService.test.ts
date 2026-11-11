@@ -94,6 +94,7 @@ function executor(): GitStateExecutor {
       return { status: "ready", prs: {}, ...result };
     }),
     gitFetch: vi.fn<GitStateExecutor["gitFetch"]>(async () => undefined),
+    gitListWorktrees: vi.fn<GitStateExecutor["gitListWorktrees"]>(async () => ({ worktrees: [] })),
     gitProjectSnapshot: vi.fn<GitStateExecutor["gitProjectSnapshot"]>(async () => ({
       status: status(),
       branches: { current: "feature/unified", branches: [] },
@@ -149,6 +150,111 @@ function createService(overrides: Partial<GitStateServiceOptions> = {}): {
 }
 
 describe("GitStateService", () => {
+  it("repairs links on Git watcher changes without client interests", async () => {
+    const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
+    const { service, executor: fakeExecutor } = createService({
+      beginWorktreeObservation: () => observe,
+    });
+    service.observeSupervisorEvent({ type: "git-changed", projectId: project.id });
+    await vi.waitFor(() => expect(observe).toHaveBeenCalledExactlyOnceWith([]));
+    service.observeSupervisorEvent({ type: "project-tree-changed", projectId: project.id });
+    await service.dispose();
+    expect(fakeExecutor.gitListWorktrees).toHaveBeenCalledTimes(1);
+    expect(fakeExecutor.gitProjectSnapshot).not.toHaveBeenCalled();
+  });
+  it.each(["snapshot", "registry"])(
+    "discards superseded registry data from a %s without discarding unrelated status",
+    async (kind) => {
+      const beginWorktreeObservation = vi.fn<
+        NonNullable<GitStateServiceOptions["beginWorktreeObservation"]>
+      >(() => () => false);
+      const { service, patches } = createService({ beginWorktreeObservation });
+      if (kind === "snapshot") await service.refreshProject(project.id);
+      else
+        await service.refreshInterests([
+          { kind: "target", projectId: project.id, worktreePath: "/repo/wt" },
+        ]);
+      const projects = Object.values(service.getSnapshot().projects);
+      expect(projects.map((entry) => entry.status)).toEqual(kind === "registry" ? [] : [status()]);
+      expect(
+        patches.mock.calls
+          .flatMap(([patch]) => Object.values(patch.projects ?? {}))
+          .every((entry) => entry.worktrees === undefined),
+      ).toBe(true);
+      await service.dispose();
+    },
+  );
+  it.each([false, true])(
+    "preserves root status for mixed root/worktree interests (rootFirst=%s)",
+    async (rootFirst) => {
+      const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
+      const { service, executor: fakeExecutor } = createService({
+        beginWorktreeObservation: () => observe,
+      });
+      const interests = [
+        { kind: "target" as const, projectId: project.id },
+        { kind: "target" as const, projectId: project.id, worktreePath: "/repo/wt" },
+      ];
+      await service.refreshInterests(rootFirst ? interests : interests.reverse());
+      expect(fakeExecutor.gitListWorktrees).not.toHaveBeenCalled();
+      expect(fakeExecutor.gitProjectSnapshot).toHaveBeenCalledTimes(1);
+      expect(Object.values(service.getSnapshot().projects)[0]?.status).toEqual(status());
+      expect(
+        service.getSnapshot().targets[gitTargetKey({ hostId: "host-1", projectId: project.id })]
+          ?.status,
+      ).toEqual(status());
+      await service.dispose();
+    },
+  );
+  it("refreshes the registry once for clients interested only in linked worktrees", async () => {
+    const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
+    const { service, executor: fakeExecutor } = createService({
+      beginWorktreeObservation: () => observe,
+    });
+    await service.refreshInterests([
+      { kind: "target", projectId: project.id, worktreePath: "/repo/wt-a" },
+      { kind: "target", projectId: project.id, worktreePath: "/repo/wt-b" },
+    ]);
+    expect(fakeExecutor.gitListWorktrees).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: project.location,
+    });
+    expect(fakeExecutor.gitProjectSnapshot).not.toHaveBeenCalled();
+    expect(observe).toHaveBeenCalledExactlyOnceWith([]);
+    await service.dispose();
+  });
+
+  it("reconciles saved worktree links only from fresh reads, never cached notifications", async () => {
+    const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
+    const { service } = createService({ beginWorktreeObservation: () => observe });
+    await service.refreshProject(project.id);
+    expect(observe).toHaveBeenCalledExactlyOnceWith([]);
+    service.observeSupervisorEvent({
+      type: "github-polling-status",
+      projectLocation: project.location,
+      problem: { kind: "authentication", executionHost: "host", retryAt: "later" },
+    });
+    expect(observe).toHaveBeenCalledTimes(1);
+    await service.dispose();
+  });
+
+  it("discards a worktree snapshot if the project moved during the read", async () => {
+    let currentProject = project;
+    const {
+      service,
+      executor: fakeExecutor,
+      patches,
+    } = createService({ getProject: () => currentProject });
+    const pending =
+      Promise.withResolvers<Awaited<ReturnType<GitStateExecutor["gitProjectSnapshot"]>>>();
+    vi.mocked(fakeExecutor.gitProjectSnapshot).mockReturnValueOnce(pending.promise);
+    const refresh = service.refreshProject(project.id);
+    currentProject = { ...project, location: { kind: "posix", path: "/moved-repo" } };
+    pending.resolve({ status: null, branches: null, worktrees: [], ghAvailable: false });
+    await refresh;
+    expect(patches).not.toHaveBeenCalled();
+    await service.dispose();
+  });
+
   it("publishes recovery from direct client polling before unrelated host patches", async () => {
     const { service, patches } = createService();
     const event = {

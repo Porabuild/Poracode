@@ -5,31 +5,24 @@
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-      if #available(iOS 26, *) {
-        GlassEffectContainer(spacing: 12) {
-          content()
-            .padding(8)
-            .glassEffect(.regular, in: .rect(cornerRadius: 14))
-        }
-      } else {
-        content()
-          .padding(8)
-          .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14))
-      }
+      content()
+        .padding(8)
+        .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
   }
 
   struct BrowserMirrorToolbarButton<Label: View>: View {
     let action: () -> Void
+    var onSurface = false
     @ViewBuilder let label: () -> Label
 
     var body: some View {
-      if #available(iOS 26, *) {
+      if onSurface {
         Button(action: action, label: label)
-          .buttonStyle(.glass)
+          .poracodeSurfaceButtonStyle()
       } else {
         Button(action: action, label: label)
-          .buttonStyle(.bordered)
+          .poracodeGlassButtonStyle()
       }
     }
   }

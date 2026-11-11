@@ -22,6 +22,7 @@ import kotlinx.serialization.json.putJsonArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -395,5 +396,62 @@ class RichChatUiLogicTest {
             },
         )
         assertTrue(RichChatUiLogic.chatFiles(item).isEmpty())
+    }
+
+    @Test
+    fun completedTurnDurationHidesSubSecondTurns() {
+        assertNull(RichChatUiLogic.completedTurnDurationParts(0))
+        assertNull(RichChatUiLogic.completedTurnDurationParts(999))
+        assertEquals(
+            listOf(1 to RichChatUiLogic.RichDurationUnit.Second),
+            RichChatUiLogic.completedTurnDurationParts(1_000),
+        )
+    }
+
+    @Test
+    fun completedTurnDurationUnderHourUsesMinutesAndSeconds() {
+        assertEquals(
+            listOf(
+                59 to RichChatUiLogic.RichDurationUnit.Minute,
+                59 to RichChatUiLogic.RichDurationUnit.Second,
+            ),
+            RichChatUiLogic.completedTurnDurationParts(3_599_000),
+        )
+        assertEquals(
+            listOf(1 to RichChatUiLogic.RichDurationUnit.Minute),
+            RichChatUiLogic.completedTurnDurationParts(60_000),
+        )
+        assertEquals(
+            listOf(
+                1 to RichChatUiLogic.RichDurationUnit.Minute,
+                5 to RichChatUiLogic.RichDurationUnit.Second,
+            ),
+            RichChatUiLogic.completedTurnDurationParts(65_000),
+        )
+    }
+
+    @Test
+    fun completedTurnDurationAtHourUsesHoursAndMinutes() {
+        assertEquals(
+            listOf(1 to RichChatUiLogic.RichDurationUnit.Hour),
+            RichChatUiLogic.completedTurnDurationParts(3_600_000),
+        )
+        assertEquals(
+            listOf(
+                2 to RichChatUiLogic.RichDurationUnit.Hour,
+                5 to RichChatUiLogic.RichDurationUnit.Minute,
+            ),
+            RichChatUiLogic.completedTurnDurationParts(7_500_000),
+        )
+    }
+
+    @Test
+    fun canTruncateRejectsBlankAndLastVisibleItem() {
+        assertFalse(RichChatUiLogic.canTruncate("", "item-1"))
+        assertFalse(RichChatUiLogic.canTruncate("   ", "item-1"))
+        assertFalse(RichChatUiLogic.canTruncate("item-1", "item-1"))
+        assertFalse(RichChatUiLogic.canTruncate(" item-1 ", "item-1"))
+        assertTrue(RichChatUiLogic.canTruncate("item-1", "item-2"))
+        assertTrue(RichChatUiLogic.canTruncate("item-1", null))
     }
 }

@@ -49,6 +49,27 @@ struct ArchivedThreadsView: View {
       consume(outcome)
     }
     .onDisappear { lifecycle.deactivate() }
+    .confirmationDialog(
+      actionThread?.title ?? ArchivedThreadsStrings.title,
+      isPresented: Binding(
+        get: { actionThread != nil },
+        set: { if !$0 { actionThread = nil } }
+      ),
+      titleVisibility: .visible
+    ) {
+      if let thread = actionThread {
+        Button(ThreadLifecycleStrings.unarchive) {
+          actionThread = nil
+          restore(thread)
+        }
+        .disabled(!canOperate || lifecycle.isBusy)
+        Button(ThreadLifecycleStrings.delete, role: .destructive) {
+          actionThread = nil
+          requestDelete(thread)
+        }
+        .disabled(!canOperate || lifecycle.isBusy)
+      }
+    }
   }
 
   private var archivedThreads: [RemoteThread] {
@@ -72,40 +93,21 @@ struct ArchivedThreadsView: View {
       && session.currentThreadSessionAccess?.scopes.contains("session:operate") == true
   }
 
+  @State private var actionThread: RemoteThread?
+
   private func row(_ thread: RemoteThread) -> some View {
     HStack(spacing: 8) {
-      PoracodeThreadRow(
-        thread: thread,
-        projectName: projectsByID[thread.projectId]?.name,
-        showsRelativeTime: true,
-        isOpening: lifecycle.isBusy && mutatingThreadID == thread.id
-      )
-      Menu {
-        Button {
-          restore(thread)
-        } label: {
-          PoracodeActionLabel(
-            ThreadLifecycleStrings.unarchive,
-            systemImage: "arrow.uturn.backward"
-          )
-        }
-        .buttonStyle(.plain)
-        Button(role: .destructive) {
-          requestDelete(thread)
-        } label: {
-          PoracodeActionLabel(
-            ThreadLifecycleStrings.delete,
-            systemImage: "trash",
-            tone: .destructive
-          )
-        }
-        .buttonStyle(.plain)
+      Button {
+        actionThread = thread
       } label: {
-        Image(systemName: "ellipsis.circle")
-          .foregroundStyle(.secondary)
+        PoracodeThreadRow(
+          thread: thread,
+          projectName: projectsByID[thread.projectId]?.name,
+          showsRelativeTime: true,
+          isOpening: lifecycle.isBusy && mutatingThreadID == thread.id
+        )
       }
-      .disabled(!canOperate || lifecycle.isBusy)
-      .accessibilityLabel(ThreadLifecycleStrings.actions)
+      .buttonStyle(.plain)
     }
     .padding(.vertical, 2)
     .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -114,7 +116,7 @@ struct ArchivedThreadsView: View {
       } label: {
         Label(ThreadLifecycleStrings.unarchive, systemImage: "arrow.uturn.backward")
       }
-      .tint(.accentColor)
+      .tint(.gray)
       .disabled(!canOperate || lifecycle.isBusy)
     }
     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -125,6 +127,37 @@ struct ArchivedThreadsView: View {
       }
       .disabled(!canOperate || lifecycle.isBusy)
     }
+    .contextMenu {
+      archivedActions(thread)
+    }
+    .accessibilityActions {
+      archivedActions(thread)
+    }
+  }
+
+  @ViewBuilder
+  private func archivedActions(_ thread: RemoteThread) -> some View {
+    Button {
+      restore(thread)
+    } label: {
+      PoracodeActionLabel(
+        ThreadLifecycleStrings.unarchive,
+        systemImage: "arrow.uturn.backward"
+      )
+    }
+    .buttonStyle(.plain)
+    .disabled(!canOperate || lifecycle.isBusy)
+    Button(role: .destructive) {
+      requestDelete(thread)
+    } label: {
+      PoracodeActionLabel(
+        ThreadLifecycleStrings.delete,
+        systemImage: "trash",
+        tone: .destructive
+      )
+    }
+    .buttonStyle(.plain)
+    .disabled(!canOperate || lifecycle.isBusy)
   }
 
   private func restore(_ thread: RemoteThread) {

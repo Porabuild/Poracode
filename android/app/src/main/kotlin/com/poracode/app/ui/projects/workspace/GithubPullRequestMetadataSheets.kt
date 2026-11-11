@@ -18,7 +18,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -35,9 +34,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.protocol.forge.ForgeReviewOperation
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import androidx.compose.material3.FilledTonalButton
 
 private const val REVIEWER_SEARCH_DEBOUNCE_MS = 300L
 
@@ -103,7 +104,7 @@ internal fun LabelEditorSheet(
         if (saveFailed) ErrorLine(R.string.forge_review_metadata_failed)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TextButton(onDismiss, Modifier.weight(1f)) { Text(stringResource(R.string.git_cancel)) }
-            Button(
+            FilledTonalButton(
                 onClick = {
                     saving = true
                     saveFailed = false
@@ -164,7 +165,7 @@ internal fun ReviewerEditorSheet(
                 }
             }
         }
-        OutlinedTextField(
+        PoracodeTextField(
             value = query,
             onValueChange = { query = it.take(MAX_REVIEWER_QUERY) },
             label = { Text(stringResource(R.string.forge_review_reviewer_search)) },

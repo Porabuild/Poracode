@@ -25,6 +25,7 @@ import {
 import { requireRuntimeTargetKey } from "./target.mjs";
 import { CLI_COMPLETION_HELP, renderCompletion } from "./completion.mjs";
 import { standaloneRuntimeNode } from "./standalone.mjs";
+import { offerCommandInstall } from "./installOffer.mjs";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -88,7 +89,7 @@ export async function resolveRuntimeDir(input = {}) {
     return [signal, handler];
   });
   try {
-    return await ensureRuntime({
+    const directory = await ensureRuntime({
       version,
       target,
       entry,
@@ -97,6 +98,8 @@ export async function resolveRuntimeDir(input = {}) {
       ...(override ? { localTarball: override.localTarball } : {}),
       ...(input.installOptions ?? {}),
     });
+    input.onVerifiedRuntime?.({ directory, sha256: entry.sha256, target });
+    return directory;
   } catch (error) {
     if (!override && error?.code === "PORACODE_RUNTIME_DOWNLOAD_FAILED") {
       throw offlineNoCache(entry.url, runtimeDirectory(cacheRoot, version, target));
@@ -210,15 +213,54 @@ export async function runCli(argv = process.argv.slice(2), options = {}) {
         "PORACODE_SERVER_TARBALL_SHA256 before install.\n",
     );
   }
+  let verifiedRuntime;
   const runtimeDir = await resolveRuntimeDir({
     env,
+    onVerifiedRuntime: (value) => {
+      verifiedRuntime = value;
+    },
     ...(options.installOptions ? { installOptions: options.installOptions } : {}),
   });
+  // The child can reuse this exact manifest-verified cache entry for a
+  // persistent service; it must not substitute a later same-version asset.
+  const ordinaryEnv = { ...env };
+  delete ordinaryEnv.PORACODE_LAUNCHER_RUNTIME_ROOT;
+  delete ordinaryEnv.PORACODE_LAUNCHER_RUNTIME_SHA256;
+  delete ordinaryEnv.PORACODE_LAUNCHER_RUNTIME_TARGET;
+  const verifiedEnv = {
+    ...ordinaryEnv,
+    PORACODE_LAUNCHER_RUNTIME_ROOT: runtimeDir,
+    PORACODE_LAUNCHER_RUNTIME_SHA256: verifiedRuntime.sha256,
+    PORACODE_LAUNCHER_RUNTIME_TARGET: verifiedRuntime.target,
+  };
+  if (argv.length === 0) {
+    await offerCommandInstall({
+      env: ordinaryEnv,
+      interactive:
+        process.stdin.isTTY === true &&
+        process.stdout.isTTY === true &&
+        process.stderr.isTTY === true,
+      ...(options.promptInstall ? { prompt: options.promptInstall } : {}),
+      install: async () => {
+        const code = await execServer({
+          runtimeDir,
+          args: ["install-command"],
+          version,
+          env: verifiedEnv,
+          ...(options.spawnImpl ? { spawnImpl: options.spawnImpl } : {}),
+        });
+        if (code !== 0)
+          process.stderr.write(
+            "[poracode] Command installation failed; continuing with the npm runtime.\n",
+          );
+      },
+    });
+  }
   return await execServer({
     runtimeDir,
     args: argv,
     version,
-    env,
+    env: ["up", "update", "install-command"].includes(argv[0]) ? verifiedEnv : ordinaryEnv,
     ...(options.spawnImpl ? { spawnImpl: options.spawnImpl } : {}),
   });
 }
@@ -310,7 +352,7 @@ function printHelp(stream, version) {
       "  Subcommand details: poracode providers configure --help or poracode auth login --help (from the runtime).\n" +
       "\n" +
       "Environment:\n" +
-      "  PORACODE_BASE_DIR          profile namespace (runtime cache lives beside it)\n" +
+      "  PORACODE_BASE_DIR          profile namespace\n" +
       "  PORACODE_RUNTIME_CACHE_DIR override the runtime cache root\n" +
       "  PORACODE_SERVER_TARBALL    install a local verified tarball instead of downloading\n" +
       "  PORACODE_SERVER_TARBALL_SHA256  required with PORACODE_SERVER_TARBALL\n",

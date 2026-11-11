@@ -8,7 +8,7 @@
 
 import { readFileSync, statSync } from "node:fs";
 import { extname } from "node:path";
-import type { CanonicalItemType } from "@/shared/contracts";
+import type { CanonicalItemType, CommandAction } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
 import { toWslUncPath } from "@/shared/wsl";
 import { inferFileChangeKindFromSource } from "../../fileChangeKind";
@@ -43,8 +43,13 @@ export function readCommandAggregatedOutput(
   return undefined;
 }
 
-export function codexFinalStatus(raw: unknown): "success" | "error" {
-  return raw === "failed" || raw === "declined" || raw === "error" || raw === "interrupted"
+export function codexFinalStatus(raw: unknown, failure?: unknown): "success" | "error" {
+  if (failure !== undefined && failure !== null) return "error";
+  return raw === "failed" ||
+    raw === "declined" ||
+    raw === "error" ||
+    raw === "interrupted" ||
+    raw === "incomplete"
     ? "error"
     : "success";
 }
@@ -58,22 +63,154 @@ export function pickToolInput(source: CodexItemPayload): unknown {
   if (isCodexCollabAgentToolCall(source)) return pickCollabAgentInput(source);
   const imagePath = source.type === "imageView" ? readNonEmptyString(source.path) : undefined;
   if (imagePath) return { path: imagePath };
+  if (source.type === "imageGeneration") {
+    const imageGenInput = pickImageGenerationInput(source);
+    if (imageGenInput) return imageGenInput;
+  }
   if (source.args !== undefined) return source.args;
   if (source.input !== undefined) return source.input;
   if (source.arguments !== undefined) return source.arguments;
   return undefined;
 }
 
+function pickImageGenerationInput(source: CodexItemPayload): Record<string, unknown> | undefined {
+  const prompt = readNonEmptyString(source.revisedPrompt);
+  const savedPath = readNonEmptyString(source.savedPath);
+  const fileId = readNonEmptyString(source.fileId);
+  const generationId = readNonEmptyString(source.generationId);
+  if (!prompt && !savedPath && !fileId && !generationId) return undefined;
+  return {
+    ...(prompt ? { prompt } : {}),
+    ...(savedPath ? { path: savedPath, savedPath } : {}),
+    ...(fileId ? { fileId } : {}),
+    ...(generationId ? { generationId } : {}),
+  };
+}
+
 export function pickCodexWebSearchInput(source: CodexItemPayload): unknown {
-  if (source.action !== undefined) return source.action;
+  // `action` is null on the started item; only a real action object is input.
+  if (readRecord(source.action)) return source.action;
   return pickToolInput(source);
+}
+
+/**
+ * Normalize Codex `commandActions` into shared `CommandAction` entries. Codex
+ * classifies a command as exploration only when every part is known, so any
+ * `unknown` or malformed entry drops the whole array (mirrors the provider).
+ */
+export function readCodexCommandActions(source: CodexItemPayload): CommandAction[] | undefined {
+  if (!Array.isArray(source.commandActions) || source.commandActions.length === 0) {
+    return undefined;
+  }
+  const actions: CommandAction[] = [];
+  for (const entry of source.commandActions) {
+    const record = readRecord(entry);
+    const type = readNonEmptyString(record?.type);
+    if (!record || !type) return undefined;
+    const path = readNonEmptyString(record.path);
+    const name = readNonEmptyString(record.name);
+    const query = readNonEmptyString(record.query);
+    if (type === "read") {
+      if (!path) return undefined;
+      actions.push({ kind: "read", path, ...(name ? { name } : {}), ...(query ? { query } : {}) });
+    } else if (type === "listFiles") {
+      actions.push({ kind: "list", ...(path ? { path } : {}), ...(name ? { name } : {}) });
+    } else if (type === "search") {
+      actions.push({
+        kind: "search",
+        ...(path ? { path } : {}),
+        ...(name ? { name } : {}),
+        ...(query ? { query } : {}),
+      });
+    } else {
+      return undefined;
+    }
+  }
+  return actions;
+}
+
+export interface CodexWebSearchAction {
+  action: string;
+  queries?: string[];
+  url?: string;
+  pattern?: string;
+}
+
+/**
+ * Read the Responses-style web-search `action` object. `openPage`/`findInPage`
+ * arrive camelCased on the wire; the shared payload stores snake_case kinds.
+ */
+export function readCodexWebSearchAction(
+  source: CodexItemPayload,
+): CodexWebSearchAction | undefined {
+  const action = readRecord(source.action);
+  if (!action) return undefined;
+  const type = readNonEmptyString(action.type);
+  let kind: string | undefined;
+  if (type === "search") kind = "search";
+  else if (type === "openPage" || type === "open_page") kind = "open_page";
+  else if (type === "findInPage" || type === "find_in_page") kind = "find_in_page";
+  if (!kind) return undefined;
+
+  const url = readNonEmptyString(action.url);
+  const pattern = readNonEmptyString(action.pattern);
+  const queries = readStringList(action.queries);
+  if (queries.length === 0) {
+    const query = readNonEmptyString(action.query);
+    if (query) queries.push(query);
+  }
+  return {
+    action: kind,
+    ...(queries.length > 0 ? { queries } : {}),
+    ...(url ? { url } : {}),
+    ...(pattern ? { pattern } : {}),
+  };
+}
+
+function readStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of value) {
+    const text = readNonEmptyString(item);
+    if (text && !seen.has(text)) {
+      seen.add(text);
+      out.push(text);
+    }
+  }
+  return out;
 }
 
 export function pickToolOutput(source: CodexItemPayload): unknown {
   if (source.result !== undefined) return source.result;
   if (source.output !== undefined) return source.output;
+  if (source.type === "imageGeneration") {
+    const imageGenResult = pickImageGenerationOutput(source);
+    if (imageGenResult) return imageGenResult;
+  }
   if (isCodexCollabAgentToolCall(source)) return pickCollabAgentResult(source);
   return undefined;
+}
+
+/**
+ * Codex 0.167+ can return `imageGeneration` items with `{ fileId }` (and optional
+ * `savedPath`, `revisedPrompt`, `generationId`, `failure`) instead of inline base64
+ * `result`. Preserve the structured metadata on `result` when `source.result` is absent.
+ */
+function pickImageGenerationOutput(source: CodexItemPayload): Record<string, unknown> | undefined {
+  const fileId = readNonEmptyString(source.fileId);
+  const savedPath = readNonEmptyString(source.savedPath);
+  const revisedPrompt = readNonEmptyString(source.revisedPrompt);
+  const generationId = readNonEmptyString(source.generationId);
+  const failure = readRecord(source.failure);
+  if (!fileId && !savedPath && !revisedPrompt && !generationId && !failure) return undefined;
+  return {
+    ...(fileId ? { fileId } : {}),
+    ...(savedPath ? { savedPath } : {}),
+    ...(revisedPrompt ? { revisedPrompt } : {}),
+    ...(generationId ? { generationId } : {}),
+    ...(failure ? { failure } : {}),
+  };
 }
 
 const IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
@@ -93,13 +230,23 @@ const MAX_PREVIEW_SOURCE_BYTES = 20 * 1024 * 1024;
 const MAX_CONCURRENT_IMAGE_PREVIEWS = 2;
 let activeImagePreviews = 0;
 
-/** Convert Codex's native `imageView.path` into the shared inline-image channel. */
+/**
+ * Convert Codex's native `imageView.path` or `imageGeneration.savedPath` (when no
+ * inline base64 `result` is present) into the shared inline-image channel.
+ */
 export function readCodexImageViewDataUrl(
   source: CodexItemPayload,
   wslDistro?: string,
 ): string | undefined {
-  if (source.type !== "imageView") return undefined;
-  const imagePath = readNonEmptyString(source.path);
+  let imagePath: string | undefined;
+  if (source.type === "imageView") {
+    imagePath = readNonEmptyString(source.path);
+  } else if (
+    source.type === "imageGeneration" &&
+    (typeof source.result !== "string" || source.result.length === 0)
+  ) {
+    imagePath = readNonEmptyString(source.savedPath);
+  }
   if (!imagePath) return undefined;
   const mimeType = IMAGE_MIME_BY_EXTENSION[extname(imagePath).toLowerCase()];
   if (!mimeType) return undefined;
@@ -255,20 +402,55 @@ function rawMcpServerId(source: CodexItemPayload): string | undefined {
 }
 
 export function extractCodexWebSearchQuery(source: CodexItemPayload): string | undefined {
+  // The structured action carries the real queries; `source.query` can be a
+  // display string (multi-query searches arrive truncated with " ...").
+  const action = readCodexWebSearchAction(source);
+  if (action) {
+    if (action.action === "search" && action.queries && action.queries.length > 0) {
+      return action.queries.join(" · ");
+    }
+    if (action.action === "open_page" && action.url) return action.url;
+    if (action.action === "find_in_page") {
+      if (action.pattern && action.url) return `${action.pattern} in ${action.url}`;
+      if (action.pattern) return action.pattern;
+      if (action.url) return action.url;
+    }
+  }
+
   const direct = readNonEmptyString(source.query) ?? readNonEmptyString(source.text);
   if (direct) return direct;
 
-  const action = readRecord(source.action);
-  if (!action) return undefined;
-  const actionQuery = readNonEmptyString(action.query);
+  const record = readRecord(source.action);
+  if (!record) return undefined;
+  const actionQuery = readNonEmptyString(record.query);
   if (actionQuery) return actionQuery;
 
-  const url = readNonEmptyString(action.url);
-  const pattern = readNonEmptyString(action.pattern);
+  const url = readNonEmptyString(record.url);
+  const pattern = readNonEmptyString(record.pattern);
   if (url && pattern) return `${pattern} in ${url}`;
   if (url) return url;
   if (pattern) return pattern;
   return undefined;
+}
+
+/**
+ * Shape Codex `webSearch.results` (`text_result` entries with title/url) into
+ * canonical `result.contents` text blocks so expanded rows have a body.
+ * `resultCount` stays the full results length; contents are capped at 50.
+ */
+export function readCodexWebSearchResultContents(
+  source: CodexItemPayload,
+): { contents: Array<{ type: "text"; text: string }> } | undefined {
+  if (!Array.isArray(source.results)) return undefined;
+  const contents = source.results.flatMap((entry) => {
+    const record = readRecord(entry);
+    if (!record) return [];
+    const title = readNonEmptyString(record.title);
+    const url = readNonEmptyString(record.url);
+    if (!title && !url) return [];
+    return [{ type: "text" as const, text: [title, url].filter(Boolean).join("\n") }];
+  });
+  return contents.length > 0 ? { contents: contents.slice(0, 50) } : undefined;
 }
 
 /**

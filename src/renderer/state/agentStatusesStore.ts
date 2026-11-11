@@ -373,13 +373,13 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 72,
+      version: 73,
       // hasCompletedDiscovery is additive: old readers ignore it. Keep v67
       // inventories valid; infer the flag from older snapshots before clearing
       // outdated capabilities, independently of supervisor STATUS_CACHE_VERSION.
       // Discovery interaction flags are excluded by partialize and do not
       // change the persisted format.
-      // v63-v72 mirror host generations v67-v76. Reuse their unchanged rows
+      // v63-v73 mirror host generations v67-v77. Reuse their unchanged rows
       // through the host codec; only affected providers need new observations.
       migrate: (persisted, version) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
@@ -394,6 +394,7 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
           70: 74,
           71: 75,
           72: 76,
+          73: 77,
         };
         const cached = decodeAgentStatusCache({
           version: hostVersions[version] ?? 1,

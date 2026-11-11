@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -22,6 +18,10 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.projects.ProjectHostLease
 import com.poracode.app.session.projects.ProjectOperationFailure
+import com.poracode.app.ui.theme.PoracodeIcons
+
+/** Bottom clearance so pane content scrolls clear of the floating workspace bar. */
+internal val WorkspaceBottomBarClearance = 96.dp
 
 @Composable
 internal fun ProjectWorkspaceAccessBanner(
@@ -48,7 +48,7 @@ internal fun ProjectWorkspaceAccessBanner(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                if (!access.online) Icons.Outlined.CloudOff else Icons.Outlined.Lock,
+                if (!access.online) PoracodeIcons.CloudOff else PoracodeIcons.Lock,
                 contentDescription = null,
             )
             Text(message, style = MaterialTheme.typography.bodySmall)
@@ -86,7 +86,7 @@ internal fun ProjectWorkspaceFailureCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.WarningAmber, contentDescription = null)
+            Icon(PoracodeIcons.WarningAmber, contentDescription = null)
             Text(message, style = MaterialTheme.typography.bodySmall)
         }
     }

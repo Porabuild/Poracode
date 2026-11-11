@@ -37,7 +37,7 @@ struct ProjectWorkspacePage<
   var body: some View {
     workspaceContent
       .tint(.secondary)
-      .safeAreaInset(edge: .bottom, spacing: 0) {
+      .poracodeBottomBar {
         if showsWorkspaceControls {
           bottomControls
         }

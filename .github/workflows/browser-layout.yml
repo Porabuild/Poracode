@@ -1,0 +1,56 @@
+name: Browser layout tests
+
+# Real-Chromium layout tests for the chat transcript (`bun run test:browser`),
+# because jsdom has no layout engine. It is deliberately its own workflow and
+# not a required check until it has a track record, so a failure can't fail CI
+# or block the nightly PWA, which deploys only after a successful CI run.
+on:
+  pull_request:
+    branches: [master, poracode/v2, poracode/v4-integration]
+    paths:
+      - "src/renderer/**"
+      - "vitest.browser.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - "patches/**"
+      - ".github/actions/setup-bun/**"
+      - ".github/workflows/browser-layout.yml"
+  push:
+    branches: [master]
+    paths:
+      - "src/renderer/**"
+      - "vitest.browser.config.ts"
+      - "package.json"
+      - "bun.lock"
+      - "patches/**"
+      - ".github/actions/setup-bun/**"
+      - ".github/workflows/browser-layout.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  browser_layout:
+    name: Browser layout tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+
+      - name: Install Chromium for Playwright
+        run: node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Real-layout transcript tests
+        run: bun run test:browser

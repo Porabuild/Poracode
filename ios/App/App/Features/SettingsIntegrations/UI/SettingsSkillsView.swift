@@ -124,6 +124,7 @@ struct SettingsSkillsView: View {
         )
         .labelsHidden()
         .disabled(!canOperate || !skill.mutable || controller.isMutating)
+        .poracodeSwitchStyle()
       }
       HStack {
         if !skill.valid {

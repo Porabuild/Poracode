@@ -10,7 +10,7 @@ struct RichChatReasoningRow: View {
     VStack(alignment: .leading, spacing: 7) {
       Button(action: toggleExpanded) {
         HStack(spacing: 6) {
-          Image(systemName: "brain.head.profile")
+          RichChatIcon(.thought)
             .font(.caption)
             .symbolEffect(.pulse, options: .repeating, isActive: isWorking)
           Text(isWorking ? RichChatStrings.thinking : RichChatStrings.reasoning)
@@ -71,7 +71,7 @@ struct RichChatReasoningRow: View {
 struct RichChatActivityRow: View {
   let title: String
   let text: String
-  let systemImage: String
+  let icon: RichChatIcon.Kind
   let duration: String?
   let isWorking: Bool
 
@@ -81,7 +81,7 @@ struct RichChatActivityRow: View {
     VStack(alignment: .leading, spacing: 6) {
       Button(action: toggleExpanded) {
         HStack(spacing: 6) {
-          Image(systemName: systemImage)
+          RichChatIcon(icon)
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(width: 14)
@@ -131,5 +131,49 @@ struct RichChatActivityRow: View {
   private func toggleExpanded() {
     guard !text.isEmpty else { return }
     withAnimation(.snappy(duration: 0.22)) { expanded.toggle() }
+  }
+}
+
+/// Template vectors generated from the same Lucide source as the PWA/Android.
+struct RichChatIcon: View {
+  enum Kind: String {
+    case copy = "ChatCopy"
+    case truncate = "ChatTruncate"
+    case fork = "ChatFork"
+    case gitBranch = "ChatGitBranch"
+    case view = "ChatView"
+    case search = "ChatSearch"
+    case edit = "ChatEdit"
+    case command = "ChatCommand"
+    case mcp = "ChatMcp"
+    case tool = "ChatTool"
+    case thought = "ChatThought"
+    case arrowDown = "ChatArrowDown"
+
+    init(category: RichChatStrings.RichChatActivityCategory) {
+      self = switch category {
+      case .view: .view
+      case .search: .search
+      case .edit: .edit
+      case .command: .command
+      case .mcp: .mcp
+      case .tool: .tool
+      case .thought: .thought
+      }
+    }
+  }
+
+  let kind: Kind
+  @ScaledMetric(relativeTo: .caption) private var size: CGFloat = 13
+
+  init(_ kind: Kind) { self.kind = kind }
+
+  var body: some View {
+    Image(kind.rawValue)
+      .resizable()
+      .renderingMode(.template)
+      .scaledToFit()
+      .frame(width: size, height: size)
+      .accessibilityHidden(true)
   }
 }

@@ -304,6 +304,11 @@ export async function startServerService(
   }
   const entry = join(resolve(prefix), "current", "lib", "server.cjs");
   const env: NodeJS.ProcessEnv = { ...(input.env ?? process.env) };
+  // Launcher cache custody is valid only for the short-lived update command,
+  // not the restarted host or its later child processes.
+  delete env.PORACODE_LAUNCHER_RUNTIME_ROOT;
+  delete env.PORACODE_LAUNCHER_RUNTIME_SHA256;
+  delete env.PORACODE_LAUNCHER_RUNTIME_TARGET;
   if (input.staging) env.PORACODE_UPGRADE_STAGING = "1";
   const child = spawn(releaseNodeExecutable(join(resolve(prefix), "current")), [entry], {
     detached: true,

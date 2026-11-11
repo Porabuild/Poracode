@@ -49,6 +49,7 @@ struct RichChatComposerView: View {
   @State private var controlsPresented: RichChatComposerControlsPresentation?
   @State private var showsSkillPicker = false
   @State private var draftSelection: NSRange?
+  @Namespace private var composerGlassNamespace
 
   var body: some View {
     VStack(spacing: 6) {
@@ -91,6 +92,7 @@ struct RichChatComposerView: View {
           hiddenModels: hiddenModels,
           hasStartedSession: hasStartedSession
         )
+        .poracodeZoomTransition(sourceID: "richchat.composer-controls", in: composerGlassNamespace)
       }
     }
     .sheet(isPresented: $showsSkillPicker) {
@@ -109,12 +111,15 @@ struct RichChatComposerView: View {
     let canSend = hasPrompt || !attachments.isEmpty
     let canOpenControls = agentStatus != nil && canConfigure
     let resume = resumeAction(canSend: canSend)
+    let placeholder =
+      (agentStatus?.label).map { RichChatStrings.messageAgent($0) } ?? RichChatStrings.message
     return RichChatAdaptiveComposer(
       text: $draft,
       selection: $draftSelection,
       isExpanded: $composerExpanded,
       hasPrompt: hasPrompt,
       hasTrailingAction: canSend || isTurnActive || controller.state.isSending || resume != nil,
+      placeholder: placeholder,
       submit: { send() }
     ) {
       RichChatComposerInlineConfiguration(
@@ -124,6 +129,7 @@ struct RichChatComposerView: View {
         canOpen: canOpenControls,
         crew: crewPresentation,
         openCrew: { controlsPresented = .crew },
+        glassNamespace: composerGlassNamespace,
         open: { controlsPresented = .controls }
       )
     } toolbar: {
@@ -145,6 +151,7 @@ struct RichChatComposerView: View {
         catalog: slashCommandCatalog,
         canOpen: canOpenControls,
         showsStatusIcons: false,
+        glassNamespace: composerGlassNamespace,
         open: { controlsPresented = .controls }
       )
       RichChatComposerConfigurationIcon(
@@ -260,6 +267,11 @@ struct RichChatComposerView: View {
     let queuesSteer = turnActive && !queueInsteadOfSteer
     let queuesFollowUp = turnActive && queueInsteadOfSteer
     onSubmissionStarted()
+    let steerInput = RichSetPendingSteerInput(
+      prompt: text,
+      segments: segments.isEmpty ? nil : segments,
+      config: configuration.richChatObject
+    )
     Task {
       guard await declinePendingApproval() else {
         onSubmissionFinished(false)
@@ -267,21 +279,9 @@ struct RichChatComposerView: View {
       }
       let succeeded: Bool
       if queuesFollowUp {
-        succeeded = await controller.queueFollowUp(
-          RichSetPendingSteerInput(
-            prompt: text,
-            segments: segments.isEmpty ? nil : segments,
-            config: configuration.richChatObject
-          )
-        )
+        succeeded = await controller.queueFollowUp(steerInput)
       } else if queuesSteer {
-        succeeded = await controller.setPendingSteer(
-          RichSetPendingSteerInput(
-            prompt: text,
-            segments: segments.isEmpty ? nil : segments,
-            config: configuration.richChatObject
-          )
-        )
+        succeeded = await controller.setPendingSteer(steerInput)
       } else {
         succeeded = await controller.send(
           RichChatSendInput(

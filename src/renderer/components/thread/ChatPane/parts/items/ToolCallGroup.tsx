@@ -57,7 +57,7 @@ import {
   extractAcpResultText,
   extractReadFileResultPart,
 } from "./acpToolPayload";
-import { commandIntentDisplay } from "./commandSummary";
+import { commandPayloadDisplay } from "./commandActionsDisplay";
 import { LazyInlineDiffView } from "./LazyInlineDiffView";
 import { ReasoningInline } from "./ReasoningInline";
 import { isReadLikeToolPayload } from "./readLikeToolPayload";
@@ -111,15 +111,21 @@ export const ToolCallGroup = memo(function ToolCallGroup({
         .filter((item): item is RuntimeChatItem => !!item && isToolGroupItem(item)),
     ),
   );
-  // A missed completion must not animate historical thoughts. Keep tool states
-  // intact: background commands can still be running after this group ends.
-  const items = sourceItems.map((item, index) =>
-    item.type === "reasoning" &&
-    item.state !== "completed" &&
-    (!isReasoningLive || index !== sourceItems.length - 1)
-      ? { ...item, state: "completed" as const }
-      : item,
-  );
+  // A missed completion must not animate historical thoughts or pre-fix saved
+  // non-command tool rows. Keep command_execution states intact: background
+  // commands can still be running after this group ends.
+  const items = sourceItems.map((item, index) => {
+    if (item.state === "completed") return item;
+    if (item.type === "reasoning") {
+      return !isReasoningLive || index !== sourceItems.length - 1
+        ? { ...item, state: "completed" as const }
+        : item;
+    }
+    if (!isLive && item.type !== "command_execution") {
+      return { ...item, state: "completed" as const };
+    }
+    return item;
+  });
   const actions = useChatPaneActions();
   const guiChatFontSize = useSharedSettings((state) => state.guiChatFontSize);
   // Single pass: edit-only groups stay collapsed while live; same-file multi
@@ -713,7 +719,10 @@ function getCommandRow(
 ): InlineRow | null {
   const payload = getRuntimeItemPayload<CommandExecutionPayload>(item, "command_execution");
   const command = readCommandPayloadCommand(payload);
-  const display = command ? commandIntentDisplay(command) : undefined;
+  const display =
+    payload && (command || (payload.actions?.length ?? 0) > 0)
+      ? commandPayloadDisplay(payload, command)
+      : undefined;
   const output =
     item.streams.command_output && item.streams.command_output.length > 0
       ? item.streams.command_output

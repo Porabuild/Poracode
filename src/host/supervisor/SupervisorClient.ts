@@ -49,6 +49,10 @@ import {
   isGitProcessAdmissionRefusalCode,
 } from "@/shared/gitProcessAdmission";
 import {
+  ThreadLaunchFailedRefusalError,
+  isThreadLaunchFailedRefusalCode,
+} from "@/shared/threadLaunchRefusal";
+import {
   ThreadSessionAbsenceRefusalError,
   isThreadSessionAbsenceRefusalCode,
 } from "@/shared/threadSessionRefusal";
@@ -70,6 +74,9 @@ function createSupervisorFailureError(message: Extract<SupervisorReply, { ok: fa
   }
   if (isThreadSessionAbsenceRefusalCode(errorCode)) {
     return new ThreadSessionAbsenceRefusalError(message.error);
+  }
+  if (isThreadLaunchFailedRefusalCode(errorCode)) {
+    return new ThreadLaunchFailedRefusalError(message.error);
   }
   const retryAfterMs = admissionRetryAfterMsOf(message);
   if (isGitProcessAdmissionRefusalCode(errorCode)) {

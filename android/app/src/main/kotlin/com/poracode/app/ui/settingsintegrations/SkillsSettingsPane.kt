@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -18,7 +16,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +43,10 @@ import com.poracode.app.protocol.settingsintegrations.SkillOwner
 import com.poracode.app.protocol.settingsintegrations.SkillScope
 import com.poracode.app.session.settingsintegrations.SettingsIntegrationsSlot
 import com.poracode.app.session.settingsintegrations.SettingsIntegrationsState
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.components.PoracodeSwitch
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun SkillsSettingsPane(
@@ -115,7 +116,7 @@ internal fun SkillsSettingsPane(
         }
         item { SectionTitle(stringResource(R.string.settings_integrations_marketplace)) }
         item {
-            OutlinedTextField(
+            PoracodeTextField(
                 value = query,
                 onValueChange = { query = it.take(200) },
                 label = { Text(stringResource(R.string.settings_integrations_search_skills)) },
@@ -135,7 +136,7 @@ internal fun SkillsSettingsPane(
             }
         }
         item {
-            Button(
+            FilledTonalButton(
                 enabled = access.canRead && access.online,
                 onClick = {
                     callbacks.onMarketplaceSearch(
@@ -199,13 +200,13 @@ private fun SkillCard(
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
-                Switch(
+                PoracodeSwitch(
                     checked = skill.enabled,
                     enabled = canOperate && skill.mutable && skill.valid,
                     onCheckedChange = onEnabled,
                 )
                 if (skill.mutable) IconButton(enabled = canOperate, onClick = onDelete) {
-                    Icon(Icons.Outlined.Delete, stringResource(R.string.settings_integrations_delete))
+                    Icon(PoracodeIcons.Delete, stringResource(R.string.settings_integrations_delete))
                 }
             }
             if (skill.description.isNotEmpty()) Text(skill.description)
@@ -229,7 +230,7 @@ private fun MarketplaceCard(skill: MarketplaceSkill, enabled: Boolean, onInstall
             skill.description?.let { Text(it) }
             val grade = skill.securityGrade
             if (grade != null) Text(stringResource(R.string.settings_integrations_security_grade, grade))
-            Button(enabled = enabled, onClick = onInstall) {
+            FilledTonalButton(enabled = enabled, onClick = onInstall) {
                 Text(stringResource(R.string.settings_integrations_install))
             }
         }

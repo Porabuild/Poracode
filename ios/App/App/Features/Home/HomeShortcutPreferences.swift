@@ -111,6 +111,7 @@ struct HomeShortcutSettingsView: View {
           Toggle(isOn: visibilityBinding(for: shortcut)) {
             Label(shortcut.title, systemImage: shortcut.systemImage)
           }
+          .poracodeSwitchStyle()
         }
         .onMove(perform: move)
       } footer: {

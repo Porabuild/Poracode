@@ -194,6 +194,9 @@
 		A1000000000000000000000C /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* AppSession.swift */; };
 		A1000000000000000000000D /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* StateViews.swift */; };
 		A1000000000000000000000E /* GlassHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* GlassHelpers.swift */; };
+		PG2000000000000000000001 /* PoracodeGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = PG1000000000000000000001 /* PoracodeGlass.swift */; };
+		PG2000000000000000000002 /* PoracodeGlassTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = PG1000000000000000000002 /* PoracodeGlassTabs.swift */; };
+		PG2000000000000000000003 /* PoracodeButtonStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = PG1000000000000000000003 /* PoracodeButtonStyles.swift */; };
 		TR2000000000000000000001 /* ThreadRowComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR1000000000000000000001 /* ThreadRowComponents.swift */; };
 		AC2000000000000000000001 /* ActionComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1000000000000000000001 /* ActionComponents.swift */; };
 		A10000000000000000000BA1 /* BrandWordmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000BA1 /* BrandWordmark.swift */; };
@@ -427,6 +430,7 @@
 		A100000000000000000000AF /* RichChatCheckpointController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000AF /* RichChatCheckpointController.swift */; };
 		A100000000000000000000B0 /* RichChatMediaController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000B0 /* RichChatMediaController.swift */; };
 		A100000000000000000000B1 /* RichChatTerminalController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000B1 /* RichChatTerminalController.swift */; };
+		A2E000000000000000000003 /* RichChatTerminalControllerQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E000000000000000000003 /* RichChatTerminalControllerQueries.swift */; };
 		A100000000000000000000B2 /* RichChatTranscriptController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000B2 /* RichChatTranscriptController.swift */; };
 		A6B6B6B600000000000000B6 /* RichChatFollowUpQueueReplaySlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B6B6B600000000000000B6 /* RichChatFollowUpQueueReplaySlot.swift */; };
 		A6B6B6B70000000000000001 /* RecoveryBufferBounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6B6B6B70000000000000001 /* RecoveryBufferBounds.swift */; };
@@ -587,6 +591,8 @@
 		A100000000000000000000FD /* Settings.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000FD /* Settings.xcstrings */; };
 		A20000000000000000000001 /* RichChatTerminalWebSocketTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* RichChatTerminalWebSocketTransport.swift */; };
 		A20000000000000000000002 /* TerminalANSIParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* TerminalANSIParser.swift */; };
+		A2E000000000000000000001 /* TerminalQueryResponder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E000000000000000000001 /* TerminalQueryResponder.swift */; };
+		A2E000000000000000000002 /* TerminalQueryResponderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E000000000000000000002 /* TerminalQueryResponderTests.swift */; };
 		D47D0529D24A4C2AACCE9012 /* TerminalUnicodeWidth.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */; };
 		A20000000000000000000003 /* TerminalTextSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* TerminalTextSurface.swift */; };
 		A20000000000000000000004 /* TerminalStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* TerminalStrings.swift */; };
@@ -737,7 +743,6 @@
 		AD3200000000000000000D /* SelectedAdvancedOperationsGatewayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD3100000000000000000D /* SelectedAdvancedOperationsGatewayTests.swift */; };
 		FD12000000000000000001 /* PortForwardingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD11000000000000000001 /* PortForwardingController.swift */; };
 		FD12000000000000000002 /* PortForwardingGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD11000000000000000002 /* PortForwardingGateway.swift */; };
-		FD12000000000000000003 /* PortForwardingGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD11000000000000000003 /* PortForwardingGlass.swift */; };
 		FD12000000000000000004 /* PortForwardingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD11000000000000000004 /* PortForwardingModels.swift */; };
 		FD12000000000000000005 /* PortForwardingPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD11000000000000000005 /* PortForwardingPresentation.swift */; };
 		FD12000000000000000006 /* PortForwardingSessionComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD11000000000000000006 /* PortForwardingSessionComposition.swift */; };
@@ -1062,6 +1067,9 @@
 		B1000000000000000000000C /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		B1000000000000000000000D /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
 		B1000000000000000000000E /* GlassHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassHelpers.swift; sourceTree = "<group>"; };
+		PG1000000000000000000001 /* PoracodeGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeGlass.swift; sourceTree = "<group>"; };
+		PG1000000000000000000002 /* PoracodeGlassTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeGlassTabs.swift; sourceTree = "<group>"; };
+		PG1000000000000000000003 /* PoracodeButtonStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeButtonStyles.swift; sourceTree = "<group>"; };
 		TR1000000000000000000001 /* ThreadRowComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRowComponents.swift; sourceTree = "<group>"; };
 		AC1000000000000000000001 /* ActionComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionComponents.swift; sourceTree = "<group>"; };
 		B10000000000000000000BA1 /* BrandWordmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandWordmark.swift; sourceTree = "<group>"; };
@@ -1293,6 +1301,7 @@
 		B100000000000000000000AF /* RichChatCheckpointController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatCheckpointController.swift; sourceTree = "<group>"; };
 		B100000000000000000000B0 /* RichChatMediaController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatMediaController.swift; sourceTree = "<group>"; };
 		B100000000000000000000B1 /* RichChatTerminalController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalController.swift; sourceTree = "<group>"; };
+		B2E000000000000000000003 /* RichChatTerminalControllerQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalControllerQueries.swift; sourceTree = "<group>"; };
 		B100000000000000000000B2 /* RichChatTranscriptController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTranscriptController.swift; sourceTree = "<group>"; };
 		B6B6B6B600000000000000B6 /* RichChatFollowUpQueueReplaySlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFollowUpQueueReplaySlot.swift; sourceTree = "<group>"; };
 		B6B6B6B70000000000000001 /* RecoveryBufferBounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryBufferBounds.swift; sourceTree = "<group>"; };
@@ -1453,6 +1462,8 @@
 		B100000000000000000000FD /* Settings.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Settings.xcstrings; sourceTree = "<group>"; };
 		B20000000000000000000001 /* RichChatTerminalWebSocketTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalWebSocketTransport.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* TerminalANSIParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalANSIParser.swift; sourceTree = "<group>"; };
+		B2E000000000000000000001 /* TerminalQueryResponder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalQueryResponder.swift; sourceTree = "<group>"; };
+		B2E000000000000000000002 /* TerminalQueryResponderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalQueryResponderTests.swift; sourceTree = "<group>"; };
 		D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalUnicodeWidth.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* TerminalTextSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTextSurface.swift; sourceTree = "<group>"; };
 		B20000000000000000000004 /* TerminalStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStrings.swift; sourceTree = "<group>"; };
@@ -1603,7 +1614,6 @@
 		AD3100000000000000000D /* SelectedAdvancedOperationsGatewayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectedAdvancedOperationsGatewayTests.swift; sourceTree = "<group>"; };
 		FD11000000000000000001 /* PortForwardingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingController.swift; sourceTree = "<group>"; };
 		FD11000000000000000002 /* PortForwardingGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingGateway.swift; sourceTree = "<group>"; };
-		FD11000000000000000003 /* PortForwardingGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingGlass.swift; sourceTree = "<group>"; };
 		FD11000000000000000004 /* PortForwardingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingModels.swift; sourceTree = "<group>"; };
 		FD11000000000000000005 /* PortForwardingPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingPresentation.swift; sourceTree = "<group>"; };
 		FD11000000000000000006 /* PortForwardingSessionComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortForwardingSessionComposition.swift; sourceTree = "<group>"; };
@@ -2295,6 +2305,7 @@
 			isa = PBXGroup;
 			children = (
 				B20000000000000000000002 /* TerminalANSIParser.swift */,
+				B2E000000000000000000001 /* TerminalQueryResponder.swift */,
 				D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */,
 				B20000000000000000000003 /* TerminalTextSurface.swift */,
 				B20000000000000000000004 /* TerminalStrings.swift */,
@@ -2350,6 +2361,7 @@
 				B100000000000000000000AF /* RichChatCheckpointController.swift */,
 				B100000000000000000000B0 /* RichChatMediaController.swift */,
 				B100000000000000000000B1 /* RichChatTerminalController.swift */,
+				B2E000000000000000000003 /* RichChatTerminalControllerQueries.swift */,
 				B100000000000000000000B2 /* RichChatTranscriptController.swift */,
 				SB1000000000000000000002 /* RichChatSessionActionsController.swift */,
 				B6B6B6B600000000000000B6 /* RichChatFollowUpQueueReplaySlot.swift */,
@@ -2551,6 +2563,9 @@
 			children = (
 				B1000000000000000000000D /* StateViews.swift */,
 				B1000000000000000000000E /* GlassHelpers.swift */,
+				PG1000000000000000000001 /* PoracodeGlass.swift */,
+				PG1000000000000000000002 /* PoracodeGlassTabs.swift */,
+				PG1000000000000000000003 /* PoracodeButtonStyles.swift */,
 				TR1000000000000000000001 /* ThreadRowComponents.swift */,
 				AC1000000000000000000001 /* ActionComponents.swift */,
 				B10000000000000000000BA1 /* BrandWordmark.swift */,
@@ -2822,6 +2837,7 @@
 				B100000000000000000000ED /* ThreadLifecycleControllerTests.swift */,
 				B100000000000000000000FC /* SettingsUICompositionTests.swift */,
 				B20000000000000000000007 /* TerminalANSIParserTests.swift */,
+				B2E000000000000000000002 /* TerminalQueryResponderTests.swift */,
 				B20000000000000000000008 /* RichChatTerminalTransportTests.swift */,
 				B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */,
 				B91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift */,
@@ -2999,7 +3015,6 @@
 			children = (
 				FD11000000000000000001 /* PortForwardingController.swift */,
 				FD11000000000000000002 /* PortForwardingGateway.swift */,
-				FD11000000000000000003 /* PortForwardingGlass.swift */,
 				FD11000000000000000004 /* PortForwardingModels.swift */,
 				FD11000000000000000005 /* PortForwardingPresentation.swift */,
 				FD11000000000000000006 /* PortForwardingSessionComposition.swift */,
@@ -3442,7 +3457,6 @@
 				AD22000000000000000005 /* SelectedAdvancedOperationsGateway.swift in Sources */,
 				FD12000000000000000001 /* PortForwardingController.swift in Sources */,
 				FD12000000000000000002 /* PortForwardingGateway.swift in Sources */,
-				FD12000000000000000003 /* PortForwardingGlass.swift in Sources */,
 				FD12000000000000000004 /* PortForwardingModels.swift in Sources */,
 				FD12000000000000000005 /* PortForwardingPresentation.swift in Sources */,
 				FD12000000000000000006 /* PortForwardingSessionComposition.swift in Sources */,
@@ -3597,6 +3611,9 @@
 				A1000000000000000000000C /* AppSession.swift in Sources */,
 				A1000000000000000000000D /* StateViews.swift in Sources */,
 				A1000000000000000000000E /* GlassHelpers.swift in Sources */,
+				PG2000000000000000000001 /* PoracodeGlass.swift in Sources */,
+				PG2000000000000000000002 /* PoracodeGlassTabs.swift in Sources */,
+				PG2000000000000000000003 /* PoracodeButtonStyles.swift in Sources */,
 				TR2000000000000000000001 /* ThreadRowComponents.swift in Sources */,
 				AC2000000000000000000001 /* ActionComponents.swift in Sources */,
 				A10000000000000000000BA1 /* BrandWordmark.swift in Sources */,
@@ -3776,6 +3793,7 @@
 				A100000000000000000000AF /* RichChatCheckpointController.swift in Sources */,
 				A100000000000000000000B0 /* RichChatMediaController.swift in Sources */,
 				A100000000000000000000B1 /* RichChatTerminalController.swift in Sources */,
+				A2E000000000000000000003 /* RichChatTerminalControllerQueries.swift in Sources */,
 				A100000000000000000000B2 /* RichChatTranscriptController.swift in Sources */,
 				A6B6B6B600000000000000B6 /* RichChatFollowUpQueueReplaySlot.swift in Sources */,
 				A6B6B6B70000000000000001 /* RecoveryBufferBounds.swift in Sources */,
@@ -3940,6 +3958,7 @@
 				3DDC6AACA8A14E26820714A4 /* SelectedRemoteIntegrationsGateway.swift in Sources */,
 				A20000000000000000000001 /* RichChatTerminalWebSocketTransport.swift in Sources */,
 				A20000000000000000000002 /* TerminalANSIParser.swift in Sources */,
+				A2E000000000000000000001 /* TerminalQueryResponder.swift in Sources */,
 				D47D0529D24A4C2AACCE9012 /* TerminalUnicodeWidth.swift in Sources */,
 				A20000000000000000000003 /* TerminalTextSurface.swift in Sources */,
 				A20000000000000000000004 /* TerminalStrings.swift in Sources */,
@@ -4147,6 +4166,7 @@
 				A100000000000000000000ED /* ThreadLifecycleControllerTests.swift in Sources */,
 				A100000000000000000000FC /* SettingsUICompositionTests.swift in Sources */,
 				A20000000000000000000007 /* TerminalANSIParserTests.swift in Sources */,
+				A2E000000000000000000002 /* TerminalQueryResponderTests.swift in Sources */,
 				A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */,
 				A91000000000000000000002 /* TerminalBaselineAssemblerTests.swift in Sources */,
 				A91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift in Sources */,

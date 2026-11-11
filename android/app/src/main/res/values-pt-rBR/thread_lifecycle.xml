@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">Nenhuma thread arquivada</string>
     <string name="thread_status_starting_agent">Iniciando agente…</string>
     <string name="thread_status_resuming">Retomando sessão…</string>
+    <string name="thread_lifecycle_pin_top">Fixar no topo</string>
+    <string name="thread_lifecycle_archive_thread">Arquivar Tópico</string>
+    <string name="thread_lifecycle_delete_thread">Excluir tópico</string>
+    <string name="thread_lifecycle_notes">Notas e tarefas</string>
+    <string name="thread_lifecycle_open_terminal">Abrir terminal</string>
+    <string name="thread_lifecycle_fork_thread">Ramificar conversa</string>
+    <string name="thread_lifecycle_continue_in">Continuar em outro provedor</string>
+    <string name="thread_lifecycle_move_worktree_changes">Mover para árvore de trabalho com alterações</string>
+    <string name="thread_lifecycle_move_worktree_clean">Mover para uma árvore de trabalho limpa</string>
+    <string name="thread_lifecycle_move_worktree_title">Mover a conversa para uma árvore de trabalho?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">A execução atual será interrompida. Uma nova árvore de trabalho e ramificação serão criadas, e as alterações não confirmadas serão movidas para lá antes de a conversa continuar.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">A execução atual será interrompida. Uma árvore de trabalho limpa e uma ramificação serão criadas antes de a conversa continuar.</string>
+    <string name="thread_lifecycle_move_confirm">Mover</string>
 </resources>

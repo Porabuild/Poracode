@@ -7,6 +7,7 @@ struct HomeQuickComposeView: View {
   @Binding var isExpanded: Bool
   let onStarted: (String) -> Void
   let launchSeed: HomeThreadLaunchSeed?
+  var glassNamespace: Namespace.ID? = nil
 
   @State var lifecycle: ThreadLifecycleController
   @State var mediaSuite: RichChatControllerSuite
@@ -66,12 +67,14 @@ struct HomeQuickComposeView: View {
     initialProjectID: String? = nil,
     initialWorktree: HomeComposerBranchSelection? = nil,
     launchSeed: HomeThreadLaunchSeed? = nil,
+    glassNamespace: Namespace.ID? = nil,
     onStarted: @escaping (String) -> Void
   ) {
     self.session = session
     _isExpanded = isExpanded
     self.onStarted = onStarted
     self.launchSeed = launchSeed
+    self.glassNamespace = glassNamespace
     _lifecycle = State(initialValue: session.makeThreadLifecycleController())
     _mediaSuite = State(initialValue: session.makeRichChatControllerSuite())
     _fileMentionController = State(initialValue: RichChatFileMentionController(session: session))

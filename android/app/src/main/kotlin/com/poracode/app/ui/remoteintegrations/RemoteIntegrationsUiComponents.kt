@@ -5,11 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.remoteintegrations.IntegrationFailure
 import com.poracode.app.session.remoteintegrations.IntegrationMutationOutcome
+import com.poracode.app.ui.theme.PoracodeIcons
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun RemoteIntegrationsAccessBanner(
@@ -57,7 +54,7 @@ internal fun RemoteIntegrationsAccessBanner(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(if (!access.online) Icons.Outlined.CloudOff else Icons.Outlined.Lock, null)
+            Icon(if (!access.online) PoracodeIcons.CloudOff else PoracodeIcons.Lock, null)
             Text(message, style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -108,14 +105,14 @@ internal fun IntegrationFailureView(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Icon(Icons.Outlined.ErrorOutline, null, tint = MaterialTheme.colorScheme.error)
+        Icon(PoracodeIcons.ErrorOutline, null, tint = MaterialTheme.colorScheme.error)
         Text(
             integrationFailureMessage(failure),
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyMedium,
         )
         if (onRetry != null) {
-            Button(onClick = onRetry) { Text(stringResource(R.string.remote_integrations_retry)) }
+            FilledTonalButton(onClick = onRetry) { Text(stringResource(R.string.remote_integrations_retry)) }
         }
     }
 }
@@ -139,7 +136,7 @@ internal fun IntegrationMutationMessage(outcome: IntegrationMutationOutcome?) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            if (error) Icons.Outlined.ErrorOutline else Icons.Outlined.Sync,
+            if (error) PoracodeIcons.ErrorOutline else PoracodeIcons.Sync,
             null,
             tint = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         )

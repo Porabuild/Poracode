@@ -27,7 +27,7 @@ struct RichChatNoticeBanner: View {
       }
       .padding(12)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+      .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
       .padding(.horizontal, 12)
       .padding(.top, 8)
       .accessibilityElement(children: .contain)
@@ -53,7 +53,7 @@ struct RichChatNoticeBanner: View {
         Button(label(presentation.action)) {
           perform(presentation.action)
         }
-        .buttonStyle(.bordered)
+        .poracodeSurfaceButtonStyle()
         .font(.footnote.weight(.semibold))
         .accessibilityIdentifier("native-e2e.historyNotice.acknowledge")
       }

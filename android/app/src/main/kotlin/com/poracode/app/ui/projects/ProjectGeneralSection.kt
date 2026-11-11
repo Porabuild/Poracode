@@ -8,7 +8,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,7 +38,10 @@ import com.poracode.app.session.projects.ProjectCommandOutcome
 import com.poracode.app.session.projects.ProjectHostLease
 import com.poracode.app.session.projects.ProjectOperationFailure
 import com.poracode.app.session.projects.ProjectSessionRuntime
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.coroutines.launch
+import com.poracode.app.ui.components.PoracodeSwitch
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun ProjectGeneralSection(
@@ -81,7 +83,7 @@ internal fun ProjectGeneralSection(
     }
 
     ProjectSection(stringResource(R.string.projects_general)) {
-        OutlinedTextField(
+        PoracodeTextField(
             value = name,
             onValueChange = { name = it },
             label = { Text(stringResource(R.string.projects_name)) },
@@ -90,7 +92,7 @@ internal fun ProjectGeneralSection(
             enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(
+        FilledTonalButton(
             onClick = {
                 execute(
                     UpdateProject(
@@ -101,7 +103,7 @@ internal fun ProjectGeneralSection(
             },
             enabled = enabled && name != project.name && projectNameProblem(name) == null,
         ) { Text(stringResource(R.string.projects_save_name)) }
-        OutlinedTextField(
+        PoracodeTextField(
             value = relocatePath,
             onValueChange = { relocatePath = it },
             label = { Text(stringResource(R.string.projects_location)) },
@@ -116,7 +118,7 @@ internal fun ProjectGeneralSection(
             OutlinedButton(onClick = { showFolders = true }, enabled = enabled) {
                 Text(stringResource(R.string.projects_browse))
             }
-            Button(
+            FilledTonalButton(
                 onClick = { pendingRelocation = relocatePath.trim() },
                 enabled = enabled &&
                     relocatePath.trim().isNotEmpty() &&
@@ -138,7 +140,7 @@ internal fun ProjectGeneralSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(
+            PoracodeSwitch(
                 checked = project.disabled != true,
                 onCheckedChange = { checked ->
                     if (checked) {
@@ -174,7 +176,7 @@ internal fun ProjectGeneralSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(
+            PoracodeSwitch(
                 checked = synced,
                 onCheckedChange = onSetSynced,
             )
@@ -257,7 +259,7 @@ private fun ConfirmationDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(message) },
-        confirmButton = { Button(onClick = onConfirm) { Text(action) } },
+        confirmButton = { FilledTonalButton(onClick = onConfirm) { Text(action) } },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.projects_cancel)) }
         },

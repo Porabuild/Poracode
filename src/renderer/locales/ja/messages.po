@@ -475,6 +475,7 @@ msgstr "{0}が v{newVersion}に更新されました。"
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated."
@@ -918,6 +919,7 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{visibleCount}/{totalCount}が使用可能"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount}/{totalCount}が表示されます"
@@ -1387,6 +1389,7 @@ msgstr "アクション"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1702,6 +1705,10 @@ msgstr "新しいターミナルパネルのシェルごとに渡す追加引数
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "新しい各 Windows シェルに渡す追加引数です。スペースを含む値は引用符で囲んでください。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Adjust your project filter."
+msgstr "プロジェクトの絞り込みを調整してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt"
 msgstr "引き継ぐ"
@@ -1917,6 +1924,12 @@ msgstr "スレッドが対応を必要としたら通知"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "全期間"
+
+#. Filter chip showing all providers or all model surfaces
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgctxt "modelVisibilityFilter"
+msgid "All"
+msgstr "すべて"
 
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
@@ -3626,7 +3639,7 @@ msgstr "選択したデバイスからのライブ入力レベルを確認しま
 msgid "Check the supported languages before downloading."
 msgstr "ダウンロードする前にサポートされている言語を確認してください。"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Checked"
 msgstr "チェック済み"
 
@@ -4010,6 +4023,7 @@ msgstr "目標をクリア"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Clear search"
 msgstr "検索をクリア"
 
@@ -5206,6 +5220,10 @@ msgstr "@file メンション検索に表示されるファイルを制御しま
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Conversation"
 msgstr "会話"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Conversations from all paired desktops will appear here."
+msgstr "ペアリング済みのすべてのデスクトップの会話がここに表示されます。"
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Convert to draft"
@@ -7066,6 +7084,7 @@ msgstr "完了しました"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -8414,6 +8433,10 @@ msgstr "状態でスキルを絞り込む"
 msgid "Filter table"
 msgstr "表を絞り込む"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Filter threads"
+msgstr "スレッドを絞り込み"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
 msgstr "タイムラインを絞り込む"
@@ -8435,6 +8458,10 @@ msgstr "ファイナンス"
 msgid "Find"
 msgstr "検索"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Find \"{pattern}\" in {url}"
+msgstr "{url} で「{pattern}」を検索"
+
 #: src/renderer/components/find/ChatFindBar.tsx
 msgid "Find in chat"
 msgstr "チャット内を検索"
@@ -8443,6 +8470,7 @@ msgstr "チャット内を検索"
 msgid "Find in diff"
 msgstr "差分内を検索"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Find in page"
@@ -9333,6 +9361,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを非表示にする"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "すべて隠す"
@@ -9804,6 +9833,10 @@ msgstr "改善"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Improved in {version}"
 msgstr "{version} で改善"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#~ msgid "in {scope}"
+#~ msgstr "{scope} 内"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "In progress"
@@ -10811,6 +10844,7 @@ msgstr "リンク済み"
 msgid "Linux"
 msgstr "Linux"
 
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -11234,7 +11268,7 @@ msgstr "低いコントラスト"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "保護画面の表示中は対応ディスプレイの輝度を下げ、Mac が再びロックされると元の輝度に戻します。"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "マシン"
 
@@ -12036,6 +12070,10 @@ msgstr "モデルをお気に入りから削除しました"
 msgid "Model rerouted from {fromModel} to {toModel}."
 msgstr "モデルが {fromModel} から {toModel} に切り替えられました。"
 
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgid "Model surface"
+msgstr "モデルサーフェス"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "モデルの使用状況"
@@ -12740,6 +12778,10 @@ msgstr "このセッションにアクティブな目標がありません。"
 msgid "No active tasks."
 msgstr "実行中のタスクはありません。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No active threads"
+msgstr "アクティブなスレッドはありません"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
 #~ msgstr "アクティブなワークフローがありません"
@@ -12871,6 +12913,10 @@ msgstr "コンテンツのストリームはありません。"
 msgid "No conversation yet. Be the first to comment."
 msgstr "まだ会話はありません。最初にコメントしてください。"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No conversations yet"
+msgstr "まだ会話はありません"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "No crews yet"
 msgstr "クルーはまだありません"
@@ -12918,6 +12964,10 @@ msgstr "{0}に利用できる差分はありません"
 #: src/renderer/components/diff/DiffCardList.tsx
 #~ msgid "No diff for {visiblePath}"
 #~ msgstr "{visiblePath}の差分はありません"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No done threads"
+msgstr "完了したスレッドはありません"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -13052,9 +13102,9 @@ msgstr "一致するスケジュールはありません。"
 #~ msgid "No matching tasks."
 #~ msgstr "一致するタスクはありません。"
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "No matching threads"
-#~ msgstr "一致するスレッドがありません"
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No matching threads"
+msgstr "一致するスレッドがありません"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -13090,6 +13140,7 @@ msgstr "{agent} で利用できるモデルがありません。設定でエー�
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "モデルが見つかりません"
 
@@ -13947,6 +13998,10 @@ msgstr "ソースホストで開く"
 #~ msgid "Open over SSH"
 #~ msgstr "SSH で開く"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Open page"
+msgstr "ページを開く"
+
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
 msgstr "ピクチャーインピクチャーを開く"
@@ -14464,7 +14519,7 @@ msgstr "この会話の履歴の一部がサーバー上で失われ、表示で
 msgid "Partial"
 msgstr "一部のみ"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Partially checked"
 msgstr "一部チェック済み"
 
@@ -15603,6 +15658,7 @@ msgstr "プロバイダー"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
@@ -15792,6 +15848,7 @@ msgid "Queue message"
 msgstr "メッセージをキューに入れる"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued"
 msgstr "キュー待ち"
 
@@ -17963,6 +18020,7 @@ msgstr "SDK 未インストール"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18022,11 +18080,13 @@ msgid "Search MCP servers..."
 msgstr "MCPサーバーを検索..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
 msgstr "モデルを検索する"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "モデルを検索..."
 
@@ -18137,6 +18197,11 @@ msgstr "スレッド、コマンド、設定、ファイルを検索…"
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "タイトル、メッセージ、フォルダーを検索"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Search: \"{query}\" in {scope}"
+msgstr "検索: 「{query}」({scope} 内)"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 #~ msgid "Search…"
@@ -18293,6 +18358,10 @@ msgstr "候補 {0}（{label}）を勝者として選択"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "デバイスを選択"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Select Done in the filter to see finished threads."
+msgstr "フィルターで「完了」を選ぶと、完了したスレッドが表示されます。"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Select lines in the plan to comment on them."
@@ -18634,6 +18703,7 @@ msgstr "エージェントの検出を表示"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "すべて表示"
@@ -19854,6 +19924,7 @@ msgstr "サポート:"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "高速モードに対応"
 
@@ -20997,6 +21068,7 @@ msgstr "キューに入ったフォローアップにはスレッドセッショ
 msgid "The thread's branch name can't be used on this machine."
 msgstr "このスレッドのブランチ名はこのマシンでは使用できません。"
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "スレッドのホストに接続されていません。"
@@ -21315,7 +21387,7 @@ msgstr "この Mac の画面ロック解除ルールは、デバイス管理な�
 msgid "this machine"
 msgstr "このマシン"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "このマシン"
 
@@ -22554,7 +22626,7 @@ msgstr "利用できないプロバイダー"
 #~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
 #~ msgstr "利用できないプロバイダー、モデル、推論レベル、Fast モードは自動的にスキップされます。チェックを外したプロバイダーとモデルは、再度チェックするまでスキップされます。"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Unchecked"
 msgstr "チェック解除"
 
@@ -22756,14 +22828,17 @@ msgstr "更新"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "アップデート"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "{0}を更新"
@@ -22931,6 +23006,7 @@ msgid "Updated {0}"
 msgstr "{0}を更新しました"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "更新中"
 
@@ -22940,7 +23016,9 @@ msgstr "更新中"
 msgid "Updating ({0}/{1})"
 msgstr "更新中（{0}/{1}）"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "{0}を更新しています"

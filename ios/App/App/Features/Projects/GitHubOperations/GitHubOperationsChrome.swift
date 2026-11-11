@@ -18,22 +18,12 @@ enum GitHubOperationsChrome {
     action: @escaping () -> Void,
     @ViewBuilder label: () -> Label
   ) -> some View {
-    if #available(iOS 26, macOS 26, *) {
-      if role == .destructive {
-        Button(role: .destructive, action: action, label: label)
-          .buttonStyle(.glassProminent)
-      } else {
-        Button(action: action, label: label)
-          .buttonStyle(.glass)
-      }
+    if role == .destructive {
+      Button(role: .destructive, action: action, label: label)
+        .poracodeProminentButtonStyle(tint: .red)
     } else {
-      if role == .destructive {
-        Button(role: .destructive, action: action, label: label)
-          .buttonStyle(.borderedProminent)
-      } else {
-        Button(action: action, label: label)
-          .buttonStyle(.bordered)
-      }
+      Button(action: action, label: label)
+        .poracodeGlassButtonStyle()
     }
   }
 }

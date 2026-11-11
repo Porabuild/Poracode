@@ -50,7 +50,11 @@ export function extractBaseDir(args: readonly string[]) {
   return { args: remaining, baseDir };
 }
 
-export async function runConfigure(profile: string, args: readonly string[]) {
+export async function runConfigure(
+  profile: string,
+  args: readonly string[],
+  options: { readonly quiet?: boolean } = {},
+) {
   const { values } = parseArgs({
     args: [...args],
     options: {
@@ -178,15 +182,16 @@ export async function runConfigure(profile: string, args: readonly string[]) {
   if (Boolean(parsed.data.tlsCert) !== Boolean(parsed.data.tlsKey))
     throw new Error("Set --tls-cert and --tls-key together, or run init-tls first.");
   writeFileAtomic(path, `${JSON.stringify(parsed.data, null, 2)}\n`, { mode: 0o600 });
-  printAdminResult(
-    {
-      configPath: path,
-      saved: true,
-      next: `poracode --base-dir ${JSON.stringify(profile)} serve --config ${JSON.stringify(path)}`,
-      detail:
-        "Applies on the next explicit start. A wider network bind requires TLS or PORACODE_ALLOW_PLAINTEXT_LAN=1.",
-    },
-    values.json === true,
-  );
+  if (!options.quiet)
+    printAdminResult(
+      {
+        configPath: path,
+        saved: true,
+        next: `poracode --base-dir ${JSON.stringify(profile)} serve --config ${JSON.stringify(path)}`,
+        detail:
+          "Applies on the next explicit start. A wider network bind requires TLS or PORACODE_ALLOW_PLAINTEXT_LAN=1.",
+      },
+      values.json === true,
+    );
   return path;
 }

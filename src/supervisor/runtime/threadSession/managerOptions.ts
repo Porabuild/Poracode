@@ -168,6 +168,7 @@ export interface ThreadSessionManagerOptions {
       proxyStdioCwd?: boolean;
       isolateConnectionFailures?: boolean;
       omitInvalidSchemaPatterns?: boolean;
+      maxSchemaDepth?: number;
       remoteViaStdio?: boolean;
     },
   ): Promise<McpServer[]>;

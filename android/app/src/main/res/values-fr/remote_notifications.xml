@@ -4,4 +4,7 @@
     <string name="remote_notification_needs_attention">Attention requise</string>
     <string name="remote_notification_error">Erreur</string>
     <string name="remote_notification_dismiss">Ignorer la notification</string>
+    <string name="remote_notification_done_description">Fil de discussion terminé ou en attente de votre saisie.</string>
+    <string name="remote_notification_needs_attention_description">Approbation ou réponse requise de votre part.</string>
+    <string name="remote_notification_error_description">L\'agent a rencontré une erreur.</string>
 </resources>

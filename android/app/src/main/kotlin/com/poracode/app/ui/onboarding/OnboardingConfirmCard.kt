@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -26,6 +24,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.AppSession
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.components.PoracodeAccentButton
+import com.poracode.app.ui.theme.PoracodeTheme
 
 /**
  * BROWSABLE deep-link / scanned-link confirmation gate.
@@ -55,10 +56,10 @@ internal fun PendingPairConfirmCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(
-                Icons.Outlined.VerifiedUser,
+                PoracodeIcons.VerifiedUser,
                 contentDescription = null,
                 modifier = Modifier.size(32.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = PoracodeTheme.colors.accent,
             )
             Text(
                 stringResource(R.string.confirm_pair_title),
@@ -85,7 +86,7 @@ internal fun PendingPairConfirmCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Button(
+                PoracodeAccentButton(
                     onClick = { onConfirmPendingPair?.invoke() },
                     enabled = !isPairing && onConfirmPendingPair != null,
                     modifier = Modifier.semantics { contentDescription = confirmCd },

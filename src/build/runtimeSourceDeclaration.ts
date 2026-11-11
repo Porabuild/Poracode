@@ -40,6 +40,9 @@ export const runtimeConfigurationFiles = [
   // These shared CLI modules are bundled by the server and desktop entries.
   "packages/poracode-cli/lib/completion.mjs",
   "packages/poracode-cli/lib/desktopBundle.mjs",
+  "packages/poracode-cli/lib/installPaths.mjs",
+  "packages/poracode-cli/lib/artifact.mjs",
+  "packages/poracode-cli/lib/errors.mjs",
 ];
 const MAX_RUNTIME_INPUT_BYTES = 8 * 1024 * 1024;
 

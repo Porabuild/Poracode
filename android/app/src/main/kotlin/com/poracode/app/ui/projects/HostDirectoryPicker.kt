@@ -12,13 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -44,7 +37,9 @@ import com.poracode.app.model.BrowseHostDirectoryResult
 import com.poracode.app.model.HostDirectoryEntryType
 import com.poracode.app.session.projects.ProjectHostLease
 import com.poracode.app.session.projects.ProjectSessionRuntime
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.launch
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun HostDirectoryPicker(
@@ -117,7 +112,7 @@ internal fun HostDirectoryPicker(
                         Text(stringResource(R.string.projects_cancel))
                     }
                     Spacer(Modifier.size(8.dp))
-                    Button(
+                    FilledTonalButton(
                         onClick = { onSelect(listing!!.path) },
                         enabled = listing != null &&
                             !listing.isDrivePseudoRoot &&
@@ -148,15 +143,15 @@ private fun DirectoryToolbar(
             IconButton(
                 onClick = { listing?.parentPath?.let(browse) },
                 enabled = !loading && listing?.parentPath != null,
-            ) { Icon(Icons.Outlined.ArrowUpward, stringResource(R.string.projects_up_folder)) }
+            ) { Icon(PoracodeIcons.ArrowUpward, stringResource(R.string.projects_up_folder)) }
             IconButton(
                 onClick = { listing?.homePath?.let(browse) },
                 enabled = !loading && listing != null,
-            ) { Icon(Icons.Outlined.Home, stringResource(R.string.projects_home_folder)) }
+            ) { Icon(PoracodeIcons.Home, stringResource(R.string.projects_home_folder)) }
             IconButton(
                 onClick = { browse(BrowseHostDirectoryResult.DRIVE_PSEUDO_ROOT) },
                 enabled = !loading,
-            ) { Icon(Icons.Outlined.Storage, stringResource(R.string.projects_drives)) }
+            ) { Icon(PoracodeIcons.Storage, stringResource(R.string.projects_drives)) }
             Text(
                 if (listing?.isDrivePseudoRoot == true) {
                     stringResource(R.string.projects_drives)
@@ -192,7 +187,7 @@ private fun DirectoryEntries(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    if (directory) Icons.Outlined.Folder else Icons.Outlined.Description,
+                    if (directory) PoracodeIcons.Folder else PoracodeIcons.Description,
                     contentDescription = null,
                     tint = if (directory) {
                         MaterialTheme.colorScheme.primary
@@ -202,7 +197,7 @@ private fun DirectoryEntries(
                 )
                 Text(entry.name, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (directory) {
-                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
+                    Icon(PoracodeIcons.KeyboardArrowRight, contentDescription = null)
                 }
             }
         }

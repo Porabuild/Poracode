@@ -1,4 +1,5 @@
 import "fake-indexeddb/auto";
+import { IDBDatabase } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setDesktopToken, __resetTokenVaultForTest } from "./tokenVault";
 import { failVaultKeyReads, webKitKeyRestoreError } from "./webKitResultFailure.testFixtures";
@@ -6,6 +7,7 @@ import {
   acquireConnectionIncarnation,
   acquireRefreshSubjectOwnership,
   connectionIncarnationOwner,
+  commitSharedCredential,
   connectionRefreshSubject,
   deleteRefreshTokenFromVault,
   ensureConnectionIncarnation,
@@ -13,6 +15,7 @@ import {
   managedEnvironmentRefreshSubject,
   ownsConnectionIncarnation,
   ownsRefreshSubject,
+  readSharedCredential,
   refreshSubjectVaultKey,
   refreshTokenForSubject,
   releaseRefreshSubjectOwnership,
@@ -60,6 +63,18 @@ afterEach(() => {
 });
 
 describe("refresh subjects own disjoint vault roots", () => {
+  it("persists the first refresh grant before an access token has created the vault key", async () => {
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    await deleteVaultDatabase();
+
+    await expect(writeRefreshTokenToVault(directSubject, "first-refresh")).resolves.toBe(true);
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    await hydrateRefreshTokens({ subjects: [directSubject] });
+    expect(refreshTokenForSubject(directSubject)).toBe("first-refresh");
+  });
+
   it("keeps every accepted direct root, including opaque grant-shaped ids", () => {
     expect(refreshSubjectVaultKey(directSubject)).toBe("refresh.direct-connection");
     expect(refreshSubjectVaultKey(remoteSubject)).toBe(
@@ -101,6 +116,103 @@ describe("refresh subjects own disjoint vault roots", () => {
 });
 
 describe("strict vault persistence", () => {
+  it("finishes an accepted grant save after its temporary pairing owner is released", async () => {
+    const owner = acquireRefreshSubjectOwnership(managedSubject);
+    const gate = Promise.withResolvers<void>();
+    const started = Promise.withResolvers<void>();
+    const encrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+    vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (...args) => {
+      started.resolve();
+      await gate.promise;
+      return encrypt(...args);
+    });
+    const saving = writeRefreshTokenToVault(managedSubject, "accepted-grant", owner);
+    await started.promise;
+    releaseRefreshSubjectOwnership(managedSubject, owner);
+    gate.resolve();
+    expect(await saving).toBe(true);
+    __resetRefreshTokensForTest();
+    await hydrateRefreshTokens({ subjects: [managedSubject] });
+    expect(refreshTokenForSubject(managedSubject)).toBe("accepted-grant");
+  });
+
+  it.each([true, false])(
+    "preserves a re-pair after older writes and deletion resume (owned write: %s)",
+    async (owned) => {
+      const owner = acquireRefreshSubjectOwnership(directSubject);
+      await writeRefreshTokenToVault(directSubject, "old-grant", owner);
+      const gate = Promise.withResolvers<void>();
+      const started = Promise.withResolvers<void>();
+      const encrypt = crypto.subtle.encrypt.bind(crypto.subtle);
+      vi.spyOn(crypto.subtle, "encrypt").mockImplementationOnce(async (...args) => {
+        started.resolve();
+        await gate.promise;
+        return encrypt(...args);
+      });
+      const oldWrite = writeRefreshTokenToVault(
+        directSubject,
+        "retired-grant",
+        owned ? owner : undefined,
+      );
+      await started.promise;
+      const oldDelete = deleteRefreshTokenFromVault(directSubject);
+      const successor = acquireRefreshSubjectOwnership(directSubject);
+      const previous = await readSharedCredential(directSubject);
+      expect(previous.status).toBe("ok");
+      if (previous.status !== "ok") throw new Error("Expected saved grant");
+      try {
+        expect(
+          await commitSharedCredential({
+            subject: directSubject,
+            expected: previous.refreshSlot,
+            refreshToken: "fresh-grant",
+            isCurrent: () => ownsRefreshSubject(directSubject, successor),
+            supersedePendingWrites: true,
+          }),
+        ).toBe("committed");
+      } finally {
+        gate.resolve();
+      }
+      expect(await oldWrite).toBe(false);
+      await oldDelete;
+      expect(await readSharedCredential(directSubject)).toMatchObject({
+        status: "ok",
+        refreshToken: "fresh-grant",
+      });
+    },
+  );
+
+  it("reopens a vault connection lost while the PWA was suspended", async () => {
+    await writeRefreshTokenToVault(directSubject, "saved-grant");
+    const transaction = IDBDatabase.prototype.transaction;
+    vi.spyOn(IDBDatabase.prototype, "transaction").mockImplementationOnce(function (
+      this: IDBDatabase,
+      ...args
+    ) {
+      this.close();
+      return transaction.apply(this, args);
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(await readSharedCredential(directSubject)).toEqual({ status: "failed" });
+    expect(await readSharedCredential(directSubject)).toMatchObject({
+      status: "ok",
+      refreshToken: "saved-grant",
+    });
+  });
+
+  it("persists the first pairing's refresh grant before any bearer has created the vault key", async () => {
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    await deleteVaultDatabase();
+
+    await expect(writeRefreshTokenToVault(directSubject, "first-grant")).resolves.toBe(true);
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    await hydrateRefreshTokens({ subjects: [directSubject] });
+    expect(refreshTokenForSubject(directSubject)).toBe("first-grant");
+  });
+
   it("round-trips the remote and managed grant roots through the real vault", async () => {
     await expect(writeRefreshTokenToVault(remoteSubject, "remote-token")).resolves.toBe(true);
     await expect(writeRefreshTokenToVault(managedSubject, "managed-token")).resolves.toBe(true);

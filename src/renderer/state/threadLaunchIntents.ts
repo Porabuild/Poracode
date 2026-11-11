@@ -94,6 +94,25 @@ export function retainPendingThreadLaunch(threadId: string, launch: PendingThrea
   pendingLaunches.set(threadId, launch);
 }
 
+export function rearmPendingThreadLaunch(
+  threadId: string,
+  options: { readonly metadataCreated?: boolean } = {},
+): void {
+  const current = pendingLaunches.get(threadId);
+  if (!current) return;
+  const metadataCreated = options.metadataCreated || current.metadataCreated;
+  pendingLaunches.set(threadId, {
+    isNewWorktree: current.isNewWorktree,
+    commandId: crypto.randomUUID(),
+    ...(metadataCreated
+      ? { metadataCreated: true }
+      : current.metadataCreationUncertain
+        ? { metadataCreationUncertain: true }
+        : {}),
+    ...(current.removal ? { removal: current.removal } : {}),
+  });
+}
+
 export function markPendingThreadCreated(threadId: string): void {
   const pending = pendingLaunches.get(threadId);
   if (pending) {

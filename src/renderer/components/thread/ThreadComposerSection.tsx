@@ -71,8 +71,9 @@ import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
-import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
+import { useBrowserAttachInboxDrain } from "./useBrowserAttachInboxDrain";
 import {
+  drainComposerInputsInto,
   useComposerInputInbox,
   worktreeComposerInboxKey,
 } from "@/renderer/state/composerInputInbox";
@@ -377,22 +378,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }
   const preparedThreadIdRef = useRef<string | null>(null);
   const restoredThreadIdRef = useRef<string | null>(null);
-  const pendingPickedAttachments = useBrowserAttachInbox((s) => s.itemsByThread[thread.id]);
-  const addPickedRef = useRef(attachments.addPicked);
-  addPickedRef.current = attachments.addPicked;
-  useEffect(() => {
-    if (!pendingPickedAttachments || pendingPickedAttachments.length === 0) return;
-    const drained = useBrowserAttachInbox.getState().drain(thread.id);
-    for (const item of drained) {
-      addPickedRef.current({
-        path: item.attachmentPath,
-        name: item.attachmentName,
-        mimeType: item.mimeType,
-        selector: item.selector,
-        sourceUrl: item.sourceUrl,
-      });
-    }
-  }, [pendingPickedAttachments, thread.id]);
+  useBrowserAttachInboxDrain(thread.id, attachments.addPicked);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const commandListId = useId();
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
@@ -1135,17 +1121,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     ) {
       return;
     }
-    let composerHasContent = composer.serializeSegments().length > 0;
-    for (const key of [fallbackComposerInboxKey, thread.id]) {
-      const items = useComposerInputInbox.getState().drain(key);
-      for (const segments of items) {
-        const separator: PromptSegment[] = composerHasContent
-          ? [{ kind: "text", content: "\n\n" }]
-          : [];
-        composer.insertSegments([...separator, ...segments], { atEnd: true, focus: false });
-        composerHasContent = true;
-      }
-    }
+    drainComposerInputsInto(composer, [fallbackComposerInboxKey, thread.id]);
   }, [
     editorMounted,
     fallbackComposerInboxKey,

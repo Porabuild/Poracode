@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Anbieternutzung</string>
+    <string name="settings_usage_title">Nutzung</string>
     <string name="settings_usage_cached">Zwischengespeicherte Nutzung wird angezeigt.</string>
     <string name="settings_usage_empty">Keine Anbieternutzung verfügbar.</string>
     <string name="settings_usage_empty_title">Keine Nutzungsdaten</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Kontingent erreicht</string>
     <string name="settings_usage_unsupported">Nicht unterstützt</string>
     <string name="settings_usage_meter_description">Nutzung von %1$s: %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% bis zum Reset</string>
+    <string name="settings_usage_pace_over">Zu schnelles Tempo – läuft früh aus</string>
+    <string name="settings_usage_pace_ran_out">Aufgebraucht</string>
+    <string name="settings_usage_pace_ran_out_resets">Aufgebraucht · wird in %1$s zurückgesetzt</string>
+    <string name="settings_usage_pace_runs_out_in">Läuft in %1$s aus</string>
+    <string name="settings_usage_pace_runs_out_early">Läuft früh aus</string>
     <string name="settings_profile_identity">Identität</string>
     <string name="settings_profile_identity_description">Dieses Profil wird auf dem ausgewählten Desktop gespeichert.</string>
     <string name="settings_profile_name">Name</string>

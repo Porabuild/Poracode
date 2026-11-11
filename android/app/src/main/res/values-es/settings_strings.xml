@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Uso de proveedores</string>
+    <string name="settings_usage_title">Uso</string>
     <string name="settings_usage_cached">Mostrando uso almacenado en caché.</string>
     <string name="settings_usage_empty">No hay datos de uso de proveedores disponibles.</string>
     <string name="settings_usage_empty_title">Sin datos de uso</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Cuota alcanzada</string>
     <string name="settings_usage_unsupported">No compatible</string>
     <string name="settings_usage_meter_description">Uso de %1$s: %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% para el restablecimiento</string>
+    <string name="settings_usage_pace_over">Por encima del ritmo — se agotará antes</string>
+    <string name="settings_usage_pace_ran_out">Agotado</string>
+    <string name="settings_usage_pace_ran_out_resets">Agotado · se restablece en %1$s</string>
+    <string name="settings_usage_pace_runs_out_in">Se agota en %1$s</string>
+    <string name="settings_usage_pace_runs_out_early">Se agota antes</string>
     <string name="settings_profile_identity">Identidad</string>
     <string name="settings_profile_identity_description">Este perfil se guarda en el escritorio seleccionado.</string>
     <string name="settings_profile_name">Nombre</string>

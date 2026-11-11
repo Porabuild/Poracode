@@ -126,27 +126,27 @@ export class TokenVaultDatabase {
     return this.transact<unknown>("readwrite", message, isCurrent, (store, succeed, fail) => {
       const read = store.get(record.key);
       read.onsuccess = () => {
-        let stored: unknown;
         try {
-          stored = read.result;
+          const stored: unknown = read.result;
+          if (isPresent(stored)) {
+            succeed(stored);
+            return;
+          }
+          const write = store.put(record);
+          write.onsuccess = () => succeed(record);
+          write.onerror = () => fail(write.error ?? new Error(message));
         } catch (error) {
-          // Same WebKit restore failure: a failed read is never a missing record.
+          // WebKit can fail restoring or cloning a CryptoKey. Neither may
+          // escape the IDB callback or be treated as a missing saved key.
           fail(error);
-          return;
         }
-        if (isPresent(stored)) {
-          succeed(stored);
-          return;
-        }
-        const write = store.put(record);
-        write.onsuccess = () => succeed(record);
-        write.onerror = () => fail(write.error ?? new Error(message));
       };
       read.onerror = () => fail(read.error ?? new Error(message));
     });
   }
 
-  private async transact<T>(
+  /** Runs related requests in one bounded transaction and waits for commit. */
+  async transact<T>(
     mode: IDBTransactionMode,
     message: string,
     isCurrent: () => boolean,

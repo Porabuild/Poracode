@@ -6,7 +6,7 @@
     <string name="settings_device_general">通用</string>
     <string name="settings_device_general_description">语言、版本和设备信息</string>
     <string name="settings_device_appearance">外观</string>
-    <string name="settings_device_appearance_description">主题和系统颜色</string>
+    <string name="settings_device_appearance_description">主题和聊天字号</string>
     <string name="settings_device_notifications">通知</string>
     <string name="settings_device_notifications_description">权限和桌面端注册状态</string>
     <string name="settings_device_terminal">终端</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">跟随系统</string>
     <string name="settings_appearance_light">浅色</string>
     <string name="settings_appearance_dark">深色</string>
-    <string name="settings_dynamic_color">使用设备颜色</string>
     <string name="settings_notification_status">状态</string>
     <string name="settings_notification_registering">正在注册</string>
     <string name="settings_notification_available">可用</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">使用 Poracode 时显示通知</string>
     <string name="settings_notification_categories">通知类别</string>
     <string name="settings_configuration_section">配置</string>
+    <string name="settings_appearance_mode">模式</string>
+    <string name="settings_appearance_mode_description">匹配您的系统，或强制使用浅色或深色。</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_notifications_enabled_description">当线程状态更改时显示通知。</string>
+    <string name="settings_notification_sound_description">显示通知时播放声音。</string>
+    <string name="settings_home_shortcut_reorder">重新排序%1$s</string>
 </resources>

@@ -121,7 +121,7 @@ struct PoracodeComposerBar<Leading: View, Content: View, Trailing: View>: View {
         .frame(width: trailingWidth, height: 40)
     }
     .padding(2)
-    .poracodeNativeComposerSurface(in: Capsule(), borderOpacity: 0.1, borderWidth: 0.5)
+    .poracodeNativeComposerSurface(in: Capsule(), borderOpacity: 0.1, borderWidth: 0.5, interactive: true)
   }
 }
 
@@ -141,7 +141,6 @@ struct PoracodeExpandedComposerSurface<Editor: View, Toolbar: View>: View {
     .padding(.horizontal, 10)
     .padding(.vertical, 8)
     .poracodeNativeComposerSurface(in: shape, borderOpacity: 0.2, borderWidth: 0.75)
-    .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
   }
 
   private var shape: RoundedRectangle {
@@ -150,15 +149,25 @@ struct PoracodeExpandedComposerSurface<Editor: View, Toolbar: View>: View {
 }
 
 extension View {
-  /// One native material layer for composer bubbles. Composer controls must not
-  /// add Liquid Glass on top of this surface.
+  /// One native surface for composer bubbles. On iOS 26 it is Liquid Glass —
+  /// `interactive` opts collapsed bars into the system's touch response while
+  /// expanded editors stay non-interactive because a UIKit text view sits
+  /// inside. The material fallback keeps its stroke and owns the drop shadow.
+  /// Composer controls must not add Liquid Glass on top of this surface.
+  @ViewBuilder
   func poracodeNativeComposerSurface<S: InsettableShape>(
     in shape: S,
     borderOpacity: Double = 0.1,
-    borderWidth: CGFloat = 0.5
+    borderWidth: CGFloat = 0.5,
+    interactive: Bool = false
   ) -> some View {
-    background(.regularMaterial, in: shape)
-      .overlay(shape.stroke(Color.primary.opacity(borderOpacity), lineWidth: borderWidth))
+    if #available(iOS 26.0, *) {
+      glassEffect(.regular.interactive(interactive), in: shape)
+    } else {
+      background(.regularMaterial, in: shape)
+        .overlay(shape.stroke(Color.primary.opacity(borderOpacity), lineWidth: borderWidth))
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
+    }
   }
 
   /// Native Liquid Glass for floating bubbles on iOS 26, with a material

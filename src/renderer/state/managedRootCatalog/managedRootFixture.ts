@@ -22,6 +22,7 @@ import {
   acknowledgeRuntimeThreadGap,
   attachRuntimePersistenceDurableGapFromCurrentConnection,
   closeDatabase,
+  dbGetThreads,
   getRuntimeThreadGapDescriptor,
   getRuntimeThreadGapNotice,
   initDatabase,
@@ -225,6 +226,21 @@ export async function startFixtureServer(
         return { threadId: payload.threadId };
       }
       if (procedure === "closeThreadConfirmed") return { confirmed: true };
+      if (procedure === "gitListWorktrees") {
+        const paths = new Map(
+          dbGetThreads()
+            .filter((thread) => thread.worktreePath)
+            .map((thread) => [thread.worktreePath!, thread.worktreeBranch ?? "fixture-worktree"]),
+        );
+        return {
+          worktrees: [...paths].map(([path, branch]) => ({
+            path,
+            branch,
+            commit: FIXTURE_BASE_COMMIT,
+            isMain: false,
+          })),
+        };
+      }
       if (procedure === "gitListBranches") {
         return {
           current: "main",

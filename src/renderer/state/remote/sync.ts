@@ -22,7 +22,7 @@ import {
 import { applyAgentStatusSupervisorEvent } from "@/renderer/state/agentStatusesStore";
 import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryActiveTurnTiming } from "../activeTurnTiming";
-import { carryPendingThreadInput } from "../pendingThreadInput";
+import { carryPendingThreadInput, pendingThreadInputItems } from "../pendingThreadInput";
 import { projectPendingCatalogEdit } from "../pendingCatalogEdits";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 import { showUserNotification } from "@/renderer/notifications";
@@ -233,10 +233,16 @@ export function applyThreadSnapshot(
     (itemId) => existingItems?.[itemId]?.observedLive === true,
   );
   const snapshotItems = snapshot.runtimeItems.map(toRuntimeChatItem);
-  // threadActive reads the snapshot's own status, so a stale inactive-looking
-  // snapshot must never reach the replacement guards (they would treat its
-  // shorter history as an authoritative truncate over the live tail).
-  const threadActive = isThreadTurnActive(snapshot.thread.status);
+  // threadActive reads the snapshot's own status (and any still-pending local
+  // input carried into the resident thread row above), so a stale or
+  // pre-admission inactive-looking snapshot must never reach the replacement
+  // guards (they would treat its shorter history as an authoritative truncate
+  // over the live tail or erase an optimistic follow-up prompt).
+  const currentThreadStatus =
+    useAppStore.getState().threads.find((thread) => thread.id === threadId)?.status ??
+    snapshot.thread.status;
+  const threadActive =
+    isThreadTurnActive(snapshot.thread.status) || isThreadTurnActive(currentThreadStatus);
   const shouldReplaceItems =
     !options.preserveRuntimeHistory &&
     !snapshotStale &&
@@ -268,6 +274,11 @@ export function applyThreadSnapshot(
     );
     const { items } = installation;
     const retainedIds = new Set(items.map((item) => item.id));
+    for (const pendingItem of pendingThreadInputItems(threadId, existingItems)) {
+      if (retainedIds.has(pendingItem.id)) continue;
+      items.push(pendingItem);
+      retainedIds.add(pendingItem.id);
+    }
     if (existingIds.some((id) => !retainedIds.has(id))) {
       if (snapshot.runtimeNextCursor != null) invalidateThreadPromptIndex(threadId);
       else forgetThreadPromptIndex(threadId);

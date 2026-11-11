@@ -129,4 +129,63 @@ describe("submission recovery", () => {
       expect(composerDraftStorage()!.load("thread").t).toEqual(content);
     },
   );
+
+  it("stays hidden when a failed submission matches the draft already saved in the composer, while keeping uncertain thread notices visible", async () => {
+    composerDraftStorage()!.save("thread", "t", content);
+    await composerDraftStorage()!.flushRequired();
+    const failed = await saved("failed");
+    const listed = vi.spyOn(clientDraftDatabase, "listClientSubmissionsForDraft");
+    const view = render(
+      <DraftRecoveryNotice kind="thread" ownerId="t" pending={false} onRestore={() => {}} />,
+    );
+    await waitFor(() => expect(listed).toHaveBeenCalled());
+    await act(async () => {
+      await listed.mock.results[0]?.value;
+    });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    await clientDraftDatabase.discardClientSubmission(failed.id, true);
+    view.unmount();
+
+    await saved("uncertain");
+    render(<DraftRecoveryNotice kind="thread" ownerId="t" pending={false} onRestore={() => {}} />);
+    expect(await screen.findByRole("button", { name: "Restore a copy" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Discard saved copy" })).toBeVisible();
+  });
+
+  it("ignores launch submissions on project drafts while surfacing local-checkpoint conflicts", async () => {
+    await preserveClientSubmission({
+      formatVersion: 1,
+      id: crypto.randomUUID(),
+      draftId: "draft-project",
+      scope: '["project","p"]',
+      revision: 1,
+      target: '["managed","p"]',
+      fingerprint: "launch",
+      content: { recoveryContent: content },
+      state: "uncertain",
+      assets: [],
+    });
+    const view = render(
+      <DraftRecoveryNotice kind="project" ownerId="p" pending={false} onRestore={() => {}} />,
+    );
+    await act(async () => Promise.resolve());
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    await act(async () => {
+      await preserveClientSubmission({
+        formatVersion: 1,
+        id: crypto.randomUUID(),
+        draftId: "draft-conflict",
+        scope: '["project","p"]',
+        revision: 2,
+        target: "local-checkpoint",
+        fingerprint: "conflict",
+        content: { recoveryContent: content },
+        state: "failed",
+        assets: [],
+      });
+    });
+    expect(await screen.findByRole("button", { name: "Restore" })).toBeVisible();
+    view.unmount();
+  });
 });

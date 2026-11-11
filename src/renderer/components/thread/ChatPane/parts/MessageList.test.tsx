@@ -288,6 +288,8 @@ describe("MessageList", () => {
         });
         expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
         expect(onNewPrompt).not.toHaveBeenCalled();
+        const scroller = container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
+        scroller.dataset.chatEndSpaceSize = "120";
         act(() => seedCompletedItem("thread-1", "new-prompt", "user_message"));
         rerender(
           <MessageList
@@ -299,14 +301,15 @@ describe("MessageList", () => {
         );
         const props = latestLegendProps.current as MockLegendProps;
         expect(onNewPrompt).toHaveBeenCalledOnce();
+        expect(scroller.dataset.chatEndSpaceSize).toBeUndefined();
         expect(props.maintainScrollAtEnd).toBe(false);
         expect(props.anchoredEndSpace).toMatchObject({ anchorIndex: 2, anchorOffset: 0 });
-        const scroller = container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!;
-        act(() => props.anchoredEndSpace?.onSizeChanged?.(400));
-        expect(scroller.dataset.chatEndSpaceSize).toBe("400");
+        // LegendList skips onSizeChanged when a follow-up prompt's reserved
+        // space equals the previous prompt's; onReady still syncs the dataset.
         act(() =>
           props.anchoredEndSpace?.onReady?.({ anchorIndex: 2, anchorKey: "new-prompt", size: 400 }),
         );
+        expect(scroller.dataset.chatEndSpaceSize).toBe("400");
         act(() => {
           vi.advanceTimersByTime(80);
         });
@@ -533,9 +536,11 @@ describe("MessageList", () => {
       expect(useAppStore.getState().chatPromptAnchorIds["thread-1"]).toBeUndefined();
       expect((latestLegendProps.current as MockLegendProps).anchoredEndSpace).toBeUndefined();
       expect(onFilledNewPrompt).not.toHaveBeenCalled();
-      expect(
-        filled.container.querySelector<HTMLElement>("[data-poracode-chat-scroller]")!.scrollTop,
-      ).toBe(0);
+      const filledScroller = filled.container.querySelector<HTMLElement>(
+        "[data-poracode-chat-scroller]",
+      )!;
+      expect(filledScroller.scrollTop).toBe(0);
+      expect(filledScroller.dataset.chatEndSpaceSize).toBeUndefined();
       vi.useRealTimers();
     },
   );

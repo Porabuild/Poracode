@@ -81,7 +81,11 @@ legacy-contention refusals cover that case.
 
 ## Preparation and credentials
 
-An empty namespace can initialize a fresh owned root. A nonempty legacy
+An empty namespace can initialize a fresh owned root. A namespace whose only
+entries are Poracode's own pre-owner tooling directories — `server` (the
+one-line installer's default prefix), `runtime` (the npx launcher cache) and
+`tls` (`init-tls`/`up --lan` material) — also counts as empty; any other entry
+still requires the import. A nonempty legacy
 namespace without an already valid owned-root manifest is refused for the
 standalone server; the desktop launch promotes such a namespace automatically
 (see above) under the same refusals. Existing owned manifests

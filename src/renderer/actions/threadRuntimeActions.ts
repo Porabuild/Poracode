@@ -33,6 +33,7 @@ import {
 } from "@/renderer/state/pendingThreadInput";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { bridgeThreadInputSegments } from "@/renderer/state/remoteProjection";
 import {
   isRemoteCommandOutcomeUncertainError,
   notifyThreadCommandOutcomeUncertain,
@@ -184,11 +185,12 @@ async function performThreadInputSubmitPending(
     if (optimisticUserMessageItemId && input.captureCheckpoint) {
       await input.captureCheckpoint(optimisticUserMessageItemId);
     }
+    const wireSegments = bridgeThreadInputSegments(thread, segments);
     await withThreadConfigSubmission(thread.id, thread.config, () =>
       transport.sendThreadInput({
         threadId: thread.id,
         prompt,
-        ...(segments ? { segments } : {}),
+        ...(wireSegments ? { segments: wireSegments } : {}),
         config: thread.config,
         ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
         ...(questionAnswer ? { questionAnswer } : {}),
@@ -395,10 +397,11 @@ export async function setThreadPendingSteer(
   segments: PromptSegment[] | undefined,
   clientContext?: TurnClientContext,
 ): Promise<void> {
+  const wireSegments = bridgeThreadInputSegments(thread, segments);
   await readBridge().setPendingSteer({
     threadId: thread.id,
     prompt,
-    ...(segments ? { segments } : {}),
+    ...(wireSegments ? { segments: wireSegments } : {}),
     config: thread.config,
     ...(clientContext ? { clientContext } : {}),
   });

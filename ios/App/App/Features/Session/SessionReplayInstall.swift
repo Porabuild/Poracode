@@ -159,24 +159,8 @@ extension AppSession {
   /// Cached authoritative Git summary for a thread on the selected host.
   func gitSummary(forThread threadId: String) -> GitThreadSummary? {
     guard state.canRead, state.phase == .ready else { return nil }
-    if let summary = state.replay.summary(forThread: threadId) { return summary }
-    guard let thread = state.snapshot?.threads.first(where: { $0.id == threadId }) else {
-      return nil
-    }
-    let worktreePath = normalizedWorktreePath(thread.worktreePath)
-    guard let statusValue = state.replay.gitState.targets.values.first(where: {
-      $0.ref.projectId == thread.projectId
-        && normalizedWorktreePath($0.ref.worktreePath) == worktreePath
-    })?.status,
-      let data = try? JSONEncoder().encode(statusValue),
-      let status = try? JSONDecoder().decode(ProjectGitStatus.self, from: data)
-    else { return nil }
-    return GitThreadSummary(status: status)
-  }
-
-  private func normalizedWorktreePath(_ path: String?) -> String? {
-    guard let path, !path.isEmpty else { return nil }
-    return path
+    let thread = state.snapshot?.threads.first(where: { $0.id == threadId })
+    return state.replay.gitSummary(forThread: threadId, thread: thread)
   }
 
   /// Installed agent statuses for the selected host, in first-seen identity order.

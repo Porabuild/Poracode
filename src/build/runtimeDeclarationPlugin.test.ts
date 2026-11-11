@@ -56,6 +56,9 @@ async function fixture() {
     "native/pty-job-owner/main.rs",
     "packages/poracode-cli/lib/completion.mjs",
     "packages/poracode-cli/lib/desktopBundle.mjs",
+    "packages/poracode-cli/lib/installPaths.mjs",
+    "packages/poracode-cli/lib/artifact.mjs",
+    "packages/poracode-cli/lib/errors.mjs",
     "scripts/server-native-overlay.mjs",
     "scripts/server-release-install.mjs",
     "scripts/server-host-tools.mjs",
@@ -244,7 +247,7 @@ it("still enforces the bundled input closure inside a finite batch", async () =>
   ).rejects.toThrow(/outside the runtime declaration/);
 });
 
-it.each(["completion.mjs", "desktopBundle.mjs"])(
+it.each(["completion.mjs", "desktopBundle.mjs", "installPaths.mjs", "artifact.mjs", "errors.mjs"])(
   "declares bundled CLI input %s and refreshes its build identity",
   async (file) => {
     const root = await fixture();

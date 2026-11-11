@@ -230,6 +230,19 @@ export const goalItemPayloadSchema = z.object({
 });
 export type GoalItemPayload = z.infer<typeof goalItemPayloadSchema>;
 
+/**
+ * Provider-classified part of a shell command. `kind` is an open string
+ * ("read" | "list" | "search"); readers skip kinds they don't know. Older
+ * readers strip unknown keys, so no version bump is needed.
+ */
+export const commandActionSchema = z.object({
+  kind: z.string(),
+  path: z.string().optional(),
+  name: z.string().optional(),
+  query: z.string().optional(),
+});
+export type CommandAction = z.infer<typeof commandActionSchema>;
+
 export const commandExecutionPayloadSchema = z.object({
   command: z.string(),
   cwd: z.string().optional(),
@@ -237,6 +250,7 @@ export const commandExecutionPayloadSchema = z.object({
   durationMs: z.number().int().optional(),
   status: toolCallStatusSchema.optional(),
   errorMessage: z.string().optional(),
+  actions: z.array(commandActionSchema).optional(),
 });
 export type CommandExecutionPayload = z.infer<typeof commandExecutionPayloadSchema>;
 
@@ -381,6 +395,15 @@ export type ToolCallPayload = z.infer<typeof toolCallPayloadSchema>;
 export const webSearchPayloadSchema = z.object({
   query: z.string(),
   resultCount: z.number().int().optional(),
+  /**
+   * Provider-reported action kind ("search" | "open_page" | "find_in_page");
+   * open string so a reader skips a kind it does not know. Optional and
+   * additive — older readers strip unknown keys, no version bump needed.
+   */
+  action: z.string().optional(),
+  queries: z.array(z.string()).optional(),
+  url: z.string().optional(),
+  pattern: z.string().optional(),
 });
 export type WebSearchPayload = z.infer<typeof webSearchPayloadSchema>;
 

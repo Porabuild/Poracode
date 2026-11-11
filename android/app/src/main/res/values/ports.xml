@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Port forwarding</string>
+    <string name="ports_title">Ports</string>
     <string name="ports_back">Back</string>
     <string name="ports_refresh">Refresh ports</string>
     <string name="ports_target_port">Target port</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">Browser forwarding isn’t set up on this desktop.</string>
     <string name="ports_failure_ambiguous">The request may have completed. The list was refreshed.</string>
     <string name="ports_failure_unavailable">Port forwarding is currently unavailable.</string>
+    <string name="ports_intro">Dev servers listening on your desktop\'s localhost.</string>
+    <string name="ports_forward_a_port">Forward a port</string>
 </resources>

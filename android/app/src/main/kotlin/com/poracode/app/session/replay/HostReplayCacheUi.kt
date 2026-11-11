@@ -1,6 +1,7 @@
 package com.poracode.app.session.replay
 
 import com.poracode.app.model.AgentStatusEntry
+import com.poracode.app.model.GitSummaryTargetKey
 import com.poracode.app.model.RemoteGitSummary
 
 /**
@@ -16,6 +17,11 @@ data class HostReplayCacheUi(
     val agentWslStatuses: List<AgentStatusEntry> = emptyList(),
     val agentWslLoaded: Boolean = false,
     val gitStateRevision: Int = 0,
+    /**
+     * Precomputed per-target Git summaries decoded once per `gitState` change;
+     * backs the per-thread fallback lookup without JSON work in composition.
+     */
+    val gitSummaryByTarget: Map<GitSummaryTargetKey, RemoteGitSummary> = emptyMap(),
 ) {
     companion object {
         val EMPTY = HostReplayCacheUi()

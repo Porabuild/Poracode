@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Przekierowanie portów</string>
+    <string name="ports_title">Porty</string>
     <string name="ports_back">Wstecz</string>
     <string name="ports_refresh">Odśwież porty</string>
     <string name="ports_target_port">Port docelowy</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">Przekierowanie do przeglądarki nie jest skonfigurowane na tym komputerze.</string>
     <string name="ports_failure_ambiguous">Żądanie mogło zostać wykonane. Lista została odświeżona.</string>
     <string name="ports_failure_unavailable">Przekierowanie portów jest obecnie niedostępne.</string>
+    <string name="ports_intro">Serwery deweloperskie nasłuchujące na localhost Twojego komputera.</string>
+    <string name="ports_forward_a_port">Przekieruj port</string>
 </resources>

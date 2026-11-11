@@ -47,7 +47,7 @@ struct ProjectMCPSettingsView: View {
     }
     .navigationTitle(ProjectSettingsStrings.mcpServers)
     .navigationBarTitleDisplayMode(.inline)
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       PoracodeBottomActionDock(placement: .trailing) {
         PoracodeCircleButton {
           editor = ProjectMCPEditorSelection()
@@ -157,6 +157,7 @@ struct ProjectMCPSettingsView: View {
         }
       }
     }
+    .poracodeSwitchStyle()
     .disabled(commandController.state.isExecuting)
     .swipeActions(edge: .leading, allowsFullSwipe: false) {
       Button {
@@ -164,7 +165,7 @@ struct ProjectMCPSettingsView: View {
       } label: {
         Label(ProjectManagementStrings.edit, systemImage: "pencil")
       }
-      .tint(.accentColor)
+      .tint(.gray)
     }
     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
       Button(role: .destructive) {
@@ -296,6 +297,7 @@ struct ProjectMCPServerEditor: View {
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
         Toggle(ProjectSettingsStrings.mcpEnabled, isOn: $draft.enabled)
+        .poracodeSwitchStyle()
         Picker(ProjectSettingsStrings.mcpTransport, selection: $draft.transportKind) {
           ForEach(ProjectMCPTransportKind.allCases) { kind in
             Text(kind.label).tag(kind)

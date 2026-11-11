@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
-import { Server, type Transport } from "@modelcontextprotocol/server";
+import { Server, type Tool, type Transport } from "@modelcontextprotocol/server";
 import { startSchemaProxy } from "./mcpSchemaProxy";
 import { createUpstreamTransport } from "./mcpToolFilterProxy";
 import { createServer } from "node:http";
@@ -10,7 +10,9 @@ afterEach(async () => {
   await Promise.allSettled(cleanups.splice(0).map((close) => close()));
 });
 
-async function fixture() {
+async function fixture(
+  options: { inputSchema?: Tool["inputSchema"]; maxSchemaDepth?: number } = {},
+) {
   const upstream = new Server(
     { name: "original-server", version: "1" },
     {
@@ -25,7 +27,10 @@ async function fixture() {
     tools: [
       {
         name: "fixture",
-        inputSchema: { type: "object", properties: { email: { type: "string", pattern: "[" } } },
+        inputSchema: options.inputSchema ?? {
+          type: "object",
+          properties: { email: { type: "string", pattern: "[" } },
+        },
         _meta: { fixture: true },
       },
     ],
@@ -46,7 +51,12 @@ async function fixture() {
   const [upstreamTransport, serverSide] = InMemoryTransport.createLinkedPair();
   const [downstreamTransport, clientSide] = InMemoryTransport.createLinkedPair();
   await upstream.connect(serverSide);
-  const proxy = await startSchemaProxy({ upstreamTransport, downstreamTransport, timeoutMs: 1000 });
+  const proxy = await startSchemaProxy({
+    upstreamTransport,
+    downstreamTransport,
+    timeoutMs: 1000,
+    ...(options.maxSchemaDepth !== undefined ? { maxSchemaDepth: options.maxSchemaDepth } : {}),
+  });
   const client = new Client(
     { name: "original-client", version: "1" },
     { capabilities: { roots: { listChanged: true } } },
@@ -64,6 +74,26 @@ async function fixture() {
 }
 
 describe("schema-only MCP protocol proxy", () => {
+  it("limits deep tool schemas while forwarding arguments unchanged", async () => {
+    let nested: unknown = { type: "string" };
+    for (let i = 0; i < 11; i += 1) nested = { type: "object", properties: { x: nested } };
+    const { client, upstream } = await fixture({
+      inputSchema: nested as Tool["inputSchema"],
+      maxSchemaDepth: 10,
+    });
+    const listed = (await client.listTools()).tools[0]!;
+    expect(listed.description).toContain(JSON.stringify(nested));
+    expect(listed.inputSchema).not.toEqual(nested);
+    let received: unknown;
+    upstream.setRequestHandler("tools/call", async (request) => {
+      received = request.params.arguments;
+      return { content: [{ type: "text", text: "ok" }] };
+    });
+    const args = { x: { x: { marker: "original" } } };
+    await client.callTool({ name: "fixture", arguments: args });
+    expect(received).toEqual(args);
+  });
+
   it("normalizes only tool schemas and preserves capabilities, resources, prompts and reverse requests", async () => {
     const { client, upstream } = await fixture();
     expect(client.getServerVersion()).toEqual({ name: "original-server", version: "1" });

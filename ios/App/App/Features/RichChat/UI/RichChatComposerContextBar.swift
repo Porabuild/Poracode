@@ -68,8 +68,7 @@ struct RichChatComposerContextBar: View {
       Label(label, systemImage: "xmark.circle.fill")
         .poracodeChatText(.metadata)
     }
-    .buttonStyle(.bordered)
-    .tint(.secondary)
+    .poracodeSurfaceButtonStyle(tint: .secondary)
     .accessibilityLabel(accessibilityLabel)
   }
 }

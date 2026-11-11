@@ -1,4 +1,5 @@
 export const COMPUTER_USE_OVERLAY_TITLE = "Poracode Computer Use Overlay";
+export const COMPUTER_USE_BADGE_BACKGROUND = "#10131a";
 
 /**
  * The badge's exit link navigates to this URL in a new window so the main
@@ -80,9 +81,9 @@ export function createBadgeOverlayUrl(target?: string): string {
         width: 100%;
         height: 100%;
         padding: 0 8px 0 14px;
-        border: 1px solid rgba(92, 167, 255, 0.65);
-        border-radius: 10px;
-        background: rgba(8, 12, 20, 0.9);
+        border: 1px solid rgba(211, 215, 222, 0.12);
+        border-radius: 12px;
+        background: ${COMPUTER_USE_BADGE_BACKGROUND};
         color: #f7f9fc;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         font: 600 12px/1.25 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -103,7 +104,7 @@ export function createBadgeOverlayUrl(target?: string): string {
         text-decoration: none;
         cursor: pointer;
       }
-      .exit:hover { background: rgba(92, 167, 255, 0.25); color: #f7f9fc; }
+      .exit:hover { background: rgba(211, 215, 222, 0.16); color: #f7f9fc; }
     </style>
   </head>
   <body>

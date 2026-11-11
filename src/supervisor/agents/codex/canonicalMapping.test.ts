@@ -830,7 +830,8 @@ describe("mapCodexNotification — item lifecycle (item/started, item/completed)
 
     expect((events[0] as { itemType: string }).itemType).toBe("web_search");
     expect((events[0] as { payload: Record<string, unknown> }).payload).toMatchObject({
-      query: "Electron crash reporting Sentry Electron SDK native crashes official",
+      query:
+        "Electron crash reporting Sentry Electron SDK native crashes official · Bugsnag Electron SDK crash reporting official docs pricing free",
       args: {
         type: "search",
         query: "Electron crash reporting Sentry Electron SDK native crashes official",

@@ -5,6 +5,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -59,6 +60,59 @@ describe("owned host-root activation boundary", () => {
     writeFileSync(settings, original);
     expect(() => prepareOwnedHostRoot(lease)).toThrow(HostImportRequiredError);
     expect(readFileSync(settings, "utf8")).toBe(original);
+    expect(existsSync(lease.paths.dataRoot)).toBe(false);
+  });
+
+  it("treats a namespace holding only CLI tooling directories as empty", () => {
+    const lease = owner();
+    for (const name of ["server", "runtime", "tls"]) {
+      const dir = join(lease.paths.profileNamespace, name);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "payload.bin"), "tooling");
+    }
+    const manifest = prepareOwnedHostRoot(lease);
+    expect(manifest.source).toEqual({ kind: "empty", activation: "ready" });
+    for (const name of ["server", "runtime", "tls"]) {
+      expect(readFileSync(join(lease.paths.profileNamespace, name, "payload.bin"), "utf8")).toBe(
+        "tooling",
+      );
+    }
+  });
+
+  it("still refuses a tooling name held by a regular file", () => {
+    const lease = owner();
+    mkdirSync(lease.paths.profileNamespace);
+    writeFileSync(join(lease.paths.profileNamespace, "tls"), "not-a-directory");
+    expect(() => prepareOwnedHostRoot(lease)).toThrow(HostImportRequiredError);
+    expect(existsSync(lease.paths.dataRoot)).toBe(false);
+  });
+
+  it("refuses tooling directories mixed with custodial profile files", () => {
+    const lease = owner();
+    mkdirSync(join(lease.paths.profileNamespace, "server"), { recursive: true });
+    writeFileSync(join(lease.paths.profileNamespace, "settings.json"), "{}");
+    expect(() => prepareOwnedHostRoot(lease)).toThrow(HostImportRequiredError);
+    expect(existsSync(lease.paths.dataRoot)).toBe(false);
+  });
+
+  it.each([{}, { allowNonCustodialNamespace: true }])(
+    "refuses tooling directories beside state.sqlite (%j)",
+    (options) => {
+      const lease = owner();
+      mkdirSync(join(lease.paths.profileNamespace, "server"), { recursive: true });
+      writeFileSync(join(lease.paths.profileNamespace, "state.sqlite"), "database");
+      expect(() => prepareOwnedHostRoot(lease, options)).toThrow(HostImportRequiredError);
+      expect(existsSync(lease.paths.dataRoot)).toBe(false);
+    },
+  );
+
+  it("refuses a symlink named like a tooling directory", () => {
+    const lease = owner();
+    mkdirSync(lease.paths.profileNamespace);
+    const target = join(lease.paths.profileNamespace, "elsewhere");
+    mkdirSync(target);
+    symlinkSync(target, join(lease.paths.profileNamespace, "server"), "dir");
+    expect(() => prepareOwnedHostRoot(lease)).toThrow(HostImportRequiredError);
     expect(existsSync(lease.paths.dataRoot)).toBe(false);
   });
 

@@ -1,3 +1,4 @@
+import { storableAttachments } from "@/renderer/components/composer/useAttachments";
 import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
 import { clientDraftPersistenceError } from "@/renderer/state/composerDrafts/persistenceError";
 import { getRemoteBridgeClient } from "@/renderer/browser/remoteBridge";
@@ -10,6 +11,7 @@ import { readBridge } from "@/renderer/bridge";
 import { entityHost, hostHandle, isSameHost } from "@/renderer/state/entityHost";
 import {
   composerDraftStorage,
+  draftContentSchema,
   type DraftCheckpoint,
   type DraftKind,
 } from "@/renderer/state/composerDraftStorage";
@@ -28,6 +30,7 @@ import {
   type ClientDraftSubmission,
 } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { isRemoteCommandOutcomeUncertainError } from "./threadCommandOutcomeActions";
+import { materializeCrossHostThreadMentions } from "./crossHostThreadMention";
 
 export interface DraftSubmission {
   id: string;
@@ -49,6 +52,40 @@ export async function materializeDraftSegments(
   const targetOwner = entityHost(target);
   if (target.remoteServerId && !targetOwner) throw new Error(i18n._(msg`Remote server not found.`));
   const boundTarget = targetOwner ? null : getRemoteBridgeClient();
+  const assertTargetStillCurrent = () => {
+    if (
+      !isTargetCurrent() ||
+      (targetOwner && !targetOwner.isCurrent()) ||
+      (boundTarget && getRemoteBridgeClient() !== boundTarget)
+    ) {
+      throw new Error(i18n._(msg`Remote server not found.`));
+    }
+  };
+  const uploadBytes = async (fileName: string, data: Uint8Array<ArrayBuffer>): Promise<string> => {
+    assertTargetStillCurrent();
+    const path = targetOwner
+      ? await targetOwner.withClient((client) => {
+          assertTargetStillCurrent();
+          return client.uploadAttachment({
+            threadId: attachmentThreadId,
+            fileName,
+            data,
+          });
+        })
+      : boundTarget
+        ? await boundTarget.uploadAttachment({
+            threadId: attachmentThreadId,
+            fileName,
+            data,
+          })
+        : await readBridge().saveClipboardImage({
+            threadId: attachmentThreadId,
+            extension: /\.([a-z0-9]{1,16})$/i.exec(fileName)?.[1]?.toLowerCase() ?? "bin",
+            data,
+          });
+    assertTargetStillCurrent();
+    return path;
+  };
   const copied = new Map<string, { path: string; mimeType: string }>();
   for (const segment of segments) {
     if (
@@ -61,46 +98,19 @@ export async function materializeDraftSegments(
       throw storageError(error);
     });
     const data = new Uint8Array(await asset.blob.arrayBuffer());
-    if (
-      !isTargetCurrent() ||
-      (targetOwner && !targetOwner.isCurrent()) ||
-      (boundTarget && getRemoteBridgeClient() !== boundTarget)
-    )
-      throw new Error(i18n._(msg`Remote server not found.`));
-    const path = targetOwner
-      ? await targetOwner.withClient((client) => {
-          if (!isTargetCurrent() || !targetOwner.isCurrent())
-            throw new Error(i18n._(msg`Remote server not found.`));
-          return client.uploadAttachment({
-            threadId: attachmentThreadId,
-            fileName: asset.name,
-            data,
-          });
-        })
-      : boundTarget
-        ? await boundTarget.uploadAttachment({
-            threadId: attachmentThreadId,
-            fileName: asset.name,
-            data,
-          })
-        : await readBridge().saveClipboardImage({
-            threadId: attachmentThreadId,
-            extension: /\.([a-z0-9]{1,16})$/i.exec(asset.name)?.[1]?.toLowerCase() ?? "bin",
-            data,
-          });
-    if (
-      !isTargetCurrent() ||
-      (targetOwner && !targetOwner.isCurrent()) ||
-      (boundTarget && getRemoteBridgeClient() !== boundTarget)
-    )
-      throw new Error(i18n._(msg`Remote server not found.`));
+    const path = await uploadBytes(asset.name, data);
     copied.set(segment.path, { path, mimeType: asset.mimeType });
   }
-  return segments.map((segment) =>
+  const uploadedSegments = segments.map((segment) =>
     segment.kind === "attachment" && copied.has(segment.path)
       ? { ...segment, ...copied.get(segment.path)! }
       : segment,
   );
+  return materializeCrossHostThreadMentions({
+    target,
+    segments: uploadedSegments,
+    uploadBytes,
+  });
 }
 
 /** Import legacy paths only after Send, using their original authority. */
@@ -353,6 +363,60 @@ export async function settleClientSubmission(
     if (state !== "accepted") throw error;
     throw clientDraftRetirementError(error);
   }
+}
+
+export async function retireFailedDraftSubmission(id: string | undefined): Promise<void> {
+  if (!id || typeof indexedDB === "undefined") return;
+  const record = await readClientSubmission(id).catch(() => undefined);
+  if (!record || record.state === "accepted") return;
+  if (await discardClientSubmission(id, true).catch(() => false)) {
+    queueClientDraftAssetReclamation(record.assets);
+  }
+}
+
+export function parseSubmissionRecoveryContent(
+  record: Pick<ClientDraftSubmission, "content">,
+): DraftContent {
+  const envelope = record.content as {
+    checkpoint?: { content?: unknown };
+    recoveryContent?: unknown;
+  } | null;
+  return draftContentSchema.parse(envelope?.recoveryContent ?? envelope?.checkpoint?.content);
+}
+
+export function matchesSubmissionRecoveryContent(
+  record: Pick<ClientDraftSubmission, "content">,
+  draft: DraftContent | undefined,
+): boolean {
+  if (!draft) return false;
+  const current = draftContentSchema.safeParse({
+    segments: draft.segments,
+    attachments: storableAttachments(draft.attachments),
+  });
+  if (!current.success) return false;
+  const currentJson = JSON.stringify(current.data);
+  const envelope = record.content as {
+    checkpoint?: { content?: unknown };
+    recoveryContent?: unknown;
+  } | null;
+  for (const candidate of [envelope?.recoveryContent, envelope?.checkpoint?.content]) {
+    if (candidate === undefined) continue;
+    const parsed = draftContentSchema.safeParse(candidate);
+    if (parsed.success && currentJson === JSON.stringify(parsed.data)) return true;
+  }
+  return false;
+}
+
+const notifiedDraftLaunchErrors = new WeakSet<object>();
+
+export function markDraftLaunchErrorNotified(error: unknown): void {
+  if (typeof error === "object" && error !== null) {
+    notifiedDraftLaunchErrors.add(error);
+  }
+}
+
+export function wasDraftLaunchErrorNotified(error: unknown): boolean {
+  return typeof error === "object" && error !== null && notifiedDraftLaunchErrors.has(error);
 }
 
 /** A native handoff is not a launch receipt. Quick Composer waits for its worker. */

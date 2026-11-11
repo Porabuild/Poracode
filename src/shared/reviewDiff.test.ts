@@ -1,6 +1,12 @@
 import { expect, it } from "vitest";
 import { splitUnifiedDiff, viewedFingerprint } from "./reviewDiff";
 
+it("preserves the fingerprint stored by the previous implementation", () => {
+  expect(viewedFingerprint("patch 😀", { additions: 2, deletions: 1 })).toBe(
+    "ready:2:1:8:81558662",
+  );
+});
+
 it("preserves the previous patch boundaries and existing viewed fingerprints", () => {
   const first = "diff --git a/a.ts b/a.ts\n--- a/a.ts\n+++ b/a.ts\n@@ -1 +1 @@\n-old\n+new";
   const last = "diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -1 +1 @@\n-before\n+after\n";

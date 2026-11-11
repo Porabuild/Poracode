@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.RemoteProject
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.model.threads.ThreadPresentationMode
 import com.poracode.app.session.projects.ProjectSessionRuntime
 
 @Composable
@@ -13,6 +14,9 @@ internal fun HomeQuickComposeSheetHost(
     showCommands: Boolean,
     catalog: HomeQuickComposeCatalog?,
     configuration: ThreadConfig,
+    availableModes: List<ThreadPresentationMode> = emptyList(),
+    selectedMode: ThreadPresentationMode = ThreadPresentationMode.Gui,
+    onModeSelected: (String) -> Unit = {},
     worktrees: List<HomeQuickComposeWorktree>,
     currentBranch: String?,
     selectedWorktree: HomeQuickComposeWorktree?,
@@ -37,6 +41,9 @@ internal fun HomeQuickComposeSheetHost(
             enabled = enabled,
             onDismiss = onDismissControls,
             onSave = onSaveConfiguration,
+            availableModes = availableModes,
+            selectedMode = selectedMode,
+            onModeSelected = onModeSelected,
         )
     }
     HomeQuickComposeWorktreePicker(

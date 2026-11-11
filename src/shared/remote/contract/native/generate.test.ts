@@ -80,6 +80,7 @@ describe("remote v3 native binding generator", () => {
         // the optional review-thread diff side adds one field; optional async reply source IDs
         // preserve wire versions; the optional `deferBodies` history query parameter adds one
         // structural type (its literal).
+        // Optional response-only quota ring IDs add two structural types.
         // Optional sessionId on the token-exchange result moves the source hash only.
         // Optional crew favorites/usage and model recency move only the source hash.
         // The optional `ready.epoch` and the eventEpoch/lastSeenEpoch handshake
@@ -99,7 +100,7 @@ describe("remote v3 native binding generator", () => {
         // Link metadata adds one read procedure, two roots and structural types.
         // Thread transfer adds two operate-scoped routes (command and raw upload)
         // with their request, query and result roots and structural types.
-        sourceHash: "sha256:6739275d7fabb9b3cd35faa158a93f872d2afadcd6d5b77b66c9ab62596420ef",
+        sourceHash: "sha256:ed400b5f4388c42f54755aa1a401a057ab57fbcb48b4388691d81d1b799af47a",
         manifestHash: "sha256:aa02ce63840c7b523ef2c18c1f3ffbd9151673f9b2ce7c1a6350f481486a0928",
         counts: {
           routes: 121,
@@ -110,10 +111,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 569,
-          structuralTypes: 1350,
+          structuralTypes: 1352,
           semanticValidators: 25,
-          swiftFiles: 83,
-          kotlinFiles: 70,
+          // Content-defined shards (emitterCommon.shardDeclarations) average
+          // ~200 lines, so a contract change rewrites only nearby files.
+          swiftFiles: 150,
+          kotlinFiles: 126,
           stateMachines: 5,
         },
       });
@@ -144,7 +147,9 @@ describe("remote v3 native binding generator", () => {
       },
     ]);
     const output = emitSwiftBindings(parseNativeBindingIr(ir, manifest), graph);
-    expect(output["Models001.swift"]).toContain(
+    const models = Object.entries(output).filter(([path]) => path.startsWith("Models_"));
+    expect(models).toHaveLength(1);
+    expect(models[0]?.[1]).toContain(
       '  case `normal` = "normal"\n' +
         '  case `true` = "true"\n' +
         '  case `false` = "false"\n' +

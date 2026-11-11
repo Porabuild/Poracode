@@ -6,7 +6,7 @@
     <string name="settings_device_general">Загальні</string>
     <string name="settings_device_general_description">Мова, версія та відомості про пристрій</string>
     <string name="settings_device_appearance">Вигляд</string>
-    <string name="settings_device_appearance_description">Тема та системні кольори</string>
+    <string name="settings_device_appearance_description">Тема и размер шрифта чата</string>
     <string name="settings_device_notifications">Сповіщення</string>
     <string name="settings_device_notifications_description">Дозвіл і стан реєстрації комп’ютерів</string>
     <string name="settings_device_terminal">Термінал</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">Системна</string>
     <string name="settings_appearance_light">Світла</string>
     <string name="settings_appearance_dark">Темна</string>
-    <string name="settings_dynamic_color">Використовувати кольори пристрою</string>
     <string name="settings_notification_status">Стан</string>
     <string name="settings_notification_registering">Реєстрація</string>
     <string name="settings_notification_available">Доступно</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Показувати сповіщення під час використання Poracode</string>
     <string name="settings_notification_categories">Сповіщати про</string>
     <string name="settings_configuration_section">Конфігурація</string>
+    <string name="settings_appearance_mode">Режим</string>
+    <string name="settings_appearance_mode_description">Підлаштовуватися під систему або примусово світла чи темна.</string>
+    <string name="settings_theme">Тема</string>
+    <string name="settings_notifications_enabled_description">Показувати сповіщення, коли змінюється статус треду.</string>
+    <string name="settings_notification_sound_description">Відтворювати звук, коли показується сповіщення.</string>
+    <string name="settings_home_shortcut_reorder">Змінити порядок %1$s</string>
 </resources>

@@ -18,6 +18,7 @@ import type {
   BackgroundTask,
   ProjectLocation,
   PromptSegment,
+  QuestionAnswerItemPayload,
   ProviderRevertAnchor,
   RuntimeEvent,
   SessionConfigOptions,
@@ -115,6 +116,8 @@ export interface StructuredSessionListener {
 
 export interface StartTurnOptions {
   userMessageItemId?: string;
+  /** Canonical reply metadata to preserve when echoing the user's message. */
+  questionAnswer?: QuestionAnswerItemPayload;
   /** Called only after the provider accepts the outgoing prompt. */
   onPromptSubmitted?: () => void;
   /**
@@ -1193,6 +1196,9 @@ export interface AgentAdapter
 
   /** Omit malformed Unicode regex constraints when a model gateway rejects the entire tool catalog. */
   readonly mcpRequiresPortableSchemaPatterns?: boolean;
+
+  /** Maximum object/array nesting accepted in advertised tool input schemas. */
+  readonly mcpMaxSchemaDepth?: number;
 
   /**
    * Refresh shared OAuth on MCP connection instead of before launch. Requires a

@@ -1,4 +1,11 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -36,8 +43,49 @@ function fixture() {
       args: ["-e", script],
     });
   const request = (terminalId: string) => ({ sessionId: "session-1", terminalId });
-  return { manager, create, request };
+  return { manager, create, request, cwd };
 }
+
+it.skipIf(process.platform === "win32")(
+  "runs Bash scripts after login-shell setup with literal heredocs and intact exit codes",
+  async () => {
+    const { manager, request, cwd } = fixture();
+    const loginShell = join(cwd, "login-shell");
+    // Model a login shell that supplies environment but does not parse Bash
+    // syntax. The command must reach the script interpreter as one argument.
+    writeFileSync(
+      loginShell,
+      '#!/bin/sh\nexport ACP_LOGIN_VALUE="from login shell"\nwhile [ "$1" != "-c" ]; do shift; done\nexec /bin/sh "$@"\n',
+      { mode: 0o700 },
+    );
+    const shell = process.env.SHELL;
+    process.env.SHELL = loginShell;
+    const literal = String.raw`$HOME $(touch unexpected) \`touch unexpected\` 'single' "double" C:\\Users\\demo slash\'quote`;
+    try {
+      const { terminalId } = await manager.handleCreateTerminal({
+        sessionId: "session-1",
+        command: `cat <<'EOF' > 'script with spaces.txt'
+${literal}
+EOF
+values=(first 'two words')
+printf '%s|%s|%s|%s' "\${values[1]}" "$ACP_LOGIN_VALUE" "$ACP_REQUEST_VALUE" "$PWD"
+exit 7`,
+        env: [{ name: "ACP_REQUEST_VALUE", value: "request 'value'" }],
+      });
+      await expect(manager.handleWaitForTerminalExit(request(terminalId))).resolves.toEqual({
+        exitCode: 7,
+      });
+      expect(manager.handleTerminalOutput(request(terminalId)).output).toBe(
+        `two words|from login shell|request 'value'|${realpathSync(cwd)}`,
+      );
+      expect(readFileSync(join(cwd, "script with spaces.txt"), "utf8")).toBe(`${literal}\n`);
+      expect(readdirSync(cwd).sort()).toEqual(["login-shell", "script with spaces.txt"]);
+    } finally {
+      if (shell === undefined) delete process.env.SHELL;
+      else process.env.SHELL = shell;
+    }
+  },
+);
 
 it("drains stdout and stderr with intact UTF-8 before returning the exit code", async () => {
   const { manager, create, request } = fixture();

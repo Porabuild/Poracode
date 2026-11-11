@@ -65,6 +65,40 @@ new autonomous turn: a nonempty batch of only replacing text deltas must neither
 reopen work nor extend an orphan turn's idle window. New items, appends, and
 other lifecycle events keep the ordinary activity rules.
 
+### Shared agent processes
+
+An adapter may opt GUI threads into pooled ACP processes through
+`createSharedAcpStructuredSession` (`acp/sharedProcess.ts`). Threads join one
+child process — one `initialize`, one ACP session per thread — when scope,
+command, normalized env, initialize request, and `prepare.key` all match;
+`command.cwd` is excluded because the process always spawns in a private
+empty directory (agents may derive per-process state such as stdio MCP
+servers from it). Env is normalized for the key only (`normalizePoolKeyEnv`
+in `sharedProcess.ts`): per-shell-instance bookkeeping (`PWD`, `OLDPWD`,
+`SHLVL`, `_`, `DIRENV_*`, `STARSHIP_SESSION_KEY`, `FNM_MULTISHELL_PATH`) is
+dropped and PATH entries are canonicalized through `realpathSync`, while
+every exported variable stays keyed — unknown per-instance noise merely
+prevents sharing, and project-specific env can never cross projects.
+`AcpSharedProcessOptions.prepare` materializes process-scoped state once per
+process, and `maxSessionsPerProcess` caps leased members per process (default
+`DEFAULT_MAX_SESSIONS_PER_PROCESS` = 8; identical specs simply span additional
+entries). `unaddressedRequests` attributes agent→client requests that carry no
+sessionId: `"single-active-session"` routes to the only member with agent work
+in flight, or — when several members work — to the first when they all report
+the same defined `unaddressedRouteKey` (members with equal keys answer
+identically); methodNotFound otherwise. Member release sends `session/cancel`
+then `session/close` for its own ids. A failed close quarantines the member
+when its turn already settled — its session ids are abandoned (notifications
+drop, requests get an immediate refusal), the entry drains so nothing new
+joins, and surviving members keep working; it escalates to process
+termination only while the member still has agent work. When the process
+dies, idle members close without an error (their session ref survives for
+`session/load`) while working members get the unexpected-exit report. Crash,
+failed initialize, or missing `sessionCapabilities.close` evicts the entry.
+`shutdownSharedAcpProcesses(scope)` retires a scope's pool — adapters wire it
+to `AgentAdapter.shutdown`. Cloud relays and WSL commands keep the dedicated
+per-thread path.
+
 ### Command tool calls and client terminals
 
 Command execution tools may stream `rawInput.command` and `rawInput.cwd` after

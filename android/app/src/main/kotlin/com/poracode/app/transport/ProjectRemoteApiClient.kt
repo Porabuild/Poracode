@@ -72,7 +72,7 @@ class ProjectRemoteApiClient private constructor(
 
     override suspend fun projectSettings(projectId: String): ProjectSettings {
         val canonicalId = GeneratedRemoteV3ProjectContract.projectSettingsPath(projectId)
-        val response = http.requestText("/api/projects/${encodePath(canonicalId)}/settings")
+        val response = http.requestText("/api/projects/${encodePath(canonicalId)}/settings", retryableRead = true)
         return ProjectRemoteV3Adapters.settings(
             GeneratedRemoteV3ProjectContract.projectSettingsResponse(response),
         )
@@ -80,7 +80,7 @@ class ProjectRemoteApiClient private constructor(
 
     override suspend fun projectNotes(projectId: String): ProjectNotesReadResult {
         val canonicalId = GeneratedRemoteV3ProjectContract.projectNotesReadPath(projectId)
-        val response = http.requestText("/api/projects/${encodePath(canonicalId)}/notes")
+        val response = http.requestText("/api/projects/${encodePath(canonicalId)}/notes", retryableRead = true)
         return ProjectRemoteV3Adapters.notes(
             GeneratedRemoteV3ProjectContract.projectNotesReadResponse(response),
         )
@@ -102,6 +102,7 @@ class ProjectRemoteApiClient private constructor(
             path = PROCEDURE_CALL_PATH,
             method = "POST",
             jsonBody = GeneratedRemoteV3ProjectContract.browseHostDirectoryRequest(path),
+            retryableRead = true,
         )
         return ProjectRemoteV3Adapters.directory(
             GeneratedRemoteV3ProjectContract.browseHostDirectoryResponse(response),
@@ -114,6 +115,7 @@ class ProjectRemoteApiClient private constructor(
             path = PROCEDURE_CALL_PATH,
             method = "POST",
             jsonBody = GeneratedRemoteV3ProjectContract.detectSetupScriptRequest(locationJson),
+            retryableRead = true,
         )
         return ProjectRemoteV3Adapters.setupScript(
             GeneratedRemoteV3ProjectContract.detectSetupScriptResponse(response),

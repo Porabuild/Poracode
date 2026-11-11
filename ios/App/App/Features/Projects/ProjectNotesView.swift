@@ -42,7 +42,7 @@ struct ProjectNotesView: View {
           noteEditorCommand = ProjectNoteEditorCommand(format: .bold)
         } label: {
           Image(systemName: "bold")
-            .foregroundStyle(activeNoteFormats.contains(.bold) ? Color.accentColor : Color.primary)
+            .foregroundStyle(activeNoteFormats.contains(.bold) ? Color.primary : Color.secondary)
         }
         .disabled(!noteEditorIsActive)
         .accessibilityLabel(ProjectManagementStrings.bold)
@@ -52,7 +52,7 @@ struct ProjectNotesView: View {
         } label: {
           Image(systemName: "italic")
             .foregroundStyle(
-              activeNoteFormats.contains(.italic) ? Color.accentColor : Color.primary
+              activeNoteFormats.contains(.italic) ? Color.primary : Color.secondary
             )
         }
         .disabled(!noteEditorIsActive)
@@ -177,7 +177,7 @@ struct ProjectNotesView: View {
               } label: {
                 Label(ProjectManagementStrings.renameTodoAction, systemImage: "pencil")
               }
-              .tint(.accentColor)
+              .tint(.gray)
             }
         }
         .onMove { source, destination in

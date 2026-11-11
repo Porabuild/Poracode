@@ -24,6 +24,7 @@ import com.poracode.app.R
 import com.poracode.app.model.remoteintegrations.HostUpdateStatus
 import com.poracode.app.session.remoteintegrations.IntegrationSlot
 import com.poracode.app.session.remoteintegrations.RemoteIntegrationsState
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun RemoteUpdatePane(
@@ -60,7 +61,7 @@ internal fun RemoteUpdatePane(
                             enabled = access.canManageProjects && !loading,
                         ) { Text(stringResource(R.string.remote_integrations_check_update)) }
                         if (update.status is HostUpdateStatus.Downloaded) {
-                            Button(
+                            FilledTonalButton(
                                 onClick = { confirmInstall = true },
                                 enabled = access.canManageProjects && !loading,
                             ) { Text(stringResource(R.string.remote_integrations_install_update)) }
@@ -80,7 +81,7 @@ internal fun RemoteUpdatePane(
             title = { Text(stringResource(R.string.remote_integrations_install_confirm_title)) },
             text = { Text(stringResource(R.string.remote_integrations_install_confirm_message)) },
             confirmButton = {
-                Button(onClick = {
+                FilledTonalButton(onClick = {
                     confirmInstall = false
                     composition.installUpdate()
                 }) { Text(stringResource(R.string.remote_integrations_install)) }

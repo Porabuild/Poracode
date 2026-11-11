@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   mergeDevinMcpConfig,
+  planDevinMcpConfigForRoots,
   prepareDevinMcpConfig,
   prepareDevinMcpConfigForRoots,
 } from "./mcpConfig";
@@ -41,7 +42,7 @@ it("overlays the session catalog without modifying existing config or losing oth
   });
   await writeFile(join(original, "devin", "mcp_config.json"), existing);
   const overlay = await prepareDevinMcpConfig({ kind: "posix", path: original }, servers);
-  const root = Object.values(overlay.env)[0]!;
+  const root = Object.values(overlay.env!)[0]!;
   expect(await readFile(join(root, "devin", "config.json"), "utf8")).toBe("original-settings");
   expect(await readFile(join(root, "other-app", "settings.json"), "utf8")).toBe("other");
   expect(JSON.parse(await readFile(join(root, "devin", "mcp_config.json"), "utf8"))).toMatchObject({
@@ -143,7 +144,7 @@ it("keeps the first native session database outside the temporary overlay", asyn
   vi.stubEnv(process.platform === "win32" ? "APPDATA" : "XDG_CONFIG_HOME", original);
   const overlay = await prepareDevinMcpConfig({ kind: "posix", path: original }, servers);
   await writeFile(
-    join(Object.values(overlay.env)[0]!, "devin", "cli", "sessions.db"),
+    join(Object.values(overlay.env!)[0]!, "devin", "cli", "sessions.db"),
     "first session",
   );
   await overlay.cleanup();
@@ -168,7 +169,7 @@ it("overlays a profile context's roots without touching them and cleans only the
     { root: configRoot, variable: "XDG_CONFIG_HOME", overlayParent },
     servers,
   );
-  const overlayDir = overlay.env.XDG_CONFIG_HOME!;
+  const overlayDir = overlay.env!.XDG_CONFIG_HOME!;
   expect(overlayDir.startsWith(overlayParent)).toBe(true);
   // Resources inside the account config root are preserved through the overlay…
   expect(await readFile(join(overlayDir, "devin", "config.json"), "utf8")).toBe("account-settings");
@@ -184,4 +185,64 @@ it("overlays a profile context's roots without touching them and cleans only the
   await expect(stat(overlayDir)).rejects.toMatchObject({ code: "ENOENT" });
   await expect(stat(join(overlayParent, "devin"))).rejects.toMatchObject({ code: "ENOENT" });
   expect(await readFile(join(configRoot, "devin", "config.json"), "utf8")).toBe("account-settings");
+});
+
+it("deletes same-named native catalog entries a per-session route owns", () => {
+  // Shared-process overlays must not let a hosted route's name resolve to the
+  // user's own disk entry inside the pooled agent.
+  const merged = JSON.parse(
+    mergeDevinMcpConfig(
+      '{"mcpServers":{"browser":{"command":"native-browser"},"personal":{"command":"keep"}}}',
+      servers,
+      ["browser"],
+    ),
+  );
+  expect(merged.mcpServers).not.toHaveProperty("browser");
+  expect(merged.mcpServers.personal).toEqual({ command: "keep" });
+  expect(merged.mcpServers.poracode).toBeDefined();
+});
+
+it("plans a shared-process overlay once and materializes the private root per process", async () => {
+  const original = await mkdtemp(join(tmpdir(), "devin-plan-test-"));
+  roots.push(original);
+  const overlayParent = await mkdtemp(join(tmpdir(), "devin-plan-parent-"));
+  roots.push(overlayParent);
+  await mkdir(join(original, "devin"), { recursive: true });
+  await writeFile(
+    join(original, "devin", "mcp_config.json"),
+    '{"mcpServers":{"browser":{"command":"native-browser"},"personal":{"command":"keep"}}}',
+  );
+  const plan = await planDevinMcpConfigForRoots(
+    { root: original, variable: "XDG_CONFIG_HOME", overlayParent },
+    servers,
+    ["browser"],
+  );
+  // Planning reads+merges eagerly: each materialize() builds a fresh private
+  // root carrying the already-merged catalog.
+  const first = await plan.materialize();
+  const second = await plan.materialize();
+  const firstRoot = first.env?.XDG_CONFIG_HOME;
+  const secondRoot = second.env?.XDG_CONFIG_HOME;
+  expect(firstRoot).toBeDefined();
+  expect(secondRoot).toBeDefined();
+  expect(firstRoot).not.toBe(secondRoot);
+  expect(firstRoot!.startsWith(overlayParent)).toBe(true);
+  const merged = JSON.parse(await readFile(join(firstRoot!, "devin", "mcp_config.json"), "utf8"));
+  expect(merged.mcpServers).not.toHaveProperty("browser");
+  expect(merged.mcpServers.poracode).toBeDefined();
+  // Identical plan inputs produce identical keys; different inputs differ.
+  const samePlan = await planDevinMcpConfigForRoots(
+    { root: original, variable: "XDG_CONFIG_HOME", overlayParent },
+    servers,
+    ["browser"],
+  );
+  expect(samePlan.key).toBe(plan.key);
+  const differentPlan = await planDevinMcpConfigForRoots(
+    { root: original, variable: "XDG_CONFIG_HOME", overlayParent },
+    servers,
+    ["browser", "personal"],
+  );
+  expect(differentPlan.key).not.toBe(plan.key);
+  await first.cleanup();
+  await second.cleanup();
 });

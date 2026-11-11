@@ -54,6 +54,7 @@ struct PullRequestReviewActionSheet: View {
           }
           if capabilities == nil || capabilities?["adminMerge"]?.boolValue == true {
             Toggle(GitHubOperationsStrings.admin, isOn: $admin)
+            .poracodeSwitchStyle()
           }
         }
       }

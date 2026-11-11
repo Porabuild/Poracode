@@ -25,24 +25,41 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
 
   var body: some View {
     Menu {
+      // Shared PWA/Android order: Rename · Notes & to-dos · Open terminal ·
+      // worktree moves · Mark Done · Pin to top.
       Section {
-        destinationButton(ProjectManagementStrings.notes, systemImage: "checklist", .notes)
+        lifecycleButton(
+          ThreadLifecycleStrings.rename, systemImage: "pencil",
+          action: .rename
+        )
+        destinationButton(ThreadLifecycleStrings.notesTodos, systemImage: "checklist", .notes)
+        destinationButton(ThreadLifecycleStrings.openTerminal, systemImage: "terminal", .terminal)
+        worktreeButtons
+        lifecycleButton(
+          thread.isDone ? ThreadLifecycleStrings.markNotDone : ThreadLifecycleStrings.markDone,
+          systemImage: thread.isDone ? "circle" : "checkmark.circle",
+          action: .setDone(!thread.isDone)
+        )
+        lifecycleButton(
+          thread.isStarred ? ThreadLifecycleStrings.unpin : ThreadLifecycleStrings.pin,
+          systemImage: thread.isStarred ? "star.slash" : "star",
+          action: .setPinned(!thread.isStarred)
+        )
+      }
+
+      // iOS extras, then the remaining lifecycle actions and Close thread.
+      Section {
         destinationButton(ProjectWorkspaceStrings.files, systemImage: "folder", .files)
         destinationButton(
           ProjectWorkspaceStrings.git,
           systemImage: "arrow.triangle.branch",
           .git
         )
-        destinationButton(TerminalStrings.shellOpen, systemImage: "terminal", .terminal)
         destinationButton(
           AdvancedOperationsStrings.openFromThread,
           systemImage: "slider.horizontal.3",
           .advanced
         )
-        worktreeButtons
-      }
-
-      Section {
         if hasHandoffTarget {
           Button {
             chooseHandoff()
@@ -64,6 +81,17 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
         .buttonStyle(.plain)
         .disabled(!canRefresh)
         lifecycleButtons().disabled(!canOperateLifecycle)
+        Button(role: .destructive) {
+          requestClose()
+        } label: {
+          PoracodeActionLabel(
+            RichChatStrings.closeThread,
+            systemImage: "xmark.circle",
+            tone: .destructive
+          )
+        }
+        .buttonStyle(.plain)
+        .disabled(!canClose)
       }
 
       Section {
@@ -99,17 +127,6 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
         }
         .buttonStyle(.plain)
         .disabled(!canOperateLifecycle)
-        Button(role: .destructive) {
-          requestClose()
-        } label: {
-          PoracodeActionLabel(
-            RichChatStrings.closeThread,
-            systemImage: "xmark.circle",
-            tone: .destructive
-          )
-        }
-        .buttonStyle(.plain)
-        .disabled(!canClose)
       }
     } label: {
       if isBusy {
@@ -154,6 +171,18 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
       .buttonStyle(.plain)
       .disabled(!canMoveToWorktree)
     }
+  }
+
+  private func lifecycleButton(
+    _ title: String, systemImage: String, action: ThreadLifecycleMenuAction
+  ) -> some View {
+    Button {
+      perform(action)
+    } label: {
+      PoracodeActionLabel(title, systemImage: systemImage)
+    }
+    .buttonStyle(.plain)
+    .disabled(!canOperateLifecycle)
   }
 
   private func destinationButton(

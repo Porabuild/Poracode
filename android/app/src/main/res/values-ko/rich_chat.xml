@@ -251,6 +251,17 @@
     <string name="rich_chat_background_task_last_progress">마지막 진행 보고: %1$s 전</string>
     <string name="rich_chat_background_task_close">작업 세부정보 닫기</string>
     <string name="rich_chat_background_task_report_missing">작업이 완료 보고서 없이 종료되었습니다.</string>
+    <string name="rich_chat_copy_message">메시지 복사</string>
+    <string name="rich_chat_add_to_composer">작성기에 추가</string>
+    <string name="rich_chat_file">파일</string>
+    <string name="rich_chat_attach">첨부</string>
+    <string name="rich_chat_message_agent">이 작업 공간에 대해 %1$s에게 무엇이든 물어보세요</string>
+    <string name="rich_chat_worked_for">%1$s 동안 작업함</string>
+    <string name="rich_chat_search_models">모델 검색...</string>
+    <string name="rich_chat_plugins">플러그인</string>
+    <string name="rich_chat_handoff_fork">대화 분기</string>
+    <string name="rich_chat_handoff_prompt">새 제공업체에 다음 작업을 알려주세요…</string>
+    <string name="rich_chat_handoff_switch">전환</string>
     <string name="rich_chat_html_visual_title">HTML 미리 보기</string>
     <string name="rich_chat_html_visual_source">소스</string>
     <string name="rich_chat_html_visual_preview">미리 보기</string>
@@ -263,4 +274,5 @@
     <string name="rich_chat_html_visual_unavailable">대화형 표시를 사용할 수 없습니다. 소스만 표시합니다.</string>
     <string name="rich_chat_html_visual_open_link_title">링크를 여시겠습니까?</string>
     <string name="rich_chat_html_visual_open_link">열기</string>
+    <string name="rich_chat_scroll_to_bottom">맨 아래로 스크롤</string>
 </resources>

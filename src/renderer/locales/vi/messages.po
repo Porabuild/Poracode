@@ -475,6 +475,7 @@ msgstr "{0} đã cập nhật lên v{newVersion}."
 
 #. placeholder {0}: agent.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "{0} updated."
@@ -919,6 +920,7 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{visibleCount} trong số {totalCount} khả dụng"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} trong số {totalCount} hiển thị"
@@ -1388,6 +1390,7 @@ msgstr "Hành động"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1703,6 +1706,10 @@ msgstr "Các đối số bổ sung được truyền cho mỗi shell mới của
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "Các đối số bổ sung được truyền cho mỗi shell Windows mới. Đặt các giá trị có khoảng trắng trong dấu ngoặc kép."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Adjust your project filter."
+msgstr "Hãy điều chỉnh bộ lọc dự án."
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt"
 msgstr "Chuyển sang"
@@ -1916,6 +1923,12 @@ msgstr "Cảnh báo khi luồng cần bạn"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "All"
+msgstr "Tất cả"
+
+#. Filter chip showing all providers or all model surfaces
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgctxt "modelVisibilityFilter"
 msgid "All"
 msgstr "Tất cả"
 
@@ -3627,7 +3640,7 @@ msgstr "Kiểm tra mức đầu vào trực tiếp từ thiết bị đã chọn
 msgid "Check the supported languages before downloading."
 msgstr "Kiểm tra ngôn ngữ được hỗ trợ trước khi tải xuống."
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Checked"
 msgstr "Đã chọn"
 
@@ -4011,6 +4024,7 @@ msgstr "Xóa mục tiêu"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Clear search"
 msgstr "Xóa tìm kiếm"
 
@@ -5207,6 +5221,10 @@ msgstr "Kiểm soát những tập tin nào xuất hiện trong tìm kiếm đ�
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Conversation"
 msgstr "Cuộc trò chuyện"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Conversations from all paired desktops will appear here."
+msgstr "Cuộc trò chuyện từ tất cả máy tính đã ghép đôi sẽ xuất hiện tại đây."
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Convert to draft"
@@ -7067,6 +7085,7 @@ msgstr "xong"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -8415,6 +8434,10 @@ msgstr "Lọc skill theo trạng thái"
 msgid "Filter table"
 msgstr "Lọc bảng"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Filter threads"
+msgstr "Lọc luồng"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
 msgstr "Lọc dòng thời gian"
@@ -8436,6 +8459,10 @@ msgstr "Tài chính"
 msgid "Find"
 msgstr "Tìm kiếm"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Find \"{pattern}\" in {url}"
+msgstr "Tìm \"{pattern}\" trong {url}"
+
 #: src/renderer/components/find/ChatFindBar.tsx
 msgid "Find in chat"
 msgstr "Tìm trong cuộc trò chuyện"
@@ -8444,6 +8471,7 @@ msgstr "Tìm trong cuộc trò chuyện"
 msgid "Find in diff"
 msgstr "Tìm trong diff"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserFindBar.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Find in page"
@@ -9334,6 +9362,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "Ẩn vòng tròn {label} ở thanh bên"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "Ẩn tất cả"
@@ -9805,6 +9834,10 @@ msgstr "Cải thiện"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Improved in {version}"
 msgstr "Đã cải thiện trong {version}"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+#~ msgid "in {scope}"
+#~ msgstr "trong {scope}"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "In progress"
@@ -10812,6 +10845,7 @@ msgstr "Đã liên kết"
 msgid "Linux"
 msgstr "Linux"
 
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -11235,7 +11269,7 @@ msgstr "Tương phản thấp"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Giảm độ sáng trên các màn hình được hỗ trợ khi màn che hiển thị, rồi khôi phục độ sáng trước đó khi máy Mac khóa lại."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Máy"
 
@@ -12038,6 +12072,10 @@ msgstr "Đã xóa mô hình khỏi mục yêu thích"
 msgid "Model rerouted from {fromModel} to {toModel}."
 msgstr "Mô hình đã được chuyển từ {fromModel} sang {toModel}."
 
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgid "Model surface"
+msgstr "Bề mặt mô hình"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "Mức dùng mô hình"
@@ -12742,6 +12780,10 @@ msgstr "Không có mục tiêu nào đang hoạt động trong phiên này."
 msgid "No active tasks."
 msgstr "Không có tác vụ đang hoạt động."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No active threads"
+msgstr "Không có luồng nào đang hoạt động"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
 #~ msgstr "Không có quy trình đang hoạt động"
@@ -12873,6 +12915,10 @@ msgstr "Không có luồng nội dung."
 msgid "No conversation yet. Be the first to comment."
 msgstr "Chưa có cuộc trò chuyện nào. Hãy là người đầu tiên bình luận."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No conversations yet"
+msgstr "Chưa có cuộc trò chuyện nào"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "No crews yet"
 msgstr "Chưa có nhóm nào"
@@ -12920,6 +12966,10 @@ msgstr "Không có sự khác biệt nào cho {0}"
 #: src/renderer/components/diff/DiffCardList.tsx
 #~ msgid "No diff for {visiblePath}"
 #~ msgstr "Không có sự khác biệt đối với {visiblePath}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No done threads"
+msgstr "Không có luồng nào đã xong"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -13054,9 +13104,9 @@ msgstr "Không có lịch phù hợp."
 #~ msgid "No matching tasks."
 #~ msgstr "Không có tác vụ phù hợp."
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "No matching threads"
-#~ msgstr "Không có luồng nào phù hợp"
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No matching threads"
+msgstr "Không có luồng nào phù hợp"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -13092,6 +13142,7 @@ msgstr "Không có mô hình nào khả dụng cho {agent}. Hãy kiểm tra tác
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "Không tìm thấy mô hình nào"
 
@@ -13949,6 +14000,10 @@ msgstr "Mở trên máy chủ nguồn"
 #~ msgid "Open over SSH"
 #~ msgstr "Mở qua SSH"
 
+#: src/renderer/components/thread/ChatPane/parts/items/webSearchDisplay.ts
+msgid "Open page"
+msgstr "Mở trang"
+
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Open picture-in-picture"
 msgstr "Mở hình trong hình"
@@ -14466,7 +14521,7 @@ msgstr "Một phần lịch sử của cuộc trò chuyện này đã bị mất
 msgid "Partial"
 msgstr "Một phần"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Partially checked"
 msgstr "Chọn một phần"
 
@@ -15605,6 +15660,7 @@ msgstr "nhà cung cấp"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
@@ -15794,6 +15850,7 @@ msgid "Queue message"
 msgstr "Xếp tin nhắn vào hàng đợi"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued"
 msgstr "Đã xếp hàng"
 
@@ -17965,6 +18022,7 @@ msgstr "Chưa cài SDK"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18024,11 +18082,13 @@ msgid "Search MCP servers..."
 msgstr "Tìm kiếm máy chủ MCP..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
 msgstr "Tìm kiếm mô hình"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "Tìm kiếm mô hình..."
 
@@ -18139,6 +18199,11 @@ msgstr "Tìm luồng, lệnh, cài đặt và tệp…"
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search titles, messages and folders"
 msgstr "Tìm trong tiêu đề, tin nhắn và thư mục"
+
+#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
+#: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
+msgid "Search: \"{query}\" in {scope}"
+msgstr "Tìm kiếm: \"{query}\" trong {scope}"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 #~ msgid "Search…"
@@ -18295,6 +18360,10 @@ msgstr "Chọn ứng viên {0} ({label}) làm ứng viên thắng"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "Chọn thiết bị"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Select Done in the filter to see finished threads."
+msgstr "Chọn “Xong” trong bộ lọc để xem các luồng đã hoàn tất."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Select lines in the plan to comment on them."
@@ -18636,6 +18705,7 @@ msgstr "Hiện quá trình tìm tác nhân"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "Hiển thị tất cả"
@@ -19856,6 +19926,7 @@ msgstr "Hỗ trợ:"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "Hỗ trợ chế độ nhanh"
 
@@ -20999,6 +21070,7 @@ msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn t
 msgid "The thread's branch name can't be used on this machine."
 msgstr "Không thể dùng tên nhánh của luồng trên máy này."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Máy chủ của luồng chưa được kết nối."
@@ -21317,7 +21389,7 @@ msgstr "Quy tắc mở khóa màn hình của máy Mac này đã bị tùy chỉ
 msgid "this machine"
 msgstr "máy này"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Máy này"
 
@@ -22556,7 +22628,7 @@ msgstr "Nhà cung cấp không khả dụng"
 #~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
 #~ msgstr "Nhà cung cấp, mô hình, mức suy luận và chế độ Fast không khả dụng sẽ tự động được bỏ qua. Nhà cung cấp và mô hình không được chọn sẽ bị bỏ qua cho đến khi được chọn lại."
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Unchecked"
 msgstr "Bỏ chọn"
 
@@ -22758,14 +22830,17 @@ msgstr "cập nhật"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Update"
 msgstr "cập nhật"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "Cập nhật {0}"
@@ -22933,6 +23008,7 @@ msgid "Updated {0}"
 msgstr "Đã cập nhật {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
 msgstr "Đang cập nhật"
 
@@ -22942,7 +23018,9 @@ msgstr "Đang cập nhật"
 msgid "Updating ({0}/{1})"
 msgstr "Đang cập nhật ({0}/{1})"
 
+#. placeholder {0}: agent.label
 #. placeholder {0}: props.agentLabel
+#: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Updating {0}"
 msgstr "Đang cập nhật {0}"

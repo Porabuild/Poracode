@@ -1,6 +1,5 @@
 package com.poracode.app.ui.projects
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,17 +8,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -43,9 +37,14 @@ import com.poracode.app.session.projects.CatalogProject
 import com.poracode.app.session.projects.ProjectSessionRuntime
 import com.poracode.app.session.projects.ProjectSessionKey
 import com.poracode.app.ui.components.CompactAppBarTitle
+import com.poracode.app.ui.components.PoracodeBottomBar
+import com.poracode.app.ui.components.PoracodeCircleButton
+import com.poracode.app.ui.components.PoracodeTopAppBar
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
 import com.poracode.app.ui.projects.workspace.ProjectWorkspaceScreen
 import com.poracode.app.ui.settings.GlobalMcpSettingsController
 import com.poracode.app.ui.settingsintegrations.SettingsIntegrationsPage
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +65,7 @@ internal fun ProjectManagementScreen(
     onOpenAdvanced: (com.poracode.app.model.ProjectIdentity) -> Unit,
     initialProjectId: String? = null,
     initialDestination: ProjectManagementDestination = ProjectManagementDestination.Detail,
+    hostName: String? = null,
 ) {
     val lease by runtime.hostLease.collectAsStateWithLifecycle()
     val guideWriters by runtime.guideWriters.collectAsStateWithLifecycle()
@@ -216,10 +216,11 @@ internal fun ProjectManagementScreen(
                 else -> onBack()
             }
         }
-        BackHandler(onBack = navigateBack)
+        val backModifier = rememberPredictiveBackModifier(onBack = navigateBack)
         Scaffold(
+            modifier = backModifier,
             topBar = {
-                TopAppBar(
+                PoracodeTopAppBar(
                     title = {
                         CompactAppBarTitle(
                             if (selected != null && detailPage != ProjectSettingsPage.Index) {
@@ -234,23 +235,9 @@ internal fun ProjectManagementScreen(
                     navigationIcon = {
                         IconButton(onClick = navigateBack) {
                             Icon(
-                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                PoracodeIcons.ArrowBack,
                                 stringResource(R.string.back),
                             )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = onRefresh, enabled = access.online && access.ready) {
-                            Icon(
-                                Icons.Outlined.Refresh,
-                                stringResource(R.string.refresh_projects),
-                            )
-                        }
-                        IconButton(
-                            onClick = { showAdd = true },
-                            enabled = access.canManage && !busy,
-                        ) {
-                            Icon(Icons.Outlined.Add, stringResource(R.string.projects_add_title))
                         }
                     },
                 )
@@ -260,7 +247,7 @@ internal fun ProjectManagementScreen(
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 ProjectAccessBanner(lease, access)
                 if (expanded) {
-                    Row(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxWidth().weight(1f)) {
                         ProjectListPane(
                             projects = projects,
                             selectedProjectId = selectedProjectId,
@@ -294,6 +281,7 @@ internal fun ProjectManagementScreen(
                             workspaceEnabled = access.canRead,
                             terminalEnabled = access.canOperate && canOpenTerminal,
                             modifier = Modifier.width(360.dp).fillMaxHeight(),
+                            hostName = hostName,
                         )
                         HorizontalDivider(Modifier.fillMaxHeight().width(1.dp))
                         if (selected != null) {
@@ -376,7 +364,7 @@ internal fun ProjectManagementScreen(
                             detailPage = ProjectSettingsPage.Index
                             selectedProjectId = null
                         },
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                     )
                 } else {
                     ProjectListPane(
@@ -411,7 +399,28 @@ internal fun ProjectManagementScreen(
                         manageEnabled = access.canManage && !busy,
                         workspaceEnabled = access.canRead,
                         terminalEnabled = access.canOperate && canOpenTerminal,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        hostName = hostName,
+                    )
+                }
+                if (expanded || selected == null) {
+                    PoracodeBottomBar(
+                        leading = {
+                            PoracodeCircleButton(
+                                icon = PoracodeIcons.Refresh,
+                                contentDescription = stringResource(R.string.refresh_projects),
+                                onClick = onRefresh,
+                                enabled = access.online && access.ready,
+                            )
+                        },
+                        trailing = {
+                            PoracodeCircleButton(
+                                icon = PoracodeIcons.Add,
+                                contentDescription = stringResource(R.string.projects_add_title),
+                                onClick = { showAdd = true },
+                                enabled = access.canManage && !busy,
+                            )
+                        },
                     )
                 }
             }

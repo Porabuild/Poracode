@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.poracode.app.ui.theme.LocalChatTextSizeSp
+import com.poracode.app.ui.theme.PoracodeTheme
 
 @Composable
 internal fun RichMarkdownView(source: String, modifier: Modifier = Modifier) {
@@ -51,7 +52,7 @@ private fun RichMarkdownBlockView(block: RichMarkdownBlock) {
     val size = LocalChatTextSizeSp.current
     when (block) {
         is RichMarkdownBlock.Heading -> Text(
-            text = richInlineMarkdown(block.text),
+            text = richInlineMarkdown(block.text, linkColor = PoracodeTheme.colors.accent),
             style = when (block.level) {
                 1 -> MaterialTheme.typography.headlineSmall
                 2 -> MaterialTheme.typography.titleLarge
@@ -86,7 +87,7 @@ private fun RichMarkdownBlockView(block: RichMarkdownBlock) {
                     .padding(vertical = 12.dp),
             )
             Text(
-                text = richInlineMarkdown(block.text),
+                text = richInlineMarkdown(block.text, linkColor = PoracodeTheme.colors.accent),
                 style = MaterialTheme.typography.bodyMedium,
                 fontSize = size.sp,
                 lineHeight = (size + 6).sp,
@@ -102,7 +103,7 @@ private fun RichMarkdownBlockView(block: RichMarkdownBlock) {
 private fun MarkdownBodyText(text: String) {
     val size = LocalChatTextSizeSp.current
     Text(
-        text = richInlineMarkdown(text),
+        text = richInlineMarkdown(text, linkColor = PoracodeTheme.colors.accent),
         style = MaterialTheme.typography.bodyMedium,
         fontSize = size.sp,
         lineHeight = (size + 6).sp,
@@ -190,7 +191,7 @@ private fun MarkdownTableRow(cells: List<String>, columns: Int, header: Boolean)
     ) {
         repeat(columns) { index ->
             Text(
-                text = richInlineMarkdown(cells.getOrElse(index) { "" }),
+                text = richInlineMarkdown(cells.getOrElse(index) { "" }, linkColor = PoracodeTheme.colors.accent),
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
                 modifier = Modifier
@@ -201,10 +202,13 @@ private fun MarkdownTableRow(cells: List<String>, columns: Int, header: Boolean)
     }
 }
 
-internal fun richInlineMarkdown(source: String): AnnotatedString = buildAnnotatedString {
+internal fun richInlineMarkdown(
+    source: String,
+    linkColor: Color = Color.Unspecified,
+): AnnotatedString = buildAnnotatedString {
     var index = 0
     while (index < source.length) {
-        val token = inlineToken(source, index)
+        val token = inlineToken(source, index, linkColor)
         if (token == null) {
             append(source[index])
             index += 1
@@ -225,7 +229,7 @@ private data class RichInlineToken(
     val url: String? = null,
 )
 
-private fun inlineToken(source: String, index: Int): RichInlineToken? {
+private fun inlineToken(source: String, index: Int, linkColor: Color): RichInlineToken? {
     fun delimited(marker: String, style: SpanStyle): RichInlineToken? {
         if (!source.startsWith(marker, index)) return null
         val underscore = marker[0] == '_'
@@ -261,7 +265,7 @@ private fun inlineToken(source: String, index: Int): RichInlineToken? {
         if (labelEnd > index + 1 && urlEnd > labelEnd + 2) {
             return RichInlineToken(
                 text = source.substring(index + 1, labelEnd),
-                style = SpanStyle(textDecoration = TextDecoration.Underline),
+                style = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
                 endExclusive = urlEnd + 1,
                 url = source.substring(labelEnd + 2, urlEnd),
             )

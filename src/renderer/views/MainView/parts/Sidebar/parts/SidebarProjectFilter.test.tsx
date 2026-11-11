@@ -100,13 +100,7 @@ describe("SidebarProjectFilter", () => {
     fireEvent.pointerEnter(connection, { pointerType: "mouse" });
     const tooltip = await screen.findByRole("tooltip");
     expect(tooltip).toHaveTextContent("MacBook 16");
-    expect(within(tooltip).getByTitle("Online")).toHaveClass(
-      "bg-success",
-      "right-0",
-      "bottom-0",
-      "ring-1",
-      "ring-background",
-    );
+    expect(within(tooltip).getByTitle("Online")).toHaveClass("bg-success", "right-0", "bottom-0");
     expect(tooltip).not.toHaveTextContent("Online");
     fireEvent.pointerLeave(connection, { pointerType: "mouse" });
   });
@@ -140,7 +134,7 @@ describe("SidebarProjectFilter", () => {
 
     const connection = within(rows[1]!).getByRole("img", { name: "Local, MacBook 16" });
     expect(connection.querySelector(".lucide-server")).toBeInTheDocument();
-    expect(within(connection).getByTitle("Online")).toHaveClass("bg-success", "ring-background");
+    expect(within(connection).getByTitle("Online")).toHaveClass("bg-success");
     expect(rows[2]!.querySelector("[data-project-connection]")).toBeNull();
     fireEvent.pointerMove(document.body, { pointerType: "mouse" });
     fireEvent.pointerEnter(connection, { pointerType: "mouse" });
@@ -248,6 +242,57 @@ describe("SidebarProjectFilter", () => {
     expect(labels[2]).toContain("Alpha");
     expect(labels[3]).toContain("Beta");
     expect(labels[4]).toContain("Gamma");
+  });
+
+  it("offers Active and Done views above the projects in the compact sheet", async () => {
+    responsiveMenuState.mobile = true;
+    const onViewChange = vi.fn<(showDone: boolean) => void>();
+    render(
+      <SidebarProjectFilter
+        projects={projects}
+        filterableProjectIds={new Set(projects.map((candidate) => candidate.id))}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+        mobileIconTrigger
+        statusView={{ showDone: false, doneCount: 7, onChange: onViewChange }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Filter threads" }));
+    const dialog = await screen.findByRole("dialog", { name: "Filter threads" });
+    const labels = within(dialog)
+      .getAllByRole("button")
+      .map((button) => button.textContent?.trim() ?? "")
+      .filter((text) => text.length > 0);
+    expect(labels.slice(0, 4)).toEqual(["Active", "Done7", "All projects", expect.any(String)]);
+    expect(within(dialog).getByRole("button", { name: "Active" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Done/ }));
+    expect(onViewChange).toHaveBeenCalledWith(true);
+  });
+
+  it("marks the compact filter trigger active while Done is selected", () => {
+    responsiveMenuState.mobile = true;
+    render(
+      <SidebarProjectFilter
+        projects={projects}
+        filterableProjectIds={new Set(projects.map((candidate) => candidate.id))}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+        mobileIconTrigger
+        statusView={{
+          showDone: true,
+          doneCount: 1,
+          onChange: vi.fn<(showDone: boolean) => void>(),
+        }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Filter threads" })).toHaveClass("text-accent");
   });
 
   it("keeps connection details out of the mobile sheet's dialog description", async () => {

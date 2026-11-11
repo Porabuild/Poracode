@@ -6,7 +6,7 @@
     <string name="settings_device_general">일반</string>
     <string name="settings_device_general_description">언어, 버전 및 기기 정보</string>
     <string name="settings_device_appearance">모양</string>
-    <string name="settings_device_appearance_description">테마 및 시스템 색상</string>
+    <string name="settings_device_appearance_description">테마 및 채팅 글꼴 크기</string>
     <string name="settings_device_notifications">알림</string>
     <string name="settings_device_notifications_description">권한 및 데스크톱 등록 상태</string>
     <string name="settings_device_terminal">터미널</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">시스템</string>
     <string name="settings_appearance_light">라이트</string>
     <string name="settings_appearance_dark">다크</string>
-    <string name="settings_dynamic_color">기기 색상 사용</string>
     <string name="settings_notification_status">상태</string>
     <string name="settings_notification_registering">등록 중</string>
     <string name="settings_notification_available">사용 가능</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Poracode 사용 중에도 알림 표시</string>
     <string name="settings_notification_categories">알림 항목</string>
     <string name="settings_configuration_section">구성</string>
+    <string name="settings_appearance_mode">모드</string>
+    <string name="settings_appearance_mode_description">시스템을 일치시키거나 밝게 또는 어둡게 만듭니다.</string>
+    <string name="settings_theme">테마</string>
+    <string name="settings_notifications_enabled_description">스레드 상태가 변경되면 알림을 표시합니다.</string>
+    <string name="settings_notification_sound_description">알림이 표시되면 소리를 재생합니다.</string>
+    <string name="settings_home_shortcut_reorder">%1$s 재정렬</string>
 </resources>

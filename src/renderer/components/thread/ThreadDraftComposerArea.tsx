@@ -70,7 +70,11 @@ import { storableAttachment, useAttachments } from "@/renderer/components/compos
 import type { VoiceInputHandle } from "@/renderer/components/composer/VoiceInputButton";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
-import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
+import { useBrowserAttachInboxDrain } from "./useBrowserAttachInboxDrain";
+import {
+  drainComposerInputsInto,
+  useComposerInputInbox,
+} from "@/renderer/state/composerInputInbox";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 import {
   BranchSelector,
@@ -94,11 +98,13 @@ import {
   materializeDraftSegments,
   dispatchDraftSubmission,
   acceptDraftSubmission,
+  retireFailedDraftSubmission,
+  wasDraftLaunchErrorNotified,
   type DraftSubmission,
 } from "@/renderer/actions/clientDraftSubmission";
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import {
   readClientSubmission,
-  updateClientSubmission,
   claimClientSubmission,
 } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDrafts";
@@ -106,7 +112,7 @@ import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDraf
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
+import { isDraftContentNonEmpty, type DraftContent } from "@/renderer/state/slices/types";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import {
   usePluginMentionItems,
@@ -410,9 +416,6 @@ export function ThreadDraftComposerArea(props: {
   const fallbackInboxKey = `draft:${props.project.id}`;
   const projectId = props.project.id;
 
-  const pendingPickedAttachments = useBrowserAttachInbox((s) =>
-    inboxKey ? s.itemsByThread[inboxKey] : undefined,
-  );
   const pendingComposerInputs = useComposerInputInbox((s) => s.itemsByComposer[inboxKey]);
   const pendingFallbackComposerInputs = useComposerInputInbox((s) =>
     inboxKey === fallbackInboxKey ? undefined : s.itemsByComposer[fallbackInboxKey],
@@ -420,25 +423,10 @@ export function ThreadDraftComposerArea(props: {
   const submittedRef = useRef(false);
   const draftVoice = useDraftLiveVoice(submittedRef, inboxKey);
   const { liveVoiceActive, pendingOperationCount, cancel: cancelDraftVoice } = draftVoice;
-  const addPickedRef = useRef(attachments.addPicked);
-  addPickedRef.current = (input) => {
+  useBrowserAttachInboxDrain(inboxKey, (input) => {
     cancelDraftVoice();
     attachments.addPicked(input);
-  };
-  useEffect(() => {
-    if (!inboxKey) return;
-    if (!pendingPickedAttachments || pendingPickedAttachments.length === 0) return;
-    const drained = useBrowserAttachInbox.getState().drain(inboxKey);
-    for (const item of drained) {
-      addPickedRef.current({
-        path: item.attachmentPath,
-        name: item.attachmentName,
-        mimeType: item.mimeType,
-        selector: item.selector,
-        sourceUrl: item.sourceUrl,
-      });
-    }
-  }, [pendingPickedAttachments, inboxKey]);
+  });
   const initialPendingWorktreeSelection =
     useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null;
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(
@@ -512,7 +500,11 @@ export function ThreadDraftComposerArea(props: {
   const isHomeScope = isHomeProject(props.project);
   const threadMentions = useThreadMentionItems(
     isHomeScope
-      ? { kind: "workspace", currentWorktreePath: branchSelection?.worktreePath }
+      ? {
+          kind: "workspace",
+          projectId: props.project.id,
+          currentWorktreePath: branchSelection?.worktreePath,
+        }
       : {
           kind: "project",
           projectId: props.project.id,
@@ -1061,11 +1053,8 @@ export function ThreadDraftComposerArea(props: {
           if (record)
             await acceptDraftSubmission(submission, () => clearDraftContent(props.project.id));
         } else {
-          await updateClientSubmission(
-            submission.id,
-            outcome === "cancelled" ? "failed" : "uncertain",
-          );
-          submittedRef.current = false;
+          preserveUnacceptedProjectDraft(submission, submittedContent);
+          await retireFailedDraftSubmission(submission.id);
           setIsSubmitting(false);
         }
       } else await launch();
@@ -1075,17 +1064,14 @@ export function ThreadDraftComposerArea(props: {
         toast.danger(friendlyError(error));
         return;
       }
-      if (
-        submission &&
-        (await readClientSubmission(submission.id).catch(() => undefined))?.state === "prepared"
-      )
-        await updateClientSubmission(submission.id, "failed").catch(() => undefined);
-      submittedRef.current = false;
-      // Do not overwrite text entered while attachment preparation was running.
-      latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? submittedDraftSegments;
-      checkpointDraft();
+      preserveUnacceptedProjectDraft(submission, submittedContent);
+      if (submission) {
+        await retireFailedDraftSubmission(submission.id);
+      }
       setIsSubmitting(false);
-      toast.danger(friendlyError(error));
+      if (!wasDraftLaunchErrorNotified(error)) {
+        toast.danger(friendlyError(error));
+      }
       if (voiceThreadId) throw error;
     } finally {
       submissionInFlightRef.current = false;
@@ -1141,7 +1127,6 @@ export function ThreadDraftComposerArea(props: {
     submissionInFlightRef.current = true;
     setIsSubmitting(true);
     let submission: DraftSubmission | undefined;
-    let dispatched = false;
     let accepted = false;
     try {
       submission = await preserveDraftSubmission({
@@ -1168,7 +1153,6 @@ export function ThreadDraftComposerArea(props: {
             captured.isTargetCurrent,
           );
           await claimClientSubmission(captured.id);
-          dispatched = true;
           submittedRef.current = true;
           return segments;
         },
@@ -1177,16 +1161,18 @@ export function ThreadDraftComposerArea(props: {
           await acceptDraftSubmission(captured, () => clearDraftContent(props.project.id));
         },
       });
-      if (!accepted) await updateClientSubmission(captured.id, dispatched ? "uncertain" : "failed");
+      if (!accepted) {
+        preserveUnacceptedProjectDraft(captured, content);
+        await retireFailedDraftSubmission(captured.id);
+      }
     } catch (error) {
-      if (submission && !accepted)
-        await updateClientSubmission(submission.id, dispatched ? "uncertain" : "failed").catch(
-          () => undefined,
-        );
+      if (!accepted) {
+        preserveUnacceptedProjectDraft(submission, content);
+        if (submission) await retireFailedDraftSubmission(submission.id);
+      }
       toast.danger(friendlyError(error));
     } finally {
       submissionInFlightRef.current = false;
-      if (!accepted) submittedRef.current = false;
       setIsSubmitting(false);
     }
   }
@@ -1299,18 +1285,10 @@ export function ThreadDraftComposerArea(props: {
     ) {
       return;
     }
-    const keys = inboxKey === fallbackInboxKey ? [inboxKey] : [fallbackInboxKey, inboxKey];
-    let composerHasContent = composer.serializeSegments().length > 0;
-    for (const key of keys) {
-      const items = useComposerInputInbox.getState().drain(key);
-      for (const segments of items) {
-        const separator: PromptSegment[] = composerHasContent
-          ? [{ kind: "text", content: "\n\n" }]
-          : [];
-        composer.insertSegments([...separator, ...segments], { atEnd: true, focus: false });
-        composerHasContent = true;
-      }
-    }
+    drainComposerInputsInto(
+      composer,
+      inboxKey === fallbackInboxKey ? [inboxKey] : [fallbackInboxKey, inboxKey],
+    );
   }, [
     fallbackInboxKey,
     inboxKey,
@@ -1329,6 +1307,30 @@ export function ThreadDraftComposerArea(props: {
     };
     if (isDraftContentNonEmpty(content)) saveDraftContent(props.project.id, content);
     else if (!submittedRef.current) clearDraftContent(props.project.id);
+  }
+
+  function preserveUnacceptedProjectDraft(
+    submission: DraftSubmission | undefined,
+    fallbackContent: DraftContent,
+  ) {
+    submittedRef.current = false;
+    if (mentionRef.current) {
+      // Do not overwrite text entered while attachment preparation was running.
+      latestSegmentsRef.current = mentionRef.current.serializeSegments();
+      checkpointDraft();
+      return;
+    }
+    const current = composerDraftStorage()?.currentIdentity("project", props.project.id);
+    if (
+      !current ||
+      (submission &&
+        current.draftId === submission.checkpoint.draftId &&
+        current.revision === submission.checkpoint.revision)
+    ) {
+      if (isDraftContentNonEmpty(fallbackContent)) {
+        saveDraftContent(props.project.id, fallbackContent);
+      }
+    }
   }
 
   useEffect(() => {

@@ -2,7 +2,9 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import type { ProviderModelMenuProvider } from "@/renderer/components/common/ProviderModelMenu";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ModelVisibilityPopover } from "./ModelVisibilityPopover";
+import { ModelVisibilityDropdown } from "./SingleAgentSettings/parts/ModelVisibilityDropdown";
 
 it("Hide all persists every exact family UID and Show all persists an explicit empty override", async () => {
   const provider: ProviderModelMenuProvider = {
@@ -64,4 +66,71 @@ it("Hide all persists every exact family UID and Show all persists an explicit e
   expect(onHiddenIdsChange).toHaveBeenLastCalledWith("example", ["pair-a", "pair-b", "solo"]);
   fireEvent.click(screen.getByRole("button", { name: "Show all" }));
   expect(onHiddenIdsChange).toHaveBeenLastCalledWith("example", []);
+});
+
+it("ModelVisibilityDropdown preserves sibling-surface hidden IDs when two surfaces share one settings key", async () => {
+  useSharedSettings.setState({ hiddenModels: {} });
+  const baseCaps = {
+    efforts: [],
+    modelEfforts: {},
+    modes: [],
+    approvalPolicies: [],
+    sandboxModes: [],
+    supportsResume: true,
+    supportsDirectInput: true,
+    liveInputMode: "terminal" as const,
+    presentationMode: "terminal" as const,
+    settingDefs: [],
+  };
+  const terminalSurface: ProviderModelMenuProvider = {
+    kind: "acme",
+    label: "Acme",
+    presentationMode: "terminal",
+    hiddenModelsKey: "acme",
+    capabilities: {
+      ...baseCaps,
+      models: [
+        { id: "shared-current", label: "Shared Current" },
+        { id: "terminal-legacy", label: "Terminal Legacy" },
+      ],
+      defaultHiddenModels: ["terminal-legacy"],
+    },
+  };
+  const chatSurface: ProviderModelMenuProvider = {
+    kind: "acme",
+    label: "Acme",
+    presentationMode: "gui",
+    hiddenModelsKey: "acme",
+    capabilities: {
+      ...baseCaps,
+      liveInputMode: "server",
+      presentationMode: "gui",
+      models: [
+        { id: "shared-current", label: "Shared Current" },
+        { id: "chat-next", label: "Chat Next" },
+      ],
+      defaultHiddenModels: [],
+    },
+  };
+
+  renderWithI18n(
+    <ModelVisibilityDropdown
+      settingsKey="acme"
+      provider={chatSurface}
+      siblingProviders={[terminalSurface, chatSurface]}
+      surfaceLabel="Acme Chat"
+    />,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Visible Acme Chat models" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Hide all" })).toBeInTheDocument());
+  fireEvent.click(screen.getByRole("button", { name: "Hide all" }));
+  expect(useSharedSettings.getState().hiddenModels.acme?.toSorted()).toEqual([
+    "chat-next",
+    "shared-current",
+    "terminal-legacy",
+  ]);
+
+  fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+  expect(useSharedSettings.getState().hiddenModels.acme).toEqual(["terminal-legacy"]);
 });

@@ -78,7 +78,7 @@ struct RichChatResponsiveLayout<
         }
         .frame(width: min(maximumSidebarWidth, width * sidebarWidthRatio))
       }
-      .safeAreaInset(edge: .bottom, spacing: 0) {
+      .poracodeComposerInset {
         composer
       }
     } else {
@@ -88,9 +88,11 @@ struct RichChatResponsiveLayout<
           .environment(\.richChatCompactOverlayClearance, compactOverlayHeight)
       }
       .overlay(alignment: .bottom) {
-        VStack(spacing: 4) {
-          compactDock
-          composer
+        PoracodeGlassGroup(spacing: 2) {
+          VStack(spacing: 4) {
+            compactDock
+            composer
+          }
         }
         .background {
           GeometryReader { proxy in

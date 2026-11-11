@@ -88,7 +88,7 @@ struct PullRequestsPageView: View {
         HostSelectionMenu(session: session)
       }
     }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       PoracodeBottomActionBar {
         filtersMenu
       } trailing: {
@@ -107,7 +107,7 @@ struct PullRequestsPageView: View {
       }
     }
     .searchable(text: $query, prompt: PullRequestsStrings.search)
-    .safeAreaInset(edge: .top, spacing: 0) {
+    .poracodeTopBar {
       Picker(PullRequestsStrings.title, selection: $category) {
         ForEach(PullRequestsCategory.allCases) { value in
           Text(value.title).tag(value)
@@ -116,7 +116,7 @@ struct PullRequestsPageView: View {
       .pickerStyle(.segmented)
       .padding(.horizontal)
       .padding(.vertical, 8)
-      .background(.bar)
+      .poracodeBarBackground()
     }
     .task(id: session.currentProjectControllerLease) {
       await controller.load()
