@@ -1,18 +1,32 @@
+import { existsSync } from "node:fs";
+import { createServer } from "node:http";
+import { PassThrough } from "node:stream";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { Server } from "@modelcontextprotocol/server";
 import type { Tool, Transport } from "@modelcontextprotocol/server";
-import { createServer } from "node:http";
-import { PassThrough } from "node:stream";
+import { MCP_APP_EXTENSION, MCP_APP_MIME_TYPE, readMcpAppResource } from "@/shared/mcpAppResources";
+import { nativeMcpRelayBinaryPath, nativeRelaySupportsExtendedModes } from "./McpToolFilterService";
+import { MCP_FILTER_CONFIG_V2_ENV } from "./mcpToolFilterConfig";
 import {
   createUpstreamTransport,
   mcpOwnedStdioEnvironment,
   startFilterProxy,
   type FilterProxy,
 } from "./mcpToolFilterProxy";
-import { MCP_APP_EXTENSION, MCP_APP_MIME_TYPE, readMcpAppResource } from "@/shared/mcpAppResources";
+
+function nativeRelayBin(): string | undefined {
+  if (process.env.PORACODE_MCP_RELAY_BIN && existsSync(process.env.PORACODE_MCP_RELAY_BIN)) {
+    return process.env.PORACODE_MCP_RELAY_BIN;
+  }
+  const checkoutHelpers = fileURLToPath(new URL("../../../resources/wsl-helpers", import.meta.url));
+  if (!nativeRelaySupportsExtendedModes(checkoutHelpers)) return undefined;
+  const candidate = nativeMcpRelayBinaryPath(checkoutHelpers);
+  return candidate && existsSync(candidate) ? candidate : undefined;
+}
 
 const proxies: FilterProxy[] = [];
 const clients: Client[] = [];
@@ -766,3 +780,87 @@ it("keeps owner-resolved values instead of reapplying literal stdio configuratio
   expect(env.PORACODE_MCP_STDIO_CONFIG).toBe("nested-envelope");
   expect(mcpOwnedStdioEnvironment({ ELECTRON_RUN_AS_NODE: "0" }).ELECTRON_RUN_AS_NODE).toBe("0");
 });
+
+it.skipIf(!nativeRelayBin())(
+  "paginates, filters, normalizes schemas, and isolates stdio env through the native relay binary",
+  async () => {
+    const bin = nativeRelayBin()!;
+    const script = String.raw`
+      let buffer = '';
+      process.stdin.setEncoding('utf8');
+      process.stdin.on('data', chunk => {
+        buffer += chunk;
+        for (;;) {
+          const end = buffer.indexOf('\n'); if (end < 0) break;
+          const line = buffer.slice(0, end); buffer = buffer.slice(end + 1);
+          if (!line.trim()) continue;
+          const m = JSON.parse(line); if (m.id === undefined) continue;
+          let result;
+          if (m.method === 'initialize') {
+            result = { protocolVersion: '2025-11-25', capabilities: { tools: {} }, serverInfo: { name: 'native-filter-fixture', version: '1' } };
+          } else if (m.method === 'tools/list') {
+            const cursor = m.params?.cursor;
+            if (!cursor) {
+              result = {
+                tools: [
+                  { name: 'alpha', inputSchema: { type: 'object', properties: { q: { type: 'string', pattern: '[' } } } },
+                  { name: 'secret-beta', inputSchema: { type: 'object' } }
+                ],
+                nextCursor: 'p2'
+              };
+            } else {
+              result = {
+                tools: [
+                  { name: 'app-hidden', inputSchema: { type: 'object' }, _meta: { ui: { visibility: ['app'] } } }
+                ]
+              };
+            }
+          } else {
+            result = { content: [{ type: 'text', text: JSON.stringify({ secret: process.env.UNLISTED_SECRET ?? null, explicit: process.env.EXPLICIT_VAR ?? null }) }] };
+          }
+          process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: m.id, result }) + '\n');
+        }
+      });
+    `;
+    const encoded = Buffer.from(
+      JSON.stringify({
+        version: 2,
+        omitInvalidSchemaPatterns: true,
+        disabledTools: ["secret-beta"],
+        server: {
+          name: "native-filter",
+          timeoutMs: 5000,
+          transport: {
+            type: "stdio",
+            command: process.execPath,
+            args: ["-e", script],
+            env: { EXPLICIT_VAR: "allowed" },
+          },
+        },
+      }),
+    ).toString("base64url");
+    const transport = new StdioClientTransport({
+      command: bin,
+      args: [],
+      env: {
+        ...(process.env as Record<string, string>),
+        UNLISTED_SECRET: "must-not-leak",
+        [MCP_FILTER_CONFIG_V2_ENV]: encoded,
+      },
+    });
+    const client = new Client({ name: "native-filter-client", version: "1" });
+    clients.push(client);
+    await client.connect(transport);
+    const listed = await client.listTools();
+    expect(listed.tools.map((tool) => tool.name)).toEqual(["alpha"]);
+    expect(listed.tools[0]?.inputSchema.properties?.q).toEqual({ type: "string" });
+    const callOk = await client.callTool({ name: "alpha", arguments: {} });
+    expect(callOk.content).toEqual([
+      { type: "text", text: JSON.stringify({ secret: null, explicit: "allowed" }) },
+    ]);
+    const blockedDisabled = await client.callTool({ name: "secret-beta", arguments: {} });
+    expect(blockedDisabled.isError).toBe(true);
+    const blockedAppOnly = await client.callTool({ name: "app-hidden", arguments: {} });
+    expect(blockedAppOnly.isError).toBe(true);
+  },
+);

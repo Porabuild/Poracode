@@ -2,12 +2,12 @@
 name = "poracode-mcp-relay"
 # helperVersion reported by the hello handshake. Bump on any behavior change so
 # stale staged binaries are detectable (see .agents/docs/versioning.md).
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.98"
 license = "Apache-2.0"
 publish = false
-description = "Poracode stdio-to-HTTP MCP relay helper"
+description = "Poracode MCP launch helper (HTTP relay, stdio launcher, schema and filter proxy)"
 
 [lib]
 name = "poracode_mcp_relay"

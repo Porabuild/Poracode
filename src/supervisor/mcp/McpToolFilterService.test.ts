@@ -5,24 +5,34 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { McpServer, ResolvedMcpServer } from "@/shared/contracts";
 import { prepareMcpToolFilters } from "./McpToolFilterService";
 
-vi.mock("../wsl/runtime", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../wsl/runtime")>()),
+const wslMocks = vi.hoisted(() => ({
   resolveNodeForDistro: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
     nodePath: "/opt/node/bin/node",
   })),
-}));
-vi.mock("../wsl/wslDeploy", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../wsl/wslDeploy")>()),
+  resolveDistroArch: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => "x64"),
+  markDistroBinaryExecutable: vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true),
   deployFilesToWslTempBase: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
     home: "/home/u",
     linuxBaseDir: "/home/u/.poracode/poracode-mcp-filter-test",
   })),
+}));
+
+vi.mock("../wsl/runtime", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../wsl/runtime")>()),
+  resolveNodeForDistro: wslMocks.resolveNodeForDistro,
+  resolveDistroArch: wslMocks.resolveDistroArch,
+  markDistroBinaryExecutable: wslMocks.markDistroBinaryExecutable,
+}));
+vi.mock("../wsl/wslDeploy", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../wsl/wslDeploy")>()),
+  deployFilesToWslTempBase: wslMocks.deployFilesToWslTempBase,
 }));
 import {
   MCP_FILTER_CONFIG_ENV,
   MCP_FILTER_CONFIG_V1_ENV,
   MCP_FILTER_CONFIG_V2_ENV,
   MCP_HTTP_RELAY_CONFIG_ENV,
+  MCP_STDIO_CONFIG_ENV,
   encodeMcpHttpRelayConfig,
   readMcpHttpRelayConfig,
   readMcpToolFilterConfig,
@@ -31,6 +41,12 @@ import {
 const roots: string[] = [];
 afterEach(() => {
   vi.unstubAllEnvs();
+  wslMocks.resolveNodeForDistro.mockClear();
+  wslMocks.resolveDistroArch.mockReset();
+  wslMocks.resolveDistroArch.mockResolvedValue("x64");
+  wslMocks.markDistroBinaryExecutable.mockReset();
+  wslMocks.markDistroBinaryExecutable.mockResolvedValue(true);
+  wslMocks.deployFilesToWslTempBase.mockClear();
   for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 const server: McpServer = {
@@ -289,7 +305,7 @@ describe("host endpoint relays", () => {
   });
 
   describe("native relay", () => {
-    const nativeBinary = (root: string) => {
+    const nativeBinary = (root: string, helperVersion?: string) => {
       const id =
         process.platform === "darwin"
           ? "darwin-universal"
@@ -303,6 +319,24 @@ describe("host endpoint relays", () => {
         process.platform === "win32" ? "poracode-mcp-relay.exe" : "poracode-mcp-relay",
       );
       writeFileSync(path, "");
+      if (helperVersion) {
+        writeFileSync(
+          join(root, "mcp-relay", "manifest.json"),
+          JSON.stringify({ helper: "poracode-mcp-relay", helperVersion, relayConfigVersion: 1 }),
+        );
+      }
+      return path;
+    };
+
+    const wslLinuxBinary = (root: string, helperVersion = "0.2.0") => {
+      const dir = join(root, "mcp-relay", "linux-x64");
+      mkdirSync(dir, { recursive: true });
+      const path = join(dir, "poracode-mcp-relay");
+      writeFileSync(path, "");
+      writeFileSync(
+        join(root, "mcp-relay", "manifest.json"),
+        JSON.stringify({ helper: "poracode-mcp-relay", helperVersion, relayConfigVersion: 1 }),
+      );
       return path;
     };
 
@@ -324,6 +358,96 @@ describe("host endpoint relays", () => {
       expect(wrapped!.transport.env.ELECTRON_RUN_AS_NODE).toBeUndefined();
       expect(readMcpHttpRelayConfig(wrapped!.transport.env).url).toBe(route.url);
       expect(wrapped!.directTransport).toEqual(route);
+    });
+
+    it("uses the 0.2.0 native binary for stdio cwd, schema-only, and filtering while keeping https/sse/isolation on JS", async () => {
+      const root = helpersRoot();
+      writeFileSync(join(root, "mcp-stdio.mjs"), "");
+      const binary = nativeBinary(root, "0.2.0");
+      const location = { kind: "posix" as const, path: "/project" };
+
+      const [stdioCwd] = await prepareMcpToolFilters([server], location, { proxyStdioCwd: true });
+      if (stdioCwd!.transport.type !== "stdio") throw new Error("expected stdio");
+      expect(stdioCwd!.transport.command).toBe(binary);
+      expect(stdioCwd!.transport.args).toEqual([]);
+      expect(stdioCwd!.transport.env[MCP_STDIO_CONFIG_ENV]).toEqual(expect.any(String));
+
+      const [schemaOnly] = await prepareMcpToolFilters([server], location, {
+        omitInvalidSchemaPatterns: true,
+        proxyStdioCwd: true,
+      });
+      if (schemaOnly!.transport.type !== "stdio") throw new Error("expected stdio");
+      expect(schemaOnly!.transport.command).toBe(binary);
+      expect(schemaOnly!.transport.env.FIXTURE).toBe("private");
+      expect(readMcpToolFilterConfig(schemaOnly!.transport.env).schemaOnly).toBe(true);
+
+      const [filteredStdio, filteredHttp, httpsServer, sseServer] = await prepareMcpToolFilters(
+        [
+          { ...server, disabledTools: ["restricted"] },
+          {
+            ...server,
+            disabledTools: ["restricted"],
+            transport: { type: "http", url: "http://127.0.0.1:8123/mcp", headers: {} },
+          },
+          {
+            ...server,
+            disabledTools: ["restricted"],
+            transport: { type: "http", url: "https://example.test/mcp", headers: {} },
+          },
+          {
+            ...server,
+            disabledTools: ["restricted"],
+            transport: { type: "sse", url: "http://127.0.0.1:8123/sse", headers: {} },
+          },
+        ],
+        location,
+        { remoteViaStdio: true },
+      );
+      if (
+        filteredStdio!.transport.type !== "stdio" ||
+        filteredHttp!.transport.type !== "stdio" ||
+        httpsServer!.transport.type !== "stdio" ||
+        sseServer!.transport.type !== "stdio"
+      ) {
+        throw new Error("expected stdio");
+      }
+      expect(filteredStdio!.transport.command).toBe(binary);
+      expect(filteredStdio!.transport.env.FIXTURE).toBeUndefined();
+      expect(filteredHttp!.transport.command).toBe(binary);
+      expect(httpsServer!.transport.args).toEqual([join(root, "mcp-filter.mjs")]);
+      expect(sseServer!.transport.args).toEqual([join(root, "mcp-filter.mjs")]);
+
+      const [isolated] = await prepareMcpToolFilters([server], location, {
+        isolateConnectionFailures: true,
+      });
+      if (isolated!.transport.type !== "stdio") throw new Error("expected stdio");
+      expect(isolated!.transport.args).toEqual([join(root, "mcp-filter.mjs")]);
+    });
+
+    it("falls back to JS for stdio and filter modes when an older 0.1.0 relay binary is staged", async () => {
+      const root = helpersRoot();
+      writeFileSync(join(root, "mcp-stdio.mjs"), "");
+      const binary = nativeBinary(root, "0.1.0");
+      const location = { kind: "posix" as const, path: "/project" };
+
+      const [httpRelay] = await prepareMcpToolFilters([endpoint], location, {
+        remoteViaStdio: true,
+      });
+      const [stdioCwd] = await prepareMcpToolFilters([server], location, { proxyStdioCwd: true });
+      const [filtered] = await prepareMcpToolFilters(
+        [{ ...server, disabledTools: ["restricted"] }],
+        location,
+      );
+      if (
+        httpRelay!.transport.type !== "stdio" ||
+        stdioCwd!.transport.type !== "stdio" ||
+        filtered!.transport.type !== "stdio"
+      ) {
+        throw new Error("expected stdio");
+      }
+      expect(httpRelay!.transport.command).toBe(binary);
+      expect(stdioCwd!.transport.args).toEqual([join(root, "mcp-stdio.mjs")]);
+      expect(filtered!.transport.args).toEqual([join(root, "mcp-filter.mjs")]);
     });
 
     it("falls back to the JavaScript relay when the binary is missing or the URL is https", async () => {
@@ -352,25 +476,78 @@ describe("host endpoint relays", () => {
       expect(jsWrapped!.transport.args).toEqual([join(missing, "mcp-relay.mjs")]);
     });
 
-    it("keeps WSL endpoints on the deployed JavaScript relay", async () => {
+    it("deploys and executes the static linux-x64 binary inside x64 WSL without resolving Node", async () => {
       const root = helpersRoot();
-      nativeBinary(root);
-      const [wrapped] = await prepareMcpToolFilters(
-        [endpoint],
-        {
-          kind: "wsl",
-          distro: "Ubuntu",
-          linuxPath: "/repo",
-          uncPath: "\\\\wsl$\\Ubuntu\\repo",
-        },
+      wslLinuxBinary(root, "0.2.0");
+      const wslLocation = {
+        kind: "wsl" as const,
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl$\\Ubuntu\\repo",
+      };
+      const [relayedEndpoint, filteredServer] = await prepareMcpToolFilters(
+        [endpoint, { ...server, disabledTools: ["restricted"] }],
+        wslLocation,
         { remoteViaStdio: true },
       );
-      if (wrapped!.transport.type !== "stdio") throw new Error("expected stdio");
-      expect(wrapped!.transport.command).toBe("/opt/node/bin/node");
-      expect(wrapped!.transport.args).toEqual([
+      if (
+        relayedEndpoint!.transport.type !== "stdio" ||
+        filteredServer!.transport.type !== "stdio"
+      ) {
+        throw new Error("expected stdio");
+      }
+      const expectedPath =
+        "/home/u/.poracode/poracode-mcp-filter-test/mcp-filter/poracode-mcp-relay";
+      expect(relayedEndpoint!.transport.command).toBe(expectedPath);
+      expect(relayedEndpoint!.transport.args).toEqual([]);
+      expect(relayedEndpoint!.transport.cwd).toBe("/repo");
+      expect(filteredServer!.transport.command).toBe(expectedPath);
+      expect(wslMocks.markDistroBinaryExecutable).toHaveBeenCalledWith("Ubuntu", expectedPath);
+      expect(wslMocks.resolveNodeForDistro).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the deployed JavaScript helper in WSL on arm64, missing linux-x64 binary, or chmod failure", async () => {
+      const wslLocation = {
+        kind: "wsl" as const,
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl$\\Ubuntu\\repo",
+      };
+
+      // Missing linux-x64 binary.
+      helpersRoot();
+      const [missingBin] = await prepareMcpToolFilters([endpoint], wslLocation, {
+        remoteViaStdio: true,
+      });
+      if (missingBin!.transport.type !== "stdio") throw new Error("expected stdio");
+      expect(missingBin!.transport.command).toBe("/opt/node/bin/node");
+      expect(missingBin!.transport.args).toEqual([
         "/home/u/.poracode/poracode-mcp-filter-test/mcp-filter/mcp-relay.mjs",
       ]);
-      expect(wrapped!.transport.cwd).toBe("/repo");
+
+      // arm64 WSL distro.
+      const armRoot = helpersRoot();
+      wslLinuxBinary(armRoot, "0.2.0");
+      wslMocks.resolveDistroArch.mockResolvedValueOnce("arm64");
+      const [armWrapped] = await prepareMcpToolFilters([endpoint], wslLocation, {
+        remoteViaStdio: true,
+      });
+      if (armWrapped!.transport.type !== "stdio") throw new Error("expected stdio");
+      expect(armWrapped!.transport.command).toBe("/opt/node/bin/node");
+
+      // chmod / executable check failure.
+      const chmodFailRoot = helpersRoot();
+      wslLinuxBinary(chmodFailRoot, "0.2.0");
+      wslMocks.markDistroBinaryExecutable.mockResolvedValueOnce(false);
+      const [chmodFallback] = await prepareMcpToolFilters(
+        [{ ...server, disabledTools: ["restricted"] }],
+        wslLocation,
+      );
+      if (chmodFallback!.transport.type !== "stdio") throw new Error("expected stdio");
+      expect(chmodFallback!.transport.command).toBe("/opt/node/bin/node");
+      expect(chmodFallback!.transport.args).toEqual([
+        "/home/u/.poracode/poracode-mcp-filter-test/mcp-filter/mcp-filter.mjs",
+      ]);
     });
 
     it("does not re-wrap a native relay entry on a second pass", async () => {

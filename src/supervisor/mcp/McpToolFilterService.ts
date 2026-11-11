@@ -1,7 +1,11 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { McpTransport, ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
-import { resolveNodeForDistro } from "../wsl/runtime";
+import {
+  markDistroBinaryExecutable,
+  resolveDistroArch,
+  resolveNodeForDistro,
+} from "../wsl/runtime";
 import { deployFilesToWslTempBase, resolveWslHelpersDir } from "../wsl/wslDeploy";
 import {
   MCP_FILTER_CONFIG_ENV,
@@ -102,10 +106,42 @@ function nativeRelayPath(helpersDir: string | undefined): string | undefined {
   return helpersDir ? nativeMcpRelayBinaryPath(helpersDir) : undefined;
 }
 
+/** Staged static musl `linux-x64` native relay binary for x64 WSL distros. */
+function wslNativeMcpRelayBinaryPath(helpersDir: string | undefined): string | undefined {
+  if (!helpersDir) return undefined;
+  const path = join(helpersDir, "mcp-relay", "linux-x64", "poracode-mcp-relay");
+  return existsSync(path) ? path : undefined;
+}
+
+/**
+ * Multi-mode `poracode-mcp-relay` (`MCP_FILTER_CONFIG*` and `MCP_STDIO_CONFIG`)
+ * landed in `0.2.0`. Pre-`0.2.0` staged binaries or unmanifested fixtures stay
+ * eligible for `MCP_HTTP_RELAY_CONFIG` while falling back to `.mjs` elsewhere.
+ */
+export function nativeRelaySupportsExtendedModes(helpersDir: string | undefined): boolean {
+  if (!helpersDir) return false;
+  try {
+    const raw = JSON.parse(
+      readFileSync(join(helpersDir, "mcp-relay", "manifest.json"), "utf8"),
+    ) as {
+      helper?: unknown;
+      helperVersion?: unknown;
+    };
+    if (raw?.helper !== "poracode-mcp-relay" || typeof raw.helperVersion !== "string") {
+      return false;
+    }
+    const [major = 0, minor = 0] = raw.helperVersion.split(".").map((part) => Number(part));
+    return major > 0 || minor >= 2;
+  } catch {
+    return false;
+  }
+}
+
 function launchHelper(
   server: ResolvedMcpServer,
   options: FilterOptions,
   nativeRelay?: string,
+  nativeExtended = false,
 ): McpLaunchHelper {
   const transport = server.transport;
   if (
@@ -123,34 +159,54 @@ function launchHelper(
         disabledTools: [...(server.disabledTools ?? [])],
       }),
     };
-    // The native relay speaks plain HTTP only; HTTPS and WSL keep the JS relay.
+    // The native relay speaks plain HTTP only; HTTPS keeps the JS relay.
     if (nativeRelay && transport.url.startsWith("http:")) {
       return { kind: "native", path: nativeRelay, env };
     }
     return { kind: "js", name: "mcp-relay.mjs", env };
   }
   if (options.omitInvalidSchemaPatterns === true || requiresFiltering(server, options)) {
-    return {
-      kind: "js",
-      name: "mcp-filter.mjs",
-      env: {
-        [options.omitInvalidSchemaPatterns
-          ? MCP_FILTER_CONFIG_V2_ENV
-          : options.isolateConnectionFailures
-            ? MCP_FILTER_CONFIG_V1_ENV
-            : MCP_FILTER_CONFIG_ENV]: filterConfig(server, options),
-      },
+    const env = {
+      [options.omitInvalidSchemaPatterns
+        ? MCP_FILTER_CONFIG_V2_ENV
+        : options.isolateConnectionFailures
+          ? MCP_FILTER_CONFIG_V1_ENV
+          : MCP_FILTER_CONFIG_ENV]: filterConfig(server, options),
     };
+    const canUseNativeFilter =
+      Boolean(nativeRelay) &&
+      nativeExtended &&
+      options.isolateConnectionFailures !== true &&
+      (transport.type === "stdio" ||
+        (transport.type === "http" && transport.url.startsWith("http:")));
+    if (canUseNativeFilter) {
+      return { kind: "native", path: nativeRelay!, env };
+    }
+    return { kind: "js", name: "mcp-filter.mjs", env };
   }
-  return {
-    kind: "js",
-    name: "mcp-stdio.mjs",
-    env: {
-      [MCP_STDIO_CONFIG_ENV]: Buffer.from(JSON.stringify({ version: 1, server })).toString(
-        "base64url",
-      ),
-    },
+  const env = {
+    [MCP_STDIO_CONFIG_ENV]: Buffer.from(JSON.stringify({ version: 1, server })).toString(
+      "base64url",
+    ),
   };
+  if (nativeRelay && nativeExtended && transport.type === "stdio") {
+    return { kind: "native", path: nativeRelay, env };
+  }
+  return { kind: "js", name: "mcp-stdio.mjs", env };
+}
+
+function resolveJsHelperSources(
+  helpers: readonly McpLaunchHelper[],
+  helpersDir: string | undefined,
+): { name: string; path: string }[] {
+  const names = [
+    ...new Set(helpers.flatMap((helper) => (helper.kind === "js" ? [helper.name] : []))),
+  ];
+  const sources = names.map((name) => ({ name, path: helpersDir ? join(helpersDir, name) : "" }));
+  if (sources.some((source) => !source.path || !existsSync(source.path))) {
+    throw new Error("Poracode MCP launch helper is unavailable.");
+  }
+  return sources;
 }
 
 export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
@@ -171,51 +227,101 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
       Boolean(options.proxyStdioCwd && server.transport.type === "stdio" && server.transport.cwd)
     );
   };
-  if (!servers.some(needsProxy)) return [...servers];
+  const proxiedServers = servers.filter(needsProxy);
+  if (proxiedServers.length === 0) return [...servers];
 
   const helpersDir = resolveWslHelpersDir();
-  // WSL agents always get the deployed JavaScript relay inside the distro.
-  const nativeRelay = location.kind === "wsl" ? undefined : nativeRelayPath(helpersDir);
-  // launchHelper runs once per server; the wrap pass reuses the result.
+  const nativeExtended = nativeRelaySupportsExtendedModes(helpersDir);
   const helperByServer = new Map<T, McpLaunchHelper>();
-  const helpers = servers.filter(needsProxy).map((server) => {
-    const helper = launchHelper(server, options, nativeRelay);
-    helperByServer.set(server, helper);
-    return helper;
-  });
-  const names = [
-    ...new Set(helpers.flatMap((helper) => (helper.kind === "js" ? [helper.name] : []))),
-  ];
-  const sources = names.map((name) => ({ name, path: helpersDir ? join(helpersDir, name) : "" }));
-  if (sources.some((source) => !source.path || !existsSync(source.path))) {
-    throw new Error("Poracode MCP launch helper is unavailable.");
-  }
+  const assignHelpers = (nativeRelay?: string): McpLaunchHelper[] => {
+    helperByServer.clear();
+    return proxiedServers.map((server) => {
+      const helper = launchHelper(server, options, nativeRelay, nativeExtended);
+      helperByServer.set(server, helper);
+      return helper;
+    });
+  };
 
   let command = process.execPath;
   let workerDirectory = helpersDir!;
   const baseEnv = process.versions.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {};
   if (location.kind === "wsl") {
-    const node = await resolveNodeForDistro(location.distro);
-    const deployed = await deployFilesToWslTempBase(
-      location.distro,
-      `poracode-mcp-filter-${process.pid}`,
-      sources.map((source) => ({ src: source.path, relDest: `mcp-filter/${source.name}` })),
-    );
-    if (!deployed) throw new Error("Poracode MCP launch helper could not be deployed to WSL.");
-    command = node.nodePath;
-    workerDirectory = `${deployed.linuxBaseDir}/mcp-filter`;
+    const wslNativeSrc = wslNativeMcpRelayBinaryPath(helpersDir);
+    const wslCanTryNative =
+      Boolean(wslNativeSrc) && (await resolveDistroArch(location.distro)) === "x64";
+    const wslNativeRel = "mcp-filter/poracode-mcp-relay";
+    let stagedWithNative = false;
+    if (wslCanTryNative && wslNativeSrc) {
+      const tentative = assignHelpers(wslNativeRel);
+      if (tentative.some((helper) => helper.kind === "native")) {
+        const jsSources = resolveJsHelperSources(tentative, helpersDir);
+        const deployed = await deployFilesToWslTempBase(
+          location.distro,
+          `poracode-mcp-filter-${process.pid}`,
+          [
+            { src: wslNativeSrc, relDest: wslNativeRel },
+            ...jsSources.map((source) => ({
+              src: source.path,
+              relDest: `mcp-filter/${source.name}`,
+            })),
+          ],
+        );
+        if (!deployed) throw new Error("Poracode MCP launch helper could not be deployed to WSL.");
+        const linuxNativePath = `${deployed.linuxBaseDir}/${wslNativeRel}`;
+        if (await markDistroBinaryExecutable(location.distro, linuxNativePath)) {
+          for (const [srv, helper] of helperByServer) {
+            if (helper.kind === "native") {
+              helperByServer.set(srv, { ...helper, path: linuxNativePath });
+            }
+          }
+          if (jsSources.length > 0) {
+            const node = await resolveNodeForDistro(location.distro);
+            command = node.nodePath;
+          }
+          workerDirectory = `${deployed.linuxBaseDir}/mcp-filter`;
+          stagedWithNative = true;
+        }
+      }
+    }
+    if (!stagedWithNative) {
+      const fallbackHelpers = assignHelpers(undefined);
+      const jsSources = resolveJsHelperSources(fallbackHelpers, helpersDir);
+      const node = await resolveNodeForDistro(location.distro);
+      const deployed = await deployFilesToWslTempBase(
+        location.distro,
+        `poracode-mcp-filter-${process.pid}`,
+        jsSources.map((source) => ({ src: source.path, relDest: `mcp-filter/${source.name}` })),
+      );
+      if (!deployed) throw new Error("Poracode MCP launch helper could not be deployed to WSL.");
+      command = node.nodePath;
+      workerDirectory = `${deployed.linuxBaseDir}/mcp-filter`;
+    }
+  } else {
+    const helpers = assignHelpers(nativeRelayPath(helpersDir));
+    resolveJsHelperSources(helpers, helpersDir);
   }
 
   return servers.map((server) => {
     const helper = helperByServer.get(server);
     if (!helper) return server;
     const { directTransport, ...relayed } = server;
+    // Let the native connection owner expand values and apply its reserved
+    // environment policy before a schema-only wrapper starts the server.
+    const inheritedServerStdioEnv =
+      options.omitInvalidSchemaPatterns &&
+      !requiresFiltering(server, options) &&
+      server.transport.type === "stdio"
+        ? server.transport.env
+        : {};
     if (helper.kind === "native") {
       const transport: McpTransport = {
         type: "stdio",
         command: helper.path,
         args: [] as string[],
-        env: helper.env,
+        env: {
+          ...inheritedServerStdioEnv,
+          ...helper.env,
+        },
         cwd: location.kind === "wsl" ? location.linuxPath : location.path,
       };
       helperRelayTransports.add(transport);
@@ -235,14 +341,8 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
           ? `${workerDirectory}/${helper.name}`
           : join(workerDirectory, helper.name),
       ],
-      // Let the native connection owner expand values and apply its reserved
-      // environment policy before a schema-only wrapper starts the server.
       env: {
-        ...(options.omitInvalidSchemaPatterns &&
-        !requiresFiltering(server, options) &&
-        server.transport.type === "stdio"
-          ? server.transport.env
-          : {}),
+        ...inheritedServerStdioEnv,
         ...baseEnv,
         ...helper.env,
       },

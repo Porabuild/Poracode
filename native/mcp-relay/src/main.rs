@@ -3,8 +3,13 @@
 //! `PORACODE_MCP_HTTP_RELAY_CONFIG`, stdin is newline-delimited JSON-RPC,
 //! stdout carries replies, and SIGINT/SIGTERM close like stdin EOF.
 
-use poracode_mcp_relay::config::read_relay_config;
+use poracode_mcp_relay::config::{
+    ConfigError, read_filter_config, read_relay_config, read_stdio_config,
+};
+use poracode_mcp_relay::filter_proxy::run_filter_proxy;
 use poracode_mcp_relay::relay::{MAX_LINE_UNITS, Relay};
+use poracode_mcp_relay::schema_proxy::run_schema_proxy;
+use poracode_mcp_relay::stdio_launcher::run_stdio_launcher;
 use std::io::{self, Read};
 use std::process::ExitCode;
 #[cfg(unix)]
@@ -238,6 +243,10 @@ mod signals {
     }
 }
 
+fn has_non_empty_env(name: &str) -> bool {
+    std::env::var(name).ok().is_some_and(|v| !v.is_empty())
+}
+
 fn main() -> ExitCode {
     if std::env::args().skip(1).any(|arg| arg == "--hello") {
         println!("{}", hello_line());
@@ -247,23 +256,72 @@ fn main() -> ExitCode {
     #[cfg(unix)]
     let signal_set = signals::block();
 
-    let config = match read_relay_config() {
-        Ok(config) => config,
-        Err(error) => {
-            eprintln!("{}", error.message());
-            return ExitCode::from(1);
-        }
-    };
-    let relay = Relay::start(config);
+    // Filter/schema envelopes take precedence over inner stdio/relay envelopes
+    // so a schema-only wrapper around a nested helper runs the outer wrapper
+    // first and passes the inner envelope through to the child process.
+    if has_non_empty_env("PORACODE_MCP_FILTER_CONFIG_V2")
+        || has_non_empty_env("PORACODE_MCP_FILTER_CONFIG_V1")
+        || has_non_empty_env("PORACODE_MCP_FILTER_CONFIG")
+    {
+        let config = match read_filter_config() {
+            Ok(config) => config,
+            Err(error) => {
+                eprintln!("{}", error.message());
+                return ExitCode::from(1);
+            }
+        };
+        return if config.schema_only {
+            run_schema_proxy(
+                config,
+                #[cfg(unix)]
+                signal_set,
+            )
+        } else {
+            run_filter_proxy(
+                config,
+                #[cfg(unix)]
+                signal_set,
+            )
+        };
+    }
 
-    #[cfg(unix)]
-    signals::watch(Arc::clone(&relay), signal_set);
+    if has_non_empty_env("PORACODE_MCP_HTTP_RELAY_CONFIG") {
+        let config = match read_relay_config() {
+            Ok(config) => config,
+            Err(error) => {
+                eprintln!("{}", error.message());
+                return ExitCode::from(1);
+            }
+        };
+        let relay = Relay::start(config);
 
-    run_stdin_loop(&relay);
-    relay.close();
-    // The JS worker exits 0 once `closed` settles plus a 1s grace; close()
-    // already bounds the session DELETE at 1s.
-    std::process::exit(0);
+        #[cfg(unix)]
+        signals::watch(Arc::clone(&relay), signal_set);
+
+        run_stdin_loop(&relay);
+        relay.close();
+        // The JS worker exits 0 once `closed` settles plus a 1s grace; close()
+        // already bounds the session DELETE at 1s.
+        std::process::exit(0);
+    }
+
+    if has_non_empty_env("PORACODE_MCP_STDIO_CONFIG") {
+        let config = match read_stdio_config() {
+            Ok(config) => config,
+            Err(error) => {
+                eprintln!("{}", error.message());
+                return ExitCode::from(1);
+            }
+        };
+        return run_stdio_launcher(
+            config,
+            #[cfg(unix)]
+            signal_set,
+        );
+    }
+
+    eprintln!("{}", ConfigError::Missing.message());
+    ExitCode::from(1)
 }
 
 #[cfg(test)]
