@@ -242,6 +242,12 @@ describe("working state during prompt admission", () => {
     async (source) => {
       const checkpoint = deferred();
       const sendThreadInput = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+      const staleHistory: RemoteThreadSnapshot = {
+        ...snapshot(idle),
+        runtimeItems: [
+          { id: "prior-turn-item", type: "assistant_message", state: "completed", streams: {} },
+        ],
+      };
       const sending = performThreadInputSubmit({
         thread: idle,
         prompt: "hello",
@@ -249,11 +255,13 @@ describe("working state during prompt admission", () => {
         captureCheckpoint: () => checkpoint.promise,
       });
       const startedAt = currentThread().activeTurnStartedAt;
+      const optimisticItemIds = [...(useAppStore.getState().runtimeItemIdsByThread[idle.id] ?? [])];
+      expect(optimisticItemIds).toHaveLength(1);
       expect(currentThread().status).toBe("working");
       expect(startedAt).toBeDefined();
       useAppStore.getState().openThread("other-thread");
       if (source === "catalog") applyRootCatalogThreadRows([idle], new Set());
-      else if (source === "history") applyThreadSnapshot(snapshot(idle));
+      else if (source === "history") applyThreadSnapshot(staleHistory);
       else if (source === "reconcile" || source === "missing-runtime")
         useAppStore
           .getState()
@@ -272,12 +280,13 @@ describe("working state during prompt admission", () => {
         attention: "working",
         activeTurnStartedAt: startedAt,
       });
+      expect(useAppStore.getState().runtimeItemIdsByThread[idle.id]).toEqual(optimisticItemIds);
       expect(useAppStore.getState().runtimeCompletedTurnsByThread[idle.id] ?? []).toHaveLength(0);
       expect(sendThreadInput).not.toHaveBeenCalled();
       checkpoint.resolve();
       await sending;
       if (source === "catalog") applyRootCatalogThreadRows([idle], new Set());
-      else if (source === "history") applyThreadSnapshot(snapshot(idle));
+      else if (source === "history") applyThreadSnapshot(staleHistory);
       else if (source === "reconcile" || source === "missing-runtime")
         useAppStore
           .getState()
@@ -292,8 +301,44 @@ describe("working state during prompt admission", () => {
           canResumeWithConfig: idle.canResumeWithConfig,
         });
       expect(currentThread().status).toBe("working");
+      expect(useAppStore.getState().runtimeItemIdsByThread[idle.id]).toEqual(optimisticItemIds);
     },
   );
+
+  it("retains a pending optimistic prompt across a recovery clear and pre-admission snapshot install", async () => {
+    const checkpoint = deferred();
+    const sendThreadInput = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const sending = performThreadInputSubmit({
+      thread: idle,
+      prompt: "let's merge",
+      transport: { sendThreadInput },
+      captureCheckpoint: () => checkpoint.promise,
+    });
+    const optimisticId = useAppStore.getState().runtimeItemIdsByThread[idle.id]?.[0];
+    expect(optimisticId).toBeDefined();
+
+    // Simulate hostHistoryRecovery's beforeInstall clear followed by a larger
+    // pre-admission snapshot from the remote host.
+    useAppStore.getState().clearThreadRuntimeEvents(idle.id, {
+      keepOpenRequests: true,
+      keepPromptIndex: true,
+    });
+    applyThreadSnapshot({
+      ...snapshot(idle),
+      runtimeItems: [
+        { id: "u1", type: "user_message", state: "completed", streams: {} },
+        { id: "a1", type: "assistant_message", state: "completed", streams: {} },
+      ],
+    });
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[idle.id]).toEqual([
+      "u1",
+      "a1",
+      optimisticId,
+    ]);
+    checkpoint.resolve();
+    await sending;
+  });
 
   it("keeps a new thread working while checkpoint capture and launch are pending", async () => {
     const checkpoint = deferred();
