@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { projectDraftConfigSchema, promptSegmentSchema } from "@/shared/contracts";
+import { projectDraftConfigSchema, draftPromptSegmentSchema } from "@/shared/contracts";
 import type { DraftContent } from "../slices/types";
 
 export const draftContentSchema = z
   .object({
-    segments: z.array(promptSegmentSchema),
+    segments: z.array(draftPromptSegmentSchema),
     attachments: z.array(
       z.object({
         id: z.string(),
