@@ -38,7 +38,7 @@ void test("the remote-v3 contract and core lint jobs lock the committed operatio
   assert.match(coreLock.run, /tests\/native-e2e\/vitest\.config\.ts/u);
 });
 
-void test("Linux helper setup recovers mirror DNS failures without hiding install errors", async () => {
+void test("Linux setups recover mirror DNS failures without hiding install errors", async () => {
   const workflow = parse(
     await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
   );
@@ -46,6 +46,16 @@ void test("Linux helper setup recovers mirror DNS failures without hiding instal
     (item) => item.name === "Install Linux integration-test tools",
   );
   assert.ok(step);
+  const browser = parse(
+    await readFile(new URL("../.github/workflows/browser-layout.yml", import.meta.url), "utf8"),
+  );
+  const browserSteps = browser.jobs.browser_layout.steps;
+  const browserStep = browserSteps.find((item) => item.name === "Prepare Ubuntu package mirrors");
+  assert.ok(browserStep);
+  assert.ok(
+    browserSteps.indexOf(browserStep) <
+      browserSteps.findIndex((item) => item.name === "Install Chromium for Playwright"),
+  );
   const temporaryRoot = fileURLToPath(new URL("../tmp/", import.meta.url));
   await mkdir(temporaryRoot, { recursive: true });
   const temporary = await mkdtemp(join(temporaryRoot, "ci-mirror-"));
@@ -99,12 +109,16 @@ void test("Linux helper setup recovers mirror DNS failures without hiding instal
         { mode: 0o755 },
       ),
     ]);
-    for (const [dns, dnsBad, failApt] of [
-      ["ok", "0", ""],
-      ["azure-down", "0", ""],
-      ["all-down", "0", ""],
-      ["all-down", "1", ""],
-      ["ok", "0", "update"],
+    for (const [setup, dns, dnsBad, failApt] of [
+      [step, "ok", "0", ""],
+      [step, "azure-down", "0", ""],
+      [step, "all-down", "0", ""],
+      [step, "all-down", "1", ""],
+      [step, "ok", "0", "update"],
+      [browserStep, "ok", "0", ""],
+      [browserStep, "azure-down", "0", ""],
+      [browserStep, "all-down", "0", ""],
+      [browserStep, "all-down", "1", ""],
     ]) {
       await writeFile(
         mirrors,
@@ -113,7 +127,7 @@ void test("Linux helper setup recovers mirror DNS failures without hiding instal
           "https://security.ubuntu.com/ubuntu/ priority:3\n",
       );
       await Promise.all([writeFile(hosts, ""), writeFile(calls, "")]);
-      const result = spawnSync("bash", ["-e", "-c", step.run], {
+      const result = spawnSync("bash", ["-e", "-c", setup.run], {
         cwd: temporary,
         env: {
           ...process.env,
@@ -144,7 +158,7 @@ void test("Linux helper setup recovers mirror DNS failures without hiding instal
         assert.equal(hostEntries, "");
       }
       const aptCalls = await readFile(calls, "utf8");
-      if (dnsBad === "1") assert.equal(aptCalls, "");
+      if (setup === browserStep || dnsBad === "1") assert.equal(aptCalls, "");
       else if (failApt) assert.equal(aptCalls, "apt-get update\n");
       else assert.equal(aptCalls, "apt-get update\napt-get install --yes dbus-x11 xvfb\n");
     }
