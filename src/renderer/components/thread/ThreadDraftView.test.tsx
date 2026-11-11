@@ -2689,6 +2689,69 @@ describe("ThreadDraftView", () => {
     expect(collectElementTypeNames(composer.fixedContent)).toContain("RemoteHostUpdateDock");
   });
 
+  it("preserves saved Codex Full access while permission capabilities load", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const saved = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      contextSize: "400k",
+      approvalPolicy: "never",
+      approvalsReviewer: "auto_review",
+      sandboxMode: "danger-full-access",
+    };
+    const pending = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        approvalPolicies: [],
+        sandboxModes: [],
+        bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+      },
+    };
+    const { rerender } = render(
+      <ThreadDraftView
+        project={project}
+        lastDraftConfig={saved}
+        agentStatuses={[pending]}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(useSharedSettings.getState().providerConfigs.codex).toMatchObject({
+        approvalPolicy: "never",
+        approvalsReviewer: "auto_review",
+        sandboxMode: "danger-full-access",
+      });
+    });
+    rerender(
+      <ThreadDraftView
+        project={project}
+        lastDraftConfig={saved}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={onStart}
+      />,
+    );
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ value?: string }> };
+      expect(props.controls.some((control) => control.value === "full-access")).toBe(true);
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            approvalPolicy: "never",
+            approvalsReviewer: "auto_review",
+            sandboxMode: "danger-full-access",
+          }),
+        }),
+      );
+    });
+  });
+
   it("submits codex defaults on first launch", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
 
