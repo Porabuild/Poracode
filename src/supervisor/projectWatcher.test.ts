@@ -61,6 +61,10 @@ describe("isIgnoredWorkTreeFile", () => {
       true,
     );
     expect(isIgnoredWorkTreeFile(".poracode/worktrees/feature/src/app.ts")).toBe(true);
+    expect(isIgnoredWorkTreeFile("packages/cli/node_modules/chalk/index.js")).toBe(true);
+    expect(isIgnoredWorkTreeFile("native/mcp-relay/target/debug/deps/lib.rmeta")).toBe(true);
+    expect(isIgnoredWorkTreeFile("tmp/smoke-report.json")).toBe(true);
+    expect(isIgnoredWorkTreeFile(".tmp/scratch.txt")).toBe(true);
   });
 
   it("does not hide unrelated project files", () => {
@@ -148,9 +152,9 @@ describe("ProjectWatcher WSL worktrees", () => {
       })),
       watch,
     } as unknown as WslBridgeClient;
-    const onTreeChanged = vi.fn<(projectId: string) => void>();
+    const onTreeChanged = vi.fn<(projectId: string, worktreePath?: string) => void>();
     const watcher = new ProjectWatcher({
-      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onGitChanged: vi.fn<(projectId: string, worktreePath?: string) => void>(),
       onTreeChanged,
     });
     watcher.setWslClient(client);
@@ -172,7 +176,10 @@ describe("ProjectWatcher WSL worktrees", () => {
     onEvent({ subscriptionId: "sub", scope: "worktree", paths: ["src/App.tsx"] });
 
     await vi.advanceTimersByTimeAsync(300);
-    expect(onTreeChanged).toHaveBeenCalledWith("project-1");
+    expect(onTreeChanged).toHaveBeenCalledWith(
+      "project-1",
+      "/home/demo/.poracode/worktrees/repo/feature",
+    );
     await watcher.dispose();
   });
 
@@ -286,9 +293,9 @@ describe("ProjectWatcher WSL worktrees", () => {
       stat: vi.fn<WslBridgeClient["stat"]>(async () => ({ stats: [] })),
       watch,
     } as unknown as WslBridgeClient;
-    const onTreeChanged = vi.fn<(projectId: string) => void>();
+    const onTreeChanged = vi.fn<(projectId: string, worktreePath?: string) => void>();
     const watcher = new ProjectWatcher({
-      onGitChanged: vi.fn<(projectId: string) => void>(),
+      onGitChanged: vi.fn<(projectId: string, worktreePath?: string) => void>(),
       onTreeChanged,
     });
     watcher.setWslClient(client);
@@ -312,7 +319,7 @@ describe("ProjectWatcher WSL worktrees", () => {
       paths: ["src/App.tsx"],
     });
     await vi.advanceTimersByTimeAsync(300);
-    expect(onTreeChanged).toHaveBeenCalledWith("project-1");
+    expect(onTreeChanged).toHaveBeenCalledWith("project-1", worktreePath);
 
     await watcher.dispose();
   });

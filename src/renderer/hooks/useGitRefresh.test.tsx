@@ -351,6 +351,27 @@ describe("useGitRefresh branch PR prefetch triggers", () => {
     unmount();
   });
 
+  it("does not re-sync watched worktrees on volatile thread runtime ticks", async () => {
+    const { unmount } = await renderAndClearInitialPrefetch();
+    gitRefreshMocks.syncWatchedWorktreeProjects.mockClear();
+    gitRefreshMocks.syncPendingPrRefreshProjects.mockClear();
+
+    act(() => {
+      useAppStore.setState({
+        threads: [
+          makeThread({
+            attention: "needs_approval",
+            slashCommands: [{ id: "review", label: "review", description: "Review" }],
+          }),
+        ],
+      });
+    });
+
+    expect(gitRefreshMocks.syncWatchedWorktreeProjects).not.toHaveBeenCalled();
+    expect(gitRefreshMocks.syncPendingPrRefreshProjects).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it("re-prefetches when a worktree branch appears or a thread finishes its turn", async () => {
     const { unmount } = await renderAndClearInitialPrefetch();
 

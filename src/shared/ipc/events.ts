@@ -363,13 +363,13 @@ export type SupervisorEvent =
   | { type: "agent-status-updated"; status: AgentStatus }
   | { type: "provider-usage"; snapshot: UsageSnapshot }
   | { type: "provider-usage-all"; snapshots: UsageSnapshot[] }
-  | { type: "git-changed"; projectId: string }
+  | { type: "git-changed"; projectId: string; worktreePath?: string }
   | {
       type: "github-polling-status";
       projectLocation: ProjectLocation;
       problem: GithubPollingProblem | null;
     }
-  | { type: "project-tree-changed"; projectId: string }
+  | { type: "project-tree-changed"; projectId: string; worktreePath?: string }
   | { type: "lsp-message"; sessionId: string; message: unknown }
   | {
       type: "lsp-status";

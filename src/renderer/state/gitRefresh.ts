@@ -35,10 +35,23 @@ export interface GitRefreshOptions {
   isActive?: () => boolean;
   /** If true, runs `git fetch origin` before the snapshot refresh. */
   fetchRemote?: boolean;
+  /**
+   * Watcher scope override when only specific worktrees changed (skipping
+   * main-checkout status and untouched sibling worktrees). `includeMainStatus`
+   * defaults to true when `worktreePaths` is omitted.
+   */
+  worktreePaths?: readonly string[];
+  includeMainStatus?: boolean;
 }
 
+type PendingWatcherScope = {
+  includeMainStatus: boolean;
+  allWorktrees: boolean;
+  worktreePaths: Set<string>;
+};
+
 const refreshingProjects = new Set<string>();
-const pendingWatcherRefreshProjects = new Set<string>();
+const pendingWatcherRefreshProjects = new Map<string, PendingWatcherScope>();
 const watchedWorktreePaths = new Map<string, string>();
 const activeRefreshTokens = new Map<string, symbol>();
 const singlePrRefreshTokens = new Map<string, symbol>();
@@ -850,7 +863,7 @@ export function cleanupGitRefreshProjects(activeProjectIds: ReadonlySet<string>)
   for (const projectId of refreshingProjects) {
     if (!activeProjectIds.has(projectId)) refreshingProjects.delete(projectId);
   }
-  for (const projectId of pendingWatcherRefreshProjects) {
+  for (const projectId of pendingWatcherRefreshProjects.keys()) {
     if (!activeProjectIds.has(projectId)) pendingWatcherRefreshProjects.delete(projectId);
   }
   for (const projectId of watchedWorktreePaths.keys()) {
@@ -885,16 +898,25 @@ async function refreshProjectStatusOnly(
   project: { id: string; location: ProjectLocation },
   reason: GitRefreshReason,
   isActive: () => boolean,
+  options: Pick<GitRefreshOptions, "worktreePaths" | "includeMainStatus"> = {},
 ): Promise<void> {
-  const statusResult = await readBridge()
-    .getGitStatus({ projectLocation: project.location })
-    .catch(() => undefined);
-  if (!isActive()) return;
-  if (statusResult) {
-    useGitStore.getState().setStatus(project.id, statusResult);
+  const includeMainStatus = options.includeMainStatus ?? options.worktreePaths === undefined;
+  if (includeMainStatus) {
+    const statusResult = await readBridge()
+      .getGitStatus({ projectLocation: project.location })
+      .catch(() => undefined);
+    if (!isActive()) return;
+    if (statusResult) {
+      useGitStore.getState().setStatus(project.id, statusResult);
+    }
   }
 
-  const threadWorktreePaths = getProjectActiveWorktreePaths(project.id);
+  const activeWorktreePaths = getProjectActiveWorktreePaths(project.id);
+  if (activeWorktreePaths.length === 0) return;
+  const scopedSet = options.worktreePaths ? new Set(options.worktreePaths) : null;
+  const threadWorktreePaths = scopedSet
+    ? activeWorktreePaths.filter((p) => scopedSet.has(p))
+    : activeWorktreePaths;
   if (threadWorktreePaths.length === 0) return;
   const batch = await readBridge()
     .gitWorktreeStatusBatch({
@@ -909,6 +931,22 @@ async function refreshProjectStatusOnly(
   }
 }
 
+function recordPendingWatcherScope(projectId: string, options: GitRefreshOptions): void {
+  const existing: PendingWatcherScope = pendingWatcherRefreshProjects.get(projectId) ?? {
+    includeMainStatus: false,
+    allWorktrees: false,
+    worktreePaths: new Set<string>(),
+  };
+  const includeMain = options.includeMainStatus ?? options.worktreePaths === undefined;
+  if (includeMain) existing.includeMainStatus = true;
+  if (options.worktreePaths === undefined) {
+    existing.allWorktrees = true;
+  } else if (!existing.allWorktrees) {
+    for (const wt of options.worktreePaths) existing.worktreePaths.add(wt);
+  }
+  pendingWatcherRefreshProjects.set(projectId, existing);
+}
+
 export async function refreshGitProject(
   project: { id: string; location: ProjectLocation },
   reason: GitRefreshReason,
@@ -919,7 +957,7 @@ export async function refreshGitProject(
   if (!isActive()) return;
   if (refreshingProjects.has(project.id)) {
     if (reason === "watcher") {
-      pendingWatcherRefreshProjects.add(project.id);
+      recordPendingWatcherScope(project.id, options);
     }
     console.log(
       `[git-refresh] skip project=${project.id} reason=${reason} mode=${mode} inFlight=true`,
@@ -950,8 +988,11 @@ export async function refreshGitProject(
         }
 
         if (mode === "status") {
-          await refreshProjectStatusOnly(project, reason, () =>
-            isRefreshCurrent(project.id, refreshToken, isActive),
+          await refreshProjectStatusOnly(
+            project,
+            reason,
+            () => isRefreshCurrent(project.id, refreshToken, isActive),
+            options,
           );
           return;
         }
@@ -1159,10 +1200,21 @@ export async function refreshGitProject(
       activeRefreshTokens.delete(project.id);
     }
     refreshingProjects.delete(project.id);
-    if (pendingWatcherRefreshProjects.delete(project.id)) {
+    const pendingWatcherScope = pendingWatcherRefreshProjects.get(project.id);
+    if (pendingWatcherScope) {
+      pendingWatcherRefreshProjects.delete(project.id);
       const nextMode = getWatcherRefreshMode(project.id);
       console.log(`[git-refresh] rerun project=${project.id} reason=watcher mode=${nextMode}`);
-      void refreshGitProject(project, "watcher", nextMode, options);
+      const rerunOptions: GitRefreshOptions = {
+        ...(options.isActive ? { isActive: options.isActive } : {}),
+        ...(pendingWatcherScope.allWorktrees
+          ? { includeMainStatus: pendingWatcherScope.includeMainStatus }
+          : {
+              includeMainStatus: pendingWatcherScope.includeMainStatus,
+              worktreePaths: [...pendingWatcherScope.worktreePaths],
+            }),
+      };
+      void refreshGitProject(project, "watcher", nextMode, rerunOptions);
     }
   }
 }

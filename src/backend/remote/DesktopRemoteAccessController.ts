@@ -506,6 +506,7 @@ export function createDesktopRemoteAccessController(
     },
     updateGitSummaries: (summaries) => {
       refs.remoteGitSummaries = summaries;
+      if (refs.runningLoopbackOnly) return;
       refs.remoteAccessServer?.publishSupervisorEvent({
         type: "remote-git-summaries",
         summaries,

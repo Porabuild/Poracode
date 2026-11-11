@@ -8,9 +8,9 @@ const DEBOUNCE_MS = 300;
 
 export interface ProjectWatcherCallbacks {
   /** Fires when `.git` metadata (refs, index, HEAD, worktrees/*) changes. */
-  onGitChanged: (projectId: string) => void;
+  onGitChanged: (projectId: string, worktreePath?: string) => void;
   /** Fires when working-tree files change. */
-  onTreeChanged: (projectId: string) => void;
+  onTreeChanged: (projectId: string, worktreePath?: string) => void;
 }
 
 type WslUnsubscribe = () => Promise<void>;
@@ -49,11 +49,24 @@ const IGNORED_PREFIXES = [
   ".turbo/",
   "__pycache__/",
   ".venv/",
+  "target/",
+  "tmp/",
+  ".tmp/",
+];
+
+const IGNORED_NESTED_SEGMENTS = [
+  "/node_modules/",
+  "/.next/",
+  "/.turbo/",
+  "/__pycache__/",
+  "/.venv/",
+  "/target/",
 ];
 
 export function isIgnoredWorkTreeFile(name: string): boolean {
-  if (name === ".git" || name.startsWith(".git/")) return true;
-  return IGNORED_PREFIXES.some((p) => name.startsWith(p));
+  if (name === ".git" || name.startsWith(".git/") || name.includes("/.git/")) return true;
+  if (IGNORED_PREFIXES.some((p) => name.startsWith(p))) return true;
+  return IGNORED_NESTED_SEGMENTS.some((seg) => name.includes(seg));
 }
 
 function isRecoverableGitPath(name: string): boolean {
@@ -290,14 +303,14 @@ export class ProjectWatcher {
         if (entry.gitDebounceTimer) clearTimeout(entry.gitDebounceTimer);
         entry.gitDebounceTimer = setTimeout(() => {
           entry.gitDebounceTimer = null;
-          this.callbacks.onGitChanged(projectId);
+          this.callbacks.onGitChanged(projectId, wtPath);
         }, DEBOUNCE_MS);
       };
       const scheduleTreeNotify = () => {
         if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
         entry.treeDebounceTimer = setTimeout(() => {
           entry.treeDebounceTimer = null;
-          this.callbacks.onTreeChanged(projectId);
+          this.callbacks.onTreeChanged(projectId, wtPath);
         }, DEBOUNCE_MS);
       };
 
@@ -312,10 +325,12 @@ export class ProjectWatcher {
 
       try {
         entry.watcher = watch(wtPath, { recursive: true }, (_eventType, filename) => {
-          if (filename) {
-            const name = filename.replace(/\\/g, "/");
-            if (isIgnoredWorkTreeFile(name)) return;
-          }
+          // Windows fs.watch coalesces bursts into filename-less events, which
+          // we cannot filter — they cause a refresh→write→event→refresh loop.
+          // Real isolated changes always deliver a filename, so drop the rest.
+          if (!filename) return;
+          const name = filename.replace(/\\/g, "/");
+          if (isIgnoredWorkTreeFile(name)) return;
           scheduleTreeNotify();
         });
         entry.watcher.on("error", () => {

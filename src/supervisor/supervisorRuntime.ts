@@ -232,12 +232,20 @@ export class SupervisorRuntime {
   get projectWatcher(): ProjectWatcher {
     if (!this._projectWatcher) {
       const watcher = new ProjectWatcher({
-        onGitChanged: (projectId) => {
-          this.emit({ type: "git-changed", projectId });
+        onGitChanged: (projectId, worktreePath) => {
+          this.emit({
+            type: "git-changed",
+            projectId,
+            ...(worktreePath ? { worktreePath } : {}),
+          });
         },
-        onTreeChanged: (projectId) => {
+        onTreeChanged: (projectId, worktreePath) => {
           this.projectTreeService.invalidateAllCaches();
-          this.emit({ type: "project-tree-changed", projectId });
+          this.emit({
+            type: "project-tree-changed",
+            projectId,
+            ...(worktreePath ? { worktreePath } : {}),
+          });
         },
       });
       if (this.wslBridgeClient) watcher.setWslClient(this.wslBridgeClient);

@@ -1015,6 +1015,48 @@ describe("watcher git status refresh", () => {
     expect(useGitStore.getState().worktreeStatuses["/repo-wt"]).toEqual(worktreeStatus);
   });
 
+  it("refreshes only the changed worktree and skips main-checkout status when a worktree watcher fires", async () => {
+    const secondWorktreeThread: Thread = {
+      ...worktreeThread,
+      id: "t2",
+      worktreePath: "/repo-wt-2",
+      worktreeBranch: "feature/wt-2",
+    };
+    const getGitStatus = vi.fn<() => Promise<GitStatusResult>>().mockResolvedValue(status);
+    const gitWorktreeStatusBatch = vi
+      .fn<
+        (payload: {
+          projectLocation: ProjectLocation;
+          worktreePaths: string[];
+          detail?: "summary" | "full";
+        }) => Promise<{ statuses: Record<string, GitStatusResult> }>
+      >()
+      .mockResolvedValue({ statuses: { "/repo-wt-2": status } });
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: {
+        platform: "darwin",
+        getGitStatus,
+        gitWorktreeStatusBatch,
+      },
+    });
+    useSidebarUiStore.setState({ threadListLimits: { p1: 10 } });
+    useAppStore.setState({ threads: [worktreeThread, secondWorktreeThread] });
+
+    await refreshGitProject(project, "watcher", "status", {
+      includeMainStatus: false,
+      worktreePaths: ["/repo-wt-2"],
+    });
+
+    expect(getGitStatus).not.toHaveBeenCalled();
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledTimes(1);
+    expect(gitWorktreeStatusBatch).toHaveBeenCalledWith({
+      projectLocation: location,
+      worktreePaths: ["/repo-wt-2"],
+      detail: "full",
+    });
+  });
+
   it("escalates a summary poll to a full refresh when a file was staged externally", async () => {
     // Previously the file was unstaged/modified with real counts...
     const previousWorktreeStatus: GitStatusResult = {
