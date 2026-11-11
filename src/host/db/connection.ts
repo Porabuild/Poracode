@@ -61,6 +61,7 @@ export function initReadOnlyDatabase(dbPath: string): void {
     assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
     assertConversationSearchReady(sqlite);
     _sqlite = sqlite;
+    _profileDataGeneration++;
   } catch (error) {
     sqlite.close();
     throw error;
@@ -99,6 +100,7 @@ export function initDatabase(
 
   const previousSqlite = _sqlite;
   _sqlite = sqlite;
+  _profileDataGeneration++;
 
   if (options.schemaMode === "validate") {
     console.log("[db] validated");
@@ -357,6 +359,10 @@ export function initDatabase(
   return sqlite;
 }
 
+export function isDatabaseInitialized(): boolean {
+  return _sqlite !== undefined;
+}
+
 /** better-sqlite3 handle; every DB module issues prepared statements against it. */
 export function getSqlite(): InstanceType<typeof Database> {
   if (!_sqlite) throw new Error("Database not initialized");
@@ -393,4 +399,5 @@ export function closeDatabase() {
     sqlite.close();
   }
   _sqlite = undefined;
+  _profileDataGeneration++;
 }

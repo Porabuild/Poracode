@@ -11,6 +11,13 @@ import {
   type ProfileTotals,
 } from "@/shared/contracts";
 import { dbGetAllUsageEvents, getProfileDataGeneration, type UsageEventRow } from "../db";
+import { isDatabaseInitialized } from "../db/connection";
+import {
+  CORE_USAGE_EVENT_KINDS,
+  dbIterateCoreUsageEvents,
+  dbQueryUsageAccountCounts,
+  type CoreUsageEventRow,
+} from "../db/usageEvents";
 import {
   buildHeatmap,
   dayKeyFromIndex,
@@ -38,6 +45,7 @@ import {
  */
 
 const MAX_SKILLS = 8;
+const CORE_EVENT_KIND_SET: ReadonlySet<string> = new Set(CORE_USAGE_EVENT_KINDS);
 
 function hourLabel(hour: number): string {
   const period = hour < 12 ? "AM" : "PM";
@@ -47,20 +55,6 @@ function hourLabel(hour: number): string {
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
-}
-
-function filterRowsByWindow(
-  rows: UsageEventRow[],
-  todayIndex: number,
-  offset: number,
-  windowDays: number | undefined,
-): UsageEventRow[] {
-  if (!windowDays) return rows;
-  const startIndex = windowStartIndex(todayIndex, windowDays);
-  return rows.filter((row) => {
-    const dayIndex = localDayIndex(row.ts, offset);
-    return dayIndex >= startIndex && dayIndex <= todayIndex;
-  });
 }
 
 function rank(
@@ -121,25 +115,26 @@ const AI_ACTION_LABELS: Record<AiActionType, string> = {
   conflict: "Conflicts resolved",
 };
 
-function computeAiActions(rows: UsageEventRow[]): ProfileAiAction[] {
-  const byType = new Map<
-    AiActionType,
-    { count: number; providers: Map<string, number>; models: Map<string, number> }
-  >();
-  for (const row of rows) {
-    if (!row.kind.startsWith("ai_")) continue;
-    const type = row.kind.slice(3) as AiActionType;
-    if (type !== "commit" && type !== "pr" && type !== "conflict") continue;
-    let entry = byType.get(type);
-    if (!entry) {
-      entry = { count: 0, providers: new Map(), models: new Map() };
-      byType.set(type, entry);
-    }
-    entry.count += 1;
-    if (row.provider)
-      entry.providers.set(row.provider, (entry.providers.get(row.provider) ?? 0) + 1);
-    if (row.model) entry.models.set(row.model, (entry.models.get(row.model) ?? 0) + 1);
+type AiActionAccumulator = Map<
+  AiActionType,
+  { count: number; providers: Map<string, number>; models: Map<string, number> }
+>;
+
+function accumulateAiActionRow(byType: AiActionAccumulator, row: CoreUsageEventRow): void {
+  if (!row.kind.startsWith("ai_")) return;
+  const type = row.kind.slice(3) as AiActionType;
+  if (type !== "commit" && type !== "pr" && type !== "conflict") return;
+  let entry = byType.get(type);
+  if (!entry) {
+    entry = { count: 0, providers: new Map(), models: new Map() };
+    byType.set(type, entry);
   }
+  entry.count += 1;
+  if (row.provider) entry.providers.set(row.provider, (entry.providers.get(row.provider) ?? 0) + 1);
+  if (row.model) entry.models.set(row.model, (entry.models.get(row.model) ?? 0) + 1);
+}
+
+function finalizeAiActions(byType: AiActionAccumulator): ProfileAiAction[] {
   const out: ProfileAiAction[] = [];
   for (const type of ["commit", "pr", "conflict"] as AiActionType[]) {
     const entry = byType.get(type);
@@ -165,70 +160,19 @@ function isGenericMcpName(name: string): boolean {
   return normalized === "mcp" || normalized === "mcptoolcall";
 }
 
-function computeSkills(rows: UsageEventRow[]): {
-  skills: ProfileSkillUsage[];
-  explored: number;
-  total: number;
-  mcps: ProfileSkillUsage[];
-  workflowRuns: number;
-  subagentRuns: number;
-  mcpToolCalls: number;
-} {
-  const skillCounts = new Map<string, number>();
-  const mcpCounts = new Map<string, number>();
-  let total = 0;
-  let workflowRuns = 0;
-  let subagentRuns = 0;
-  let mcpToolCalls = 0;
-  for (const row of rows) {
-    if (row.kind === "skill") {
-      const name = row.name?.trim();
-      if (!name || name.toLowerCase() === "skill") continue;
-      skillCounts.set(name, (skillCounts.get(name) ?? 0) + 1);
-      total++;
-    } else if (row.kind === "workflow") {
-      workflowRuns++;
-    } else if (row.kind === "subagent") {
-      // Legacy rows recorded before workflows got their own kind still arrive as
-      // subagents named "workflow" - re-bucket those into the workflow count.
-      if ((row.name ?? "").trim().toLowerCase() === "workflow") workflowRuns++;
-      else subagentRuns++;
-    } else if (row.kind === "mcp") {
-      const name = row.name?.trim();
-      if (!name || isGenericMcpName(name) || isGenericMcpName(mcpServerLabel(name))) continue;
-      mcpToolCalls++;
-      // New Codex events are unwrapped to the inner app at the provider boundary.
-      // Historical rows only retained this aggregate wrapper, so do not present
-      // it as if it were an MCP server alongside the real app names.
-      if (name.toLowerCase() === "codex_apps") continue;
-      mcpCounts.set(name, (mcpCounts.get(name) ?? 0) + 1);
-    }
-  }
-  const topBy = (
-    counts: Map<string, number>,
-    kind: ProfileSkillUsage["kind"],
-    display: (name: string) => string,
-  ): ProfileSkillUsage[] =>
-    [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, MAX_SKILLS)
-      .map(([name, runCount]) => ({ name, displayName: display(name), kind, runCount }));
-
-  const skills = topBy(skillCounts, "skill", (n) => n);
-  const mcps = topBy(mcpCounts, "mcp", mcpServerLabel);
-  return {
-    skills,
-    explored: skillCounts.size,
-    total,
-    mcps,
-    workflowRuns,
-    subagentRuns,
-    mcpToolCalls,
-  };
+function topSkillsByCount(
+  counts: Map<string, number>,
+  kind: ProfileSkillUsage["kind"],
+  display: (name: string) => string,
+): ProfileSkillUsage[] {
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, MAX_SKILLS)
+    .map(([name, runCount]) => ({ name, displayName: display(name), kind, runCount }));
 }
 
 /** Distinct accounts (account-scoped provider kinds) seen across all events. */
-function collectAccounts(rows: UsageEventRow[]): { key: string; label: string }[] {
+function collectAccountsFromRows(rows: readonly UsageEventRow[]): { key: string; label: string }[] {
   const counts = new Map<string, number>();
   for (const row of rows) {
     if (!row.provider) continue;
@@ -237,6 +181,17 @@ function collectAccounts(rows: UsageEventRow[]): { key: string; label: string }[
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([key]) => ({ key, label: accountLabel(key) }));
+}
+
+function* iterateMockedCoreRows(
+  rows: readonly UsageEventRow[],
+  provider: string | undefined,
+): IterableIterator<CoreUsageEventRow> {
+  for (const row of rows) {
+    if (!CORE_EVENT_KIND_SET.has(row.kind)) continue;
+    if (provider && row.provider !== provider) continue;
+    yield row;
+  }
 }
 
 // -- Entry point ------------------------------------------------------
@@ -292,6 +247,7 @@ interface CoreCacheEntry {
   generation: number;
   result: ProfileCoreStats;
 }
+let coreCacheGeneration = -1;
 const coreCache = new Map<string, CoreCacheEntry>();
 
 export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreStats {
@@ -300,6 +256,10 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
   const todayIndex = localDayIndex(generatedAt, offset);
 
   const generation = getProfileDataGeneration();
+  if (coreCacheGeneration !== generation) {
+    coreCache.clear();
+    coreCacheGeneration = generation;
+  }
   const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
   const cached = coreCache.get(cacheKey);
   if (cached && cached.generation === generation) return cached.result;
@@ -318,27 +278,31 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     return empty;
   }
 
-  const allRows = dbGetAllUsageEvents();
   // The account picker lists every account ever seen, independent of the active
   // filter, so selecting one account doesn't collapse the picker to itself.
-  const availableAccounts = collectAccounts(allRows);
-  // Scope every downstream aggregation to the selected account (whole page).
-  const providerRows = req.provider ? allRows.filter((r) => r.provider === req.provider) : allRows;
-  const windowDays = statsWindowDays(req.window);
-  const rows = filterRowsByWindow(providerRows, todayIndex, offset, windowDays);
+  // When SQLite is open, query account counts and stream only non-token core
+  // events directly so `tokens`/`tokens_v2` rows and `cost_details` JSON are
+  // never loaded or retained in memory.
+  let availableAccounts: { key: string; label: string }[];
+  let coreRowStream: IterableIterator<CoreUsageEventRow>;
+  if (isDatabaseInitialized()) {
+    availableAccounts = dbQueryUsageAccountCounts().map(({ provider }) => ({
+      key: provider,
+      label: accountLabel(provider),
+    }));
+    coreRowStream = dbIterateCoreUsageEvents(req.provider);
+  } else {
+    const allRows = dbGetAllUsageEvents();
+    availableAccounts = collectAccountsFromRows(allRows);
+    coreRowStream = iterateMockedCoreRows(allRows, req.provider);
+  }
 
-  // -- thread starts -> totals + mode breakdown --
+  const windowDays = statsWindowDays(req.window);
+  const startIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;
+
   const modeCounts = new Map<string, number>();
   let totalThreads = 0;
-  for (const row of rows) {
-    if (row.kind !== "thread_started") continue;
-    totalThreads++;
-    const mode = row.mode === "chat" ? "chat" : "cli";
-    modeCounts.set(mode, (modeCounts.get(mode) ?? 0) + 1);
-  }
-  const modes = rank(modeCounts, (m) => (m === "chat" ? "Chat" : "CLI"), totalThreads);
 
-  // -- turns -> activity, streaks, breakdowns, longest task --
   const countsByDay = new Map<string, number>();
   const activeDayIndices = new Set<number>();
   const hourCounts = new Map<number, number>();
@@ -353,40 +317,99 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
   let messagesSent = 0;
   let goalsSet = 0;
 
-  for (const row of rows) {
-    if (row.kind === "message") {
-      messagesSent++;
-      continue;
+  const skillCounts = new Map<string, number>();
+  const mcpCounts = new Map<string, number>();
+  let totalSkillsUsed = 0;
+  let workflowRuns = 0;
+  let subagentRuns = 0;
+  let mcpToolCalls = 0;
+
+  const aiActionsByType: AiActionAccumulator = new Map();
+
+  for (const row of coreRowStream) {
+    let rowDayIndex: number | undefined;
+    if (startIndex !== undefined) {
+      rowDayIndex = localDayIndex(row.ts, offset);
+      if (rowDayIndex < startIndex || rowDayIndex > todayIndex) continue;
     }
-    if (row.kind === "goal") {
-      goalsSet++;
-      continue;
-    }
-    if (row.kind !== "turn") continue;
-    totalTurns++;
-    if (row.value > longestTaskMs) longestTaskMs = row.value;
-    const dayIndex = localDayIndex(row.ts, offset);
-    const day = dayKeyFromIndex(dayIndex);
-    countsByDay.set(day, (countsByDay.get(day) ?? 0) + 1);
-    activeDayIndices.add(dayIndex);
-    const hour = localHour(row.ts, offset);
-    hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
-    if (row.provider) {
-      const base = baseAgentKind(row.provider);
-      providerCounts.set(base, (providerCounts.get(base) ?? 0) + 1);
-      accountCounts.set(row.provider, (accountCounts.get(row.provider) ?? 0) + 1);
-    }
-    if (row.model) {
-      const key = modelKey(row.provider, row.model);
-      modelCounts.set(key, (modelCounts.get(key) ?? 0) + 1);
-    }
-    if (row.fast) fastTurns++;
-    if (row.effort) {
-      effortTurns++;
-      effortCounts.set(row.effort, (effortCounts.get(row.effort) ?? 0) + 1);
+
+    switch (row.kind) {
+      case "thread_started": {
+        totalThreads++;
+        const mode = row.mode === "chat" ? "chat" : "cli";
+        modeCounts.set(mode, (modeCounts.get(mode) ?? 0) + 1);
+        break;
+      }
+      case "message": {
+        messagesSent++;
+        break;
+      }
+      case "goal": {
+        goalsSet++;
+        break;
+      }
+      case "turn": {
+        totalTurns++;
+        if (row.value > longestTaskMs) longestTaskMs = row.value;
+        const dayIndex = rowDayIndex ?? localDayIndex(row.ts, offset);
+        const day = dayKeyFromIndex(dayIndex);
+        countsByDay.set(day, (countsByDay.get(day) ?? 0) + 1);
+        activeDayIndices.add(dayIndex);
+        const hour = localHour(row.ts, offset);
+        hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
+        if (row.provider) {
+          const base = baseAgentKind(row.provider);
+          providerCounts.set(base, (providerCounts.get(base) ?? 0) + 1);
+          accountCounts.set(row.provider, (accountCounts.get(row.provider) ?? 0) + 1);
+        }
+        if (row.model) {
+          const key = modelKey(row.provider, row.model);
+          modelCounts.set(key, (modelCounts.get(key) ?? 0) + 1);
+        }
+        if (row.fast) fastTurns++;
+        if (row.effort) {
+          effortTurns++;
+          effortCounts.set(row.effort, (effortCounts.get(row.effort) ?? 0) + 1);
+        }
+        break;
+      }
+      case "skill": {
+        const name = row.name?.trim();
+        if (!name || name.toLowerCase() === "skill") break;
+        skillCounts.set(name, (skillCounts.get(name) ?? 0) + 1);
+        totalSkillsUsed++;
+        break;
+      }
+      case "workflow": {
+        workflowRuns++;
+        break;
+      }
+      case "subagent": {
+        // Legacy rows recorded before workflows got their own kind still arrive as
+        // subagents named "workflow" - re-bucket those into the workflow count.
+        if ((row.name ?? "").trim().toLowerCase() === "workflow") workflowRuns++;
+        else subagentRuns++;
+        break;
+      }
+      case "mcp": {
+        const name = row.name?.trim();
+        if (!name || isGenericMcpName(name) || isGenericMcpName(mcpServerLabel(name))) break;
+        mcpToolCalls++;
+        // New Codex events are unwrapped to the inner app at the provider boundary.
+        // Historical rows only retained this aggregate wrapper, so do not present
+        // it as if it were an MCP server alongside the real app names.
+        if (name.toLowerCase() === "codex_apps") break;
+        mcpCounts.set(name, (mcpCounts.get(name) ?? 0) + 1);
+        break;
+      }
+      default: {
+        accumulateAiActionRow(aiActionsByType, row);
+        break;
+      }
     }
   }
 
+  const modes = rank(modeCounts, (m) => (m === "chat" ? "Chat" : "CLI"), totalThreads);
   const { heatmap: promptHeatmap, activeDays } = buildHeatmap(
     countsByDay,
     todayIndex,
@@ -412,15 +435,8 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     }
   }
 
-  const {
-    skills,
-    explored,
-    total: totalSkillsUsed,
-    mcps,
-    workflowRuns,
-    subagentRuns,
-    mcpToolCalls,
-  } = computeSkills(rows);
+  const skills = topSkillsByCount(skillCounts, "skill", (n) => n);
+  const mcps = topSkillsByCount(mcpCounts, "mcp", mcpServerLabel);
 
   const totals: ProfileTotals = {
     totalThreads,
@@ -439,7 +455,7 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     ...(reasoning[0] ? { topReasoning: reasoning[0] } : {}),
     fastModePercent: totalTurns > 0 ? round1((fastTurns / totalTurns) * 100) : 0,
     ...(mostActiveHour ? { mostActiveHour } : {}),
-    skillsExplored: explored,
+    skillsExplored: skillCounts.size,
     totalSkillsUsed,
     workflowRuns,
     subagentRuns,
@@ -461,7 +477,7 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     modes,
     skills,
     mcps,
-    aiActions: computeAiActions(rows),
+    aiActions: finalizeAiActions(aiActionsByType),
     availableAccounts,
   };
   coreCache.set(cacheKey, { generation, result });
