@@ -161,18 +161,18 @@ describe("AsyncDatabaseWrites worker offload", () => {
       releaseRuntimeFence(fence);
       expect(fenceResult.kind).toBe("committed");
 
-      // Wait for scheduled async flush to drain thread-2 as well.
+      // Wait for scheduled async flush to drain thread-2 and emit its commit notification.
       await vi.waitFor(() => {
         expect(dbReadThreadRuntimeItems("thread-1")).toHaveLength(1);
         expect(dbReadThreadRuntimeItems("thread-2")).toHaveLength(1);
+        expect(committedPayloads.some((entry) => entry.threadId === "thread-1")).toBe(true);
+        expect(committedPayloads.some((entry) => entry.threadId === "thread-2")).toBe(true);
       });
 
       expect(dbReadThreadRuntimeItems("thread-1")[0]?.streams.assistant_text).toBe(
         "Hello from worker writer",
       );
       expect(getProfileDataGeneration()).toBeGreaterThan(profileGenBefore);
-      expect(committedPayloads.some((entry) => entry.threadId === "thread-1")).toBe(true);
-      expect(committedPayloads.some((entry) => entry.threadId === "thread-2")).toBe(true);
     } finally {
       unsubCommit();
     }

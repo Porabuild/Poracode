@@ -58,7 +58,6 @@ export function initReadOnlyDatabase(dbPath: string): void {
     sqlite.pragma("query_only = ON");
     sqlite.pragma("busy_timeout = 250");
     sqlite.pragma("cache_size = -32768"); // 32 MiB page cache per reader worker
-    sqlite.pragma("temp_store = MEMORY");
     assertRequiredDatabaseSchema(sqlite);
     assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
     assertConversationSearchReady(sqlite);

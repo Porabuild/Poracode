@@ -158,7 +158,9 @@ export function applyThreadRuntimeEventsNow(
  * cache follows the SQLite handle and is discarded on clean close/rebind;
  * schema 53 stores heads in bounded blocks; event and read-fence formats are unchanged.
  */
-export const applyRuntimeEventBatchesNow: RuntimeAtomicBatchWriter = (batches) => {
+export function applyRuntimeEventBatchesNow(
+  batches: readonly RuntimeWriteBatch[],
+): ReturnType<RuntimeAtomicBatchWriter> {
   const sqlite = getSqlite();
   const result = commitRuntimeAtomicWrite(sqlite, () => {
     writerStatements(sqlite).writeBatches(batches);
@@ -167,7 +169,7 @@ export const applyRuntimeEventBatchesNow: RuntimeAtomicBatchWriter = (batches) =
     for (const batch of batches) notifyRuntimeItemsCommitted(batch.threadId, batch.events);
   }
   return result;
-};
+}
 
 function applyRuntimeEventsInTransaction(
   sqlite: InstanceType<typeof Database>,
