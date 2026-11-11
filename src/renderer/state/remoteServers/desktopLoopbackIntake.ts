@@ -29,6 +29,7 @@ import {
   createDomDesktopLoopbackSocket,
   type DesktopLoopbackSocket,
 } from "./desktopLoopbackSocket";
+import { WorkerDesktopLoopbackTransport } from "./desktopLoopbackWorkerTransport";
 import {
   getManagedLoopbackEngine,
   type ClientEngineWorkerMode,
@@ -259,6 +260,10 @@ export function isLoopbackEndpoint(endpoint: string): boolean {
 export class DesktopLoopbackIntake {
   private readonly fetchImpl: typeof fetch;
   private readonly socketFactory: (url: string) => DesktopLoopbackSocket;
+  private readonly usesDefaultSocketFactory: boolean;
+  private readonly workerSocketTransport: WorkerDesktopLoopbackTransport | null;
+  private pendingWorkerFrames: DesktopLoopbackFrame[] = [];
+  private workerBatchContinuationTimer: ReturnType<typeof setTimeout> | null = null;
   /** A4: one counter fenced over every socket callback; dispose advances it so
    * a late `onopen`/`onmessage`/`onclose` is inert. */
   private generation = 0;
@@ -309,6 +314,11 @@ export class DesktopLoopbackIntake {
     this.requestTimeoutMs = deps.requestTimeoutMs ?? REMOTE_LOCAL_SOCKET_POLICY.requestTimeoutMs;
     this.fetchImpl = deps.fetchImpl ?? ((url, init) => fetch(url, init));
     this.socketFactory = deps.socketFactory ?? createDomDesktopLoopbackSocket;
+    this.usesDefaultSocketFactory =
+      deps.socketFactory === undefined && deps.frameDecodePort === undefined;
+    this.workerSocketTransport = this.usesDefaultSocketFactory
+      ? new WorkerDesktopLoopbackTransport()
+      : null;
     this.liveness = new DesktopLoopbackLiveness({
       ...(deps.retryDelayMs !== undefined ? { retryDelayMs: deps.retryDelayMs } : {}),
       ...(deps.connectTimeoutMs !== undefined ? { connectTimeoutMs: deps.connectTimeoutMs } : {}),
@@ -444,6 +454,8 @@ export class DesktopLoopbackIntake {
     this.unsubscribeItemInterests = null;
     this.renewal.dispose();
     this.clearDecodeRetry();
+    this.clearPendingWorkerFrames();
+    this.workerSocketTransport?.dispose();
     this.drain.dispose();
     this.liveness.dispose();
     const socket = this.socket;
@@ -624,13 +636,42 @@ export class DesktopLoopbackIntake {
     declaredUrl.searchParams.set("desktopInternal", "1");
     this.declaredBoundedCatalogChanges = declaredUrl.searchParams.has("catalogChanges");
     this.open = false;
-    const socket = this.socketFactory(declaredUrl.toString());
-    this.socket = socket;
-    this.sentItemInterests = initialItemInterests;
+    this.clearPendingWorkerFrames();
     // A3: a fresh socket generation; the old socket's queued/in-flight decodes
     // are fenced and the reduced state clears as soon as frames decode again.
     this.drain.reset();
     this.clearDecodeRetryTimer();
+    const urlString = declaredUrl.toString();
+    let workerHostedSocket: DesktopLoopbackSocket | null = null;
+    if (this.workerSocketTransport) {
+      const openedWorkerSocket = this.workerSocketTransport.open(urlString, {
+        onDecodedBatch: (frames) => {
+          if (
+            !openedWorkerSocket ||
+            this.socket !== openedWorkerSocket ||
+            this.generation !== generation
+          ) {
+            return;
+          }
+          this.liveness.noteActivity();
+          this.enqueueDecodedWorkerBatch(frames, generation, openedWorkerSocket);
+        },
+        onOverflow: () => {
+          if (
+            !openedWorkerSocket ||
+            this.socket !== openedWorkerSocket ||
+            this.generation !== generation
+          ) {
+            return;
+          }
+          this.noteDecodeUnavailable("overflow");
+        },
+      });
+      workerHostedSocket = openedWorkerSocket;
+    }
+    const socket = workerHostedSocket ?? this.socketFactory(urlString);
+    this.socket = socket;
+    this.sentItemInterests = initialItemInterests;
     let settleOpen: ((opened: boolean) => void) | null = null;
     const opened = new Promise<boolean>((resolve) => {
       settleOpen = resolve;
@@ -711,6 +752,7 @@ export class DesktopLoopbackIntake {
     if (this.socket !== socket) return;
     this.socket = null;
     this.open = false;
+    this.clearPendingWorkerFrames();
     // A1: the wire carries nothing while the leg is down; coverage and the
     // previous admitted sets are re-established on the next open (which runs a
     // full activation rebuild), so no restoration is inferred across the gap.
@@ -779,6 +821,63 @@ export class DesktopLoopbackIntake {
   private clearDecodeRetry(): void {
     this.clearDecodeRetryTimer();
     this.decodeRetryAttempts = 0;
+  }
+
+  private clearPendingWorkerFrames(): void {
+    this.pendingWorkerFrames = [];
+    if (this.workerBatchContinuationTimer !== null) {
+      clearTimeout(this.workerBatchContinuationTimer);
+      this.workerBatchContinuationTimer = null;
+    }
+  }
+
+  /**
+   * Routes pre-decoded worker batches on the UI thread with an 8ms cooperative
+   * frame budget (OpenCode `STREAM_YIELD_MS` pattern) so clicks, typing, and
+   * 60/120fps animations never starve during multi-agent event bursts.
+   */
+  private enqueueDecodedWorkerBatch(
+    frames: readonly DesktopLoopbackFrame[],
+    generation: number,
+    socket: DesktopLoopbackSocket,
+  ): void {
+    if (frames.length === 0) return;
+    this.noteDecodeHealthy();
+    for (const frame of frames) {
+      // Correlated health pongs settle immediately regardless of yield slices.
+      if (frame.kind === "pong") {
+        routeDesktopLoopbackFrame(frame, this.framePorts);
+        continue;
+      }
+      this.pendingWorkerFrames.push(frame);
+    }
+    if (this.pendingWorkerFrames.length > 0 && this.workerBatchContinuationTimer === null) {
+      this.drainPendingWorkerFrames(generation, socket);
+    }
+  }
+
+  private drainPendingWorkerFrames(generation: number, socket: DesktopLoopbackSocket): void {
+    const STREAM_YIELD_MS = 8;
+    const startedAt = performance.now();
+    while (this.pendingWorkerFrames.length > 0) {
+      if (this.disposed || this.socket !== socket || this.generation !== generation) {
+        this.clearPendingWorkerFrames();
+        return;
+      }
+      const frame = this.pendingWorkerFrames.shift()!;
+      try {
+        routeDesktopLoopbackFrame(frame, this.framePorts);
+      } catch {
+        // HTTP snapshots stay authoritative; isolate individual listener faults.
+      }
+      if (this.pendingWorkerFrames.length > 0 && performance.now() - startedAt >= STREAM_YIELD_MS) {
+        this.workerBatchContinuationTimer = setTimeout(() => {
+          this.workerBatchContinuationTimer = null;
+          this.drainPendingWorkerFrames(generation, socket);
+        }, 0);
+        return;
+      }
+    }
   }
 
   private forceReconnect(socket: DesktopLoopbackSocket): void {
