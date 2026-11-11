@@ -255,7 +255,11 @@ jobs:
 
       - name: Install Linux integration-test tools
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --yes dbus-x11 xvfb
+        run: |
+          if ! getent hosts azure.archive.ubuntu.com > /dev/null; then
+            sudo sed -i '/azure\.archive\.ubuntu\.com/d' /etc/apt/apt-mirrors.txt
+          fi
+          sudo apt-get update && sudo apt-get install --yes dbus-x11 xvfb
 
       - name: Install cargo-deny
         if: runner.os == 'Linux'
