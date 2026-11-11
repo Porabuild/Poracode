@@ -176,19 +176,16 @@ function buildScriptWithCompletion(
     );
     return [
       `${succeeded} = $false`,
-      guarded,
-      `${exitCode} = if (${succeeded}) { 0 } elseif ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { $LASTEXITCODE } else { 1 }`,
-      `Write-Host "$([char]27)]777;poracode-shell-complete=${token}:${exitCode}$([char]7)" -NoNewline`,
+      "$global:LASTEXITCODE = 0",
+      `try { ${guarded} } catch { $_ | Out-String | Write-Host -NoNewline } finally { ${exitCode} = if (${succeeded}) { 0 } elseif ($null -ne $LASTEXITCODE -and $LASTEXITCODE -ne 0) { $LASTEXITCODE } else { 1 }; Write-Host "$([char]27)]777;poracode-shell-complete=${token}:${exitCode}$([char]7)" -NoNewline }`,
       `if (${succeeded}) { exit }`,
     ].join("; ");
   }
 
   const exitCode = "__poracode_setup_exit";
   const bashCommand = [
+    `trap '${exitCode}=$?; printf "\\033]777;poracode-shell-complete=${token}:%s\\007" "$${exitCode}"' EXIT`,
     lines.join(" && "),
-    `${exitCode}=$?`,
-    `printf '\\033]777;poracode-shell-complete=${token}:%s\\007' "$${exitCode}"`,
-    `exit "$${exitCode}"`,
   ].join("; ");
   // The interactive POSIX shell may be fish, whose assignment and conditional
   // syntax differs from bash. Keep completion bookkeeping in bash, then let
