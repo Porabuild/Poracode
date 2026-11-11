@@ -76,7 +76,7 @@ function fixture(collectionEnabled?: boolean, cacheVersion = 8) {
 }
 
 describe("disabled isolated usage collection", () => {
-  it.each([8, 10, 11, 12, 13, 14, 15])(
+  it.each([8, 10, 11, 12, 13, 14, 15, 16])(
     "blocks collection and profile reconciliation with cache version %s",
     async (cacheVersion) => {
       const f = fixture(false, cacheVersion);
@@ -124,7 +124,7 @@ describe("disabled isolated usage collection", () => {
   it.each([undefined, true])(
     "retains existing cached reads and refreshes when enabled=%s",
     async (enabled) => {
-      const f = fixture(enabled, 15);
+      const f = fixture(enabled, 16);
       expect(await f.service.getProviderUsage({})).toMatchObject({
         fromCache: true,
         snapshots: [{ providerId: "fixture" }],

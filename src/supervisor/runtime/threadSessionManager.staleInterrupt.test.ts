@@ -415,7 +415,7 @@ describe("ThreadSessionManager structured stale-interrupt watchdog", () => {
       "redirect with this image\n\n@/tmp/reference.png",
       { model: `${AGENT_KIND}/model` },
       segments,
-      { userMessageItemId: optimisticItemId },
+      { userMessageItemId: optimisticItemId, questionAnswer },
     );
     expect(session.pendingSteer).toBeUndefined();
     expect(events).toContainEqual({

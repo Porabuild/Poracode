@@ -178,6 +178,39 @@ describe("side questions leave the parent runtime untouched", () => {
     expect(ctx.mentionRef.current!.clear).not.toHaveBeenCalled();
     expect(ctx.attachments.clearAll).not.toHaveBeenCalled();
   });
+
+  it("retains uncertain side-chat submissions and preserves failed ones when the parent editor changed", async () => {
+    mocks.open.mockImplementationOnce(async (...args: unknown[]) => {
+      const options = args[3] as { clientSubmissionId: string };
+      await settleClientSubmission(options.clientSubmissionId, "uncertain");
+      return true;
+    });
+    const ctx = context();
+    ctx.latestSegmentsRef.current = [{ kind: "text", content: "/btw uncertain question" }];
+    await submitComposerPrompt(ctx.latestSegmentsRef.current, ctx);
+    expect(await listClientSubmissions()).toEqual([
+      expect.objectContaining({ state: "uncertain" }),
+    ]);
+
+    let resolveOpen!: (opened: boolean) => void;
+    mocks.open.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOpen = resolve;
+      }),
+    );
+    const second = context();
+    second.latestSegmentsRef.current = [{ kind: "text", content: "/btw failed after edit" }];
+    const pending = submitComposerPrompt(second.latestSegmentsRef.current, second);
+    await waitFor(() => expect(mocks.open).toHaveBeenCalledTimes(2));
+    second.latestSegmentsRef.current = [{ kind: "text", content: "edited parent prompt" }];
+    const options = mocks.open.mock.calls[1]?.[3] as { clientSubmissionId: string };
+    await settleClientSubmission(options.clientSubmissionId, "failed");
+    resolveOpen(false);
+    await pending;
+    expect(await listClientSubmissions()).toContainEqual(
+      expect.objectContaining({ id: options.clientSubmissionId, state: "failed" }),
+    );
+  });
 });
 
 describe("per-message side conversation context", () => {
@@ -208,7 +241,7 @@ describe("per-message side conversation context", () => {
     const segments = [{ kind: "text" as const, content: "retry after context recovers" }];
     await submitComposerPrompt(segments, ctx);
     expect(mocks.queue).not.toHaveBeenCalled();
-    expect(await listClientSubmissions()).toEqual([expect.objectContaining({ state: "failed" })]);
+    expect(await listClientSubmissions()).toEqual([]);
     ctx.captureClientContext = async () => ({
       conversationSnapshot: { text: "context recovered" },
     });

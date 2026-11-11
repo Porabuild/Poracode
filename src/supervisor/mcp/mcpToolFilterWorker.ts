@@ -34,6 +34,9 @@ async function main(): Promise<void> {
         upstreamTransport,
         downstreamTransport,
         timeoutMs: config.server.timeoutMs,
+        omitInvalidSchemaPatterns:
+          config.omitInvalidSchemaPatterns ?? config.maxSchemaDepth === undefined,
+        ...(config.maxSchemaDepth !== undefined ? { maxSchemaDepth: config.maxSchemaDepth } : {}),
       })
     : await startFilterProxy({
         serverName: config.server.name,
@@ -41,6 +44,7 @@ async function main(): Promise<void> {
         disabledTools: config.disabledTools,
         ...(config.isolateConnectionFailures ? { isolateConnectionFailures: true } : {}),
         ...(config.omitInvalidSchemaPatterns ? { omitInvalidSchemaPatterns: true } : {}),
+        ...(config.maxSchemaDepth !== undefined ? { maxSchemaDepth: config.maxSchemaDepth } : {}),
         upstreamTransport,
         downstreamTransport,
       });

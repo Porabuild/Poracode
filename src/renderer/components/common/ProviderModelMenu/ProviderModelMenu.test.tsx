@@ -142,6 +142,37 @@ describe("ProviderModelMenu", () => {
     });
   });
 
+  it.each([false, true])("navigates past duplicate model IDs (compact: %s)", async (compact) => {
+    layoutMock.compact = compact;
+    const provider = makeNamedProvider("test-agent", "Test Agent", 0);
+    provider.capabilities.models = [
+      { id: "auto", label: "Auto", description: "1x" },
+      { id: "auto", label: "Auto", description: "1x" },
+      { id: "other", label: "Other model" },
+    ];
+    const onChange = vi.fn<(next: { agentKind: string; model: string }) => void>();
+    render(
+      <ProviderModelMenu
+        providers={[provider]}
+        currentAgentKind="test-agent"
+        currentModel="auto"
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(within(listbox).getAllByRole("option")).toHaveLength(2);
+    const search = screen.getByRole("combobox");
+    fireEvent.keyDown(search, { key: "ArrowDown" });
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(onChange).toHaveBeenCalledWith({
+      agentKind: "test-agent",
+      model: "other",
+      selectionIntent: "exact",
+    });
+  });
+
   it.each([
     { surface: "extension", width: 320 },
     { surface: "extension", width: 360 },

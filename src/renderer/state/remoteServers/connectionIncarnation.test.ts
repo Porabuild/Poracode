@@ -21,6 +21,7 @@ import {
   connectionRefreshSubject,
   hydrateRefreshTokens,
   refreshTokenForSubject,
+  writeRefreshTokenToVault,
   type RefreshSubject,
 } from "@/renderer/state/remoteServers/refreshTokens";
 import { forgetCertPin } from "@/renderer/state/remoteServers/pairing";
@@ -37,7 +38,13 @@ import {
   getDesktopToken,
   setDesktopToken,
 } from "@/renderer/state/remoteServers/tokenVault";
-import type { RemoteServerRecord, RemoteSocketLike } from "@/renderer/state/remoteServers/types";
+import type {
+  RemoteClientFactory,
+  RemoteServerRecord,
+  RemoteSocketLike,
+} from "@/renderer/state/remoteServers/types";
+import { failVaultKeyReads, webKitKeyRestoreError } from "./webKitResultFailure.testFixtures";
+import { createSecureRemoteServersStorage } from "./secureStorage";
 
 /**
  * The connection incarnation across the REAL store actions (C1 managed-parent
@@ -233,6 +240,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   __resetEnvironmentSessionsForTest();
   __resetRemoteServersStoreForTest();
   // Rotation now also queues secure access-token writes. Join those before
@@ -240,6 +248,173 @@ afterEach(async () => {
   await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
   __resetRefreshTokensForTest();
   localStorage.clear();
+});
+
+describe("cold pairing recovery", () => {
+  it("commits both credentials before a first pairing succeeds", async () => {
+    await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    await deleteVaultDatabase();
+
+    await rePairVia("direct");
+    __resetRefreshTokensForTest();
+    __resetTokenVaultForTest();
+    expect(await getDesktopToken(PARENT_KEY)).toBe("fresh-access");
+    await hydrateRefreshTokens({ subjects: [connectionSubject] });
+    expect(refreshTokenForSubject(connectionSubject)).toBe("fresh-grant");
+    const coldStorage = createSecureRemoteServersStorage<{ servers: RemoteServerRecord[] }>();
+    const restored = await coldStorage.getItem("poracode-remote-servers");
+    expect(restored?.state.servers[0]).toMatchObject({
+      desktopId: PARENT_KEY,
+      accessToken: "fresh-access",
+    });
+  });
+
+  it("stays connecting until the first pairing's metadata is durable", async () => {
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
+    const gate = Promise.withResolvers<void>();
+    const started = Promise.withResolvers<void>();
+    const priorLocks = Object.getOwnPropertyDescriptor(navigator, "locks");
+    let held = false;
+    Object.defineProperty(navigator, "locks", {
+      configurable: true,
+      value: {
+        request: async <T>(name: string, run: () => Promise<T>): Promise<T> => {
+          if (
+            !held &&
+            name.startsWith("poracode.remote-servers.storage.") &&
+            (await getDesktopToken(PARENT_KEY)) === "fresh-access"
+          ) {
+            held = true;
+            started.resolve();
+            await gate.promise;
+          }
+          return run();
+        },
+      },
+    });
+    const pairing = rePairVia("direct");
+    try {
+      await started.promise;
+      expect(useRemoteServersStore.getState().runtime[PARENT_KEY]?.status).toBe("connecting");
+      expect(useRemoteServersStore.getState().servers).toEqual([]);
+    } finally {
+      gate.resolve();
+      try {
+        await pairing;
+      } finally {
+        if (priorLocks) Object.defineProperty(navigator, "locks", priorLocks);
+        else Reflect.deleteProperty(navigator, "locks");
+      }
+    }
+    expect(useRemoteServersStore.getState().runtime[PARENT_KEY]?.status).toBe("online");
+    expect(JSON.parse(localStorage.getItem("poracode-remote-servers")!).state.servers).toHaveLength(
+      1,
+    );
+  });
+
+  it("persists a re-pair after its first metadata save failed", async () => {
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
+    const setItem = Storage.prototype.setItem;
+    const quotaFailure = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+      this: Storage,
+      key,
+      value,
+    ) {
+      if (key === "poracode-remote-servers")
+        throw new DOMException("Storage full", "QuotaExceededError");
+      setItem.call(this, key, value);
+    });
+
+    await expect(rePairVia("direct")).rejects.toThrow(
+      "The saved remote credentials could not be confirmed.",
+    );
+    expect(useRemoteServersStore.getState().runtime[PARENT_KEY]).toMatchObject({ status: "error" });
+    expect(JSON.parse(localStorage.getItem("poracode-remote-servers")!).state.servers).toEqual([]);
+    quotaFailure.mockRestore();
+
+    await rePairVia("direct");
+    expect(useRemoteServersStore.getState().runtime[PARENT_KEY]?.status).toBe("online");
+    __resetTokenVaultForTest();
+    const coldStorage = createSecureRemoteServersStorage<{ servers: RemoteServerRecord[] }>();
+    const restored = await coldStorage.getItem("poracode-remote-servers");
+    expect(restored?.state.servers).toHaveLength(1);
+    expect(restored?.state.servers[0]).toMatchObject({
+      desktopId: PARENT_KEY,
+      accessToken: "fresh-access",
+    });
+  });
+
+  it("does not publish a green pairing if its encrypted credential commit fails", async () => {
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
+    const { IDBObjectStore } = await import("fake-indexeddb");
+    const put = IDBObjectStore.prototype.put;
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (
+      this: IDBObjectStore,
+      value,
+      key,
+    ) {
+      if ((value as { key: string }).key === `token.${PARENT_KEY}`) {
+        throw new DOMException("The vault is unavailable", "UnknownError");
+      }
+      return put.call(this, value, key);
+    });
+
+    await expect(rePairVia("direct")).rejects.toThrow(
+      "The saved remote credentials could not be confirmed.",
+    );
+    expect(useRemoteServersStore.getState().servers).toEqual([]);
+    expect(useRemoteServersStore.getState().runtime[PARENT_KEY]?.status).toBe("error");
+    __resetTokenVaultForTest();
+    expect(await getDesktopToken(PARENT_KEY)).toBeNull();
+    await hydrateRefreshTokens({ subjects: [connectionSubject] });
+    expect(refreshTokenForSubject(connectionSubject)).toBeUndefined();
+  });
+
+  it.each(["connectAll", "reconnectServer"] as const)(
+    "restores a released v2 pairing before %s makes its first host request",
+    async (action) => {
+      await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
+      await setDesktopToken(PARENT_KEY, "saved-access");
+      await writeRefreshTokenToVault(connectionSubject, "saved-refresh");
+      localStorage.setItem(
+        "poracode-remote-servers",
+        JSON.stringify({ state: { servers: [parentRecord({ accessToken: "" })] }, version: 2 }),
+      );
+      __resetRefreshTokensForTest();
+      __resetTokenVaultForTest();
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const failure = failVaultKeyReads(webKitKeyRestoreError(), []);
+      await useRemoteServersStore.persist.rehydrate();
+      expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("");
+
+      if (action === "connectAll") await useRemoteServersStore.getState().connectAll();
+      else await useRemoteServersStore.getState().reconnectServer(PARENT_KEY);
+      expect(created).toHaveLength(0);
+      expect(useRemoteServersStore.getState().runtime[PARENT_KEY]).toMatchObject({
+        status: "error",
+        message: "The saved remote credentials could not be confirmed.",
+      });
+      failure.mockRestore();
+      const factory = vi.fn<RemoteClientFactory>((_endpoint, accessToken) => {
+        expect(accessToken).toBe("saved-access");
+        expect(refreshTokenForSubject(connectionSubject)).toBe("saved-refresh");
+        return fakeClient();
+      });
+      useRemoteServersStore.getState().setClientFactory(factory);
+
+      if (action === "connectAll") await useRemoteServersStore.getState().connectAll();
+      else await useRemoteServersStore.getState().reconnectServer(PARENT_KEY);
+      expect(factory).toHaveBeenCalled();
+      expect(useRemoteServersStore.getState().runtime[PARENT_KEY]?.status).toBe("online");
+      expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("saved-access");
+    },
+  );
 });
 
 describe("connection incarnation across store re-pair and removal", () => {
@@ -334,13 +509,13 @@ describe("connection incarnation across store re-pair and removal", () => {
           });
         });
         await vi.waitFor(() => expect(held).toBe(true));
-        await rePairVia("direct");
+        const rePairing = rePairVia("direct");
         await vi.waitFor(async () => {
           expect(await getDesktopToken(PARENT_KEY)).toBe("fresh-access");
         });
 
         gate.resolve();
-        await inFlight;
+        await Promise.all([inFlight, rePairing]);
         await expectVault(connectionSubject, "fresh-grant");
         __resetTokenVaultForTest();
         expect(await getDesktopToken(PARENT_KEY)).toBe("fresh-access");

@@ -1622,12 +1622,9 @@ describe("ThreadDraftView", () => {
       });
       fireEvent.click(screen.getByText("submit"));
       await waitFor(() => expect(launchExperimentMock).toHaveBeenCalledOnce());
-      const pendingRecord = expect.objectContaining({
-        state: outcome === "partial" ? "uncertain" : "failed",
-      });
-      const expectedRecords =
-        outcome === "partial" || outcome === "cancelled" ? [pendingRecord] : [];
-      await waitFor(async () => expect(await listClientSubmissions()).toEqual(expectedRecords));
+      await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+      expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
       expect(useAppStore.getState().draftContents[project.id]?.segments).toEqual(
         outcome === "accepted"
           ? undefined

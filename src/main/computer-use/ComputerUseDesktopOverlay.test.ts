@@ -568,7 +568,7 @@ describe("ComputerUseDesktopOverlay", () => {
     overlay.dispose();
   });
 
-  it("interrupts active threads when Escape returns control to the user", async () => {
+  it("exits computer use when Escape returns control to the user", async () => {
     const onExit = vi.fn<(threadIds: string[]) => void>();
     const overlay = new ComputerUseDesktopOverlay({ onExit });
     overlay.setActivity({

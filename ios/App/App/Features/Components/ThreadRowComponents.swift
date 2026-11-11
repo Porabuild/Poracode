@@ -19,7 +19,11 @@ struct PoracodeThreadRow: View {
     HStack(alignment: .center, spacing: 10) {
       HomeProviderStatusIcon(
         kind: thread.agentKind,
-        status: thread.status,
+        status: ThreadStatusPresentation.resolvedStatus(
+          status: thread.status,
+          attention: thread.attention,
+          hasBackgroundActivity: false
+        ),
         isDone: thread.isDone,
         agentLabel: agentLabel
       )

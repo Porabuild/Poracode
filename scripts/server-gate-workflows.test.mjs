@@ -130,7 +130,7 @@ void test("Windows setup excludes the actual npm cache and canonical temp before
   assert.match(defender.run, /\$npmCache,/u);
 });
 
-void test("release Windows jobs restore Bun without the npm registry archive", async () => {
+void test("release Windows jobs install from the registry instead of restoring a package cache", async () => {
   const action = parse(
     await readFile(new URL("../.github/actions/setup-bun/action.yml", import.meta.url), "utf8"),
   );
@@ -146,14 +146,77 @@ void test("release Windows jobs restore Bun without the npm registry archive", a
   assert.equal(bunOnly.if, "inputs.registry-cache == 'bun'");
   assert.equal(bunOnly.with.path, "${{ steps.registry-cache.outputs.bun }}");
 
+  // Unpacking the Bun cache archive on Windows took 3 minutes; a cold install
+  // took 80 to 100 seconds. Every registry cache step is opt-in by value, so
+  // `none` restores nothing.
+  for (const step of steps.filter((candidate) =>
+    String(candidate.with?.key).startsWith("registry-"),
+  ))
+    assert.match(step.if, /^inputs\.registry-cache == '(all|bun)'$/u);
   for (const workflowName of ["_build.yml", "_server-artifact.yml"]) {
     const workflow = await readWorkflow(workflowName);
     const setup = workflow.jobs.build.steps.find((step) => step.name === "Setup Bun");
-    assert.equal(setup.with["registry-cache"], "${{ runner.os == 'Windows' && 'bun' || 'all' }}");
+    assert.equal(setup.with["registry-cache"], "${{ runner.os == 'Windows' && 'none' || 'all' }}");
   }
+});
+
+void test("the TUI manifest every build waits for comes from one Linux job", async () => {
+  // Every desktop and server build blocks on the tui-manifest artifact. Built
+  // per OS, it waited for a macOS runner and stalled the whole release.
   const tui = await readWorkflow("_tui-binaries.yml");
-  const setup = tui.jobs.binaries.steps.find((step) => step.name === "Setup Bun");
+  assert.deepEqual(Object.keys(tui.jobs), ["binaries"]);
+  const job = tui.jobs.binaries;
+  assert.equal(job["runs-on"], "ubuntu-latest");
+  const steps = job.steps;
+  const setup = steps.find((step) => step.name === "Setup Bun");
   assert.equal(setup.with["registry-cache"], "bun");
+  const build = steps.find((step) => step.name === "Build TUI binaries and the manifest");
+  assert.match(
+    build.run,
+    /build-tui\.mjs --require --manifest-out resources\/tui\/manifest\.json/u,
+  );
+  assert.doesNotMatch(build.run, /--targets/u, "all six targets build in this one job");
+
+  const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
+  assert.deepEqual(
+    uploads.map((step) => step.with.name),
+    ["poracode-tui-binaries", "tui-manifest"],
+    "the manifest uploads only after the binaries it hashes are stored",
+  );
+  const [binaries, manifest] = uploads;
+  assert.equal(binaries.with.path, "dist/tui/*/poracode-tui-*");
+  assert.equal(manifest.with.path, "resources/tui/manifest.json");
+  for (const upload of uploads) assert.equal(upload.with["if-no-files-found"], "error");
+  // upload-artifact v4 rejects a name already stored on the run. A rerun after a
+  // failed manifest upload must replace the binaries, while a manifest that
+  // exists is never replaced under builds that may have embedded it.
+  assert.equal(binaries.with.overwrite, true);
+  assert.equal(manifest.with.overwrite, undefined);
+
+  // Consumers wait for that artifact from jobs named after the caller's job id.
+  for (const workflowName of ["_build.yml", "_server-artifact.yml"]) {
+    const workflow = await readWorkflow(workflowName);
+    const waits = workflow.jobs.build.steps.filter((step) =>
+      /wait-for-run-artifact\.mjs/u.test(step.run ?? ""),
+    );
+    assert.equal(waits.length, 1, `${workflowName} stages the TUI manifest once`);
+    assert.match(
+      waits[0].run,
+      /wait-for-run-artifact\.mjs tui-manifest resources\/tui "tui_binaries \/"/u,
+    );
+  }
+  for (const releaseName of ["release.yml", "release-nightly.yml"]) {
+    const release = await readWorkflow(releaseName);
+    assert.equal(release.jobs.tui_binaries.uses, "./.github/workflows/_tui-binaries.yml");
+    assert.ok(release.jobs.release.needs.includes("tui_binaries"));
+    const download = release.jobs.release.steps.find(
+      (step) => step.name === "Download the TUI binaries",
+    );
+    // The release assets take the binaries artifact and never the manifest.
+    const pattern = new RegExp(`^${download.with.pattern.replace("*", ".*")}$`, "u");
+    assert.match(binaries.with.name, pattern);
+    assert.doesNotMatch(manifest.with.name, pattern);
+  }
 });
 
 void test("desktop packaging caches exact verified computer-use helper artifacts", async () => {
@@ -641,14 +704,30 @@ void test("release promotes the qualified bytes and never rebuilds the tarball",
     assert.match(String(npmJob.if), /NPM_PUBLISH_ENABLED/u);
     assert.ok(npmJob.needs.includes("release"), "npm publishes only after the GitHub release");
     assert.equal(npmJob.permissions.actions, "write");
+    assert.equal(npmJob.permissions.contents, "read", "the sparse checkout reads the repository");
     assert.equal(npmJob.permissions["id-token"], undefined, "only publish-npm.yml mints OIDC");
-    const dispatch = npmJob.steps.find(
+    // The dispatch, the lookup of the run it started and the wait live in
+    // scripts/dispatch-npm-publish.mjs (dispatch-npm-publish.test.mjs), which
+    // the job checks out on its own before running it.
+    const dispatchIndex = npmJob.steps.findIndex(
       (step) => step.name === "Dispatch the npm trusted-publisher workflow",
     );
-    assert.match(dispatch.run, /gh workflow run publish-npm\.yml/u);
-    assert.match(dispatch.run, /source_run_id="\$SOURCE_RUN_ID"/u);
-    assert.match(dispatch.run, /gh run watch "\$RUN_ID"[\s\S]*--exit-status/u);
-    assert.match(dispatch.run, new RegExp(`dist_tag=${tag}$`, "mu"));
+    const dispatch = npmJob.steps[dispatchIndex];
+    assert.equal(
+      dispatch.run,
+      `node scripts/dispatch-npm-publish.mjs --version "$RELEASE_VERSION" --source-ref "$SOURCE_REF" --dist-tag ${tag}`,
+    );
+    assert.equal(dispatch.env.RELEASE_VERSION, "${{ needs.prepare.outputs.version }}");
+    assert.equal(dispatch.env.SOURCE_REF, "${{ needs.prepare.outputs.source_ref }}");
+    assert.equal(dispatch.env.GH_TOKEN, "${{ github.token }}");
+    const checkoutIndex = npmJob.steps.findIndex((step) =>
+      step.uses?.startsWith("actions/checkout@"),
+    );
+    assert.ok(checkoutIndex >= 0 && checkoutIndex < dispatchIndex);
+    assert.equal(
+      npmJob.steps[checkoutIndex].with["sparse-checkout"],
+      "scripts/dispatch-npm-publish.mjs",
+    );
   }
 
   const publish = await readWorkflow("publish-npm.yml");

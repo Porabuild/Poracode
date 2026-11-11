@@ -3,7 +3,9 @@ import type { Project } from "@/shared/contracts";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { buildFileEditorContext, openFileInEditor } from "./gitHelpers";
+import { buildFileEditorContext, openFileInEditor, resolveWorktreeBranch } from "./gitHelpers";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useGitStore } from "@/renderer/state/gitStore";
 import { createChatPaneFileActions } from "@/renderer/components/thread/ChatPane/chatPaneFileActions";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
 
@@ -49,6 +51,24 @@ beforeEach(() => {
       },
     },
   });
+});
+
+it("prefers the observed worktree branch over saved thread metadata", () => {
+  useAppStore.getState().createThread({
+    projectId: project.id,
+    agentKind: "claude",
+    config: { model: "default" },
+    prompt: "",
+    worktreePath: "/repo/wt",
+    worktreeBranch: "saved-branch",
+  });
+  useGitStore
+    .getState()
+    .setWorktrees(project.id, [
+      { path: "/repo/wt", branch: "renamed-branch", commit: "abc123", isMain: false },
+    ]);
+
+  expect(resolveWorktreeBranch(project.id, "/repo/wt", "fallback")).toBe("renamed-branch");
 });
 
 describe("file opens across editor contexts", () => {

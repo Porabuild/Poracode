@@ -515,10 +515,12 @@ enum HomeComposerCatalog {
     presentationMode: ThreadPresentationMode
   ) -> [HomeComposerModel] {
     let capability = capabilities(for: agent, presentationMode: presentationMode)
+    var seen = Set<String>()
     return capability["models"]?.arrayValue?.compactMap { value in
       guard let object = value.objectValue,
         let modelID = object["id"]?.stringValue,
-        !modelID.isEmpty
+        !modelID.isEmpty,
+        seen.insert(modelID).inserted
       else { return nil }
       let advertisedLabel = object["label"]?.stringValue ?? modelID
       return HomeComposerModel(

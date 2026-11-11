@@ -42,6 +42,7 @@ import {
   useWorkspaceProjectIds,
 } from "@/renderer/state/workspaceSelectors";
 import { CollapsedThreadRail } from "./parts/CollapsedThreadRail";
+import { CompactHomeThreadList } from "./parts/CompactHomeThreadList";
 import { SidebarFlatThreadList } from "./parts/SidebarFlatThreadList";
 import { SidebarFooterNav } from "./parts/SidebarFooterNav";
 import { SidebarHomeSection } from "./parts/SidebarHomeSection";
@@ -77,7 +78,6 @@ export function Sidebar() {
   const sortMode = usePanelStore((s) => s.threadSortMode);
   const listLayout = usePanelStore((s) => s.threadListLayout);
   const compactLayout = useCompactLayout();
-  const effectiveListLayout = compactLayout ? "flat" : listLayout;
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const settingsSection = usePanelStore((s) => s.settingsSection ?? s.activeSettingsSection);
   // Surfaced Settings destinations own their active state instead of the generic entry.
@@ -295,7 +295,11 @@ export function Sidebar() {
               }
             />
           </div>
-        ) : effectiveListLayout === "flat" ? (
+        ) : compactLayout ? (
+          // The compact home is one active-only list whose scroller fills the
+          // page under the transparent header and dock.
+          <CompactHomeThreadList sortMode={sortMode} />
+        ) : listLayout === "flat" ? (
           // The flat list pins its filter/new-thread head above the thread
           // rows, so it renders its own scroll container instead of this one.
           <SidebarFlatThreadList sortMode={sortMode} />

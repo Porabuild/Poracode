@@ -1,29 +1,49 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { machineIdForStatus, useSelectedMachine } from "@/renderer/state/machines";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
-import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
-import { providerVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
-import { resolveHiddenModelIds } from "@/shared/agentSelection";
-import { ModelVisibilityPopover } from "./ModelVisibilityPopover";
+import { localMachineKey } from "@/shared/machines";
+import { effectiveProviderOrder } from "@/shared/machineSettings";
+import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
+import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
+import {
+  buildProviderVisibilityCatalog,
+  resolveEffectiveHiddenIdsByKey,
+} from "./modelVisibilityCatalog";
+import { ProviderModelVisibilityPopover } from "./ProviderModelVisibilityPopover";
+
+const RUNTIME_SLOTS_BY_BASE_KIND: ReadonlyMap<string, NativeAgentRuntimeSlots> = new Map(
+  NATIVE_AGENT_REGISTRY_ENTRIES.flatMap((entry) =>
+    entry.runtimeSlots ? [[entry.id, entry.runtimeSlots] as const] : [],
+  ),
+);
 
 export function ModelVisibilitySection() {
   const { t } = useLingui();
-  const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
-  const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  const selectedMachine = useSelectedMachine();
+  const machineHost =
+    selectedMachine.ref.host === "remote" ? selectedMachine.ref.desktopId : undefined;
+  const pools = useHostAgentStatusPools(machineHost);
   const hiddenModels = useSharedSettings((s) => s.hiddenModels);
+  const activeOrder = useSharedSettings((s) => effectiveProviderOrder(s, selectedMachine.id));
   const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);
 
-  const installedAgents = getSettingsInstalledAgents(agentStatuses, wslAgentStatuses);
-  const providers = installedAgents.flatMap(expandAgentToVisibilityProviders);
+  const machineEnvId = localMachineKey(selectedMachine.ref.env);
+  const installedAgents = getSettingsInstalledAgents(
+    pools.windows.filter((status) => machineIdForStatus(status) === machineEnvId),
+    pools.wsl.filter((status) => machineIdForStatus(status) === machineEnvId),
+  );
 
-  if (providers.length === 0) return null;
+  const { groups, surfaceProviders } = buildProviderVisibilityCatalog({
+    agents: installedAgents,
+    providerOrder: activeOrder,
+    runtimeSlotsByBaseKind: RUNTIME_SLOTS_BY_BASE_KIND,
+  });
 
-  const hiddenIdsByKey: Record<string, readonly string[]> = {};
-  for (const provider of providers) {
-    const key = providerVisibilityKey(provider);
-    hiddenIdsByKey[key] = resolveHiddenModelIds(provider.capabilities, hiddenModels[key]);
-  }
+  if (groups.length === 0) return null;
+
+  const hiddenIdsByKey = resolveEffectiveHiddenIdsByKey(surfaceProviders, hiddenModels);
 
   return (
     <div
@@ -39,12 +59,15 @@ export function ModelVisibilitySection() {
           <Trans>Hide models you don&apos;t use from the model picker across every provider.</Trans>
         </p>
       </div>
-      <ModelVisibilityPopover
-        providers={providers}
+      <ProviderModelVisibilityPopover
+        groups={groups}
         hiddenIdsByKey={hiddenIdsByKey}
-        onHiddenIdsChange={(key, next) => setHiddenModels(key, next)}
+        onHiddenIdsChange={(updates) => {
+          for (const [key, next] of updates) {
+            setHiddenModels(key, next);
+          }
+        }}
         listAriaLabel={t`Visible models`}
-        summaryKind="visible"
         triggerClassName="min-w-[5rem] tabular-nums"
       />
     </div>

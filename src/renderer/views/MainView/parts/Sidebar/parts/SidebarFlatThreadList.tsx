@@ -1,14 +1,9 @@
 import type { Project } from "@/shared/contracts";
-import { ProjectIcon } from "@/renderer/components/common/ProjectIcon";
-import { TuxIcon } from "@/renderer/components/common/TuxIcon";
 import {
   ProjectEnvironmentIndicator,
   useProjectEnvironmentMachineLookup,
 } from "@/renderer/components/common/ProjectEnvironment";
-import {
-  ProjectRemoteServerChip,
-  ProjectSelectorIcon,
-} from "@/renderer/components/common/ProjectRemoteServer";
+import { ProjectSelectorIcon } from "@/renderer/components/common/ProjectRemoteServer";
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useDragSource } from "@/renderer/dnd";
 import {
@@ -22,7 +17,9 @@ import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useExperimentCandidateOrder } from "@/renderer/state/experimentStore";
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
 import { sidebarBodyScrollClass } from "@/renderer/components/layout/sidebarChrome";
+import { FlatListProjectTag } from "./FlatListProjectTag";
 import { NewThreadButton } from "./NewThreadButton";
+import { pickNewThreadProjectId } from "./newThreadTargetProject";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
 import {
   buildSidebarProjectRows,
@@ -34,8 +31,6 @@ import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
 import { SidebarDoneRows } from "./SidebarDoneRows";
 import { DONE_SECTION_MAX_HEIGHT_PERCENT, useDoneViewportReveal } from "./useDoneViewportReveal";
-import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import { MobileQuickCompose } from "./MobileQuickCompose";
 import { useFlatListProjectFilterModel } from "./useFlatListProjectFilterModel";
 import { useProjectSwitchEntries } from "@/renderer/components/thread/projectSwitchGroups";
 import { pickGroupMember } from "@/renderer/state/projectGroups/useProjectGroups";
@@ -53,7 +48,7 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
 }
 
 /**
- * One cross-project thread list (the PWA layout): no project sections, each
+ * One cross-project thread list (desktop's flat layout): no project sections, each
  * row labelled with its project instead. Worktree and provider groups keep
  * grouping; their headers carry the project tag for their children. The single
  * "New thread" row targets the most recently active project. Sorting follows
@@ -61,7 +56,6 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
  * projects, so local rows can be dragged past other projects' threads.
  */
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
-  const compactLayout = useCompactLayout();
   const newThreadEntries = useProjectSwitchEntries();
   const machineFor = useProjectEnvironmentMachineLookup();
   const lastUsedAt = useProjectGroupStore((state) => state.lastUsedAt);
@@ -99,22 +93,8 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
       : visibleThreads.filter((thread) => activeProjectFilter.has(thread.projectId));
   const liveBackgroundThreadIds = useLiveBackgroundThreadIds(threads);
 
-  // "New thread" targets the most recently active project (latest thread
-  // update), falling back to the first project in the filter — or the first
-  // visible project when unfiltered — on a fresh workspace.
-  let latestProjectId: string | undefined;
-  let latestUpdatedAt = "";
-  const actionableProjectIds = new Set(actionableProjects.map((project) => project.id));
-  for (const thread of threads) {
-    if (!actionableProjectIds.has(thread.projectId)) continue;
-    if (thread.updatedAt > latestUpdatedAt) {
-      latestUpdatedAt = thread.updatedAt;
-      latestProjectId = thread.projectId;
-    }
-  }
-  latestProjectId ??= activeProjectFilter
-    ? actionableProjects.find((project) => activeProjectFilter.has(project.id))?.id
-    : actionableProjects[0]?.id;
+  // "New thread" targets the most recently active project.
+  const latestProjectId = pickNewThreadProjectId(threads, actionableProjects, activeProjectFilter);
   const hasDraft = useHasDraft(latestProjectId ?? "");
   const isDraftActive = useIsCurrentProjectDraft(latestProjectId ?? "");
 
@@ -141,7 +121,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   );
 
   const renderNewThreadButton = (inline: boolean) =>
-    latestProjectId && !compactLayout ? (
+    latestProjectId ? (
       <NewThreadButton
         {...(inline ? { inline: true } : {})}
         projectId={latestProjectId}
@@ -204,19 +184,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         {...(tagged
           ? {
               projectTag: (
-                <span
-                  className={`${stackedTag ? "min-w-0 flex-1" : "ml-auto max-w-[9rem] shrink-0 pl-1"} flex items-center gap-1 text-[10px] leading-4 text-muted/70`}
-                >
-                  {/* Sized to the tag, not the 16px menu default, so a
-                      custom icon reads as part of the 10px label. */}
-                  <ProjectIcon project={project} className="size-3 text-muted/70" />
-                  <span className="truncate">{project.name}</span>
-                  <ProjectRemoteServerChip info={remote} size="xs" />
-                  {/* Mirrors the grouped header's trailing WSL marker. */}
-                  {project.location.kind === "wsl" ? (
-                    <TuxIcon className="h-2.5 w-auto shrink-0 text-muted/60" />
-                  ) : null}
-                </span>
+                <FlatListProjectTag project={project} remote={remote} stacked={stackedTag} />
               ),
             }
           : {})}
@@ -226,8 +194,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {!compactLayout &&
-      (visibleProjects.length > 1 || workspaceProjects.length > visibleProjects.length) ? (
+      {visibleProjects.length > 1 || workspaceProjects.length > visibleProjects.length ? (
         // Filter and new-thread share one head row; the new-thread control
         // collapses to an icon button (tooltip) when the row is narrow.
         <div className="poracode-flat-list-head flex shrink-0 items-center gap-1 pb-0.5">
@@ -242,22 +209,18 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
           </div>
           {renderNewThreadButton(true)}
         </div>
-      ) : compactLayout ? null : (
+      ) : (
         <div className="shrink-0 pb-0.5">{renderNewThreadButton(false)}</div>
       )}
 
-      <div
-        ref={setScrollContainer}
-        className={`poracode-flat-thread-scroll ${sidebarBodyScrollClass()}`}
-        style={scrollFadeStyle}
-      >
+      <div ref={setScrollContainer} className={sidebarBodyScrollClass()} style={scrollFadeStyle}>
         <div>{listRows.map(renderRow)}</div>
       </div>
 
       {doneHeader ? (
         // Sized to its rows up to half the column; past that the rows scroll.
         <div
-          className="poracode-flat-done-section flex shrink-0 flex-col"
+          className="flex shrink-0 flex-col"
           style={{ maxHeight: `${DONE_SECTION_MAX_HEIGHT_PERCENT}%` }}
         >
           {renderRow(doneHeader)}
@@ -266,7 +229,6 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
           </div>
         </div>
       ) : null}
-      {compactLayout && latestProjectId ? <MobileQuickCompose projectId={latestProjectId} /> : null}
     </div>
   );
 }

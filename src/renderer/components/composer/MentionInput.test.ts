@@ -383,6 +383,99 @@ describe("buildMentionResults", () => {
     expect(results[0]?.path).toBe("aaaaaaaa-1111-4222-8333-666666666666");
   });
 
+  it("ranks exact word matches in thread titles ahead of prefix and mid-word matches and formats remote environment details", () => {
+    const results = buildMentionResults(
+      [],
+      "pr",
+      [],
+      [],
+      [
+        {
+          threadId: "local-improve-d7181f02",
+          title: "Improve stuck Apocalypse Warlock build now",
+          updatedAt: "2026-08-26T00:00:00.000Z",
+        },
+        {
+          threadId: "local-pr-43",
+          title: "PR #43: Improve GPUI capture and UI parity",
+          updatedAt: "2026-08-29T12:04:00.000Z",
+          projectName: "Pora.take",
+          worktreeName: "poracode/nimble-badger-314d2ec2",
+        },
+        {
+          threadId: "local-pr-1296",
+          title: "PR #1296 and PR #1312: Deep review",
+          updatedAt: "2026-08-29T12:03:00.000Z",
+          projectName: "Pora.code",
+          worktreeName: "poracode/warm-albatross-d9556f77",
+        },
+        {
+          threadId: "local-profile-1",
+          title: "Profile Nightly app RAM usage and potential gains",
+          updatedAt: "2026-08-29T12:02:00.000Z",
+          projectName: "Pora.code",
+          worktreeName: "poracode/eager-ibis-0c03d6c3",
+        },
+        {
+          threadId: "local-profile-2",
+          title: "Profile Nightly app RAM usage and improvements",
+          updatedAt: "2026-08-29T12:01:00.000Z",
+          projectName: "Pora.code",
+          worktreeName: "poracode/cosmic-dolphin-976a96a1",
+        },
+        {
+          threadId: "remote:env-mac:thread:5001abcd",
+          title: "PR #5001: Prepare macOS Lume certification",
+          updatedAt: "2026-08-29T11:56:00.000Z",
+          projectName: "Home",
+          environmentName: "MacBook",
+        },
+      ],
+    );
+
+    expect(results.map((entry) => entry.path)).toEqual([
+      "local-pr-43",
+      "local-pr-1296",
+      "remote:env-mac:thread:5001abcd",
+      "local-profile-1",
+      "local-profile-2",
+    ]);
+    expect(results[2]).toEqual({
+      type: "thread",
+      path: "remote:env-mac:thread:5001abcd",
+      name: "PR #5001: Prepare macOS Lume certification",
+      detail: "Home · MacBook · 5001abcd",
+    });
+
+    const byEnvironment = buildMentionResults(
+      [],
+      "macbook",
+      [],
+      [],
+      [
+        {
+          threadId: "local-1",
+          title: "Local thread",
+          updatedAt: "2026-08-29T12:00:00.000Z",
+        },
+        {
+          threadId: "remote:env-mac:thread:5001abcd",
+          title: "PR #5001: Prepare macOS Lume certification",
+          updatedAt: "2026-08-29T11:56:00.000Z",
+          environmentName: "MacBook",
+        },
+      ],
+    );
+    expect(byEnvironment).toEqual([
+      {
+        type: "thread",
+        path: "remote:env-mac:thread:5001abcd",
+        name: "PR #5001: Prepare macOS Lume certification",
+        detail: "MacBook · 5001abcd",
+      },
+    ]);
+  });
+
   it("lists crew roles only when the crew is active and filters them by query", () => {
     const crew = [
       { label: "Builder", detail: "Opus 5.5" },

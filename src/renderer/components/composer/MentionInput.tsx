@@ -75,6 +75,7 @@ export interface ThreadMentionItem {
   title: string;
   updatedAt: string;
   projectName?: string | undefined;
+  environmentName?: string | undefined;
   worktreeName?: string | undefined;
 }
 
@@ -89,6 +90,45 @@ const EMPTY_MCP_MENTIONS: readonly McpMentionItem[] = [];
 const EMPTY_PLUGIN_MENTIONS: readonly PluginMentionItem[] = [];
 const EMPTY_THREAD_MENTIONS: readonly ThreadMentionItem[] = [];
 const EMPTY_CREW_MENTIONS: readonly CrewMentionItem[] = [];
+
+const WORD_CHAR_RE = /[\p{L}\p{N}]/u;
+
+function isWordBoundary(text: string, index: number): boolean {
+  if (index <= 0 || index >= text.length) return true;
+  return !WORD_CHAR_RE.test(text[index - 1]!) || !WORD_CHAR_RE.test(text[index]!);
+}
+
+function labelMatchRank(label: string, query: string): number | null {
+  let index = label.indexOf(query);
+  if (index === -1) return null;
+  let best = 2;
+  while (index !== -1) {
+    if (isWordBoundary(label, index)) {
+      if (isWordBoundary(label, index + query.length)) return 0;
+      best = 1;
+    }
+    index = label.indexOf(query, index + 1);
+  }
+  return best;
+}
+
+function threadMentionMatchRank(item: ThreadMentionItem, query: string): number | null {
+  if (query.length === 0) return 0;
+  const labelRank = labelMatchRank(threadMentionLabel(item).toLowerCase(), query);
+  if (labelRank !== null) return labelRank;
+  // Only match raw thread ids on longer queries: ids are UUIDs, so short
+  // all-hex queries (e.g. "ed", "da") would flood the result cap with
+  // id-only matches and displace title matches.
+  if (
+    item.projectName?.toLowerCase().includes(query) ||
+    item.environmentName?.toLowerCase().includes(query) ||
+    item.worktreeName?.toLowerCase().includes(query) ||
+    (query.length >= 6 && item.threadId.toLowerCase().includes(query))
+  ) {
+    return 3;
+  }
+  return null;
+}
 
 export function buildMentionResults(
   fileResults: FileEntry[],
@@ -126,24 +166,22 @@ export function buildMentionResults(
         ? { enablesMcpServerIds: item.enablesMcpServerIds }
         : {}),
     }));
-  // Recency order comes from the producer (useThreadMentionItems); only the
-  // query filter and result cap apply here.
-  const threadResults: MentionEntry[] = threadMentions
-    .filter(
-      (item) =>
-        q.length === 0 ||
-        threadMentionLabel(item).toLowerCase().includes(q) ||
-        item.projectName?.toLowerCase().includes(q) ||
-        item.worktreeName?.toLowerCase().includes(q) ||
-        // Only match raw thread ids on longer queries: ids are UUIDs, so short
-        // all-hex queries (e.g. "ed", "da") would flood the result cap with
-        // id-only matches and displace title matches.
-        (q.length >= 6 && item.threadId.toLowerCase().includes(q)),
-    )
+  // Base order comes from the producer (useThreadMentionItems); non-empty
+  // queries promote stronger title matches while preserving scope/recency ties.
+  const matchedThreads: { item: ThreadMentionItem; rank: number }[] = [];
+  for (const item of threadMentions) {
+    const rank = threadMentionMatchRank(item, q);
+    if (rank !== null) matchedThreads.push({ item, rank });
+  }
+  const orderedThreads =
+    q.length === 0 ? matchedThreads : matchedThreads.toSorted((a, b) => a.rank - b.rank);
+  const threadResults: MentionEntry[] = orderedThreads
     .slice(0, q.length === 0 ? 3 : 5)
-    .map((item) => {
+    .map(({ item }) => {
       const base = item.worktreeName || item.threadId.slice(-8);
-      const detail = item.projectName ? `${item.projectName} · ${base}` : base;
+      const detail = [item.projectName, item.environmentName, base]
+        .filter((part): part is string => Boolean(part))
+        .join(" · ");
       return {
         type: "thread" as const,
         path: item.threadId,
@@ -413,7 +451,10 @@ export const MentionInput = forwardRef<
   const mcpMentionKey = mcpMentions.map((item) => `${item.id}:${item.enabled}`).join(",");
   const pluginMentionKey = pluginMentions.map((item) => item.id).join(",");
   const threadMentionKey = threadMentions
-    .map((item) => `${item.threadId}:${item.updatedAt}:${item.title}:${item.projectName ?? ""}`)
+    .map(
+      (item) =>
+        `${item.threadId}:${item.updatedAt}:${item.title}:${item.projectName ?? ""}:${item.environmentName ?? ""}:${item.worktreeName ?? ""}`,
+    )
     .join(",");
   const crewMentionKey = crewMentions.map((item) => `${item.label}:${item.detail ?? ""}`).join(",");
   const editorRef = useRef<HTMLDivElement>(null);

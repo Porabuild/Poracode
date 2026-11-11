@@ -6,6 +6,7 @@ enum ThreadStatusPresentation {
     attention: String,
     hasBackgroundActivity: Bool
   ) -> String {
+    if status == "error" || status == "inactive" || status == "launching" { return status }
     if status == "needs_approval" || attention == "needs_approval" {
       return "needs_approval"
     }

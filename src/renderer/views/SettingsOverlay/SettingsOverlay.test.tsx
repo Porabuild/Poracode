@@ -504,6 +504,27 @@ describe("SettingsOverlay", () => {
     expect(screen.queryByTestId("machine-select")).toBeNull();
   });
 
+  it("keeps the archive machine picker outside the settings scroll area", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "mac",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+    });
+    usePanelStore.getState().openSettingsSection("archived");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const scrollArea = screen.getByText("Archived").closest("[data-settings-scroll-area]");
+    expect(scrollArea).toHaveClass("pb-20");
+    expect(scrollArea).not.toContainElement(screen.getByTestId("machine-select"));
+    expect(screen.getByRole("main")).toContainElement(screen.getByTestId("machine-select"));
+  });
+
   it("opens Schedules from the compact Desktop Settings index", () => {
     vi.stubGlobal(
       "matchMedia",

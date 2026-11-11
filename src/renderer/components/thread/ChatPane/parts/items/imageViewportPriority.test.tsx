@@ -14,6 +14,8 @@ import { toLocalFileUrl } from "@/shared/promptContent";
 import { ChatPaneActionsContext } from "../../chatPaneActionsContext";
 import { ImageView } from "./ImageView";
 import { MarkdownImage } from "./MarkdownImage";
+import { ThreadImagesDock } from "../../../ThreadImagesDock";
+import { galleryImageResource } from "./threadGalleryImageReadiness";
 
 class ImageObserver {
   static instances: ImageObserver[] = [];
@@ -247,3 +249,66 @@ it("loads queued transcript images from the bottom row up", async () => {
     expect(fetches[index]!.path).toContain(expected);
   }
 });
+
+it.each(["reference", "path"] as const)(
+  "loads visible gallery %s thumbnails with a full cache and reloads after scrolling",
+  async (kind) => {
+    let urls = 0;
+    const fetchBytes = vi.fn<() => Promise<RemoteEnvironmentImageBytes>>(async () => ({
+      bytes: new Uint8Array([urls]),
+      contentType: "image/png",
+    }));
+    const imageCache = new RemoteEnvironmentImageCache({
+      maxEntries: 1,
+      fetchBytes,
+      createObjectUrl: () => `blob:gallery-${++urls}`,
+      revokeObjectUrl: () => undefined,
+    });
+    cache = imageCache;
+    const readiness = createCacheImageReadiness(imageCache);
+    const images = [0, 1].map((index) => ({
+      src: "",
+      resource: galleryImageResource(
+        readiness,
+        kind === "path"
+          ? `/gallery-${index}.png`
+          : {
+              threadId: "gallery",
+              itemId: `image-${index}`,
+              path: ["images", 0],
+              mime: "image/png",
+              bytes: 4,
+            },
+      ),
+    }));
+    readiness.requestPath("/previous-thread.png");
+    await waitFor(() => expect(urls).toBe(1));
+    for (const image of images) image.resource.request("background");
+    expect(fetchBytes).toHaveBeenCalledTimes(1);
+    const fixture = (visible: boolean) => (
+      <AppProvider syncWindowChrome={false}>
+        <ThreadImagesDock gallery={images} visible={visible} />
+      </AppProvider>
+    );
+    const view = render(fixture(false));
+    expect(ImageObserver.instances).toHaveLength(0);
+    expect(fetchBytes).toHaveBeenCalledTimes(1);
+    view.rerender(fixture(true));
+    const observer = ImageObserver.instances[0]!;
+    const tiles = [...observer.elements];
+    expect(tiles).toHaveLength(2);
+    expect(fetchBytes).toHaveBeenCalledTimes(1);
+    act(() => observer.visibility([tiles[0]!, true]));
+    await waitFor(() => expect(tiles[0]!.querySelector("img")?.src).toBe("blob:gallery-2"));
+    expect(fetchBytes).toHaveBeenCalledTimes(2);
+    expect(tiles[1]!.querySelector("img")).toBeNull();
+    act(() => observer.visibility([tiles[0]!, false], [tiles[1]!, true]));
+    await waitFor(() => expect(tiles[1]!.querySelector("img")?.src).toBe("blob:gallery-3"));
+    act(() => observer.visibility([tiles[1]!, false], [tiles[0]!, true]));
+    await waitFor(() => expect(tiles[0]!.querySelector("img")?.src).toBe("blob:gallery-4"));
+    expect(fetchBytes).toHaveBeenCalledTimes(4);
+    view.rerender(fixture(false));
+    expect(observer.elements.size).toBe(0);
+    expect(fetchBytes).toHaveBeenCalledTimes(4);
+  },
+);

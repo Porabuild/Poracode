@@ -171,6 +171,7 @@ export function __resetConnectAllForTest(): void {
 export interface SessionReconnectActionDeps extends RemoteServersStoreApi {
   readonly setRemoteServerFailure: RemoteServerClientBindings["setRemoteServerFailure"];
   readonly clientForServer: RemoteServerClientBindings["clientForServer"];
+  readonly restoreStoredCredentials: RemoteServerClientBindings["restoreStoredCredentials"];
   readonly withClient: RemoteServerClientBindings["withClient"];
   readonly disposeSessionRenewal: RemoteServerClientBindings["disposeSessionRenewal"];
   readonly checkHostUpdateInBackground: RemoteServerClientBindings["checkHostUpdateInBackground"];
@@ -185,6 +186,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     get,
     setRemoteServerFailure,
     clientForServer,
+    restoreStoredCredentials,
     withClient,
     disposeSessionRenewal,
     checkHostUpdateInBackground,
@@ -254,6 +256,17 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       remoteHostUpdateReconnectSeq(connectionKey) === reconnectGeneration && shouldContinue();
     let server = persistedServer;
     let initialTerminalCapabilities: TerminalConnectionCapabilities | undefined;
+    try {
+      const restore = restoreStoredCredentials(connectionKey);
+      if (restore) await restore;
+      if (!canContinue()) return;
+      const current = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+      if (!current) return;
+      server = current;
+    } catch (error) {
+      if (canContinue()) setRemoteServerFailure(connectionKey, "error", friendlyError(error));
+      return;
+    }
     if (server.transport?.kind === "environment") {
       // The environment endpoint is the parent proxy prefix, re-derived from
       // the CURRENT parent authority on every connect (a remote parent record

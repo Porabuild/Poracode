@@ -498,6 +498,32 @@ final class RichChatComposerFamilyControlsTests: XCTestCase {
     XCTAssertEqual(picker[1].agentKind, agent.kind)
   }
 
+  func testDuplicateModelIDsKeepTheFirstChoiceAcrossNativePickers() throws {
+    var capabilities = encodedCapabilities()
+    guard case .array(var models)? = capabilities["models"] else {
+      return XCTFail("Missing model fixture")
+    }
+    models.insert(.object(["id": .string("solo-2"), "label": .string("Solo")]), at: 1)
+    models.append(.object(["id": .string("duo-alpha-beta"), "label": .string("Duplicate")]))
+    capabilities["models"] = .array(models)
+
+    let agent = try agentStatus(capabilities: capabilities)
+    let raw = HomeComposerCatalog.models(for: agent, presentationMode: .gui)
+    XCTAssertEqual(raw.map(\.modelID), [
+      "solo", "solo-2", "duo-alpha-beta", "duo-alpha-beta-fast", "duo-alpha-beta-hi",
+      "duo-bravo-beta", "duo-bravo-delta",
+    ])
+    XCTAssertEqual(raw.prefix(2).map(\.label), ["Solo", "Solo"])
+    XCTAssertEqual(raw.first { $0.modelID == "duo-alpha-beta" }?.label, "Duo Alpha Beta")
+    let expected = ["solo", "solo-2", "duo-alpha-beta"]
+    XCTAssertEqual(
+      HomeComposerCatalog.pickerModels(for: agent, presentationMode: .gui).map(\.modelID),
+      expected)
+    XCTAssertEqual(
+      try makeCatalog(capabilities, configuration: config(model: "duo-alpha-beta"))
+        .models.map(\.id), expected)
+  }
+
   func testHomeDefaultEffortIsAbsentForEncodedMembers() throws {
     let capabilities = encodedCapabilities()
     XCTAssertNil(

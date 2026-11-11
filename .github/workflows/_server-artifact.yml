@@ -98,10 +98,13 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
 
+      # Windows installs from the registry: unpacking the 1.4 GB Bun cache
+      # archive there took 3 minutes, against 80 to 100 seconds for a cold
+      # `bun install` (20 seconds with the cache restored).
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
         with:
-          registry-cache: ${{ runner.os == 'Windows' && 'bun' || 'all' }}
+          registry-cache: ${{ runner.os == 'Windows' && 'none' || 'all' }}
 
       - name: Install JavaScript dependencies
         run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js

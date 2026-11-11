@@ -56,6 +56,7 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly runtimeHistoryGap?: RemoteAccessServerOptions["runtimeHistoryGap"];
   /** Backend-owned compound checkpoint revert (WS2), refusal-mapped to 409. */
   readonly revertCheckpoint?: RemoteAccessServerOptions["revertCheckpoint"];
+  readonly runThreadMutation?: RemoteAccessServerOptions["runThreadMutation"];
   /**
    * Embedded-desktop experiment authority (custody + confirmed retirement).
    * Present only on the desktop composition; its presence is what advertises

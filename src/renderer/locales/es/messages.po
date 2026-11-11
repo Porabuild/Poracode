@@ -920,6 +920,7 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{visibleCount} de {totalCount} disponibles"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} de {totalCount} visibles"
@@ -1389,6 +1390,7 @@ msgstr "Acciones"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1704,6 +1706,10 @@ msgstr "Argumentos adicionales que se pasan a cada nuevo shell del panel de term
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "Argumentos adicionales que se pasan a cada nuevo shell de Windows. Pon entre comillas los valores que contengan espacios."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Adjust your project filter."
+msgstr "Ajusta el filtro de proyectos."
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt"
 msgstr "Adoptar"
@@ -1919,6 +1925,12 @@ msgstr "Alertas cuando los hilos necesitan tu atención"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "All"
 msgstr "Todo"
+
+#. Filter chip showing all providers or all model surfaces
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgctxt "modelVisibilityFilter"
+msgid "All"
+msgstr "Todos"
 
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
@@ -3624,7 +3636,7 @@ msgstr "Comprueba el nivel de entrada en tiempo real del dispositivo seleccionad
 msgid "Check the supported languages before downloading."
 msgstr "Verifique los idiomas admitidos antes de descargar."
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Checked"
 msgstr "Seleccionado"
 
@@ -4008,6 +4020,7 @@ msgstr "Borrar objetivo"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Clear search"
 msgstr "Borrar búsqueda"
 
@@ -5204,6 +5217,10 @@ msgstr "Controla qué archivos aparecen en la búsqueda de menciones @file. Las 
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Conversation"
 msgstr "Conversación"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Conversations from all paired desktops will appear here."
+msgstr "Las conversaciones de todos los ordenadores vinculados aparecerán aquí."
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Convert to draft"
@@ -7060,6 +7077,7 @@ msgstr "listo"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -8408,6 +8426,10 @@ msgstr "Filtrar skills por estado"
 msgid "Filter table"
 msgstr "Filtrar tabla"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Filter threads"
+msgstr "Filtrar hilos"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
 msgstr "Filtrar línea de tiempo"
@@ -9331,6 +9353,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "Ocultar el círculo de {label} en la barra lateral"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "Ocultar todo"
@@ -11237,7 +11260,7 @@ msgstr "Contraste bajo"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "Reduce el brillo de las pantallas compatibles mientras se muestra la cubierta y restaura el brillo anterior cuando el Mac vuelve a bloquearse."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "Máquina"
 
@@ -12040,6 +12063,10 @@ msgstr "Modelo quitado de favoritos"
 msgid "Model rerouted from {fromModel} to {toModel}."
 msgstr "Modelo redirigido de {fromModel} a {toModel}."
 
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgid "Model surface"
+msgstr "Superficie del modelo"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "Uso de modelos"
@@ -12740,6 +12767,10 @@ msgstr "No hay ningún objetivo activo en esta sesión."
 msgid "No active tasks."
 msgstr "No hay tareas activas."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No active threads"
+msgstr "No hay hilos activos"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
 #~ msgstr "No hay flujos de trabajo activos"
@@ -12871,6 +12902,10 @@ msgstr "No hay flujos de contenido."
 msgid "No conversation yet. Be the first to comment."
 msgstr "Aún no hay conversación. Sé el primero en comentar."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No conversations yet"
+msgstr "Aún no hay conversaciones"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "No crews yet"
 msgstr "Todavía no hay equipos"
@@ -12918,6 +12953,10 @@ msgstr "No hay diff disponible para {0}"
 #: src/renderer/components/diff/DiffCardList.tsx
 #~ msgid "No diff for {visiblePath}"
 #~ msgstr "No hay diff para {visiblePath}"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No done threads"
+msgstr "No hay hilos terminados"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -13052,9 +13091,9 @@ msgstr "No hay programaciones coincidentes."
 #~ msgid "No matching tasks."
 #~ msgstr "No hay tareas coincidentes."
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "No matching threads"
-#~ msgstr "No hay hilos coincidentes"
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No matching threads"
+msgstr "No hay hilos coincidentes"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -13090,6 +13129,7 @@ msgstr "No hay ningún modelo disponible para {agent}. Revisa el agente en Confi
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "No se encontraron modelos"
 
@@ -14460,7 +14500,7 @@ msgstr "Parte del historial de esta conversación se perdió en el servidor y no
 msgid "Partial"
 msgstr "Parcial"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Partially checked"
 msgstr "Parcialmente seleccionado"
 
@@ -15599,6 +15639,7 @@ msgstr "proveedores"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
@@ -18019,11 +18060,13 @@ msgid "Search MCP servers..."
 msgstr "Buscar servidores MCP..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
 msgstr "Buscar modelos"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "Buscar modelos..."
 
@@ -18295,6 +18338,10 @@ msgstr "Seleccionar al candidato {0} ({label}) como ganador"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "Seleccionar dispositivo"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Select Done in the filter to see finished threads."
+msgstr "Selecciona «Listo» en el filtro para ver los hilos terminados."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Select lines in the plan to comment on them."
@@ -18636,6 +18683,7 @@ msgstr "Mostrar la búsqueda de agentes"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "Mostrar todo"
@@ -19856,6 +19904,7 @@ msgstr "Soporte:"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "Compatible con el modo rápido"
 
@@ -20999,6 +21048,7 @@ msgstr "La sesión del hilo no está disponible para los seguimientos en cola."
 msgid "The thread's branch name can't be used on this machine."
 msgstr "El nombre de la rama del hilo no se puede usar en esta máquina."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "El host del hilo no está conectado."
@@ -21317,7 +21367,7 @@ msgstr "La regla de desbloqueo de pantalla de este Mac se ha personalizado, por 
 msgid "this machine"
 msgstr "esta máquina"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "Esta máquina"
 
@@ -22552,7 +22602,7 @@ msgstr "Proveedor no disponible"
 #~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
 #~ msgstr "Los proveedores, modelos, niveles de razonamiento y modos Fast no disponibles se omiten automáticamente. Los proveedores y modelos no seleccionados se omiten hasta que se vuelvan a seleccionar."
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Unchecked"
 msgstr "No seleccionado"
 

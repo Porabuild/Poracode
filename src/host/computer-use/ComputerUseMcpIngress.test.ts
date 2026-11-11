@@ -473,6 +473,59 @@ describe("ComputerUseMcpIngress", () => {
     expect(driver.dispose).toHaveBeenCalledOnce();
   });
 
+  it("returns a cancelled tool result and keeps the MCP session usable after exit", async () => {
+    const pending = Promise.withResolvers<ComputerUseInteractiveResult>();
+    const driver = createDriver({
+      click: vi.fn<ComputerUseDriver["click"]>().mockReturnValueOnce(pending.promise),
+      dispose: vi.fn<ComputerUseDriver["dispose"]>(() => {
+        pending.reject(new Error("Computer-use action was interrupted."));
+      }),
+    });
+    ingress = new ComputerUseMcpIngress({ driver, observationSettleMs: 0 });
+    const info = await ingress.start();
+    const response = callTool(info, "click", {
+      window: { app: "calc", id: 1 },
+      x: 10,
+      y: 20,
+      mode: "foreground",
+    });
+    await vi.waitFor(() => expect(driver.click).toHaveBeenCalledOnce());
+
+    ingress.interruptActiveActions(["thread-1"]);
+
+    const cancelled = await response;
+    expect(cancelled.status).toBe(200);
+    expect(await readToolError(cancelled)).toBe("Computer-use action was interrupted.");
+    expect(driver.dispose).toHaveBeenCalledOnce();
+    expect(await readToolJson(await callTool(info, "disable", {}))).toEqual({ enabled: false });
+    expect(await readToolJson(await callTool(info, "enable", {}))).toEqual({ enabled: true });
+  });
+
+  it.each(["background", "foreground"])(
+    "does not revive activity for an exited thread's refused %s call",
+    async (mode) => {
+      const driver = createDriver();
+      const vision = new AgentVisionService();
+      const begin = vi.spyOn(vision, "begin");
+      const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
+      ingress = new ComputerUseMcpIngress({ driver, vision, onActivity, observationSettleMs: 0 });
+      const info = await ingress.start();
+      ingress.interruptActiveActions(["thread-1"]);
+
+      const response = await callTool(info, "click", {
+        window: { app: "calc", id: 1 },
+        x: 10,
+        y: 20,
+        mode,
+      });
+
+      expect(await readToolError(response)).toContain("Computer use was ended by the user");
+      expect(driver.click).not.toHaveBeenCalled();
+      expect(onActivity).not.toHaveBeenCalled();
+      expect(begin).not.toHaveBeenCalled();
+    },
+  );
+
   // The pre-observation settle sleeps *after* the input lands, so an exit
   // (Escape or the badge's exit button) lands inside it. The capture must
   // stand down: issuing it would lazily respawn the helper the exit just

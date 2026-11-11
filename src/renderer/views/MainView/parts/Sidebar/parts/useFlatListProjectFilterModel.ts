@@ -29,6 +29,8 @@ export function useFlatListProjectFilterModel() {
   const remoteServerFor = useProjectRemoteServerLookup();
   const flatListProjectFilter = useSidebarUiStore((state) => state.flatListProjectFilter);
   const setFlatListProjectFilter = useSidebarUiStore((state) => state.setFlatListProjectFilter);
+  const flatListShowDone = useSidebarUiStore((state) => state.flatListShowDone);
+  const setFlatListShowDone = useSidebarUiStore((state) => state.setFlatListShowDone);
   const groupIndex = useProjectGroupIndex();
 
   // Match the grouped sidebar's workspace/Home visibility. Compact clients
@@ -77,13 +79,27 @@ export function useFlatListProjectFilterModel() {
       ? null
       : new Set(filteredVisibleIds);
 
-  const visibleThreads = threads.filter(
+  const listableThreads = threads.filter(
     (thread) =>
       !auxiliaryIds.has(thread.id) &&
       !thread.archived &&
       projectsById.has(thread.projectId) &&
       isThreadInActiveWorkspace(thread),
   );
+  // The compact home list is one flat view of either active or done threads;
+  // desktop's flat list renders both, with Done as its own section.
+  const showDone = compactLayout && flatListShowDone;
+  const visibleThreads = compactLayout
+    ? listableThreads.filter((thread) => thread.done === showDone)
+    : listableThreads;
+  // The sheet's Done count follows the project filter, like its project rows.
+  const doneThreadCount = compactLayout
+    ? listableThreads.filter(
+        (thread) =>
+          thread.done &&
+          (activeProjectFilter === null || activeProjectFilter.has(thread.projectId)),
+      ).length
+    : 0;
   const threadCounts = new Map<string, number>();
   for (const thread of visibleThreads) {
     threadCounts.set(thread.projectId, (threadCounts.get(thread.projectId) ?? 0) + 1);
@@ -97,8 +113,13 @@ export function useFlatListProjectFilterModel() {
     filterableProjectIds,
     activeProjectFilter,
     visibleThreads,
+    // Every listable thread, before the compact active/done view narrows it.
+    listableThreads,
     threadCounts,
+    showDone,
+    doneThreadCount,
     remoteServerFor,
     setFlatListProjectFilter,
+    setFlatListShowDone,
   };
 }

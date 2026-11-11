@@ -920,6 +920,7 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{totalCount}개 중 {visibleCount}개 사용 가능"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount}개 중 {visibleCount}개 표시"
@@ -1389,6 +1390,7 @@ msgstr "작업"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
@@ -1704,6 +1706,10 @@ msgstr "새 터미널 패널 셸마다 전달할 추가 인수입니다. 공백�
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "새 Windows 셸마다 전달할 추가 인수입니다. 공백이 포함된 값은 따옴표로 묶으세요."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Adjust your project filter."
+msgstr "프로젝트 필터를 조정하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Adopt"
 msgstr "채택"
@@ -1917,6 +1923,12 @@ msgstr "스레드에 응답이 필요할 때 알림"
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+msgid "All"
+msgstr "전체"
+
+#. Filter chip showing all providers or all model surfaces
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgctxt "modelVisibilityFilter"
 msgid "All"
 msgstr "전체"
 
@@ -3624,7 +3636,7 @@ msgstr "선택한 장치의 실시간 입력 레벨을 확인하세요."
 msgid "Check the supported languages before downloading."
 msgstr "다운로드하기 전에 지원되는 언어를 확인하세요."
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Checked"
 msgstr "선택됨"
 
@@ -4008,6 +4020,7 @@ msgstr "목표 지우기"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Clear search"
 msgstr "검색 지우기"
 
@@ -5204,6 +5217,10 @@ msgstr "@file 멘션 검색에 표시되는 파일을 제어합니다. 프로젝
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Conversation"
 msgstr "대화"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Conversations from all paired desktops will appear here."
+msgstr "페어링된 모든 데스크톱의 대화가 여기에 표시됩니다."
 
 #: src/renderer/views/PullRequestsOverlay/detail/header/usePrStateChange.ts
 msgid "Convert to draft"
@@ -7060,6 +7077,7 @@ msgstr "완료"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/providers/settings/ModelProvidersSettings.tsx
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/LabelPicker.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ReviewerPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
@@ -8408,6 +8426,10 @@ msgstr "상태별로 스킬 필터링"
 msgid "Filter table"
 msgstr "표 필터링"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
+msgid "Filter threads"
+msgstr "스레드 필터"
+
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineTab.tsx
 msgid "Filter timeline"
 msgstr "타임라인 필터"
@@ -9331,6 +9353,7 @@ msgid "Hide {label} circle in sidebar"
 msgstr "사이드바에서 {label} 원 숨기기"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "모두 숨기기"
@@ -11237,7 +11260,7 @@ msgstr "낮은 대비"
 msgid "Lower brightness on supported displays while the cover is visible, then restore the previous brightness when the Mac locks again."
 msgstr "보호 화면이 표시되는 동안 지원되는 디스플레이의 밝기를 낮추고, Mac이 다시 잠기면 이전 밝기로 복원합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "Machine"
 msgstr "기기"
 
@@ -12040,6 +12063,10 @@ msgstr "모델을 즐겨찾기에서 제거함"
 msgid "Model rerouted from {fromModel} to {toModel}."
 msgstr "모델이 {fromModel}에서 {toModel}(으)로 전환되었습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+msgid "Model surface"
+msgstr "모델 인터페이스"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "모델 사용량"
@@ -12740,6 +12767,10 @@ msgstr "이 세션에 활성 목표가 없습니다."
 msgid "No active tasks."
 msgstr "진행 중인 작업이 없습니다."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No active threads"
+msgstr "활성 스레드 없음"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
 #~ msgstr "활성 워크플로 없음"
@@ -12871,6 +12902,10 @@ msgstr "콘텐츠 스트림이 없습니다."
 msgid "No conversation yet. Be the first to comment."
 msgstr "아직 대화가 없습니다. 가장 먼저 댓글을 남겨보세요."
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No conversations yet"
+msgstr "아직 대화가 없습니다"
+
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 msgid "No crews yet"
 msgstr "아직 크루가 없습니다"
@@ -12918,6 +12953,10 @@ msgstr "{0}에 대한 차이점이 없습니다."
 #: src/renderer/components/diff/DiffCardList.tsx
 #~ msgid "No diff for {visiblePath}"
 #~ msgstr "{visiblePath}에는 차이가 없습니다."
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No done threads"
+msgstr "완료된 스레드 없음"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDownloadsPage.tsx
 msgid "No downloads match your search"
@@ -13052,9 +13091,9 @@ msgstr "일치하는 일정이 없습니다."
 #~ msgid "No matching tasks."
 #~ msgstr "일치하는 작업이 없습니다."
 
-#: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
-#~ msgid "No matching threads"
-#~ msgstr "일치하는 스레드 없음"
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "No matching threads"
+msgstr "일치하는 스레드 없음"
 
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "No MCP servers are enabled for this run"
@@ -13090,6 +13129,7 @@ msgstr "{agent}에 사용할 수 있는 모델이 없습니다. 설정에서 에
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "모델을 찾을 수 없습니다."
 
@@ -14460,7 +14500,7 @@ msgstr "이 대화 기록의 일부가 서버에서 손실되어 표시할 수 �
 msgid "Partial"
 msgstr "일부"
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Partially checked"
 msgstr "일부 선택됨"
 
@@ -15599,6 +15639,7 @@ msgstr "공급자"
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
@@ -18019,11 +18060,13 @@ msgid "Search MCP servers..."
 msgstr "MCP 서버 검색..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models"
 msgstr "모델 검색"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuSearchInput.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Search models..."
 msgstr "모델 검색..."
 
@@ -18295,6 +18338,10 @@ msgstr "후보 {0}({label}): 우승자로 선택"
 #: src/renderer/views/ProfileOverlay/parts/DevicePicker.tsx
 msgid "Select device"
 msgstr "기기 선택"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/CompactHomeThreadList.tsx
+msgid "Select Done in the filter to see finished threads."
+msgstr "필터에서 ‘완료’를 선택하면 끝난 스레드를 볼 수 있습니다."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Select lines in the plan to comment on them."
@@ -18636,6 +18683,7 @@ msgstr "에이전트 검색 표시"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "모두 표시"
@@ -19856,6 +19904,7 @@ msgstr "지원:"
 
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 msgid "Supports Fast mode"
 msgstr "고속 모드 지원"
 
@@ -20999,6 +21048,7 @@ msgstr "대기 중인 후속 메시지에 스레드 세션을 사용할 수 없�
 msgid "The thread's branch name can't be used on this machine."
 msgstr "이 스레드의 브랜치 이름은 이 기기에서 사용할 수 없습니다."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "스레드의 호스트가 연결되어 있지 않습니다."
@@ -21317,7 +21367,7 @@ msgstr "이 Mac의 화면 잠금 해제 규칙이 기기 관리 등으로 사용
 msgid "this machine"
 msgstr "이 기기"
 
-#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsMachinePicker.tsx
 msgid "This machine"
 msgstr "이 기기"
 
@@ -22552,7 +22602,7 @@ msgstr "사용할 수 없는 제공자"
 #~ msgid "Unavailable providers, models, reasoning levels, and Fast modes are skipped automatically. Unchecked providers and models are skipped until re-checked."
 #~ msgstr "사용할 수 없는 제공자, 모델, 추론 수준 및 Fast 모드는 자동으로 건너뜁니다. 선택 해제된 제공자와 모델은 다시 선택할 때까지 건너뜁니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/VisibilityCheckIndicator.tsx
 msgid "Unchecked"
 msgstr "선택 해제됨"
 

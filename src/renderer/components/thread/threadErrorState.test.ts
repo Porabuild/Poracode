@@ -106,6 +106,30 @@ describe("threadErrorState", () => {
       { sourceItemId: "err-b", message: "Internal error" },
     ]);
   });
+
+  it("collapses consecutive identical errors since the latest user message into one dock", () => {
+    const state = {
+      runtimeItemIdsByThread: {
+        "t-1": ["user-1", "err-supervisor", "err-local"],
+      },
+      runtimeItemsByIdByThread: {
+        "t-1": {
+          "user-1": {
+            id: "user-1",
+            type: "user_message",
+            state: "completed",
+            payload: {},
+            streams: {},
+          },
+          "err-supervisor": errorItem("err-supervisor", "Claude session limit reached"),
+          "err-local": errorItem("err-local", "Claude session limit reached"),
+        },
+      },
+    } as unknown as AppStoreState;
+    expect(selectThreadErrorDockStates(state, "t-1")).toEqual([
+      { sourceItemId: "err-local", message: "Claude session limit reached" },
+    ]);
+  });
 });
 
 describe("resolveThreadAuthState", () => {

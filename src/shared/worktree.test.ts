@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ProjectLocation } from "./contracts";
 import {
   resolveWorktreePlacement,
+  resolveRegisteredWorktree,
   sanitizeWorktreeBranchName,
   sanitizeWorktreePathSegment,
   type WorktreePlacementSettings,
@@ -24,6 +25,51 @@ describe("worktree helpers", () => {
 
   it("falls back to a default path segment when input becomes empty", () => {
     expect(sanitizeWorktreePathSegment("   ")).toBe("project");
+  });
+});
+
+describe("resolveRegisteredWorktree", () => {
+  const worktree = { path: "/repo/wt", branch: "new-branch", commit: "abc123", isMain: false };
+
+  it("does not guess between multiple registrations on the saved branch", () => {
+    const duplicate = { ...worktree, path: "/repo/another-wt" };
+    expect(
+      resolveRegisteredWorktree([worktree, duplicate], "/repo/old-wt", worktree.branch, false),
+    ).toBeUndefined();
+    expect(
+      resolveRegisteredWorktree([worktree, duplicate], worktree.path, worktree.branch, false),
+    ).toBe(worktree);
+  });
+
+  it("follows the path when the old branch is now checked out elsewhere", () => {
+    expect(
+      resolveRegisteredWorktree(
+        [{ ...worktree, path: "/repo/other-wt", branch: "old-branch" }, worktree],
+        worktree.path,
+        "old-branch",
+        false,
+      ),
+    ).toBe(worktree);
+  });
+
+  it("normalizes Windows paths but preserves case-sensitive paths", () => {
+    const windows = { ...worktree, path: "C:/Repo/wt" };
+    expect(resolveRegisteredWorktree([windows], "c:\\repo\\WT\\", undefined, true)).toBe(windows);
+    expect(resolveRegisteredWorktree([worktree], "/repo/WT", undefined, false)).toBeUndefined();
+  });
+
+  it("does not follow an ambiguous detached branch or a branch in the main worktree", () => {
+    expect(
+      resolveRegisteredWorktree(
+        [{ ...worktree, branch: "detached" }],
+        "/old-wt",
+        "detached",
+        false,
+      ),
+    ).toBeUndefined();
+    expect(
+      resolveRegisteredWorktree([{ ...worktree, isMain: true }], "/old-wt", worktree.branch, false),
+    ).toBeUndefined();
   });
 });
 

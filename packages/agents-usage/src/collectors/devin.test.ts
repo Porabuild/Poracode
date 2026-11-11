@@ -33,6 +33,46 @@ describe("Devin quota collector", () => {
     expect(result.windows.map((w) => w.id)).toEqual(["weekly"]);
     expect(result.credits).toEqual({ balance: 2, currency: "USD" });
   });
+  it("treats an omitted weekly percentage with a reset as exhausted", () => {
+    expect(
+      parseDevinUsage(
+        response({
+          planInfo: { planName: "Max", hideDailyQuota: true },
+          dailyQuotaRemainingPercent: 100,
+          dailyQuotaResetAtUnix: "1794297600",
+          weeklyQuotaResetAtUnix: "1794729600",
+          overageBalanceMicros: "-238996",
+        }),
+        1,
+      ),
+    ).toMatchObject({
+      status: "ok",
+      plan: "Max",
+      windows: [{ id: "weekly", usedPercent: 100, resetsAt: 1794729600000 }],
+      credits: { balance: -0.238996, currency: "USD" },
+    });
+  });
+  it("treats an omitted daily percentage with a reset as exhausted", () => {
+    expect(
+      parseDevinUsage(
+        response({
+          planInfo: { planName: "Pro" },
+          dailyQuotaResetAtUnix: "1800000000",
+          weeklyQuotaRemainingPercent: 50,
+        }),
+        1,
+      ).windows,
+    ).toMatchObject([
+      { id: "daily", usedPercent: 100, resetsAt: 1800000000000 },
+      { id: "weekly", usedPercent: 50 },
+    ]);
+  });
+  it("does not invent a window for an omitted percentage with a zero reset", () => {
+    expect(
+      parseDevinUsage(response({ planInfo: { planName: "Pro" }, weeklyQuotaResetAtUnix: "0" }), 1)
+        .windows,
+    ).toEqual([]);
+  });
   it.each([
     null,
     response({ ...quota, dailyQuotaRemainingPercent: 101 }),

@@ -7,6 +7,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { WindowsShellPreference } from "../shellPreference";
 import type { SessionRuntime } from "./sessionTypes";
+import { unwrapConfirmedIpcThreadLaunchFailure } from "./threadSession/unpublishedStartFailure";
 
 const captureSupervisorException = vi.hoisted(() =>
   vi.fn<(error: unknown, tags?: Record<string, string>) => void>(),
@@ -1620,4 +1621,108 @@ it("releases launch reservations when config rewriting fails, permitting a retry
   expect(cleanup).toHaveBeenCalledOnce();
   await expect(manager.startThread(payload)).resolves.toEqual({ threadId: payload.threadId });
   expect(spawnPty).toHaveBeenCalled();
+});
+
+it("wraps only genuine pre-runtime IPC launch failures without cross-attempt leakage", async () => {
+  const sharedError = new Error("provider rejected initial open");
+  const openFailed = createStructuredSession(Promise.resolve());
+  openFailed.openThread = async () => {
+    throw sharedError;
+  };
+  const manager = createManager("codex", createAdapter("codex", openFailed));
+  const failure = await manager
+    .startThreadForIpc({
+      threadId: "fresh-open-failure",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5" },
+      prompt: "start thread",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    })
+    .catch((error: unknown) => error);
+  expect(unwrapConfirmedIpcThreadLaunchFailure(failure)).toEqual({
+    rawError: sharedError,
+    confirmedLaunchFailure: true,
+  });
+
+  // A failure after `openThread` allocated a native sessionRef must stay uncertain.
+  const allocatedSession = createStructuredSession(Promise.resolve());
+  allocatedSession.openThread = async () => {
+    throw sharedError;
+  };
+  allocatedSession.getSessionRef = () => ({
+    providerSessionId: "allocated-native-session",
+    discoveredAt: "2026-11-10T00:00:00.000Z",
+  });
+  const allocatedManager = createManager("codex", createAdapter("codex", allocatedSession));
+  const allocatedFailure = await allocatedManager
+    .startThreadForIpc({
+      threadId: "allocated-ref-failure",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5" },
+      prompt: "start thread",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    })
+    .catch((error: unknown) => error);
+  expect(unwrapConfirmedIpcThreadLaunchFailure(allocatedFailure)).toEqual({
+    rawError: sharedError,
+    confirmedLaunchFailure: false,
+  });
+
+  // A session replacement that already tore down a live session must stay uncertain,
+  // even when rejecting with the exact same Error object.
+  const liveSession = createStructuredSession(Promise.resolve());
+  const replacementAdapter = createAdapter("codex", liveSession);
+  const replacementManager = createManager("codex", replacementAdapter);
+  await replacementManager.startThreadForIpc({
+    threadId: "replace-existing",
+    agentKind: "codex",
+    projectLocation: { kind: "posix", path: process.cwd() },
+    config: { model: "gpt-5" },
+    prompt: "",
+    initialSize: { cols: 80, rows: 24 },
+    presentationMode: "gui",
+  });
+  liveSession.openThread = async () => {
+    throw sharedError;
+  };
+  const replacementFailure = await replacementManager
+    .startThreadForIpc({
+      threadId: "replace-existing",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5" },
+      prompt: "restart",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    })
+    .catch((error: unknown) => error);
+  expect(unwrapConfirmedIpcThreadLaunchFailure(replacementFailure)).toEqual({
+    rawError: sharedError,
+    confirmedLaunchFailure: false,
+  });
+
+  const leakOnDispose = createStructuredSession(Promise.resolve());
+  leakOnDispose.openThread = async () => {
+    throw new Error("open failed before unconfirmed dispose");
+  };
+  leakOnDispose.dispose = vi.fn<StructuredSessionHandle["dispose"]>(async () => {
+    throw new Error("dispose hung");
+  });
+  const leakManager = createManager("codex", createAdapter("codex", leakOnDispose));
+  const unconfirmed = await leakManager
+    .startThreadForIpc({
+      threadId: "unconfirmed-dispose",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5" },
+      prompt: "start thread",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    })
+    .catch((error: unknown) => error);
+  expect(unwrapConfirmedIpcThreadLaunchFailure(unconfirmed).confirmedLaunchFailure).toBe(false);
 });

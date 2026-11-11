@@ -40,9 +40,9 @@ function setup() {
 }
 
 describe("response-only ring layouts across cache and settings generations", () => {
-  it("recomputes selected IDs from a previous v15 cache without migrating it", async () => {
+  it("recomputes selected IDs from a current v16 cache without migrating it", async () => {
     const { cachePath, settingsPath, select } = setup();
-    writeFileSync(cachePath, JSON.stringify({ version: 15, snapshots: [snapshot] }));
+    writeFileSync(cachePath, JSON.stringify({ version: 16, snapshots: [snapshot] }));
     select("gemini");
     const collect = vi.fn<() => Promise<UsageSnapshot>>(async () => snapshot);
     const service = new UsageService({
@@ -65,7 +65,7 @@ describe("response-only ring layouts across cache and settings generations", () 
       });
       expect(collect).not.toHaveBeenCalled();
       expect(JSON.parse(readFileSync(cachePath, "utf8"))).toEqual({
-        version: 15,
+        version: 16,
         snapshots: [snapshot],
       });
     } finally {

@@ -14,6 +14,14 @@ import org.junit.Test
 
 class HomeThreadListPresentationTest {
     @Test
+    fun `unanswered questions take presentation priority while execution status stays independent`() {
+        assertEquals("needs_reply", homeThreadDisplayStatus("working", "needs_reply"))
+        assertEquals("needs_reply", homeThreadDisplayStatus("idle", "needs_reply"))
+        assertEquals("error", homeThreadDisplayStatus("error", "needs_reply"))
+        assertEquals("needs_approval", homeThreadDisplayStatus("needs_approval", "needs_reply"))
+    }
+
+    @Test
     fun `groups only threads owned by the same host project and worktree`() {
         val project = project("project", "Poracode")
         val connection = connection(1)

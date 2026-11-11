@@ -110,7 +110,10 @@ export function sidebarDoneSectionKey(listId: string): string {
 }
 
 /** Pinned or attention-needing threads are never hidden behind "See more". */
-function threadIsProtected(thread: Thread, liveBackgroundThreadIds: ReadonlySet<string>): boolean {
+export function threadIsProtected(
+  thread: Thread,
+  liveBackgroundThreadIds: ReadonlySet<string>,
+): boolean {
   return (
     thread.starred ||
     isThreadTurnActive(thread.status) ||
@@ -137,7 +140,7 @@ function entryHasThread(entry: ThreadListEntry, threadIds: ReadonlySet<string>):
  * always kept; remaining slots fill in list order. Returns the kept set and the
  * count of items hidden behind "See more".
  */
-function selectVisible<T>(
+export function selectVisible<T>(
   items: T[],
   limit: number,
   isProtected: (item: T) => boolean,

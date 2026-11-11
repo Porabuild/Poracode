@@ -119,6 +119,32 @@ function useFilterDismissal(args: {
 }
 
 /**
+ * A selectable bottom-sheet row (a view or "All projects") whose check lines up
+ * with the project rows', which end in a 44px overflow button.
+ */
+function SheetCheckRow(props: {
+  label: React.ReactNode;
+  count?: number;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="m-sheet-action m-sheet-action--overflow-gutter"
+      aria-pressed={props.selected}
+      onClick={props.onPress}
+    >
+      <span className="flex-1 truncate">{props.label}</span>
+      {props.count === undefined ? null : (
+        <span className="shrink-0 text-xs text-muted">{props.count}</span>
+      )}
+      {props.selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
+    </button>
+  );
+}
+
+/**
  * Trailing overflow button on a project row: reports where the project context
  * menu should open. The press must not reach the enclosing multi-select menu
  * item — that would toggle the filter instead — so the whole gesture stops here.
@@ -274,6 +300,15 @@ export function SidebarProjectFilter(props: {
   onChange: (next: string[] | null) => void;
   /** Compact header uses an icon trigger; desktop keeps the labelled row. */
   mobileIconTrigger?: boolean;
+  /**
+   * Compact home only: lets the sheet switch between the active and done
+   * thread lists. Absent for surfaces (desktop) that list both together.
+   */
+  statusView?: {
+    showDone: boolean;
+    doneCount: number;
+    onChange: (showDone: boolean) => void;
+  };
 }) {
   const { t } = useLingui();
   const { mobile } = useResponsiveMenu();
@@ -395,11 +430,14 @@ export function SidebarProjectFilter(props: {
   );
 
   if (mobile) {
+    const { statusView } = props;
+    const sheetLabel = statusView ? t`Filter threads` : t`Filter by project`;
+    const filtered = !isAll || statusView?.showDone === true;
     const trigger = props.mobileIconTrigger ? (
       <MobileCircleButton
-        aria-label={t`Filter by project`}
+        aria-label={sheetLabel}
         aria-expanded={isOpen}
-        className={`poracode-mobile-project-filter ${isAll ? "text-muted" : "text-accent"}`}
+        className={`poracode-mobile-project-filter ${filtered ? "text-accent" : "text-muted"}`}
         onPointerDown={() => setIsOpen(true)}
         onPress={() => setIsOpen(true)}
       >
@@ -408,7 +446,7 @@ export function SidebarProjectFilter(props: {
     ) : (
       <button
         type="button"
-        aria-label={t`Filter by project`}
+        aria-label={sheetLabel}
         aria-expanded={isOpen}
         className={sidebarRowClass({ size: "xs" })}
         onClick={() => setIsOpen(true)}
@@ -419,22 +457,32 @@ export function SidebarProjectFilter(props: {
     return (
       <>
         {trigger}
-        <BottomSheet isOpen={isOpen} label={t`Filter by project`} onClose={close}>
+        <BottomSheet isOpen={isOpen} label={sheetLabel} onClose={close}>
           <div className="m-sheet-head">
-            <span className="truncate">{t`Filter by project`}</span>
+            <span className="truncate">{sheetLabel}</span>
           </div>
           <div className="m-sheet-list">
-            <button
-              type="button"
-              className="m-sheet-action"
-              aria-pressed={isAll || undefined}
-              onClick={selectAll}
-            >
-              <span className="flex-1 truncate">
-                <Trans>All projects</Trans>
-              </span>
-              {isAll ? <Check className="size-4 shrink-0 text-accent" /> : null}
-            </button>
+            {statusView ? (
+              <>
+                <SheetCheckRow
+                  label={<Trans>Active</Trans>}
+                  selected={!statusView.showDone}
+                  onPress={() => statusView.onChange(false)}
+                />
+                <SheetCheckRow
+                  label={<Trans>Done</Trans>}
+                  count={statusView.doneCount}
+                  selected={statusView.showDone}
+                  onPress={() => statusView.onChange(true)}
+                />
+                <Separator className="my-1" />
+              </>
+            ) : null}
+            <SheetCheckRow
+              label={<Trans>All projects</Trans>}
+              selected={isAll}
+              onPress={selectAll}
+            />
             {filterableRows.map((row) => {
               const { project } = row;
               const selected = isRowSelected(row);
@@ -453,7 +501,10 @@ export function SidebarProjectFilter(props: {
                       remote={remote}
                       showEnvironment={row.environments.length === 1}
                     />
-                    <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="min-w-0 truncate">{project.name}</span>
+                      <span className="shrink-0 text-[10px] text-muted">{rowCount(row)}</span>
+                    </span>
                     {row.environments.length > 1 ? (
                       <ProjectEnvironmentIndicator
                         members={row.environments}
@@ -464,10 +515,12 @@ export function SidebarProjectFilter(props: {
                         {serverName}
                       </span>
                     ) : null}
-                    <span className="shrink-0 text-xs text-muted">{rowCount(row)}</span>
                     {selected ? <Check className="size-4 shrink-0 text-accent" /> : null}
                   </button>
-                  {isHomeProject(project) ? null : (
+                  {isHomeProject(project) ? (
+                    // Keeps the check in the same column as rows with an overflow button.
+                    <span className="size-11 shrink-0" aria-hidden="true" />
+                  ) : (
                     <ProjectRowMenuButton
                       project={project}
                       mobile
@@ -505,7 +558,10 @@ export function SidebarProjectFilter(props: {
                       </span>
                     ) : null}
                   </div>
-                  {isHomeProject(project) ? null : (
+                  {isHomeProject(project) ? (
+                    // Keeps the check in the same column as rows with an overflow button.
+                    <span className="size-11 shrink-0" aria-hidden="true" />
+                  ) : (
                     <ProjectRowMenuButton
                       project={project}
                       mobile
@@ -625,9 +681,11 @@ export function SidebarProjectFilter(props: {
             return (
               <Dropdown.Item key={row.id} id={row.id} textValue={project.name}>
                 <ProjectSelectorIcon project={project} remote={remote} showEnvironment={false} />
-                <Label className="min-w-0 truncate">{project.name}</Label>
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <Label className="min-w-0 truncate">{project.name}</Label>
+                  <span className="shrink-0 text-[10px] text-muted">{rowCount(row)}</span>
+                </div>
                 <ProjectEnvironmentIndicator members={row.environments} machineFor={machineFor} />
-                <span className="ms-auto shrink-0 text-xs text-muted">{rowCount(row)}</span>
                 <Dropdown.ItemIndicator />
                 {isHomeProject(project) ? null : (
                   <ProjectRowMenuButton
@@ -656,7 +714,7 @@ export function SidebarProjectFilter(props: {
                       remote={remote}
                       showEnvironment={false}
                     />
-                    <Label className="min-w-0 truncate opacity-50">{project.name}</Label>
+                    <Label className="min-w-0 flex-1 truncate opacity-50">{project.name}</Label>
                     <ProjectEnvironmentIndicator
                       members={row.environments}
                       machineFor={machineFor}

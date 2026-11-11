@@ -227,10 +227,19 @@ internal fun HomeThreadRow(
 }
 
 private val RemoteThread.isActiveStatus: Boolean
-    get() = status == "working" || status == "launching"
+    get() = homeThreadDisplayStatus(status, attention).let { it == "working" || it == "launching" }
 
 private val RemoteThread.needsAttention: Boolean
-    get() = status == "needs_approval" || status == "needs_reply" || status == "error"
+    get() = homeThreadDisplayStatus(status, attention).let {
+        it == "needs_approval" || it == "needs_reply" || it == "error"
+    }
+
+internal fun homeThreadDisplayStatus(status: String, attention: String): String = when {
+    status == "error" || status == "inactive" || status == "launching" -> status
+    status == "needs_approval" || attention == "needs_approval" -> "needs_approval"
+    status == "needs_reply" || attention == "needs_reply" -> "needs_reply"
+    else -> status
+}
 
 /**
  * The PWA's generic provider icon: the provider's initial in a hairline tile,
@@ -281,7 +290,7 @@ private fun HomeProviderGlyph(thread: RemoteThread, agentLabel: String?) {
 @Composable
 private fun homeStatusColor(thread: RemoteThread): Color {
     val colors = PoracodeTheme.colors
-    return when (thread.status) {
+    return when (homeThreadDisplayStatus(thread.status, thread.attention)) {
         "needs_approval", "needs_reply" -> colors.warning
         "error" -> colors.danger
         "finished" -> colors.finishedTone

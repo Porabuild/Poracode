@@ -342,6 +342,17 @@ describe("ChatScrollControls", () => {
       expect(clearChatPromptAnchor).not.toHaveBeenCalled();
       expect(button).toBeDisabled();
 
+      act(() => {
+        // A transient missing attribute (before LegendList reports the new
+        // prompt's space) must not clear the prompt anchor.
+        delete scrollEl.dataset.chatEndSpaceSize;
+        controlsRef.current?.onContentHeightChange();
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(clearChatPromptAnchor).not.toHaveBeenCalled();
+
       if (sequence === "before growth") {
         act(() => {
           // The reserved space empties one layout before the transcript grows.

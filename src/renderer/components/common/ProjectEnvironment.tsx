@@ -151,11 +151,11 @@ export function ProjectEnvironmentIndicator(props: {
           {remoteMachines.length > 0 ? (
             <RemoteServerIcon
               status={remoteStatus}
-              className="size-3 text-muted/60"
-              dotClassName="size-1.5"
+              className="size-2.5 text-muted/60"
+              dotClassName="size-1"
             />
           ) : (
-            <MachineIcon machine={entries[0]!.machine} className="size-3" />
+            <MachineIcon machine={entries[0]!.machine} className="size-2.5" />
           )}
         </Tooltip.Trigger>
         {/* Keep the tooltip accessible inside modal project picker popovers. */}

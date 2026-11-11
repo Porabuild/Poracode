@@ -164,11 +164,48 @@ describe("base control styles", () => {
     expect(mobileHeader).not.toContain("transform:");
     expect(mobileHeader).not.toContain("padding-bottom:");
     expect(styles).toMatch(
-      /\.poracode-shell\[data-mobile-navigation\]\[data-mobile-home\][^{]*\.poracode-overlay-header\s*\{[^}]*margin-bottom:\s*var\(--m-header-content-gap\);/s,
+      /\.poracode-shell\[data-mobile-navigation\]:not\(\[data-mobile-home\]\)[^{]*\.poracode-overlay-header\s*\{[^}]*margin-bottom:\s*var\(--m-header-content-gap\);/s,
     );
     expect(styles).toMatch(
       /html\[data-compact-layout\]\[data-theme="dark"\][^{]*\.poracode-shell\[data-mobile-navigation\]:not\(\[data-mobile-home\]\)[^{]*\.poracode-overlay-header\s*\{[^}]*background:\s*color-mix\(in oklab, var\(--background\) 78%, transparent\) !important;/s,
     );
+  });
+
+  it("scrolls the compact home list under a transparent header and dock", () => {
+    // One full-bleed scroller that reserves the header safe zone and the dock
+    // clearance at rest, so the rows can move behind both overlays.
+    const scroller = ruleFor("html[data-compact-layout] .m-home-scroll");
+    expect(scroller).toContain("overflow-y: auto");
+    expect(scroller).toContain("margin-inline: calc(-1 * var(--m-page-inline))");
+    expect(scroller).toContain("var(--m-page-header-safe-zone) + var(--m-header-content-gap)");
+    expect(scroller).toContain("var(--m-floating-dock-clearance)");
+    expect(styles).toContain(
+      "--m-floating-dock-clearance: calc(\n    var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom)\n  )",
+    );
+    // The home header leaves layout and has no fill of its own; only a masked
+    // blur fade sits behind it.
+    expect(styles).toMatch(
+      /\.poracode-shell\[data-mobile-navigation\]\[data-mobile-home\]\s*\.poracode-overlay-header\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0 0 auto;[^}]*background:\s*transparent !important;/s,
+    );
+    expect(styles).toMatch(
+      /\[data-mobile-home\]\s*\.poracode-overlay-header::before\s*\{[^}]*backdrop-filter:\s*blur\(8px\);[^}]*mask-image:/s,
+    );
+    // The dock side gets the matching bottom-edge fade, below the dock itself.
+    expect(styles).toMatch(
+      /\[data-mobile-home\] \.poracode-main-sidebar::after\s*\{[^}]*z-index:\s*4;[^}]*pointer-events:\s*none;/s,
+    );
+    // The header box keeps receiving touches: rows hidden under its fade must
+    // not be tappable through it.
+    const homeHeader = styles.match(
+      /\[data-mobile-home\]\s*\.poracode-overlay-header\s*\{([^}]*)\}/,
+    )?.[1];
+    expect(homeHeader).toContain("position: absolute");
+    expect(homeHeader).not.toContain("pointer-events");
+    // The filter trigger's state colours must not recolour other circle buttons.
+    expect(styles).not.toMatch(/\.m-home-compose-action\.text-(muted|accent)\s*\{/);
+    // The retired inner-panel layout must not return for compact.
+    expect(styles).not.toContain("poracode-flat-thread-scroll");
+    expect(styles).not.toContain("poracode-flat-done-section");
   });
 
   it("gives compact PWA menu rows a touch-friendly minimum height", () => {
