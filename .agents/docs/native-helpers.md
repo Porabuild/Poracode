@@ -30,10 +30,11 @@ workload and again after an idle minute, because V8 heaps shrink late.
 
 ## Existing helpers
 
-| Crate                        | Binary                  | Role                                                           | Staged at                                   | Without a binary                          |
-| ---------------------------- | ----------------------- | -------------------------------------------------------------- | ------------------------------------------- | ----------------------------------------- |
-| `native/computer-use-helper` | `poracode-computer-use` | `computer_use` backends ([computer-use.md](computer-use.md))   | `resources/computer-use-helper/<target>/`   | legacy foreground driver (Windows, macOS) |
-| `native/mcp-relay`           | `poracode-mcp-relay`    | stdio to Streamable HTTP relay for Poracode-hosted MCP servers | `resources/wsl-helpers/mcp-relay/<target>/` | `mcp-relay.mjs`, the TypeScript relay     |
+| Crate                        | Binary                  | Role                                                           | Staged at                                    | Without a binary                          |
+| ---------------------------- | ----------------------- | -------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------- |
+| `native/computer-use-helper` | `poracode-computer-use` | `computer_use` backends ([computer-use.md](computer-use.md))   | `resources/computer-use-helper/<target>/`    | legacy foreground driver (Windows, macOS) |
+| `native/mcp-relay`           | `poracode-mcp-relay`    | stdio to Streamable HTTP relay for Poracode-hosted MCP servers | `resources/wsl-helpers/mcp-relay/<target>/`  | `mcp-relay.mjs`, the TypeScript relay     |
+| `native/git-helper`          | `poracode-git-helper`   | parallel local Git status and multi-worktree batch sidecar     | `resources/wsl-helpers/git-helper/<target>/` | `GitStatusService` + `gitExecWorker` (TS) |
 
 Targets are `darwin-universal` (lipo of x86_64 and aarch64), `win32-x64`,
 `win32-arm64`, and `linux-x64` (static musl). Linux arm64, WSL distros, and SSH

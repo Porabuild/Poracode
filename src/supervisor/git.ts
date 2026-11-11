@@ -195,6 +195,15 @@ export class GitService {
       return this.statusService.getWorktreeStatusBatchWsl(location, worktreePaths);
     }
 
+    const nativeStatuses = await this.statusService.getWorktreeStatusBatchNative(
+      location,
+      worktreePaths,
+      detail,
+    );
+    if (nativeStatuses) {
+      return nativeStatuses;
+    }
+
     const statuses: Record<string, GitStatusResult> = {};
     let nextIndex = 0;
     const runWorker = async () => {

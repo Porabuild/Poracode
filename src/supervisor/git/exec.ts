@@ -18,9 +18,10 @@ import {
   type GitProcessClass,
 } from "./gitProcessAdmission";
 import { disposeGitExecWorker, execGitOnWorkerThread } from "./gitExecWorkerClient";
+import { disposeNativeGitHelper } from "./gitNativeHelperClient";
 import { mkdir } from "node:fs/promises";
 
-export { disposeGitExecWorker };
+export { disposeGitExecWorker, disposeNativeGitHelper };
 
 const execFileAsync = promisify(execFile);
 

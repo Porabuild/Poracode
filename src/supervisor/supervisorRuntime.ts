@@ -80,7 +80,7 @@ import {
   type ResolvedHostResourceAdmission,
 } from "./runtime/hostResourceAdmission";
 import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission";
-import { disposeGitExecWorker } from "./git/exec";
+import { disposeGitExecWorker, disposeNativeGitHelper } from "./git/exec";
 import { gitProcessAdmissionUsage } from "./git/gitProcessAdmission";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
@@ -1321,6 +1321,7 @@ export class SupervisorRuntime {
         await disposeGitExecWorker().catch((error) => {
           console.warn("[supervisor] Git execution worker dispose failed:", error);
         });
+        disposeNativeGitHelper();
         await Promise.all(
           [...this.adapters.values()].map(async (adapter) => {
             try {
