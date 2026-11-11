@@ -109,6 +109,7 @@ async function startProxyThroughMemory(options: {
   isolateConnectionFailures?: boolean;
   mcpApps?: boolean;
   omitInvalidSchemaPatterns?: boolean;
+  maxSchemaDepth?: number;
 }): Promise<{ proxy: FilterProxy; downstream: Client }> {
   const [proxyUpstream, fixtureSide] = InMemoryTransport.createLinkedPair();
   const [proxyDownstream, clientSide] = InMemoryTransport.createLinkedPair();
@@ -120,6 +121,7 @@ async function startProxyThroughMemory(options: {
     ...(options.isolateConnectionFailures ? { isolateConnectionFailures: true } : {}),
     ...(options.mcpApps ? { mcpApps: true } : {}),
     ...(options.omitInvalidSchemaPatterns ? { omitInvalidSchemaPatterns: true } : {}),
+    ...(options.maxSchemaDepth !== undefined ? { maxSchemaDepth: options.maxSchemaDepth } : {}),
     upstreamTransport: proxyUpstream as unknown as Transport,
     downstreamTransport: proxyDownstream as unknown as Transport,
   });
@@ -694,6 +696,25 @@ it.each([false, true])(
     expect(tool.inputSchema.properties?.email).toEqual({ type: "string", pattern: "[" });
   },
 );
+
+it("limits deep tool schemas without changing forwarded arguments", async () => {
+  const upstream = await startUpstreamFixture();
+  let nested: unknown = { type: "string" };
+  for (let i = 0; i < 11; i += 1) nested = { type: "object", properties: { x: nested } };
+  const tool = { name: "deep", inputSchema: nested as Tool["inputSchema"] };
+  upstream.server.setRequestHandler("tools/list", async () => ({ tools: [tool] }));
+  const { downstream } = await startProxyThroughMemory({
+    upstream,
+    disabledTools: [],
+    maxSchemaDepth: 10,
+  });
+  const listed = (await downstream.listTools()).tools[0]!;
+  expect(listed.description).toContain(JSON.stringify(tool.inputSchema));
+  expect(listed.inputSchema).not.toEqual(tool.inputSchema);
+  const args = { x: { x: { marker: "original" } } };
+  await downstream.callTool({ name: "deep", arguments: args });
+  expect(upstream.calls).toEqual([{ name: "deep", args }]);
+});
 
 it.each([false, true])(
   "preserves selected stdio inheritance without leaking proxy envelopes: %s",

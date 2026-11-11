@@ -168,6 +168,18 @@ it.each([false, true])(
   },
 );
 
+it("passes a provider's MCP schema depth limit to the launch helper", async () => {
+  const provider = { ...adapter("fixture", handle()), mcpMaxSchemaDepth: 10 };
+  const prepareMcpToolFilters = vi.fn<
+    NonNullable<ThreadSessionManagerOptions["prepareMcpToolFilters"]>
+  >(async (servers) => servers);
+  const manager = managerFor([provider], { prepareMcpToolFilters });
+  await manager.startThread(payload());
+  expect(prepareMcpToolFilters).toHaveBeenCalledWith([], payload().projectLocation, {
+    maxSchemaDepth: 10,
+  });
+});
+
 describe.each(["gui", "terminal"] as const)(
   "MCP authorization for %s providers",
   (presentation) => {
