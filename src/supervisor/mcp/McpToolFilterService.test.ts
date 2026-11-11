@@ -22,6 +22,7 @@ import {
   MCP_FILTER_CONFIG_ENV,
   MCP_FILTER_CONFIG_V1_ENV,
   MCP_FILTER_CONFIG_V2_ENV,
+  MCP_FILTER_CONFIG_V3_ENV,
   MCP_HTTP_RELAY_CONFIG_ENV,
   encodeMcpHttpRelayConfig,
   readMcpHttpRelayConfig,
@@ -150,6 +151,42 @@ it("versions schema-normalizing helpers while retaining prior helper configurati
       ),
     }),
   ).toThrow("Unsupported MCP filter configuration version");
+});
+
+it("versions depth limits separately and continues to read v2 helper configurations", async () => {
+  const root = mkdtempSync(join(tmpdir(), "poracode-mcp-test-"));
+  roots.push(root);
+  writeFileSync(join(root, "mcp-filter.mjs"), "");
+  vi.stubEnv("PORACODE_WSL_HELPERS_DIR", root);
+  const [wrapped] = await prepareMcpToolFilters(
+    [server],
+    { kind: "posix", path: "/project" },
+    { omitInvalidSchemaPatterns: true, maxSchemaDepth: 10 },
+  );
+  if (wrapped!.transport.type !== "stdio") throw new Error("expected stdio");
+  const env = wrapped!.transport.env;
+  expect(env[MCP_FILTER_CONFIG_V2_ENV]).toBeUndefined();
+  expect(readMcpToolFilterConfig(env)).toEqual({
+    version: 3,
+    omitInvalidSchemaPatterns: true,
+    maxSchemaDepth: 10,
+    schemaOnly: true,
+    server,
+    disabledTools: [],
+  });
+  const previous = { version: 2, server, disabledTools: [], omitInvalidSchemaPatterns: true };
+  expect(
+    readMcpToolFilterConfig({
+      [MCP_FILTER_CONFIG_V2_ENV]: Buffer.from(JSON.stringify(previous)).toString("base64url"),
+    }),
+  ).toEqual(previous);
+  expect(() =>
+    readMcpToolFilterConfig({
+      [MCP_FILTER_CONFIG_V3_ENV]: Buffer.from(
+        JSON.stringify({ ...previous, version: 3, maxSchemaDepth: 0 }),
+      ).toString("base64url"),
+    }),
+  ).toThrow("Unsupported MCP schema depth limit");
 });
 
 it.each([false, true])(

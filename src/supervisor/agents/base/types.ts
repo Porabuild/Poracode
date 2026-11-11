@@ -1197,6 +1197,9 @@ export interface AgentAdapter
   /** Omit malformed Unicode regex constraints when a model gateway rejects the entire tool catalog. */
   readonly mcpRequiresPortableSchemaPatterns?: boolean;
 
+  /** Maximum object/array nesting accepted in advertised tool input schemas. */
+  readonly mcpMaxSchemaDepth?: number;
+
   /**
    * Refresh shared OAuth on MCP connection instead of before launch. Requires a
    * qualified connection budget and tools becoming usable after delayed startup.

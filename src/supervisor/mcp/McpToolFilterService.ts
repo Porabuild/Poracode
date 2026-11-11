@@ -7,6 +7,7 @@ import {
   MCP_FILTER_CONFIG_ENV,
   MCP_FILTER_CONFIG_V1_ENV,
   MCP_FILTER_CONFIG_V2_ENV,
+  MCP_FILTER_CONFIG_V3_ENV,
   MCP_HTTP_RELAY_CONFIG_ENV,
   MCP_STDIO_CONFIG_ENV,
   encodeMcpHttpRelayConfig,
@@ -17,6 +18,7 @@ interface FilterOptions {
   proxyStdioCwd?: boolean;
   isolateConnectionFailures?: boolean;
   omitInvalidSchemaPatterns?: boolean;
+  maxSchemaDepth?: number;
 }
 
 type McpLaunchHelper =
@@ -56,17 +58,24 @@ function isHostEndpoint(server: ResolvedMcpServer): boolean {
 function filterConfig(server: ResolvedMcpServer, options: FilterOptions): string {
   return Buffer.from(
     JSON.stringify({
-      ...(options.omitInvalidSchemaPatterns
+      ...(options.maxSchemaDepth !== undefined
         ? {
-            version: 2,
-            omitInvalidSchemaPatterns: true,
-            // New native wrappers preserve the rest of the protocol and stdio
-            // environment; existing filtering lanes retain their old policy.
+            version: 3,
+            maxSchemaDepth: options.maxSchemaDepth,
+            ...(options.omitInvalidSchemaPatterns ? { omitInvalidSchemaPatterns: true } : {}),
             ...(!requiresFiltering(server, options) ? { schemaOnly: true } : {}),
           }
-        : options.isolateConnectionFailures
-          ? { version: 1 }
-          : {}),
+        : options.omitInvalidSchemaPatterns
+          ? {
+              version: 2,
+              omitInvalidSchemaPatterns: true,
+              // New native wrappers preserve the rest of the protocol and stdio
+              // environment; existing filtering lanes retain their old policy.
+              ...(!requiresFiltering(server, options) ? { schemaOnly: true } : {}),
+            }
+          : options.isolateConnectionFailures
+            ? { version: 1 }
+            : {}),
       ...(options.isolateConnectionFailures ? { isolateConnectionFailures: true } : {}),
       server,
       disabledTools: server.disabledTools ?? [],
@@ -112,6 +121,7 @@ function launchHelper(
     transport.type === "http" &&
     isHostEndpoint(server) &&
     options.omitInvalidSchemaPatterns !== true &&
+    options.maxSchemaDepth === undefined &&
     // Failure isolation keeps the SDK proxy and its diagnostic tool.
     options.isolateConnectionFailures !== true
   ) {
@@ -129,16 +139,22 @@ function launchHelper(
     }
     return { kind: "js", name: "mcp-relay.mjs", env };
   }
-  if (options.omitInvalidSchemaPatterns === true || requiresFiltering(server, options)) {
+  if (
+    options.omitInvalidSchemaPatterns === true ||
+    options.maxSchemaDepth !== undefined ||
+    requiresFiltering(server, options)
+  ) {
     return {
       kind: "js",
       name: "mcp-filter.mjs",
       env: {
-        [options.omitInvalidSchemaPatterns
-          ? MCP_FILTER_CONFIG_V2_ENV
-          : options.isolateConnectionFailures
-            ? MCP_FILTER_CONFIG_V1_ENV
-            : MCP_FILTER_CONFIG_ENV]: filterConfig(server, options),
+        [options.maxSchemaDepth !== undefined
+          ? MCP_FILTER_CONFIG_V3_ENV
+          : options.omitInvalidSchemaPatterns
+            ? MCP_FILTER_CONFIG_V2_ENV
+            : options.isolateConnectionFailures
+              ? MCP_FILTER_CONFIG_V1_ENV
+              : MCP_FILTER_CONFIG_ENV]: filterConfig(server, options),
       },
     };
   }
@@ -159,7 +175,9 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
   options: FilterOptions = {},
 ): Promise<T[]> {
   const transformsTools =
-    options.omitInvalidSchemaPatterns === true || options.isolateConnectionFailures === true;
+    options.omitInvalidSchemaPatterns === true ||
+    options.maxSchemaDepth !== undefined ||
+    options.isolateConnectionFailures === true;
   const needsProxy = (server: T) => {
     // Relaying a relay would only add another process per agent session.
     if (isHelperRelay(server.transport) && !transformsTools) return false;
@@ -221,7 +239,9 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
       helperRelayTransports.add(transport);
       return {
         ...relayed,
-        ...(directTransport && options.omitInvalidSchemaPatterns !== true
+        ...(directTransport &&
+        options.omitInvalidSchemaPatterns !== true &&
+        options.maxSchemaDepth === undefined
           ? { directTransport }
           : {}),
         transport,
@@ -238,7 +258,7 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
       // Let the native connection owner expand values and apply its reserved
       // environment policy before a schema-only wrapper starts the server.
       env: {
-        ...(options.omitInvalidSchemaPatterns &&
+        ...((options.omitInvalidSchemaPatterns || options.maxSchemaDepth !== undefined) &&
         !requiresFiltering(server, options) &&
         server.transport.type === "stdio"
           ? server.transport.env
@@ -252,7 +272,11 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
     return {
       ...relayed,
       // A direct connection would bypass schema normalization.
-      ...(directTransport && options.omitInvalidSchemaPatterns !== true ? { directTransport } : {}),
+      ...(directTransport &&
+      options.omitInvalidSchemaPatterns !== true &&
+      options.maxSchemaDepth === undefined
+        ? { directTransport }
+        : {}),
       transport,
     } as T;
   });
