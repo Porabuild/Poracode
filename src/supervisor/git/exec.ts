@@ -17,7 +17,10 @@ import {
   gitProcessAdmissionUsage,
   type GitProcessClass,
 } from "./gitProcessAdmission";
+import { disposeGitExecWorker, execGitOnWorkerThread } from "./gitExecWorkerClient";
 import { mkdir } from "node:fs/promises";
+
+export { disposeGitExecWorker };
 
 const execFileAsync = promisify(execFile);
 
@@ -242,6 +245,22 @@ async function execGitAdmitted(
     }
 
     const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...(options?.env ?? {}) };
+    const fullArgs = withQuotePathDisabled(args);
+    const workerExec = execGitOnWorkerThread({
+      command: "git",
+      args: fullArgs,
+      cwd: location.path,
+      env,
+      timeout,
+      maxBuffer,
+      ...(options?.input !== undefined ? { stdinInput: options.input } : {}),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    });
+    if (workerExec) {
+      const { stdout } = await workerExec;
+      return stdout;
+    }
+
     const execOptions = {
       cwd: location.path,
       env,
@@ -252,8 +271,8 @@ async function execGitAdmitted(
     };
     const { stdout } =
       options?.input !== undefined
-        ? await execFileWithInput("git", withQuotePathDisabled(args), execOptions, options.input)
-        : await execFileAsync("git", withQuotePathDisabled(args), execOptions);
+        ? await execFileWithInput("git", fullArgs, execOptions, options.input)
+        : await execFileAsync("git", fullArgs, execOptions);
     return stdout;
   } catch (error: unknown) {
     if (

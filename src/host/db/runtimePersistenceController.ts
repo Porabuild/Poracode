@@ -87,7 +87,7 @@ const DEFAULT_FENCE_MAX_HOLD_MS = 5_000;
 const DEFAULT_MUTATION_DEADLINE_MS = 5_000;
 const FLUSH_MAX_THREADS = 4;
 const FLUSH_MAX_BYTES = 256 * 1024;
-const FLUSH_MAX_MS = 5;
+const FLUSH_MAX_MS = 2;
 /** Wall-clock budget for one aged-backlog relief; the scheduler continues it. */
 const AGED_RELIEF_MAX_MS = FLUSH_MAX_MS;
 
@@ -1117,7 +1117,7 @@ export class RuntimePersistenceController {
     this.health.resetCountersForTests();
   }
 
-  private scheduleFlush(delayMs: number): void {
+  private scheduleFlush(delayMs: number, keepAlive = false): void {
     if (this.health.isAdmissionClosed()) return;
     if (this.timer !== undefined || this.immediate !== undefined) return;
     this.timer = setTimeout(
@@ -1127,7 +1127,7 @@ export class RuntimePersistenceController {
       },
       Math.max(0, delayMs),
     );
-    this.timer.unref?.();
+    if (!keepAlive) this.timer.unref?.();
   }
 
   private scheduleImmediateFlush(): void {
@@ -1181,7 +1181,16 @@ export class RuntimePersistenceController {
     const failed = this.recordBudgetedResult(result, true);
     if (failed) return;
     if (result.remainingThreads > 0 && result.flushedThreads > 0) {
-      this.scheduleImmediateFlush();
+      // Yield through the timer phase (`scheduleFlush(0, true)`) instead of a
+      // tight `setImmediate` chain when no read fence is actively waiting, so
+      // libuv polls pending HTTP `/history` sockets and WebSocket I/O between
+      // write slices while still keeping the process alive until the accepted
+      // backlog finishes draining.
+      if (this.fenceControl.waiterCount() > 0 || this.queue.forceFlushThreadIds().length > 0) {
+        this.scheduleImmediateFlush();
+      } else {
+        this.scheduleFlush(0, true);
+      }
       return;
     }
     if (result.flushedThreads === 0) {

@@ -80,6 +80,7 @@ import {
   type ResolvedHostResourceAdmission,
 } from "./runtime/hostResourceAdmission";
 import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission";
+import { disposeGitExecWorker } from "./git/exec";
 import { gitProcessAdmissionUsage } from "./git/gitProcessAdmission";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
@@ -1316,6 +1317,9 @@ export class SupervisorRuntime {
         // outlives the runtime that owned it.
         await disposeWslStagingService().catch((error) => {
           console.warn("[supervisor] WSL staging worker dispose failed:", error);
+        });
+        await disposeGitExecWorker().catch((error) => {
+          console.warn("[supervisor] Git execution worker dispose failed:", error);
         });
         await Promise.all(
           [...this.adapters.values()].map(async (adapter) => {

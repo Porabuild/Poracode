@@ -57,6 +57,8 @@ export function initReadOnlyDatabase(dbPath: string): void {
     preflightConversationSearchGeneration(sqlite);
     sqlite.pragma("query_only = ON");
     sqlite.pragma("busy_timeout = 250");
+    sqlite.pragma("cache_size = -32768"); // 32 MiB page cache per reader worker
+    sqlite.pragma("temp_store = MEMORY");
     assertRequiredDatabaseSchema(sqlite);
     assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
     assertConversationSearchReady(sqlite);
@@ -88,6 +90,13 @@ export function initDatabase(
   sqlite.pragma("synchronous = NORMAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
+  // Prevent WAL auto-checkpoint from blocking writers while a read worker holds
+  // a snapshot on a large multi-agent database, and size the writer page cache
+  // to 64 MiB so repeated item/stream updates stay in memory.
+  sqlite.pragma("cache_size = -65536");
+  sqlite.pragma("temp_store = MEMORY");
+  sqlite.pragma("journal_size_limit = 134217728"); // 128 MiB
+  sqlite.pragma("wal_autocheckpoint = 16384"); // ~64 MiB (4 KiB pages)
   // SQLite lower() handles ASCII only; schedule search uses the same deterministic
   // Unicode normalization for persisted text and the user's query.
   sqlite.function("schedule_search_text", { deterministic: true }, (value: unknown) =>
