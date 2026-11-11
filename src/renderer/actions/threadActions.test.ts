@@ -1349,6 +1349,53 @@ describe("threadActions", () => {
     }
   });
 
+  it("shows the placeholder without starting an inactive terminal thread that has its own window", async () => {
+    const thread = makeThread({ status: "inactive" });
+    useAppStore.setState({ threads: [thread] });
+    setOwnWindowThreadIds([thread.id]);
+    try {
+      openThread(thread.id);
+      await waitFor(() => {
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+      });
+      reopenPaneThreadsIfInactive();
+      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+    } finally {
+      setOwnWindowThreadIds([]);
+    }
+  });
+
+  it.each([true, false])(
+    "shows the placeholder without starting an inactive GUI thread that has its own window (cached=%s)",
+    async (cached) => {
+      vi.useFakeTimers();
+      const thread = makeThread({
+        presentationMode: "gui",
+        status: "inactive",
+        canResumeWithConfig: true,
+      });
+      useAppStore.setState({ threads: [thread] });
+      setOwnWindowThreadIds([thread.id]);
+      const hydrated = vi
+        .spyOn(chatRuntimePersister, "hasHydratedThreadRuntimeItems")
+        .mockReturnValue(cached);
+      const prepare = vi
+        .spyOn(runtimeInterestHydration, "prepareRuntimeThreadReader")
+        .mockReturnValue({ ready: Promise.resolve(true), release: vi.fn<() => void>() });
+      try {
+        openThread(thread.id);
+        await vi.advanceTimersByTimeAsync(50);
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+        expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
+      } finally {
+        prepare.mockRestore();
+        hydrated.mockRestore();
+        setOwnWindowThreadIds([]);
+        vi.useRealTimers();
+      }
+    },
+  );
+
   it("clears visual inputs only after delete confirmation for the host captured before dispatch", async () => {
     const deletion = Promise.withResolvers<void>();
     sendThreadCommand.mockReturnValueOnce(deletion.promise);

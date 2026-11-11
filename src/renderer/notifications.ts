@@ -2,7 +2,9 @@ import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { ThreadStatus } from "@/shared/contracts";
 import { openThread } from "@/renderer/actions/threadActions";
+import { openThreadWindow } from "@/renderer/actions/threadWindowActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { livesInAnotherWindow } from "@/renderer/state/auxiliaryThreadWindows";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
@@ -35,6 +37,9 @@ function getNotificationAudio(): HTMLAudioElement {
 }
 
 function isThreadInActivePanes(threadId: string): boolean {
+  // A pane of a thread with its own window is only a placeholder; the thread
+  // itself is in that window, which may be in the background.
+  if (livesInAnotherWindow(threadId)) return false;
   const view = useAppStore.getState().view;
   if (view.kind === "thread") return view.panes.includes(threadId);
   if (view.kind !== "experiment") return false;
@@ -48,6 +53,12 @@ function isThreadInActivePanes(threadId: string): boolean {
 }
 
 function openNotificationThread(threadId: string): void {
+  const thread = useAppStore.getState().threads.find((candidate) => candidate.id === threadId);
+  if (thread && livesInAnotherWindow(threadId)) {
+    // Focus the window that shows the thread rather than its placeholder.
+    openThreadWindow(thread);
+    return;
+  }
   openThread(threadId, { focusComposer: true, switchWorkspace: true });
 }
 

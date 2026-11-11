@@ -39,6 +39,10 @@ import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintPro
 export interface StandaloneAttachIpcDeps {
   createSideChatWindow?: (bootstrap: SideChatBootstrap) => BrowserWindow;
   createThreadWindow?: (bootstrap: ThreadWindowBootstrap) => BrowserWindow;
+  /** Queues a thread returned from its own window until the main renderer is ready. */
+  showThreadInMain?: (threadId: string) => void;
+  /** Delivers the queued thread; called on every main renderer ready ping. */
+  flushMainThreadOpen?: () => void;
   getMainWindow(): BrowserWindow | null;
   getQuickComposerWindow(): BrowserWindow | null;
   /** Owned profile namespace from the attach payload; device keybindings live here. */
@@ -47,6 +51,8 @@ export interface StandaloneAttachIpcDeps {
   isDev: boolean;
   reportError(error: unknown, tags?: PoracodeDiagnosticTags): void;
   markQuitting(): void;
+  /** True once the app quits; thread windows closed by the quit stay closed. */
+  isQuitting?: () => boolean;
   /**
    * Shared quick-composer device lifecycle (pending submit flush, graceful
    * dismiss, picker focus). Constructed by the attach startup with the
@@ -99,6 +105,8 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
       if (!deps.createThreadWindow) throw new Error("Thread windows are unavailable");
       return deps.createThreadWindow(bootstrap);
     },
+    showThreadInMain: (threadId) => deps.showThreadInMain?.(threadId),
+    isQuitting: () => deps.isQuitting?.() ?? false,
   });
   const autoUpdater = createAutoUpdaterController(
     (status) => {
@@ -185,6 +193,7 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
     if (!window || window !== mainWindow || window.isDestroyed()) return;
     notifyRendererStartupReady(window.webContents);
     deps.quickComposer.handleMainReady();
+    deps.flushMainThreadOpen?.();
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {
     const window = BrowserWindow.fromWebContents(event.sender);

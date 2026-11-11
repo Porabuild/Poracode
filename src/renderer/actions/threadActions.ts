@@ -46,6 +46,7 @@ import { closeThreads } from "@/renderer/utils/shellUtils";
 import {
   auxiliaryThreadIds,
   hasOwnWindow,
+  livesInAnotherWindow,
   useAuxiliaryThreadWindows,
 } from "@/renderer/state/auxiliaryThreadWindows";
 import { closePanelsForUnloadedThread } from "./panelActions";
@@ -495,6 +496,9 @@ export function switchToAdjacentThread(current: Thread, direction: "next" | "pre
 }
 
 export function reopenStoredThread(threadId: string): void {
+  // A thread in its own window is started by that window. Here the pane is a
+  // placeholder, so a queued launch would wait for a view that never mounts.
+  if (livesInAnotherWindow(threadId)) return;
   allowAutomaticThreadReopen(threadId);
   const store = useAppStore.getState();
   const thread = store.threads.find((item) => item.id === threadId);
@@ -1024,13 +1028,7 @@ export function reopenPaneThreadsIfInactive(): void {
   const store = useAppStore.getState();
   if (store.view.kind !== "thread") return;
   for (const paneId of store.view.panes) {
-    // A thread in its own window is reopened by that window.
-    if (
-      isDraftPaneId(paneId) ||
-      suppressedAutomaticThreadReopens.has(paneId) ||
-      hasOwnWindow(paneId)
-    )
-      continue;
+    if (isDraftPaneId(paneId) || suppressedAutomaticThreadReopens.has(paneId)) continue;
     const thread = store.threads.find((t) => t.id === paneId);
     if (!thread || thread.status !== "inactive") continue;
     reopenStoredThread(thread.id);

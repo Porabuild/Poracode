@@ -64,7 +64,7 @@ function ThreadWindowBody({ entry }: { entry: ThreadWindowBootstrap }) {
   useEffect(() => {
     document.title = title || entry.title;
   }, [title, entry.title]);
-  useCloseWhenThreadLeaves(thread, restore.error !== undefined);
+  useCloseWhenThreadLeaves(entry.threadId, thread, restore.error !== undefined);
   const started = useRef(false);
   useEffect(() => {
     if (!thread || started.current) return;

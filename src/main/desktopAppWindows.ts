@@ -143,9 +143,13 @@ export function ensureMainWindow(
   return desktopApp.mainWindow;
 }
 
-export function openThreadFromTray(threadId: string): void {
+/**
+ * Shows a thread in the main window once its renderer is ready. Attach mode
+ * passes its ephemeral shell state for recreating a closed main window.
+ */
+export function openThreadFromTray(threadId: string, stateOverride?: ShellStateStore): void {
   desktopApp.pendingTrayThreadId = threadId;
-  showAndFocusWindow(ensureMainWindow());
+  showAndFocusWindow(ensureMainWindow(true, stateOverride));
   flushTrayThreadOpen();
 }
 

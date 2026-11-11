@@ -11,6 +11,8 @@ import { showAndFocusWindow } from "./showAndFocusWindow";
 // One live window per thread. The main window shows a placeholder for every
 // thread listed here, so a thread never renders live in two windows at once.
 const threadWindows = new Map<BrowserWindow, ThreadWindowBootstrap>();
+// Windows closed by Archive, Done or Delete: their thread does not come back.
+const dismissedWindows = new WeakSet<BrowserWindow>();
 export function isThreadWindow(window: BrowserWindow): boolean {
   return threadWindows.has(window);
 }
@@ -27,8 +29,13 @@ export function findThreadWindow(threadId: string): BrowserWindow | undefined {
 export function registerThreadWindowIpc(deps: {
   getMainWindow: () => BrowserWindow | null;
   createWindow: (bootstrap: ThreadWindowBootstrap) => BrowserWindow;
-  /** Shows a returned thread in the main window once its renderer is ready. */
-  showThreadInMain?: (threadId: string) => void;
+  /**
+   * Shows a thread whose window closed in the main window. Queues until the
+   * main renderer is ready and recreates the main window when there is none.
+   */
+  showThreadInMain: (threadId: string) => void;
+  /** Windows closing because the app quits keep their thread where it is. */
+  isQuitting: () => boolean;
 }): void {
   const ids = () => [...threadWindows.values()].map((entry) => entry.threadId);
   const liveMain = () => {
@@ -65,9 +72,15 @@ export function registerThreadWindowIpc(deps: {
     }
     const window = deps.createWindow(bootstrap);
     threadWindows.set(window, bootstrap);
+    // However the window closes (its own controls, Bring back, a shortcut),
+    // the thread returns to the main window once it is really gone: its
+    // renderer has flushed the draft on unload and main has been told first
+    // that the thread no longer has a window.
     window.once("closed", () => {
       threadWindows.delete(window);
       publish();
+      if (!dismissedWindows.has(window) && !deps.isQuitting())
+        deps.showThreadInMain(bootstrap.threadId);
     });
     publish();
   });
@@ -79,17 +92,10 @@ export function registerThreadWindowIpc(deps: {
       const options = threadWindowCloseOptionsSchema.parse(rawOptions);
       if (owner !== deps.getMainWindow() && threadWindows.get(owner)?.threadId !== threadId)
         throw new Error("A thread window can only close itself");
-      findThreadWindow(threadId)?.close();
-      if (options?.returnToMain === false) return;
-      // Main may have navigated away from the placeholder; show the thread again.
-      if (deps.showThreadInMain) {
-        deps.showThreadInMain(threadId);
-        return;
-      }
-      const main = liveMain();
-      if (!main) return;
-      main.webContents.send(IPC_EVENT_CHANNELS.threadOpenRequested, { threadId });
-      showAndFocusWindow(main);
+      const window = findThreadWindow(threadId);
+      if (!window) return;
+      if (options?.returnToMain === false) dismissedWindows.add(window);
+      window.close();
     },
   );
   ipcMain.handle(IPC_WINDOW_CHANNELS.threadWindowInfo, (event) => {

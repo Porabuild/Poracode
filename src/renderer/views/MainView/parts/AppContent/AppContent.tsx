@@ -379,7 +379,7 @@ export function AppContent() {
           }
         />
       ) : ownWindowThreadIds.has(paneId) ? (
-        <ThreadWindowPlaceholder threadId={paneId} />
+        <ThreadWindowPlaceholder threadId={paneId} onClose={() => closePane(paneId)} />
       ) : (
         <ThreadPane
           threadId={paneId}

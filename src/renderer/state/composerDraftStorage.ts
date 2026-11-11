@@ -441,6 +441,8 @@ export function createComposerDraftStorage(storage: Storage, lifecycle: Window) 
     },
     flush,
     flushRequired,
+    /** Writes one queued draft now rather than after the checkpoint delay. */
+    flushDraft: (kind: DraftKind, id: string) => flushScope(kind, id),
     canReclaimAssets,
     referencedAssets,
     async recoverJournals() {

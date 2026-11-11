@@ -81,6 +81,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     createWindow: createThreadAppWindow,
     // Waits for the main renderer, which may be reloading when a thread returns.
     showThreadInMain: openThreadFromTray,
+    isQuitting: () => desktopApp.isQuitting,
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {
     const overlay = quickComposerWindowFor(event);

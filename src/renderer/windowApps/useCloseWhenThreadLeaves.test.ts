@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { Thread } from "@/shared/contracts";
+
+const dismissThreadWindow = vi.hoisted(() => vi.fn<(threadId: string) => void>());
+vi.mock("@/renderer/actions/threadWindowActions", () => ({ dismissThreadWindow }));
 import { useCloseWhenThreadLeaves } from "./useCloseWhenThreadLeaves";
 
 function makeThread(patch: Partial<Thread> = {}): Thread {
@@ -22,18 +25,19 @@ function makeThread(patch: Partial<Thread> = {}): Thread {
   };
 }
 
+// The window closes through Dismiss, so the thread does not come back to the
+// main window after Archive, Done or Delete.
 function renderWindow(thread: Thread | undefined, restoreFailed = false) {
-  const close = vi.spyOn(window, "close").mockImplementation(() => undefined);
   const hook = renderHook(
     (props: { thread: Thread | undefined; restoreFailed: boolean }) =>
-      useCloseWhenThreadLeaves(props.thread, props.restoreFailed),
+      useCloseWhenThreadLeaves("thread-1", props.thread, props.restoreFailed),
     { initialProps: { thread, restoreFailed } },
   );
-  return { close, rerender: hook.rerender };
+  return { close: dismissThreadWindow, rerender: hook.rerender };
 }
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  dismissThreadWindow.mockReset();
 });
 
 describe("useCloseWhenThreadLeaves", () => {
@@ -46,7 +50,7 @@ describe("useCloseWhenThreadLeaves", () => {
 
     rerender({ thread: makeThread(patch), restoreFailed: false });
 
-    expect(close).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledExactlyOnceWith("thread-1");
   });
 
   it("waits for a failed restore before closing for a missing thread", () => {

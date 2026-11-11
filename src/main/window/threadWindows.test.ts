@@ -22,7 +22,8 @@ vi.mock("electron", () => ({
 }));
 import { getThreadWindows, isThreadWindow, registerThreadWindowIpc } from "./threadWindows";
 
-function fakeWindow() {
+/** `closeLater`: like Electron, `close()` only starts closing; `closed` comes later. */
+function fakeWindow(options: { closeLater?: boolean } = {}) {
   const window = Object.assign(new EventEmitter(), {
     isDestroyed: () => false,
     isMinimized: () => false,
@@ -30,7 +31,9 @@ function fakeWindow() {
     restore: () => {},
     show: () => {},
     focus: vi.fn<() => void>(),
-    close: () => window.emit("closed"),
+    close: vi.fn<() => void>(() => {
+      if (!options.closeLater) window.emit("closed");
+    }),
     webContents: { send: vi.fn<(channel: string, payload: unknown) => void>() },
   });
   const sender = {};
@@ -41,6 +44,9 @@ function fakeWindow() {
 let main: ReturnType<typeof fakeWindow>;
 let created: ReturnType<typeof fakeWindow>[];
 let createWindow: ReturnType<typeof vi.fn<(input: ThreadWindowBootstrap) => BrowserWindow>>;
+let closeLater: boolean;
+let quitting: boolean;
+let showThreadInMain: ReturnType<typeof vi.fn<(threadId: string) => void>>;
 function invoke(channel: string, sender: object, input?: unknown, options?: unknown) {
   return harness.handlers.get(channel)!({ sender }, input, options);
 }
@@ -50,14 +56,19 @@ function open(threadId: string, sender: object = main.sender) {
 beforeEach(() => {
   main = fakeWindow();
   created = [];
+  closeLater = false;
+  quitting = false;
+  showThreadInMain = vi.fn<(threadId: string) => void>();
   createWindow = vi.fn<(input: ThreadWindowBootstrap) => BrowserWindow>(() => {
-    const next = fakeWindow();
+    const next = fakeWindow({ closeLater });
     created.push(next);
     return next.window as unknown as BrowserWindow;
   });
   registerThreadWindowIpc({
     getMainWindow: () => main.window as unknown as BrowserWindow,
     createWindow,
+    showThreadInMain,
+    isQuitting: () => quitting,
   });
 });
 afterEach(() => {
@@ -118,43 +129,67 @@ describe("thread windows", () => {
     );
     invoke(IPC_WINDOW_CHANNELS.threadWindowClose, first!.sender, "thread-a");
     expect(invoke(IPC_WINDOW_CHANNELS.threadWindowIds, main.sender)).toEqual(["thread-b"]);
-    expect(main.window.webContents.send).toHaveBeenCalledWith(
-      IPC_EVENT_CHANNELS.threadOpenRequested,
-      { threadId: "thread-a" },
-    );
-    expect(main.window.focus).toHaveBeenCalledTimes(1);
+    expect(showThreadInMain).toHaveBeenCalledExactlyOnceWith("thread-a");
     invoke(IPC_WINDOW_CHANNELS.threadWindowClose, main.sender, "thread-b");
     expect(invoke(IPC_WINDOW_CHANNELS.threadWindowIds, main.sender)).toEqual([]);
+    expect(showThreadInMain).toHaveBeenLastCalledWith("thread-b");
     expect(isThreadWindow(second!.window as unknown as BrowserWindow)).toBe(false);
   });
 
-  it("hands a returned thread to the main window's ready queue when one is provided", () => {
-    const showThreadInMain = vi.fn<(threadId: string) => void>();
-    registerThreadWindowIpc({
-      getMainWindow: () => main.window as unknown as BrowserWindow,
-      createWindow,
-      showThreadInMain,
-    });
+  it("returns the thread when its window is closed with the window controls", () => {
+    const order: string[] = [];
+    main.window.webContents.send.mockImplementation((channel) => order.push(channel));
+    showThreadInMain.mockImplementation((threadId) => order.push(`show:${threadId}`));
     open("thread-a");
+    order.length = 0;
+
+    // The title-bar close button never goes through the close channel.
+    created[0]!.window.emit("closed");
+
+    expect(order).toEqual([IPC_EVENT_CHANNELS.threadWindowsChanged, "show:thread-a"]);
+  });
+
+  it("returns the thread only after its window has really closed", () => {
+    closeLater = true;
+    const order: string[] = [];
+    main.window.webContents.send.mockImplementation((channel) => order.push(channel));
+    showThreadInMain.mockImplementation((threadId) => order.push(`show:${threadId}`));
+    open("thread-a");
+    order.length = 0;
+
     invoke(IPC_WINDOW_CHANNELS.threadWindowClose, created[0]!.sender, "thread-a");
-    expect(showThreadInMain).toHaveBeenCalledExactlyOnceWith("thread-a");
-    expect(main.window.webContents.send).not.toHaveBeenCalledWith(
-      IPC_EVENT_CHANNELS.threadOpenRequested,
-      expect.anything(),
-    );
+    // Its renderer is still unloading and may still be writing the draft.
+    expect(created[0]!.window.close).toHaveBeenCalledOnce();
+    expect(showThreadInMain).not.toHaveBeenCalled();
+    expect(invoke(IPC_WINDOW_CHANNELS.threadWindowIds, main.sender)).toEqual(["thread-a"]);
+
+    created[0]!.window.emit("closed");
+    expect(order).toEqual([IPC_EVENT_CHANNELS.threadWindowsChanged, "show:thread-a"]);
+  });
+
+  it("keeps threads in place when their windows close because the app quits", () => {
+    open("thread-a");
+    open("thread-b");
+    quitting = true;
+    for (const entry of created) entry.window.emit("closed");
+    expect(invoke(IPC_WINDOW_CHANNELS.threadWindowIds, main.sender)).toEqual([]);
+    expect(showThreadInMain).not.toHaveBeenCalled();
   });
 
   it("closes a deleted thread's window without bringing the main window forward", () => {
+    closeLater = true;
     open("thread-a");
+    open("thread-b");
     invoke(IPC_WINDOW_CHANNELS.threadWindowClose, main.sender, "thread-a", {
       returnToMain: false,
     });
-    expect(invoke(IPC_WINDOW_CHANNELS.threadWindowIds, main.sender)).toEqual([]);
-    expect(main.window.webContents.send).not.toHaveBeenCalledWith(
-      IPC_EVENT_CHANNELS.threadOpenRequested,
-      expect.anything(),
-    );
+    created[0]!.window.emit("closed");
+    expect(invoke(IPC_WINDOW_CHANNELS.threadWindowIds, main.sender)).toEqual(["thread-b"]);
+    expect(showThreadInMain).not.toHaveBeenCalled();
     expect(main.window.focus).not.toHaveBeenCalled();
+    // Dismissing one window leaves the others returning as usual.
+    created[1]!.window.emit("closed");
+    expect(showThreadInMain).toHaveBeenCalledExactlyOnceWith("thread-b");
     expect(() =>
       invoke(IPC_WINDOW_CHANNELS.threadWindowClose, main.sender, "thread-a", { returnToMain: 1 }),
     ).toThrow("expected boolean");
