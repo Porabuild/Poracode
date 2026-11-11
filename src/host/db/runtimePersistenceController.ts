@@ -8,6 +8,8 @@ import type {
 import {
   RuntimeWriteQueue,
   DEFAULT_RUNTIME_FLUSH_CHUNK,
+  type RuntimeAsyncAtomicBatchWriter,
+  type RuntimeAsyncWriteFlush,
   type RuntimeBudgetedFlushResult,
   type RuntimeFlushChunkBounds,
   type RuntimeQueueBounds,
@@ -95,6 +97,16 @@ export interface RuntimePersistenceControllerOptions {
   write: RuntimeWriteFlush;
   /** Optional outer-commit capability for bounded scheduled groups; fences stay single-thread. */
   atomicBatchWriter?: RuntimeAtomicBatchWriter;
+  /**
+   * Optional worker-offloaded async writer provider. When it returns active
+   * writers, scheduled flushes and async fences/mutations commit on the
+   * dedicated SQLite writer worker thread so `backendHost`'s event loop stays
+   * completely unblocked during multi-agent bursts.
+   */
+  resolveAsyncWriters?: () => {
+    readonly writeAsync: RuntimeAsyncWriteFlush;
+    readonly atomicBatchWriterAsync: RuntimeAsyncAtomicBatchWriter;
+  } | null;
   bounds?: Partial<RuntimeQueueBounds>;
   /**
    * Commit pending events synchronously before a count/byte bound refuses
@@ -188,6 +200,8 @@ export class RuntimePersistenceController {
 
   private timer: ReturnType<typeof setTimeout> | undefined;
   private immediate: ReturnType<typeof setImmediate> | undefined;
+  private asyncFlushInFlight = false;
+  private readonly asyncChunkThreadsInFlight = new Set<string>();
   private readonly admission: RuntimePersistenceAdmission;
   private readonly durableGap: RuntimeDurableGapCoordinator;
   private durableGapReserveLatchReported = false;
@@ -253,6 +267,23 @@ export class RuntimePersistenceController {
         setPin: (threadId, through) => this.queue.setPin(threadId, through),
         flushChunk: (threadId, through) =>
           this.queue.flushThreadThrough(threadId, through, this.options.fenceFlushChunk),
+        flushChunkAsync: async (threadId, through) => {
+          const asyncWriters = this.options.resolveAsyncWriters?.();
+          if (!asyncWriters) {
+            return this.queue.flushThreadThrough(threadId, through, this.options.fenceFlushChunk);
+          }
+          this.asyncChunkThreadsInFlight.add(threadId);
+          try {
+            return await this.queue.flushThreadThroughAsync(
+              threadId,
+              through,
+              asyncWriters.writeAsync,
+              this.options.fenceFlushChunk,
+            );
+          } finally {
+            this.asyncChunkThreadsInFlight.delete(threadId);
+          }
+        },
         contamination: (threadId) => this.admission.getContamination(threadId),
         onChunkCommitted: (elapsedMs) => this.health.recordDuration(elapsedMs),
         onFlushFailure: (error, threadId) => this.applyFlushFailure(error, threadId),
@@ -1092,6 +1123,8 @@ export class RuntimePersistenceController {
    */
   resetForNewConnection(): void {
     this.stopTimers();
+    this.asyncFlushInFlight = false;
+    this.asyncChunkThreadsInFlight.clear();
     this.queue.clear();
     this.fenceControl.cancelActiveFences();
     this.fenceControl.clearControlOperations();
@@ -1169,6 +1202,53 @@ export class RuntimePersistenceController {
     if (!this.queue.hasPending()) {
       this.health.evaluateWatermarks();
       this.scheduleFlush(this.options.flushIntervalMs);
+      return;
+    }
+
+    const asyncWriters = this.options.resolveAsyncWriters?.();
+    if (asyncWriters) {
+      if (this.asyncFlushInFlight) return;
+      this.asyncFlushInFlight = true;
+      void this.queue
+        .flushBudgetedAsync(
+          {
+            maxThreads: FLUSH_MAX_THREADS,
+            maxBytes: FLUSH_MAX_BYTES,
+            maxMs: FLUSH_MAX_MS,
+            now: this.options.now,
+            ...(this.asyncChunkThreadsInFlight.size > 0
+              ? { excludeThreadIds: new Set(this.asyncChunkThreadsInFlight) }
+              : {}),
+          },
+          asyncWriters,
+        )
+        .then((result) => {
+          this.asyncFlushInFlight = false;
+          if (this.health.isAdmissionClosed()) return;
+          const failed = this.recordBudgetedResult(result, true);
+          if (failed) return;
+          if (result.remainingThreads > 0 && result.flushedThreads > 0) {
+            if (
+              this.fenceControl.waiterCount() > 0 ||
+              this.queue.forceFlushThreadIds().length > 0
+            ) {
+              this.scheduleImmediateFlush();
+            } else {
+              this.scheduleFlush(0, true);
+            }
+            return;
+          }
+          if (result.flushedThreads === 0) {
+            this.scheduleFlush(this.options.flushIntervalMs);
+            return;
+          }
+          this.health.evaluateWatermarks();
+          this.scheduleFlush(
+            this.queue.hasPending()
+              ? this.health.currentRetryDelayMs()
+              : this.options.flushIntervalMs,
+          );
+        });
       return;
     }
 

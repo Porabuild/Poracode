@@ -38,6 +38,7 @@ export interface RuntimeFenceControlHost {
   pendingBytes(threadId: string): number;
   setPin(threadId: string, through: number | null): void;
   flushChunk(threadId: string, through: number): RuntimeFlushOutcome;
+  flushChunkAsync?(threadId: string, through: number): Promise<RuntimeFlushOutcome>;
   contamination(threadId: string): {
     reason: RuntimeContaminationReason;
     refusedEvents: number;
@@ -187,7 +188,9 @@ export class RuntimeFenceControl {
           };
         }
         const started = host.now();
-        const outcome = host.flushChunk(token.threadId, token.throughPersistSeq);
+        const outcome = host.flushChunkAsync
+          ? await host.flushChunkAsync(token.threadId, token.throughPersistSeq)
+          : host.flushChunk(token.threadId, token.throughPersistSeq);
         host.onChunkCommitted(host.now() - started);
         if (outcome.kind === "failed") {
           const errorClass = host.onFlushFailure(outcome.error, token.threadId);
@@ -367,7 +370,9 @@ export class RuntimeFenceControl {
       if (contamination)
         throw contaminationError(threadId, contamination, host.retryAfterMs("storage"));
       const started = host.now();
-      const outcome = host.flushChunk(threadId, Number.MAX_SAFE_INTEGER);
+      const outcome = host.flushChunkAsync
+        ? await host.flushChunkAsync(threadId, Number.MAX_SAFE_INTEGER)
+        : host.flushChunk(threadId, Number.MAX_SAFE_INTEGER);
       host.onChunkCommitted(host.now() - started);
       if (outcome.kind === "failed") {
         const errorClass = host.onFlushFailure(outcome.error, threadId);

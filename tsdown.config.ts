@@ -162,6 +162,7 @@ export default defineConfig(
       entry: {
         server: "src/server/cli.ts",
         databaseReadWorker: "src/host/db/databaseReadWorker.ts",
+        databaseWriteWorker: "src/host/db/databaseWriteWorker.ts",
         sessionExportWorker: "src/server/sessionExportWorker.ts",
       },
       clean: false,

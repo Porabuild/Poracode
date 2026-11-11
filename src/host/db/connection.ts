@@ -366,6 +366,11 @@ export function initDatabase(
   return sqlite;
 }
 
+/** Worker-only attach of a pre-validated writable SQLite connection. */
+export function attachEditableDatabaseHandle(sqlite: InstanceType<typeof Database>): void {
+  _sqlite = sqlite;
+}
+
 /** better-sqlite3 handle; every DB module issues prepared statements against it. */
 export function getSqlite(): InstanceType<typeof Database> {
   if (!_sqlite) throw new Error("Database not initialized");

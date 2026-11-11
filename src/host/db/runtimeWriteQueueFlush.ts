@@ -287,3 +287,150 @@ export function flushRuntimeQueueBudgeted(
   result.elapsedMs = now() - startedAt;
   return result;
 }
+
+export type RuntimeAsyncWriteFlush = (
+  threadId: string,
+  events: readonly RuntimeEvent[],
+) => Promise<void>;
+
+export type RuntimeAsyncAtomicBatchWriter = (
+  batches: readonly RuntimeWriteBatch[],
+) => Promise<
+  | { readonly kind: "committed" }
+  | { readonly kind: "rolled-back"; readonly error: unknown }
+  | { readonly kind: "thrown"; readonly error: unknown }
+>;
+
+export interface AsyncFlushHost {
+  pending: ReadonlyMap<string, PendingRuntimeThread>;
+  pins: ReadonlyMap<string, number>;
+  writeAsync: RuntimeAsyncWriteFlush;
+  atomicBatchWriterAsync: RuntimeAsyncAtomicBatchWriter;
+  recovery: RuntimeFlushRecovery;
+  isPlanCurrent(plan: RuntimeFlushPlan): boolean;
+  acknowledge(plan: RuntimeFlushPlan): void;
+}
+
+export async function flushRuntimeQueueBudgetedAsync(
+  host: AsyncFlushHost,
+  options: RuntimeBudgetedFlushOptions,
+): Promise<RuntimeBudgetedFlushResult> {
+  const now = options.now ?? Date.now;
+  const startedAt = now();
+  const result: RuntimeBudgetedFlushResult = {
+    flushedThreads: 0,
+    committedEvents: 0,
+    committedBytes: 0,
+    failure: null,
+    remainingThreads: host.pending.size,
+    elapsedMs: 0,
+  };
+  const order = [...host.pending].sort((a, b) => a[1].firstEnqueuedAt - b[1].firstEnqueuedAt);
+  const acknowledge = (plan: RuntimeFlushPlan) => {
+    if (host.isPlanCurrent(plan)) {
+      host.acknowledge(plan);
+    }
+    result.flushedThreads += 1;
+    result.committedEvents += plan.eventCount;
+    result.committedBytes += plan.inputBytes;
+  };
+  const writeSingle = async (plan: RuntimeFlushPlan): Promise<boolean> => {
+    if (!host.isPlanCurrent(plan)) return true;
+    try {
+      await host.writeAsync(plan.threadId, plan.events);
+    } catch (error) {
+      result.failure = { threadId: plan.threadId, error };
+      return false;
+    }
+    acknowledge(plan);
+    return true;
+  };
+  const requestedChunk = options.chunk ?? DEFAULT_RUNTIME_FLUSH_CHUNK;
+
+  if (host.recovery.retryIndividually) {
+    for (const [threadId, entry] of order) {
+      if (result.flushedThreads >= options.maxThreads || result.committedBytes >= options.maxBytes)
+        break;
+      try {
+        const plan = planRuntimeFlush(
+          threadId,
+          entry,
+          host.pins.get(threadId) ?? Number.MAX_SAFE_INTEGER,
+          requestedChunk,
+        );
+        if (plan && !(await writeSingle(plan))) break;
+      } catch (error) {
+        result.failure = { threadId, error };
+        break;
+      }
+    }
+    if (result.flushedThreads > 0 && !result.failure) host.recovery.retryIndividually = false;
+  } else {
+    const plans: RuntimeFlushPlan[] = [];
+    const maxThreads = Math.min(options.maxThreads, ATOMIC_MAX_THREADS);
+    const maxBytes = Math.min(options.maxBytes, ATOMIC_MAX_BYTES);
+    const chunk = {
+      maxEvents: Math.min(requestedChunk.maxEvents, DEFAULT_RUNTIME_FLUSH_CHUNK.maxEvents),
+      maxBytes: Math.min(requestedChunk.maxBytes, DEFAULT_RUNTIME_FLUSH_CHUNK.maxBytes, maxBytes),
+    };
+    let normalBytes = 0;
+    let oversizeBytes = 0;
+    for (const [threadId, entry] of order) {
+      if (plans.length >= maxThreads || normalBytes >= maxBytes) break;
+      try {
+        const plan = planRuntimeFlush(
+          threadId,
+          entry,
+          host.pins.get(threadId) ?? Number.MAX_SAFE_INTEGER,
+          {
+            maxEvents: chunk.maxEvents,
+            maxBytes: Math.min(chunk.maxBytes, maxBytes - normalBytes),
+          },
+        );
+        if (!plan) continue;
+        if (plan.inputBytes > chunk.maxBytes) {
+          if (oversizeBytes > 0) break;
+          oversizeBytes = plan.inputBytes;
+        } else {
+          if (normalBytes + plan.inputBytes > maxBytes) break;
+          normalBytes += plan.inputBytes;
+        }
+        plans.push(plan);
+      } catch (error) {
+        result.failure = { threadId, error };
+        break;
+      }
+    }
+    if (plans.length === 1) {
+      await writeSingle(plans[0]!);
+    } else if (plans.length > 1) {
+      const currentPlans = plans.filter((plan) => host.isPlanCurrent(plan));
+      if (currentPlans.length === 1) {
+        await writeSingle(currentPlans[0]!);
+      } else if (currentPlans.length > 1) {
+        try {
+          const outcome = await host.atomicBatchWriterAsync(currentPlans);
+          if (outcome.kind === "committed") {
+            for (const plan of currentPlans) acknowledge(plan);
+          } else if (outcome.kind === "rolled-back") {
+            result.failure = { threadId: currentPlans[0]!.threadId, error: outcome.error };
+            host.recovery.retryIndividually = true;
+            for (const plan of currentPlans) {
+              if (!(await writeSingle(plan))) break;
+            }
+            if (result.flushedThreads === currentPlans.length) {
+              host.recovery.retryIndividually = false;
+            }
+          } else {
+            result.failure = { threadId: currentPlans[0]!.threadId, error: outcome.error };
+          }
+        } catch (error) {
+          result.failure = { threadId: currentPlans[0]!.threadId, error };
+        }
+      }
+    }
+  }
+  result.remainingThreads = host.pending.size;
+  result.elapsedMs = now() - startedAt;
+  return result;
+}

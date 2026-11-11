@@ -32,6 +32,7 @@ import {
   applyRuntimeEventBatchesNow,
   resetRuntimeItemsWriterCache,
 } from "./runtimeItemsWriter";
+import { getAsyncDatabaseWrites, releaseAsyncDatabaseWritesSync } from "./asyncWrites";
 import {
   RuntimePersistenceDrainIncompleteError,
   type RuntimeAdmission,
@@ -87,6 +88,14 @@ export const runtimePersistenceController = new RuntimePersistenceController({
   onAuthoritativeHistoryChanged: noteRuntimeHistoryMutation,
   write: (threadId, events) => applyThreadRuntimeEventsNow(threadId, events),
   atomicBatchWriter: applyRuntimeEventBatchesNow,
+  resolveAsyncWriters: () => {
+    const asyncWrites = getAsyncDatabaseWrites();
+    if (!asyncWrites) return null;
+    return {
+      writeAsync: (threadId, events) => asyncWrites.writeSingle(threadId, events),
+      atomicBatchWriterAsync: (batches) => asyncWrites.writeBatches(batches),
+    };
+  },
   onSignal: (signal) => notifyHealthListeners((listener) => listener.onSignal?.(signal)),
   onStateChange: (info) => notifyHealthListeners((listener) => listener.onStateChange?.(info)),
   onThreadAccessAvailable: (threadId) =>
@@ -134,6 +143,7 @@ function bindCurrentConnection(): void {
 }
 
 registerBeforeDatabaseClose(() => {
+  releaseAsyncDatabaseWritesSync();
   const report = runtimePersistenceController.shutdown();
   if (report.kind === "incomplete") {
     lastShutdownReport = report;

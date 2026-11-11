@@ -1,9 +1,11 @@
+import { dirname, join } from "node:path";
 import { retirePendingThreadState } from "@/host/remote/server/pendingInterruptedTurns";
 import {
   closeAsyncDatabaseReads,
   enableAsyncDatabaseReads,
   warmAsyncDatabaseReads,
 } from "@/host/db/asyncReads";
+import { closeAsyncDatabaseWrites, enableAsyncDatabaseWrites } from "@/host/db/asyncWrites";
 import {
   closeDatabase,
   dbGetThread,
@@ -130,6 +132,8 @@ export interface BackendHostCoreOptions {
   dbPath: string;
   /** Packaged read-only worker; direct/offline database harnesses omit it. */
   databaseReadWorkerPath?: string;
+  /** Packaged SQLite runtime-write worker; defaults beside `databaseReadWorkerPath`. */
+  databaseWriteWorkerPath?: string;
   databaseReadImagePreviews?: boolean;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
@@ -217,6 +221,16 @@ export class BackendHostCore {
         );
         // Clients load projects and threads right after the host starts.
         warmAsyncDatabaseReads();
+      }
+      if (options.databaseSchemaMode !== "validate") {
+        const writeWorkerPath =
+          options.databaseWriteWorkerPath ??
+          (options.databaseReadWorkerPath
+            ? join(dirname(options.databaseReadWorkerPath), "databaseWriteWorker.cjs")
+            : undefined);
+        if (writeWorkerPath) {
+          enableAsyncDatabaseWrites(options.dbPath, writeWorkerPath);
+        }
       }
       this.preparedDatabaseWriteAdmission = capturePreparedDatabaseWriteAdmission(
         database,
@@ -999,6 +1013,7 @@ export class BackendHostCore {
       this.canonicalAdmissionControl?.retireOwner();
       await Promise.all(continuations);
       await delegatedRecoveryDisposal;
+      await closeAsyncDatabaseWrites();
       await closeAsyncDatabaseReads();
       this.supervisorJoined = true;
     })();
