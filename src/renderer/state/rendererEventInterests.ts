@@ -45,6 +45,15 @@ export interface RendererEventInterestLease {
 }
 
 const RELEASE_GRACE_MS = 250;
+/**
+ * Bounded data-only wire-interest LRU for recently visited hydrated threads.
+ * Keeping up to 4 inactive recent threads subscribed on the wire (Zustand data
+ * only — zero mounted DOM/GPU panes) means switching back and forth between
+ * active threads preserves `continuous === true` and avoids round-tripping
+ * `/api/threads/:id/history` or blocking the live queue under backend load.
+ */
+export const MAX_RECENT_RUNTIME_WIRE_INTERESTS = 4;
+const recentRuntimeWireLru = new Set<string>();
 const counts: Record<RendererEventInterestKind, Map<string, number>> = {
   terminal: new Map(),
   runtime: new Map(),
@@ -132,10 +141,40 @@ function markRetained(kind: RendererEventInterestKind, threadId: string, count: 
 }
 
 function buildSubscriberSnapshot(): RendererEventInterestSnapshot {
+  const activeRuntimeIds = [...counts.runtime.keys()].reverse();
+  if (recentRuntimeWireLru.size === 0) {
+    return {
+      terminalThreadIds: currentThreadIds("terminal"),
+      runtimeThreadIds: activeRuntimeIds,
+    };
+  }
+  const activeSet = new Set(activeRuntimeIds);
+  const recentIds = [...recentRuntimeWireLru].reverse().filter((id) => !activeSet.has(id));
   return {
     terminalThreadIds: currentThreadIds("terminal"),
-    runtimeThreadIds: [...counts.runtime.keys()].reverse(),
+    runtimeThreadIds: [...activeRuntimeIds, ...recentIds],
   };
+}
+
+/**
+ * Pin a recently visited hydrated thread in the bounded data-only wire-interest
+ * LRU so revisiting it keeps `continuous === true` without an HTTP snapshot read.
+ */
+export function rememberRecentRuntimeWireInterest(threadId: string): void {
+  recentRuntimeWireLru.delete(threadId);
+  recentRuntimeWireLru.add(threadId);
+  while (recentRuntimeWireLru.size > MAX_RECENT_RUNTIME_WIRE_INTERESTS) {
+    const oldest = recentRuntimeWireLru.values().next().value;
+    if (oldest === undefined) break;
+    recentRuntimeWireLru.delete(oldest);
+  }
+  void publishInterests();
+}
+
+/** Drop a thread from the recent wire-interest LRU when its cached transcript is evicted/closed. */
+export function forgetRecentRuntimeWireInterest(threadId: string): void {
+  if (!recentRuntimeWireLru.delete(threadId)) return;
+  void publishInterests(true);
 }
 
 function publishInterests(deferToNextTask = false): Promise<void> {
@@ -265,8 +304,15 @@ export function retainRendererEventInterest(
   const entries = counts[kind];
   const releaseTimers = pendingReleases[kind];
   const pendingRelease = releaseTimers.get(threadId);
-  const handOffContinuous = pendingRelease !== undefined || (entries.get(threadId) ?? 0) > 0;
+  const handOffContinuous =
+    pendingRelease !== undefined ||
+    (entries.get(threadId) ?? 0) > 0 ||
+    (kind === "runtime" && recentRuntimeWireLru.has(threadId));
   const alreadyMostRecent = lastRetainedId(kind) === threadId;
+  if (kind === "runtime" && recentRuntimeWireLru.has(threadId)) {
+    recentRuntimeWireLru.delete(threadId);
+    recentRuntimeWireLru.add(threadId);
+  }
   if (pendingRelease !== undefined) {
     clearTimeout(pendingRelease);
     releaseTimers.delete(threadId);
@@ -316,6 +362,7 @@ export function __resetRendererEventInterestsForTest(): void {
     pendingReleases[kind].clear();
     counts[kind].clear();
   }
+  recentRuntimeWireLru.clear();
   subscribers.clear();
   wireCoveredRuntimeIds.clear();
   lastNotifiedSnapshot = null;

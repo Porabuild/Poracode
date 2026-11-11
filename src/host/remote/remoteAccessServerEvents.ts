@@ -264,6 +264,17 @@ export function batchThreadIdsForMembershipEvents(
   return batches;
 }
 
+function isEmptyRuntimeEventEnvelope(event: RemoteBroadcastEvent): boolean {
+  switch (event.type) {
+    case "thread-runtime-events":
+      return event.events.length === 0;
+    case "thread-runtime-events-multi":
+      return event.batches.every((batch) => batch.events.length === 0);
+    default:
+      return false;
+  }
+}
+
 /** The unbatched publish path: listeners, replay buffer, live fan-out. */
 function publishAppliedSupervisorEventNow(
   host: RemoteAccessServerHost,
@@ -359,6 +370,15 @@ function publishAppliedSupervisorEventNow(
     for (const client of host.clients.keys()) {
       if (host.replayingClients.has(client)) continue;
       const scoped = scopeEventForClient(host, capped.event, client);
+      // Desktop-internal loopback sessions connect live-only (no replay cursor
+      // contiguity check on live frames; `PreloadIpcTransport` only requires
+      // monotonic `seq > lastBySpace`, and non-wire-covered threads already
+      // mark `coverageLost` in `historyResumeRegistry`). Suppressing empty
+      // content-omitted envelopes avoids flooding the renderer's loopback WS
+      // and worker decode queue on every 16ms background token delta.
+      if (host.desktopInternalClients.has(client) && isEmptyRuntimeEventEnvelope(scoped)) {
+        continue;
+      }
       if (runtimeFrames) {
         const frame = runtimeFrames.frameFor(scoped);
         sendRaw(host, client, frame.data, undefined, frame.byteLength);

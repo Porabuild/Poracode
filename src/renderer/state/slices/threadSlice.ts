@@ -31,6 +31,7 @@ import { recordThreadStarted } from "../usageRecorder";
 import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { forgetRecentRuntimeWireInterest } from "../rendererEventInterests";
 import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import {
@@ -530,6 +531,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
     set((state) => {
       composerDraftStorage()?.remove("thread", threadId);
       clearRuntimeStructuralChangeHint(threadId);
+      forgetRecentRuntimeWireInterest(threadId);
       forgetTimelineMeasurements(threadId);
       forgetThreadGalleryCache(threadId);
       confirmPendingThreadInput(threadId);
@@ -981,6 +983,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
       }
 
       // Archived threads leave the cache so their terminal disposes.
+      forgetRecentRuntimeWireInterest(threadId);
       const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
       return { threads, view: nextView, keepAlivePaneIds };
     }),

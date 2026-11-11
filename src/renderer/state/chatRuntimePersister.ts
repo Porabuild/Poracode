@@ -40,6 +40,10 @@ import {
   MAX_INACTIVE_THREAD_ESTIMATED_BYTES,
   selectInactiveRuntimeEvictions,
 } from "./inactiveRuntimeRetention";
+import {
+  forgetRecentRuntimeWireInterest,
+  rememberRecentRuntimeWireInterest,
+} from "./rendererEventInterests";
 
 export { compactRuntimeItemsForHydration } from "./runtimeHistoryCompaction";
 
@@ -269,6 +273,9 @@ export function releaseThreadRuntimeItems(threadId: string): void {
   cancelPendingControlAlignment(threadId);
   inactiveThreadRuntimeLru.delete(threadId);
   inactiveThreadRuntimeLru.add(threadId);
+  if (hydratedThreadRuntimeIds.has(threadId)) {
+    rememberRecentRuntimeWireInterest(threadId);
+  }
   evictOversizedInactiveThreadRuntimeItems([threadId]);
 }
 
@@ -814,6 +821,7 @@ function evictInactiveThreadRuntimeItems(): void {
 function evictThreadRuntimeItems(threadId: string): void {
   inactiveThreadRuntimeLru.delete(threadId);
   hydratedThreadRuntimeIds.delete(threadId);
+  forgetRecentRuntimeWireInterest(threadId);
 
   // Evicting the cached window does not retire its reducer recovery owner.
   if (!pendingThreadRuntimeHydrations.get(threadId)?.beforeInstall)
@@ -845,6 +853,7 @@ export function hasPendingThreadRuntimeHydration(threadId: string): boolean {
 export function invalidateThreadRuntimeHydration(threadId: string): void {
   forgetThreadRuntimeWindow(threadId);
   hydratedThreadRuntimeIds.delete(threadId);
+  forgetRecentRuntimeWireInterest(threadId);
 
   // An in-flight older page from before the reset must not prepend across the
   // reset boundary or write back its stale cursor after the fresh read.

@@ -21,6 +21,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { readNativeVisualHostId } from "@/renderer/state/nativeVisualOwner";
 import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import { forgetRecentRuntimeWireInterest } from "@/renderer/state/rendererEventInterests";
 import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { isRuntimeHistoryReadHeld } from "@/renderer/state/runtimeHistoryReadBarrier";
 import { readThreadPromptIndex } from "@/renderer/state/threadPromptIndex";
@@ -537,6 +538,7 @@ export async function unloadStoredThread(
   const inVisiblePane = view.kind === "thread" && view.panes.includes(threadId);
 
   await readBridge().closeThread({ threadId });
+  forgetRecentRuntimeWireInterest(threadId);
   entityHost(thread)?.refreshCatalog();
   startTransition(() => {
     useAppStore.getState().markThreadExited(threadId);
