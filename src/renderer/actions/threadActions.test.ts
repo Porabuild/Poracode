@@ -607,7 +607,7 @@ describe("threadActions", () => {
         const releaseBarrier = holdRuntimeHistoryRead(thread.id);
         try {
           openThread(thread.id);
-          await vi.advanceTimersByTimeAsync(1_000);
+          await vi.advanceTimersByTimeAsync(100);
           expect(useAppStore.getState().view).toEqual({ kind: "home" });
           installPreviewRows(thread.id);
           expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
@@ -672,7 +672,7 @@ describe("threadActions", () => {
     );
 
     it.each([false, true])(
-      "does not reveal resident rows once the read barrier is gone for remote=%s",
+      "does not reveal resident rows before the slow-read threshold once the read barrier is gone for remote=%s",
       async (remote) => {
         vi.useFakeTimers();
         const thread = makeThread({
@@ -686,8 +686,10 @@ describe("threadActions", () => {
         const { ready, prepare } = prepareColdReader();
         try {
           openThread(thread.id);
-          await vi.advanceTimersByTimeAsync(2_000);
+          await vi.advanceTimersByTimeAsync(170);
           expect(useAppStore.getState().view).toEqual({ kind: "home" });
+          await vi.advanceTimersByTimeAsync(15);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
         } finally {
           ready.resolve(false);
           prepare.mockRestore();
@@ -698,7 +700,7 @@ describe("threadActions", () => {
     );
 
     it.each([false, true])(
-      "keeps waiting without cached rows, and ignores rows outside a held read for remote=%s",
+      "keeps waiting during fast window without cached rows, ignores unheld rows, and reveals pane after 180ms for remote=%s",
       async (remote) => {
         vi.useFakeTimers();
         const thread = makeThread({
@@ -712,14 +714,18 @@ describe("threadActions", () => {
         const releaseBarrier = holdRuntimeHistoryRead(thread.id);
         try {
           openThread(thread.id);
-          await vi.advanceTimersByTimeAsync(2_000);
+          await vi.advanceTimersByTimeAsync(80);
           expect(useAppStore.getState().view).toEqual({ kind: "home" });
           // Live rows with no read barrier are an arbitrary partial tail, not a baseline.
           releaseBarrier();
           installPreviewRows(thread.id);
-          await vi.advanceTimersByTimeAsync(2_000);
+          await vi.advanceTimersByTimeAsync(80);
           expect(useAppStore.getState().view).toEqual({ kind: "home" });
           expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+          // Past the 180ms threshold, the pane swaps immediately so slow loads never hang navigation.
+          await vi.advanceTimersByTimeAsync(25);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+          expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
         } finally {
           releaseBarrier();
           ready.resolve(false);

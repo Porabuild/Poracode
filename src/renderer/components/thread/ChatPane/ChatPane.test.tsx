@@ -340,9 +340,10 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
     expect(screen.getByText("No messages yet")).toBeInTheDocument();
 
-    // First read in flight: suppress the empty hint without a loading row.
+    // First read in flight: suppress the empty hint without flashing a loader immediately.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "pending" } });
     await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
+    expect(screen.queryByTestId("chat-delayed-hydration-loader")).not.toBeInTheDocument();
     expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
 
     // Failed reads are reported by the composer, never inside the transcript.
@@ -511,6 +512,31 @@ describe("ChatPane", () => {
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
     },
   );
+
+  it("shows the delayed loading indicator only when hydration exceeds 180ms", () => {
+    vi.useFakeTimers();
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeHydrationStatus: { [thread.id]: "pending" },
+    });
+    try {
+      renderChatPane(thread);
+      expect(screen.queryByTestId("chat-delayed-hydration-loader")).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(175);
+      });
+      expect(screen.queryByTestId("chat-delayed-hydration-loader")).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(10);
+      });
+      expect(screen.getByTestId("chat-delayed-hydration-loader")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it.each([false, true])("reveals measured history immediately for remote=%s", (remote) => {
     const thread: Thread = {

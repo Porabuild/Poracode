@@ -27,6 +27,7 @@ import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalo
 import { useThreadImageAuthority } from "../threadImageAuthority";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
@@ -452,6 +453,25 @@ export function ChatPane(props: ChatPaneProps) {
   ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
+  const canShowDelayedHydrationLoader = isHydrating && !isLive && !isConnecting;
+  const [delayedHydrationLoaderThreadId, setDelayedHydrationLoaderThreadId] = useState<
+    string | null
+  >(null);
+  if (
+    delayedHydrationLoaderThreadId !== null &&
+    (!canShowDelayedHydrationLoader || delayedHydrationLoaderThreadId !== threadId)
+  ) {
+    setDelayedHydrationLoaderThreadId(null);
+  }
+  const showDelayedHydrationLoader =
+    canShowDelayedHydrationLoader && delayedHydrationLoaderThreadId === threadId;
+  useEffect(() => {
+    if (!canShowDelayedHydrationLoader) return;
+    const timer = window.setTimeout(() => {
+      setDelayedHydrationLoaderThreadId(threadId);
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [canShowDelayedHydrationLoader, threadId]);
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -532,7 +552,14 @@ export function ChatPane(props: ChatPaneProps) {
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
-                isEmpty && !showTailLoader && showEmptyHint ? (
+                showDelayedHydrationLoader ? (
+                  <div
+                    className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted"
+                    data-testid="chat-delayed-hydration-loader"
+                  >
+                    <PixelLoader size="md" />
+                  </div>
+                ) : isEmpty && !showTailLoader && showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                     <span>
                       <Trans>No messages yet</Trans>

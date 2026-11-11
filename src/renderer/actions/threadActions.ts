@@ -58,6 +58,8 @@ import {
   dispatchOptimisticCatalogEdit,
 } from "@/renderer/state/pendingCatalogEdits";
 
+export const GUI_OPEN_LOADING_REVEAL_DELAY_MS = 180;
+
 let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
 const suppressedAutomaticThreadReopens = new Map<string, () => void>();
@@ -356,9 +358,11 @@ export function openThread(
     let succeeded = false;
     let frameId: number | undefined;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let slowReadRevealTimeoutId: ReturnType<typeof setTimeout> | undefined;
     const retire = () => {
       active = false;
       clearTimeout(timeoutId);
+      if (slowReadRevealTimeoutId !== undefined) clearTimeout(slowReadRevealTimeoutId);
       if (frameId !== undefined) cancelAnimationFrame(frameId);
       unsubscribe();
       if (cancelPendingThreadOpen === cancel) cancelPendingThreadOpen = null;
@@ -401,6 +405,7 @@ export function openThread(
     const finishOpen = (reopenRuntime: boolean) => {
       if (!active || opened) return;
       clearTimeout(timeoutId);
+      if (slowReadRevealTimeoutId !== undefined) clearTimeout(slowReadRevealTimeoutId);
       opened = true;
       if (!applyOpen(reopenRuntime)) return cancel();
     };
@@ -429,6 +434,14 @@ export function openThread(
     if (hydrated || heldRowsResident()) {
       frameId = requestAnimationFrame(() => finishOpen(ready && succeeded));
       if (!opened) timeoutId = setTimeout(() => finishOpen(ready && succeeded), 50);
+    } else {
+      // Normal fast switches (<180ms) keep the previous pane seamlessly until
+      // history settles with zero loading flash; slow reads under load swap to
+      // the destination pane after 180ms so navigation never feels stuck.
+      slowReadRevealTimeoutId = setTimeout(
+        () => finishOpen(ready && succeeded),
+        GUI_OPEN_LOADING_REVEAL_DELAY_MS,
+      );
     }
     void reader.ready.then(finishRead, () => finishRead(false));
     return;
