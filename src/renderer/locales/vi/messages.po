@@ -21048,6 +21048,7 @@ msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn t
 msgid "The thread's branch name can't be used on this machine."
 msgstr "Không thể dùng tên nhánh của luồng trên máy này."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Máy chủ của luồng chưa được kết nối."

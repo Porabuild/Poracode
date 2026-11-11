@@ -21048,6 +21048,7 @@ msgstr "La sesión del hilo no está disponible para los seguimientos en cola."
 msgid "The thread's branch name can't be used on this machine."
 msgstr "El nombre de la rama del hilo no se puede usar en esta máquina."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "El host del hilo no está conectado."

@@ -21048,6 +21048,7 @@ msgstr "Сессия треда недоступна для сообщений �
 msgid "The thread's branch name can't be used on this machine."
 msgstr "Имя ветки этого треда нельзя использовать на этом компьютере."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Хост треда не подключён."

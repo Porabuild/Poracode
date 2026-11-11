@@ -21048,6 +21048,7 @@ msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
 msgid "The thread's branch name can't be used on this machine."
 msgstr "İleti dizisinin dal adı bu makinede kullanılamıyor."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Konunun ana bilgisayarı bağlı değil."

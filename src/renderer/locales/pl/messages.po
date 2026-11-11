@@ -21048,6 +21048,7 @@ msgstr "Sesja wątku jest niedostępna dla wiadomości uzupełniających w kolej
 msgid "The thread's branch name can't be used on this machine."
 msgstr "Nazwy gałęzi tego wątku nie można użyć na tym komputerze."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Host wątku nie jest połączony."

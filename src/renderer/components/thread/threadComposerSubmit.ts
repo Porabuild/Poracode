@@ -35,6 +35,7 @@ import {
 import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildLcSelectorFence, buildSelectorPlainText } from "@/renderer/state/browserAttachInbox";
+import { bridgeThreadInputSegments } from "@/renderer/state/remoteProjection";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
 import type { MentionInputHandle } from "../composer/MentionInput";
@@ -404,11 +405,15 @@ export function submitComposerPrompt(
       return;
     }
     if (ctx.followUpBehavior === "queue") {
+      const wireSegments = bridgeThreadInputSegments(
+        thread,
+        outgoing.length > 0 ? outgoing : undefined,
+      );
       await readBridge().queueThreadFollowUp({
         threadId: thread.id,
         prompt: flat,
         config: thread.config,
-        ...(outgoing.length > 0 ? { segments: outgoing } : {}),
+        ...(wireSegments ? { segments: wireSegments } : {}),
         ...(clientContext ? { clientContext } : {}),
       });
     } else {

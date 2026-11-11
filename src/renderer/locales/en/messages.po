@@ -21057,6 +21057,7 @@ msgstr "The thread session is not available for queued follow-ups."
 msgid "The thread's branch name can't be used on this machine."
 msgstr "The thread's branch name can't be used on this machine."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "The thread's host is not connected."

@@ -21048,6 +21048,7 @@ msgstr "대기 중인 후속 메시지에 스레드 세션을 사용할 수 없�
 msgid "The thread's branch name can't be used on this machine."
 msgstr "이 스레드의 브랜치 이름은 이 기기에서 사용할 수 없습니다."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "스레드의 호스트가 연결되어 있지 않습니다."

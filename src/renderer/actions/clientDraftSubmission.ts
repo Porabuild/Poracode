@@ -30,6 +30,7 @@ import {
   type ClientDraftSubmission,
 } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { isRemoteCommandOutcomeUncertainError } from "./threadCommandOutcomeActions";
+import { materializeCrossHostThreadMentions } from "./crossHostThreadMention";
 
 export interface DraftSubmission {
   id: string;
@@ -51,6 +52,40 @@ export async function materializeDraftSegments(
   const targetOwner = entityHost(target);
   if (target.remoteServerId && !targetOwner) throw new Error(i18n._(msg`Remote server not found.`));
   const boundTarget = targetOwner ? null : getRemoteBridgeClient();
+  const assertTargetStillCurrent = () => {
+    if (
+      !isTargetCurrent() ||
+      (targetOwner && !targetOwner.isCurrent()) ||
+      (boundTarget && getRemoteBridgeClient() !== boundTarget)
+    ) {
+      throw new Error(i18n._(msg`Remote server not found.`));
+    }
+  };
+  const uploadBytes = async (fileName: string, data: Uint8Array<ArrayBuffer>): Promise<string> => {
+    assertTargetStillCurrent();
+    const path = targetOwner
+      ? await targetOwner.withClient((client) => {
+          assertTargetStillCurrent();
+          return client.uploadAttachment({
+            threadId: attachmentThreadId,
+            fileName,
+            data,
+          });
+        })
+      : boundTarget
+        ? await boundTarget.uploadAttachment({
+            threadId: attachmentThreadId,
+            fileName,
+            data,
+          })
+        : await readBridge().saveClipboardImage({
+            threadId: attachmentThreadId,
+            extension: /\.([a-z0-9]{1,16})$/i.exec(fileName)?.[1]?.toLowerCase() ?? "bin",
+            data,
+          });
+    assertTargetStillCurrent();
+    return path;
+  };
   const copied = new Map<string, { path: string; mimeType: string }>();
   for (const segment of segments) {
     if (
@@ -63,46 +98,19 @@ export async function materializeDraftSegments(
       throw storageError(error);
     });
     const data = new Uint8Array(await asset.blob.arrayBuffer());
-    if (
-      !isTargetCurrent() ||
-      (targetOwner && !targetOwner.isCurrent()) ||
-      (boundTarget && getRemoteBridgeClient() !== boundTarget)
-    )
-      throw new Error(i18n._(msg`Remote server not found.`));
-    const path = targetOwner
-      ? await targetOwner.withClient((client) => {
-          if (!isTargetCurrent() || !targetOwner.isCurrent())
-            throw new Error(i18n._(msg`Remote server not found.`));
-          return client.uploadAttachment({
-            threadId: attachmentThreadId,
-            fileName: asset.name,
-            data,
-          });
-        })
-      : boundTarget
-        ? await boundTarget.uploadAttachment({
-            threadId: attachmentThreadId,
-            fileName: asset.name,
-            data,
-          })
-        : await readBridge().saveClipboardImage({
-            threadId: attachmentThreadId,
-            extension: /\.([a-z0-9]{1,16})$/i.exec(asset.name)?.[1]?.toLowerCase() ?? "bin",
-            data,
-          });
-    if (
-      !isTargetCurrent() ||
-      (targetOwner && !targetOwner.isCurrent()) ||
-      (boundTarget && getRemoteBridgeClient() !== boundTarget)
-    )
-      throw new Error(i18n._(msg`Remote server not found.`));
+    const path = await uploadBytes(asset.name, data);
     copied.set(segment.path, { path, mimeType: asset.mimeType });
   }
-  return segments.map((segment) =>
+  const uploadedSegments = segments.map((segment) =>
     segment.kind === "attachment" && copied.has(segment.path)
       ? { ...segment, ...copied.get(segment.path)! }
       : segment,
   );
+  return materializeCrossHostThreadMentions({
+    target,
+    segments: uploadedSegments,
+    uploadBytes,
+  });
 }
 
 /** Import legacy paths only after Send, using their original authority. */

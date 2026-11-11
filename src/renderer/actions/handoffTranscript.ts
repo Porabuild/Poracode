@@ -5,6 +5,7 @@ import {
   formatHandoffRow,
   MAX_HANDOFF_MESSAGE_CHARS,
   type HandoffRow,
+  type TranscriptItemLike,
 } from "./handoffTranscriptRows";
 
 /** Approximate token allocation; leave the rest of the window for the next task. */
@@ -86,6 +87,28 @@ function joinRows(rows: readonly HandoffRow[], kept: ReadonlySet<HandoffRow>): s
 }
 
 /**
+ * Format top-level runtime items into a budget-bounded plain-text transcript
+ * (conversation rows first, key tool activity second, noise dropped).
+ */
+export function formatTranscriptItems(
+  items: readonly TranscriptItemLike[],
+  maxChars: number = DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS,
+): string | null {
+  const topLevel = items.filter((item) => !item.parentItemId);
+  if (topLevel.length === 0) return null;
+  // Leave room for the row label, truncation marker, separators, and gap marker.
+  const messageBudget = Math.min(MAX_HANDOFF_MESSAGE_CHARS, Math.max(0, maxChars - 100));
+  const rows: HandoffRow[] = [];
+  for (const item of topLevel) {
+    const formatted = formatHandoffRow(item, messageBudget);
+    if (formatted?.text.trim()) rows.push(formatted);
+  }
+  if (rows.length === 0) return null;
+  const transcript = joinRows(rows, selectRows(rows, maxChars));
+  return transcript.trim() ? transcript : null;
+}
+
+/**
  * Copy a thread's stored chat history into handoff context: messages first,
  * key tool activity after, noise dropped (see `handoffTranscriptRows`). The
  * result is the same shape provider-side extraction produces, tagged as a
@@ -104,20 +127,12 @@ export function buildTranscriptContext(
   if (!itemsById || itemIds.length === 0) return null;
 
   const header = `Chat history of this conversation from the ${sourceLabel} session, oldest turn first. Tool output is omitted; rerun commands if you need their results.\n\n`;
-  const rowBudget = maxChars - header.length;
-  // Leave room for the row label, truncation marker, separators, and gap marker.
-  const messageBudget = Math.min(MAX_HANDOFF_MESSAGE_CHARS, Math.max(0, rowBudget - 100));
-  const rows: HandoffRow[] = [];
-  itemIds.forEach((itemId) => {
+  const items = itemIds.flatMap((itemId) => {
     const item = itemsById[itemId];
-    if (!item || item.parentItemId) return;
-    const formatted = formatHandoffRow(item, messageBudget);
-    if (formatted?.text.trim()) rows.push(formatted);
+    return item && !item.parentItemId ? [item] : [];
   });
-  if (rows.length === 0) return null;
-
-  const transcript = joinRows(rows, selectRows(rows, rowBudget));
-  if (!transcript.trim()) return null;
+  const transcript = formatTranscriptItems(items, maxChars - header.length);
+  if (!transcript) return null;
 
   return {
     summary: header + transcript,
