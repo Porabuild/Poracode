@@ -5,21 +5,52 @@ import { describe, expect, it } from "vitest";
 
 const source = readFileSync(join(process.cwd(), "src/renderer/styles.css"), "utf8");
 
-/** Splits on separator characters that sit outside (), [] and quotes. */
-function splitTopLevel(text: string, isSeparator: (char: string) => boolean): string[] {
-  const parts: string[] = [];
-  let depth = 0;
+/**
+ * Empties quoted strings and decodes escapes, so the only punctuation left is
+ * selector syntax. An escape that decodes to a name character (`h\61s` is
+ * `has`) becomes that character; any other escaped character becomes `_`, so
+ * it stays part of the name it is in.
+ */
+function normalizeSelector(text: string): string {
+  let out = "";
   let quote: string | null = null;
-  let start = 0;
   for (let index = 0; index < text.length; index += 1) {
     const char = text.charAt(index);
     if (char === "\\") {
-      index += 1;
+      const hex = /^[\da-f]{1,6}/i.exec(text.slice(index + 1))?.[0];
+      let decoded = text.charAt(index + 1);
+      if (hex) {
+        const codePoint = Number.parseInt(hex, 16);
+        decoded = codePoint > 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : "�";
+        index += hex.length;
+        // One whitespace character (CRLF counts as one) ends a hex escape.
+        if (text.startsWith("\r\n", index + 1)) index += 2;
+        else if (/\s/.test(text.charAt(index + 1))) index += 1;
+      } else {
+        index += 1;
+      }
+      if (!quote) out += /^[\w-]$|^[^\0-\x7f]/u.test(decoded) ? decoded : "_";
     } else if (quote) {
-      if (char === quote) quote = null;
-    } else if (char === '"' || char === "'") {
-      quote = char;
-    } else if (char === "(" || char === "[") {
+      if (char === quote) {
+        quote = null;
+        out += char;
+      }
+    } else {
+      if (char === '"' || char === "'") quote = char;
+      out += char;
+    }
+  }
+  return out;
+}
+
+/** Splits normalized selector text on separator characters outside () and []. */
+function splitTopLevel(text: string, isSeparator: (char: string) => boolean): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text.charAt(index);
+    if (char === "(" || char === "[") {
       depth += 1;
     } else if (char === ")" || char === "]") {
       depth -= 1;
@@ -32,12 +63,15 @@ function splitTopLevel(text: string, isSeparator: (char: string) => boolean): st
   return parts;
 }
 
-/** Removes every balanced block that starts with `opener`, such as `:has(…)`. */
+/**
+ * Removes every balanced block that starts with `opener`, such as `:has(…)`,
+ * matching the opener ASCII case-insensitively.
+ */
 function withoutBlocks(text: string, opener: string, open: string, close: string): string {
   let out = "";
   let index = 0;
   while (index < text.length) {
-    if (!text.startsWith(opener, index)) {
+    if (text.slice(index, index + opener.length).toLowerCase() !== opener) {
       out += text.charAt(index);
       index += 1;
       continue;
@@ -54,7 +88,9 @@ function withoutBlocks(text: string, opener: string, open: string, close: string
 
 /** Full selectors of a rule, with CSS nesting (`&`) resolved against its parents. */
 function resolvedSelectors(rule: Rule): string[] {
-  const own = splitTopLevel(rule.selector, (char) => char === ",").map((part) => part.trim());
+  const own = splitTopLevel(normalizeSelector(rule.selector), (char) => char === ",").map((part) =>
+    part.trim(),
+  );
   const parent = rule.parent;
   if (parent?.type !== "rule") return own;
   return resolvedSelectors(parent as Rule).flatMap((outer) =>
@@ -65,6 +101,7 @@ function resolvedSelectors(rule: Rule): string[] {
 /**
  * Selectors that hang `:has()` on the document or app root, however the root
  * is spelled (`html`, `:is(html)`, `html:not(…)`, `div#root`, `:root`, …).
+ * Element and pseudo-class names match ASCII case-insensitively; ids do not.
  */
 function rootRelationalSelectors(css: string): string[] {
   const found: string[] = [];
@@ -72,9 +109,12 @@ function rootRelationalSelectors(css: string): string[] {
     for (const selector of resolvedSelectors(rule)) {
       const compounds = splitTopLevel(selector, (char) => /[\s>+~]/.test(char));
       for (const compound of compounds) {
-        if (!compound.includes(":has(")) continue;
+        if (!/:has\(/i.test(compound)) continue;
         const anchor = withoutBlocks(withoutBlocks(compound, ":has(", "(", ")"), "[", "[", "]");
-        if (/(?<![\w.#-])(?:html|body)(?![\w-])|:root(?![\w-])|#root(?![\w-])/i.test(anchor)) {
+        if (
+          /(?<![\w.#-])(?:html|body)(?![\w-])|:root(?![\w-])/i.test(anchor) ||
+          /#root(?![\w-])/.test(anchor)
+        ) {
           found.push(selector);
         }
       }
@@ -104,6 +144,14 @@ describe("relational selector styles", () => {
       "html:not([data-compact-layout]):has(.reply) .message",
       "html:is(.dark, .light):has(.reply) .message",
       "div#root:not(.unused):has(.reply) .message",
+      "#root:HAS(.reply) .message",
+      ":ROOT:Has(.reply) .message",
+      "#root:h\\61s(.reply) .message",
+      "#root:h\\61 s(.reply) .message",
+      "#r\\6f ot:has(.reply) .message",
+      "h\\tml:has(.reply) .message",
+      '#root:has([data-label=")"] .reply) .message',
+      '#root:has([data-label="\\")"] .reply) .message',
     ];
     for (const selector of rooted) {
       expect([selector, rootRelationalSelectors(`${selector} { color: red; }`).length]).toEqual([
@@ -128,6 +176,12 @@ describe("relational selector styles", () => {
       '[data-syntax="html:has("]',
       ".card:has(#root)",
       ".card:has(html)",
+      '.card:has([data-label=")"] #root)',
+      ".card:has([data-label=')'] #root)",
+      '.card:has([data-label="\\")"] #root)',
+      ".card\\(:has(#root)",
+      "#ROOT:has(.reply)",
+      "#root-panel:has(.reply)",
     ];
     for (const selector of local) {
       expect([selector, rootRelationalSelectors(`${selector} { color: red; }`).length]).toEqual([
