@@ -316,15 +316,20 @@ export function createSupervisorEventReducer(
         (threadId) => !isRuntimeHistoryReadHeld(threadId) && shouldFlush(threadId),
         (batches, sliceStats) => {
           const store = useAppStore.getState();
+          const previousRuntimeItemsByThread = store.runtimeItemsByIdByThread;
           const threadMetadata = store.threads;
           const applyBatches = (): void => {
             store.applyRuntimeEventBatches(batches);
           };
           if (config.wrapApply) config.wrapApply(applyBatches, sliceStats);
           else applyBatches();
+          const nextStore = useAppStore.getState();
+          const batchThreadIds = batches.map((batch) => batch.threadId);
           noteAppliedHistoryBatches(batches, threadMetadata);
-          evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-          boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
+          if (nextStore.runtimeItemsByIdByThread !== previousRuntimeItemsByThread) {
+            evictOversizedInactiveThreadRuntimeItems(batchThreadIds);
+          }
+          boundVisibleThreadRuntimeWindows(batchThreadIds);
           config.afterApply?.(batches, {
             threadMetadata,
             ...sliceStats,

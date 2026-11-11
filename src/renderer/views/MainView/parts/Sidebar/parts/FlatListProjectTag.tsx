@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Project } from "@/shared/contracts";
 import { ProjectIcon } from "@/renderer/components/common/ProjectIcon";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
@@ -12,7 +13,7 @@ import {
  * group headers keep the inline trailing form. Remote mirrors carry the
  * machine name so their rows read as non-local.
  */
-export function FlatListProjectTag(props: {
+function FlatListProjectTagInner(props: {
   project: Project;
   remote: ProjectRemoteServerInfo;
   stacked: boolean;
@@ -34,3 +35,13 @@ export function FlatListProjectTag(props: {
     </span>
   );
 }
+
+export const FlatListProjectTag = memo(
+  FlatListProjectTagInner,
+  (prev, next) =>
+    prev.project === next.project &&
+    prev.stacked === next.stacked &&
+    prev.remote.isRemote === next.remote.isRemote &&
+    prev.remote.serverName === next.remote.serverName &&
+    prev.remote.status === next.remote.status,
+);

@@ -43,7 +43,7 @@ function selectCurrentProjectId(s: ReturnType<typeof useAppStore.getState>) {
     if (!firstPaneId) return undefined;
     const draftProjectId = parseDraftProjectId(firstPaneId);
     if (draftProjectId) return draftProjectId;
-    return s.threads.find((t) => t.id === firstPaneId)?.projectId;
+    return getThreadMap(s.threads).get(firstPaneId)?.projectId;
   }
   return undefined;
 }
@@ -148,8 +148,9 @@ export function useCurrentWorktreePath(): string | undefined {
   return useAppStore((s) => {
     const v = s.view;
     if (v.kind !== "thread") return undefined;
+    const threadMap = getThreadMap(s.threads);
     for (const threadId of v.panes) {
-      const thread = s.threads.find((t) => t.id === threadId);
+      const thread = threadMap.get(threadId);
       if (thread?.worktreePath) return thread.worktreePath;
     }
     return undefined;
@@ -384,11 +385,24 @@ export function useDraftEnvironment(project: Project | undefined): {
   };
 }
 
+const getProjectNonArchivedThreads = createArrayKeyedMap<Thread, string, Thread[]>((threads) => {
+  const byProject = new Map<string, Thread[]>();
+  for (const thread of threads) {
+    if (thread.archived) continue;
+    const list = byProject.get(thread.projectId);
+    if (list) list.push(thread);
+    else byProject.set(thread.projectId, [thread]);
+  }
+  return byProject;
+});
+
 /** Non-archived threads for a given project, ordered as in the store. */
 export function useProjectThreads(projectId: string | undefined): Thread[] {
   return useAppStore(
     useShallow((s) =>
-      projectId ? s.threads.filter((t) => t.projectId === projectId && !t.archived) : EMPTY_THREADS,
+      projectId
+        ? (getProjectNonArchivedThreads(s.threads, projectId) ?? EMPTY_THREADS)
+        : EMPTY_THREADS,
     ),
   );
 }
@@ -398,9 +412,9 @@ export function useActiveProjectThreads(projectId: string | undefined): Thread[]
   return useAppStore(
     useShallow((s) =>
       projectId
-        ? s.threads.filter(
-            (t) => t.projectId === projectId && !t.archived && (t.status !== "inactive" || !t.done),
-          )
+        ? (getProjectNonArchivedThreads(s.threads, projectId)?.filter(
+            (t) => t.status !== "inactive" || !t.done,
+          ) ?? EMPTY_THREADS)
         : EMPTY_THREADS,
     ),
   );

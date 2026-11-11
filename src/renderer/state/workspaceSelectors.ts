@@ -47,7 +47,9 @@ export function useWorkspaceProjectFilter(): (project: Project) => boolean {
  * threads can fail it — threads in real projects scope through their project
  * (see `isThreadInWorkspace` in `@/shared/contracts/workspace`).
  */
-export function useWorkspaceThreadFilter(): (thread: Thread) => boolean {
+export function useWorkspaceThreadFilter(): (
+  thread: Pick<Thread, "projectId" | "workspaceId">,
+) => boolean {
   const knownWorkspaceIds = workspaceIdSet(useSharedSettings((state) => state.workspaces));
   const activeWorkspaceId = useActiveWorkspaceId();
   const compact = useCompactLayout();

@@ -60,18 +60,28 @@ vi.mock("@/renderer/dnd", () => ({
 }));
 
 vi.mock("@/renderer/components/common/ContextMenu", () => ({
+  dismissOpenContextMenus: vi.fn<() => void>(),
   ContextMenu: (props: { children: ReactNode; items: MockContextMenuItem[] }) => {
     contextMenuItemsMock(props.items);
     return <>{props.children}</>;
+  },
+  ContextMenuSurface: (props: { items: MockContextMenuItem[] }) => {
+    contextMenuItemsMock(props.items);
+    return null;
   },
 }));
 
 vi.mock("@/renderer/components/common/SidebarButton", () => ({
   SidebarButton: forwardRef<
     HTMLDivElement,
-    { icon: ReactNode; label: ReactNode; suffix?: ReactNode }
+    {
+      icon: ReactNode;
+      label: ReactNode;
+      suffix?: ReactNode;
+      onContextMenu?: React.MouseEventHandler<HTMLDivElement>;
+    }
   >((props, ref) => (
-    <div ref={ref} role="button">
+    <div ref={ref} role="button" tabIndex={0} onContextMenu={props.onContextMenu}>
       {props.icon}
       {props.label}
       {props.suffix}
@@ -591,6 +601,9 @@ describe("SortableThreadItem", () => {
       />,
     );
 
+    expect(contextMenuItemsMock).not.toHaveBeenCalled();
+    fireEvent.contextMenu(screen.getByText("Thread 1"));
+
     const unloadItem = contextMenuItemsMock.mock.calls
       .at(-1)?.[0]
       .find((item) => item.id === "unload");
@@ -612,6 +625,9 @@ describe("SortableThreadItem", () => {
         group="project-entries:project-1"
       />,
     );
+
+    expect(contextMenuItemsMock).not.toHaveBeenCalled();
+    fireEvent.contextMenu(screen.getByText("Thread 1"));
 
     const unloadItem = contextMenuItemsMock.mock.calls
       .at(-1)?.[0]
@@ -771,5 +787,40 @@ describe("SortableThreadItem", () => {
     expect(screen.queryByTestId("sync-badge")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Files for Project" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Terminal for Project" })).not.toBeInTheDocument();
+  });
+
+  it("skips re-rendering unchanged sibling rows when parent list re-renders or another row starts editing", () => {
+    const threadA = makeThread({ id: "thread-a", title: "Thread A" });
+    const setEditing = vi.fn<(id: string | null) => void>();
+    const tag = <span>{project.name}</span>;
+
+    const { rerender } = render(
+      <SortableThreadItem
+        thread={threadA}
+        threadIndex={0}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={setEditing}
+        group="flat:__flat__"
+        projectTag={tag}
+      />,
+    );
+    expect(getStatusToneMock).toHaveBeenCalledTimes(1);
+
+    // Another row ("thread-b") enters inline rename while threadA's props stay identical.
+    rerender(
+      <SortableThreadItem
+        thread={threadA}
+        threadIndex={0}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId="thread-b"
+        setEditingThreadId={setEditing}
+        group="flat:__flat__"
+        projectTag={tag}
+      />,
+    );
+    expect(getStatusToneMock).toHaveBeenCalledTimes(1);
   });
 });

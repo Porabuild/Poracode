@@ -276,7 +276,7 @@ export function createInitialRuntimeEventState(): Pick<
   };
 }
 
-export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) => ({
+export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set, get) => ({
   ...createInitialRuntimeEventState(),
 
   setRuntimeHydrationStatus: (threadId, status) =>
@@ -294,17 +294,20 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
 
   applyRuntimeEvent: (threadId, event) => {
     markLiveCrossagentItems(threadId, [event]);
-    set((state) => applyRuntimeEventsToState(state, threadId, [event]));
+    const next = applyRuntimeEventsToState(get(), threadId, [event]);
+    if (Object.keys(next).length > 0) set(next);
   },
 
   applyRuntimeEvents: (threadId, events) => {
     markLiveCrossagentItems(threadId, events);
-    set((state) => applyRuntimeEventsToState(state, threadId, events));
+    const next = applyRuntimeEventsToState(get(), threadId, events);
+    if (Object.keys(next).length > 0) set(next);
   },
 
   applyRuntimeEventBatches: (batches) => {
     for (const batch of batches) markLiveCrossagentItems(batch.threadId, batch.events);
-    set((state) => applyRuntimeEventBatchesToState(state, batches));
+    const next = applyRuntimeEventBatchesToState(get(), batches);
+    if (Object.keys(next).length > 0) set(next);
   },
 
   clearThreadRuntimeEvents: (threadId, options) =>

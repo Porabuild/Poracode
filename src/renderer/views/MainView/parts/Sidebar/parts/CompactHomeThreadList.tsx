@@ -100,6 +100,18 @@ export function CompactHomeThreadList(props: { sortMode: ThreadSortMode }) {
     activeProjectFilter,
   );
 
+  const tagByProjectId = new Map(
+    Array.from(projectsById.values(), (project) => [
+      project.id,
+      <FlatListProjectTag
+        key={project.id}
+        project={project}
+        remote={remoteServerFor(project)}
+        stacked
+      />,
+    ]),
+  );
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="m-home-scroll">
@@ -131,13 +143,7 @@ export function CompactHomeThreadList(props: { sortMode: ThreadSortMode }) {
                   project={project}
                   editingThreadId={editingThreadId}
                   setEditingThreadId={setEditingThreadId}
-                  projectTag={
-                    <FlatListProjectTag
-                      project={project}
-                      remote={remoteServerFor(project)}
-                      stacked
-                    />
-                  }
+                  projectTag={tagByProjectId.get(project.id)}
                 />
               );
             })}

@@ -6,6 +6,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
+import { getThreadMap } from "@/renderer/state/useThread";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 /**
@@ -22,7 +23,7 @@ export function useBottomTerminalVisible(): boolean {
   const currentThreadId = useFocusedThreadId();
   const currentThreadScope = useAppStore((state) => {
     if (currentThreadId === null) return null;
-    const thread = state.threads.find((item) => item.id === currentThreadId);
+    const thread = getThreadMap(state.threads).get(currentThreadId);
     return thread ? `${thread.projectId}\0${thread.worktreePath ?? ""}` : null;
   });
   const activeTerminalScopeHasTabs = useDevTerminalStore((state) => {

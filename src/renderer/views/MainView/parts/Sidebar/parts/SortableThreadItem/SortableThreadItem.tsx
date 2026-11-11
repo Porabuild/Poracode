@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Project, Thread } from "@/shared/contracts";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSortable } from "@dnd-kit/react/sortable";
@@ -25,7 +26,7 @@ import { openThread, renameThread } from "@/renderer/actions/threadActions";
 
 type ThreadDragSourceData = Extract<DragSourceData, { type: "thread" }>;
 
-export function SortableThreadItem(props: {
+function SortableThreadItemInner(props: {
   thread: Thread;
   threadIndex: number;
   project: Project;
@@ -210,3 +211,18 @@ export function SortableThreadItem(props: {
     </div>
   );
 }
+
+export const SortableThreadItem = memo(
+  SortableThreadItemInner,
+  (prev, next) =>
+    prev.thread === next.thread &&
+    prev.threadIndex === next.threadIndex &&
+    prev.project === next.project &&
+    prev.showWorktreeBadge === next.showWorktreeBadge &&
+    prev.showWorktreeFilesButton === next.showWorktreeFilesButton &&
+    prev.group === next.group &&
+    prev.sortDisabled === next.sortDisabled &&
+    prev.setEditingThreadId === next.setEditingThreadId &&
+    (prev.editingThreadId === prev.thread.id) === (next.editingThreadId === next.thread.id) &&
+    prev.projectTag === next.projectTag,
+);

@@ -891,12 +891,14 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
         };
       });
 
-      const pendingConfigMapPatch = {
-        pendingThreadConfigByThreadId: retainPendingThreadConfigs(
-          state.pendingThreadConfigByThreadId,
-          threads,
-        ),
-      };
+      const retainedPending = retainPendingThreadConfigs(
+        state.pendingThreadConfigByThreadId,
+        threads,
+      );
+      const pendingConfigMapPatch =
+        retainedPending !== state.pendingThreadConfigByThreadId
+          ? { pendingThreadConfigByThreadId: retainedPending }
+          : undefined;
       const runtimeConfigMapPatch: Pick<ThreadSlice, "lastRuntimeConfigByThreadId"> | undefined =
         runtimeConfigChanged
           ? {
@@ -924,19 +926,29 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
                 },
               };
       }
-      const mentionToolsPatch =
-        input.threadMentionToolsAvailable === undefined
-          ? undefined
-          : {
-              threadMentionToolsAvailableByThreadId: {
-                ...state.threadMentionToolsAvailableByThreadId,
-                [threadId]: input.threadMentionToolsAvailable,
-              },
-            };
+      const mentionToolsChanged =
+        input.threadMentionToolsAvailable !== undefined &&
+        state.threadMentionToolsAvailableByThreadId[threadId] !== input.threadMentionToolsAvailable;
+      const mentionToolsPatch = mentionToolsChanged
+        ? {
+            threadMentionToolsAvailableByThreadId: {
+              ...state.threadMentionToolsAvailableByThreadId,
+              [threadId]: input.threadMentionToolsAvailable!,
+            },
+          }
+        : undefined;
 
       if (!changed) {
+        if (
+          !pendingConfigMapPatch &&
+          !runtimeConfigMapPatch &&
+          !launchConfigMapPatch &&
+          !mentionToolsPatch
+        ) {
+          return {};
+        }
         return {
-          ...pendingConfigMapPatch,
+          ...(pendingConfigMapPatch ?? {}),
           ...(runtimeConfigMapPatch ?? {}),
           ...(launchConfigMapPatch ?? {}),
           ...(mentionToolsPatch ?? {}),
@@ -947,7 +959,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
       return {
         threads,
         ...(turnsChanged ? turnUpdate : {}),
-        ...pendingConfigMapPatch,
+        ...(pendingConfigMapPatch ?? {}),
         ...(runtimeConfigMapPatch ?? {}),
         ...(launchConfigMapPatch ?? {}),
         ...(mentionToolsPatch ?? {}),

@@ -58,8 +58,9 @@ import {
   undockPanelTab,
 } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
-import { getCurrentProjectId } from "@/renderer/actions/currentProject";
+import { selectCurrentProjectIdForView } from "@/renderer/actions/currentProject";
 import { selectFocusedThreadId, useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
+import { getProjectMap, getThreadMap } from "@/renderer/state/useThread";
 import { syncRightPanelTabToFocusedThread } from "@/renderer/hooks/useRightPanelThreadLock";
 import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import { useBottomDockedTabs } from "@/renderer/state/panelDockSelectors";
@@ -122,16 +123,19 @@ export function ProjectAuxiliaryPanel(props: {
   const deviceWorkspaceThreadId = usePanelStore((s) => s.deviceWorkspaceThreadId);
   const deviceWorkspaceDetached = usePanelStore((s) => s.deviceWorkspaceDetached);
   const deviceWorkspaceThreadExists = useAppStore(
-    (s) =>
-      deviceWorkspaceThreadId !== null &&
-      s.threads.some((thread) => thread.id === deviceWorkspaceThreadId),
+    (s) => deviceWorkspaceThreadId !== null && getThreadMap(s.threads).has(deviceWorkspaceThreadId),
   );
   const deviceHostId = useAppStore(
     (s) =>
-      s.threads.find((thread) => thread.id === deviceWorkspaceThreadId)?.remoteServerId ?? null,
+      (deviceWorkspaceThreadId
+        ? getThreadMap(s.threads).get(deviceWorkspaceThreadId)?.remoteServerId
+        : undefined) ?? null,
   );
   const deviceHostThreadId = useAppStore(
-    (s) => s.threads.find((thread) => thread.id === deviceWorkspaceThreadId)?.remoteId ?? null,
+    (s) =>
+      (deviceWorkspaceThreadId
+        ? getThreadMap(s.threads).get(deviceWorkspaceThreadId)?.remoteId
+        : undefined) ?? null,
   );
   const deviceHostEndpoint = useRemoteServersStore(
     (s) =>
@@ -159,7 +163,7 @@ export function ProjectAuxiliaryPanel(props: {
   const portsAvailable = browserBridgeServer !== undefined;
   // Reactive id of the project the notes panel should show — recomputed (and
   // re-rendered) as the user navigates between threads/drafts/projects.
-  const currentProjectId = useAppStore(() => getCurrentProjectId());
+  const currentProjectId = useAppStore(selectCurrentProjectIdForView);
   const setBrowserPanelOpen = usePanelStore((s) => s.setBrowserPanelOpen);
   const setBrowserOverlayOpen = usePanelStore((s) => s.setBrowserOverlayOpen);
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
@@ -170,16 +174,18 @@ export function ProjectAuxiliaryPanel(props: {
   const globalTerminal = useDevTerminalStore((s) => s.source === "global");
   const terminalProjectId = useDevTerminalStore((s) => s.activeProjectId);
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
-  const currentThread = useAppStore((state) =>
-    currentThreadId ? state.threads.find((thread) => thread.id === currentThreadId) : undefined,
+  const currentThreadProjectId = useAppStore((state) =>
+    currentThreadId ? getThreadMap(state.threads).get(currentThreadId)?.projectId : undefined,
   );
-  const currentThreadProject = currentThread
-    ? projects.find((project) => project.id === currentThread.projectId)
+  const currentThreadWorktreePath = useAppStore((state) =>
+    currentThreadId ? getThreadMap(state.threads).get(currentThreadId)?.worktreePath : undefined,
+  );
+  const currentThreadProject = currentThreadProjectId
+    ? getProjectMap(projects).get(currentThreadProjectId)
     : undefined;
-  const currentThreadProjectLocation =
-    currentThread && currentThreadProject
-      ? resolveProjectLocation(currentThreadProject.location, currentThread.worktreePath)
-      : undefined;
+  const currentThreadProjectLocation = currentThreadProject
+    ? resolveProjectLocation(currentThreadProject.location, currentThreadWorktreePath)
+    : undefined;
   const docksInCurrentThread = useThreadDocksPanelAvailable();
   // Image-only threads offer the Docks tab without making image presence itself
   // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
