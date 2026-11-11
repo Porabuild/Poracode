@@ -212,7 +212,12 @@ export function ChatScrollControls(props: {
    * unless the reader took over in the meantime.
    */
   function followReplyPastPromptSpace(el: HTMLElement): boolean {
-    if (!promptReplySpaceShownRef.current || reservedReplySpace(el) > 0) return false;
+    if (
+      !promptReplySpaceShownRef.current ||
+      el.dataset.chatEndSpaceSize === undefined ||
+      reservedReplySpace(el) > 0
+    )
+      return false;
     promptReplySpaceShownRef.current = false;
     // Keyboard navigation arms intent without a takeover; keep that reader's place.
     if (hasRecentUserScrollIntent()) return false;
@@ -629,6 +634,8 @@ export function ChatScrollControls(props: {
     disableStickToBottom,
     anchorToPrompt: () => {
       disableStickToBottom();
+      userScrollIntentUntilRef.current = 0;
+      userScrollTowardEndUntilRef.current = 0;
       promptAnchoredRef.current = true;
       // The ready callback re-anchors after LegendList reports the reply space.
       promptReplySpaceShownRef.current = reservedReplySpace(scrollRef.current) > 0;

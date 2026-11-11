@@ -12,6 +12,7 @@ import type { PersistedRuntimeItem } from "@/shared/ipc";
 import type { HistoryRuntimeItem } from "@/shared/remote/historyPresentation";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { retainPendingThreadInputItems } from "../pendingThreadInput";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import { forgetThreadPromptIndex, invalidateThreadPromptIndex } from "../threadPromptIndexCache";
 import {
@@ -324,6 +325,9 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         !(threadId in state.runtimeOpenTurnByThread)
       ) {
         return {};
+      }
+      if (!options?.keepTranscript) {
+        retainPendingThreadInputItems(threadId, state.runtimeItemsByIdByThread[threadId]);
       }
       const { [threadId]: _droppedItemIds, ...runtimeItemIdsByThread } =
         state.runtimeItemIdsByThread;

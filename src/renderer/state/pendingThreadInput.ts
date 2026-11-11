@@ -2,12 +2,14 @@ import type { RuntimeEvent, Thread } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import { reuseRemoteRows } from "./remoteServers/rowReuse";
 import { carryPendingRootLaunchRuntime } from "./hostLaunchRuntime";
+import type { RuntimeChatItem } from "./slices/runtimeChatItem";
 
 // Admission is renderer-local and never persisted or sent over the wire. Old
 // host rows remain valid; they simply cannot settle a prompt still being sent.
 interface PendingInput {
   userMessageItemId?: string;
   canonicalMessageSeen?: boolean;
+  item?: RuntimeChatItem;
 }
 const pendingInputs = new Map<string, Set<PendingInput>>();
 
@@ -45,6 +47,37 @@ export function notePendingThreadInputMessage(threadId: string, userMessageItemI
   for (const input of pendingInputs.get(threadId) ?? []) {
     input.userMessageItemId ??= userMessageItemId;
   }
+}
+
+/** Snapshot optimistic user_message items before a recovery reset clears the store. */
+export function retainPendingThreadInputItems(
+  threadId: string,
+  itemsById: Readonly<Record<string, RuntimeChatItem>> | undefined,
+): void {
+  if (!itemsById) return;
+  for (const input of pendingInputs.get(threadId) ?? []) {
+    if (!input.userMessageItemId) continue;
+    const item = itemsById[input.userMessageItemId];
+    if (item) input.item = item;
+  }
+}
+
+/** Unconfirmed optimistic user_message items still awaiting host admission. */
+export function pendingThreadInputItems(
+  threadId: string,
+  itemsById: Readonly<Record<string, RuntimeChatItem>> | undefined,
+): RuntimeChatItem[] {
+  const inputs = pendingInputs.get(threadId);
+  if (!inputs) return [];
+  const items: RuntimeChatItem[] = [];
+  for (const input of inputs) {
+    if (!input.userMessageItemId) continue;
+    const item = itemsById?.[input.userMessageItemId] ?? input.item;
+    if (!item) continue;
+    input.item = item;
+    items.push(item);
+  }
+  return items;
 }
 
 /** Host frames, including replay, can prove receipt of this exact input. */
