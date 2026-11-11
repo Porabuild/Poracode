@@ -89,6 +89,54 @@ export function selectThreadTodoDockItem(
   return state.runtimeItemsByIdByThread[threadId]?.[dockState.sourceItemId] ?? null;
 }
 
+export function clearThreadTodoDockStateCache(threadId: string): void {
+  todoDockStateCache.delete(threadId);
+}
+
+/**
+ * Current-era plan control IDs needed to keep `selectThreadTodoDockState` and
+ * in-place `item.updated` / `content.delta` plan mutations identical when
+ * older ordinary timeline history is trimmed out of the 6 MiB window.
+ */
+export function selectRetainedThreadPlanControlIds(
+  itemIds: readonly string[] | undefined,
+  itemsById: AppStoreState["runtimeItemsByIdByThread"][string] | undefined,
+): Set<string> {
+  const retained = new Set<string>();
+  if (!itemIds?.length || !itemsById) return retained;
+  const latestPlanItem = selectLatestThreadPlanItem(itemIds, itemsById);
+  if (latestPlanItem) retained.add(latestPlanItem.id);
+  const candidates = collectThreadPlanCandidates(itemIds, itemsById);
+  if (candidates.length === 0) return retained;
+  const lastIndex = candidates.length - 1;
+  retained.add(candidates[lastIndex]!.item.id);
+  const completedCounts = countCompletedSteps(candidates[lastIndex]!.dockState.steps);
+  let earliestNeededIndex = lastIndex;
+  for (let index = lastIndex - 1; index >= 0; index -= 1) {
+    if (
+      !arePlansCompatible(
+        candidates[index]!.dockState.steps,
+        candidates[index + 1]!.dockState.steps,
+      )
+    ) {
+      break;
+    }
+    const candidateCounts = countCompletedSteps(candidates[index]!.dockState.steps);
+    let contributesCompletedStep = false;
+    for (const [text, count] of candidateCounts) {
+      if (count > (completedCounts.get(text) ?? 0)) {
+        completedCounts.set(text, count);
+        contributesCompletedStep = true;
+      }
+    }
+    if (contributesCompletedStep) earliestNeededIndex = index;
+  }
+  for (let index = earliestNeededIndex; index <= lastIndex; index += 1) {
+    retained.add(candidates[index]!.item.id);
+  }
+  return retained;
+}
+
 export function getThreadTodoDockStateFromThreadItems(
   itemIds: readonly string[] | undefined,
   itemsById: AppStoreState["runtimeItemsByIdByThread"][string] | undefined,
@@ -257,15 +305,20 @@ function longestCommonStepSequenceLength(
   return lengths[nextTexts.length]![previousTexts.length]!;
 }
 
+function countCompletedSteps(steps: readonly ThreadTodoStep[]): Map<string, number> {
+  const completedCounts = new Map<string, number>();
+  for (const step of steps) {
+    if (step.status !== "completed") continue;
+    completedCounts.set(step.text, (completedCounts.get(step.text) ?? 0) + 1);
+  }
+  return completedCounts;
+}
+
 function carryForwardCompletedSteps(
   previousSteps: readonly ThreadTodoStep[],
   nextSteps: readonly ThreadTodoStep[],
 ): ReadonlyArray<ThreadTodoStep> {
-  const completedCounts = new Map<string, number>();
-  for (const step of previousSteps) {
-    if (step.status !== "completed") continue;
-    completedCounts.set(step.text, (completedCounts.get(step.text) ?? 0) + 1);
-  }
+  const completedCounts = countCompletedSteps(previousSteps);
   if (completedCounts.size === 0) return nextSteps;
 
   const seenCounts = new Map<string, number>();

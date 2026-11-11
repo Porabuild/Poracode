@@ -21,6 +21,7 @@ import { toRuntimeChatItem, type CompletedTurnRecord } from "./slices/runtimeEve
 import {
   boundThreadRuntimeWindows,
   forgetThreadWindowLedger as forgetWindowLedger,
+  hasPinnedLiveRuntimeWindow,
   markRuntimeItemsPaged,
   MAX_CACHED_COMPLETED_TURN_RECORDS,
   setRuntimeWindowPaging,
@@ -85,6 +86,13 @@ export function boundVisibleThreadRuntimeWindows(threadIds: readonly string[]): 
     }
   }
   boundThreadRuntimeWindows(threadIds);
+}
+
+export function boundSettledThreadRuntimeWindows(threadIds: readonly string[]): void {
+  const pinnedThreadIds = threadIds.filter((threadId) => hasPinnedLiveRuntimeWindow(threadId));
+  if (pinnedThreadIds.length > 0) {
+    boundVisibleThreadRuntimeWindows(pinnedThreadIds);
+  }
 }
 
 /**
@@ -337,7 +345,7 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
         const items = compactRuntimeItemsForHydration(page.items.map(toRuntimeChatItem));
         const existing = useAppStore.getState().runtimeItemsByIdByThread[threadId];
         const addedVisibleItems = items.filter(
-          (item) => item.type !== "goal" && !existing?.[item.id],
+          (item) => item.type !== "goal" && item.type !== "plan" && !existing?.[item.id],
         );
         const sparseControls = new Set(boundary.sparseControlIds);
         for (const item of page.items) boundary.sparseControlIds.delete(item.id);
