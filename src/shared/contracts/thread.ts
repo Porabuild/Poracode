@@ -236,7 +236,15 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     title: z.string(),
   }),
 ]);
-export type PromptSegment = z.infer<typeof promptSegmentSchema>;
+// Selection metadata belongs to local drafts; the wire still carries ordinary text.
+export const draftPromptSegmentSchema = z.union([
+  z.object({ kind: z.literal("text"), content: z.string(), selection: z.literal(true) }),
+  promptSegmentSchema,
+]);
+type WirePromptSegment = z.infer<typeof promptSegmentSchema>;
+export type PromptSegment =
+  | Exclude<WirePromptSegment, { kind: "text" }>
+  | (Extract<WirePromptSegment, { kind: "text" }> & { selection?: true });
 
 /**
  * How a handoff transfers the prior conversation to the incoming provider:

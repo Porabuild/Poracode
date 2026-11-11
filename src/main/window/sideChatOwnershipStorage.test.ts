@@ -45,6 +45,19 @@ it("starts empty for a pre-upgrade profile and preserves old bootstrap shapes on
     disposing: [],
   });
 });
+it("keeps an unsent selection and its plain-text fallback across restart", async () => {
+  const path = join(dir, "ownership.json");
+  const storage = createSideChatOwnershipStorage(path);
+  const selected = {
+    ...bootstrap,
+    prompt: "quote\n\nquestion",
+    segments: [{ kind: "text" as const, content: "quote", selection: true as const }],
+  };
+  await storage.save({ version: 1, entries: [{ bootstrap: selected }], disposing: [] });
+  expect((await createSideChatOwnershipStorage(path).load()).entries[0]?.bootstrap).toEqual(
+    selected,
+  );
+});
 it("keeps disposal records through restart until an acknowledged replacement write", async () => {
   const path = join(dir, "ownership.json");
   const thread = { ...bootstrap.source, id: "child", parentThreadId: "parent" };

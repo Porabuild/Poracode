@@ -209,7 +209,7 @@ describe("resolveEditContextMenu", () => {
     expect(enabledIds(actionsOf(contextMenuOn(paragraph)))).not.toContain("add-to-side-chat");
     runEditContextAction("add-to-chat", request!);
     expect(useComposerInputInbox.getState().itemsByComposer["thread-1"]).toEqual([
-      [{ kind: "text", content: "Review" }],
+      [{ kind: "text", content: "Review", selection: true }],
     ]);
 
     const side = document.createElement("div");

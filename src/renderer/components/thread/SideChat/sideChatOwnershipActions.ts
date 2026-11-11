@@ -62,7 +62,9 @@ function reconcileParents() {
 export function applyNativeSideChatOwnership(event: SideChatWindowsChanged, mainWindow: boolean) {
   if (event.composerInput) {
     const { composerId, text } = event.composerInput;
-    useComposerInputInbox.getState().enqueue(composerId, [{ kind: "text", content: text }]);
+    useComposerInputInbox
+      .getState()
+      .enqueue(composerId, [{ kind: "text", content: text, selection: true }]);
     useAppStore.getState().requestComposerFocus(composerId);
   }
   setAuxiliaryThreadIds(event.threadIds, event.hiddenThreadIds);
