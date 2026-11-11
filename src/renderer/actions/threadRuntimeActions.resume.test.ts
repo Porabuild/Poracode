@@ -28,9 +28,13 @@ vi.mock("@/renderer/state/appStore", () => ({
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => mocks.bridge,
 }));
-vi.mock("@/renderer/state/remoteProjection", () => ({
-  remoteOwner: mocks.remoteOwner,
-}));
+vi.mock("@/renderer/state/remoteProjection", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/state/remoteProjection")>();
+  return {
+    ...actual,
+    remoteOwner: mocks.remoteOwner,
+  };
+});
 vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   captureFileCheckpoint: mocks.captureFileCheckpoint,
 }));
