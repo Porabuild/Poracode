@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { useDroppable } from "@dnd-kit/react";
 import { setPanelDockZoneElement, usePanelDockPlacement } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 import type { PanelDockZone } from "@/renderer/state/panelStore";
 
 const HIGHLIGHT_INSET = {
@@ -26,12 +27,13 @@ export function PanelDockDropZone(props: {
 }) {
   const elementRef = useRef<HTMLDivElement>(null);
   const instanceId = useId();
-  useDroppable({
-    id: `panel-dock-zone:${props.zone}:${instanceId}`,
+  const droppableResult = useDroppable({
+    id: `panel-dock-zone:${instanceId}`,
     accept: "panel-tab",
     data: { type: "panel-dock-zone", zone: props.zone },
     element: elementRef,
   });
+  useClearDndEntityElementsOnUnmount(droppableResult?.droppable);
   const placement = usePanelDockPlacement(props.zone);
 
   useEffect(() => {

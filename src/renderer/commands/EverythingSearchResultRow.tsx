@@ -1,10 +1,11 @@
-import { useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { useDraggable } from "@dnd-kit/react";
 import { GripVertical } from "lucide-react";
 import type { Project, Thread } from "@/shared/contracts";
 import type { DragSourceData } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import type { SearchQuery } from "@/shared/searchMatching";
 import { SearchMatch } from "./SearchMatch";
@@ -81,9 +82,10 @@ export function EverythingSearchThreadRow(props: {
 }) {
   const { t } = useLingui();
   const rowRef = useRef<HTMLDivElement>(null);
+  const dragId = useId();
 
-  const { handleRef } = useDraggable({
-    id: `everything-search:${props.thread.id}`,
+  const draggableResult = useDraggable({
+    id: `everything-search:${dragId}`,
     type: "thread",
     data: {
       type: "thread",
@@ -93,6 +95,8 @@ export function EverythingSearchThreadRow(props: {
     } satisfies DragSourceData,
     element: rowRef,
   });
+  const handleRef = draggableResult?.handleRef;
+  useClearDndEntityElementsOnUnmount(draggableResult?.draggable);
 
   const stateClass = props.isSelected
     ? "bg-[var(--row-active)] text-foreground"

@@ -13,6 +13,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProjectIds } from "@/renderer/state/useThread";
 import { closeAllPanels, dismissRightOverlay } from "@/renderer/actions/panelActions";
 import { setMainPanelDropZoneElement, useIsMainPanelDropActive } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 import { DeferredFileEditorPanel } from "@/renderer/deferredFeatures";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useLingui } from "@lingui/react/macro";
@@ -183,12 +184,13 @@ function DesktopMainPanelDropZone(props: { children: ReactNode }) {
   // The dnd-kit registration keeps the source from going into "no valid
   // target" cancellation; pointer hit-testing is done by the dnd module via
   // the element registered through `setMainPanelDropZoneElement` below.
-  useDroppable({
+  const droppableResult = useDroppable({
     id: "main-panel-drop-zone",
     accept: "sidebar-panel",
     data: { type: "main-panel-drop-zone" },
     element: elementRef,
   });
+  useClearDndEntityElementsOnUnmount(droppableResult?.droppable);
   const isActive = useIsMainPanelDropActive();
 
   useEffect(() => {

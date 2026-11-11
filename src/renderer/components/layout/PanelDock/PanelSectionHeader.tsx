@@ -5,6 +5,7 @@ import { useDraggable } from "@dnd-kit/react";
 import { useLingui } from "@lingui/react/macro";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import type { DragSourceData } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 import type { RightPanelTab } from "@/renderer/state/panelStore";
 
 /**
@@ -23,12 +24,13 @@ export function PanelSectionHeader(props: {
   const { t } = useLingui();
   const elementRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
-  useDraggable({
-    id: `panel-section:${props.tab}:${dragId}`,
+  const draggableResult = useDraggable({
+    id: `panel-section:${dragId}`,
     type: "panel-tab",
     data: { type: "panel-tab", tab: props.tab } satisfies DragSourceData,
     element: elementRef,
   });
+  useClearDndEntityElementsOnUnmount(draggableResult?.draggable);
   const Icon = props.icon;
 
   return (

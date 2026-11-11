@@ -4,6 +4,7 @@ import { msg } from "@lingui/core/macro";
 import type { ThreadPresentationMode } from "@/shared/contracts";
 import { type PaneLayout, type PaneLayoutAxis } from "@/shared/paneLayout";
 import { useIsInsertSplitHighlighted, useIsRootInsertHighlighted } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 import { i18n } from "@/renderer/i18n/i18n";
 import { beginPanelResize, endPanelResize } from "@/renderer/state/panelResizeSignal";
 import { paneInsertZoneId } from "./paneInsertZone";
@@ -190,7 +191,7 @@ const DividerDropZone = React.memo(
   function DividerDropZone(props: { divider: RenderedDivider }) {
     const { divider } = props;
     const elementRef = useRef<HTMLDivElement>(null);
-    useDroppable({
+    const droppableResult = useDroppable({
       id: divider.zoneId,
       accept: ["pane", "thread", "new-thread"],
       data: {
@@ -202,6 +203,7 @@ const DividerDropZone = React.memo(
       },
       element: elementRef,
     });
+    useClearDndEntityElementsOnUnmount(droppableResult?.droppable);
     const isHighlighted = useIsInsertSplitHighlighted(divider.zoneId);
 
     return (
@@ -226,7 +228,7 @@ const RootInsertZone = React.memo(function RootInsertZone(props: {
 }) {
   const zoneId = `root-insert:${props.side}`;
   const elementRef = useRef<HTMLDivElement>(null);
-  useDroppable({
+  const droppableResult = useDroppable({
     id: `pane-root-insert:${props.side}`,
     accept: ["pane", "thread", "new-thread"],
     data: {
@@ -238,6 +240,7 @@ const RootInsertZone = React.memo(function RootInsertZone(props: {
     },
     element: elementRef,
   });
+  useClearDndEntityElementsOnUnmount(droppableResult?.droppable);
   const isHighlighted = useIsRootInsertHighlighted(zoneId);
 
   const edgeClass =
