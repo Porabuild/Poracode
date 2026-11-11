@@ -6111,6 +6111,7 @@ msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK v{nextVersion} sürümüne güncellendi."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
