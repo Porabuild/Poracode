@@ -21048,6 +21048,7 @@ msgstr "A sessão do tópico não está disponível para acompanhamentos enfilei
 msgid "The thread's branch name can't be used on this machine."
 msgstr "O nome do branch do tópico não pode ser usado nesta máquina."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "O host do tópico não está conectado."

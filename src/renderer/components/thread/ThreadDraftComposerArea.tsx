@@ -500,7 +500,11 @@ export function ThreadDraftComposerArea(props: {
   const isHomeScope = isHomeProject(props.project);
   const threadMentions = useThreadMentionItems(
     isHomeScope
-      ? { kind: "workspace", currentWorktreePath: branchSelection?.worktreePath }
+      ? {
+          kind: "workspace",
+          projectId: props.project.id,
+          currentWorktreePath: branchSelection?.worktreePath,
+        }
       : {
           kind: "project",
           projectId: props.project.id,

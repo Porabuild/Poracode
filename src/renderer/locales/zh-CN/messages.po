@@ -21047,6 +21047,7 @@ msgstr "聊天线程会话不可用于排队的后续消息。"
 msgid "The thread's branch name can't be used on this machine."
 msgstr "此线程的分支名称无法在此设备上使用。"
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "该线程的主机未连接。"

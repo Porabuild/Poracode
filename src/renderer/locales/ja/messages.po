@@ -21046,6 +21046,7 @@ msgstr "キューに入ったフォローアップにはスレッドセッショ
 msgid "The thread's branch name can't be used on this machine."
 msgstr "このスレッドのブランチ名はこのマシンでは使用できません。"
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "スレッドのホストに接続されていません。"

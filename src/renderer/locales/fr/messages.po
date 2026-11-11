@@ -21047,6 +21047,7 @@ msgstr "La session du fil de discussion n’est pas disponible pour les suivis e
 msgid "The thread's branch name can't be used on this machine."
 msgstr "Le nom de branche du fil ne peut pas être utilisé sur cette machine."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "L’hôte du fil de discussion n’est pas connecté."

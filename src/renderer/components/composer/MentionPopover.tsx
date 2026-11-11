@@ -257,8 +257,8 @@ export function MentionPopover(props: {
                     )}
                     <span className="poracode-mention-popover__label truncate">{entry.name}</span>
                     {detail ? (
-                      <span className="poracode-mention-popover__detail ml-auto shrink-0 text-xs text-[var(--muted)]">
-                        {detail}
+                      <span className="poracode-mention-popover__detail ml-auto max-w-[55%] min-w-0 shrink-0 text-xs text-[var(--muted)]">
+                        <span className="min-w-0 truncate">{detail}</span>
                       </span>
                     ) : null}
                   </div>

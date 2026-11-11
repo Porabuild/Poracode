@@ -21048,6 +21048,7 @@ msgstr "Die Thread-Sitzung ist für eingereihte Nachfragen nicht verfügbar."
 msgid "The thread's branch name can't be used on this machine."
 msgstr "Der Branch-Name des Threads kann auf diesem Computer nicht verwendet werden."
 
+#: src/renderer/actions/crossHostThreadMention.ts
 #: src/renderer/state/hostThreadHistory.ts
 msgid "The thread's host is not connected."
 msgstr "Der Host des Threads ist nicht verbunden."
