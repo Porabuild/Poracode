@@ -6,7 +6,10 @@ use crate::parser::{
     is_inherited_start_point_upstream, parse_diff_numstat, parse_status_porcelain_v2,
     strip_commit_message_comments, sum_change_totals,
 };
-use crate::protocol::{GitFileChange, NativeGitStatusEntry, StatusDetail};
+use crate::protocol::{
+    GitFileChange, NativeFileEntry, NativeGitStatusEntry, NativeProjectTreeEntry, StatusDetail,
+};
+use crate::search::{NativeSearchCache, SearchParams};
 use crate::untracked::UntrackedStatsCache;
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
@@ -18,11 +21,12 @@ use std::time::Duration;
 const LS_FILES_UNTRACKED_ARGS: &[&str] = &["ls-files", "--others", "--exclude-standard", "-z"];
 const MAX_MERGE_MESSAGE_BYTES: u64 = 64 * 1024;
 
-/// Stateful service owning the untracked-file `(size, mtime)` cache across
-/// requests for the lifetime of the helper daemon.
+/// Stateful service owning the untracked-file `(size, mtime)` cache and
+/// arena-allocated project search indexes across requests.
 #[derive(Debug, Default)]
 pub struct GitHelperService {
     untracked_cache: UntrackedStatsCache,
+    search_cache: NativeSearchCache,
 }
 
 impl GitHelperService {
@@ -30,6 +34,23 @@ impl GitHelperService {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Execute `ProjectSearchIndex.searchProjectTree` natively.
+    pub fn search_tree(&self, params: &SearchParams<'_>) -> Vec<NativeProjectTreeEntry> {
+        let limiter = SubprocessLimiter::new(2);
+        self.search_cache.search_tree(params, &limiter)
+    }
+
+    /// Execute `FileIndexService.searchProjectFiles` natively.
+    pub fn search_files(&self, params: &SearchParams<'_>) -> (Vec<NativeFileEntry>, usize) {
+        let limiter = SubprocessLimiter::new(2);
+        self.search_cache.search_files(params, &limiter)
+    }
+
+    /// Invalidate cached project search indexes for `root_path` (or all when `None`).
+    pub fn invalidate_search(&self, root_path: Option<&str>) {
+        self.search_cache.invalidate(root_path);
     }
 
     /// Execute a parallel `statusBatch` across `paths`. Worktrees that cannot

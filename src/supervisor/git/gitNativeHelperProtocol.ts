@@ -1,10 +1,15 @@
-import type { GitFileChange, GitStatusDetail } from "@/shared/contracts";
+import type {
+  FileEntry,
+  GitFileChange,
+  GitStatusDetail,
+  ProjectTreeEntry,
+} from "@/shared/contracts";
 
 /**
  * Must match `GIT_HELPER_PROTOCOL_VERSION` in `native/git-helper/src/protocol.rs`;
  * `scripts/prepare-git-helper.mjs` verifies `--hello` against this constant.
  */
-export const GIT_HELPER_PROTOCOL_VERSION = 1;
+export const GIT_HELPER_PROTOCOL_VERSION = 2;
 
 export const GIT_HELPER_BINARY_NAME = "poracode-git-helper";
 
@@ -37,18 +42,58 @@ export interface GitHelperStatusBatchRequest {
   maxConcurrency: number;
 }
 
+export interface GitHelperSearchTreeRequest {
+  protocolVersion: typeof GIT_HELPER_PROTOCOL_VERSION;
+  id: number;
+  kind: "searchTree";
+  rootPath: string;
+  query: string;
+  limit: number;
+  entryType?: "file" | "directory";
+  useIgnoreFiles: boolean;
+  excludePatterns: string[];
+  timeoutMs: number;
+}
+
+export interface GitHelperSearchFilesRequest {
+  protocolVersion: typeof GIT_HELPER_PROTOCOL_VERSION;
+  id: number;
+  kind: "searchFiles";
+  rootPath: string;
+  query: string;
+  limit: number;
+  useIgnoreFiles: boolean;
+  excludePatterns: string[];
+  timeoutMs: number;
+}
+
+export interface GitHelperInvalidateSearchRequest {
+  protocolVersion: typeof GIT_HELPER_PROTOCOL_VERSION;
+  id: number;
+  kind: "invalidateSearch";
+  rootPath?: string;
+}
+
 export interface GitHelperPingRequest {
   protocolVersion: typeof GIT_HELPER_PROTOCOL_VERSION;
   id: number;
   kind: "ping";
 }
 
-export type GitHelperRequest = GitHelperStatusBatchRequest | GitHelperPingRequest;
+export type GitHelperRequest =
+  | GitHelperStatusBatchRequest
+  | GitHelperSearchTreeRequest
+  | GitHelperSearchFilesRequest
+  | GitHelperInvalidateSearchRequest
+  | GitHelperPingRequest;
 
 export interface GitHelperResponse {
   protocolVersion: number;
   id: number;
   ok: boolean;
   statuses?: Record<string, NativeGitStatusEntry>;
+  treeEntries?: ProjectTreeEntry[];
+  fileEntries?: FileEntry[];
+  totalIndexed?: number;
   error?: string;
 }

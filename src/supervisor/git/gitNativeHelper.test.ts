@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { GitService } from "../git";
+import { FileIndexService } from "../fileIndex";
+import { ProjectSearchIndex } from "../ProjectSearchIndex";
+import { resolveProjectEntryPath } from "../projectPaths";
 import { disposeGitExecWorker } from "./exec";
 import {
   GIT_PROCESS_ADMISSION_DEFAULT_POLICY,
@@ -138,5 +141,133 @@ describe("poracode-git-helper parity & fallback", () => {
     } finally {
       holder.release();
     }
+  });
+
+  it("matches ProjectSearchIndex and FileIndexService rankings, diacritics, walk mode, and invalidation", async () => {
+    const bin = nativeGitHelperBinaryPath();
+    if (!bin) return;
+
+    const repo = makeTempDir("poracode-search-parity-");
+    runGit(repo, ["init", "-b", "main"]);
+    runGit(repo, ["config", "user.email", "test@poracode.dev"]);
+    runGit(repo, ["config", "user.name", "Test"]);
+
+    writeFileSync(join(repo, ".gitignore"), "ignored_dir/\n");
+    mkdirSync(join(repo, "src/components/search"), { recursive: true });
+    mkdirSync(join(repo, "ignored_dir"), { recursive: true });
+    mkdirSync(join(repo, "node_modules/pkg"), { recursive: true });
+
+    writeFileSync(join(repo, "src/CommandPalette.tsx"), "export {};\n");
+    writeFileSync(join(repo, "src/cmdplt.ts"), "export {};\n");
+    writeFileSync(join(repo, "src/Café.ts"), "export {};\n");
+    writeFileSync(join(repo, "src/components/search/CommandPalette.tsx"), "export {};\n");
+    writeFileSync(join(repo, "src/components/search/Other.tsx"), "export {};\n");
+    writeFileSync(join(repo, "ignored_dir/generated.ts"), "export {};\n");
+    writeFileSync(join(repo, "node_modules/pkg/index.js"), "export {};\n");
+    runGit(repo, ["add", "."]);
+    runGit(repo, ["commit", "-m", "initial"]);
+
+    const loc = localLocation(repo);
+
+    // Native ProjectSearchIndex & FileIndexService
+    delete process.env.PORACODE_DISABLE_GIT_HELPER;
+    const nativeTree = new ProjectSearchIndex(resolveProjectEntryPath);
+    const nativeFiles = new FileIndexService();
+
+    const nativeQueries = [
+      await nativeTree.searchProjectTree({
+        projectLocation: loc,
+        query: "cmdplt",
+        limit: 10,
+        entryType: "file",
+        searchConfig: { useIgnoreFiles: true, excludePatterns: ["**/node_modules"] },
+      }),
+      await nativeTree.searchProjectTree({
+        projectLocation: loc,
+        query: "cafe",
+        limit: 10,
+        entryType: "file",
+      }),
+      await nativeTree.searchProjectTree({
+        projectLocation: loc,
+        query: "palette components",
+        limit: 10,
+        entryType: "file",
+      }),
+      await nativeTree.searchProjectTree({
+        projectLocation: loc,
+        query: "generated",
+        limit: 10,
+        searchConfig: { useIgnoreFiles: false, excludePatterns: ["**/node_modules"] },
+      }),
+      await nativeFiles.searchProjectFiles({
+        projectLocation: loc,
+        query: "CommandPalette",
+        limit: 10,
+        searchConfig: { useIgnoreFiles: true, excludePatterns: ["**/node_modules"] },
+      }),
+    ];
+
+    // TypeScript fallback on the exact same repository
+    process.env.PORACODE_DISABLE_GIT_HELPER = "1";
+    const tsTree = new ProjectSearchIndex(resolveProjectEntryPath);
+    const tsFiles = new FileIndexService();
+
+    const tsQueries = [
+      await tsTree.searchProjectTree({
+        projectLocation: loc,
+        query: "cmdplt",
+        limit: 10,
+        entryType: "file",
+        searchConfig: { useIgnoreFiles: true, excludePatterns: ["**/node_modules"] },
+      }),
+      await tsTree.searchProjectTree({
+        projectLocation: loc,
+        query: "cafe",
+        limit: 10,
+        entryType: "file",
+      }),
+      await tsTree.searchProjectTree({
+        projectLocation: loc,
+        query: "palette components",
+        limit: 10,
+        entryType: "file",
+      }),
+      await tsTree.searchProjectTree({
+        projectLocation: loc,
+        query: "generated",
+        limit: 10,
+        searchConfig: { useIgnoreFiles: false, excludePatterns: ["**/node_modules"] },
+      }),
+      await tsFiles.searchProjectFiles({
+        projectLocation: loc,
+        query: "CommandPalette",
+        limit: 10,
+        searchConfig: { useIgnoreFiles: true, excludePatterns: ["**/node_modules"] },
+      }),
+    ];
+
+    expect(nativeQueries).toEqual(tsQueries);
+
+    // Verify native cache invalidation picks up newly created files immediately
+    delete process.env.PORACODE_DISABLE_GIT_HELPER;
+    writeFileSync(join(repo, "src/BrandNewFeature.tsx"), "export {};\n");
+    nativeTree.invalidateCaches(loc);
+    nativeFiles.invalidateCacheForLocation(loc);
+
+    const refreshedTree = await nativeTree.searchProjectTree({
+      projectLocation: loc,
+      query: "brandnew",
+      limit: 5,
+      entryType: "file",
+    });
+    expect(refreshedTree.entries.map((e) => e.path)).toEqual(["src/BrandNewFeature.tsx"]);
+
+    const refreshedFiles = await nativeFiles.searchProjectFiles({
+      projectLocation: loc,
+      query: "brandnew",
+      limit: 5,
+    });
+    expect(refreshedFiles.entries.map((e) => e.path)).toEqual(["src/BrandNewFeature.tsx"]);
   });
 });

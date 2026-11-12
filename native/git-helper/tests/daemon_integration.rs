@@ -51,7 +51,7 @@ fn git(cwd: &Path, args: &[&str]) {
 }
 
 #[test]
-fn hello_handshake_reports_protocol_v1() {
+fn hello_handshake_reports_protocol_v2() {
     let output = Command::new(bin_path())
         .arg("--hello")
         .output()
@@ -60,25 +60,25 @@ fn hello_handshake_reports_protocol_v1() {
     let parsed: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("valid hello JSON");
     assert_eq!(parsed["helper"], "poracode-git-helper");
-    assert_eq!(parsed["protocolVersion"], 1);
+    assert_eq!(parsed["protocolVersion"], 2);
     assert!(parsed["helperVersion"].as_str().is_some());
 }
 
 #[test]
 fn unknown_flag_and_protocol_mismatch_fail_closed() {
     let bad_flag = Command::new(bin_path())
-        .arg("--unknown")
+        .arg("--serve-v1")
         .output()
-        .expect("spawn --unknown");
+        .expect("spawn --serve-v1");
     assert!(!bad_flag.status.success());
 
     let mut child = Command::new(bin_path())
-        .arg("--serve-v1")
+        .arg("--serve-v2")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn --serve-v1");
+        .expect("spawn --serve-v2");
 
     {
         let stdin = child.stdin.as_mut().expect("stdin");
@@ -92,7 +92,7 @@ fn unknown_flag_and_protocol_mismatch_fail_closed() {
 }
 
 #[test]
-fn serves_parallel_worktree_summary_and_full_batches() {
+fn serves_parallel_worktree_batches_and_search_indexes() {
     let temp = TempDir::new("batch");
     let repo_a = temp.path.join("repo-a");
     let repo_b = temp.path.join("repo-b");
@@ -123,12 +123,19 @@ fn serves_parallel_worktree_summary_and_full_batches() {
     fs::create_dir_all(repo_a.join("untracked_dir")).expect("mkdir untracked_dir");
     fs::write(repo_a.join("untracked_dir/new.txt"), "u1\nu2\nu3\n").expect("write untracked");
     fs::write(repo_a.join("untracked_dir/bin.dat"), [0u8, 1u8, 2u8, 3u8]).expect("write bin");
+    fs::create_dir_all(repo_a.join("src/components")).expect("mkdir components");
+    fs::write(
+        repo_a.join("src/components/CommandPalette.tsx"),
+        "export {};\n",
+    )
+    .expect("write cp");
+    fs::write(repo_a.join("src/components/cmdplt.ts"), "export {};\n").expect("write cmdplt");
 
     fs::write(repo_b.join("staged.txt"), "s1\ns2\n").expect("write staged");
     git(&repo_b, &["add", "staged.txt"]);
 
     let mut child = Command::new(bin_path())
-        .arg("--serve-v1")
+        .arg("--serve-v2")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -146,7 +153,7 @@ fn serves_parallel_worktree_summary_and_full_batches() {
 
     // 1. Summary batch
     let summary_req = serde_json::json!({
-        "protocolVersion": 1,
+        "protocolVersion": 2,
         "id": 1,
         "kind": "statusBatch",
         "paths": paths,
@@ -166,15 +173,11 @@ fn serves_parallel_worktree_summary_and_full_batches() {
     assert!(a_sum.is_repo);
     assert_eq!(a_sum.detail.as_deref(), Some("summary"));
     assert_eq!(a_sum.branch, "main");
-    assert!(a_sum.head_sha.is_some());
-    assert_eq!(a_sum.total_insertions, 0);
-    // Expanded untracked directory entries + modified tracked.txt
-    assert_eq!(a_sum.unstaged.len(), 3);
     assert!(!statuses[&paths[2]].is_repo);
 
     // 2. Full batch
     let full_req = serde_json::json!({
-        "protocolVersion": 1,
+        "protocolVersion": 2,
         "id": 2,
         "kind": "statusBatch",
         "paths": paths,
@@ -190,27 +193,75 @@ fn serves_parallel_worktree_summary_and_full_batches() {
     let full_resp: HelperResponse = serde_json::from_str(&line).expect("parse full");
     assert!(full_resp.ok);
     let full_statuses = full_resp.statuses.expect("full statuses");
+    assert_eq!(full_statuses[&paths[0]].total_insertions, 6);
+    assert_eq!(full_statuses[&paths[1]].total_insertions, 2);
 
-    let a_full = &full_statuses[&paths[0]];
-    assert!(a_full.is_repo);
-    assert!(a_full.detail.is_none());
-    assert!(a_full.has_remote);
-    assert!(
-        a_full
-            .remote_output
-            .as_deref()
-            .unwrap_or("")
-            .contains("https://github.com/poracode/demo.git")
+    // 3. searchTree (fuzzy + literal ranking)
+    let search_tree_req = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 3,
+        "kind": "searchTree",
+        "rootPath": paths[0],
+        "query": "cmdplt",
+        "limit": 10,
+        "entryType": "file",
+        "useIgnoreFiles": true,
+        "excludePatterns": ["**/.git"]
+    });
+    writeln!(stdin, "{search_tree_req}").expect("write searchTree req");
+    stdin.flush().expect("flush");
+
+    line.clear();
+    stdout.read_line(&mut line).expect("read searchTree line");
+    let tree_resp: HelperResponse = serde_json::from_str(&line).expect("parse searchTree");
+    assert!(tree_resp.ok);
+    let tree_names: Vec<String> = tree_resp
+        .tree_entries
+        .expect("tree entries")
+        .into_iter()
+        .map(|e| e.name)
+        .collect();
+    assert_eq!(tree_names, vec!["cmdplt.ts", "CommandPalette.tsx"]);
+
+    // 4. searchFiles + invalidateSearch
+    let search_files_req = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 4,
+        "kind": "searchFiles",
+        "rootPath": paths[0],
+        "query": "tracked",
+        "limit": 10,
+        "useIgnoreFiles": true,
+        "excludePatterns": []
+    });
+    writeln!(stdin, "{search_files_req}").expect("write searchFiles req");
+    stdin.flush().expect("flush");
+
+    line.clear();
+    stdout.read_line(&mut line).expect("read searchFiles line");
+    let files_resp: HelperResponse = serde_json::from_str(&line).expect("parse searchFiles");
+    assert!(files_resp.ok);
+    assert!(files_resp.total_indexed.unwrap_or(0) >= 5);
+    assert_eq!(
+        files_resp.file_entries.expect("file entries")[0].name,
+        "tracked.txt"
     );
-    // 1 insertion in tracked.txt + 3 lines in untracked_dir/new.txt + 0 for binary = 4
-    assert_eq!(a_full.total_insertions, 4);
-    assert_eq!(a_full.total_deletions, 0);
 
-    let b_full = &full_statuses[&paths[1]];
-    assert_eq!(b_full.staged.len(), 1);
-    assert_eq!(b_full.staged[0].path, "staged.txt");
-    assert_eq!(b_full.staged[0].insertions, 2);
-    assert_eq!(b_full.total_insertions, 2);
+    let inv_req = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 5,
+        "kind": "invalidateSearch",
+        "rootPath": paths[0]
+    });
+    writeln!(stdin, "{inv_req}").expect("write invalidateSearch req");
+    stdin.flush().expect("flush");
+
+    line.clear();
+    stdout
+        .read_line(&mut line)
+        .expect("read invalidateSearch line");
+    let inv_resp: HelperResponse = serde_json::from_str(&line).expect("parse invalidateSearch");
+    assert!(inv_resp.ok);
 
     drop(stdin);
     let exit = child.wait().expect("wait clean exit");

@@ -2,18 +2,20 @@
 //!
 //! - `--hello` prints the staging handshake (`helper`, `helperVersion`,
 //!   `protocolVersion`, `platform`, `arch`) and exits 0.
-//! - `--serve-v1` runs the bounded worker-pool request loop until stdin EOF.
+//! - `--serve-v2` runs the bounded worker-pool request loop until stdin EOF.
 //! - Any unknown argument or mismatched `protocolVersion` fails closed.
 
 use poracode_git_helper::protocol::{
     GIT_HELPER_PROTOCOL_VERSION, HELLO_HELPER, HelperRequest, HelperResponse,
 };
+use poracode_git_helper::search::SearchParams;
 use poracode_git_helper::service::GitHelperService;
 use std::collections::VecDeque;
 use std::io::{self, BufRead, Write};
 use std::process::ExitCode;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
+use std::time::Duration;
 
 const MAX_REQUEST_WORKERS: usize = 4;
 const MAX_QUEUE_CAPACITY: usize = 64;
@@ -141,6 +143,41 @@ fn handle_request(service: &GitHelperService, req: HelperRequest) -> HelperRespo
                 service.status_batch(&req.paths, req.detail, req.timeout_ms, req.max_concurrency);
             HelperResponse::ok_statuses(req.id, statuses)
         }
+        "searchTree" => {
+            let Some(ref root_path) = req.root_path else {
+                return HelperResponse::err(req.id, "searchTree requires rootPath");
+            };
+            let params = SearchParams {
+                root_path,
+                query: &req.query,
+                limit: req.limit,
+                entry_type: req.entry_type.as_deref(),
+                use_ignore_files: req.use_ignore_files,
+                exclude_patterns: &req.exclude_patterns,
+                timeout: Duration::from_millis(req.timeout_ms.max(250)),
+            };
+            HelperResponse::ok_tree_search(req.id, service.search_tree(&params))
+        }
+        "searchFiles" => {
+            let Some(ref root_path) = req.root_path else {
+                return HelperResponse::err(req.id, "searchFiles requires rootPath");
+            };
+            let params = SearchParams {
+                root_path,
+                query: &req.query,
+                limit: req.limit,
+                entry_type: None,
+                use_ignore_files: req.use_ignore_files,
+                exclude_patterns: &req.exclude_patterns,
+                timeout: Duration::from_millis(req.timeout_ms.max(250)),
+            };
+            let (entries, total) = service.search_files(&params);
+            HelperResponse::ok_files_search(req.id, entries, total)
+        }
+        "invalidateSearch" => {
+            service.invalidate_search(req.root_path.as_deref());
+            HelperResponse::ok_empty(req.id)
+        }
         other => HelperResponse::err(req.id, format!("Unknown request kind: {other}")),
     }
 }
@@ -230,11 +267,11 @@ fn main() -> ExitCode {
             println!("{}", hello_line());
             ExitCode::SUCCESS
         }
-        [flag] if flag == "--serve-v1" => run_daemon(),
+        [flag] if flag == "--serve-v2" => run_daemon(),
         _ => {
             let _ = writeln!(
                 io::stderr(),
-                "Usage: poracode-git-helper (--hello | --serve-v1)"
+                "Usage: poracode-git-helper (--hello | --serve-v2)"
             );
             ExitCode::from(2)
         }

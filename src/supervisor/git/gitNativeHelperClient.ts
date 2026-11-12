@@ -3,23 +3,37 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { Readable, Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
-import type { GitStatusDetail } from "@/shared/contracts";
+import type { FileEntry, GitStatusDetail, ProjectTreeEntry } from "@/shared/contracts";
 import { resolveWslHelpersDir } from "../wsl/wslDeploy";
 import {
   GIT_HELPER_BINARY_NAME,
   GIT_HELPER_PROTOCOL_VERSION,
+  type GitHelperRequest,
   type GitHelperResponse,
-  type GitHelperStatusBatchRequest,
   type NativeGitStatusEntry,
 } from "./gitNativeHelperProtocol";
 
 interface PendingRequest {
-  resolve: (statuses: Record<string, NativeGitStatusEntry>) => void;
+  resolve: (response: GitHelperResponse) => void;
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
 }
 
 const REQUEST_GRACE_MS = 5_000;
+
+/**
+ * Returns `false` if any exclude pattern uses brace expansion or bash extglobs
+ * (`{a,b}`, `!(foo)`, `+(bar)`, `\` escapes) that require `micromatch`. Standard
+ * globs (`*`, `**`, `?`, `[abc]`, `[!abc]`) are handled natively in Rust.
+ */
+export function areSearchExcludePatternsNativeCompatible(patterns: readonly string[]): boolean {
+  for (const p of patterns) {
+    if (/[{}\\]|(?:!|\+|\*|@|\?)\(/u.test(p)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export function nativeGitHelperTargetId(): string | undefined {
   if (process.platform === "darwin") return "darwin-universal";
@@ -80,6 +94,10 @@ class GitNativeHelperDaemon {
     return !this.disabled;
   }
 
+  nextRequestId(): number {
+    return this.nextId++;
+  }
+
   private ensureProcess(): ChildProcessByStdio<Writable, Readable, null> | null {
     if (this.disabled) return null;
     if (this.child && this.child.exitCode === null && !this.child.killed) {
@@ -87,7 +105,7 @@ class GitNativeHelperDaemon {
     }
 
     try {
-      const child = spawn(this.binaryPath, ["--serve-v1"], {
+      const child = spawn(this.binaryPath, ["--serve-v2"], {
         stdio: ["pipe", "pipe", "ignore"],
         windowsHide: true,
       });
@@ -149,8 +167,8 @@ class GitNativeHelperDaemon {
       this.pending.delete(parsed.id);
       clearTimeout(entry.timer);
 
-      if (parsed.ok && parsed.statuses) {
-        entry.resolve(parsed.statuses);
+      if (parsed.ok) {
+        entry.resolve(parsed);
       } else {
         entry.reject(new Error(parsed.error ?? "poracode-git-helper request failed"));
       }
@@ -169,35 +187,19 @@ class GitNativeHelperDaemon {
     }
   }
 
-  statusBatch(args: {
-    paths: string[];
-    detail: GitStatusDetail;
-    timeoutMs: number;
-    maxConcurrency: number;
-  }): Promise<Record<string, NativeGitStatusEntry>> | null {
+  request(req: GitHelperRequest, timeoutMs: number): Promise<GitHelperResponse> | null {
     const child = this.ensureProcess();
     if (!child) return null;
 
-    const id = this.nextId++;
-    const req: GitHelperStatusBatchRequest = {
-      protocolVersion: GIT_HELPER_PROTOCOL_VERSION,
-      id,
-      kind: "statusBatch",
-      paths: args.paths,
-      detail: args.detail,
-      timeoutMs: args.timeoutMs,
-      maxConcurrency: args.maxConcurrency,
-    };
-
-    return new Promise<Record<string, NativeGitStatusEntry>>((resolvePromise, rejectPromise) => {
+    return new Promise<GitHelperResponse>((resolvePromise, rejectPromise) => {
       const timer = setTimeout(() => {
-        if (this.pending.delete(id)) {
+        if (this.pending.delete(req.id)) {
           rejectPromise(new Error("poracode-git-helper request timed out"));
         }
-      }, args.timeoutMs + REQUEST_GRACE_MS);
+      }, timeoutMs + REQUEST_GRACE_MS);
       timer.unref?.();
 
-      this.pending.set(id, {
+      this.pending.set(req.id, {
         resolve: resolvePromise,
         reject: rejectPromise,
         timer,
@@ -206,11 +208,22 @@ class GitNativeHelperDaemon {
       try {
         child.stdin.write(`${JSON.stringify(req)}\n`);
       } catch (err) {
-        this.pending.delete(id);
+        this.pending.delete(req.id);
         clearTimeout(timer);
         rejectPromise(err instanceof Error ? err : new Error(String(err)));
       }
     });
+  }
+
+  sendFireAndForgetIfAlive(req: GitHelperRequest): void {
+    if (!this.child || this.child.exitCode !== null || this.child.killed) {
+      return;
+    }
+    try {
+      this.child.stdin.write(`${JSON.stringify(req)}\n`);
+    } catch {
+      // Ignore write failures during shutdown; cache is process-local anyway.
+    }
   }
 
   dispose(): void {
@@ -263,14 +276,105 @@ export async function queryNativeGitStatusBatch(args: {
   if (args.paths.length === 0) return {};
   const daemon = getSharedDaemon();
   if (!daemon) return null;
-  const pending = daemon.statusBatch(args);
+  const pending = daemon.request(
+    {
+      protocolVersion: GIT_HELPER_PROTOCOL_VERSION,
+      id: daemon.nextRequestId(),
+      kind: "statusBatch",
+      paths: args.paths,
+      detail: args.detail,
+      timeoutMs: args.timeoutMs,
+      maxConcurrency: args.maxConcurrency,
+    },
+    args.timeoutMs,
+  );
   if (!pending) return null;
   try {
-    return await pending;
+    const res = await pending;
+    return res.statuses ?? null;
   } catch {
-    // Any helper crash/timeout transparently falls back to the TypeScript path!
     return null;
   }
+}
+
+export async function queryNativeSearchTree(args: {
+  rootPath: string;
+  query: string;
+  limit: number;
+  entryType?: "file" | "directory";
+  useIgnoreFiles: boolean;
+  excludePatterns: string[];
+  timeoutMs: number;
+}): Promise<ProjectTreeEntry[] | null> {
+  const daemon = getSharedDaemon();
+  if (!daemon) return null;
+  const pending = daemon.request(
+    {
+      protocolVersion: GIT_HELPER_PROTOCOL_VERSION,
+      id: daemon.nextRequestId(),
+      kind: "searchTree",
+      rootPath: args.rootPath,
+      query: args.query,
+      limit: args.limit,
+      ...(args.entryType ? { entryType: args.entryType } : {}),
+      useIgnoreFiles: args.useIgnoreFiles,
+      excludePatterns: args.excludePatterns,
+      timeoutMs: args.timeoutMs,
+    },
+    args.timeoutMs,
+  );
+  if (!pending) return null;
+  try {
+    const res = await pending;
+    return res.treeEntries ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function queryNativeSearchFiles(args: {
+  rootPath: string;
+  query: string;
+  limit: number;
+  useIgnoreFiles: boolean;
+  excludePatterns: string[];
+  timeoutMs: number;
+}): Promise<{ entries: FileEntry[]; totalIndexed: number } | null> {
+  const daemon = getSharedDaemon();
+  if (!daemon) return null;
+  const pending = daemon.request(
+    {
+      protocolVersion: GIT_HELPER_PROTOCOL_VERSION,
+      id: daemon.nextRequestId(),
+      kind: "searchFiles",
+      rootPath: args.rootPath,
+      query: args.query,
+      limit: args.limit,
+      useIgnoreFiles: args.useIgnoreFiles,
+      excludePatterns: args.excludePatterns,
+      timeoutMs: args.timeoutMs,
+    },
+    args.timeoutMs,
+  );
+  if (!pending) return null;
+  try {
+    const res = await pending;
+    if (!res.fileEntries || typeof res.totalIndexed !== "number") return null;
+    return { entries: res.fileEntries, totalIndexed: res.totalIndexed };
+  } catch {
+    return null;
+  }
+}
+
+export function invalidateNativeSearchCache(rootPath?: string): void {
+  if (!sharedDaemon) return;
+  const daemon = sharedDaemon.instance;
+  daemon.sendFireAndForgetIfAlive({
+    protocolVersion: GIT_HELPER_PROTOCOL_VERSION,
+    id: daemon.nextRequestId(),
+    kind: "invalidateSearch",
+    ...(rootPath !== undefined ? { rootPath } : {}),
+  });
 }
 
 export function disposeNativeGitHelper(): void {
