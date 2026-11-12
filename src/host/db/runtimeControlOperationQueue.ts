@@ -134,6 +134,10 @@ export class RuntimeControlOperationQueue {
       // letting an unhandled rejection escape the queue.
       result = { ok: false, errorClass: "storage", error };
     }
+    if (this.entries[0] !== entry) {
+      if (result.ok) this.notifyCompleted(entry.operation, result);
+      return true;
+    }
     if (result.ok) {
       this.entries.shift();
       this.notifyCompleted(entry.operation, result);

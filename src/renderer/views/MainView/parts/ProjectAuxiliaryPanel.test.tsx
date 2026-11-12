@@ -818,6 +818,25 @@ describe("ProjectAuxiliaryPanel", () => {
     });
   });
 
+  it.each(["browser", "docks"] as const)(
+    "records a painted Git fallback from %s when follow-thread is disabled",
+    async (tab) => {
+      usePanelStore.setState({
+        rightPanelTab: tab,
+        browserPanelOpen: false,
+        threadDocksPanelOpen: false,
+        rightPanelFollowsThread: false,
+      });
+      render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal visible />
+        </I18nProvider>,
+      );
+      await waitFor(() => expect(unifiedRightPanelProps.current?.activeTab).toBe("git"));
+      expect(usePanelStore.getState().rightPanelTab).toBe("git");
+    },
+  );
+
   it("keeps the browser tab active while the browser panel is open", async () => {
     usePanelStore.setState({ rightPanelTab: "browser", browserPanelOpen: true });
 

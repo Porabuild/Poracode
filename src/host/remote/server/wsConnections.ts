@@ -306,6 +306,14 @@ export async function handleUpgrade(
     // ticket is already consumed, so the client mints a fresh one on retry.
     const socketLease = ctx.principalAdmission.tryAdmitSocket(session.sessionId);
     let handedOff = false;
+    // Direct loopback desktop-internal sessions sit in the same local OS
+    // network stack: skipping `permessage-deflate` eliminates zlib CPU and its
+    // 4-job concurrency queue on the backend-host event loop during multi-agent
+    // bursts, without affecting paired remote/Tailscale clients.
+    const savedExtensions = desktopInternal ? req.headers["sec-websocket-extensions"] : undefined;
+    if (desktopInternal && savedExtensions !== undefined) {
+      delete req.headers["sec-websocket-extensions"];
+    }
     try {
       ctx.wss.handleUpgrade(req, socket, head, (ws) => {
         handedOff = true;
@@ -325,6 +333,9 @@ export async function handleUpgrade(
         );
       });
     } finally {
+      if (desktopInternal && savedExtensions !== undefined) {
+        req.headers["sec-websocket-extensions"] = savedExtensions;
+      }
       // `handleUpgrade` hands the lease to the connection synchronously; if
       // the handshake itself failed, release it here exactly once.
       if (!handedOff) socketLease.release();

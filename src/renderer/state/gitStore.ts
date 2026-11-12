@@ -493,30 +493,94 @@ function loadPersistedSnapshot(): Partial<PersistedSnapshot> {
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let persistIdleHandle: number | null = null;
+let pendingPersistState: GitState | null = null;
+let persistWindowStartedAt: number | null = null;
+const PERSIST_DEBOUNCE_MS = 1_500;
+const PERSIST_MAX_WAIT_MS = 8_000;
+const PERSIST_IDLE_TIMEOUT_MS = 2_000;
+
+function cancelScheduledPersist(): void {
+  if (persistTimer !== null) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  if (
+    persistIdleHandle !== null &&
+    typeof window !== "undefined" &&
+    typeof window.cancelIdleCallback === "function"
+  ) {
+    window.cancelIdleCallback(persistIdleHandle);
+  }
+  persistIdleHandle = null;
+  pendingPersistState = null;
+  persistWindowStartedAt = null;
+}
+
+function flushPersistSnapshot(state: GitState): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    const snapshot: PersistedSnapshot = {
+      v: 2,
+      ts: Date.now(),
+      statuses: state.statuses,
+      worktreeStatuses: state.worktreeStatuses,
+      worktrees: state.worktrees,
+      branches: state.branches,
+      ghAvailable: state.ghAvailable,
+      prData: state.prData,
+      worktreeSourceInfo: state.worktreeSourceInfo,
+    };
+    localStorage.setItem(PERSIST_KEY, JSON.stringify(snapshot));
+  } catch {
+    // localStorage may be full or unavailable — silently skip.
+  }
+}
+
 function schedulePersist(state: GitState) {
   if (typeof localStorage === "undefined") return;
-  if (persistTimer) clearTimeout(persistTimer);
-  // Debounce — refreshes write to several fields rapidly. One round-trip after
-  // 200ms of quiet covers the whole batch.
+  const now = Date.now();
+  pendingPersistState = state;
+  if (persistWindowStartedAt === null) {
+    persistWindowStartedAt = now;
+  }
+  const remainingMaxWait = Math.max(0, PERSIST_MAX_WAIT_MS - (now - persistWindowStartedAt));
+  const delayMs = Math.min(PERSIST_DEBOUNCE_MS, remainingMaxWait);
+  if (persistTimer !== null && delayMs > 0) clearTimeout(persistTimer);
+  else if (persistTimer !== null && delayMs === 0) return;
+  // Coalesce bursts during active agent edits and defer the synchronous
+  // `JSON.stringify` + `localStorage.setItem` write to an idle frame so
+  // background worktree churn never stalls UI animations or thread switches,
+  // bounded by `PERSIST_MAX_WAIT_MS` so continuous churn still checkpoints.
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    try {
-      const snapshot: PersistedSnapshot = {
-        v: 2,
-        ts: Date.now(),
-        statuses: state.statuses,
-        worktreeStatuses: state.worktreeStatuses,
-        worktrees: state.worktrees,
-        branches: state.branches,
-        ghAvailable: state.ghAvailable,
-        prData: state.prData,
-        worktreeSourceInfo: state.worktreeSourceInfo,
-      };
-      localStorage.setItem(PERSIST_KEY, JSON.stringify(snapshot));
-    } catch {
-      // localStorage may be full or unavailable — silently skip.
+    persistWindowStartedAt = null;
+    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+      if (persistIdleHandle !== null) return;
+      persistIdleHandle = window.requestIdleCallback(
+        () => {
+          persistIdleHandle = null;
+          const latest = pendingPersistState;
+          pendingPersistState = null;
+          if (latest) flushPersistSnapshot(latest);
+        },
+        { timeout: PERSIST_IDLE_TIMEOUT_MS },
+      );
+      return;
     }
-  }, 200);
+    const latest = pendingPersistState;
+    pendingPersistState = null;
+    if (latest) flushPersistSnapshot(latest);
+  }, delayMs);
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    if (!pendingPersistState) return;
+    const latest = pendingPersistState;
+    cancelScheduledPersist();
+    flushPersistSnapshot(latest);
+  });
 }
 
 const initialPersisted = loadPersistedSnapshot();
@@ -542,9 +606,10 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   prDetails: {},
 
   setStatus: (projectId, status) => {
-    if (areGitStatusesEqual(get().statuses[projectId], status)) return;
+    const nextStatus = mergeSummaryStatus(get().statuses[projectId], status);
+    if (areGitStatusesEqual(get().statuses[projectId], nextStatus)) return;
     set((state) => ({
-      statuses: { ...state.statuses, [projectId]: status },
+      statuses: { ...state.statuses, [projectId]: nextStatus },
     }));
   },
 
@@ -873,10 +938,7 @@ export function resetGitStoreCache(): void {
   // `setState` synchronously schedules persistence through the subscription
   // below. A desktop/session reset must remove the previous identity's cache
   // immediately, rather than leave a reload window before that debounce fires.
-  if (persistTimer !== null) {
-    clearTimeout(persistTimer);
-    persistTimer = null;
-  }
+  cancelScheduledPersist();
   if (typeof localStorage !== "undefined") {
     try {
       localStorage.removeItem(PERSIST_KEY);

@@ -1,6 +1,7 @@
-import type { AppView } from "@/shared/contracts";
+import type { AppView, Thread } from "@/shared/contracts";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { useAppStore } from "@/renderer/state/appStore";
+import { getThreadMap } from "@/renderer/state/useThread";
 
 /** The focused pane of a thread view, falling back to the first pane. */
 export function resolveActivePaneId(
@@ -26,7 +27,23 @@ export function resolveProjectIdForView(
   return undefined;
 }
 
+/** O(1) selector using the WeakMap-cached thread index for reactive store subscriptions. */
+export function selectCurrentProjectIdForView(state: {
+  view: AppView;
+  threads: readonly Thread[];
+  focusedPaneId: string | null;
+}): string | undefined {
+  const { view } = state;
+  if (view.kind === "draft" || view.kind === "experiment") return view.projectId;
+  if (view.kind === "thread") {
+    const paneId = resolveActivePaneId(view.panes, state.focusedPaneId);
+    const draftProjectId = parseDraftProjectId(paneId);
+    if (draftProjectId) return draftProjectId;
+    return getThreadMap(state.threads).get(paneId)?.projectId;
+  }
+  return undefined;
+}
+
 export function getCurrentProjectId(): string | undefined {
-  const s = useAppStore.getState();
-  return resolveProjectIdForView(s.view, s.threads, s.focusedPaneId);
+  return selectCurrentProjectIdForView(useAppStore.getState());
 }

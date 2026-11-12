@@ -11,6 +11,7 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { getProjectMap, getThreadMap } from "@/renderer/state/useThread";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
@@ -199,26 +200,33 @@ function DesktopMainDndProvider(props: {
   );
 }
 
+function ExperimentCandidateWorkflowTracker(props: { threadId: string; projectId: string }) {
+  const worktreePath = useAppStore(
+    (state) => getThreadMap(state.threads).get(props.threadId)?.worktreePath,
+  );
+  const project = useAppStore((state) => getProjectMap(state.projects).get(props.projectId));
+  if (!worktreePath || !project) return null;
+  return (
+    <ThreadLiveWorkflowTracker
+      threadId={props.threadId}
+      projectLocation={buildWorktreeLocation(project.location, worktreePath)}
+    />
+  );
+}
+
 function ExperimentWorkflowTrackers() {
   const experiments = useExperimentStore((state) => state.experiments);
-  const threads = useAppStore((state) => state.threads);
-  const projects = useAppStore((state) => state.projects);
-  const threadById = new Map(threads.map((thread) => [thread.id, thread] as const));
-  const projectById = new Map(projects.map((project) => [project.id, project] as const));
+  const entries = Object.values(experiments);
+  if (entries.length === 0) return null;
 
-  return Object.values(experiments).flatMap((experiment) =>
-    experiment.candidates.map((candidate) => {
-      const thread = threadById.get(candidate.threadId);
-      const project = projectById.get(experiment.projectId);
-      if (!thread?.worktreePath || !project) return null;
-      return (
-        <ThreadLiveWorkflowTracker
-          key={candidate.threadId}
-          threadId={candidate.threadId}
-          projectLocation={buildWorktreeLocation(project.location, thread.worktreePath)}
-        />
-      );
-    }),
+  return entries.flatMap((experiment) =>
+    experiment.candidates.map((candidate) => (
+      <ExperimentCandidateWorkflowTracker
+        key={candidate.threadId}
+        threadId={candidate.threadId}
+        projectId={experiment.projectId}
+      />
+    )),
   );
 }
 

@@ -146,12 +146,13 @@ export function threadExistsInSqlite(
 export function applyThreadRuntimeEventsNow(
   threadId: string,
   events: readonly RuntimeEvent[],
+  busyTimeoutMs?: number,
 ): void {
   if (events.length === 0) return;
   const sqlite = getSqlite();
   withRuntimeBusyTimeout(() => {
     writerStatements(sqlite).writeEvents(threadId, events);
-  });
+  }, busyTimeoutMs);
   notifyRuntimeItemsCommitted(threadId, events);
 }
 
@@ -163,16 +164,23 @@ export function applyThreadRuntimeEventsNow(
  * cache follows the SQLite handle and is discarded on clean close/rebind;
  * schema 53 stores heads in bounded blocks; event and read-fence formats are unchanged.
  */
-export const applyRuntimeEventBatchesNow: RuntimeAtomicBatchWriter = (batches) => {
+export function applyRuntimeEventBatchesNow(
+  batches: readonly RuntimeWriteBatch[],
+  busyTimeoutMs?: number,
+): ReturnType<RuntimeAtomicBatchWriter> {
   const sqlite = getSqlite();
-  const result = commitRuntimeAtomicWrite(sqlite, () => {
-    writerStatements(sqlite).writeBatches(batches);
-  });
+  const result = commitRuntimeAtomicWrite(
+    sqlite,
+    () => {
+      writerStatements(sqlite).writeBatches(batches);
+    },
+    busyTimeoutMs,
+  );
   if (result.kind === "committed") {
     for (const batch of batches) notifyRuntimeItemsCommitted(batch.threadId, batch.events);
   }
   return result;
-};
+}
 
 function applyRuntimeEventsInTransaction(
   sqlite: InstanceType<typeof Database>,

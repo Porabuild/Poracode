@@ -259,24 +259,29 @@ describe("gitStore batch updates", () => {
     expect(secondStatuses["/wt/b"]?.ahead).toBe(1);
   });
 
-  it("preserves matching full diff stats when a summary worktree status lands", () => {
-    useGitStore.getState().setWorktreeStatus("/wt/a", {
-      ...baseStatus,
-      unstaged: [
-        {
-          path: "src/changed.ts",
-          status: "M",
-          staged: false,
-          insertions: 8,
-          deletions: 2,
-        },
-      ],
-      totalInsertions: 8,
-      totalDeletions: 2,
-    });
+  it.each(["main", "worktree"] as const)(
+    "preserves matching full diff stats when a summary %s status lands",
+    (root) => {
+      const apply = (status: GitStatusResult) =>
+        root === "main"
+          ? useGitStore.getState().setStatus("p1", status)
+          : useGitStore.getState().setWorktreeStatuses({ "/wt/a": status });
+      apply({
+        ...baseStatus,
+        unstaged: [
+          {
+            path: "src/changed.ts",
+            status: "M",
+            staged: false,
+            insertions: 8,
+            deletions: 2,
+          },
+        ],
+        totalInsertions: 8,
+        totalDeletions: 2,
+      });
 
-    useGitStore.getState().setWorktreeStatuses({
-      "/wt/a": {
+      apply({
         detail: "summary",
         ...baseStatus,
         remoteInfo: null,
@@ -291,16 +296,20 @@ describe("gitStore batch updates", () => {
         ],
         totalInsertions: 0,
         totalDeletions: 0,
-      },
-    });
+      });
 
-    const status = useGitStore.getState().worktreeStatuses["/wt/a"]!;
-    expect(status.detail).toBe("summary");
-    expect(status.remoteInfo).toBe(baseStatus.remoteInfo);
-    expect(status.unstaged[0]).toMatchObject({ insertions: 8, deletions: 2 });
-    expect(status.totalInsertions).toBe(8);
-    expect(status.totalDeletions).toBe(2);
-  });
+      const status = (
+        root === "main"
+          ? useGitStore.getState().statuses.p1
+          : useGitStore.getState().worktreeStatuses["/wt/a"]
+      )!;
+      expect(status.detail).toBe("summary");
+      expect(status.remoteInfo).toBe(baseStatus.remoteInfo);
+      expect(status.unstaged[0]).toMatchObject({ insertions: 8, deletions: 2 });
+      expect(status.totalInsertions).toBe(8);
+      expect(status.totalDeletions).toBe(2);
+    },
+  );
 
   it("sums stats when staging a file that already has a staged entry (MM)", () => {
     const stagedM = {

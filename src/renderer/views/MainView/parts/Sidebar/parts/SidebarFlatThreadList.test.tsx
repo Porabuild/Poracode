@@ -11,6 +11,17 @@ import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { SidebarFlatThreadList } from "./SidebarFlatThreadList";
+import { buildSidebarProjectRows } from "./sidebarProjectRows";
+
+vi.mock("./sidebarProjectRows", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./sidebarProjectRows")>();
+  return {
+    ...actual,
+    buildSidebarProjectRows: vi.fn<typeof actual.buildSidebarProjectRows>(
+      actual.buildSidebarProjectRows,
+    ),
+  };
+});
 
 // The suite switches workspaces in setup, which must not mute section reveals.
 vi.mock("./workspaceSwitchSettling", () => ({ isWorkspaceSwitchSettling: () => false }));
@@ -159,6 +170,99 @@ describe("SidebarFlatThreadList", () => {
       threadListLimits: {},
     });
     newThreadCalls.length = 0;
+  });
+
+  it("does not rebuild parent rows for background command, config, or turn-timing updates", () => {
+    useAppStore.setState({
+      projects: [localProject],
+      threads: [
+        makeThread("foreground", localProject.id, "2026-08-02T10:00:00.000Z"),
+        makeThread("background", localProject.id, "2026-08-01T10:00:00.000Z"),
+      ],
+    });
+    render(<SidebarFlatThreadList sortMode="updated" />);
+    expect(buildSidebarProjectRows).toHaveBeenCalled();
+    vi.mocked(buildSidebarProjectRows).mockClear();
+
+    const updates: Partial<Thread>[] = [
+      { slashCommands: [{ id: "review", label: "review", description: "Review" }] },
+      { sessionConfigOptions: [{ type: "boolean", id: "fast", currentValue: true }] },
+      { lastTurnEndedAt: "2026-08-01T10:01:00.000Z" },
+    ];
+    for (const patch of updates) {
+      act(() => {
+        useAppStore.setState((state) => ({
+          threads: state.threads.map((thread) =>
+            thread.id === "background" ? { ...thread, ...patch } : thread,
+          ),
+        }));
+      });
+      expect(buildSidebarProjectRows).not.toHaveBeenCalled();
+    }
+  });
+
+  it("rebuilds rows when order, protection, visibility, or grouping changes", () => {
+    useAppStore.setState({
+      projects: [localProject],
+      threads: [
+        makeThread("newer", localProject.id, "2026-08-02T10:00:00.000Z"),
+        makeThread("older", localProject.id, "2026-08-01T10:00:00.000Z"),
+      ],
+    });
+    render(<SidebarFlatThreadList sortMode="updated" />);
+    const rowKeys = () =>
+      screen.getAllByTestId("row").map((row) => row.textContent?.split(" in ")[0]);
+    expect(rowKeys()).toEqual(["thread:newer", "thread:older"]);
+    vi.mocked(buildSidebarProjectRows).mockClear();
+
+    act(() => {
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((thread) =>
+          thread.id === "older" ? { ...thread, updatedAt: "2026-08-03T10:00:00.000Z" } : thread,
+        ),
+      }));
+    });
+    expect(buildSidebarProjectRows).toHaveBeenCalled();
+    expect(rowKeys()).toEqual(["thread:older", "thread:newer"]);
+
+    act(() => {
+      useSidebarUiStore.setState({ threadListLimits: { __flat__: 1 } });
+    });
+    vi.mocked(buildSidebarProjectRows).mockClear();
+    act(() => {
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((thread) =>
+          thread.id === "newer" ? { ...thread, status: "working" } : thread,
+        ),
+      }));
+    });
+    expect(buildSidebarProjectRows).toHaveBeenCalled();
+    expect(screen.getByText(/thread:newer in/)).toBeInTheDocument();
+
+    vi.mocked(buildSidebarProjectRows).mockClear();
+    act(() => {
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((thread) =>
+          thread.id === "newer" ? { ...thread, archived: true } : thread,
+        ),
+      }));
+    });
+    expect(buildSidebarProjectRows).toHaveBeenCalled();
+    expect(screen.queryByText(/thread:newer in/)).not.toBeInTheDocument();
+
+    vi.mocked(buildSidebarProjectRows).mockClear();
+    act(() => {
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((thread) => ({
+          ...thread,
+          archived: false,
+          worktreePath: "/shared-worktree",
+          worktreeBranch: "feature/shared",
+        })),
+      }));
+    });
+    expect(buildSidebarProjectRows).toHaveBeenCalled();
+    expect(rowKeys()).toEqual(["wt:/shared-worktree"]);
   });
 
   it("offers one new-thread target per project and remembers its reachable environment", async () => {

@@ -20,6 +20,11 @@ vi.mock("./exec", async (importOriginal) => ({
   execGit: vi.fn<typeof execGit>(async () => ""),
 }));
 
+vi.mock("./gitNativeHelperClient", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./gitNativeHelperClient")>()),
+  isNativeGitHelperActive: () => false,
+}));
+
 describe("Git working-file boundaries", () => {
   let directory: string;
   let location: ProjectLocation;
@@ -112,12 +117,12 @@ describe("Git working-file boundaries", () => {
     });
 
     const oldRequest = service.getStatus(location);
-    expect(revParseCalls).toBe(1);
+    await vi.waitFor(() => expect(revParseCalls).toBe(1));
 
     service.invalidateStatus(location);
     const freshRequest = service.getStatus(location);
     const coalescedFreshRequest = service.getStatus(location);
-    expect(revParseCalls).toBe(2);
+    await vi.waitFor(() => expect(revParseCalls).toBe(2));
 
     oldStatus.resolve("true");
     await oldRequest;

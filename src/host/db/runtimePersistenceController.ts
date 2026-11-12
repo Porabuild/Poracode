@@ -8,6 +8,8 @@ import type {
 import {
   RuntimeWriteQueue,
   DEFAULT_RUNTIME_FLUSH_CHUNK,
+  type RuntimeAsyncAtomicBatchWriter,
+  type RuntimeAsyncWriteFlush,
   type RuntimeBudgetedFlushResult,
   type RuntimeFlushChunkBounds,
   type RuntimeQueueBounds,
@@ -87,7 +89,7 @@ const DEFAULT_FENCE_MAX_HOLD_MS = 5_000;
 const DEFAULT_MUTATION_DEADLINE_MS = 5_000;
 const FLUSH_MAX_THREADS = 4;
 const FLUSH_MAX_BYTES = 256 * 1024;
-const FLUSH_MAX_MS = 5;
+const FLUSH_MAX_MS = 2;
 /** Wall-clock budget for one aged-backlog relief; the scheduler continues it. */
 const AGED_RELIEF_MAX_MS = FLUSH_MAX_MS;
 
@@ -95,6 +97,16 @@ export interface RuntimePersistenceControllerOptions {
   write: RuntimeWriteFlush;
   /** Optional outer-commit capability for bounded scheduled groups; fences stay single-thread. */
   atomicBatchWriter?: RuntimeAtomicBatchWriter;
+  /**
+   * Optional worker-offloaded async writer provider. When it returns active
+   * writers, scheduled flushes and async fences/mutations commit on the
+   * dedicated SQLite writer worker thread so `backendHost`'s event loop stays
+   * completely unblocked during multi-agent bursts.
+   */
+  resolveAsyncWriters?: () => {
+    readonly writeAsync: RuntimeAsyncWriteFlush;
+    readonly atomicBatchWriterAsync: RuntimeAsyncAtomicBatchWriter;
+  } | null;
   bounds?: Partial<RuntimeQueueBounds>;
   /**
    * Commit pending events synchronously before a count/byte bound refuses
@@ -188,6 +200,8 @@ export class RuntimePersistenceController {
 
   private timer: ReturnType<typeof setTimeout> | undefined;
   private immediate: ReturnType<typeof setImmediate> | undefined;
+  private asyncFlushInFlight = false;
+  private readonly asyncChunkThreadsInFlight = new Set<string>();
   private readonly admission: RuntimePersistenceAdmission;
   private readonly durableGap: RuntimeDurableGapCoordinator;
   private durableGapReserveLatchReported = false;
@@ -253,6 +267,26 @@ export class RuntimePersistenceController {
         setPin: (threadId, through) => this.queue.setPin(threadId, through),
         flushChunk: (threadId, through) =>
           this.queue.flushThreadThrough(threadId, through, this.options.fenceFlushChunk),
+        flushChunkAsync: async (threadId, through) => {
+          const asyncWriters = this.options.resolveAsyncWriters?.();
+          if (!asyncWriters) {
+            while (this.queue.hasAsyncWriteInFlight(threadId)) {
+              await this.queue.waitForAsyncWriteInFlight(threadId);
+            }
+            return this.queue.flushThreadThrough(threadId, through, this.options.fenceFlushChunk);
+          }
+          this.asyncChunkThreadsInFlight.add(threadId);
+          try {
+            return await this.queue.flushThreadThroughAsync(
+              threadId,
+              through,
+              asyncWriters.writeAsync,
+              this.options.fenceFlushChunk,
+            );
+          } finally {
+            this.asyncChunkThreadsInFlight.delete(threadId);
+          }
+        },
         contamination: (threadId) => this.admission.getContamination(threadId),
         onChunkCommitted: (elapsedMs) => this.health.recordDuration(elapsedMs),
         onFlushFailure: (error, threadId) => this.applyFlushFailure(error, threadId),
@@ -819,6 +853,13 @@ export class RuntimePersistenceController {
     kind: "truncate" | "replace" | "reset",
     operation: SynchronousMutationCallback<T>,
   ): T {
+    if (this.queue.hasAsyncWriteInFlight(threadId)) {
+      throw new RuntimePersistenceBusyError(
+        threadId,
+        "mutation",
+        this.health.currentRetryDelayMs(),
+      );
+    }
     return this.fenceControl.tryRunMutation(threadId, kind, () =>
       this.executeMutationSync(threadId, kind, operation),
     );
@@ -839,43 +880,31 @@ export class RuntimePersistenceController {
     if (contamination && kind === "truncate") {
       throw contaminationError(threadId, contamination, this.health.currentRetryDelayMs("storage"));
     }
-    if (kind === "acknowledge") {
-      // The acknowledgement owns its own supersede on `applied` only (inside
-      // the synchronous callback, before this returns): the accepted prefix is
-      // never committed and never discarded unless the durable transaction
-      // applied. Committing it first would make the counted loss untruthful.
-      return requireSynchronousMutationResult(operation());
+    if (kind === "truncate" || ((kind === "reset" || kind === "replace") && !contamination)) {
+      await this.fenceControl.flushPrefix(threadId);
     }
-    if (kind === "delete") {
-      // The operation applies before the in-memory prefix is discarded: a
-      // failed or thenable delete must keep the accepted events and the
-      // contamination marker. Calling the SQL delete first and discarding
-      // only after it returns keeps the discard exact (the callback is
-      // synchronous, so nothing can be admitted in between); the durable rows
-      // are gone, so discarding the accepted-but-uncommitted prefix is the
-      // explicit supersede.
-      const value = requireSynchronousMutationResult(operation());
-      this.supersedePendingPrefix(threadId);
-      return value;
+    // Join already-posted writes before the synchronous mutation. In particular,
+    // acknowledgement counts/discards only the uncommitted remainder; it must
+    // not flush that remainder before its durable transaction applies.
+    while (this.queue.hasAsyncWriteInFlight(threadId)) {
+      await this.queue.waitForAsyncWriteInFlight(threadId);
     }
-    if (kind === "reset" || kind === "replace") {
-      // Authoritative rebase. On a clean thread the accepted prefix must not be
-      // bypassed: commit it first. On a contaminated thread the rebase is the
-      // explicit recovery, so the supersede is the point; it is recorded by
-      // `supersedePendingPrefix`, never silent. The operation is applied
-      // before the in-memory prefix is discarded, so a failed rebase keeps
-      // both the pending events and the contamination. The operation result is
-      // checked synchronously: no event can be admitted between it and the
-      // supersede, so the discard is exact.
-      if (!contamination) await this.fenceControl.flushPrefix(threadId);
-      const value = requireSynchronousMutationResult(operation());
-      this.supersedePendingPrefix(threadId);
-      return value;
+    if (kind === "truncate") {
+      const currentContamination = this.admission.getContamination(threadId);
+      if (currentContamination) {
+        throw contaminationError(
+          threadId,
+          currentContamination,
+          this.health.currentRetryDelayMs("storage"),
+        );
+      }
     }
-    // truncate on a clean thread: commit the accepted prefix, then apply.
-    await this.fenceControl.flushPrefix(threadId);
     const value = requireSynchronousMutationResult(operation());
-    this.options.onAuthoritativeHistoryChanged?.(threadId);
+    if (kind === "delete" || kind === "reset" || kind === "replace") {
+      this.supersedePendingPrefix(threadId);
+    } else if (kind === "truncate") {
+      this.options.onAuthoritativeHistoryChanged?.(threadId);
+    }
     return value;
   }
 
@@ -934,6 +963,21 @@ export class RuntimePersistenceController {
   commitThreadPrefixSync(threadId: string): number {
     this.fenceControl.commitPrefixSync(threadId);
     return this.queue.committedThrough(threadId);
+  }
+
+  /**
+   * Async prefix commit for control-queue callers (e.g. `thread-state` turn
+   * completion) and async `revertCheckpoint` preflight, safely joining any
+   * in-flight `databaseWriteWorker` batch before committing remaining events.
+   */
+  async commitThreadPrefixAsync(threadId: string): Promise<number> {
+    await this.fenceControl.flushPrefix(threadId);
+    await this.queue.waitForAsyncWriteInFlight(threadId);
+    return this.queue.committedThrough(threadId);
+  }
+
+  waitForAsyncWrites(threadId?: string): Promise<void> {
+    return this.queue.waitForAsyncWriteInFlight(threadId);
   }
 
   hasPending(threadId?: string): boolean {
@@ -1092,6 +1136,8 @@ export class RuntimePersistenceController {
    */
   resetForNewConnection(): void {
     this.stopTimers();
+    this.asyncFlushInFlight = false;
+    this.asyncChunkThreadsInFlight.clear();
     this.queue.clear();
     this.fenceControl.cancelActiveFences();
     this.fenceControl.clearControlOperations();
@@ -1117,7 +1163,7 @@ export class RuntimePersistenceController {
     this.health.resetCountersForTests();
   }
 
-  private scheduleFlush(delayMs: number): void {
+  private scheduleFlush(delayMs: number, keepAlive = false): void {
     if (this.health.isAdmissionClosed()) return;
     if (this.timer !== undefined || this.immediate !== undefined) return;
     this.timer = setTimeout(
@@ -1127,7 +1173,7 @@ export class RuntimePersistenceController {
       },
       Math.max(0, delayMs),
     );
-    this.timer.unref?.();
+    if (!keepAlive) this.timer.unref?.();
   }
 
   private scheduleImmediateFlush(): void {
@@ -1172,6 +1218,53 @@ export class RuntimePersistenceController {
       return;
     }
 
+    const asyncWriters = this.options.resolveAsyncWriters?.();
+    if (asyncWriters) {
+      if (this.asyncFlushInFlight) return;
+      this.asyncFlushInFlight = true;
+      void this.queue
+        .flushBudgetedAsync(
+          {
+            maxThreads: FLUSH_MAX_THREADS,
+            maxBytes: FLUSH_MAX_BYTES,
+            maxMs: FLUSH_MAX_MS,
+            now: this.options.now,
+            ...(this.asyncChunkThreadsInFlight.size > 0
+              ? { excludeThreadIds: new Set(this.asyncChunkThreadsInFlight) }
+              : {}),
+          },
+          asyncWriters,
+        )
+        .then((result) => {
+          this.asyncFlushInFlight = false;
+          if (this.health.isAdmissionClosed()) return;
+          const failed = this.recordBudgetedResult(result, true);
+          if (failed) return;
+          if (result.remainingThreads > 0 && result.flushedThreads > 0) {
+            if (
+              this.fenceControl.waiterCount() > 0 ||
+              this.queue.forceFlushThreadIds().length > 0
+            ) {
+              this.scheduleImmediateFlush();
+            } else {
+              this.scheduleFlush(0, true);
+            }
+            return;
+          }
+          if (result.flushedThreads === 0) {
+            this.scheduleFlush(this.options.flushIntervalMs);
+            return;
+          }
+          this.health.evaluateWatermarks();
+          this.scheduleFlush(
+            this.queue.hasPending()
+              ? this.health.currentRetryDelayMs()
+              : this.options.flushIntervalMs,
+          );
+        });
+      return;
+    }
+
     const result = this.queue.flushBudgeted({
       maxThreads: FLUSH_MAX_THREADS,
       maxBytes: FLUSH_MAX_BYTES,
@@ -1181,7 +1274,16 @@ export class RuntimePersistenceController {
     const failed = this.recordBudgetedResult(result, true);
     if (failed) return;
     if (result.remainingThreads > 0 && result.flushedThreads > 0) {
-      this.scheduleImmediateFlush();
+      // Yield through the timer phase (`scheduleFlush(0, true)`) instead of a
+      // tight `setImmediate` chain when no read fence is actively waiting, so
+      // libuv polls pending HTTP `/history` sockets and WebSocket I/O between
+      // write slices while still keeping the process alive until the accepted
+      // backlog finishes draining.
+      if (this.fenceControl.waiterCount() > 0 || this.queue.forceFlushThreadIds().length > 0) {
+        this.scheduleImmediateFlush();
+      } else {
+        this.scheduleFlush(0, true);
+      }
       return;
     }
     if (result.flushedThreads === 0) {
@@ -1212,15 +1314,21 @@ export class RuntimePersistenceController {
     if (this.health.getState() === "refusing" && this.health.getLastErrorClass() === "fatal")
       return false;
     if (!this.health.isStorageRetryDue()) return false;
+    const asyncWritersActive = Boolean(this.options.resolveAsyncWriters?.());
     const threadIds =
       scope === "thread" && threadId !== undefined ? [threadId] : this.queue.pendingThreadIds();
     for (const id of threadIds) {
+      if (this.queue.hasAsyncWriteInFlight(id)) continue;
       if (this.queue.isPinned(id)) this.fenceControl.preemptFences(id);
       const started = this.options.now();
       const outcome = this.queue.flushThreadThrough(
         id,
         Number.MAX_SAFE_INTEGER,
         DEFAULT_RUNTIME_FLUSH_CHUNK,
+        // When `databaseWriteWorker` is active, wait briefly (up to 100ms) if the
+        // worker holds SQLite's writer lock on another thread instead of failing
+        // relief with `SQLITE_BUSY` and contaminating the admitting thread!
+        asyncWritersActive ? 100 : undefined,
       );
       this.health.recordDuration(this.options.now() - started);
       if (outcome.kind === "failed") {

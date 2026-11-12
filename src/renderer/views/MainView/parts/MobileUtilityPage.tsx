@@ -5,7 +5,7 @@ import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
-import { getCurrentProjectId } from "@/renderer/actions/currentProject";
+import { selectCurrentProjectIdForView } from "@/renderer/actions/currentProject";
 import { BrowserDockSlot } from "./RightPanel/parts/BrowserPanel/BrowserDockSlot";
 import { BrowserPanel } from "./RightPanel/parts/BrowserPanel/BrowserPanel";
 import {
@@ -48,7 +48,7 @@ export function MobileUtilityPage() {
 function MobileUtilityPageContent() {
   const page = usePanelStore((state) => state.mobileUtilityPage);
   const projects = useAppStore((state) => state.projects);
-  const currentProjectId = useAppStore(() => getCurrentProjectId());
+  const currentProjectId = useAppStore(selectCurrentProjectIdForView);
   const browserExtracted = useBrowserPanelStore((state) => state.extracted);
   const firstServer = useRemoteServersStore((state) => state.servers[0]);
   const chooseSettingsHost = useSettingsHostStore((state) => state.choose);

@@ -112,7 +112,7 @@ describe("SupervisorRuntime Git watcher status invalidation", () => {
       expect(compute).toHaveBeenCalledOnce();
 
       const watcher = runtime.projectWatcher;
-      watcher.watch("project-1", location);
+      await watcher.watch("project-1", location);
       await vi.waitFor(() => expect(watch).toHaveBeenCalledOnce());
       sendWatchEvent!({ subscriptionId: "watch-1", scope, paths });
       await vi.advanceTimersByTimeAsync(300);

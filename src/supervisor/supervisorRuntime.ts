@@ -80,6 +80,7 @@ import {
   type ResolvedHostResourceAdmission,
 } from "./runtime/hostResourceAdmission";
 import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission";
+import { disposeGitExecWorker, disposeNativeGitHelper } from "./git/exec";
 import { gitProcessAdmissionUsage } from "./git/gitProcessAdmission";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
@@ -232,14 +233,22 @@ export class SupervisorRuntime {
   get projectWatcher(): ProjectWatcher {
     if (!this._projectWatcher) {
       const watcher = new ProjectWatcher({
-        onGitChanged: (projectId) => {
+        onGitChanged: (projectId, worktreePath) => {
           this.gitService.invalidateStatus();
-          this.emit({ type: "git-changed", projectId });
+          this.emit({
+            type: "git-changed",
+            projectId,
+            ...(worktreePath ? { worktreePath } : {}),
+          });
         },
-        onTreeChanged: (projectId) => {
+        onTreeChanged: (projectId, worktreePath) => {
           this.projectTreeService.invalidateAllCaches();
           this.gitService.invalidateStatus();
-          this.emit({ type: "project-tree-changed", projectId });
+          this.emit({
+            type: "project-tree-changed",
+            projectId,
+            ...(worktreePath ? { worktreePath } : {}),
+          });
         },
       });
       if (this.wslBridgeClient) watcher.setWslClient(this.wslBridgeClient);
@@ -1140,7 +1149,7 @@ export class SupervisorRuntime {
     this.fileIndexService.invalidateCacheForLocation(newLocation);
 
     // Re-point the file watcher at the new path (idempotent: replaces the old entry).
-    this.projectWatcher.watch(payload.projectId, newLocation);
+    await this.projectWatcher.watch(payload.projectId, newLocation);
 
     return { repairedWorktrees };
   }
@@ -1311,6 +1320,10 @@ export class SupervisorRuntime {
         await disposeWslStagingService().catch((error) => {
           console.warn("[supervisor] WSL staging worker dispose failed:", error);
         });
+        await disposeGitExecWorker().catch((error) => {
+          console.warn("[supervisor] Git execution worker dispose failed:", error);
+        });
+        disposeNativeGitHelper();
         await Promise.all(
           [...this.adapters.values()].map(async (adapter) => {
             try {

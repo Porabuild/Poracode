@@ -59,10 +59,10 @@ function supervisorFor(watcher: ProjectWatcher): ProjectWatchSupervisorCaller {
   return async (name, payload) => {
     if (name === "gitWatchProject") {
       const watch = payload as { projectId: string; projectLocation: ProjectLocation };
-      watcher.watch(watch.projectId, watch.projectLocation);
+      await watcher.watch(watch.projectId, watch.projectLocation);
     } else if (name === "gitWatchWorktrees") {
       const worktrees = payload as { projectId: string; worktreePaths: string[] };
-      watcher.watchWorktrees(worktrees.projectId, worktrees.worktreePaths);
+      await watcher.watchWorktrees(worktrees.projectId, worktrees.worktreePaths);
     } else {
       await watcher.unwatch((payload as { projectId: string }).projectId);
     }

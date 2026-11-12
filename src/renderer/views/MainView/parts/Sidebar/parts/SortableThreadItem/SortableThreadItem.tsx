@@ -1,5 +1,7 @@
+import { memo } from "react";
 import type { Project, Thread } from "@/shared/contracts";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { useThread } from "@/renderer/state/useThread";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { useIsDraggingThread, type DragSourceData } from "@/renderer/dnd";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
@@ -25,7 +27,7 @@ import { openThread, renameThread } from "@/renderer/actions/threadActions";
 
 type ThreadDragSourceData = Extract<DragSourceData, { type: "thread" }>;
 
-export function SortableThreadItem(props: {
+function SortableThreadItemInner(props: {
   thread: Thread;
   threadIndex: number;
   project: Project;
@@ -39,7 +41,6 @@ export function SortableThreadItem(props: {
   projectTag?: React.ReactNode;
 }) {
   const {
-    thread,
     project,
     showWorktreeBadge,
     showWorktreeFilesButton = false,
@@ -47,6 +48,7 @@ export function SortableThreadItem(props: {
     sortDisabled = false,
     projectTag,
   } = props;
+  const thread = useThread(props.thread.id) ?? props.thread;
   const isExperimentCandidate = useExperimentStore(
     (state) => thread.groupId !== undefined && state.experiments[thread.groupId] !== undefined,
   );
@@ -210,3 +212,18 @@ export function SortableThreadItem(props: {
     </div>
   );
 }
+
+export const SortableThreadItem = memo(
+  SortableThreadItemInner,
+  (prev, next) =>
+    prev.thread === next.thread &&
+    prev.threadIndex === next.threadIndex &&
+    prev.project === next.project &&
+    prev.showWorktreeBadge === next.showWorktreeBadge &&
+    prev.showWorktreeFilesButton === next.showWorktreeFilesButton &&
+    prev.group === next.group &&
+    prev.sortDisabled === next.sortDisabled &&
+    prev.setEditingThreadId === next.setEditingThreadId &&
+    (prev.editingThreadId === prev.thread.id) === (next.editingThreadId === next.thread.id) &&
+    prev.projectTag === next.projectTag,
+);

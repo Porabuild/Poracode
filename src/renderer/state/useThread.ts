@@ -4,7 +4,7 @@ import { useAppStore } from "./appStore";
 import type { Project, ProjectDraftConfig, Thread } from "@/shared/contracts";
 
 const threadMapCache = new WeakMap<readonly Thread[], Map<string, Thread>>();
-const projectMapCache = new WeakMap<Project[], Map<string, Project>>();
+const projectMapCache = new WeakMap<readonly Project[], Map<string, Project>>();
 const getAppState = useAppStore.getState;
 
 export function getThreadMap(threads: readonly Thread[]): ReadonlyMap<string, Thread> {
@@ -16,7 +16,7 @@ export function getThreadMap(threads: readonly Thread[]): ReadonlyMap<string, Th
   return threadMap;
 }
 
-function getProjectMap(projects: Project[]) {
+export function getProjectMap(projects: readonly Project[]): ReadonlyMap<string, Project> {
   let projectMap = projectMapCache.get(projects);
   if (!projectMap) {
     projectMap = new Map(projects.map((project) => [project.id, project]));

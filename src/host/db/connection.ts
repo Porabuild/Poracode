@@ -376,6 +376,12 @@ export function initDatabase(
   return sqlite;
 }
 
+/** Worker-only attach of a pre-validated writable SQLite connection. */
+export function attachEditableDatabaseHandle(sqlite: InstanceType<typeof Database>): void {
+  _sqlite = sqlite;
+  _profileDataGeneration++;
+}
+
 export interface DatabaseSpaceReclamationResult {
   readonly deletedOrphanBlobs: number;
   readonly reclaimedFreelistPages: number;

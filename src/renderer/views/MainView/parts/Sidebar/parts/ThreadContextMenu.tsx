@@ -1,3 +1,4 @@
+import React, { type MouseEventHandler, type ReactNode, useEffect, useState } from "react";
 import {
   Archive,
   ArrowDownToLine,
@@ -18,7 +19,6 @@ import {
   Trash2,
   Workflow,
 } from "lucide-react";
-import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
 import { canForkThread } from "@/shared/threadFork";
@@ -34,8 +34,15 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { applyWorkspaceMenuChoice } from "@/renderer/components/workspace/workspaceMenuKeys";
 import { useWorkspaceMenuItems } from "@/renderer/components/workspace/workspaceMenuItems";
 import { useGitStore } from "@/renderer/state/gitStore";
-import type { ContextMenuItem } from "@/renderer/components/common/ContextMenu";
-import { ResponsiveContextMenu } from "@/renderer/components/common/ResponsiveContextMenu";
+import {
+  ContextMenuSurface,
+  dismissOpenContextMenus,
+  type ContextMenuEntry,
+  type ContextMenuItem,
+} from "@/renderer/components/common/ContextMenu";
+import { ResponsiveContextMenuSurface } from "@/renderer/components/common/ResponsiveContextMenuSurface";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { readBridge } from "@/renderer/bridge";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useWorktreeGitItems } from "@/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions";
@@ -89,6 +96,84 @@ export function ThreadContextMenu(props: {
    */
   showProjectActions?: boolean;
   children: ReactNode;
+}) {
+  const mobile = useCompactLayout();
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [mobileExitRetained, setMobileExitRetained] = useState(false);
+  const [returnFocusElement, setReturnFocusElement] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!mobileExitRetained || position !== null) return;
+    const timer = window.setTimeout(() => {
+      setMobileExitRetained(false);
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [mobileExitRetained, position]);
+  const longPressHandlers = useLongPress(
+    mobile
+      ? () => {
+          setPosition({ x: 0, y: 0 });
+        }
+      : null,
+  );
+
+  function handleContextMenu(event: React.MouseEvent) {
+    event.preventDefault();
+    dismissOpenContextMenus();
+    setPosition({ x: event.clientX, y: event.clientY });
+    setReturnFocusElement(event.currentTarget instanceof HTMLElement ? event.currentTarget : null);
+  }
+
+  const { children } = props;
+  const trigger = mobile ? (
+    <div className="contents" {...longPressHandlers}>
+      {children}
+    </div>
+  ) : React.isValidElement<{ onContextMenu?: MouseEventHandler }>(children) ? (
+    React.cloneElement(children, {
+      onContextMenu: (event) => {
+        children.props.onContextMenu?.(event);
+        if (!event.defaultPrevented) {
+          handleContextMenu(event);
+        }
+      },
+    })
+  ) : (
+    <div onContextMenu={handleContextMenu}>{children}</div>
+  );
+
+  return (
+    <>
+      {trigger}
+      {position || (mobile && mobileExitRetained) ? (
+        <OpenThreadContextMenuSurface
+          mobile={mobile}
+          thread={props.thread}
+          project={props.project}
+          {...(props.onRename ? { onRename: props.onRename } : {})}
+          {...(props.showProjectActions !== undefined
+            ? { showProjectActions: props.showProjectActions }
+            : {})}
+          position={position}
+          returnFocusElement={returnFocusElement}
+          onClose={() => {
+            if (mobile) setMobileExitRetained(true);
+            setPosition(null);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function OpenThreadContextMenuSurface(props: {
+  mobile: boolean;
+  thread: Thread;
+  project: Project;
+  onRename?: () => void;
+  showProjectActions?: boolean;
+  position: { x: number; y: number } | null;
+  returnFocusElement: HTMLElement | null;
+  onClose: () => void;
 }) {
   const { thread, project, onRename } = props;
   const { t } = useLingui();
@@ -168,311 +253,321 @@ export function ThreadContextMenu(props: {
     });
   }
 
+  const items: ContextMenuEntry[] = [
+    ...(thread.worktreePath && !isExperimentCandidate
+      ? [
+          {
+            id: "new-thread-in-worktree",
+            label: t`New Thread in Worktree`,
+            icon: <Plus className="size-3.5" />,
+          },
+          {
+            type: "submenu" as const,
+            id: "git",
+            label: t`Git`,
+            icon: <GitFork className="size-3.5" />,
+            items: worktreeGitItems,
+          },
+        ]
+      : []),
+    ...(canMoveToWorktree
+      ? [
+          {
+            type: "submenu" as const,
+            id: "move-to-worktree",
+            label: t`Move to Worktree`,
+            icon: <GitFork className="size-3.5" />,
+            items: [
+              ...(hasUncommittedChanges
+                ? [
+                    {
+                      id: "move-to-worktree-with-changes",
+                      label: t`Bring Uncommitted Changes`,
+                    },
+                  ]
+                : []),
+              {
+                id: "move-to-worktree-clean",
+                label: t`Clean Worktree`,
+              },
+            ],
+          },
+          // Project-level git, running against the main checkout the
+          // thread lives in (mirrors the project header's Git submenu).
+          ...(showProjectActions
+            ? [
+                {
+                  type: "submenu" as const,
+                  id: "git",
+                  label: t`Git`,
+                  icon: <GitFork className="size-3.5" />,
+                  items: [
+                    {
+                      id: "git-review",
+                      label: t`Review Changes`,
+                      icon: <FileDiff className="size-3.5" />,
+                    },
+                    {
+                      id: "github-actions",
+                      label: t`GitHub Actions`,
+                      icon: <Workflow className="size-3.5" />,
+                    },
+                    {
+                      id: "git-sync",
+                      label: t`Sync`,
+                      icon: <RefreshCw className="size-3.5" />,
+                    },
+                  ],
+                },
+              ]
+            : []),
+        ]
+      : []),
+    ...((thread.worktreePath || (showProjectActions && !isExperimentCandidate)) &&
+    project.scripts?.actions?.length
+      ? [
+          {
+            type: "submenu" as const,
+            id: "run-action",
+            label: t`Run`,
+            icon: <Play className="size-3.5" />,
+            items: runActionItems,
+          },
+        ]
+      : []),
+    ...(onRename
+      ? [
+          {
+            id: "rename",
+            label: t`Rename`,
+            icon: <Pencil className="size-3.5" />,
+          },
+        ]
+      : []),
+    ...(experiment
+      ? [
+          {
+            id: "open-experiment",
+            label: t`Open experiment board`,
+            icon: <FlaskConical className="size-3.5" />,
+          },
+        ]
+      : []),
+    {
+      id: "unload",
+      label: t`Unload Thread`,
+      icon: <ArrowDownToLine className="size-3.5" />,
+      isDisabled: unloadDisabledReason !== undefined,
+      ...(unloadDisabledReason ? { disabledReason: unloadDisabledReason } : {}),
+    },
+    ...(!isExperimentCandidate
+      ? [
+          {
+            id: "mark-done",
+            label: thread.done ? t`Unmark Done` : t`Mark Done`,
+            icon: <CircleCheck className="size-3.5" />,
+          },
+        ]
+      : []),
+    {
+      id: "toggle-star",
+      label: thread.starred ? t`Unpin` : t`Pin to top`,
+      icon: <Star className="size-3.5" />,
+    },
+    ...(showMoveToWorkspace && workspaceMenuItem ? [workspaceMenuItem] : []),
+    ...(!isExperimentCandidate
+      ? [
+          ...(thread.presentationMode === "gui"
+            ? [
+                {
+                  id: "fork-thread",
+                  label: t`Fork thread`,
+                  icon: <GitFork className="size-3.5" />,
+                  isDisabled: !canForkThread(thread),
+                },
+              ]
+            : []),
+          ...(hasTransferTargets
+            ? [
+                {
+                  id: "move-to-machine",
+                  label: t`Move to another machine…`,
+                  // A working agent is stopped and resumed on the target by the dialog.
+                  icon: <MonitorUp className="size-3.5" />,
+                },
+              ]
+            : []),
+          {
+            id: "continue-in",
+            label: t`Continue in...`,
+            icon: <ArrowRightLeft className="size-3.5" />,
+            // No session-ref gate (matching the thread header): without one
+            // the handoff falls back to the stored transcript, which is
+            // precisely when continuing elsewhere is most useful. Remote
+            // threads take the same flow — the switch/fork launches on
+            // their host.
+            isDisabled: !hasOtherInstalledAgents,
+            ...(!hasOtherInstalledAgents ? { disabledReason: t`No other agents installed` } : {}),
+          },
+        ]
+      : []),
+    ...(thread.groupId && !isExperimentCandidate
+      ? [
+          {
+            id: "ungroup",
+            label: t`Remove from group`,
+          },
+        ]
+      : []),
+    ...(currentThreadCount >= 2 && isCurrentThread && !thread.groupId
+      ? [
+          {
+            id: "group-open-threads",
+            label: t`Group open threads`,
+            icon: <Columns2 className="size-3.5" />,
+          },
+        ]
+      : []),
+    ...(!isExperimentCandidate
+      ? [
+          { type: "separator" as const },
+          {
+            id: "archive",
+            label: t`Archive Thread`,
+            icon: <Archive className="size-3.5" />,
+            variant: "warning" as const,
+          },
+          {
+            id: "delete",
+            label: t`Delete Thread`,
+            icon: <Trash2 className="size-3.5" />,
+            variant: "danger" as const,
+          },
+        ]
+      : []),
+  ];
+
+  const handleAction = (key: string) => {
+    const anchorPosition = props.position ?? undefined;
+    const returnFocusElement = props.returnFocusElement ?? undefined;
+    if (key === "new-thread-in-worktree" && thread.worktreePath)
+      openNewThreadInWorktree({
+        projectId: thread.projectId,
+        worktreePath: thread.worktreePath,
+        worktreeBranch:
+          resolveWorktreeBranch(thread.projectId, thread.worktreePath, thread.worktreeBranch) ??
+          thread.worktreePath,
+      });
+    if (key === "move-to-worktree-with-changes") void moveThreadToWorktree(thread.id, true);
+    if (key === "move-to-worktree-clean") void moveThreadToWorktree(thread.id, false);
+    if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath, thread.id);
+    // Non-worktree flat rows offer project-level sync (no path argument).
+    if (key === "git-sync") {
+      if (thread.worktreePath) gitSync(thread.projectId, thread.worktreePath);
+      else gitSync(thread.projectId);
+    }
+    if (key === "github-actions") useAppStore.getState().openGitHubActions(thread.projectId);
+    if (key === "git-push" && thread.worktreePath) gitPush(thread.projectId, thread.worktreePath);
+    if (key === "git-pull" && thread.worktreePath) gitPull(thread.projectId, thread.worktreePath);
+    if (key === "git-pull-from-source" && thread.worktreePath)
+      gitPullFromSource(thread.projectId, thread.worktreePath);
+    if (key === "git-merge-to-source" && thread.worktreePath)
+      gitMergeToSource(thread.projectId, thread.worktreePath);
+    if (key === "git-merge-and-remove" && thread.worktreePath)
+      gitMergeAndRemove(thread.projectId, thread.worktreePath);
+    if (key === "open-pr" && thread.worktreePath) {
+      const pr = useGitStore.getState().prData[thread.worktreePath];
+      if (pr?.url) void readBridge().openExternal(pr.url);
+    }
+    if (key === "create-pr") openGitReview(thread.projectId, thread.worktreePath, thread.id);
+    if (key === "open-experiment" && experiment)
+      useAppStore.getState().openExperiment(experiment.id, experiment.projectId);
+    if (key === "continue-in" && !isExperimentCandidate) continueInProvider(thread.id);
+    if (key === "fork-thread" && !isExperimentCandidate)
+      useThreadForkStore.getState().request(thread.id);
+    if (key === "move-to-machine" && !isExperimentCandidate)
+      useThreadTransferStore.getState().request(thread.id);
+    if (key === "group-open-threads") {
+      const state = useAppStore.getState();
+      if (state.view.kind !== "thread") return;
+      const openThreads = state.threads.filter(
+        (other) => state.view.kind === "thread" && state.view.panes.includes(other.id),
+      );
+      const projectId = openThreads[0]?.projectId;
+      if (!projectId || !openThreads.every((other) => other.projectId === projectId)) return;
+      const groupId = crypto.randomUUID();
+      const experiments = useExperimentStore.getState().experiments;
+      if (
+        openThreads.some(
+          (other) =>
+            !canChangeThreadGroup(other.groupId, groupId, (id) => experiments[id] !== undefined),
+        )
+      )
+        return;
+      const groupName = thread.title;
+      useAppStore.setState((s) => ({
+        threads: s.threads.map((other) =>
+          s.view.kind === "thread" && s.view.panes.includes(other.id)
+            ? { ...other, groupId, groupName }
+            : other,
+        ),
+        view: s.view.kind === "thread" ? { ...s.view, activeGroupId: groupId } : s.view,
+      }));
+      // The durable effect of grouping a root row is the host command; the
+      // local paint above is display-only until the next page confirms it.
+      dispatchThreadGroupIntents(
+        openThreads.map((other) => ({ threadId: other.id, groupId, groupName })),
+      );
+    }
+    if (key === "ungroup") {
+      const clearedThreadIds = dissolveGroupMembership(
+        useAppStore.getState().threads,
+        thread.id,
+      ).clearedIds;
+      applyRemoteSetGroupCommand(thread.id, undefined, undefined);
+      dispatchThreadGroupIntents(clearedThreadIds.map((threadId) => ({ threadId })));
+    }
+    if (key === "archive" && !isExperimentCandidate) archiveThread(thread.id);
+    if (key === "rename") onRename?.();
+    if (key === "unload") unloadThread(thread.id);
+    if (key === "mark-done") toggleMarkThreadDone(thread.id);
+    if (key === "toggle-star") toggleStarThread(thread.id);
+    if (key === "delete" && !isExperimentCandidate)
+      requestDeleteThread(thread.id, thread.worktreePath, thread.projectId, {
+        ...(anchorPosition ? { anchorPosition } : {}),
+        ...(returnFocusElement ? { returnFocusElement } : {}),
+      });
+    if (key.startsWith("action:")) {
+      runProjectAction(project.id, key.slice("action:".length), thread.worktreePath);
+    }
+    if (key.startsWith("stop-action:")) {
+      stopProjectAction(project.id, key.slice("stop-action:".length), thread.worktreePath);
+    }
+    applyWorkspaceMenuChoice(key, (workspaceId) => {
+      useAppStore.getState().setThreadWorkspace(thread.id, workspaceId);
+      dispatchManagedRootThreadWorkspace(thread.id, workspaceId);
+    });
+  };
+
+  if (!props.mobile) {
+    if (!props.position) return null;
+    return (
+      <ContextMenuSurface
+        position={props.position}
+        items={items}
+        onAction={handleAction}
+        onClose={props.onClose}
+      />
+    );
+  }
+
   return (
-    <ResponsiveContextMenu
+    <ResponsiveContextMenuSurface
+      position={props.position}
       label={thread.title}
-      items={[
-        ...(thread.worktreePath && !isExperimentCandidate
-          ? [
-              {
-                id: "new-thread-in-worktree",
-                label: t`New Thread in Worktree`,
-                icon: <Plus className="size-3.5" />,
-              },
-              {
-                type: "submenu" as const,
-                id: "git",
-                label: t`Git`,
-                icon: <GitFork className="size-3.5" />,
-                items: worktreeGitItems,
-              },
-            ]
-          : []),
-        ...(canMoveToWorktree
-          ? [
-              {
-                type: "submenu" as const,
-                id: "move-to-worktree",
-                label: t`Move to Worktree`,
-                icon: <GitFork className="size-3.5" />,
-                items: [
-                  ...(hasUncommittedChanges
-                    ? [
-                        {
-                          id: "move-to-worktree-with-changes",
-                          label: t`Bring Uncommitted Changes`,
-                        },
-                      ]
-                    : []),
-                  {
-                    id: "move-to-worktree-clean",
-                    label: t`Clean Worktree`,
-                  },
-                ],
-              },
-              // Project-level git, running against the main checkout the
-              // thread lives in (mirrors the project header's Git submenu).
-              ...(showProjectActions
-                ? [
-                    {
-                      type: "submenu" as const,
-                      id: "git",
-                      label: t`Git`,
-                      icon: <GitFork className="size-3.5" />,
-                      items: [
-                        {
-                          id: "git-review",
-                          label: t`Review Changes`,
-                          icon: <FileDiff className="size-3.5" />,
-                        },
-                        {
-                          id: "github-actions",
-                          label: t`GitHub Actions`,
-                          icon: <Workflow className="size-3.5" />,
-                        },
-                        {
-                          id: "git-sync",
-                          label: t`Sync`,
-                          icon: <RefreshCw className="size-3.5" />,
-                        },
-                      ],
-                    },
-                  ]
-                : []),
-            ]
-          : []),
-        ...((thread.worktreePath || (showProjectActions && !isExperimentCandidate)) &&
-        project.scripts?.actions?.length
-          ? [
-              {
-                type: "submenu" as const,
-                id: "run-action",
-                label: t`Run`,
-                icon: <Play className="size-3.5" />,
-                items: runActionItems,
-              },
-            ]
-          : []),
-        ...(onRename
-          ? [
-              {
-                id: "rename",
-                label: t`Rename`,
-                icon: <Pencil className="size-3.5" />,
-              },
-            ]
-          : []),
-        ...(experiment
-          ? [
-              {
-                id: "open-experiment",
-                label: t`Open experiment board`,
-                icon: <FlaskConical className="size-3.5" />,
-              },
-            ]
-          : []),
-        {
-          id: "unload",
-          label: t`Unload Thread`,
-          icon: <ArrowDownToLine className="size-3.5" />,
-          isDisabled: unloadDisabledReason !== undefined,
-          ...(unloadDisabledReason ? { disabledReason: unloadDisabledReason } : {}),
-        },
-        ...(!isExperimentCandidate
-          ? [
-              {
-                id: "mark-done",
-                label: thread.done ? t`Unmark Done` : t`Mark Done`,
-                icon: <CircleCheck className="size-3.5" />,
-              },
-            ]
-          : []),
-        {
-          id: "toggle-star",
-          label: thread.starred ? t`Unpin` : t`Pin to top`,
-          icon: <Star className="size-3.5" />,
-        },
-        ...(showMoveToWorkspace && workspaceMenuItem ? [workspaceMenuItem] : []),
-        ...(!isExperimentCandidate
-          ? [
-              ...(thread.presentationMode === "gui"
-                ? [
-                    {
-                      id: "fork-thread",
-                      label: t`Fork thread`,
-                      icon: <GitFork className="size-3.5" />,
-                      isDisabled: !canForkThread(thread),
-                    },
-                  ]
-                : []),
-              ...(hasTransferTargets
-                ? [
-                    {
-                      id: "move-to-machine",
-                      label: t`Move to another machine…`,
-                      // A working agent is stopped and resumed on the target by the dialog.
-                      icon: <MonitorUp className="size-3.5" />,
-                    },
-                  ]
-                : []),
-              {
-                id: "continue-in",
-                label: t`Continue in...`,
-                icon: <ArrowRightLeft className="size-3.5" />,
-                // No session-ref gate (matching the thread header): without one
-                // the handoff falls back to the stored transcript, which is
-                // precisely when continuing elsewhere is most useful. Remote
-                // threads take the same flow — the switch/fork launches on
-                // their host.
-                isDisabled: !hasOtherInstalledAgents,
-                ...(!hasOtherInstalledAgents
-                  ? { disabledReason: t`No other agents installed` }
-                  : {}),
-              },
-            ]
-          : []),
-        ...(thread.groupId && !isExperimentCandidate
-          ? [
-              {
-                id: "ungroup",
-                label: t`Remove from group`,
-              },
-            ]
-          : []),
-        ...(currentThreadCount >= 2 && isCurrentThread && !thread.groupId
-          ? [
-              {
-                id: "group-open-threads",
-                label: t`Group open threads`,
-                icon: <Columns2 className="size-3.5" />,
-              },
-            ]
-          : []),
-        ...(!isExperimentCandidate
-          ? [
-              { type: "separator" as const },
-              {
-                id: "archive",
-                label: t`Archive Thread`,
-                icon: <Archive className="size-3.5" />,
-                variant: "warning" as const,
-              },
-              {
-                id: "delete",
-                label: t`Delete Thread`,
-                icon: <Trash2 className="size-3.5" />,
-                variant: "danger" as const,
-              },
-            ]
-          : []),
-      ]}
-      onAction={(key, anchorPosition, returnFocusElement) => {
-        if (key === "new-thread-in-worktree" && thread.worktreePath)
-          openNewThreadInWorktree({
-            projectId: thread.projectId,
-            worktreePath: thread.worktreePath,
-            worktreeBranch:
-              resolveWorktreeBranch(thread.projectId, thread.worktreePath, thread.worktreeBranch) ??
-              thread.worktreePath,
-          });
-        if (key === "move-to-worktree-with-changes") void moveThreadToWorktree(thread.id, true);
-        if (key === "move-to-worktree-clean") void moveThreadToWorktree(thread.id, false);
-        if (key === "git-review") openGitReview(thread.projectId, thread.worktreePath, thread.id);
-        // Non-worktree flat rows offer project-level sync (no path argument).
-        if (key === "git-sync") {
-          if (thread.worktreePath) gitSync(thread.projectId, thread.worktreePath);
-          else gitSync(thread.projectId);
-        }
-        if (key === "github-actions") useAppStore.getState().openGitHubActions(thread.projectId);
-        if (key === "git-push" && thread.worktreePath)
-          gitPush(thread.projectId, thread.worktreePath);
-        if (key === "git-pull" && thread.worktreePath)
-          gitPull(thread.projectId, thread.worktreePath);
-        if (key === "git-pull-from-source" && thread.worktreePath)
-          gitPullFromSource(thread.projectId, thread.worktreePath);
-        if (key === "git-merge-to-source" && thread.worktreePath)
-          gitMergeToSource(thread.projectId, thread.worktreePath);
-        if (key === "git-merge-and-remove" && thread.worktreePath)
-          gitMergeAndRemove(thread.projectId, thread.worktreePath);
-        if (key === "open-pr" && thread.worktreePath) {
-          const pr = useGitStore.getState().prData[thread.worktreePath];
-          if (pr?.url) void readBridge().openExternal(pr.url);
-        }
-        if (key === "create-pr") openGitReview(thread.projectId, thread.worktreePath, thread.id);
-        if (key === "open-experiment" && experiment)
-          useAppStore.getState().openExperiment(experiment.id, experiment.projectId);
-        if (key === "continue-in" && !isExperimentCandidate) continueInProvider(thread.id);
-        if (key === "fork-thread" && !isExperimentCandidate)
-          useThreadForkStore.getState().request(thread.id);
-        if (key === "move-to-machine" && !isExperimentCandidate)
-          useThreadTransferStore.getState().request(thread.id);
-        if (key === "group-open-threads") {
-          const state = useAppStore.getState();
-          if (state.view.kind !== "thread") return;
-          const openThreads = state.threads.filter(
-            (other) => state.view.kind === "thread" && state.view.panes.includes(other.id),
-          );
-          const projectId = openThreads[0]?.projectId;
-          if (!projectId || !openThreads.every((other) => other.projectId === projectId)) return;
-          const groupId = crypto.randomUUID();
-          const experiments = useExperimentStore.getState().experiments;
-          if (
-            openThreads.some(
-              (other) =>
-                !canChangeThreadGroup(
-                  other.groupId,
-                  groupId,
-                  (id) => experiments[id] !== undefined,
-                ),
-            )
-          )
-            return;
-          const groupName = thread.title;
-          useAppStore.setState((s) => ({
-            threads: s.threads.map((other) =>
-              s.view.kind === "thread" && s.view.panes.includes(other.id)
-                ? { ...other, groupId, groupName }
-                : other,
-            ),
-            view: s.view.kind === "thread" ? { ...s.view, activeGroupId: groupId } : s.view,
-          }));
-          // The durable effect of grouping a root row is the host command; the
-          // local paint above is display-only until the next page confirms it.
-          dispatchThreadGroupIntents(
-            openThreads.map((other) => ({ threadId: other.id, groupId, groupName })),
-          );
-        }
-        if (key === "ungroup") {
-          const clearedThreadIds = dissolveGroupMembership(
-            useAppStore.getState().threads,
-            thread.id,
-          ).clearedIds;
-          applyRemoteSetGroupCommand(thread.id, undefined, undefined);
-          dispatchThreadGroupIntents(clearedThreadIds.map((threadId) => ({ threadId })));
-        }
-        if (key === "archive" && !isExperimentCandidate) archiveThread(thread.id);
-        if (key === "rename") onRename?.();
-        if (key === "unload") unloadThread(thread.id);
-        if (key === "mark-done") toggleMarkThreadDone(thread.id);
-        if (key === "toggle-star") toggleStarThread(thread.id);
-        if (key === "delete" && !isExperimentCandidate)
-          requestDeleteThread(thread.id, thread.worktreePath, thread.projectId, {
-            ...(anchorPosition ? { anchorPosition } : {}),
-            ...(returnFocusElement ? { returnFocusElement } : {}),
-          });
-        if (key.startsWith("action:")) {
-          runProjectAction(project.id, key.slice("action:".length), thread.worktreePath);
-        }
-        if (key.startsWith("stop-action:")) {
-          stopProjectAction(project.id, key.slice("stop-action:".length), thread.worktreePath);
-        }
-        applyWorkspaceMenuChoice(key, (workspaceId) => {
-          useAppStore.getState().setThreadWorkspace(thread.id, workspaceId);
-          dispatchManagedRootThreadWorkspace(thread.id, workspaceId);
-        });
-      }}
-    >
-      {props.children}
-    </ResponsiveContextMenu>
+      items={items}
+      onClose={props.onClose}
+      onAction={handleAction}
+    />
   );
 }

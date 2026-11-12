@@ -21,6 +21,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { readNativeVisualHostId } from "@/renderer/state/nativeVisualOwner";
 import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import { forgetRecentRuntimeWireInterest } from "@/renderer/state/rendererEventInterests";
 import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 import { isRuntimeHistoryReadHeld } from "@/renderer/state/runtimeHistoryReadBarrier";
 import { readThreadPromptIndex } from "@/renderer/state/threadPromptIndex";
@@ -56,6 +57,8 @@ import {
   applyCatalogPatchFields,
   dispatchOptimisticCatalogEdit,
 } from "@/renderer/state/pendingCatalogEdits";
+
+export const GUI_OPEN_LOADING_REVEAL_DELAY_MS = 180;
 
 let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
@@ -355,9 +358,11 @@ export function openThread(
     let succeeded = false;
     let frameId: number | undefined;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let slowReadRevealTimeoutId: ReturnType<typeof setTimeout> | undefined;
     const retire = () => {
       active = false;
       clearTimeout(timeoutId);
+      if (slowReadRevealTimeoutId !== undefined) clearTimeout(slowReadRevealTimeoutId);
       if (frameId !== undefined) cancelAnimationFrame(frameId);
       unsubscribe();
       if (cancelPendingThreadOpen === cancel) cancelPendingThreadOpen = null;
@@ -400,6 +405,7 @@ export function openThread(
     const finishOpen = (reopenRuntime: boolean) => {
       if (!active || opened) return;
       clearTimeout(timeoutId);
+      if (slowReadRevealTimeoutId !== undefined) clearTimeout(slowReadRevealTimeoutId);
       opened = true;
       if (!applyOpen(reopenRuntime)) return cancel();
     };
@@ -428,6 +434,14 @@ export function openThread(
     if (hydrated || heldRowsResident()) {
       frameId = requestAnimationFrame(() => finishOpen(ready && succeeded));
       if (!opened) timeoutId = setTimeout(() => finishOpen(ready && succeeded), 50);
+    } else {
+      // Normal fast switches (<180ms) keep the previous pane seamlessly until
+      // history settles with zero loading flash; slow reads under load swap to
+      // the destination pane after 180ms so navigation never feels stuck.
+      slowReadRevealTimeoutId = setTimeout(
+        () => finishOpen(ready && succeeded),
+        GUI_OPEN_LOADING_REVEAL_DELAY_MS,
+      );
     }
     void reader.ready.then(finishRead, () => finishRead(false));
     return;
@@ -537,6 +551,7 @@ export async function unloadStoredThread(
   const inVisiblePane = view.kind === "thread" && view.panes.includes(threadId);
 
   await readBridge().closeThread({ threadId });
+  forgetRecentRuntimeWireInterest(threadId);
   entityHost(thread)?.refreshCatalog();
   startTransition(() => {
     useAppStore.getState().markThreadExited(threadId);

@@ -129,6 +129,12 @@ jobs:
           workspaces: native/mcp-relay
           prefix: mcp-relay-rust
 
+      - name: Cache Git helper Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: native/git-helper
+          prefix: git-helper-rust
+
       # Windows installs from the registry: unpacking the 1.4 GB Bun cache
       # archive there took 3 minutes, against 80 to 100 seconds for a cold
       # `bun install` (20 seconds with the cache restored).
@@ -181,7 +187,7 @@ jobs:
 
       - name: Prepare helper cache directory
         run: >-
-          node -e "const fs=require('node:fs');fs.mkdirSync('resources/computer-use-helper',{recursive:true});fs.mkdirSync('resources/wsl-helpers/mcp-relay',{recursive:true})"
+          node -e "const fs=require('node:fs');fs.mkdirSync('resources/computer-use-helper',{recursive:true});fs.mkdirSync('resources/wsl-helpers/mcp-relay',{recursive:true});fs.mkdirSync('resources/wsl-helpers/git-helper',{recursive:true})"
         shell: bash
 
       - name: Cache computer-use helper artifact
@@ -235,6 +241,22 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+
+      - name: Cache Git helper artifact
+        id: git-helper-artifact
+        uses: actions/cache@v5
+        with:
+          path: resources/wsl-helpers/git-helper
+          key: git-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/git-helper/src/**', 'native/git-helper/Cargo.toml', 'native/git-helper/Cargo.lock', 'native/git-helper/.cargo/config.toml', 'native/git-helper/rust-toolchain.toml', 'scripts/prepare-git-helper.mjs', 'scripts/lib/native-helper-prepare.mjs', 'src/supervisor/git/gitNativeHelperProtocol.ts') }}
+
+      - name: Mark restored Git helper current
+        if: steps.git-helper-artifact.outputs.cache-hit == 'true'
+        run: touch resources/wsl-helpers/git-helper/*/poracode-git-helper*
+        shell: bash
+
+      - name: Prepare Git helper
+        run: node scripts/prepare-git-helper.mjs --platform "${{ matrix.platform }}" --require
+        shell: bash
 
       - name: Prepare locked computer use plug-in
         if: matrix.platform == 'mac'
@@ -367,6 +389,14 @@ jobs:
             relay_signature="$(codesign -d --verbose=4 "$relay" 2>&1)"
             if ! grep -q 'flags=.*runtime' <<<"$relay_signature"; then
               echo "::error file=$relay::MCP relay is missing the hardened-runtime signature flag."
+              exit 1
+            fi
+
+            git_helper="$app/Contents/Resources/wsl-helpers/git-helper/darwin-universal/poracode-git-helper"
+            codesign --verify --strict --verbose=4 "$git_helper"
+            git_helper_signature="$(codesign -d --verbose=4 "$git_helper" 2>&1)"
+            if ! grep -q 'flags=.*runtime' <<<"$git_helper_signature"; then
+              echo "::error file=$git_helper::Git helper is missing the hardened-runtime signature flag."
               exit 1
             fi
 

@@ -2,8 +2,11 @@ import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { threadSchema, type Project, type Thread } from "@/shared/contracts";
+import type { PoracodeBridge } from "@/shared/ipc";
+import type { GitRefreshOptions, GitRefreshReason } from "@/renderer/state/gitRefresh";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useGitRefresh } from "./useGitRefresh";
 
 const { bridgeMock, gitRefreshMocks } = vi.hoisted(() => ({
@@ -11,7 +14,7 @@ const { bridgeMock, gitRefreshMocks } = vi.hoisted(() => ({
     gitWatchProject: vi.fn<() => Promise<void>>(),
     gitUnwatchProject: vi.fn<() => Promise<void>>(),
     gitFetch: vi.fn<() => Promise<void>>(),
-    onSupervisorEvent: vi.fn<() => () => void>(),
+    onSupervisorEvent: vi.fn<PoracodeBridge["onSupervisorEvent"]>(),
   },
   gitRefreshMocks: {
     cleanupGitRefreshProjects: vi.fn<(activeProjectIds: ReadonlySet<string>) => void>(),
@@ -21,9 +24,9 @@ const { bridgeMock, gitRefreshMocks } = vi.hoisted(() => ({
       vi.fn<
         (
           project: Pick<Project, "id" | "location">,
-          reason: "initial" | "watcher" | "fetch" | "manual" | "poll",
+          reason: GitRefreshReason,
           mode?: "status" | "full",
-          options?: { isActive?: () => boolean; fetchRemote?: boolean },
+          options?: GitRefreshOptions,
         ) => Promise<void>
       >(),
     stopPendingPrRefresh: vi.fn<() => void>(),
@@ -351,6 +354,27 @@ describe("useGitRefresh branch PR prefetch triggers", () => {
     unmount();
   });
 
+  it("does not re-sync watched worktrees on volatile thread runtime ticks", async () => {
+    const { unmount } = await renderAndClearInitialPrefetch();
+    gitRefreshMocks.syncWatchedWorktreeProjects.mockClear();
+    gitRefreshMocks.syncPendingPrRefreshProjects.mockClear();
+
+    act(() => {
+      useAppStore.setState({
+        threads: [
+          makeThread({
+            attention: "needs_approval",
+            slashCommands: [{ id: "review", label: "review", description: "Review" }],
+          }),
+        ],
+      });
+    });
+
+    expect(gitRefreshMocks.syncWatchedWorktreeProjects).not.toHaveBeenCalled();
+    expect(gitRefreshMocks.syncPendingPrRefreshProjects).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it("re-prefetches when a worktree branch appears or a thread finishes its turn", async () => {
     const { unmount } = await renderAndClearInitialPrefetch();
 
@@ -414,6 +438,85 @@ describe("useGitRefresh branch PR prefetch triggers", () => {
     expect(gitRefreshMocks.prefetchBranchPrData).toHaveBeenCalledWith(otherProject);
     unmount();
   });
+
+  it.each([
+    { gitOverlayOpen: true },
+    { rightPanelSplit: { tab: "git", placement: "bottom" } },
+    { bottomPanelDocks: { left: "git", right: null } },
+    { mobileUtilityPage: "settings" },
+  ] satisfies Partial<ReturnType<typeof usePanelStore.getState>>[])(
+    "re-syncs worktree watches for Git review visibility changes %j",
+    async (patch) => {
+      usePanelStore.setState({
+        gitOverlayOpen: false,
+        mobileUtilityPage: "workspace",
+        rightPanelSplit: null,
+        bottomPanelDocks: { left: null, right: null },
+      });
+      const { unmount } = await renderAndClearInitialPrefetch();
+      gitRefreshMocks.syncWatchedWorktreeProjects.mockClear();
+
+      act(() => {
+        usePanelStore.setState(patch);
+      });
+
+      expect(gitRefreshMocks.syncWatchedWorktreeProjects).toHaveBeenCalledExactlyOnceWith([
+        localProject,
+      ]);
+      unmount();
+    },
+  );
+
+  it.each(["git-changed", "project-tree-changed"] as const)(
+    "coalesces six scoped %s events without refreshing the main checkout",
+    async (type) => {
+      vi.useFakeTimers();
+      gitRefreshMocks.getWatcherRefreshMode.mockReturnValue("status");
+      const { unmount } = await renderAndClearInitialPrefetch();
+      gitRefreshMocks.refreshGitProject.mockClear();
+      try {
+        const listener = bridgeMock.onSupervisorEvent.mock.calls[0]![0];
+        act(() => {
+          for (let index = 0; index < 6; index += 1) {
+            listener({
+              type,
+              projectId: localProject.id,
+              worktreePath: `/wt/${index}`,
+            });
+          }
+        });
+        await act(() => vi.advanceTimersByTimeAsync(249));
+        expect(gitRefreshMocks.refreshGitProject).not.toHaveBeenCalled();
+        await act(() => vi.advanceTimersByTimeAsync(1));
+        expect(gitRefreshMocks.refreshGitProject).toHaveBeenCalledExactlyOnceWith(
+          localProject,
+          "watcher",
+          "status",
+          {
+            isActive: expect.any(Function),
+            includeMainStatus: false,
+            worktreePaths: Array.from({ length: 6 }, (_, index) => `/wt/${index}`),
+          },
+        );
+        await act(() => vi.advanceTimersByTimeAsync(1_750));
+        expect(gitRefreshMocks.refreshGitProject).toHaveBeenCalledTimes(2);
+        expect(gitRefreshMocks.refreshGitProject).toHaveBeenLastCalledWith(
+          localProject,
+          "watcher-details",
+          "status",
+          {
+            isActive: expect.any(Function),
+            includeMainStatus: false,
+            worktreePaths: Array.from({ length: 6 }, (_, index) => `/wt/${index}`),
+          },
+        );
+      } finally {
+        unmount();
+        vi.useRealTimers();
+        gitRefreshMocks.getWatcherRefreshMode.mockReturnValue("full");
+      }
+    },
+  );
 });
 
 describe("useGitRefresh background fetch capacity", () => {

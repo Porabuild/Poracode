@@ -28,6 +28,7 @@ import {
 } from "./lib/native-helper-prepare.mjs";
 import { spec as helperSpec } from "./prepare-computer-use-helper.mjs";
 import { spec as relaySpec } from "./prepare-mcp-relay.mjs";
+import { spec as gitHelperSpec } from "./prepare-git-helper.mjs";
 
 const temps = [];
 function tempDir() {
@@ -248,6 +249,38 @@ void describe("--hello handshake and manifest verify", () => {
     };
     const parsed = readHello(stubHello(dir, hello), helperSpec, version);
     assert.equal(parsed.protocolVersion, version);
+  });
+
+  void it("verifies the git-helper hello shape and protocol mismatch rejection", () => {
+    const version = gitHelperSpec.expectedVersion();
+    assert.doesNotThrow(() =>
+      gitHelperSpec.validateHello(
+        {
+          helper: "poracode-git-helper",
+          helperVersion: "0.1.0",
+          protocolVersion: version,
+          platform: "win32",
+          arch: "x64",
+        },
+        "poracode-git-helper.exe",
+        version,
+      ),
+    );
+    assert.throws(
+      () =>
+        gitHelperSpec.validateHello(
+          {
+            helper: "poracode-git-helper",
+            helperVersion: "0.1.0",
+            protocolVersion: 99,
+            platform: "win32",
+            arch: "x64",
+          },
+          "poracode-git-helper.exe",
+          version,
+        ),
+      /invalid or incompatible --hello payload/u,
+    );
   });
 
   void it("verifies manifest versions and staged targets", () => {

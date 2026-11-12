@@ -1,0 +1,140 @@
+import Database from "better-sqlite3";
+import { parentPort, workerData } from "node:worker_threads";
+import { restoreWorkerAdmittedBatchOrigins } from "@/shared/runtimePayloadOriginProtocol";
+import { resolveBetterSqliteNativeBindingOptions } from "./nativeBinding";
+import { attachEditableDatabaseHandle } from "./connection";
+import {
+  applyRuntimeEventBatchesNow,
+  applyThreadRuntimeEventsNow,
+  resetRuntimeItemsWriterCache,
+} from "./runtimeItemsWriter";
+import {
+  DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+  type DatabaseWriteWorkerData,
+  type DatabaseWriteWorkerRequest,
+  type DatabaseWriteWorkerResponse,
+  type SerializedStorageError,
+} from "./databaseWriteProtocol";
+
+function serializeError(error: unknown): SerializedStorageError {
+  if (error instanceof Error) {
+    const code = (error as Error & { code?: unknown }).code;
+    return {
+      message: error.message,
+      name: error.name,
+      ...(typeof code === "string" ? { code } : {}),
+    };
+  }
+  return { message: String(error) };
+}
+
+function post(message: DatabaseWriteWorkerResponse): void {
+  parentPort?.postMessage(message);
+}
+
+function startWorker(): void {
+  const init = workerData as DatabaseWriteWorkerData | undefined;
+  if (
+    !init ||
+    init.version !== DATABASE_WRITE_WORKER_PROTOCOL_VERSION ||
+    typeof init.dbPath !== "string"
+  ) {
+    throw new Error("Invalid databaseWriteWorker initialization data.");
+  }
+
+  const sqlite = new Database(init.dbPath, {
+    ...resolveBetterSqliteNativeBindingOptions(),
+    fileMustExist: true,
+  });
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("synchronous = NORMAL");
+  sqlite.pragma("foreign_keys = ON");
+  sqlite.pragma("busy_timeout = 250");
+  sqlite.pragma("cache_size = -8192");
+  sqlite.pragma("mmap_size = 0");
+  sqlite.pragma("temp_store = FILE");
+  sqlite.pragma("journal_size_limit = 33554432");
+  sqlite.function("schedule_search_text", { deterministic: true }, (value: unknown) =>
+    typeof value === "string" ? value.normalize("NFKC").toLowerCase() : "",
+  );
+  attachEditableDatabaseHandle(sqlite);
+
+  post({
+    v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+    kind: "ready",
+  });
+
+  parentPort?.on("message", (message: DatabaseWriteWorkerRequest) => {
+    if (!message || message.v !== DATABASE_WRITE_WORKER_PROTOCOL_VERSION) return;
+
+    if (message.kind === "close") {
+      resetRuntimeItemsWriterCache();
+      try {
+        sqlite.close();
+      } catch {
+        // already closed
+      }
+      post({
+        v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+        id: message.id,
+        kind: "closed",
+      });
+      return;
+    }
+
+    if (message.kind === "write-batches") {
+      try {
+        const batches = restoreWorkerAdmittedBatchOrigins(message.batches, message.origins);
+        const result = applyRuntimeEventBatchesNow(batches, 250);
+        if (result.kind === "committed") {
+          post({
+            v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+            id: message.id,
+            kind: "batches-result",
+            outcome: { kind: "committed" },
+          });
+        } else {
+          post({
+            v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+            id: message.id,
+            kind: "batches-result",
+            outcome: { kind: "rolled-back", error: serializeError(result.error) },
+          });
+        }
+      } catch (error) {
+        post({
+          v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+          id: message.id,
+          kind: "batches-result",
+          outcome: { kind: "thrown", error: serializeError(error) },
+        });
+      }
+      return;
+    }
+
+    if (message.kind === "write-single") {
+      try {
+        const restored = restoreWorkerAdmittedBatchOrigins(
+          [{ threadId: message.threadId, events: message.events }],
+          message.origins,
+        )[0]!;
+        applyThreadRuntimeEventsNow(restored.threadId, restored.events, 250);
+        post({
+          v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+          id: message.id,
+          kind: "single-result",
+          outcome: { kind: "committed" },
+        });
+      } catch (error) {
+        post({
+          v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+          id: message.id,
+          kind: "single-result",
+          outcome: { kind: "failed", error: serializeError(error) },
+        });
+      }
+    }
+  });
+}
+
+startWorker();
