@@ -20,6 +20,7 @@ import {
   __resetRefreshTokensForTest,
   connectionRefreshSubject,
   hydrateRefreshTokens,
+  readSharedCredential,
   refreshTokenForSubject,
   writeRefreshTokenToVault,
   type RefreshSubject,
@@ -43,7 +44,11 @@ import type {
   RemoteServerRecord,
   RemoteSocketLike,
 } from "@/renderer/state/remoteServers/types";
-import { failVaultKeyReads, webKitKeyRestoreError } from "./webKitResultFailure.testFixtures";
+import {
+  failVaultKeyReads,
+  failVaultReads,
+  webKitKeyRestoreError,
+} from "./webKitResultFailure.testFixtures";
 import { createSecureRemoteServersStorage } from "./secureStorage";
 
 /**
@@ -251,6 +256,103 @@ afterEach(async () => {
 });
 
 describe("cold pairing recovery", () => {
+  it.each(["refresh", "token"] as const)(
+    "repairs an undecryptable saved %s slot with a fresh QR pairing",
+    async (prefix) => {
+      await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
+      await setDesktopToken(PARENT_KEY, "saved-access");
+      await writeRefreshTokenToVault(connectionSubject, "saved-refresh");
+      // Released v2 metadata and v1 vault slots survive an upgrade. A stale
+      // ciphertext must not require clearing this origin's other pairings.
+      localStorage.setItem(
+        "poracode-remote-servers",
+        JSON.stringify({ state: { servers: [parentRecord({ accessToken: "" })] }, version: 2 }),
+      );
+      await setDesktopToken("other-desktop", "other-access");
+      const otherSubject = connectionRefreshSubject("other-desktop");
+      await writeRefreshTokenToVault(otherSubject, "other-refresh");
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open("lightcode-mobile-vault");
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const transaction = database.transaction("entries", "readwrite");
+          transaction.objectStore("entries").put({
+            key: `${prefix}.${PARENT_KEY}`,
+            iv: crypto.getRandomValues(new Uint8Array(12)),
+            data: new ArrayBuffer(32),
+          });
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+          transaction.onabort = () => reject(transaction.error);
+        });
+      } finally {
+        database.close();
+      }
+      __resetRefreshTokensForTest();
+      __resetTokenVaultForTest();
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      expect(await readSharedCredential(connectionSubject, PARENT_KEY)).toEqual({
+        status: "failed",
+      });
+      await useRemoteServersStore.persist.rehydrate();
+
+      await rePairVia("direct");
+
+      expect(useRemoteServersStore.getState().runtime[PARENT_KEY]?.status).toBe("online");
+      __resetRefreshTokensForTest();
+      __resetTokenVaultForTest();
+      const coldStorage = createSecureRemoteServersStorage<{ servers: RemoteServerRecord[] }>();
+      const restored = await coldStorage.getItem("poracode-remote-servers");
+      expect(restored?.state.servers[0]).toMatchObject({
+        desktopId: PARENT_KEY,
+        accessToken: "fresh-access",
+      });
+      await hydrateRefreshTokens({ subjects: [connectionSubject, otherSubject] });
+      expect(refreshTokenForSubject(connectionSubject)).toBe("fresh-grant");
+      expect(await getDesktopToken("other-desktop")).toBe("other-access");
+      expect(refreshTokenForSubject(otherSubject)).toBe("other-refresh");
+    },
+  );
+
+  it.each(
+    ["cryptoKey", `refresh.${PARENT_KEY}`].flatMap((vaultKey) =>
+      [true, false].map((cachedKey) => ({ vaultKey, cachedKey })),
+    ),
+  )(
+    "preserves the saved pair when $vaultKey cannot be read (cached key: $cachedKey)",
+    async ({ vaultKey, cachedKey }) => {
+      useRemoteServersStore.setState({
+        servers: [parentRecord({ accessToken: "saved-access" })],
+        runtime: {},
+      });
+      await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
+      await setDesktopToken(PARENT_KEY, "saved-access");
+      await writeRefreshTokenToVault(connectionSubject, "saved-refresh");
+      __resetRefreshTokensForTest();
+      if (!cachedKey) __resetTokenVaultForTest();
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const escaped: unknown[] = [];
+      const failure = failVaultReads(vaultKey, webKitKeyRestoreError(), escaped);
+
+      await expect(rePairVia("direct")).rejects.toThrow(
+        "The saved remote credentials could not be confirmed.",
+      );
+
+      expect(useRemoteServersStore.getState().servers[0]?.accessToken).toBe("saved-access");
+      expect(useRemoteServersStore.getState().runtime[PARENT_KEY]?.status).toBe("error");
+      expect(escaped).toEqual([]);
+      failure.mockRestore();
+      expect(await readSharedCredential(connectionSubject, PARENT_KEY)).toMatchObject({
+        status: "ok",
+        accessToken: "saved-access",
+        refreshToken: "saved-refresh",
+      });
+    },
+  );
+
   it("commits both credentials before a first pairing succeeds", async () => {
     await useRemoteServersStore.persist.getOptions().storage!.getItem("poracode-remote-servers");
     __resetRefreshTokensForTest();
