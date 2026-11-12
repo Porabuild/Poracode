@@ -324,4 +324,58 @@ describe("AsyncDatabaseWrites worker offload", () => {
       { threadId: "t2", delta: "B" },
     ]);
   });
+
+  it("discounts an in-flight worker chunk from per-thread admission bounds so bursts are not refused", async () => {
+    const { RuntimeWriteQueue } = await import("./runtimeWriteQueue");
+    const gate = Promise.withResolvers<void>();
+    const queue = new RuntimeWriteQueue(() => {}, { maxPendingEventsPerThread: 3 });
+
+    expect(
+      queue.enqueue("t1", [
+        {
+          type: "content.delta",
+          threadId: "t1",
+          itemId: "i1",
+          stream: "assistant_text",
+          delta: "1",
+        },
+        {
+          type: "content.delta",
+          threadId: "t1",
+          itemId: "i1",
+          stream: "assistant_text",
+          delta: "2",
+        },
+        {
+          type: "content.delta",
+          threadId: "t1",
+          itemId: "i1",
+          stream: "assistant_text",
+          delta: "3",
+        },
+      ]).kind,
+    ).toBe("accepted");
+
+    // Start flushing all 3 events on the async worker and hold the worker mid-write:
+    const flushPromise = queue.flushBudgetedAsync(
+      { maxThreads: 4, maxBytes: 1024 * 1024, maxMs: 50 },
+      {
+        atomicBatchWriterAsync: async () => ({ kind: "committed" }),
+        writeAsync: () => gate.promise,
+      },
+    );
+
+    // Admitting 2 more events while those 3 are in-flight on the worker must succeed
+    // (effective un-draining backlog is 0 + 2 <= 3) rather than refusing and contaminating!
+    const burst = queue.enqueue("t1", [
+      { type: "content.delta", threadId: "t1", itemId: "i1", stream: "assistant_text", delta: "4" },
+      { type: "content.delta", threadId: "t1", itemId: "i1", stream: "assistant_text", delta: "5" },
+    ]);
+    expect(burst.kind).toBe("accepted");
+    expect(burst.refusedEvents).toBe(0);
+
+    gate.resolve();
+    await flushPromise;
+    expect(queue.pendingEvents("t1")).toBe(2);
+  });
 });

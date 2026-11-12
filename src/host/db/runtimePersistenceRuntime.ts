@@ -86,7 +86,8 @@ function notifyHealthListeners(notify: (listener: RuntimePersistenceHealthListen
 
 export const runtimePersistenceController = new RuntimePersistenceController({
   onAuthoritativeHistoryChanged: noteRuntimeHistoryMutation,
-  write: (threadId, events) => applyThreadRuntimeEventsNow(threadId, events),
+  write: (threadId, events, busyTimeoutMs) =>
+    applyThreadRuntimeEventsNow(threadId, events, busyTimeoutMs),
   atomicBatchWriter: (batches) => applyRuntimeEventBatchesNow(batches),
   resolveAsyncWriters: () => {
     const asyncWrites = getAsyncDatabaseWrites();

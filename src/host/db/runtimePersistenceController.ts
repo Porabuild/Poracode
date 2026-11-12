@@ -1312,6 +1312,7 @@ export class RuntimePersistenceController {
     if (this.health.getState() === "refusing" && this.health.getLastErrorClass() === "fatal")
       return false;
     if (!this.health.isStorageRetryDue()) return false;
+    const asyncWritersActive = Boolean(this.options.resolveAsyncWriters?.());
     const threadIds =
       scope === "thread" && threadId !== undefined ? [threadId] : this.queue.pendingThreadIds();
     for (const id of threadIds) {
@@ -1322,6 +1323,10 @@ export class RuntimePersistenceController {
         id,
         Number.MAX_SAFE_INTEGER,
         DEFAULT_RUNTIME_FLUSH_CHUNK,
+        // When `databaseWriteWorker` is active, wait briefly (up to 100ms) if the
+        // worker holds SQLite's writer lock on another thread instead of failing
+        // relief with `SQLITE_BUSY` and contaminating the admitting thread!
+        asyncWritersActive ? 100 : undefined,
       );
       this.health.recordDuration(this.options.now() - started);
       if (outcome.kind === "failed") {
