@@ -268,7 +268,13 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
         );
         if (!deployed) throw new Error("Poracode MCP launch helper could not be deployed to WSL.");
         const linuxNativePath = `${deployed.linuxBaseDir}/${wslNativeRel}`;
-        if (await markDistroBinaryExecutable(location.distro, linuxNativePath)) {
+        if (
+          await markDistroBinaryExecutable(
+            location.distro,
+            linuxNativePath,
+            ...((deployed.filesWritten ?? 0) > 0 ? [{ force: true }] : []),
+          )
+        ) {
           for (const [srv, helper] of helperByServer) {
             if (helper.kind === "native") {
               helperByServer.set(srv, { ...helper, path: linuxNativePath });

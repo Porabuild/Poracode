@@ -25,7 +25,7 @@ export function SidebarPanelDragButton(props: {
     } satisfies DragSourceData,
     element: elementRef,
   });
-  useClearDndEntityElementsOnUnmount(draggableResult?.draggable);
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   return (
     <div

@@ -90,7 +90,7 @@ export function GitBadge(props: {
     } satisfies DragSourceData,
     element: elementRef,
   });
-  useClearDndEntityElementsOnUnmount(draggableResult?.draggable);
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   const projectLocation = useAppStore((s) =>
     props.worktreePath ? undefined : s.projects.find((p) => p.id === props.projectId)?.location,

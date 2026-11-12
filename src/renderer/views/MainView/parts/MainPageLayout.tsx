@@ -190,7 +190,7 @@ function DesktopMainPanelDropZone(props: { children: ReactNode }) {
     data: { type: "main-panel-drop-zone" },
     element: elementRef,
   });
-  useClearDndEntityElementsOnUnmount(droppableResult?.droppable);
+  useClearDndEntityElementsOnUnmount(droppableResult);
   const isActive = useIsMainPanelDropActive();
 
   useEffect(() => {

@@ -1,9 +1,16 @@
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
-interface DndElementHolder {
-  element: Element | undefined;
-  handle?: Element | undefined;
-  proxy?: Element | undefined;
+interface DndElementRefCallbacks {
+  ref?: ((element: Element | null) => void) | undefined;
+  handleRef?: ((element: Element | null) => void) | undefined;
+}
+
+function clearDndEntityRefs(callbacks: DndElementRefCallbacks | undefined): void {
+  if (!callbacks) {
+    return;
+  }
+  callbacks.handleRef?.(null);
+  callbacks.ref?.(null);
 }
 
 /**
@@ -12,26 +19,28 @@ interface DndElementHolder {
  * When `element` or `handle` is passed as a React `RefObject`, `@dnd-kit/react`'s
  * `useOnElementChange` syncs the DOM node into the entity without clearing it on unmount,
  * allowing `DragOperation` history or late microtasks to retain detached DOM subtrees.
+ * Invoking the hook's `ref(null)` / `handleRef(null)` callbacks mutates the underlying
+ * entity directly instead of going through `useDeepSignal`'s read-tracking `Proxy`
+ * (which cannot write WeakMap-backed private fields on `Draggable` / `Droppable`).
  */
-export function useClearDndEntityElementsOnUnmount(entity: DndElementHolder | undefined): void {
-  const latestEntityRef = useRef(entity);
+export function useClearDndEntityElementsOnUnmount(
+  callbacks: DndElementRefCallbacks | undefined,
+): void {
+  const latestCallbacksRef = useRef(callbacks);
   useLayoutEffect(() => {
-    latestEntityRef.current = entity;
-  }, [entity]);
+    latestCallbacksRef.current = callbacks;
+  }, [callbacks]);
 
   useLayoutEffect(
     () => () => {
-      const current = latestEntityRef.current;
-      if (!current) {
-        return;
-      }
-      current.element = undefined;
-      if ("handle" in current) {
-        current.handle = undefined;
-      }
-      if ("proxy" in current) {
-        current.proxy = undefined;
-      }
+      clearDndEntityRefs(latestCallbacksRef.current);
+    },
+    [],
+  );
+
+  useEffect(
+    () => () => {
+      clearDndEntityRefs(latestCallbacksRef.current);
     },
     [],
   );

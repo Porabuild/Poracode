@@ -560,6 +560,48 @@ describe("host endpoint relays", () => {
       const second = await prepareMcpToolFilters(first, location, { remoteViaStdio: true });
       expect(second).toEqual(first);
     });
+
+    it("forces chmod when WSL temp staging re-writes the binary after a /tmp wipe", async () => {
+      const root = helpersRoot();
+      const dir = join(root, "mcp-relay", "linux-x64");
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "poracode-mcp-relay"), "elf");
+      writeFileSync(
+        join(root, "mcp-relay", "manifest.json"),
+        JSON.stringify({
+          helper: "poracode-mcp-relay",
+          helperVersion: "0.2.0",
+          relayConfigVersion: 1,
+        }),
+      );
+      const wslLocation = {
+        kind: "wsl" as const,
+        distro: "Ubuntu",
+        linuxPath: "/project",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\project",
+      };
+
+      wslMocks.deployFilesToWslTempBase.mockResolvedValueOnce({
+        linuxBaseDir: "/tmp/poracode-mcp-filter-restaged",
+        filesWritten: 1,
+      });
+      await prepareMcpToolFilters([endpoint], wslLocation, { remoteViaStdio: true });
+      expect(wslMocks.markDistroBinaryExecutable).toHaveBeenLastCalledWith(
+        "Ubuntu",
+        "/tmp/poracode-mcp-filter-restaged/mcp-filter/poracode-mcp-relay",
+        { force: true },
+      );
+
+      wslMocks.deployFilesToWslTempBase.mockResolvedValueOnce({
+        linuxBaseDir: "/tmp/poracode-mcp-filter-restaged",
+        filesWritten: 0,
+      });
+      await prepareMcpToolFilters([endpoint], wslLocation, { remoteViaStdio: true });
+      expect(wslMocks.markDistroBinaryExecutable).toHaveBeenLastCalledWith(
+        "Ubuntu",
+        "/tmp/poracode-mcp-filter-restaged/mcp-filter/poracode-mcp-relay",
+      );
+    });
   });
 
   it("rejects relay envelopes from another version", () => {

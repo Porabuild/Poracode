@@ -33,7 +33,7 @@ export function PanelDockDropZone(props: {
     data: { type: "panel-dock-zone", zone: props.zone },
     element: elementRef,
   });
-  useClearDndEntityElementsOnUnmount(droppableResult?.droppable);
+  useClearDndEntityElementsOnUnmount(droppableResult);
   const placement = usePanelDockPlacement(props.zone);
 
   useEffect(() => {

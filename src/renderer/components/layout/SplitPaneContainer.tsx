@@ -203,7 +203,7 @@ const DividerDropZone = React.memo(
       },
       element: elementRef,
     });
-    useClearDndEntityElementsOnUnmount(droppableResult?.droppable);
+    useClearDndEntityElementsOnUnmount(droppableResult);
     const isHighlighted = useIsInsertSplitHighlighted(divider.zoneId);
 
     return (
@@ -240,7 +240,7 @@ const RootInsertZone = React.memo(function RootInsertZone(props: {
     },
     element: elementRef,
   });
-  useClearDndEntityElementsOnUnmount(droppableResult?.droppable);
+  useClearDndEntityElementsOnUnmount(droppableResult);
   const isHighlighted = useIsRootInsertHighlighted(zoneId);
 
   const edgeClass =

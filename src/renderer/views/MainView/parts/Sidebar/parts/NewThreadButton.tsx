@@ -42,7 +42,7 @@ export function NewThreadButton(props: {
     handle: newThreadRef,
     element: newThreadRef,
   });
-  useClearDndEntityElementsOnUnmount(draggableResult?.draggable);
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   const projectMenuItems: ContextMenuEntry[] =
     props.projectOptions && props.onSelectProject

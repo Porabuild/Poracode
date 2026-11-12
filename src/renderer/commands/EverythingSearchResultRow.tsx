@@ -96,7 +96,7 @@ export function EverythingSearchThreadRow(props: {
     element: rowRef,
   });
   const handleRef = draggableResult?.handleRef;
-  useClearDndEntityElementsOnUnmount(draggableResult?.draggable);
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   const stateClass = props.isSelected
     ? "bg-[var(--row-active)] text-foreground"

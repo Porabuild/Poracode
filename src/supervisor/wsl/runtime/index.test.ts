@@ -457,4 +457,29 @@ describe("resolveDistroArch and markDistroBinaryExecutable", () => {
       false,
     );
   });
+
+  it("re-runs chmod when forced or invalidated after a /tmp re-stage without evicting siblings", async () => {
+    setProbe(
+      "Ubuntu",
+      [{ ok: true, stdout: "ok" }],
+      [{ ok: true, stdout: "ok" }],
+      [{ ok: true, stdout: "ok" }],
+      [{ ok: true, stdout: "ok" }],
+    );
+    const { invalidateDistroExecutableCache, markDistroBinaryExecutable } = await loadRuntime();
+    const stagedRelay = "/tmp/poracode-mcp-a/mcp-filter/poracode-mcp-relay";
+    const siblingRelay = "/tmp/poracode-mcp-b/mcp-filter/poracode-mcp-relay";
+
+    expect(await markDistroBinaryExecutable("Ubuntu", stagedRelay)).toBe(true);
+    expect(await markDistroBinaryExecutable("Ubuntu", siblingRelay)).toBe(true);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(2);
+
+    invalidateDistroExecutableCache("Ubuntu", "/tmp/poracode-mcp-a");
+    expect(await markDistroBinaryExecutable("Ubuntu", stagedRelay)).toBe(true);
+    expect(await markDistroBinaryExecutable("Ubuntu", siblingRelay)).toBe(true);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(3);
+
+    expect(await markDistroBinaryExecutable("Ubuntu", siblingRelay, { force: true })).toBe(true);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(4);
+  });
 });

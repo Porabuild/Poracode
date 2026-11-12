@@ -90,6 +90,21 @@ export async function resolveDistroArch(distro: string): Promise<LinuxArch | nul
 }
 
 /**
+ * Drop cached executable-bit markers for `linuxPathPrefix` (exact file or any
+ * child under that directory) when a staging deploy overwrites/recreates files
+ * or removes a staged directory inside `distro`.
+ */
+export function invalidateDistroExecutableCache(distro: string, linuxPathPrefix: string): void {
+  const exactKey = `${distro}\0${linuxPathPrefix}`;
+  const dirPrefix = `${exactKey.replace(/\/+$/u, "")}/`;
+  for (const key of distroExecutableCache) {
+    if (key === exactKey || key.startsWith(dirPrefix)) {
+      distroExecutableCache.delete(key);
+    }
+  }
+}
+
+/**
  * Mark a staged helper binary executable (`chmod 755 && test -x`) inside a WSL
  * distro once per `(distro, linuxBinaryPath)`. Files copied over `\\wsl.localhost`
  * UNC paths may not carry the POSIX execute bit on drvfs/ext4 staging roots.
@@ -97,11 +112,16 @@ export async function resolveDistroArch(distro: string): Promise<LinuxArch | nul
 export async function markDistroBinaryExecutable(
   distro: string,
   linuxBinaryPath: string,
+  options?: { force?: boolean },
 ): Promise<boolean> {
   const key = `${distro}\0${linuxBinaryPath}`;
-  if (distroExecutableCache.has(key)) return true;
+  if (options?.force) {
+    distroExecutableCache.delete(key);
+  } else if (distroExecutableCache.has(key)) {
+    return true;
+  }
   return nativeHelperFlights.run(`chmod:${key}`, async () => {
-    if (distroExecutableCache.has(key)) return true;
+    if (!options?.force && distroExecutableCache.has(key)) return true;
     const quoted = quotePosixShellArg(linuxBinaryPath);
     const cmd = `chmod 755 ${quoted} && test -x ${quoted} && printf ok`;
     let [res] = await batchWslCommandsAsync(distro, [cmd]);

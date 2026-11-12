@@ -26,7 +26,7 @@ export function PanelTabDragButton(props: {
     data: { type: "panel-tab", tab: props.tab } satisfies DragSourceData,
     element: elementRef,
   });
-  useClearDndEntityElementsOnUnmount(draggableResult?.draggable);
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   return (
     <div
