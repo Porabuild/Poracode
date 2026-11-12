@@ -5,7 +5,9 @@ import {
   type ProfileTokenProvider,
   type ProfileTokenStats,
 } from "@/shared/contracts";
-import { dbGetAllUsageEvents, getProfileDataGeneration } from "../db";
+import type { ProfileCostTotals, UsageCostRecord } from "@/shared/contracts/costHistory";
+import { getProfileDataGeneration } from "../db";
+import { dbIterateTokenUsageScanRows, parseUsageCostRecord } from "../db/usageEvents";
 import {
   buildHeatmap,
   dayKeyFromIndex,
@@ -16,8 +18,13 @@ import {
 } from "./heatmap";
 import { recordCurrentDevice, resolveProfileDevice } from "./identity";
 import { accountLabel, modelKey, modelLabel, providerLabel } from "./labels";
-import { aggregateProfileCosts } from "./costStats";
-import type { UsageEventRow } from "../db/usageEvents";
+import {
+  addCostSample,
+  aggregateProfileCosts,
+  createProfileCostAggregator,
+  emptyCostTotals,
+  type ProfileCostPricing,
+} from "./costStats";
 
 /**
  * Token usage from Poracode's own activity, read from the durable `usage_events`
@@ -60,10 +67,172 @@ function emptyTokenStats(
   };
 }
 
+interface HistoricalTokenBucket {
+  dayIndex: number;
+  provider: string | null;
+  tokenModelKey: string;
+  costModelKey: string;
+  totals: ProfileCostTotals;
+  pricing: ProfileCostPricing[];
+}
+
+interface RecentTokenSample {
+  ts: number;
+  dayIndex: number;
+  provider: string | null;
+  tokenModelKey: string;
+  costModelKey: string;
+  value: number;
+  costDetails?: UsageCostRecord;
+}
+
+interface TokenRollupCache {
+  generation: number;
+  offset: number;
+  scanTodayIndex: number;
+  unavailableProviders: string[];
+  historicalBuckets: HistoricalTokenBucket[];
+  recentSamples: RecentTokenSample[];
+}
+
+let tokenRollupCache: TokenRollupCache | undefined;
+let tokenCacheGeneration = -1;
 const tokenCache = new Map<
   string,
   { generation: number; validUntil: number; result: ProfileTokenStats }
 >();
+
+function* iterateTokenRollupSourceRows(): IterableIterator<{
+  ts: number;
+  kind: string;
+  provider: string | null;
+  model: string | null;
+  value: number;
+  costDetails: UsageCostRecord | undefined;
+}> {
+  for (const row of dbIterateTokenUsageScanRows()) {
+    const costDetails = row.cost_details ? parseUsageCostRecord(row.cost_details) : undefined;
+    yield {
+      ts: row.ts,
+      kind: row.kind,
+      provider: row.provider,
+      model: row.model,
+      value: row.value,
+      costDetails,
+    };
+  }
+}
+
+function getOrBuildTokenRollup(
+  generation: number,
+  offset: number,
+  todayIndex: number,
+): TokenRollupCache {
+  if (
+    tokenRollupCache &&
+    tokenRollupCache.generation === generation &&
+    tokenRollupCache.offset === offset &&
+    tokenRollupCache.scanTodayIndex <= todayIndex
+  ) {
+    return tokenRollupCache;
+  }
+
+  // Coverage sets for the honesty list: providers that ran threads or turns vs
+  // providers with at least one exact (tokens_v2) token row. A zero-value
+  // tokens_v2 row still proves the provider reports exact usage. Computed over
+  // the whole device log (ignoring the active account/window filters), but
+  // activity only counts once the exact-telemetry era started on this device
+  // (first tokens_v2 row) — otherwise every provider would flash "unavailable"
+  // right after upgrade until it next records exact rows.
+  const activityFirstTs = new Map<string, number>();
+  const exactTokenProviders = new Set<string>();
+  let firstExactTs: number | undefined;
+
+  const bucketMap = new Map<string, HistoricalTokenBucket>();
+  const recentSamples: RecentTokenSample[] = [];
+
+  for (const row of iterateTokenRollupSourceRows()) {
+    if (row.provider) {
+      const base = baseAgentKind(row.provider);
+      if (row.kind === "tokens_v2") {
+        exactTokenProviders.add(base);
+        if (firstExactTs === undefined || row.ts < firstExactTs) firstExactTs = row.ts;
+      } else if (row.kind === "thread_started" || row.kind === "turn") {
+        const prev = activityFirstTs.get(base);
+        if (prev === undefined || row.ts < prev) activityFirstTs.set(base, row.ts);
+      }
+    }
+    if (
+      (row.kind !== "tokens" && row.kind !== "tokens_v2") ||
+      row.value < 0 ||
+      (row.value === 0 && !row.costDetails?.observed)
+    ) {
+      continue;
+    }
+
+    const dayIndex = localDayIndex(row.ts, offset);
+    const tokenModelKey = row.model ? modelKey(row.provider, row.model) : "";
+    const attributedModel = row.costDetails ? row.costDetails.model : row.model;
+    const costModelKey = attributedModel ? modelKey(row.provider, attributedModel) : "";
+
+    // Any row on a local calendar day strictly before todayIndex satisfies ts < nowMs
+    // for all timestamps >= todayIndex's start, so historical days fold immediately
+    // into compact per-(day, provider, model) buckets without retaining per-row objects.
+    if (dayIndex < todayIndex) {
+      const bucketKey = `${dayIndex}\0${row.provider ?? ""}\0${row.provider === null ? "0" : "1"}\0${tokenModelKey}\0${costModelKey}`;
+      let bucket = bucketMap.get(bucketKey);
+      if (!bucket) {
+        bucket = {
+          dayIndex,
+          provider: row.provider,
+          tokenModelKey,
+          costModelKey,
+          totals: emptyCostTotals(),
+          pricing: [],
+        };
+        bucketMap.set(bucketKey, bucket);
+      }
+      addCostSample(bucket.totals, row.value, row.costDetails);
+      if (row.costDetails?.estimate) {
+        const price = row.costDetails.estimate.pricing;
+        const existingIndex = bucket.pricing.findIndex((entry) => entry.id === price.id);
+        if (existingIndex >= 0) bucket.pricing[existingIndex] = price;
+        else bucket.pricing.push(price);
+      }
+    } else {
+      recentSamples.push({
+        ts: row.ts,
+        dayIndex,
+        provider: row.provider,
+        tokenModelKey,
+        costModelKey,
+        value: row.value,
+        ...(row.costDetails ? { costDetails: row.costDetails } : {}),
+      });
+    }
+  }
+
+  const unavailableProviders =
+    firstExactTs === undefined
+      ? []
+      : [...activityFirstTs]
+          .filter(
+            ([provider, firstActivityTs]) =>
+              firstActivityTs >= firstExactTs && !exactTokenProviders.has(provider),
+          )
+          .map(([provider]) => provider)
+          .sort();
+
+  tokenRollupCache = {
+    generation,
+    offset,
+    scanTodayIndex: todayIndex,
+    unavailableProviders,
+    historicalBuckets: [...bucketMap.values()],
+    recentSamples,
+  };
+  return tokenRollupCache;
+}
 
 export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileTokenStats {
   const offset = req.utcOffsetMinutes;
@@ -72,6 +241,10 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
 
   // Reuse totals until a write, day change or excluded future sample becomes current.
   const generation = getProfileDataGeneration();
+  if (tokenCacheGeneration !== generation) {
+    tokenCache.clear();
+    tokenCacheGeneration = generation;
+  }
   const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
   const cached = tokenCache.get(cacheKey);
   if (
@@ -91,66 +264,88 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     return empty;
   }
 
+  const rollup = getOrBuildTokenRollup(generation, offset, todayIndex);
   const perDay = new Map<string, number>();
   const perProvider = new Map<string, number>();
   const perAccount = new Map<string, number>();
   const perModel = new Map<string, number>();
-  // Coverage sets for the honesty list: providers that ran threads or turns vs
-  // providers with at least one exact (tokens_v2) token row. A zero-value
-  // tokens_v2 row still proves the provider reports exact usage. Computed over
-  // the whole device log (ignoring the active account/window filters), but
-  // activity only counts once the exact-telemetry era started on this device
-  // (first tokens_v2 row) — otherwise every provider would flash "unavailable"
-  // right after upgrade until it next records exact rows.
-  const activityFirstTs = new Map<string, number>();
-  const exactTokenProviders = new Set<string>();
-  let firstExactTs: number | undefined;
   let lifetimeTokens = 0;
   let validUntil = Infinity;
   const windowDays = statsWindowDays(req.window);
   const startDayIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;
-  const costRows: UsageEventRow[] = [];
+  const costAggregator = createProfileCostAggregator(req, todayIndex);
 
-  for (const row of dbGetAllUsageEvents()) {
-    if (row.provider) {
-      const base = baseAgentKind(row.provider);
-      if (row.kind === "tokens_v2") {
-        exactTokenProviders.add(base);
-        if (firstExactTs === undefined || row.ts < firstExactTs) firstExactTs = row.ts;
-      } else if (row.kind === "thread_started" || row.kind === "turn") {
-        const prev = activityFirstTs.get(base);
-        if (prev === undefined || row.ts < prev) activityFirstTs.set(base, row.ts);
-      }
+  const accumulatePositiveTokens = (
+    dayIndex: number,
+    provider: string | null,
+    tokenModelKey: string,
+    tokens: number,
+  ): void => {
+    lifetimeTokens += tokens;
+    const day = dayKeyFromIndex(dayIndex);
+    perDay.set(day, (perDay.get(day) ?? 0) + tokens);
+    if (provider) {
+      const base = baseAgentKind(provider);
+      perProvider.set(base, (perProvider.get(base) ?? 0) + tokens);
+      perAccount.set(provider, (perAccount.get(provider) ?? 0) + tokens);
+    }
+    if (tokenModelKey) {
+      perModel.set(tokenModelKey, (perModel.get(tokenModelKey) ?? 0) + tokens);
+    }
+  };
+
+  for (const bucket of rollup.historicalBuckets) {
+    // Scope to the selected account (exact account-kind match) when filtering.
+    if (req.provider && bucket.provider !== req.provider) continue;
+    if (
+      startDayIndex !== undefined &&
+      (bucket.dayIndex < startDayIndex || bucket.dayIndex > todayIndex)
+    ) {
+      continue;
+    }
+    costAggregator.addBucket(
+      bucket.dayIndex,
+      bucket.provider,
+      bucket.costModelKey,
+      bucket.totals,
+      bucket.pricing,
+    );
+    if (bucket.totals.tokens > 0) {
+      accumulatePositiveTokens(
+        bucket.dayIndex,
+        bucket.provider,
+        bucket.tokenModelKey,
+        bucket.totals.tokens,
+      );
+    }
+  }
+
+  for (const sample of rollup.recentSamples) {
+    if (req.provider && sample.provider !== req.provider) continue;
+    if (sample.ts > nowMs) {
+      validUntil = Math.min(validUntil, sample.ts);
+      continue;
     }
     if (
-      (row.kind !== "tokens" && row.kind !== "tokens_v2") ||
-      row.value < 0 ||
-      (row.value === 0 && !row.costDetails?.observed)
-    )
-      continue;
-    // Scope to the selected account (exact account-kind match) when filtering.
-    if (req.provider && row.provider !== req.provider) continue;
-    const dayIndex = localDayIndex(row.ts, offset);
-    if (row.ts > nowMs) {
-      validUntil = Math.min(validUntil, row.ts);
+      startDayIndex !== undefined &&
+      (sample.dayIndex < startDayIndex || sample.dayIndex > todayIndex)
+    ) {
       continue;
     }
-    if (startDayIndex !== undefined && (dayIndex < startDayIndex || dayIndex > todayIndex)) {
-      continue;
-    }
-    costRows.push(row);
-    if (row.value === 0) continue;
-    lifetimeTokens += row.value;
-    const day = dayKeyFromIndex(dayIndex);
-    perDay.set(day, (perDay.get(day) ?? 0) + row.value);
-    if (row.provider) {
-      const base = baseAgentKind(row.provider);
-      perProvider.set(base, (perProvider.get(base) ?? 0) + row.value);
-      perAccount.set(row.provider, (perAccount.get(row.provider) ?? 0) + row.value);
-    }
-    if (row.model) {
-      const key = modelKey(row.provider, row.model);
-      perModel.set(key, (perModel.get(key) ?? 0) + row.value);
+    costAggregator.addSample(
+      sample.dayIndex,
+      sample.provider,
+      sample.costModelKey,
+      sample.value,
+      sample.costDetails,
+    );
+    if (sample.value > 0) {
+      accumulatePositiveTokens(
+        sample.dayIndex,
+        sample.provider,
+        sample.tokenModelKey,
+        sample.value,
+      );
     }
   }
 
@@ -194,19 +389,8 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     }))
     .sort((a, b) => b.count - a.count);
 
-  const unavailableProviders =
-    firstExactTs === undefined
-      ? []
-      : [...activityFirstTs]
-          .filter(
-            ([provider, firstActivityTs]) =>
-              firstActivityTs >= firstExactTs && !exactTokenProviders.has(provider),
-          )
-          .map(([provider]) => provider)
-          .sort();
-
   const result: ProfileTokenStats = {
-    costs: aggregateProfileCosts(costRows, req, todayIndex),
+    costs: costAggregator.finish(),
     available: lifetimeTokens > 0,
     scope: req.scope ?? "device",
     device: currentDevice,
@@ -220,7 +404,7 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     accounts,
     models,
     tokenHeatmap,
-    unavailableProviders,
+    unavailableProviders: rollup.unavailableProviders,
   };
   tokenCache.set(cacheKey, { generation, validUntil, result });
   return result;

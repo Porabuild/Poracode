@@ -10,6 +10,7 @@ import {
 } from "@/renderer/state/runtimeStructuralChanges";
 import { readRuntimeItemChanges } from "@/renderer/state/runtimeItemChanges";
 import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
+import { clearThreadTodoDockStateCache } from "../threadTodoState";
 import { isToolGroupItem } from "./chatToolGroupItem";
 
 export const EMPTY_THREAD_ITEM_IDS = Object.freeze([]) as readonly string[];
@@ -877,6 +878,7 @@ export function selectAssistantTurnRowState(
 export function clearRuntimeItemStoreSelectorCacheForThread(threadId: string): void {
   assistantTurnProjectionCache.delete(threadId);
   clearRuntimeStructuralChangeHint(threadId);
+  clearThreadTodoDockStateCache(threadId);
   const prefix = `${threadId}\0`;
   for (const key of runtimeItemStoreSelectorCache.keys()) {
     if (key.startsWith(prefix)) {

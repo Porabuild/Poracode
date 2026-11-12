@@ -367,7 +367,12 @@ jobs:
         working-directory: .
         env:
           PORACODE_MCP_RELAY_BIN: ${{ github.workspace }}/native/mcp-relay/target/debug/poracode-mcp-relay
-        run: bun run vitest run src/supervisor/mcp/mcpHttpRelay.test.ts
+        run: >-
+          bun run vitest run
+          src/supervisor/mcp/mcpHttpRelay.test.ts
+          src/supervisor/mcp/mcpStdioWorker.test.ts
+          src/supervisor/mcp/mcpSchemaProxy.test.ts
+          src/supervisor/mcp/mcpToolFilterProxy.test.ts
 
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)

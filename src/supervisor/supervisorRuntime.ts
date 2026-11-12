@@ -233,10 +233,12 @@ export class SupervisorRuntime {
     if (!this._projectWatcher) {
       const watcher = new ProjectWatcher({
         onGitChanged: (projectId) => {
+          this.gitService.invalidateStatus();
           this.emit({ type: "git-changed", projectId });
         },
         onTreeChanged: (projectId) => {
           this.projectTreeService.invalidateAllCaches();
+          this.gitService.invalidateStatus();
           this.emit({ type: "project-tree-changed", projectId });
         },
       });

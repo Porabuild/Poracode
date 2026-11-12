@@ -804,7 +804,7 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
       previous.close();
       const refusal =
         schemaVersion === 64
-          ? "Database schema is incomplete; missing: threads.interrupted_turn, pr_watches.review_scope."
+          ? "Database schema is incomplete; missing: threads.interrupted_turn, pr_watches.review_scope, runtime_inline_image_blobs.blob_hash, runtime_inline_image_blobs.encoding, runtime_inline_image_blobs.header, runtime_inline_image_blobs.mime, runtime_inline_image_blobs.raw_bytes, runtime_inline_image_blobs.inline_utf8_bytes, runtime_inline_image_blobs.width, runtime_inline_image_blobs.height, thread_runtime_item_image_refs.thread_id, thread_runtime_item_image_refs.item_id, thread_runtime_item_image_refs.path_json, thread_runtime_item_image_refs.blob_hash."
           : "owning startup upgrade";
       expect(() => initReadOnlyDatabase(path)).toThrow(refusal);
       expect(() => initDatabase(path, { schemaMode: "validate" })).toThrow(refusal);
@@ -846,6 +846,13 @@ describe.skipIf(!sqliteAvailable)("saved conversation search", () => {
         ...(before.some((table) => table.name === "thread_token_usage")
           ? []
           : [{ name: "thread_token_usage", rows: [] }]),
+        // Schema 72 adds the externalized inline image tables, empty when no >= 8 KiB images exist.
+        ...(before.some((table) => table.name === "runtime_inline_image_blobs")
+          ? []
+          : [{ name: "runtime_inline_image_blobs", rows: [] }]),
+        ...(before.some((table) => table.name === "thread_runtime_item_image_refs")
+          ? []
+          : [{ name: "thread_runtime_item_image_refs", rows: [] }]),
       ].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
       expect(canonicalEvidence(sqlite)).toEqual(expected);
       expect(

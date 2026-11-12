@@ -1,9 +1,16 @@
-import { isWorkflowRunLive, type ToolCallPayload } from "@/shared/contracts";
-import { isWorkflowTool } from "@/shared/toolCallClassification";
+import {
+  isThreadTurnActive,
+  isWorkflowRunLive,
+  type Thread,
+  type ToolCallPayload,
+} from "@/shared/contracts";
+import { isDelegatedAgentTool, isWorkflowTool } from "@/shared/toolCallClassification";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "../components/thread/ChatPane/chatPaneSelectors";
 import { parseWorkflowInfo } from "../components/thread/ChatPane/parts/items/workflowDisplay";
+import { selectRetainedThreadPlanControlIds } from "../components/thread/threadTodoState";
 import { useAppStore } from "./appStore";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
+import type { AppStoreState } from "./slices/shared";
 import { useWorkflowRunStore } from "./workflowRunStore";
 import {
   forgetRuntimeHistoryBoundary,
@@ -26,6 +33,15 @@ interface ThreadWindowLedger {
   /** Map insertion order is the order of explicit page requests (FIFO). */
   pagedProtectedSizes: Map<string, number>;
   paging: boolean;
+  /** Earliest live item ID that extended retention past the unpinned tail. */
+  pinnedLiveItemId: string | null;
+}
+
+interface ThreadLivenessContext {
+  readonly thread: Thread | undefined;
+  readonly threadTerminated: boolean;
+  readonly openTurn: boolean | undefined;
+  readonly lastCompletedTurnAnchorIndex: number;
 }
 
 // Disposable session-local metadata. Runtime items/turns and these ledgers
@@ -54,10 +70,15 @@ function getThreadWindowLedger(threadId: string): ThreadWindowLedger {
       lastPassAtMs: 0,
       pagedProtectedSizes: new Map(),
       paging: false,
+      pinnedLiveItemId: null,
     };
     threadWindowLedgers.set(threadId, ledger);
   }
   return ledger;
+}
+
+export function hasPinnedLiveRuntimeWindow(threadId: string): boolean {
+  return threadWindowLedgers.get(threadId)?.pinnedLiveItemId != null;
 }
 
 export function forgetThreadWindowLedger(threadId: string): void {
@@ -89,30 +110,87 @@ export function markRuntimeItemsPaged(threadId: string, items: readonly RuntimeC
   const ledger = getThreadWindowLedger(threadId);
   for (const item of items) {
     // Hidden controls do not represent a reader's visible page.
-    if (item.type !== "goal")
+    if (item.type !== "goal" && item.type !== "plan")
       ledger.pagedProtectedSizes.set(item.id, estimateRuntimeItemBytes(item));
   }
   capPagedProtection(ledger);
 }
 
-function isLiveItem(item: RuntimeChatItem): boolean {
-  if (item.state !== "completed") return true;
-  if (item.type !== "tool_call") return false;
-  const payload = item.payload as ToolCallPayload | undefined;
-  // Canonical tool completion can precede background work completion. Use
-  // the same payload/manifest contract as the delegated-agent row and dock.
-  if (payload?.status === "running") return true;
-  if (!payload || !isWorkflowTool(payload) || item.observedLive !== true) return false;
-  if (!parseWorkflowInfo(payload).manifestPath) return false;
-  const run = useWorkflowRunStore.getState().byItemId[item.id]?.run;
-  return !run || isWorkflowRunLive(run);
+function buildThreadLivenessContext(
+  state: AppStoreState,
+  threadId: string,
+  indices: ReadonlyMap<string, number>,
+): ThreadLivenessContext {
+  const thread = state.threads.find((row) => row.id === threadId);
+  const openTurn = state.runtimeOpenTurnByThread[threadId];
+  const threadTerminated =
+    thread !== undefined &&
+    (thread.status === "inactive" ||
+      thread.status === "error" ||
+      thread.status === "finished" ||
+      (thread.interruptedTurn !== undefined && !isThreadTurnActive(thread.status)));
+  const completedTurns = state.runtimeCompletedTurnsByThread[threadId];
+  let lastCompletedTurnAnchorIndex = -1;
+  if (completedTurns?.length) {
+    for (let index = completedTurns.length - 1; index >= 0; index -= 1) {
+      const anchorId = completedTurns[index]?.anchorItemId;
+      const anchorIndex = anchorId ? indices.get(anchorId) : undefined;
+      if (anchorIndex !== undefined && anchorIndex > lastCompletedTurnAnchorIndex) {
+        lastCompletedTurnAnchorIndex = anchorIndex;
+      }
+    }
+  }
+  return {
+    thread,
+    threadTerminated,
+    openTurn,
+    lastCompletedTurnAnchorIndex,
+  };
+}
+
+function isLiveItem(item: RuntimeChatItem, index: number, context: ThreadLivenessContext): boolean {
+  // Hidden dock controls (goals and plans) are retained sparsely via
+  // `sparseControlIds` so an uncompleted plan never pins intervening history.
+  if (item.type === "goal" || item.type === "plan") return false;
+  if (item.type === "tool_call") {
+    const payload = item.payload as ToolCallPayload | undefined;
+    // Canonical tool completion can precede background work completion. Use
+    // the same payload/manifest contract as the delegated-agent row and dock.
+    if (payload && isWorkflowTool(payload)) {
+      if (item.state !== "completed" || payload.status === "running") {
+        return item.observedLive === true && !context.threadTerminated;
+      }
+      if (item.observedLive !== true) return false;
+      if (!parseWorkflowInfo(payload).manifestPath) return false;
+      const run = useWorkflowRunStore.getState().byItemId[item.id]?.run;
+      return !run || isWorkflowRunLive(run);
+    }
+    if (payload && isDelegatedAgentTool(payload)) {
+      return item.state !== "completed" || payload.status === "running";
+    }
+    if (item.state === "completed" && payload?.status !== "running") {
+      return false;
+    }
+  } else if (item.state === "completed") {
+    return false;
+  }
+
+  if (context.threadTerminated) return false;
+  const turnIndependent =
+    (item.payload as { readonly turnIndependent?: boolean } | undefined)?.turnIndependent === true;
+  if (turnIndependent && item.observedLive === true) return true;
+  if (context.openTurn === false) return false;
+  if (index <= context.lastCompletedTurnAnchorIndex) return false;
+  if (item.observedLive === true) return true;
+  return context.thread !== undefined && isThreadTurnActive(context.thread.status);
 }
 
 /**
- * Keep a contiguous ordinary suffix plus the latest hidden goal control.
+ * Keep a contiguous ordinary suffix plus the latest hidden goal/plan controls.
  * Live/workflow rows, reader pages and ancestry may extend that suffix; a
- * normal goal never protects the completed history between it and the tail.
- * The control stays before the tail until canonical paging locates its row.
+ * normal goal or persistent plan never protects the completed history between
+ * it and the tail. Controls stay before the tail until canonical paging locates
+ * their rows.
  */
 export function boundThreadRuntimeWindows(threadIds: readonly string[]): void {
   for (const threadId of new Set(threadIds)) {
@@ -128,16 +206,38 @@ export function boundThreadRuntimeWindows(threadIds: readonly string[]): void {
       boundThreadCompletedTurns(threadId, new Set());
       continue;
     }
+    const items = state.runtimeItemsByIdByThread[threadId] ?? {};
+    let indices: Map<string, number> | undefined;
+    let liveness: ThreadLivenessContext | undefined;
+    let livePinReleased = false;
+    if (ledger.pinnedLiveItemId !== null) {
+      const pinnedItem = items[ledger.pinnedLiveItemId];
+      if (!pinnedItem) {
+        livePinReleased = true;
+      } else {
+        indices = new Map(itemIds.map((id, index) => [id, index]));
+        const pinnedIndex = indices.get(ledger.pinnedLiveItemId);
+        if (pinnedIndex === undefined) {
+          livePinReleased = true;
+        } else {
+          liveness = buildThreadLivenessContext(state, threadId, indices);
+          livePinReleased = !isLiveItem(pinnedItem, pinnedIndex, liveness);
+        }
+      }
+    }
     const now = Date.now();
     if (
+      !livePinReleased &&
       now - ledger.lastPassAtMs < WINDOW_BOUND_PASS_INTERVAL_MS &&
       itemIds.length - ledger.measuredCount < WINDOW_BOUND_MIN_GROWTH_ITEMS
     )
       continue;
     ledger.lastPassAtMs = now;
 
-    const items = state.runtimeItemsByIdByThread[threadId] ?? {};
     observeRuntimeHistoryGoalEra(boundary, itemIds, items);
+    indices ??= new Map(itemIds.map((id, index) => [id, index]));
+    liveness ??= buildThreadLivenessContext(state, threadId, indices);
+    const retainedPlanIds = selectRetainedThreadPlanControlIds(itemIds, items);
     const sizes = new Map(itemIds.map((id) => [id, estimateRuntimeItemBytes(items[id])]));
     for (const id of ledger.pagedProtectedSizes.keys()) {
       if (!sizes.has(id)) ledger.pagedProtectedSizes.delete(id);
@@ -148,10 +248,12 @@ export function boundThreadRuntimeWindows(threadIds: readonly string[]): void {
     const keep = new Set(ledger.pagedProtectedSizes.keys());
     // A rejected read can leave resumable scan progress. Keep its source.
     if (boundary.scan?.boundaryItemId) keep.add(boundary.scan.boundaryItemId);
+    const unpinnedKeep = new Set(keep);
     let tailBytes = 0;
     let tailFull = false;
     let seekingCurrentGoal = true;
     let currentGoalId: string | undefined;
+    let earliestLiveId: string | null = null;
     for (let index = itemIds.length - 1; index >= 0; index -= 1) {
       const id = itemIds[index]!;
       const item = items[id];
@@ -165,20 +267,29 @@ export function boundThreadRuntimeWindows(threadIds: readonly string[]): void {
         currentGoalId = id;
         seekingCurrentGoal = false;
       }
-      if (item.type !== "goal" && isLiveItem(item)) keep.add(id);
+      if (isLiveItem(item, index, liveness)) {
+        keep.add(id);
+        earliestLiveId = id;
+      }
+      if (boundary.sparseControlIds.has(id)) continue;
       const bytes = sizes.get(id)!;
       if (
         !tailFull &&
         (index === itemIds.length - 1 || tailBytes + bytes <= VISIBLE_WINDOW_TAIL_BYTES)
       ) {
         keep.add(id);
+        unpinnedKeep.add(id);
         tailBytes += bytes;
       } else {
         tailFull = true;
       }
     }
     let firstKept = itemIds.findIndex((id) => keep.has(id));
-    const indices = new Map(itemIds.map((id, index) => [id, index]));
+    const firstUnpinnedKept = itemIds.findIndex((id) => unpinnedKeep.has(id));
+    ledger.pinnedLiveItemId =
+      firstKept >= 0 && (firstUnpinnedKept < 0 || firstKept < firstUnpinnedKept)
+        ? earliestLiveId
+        : null;
     // Close ancestry over the entire retained suffix, including intervening
     // completed children. Expanding the start extends this same backward walk.
     for (let index = itemIds.length - 1; index >= Math.max(0, firstKept); index -= 1) {
@@ -191,14 +302,21 @@ export function boundThreadRuntimeWindows(threadIds: readonly string[]): void {
       if (index === firstKept && firstKept > 0 && !isRuntimeHistoryAnchor(item)) firstKept -= 1;
     }
     const prefix = itemIds.slice(0, Math.max(0, firstKept));
-    const controls = new Set(prefix.filter((id) => id === currentGoalId));
+    const controls = new Set(
+      prefix.filter((id) => id === currentGoalId || retainedPlanIds.has(id)),
+    );
     const removedIds = new Set(prefix.filter((id) => !controls.has(id)));
     if (removedIds.size > 0) {
+      const removedOrdinaryAnchor = prefix.some(
+        (id) => !controls.has(id) && !boundary.sparseControlIds.has(id),
+      );
       // Remove the ordinary prefix, retaining hidden controls in place and
       // preserving surviving objects, requests and replay state.
       boundary.sparseControlIds = controls;
-      boundary.needsRebase = true;
-      boundary.scan = null;
+      if (removedOrdinaryAnchor) {
+        boundary.needsRebase = true;
+        boundary.scan = null;
+      }
       useAppStore.getState().trimThreadRuntimeItems(threadId, 0, prefix.length, controls);
       clearRuntimeItemStoreSelectorCacheForThread(threadId);
     }

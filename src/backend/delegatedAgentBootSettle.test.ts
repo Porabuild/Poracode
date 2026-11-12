@@ -14,6 +14,7 @@ import {
   dbReadRunningToolCallItems,
   dbReadThreadRuntimeItems,
 } from "@/host/db/runtimeItems";
+import { reclaimOrphanInlineImageBlobs } from "@/host/db/runtimeInlineImages";
 import { applyThreadRuntimeEventsNow } from "@/host/db/runtimeItemsWriter";
 import {
   beginRuntimeFence,
@@ -112,6 +113,46 @@ describe.skipIf(!sqliteAvailable)("delegated-agent boot settle (real SQLite)", (
         payload: { status: "error", result: { error: INTERRUPTION } },
       });
     for (const item of items(THREAD_B).values()) expect(item.state).toBe("started");
+  });
+
+  it("preserves externalized images when settling an orphaned delegated tool", () => {
+    const image = `data:image/png;base64,${Buffer.alloc(9 * 1024).toString("base64")}`;
+    applyThreadRuntimeEventsNow(THREAD_A, [
+      started(THREAD_A, "image-tool", {
+        name: "Delegate",
+        status: "running",
+        isSubAgent: true,
+        result: { content: [{ type: "image", data: image }] },
+      }),
+    ]);
+    const initialRef = getSqlite()
+      .prepare(
+        "SELECT blob_hash FROM thread_runtime_item_image_refs WHERE thread_id = ? AND item_id = ?",
+      )
+      .get(THREAD_A, "image-tool") as { blob_hash: string } | undefined;
+    expect(initialRef).toBeDefined();
+
+    const report = settleOrphanedDelegatedAgentRuns();
+    expect(
+      getSqlite()
+        .prepare(
+          "SELECT blob_hash FROM thread_runtime_item_image_refs WHERE thread_id = ? AND item_id = ?",
+        )
+        .get(THREAD_A, "image-tool"),
+    ).toEqual(initialRef);
+    const settled = report.settledBatches[0]?.events[0];
+    expect(
+      (settled as Extract<RuntimeEvent, { type: "item.completed" }> | undefined)?.payload,
+    ).toMatchObject({ result: { content: [{ type: "image", data: image }] } });
+    expect(items(THREAD_A).get("image-tool")?.payload).toMatchObject({
+      result: { content: [{ type: "image", data: image }] },
+    });
+    expect(reclaimOrphanInlineImageBlobs(getSqlite())).toBe(0);
+    expect(
+      getSqlite()
+        .prepare("SELECT 1 FROM runtime_inline_image_blobs WHERE blob_hash = ?")
+        .get(initialRef!.blob_hash),
+    ).toBeDefined();
   });
 
   it("preserves terminal payload evidence and genuinely completed rows", () => {
@@ -360,5 +401,22 @@ describe.skipIf(!sqliteAvailable)("delegated-agent boot settle (real SQLite)", (
     expect(settleOrphanedDelegatedAgentRuns()).toMatchObject({ items: 1 });
     expect(items(THREAD_A).get("malformed")).toMatchObject({ state: "completed" });
     expect(items(THREAD_A).get("no-payload")).toMatchObject({ state: "started" });
+  });
+
+  it("detects legacy completed rows with unicode-escaped running status", () => {
+    getSqlite()
+      .prepare(`INSERT INTO thread_runtime_items
+      (thread_id, item_id, position, type, state, payload, streams, parent_item_id)
+      VALUES (?, ?, ?, 'tool_call', 'completed', ?, '{}', NULL)`)
+      .run(
+        THREAD_A,
+        "escaped-running",
+        1,
+        '{"name":"Delegate","status":"r\\u0075nning","isSubAgent":true}',
+      );
+    expect(dbReadRunningToolCallItems(undefined, true).map((row) => row.itemId)).toEqual([
+      "escaped-running",
+    ]);
+    expect(settleOrphanedDelegatedAgentRuns(true)).toMatchObject({ threads: 1, items: 1 });
   });
 });
