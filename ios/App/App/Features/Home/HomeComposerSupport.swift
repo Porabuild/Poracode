@@ -740,6 +740,19 @@ enum HomeComposerPermission: String, CaseIterable, Identifiable {
     case .configured: SettingsUIStrings.configurationSection
     }
   }
+
+  func approvalPolicy(capabilities: [String: JSONValue]) -> String? {
+    let bypass = capabilities["bypassPermissions"]?.objectValue
+    let prefersDeclared = bypass?["preferDeclaredApprovalPolicy"]?.boolValue == true
+    switch self {
+    case .auto:
+      return prefersDeclared ? capabilities["defaultApprovalPolicy"]?.stringValue : nil
+    case .bypass:
+      return prefersDeclared ? bypass?["approvalPolicy"]?.stringValue : "never"
+    case .configured:
+      return nil
+    }
+  }
 }
 
 enum HomeComposerWorktree: String, CaseIterable, Identifiable {

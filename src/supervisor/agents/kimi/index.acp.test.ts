@@ -3,6 +3,7 @@ import type { ThreadConfig } from "@/shared/contracts";
 import type { CreateStructuredSessionInput } from "../base/types";
 import { primeWslLaunchEnvironment } from "../base";
 import { createKimiAdapter } from "./index";
+import { resolveKimiAcpMode } from "./argv";
 
 const mocks = vi.hoisted(() => {
   const createAcpStructuredSession = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
@@ -73,7 +74,10 @@ describe("createKimiAdapter shared ACP process", () => {
       acpSessionUpdateTransform: expect.any(Function),
     });
     expect(shared).toMatchObject({ scope: "kimi" });
-    expect(overrides).toBeUndefined();
+    expect(overrides).toEqual({
+      behavior: { disableSyntheticPermissionAutoApproval: true },
+      resolveMode: resolveKimiAcpMode,
+    });
   });
 
   it("keeps WSL launches on the dedicated per-thread factory", async () => {
@@ -88,6 +92,10 @@ describe("createKimiAdapter shared ACP process", () => {
     expect(mocks.createAcpStructuredSession.mock.calls[0]?.[1]).toMatchObject({
       threadId: "t1",
       acpFsTextCapability: false,
+    });
+    expect(mocks.createAcpStructuredSession.mock.calls[0]?.[2]).toEqual({
+      behavior: { disableSyntheticPermissionAutoApproval: true },
+      resolveMode: resolveKimiAcpMode,
     });
   });
 

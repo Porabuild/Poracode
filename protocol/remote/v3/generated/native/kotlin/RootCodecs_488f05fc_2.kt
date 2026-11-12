@@ -281,8 +281,8 @@ val RemoteRootCodecs.procedureU2EReadThreadBackgroundTasksU2EResult: RemoteRootC
 val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2ERequest: RemoteRootCodec<ProcedurerefreshAgentStatusesRequest_0cf7156720>
     get() = RemoteRootCodec("procedure.refreshAgentStatuses.request", serializer<ProcedurerefreshAgentStatusesRequest_0cf7156720>(), schema_0cf71567208700d7)
 
-val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_e5e44e3ce8>
-    get() = RemoteRootCodec("procedure.refreshAgentStatuses.result", serializer<ProcedurerefreshAgentStatusesResult_e5e44e3ce8>(), schema_e5e44e3ce8049a8a)
+val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_ced7436778>
+    get() = RemoteRootCodec("procedure.refreshAgentStatuses.result", serializer<ProcedurerefreshAgentStatusesResult_ced7436778>(), schema_ced7436778cf748d)
 
 val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60>
     get() = RemoteRootCodec("procedure.refreshProviderUsage.request", serializer<ProceduregetProviderUsageRequest_f2b9759b60>(), schema_f2b9759b60404656)
@@ -416,8 +416,8 @@ val RemoteRootCodecs.routeU2EAgentU2DSlashU2DCommandsU2EResponse: RemoteRootCode
 val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EQuery: RemoteRootCodec<RouteagentU2DStatusesQuery_b09b259cd2>
     get() = RemoteRootCodec("route.agent-statuses.query", serializer<RouteagentU2DStatusesQuery_b09b259cd2>(), schema_b09b259cd2bbc25d)
 
-val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_bed6045a82>
-    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_bed6045a82>(), schema_bed6045a82af5337)
+val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_cade1cc704>
+    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_cade1cc704>(), schema_cade1cc704c94a9b)
 
 val RemoteRootCodecs.routeU2EAttachmentU2DUploadU2EQuery: RemoteRootCodec<RouteattachmentU2DUploadQuery_f22a438b83>
     get() = RemoteRootCodec("route.attachment-upload.query", serializer<RouteattachmentU2DUploadQuery_f22a438b83>(), schema_f22a438b8392693b)

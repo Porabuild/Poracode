@@ -1,4 +1,5 @@
 import type { ThreadConfig } from "@/shared/contracts";
+import { resolveAcpMode } from "../acp/sessionConfig";
 
 /**
  * Flag references — verified against the Kimi Code CLI docs
@@ -10,8 +11,8 @@ import type { ThreadConfig } from "@/shared/contracts";
  *     one at launch — so resume always targets an id discovered post-spawn.
  *   • `-m, --model <model>` selects the model.
  *   • `--plan` starts the TUI in Plan mode.
- *   • `--auto` enables the auto permission mode; `-y, --yolo` auto-approves
- *     everything. The two are mutually exclusive, and neither may be combined
+ *   • `--auto` enables Never Ask; `-y, --yolo` enables Ask When Needed.
+ *     The two are mutually exclusive, and neither may be combined
  *     with the one-shot `-p, --prompt` path.
  *
  * Kimi exposes no `--reasoning-effort` flag; effort tiers (when a model has
@@ -20,10 +21,11 @@ import type { ThreadConfig } from "@/shared/contracts";
 
 function pushApprovalFlags(args: string[], config: ThreadConfig): void {
   switch (config.approvalPolicy) {
-    case "bypassPermissions":
+    case "never":
     case "yolo":
       args.push("--yolo");
       break;
+    case "bypassPermissions":
     case "auto":
       args.push("--auto");
       break;
@@ -74,4 +76,12 @@ export function buildKimiAcpArgs(config: ThreadConfig): string[] {
   }
   pushApprovalFlags(args, config);
   return args;
+}
+
+/** The generic full-access alias selects Kimi's native auto mode. */
+export function resolveKimiAcpMode(config: ThreadConfig, availableModeIds: string[]) {
+  return resolveAcpMode(
+    config.approvalPolicy === "bypassPermissions" ? { ...config, approvalPolicy: "auto" } : config,
+    availableModeIds,
+  );
 }

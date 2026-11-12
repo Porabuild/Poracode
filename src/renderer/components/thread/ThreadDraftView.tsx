@@ -54,6 +54,7 @@ import {
   resolveFastValue,
   resolveInitialPresentationMode,
   resolveModelValue,
+  resolveApprovalPolicyValue,
   resolvePreferredAgentKind,
   resolveProviderDraftConfig,
   resolveProviderModelPreference,
@@ -1767,6 +1768,9 @@ export function ThreadDraftView(props: {
     },
     implicitMcpServers,
   );
+  const launchApprovalPolicy = selectedAgentForConfig?.capabilities.approvalPolicies.length
+    ? resolveApprovalPolicyValue(selectedAgentForConfig, approvalPolicy)
+    : approvalPolicy;
 
   return (
     <div
@@ -1846,7 +1850,7 @@ export function ThreadDraftView(props: {
                 ? { workflows: true }
                 : {}),
               ...(mode ? { mode } : {}),
-              ...(approvalPolicy ? { approvalPolicy } : {}),
+              ...(launchApprovalPolicy ? { approvalPolicy: launchApprovalPolicy } : {}),
               ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
               ...mcpConfig,

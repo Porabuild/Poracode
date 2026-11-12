@@ -38,6 +38,7 @@ import {
 type RequestAttention = "needs_approval" | "needs_reply" | "working";
 
 interface AcpSessionRequestsOptions {
+  disableSyntheticPermissionAutoApproval?: boolean;
   /** A declared provider mode mapping also owns native permission enforcement. */
   resolveMode?: typeof import("./sessionConfig").resolveAcpMode;
   threadId: string;
@@ -227,6 +228,7 @@ export class AcpSessionRequests {
   }
 
   private shouldAutoApproveSyntheticPermissionRequest(): boolean {
+    if (this.options.disableSyntheticPermissionAutoApproval) return false;
     const { config, availableModeIds } = this.options.getPermissionContext();
     const policy = config?.approvalPolicy;
     if (!config || config.mode === "plan" || !policy) return false;

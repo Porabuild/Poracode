@@ -2433,6 +2433,10 @@ msgstr "Preguntar no está disponible: ningún agente puede iniciar un chat para
 msgid "Ask Question"
 msgstr "Hacer una pregunta"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "Preguntar cuando sea necesario"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "Los worktrees asociados sin hilos restantes también se eliminarán."
@@ -6230,6 +6234,7 @@ msgstr "Chat de DeepSeek Harness con sesiones persistentes, controles de razonam
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -12484,6 +12489,10 @@ msgstr "Neutral"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Never"
 msgstr "Nunca"
+
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "No preguntar nunca"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"

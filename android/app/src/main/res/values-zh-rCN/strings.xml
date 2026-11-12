@@ -167,4 +167,6 @@
     <string name="rich_chat_download_failed">无法下载文件。</string>
     <string name="home_filter_by_project">按项目筛选</string>
     <string name="common_more_actions">更多操作</string>
+    <string name="rich_chat_ask_when_needed">需要时询问</string>
+    <string name="rich_chat_never_ask">从不询问</string>
 </resources>

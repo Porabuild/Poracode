@@ -20,7 +20,7 @@ import {
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { createKimiAcpSessionUpdateTransform } from "./acpTransform";
-import { buildKimiAcpArgs, buildKimiArgs, buildKimiContinueArgs } from "./argv";
+import { buildKimiAcpArgs, buildKimiArgs, buildKimiContinueArgs, resolveKimiAcpMode } from "./argv";
 import { createKimiBackgroundBridge } from "./backgroundBridge";
 import { buildKimiCommand, kimiDefaultCapabilities, kimiDetectionSpec } from "./detection";
 import { buildKimiLogoutCommand } from "./kimiLogout";
@@ -183,12 +183,21 @@ export function createKimiAdapter(): AgentAdapter {
         }),
       };
       try {
+        const overrides = {
+          behavior: { disableSyntheticPermissionAutoApproval: true },
+          resolveMode: resolveKimiAcpMode,
+        };
         session =
           input.projectLocation.kind === "wsl"
-            ? createAcpStructuredSession(command, sessionInput)
-            : await createSharedAcpStructuredSession(command, sessionInput, {
-                scope: kimiDetectionSpec.kind,
-              });
+            ? createAcpStructuredSession(command, sessionInput, overrides)
+            : await createSharedAcpStructuredSession(
+                command,
+                sessionInput,
+                {
+                  scope: kimiDetectionSpec.kind,
+                },
+                overrides,
+              );
       } catch (error) {
         backgroundBridge.dispose();
         throw error;

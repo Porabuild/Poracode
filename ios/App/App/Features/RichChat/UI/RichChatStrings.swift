@@ -5,6 +5,14 @@ enum RichChatStrings {
     NSLocalizedString(key, tableName: nil, bundle: .main, value: fallback, comment: "")
   }
 
+  static func permissionOption(_ label: String) -> String {
+    switch label {
+    case "Ask When Needed": value("rich_chat_ask_when_needed", label)
+    case "Never Ask": value("rich_chat_never_ask", label)
+    default: label
+    }
+  }
+
   private static func messageActionValue(_ key: String, _ fallback: String) -> String {
     Bundle.main.localizedString(forKey: key, value: fallback, table: "RichChatMessageActions")
   }

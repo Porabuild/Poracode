@@ -21,6 +21,19 @@ import org.junit.Test
 
 class HomeQuickComposeCatalogTest {
     @Test
+    fun declaredPermissionDefaultAppliesOnlyWhenNoPolicyIsSaved() {
+        val agent = status("""{
+          "kind":"fixture","label":"Fixture","installed":true,"authState":"authenticated",
+          "capabilities":{"models":[{"id":"model","label":"Model"}],
+            "approvalPolicies":[{"id":"default","label":"Default"},{"id":"auto","label":"Never Ask"}],
+            "defaultApprovalPolicy":"auto",
+            "bypassPermissions":{"approvalPolicy":"auto","preferDeclaredApprovalPolicy":true}}
+        }""")
+        val catalog = HomeQuickComposeCatalog(agent, ThreadPresentationMode.Gui, ThreadConfig(model = "model"))
+        assertEquals("auto", catalog.normalize(ThreadConfig(model = "model")).approvalPolicy)
+        assertEquals("default", catalog.normalize(ThreadConfig(model = "model", approvalPolicy = "default")).approvalPolicy)
+    }
+    @Test
     fun contextWindowsKeepTheModelDefaultAndSavedSelection() {
         val agent = status("""{
           "kind":"provider","label":"Provider","installed":true,"authState":"authenticated",

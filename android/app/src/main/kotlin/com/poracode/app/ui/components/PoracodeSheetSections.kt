@@ -16,7 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.poracode.app.R
 import com.poracode.app.ui.theme.PoracodeIcons
 import com.poracode.app.ui.theme.PoracodeTheme
 
@@ -26,6 +28,13 @@ data class PoracodeChoiceOption(
     val label: String,
     val description: String? = null,
 )
+
+@Composable
+fun permissionOptionLabel(label: String): String = when (label) {
+    "Ask When Needed" -> stringResource(R.string.rich_chat_ask_when_needed)
+    "Never Ask" -> stringResource(R.string.rich_chat_never_ask)
+    else -> label
+}
 
 /** Sheet-action row for one option; the selected row carries an accent check. */
 @Composable

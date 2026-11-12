@@ -23,6 +23,7 @@ import com.poracode.app.R
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.model.threads.ThreadPresentationMode
 import com.poracode.app.ui.components.PoracodeChoiceOption
+import com.poracode.app.ui.components.permissionOptionLabel
 import com.poracode.app.ui.components.PoracodeChoiceSection
 import com.poracode.app.ui.components.PoracodeOptionList
 import com.poracode.app.ui.components.PoracodeSectionLabel
@@ -182,7 +183,7 @@ internal fun HomeQuickComposeControlsSheet(
                 PoracodeChoiceSection(
                     label = stringResource(R.string.rich_chat_permissions),
                     options = catalog.approvalPolicies.map {
-                        PoracodeChoiceOption(it.id, it.label, it.modelDescription)
+                        PoracodeChoiceOption(it.id, permissionOptionLabel(it.label), it.modelDescription)
                     },
                     selectedId = draft.approvalPolicy ?: catalog.approvalPolicies.first().id,
                     onSelect = { draft = draft.copy(approvalPolicy = it) },

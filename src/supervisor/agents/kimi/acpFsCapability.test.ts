@@ -56,6 +56,13 @@ describe("Kimi ACP fs capability", () => {
 });
 
 describe("Kimi ACP MCP compatibility", () => {
+  it("keeps Kimi permission requests interactive even if ACP modes are missing", async () => {
+    await createSessionOptions();
+    expect(vi.mocked(createAcpStructuredSession).mock.calls[0]?.[2]).toMatchObject({
+      behavior: { disableSyntheticPermissionAutoApproval: true },
+    });
+  });
+
   it("relays every server and marks stdio transports optimistic", async () => {
     // Kimi's ACP server fails session/new on stdio MCP servers ("does not
     // declare a runtime identity") but has no mcpCapabilities flag to say so.
