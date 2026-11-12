@@ -148,7 +148,16 @@ export function coalesceDecodedLoopbackFrames(
           prev.event.errorMessage === undefined &&
           !prev.event.turnStopRequested
         ) {
-          slots[prevIdx] = frame;
+          // Merge `prev.event` beneath `frame.event` so optional patch fields
+          // emitted only on the earlier frame (e.g. `sessionRef`, `slashCommands`)
+          // are never dropped when coalescing adjacent updates!
+          slots[prevIdx] = {
+            ...frame,
+            event: {
+              ...prev.event,
+              ...frame.event,
+            },
+          };
           continue;
         }
       }

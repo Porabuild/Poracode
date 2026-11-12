@@ -63,7 +63,6 @@ describe("isIgnoredWorkTreeFile", () => {
     expect(isIgnoredWorkTreeFile(".poracode/worktrees/feature/src/app.ts")).toBe(true);
     expect(isIgnoredWorkTreeFile("packages/cli/node_modules/chalk/index.js")).toBe(true);
     expect(isIgnoredWorkTreeFile("native/mcp-relay/target/debug/deps/lib.rmeta")).toBe(true);
-    expect(isIgnoredWorkTreeFile("tmp/smoke-report.json")).toBe(true);
     expect(isIgnoredWorkTreeFile(".tmp/scratch.txt")).toBe(true);
   });
 

@@ -5,7 +5,11 @@ import {
   enableAsyncDatabaseReads,
   warmAsyncDatabaseReads,
 } from "@/host/db/asyncReads";
-import { closeAsyncDatabaseWrites, enableAsyncDatabaseWrites } from "@/host/db/asyncWrites";
+import {
+  closeAsyncDatabaseWrites,
+  enableAsyncDatabaseWrites,
+  isAsyncDatabaseWritesReady,
+} from "@/host/db/asyncWrites";
 import {
   closeDatabase,
   dbGetThread,
@@ -31,7 +35,10 @@ import {
   type RuntimeProducerSignal,
   type RuntimeShutdownReport,
 } from "@/host/db";
-import { waitForAsyncRuntimeWrites } from "@/host/db/runtimePersistenceRuntime";
+import {
+  commitRuntimeThreadPrefixAsync,
+  waitForAsyncRuntimeWrites,
+} from "@/host/db/runtimePersistenceRuntime";
 import {
   capturePreparedDatabaseWriteAdmission,
   PreparedDatabaseUnavailableError,
@@ -701,7 +708,11 @@ export class BackendHostCore {
 
   private async runRevertCheckpoint(input: RevertCheckpointInput): Promise<RevertCheckpointResult> {
     this.assertRevertAllowed(input.threadId, input.checkpointItemId);
-    await waitForAsyncRuntimeWrites(input.threadId);
+    if (isAsyncDatabaseWritesReady()) {
+      await commitRuntimeThreadPrefixAsync(input.threadId);
+    } else {
+      await waitForAsyncRuntimeWrites(input.threadId);
+    }
     if (!dbHasThreadRuntimeItem(input.threadId, input.checkpointItemId)) {
       // Nothing addressable to revert: no journal row, no side effects, and a
       // concurrent second client converges on this noop after the first

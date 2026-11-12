@@ -1,4 +1,4 @@
-import React, { type MouseEventHandler, type ReactNode, useState } from "react";
+import React, { type MouseEventHandler, type ReactNode, useEffect, useState } from "react";
 import {
   Archive,
   ArrowDownToLine,
@@ -99,7 +99,15 @@ export function ThreadContextMenu(props: {
 }) {
   const mobile = useCompactLayout();
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const [mobileExitRetained, setMobileExitRetained] = useState(false);
   const [returnFocusElement, setReturnFocusElement] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!mobileExitRetained || position !== null) return;
+    const timer = window.setTimeout(() => {
+      setMobileExitRetained(false);
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [mobileExitRetained, position]);
   const longPressHandlers = useLongPress(
     mobile
       ? () => {
@@ -136,7 +144,7 @@ export function ThreadContextMenu(props: {
   return (
     <>
       {trigger}
-      {position ? (
+      {position || (mobile && mobileExitRetained) ? (
         <OpenThreadContextMenuSurface
           mobile={mobile}
           thread={props.thread}
@@ -147,7 +155,10 @@ export function ThreadContextMenu(props: {
             : {})}
           position={position}
           returnFocusElement={returnFocusElement}
-          onClose={() => setPosition(null)}
+          onClose={() => {
+            if (mobile) setMobileExitRetained(true);
+            setPosition(null);
+          }}
         />
       ) : null}
     </>
@@ -160,7 +171,7 @@ function OpenThreadContextMenuSurface(props: {
   project: Project;
   onRename?: () => void;
   showProjectActions?: boolean;
-  position: { x: number; y: number };
+  position: { x: number; y: number } | null;
   returnFocusElement: HTMLElement | null;
   onClose: () => void;
 }) {
@@ -437,7 +448,7 @@ function OpenThreadContextMenuSurface(props: {
   ];
 
   const handleAction = (key: string) => {
-    const anchorPosition = props.position;
+    const anchorPosition = props.position ?? undefined;
     const returnFocusElement = props.returnFocusElement ?? undefined;
     if (key === "new-thread-in-worktree" && thread.worktreePath)
       openNewThreadInWorktree({
@@ -523,7 +534,7 @@ function OpenThreadContextMenuSurface(props: {
     if (key === "toggle-star") toggleStarThread(thread.id);
     if (key === "delete" && !isExperimentCandidate)
       requestDeleteThread(thread.id, thread.worktreePath, thread.projectId, {
-        anchorPosition,
+        ...(anchorPosition ? { anchorPosition } : {}),
         ...(returnFocusElement ? { returnFocusElement } : {}),
       });
     if (key.startsWith("action:")) {
@@ -539,6 +550,7 @@ function OpenThreadContextMenuSurface(props: {
   };
 
   if (!props.mobile) {
+    if (!props.position) return null;
     return (
       <ContextMenuSurface
         position={props.position}

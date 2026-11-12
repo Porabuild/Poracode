@@ -640,6 +640,7 @@ export class RuntimeWriteQueue {
         writeAsync: writers.writeAsync,
         atomicBatchWriterAsync: writers.atomicBatchWriterAsync,
         recovery: this.flushRecovery,
+        isThreadInFlight: (threadId) => this.asyncInFlightByThread.has(threadId),
         reserveThreadInFlight: (threadId, promise) => this.reserveThreadInFlight(threadId, promise),
         isPlanCurrent: (plan) =>
           generation === this.queueGeneration &&

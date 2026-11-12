@@ -478,6 +478,7 @@ vi.mock("./state/sharedSettingsStore", () => ({
         pushRecentModel: () => undefined,
         setThemeMode: () => undefined,
       }),
+      subscribe: () => () => undefined,
     },
   ),
 }));

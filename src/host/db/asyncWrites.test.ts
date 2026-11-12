@@ -266,4 +266,62 @@ describe("AsyncDatabaseWrites worker offload", () => {
     expect(items).toHaveLength(1);
     expect(items[0]?.streams.assistant_text).toBe("EXACT_ONCE");
   });
+
+  it("holds per-thread in-flight reservations across rolled-back batch fallbacks so fences never double-write", async () => {
+    const { RuntimeWriteQueue } = await import("./runtimeWriteQueue");
+    const singleWrites: Array<{ threadId: string; delta: string }> = [];
+    const queue = new RuntimeWriteQueue(() => {});
+
+    queue.enqueue("t1", [
+      { type: "content.delta", threadId: "t1", itemId: "i1", stream: "assistant_text", delta: "A" },
+    ]);
+    queue.enqueue("t2", [
+      { type: "content.delta", threadId: "t2", itemId: "i2", stream: "assistant_text", delta: "B" },
+    ]);
+
+    const t1Gate = Promise.withResolvers<void>();
+    let fencePromise: Promise<unknown> | null = null;
+
+    const batchPromise = queue.flushBudgetedAsync(
+      { maxThreads: 4, maxBytes: 1024 * 1024, maxMs: 50 },
+      {
+        atomicBatchWriterAsync: async () => ({
+          kind: "rolled-back",
+          error: new Error("simulated batch rollback"),
+        }),
+        writeAsync: async (threadId, events) => {
+          if (threadId === "t1") {
+            // While `t1`'s fallback write is suspended, start a fence chunk flush on `t2`!
+            // `t2` MUST still be reserved by the rolled-back batch until `t2`'s own fallback runs.
+            fencePromise = queue.flushThreadThroughAsync(
+              "t2",
+              Number.MAX_SAFE_INTEGER,
+              async (id, evs) => {
+                singleWrites.push({
+                  threadId: id,
+                  delta: (evs[0] as { delta: string }).delta,
+                });
+              },
+            );
+            await t1Gate.promise;
+          }
+          singleWrites.push({
+            threadId,
+            delta: (events[0] as { delta: string }).delta,
+          });
+        },
+      },
+    );
+
+    // Give the rolled-back batch a microtask turn to enter `t1`'s fallback write.
+    await vi.waitFor(() => expect(fencePromise).not.toBeNull());
+    t1Gate.resolve();
+
+    await Promise.all([batchPromise, fencePromise ?? Promise.resolve()]);
+
+    expect(singleWrites).toEqual([
+      { threadId: "t1", delta: "A" },
+      { threadId: "t2", delta: "B" },
+    ]);
+  });
 });

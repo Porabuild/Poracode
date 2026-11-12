@@ -99,14 +99,11 @@ export function installRemoteGitSummaryPublisher(): () => void {
     lastThreadsKey = nextKey;
     schedule();
   });
-  const unsubSettings =
-    typeof useSharedSettings.subscribe === "function"
-      ? useSharedSettings.subscribe((state, prev) => {
-          if (state.remoteAccessEnabled && !prev.remoteAccessEnabled) {
-            schedule();
-          }
-        })
-      : () => {};
+  const unsubSettings = useSharedSettings.subscribe((state, prev) => {
+    if (state.remoteAccessEnabled && !prev.remoteAccessEnabled) {
+      schedule();
+    }
+  });
   schedule();
 
   return () => {

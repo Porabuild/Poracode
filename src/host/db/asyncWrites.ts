@@ -65,12 +65,16 @@ export class AsyncDatabaseWrites {
       return { kind: "thrown", error: new Error("Async database writer is not ready.") };
     }
     const id = this.nextId++;
-    const origins = extractAdmittedBatchOriginTuples(batches);
+    const wireBatches: RuntimeWriteBatch[] = batches.map((batch) => ({
+      threadId: batch.threadId,
+      events: batch.events,
+    }));
+    const origins = extractAdmittedBatchOriginTuples(wireBatches);
     const response = await this.send({
       v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
       id,
       kind: "write-batches",
-      batches,
+      batches: wireBatches,
       ...(origins.length > 0 ? { origins } : {}),
     });
     if (response.kind !== "batches-result") {
@@ -290,6 +294,10 @@ export function enableAsyncDatabaseWrites(dbPath: string, workerPath: string): v
 
 export function getAsyncDatabaseWrites(): AsyncDatabaseWrites | null {
   return currentWrites?.isReady ? currentWrites : null;
+}
+
+export function isAsyncDatabaseWritesReady(): boolean {
+  return currentWrites?.isReady === true;
 }
 
 export function releaseAsyncDatabaseWritesSync(): void {

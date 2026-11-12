@@ -85,7 +85,7 @@ function startWorker(): void {
     if (message.kind === "write-batches") {
       try {
         const batches = restoreWorkerAdmittedBatchOrigins(message.batches, message.origins);
-        const result = applyRuntimeEventBatchesNow(batches);
+        const result = applyRuntimeEventBatchesNow(batches, 250);
         if (result.kind === "committed") {
           post({
             v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
@@ -118,7 +118,7 @@ function startWorker(): void {
           [{ threadId: message.threadId, events: message.events }],
           message.origins,
         )[0]!;
-        applyThreadRuntimeEventsNow(restored.threadId, restored.events);
+        applyThreadRuntimeEventsNow(restored.threadId, restored.events, 250);
         post({
           v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
           id: message.id,

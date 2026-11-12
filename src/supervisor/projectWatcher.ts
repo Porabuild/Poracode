@@ -51,7 +51,6 @@ const IGNORED_PREFIXES = [
   ".venv/",
   "target/debug/",
   "target/release/",
-  "tmp/",
   ".tmp/",
 ];
 

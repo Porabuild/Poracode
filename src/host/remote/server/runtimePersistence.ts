@@ -8,11 +8,13 @@ import {
 import {
   enqueueRuntimeControlOperation,
   applyAdmittedRuntimePayloadBatch,
+  commitRuntimeThreadPrefixAsync,
   markRuntimeRebaseDropped,
   runThreadRuntimeMutation,
   runRuntimeControlWrite,
   waitForAsyncRuntimeWrites,
 } from "@/host/db/runtimePersistenceRuntime";
+import { isAsyncDatabaseWritesReady } from "@/host/db/asyncWrites";
 import type { RuntimeAdmission } from "@/host/db/runtimePersistenceTypes";
 // The admission fence reads the row through the barrel, like the write it fences.
 import { dbGetThread } from "@/host/db";
@@ -254,7 +256,11 @@ function dispatchPersist(
             isThreadTurnActive(currentThread.status) &&
             !isThreadTurnActive(event.status)
           ) {
-            await waitForAsyncRuntimeWrites(event.threadId);
+            if (isAsyncDatabaseWritesReady()) {
+              await commitRuntimeThreadPrefixAsync(event.threadId);
+            } else {
+              await waitForAsyncRuntimeWrites(event.threadId);
+            }
           }
           if (!isPendingThreadStateCurrent(event.threadId, admission)) return;
           if (thread) {

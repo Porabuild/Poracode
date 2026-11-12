@@ -141,12 +141,13 @@ export function threadExistsInSqlite(
 export function applyThreadRuntimeEventsNow(
   threadId: string,
   events: readonly RuntimeEvent[],
+  busyTimeoutMs?: number,
 ): void {
   if (events.length === 0) return;
   const sqlite = getSqlite();
   withRuntimeBusyTimeout(() => {
     writerStatements(sqlite).writeEvents(threadId, events);
-  });
+  }, busyTimeoutMs);
   notifyRuntimeItemsCommitted(threadId, events);
 }
 
@@ -160,11 +161,16 @@ export function applyThreadRuntimeEventsNow(
  */
 export function applyRuntimeEventBatchesNow(
   batches: readonly RuntimeWriteBatch[],
+  busyTimeoutMs?: number,
 ): ReturnType<RuntimeAtomicBatchWriter> {
   const sqlite = getSqlite();
-  const result = commitRuntimeAtomicWrite(sqlite, () => {
-    writerStatements(sqlite).writeBatches(batches);
-  });
+  const result = commitRuntimeAtomicWrite(
+    sqlite,
+    () => {
+      writerStatements(sqlite).writeBatches(batches);
+    },
+    busyTimeoutMs,
+  );
   if (result.kind === "committed") {
     for (const batch of batches) notifyRuntimeItemsCommitted(batch.threadId, batch.events);
   }

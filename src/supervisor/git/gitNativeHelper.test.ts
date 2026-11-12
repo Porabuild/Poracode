@@ -35,9 +35,15 @@ function localLocation(path: string): ProjectLocation & { kind: "posix" | "windo
   return process.platform === "win32" ? { kind: "windows", path } : { kind: "posix", path };
 }
 
+const initialHelperBinEnv = process.env.PORACODE_GIT_HELPER_BIN;
+
 afterEach(async () => {
   delete process.env.PORACODE_DISABLE_GIT_HELPER;
-  delete process.env.PORACODE_GIT_HELPER_BIN;
+  if (initialHelperBinEnv !== undefined) {
+    process.env.PORACODE_GIT_HELPER_BIN = initialHelperBinEnv;
+  } else {
+    delete process.env.PORACODE_GIT_HELPER_BIN;
+  }
   disposeNativeGitHelper();
   await disposeGitExecWorker();
   resetGitProcessAdmissionForTests();
@@ -73,7 +79,10 @@ describe("poracode-git-helper parity & fallback", () => {
   it("matches TypeScript GitStatusService field-for-field across dirty, renamed, untracked, binary, and non-repo worktrees", async () => {
     const bin = nativeGitHelperBinaryPath();
     if (!bin) {
-      // Skip only on architectures without a staged helper (e.g. linux-arm64).
+      if (initialHelperBinEnv !== undefined) {
+        throw new Error(`Expected PORACODE_GIT_HELPER_BIN to resolve, got: ${initialHelperBinEnv}`);
+      }
+      // Skip only on test-shard runners or architectures without a staged helper.
       return;
     }
 
@@ -128,6 +137,10 @@ describe("poracode-git-helper parity & fallback", () => {
   });
 
   it("preserves GitProcessAdmissionError refusals on native batch calls", async () => {
+    const bin = nativeGitHelperBinaryPath();
+    if (!bin) {
+      process.env.PORACODE_GIT_HELPER_BIN = process.execPath;
+    }
     configureGitProcessAdmission({ shortPermits: 1, admissionWaitTimeoutMs: 20 });
     const holder = await admitGitProcess("short");
     const service = new GitStatusService();
@@ -145,7 +158,12 @@ describe("poracode-git-helper parity & fallback", () => {
 
   it("matches ProjectSearchIndex and FileIndexService rankings, diacritics, walk mode, and invalidation", async () => {
     const bin = nativeGitHelperBinaryPath();
-    if (!bin) return;
+    if (!bin) {
+      if (initialHelperBinEnv !== undefined) {
+        throw new Error(`Expected PORACODE_GIT_HELPER_BIN to resolve, got: ${initialHelperBinEnv}`);
+      }
+      return;
+    }
 
     const repo = makeTempDir("poracode-search-parity-");
     runGit(repo, ["init", "-b", "main"]);

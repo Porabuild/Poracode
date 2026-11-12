@@ -307,6 +307,7 @@ export interface AsyncFlushHost {
   writeAsync: RuntimeAsyncWriteFlush;
   atomicBatchWriterAsync: RuntimeAsyncAtomicBatchWriter;
   recovery: RuntimeFlushRecovery;
+  isThreadInFlight(threadId: string): boolean;
   reserveThreadInFlight(threadId: string, promise: Promise<void>): () => void;
   isPlanCurrent(plan: RuntimeFlushPlan): boolean;
   acknowledge(plan: RuntimeFlushPlan): void;
@@ -335,21 +336,27 @@ export async function flushRuntimeQueueBudgetedAsync(
     result.committedEvents += plan.eventCount;
     result.committedBytes += plan.inputBytes;
   };
-  const writeSingle = async (plan: RuntimeFlushPlan): Promise<boolean> => {
+  const writeSingleWithExistingReservation = async (plan: RuntimeFlushPlan): Promise<boolean> => {
     if (!host.isPlanCurrent(plan)) return true;
-    const settled = Promise.withResolvers<void>();
-    const release = host.reserveThreadInFlight(plan.threadId, settled.promise);
     try {
       await host.writeAsync(plan.threadId, plan.events);
     } catch (error) {
       result.failure = { threadId: plan.threadId, error };
       return false;
+    }
+    acknowledge(plan);
+    return true;
+  };
+  const writeSingle = async (plan: RuntimeFlushPlan): Promise<boolean> => {
+    if (!host.isPlanCurrent(plan) || host.isThreadInFlight(plan.threadId)) return true;
+    const settled = Promise.withResolvers<void>();
+    const release = host.reserveThreadInFlight(plan.threadId, settled.promise);
+    try {
+      return await writeSingleWithExistingReservation(plan);
     } finally {
       release();
       settled.resolve();
     }
-    acknowledge(plan);
-    return true;
   };
   const requestedChunk = options.chunk ?? DEFAULT_RUNTIME_FLUSH_CHUNK;
 
@@ -357,6 +364,7 @@ export async function flushRuntimeQueueBudgetedAsync(
     for (const [threadId, entry] of order) {
       if (result.flushedThreads >= options.maxThreads || result.committedBytes >= options.maxBytes)
         break;
+      if (host.isThreadInFlight(threadId)) continue;
       try {
         const plan = planRuntimeFlush(
           threadId,
@@ -383,6 +391,7 @@ export async function flushRuntimeQueueBudgetedAsync(
     let oversizeBytes = 0;
     for (const [threadId, entry] of order) {
       if (plans.length >= maxThreads || normalBytes >= maxBytes) break;
+      if (host.isThreadInFlight(threadId)) continue;
       try {
         const plan = planRuntimeFlush(
           threadId,
@@ -414,33 +423,52 @@ export async function flushRuntimeQueueBudgetedAsync(
       if (currentPlans.length === 1) {
         await writeSingle(currentPlans[0]!);
       } else if (currentPlans.length > 1) {
-        const settled = Promise.withResolvers<void>();
-        const releases = currentPlans.map((plan) =>
-          host.reserveThreadInFlight(plan.threadId, settled.promise),
-        );
-        const releaseAll = () => {
-          for (const rel of releases) rel();
-          settled.resolve();
+        // Hold per-thread reservations individually across BOTH the atomic batch
+        // attempt AND any rolled-back per-thread fallback so a waiting fence
+        // cannot race between batch rollback and fallback!
+        const handles = currentPlans.map((plan) => {
+          const settled = Promise.withResolvers<void>();
+          const release = host.reserveThreadInFlight(plan.threadId, settled.promise);
+          let released = false;
+          return () => {
+            if (released) return;
+            released = true;
+            release();
+            settled.resolve();
+          };
+        });
+        const releaseAllRemaining = () => {
+          for (const done of handles) done();
         };
         try {
           const outcome = await host.atomicBatchWriterAsync(currentPlans);
-          releaseAll();
           if (outcome.kind === "committed") {
             for (const plan of currentPlans) acknowledge(plan);
+            releaseAllRemaining();
           } else if (outcome.kind === "rolled-back") {
             result.failure = { threadId: currentPlans[0]!.threadId, error: outcome.error };
             host.recovery.retryIndividually = true;
-            for (const plan of currentPlans) {
-              if (!(await writeSingle(plan))) break;
+            for (let i = 0; i < currentPlans.length; i += 1) {
+              let ok = false;
+              try {
+                ok = await writeSingleWithExistingReservation(currentPlans[i]!);
+              } finally {
+                handles[i]!();
+              }
+              if (!ok) {
+                releaseAllRemaining();
+                break;
+              }
             }
             if (result.flushedThreads === currentPlans.length) {
               host.recovery.retryIndividually = false;
             }
           } else {
+            releaseAllRemaining();
             result.failure = { threadId: currentPlans[0]!.threadId, error: outcome.error };
           }
         } catch (error) {
-          releaseAll();
+          releaseAllRemaining();
           result.failure = { threadId: currentPlans[0]!.threadId, error };
         }
       }
