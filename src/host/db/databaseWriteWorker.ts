@@ -50,10 +50,10 @@ function startWorker(): void {
   sqlite.pragma("synchronous = NORMAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 250");
-  sqlite.pragma("cache_size = -65536");
-  sqlite.pragma("temp_store = MEMORY");
-  sqlite.pragma("journal_size_limit = 134217728");
-  sqlite.pragma("wal_autocheckpoint = 16384");
+  sqlite.pragma("cache_size = -8192");
+  sqlite.pragma("mmap_size = 0");
+  sqlite.pragma("temp_store = FILE");
+  sqlite.pragma("journal_size_limit = 33554432");
   sqlite.function("schedule_search_text", { deterministic: true }, (value: unknown) =>
     typeof value === "string" ? value.normalize("NFKC").toLowerCase() : "",
   );

@@ -83,7 +83,11 @@ describe("menu reopening", () => {
   it("opens a selected quotation as an unsent new side draft", async () => {
     await expect(addSelectionToSideChat("parent", "quoted text")).resolves.toBe(true);
     expect(mocks.open).toHaveBeenCalledWith(
-      expect.objectContaining({ prompt: "quoted text", autoStart: false }),
+      expect.objectContaining({
+        prompt: "quoted text",
+        segments: [{ kind: "text", content: "quoted text", selection: true }],
+        autoStart: false,
+      }),
     );
   });
   it.each([undefined, "child"])(

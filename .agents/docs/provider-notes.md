@@ -123,6 +123,25 @@ stays off the SDK stream and out of the session import.
   windows report unsupported; overage shows as a remaining credit balance.
   Account metadata is not parsed from undocumented CLI output.
 
+## Kimi Code
+
+Kimi Code 2.5.3 is qualified on native Windows with an isolated
+OpenAI-compatible provider and no managed Kimi login: ACP initialization,
+external model discovery, a streaming prompt, close/resume, another prompt, and
+explicit `session/cancel` all passed. The model catalog is dynamic (including
+K2.8 and K3.1); do not pin its display names, context sizes, or default efforts.
+External models with optional thinking keep the real `off` / `on` choice.
+`kimi-code/kimi-for-coding` (K2.8 Preview on 2.5.3) keeps its `low` / `high` /
+`max` ladder. Only the highspeed aliases still collapse to `on`.
+
+The 2.5.3 ACP adapter is unchanged from 2.5.2 and advertises no native steering
+capability. Its same-turn steering improvements are on the TUI/web/server path,
+not ACP, so GUI follow-ups keep interrupt-and-drain rather than guessing an RPC.
+The client-filesystem capability also stays disabled: the 2.5.3 client-read path
+still forwards non-ENOENT errors to native plan-file handling. The stdio MCP
+relay remains provider-declared and retries only the exact legacy rejection;
+2.5.3's Windows stdio-script fix does not change that compatibility contract.
+
 ## Shared ACP agent processes
 
 GUI threads of these providers share one pooled ACP process per launch

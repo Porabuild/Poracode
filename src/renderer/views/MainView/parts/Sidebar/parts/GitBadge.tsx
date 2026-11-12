@@ -23,6 +23,7 @@ import {
   PR_TONE_TEXT_CLASS,
 } from "@/renderer/utils/prStatus";
 import type { DragSourceData } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 
 const gitBadgeButtonClass =
   "shrink-0 cursor-grab rounded text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground active:cursor-grabbing";
@@ -78,8 +79,8 @@ export function GitBadge(props: {
   const compactLayout = useCompactLayout();
   const elementRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
-  useDraggable({
-    id: `sidebar-panel:git:${props.projectId}:${props.worktreePath ?? "root"}:${dragId}`,
+  const draggableResult = useDraggable({
+    id: `sidebar-panel:git:${dragId}`,
     type: "sidebar-panel",
     data: {
       type: "sidebar-panel",
@@ -89,6 +90,7 @@ export function GitBadge(props: {
     } satisfies DragSourceData,
     element: elementRef,
   });
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   const projectLocation = useAppStore((s) =>
     props.worktreePath ? undefined : s.projects.find((p) => p.id === props.projectId)?.location,

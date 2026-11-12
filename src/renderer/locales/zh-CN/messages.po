@@ -6111,6 +6111,7 @@ msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK 已更新到 v{nextVersion}。"
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -15284,6 +15285,7 @@ msgstr "防止屏幕锁定"
 msgid "Prevent system sleep"
 msgstr "防止系统睡眠"
 
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
@@ -16346,9 +16348,11 @@ msgid "Remote URL"
 msgstr "远程网址"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx

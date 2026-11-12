@@ -294,6 +294,9 @@ impl RelayProcess {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        for key in poracode_mcp_relay::config::MCP_HELPER_CONFIG_ENVS {
+            command.env_remove(key);
+        }
         if let Some(config) = config {
             command.env("PORACODE_MCP_HTTP_RELAY_CONFIG", config);
         }

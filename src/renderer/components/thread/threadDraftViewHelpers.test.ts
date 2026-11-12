@@ -7,6 +7,7 @@ import {
   resolveApprovalPolicyValue,
   resolveFastValue,
   resolveProviderDraftConfig,
+  resolveSandboxModeValue,
   resolveSavedProviderDraftConfig,
   resolveThinkingValue,
 } from "./threadDraftViewHelpers";
@@ -368,8 +369,69 @@ describe("resolveApprovalPolicyValue", () => {
     expect(resolveApprovalPolicyValue(agent, "yolo")).toBe("default");
   });
 
-  it("stays empty for a provider that advertises no policies", () => {
+  it("does not preserve an undeclared policy when there is no catalog", () => {
     expect(resolveApprovalPolicyValue(agentWith(), "yolo")).toBe("");
+  });
+
+  it("preserves a provider-declared default or bypass while the catalog is empty", () => {
+    const agent = agentWith({
+      defaultApprovalPolicy: "on-request",
+      bypassPermissions: { approvalPolicy: "never" },
+    });
+    expect(resolveApprovalPolicyValue(agent, "on-request")).toBe("on-request");
+    expect(resolveApprovalPolicyValue(agent, "never")).toBe("never");
+    expect(resolveApprovalPolicyValue(agent, "other")).toBe("");
+  });
+
+  it("preserves only provider-declared sandbox values while the catalog is empty", () => {
+    const agent = agentWith({
+      defaultSandboxMode: "workspace-write",
+      bypassPermissions: { sandboxMode: "danger-full-access" },
+    });
+    expect(resolveSandboxModeValue(agent, "workspace-write")).toBe("workspace-write");
+    expect(resolveSandboxModeValue(agent, "danger-full-access")).toBe("danger-full-access");
+    expect(resolveSandboxModeValue(agent, "other")).toBe("");
+  });
+
+  it("does not retain a declared bypass excluded by a populated catalog", () => {
+    const agent = agentWith({
+      defaultApprovalPolicy: "on-request",
+      approvalPolicies: [{ id: "on-request", label: "On Request" }],
+      sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
+      bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+    });
+    expect(resolveApprovalPolicyValue(agent, "never")).toBe("on-request");
+    expect(resolveSandboxModeValue(agent, "danger-full-access")).toBe("");
+  });
+
+  it("keeps a saved permission tuple when capability lists arrive later", () => {
+    const pending = agentWith({
+      defaultApprovalPolicy: "on-request",
+      defaultApprovalsReviewer: "auto_review",
+      defaultSandboxMode: "workspace-write",
+      bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+    });
+    const ready = agentWith({
+      ...pending.capabilities,
+      approvalPolicies: [
+        { id: "on-request", label: "On Request" },
+        { id: "never", label: "Full Access" },
+      ],
+      sandboxModes: [
+        { id: "workspace-write", label: "Workspace Write" },
+        { id: "danger-full-access", label: "Full Access" },
+      ],
+    });
+    const saved = {
+      model: "plain",
+      approvalPolicy: "never",
+      approvalsReviewer: "auto_review",
+      sandboxMode: "danger-full-access",
+    };
+
+    const whilePending = resolveProviderDraftConfig(pending, saved);
+    expect(whilePending).toMatchObject(saved);
+    expect(resolveProviderDraftConfig(ready, whilePending)).toMatchObject(saved);
   });
 });
 

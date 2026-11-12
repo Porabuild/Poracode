@@ -89,14 +89,42 @@ function countTextLines(buffer: Buffer): number {
 
 export class GitStatusService {
   private readonly untrackedStatsCache = new Map<string, UntrackedStatsCacheEntry>();
+  private readonly statusInFlight = new Map<string, Promise<GitStatusResult>>();
+  private readonly statusSummaryInFlight = new Map<string, Promise<GitStatusResult>>();
   private wslClient: WslBridgeClient | undefined;
   private readonly remoteIdentityRuntime = new ForgeRuntime(() => this.wslClient);
 
   setWslClient(client: WslBridgeClient | undefined): void {
     this.wslClient = client;
+    this.invalidateStatus();
+  }
+
+  invalidateStatus(location?: ProjectLocation): void {
+    if (!location) {
+      this.statusInFlight.clear();
+      this.statusSummaryInFlight.clear();
+      return;
+    }
+    const key = getLocationIdentity(location);
+    this.statusInFlight.delete(key);
+    this.statusSummaryInFlight.delete(key);
   }
 
   async getStatus(location: ProjectLocation): Promise<GitStatusResult> {
+    const key = getLocationIdentity(location);
+    let pending = this.statusInFlight.get(key);
+    if (!pending) {
+      pending = this.computeStatus(location).finally(() => {
+        if (this.statusInFlight.get(key) === pending) {
+          this.statusInFlight.delete(key);
+        }
+      });
+      this.statusInFlight.set(key, pending);
+    }
+    return structuredClone(await pending);
+  }
+
+  private async computeStatus(location: ProjectLocation): Promise<GitStatusResult> {
     if (location.kind === "wsl") {
       return this.getStatusBatchedWsl(location);
     }
@@ -176,6 +204,20 @@ export class GitStatusService {
   }
 
   async getStatusSummary(location: ProjectLocation): Promise<GitStatusResult> {
+    const key = getLocationIdentity(location);
+    let pending = this.statusSummaryInFlight.get(key);
+    if (!pending) {
+      pending = this.computeStatusSummary(location).finally(() => {
+        if (this.statusSummaryInFlight.get(key) === pending) {
+          this.statusSummaryInFlight.delete(key);
+        }
+      });
+      this.statusSummaryInFlight.set(key, pending);
+    }
+    return structuredClone(await pending);
+  }
+
+  private async computeStatusSummary(location: ProjectLocation): Promise<GitStatusResult> {
     if (location.kind === "wsl") {
       const results = await execGitBatchWslBridge(
         location,

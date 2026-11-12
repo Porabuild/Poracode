@@ -52,10 +52,17 @@ export function updateSideChatPanelDraft(
   id: string | undefined,
   prompt: string,
   selection?: SideChatBootstrap["selection"],
+  segments?: SideChatBootstrap["segments"],
 ): void {
   const entry = useSideChatPanelStore.getState().entry;
   if (entry && entry.id === id) {
-    const next = { ...entry, prompt, autoStart: false, ...(selection ? { selection } : {}) };
+    const next = {
+      ...entry,
+      prompt,
+      autoStart: false,
+      ...(selection ? { selection } : {}),
+      ...(segments ? { segments } : {}),
+    };
     useSideChatPanelStore.setState({
       entry: next,
       entries: { ...useSideChatPanelStore.getState().entries, [entry.source.id]: next },

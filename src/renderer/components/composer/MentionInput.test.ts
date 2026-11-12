@@ -4,6 +4,8 @@ import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-l
 import { describe, expect, it, vi } from "vitest";
 import { Globe, Monitor, Users } from "lucide-react";
 import type { PromptSegment } from "@/shared/contracts";
+import { renderWithI18n } from "@/renderer/testUtils/i18n";
+import { resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import {
   buildMentionResults,
   MentionInput,
@@ -973,6 +975,94 @@ describe("Enter handling", () => {
 });
 
 describe("structured segment insertion", () => {
+  it("restores, submits, removes and undoes a selection without losing its full text", async () => {
+    const ref = createRef<MentionInputHandle>();
+    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+    const segments: PromptSegment[] = [
+      { kind: "text", content: "Question: " },
+      { kind: "text", content: "first line\nsecond @file.ts line", selection: true },
+      { kind: "text", content: " please" },
+    ];
+    renderWithI18n(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit,
+      }),
+    );
+    act(() => ref.current?.restoreFromSegments(segments));
+    const editor = screen.getByRole("textbox");
+    await waitFor(() =>
+      expect(editor.querySelector("[data-selection-preview]")?.textContent).toBe(
+        "first line second @file.ts line",
+      ),
+    );
+    expect(ref.current?.serializeSegments()).toEqual(segments);
+    expect(ref.current?.serialize()).toBe("Question: first line\nsecond @file.ts line please");
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalledWith(segments);
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Remove" }));
+    expect(editor.querySelector("[data-selection-text]")).toBeNull();
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(ref.current?.serializeSegments()).toEqual(segments);
+  });
+
+  it.each(["(hover: none), (pointer: coarse)", "(max-width: 767px)"])(
+    "opens the full selection without submitting or changing the draft when %s",
+    async (activeQuery) => {
+      const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
+        matches: query === activeQuery,
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      }));
+      const ref = createRef<MentionInputHandle>();
+      const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+      const segments: PromptSegment[] = [
+        { kind: "text", content: "First line\nSecond line", selection: true },
+      ];
+      const view = renderWithI18n(
+        createElement(MentionInput, {
+          ref,
+          placeholder: "Send a message...",
+          projectLocation: undefined,
+          onTextChange: vi.fn<(hasText: boolean) => void>(),
+          onSubmit,
+        }),
+      );
+      try {
+        act(() => ref.current?.restoreFromSegments(segments));
+        const trigger = await screen.findByRole("button", { name: "First line Second line" });
+        fireEvent.pointerDown(trigger, { pointerType: "touch", pointerId: 1, button: 0 });
+        fireEvent.pointerUp(trigger, { pointerType: "touch", pointerId: 1, button: 0 });
+        fireEvent.click(trigger);
+        const preview = await screen.findByRole("dialog", { name: "Preview" });
+        expect(preview.textContent).toBe("First line\nSecond line");
+        expect(ref.current?.serializeSegments()).toEqual(segments);
+        expect(onSubmit).not.toHaveBeenCalled();
+        fireEvent.keyDown(preview, { key: "Escape" });
+        await waitFor(() => expect(screen.queryByRole("dialog", { name: "Preview" })).toBeNull());
+        trigger.focus();
+        fireEvent.keyDown(trigger, { key: "Enter", code: "Enter" });
+        fireEvent.keyUp(trigger, { key: "Enter", code: "Enter" });
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(await screen.findByRole("dialog", { name: "Preview" })).toHaveTextContent(
+          "First line Second line",
+        );
+      } finally {
+        view.unmount();
+        matchMedia.mockRestore();
+        resetAdaptiveLayoutForTest();
+      }
+    },
+  );
+
   it("renders and restores multiple diff-comment badges", () => {
     const ref = createRef<MentionInputHandle>();
     const comments: PromptSegment[] = [

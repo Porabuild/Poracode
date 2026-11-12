@@ -12,6 +12,11 @@ import {
   readRuntimePayloadProjectionInputs,
   type RuntimePayloadProjectionInput,
 } from "./runtimePayloadProjection";
+import {
+  prepareRuntimeItemPayloadsForRead,
+  type PreparedRuntimeItemPayload,
+  type RuntimeInlineImageReadOptions,
+} from "./runtimeInlineImages";
 
 /**
  * Shared runtime-timeline read helpers.
@@ -87,16 +92,22 @@ export function mapRuntimeItemRow(
   tails?: ItemStreamTails,
   effectiveHead?: { readonly value: unknown },
   projection?: RuntimePayloadProjectionInput,
+  preparedPayload?: PreparedRuntimeItemPayload,
 ): PersistedRuntimeItem {
   const head = effectiveHead ? effectiveHead.value : row.streams ? safeParse(row.streams) : {};
+  const parsedPayload = preparedPayload
+    ? preparedPayload.payload
+    : row.payload
+      ? safeParse(row.payload)
+      : undefined;
   return {
     id: row.item_id,
     type: row.type,
     state: runtimeItemState(row.state),
     payload: projectRuntimePayload(
-      row.payload ? safeParse(row.payload) : undefined,
+      parsedPayload,
       row.type,
-      row.payload?.length ?? 0,
+      preparedPayload ? preparedPayload.effectivePayloadLength : (row.payload?.length ?? 0),
       projection,
     ),
     streams: assembleItemStreams(head as Record<string, string>, tails),
@@ -114,29 +125,43 @@ export function mapRuntimeItemRows(
   sqlite: InstanceType<typeof Database>,
   threadId: string,
   rows: readonly RuntimeTimelineItemRow[],
-  options: { readonly includeStreams?: boolean } = {},
+  options: {
+    readonly includeStreams?: boolean;
+    readonly includeStreamTails?: boolean;
+  } & RuntimeInlineImageReadOptions = {},
 ): PersistedRuntimeItem[] {
   if (rows.length === 0) return [];
   if (!sqlite.inTransaction) {
     throw new Error("Runtime stream seed rows must be selected inside a read snapshot.");
   }
+  const preparedPayloads = prepareRuntimeItemPayloadsForRead(sqlite, threadId, rows, options);
   const projections = readRuntimePayloadProjectionInputs(sqlite, threadId, rows);
   if (options.includeStreams === false)
     return rows.map((row) =>
-      mapRuntimeItemRow(row, undefined, { value: {} }, projections.get(row.item_id)),
+      mapRuntimeItemRow(
+        row,
+        undefined,
+        { value: {} },
+        projections.get(row.item_id),
+        preparedPayloads.get(row.item_id),
+      ),
     );
   const heads = readRuntimeStreamHeads(sqlite, threadId, rows);
-  const tails = readStreamTails(
-    sqlite,
-    threadId,
-    rows.map((row) => row.item_id),
-  );
+  const tails =
+    options.includeStreamTails === false
+      ? undefined
+      : readStreamTails(
+          sqlite,
+          threadId,
+          rows.map((row) => row.item_id),
+        );
   return rows.map((row) =>
     mapRuntimeItemRow(
       row,
-      tails.get(row.item_id),
+      tails?.get(row.item_id),
       { value: heads.get(row.item_id) },
       projections.get(row.item_id),
+      preparedPayloads.get(row.item_id),
     ),
   );
 }
@@ -153,6 +178,7 @@ export interface RuntimeTimelineClassificationInput {
   readonly parentItemId: string | null;
   readonly childParentIds: ReadonlySet<string>;
   readonly payload: () => Record<string, unknown> | undefined;
+  readonly hasExternalizedDisplayImage?: () => boolean;
   readonly reasoningHasContent: () => boolean;
 }
 
@@ -181,7 +207,9 @@ export function classifyRuntimeTimelineEntry(
   if (input.childParentIds.has(input.itemId)) return "item";
   if (
     payload &&
-    (isSubAgentTool(payload as unknown as ToolCallPayload) || inlineImagePayloadRenders(payload))
+    (isSubAgentTool(payload as unknown as ToolCallPayload) ||
+      inlineImagePayloadRenders(payload) ||
+      input.hasExternalizedDisplayImage?.() === true)
   ) {
     return "item";
   }

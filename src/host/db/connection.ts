@@ -13,6 +13,7 @@ import {
   ensureConversationSearchGeneration,
   preflightConversationSearchGeneration,
 } from "./conversationSearchSchema";
+import { reclaimOrphanInlineImageBlobs } from "./runtimeInlineImages";
 
 let _sqlite: InstanceType<typeof Database> | undefined;
 
@@ -57,11 +58,14 @@ export function initReadOnlyDatabase(dbPath: string): void {
     preflightConversationSearchGeneration(sqlite);
     sqlite.pragma("query_only = ON");
     sqlite.pragma("busy_timeout = 250");
-    sqlite.pragma("cache_size = -32768"); // 32 MiB page cache per reader worker
+    sqlite.pragma("cache_size = -4096");
+    sqlite.pragma("mmap_size = 0");
+    sqlite.pragma("temp_store = FILE");
     assertRequiredDatabaseSchema(sqlite);
     assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
     assertConversationSearchReady(sqlite);
     _sqlite = sqlite;
+    _profileDataGeneration++;
   } catch (error) {
     sqlite.close();
     throw error;
@@ -74,6 +78,14 @@ export function initDatabase(
 ) {
   console.log(`[db] opening ${dbPath}`);
   const sqlite = openDatabase(dbPath);
+  if (
+    options.schemaMode !== "validate" &&
+    Number(sqlite.pragma("page_count", { simple: true }) ?? 0) === 0
+  ) {
+    // Enable incremental auto-vacuum on brand-new databases before page 1 or WAL
+    // headers are written so purged transcripts and image blobs return disk space.
+    sqlite.pragma("auto_vacuum = INCREMENTAL");
+  }
   try {
     preflightConversationSearchGeneration(sqlite);
     if (options.schemaMode === "validate") {
@@ -86,16 +98,13 @@ export function initDatabase(
     throw error;
   }
   sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("journal_size_limit = 33554432");
   sqlite.pragma("synchronous = NORMAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
-  // Prevent WAL auto-checkpoint from blocking writers while a read worker holds
-  // a snapshot on a large multi-agent database, and size the writer page cache
-  // to 64 MiB so repeated item/stream updates stay in memory.
-  sqlite.pragma("cache_size = -65536");
-  sqlite.pragma("temp_store = MEMORY");
-  sqlite.pragma("journal_size_limit = 134217728"); // 128 MiB
-  sqlite.pragma("wal_autocheckpoint = 16384"); // ~64 MiB (4 KiB pages)
+  sqlite.pragma("cache_size = -8192");
+  sqlite.pragma("mmap_size = 0");
+  sqlite.pragma("temp_store = FILE");
   // SQLite lower() handles ASCII only; schedule search uses the same deterministic
   // Unicode normalization for persisted text and the user's query.
   sqlite.function("schedule_search_text", { deterministic: true }, (value: unknown) =>
@@ -107,6 +116,7 @@ export function initDatabase(
 
   const previousSqlite = _sqlite;
   _sqlite = sqlite;
+  _profileDataGeneration++;
 
   if (options.schemaMode === "validate") {
     console.log("[db] validated");
@@ -360,6 +370,7 @@ export function initDatabase(
       "DELETE FROM checkpoint_revert_operations WHERE outcome != 'running' AND updated_at < ?",
     )
     .run(receiptCutoff);
+  reclaimDatabaseSpace(sqlite);
 
   console.log("[db] initialized");
   return sqlite;
@@ -368,6 +379,51 @@ export function initDatabase(
 /** Worker-only attach of a pre-validated writable SQLite connection. */
 export function attachEditableDatabaseHandle(sqlite: InstanceType<typeof Database>): void {
   _sqlite = sqlite;
+  _profileDataGeneration++;
+}
+
+export interface DatabaseSpaceReclamationResult {
+  readonly deletedOrphanBlobs: number;
+  readonly reclaimedFreelistPages: number;
+}
+
+/**
+ * Bounded space reclamation after startup pruning or thread-housekeeping purges:
+ * removes unreferenced content-addressed inline image blobs, returns bounded
+ * freelist pages to disk on `auto_vacuum = INCREMENTAL` databases (existing
+ * non-incremental profiles keep `auto_vacuum = NONE` without a blocking full
+ * `VACUUM` and reuse freed pages in-place), checkpoints idle WAL frames
+ * passively (bounded by `journal_size_limit = 32 MiB`), and shrinks SQLite's
+ * in-memory page cache.
+ */
+export function reclaimDatabaseSpace(
+  sqlite: InstanceType<typeof Database>,
+  options: { readonly maxOrphanBlobs?: number; readonly maxVacuumPages?: number } = {},
+): DatabaseSpaceReclamationResult {
+  const maxOrphanBlobs = options.maxOrphanBlobs ?? 256;
+  const maxVacuumPages = options.maxVacuumPages ?? 1024;
+  const deletedOrphanBlobs = reclaimOrphanInlineImageBlobs(sqlite, maxOrphanBlobs);
+
+  let reclaimedFreelistPages = 0;
+  if (!sqlite.inTransaction) {
+    const autoVacuum = Number(sqlite.pragma("auto_vacuum", { simple: true }) ?? 0);
+    if (autoVacuum === 2 && Number.isSafeInteger(maxVacuumPages) && maxVacuumPages > 0) {
+      const freelistBefore = Number(sqlite.pragma("freelist_count", { simple: true }) ?? 0);
+      if (freelistBefore > 0) {
+        sqlite.pragma(`incremental_vacuum(${Math.min(freelistBefore, maxVacuumPages)})`);
+        const freelistAfter = Number(sqlite.pragma("freelist_count", { simple: true }) ?? 0);
+        reclaimedFreelistPages = Math.max(0, freelistBefore - freelistAfter);
+      }
+    }
+    sqlite.pragma("wal_checkpoint(PASSIVE)");
+  }
+
+  sqlite.pragma("shrink_memory");
+  return { deletedOrphanBlobs, reclaimedFreelistPages };
+}
+
+export function isDatabaseInitialized(): boolean {
+  return _sqlite !== undefined;
 }
 
 /** better-sqlite3 handle; every DB module issues prepared statements against it. */
@@ -406,4 +462,5 @@ export function closeDatabase() {
     sqlite.close();
   }
   _sqlite = undefined;
+  _profileDataGeneration++;
 }

@@ -5128,8 +5128,15 @@ button.poracode-thread-mention-chip:active {
   font-weight: 400;
 }
 
-.poracode-diff-comment-chip {
+.poracode-diff-comment-chip,
+.poracode-selection-chip {
   gap: 0.25em;
+}
+
+.poracode-selection-chip__trigger {
+  display: inline-flex;
+  max-width: 10rem;
+  min-width: 0;
 }
 
 .poracode-diff-comment-chip__delete {
@@ -5147,9 +5154,18 @@ button.poracode-thread-mention-chip:active {
   cursor: var(--interactive-cursor, pointer);
 }
 
-.poracode-diff-comment-chip:hover .poracode-diff-comment-chip__delete {
+.poracode-diff-comment-chip:hover .poracode-diff-comment-chip__delete,
+.poracode-selection-chip:hover .poracode-diff-comment-chip__delete,
+.poracode-selection-chip:focus-within .poracode-diff-comment-chip__delete {
   width: 1em;
   opacity: 1;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .poracode-selection-chip .poracode-diff-comment-chip__delete {
+    width: 1em;
+    opacity: 1;
+  }
 }
 
 .poracode-diff-comment-chip__delete svg {
@@ -7011,6 +7027,11 @@ html[data-touch-device] .m-compose-bubble [data-composer-input-anchor]:not(:focu
   background: transparent;
   pointer-events: auto;
   touch-action: manipulation;
+}
+
+html[data-compact-layout] .m-compose-bubble .poracode-selection-chip {
+  position: relative;
+  z-index: 3;
 }
 
 .m-compose-bubble .poracode-mention-input {

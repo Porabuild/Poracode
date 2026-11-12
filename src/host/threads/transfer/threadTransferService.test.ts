@@ -801,4 +801,88 @@ describe.skipIf(!sqliteAvailable)("thread transfer service", () => {
         : [],
     ).toEqual([]);
   });
+
+  it("streams multi-batch transcripts to package.bin without leaving intermediate files", async () => {
+    const sourceDir = openHost("poracode-transfer-stream-src-");
+    await seedSource(sourceDir);
+    const manyItems = Array.from({ length: 80 }, (_, i) => ({
+      id: `m-${i}`,
+      type: i % 2 === 0 ? "user_message" : "assistant_message",
+      state: "completed" as const,
+      payload: { content: [{ kind: "text", text: `Msg ${i}` }] },
+      streams: i % 2 === 1 ? { assistant_text: `Reply ${i}` } : {},
+    }));
+    await dbReplaceThreadRuntimeSnapshot(
+      "thread-1",
+      [
+        ...manyItems,
+        { id: "excluded-goal", type: "goal", state: "completed", streams: {} },
+        {
+          id: "running-parent",
+          type: "tool_call",
+          state: "started",
+          payload: { name: "Task", status: "running" },
+          streams: {},
+        },
+        {
+          id: "running-child",
+          type: "assistant_message",
+          state: "completed",
+          parentItemId: "running-parent",
+          streams: { assistant_text: "Excluded child" },
+        },
+      ],
+      [
+        {
+          anchorItemId: "m-79",
+          startedAt: "2026-11-01T10:00:00Z",
+          endedAt: "2026-11-01T10:01:00Z",
+        },
+      ],
+      null,
+    );
+    const { instance: source } = service(sourceDir, "Laptop", []);
+    const exported = await source.run({
+      kind: "export",
+      transferId: TRANSFER_ID,
+      threadId: "thread-1",
+      haves: [],
+    });
+    if (exported.kind !== "export") throw new Error("expected export");
+    expect(exported.summary.itemCount).toBe(80);
+    // Intermediate items.json.gz and repo.bundle are unlinked once packaged.
+    const transfersRoot = join(resolvePoracodePaths(sourceDir).cacheDir, "thread-transfers");
+    const [instanceRoot] = readdirSync(transfersRoot);
+    if (!instanceRoot) throw new Error("expected transfer staging root");
+    expect(readdirSync(join(transfersRoot, instanceRoot, "exports", TRANSFER_ID))).toEqual([
+      "package.bin",
+    ]);
+    const bytes = await readAll(source, exported);
+    closeDatabase();
+
+    const targetDir = openHost("poracode-transfer-stream-dst-");
+    dbUpsertProject(
+      {
+        id: "project-target",
+        name: "Widgets",
+        location: { kind: "windows", path: join(targetDir, "repo") },
+        createdAt: "2026-11-01T10:00:00Z",
+      },
+      0,
+    );
+    const target = service(targetDir, "Desktop", []);
+    await uploadAll(target.instance, bytes, exported);
+    await target.instance.run({
+      kind: "commit",
+      transferId: TRANSFER_ID,
+      threadId: "moved-many",
+      projectId: "project-target",
+      byteLength: exported.byteLength,
+      sha256: exported.sha256,
+    });
+    const transferred = await dbGetThreadRuntimeItems("moved-many");
+    expect(transferred).toHaveLength(80);
+    expect(transferred.at(0)?.id).toBe("m-0");
+    expect(transferred.at(-1)?.id).toBe("m-79");
+  });
 });

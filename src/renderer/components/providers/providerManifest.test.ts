@@ -1,7 +1,7 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
-import type { AgentCapability } from "@/shared/contracts";
+import { describe, expect, it, vi } from "vitest";
+import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import { RENDERER_PROVIDER_MODULE_PATHS } from "./bootstrap";
 import { getCommitGenDefaults } from "./commitGen";
@@ -96,6 +96,46 @@ describe("renderer provider manifests", () => {
     expect(getConfigNormalizer("antigravity")).toBeDefined();
     expect(getGuiSlashCommands("codex")).toBeDefined();
   });
+
+  it.each(["gui", "terminal"] as const)(
+    "labels unmatched Codex permissions as custom in %s",
+    (presentationMode) => {
+      const capabilities = {
+        approvalPolicies: [
+          { id: "on-request", label: "On Request" },
+          { id: "never", label: "Full Access" },
+        ],
+        sandboxModes: [
+          { id: "workspace-write", label: "Workspace Write" },
+          { id: "danger-full-access", label: "Full Access" },
+        ],
+      } as AgentCapability;
+      const onConfigChange = vi.fn<(patch: Partial<ThreadConfig>) => void>();
+      const controls = getComposerControls("codex")!({
+        capabilities,
+        config: {
+          model: "gpt-5.4",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "auto_review",
+        },
+        isDisabled: false,
+        onConfigChange,
+        presentationMode,
+      });
+
+      const control = controls.find((item) => "options" in item && item.iconKind === "permission");
+      expect(control).toMatchObject({
+        value: "custom-permissions",
+        options: expect.arrayContaining([{ id: "custom-permissions", label: "Custom" }]),
+      });
+      if (control && "options" in control) control.onChange?.("full-access");
+      expect(onConfigChange).toHaveBeenCalledWith({
+        approvalPolicy: "never",
+        approvalsReviewer: "",
+        sandboxMode: "danger-full-access",
+      });
+    },
+  );
 
   it("maps Antigravity permission aliases between terminal and ACP runtimes", () => {
     const normalize = getConfigNormalizer("antigravity")!;

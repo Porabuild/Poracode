@@ -30,15 +30,18 @@ workload and again after an idle minute, because V8 heaps shrink late.
 
 ## Existing helpers
 
-| Crate                        | Binary                  | Role                                                           | Staged at                                    | Without a binary                                                    |
-| ---------------------------- | ----------------------- | -------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------- |
-| `native/computer-use-helper` | `poracode-computer-use` | `computer_use` backends ([computer-use.md](computer-use.md))   | `resources/computer-use-helper/<target>/`    | legacy foreground driver (Windows, macOS)                           |
-| `native/mcp-relay`           | `poracode-mcp-relay`    | stdio to Streamable HTTP relay for Poracode-hosted MCP servers | `resources/wsl-helpers/mcp-relay/<target>/`  | `mcp-relay.mjs`, the TypeScript relay                               |
-| `native/git-helper`          | `poracode-git-helper`   | parallel local Git status batches and project file/tree search | `resources/wsl-helpers/git-helper/<target>/` | `GitStatusService` / `ProjectSearchIndex` / `FileIndexService` (TS) |
+| Crate                        | Binary                  | Role                                                                                    | Staged at                                    | Without a binary                                       |
+| ---------------------------- | ----------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------ |
+| `native/computer-use-helper` | `poracode-computer-use` | `computer_use` backends ([computer-use.md](computer-use.md))                            | `resources/computer-use-helper/<target>/`    | legacy foreground driver (Windows, macOS)              |
+| `native/mcp-relay`           | `poracode-mcp-relay`    | MCP HTTP relay, stdio cwd launcher, and tool-filter/schema proxy for stdio & plain HTTP | `resources/wsl-helpers/mcp-relay/<target>/`  | `mcp-relay.mjs`, `mcp-stdio.mjs`, and `mcp-filter.mjs` |
+| `native/git-helper`          | `poracode-git-helper`   | in-process local Git status, scoped filesystem watching, and project search             | `resources/wsl-helpers/git-helper/<target>/` | TypeScript status/search and bundled watcher worker    |
 
 Targets are `darwin-universal` (lipo of x86_64 and aarch64), `win32-x64`,
-`win32-arm64`, and `linux-x64` (static musl). Linux arm64, WSL distros, and SSH
-hosts have no binary yet and use the fallback.
+`win32-arm64`, and `linux-x64` (static musl). The Linux MCP relay is also
+packaged into Windows desktop builds for x64 WSL distros and Linux SSH runtime
+archives. Linux arm64, arm64 WSL distros, `https:`/SSE/failure-isolated MCP
+upstreams, and macOS SSH hosts use the MCP `.mjs` fallbacks. Git operations in
+WSL continue through the existing bridge.
 
 ## Adding a helper
 

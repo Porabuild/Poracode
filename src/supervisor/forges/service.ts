@@ -163,7 +163,8 @@ export class ForgeReviewService {
   }
   private wslClient: WslBridgeClient | undefined;
   private readonly runtime: ForgeRuntime;
-  private readonly connections: Pick<ForgeConnections, "resolve">;
+  private readonly connections: Pick<ForgeConnections, "resolve"> &
+    Partial<Pick<ForgeConnections, "invalidate">>;
   private readonly azurePatches = new Map<string, Promise<AzurePatches>>();
   private readonly viewedFiles: ForgeViewedFilesStore;
   private readonly guides: ForgeReviewGuideStore;
@@ -174,7 +175,8 @@ export class ForgeReviewService {
     private readonly github: GitHubService,
     options?: {
       runtime?: ForgeRuntime;
-      connections?: Pick<ForgeConnections, "resolve">;
+      connections?: Pick<ForgeConnections, "resolve"> &
+        Partial<Pick<ForgeConnections, "invalidate">>;
       viewedFiles?: ForgeViewedFilesStore;
       guides?: ForgeReviewGuideStore;
       onPollingProblem?: (location: ProjectLocation, problem: GithubPollingProblem | null) => void;
@@ -196,6 +198,11 @@ export class ForgeReviewService {
   }
   setWslClient(client: WslBridgeClient | undefined) {
     this.wslClient = client;
+    this.invalidate();
+  }
+  invalidate(location?: ProjectLocation) {
+    this.connections.invalidate?.(location);
+    this.github.invalidateReviewRepositoryCache(location);
   }
   private async adapter(
     location: ProjectLocation,

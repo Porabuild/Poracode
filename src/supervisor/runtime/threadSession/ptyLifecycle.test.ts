@@ -133,4 +133,41 @@ describe("PtyLifecycle shutdown", () => {
       vi.useRealTimers();
     }
   });
+
+  it("disposes Windows node-pty worker on resolveExit but defers disposal during resize exit race", () => {
+    const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    try {
+      const workerTerminate = vi.fn<() => Promise<number>>(async () => 0);
+      const session = {
+        pty: {
+          pid: 7777,
+          resize: () => {
+            throw new Error("Cannot resize a pty that has already exited");
+          },
+          _agent: {
+            _conoutSocketWorker: {
+              _isDisposed: false,
+              _worker: { terminate: workerTerminate },
+              dispose: vi.fn<() => void>(),
+            },
+          },
+        } as unknown as IPty,
+        ptyExited: false,
+      } as SessionRuntime;
+
+      const lifecycle = new PtyLifecycle();
+      lifecycle.track(session);
+
+      // Resize race marks exit tracking settled without prematurely cutting off the 1s flush window
+      lifecycle.resize(session, 100, 30);
+      expect(session.ptyExited).toBe(true);
+      expect(workerTerminate).not.toHaveBeenCalled();
+
+      // Real onExit callback invokes resolveExit and reclaims the worker isolate
+      lifecycle.resolveExit(session);
+      expect(workerTerminate).toHaveBeenCalledOnce();
+    } finally {
+      platform.mockRestore();
+    }
+  });
 });

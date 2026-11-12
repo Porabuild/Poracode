@@ -15,7 +15,9 @@ import {
 import { closeDatabase, getProfileDataGeneration, getSqlite, initDatabase } from "./connection";
 import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import { addRuntimeItemCommitListener } from "./runtimeItemCommitListeners";
-import { dbReadThreadRuntimeItems } from "./runtimeItems";
+import { dbGetThreadRuntimeItem, dbReadThreadRuntimeItems } from "./runtimeItems";
+import { dbReadCommittedRuntimeItemImageBlob } from "./runtimeInlineImageReads";
+import { isPersistedInlineImageStub } from "./runtimeInlineImages";
 import { testThread } from "./runtimeItems.testFixtures";
 import { readRuntimePayloadOrigin } from "./runtimePayloadOrigins";
 import { RuntimePersistenceController } from "./runtimePersistenceController";
@@ -191,17 +193,19 @@ describe("AsyncDatabaseWrites worker offload", () => {
     }
   });
 
-  it("preserves admitted payload-origin Symbol custody across worker postMessage", async () => {
+  it("externalizes inline images while preserving admitted payload origins across worker commits", async () => {
     enableAsyncDatabaseWrites(dbPath, writeWorkerPath);
     await vi.waitFor(() => expect(getAsyncDatabaseWrites()).not.toBeNull());
 
+    const diagram = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80">${'<rect width="10" height="10" />'.repeat(400)}</svg>`;
+    const payload = { command: "echo hi", diagram };
     const captured = captureRuntimePayloadOrigin(
       {
         type: "item.started",
         threadId: "thread-1",
         itemId: "tool-1",
         itemType: "command_execution",
-        payload: { command: "echo hi" },
+        payload,
       },
       "codex",
     );
@@ -219,6 +223,22 @@ describe("AsyncDatabaseWrites worker offload", () => {
     expect(applyAdmittedRuntimePayloadBatch(admission!, 0).kind).toBe("accepted");
     await commitRuntimeThreadPrefixAsync("thread-1");
 
+    expect(
+      applyRuntimeEvents("thread-1", [
+        { type: "item.completed", threadId: "thread-1", itemId: "tool-1" },
+      ]).kind,
+    ).toBe("accepted");
+    await commitRuntimeThreadPrefixAsync("thread-1");
+
+    const row = getSqlite()
+      .prepare("SELECT payload FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")
+      .get("thread-1", "tool-1") as { payload: string };
+    expect(isPersistedInlineImageStub(JSON.parse(row.payload).diagram)).toBe(true);
+    expect(dbReadCommittedRuntimeItemImageBlob("thread-1", "tool-1", ["diagram"])).toEqual({
+      mime: "image/svg+xml",
+      data: Buffer.from(diagram, "utf8"),
+    });
+    expect((await dbGetThreadRuntimeItem("thread-1", "tool-1"))?.payload).toEqual(payload);
     const storedOrigin = readRuntimePayloadOrigin(getSqlite(), "thread-1", "tool-1");
     expect(storedOrigin).toEqual({
       formatOwnerKey: "codex",

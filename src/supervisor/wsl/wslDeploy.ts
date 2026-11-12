@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { toWslUncPath } from "@/shared/wsl";
+import { invalidateDistroExecutableCache } from "./runtime";
 import { getWslStagingService, type WslStagingService } from "./staging";
 
 /**
@@ -35,6 +36,8 @@ export interface WslDeployFile {
 export interface WslBaseDeployResult {
   /** Linux path of the deploy base inside the distro. */
   linuxBaseDir: string;
+  /** Number of staged files written or overwritten during this deploy. */
+  filesWritten?: number;
 }
 
 export interface WslDeployOptions {
@@ -72,12 +75,18 @@ export async function deployFilesToWslHome(
   const staging = options?.staging ?? getWslStagingService();
   const home = await staging.resolveHome(distro, options);
   if (!home) return null;
+  const linuxBaseDir = `${home}/.poracode`;
   try {
-    await staging.deployHome(distro, { home, files }, options);
+    const result = await staging.deployHome(distro, { home, files }, options);
+    if (result.filesWritten > 0) {
+      for (const file of files) {
+        invalidateDistroExecutableCache(distro, `${linuxBaseDir}/${file.relDest}`);
+      }
+    }
   } catch {
     return null;
   }
-  return { home, linuxBaseDir: `${home}/.poracode` };
+  return { home, linuxBaseDir };
 }
 
 /**
@@ -94,7 +103,11 @@ export async function deployFilesToWslTempBase(
   if (!filesArePresent(files)) return null;
   try {
     const staging = options?.staging ?? getWslStagingService();
-    return await staging.deployTemp(distro, { baseName, files }, options);
+    const deployed = await staging.deployTemp(distro, { baseName, files }, options);
+    if ((deployed.filesWritten ?? 0) > 0) {
+      invalidateDistroExecutableCache(distro, deployed.linuxBaseDir);
+    }
+    return deployed;
   } catch {
     return null;
   }
@@ -114,6 +127,7 @@ export async function removeWslStagedPath(
   try {
     const staging = options?.staging ?? getWslStagingService();
     await staging.remove(distro, toWslUncPath(distro, linuxPath), options);
+    invalidateDistroExecutableCache(distro, linuxPath);
   } catch {
     // Cleanup is best effort.
   }

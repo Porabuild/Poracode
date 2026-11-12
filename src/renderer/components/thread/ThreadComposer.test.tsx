@@ -1,5 +1,6 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { useState } from "react";
+import { runAfterTransition } from "react-aria/private/utils/runAfterTransition";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
@@ -788,5 +789,69 @@ describe("ThreadComposer resume button", () => {
     renderWithResume({ onStop: vi.fn<() => void>() });
     expect(screen.getByRole("button", { name: "Stop response" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Resume response" })).toBeNull();
+  });
+});
+
+describe("ThreadComposer detached CSS transition cleanup", () => {
+  it("purges multi-property react-aria transition tracking when unmounted mid-transition", () => {
+    const rafQueue: FrameRequestCallback[] = [];
+    const originalRaf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    }) as typeof requestAnimationFrame;
+
+    const flushAnimationFrames = () => {
+      while (rafQueue.length > 0) {
+        const batch = rafQueue.splice(0, rafQueue.length);
+        for (const callback of batch) {
+          callback(performance.now());
+        }
+      }
+    };
+
+    try {
+      const { container, unmount } = renderComposer();
+      const shell = container.querySelector(".poracode-composer-shell");
+      expect(shell).not.toBeNull();
+
+      // Simulate a 4-longhand `border-color` transition starting on the composer
+      // shell (`react-aria` listens for `transitionrun` on `document.body` and
+      // attaches `{ once: true }` `transitioncancel` on the target).
+      const makeTransitionEvent = (type: string, propertyName: string) => {
+        const event = new Event(type, { bubbles: true });
+        Object.defineProperty(event, "propertyName", { value: propertyName });
+        return event;
+      };
+
+      shell!.dispatchEvent(makeTransitionEvent("transitionrun", "border-top-color"));
+      shell!.dispatchEvent(makeTransitionEvent("transitionrun", "border-right-color"));
+      // First canceled longhand consumes `{ once: true }`; second longhand stays
+      // stranded in `transitionsByElement`.
+      shell!.dispatchEvent(makeTransitionEvent("transitioncancel", "border-top-color"));
+
+      const whileMountedProbe = vi.fn<() => void>();
+      runAfterTransition(whileMountedProbe);
+      flushAnimationFrames();
+      expect(whileMountedProbe).not.toHaveBeenCalled();
+
+      act(() => {
+        unmount();
+      });
+      expect(shell!.isConnected).toBe(false);
+
+      // ThreadComposer's unmount cleanup schedules `runAfterTransition`, whose
+      // animation-frame pass purges detached elements from `transitionsByElement`
+      // and drains queued callbacks.
+      flushAnimationFrames();
+      expect(whileMountedProbe).toHaveBeenCalledOnce();
+
+      const afterUnmountProbe = vi.fn<() => void>();
+      runAfterTransition(afterUnmountProbe);
+      flushAnimationFrames();
+      expect(afterUnmountProbe).toHaveBeenCalledOnce();
+    } finally {
+      globalThis.requestAnimationFrame = originalRaf;
+    }
   });
 });

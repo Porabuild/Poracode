@@ -221,13 +221,25 @@ vi.mock("@/host/db", () => {
     }),
     dbSetProjectNotes: vi.fn<(notes: unknown) => void>(),
     dbTruncateThreadRuntimeAfter: vi.fn<(...args: unknown[]) => void>(),
-    dbGetAllUsageEvents: vi.fn<() => unknown[]>(() => []),
     getProfileDataGeneration: vi.fn<() => number>(() => profileDataGeneration),
     bumpProfileDataGeneration: vi.fn<() => void>(() => {
       profileDataGeneration++;
     }),
   };
 });
+
+vi.mock("@/host/db/usageEvents", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/host/db/usageEvents")>()),
+  dbQueryUsageAccountCounts: vi.fn<
+    typeof import("@/host/db/usageEvents").dbQueryUsageAccountCounts
+  >(() => []),
+  dbIterateCoreUsageEvents: vi.fn<typeof import("@/host/db/usageEvents").dbIterateCoreUsageEvents>(
+    () => [][Symbol.iterator](),
+  ),
+  dbIterateTokenUsageScanRows: vi.fn<
+    typeof import("@/host/db/usageEvents").dbIterateTokenUsageScanRows
+  >(() => [][Symbol.iterator]()),
+}));
 
 vi.mock("@/host/db/legacyCatalogReads", async () => import("./server/snapshotReads.testFixtures"));
 vi.mock("@/host/db/runtimeSnapshotRead", async () => import("./server/snapshotReads.testFixtures"));

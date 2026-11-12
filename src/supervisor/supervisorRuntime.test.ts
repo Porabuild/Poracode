@@ -10,8 +10,133 @@ import { SupervisorRuntime } from "./supervisorRuntime";
 import type {
   GitProjectSnapshotPayload,
   GitProjectSnapshotResult,
+  GitStatusResult,
   ProjectLocation,
 } from "@/shared/contracts";
+import { GitService } from "./git";
+import type { ProjectWatcher } from "./projectWatcher";
+import type { WslBridgeClient } from "./wsl/bridge/client";
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+function status(branch: string): GitStatusResult {
+  return {
+    isRepo: true,
+    branch,
+    tracking: "",
+    hasRemote: false,
+    remoteInfo: null,
+    ahead: 0,
+    behind: 0,
+    staged: [],
+    unstaged: [],
+    totalInsertions: 0,
+    totalDeletions: 0,
+  };
+}
+
+describe("SupervisorRuntime Git watcher status invalidation", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it.each([
+    { scope: "worktree" as const, paths: ["src/file.ts"], detail: "full" as const },
+    { scope: "git" as const, paths: ["HEAD"], detail: "full" as const },
+    { scope: "worktree" as const, paths: ["src/file.ts"], detail: "summary" as const },
+    { scope: "git" as const, paths: ["HEAD"], detail: "summary" as const },
+  ])(
+    "starts a fresh $detail read after a $scope watcher event",
+    async ({ scope, paths, detail }) => {
+      vi.useFakeTimers();
+      const location: ProjectLocation = {
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/repo",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+      };
+      const gitService = new GitService();
+      const oldRead = deferred<GitStatusResult>();
+      const freshRead = deferred<GitStatusResult>();
+      const serviceInternals = gitService as unknown as {
+        statusService: {
+          computeStatus(location: ProjectLocation): Promise<GitStatusResult>;
+          computeStatusSummary(location: ProjectLocation): Promise<GitStatusResult>;
+        };
+      };
+      const compute = vi
+        .spyOn(
+          serviceInternals.statusService,
+          detail === "summary" ? "computeStatusSummary" : "computeStatus",
+        )
+        .mockReturnValueOnce(oldRead.promise)
+        .mockReturnValueOnce(freshRead.promise);
+      let sendWatchEvent: Parameters<WslBridgeClient["watch"]>[2] | undefined;
+      const watch = vi.fn<WslBridgeClient["watch"]>(async (_location, _options, onEvent) => {
+        sendWatchEvent = onEvent;
+        return { subscriptionId: "watch-1", unsubscribe: async () => undefined };
+      });
+      const wslClient = {
+        readFile: async () => {
+          throw new Error("No gitignore fixture");
+        },
+        stat: async () => ({
+          stats: [{ path: "/repo/.git", exists: true, isDirectory: true }],
+        }),
+        watch,
+      } as unknown as WslBridgeClient;
+      let watcherRequest: Promise<GitStatusResult> | undefined;
+      const emit = vi.fn<(...args: unknown[]) => void>(() => {
+        watcherRequest = gitService.getStatus(location, detail);
+      });
+      const invalidateProjectTree = vi.fn<() => void>();
+      const runtime = Object.create(SupervisorRuntime.prototype) as unknown as {
+        emit: typeof emit;
+        gitService: GitService;
+        projectTreeService: { invalidateAllCaches: typeof invalidateProjectTree };
+        _projectWatcher: ProjectWatcher | undefined;
+        wslBridgeClient: WslBridgeClient | undefined;
+        projectWatcher: ProjectWatcher;
+      };
+      runtime.emit = emit;
+      runtime.gitService = gitService;
+      runtime.projectTreeService = { invalidateAllCaches: invalidateProjectTree };
+      runtime._projectWatcher = undefined;
+      runtime.wslBridgeClient = wslClient;
+
+      const oldRequest = gitService.getStatus(location, detail);
+      expect(compute).toHaveBeenCalledOnce();
+
+      const watcher = runtime.projectWatcher;
+      await watcher.watch("project-1", location);
+      await vi.waitFor(() => expect(watch).toHaveBeenCalledOnce());
+      sendWatchEvent!({ subscriptionId: "watch-1", scope, paths });
+      await vi.advanceTimersByTimeAsync(300);
+
+      expect(watcherRequest).toBeDefined();
+      expect(compute).toHaveBeenCalledTimes(2);
+      oldRead.resolve(status("before-edit"));
+      await oldRequest;
+
+      const joinedFreshRequest = gitService.getStatus(location, detail);
+      expect(compute).toHaveBeenCalledTimes(2);
+      freshRead.resolve(status("after-edit"));
+      await expect(watcherRequest).resolves.toMatchObject({ branch: "after-edit" });
+      await joinedFreshRequest;
+      expect(emit).toHaveBeenCalledWith({
+        type: scope === "git" ? "git-changed" : "project-tree-changed",
+        projectId: "project-1",
+      });
+      expect(invalidateProjectTree).toHaveBeenCalledTimes(scope === "worktree" ? 1 : 0);
+
+      await watcher.dispose();
+    },
+  );
+});
 
 describe("SupervisorRuntime source-host review availability", () => {
   it.each([true, false])(

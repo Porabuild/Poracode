@@ -51,6 +51,7 @@ env:
 
 jobs:
   build:
+    name: build (${{ matrix.artifact }})
     # Pinned off macos-latest (macos-26): image 20260831.0337 breaks
     # electron-builder 26 code signing (`security set-key-partition-list`
     # fails with SecKeychainUnlock). Stay on macos-15 until upstream fixes it.
@@ -220,6 +221,26 @@ jobs:
       - name: Prepare MCP relay
         run: node scripts/prepare-mcp-relay.mjs --platform "${{ matrix.platform }}" --require
         shell: bash
+
+      - name: Upload Linux MCP relay for Windows WSL
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-relay-linux-x64
+          path: resources/wsl-helpers/mcp-relay/linux-x64/poracode-mcp-relay
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 1
+
+      - name: Stage Linux MCP relay for WSL
+        if: matrix.platform == 'win'
+        run: |
+          rm -rf resources/wsl-helpers/mcp-relay/linux-x64
+          node scripts/wait-for-run-artifact.mjs mcp-relay-linux-x64 resources/wsl-helpers/mcp-relay/linux-x64 "build / build (dist-linux)"
+          node scripts/prepare-mcp-relay.mjs --platform win --require
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Cache Git helper artifact
         id: git-helper-artifact

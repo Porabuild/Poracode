@@ -25,7 +25,7 @@ import { isMcpToolVisibleTo, MCP_APP_CLIENT_CAPABILITIES } from "@/shared/mcpApp
 import { McpAppSession } from "./McpAppSession";
 import { materializeMcpAppResult } from "./mcpAppResult";
 import type { BridgeToolResult } from "./toolBridge";
-import { omitInvalidSchemaPatterns } from "./portableSchemaPatterns";
+import { limitToolSchemaDepth, omitInvalidSchemaPatterns } from "./portableSchemaPatterns";
 import { MCP_HELPER_CONFIG_ENVS } from "./mcpToolFilterConfig";
 
 export interface FilterProxyOptions {
@@ -36,6 +36,7 @@ export interface FilterProxyOptions {
   timeoutMs?: number;
   isolateConnectionFailures?: boolean;
   omitInvalidSchemaPatterns?: boolean;
+  maxSchemaDepth?: number;
   /** Enable only when the connection owner supplies an isolated Apps renderer. */
   mcpApps?: boolean;
   onAppResult?(tool: Tool, result: BridgeToolResult): BridgeToolResult;
@@ -196,12 +197,15 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
       return unavailableTools;
     }
     return {
-      tools: options.omitInvalidSchemaPatterns
-        ? tools.map((tool) => ({
-            ...tool,
-            inputSchema: omitInvalidSchemaPatterns(tool.inputSchema),
-          }))
-        : tools,
+      tools: tools.map((tool) => {
+        const limited =
+          options.maxSchemaDepth === undefined
+            ? tool
+            : limitToolSchemaDepth(tool, options.maxSchemaDepth);
+        return options.omitInvalidSchemaPatterns
+          ? { ...limited, inputSchema: omitInvalidSchemaPatterns(limited.inputSchema) }
+          : limited;
+      }),
     };
   });
   server.setRequestHandler("tools/call", async (request, extra) => {

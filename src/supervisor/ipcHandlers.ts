@@ -196,7 +196,10 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       return { ...result, message: payload.message };
     },
     gitInit: (payload) => git.init(payload.projectLocation),
-    gitAddRemote: (payload) => git.addRemote(payload.projectLocation, payload.remote, payload.url),
+    gitAddRemote: async (payload) => {
+      await git.addRemote(payload.projectLocation, payload.remote, payload.url);
+      reviews.invalidate(payload.projectLocation);
+    },
     evaluateScheduleCompletion: (payload) => generation.evaluateScheduleCompletion(payload),
     cancelScheduleCompletionEvaluation: ({ id }) =>
       generation.cancelScheduleCompletionEvaluation(id),

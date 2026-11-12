@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
 import { selectThreadGoalDockState } from "../components/thread/threadGoalState";
+import { selectThreadTodoDockState } from "../components/thread/threadTodoState";
 import { useAppStore } from "./appStore";
 import {
   boundVisibleThreadRuntimeWindows,
@@ -377,4 +378,139 @@ it("yields after 16 duplicate pages and continues at a stationary top without an
     Number.MAX_SAFE_INTEGER - 160,
   );
   expect(useAppStore.getState().runtimeItemIdsByThread[id]).toEqual(["restored", ...before]);
+});
+
+it("retains persistent plans sparsely without pinning completed history and relocates them on older paging", async () => {
+  const plan1 = item("plan-1", 0, {
+    type: "plan",
+    state: "updated",
+    observedLive: true,
+    payload: {
+      steps: [
+        { step: "Audit memory", status: "completed" },
+        { step: "Bound window", status: "in_progress" },
+      ],
+    },
+  });
+  const plan2 = item("plan-2", 0, {
+    type: "plan",
+    state: "updated",
+    observedLive: true,
+    payload: {
+      steps: [
+        { step: "Audit memory", status: "pending" },
+        { step: "Bound window", status: "in_progress" },
+        { step: "Verify suites", status: "pending" },
+      ],
+    },
+  });
+  const tail = longTail();
+  const id = thread([
+    item("discard-before", MIB),
+    plan1,
+    item("discard-between", MIB),
+    plan2,
+    ...tail,
+  ]);
+  const dockBefore = selectThreadTodoDockState(useAppStore.getState(), id);
+  expect(dockBefore).toMatchObject({
+    sourceItemId: "plan-2",
+    steps: [
+      { text: "Audit memory", status: "completed" },
+      { text: "Bound window", status: "in_progress" },
+      { text: "Verify suites", status: "pending" },
+    ],
+  });
+
+  bound(id);
+  const afterBoundIds = useAppStore.getState().runtimeItemIdsByThread[id]!;
+  expect(afterBoundIds.slice(0, 2)).toEqual(["plan-1", "plan-2"]);
+  expect(afterBoundIds).not.toContain("discard-before");
+  expect(afterBoundIds).not.toContain("discard-between");
+  expect(afterBoundIds).not.toContain("tail-0");
+  expect(selectThreadTodoDockState(useAppStore.getState(), id)).toEqual(dockBefore);
+
+  // Live in-place plan updates keep mutating the sparse control item.
+  useAppStore.getState().applyRuntimeEvent(id, {
+    type: "item.updated",
+    threadId: id,
+    itemId: "plan-2",
+    payload: {
+      steps: [
+        { step: "Audit memory", status: "pending" },
+        { step: "Bound window", status: "completed" },
+        { step: "Verify suites", status: "in_progress" },
+      ],
+    },
+  });
+  expect(selectThreadTodoDockState(useAppStore.getState(), id)?.steps).toEqual([
+    { text: "Audit memory", status: "completed" },
+    { text: "Bound window", status: "completed" },
+    { text: "Verify suites", status: "in_progress" },
+  ]);
+
+  // Canonical older paging skips sparse plans as anchors and relocates plan-2 into place.
+  const firstRetainedOrdinary = afterBoundIds[2]!;
+  bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+    items: [item("discard-between", MIB), plan2, item(firstRetainedOrdinary, MIB / 4)],
+    nextCursor: 40,
+  });
+  expect(await loadOlderThreadRuntimeItems(id)).toBe(true);
+  const afterPageIds = useAppStore.getState().runtimeItemIdsByThread[id]!;
+  expect(afterPageIds.slice(0, 4)).toEqual([
+    "plan-1",
+    "discard-between",
+    "plan-2",
+    firstRetainedOrdinary,
+  ]);
+  expect(selectThreadTodoDockState(useAppStore.getState(), id)?.steps).toEqual([
+    { text: "Audit memory", status: "completed" },
+    { text: "Bound window", status: "completed" },
+    { text: "Verify suites", status: "in_progress" },
+  ]);
+});
+
+it("does not let hydrated or closed-turn unsettled ordinary items pin >6 MiB of history", () => {
+  const hydratedAssistant = item("hydrated-unsettled-assistant", 0, {
+    type: "assistant_message",
+    state: "updated",
+  });
+  const hydratedCommand = item("hydrated-unsettled-command", 0, {
+    type: "command_execution",
+    state: "started",
+    payload: { command: "bun test", status: "in_progress" },
+  });
+  const hydratedTool = item("hydrated-running-tool", 0, {
+    type: "tool_call",
+    state: "completed",
+    payload: { name: "Read", status: "running" },
+  });
+  const settledLiveAssistant = item("closed-turn-live-assistant", 0, {
+    type: "assistant_message",
+    state: "started",
+    observedLive: true,
+  });
+  const tail = longTail();
+  const id = thread([
+    hydratedAssistant,
+    hydratedCommand,
+    hydratedTool,
+    settledLiveAssistant,
+    ...tail,
+  ]);
+  useAppStore.setState((state) => ({
+    runtimeCompletedTurnsByThread: {
+      ...state.runtimeCompletedTurnsByThread,
+      [id]: [{ startedAt: 1, endedAt: 2, anchorItemId: "tail-0" }],
+    },
+  }));
+
+  bound(id);
+  const ids = useAppStore.getState().runtimeItemIdsByThread[id]!;
+  expect(ids).not.toContain("hydrated-unsettled-assistant");
+  expect(ids).not.toContain("hydrated-unsettled-command");
+  expect(ids).not.toContain("hydrated-running-tool");
+  expect(ids).not.toContain("closed-turn-live-assistant");
+  expect(ids).not.toContain("tail-0");
+  expect(ids.at(-1)).toBe("tail-29");
 });

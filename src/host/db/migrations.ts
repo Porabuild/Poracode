@@ -16,6 +16,11 @@ import {
   assertRuntimePayloadOriginSchema,
   createRuntimePayloadOriginSchema,
 } from "./runtimePayloadOriginsSchema";
+import { backfillRuntimeInlineImages } from "./runtimeInlineImages";
+import {
+  assertRuntimeInlineImageSchema,
+  createRuntimeInlineImageSchema,
+} from "./runtimeInlineImagesSchema";
 import { writeLegacyMigrationItemStreams } from "./runtimeStreamLegacyMigration";
 import { migrateTerminalScrollbackChunks } from "./terminalScrollbackSchema";
 
@@ -1095,6 +1100,19 @@ export const DATABASE_MIGRATIONS = [
     rollback: "rollback-compatible",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "plugin_overrides", "TEXT"),
   },
+  {
+    version: 72,
+    name: "externalize inline runtime images",
+    // Rewrites canonical >= 8 KiB inline image strings in thread_runtime_items.payload
+    // into compact content-addressed stubs backed by runtime_inline_image_blobs and
+    // thread_runtime_item_image_refs; older builds would treat those stubs as plain
+    // JSON objects instead of inline images.
+    rollback: "forward-only",
+    migrate: (sqlite) => {
+      createRuntimeInlineImageSchema(sqlite);
+      backfillRuntimeInlineImages(sqlite);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 // Worktree link reconciliation refreshes existing path/branch columns from Git;
@@ -1486,6 +1504,17 @@ const REQUIRED_COLUMNS = {
     "first_acknowledged_at",
     "last_acknowledged_at",
   ],
+  runtime_inline_image_blobs: [
+    "blob_hash",
+    "encoding",
+    "header",
+    "mime",
+    "raw_bytes",
+    "inline_utf8_bytes",
+    "width",
+    "height",
+  ],
+  thread_runtime_item_image_refs: ["thread_id", "item_id", "path_json", "blob_hash"],
 } as const;
 
 export function assertRequiredDatabaseSchema(sqlite: SqliteDatabase): void {
@@ -1502,5 +1531,6 @@ export function assertRequiredDatabaseSchema(sqlite: SqliteDatabase): void {
     throw new Error(`Database schema is incomplete; missing: ${missing.join(", ")}.`);
   }
   assertRuntimePayloadOriginSchema(sqlite);
+  assertRuntimeInlineImageSchema(sqlite);
   assertThreadWorkspaceGrantsSchema(sqlite);
 }

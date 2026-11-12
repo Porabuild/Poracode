@@ -87,6 +87,7 @@ describe("createMuseAdapter shape", () => {
   it("uses the stdio launcher to preserve an MCP server working directory", () => {
     expect(adapter.mcpRequiresStdioCwdProxy).toBe(true);
     expect(adapter.mcpRequiresPortableSchemaPatterns).toBe(true);
+    expect(adapter.mcpMaxSchemaDepth).toBe(10);
   });
 
   it("builds a `muse logout` command so the Settings logout button can drive it", async () => {

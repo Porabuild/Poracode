@@ -661,6 +661,9 @@ export class SpawnPipeline {
           : {}),
         ...(adapter.mcpRequiresStdioCwdProxy ? { proxyStdioCwd: true } : {}),
         ...(adapter.mcpRequiresPortableSchemaPatterns ? { omitInvalidSchemaPatterns: true } : {}),
+        ...(adapter.mcpMaxSchemaDepth !== undefined
+          ? { maxSchemaDepth: adapter.mcpMaxSchemaDepth }
+          : {}),
         ...(requestedPresentation === "gui" && adapter.mcpRequiresConnectionFailureIsolation
           ? { isolateConnectionFailures: true }
           : {}),
