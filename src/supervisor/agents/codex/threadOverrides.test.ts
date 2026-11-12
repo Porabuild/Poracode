@@ -91,4 +91,37 @@ describe("buildCodexThreadOverrides", () => {
       )?.[1],
     ).toMatchObject({ command: "node" });
   });
+
+  it("suppresses detected Codex desktop bundled sidecars per thread and preserves opt-in", () => {
+    const detectedSidecars = {
+      enabledPlugins: new Set([
+        "codex-app-tools@openai-bundled",
+        "unified-computer-use@openai-bundled",
+        "computer-use@openai-bundled",
+        "chrome@openai-bundled",
+      ]),
+      hasNodeRepl: true,
+    };
+    const suppressed = buildCodexThreadOverrides({ model: "gpt-5.6" }, { detectedSidecars });
+    expect(suppressed.config).toMatchObject({
+      "plugins.codex-app-tools@openai-bundled": { enabled: false },
+      "plugins.unified-computer-use@openai-bundled": { enabled: false },
+      "plugins.computer-use@openai-bundled": { enabled: false },
+      "plugins.chrome@openai-bundled": { enabled: false },
+      "mcp_servers.node_repl": { enabled: false },
+    });
+
+    const optedIn = buildCodexThreadOverrides(
+      { model: "gpt-5.6" },
+      {
+        detectedSidecars,
+        agentSettings: { allowBundledCuaSidecars: true },
+      },
+    );
+    expect(optedIn.config).toMatchObject({
+      "plugins.codex-app-tools@openai-bundled": { enabled: false },
+    });
+    expect(optedIn.config).not.toHaveProperty("plugins.unified-computer-use@openai-bundled");
+    expect(optedIn.config).not.toHaveProperty("mcp_servers.node_repl");
+  });
 });

@@ -204,4 +204,12 @@ export interface ThreadSessionManagerOptions {
     segments: PromptSegment[];
     nativePlugins?: readonly AgentNativePlugin[];
   }): Promise<PromptSegment[]>;
+  /**
+   * Optional: idle timeout in ms before a dev-terminal shell PTY with zero child
+   * processes suspends its process while retaining transcript and dimensions for
+   * seamless wake on input. Defaults to 5 minutes; `<= 0` disables suspension.
+   */
+  shellIdleTimeoutMs?: number;
+  /** Optional override for shell child-process inspection (used by unit harnesses). */
+  hasShellChildProcesses?(pid: number, location: ProjectLocation): Promise<boolean>;
 }

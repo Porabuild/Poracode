@@ -263,6 +263,9 @@ export interface ShellSessionRuntime {
   outputLength: number;
   outputTranscript: TranscriptBuffer;
   worktreePath?: string;
+  windowsShellRuntime?: "preferred" | "powershell";
+  startInHome?: boolean;
+  idleTimer?: ReturnType<typeof setTimeout> | undefined;
   ptyExited?: boolean;
   ignoreExit?: boolean;
 }

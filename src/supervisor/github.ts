@@ -48,7 +48,7 @@ import { parseGitRemoteFetchLine } from "@/shared/forgeRemote";
 // public surface stays identical for github.test.ts and bridge consumers.
 export { aggregateChecksStatus, mapGitHubApiRepo, parseGhAuthAccounts } from "./githubMappers";
 import { buildAgentCommand, primeProjectShellEnv } from "./agents/base";
-import { resolveClonedProjectPath } from "./git/exec";
+import { getLocationIdentity, resolveClonedProjectPath } from "./git/exec";
 import type { WslBridgeClient, WslProcessExecResult } from "./wsl/bridge/client";
 
 const execFileAsync = promisify(execFile);
@@ -521,6 +521,32 @@ function locationKey(location: ProjectLocation): string {
   return `${location.kind}:${location.path}`;
 }
 
+const REVIEW_REPO_CACHE_TTL_MS = 10_000;
+const MAX_REVIEW_REPO_CACHE_ENTRIES = 128;
+
+interface ReviewRepositorySelection {
+  service: GitHubService;
+  host: string;
+  repository: string;
+  account?: GitHubAccountRef;
+}
+
+function cloneReviewRepositorySelection(
+  selection: ReviewRepositorySelection,
+): ReviewRepositorySelection {
+  return {
+    service: selection.service,
+    host: selection.host,
+    repository: selection.repository,
+    ...(selection.account ? { account: { ...selection.account } } : {}),
+  };
+}
+
+function reviewRepositoryCacheKey(location: ProjectLocation, account?: GitHubAccountRef): string {
+  const accountKey = account ? `${account.host.toLowerCase()}\0${account.login}` : "";
+  return `${getLocationIdentity(location)}\0${accountKey}`;
+}
+
 export class GitHubService {
   private reviewEnvironment: Record<string, string> | undefined;
   /** `gh api user` is the same answer per (kind, path) — cache to avoid one call per PR fetch. */
@@ -529,14 +555,67 @@ export class GitHubService {
   private actionsAccountCache = new Map<string, GitHubAccountRef | null>();
   /** Locations whose gh install rejects the `attempt` run field. */
   private unsupportedRunAttemptFieldLocations = new Set<string>();
+  private reviewRepoInFlight = new Map<string, Promise<ReviewRepositorySelection>>();
+  private reviewRepoCache = new Map<
+    string,
+    { value: ReviewRepositorySelection; expiresAt: number }
+  >();
   private wslClient: WslBridgeClient | undefined;
 
   setWslClient(client: WslBridgeClient | undefined): void {
     this.wslClient = client;
+    this.reviewRepoInFlight.clear();
+    this.reviewRepoCache.clear();
   }
 
   /** Freeze gh's actual repository choice, including a configured default or SSH alias. */
-  async forReviewRepository(location: ProjectLocation, account?: GitHubAccountRef) {
+  async forReviewRepository(
+    location: ProjectLocation,
+    account?: GitHubAccountRef,
+  ): Promise<ReviewRepositorySelection> {
+    const key = reviewRepositoryCacheKey(location, account);
+    const cached = this.reviewRepoCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cloneReviewRepositorySelection(cached.value);
+    }
+    if (cached) {
+      this.reviewRepoCache.delete(key);
+    }
+
+    let pending = this.reviewRepoInFlight.get(key);
+    if (!pending) {
+      pending = this.resolveReviewRepositoryUncached(location, account)
+        .then((selection) => {
+          if (
+            !this.reviewRepoCache.has(key) &&
+            this.reviewRepoCache.size >= MAX_REVIEW_REPO_CACHE_ENTRIES
+          ) {
+            const oldestKey = this.reviewRepoCache.keys().next().value;
+            if (oldestKey !== undefined) {
+              this.reviewRepoCache.delete(oldestKey);
+            }
+          }
+          this.reviewRepoCache.set(key, {
+            value: cloneReviewRepositorySelection(selection),
+            expiresAt: Date.now() + REVIEW_REPO_CACHE_TTL_MS,
+          });
+          return selection;
+        })
+        .finally(() => {
+          if (this.reviewRepoInFlight.get(key) === pending) {
+            this.reviewRepoInFlight.delete(key);
+          }
+        });
+      this.reviewRepoInFlight.set(key, pending);
+    }
+
+    return cloneReviewRepositorySelection(await pending);
+  }
+
+  private async resolveReviewRepositoryUncached(
+    location: ProjectLocation,
+    account?: GitHubAccountRef,
+  ): Promise<ReviewRepositorySelection> {
     const service = new GitHubService();
     service.wslClient = this.wslClient;
     let selectedToken: string | undefined;

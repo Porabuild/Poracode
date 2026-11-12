@@ -25,6 +25,10 @@ import { buildCodexMcp } from "./mcpConfig";
 import { readCodexNativeMcpNames } from "./nativeMcp";
 import { isCodexAgentsConfigSupported } from "./agentsConfigSupport";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
+import {
+  buildCodexBundledSidecarCliArgs,
+  detectConfiguredCodexBundledSidecars,
+} from "./bundledSidecars";
 
 const CODEX_GOALS_FEATURE_FLAG = "goals";
 const codexGoalsSupportCache = new Map<string, boolean>();
@@ -36,10 +40,19 @@ interface BuildCodexArgsOptions {
   supportsAgentsConfig: boolean;
   launchOptions?: AgentLaunchOptions;
   mcpArgs?: string[];
+  bundledSidecarArgs?: string[];
 }
 
 function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
-  const { config, prompt, enableGoals, supportsAgentsConfig, launchOptions, mcpArgs } = opts;
+  const {
+    config,
+    prompt,
+    enableGoals,
+    supportsAgentsConfig,
+    launchOptions,
+    mcpArgs,
+    bundledSidecarArgs,
+  } = opts;
   const args: string[] = [];
 
   if (enableGoals) {
@@ -88,6 +101,7 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
     if (config.sandboxMode) {
       args.push("-s", config.sandboxMode);
     }
+    args.push(...(bundledSidecarArgs ?? []));
   }
 
   if (prompt.trim().length > 0) {
@@ -126,9 +140,19 @@ export async function buildCodexArgvFor(
 ): Promise<AgentArgvSpec> {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
   const mcpServers = launchOptions?.mcpServers ?? [];
-  const nativeNames = await readCodexNativeMcpNames(location, mcpServers, env);
+  const [nativeNames, skillConflictArgs, detectedSidecars] = await Promise.all([
+    readCodexNativeMcpNames(location, mcpServers, env),
+    buildCodexMcpSkillConflictArgs(location, mcpServers),
+    detectConfiguredCodexBundledSidecars(location, env),
+  ]);
   const mcp = buildCodexMcp(mcpServers, nativeNames);
-  const mcpArgs = [...(await buildCodexMcpSkillConflictArgs(location, mcpServers)), ...mcp.args];
+  const bundledSidecarArgs = buildCodexBundledSidecarCliArgs({
+    detected: detectedSidecars,
+    mcpServers,
+    nativeMcpNames: nativeNames,
+    ...(launchOptions?.agentSettings ? { agentSettings: launchOptions.agentSettings } : {}),
+  });
+  const mcpArgs = [...skillConflictArgs, ...mcp.args];
   const mcpEnv = { ...mcp.env, ...env };
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const enableGoals = isCodexGoalsSupported(location);
@@ -139,6 +163,7 @@ export async function buildCodexArgvFor(
     supportsAgentsConfig: isCodexAgentsConfigSupported(location),
     ...(launchOptions ? { launchOptions } : {}),
     mcpArgs,
+    bundledSidecarArgs,
   };
   // When the structured session owns thread lifecycle, the TUI resumes the
   // server-created thread. Config is controlled by the server, not the CLI.

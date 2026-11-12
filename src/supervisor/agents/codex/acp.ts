@@ -63,6 +63,10 @@ import {
 } from "./appServerRpc";
 import type { CodexClientRequestMap } from "./protocol";
 import { acquireCodexAppServer } from "./serverPool";
+import {
+  detectConfiguredCodexBundledSidecars,
+  type DetectedCodexBundledSidecars,
+} from "./bundledSidecars";
 import { buildCodexThreadOverrides } from "./threadOverrides";
 import { readCodexNativeMcpNames } from "./nativeMcp";
 import {
@@ -230,6 +234,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private readonly projectLocation: ProjectLocation;
   private readonly mcpServers: readonly ResolvedMcpServer[];
   private readonly nativeMcpNames: readonly string[];
+  private readonly detectedSidecars: DetectedCodexBundledSidecars | undefined;
+  private readonly agentSettings: Record<string, boolean | string> | undefined;
   private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
@@ -309,6 +315,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     releaseAppServer: () => void,
     wslDistro?: string,
     nativeMcpNames: readonly string[] = [],
+    detectedSidecars?: DetectedCodexBundledSidecars,
+    agentSettings?: Record<string, boolean | string>,
   ) {
     this.rpc = rpc;
     this.liveVoice = new CodexLiveVoice(
@@ -321,11 +329,23 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.projectLocation = projectLocation;
     this.mcpServers = mcpServers;
     this.nativeMcpNames = nativeMcpNames;
+    this.detectedSidecars = detectedSidecars;
+    this.agentSettings = agentSettings;
     this.releaseAppServer = releaseAppServer;
     this.wslDistro = wslDistro;
     this.launchOptions = {
       suppressResumeConfigOverrides: true,
     };
+  }
+
+  private buildThreadOverrides(config: ThreadConfig) {
+    return buildCodexThreadOverrides(config, {
+      projectLocation: this.projectLocation,
+      mcpServers: this.mcpServers,
+      nativeMcpNames: this.nativeMcpNames,
+      ...(this.detectedSidecars ? { detectedSidecars: this.detectedSidecars } : {}),
+      ...(this.agentSettings ? { agentSettings: this.agentSettings } : {}),
+    });
   }
 
   private ensureMapperState(): CodexMapperState {
@@ -350,12 +370,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     await this.ensureContextWindowReload().reload(
       {
         request: (method, params, timeoutMs) => this.rpc.request(method, params, timeoutMs),
-        buildResumeOverrides: (next) =>
-          buildCodexThreadOverrides(next, {
-            projectLocation: this.projectLocation,
-            mcpServers: this.mcpServers,
-            nativeMcpNames: this.nativeMcpNames,
-          }),
+        buildResumeOverrides: (next) => this.buildThreadOverrides(next),
       },
       threadId,
       config,
@@ -608,12 +623,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     input: CreateStructuredSessionInput,
     wslExecPath?: string,
   ): Promise<CodexStructuredSession> {
-    const nativeMcpNames = await readCodexNativeMcpNames(
-      input.projectLocation,
-      input.mcpServers ?? [],
-      input.env,
-      wslExecPath,
-    );
+    const [nativeMcpNames, detectedSidecars] = await Promise.all([
+      readCodexNativeMcpNames(
+        input.projectLocation,
+        input.mcpServers ?? [],
+        input.env,
+        wslExecPath,
+      ),
+      detectConfiguredCodexBundledSidecars(input.projectLocation, input.env),
+    ]);
     const acquired = await acquireCodexAppServer(input, wslExecPath, nativeMcpNames);
     const wslDistro =
       input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
@@ -626,6 +644,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       acquired.dispose,
       wslDistro,
       nativeMcpNames,
+      detectedSidecars,
+      input.agentSettings,
     );
     session.attachRpcHandlers();
 
@@ -684,11 +704,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     // `mode` does not exist on `thread/start` or `thread/resume`; plan mode is
     // a per-turn override sent via `collaborationMode` on `turn/start`.
     this.currentConfig = config;
-    const threadOverrides = buildCodexThreadOverrides(config, {
-      projectLocation: this.projectLocation,
-      mcpServers: this.mcpServers,
-      nativeMcpNames: this.nativeMcpNames,
-    });
+    const threadOverrides = this.buildThreadOverrides(config);
 
     let threadId: string;
     // `fresh` marks a brand-new provider thread (usage ledger baseline 0). A
@@ -1352,11 +1368,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       throw new Error("Cannot roll back a Codex thread before its configuration is initialized.");
     }
     this.currentConfig = rollbackConfig;
-    const threadOverrides = buildCodexThreadOverrides(rollbackConfig, {
-      projectLocation: this.projectLocation,
-      mcpServers: this.mcpServers,
-      nativeMcpNames: this.nativeMcpNames,
-    });
+    const threadOverrides = this.buildThreadOverrides(rollbackConfig);
     this.forkNotificationBuffer = [];
     try {
       forkResult = await forkCodexThread(this.rpc, {

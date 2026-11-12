@@ -144,7 +144,13 @@ export class ThreadOutputPipeline {
     return session.adapter.detectTerminalStatus(session.lastStrippedPtyChunk);
   }
 
-  readTerminalScrollback(session: SessionRuntime | ShellSessionRuntime | undefined): string {
+  readTerminalScrollback(
+    session:
+      | SessionRuntime
+      | ShellSessionRuntime
+      | { outputTranscript?: TranscriptBuffer }
+      | undefined,
+  ): string {
     if (!session?.outputTranscript) {
       return "";
     }
