@@ -35,7 +35,7 @@ const EXPECTED_SUBAGENT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)
     qwen: "never",
     qoder: "bypassPermissions",
     grok: "bypassPermissions",
-    kimi: "yolo",
+    kimi: "auto",
     muse: "yolo",
     antigravity: "yolo",
     commandcode: "yolo",
