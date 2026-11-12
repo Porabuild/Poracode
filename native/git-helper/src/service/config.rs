@@ -206,24 +206,29 @@ impl Resolver<'_> {
         } else {
             return Ok(false);
         };
-        let mut pattern = if pattern.starts_with("./") {
-            source
-                .parent()
-                .unwrap_or(Path::new(""))
-                .join(pattern.strip_prefix("./").unwrap_or(pattern))
-                .to_string_lossy()
-                .replace('\\', "/")
+        // Git resolves the containing file and matches its directory literally;
+        // aliases and wildcard characters there are not part of the glob.
+        let literal_prefix = if pattern.starts_with("./") {
+            let source = fs::canonicalize(source).map_err(|_| config_error())?;
+            let parent = source.parent().ok_or_else(config_error)?;
+            Some(format!(
+                "{}/",
+                git_path_string(parent).trim_end_matches('/')
+            ))
+        } else {
+            None
+        };
+        let mut pattern = if literal_prefix.is_some() {
+            pattern.strip_prefix("./").unwrap_or(pattern).to_owned()
         } else if pattern.starts_with('~') {
-            self.interpolate(pattern)?
-                .to_string_lossy()
-                .replace('\\', "/")
+            git_path_string(&self.interpolate(pattern)?)
         } else {
             pattern.to_owned()
         };
-        if !Path::new(&pattern).is_absolute() {
+        if literal_prefix.is_none() && !Path::new(&pattern).is_absolute() {
             pattern = format!("**/{pattern}");
         }
-        if pattern.ends_with('/') {
+        if pattern.ends_with('/') || (literal_prefix.is_some() && pattern.is_empty()) {
             pattern.push_str("**");
         }
         let paths = [
@@ -231,11 +236,21 @@ impl Resolver<'_> {
             fs::canonicalize(self.repo.path()).ok(),
         ];
         Ok(paths.into_iter().flatten().any(|path| {
-            let path = path.to_string_lossy().replace('\\', "/");
-            let path = path
-                .strip_prefix("//?/")
-                .unwrap_or(&path)
-                .trim_end_matches('/');
+            let path = git_path_string(&path);
+            let mut path = path.trim_end_matches('/');
+            if let Some(prefix) = &literal_prefix {
+                let Some(actual) = path.get(..prefix.len()) else {
+                    return false;
+                };
+                if !(if ignore_case {
+                    actual.eq_ignore_ascii_case(prefix)
+                } else {
+                    actual == prefix
+                }) {
+                    return false;
+                }
+                path = &path[prefix.len()..];
+            }
             matches(&pattern, path, ignore_case)
         }))
     }
@@ -262,6 +277,15 @@ impl Resolver<'_> {
         } else {
             source.parent().unwrap_or(Path::new("")).join(path)
         })
+    }
+}
+
+fn git_path_string(path: &Path) -> String {
+    let path = path.to_string_lossy().replace('\\', "/");
+    if let Some(unc) = path.strip_prefix("//?/UNC/") {
+        format!("//{unc}")
+    } else {
+        path.strip_prefix("//?/").unwrap_or(&path).to_owned()
     }
 }
 

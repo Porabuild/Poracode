@@ -101,6 +101,55 @@ afterEach(async () => {
 });
 
 describe("poracode-git-helper parity & fallback", () => {
+  it.each(["linked", "literal wildcard", "directory"])(
+    "resolves relative gitdir conditions from a %s config path like Git",
+    async (kind) => {
+      if (!nativeGitHelperBinaryPath()) {
+        if (initialHelperBinEnv !== undefined) throw new Error("Expected native helper");
+        return;
+      }
+      const fixture = makeTempDir("poracode-relative-config-");
+      const physical = join(
+        fixture,
+        kind === "literal wildcard" ? "physical [literal]" : "physical",
+      );
+      const root = join(physical, "repo");
+      mkdirSync(root, { recursive: true });
+      runGit(root, ["init", "-b", "feature/topic"]);
+      runGit(root, ["remote", "add", "origin", "https://example.test/repo"]);
+      let source = physical;
+      if (kind === "linked") {
+        source = join(fixture, "alias");
+        symlinkSync(physical, source, process.platform === "win32" ? "junction" : "dir");
+      }
+      writeFileSync(
+        join(physical, "global"),
+        `[includeIf "gitdir/i:${kind === "directory" ? "./" : "./repo/.git"}"]\npath=selected\n` +
+          '[includeIf "hasconfig:remote.*.url:https://example.test/**"]\npath=marker\n',
+      );
+      writeFileSync(join(physical, "selected"), '[includeIf "onbranch:feature/"]\npath=branch\n');
+      writeFileSync(join(physical, "branch"), "[ssh]\nvariant=plink\n");
+      writeFileSync(join(physical, "marker"), "[fixture]\nselected=true\n");
+      process.env.GIT_CONFIG_GLOBAL = join(source, "global");
+      expect(
+        execFileSync("git", ["config", "--get", "ssh.variant"], {
+          cwd: root,
+          encoding: "utf8",
+          windowsHide: true,
+        }).trim(),
+      ).toBe("plink");
+      disposeNativeGitHelper();
+      const native = await queryNativeGitStatusBatch({
+        paths: [root],
+        detail: "full",
+        timeoutMs: 10_000,
+        maxConcurrency: 1,
+      });
+      expect(native?.[root]?.isRepo).toBe(true);
+      expect(native?.[root]?.hasSshOverrides).toBe(true);
+    },
+  );
+
   it("uses Git's home-directory precedence for conditional tilde includes", async () => {
     if (!nativeGitHelperBinaryPath()) {
       if (initialHelperBinEnv !== undefined) throw new Error("Expected native helper");
