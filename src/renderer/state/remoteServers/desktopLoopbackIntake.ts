@@ -262,7 +262,7 @@ export class DesktopLoopbackIntake {
   private readonly socketFactory: (url: string) => DesktopLoopbackSocket;
   private readonly usesDefaultSocketFactory: boolean;
   private readonly workerSocketTransport: WorkerDesktopLoopbackTransport | null;
-  private pendingWorkerFrames: Array<DesktopLoopbackFrame | undefined> = [];
+  private pendingWorkerFrames: Array<DesktopLoopbackFrame | (() => void) | undefined> = [];
   private pendingWorkerReadIndex = 0;
   private workerBatchContinuationTimer: ReturnType<typeof setTimeout> | null = null;
   /** A4: one counter fenced over every socket callback; dispose advances it so
@@ -646,16 +646,17 @@ export class DesktopLoopbackIntake {
     let workerHostedSocket: DesktopLoopbackSocket | null = null;
     if (this.workerSocketTransport) {
       const openedWorkerSocket = this.workerSocketTransport.open(urlString, {
-        onDecodedBatch: (frames) => {
+        onDecodedBatch: (frames, acknowledge) => {
           if (
             !openedWorkerSocket ||
             this.socket !== openedWorkerSocket ||
             this.generation !== generation
           ) {
+            acknowledge();
             return;
           }
           this.liveness.noteActivity();
-          this.enqueueDecodedWorkerBatch(frames, generation, openedWorkerSocket);
+          this.enqueueDecodedWorkerBatch(frames, acknowledge, generation, openedWorkerSocket);
         },
         onOverflow: () => {
           if (
@@ -825,12 +826,16 @@ export class DesktopLoopbackIntake {
   }
 
   private clearPendingWorkerFrames(): void {
+    const discarded = this.pendingWorkerFrames;
     this.pendingWorkerFrames = [];
     this.pendingWorkerReadIndex = 0;
     if (this.workerBatchContinuationTimer !== null) {
       clearTimeout(this.workerBatchContinuationTimer);
       this.workerBatchContinuationTimer = null;
     }
+    // A teardown can run inside a frame handler. Release discarded batches
+    // after that handler returns, once their remaining UI work is gone.
+    for (const entry of discarded) if (typeof entry === "function") queueMicrotask(entry);
   }
 
   /**
@@ -840,11 +845,10 @@ export class DesktopLoopbackIntake {
    */
   private enqueueDecodedWorkerBatch(
     frames: readonly DesktopLoopbackFrame[],
+    acknowledge: () => void,
     generation: number,
     socket: DesktopLoopbackSocket,
   ): void {
-    if (frames.length === 0) return;
-    const MAX_PENDING_WORKER_FRAMES = 4_096;
     this.noteDecodeHealthy();
     for (const frame of frames) {
       // Correlated health pongs settle immediately regardless of yield slices.
@@ -854,12 +858,10 @@ export class DesktopLoopbackIntake {
       }
       this.pendingWorkerFrames.push(frame);
     }
-    const backlog = this.pendingWorkerFrames.length - this.pendingWorkerReadIndex;
-    if (backlog > MAX_PENDING_WORKER_FRAMES) {
-      this.noteDecodeUnavailable("overflow");
-      return;
-    }
-    if (backlog > 0 && this.workerBatchContinuationTimer === null) {
+    // The worker bounds raw + posted work until this marker drains, rather
+    // than releasing its reservation merely when the batch reaches the UI.
+    this.pendingWorkerFrames.push(acknowledge);
+    if (this.workerBatchContinuationTimer === null) {
       this.drainPendingWorkerFrames(generation, socket);
     }
   }
@@ -876,7 +878,8 @@ export class DesktopLoopbackIntake {
       const frame = this.pendingWorkerFrames[idx]!;
       this.pendingWorkerFrames[idx] = undefined;
       try {
-        routeDesktopLoopbackFrame(frame, this.framePorts);
+        if (typeof frame === "function") frame();
+        else routeDesktopLoopbackFrame(frame, this.framePorts);
       } catch {
         // HTTP snapshots stay authoritative; isolate individual listener faults.
       }

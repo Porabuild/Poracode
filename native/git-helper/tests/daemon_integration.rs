@@ -92,6 +92,65 @@ fn unknown_flag_and_protocol_mismatch_fail_closed() {
 }
 
 #[test]
+fn walk_lists_symlinks_as_files_without_traversing_targets() {
+    let temp = TempDir::new("symlinks");
+    let root = temp.path.join("project");
+    let outside = temp.path.join("outside");
+    fs::create_dir_all(&root).expect("mkdir project");
+    fs::create_dir_all(&outside).expect("mkdir outside");
+    fs::write(root.join("target.txt"), "test\n").expect("write target");
+    fs::write(outside.join("linked-nested.txt"), "outside\n").expect("write outside");
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::symlink;
+        symlink(root.join("target.txt"), root.join("linked-file.txt")).expect("file symlink");
+        symlink(root.join("missing.txt"), root.join("linked-missing.txt"))
+            .expect("dangling symlink");
+        symlink(&outside, root.join("linked-directory")).expect("directory symlink");
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::{symlink_dir, symlink_file};
+        symlink_file(root.join("target.txt"), root.join("linked-file.txt")).expect("file symlink");
+        symlink_file(root.join("missing.txt"), root.join("linked-missing.txt"))
+            .expect("dangling symlink");
+        symlink_dir(&outside, root.join("linked-directory")).expect("directory symlink");
+    }
+
+    let mut child = Command::new(bin_path())
+        .arg("--serve-v2")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("spawn daemon");
+    let mut stdin = child.stdin.take().expect("stdin");
+    let request = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 1,
+        "kind": "searchTree",
+        "rootPath": root,
+        "query": "linked",
+        "limit": 10,
+        "useIgnoreFiles": false,
+    });
+    writeln!(stdin, "{request}").expect("write search request");
+    drop(stdin);
+    let output = child.wait_with_output().expect("wait daemon");
+    assert!(output.status.success());
+    let response: HelperResponse = serde_json::from_slice(&output.stdout).expect("search response");
+    assert!(response.ok);
+    let entries = response.tree_entries.expect("tree entries");
+    assert!(entries.iter().all(|entry| entry.entry_type == "file"));
+    let mut paths: Vec<_> = entries.iter().map(|entry| entry.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(
+        paths,
+        ["linked-directory", "linked-file.txt", "linked-missing.txt"]
+    );
+}
+
+#[test]
 fn serves_parallel_worktree_batches_and_search_indexes() {
     let temp = TempDir::new("batch");
     let repo_a = temp.path.join("repo-a");

@@ -823,4 +823,59 @@ describe("SortableThreadItem", () => {
     );
     expect(getStatusToneMock).toHaveBeenCalledTimes(1);
   });
+
+  it.each([false, true])(
+    "keeps row data live behind retained parent props for compact=%s",
+    (compact) => {
+      layoutMock.compact = compact;
+      const original = makeThread();
+      useAppStore.setState({ threads: [original] });
+      render(
+        <SortableThreadItem
+          thread={original}
+          threadIndex={0}
+          project={project}
+          showWorktreeBadge={false}
+          editingThreadId={null}
+          setEditingThreadId={vi.fn<(id: string | null) => void>()}
+          group="flat:__flat__"
+        />,
+      );
+
+      if (!compact) fireEvent.contextMenu(screen.getByText(original.title));
+      const updates: Partial<Thread>[] = [
+        { slashCommands: [{ id: "review", label: "review", description: "Review" }] },
+        { sessionConfigOptions: [{ type: "boolean", id: "fast", currentValue: true }] },
+        { lastTurnEndedAt: "2026-03-21T10:01:00.000Z" },
+      ];
+      for (const patch of updates) {
+        act(() => {
+          useAppStore.setState((state) => ({
+            threads: state.threads.map((thread) => ({ ...thread, ...patch })),
+          }));
+        });
+        expect(getStatusToneMock).toHaveBeenLastCalledWith(useAppStore.getState().threads[0], {
+          hasBackgroundActivity: false,
+        });
+      }
+
+      act(() => {
+        useAppStore.setState((state) => ({
+          threads: state.threads.map((thread) => ({
+            ...thread,
+            title: "Renamed live",
+            starred: true,
+            status: "inactive",
+          })),
+        }));
+      });
+      expect(screen.getByText("Renamed live")).toBeInTheDocument();
+      expect(screen.getByLabelText("Pinned")).toBeInTheDocument();
+      const unloadItem = contextMenuItemsMock.mock.calls
+        .at(-1)?.[0]
+        .find((item) => item.id === "unload");
+      expect(unloadItem?.isDisabled).toBe(compact ? undefined : true);
+      expect(unloadItem?.disabledReason).toBe(compact ? undefined : "Thread is already unloaded.");
+    },
+  );
 });

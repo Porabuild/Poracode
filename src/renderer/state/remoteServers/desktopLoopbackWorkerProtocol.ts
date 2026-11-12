@@ -20,6 +20,8 @@ import type { SupervisorEvent } from "@/shared/ipc";
  *   with an 8ms cooperative frame budget so input and 60/120fps animations
  *   never starve under heavy multi-agent streaming.
  */
+// Private, build-coupled v1 includes batch ids and drain acknowledgements on
+// both endpoints. Nothing is persisted or exchanged with remote/older hosts.
 export const DESKTOP_LOOPBACK_WORKER_PROTOCOL_VERSION = 1 as const;
 
 export type DesktopLoopbackWorkerClientMessage =
@@ -39,6 +41,12 @@ export type DesktopLoopbackWorkerClientMessage =
       readonly v: typeof DESKTOP_LOOPBACK_WORKER_PROTOCOL_VERSION;
       readonly type: "close";
       readonly socketId: number;
+    }
+  | {
+      readonly v: typeof DESKTOP_LOOPBACK_WORKER_PROTOCOL_VERSION;
+      readonly type: "ack";
+      readonly socketId: number;
+      readonly batchId: number;
     };
 
 export type DesktopLoopbackWorkerServerMessage =
@@ -51,6 +59,7 @@ export type DesktopLoopbackWorkerServerMessage =
       readonly v: typeof DESKTOP_LOOPBACK_WORKER_PROTOCOL_VERSION;
       readonly type: "frames";
       readonly socketId: number;
+      readonly batchId: number;
       readonly frames: readonly DesktopLoopbackFrame[];
     }
   | {

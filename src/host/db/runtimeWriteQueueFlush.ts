@@ -312,11 +312,7 @@ export interface AsyncFlushHost {
   atomicBatchWriterAsync: RuntimeAsyncAtomicBatchWriter;
   recovery: RuntimeFlushRecovery;
   isThreadInFlight(threadId: string): boolean;
-  reserveThreadInFlight(
-    threadId: string,
-    promise: Promise<void>,
-    plan: { readonly eventCount: number; readonly inputBytes: number },
-  ): () => void;
+  reserveThreadInFlight(threadId: string, promise: Promise<void>): () => void;
   isPlanCurrent(plan: RuntimeFlushPlan): boolean;
   acknowledge(plan: RuntimeFlushPlan): void;
 }
@@ -358,7 +354,7 @@ export async function flushRuntimeQueueBudgetedAsync(
   const writeSingle = async (plan: RuntimeFlushPlan): Promise<boolean> => {
     if (!host.isPlanCurrent(plan) || host.isThreadInFlight(plan.threadId)) return true;
     const settled = Promise.withResolvers<void>();
-    const release = host.reserveThreadInFlight(plan.threadId, settled.promise, plan);
+    const release = host.reserveThreadInFlight(plan.threadId, settled.promise);
     try {
       return await writeSingleWithExistingReservation(plan);
     } finally {
@@ -436,7 +432,7 @@ export async function flushRuntimeQueueBudgetedAsync(
         // cannot race between batch rollback and fallback!
         const handles = currentPlans.map((plan) => {
           const settled = Promise.withResolvers<void>();
-          const release = host.reserveThreadInFlight(plan.threadId, settled.promise, plan);
+          const release = host.reserveThreadInFlight(plan.threadId, settled.promise);
           let released = false;
           return () => {
             if (released) return;

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -15,7 +15,12 @@ import {
   configureGitProcessAdmission,
   resetGitProcessAdmissionForTests,
 } from "./gitProcessAdmission";
-import { disposeNativeGitHelper, nativeGitHelperBinaryPath } from "./gitNativeHelperClient";
+import {
+  areSearchExcludePatternsNativeCompatible,
+  disposeNativeGitHelper,
+  nativeGitHelperBinaryPath,
+  queryNativeSearchTree,
+} from "./gitNativeHelperClient";
 import { GitStatusService } from "./statusService";
 import { GIT_ADMISSION_WAIT_TIMEOUT_CODE } from "@/shared/gitProcessAdmission";
 
@@ -54,6 +59,12 @@ afterEach(async () => {
 });
 
 describe("poracode-git-helper parity & fallback", () => {
+  it("routes negated exclude globs to micromatch while keeping character classes native", () => {
+    expect(areSearchExcludePatternsNativeCompatible(["!**/*.md"])).toBe(false);
+    expect(areSearchExcludePatternsNativeCompatible(["!!**/*.md"])).toBe(false);
+    expect(areSearchExcludePatternsNativeCompatible(["**/[!a]*.ts"])).toBe(true);
+  });
+
   it("falls back cleanly to TypeScript when the native helper binary is absent", async () => {
     process.env.PORACODE_GIT_HELPER_BIN = join(tmpdir(), "does-not-exist-poracode-git-helper");
     expect(nativeGitHelperBinaryPath()).toBeUndefined();
@@ -127,7 +138,9 @@ describe("poracode-git-helper parity & fallback", () => {
     const nativeFullBatch = await nativeGit.getWorktreeStatusBatch(loc, paths, "full");
 
     // 2. Capture TypeScript fallback results on the exact same repositories
+    delete process.env.PORACODE_GIT_HELPER_BIN;
     process.env.PORACODE_DISABLE_GIT_HELPER = "1";
+    expect(nativeGitHelperBinaryPath()).toBeUndefined();
     const tsGit = new GitService();
     const tsSummaryBatch = await tsGit.getWorktreeStatusBatch(loc, paths, "summary");
     const tsFullBatch = await tsGit.getWorktreeStatusBatch(loc, paths, "full");
@@ -227,7 +240,9 @@ describe("poracode-git-helper parity & fallback", () => {
     ];
 
     // TypeScript fallback on the exact same repository
+    delete process.env.PORACODE_GIT_HELPER_BIN;
     process.env.PORACODE_DISABLE_GIT_HELPER = "1";
+    expect(nativeGitHelperBinaryPath()).toBeUndefined();
     const tsTree = new ProjectSearchIndex(resolveProjectEntryPath);
     const tsFiles = new FileIndexService();
 
@@ -268,7 +283,9 @@ describe("poracode-git-helper parity & fallback", () => {
     expect(nativeQueries).toEqual(tsQueries);
 
     // Verify native cache invalidation picks up newly created files immediately
+    process.env.PORACODE_GIT_HELPER_BIN = bin;
     delete process.env.PORACODE_DISABLE_GIT_HELPER;
+    expect(nativeGitHelperBinaryPath()).toBe(bin);
     writeFileSync(join(repo, "src/BrandNewFeature.tsx"), "export {};\n");
     nativeTree.invalidateCaches(loc);
     nativeFiles.invalidateCacheForLocation(loc);
@@ -287,5 +304,130 @@ describe("poracode-git-helper parity & fallback", () => {
       limit: 5,
     });
     expect(refreshedFiles.entries.map((e) => e.path)).toEqual(["src/BrandNewFeature.tsx"]);
+  });
+
+  it("matches full Unicode folding and contextual lowercase in native and TypeScript searches", async () => {
+    const bin = nativeGitHelperBinaryPath();
+    if (!bin) {
+      if (initialHelperBinEnv !== undefined) {
+        throw new Error(`Expected PORACODE_GIT_HELPER_BIN to resolve, got: ${initialHelperBinEnv}`);
+      }
+      return;
+    }
+
+    const root = makeTempDir("poracode-unicode-parity-");
+    const cases = [
+      { name: "ḃeta.ts", query: "beta" },
+      { name: "가.ts", query: "\u1100\u1161" },
+      { name: "क\u093e.ts", query: "क.ts" },
+      { name: "ΟΣ.ts", query: "οσ.ts" },
+      { name: "ΟΣΑ.ts", query: "οσα.ts" },
+      { name: "ΟΣ-Α.ts", query: "ος-α.ts" },
+      { name: "İstanbul.ts", query: "istanbul" },
+      { name: "đelta.ts", query: "đelta" },
+    ];
+    for (const { name } of cases) writeFileSync(join(root, name), "test\n");
+
+    const nativeResults = [];
+    for (const { query } of cases) {
+      nativeResults.push(
+        await queryNativeSearchTree({
+          rootPath: root,
+          query,
+          limit: 10,
+          entryType: "file",
+          useIgnoreFiles: false,
+          excludePatterns: [],
+          timeoutMs: 1_000,
+        }),
+      );
+    }
+
+    delete process.env.PORACODE_GIT_HELPER_BIN;
+    process.env.PORACODE_DISABLE_GIT_HELPER = "1";
+    expect(nativeGitHelperBinaryPath()).toBeUndefined();
+    const tree = new ProjectSearchIndex(resolveProjectEntryPath);
+    for (const [index, { name, query }] of cases.entries()) {
+      const fallback = await tree.searchProjectTree({
+        projectLocation: localLocation(root),
+        query,
+        limit: 10,
+        entryType: "file",
+        searchConfig: { useIgnoreFiles: false, excludePatterns: [] },
+      });
+      expect(nativeResults[index]).toEqual(fallback.entries);
+      expect(fallback.entries.map((entry) => entry.path)).toContain(name);
+    }
+  });
+
+  it("preserves negated exclusion behavior in both search services", async () => {
+    const root = makeTempDir("poracode-negated-exclude-");
+    runGit(root, ["init", "-b", "main"]);
+    writeFileSync(join(root, "foo.ts"), "test\n");
+    writeFileSync(join(root, "foo.md"), "test\n");
+    const payload = {
+      projectLocation: localLocation(root),
+      query: "foo",
+      limit: 10,
+      searchConfig: { useIgnoreFiles: true, excludePatterns: ["!**/*.md"] },
+    };
+    const tree = await new ProjectSearchIndex(resolveProjectEntryPath).searchProjectTree(payload);
+    const files = await new FileIndexService().searchProjectFiles(payload);
+
+    delete process.env.PORACODE_GIT_HELPER_BIN;
+    process.env.PORACODE_DISABLE_GIT_HELPER = "1";
+    expect(nativeGitHelperBinaryPath()).toBeUndefined();
+    expect(tree).toEqual(
+      await new ProjectSearchIndex(resolveProjectEntryPath).searchProjectTree(payload),
+    );
+    expect(files).toEqual(await new FileIndexService().searchProjectFiles(payload));
+    expect(tree.entries.some((entry) => entry.path === "foo.ts")).toBe(false);
+    expect(files.entries.some((entry) => entry.path === "foo.ts")).toBe(false);
+  });
+
+  it("lists file and directory symlinks as files without traversing their targets", async () => {
+    const bin = nativeGitHelperBinaryPath();
+    if (!bin) {
+      if (initialHelperBinEnv !== undefined) {
+        throw new Error(`Expected PORACODE_GIT_HELPER_BIN to resolve, got: ${initialHelperBinEnv}`);
+      }
+      return;
+    }
+
+    const root = makeTempDir("poracode-symlink-parity-");
+    const outside = makeTempDir("poracode-symlink-target-");
+    writeFileSync(join(root, "target.txt"), "test\n");
+    writeFileSync(join(outside, "linked-nested.txt"), "outside\n");
+    symlinkSync(join(root, "target.txt"), join(root, "linked-file.txt"), "file");
+    symlinkSync(join(root, "missing.txt"), join(root, "linked-missing.txt"), "file");
+    symlinkSync(
+      outside,
+      join(root, "linked-directory"),
+      process.platform === "win32" ? "junction" : "dir",
+    );
+
+    const native = await queryNativeSearchTree({
+      rootPath: root,
+      query: "linked",
+      limit: 10,
+      useIgnoreFiles: false,
+      excludePatterns: [],
+      timeoutMs: 1_000,
+    });
+    delete process.env.PORACODE_GIT_HELPER_BIN;
+    process.env.PORACODE_DISABLE_GIT_HELPER = "1";
+    expect(nativeGitHelperBinaryPath()).toBeUndefined();
+    const fallback = await new ProjectSearchIndex(resolveProjectEntryPath).searchProjectTree({
+      projectLocation: localLocation(root),
+      query: "linked",
+      limit: 10,
+      searchConfig: { useIgnoreFiles: false, excludePatterns: [] },
+    });
+    expect(native).toEqual(fallback.entries);
+    expect(fallback.entries.map((entry) => [entry.path, entry.type]).sort()).toEqual([
+      ["linked-directory", "file"],
+      ["linked-file.txt", "file"],
+      ["linked-missing.txt", "file"],
+    ]);
   });
 });

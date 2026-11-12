@@ -37,6 +37,8 @@ function noteCommittedHostSideEffects(batches: readonly RuntimeWriteBatch[]): vo
 }
 
 interface PendingJob {
+  readonly kind: DatabaseWriteWorkerRequest["kind"];
+  readonly settled: Promise<void>;
   readonly resolve: (response: DatabaseWriteWorkerResponse) => void;
   readonly reject: (error: Error) => void;
 }
@@ -48,6 +50,7 @@ export class AsyncDatabaseWrites {
   private closePromise: Promise<void> | null = null;
   private nextId = 1;
   private readonly pending = new Map<number, PendingJob>();
+  private readonly workerFailure = Promise.withResolvers<Error>();
 
   constructor(
     private readonly dbPath: string,
@@ -122,86 +125,42 @@ export class AsyncDatabaseWrites {
   }
 
   private async performClose(): Promise<void> {
-    const worker = this.worker;
-    if (!worker) {
-      this.ready = false;
-      this.rejectAll(new Error("Async database writer is closing."));
-      return;
-    }
-
-    // Drain any in-flight write messages FIRST (and let a microtask tick run so
-    // `RuntimeWriteQueue` acknowledges every committed prefix before returning!)
-    // instead of rejecting an already-posted worker transaction mid-commit.
     if (this.pending.size > 0) {
-      const inflight = [...this.pending.values()].map(
-        (job) =>
-          new Promise<void>((resolve) => {
-            const origResolve = job.resolve;
-            const origReject = job.reject;
-            this.wrapJobSettlement(job, origResolve, origReject, resolve);
-          }),
-      );
+      // Only a worker receipt releases write custody. A deadline or worker exit
+      // cannot establish rollback; the process owner supplies the hard deadline.
       await Promise.race([
-        Promise.all(inflight),
-        new Promise<void>((resolve) => setTimeout(resolve, 4_000)),
-      ]);
-      // Allow awaiting callers (`flushRuntimeQueueBudgetedAsync` / `flushThreadThroughAsync`)
-      // to resume and call `acknowledgeFlush` before close settles.
-      await new Promise<void>((resolve) => setImmediate(resolve));
-    }
-
-    this.worker = null;
-    this.ready = false;
-    this.rejectAll(new Error("Async database writer is closing."));
-
-    try {
-      await Promise.race([
-        new Promise<void>((resolve) => {
-          const id = this.nextId++;
-          const onMessage = (msg: DatabaseWriteWorkerResponse) => {
-            if (msg?.kind === "closed" && msg.id === id) {
-              worker.off("message", onMessage);
-              resolve();
-            }
-          };
-          worker.on("message", onMessage);
-          worker.postMessage({
-            v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
-            id,
-            kind: "close",
-          } satisfies DatabaseWriteWorkerRequest);
+        Promise.all([...this.pending.values()].map((job) => job.settled)),
+        this.workerFailure.promise.then((error) => {
+          throw error;
         }),
-        new Promise<void>((resolve) => setTimeout(resolve, 1_500)),
       ]);
-    } catch {
-      // Fall through to terminate.
     }
-    await worker.terminate().catch(() => 0);
-  }
+    // Let queue callers acknowledge even a receipt received just before close.
+    await new Promise<void>((resolve) => setImmediate(resolve));
 
-  private wrapJobSettlement(
-    job: PendingJob,
-    origResolve: PendingJob["resolve"],
-    origReject: PendingJob["reject"],
-    done: () => void,
-  ): void {
-    const mutable = job as { resolve: PendingJob["resolve"]; reject: PendingJob["reject"] };
-    mutable.resolve = (res) => {
-      origResolve(res);
-      done();
-    };
-    mutable.reject = (err) => {
-      origReject(err);
-      done();
-    };
+    const worker = this.worker;
+    if (!worker) return;
+    try {
+      await this.send({
+        v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
+        id: this.nextId++,
+        kind: "close",
+      });
+    } finally {
+      this.worker = null;
+      this.ready = false;
+      await worker.terminate();
+    }
   }
 
   terminateSync(): void {
+    if (this.pending.size > 0) {
+      throw new Error("Async database writes must join before closing SQLite.");
+    }
     this.closing = true;
     const worker = this.worker;
     this.worker = null;
     this.ready = false;
-    this.rejectAll(new Error("Async database writer terminated."));
     if (worker) {
       void worker.terminate().catch(() => 0);
     }
@@ -226,21 +185,26 @@ export class AsyncDatabaseWrites {
         if ("id" in message) {
           const job = this.pending.get(message.id);
           if (!job) return;
+          if (
+            (job.kind === "write-batches" && message.kind !== "batches-result") ||
+            (job.kind === "write-single" && message.kind !== "single-result") ||
+            (job.kind === "close" && message.kind !== "closed")
+          ) {
+            this.failWorker(new Error("Unexpected response from databaseWriteWorker."));
+            return;
+          }
           this.pending.delete(message.id);
           this.updateRef();
           job.resolve(message);
         }
       });
       worker.on("error", (error) => {
-        this.worker = null;
-        this.ready = false;
-        this.rejectAll(error instanceof Error ? error : new Error(String(error)));
+        this.failWorker(error instanceof Error ? error : new Error(String(error)));
       });
       worker.on("exit", (code) => {
         if (this.worker === worker) {
           this.worker = null;
-          this.ready = false;
-          this.rejectAll(new Error(`Database write worker exited (${code}).`));
+          this.failWorker(new Error(`Database write worker exited (${code}).`));
         }
       });
       this.worker = worker;
@@ -256,13 +220,26 @@ export class AsyncDatabaseWrites {
       return Promise.reject(new Error("Async database writer is unavailable."));
     }
     return new Promise<DatabaseWriteWorkerResponse>((resolve, reject) => {
-      this.pending.set(request.id, { resolve, reject });
+      const settled = Promise.withResolvers<void>();
+      this.pending.set(request.id, {
+        kind: request.kind,
+        settled: settled.promise,
+        resolve: (response) => {
+          resolve(response);
+          settled.resolve();
+        },
+        reject: (error) => {
+          reject(error);
+          settled.resolve();
+        },
+      });
       this.updateRef();
       try {
         worker.postMessage(request);
       } catch (error) {
         this.pending.delete(request.id);
         this.updateRef();
+        settled.resolve();
         reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
@@ -274,11 +251,20 @@ export class AsyncDatabaseWrites {
     else this.worker.unref();
   }
 
-  private rejectAll(error: Error): void {
-    for (const [, job] of this.pending) {
+  private failWorker(error: Error): void {
+    this.ready = false;
+    this.workerFailure.resolve(
+      new Error("Database write worker failed; outstanding write outcomes are unconfirmed.", {
+        cause: error,
+      }),
+    );
+    for (const [id, job] of this.pending) {
+      // Posted writes keep their queue reservations: replay could duplicate a
+      // COMMIT whose receipt was lost. A close request owns no canonical data.
+      if (job.kind !== "close") continue;
+      this.pending.delete(id);
       job.reject(error);
     }
-    this.pending.clear();
   }
 }
 
@@ -303,13 +289,13 @@ export function isAsyncDatabaseWritesReady(): boolean {
 export function releaseAsyncDatabaseWritesSync(): void {
   if (!currentWrites) return;
   const writer = currentWrites;
-  currentWrites = null;
   writer.terminateSync();
+  currentWrites = null;
 }
 
 export async function closeAsyncDatabaseWrites(): Promise<void> {
   if (!currentWrites) return;
   const writer = currentWrites;
-  currentWrites = null;
   await writer.close();
+  if (currentWrites === writer) currentWrites = null;
 }

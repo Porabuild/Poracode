@@ -21,6 +21,13 @@ interface ManagedSocketSlot {
 }
 
 let activeSlot: ManagedSocketSlot | null = null;
+// Posted clones remain charged across socket cancellation/replacement until
+// the renderer drains or discards that batch. Only worker disposal retires
+// the whole ledger without acknowledgements.
+const postedBatches = new Map<number, { socketId: number; count: number; bytes: number }>();
+let nextBatchId = 1;
+let postedCount = 0;
+let postedBytes = 0;
 
 function post(message: DesktopLoopbackWorkerServerMessage): void {
   self.postMessage(message);
@@ -37,14 +44,22 @@ function flushSlot(slot: ManagedSocketSlot): void {
   clearFlushTimer(slot);
   if (slot.closed || slot.rawQueue.length === 0) return;
   const rawBatch = slot.rawQueue;
+  const bytes = slot.queuedBytes;
   slot.rawQueue = [];
   slot.queuedBytes = 0;
   const frames = decodeAndCoalesceRawLoopbackBatch(rawBatch);
   if (frames.length === 0) return;
+  const batchId = nextBatchId++;
+  // Keep the raw footprint as a conservative bound even when coalescing
+  // reduces the posted graph; a no-op batch above retains no clone at all.
+  postedBatches.set(batchId, { socketId: slot.socketId, count: rawBatch.length, bytes });
+  postedCount += rawBatch.length;
+  postedBytes += bytes;
   post({
     v: DESKTOP_LOOPBACK_WORKER_PROTOCOL_VERSION,
     type: "frames",
     socketId: slot.socketId,
+    batchId,
     frames,
   });
 }
@@ -65,6 +80,15 @@ function teardownSlot(slot: ManagedSocketSlot): void {
 self.onmessage = (event: MessageEvent<DesktopLoopbackWorkerClientMessage>) => {
   const message = event.data;
   if (!message || message.v !== DESKTOP_LOOPBACK_WORKER_PROTOCOL_VERSION) return;
+
+  if (message.type === "ack") {
+    const batch = postedBatches.get(message.batchId);
+    if (!batch || batch.socketId !== message.socketId) return;
+    postedBatches.delete(message.batchId);
+    postedCount -= batch.count;
+    postedBytes -= batch.bytes;
+    return;
+  }
 
   if (message.type === "connect") {
     if (activeSlot) teardownSlot(activeSlot);
@@ -93,8 +117,8 @@ self.onmessage = (event: MessageEvent<DesktopLoopbackWorkerClientMessage>) => {
       const raw = String((wsEvent as MessageEvent).data);
       const bytes = raw.length * 2;
       if (
-        slot.rawQueue.length >= CLIENT_ENGINE_LANE_MAX_PENDING ||
-        slot.queuedBytes + bytes > CLIENT_ENGINE_LANE_MAX_BYTES
+        postedCount + slot.rawQueue.length >= CLIENT_ENGINE_LANE_MAX_PENDING ||
+        postedBytes + slot.queuedBytes + bytes > CLIENT_ENGINE_LANE_MAX_BYTES
       ) {
         teardownSlot(slot);
         post({

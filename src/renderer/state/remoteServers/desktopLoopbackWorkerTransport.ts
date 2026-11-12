@@ -7,7 +7,10 @@ import {
 } from "./desktopLoopbackWorkerProtocol";
 
 export interface WorkerDesktopLoopbackCallbacks {
-  readonly onDecodedBatch: (frames: readonly DesktopLoopbackFrame[]) => void;
+  readonly onDecodedBatch: (
+    frames: readonly DesktopLoopbackFrame[],
+    acknowledge: () => void,
+  ) => void;
   readonly onOverflow: () => void;
 }
 
@@ -29,7 +32,7 @@ export class WorkerDesktopLoopbackTransport {
   private activeCallbacks: {
     onopen: (() => void) | null;
     onclose: ((event?: { readonly code?: number; readonly reason?: string }) => void) | null;
-    onDecodedBatch: (frames: readonly DesktopLoopbackFrame[]) => void;
+    onDecodedBatch: WorkerDesktopLoopbackCallbacks["onDecodedBatch"];
     onOverflow: () => void;
   } | null = null;
   private retired = false;
@@ -116,7 +119,11 @@ export class WorkerDesktopLoopbackTransport {
   dispose(): void {
     this.activeSocketId = 0;
     this.activeCallbacks = null;
-    this.worker?.terminate();
+    if (this.worker) {
+      this.worker.onmessage = null;
+      this.worker.onerror = null;
+      this.worker.terminate();
+    }
     this.worker = null;
   }
 
@@ -127,16 +134,29 @@ export class WorkerDesktopLoopbackTransport {
         type: "module",
       });
       worker.onmessage = (event: MessageEvent<DesktopLoopbackWorkerServerMessage>) => {
+        if (this.worker !== worker) return;
         const msg = event.data;
         if (!msg || msg.v !== DESKTOP_LOOPBACK_WORKER_PROTOCOL_VERSION) return;
+        if (msg.type === "frames") {
+          let acknowledged = false;
+          const acknowledge = () => {
+            if (acknowledged || this.worker !== worker) return;
+            acknowledged = true;
+            this.post({
+              v: DESKTOP_LOOPBACK_WORKER_PROTOCOL_VERSION,
+              type: "ack",
+              socketId: msg.socketId,
+              batchId: msg.batchId,
+            });
+          };
+          if (msg.socketId !== this.activeSocketId || !this.activeCallbacks) acknowledge();
+          else this.activeCallbacks.onDecodedBatch(msg.frames, acknowledge);
+          return;
+        }
         if (msg.socketId !== this.activeSocketId || !this.activeCallbacks) return;
         const cb = this.activeCallbacks;
         if (msg.type === "open") {
           cb.onopen?.();
-          return;
-        }
-        if (msg.type === "frames") {
-          cb.onDecodedBatch(msg.frames);
           return;
         }
         if (msg.type === "overflow") {
@@ -155,6 +175,7 @@ export class WorkerDesktopLoopbackTransport {
         }
       };
       worker.onerror = () => {
+        if (this.worker !== worker) return;
         const cb = this.activeCallbacks;
         this.retired = true;
         this.dispose();

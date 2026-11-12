@@ -23,11 +23,6 @@ interface PendingRequest {
 const REQUEST_GRACE_MS = 5_000;
 
 /**
- * Returns `false` if any exclude pattern uses brace expansion or bash extglobs
- * (`{a,b}`, `!(foo)`, `+(bar)`, `\` escapes) that require `micromatch`. Standard
- * globs (`*`, `**`, `?`, `[abc]`, `[!abc]`) are handled natively in Rust.
- */
-/**
  * True when the native `poracode-git-helper` sidecar may execute real OS/Git
  * queries without bypassing an active unit-test mock on `execGit` or `execFile`.
  */
@@ -38,9 +33,14 @@ export function isNativeGitHelperActive(): boolean {
   return nativeGitHelperBinaryPath() !== undefined;
 }
 
+/**
+ * Returns `false` if any exclude pattern uses negation, brace expansion or bash extglobs
+ * (`{a,b}`, `!(foo)`, `+(bar)`, `\` escapes) that require `micromatch`. Standard
+ * globs (`*`, `**`, `?`, `[abc]`, `[!abc]`) are handled natively in Rust.
+ */
 export function areSearchExcludePatternsNativeCompatible(patterns: readonly string[]): boolean {
   for (const p of patterns) {
-    if (/[{}\\]|(?:!|\+|\*|@|\?)\(/u.test(p)) {
+    if (p.startsWith("!") || /[{}\\]|(?:!|\+|\*|@|\?)\(/u.test(p)) {
       return false;
     }
   }

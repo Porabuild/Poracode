@@ -64,6 +64,42 @@ describe("gitExecWorkerClient", () => {
     expect(diffCheck).toBe("");
   });
 
+  it("isolates synchronous spawn errors from concurrent results and timeouts", async () => {
+    setGitExecWorkerPathForTests(workerBundlePath);
+    const options = {
+      command: process.execPath,
+      cwd: process.cwd(),
+      env: process.env,
+      maxBuffer: 1024,
+    };
+    const completing = execGitOnWorkerThread({
+      ...options,
+      args: ["-e", "setTimeout(() => process.stdout.write('done'), 200)"],
+      timeout: 2_000,
+    });
+    const timingOut = execGitOnWorkerThread({
+      ...options,
+      args: ["-e", "setTimeout(() => {}, 2000)"],
+      timeout: 300,
+    });
+    const malformed = execGitOnWorkerThread({
+      ...options,
+      args: ["-e", "bad\0argument"],
+      timeout: 2_000,
+    });
+
+    await Promise.all([
+      expect(completing).resolves.toEqual({ stdout: "done", stderr: "" }),
+      expect(timingOut).rejects.toMatchObject({ killed: true }),
+      expect(malformed).rejects.toMatchObject({
+        name: "TypeError",
+        code: "ERR_INVALID_ARG_VALUE",
+        stdout: "",
+        stderr: "",
+      }),
+    ]);
+  });
+
   it("cancels an in-flight worker git command when its AbortSignal aborts", async () => {
     setGitExecWorkerPathForTests(workerBundlePath);
     const controller = new AbortController();

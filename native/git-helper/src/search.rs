@@ -11,6 +11,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use unicode_normalization::{UnicodeNormalization, char::is_combining_mark};
 
 const TREE_MAX_INDEX_SIZE: usize = 50_000;
 const TREE_CACHE_TTL: Duration = Duration::from_secs(10);
@@ -627,10 +628,6 @@ fn build_tree_from_walk(root_path: &str, ignore_set: &HashSet<String>) -> Vec<(S
             let Ok(ft) = item.file_type() else {
                 continue;
             };
-            // Never traverse symlinked directories or junctions out of the root.
-            if ft.is_symlink() {
-                continue;
-            }
             let rel_path = if rel_dir.is_empty() {
                 name.to_owned()
             } else {
@@ -857,97 +854,10 @@ pub fn fold_search_text(text: &str) -> String {
     if text.is_ascii() {
         return text.to_ascii_lowercase();
     }
-    let mut out = String::with_capacity(text.len());
-    for ch in text.chars() {
-        if is_combining_mark(ch) {
-            continue;
-        }
-        if let Some(base) = decompose_accented_base(ch) {
-            out.push_str(base);
-        } else {
-            for lower in ch.to_lowercase() {
-                if !is_combining_mark(lower) {
-                    out.push(lower);
-                }
-            }
-        }
-    }
-    out
-}
-
-fn is_combining_mark(ch: char) -> bool {
-    let u = ch as u32;
-    (0x0300..=0x036F).contains(&u)
-        || (0x0483..=0x0489).contains(&u)
-        || (0x0591..=0x05C7).contains(&u)
-        || (0x064B..=0x065F).contains(&u)
-        || (0x1AB0..=0x1AFF).contains(&u)
-        || (0x1DC0..=0x1DFF).contains(&u)
-        || (0x20D0..=0x20FF).contains(&u)
-        || (0xFE20..=0xFE2F).contains(&u)
-}
-
-/// Map precomposed Latin-1, Latin Extended-A/B, Latin Extended Additional
-/// (Vietnamese), Greek, and Cyrillic diacritic letters to their lowercase NFD
-/// base characters (after `\p{M}` removal).
-fn decompose_accented_base(ch: char) -> Option<&'static str> {
-    let lower = ch.to_lowercase().next().unwrap_or(ch);
-    match lower {
-        'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' | 'ā' | 'ă' | 'ą' | 'ǎ' | 'ȁ' | 'ȃ' | 'ȧ' | 'ạ' | 'ả'
-        | 'ấ' | 'ầ' | 'ẩ' | 'ẫ' | 'ậ' | 'ắ' | 'ằ' | 'ẳ' | 'ẵ' | 'ặ' => {
-            Some("a")
-        }
-        'ç' | 'ć' | 'ĉ' | 'ċ' | 'č' => Some("c"),
-        'ď' | 'ḍ' | 'ḏ' => Some("d"),
-        'è' | 'é' | 'ê' | 'ë' | 'ē' | 'ĕ' | 'ė' | 'ę' | 'ě' | 'ȅ' | 'ȇ' | 'ȩ' | 'ẹ' | 'ẻ' | 'ẽ'
-        | 'ế' | 'ề' | 'ể' | 'ễ' | 'ệ' => Some("e"),
-        'ĝ' | 'ğ' | 'ġ' | 'ģ' | 'ǧ' | 'ǵ' => Some("g"),
-        'ĥ' | 'ȟ' | 'ḥ' | 'ḧ' | 'ḩ' | 'ḫ' => Some("h"),
-        'ì' | 'í' | 'î' | 'ï' | 'ĩ' | 'ī' | 'ĭ' | 'į' | 'ǐ' | 'ȉ' | 'ȋ' | 'ỉ' | 'ị' => {
-            Some("i")
-        }
-        'ĵ' => Some("j"),
-        'ķ' | 'ǩ' | 'ḱ' | 'ḳ' | 'ḵ' => Some("k"),
-        'ĺ' | 'ļ' | 'ľ' | 'ḷ' | 'ḻ' => Some("l"),
-        'ñ' | 'ń' | 'ņ' | 'ň' | 'ǹ' | 'ṅ' | 'ṇ' | 'ṉ' => Some("n"),
-        'ò' | 'ó' | 'ô' | 'õ' | 'ö' | 'ō' | 'ŏ' | 'ő' | 'ơ' | 'ǒ' | 'ǫ' | 'ǭ' | 'ȍ' | 'ȏ' | 'ȫ'
-        | 'ȭ' | 'ȯ' | 'ȱ' | 'ọ' | 'ỏ' | 'ố' | 'ồ' | 'ổ' | 'ỗ' | 'ộ' | 'ớ' | 'ờ' | 'ở' | 'ỡ'
-        | 'ợ' => Some("o"),
-        'ŕ' | 'ŗ' | 'ř' | 'ȑ' | 'ȓ' | 'ṙ' | 'ṛ' => Some("r"),
-        'ś' | 'ŝ' | 'ş' | 'š' | 'ș' | 'ṡ' | 'ṣ' => Some("s"),
-        'ţ' | 'ť' | 'ț' | 'ṫ' | 'ṭ' | 'ṯ' => Some("t"),
-        'ù' | 'ú' | 'û' | 'ü' | 'ũ' | 'ū' | 'ŭ' | 'ů' | 'ű' | 'ų' | 'ư' | 'ǔ' | 'ǖ' | 'ǘ' | 'ǚ'
-        | 'ǜ' | 'ȕ' | 'ȗ' | 'ụ' | 'ủ' | 'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự' => Some("u"),
-        'ŵ' | 'ẁ' | 'ẃ' | 'ẅ' => Some("w"),
-        'ý' | 'ÿ' | 'ŷ' | 'ȳ' | 'ỳ' | 'ỵ' | 'ỷ' | 'ỹ' => Some("y"),
-        'ź' | 'ż' | 'ž' | 'ẑ' | 'ẓ' => Some("z"),
-        // Greek monotonic & polytonic NFD base letters
-        'ά' | 'ἀ' | 'ἁ' | 'ἂ' | 'ἃ' | 'ἄ' | 'ἅ' | 'ἆ' | 'ἇ' | 'ὰ' | 'ά' | 'ᾶ' => {
-            Some("α")
-        }
-        'έ' | 'ἐ' | 'ἑ' | 'ἒ' | 'ἓ' | 'ἔ' | 'ἕ' | 'ὲ' | 'έ' => Some("ε"),
-        'ή' | 'ἠ' | 'ἡ' | 'ἢ' | 'ἣ' | 'ἤ' | 'ἥ' | 'ἦ' | 'ἧ' | 'ὴ' | 'ή' | 'ῆ' => {
-            Some("η")
-        }
-        'ί' | 'ϊ' | 'ΐ' | 'ἰ' | 'ἱ' | 'ἲ' | 'ἳ' | 'ἴ' | 'ἵ' | 'ἶ' | 'ἷ' | 'ὶ' | 'ί' | 'ῖ' => {
-            Some("ι")
-        }
-        'ό' | 'ὀ' | 'ὁ' | 'ὂ' | 'ὃ' | 'ὄ' | 'ὅ' | 'ὸ' | 'ό' => Some("ο"),
-        'ύ' | 'ϋ' | 'ΰ' | 'ὐ' | 'ὑ' | 'ὒ' | 'ὓ' | 'ὔ' | 'ὕ' | 'ὖ' | 'ὗ' | 'ὺ' | 'ύ' | 'ῦ' => {
-            Some("υ")
-        }
-        'ώ' | 'ὠ' | 'ὡ' | 'ὢ' | 'ὣ' | 'ὤ' | 'ὥ' | 'ὦ' | 'ὧ' | 'ὼ' | 'ώ' | 'ῶ' => {
-            Some("ω")
-        }
-        // Cyrillic NFD decompositions (`ё` -> `е` + U+0308, `й` -> `и` + U+0306)
-        'ё' | 'ѐ' => Some("е"),
-        'й' | 'ѝ' => Some("и"),
-        'ї' => Some("і"),
-        'ѓ' => Some("г"),
-        'ќ' => Some("к"),
-        'ў' => Some("у"),
-        _ => None,
-    }
+    text.nfd()
+        .filter(|&ch| !is_combining_mark(ch))
+        .collect::<String>()
+        .to_lowercase()
 }
 
 /// Natural numeric + case-insensitive comparator matching
@@ -1157,6 +1067,21 @@ mod tests {
         assert_eq!(fold_search_text("Cafe\u{0301}.ts"), "cafe.ts");
         assert_eq!(fold_search_text("CommandPalette.tsx"), "commandpalette.tsx");
         assert_eq!(fold_search_text("über_señor.md"), "uber_senor.md");
+        assert_eq!(fold_search_text("ḃeta.ts"), "beta.ts");
+        assert_eq!(fold_search_text("가.ts"), "\u{1100}\u{1161}.ts");
+        assert_eq!(fold_search_text("a\u{0903}\u{20DD}"), "a");
+        assert_eq!(fold_search_text("אב־גד"), "אב־גד");
+        assert_eq!(fold_search_text("đelta.ts"), "đelta.ts");
+    }
+
+    #[test]
+    fn lowercases_the_whole_string_after_removing_marks() {
+        assert_eq!(fold_search_text("İstanbul.ts"), "istanbul.ts");
+        assert_eq!(fold_search_text("ΟΣ"), "ος");
+        assert_eq!(fold_search_text("ΟΣ.ts"), "οσ.ts");
+        assert_eq!(fold_search_text("ΟΣΑ.ts"), "οσα.ts");
+        assert_eq!(fold_search_text("ΟΣ-Α.ts"), "ος-α.ts");
+        assert_eq!(fold_search_text("AΣ\u{0345}"), "aς");
     }
 
     #[test]

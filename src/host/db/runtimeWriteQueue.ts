@@ -186,12 +186,7 @@ export class RuntimeWriteQueue {
   private pendingBytesValue = 0;
   private reservations: RuntimeAdmissionReservations | null = null;
   private readonly flushRecovery: RuntimeFlushRecovery = { retryIndividually: false };
-  private readonly asyncInFlightByThread = new Map<
-    string,
-    { readonly promise: Promise<void>; readonly eventCount: number; readonly inputBytes: number }
-  >();
-  private asyncInFlightEventsGlobal = 0;
-  private asyncInFlightBytesGlobal = 0;
+  private readonly asyncInFlightByThread = new Map<string, Promise<void>>();
 
   constructor(
     private readonly write: RuntimeWriteFlush,
@@ -240,15 +235,14 @@ export class RuntimeWriteQueue {
 
   /** Protect an exact future batch against every other queue admission. */
   reserveAdmission(threadId: string, cost: RuntimeAdmissionCost): RuntimeReservationResult {
-    const inFlight = this.asyncInFlightByThread.get(threadId);
     const result = (this.reservations ??= new RuntimeAdmissionReservations(this.bounds)).reserve({
       threadId,
       cost,
       generation: this.queueGeneration,
-      pendingEvents: Math.max(0, this.pendingEventsValue - this.asyncInFlightEventsGlobal),
-      pendingBytes: Math.max(0, this.pendingBytesValue - this.asyncInFlightBytesGlobal),
-      threadPendingEvents: Math.max(0, this.pendingEvents(threadId) - (inFlight?.eventCount ?? 0)),
-      threadPendingBytes: Math.max(0, this.pendingBytes(threadId) - (inFlight?.inputBytes ?? 0)),
+      pendingEvents: this.pendingEventsValue,
+      pendingBytes: this.pendingBytesValue,
+      threadPendingEvents: this.pendingEvents(threadId),
+      threadPendingBytes: this.pendingBytes(threadId),
     });
     if (result.kind === "granted") this.capacityChanged("reserved", threadId);
     return result;
@@ -341,28 +335,15 @@ export class RuntimeWriteQueue {
       // thread entry and the global totals.
       let entry = this.pending.get(threadId);
       const reservedThread = this.reservations?.forThread(threadId);
-      const inFlight = this.asyncInFlightByThread.get(threadId);
-      // Events already handed to `databaseWriteWorker` are draining right now:
-      // discount that single in-flight chunk from admission/relief bounds so a
-      // thread hitting its cap while its own worker write is in flight is not
-      // falsely refused/contaminated because synchronous relief skipped it!
-      const threadEvents = Math.max(0, (entry?.events.length ?? 0) - (inFlight?.eventCount ?? 0));
-      const threadBytes = Math.max(0, (entry?.estimatedBytes ?? 0) - (inFlight?.inputBytes ?? 0));
-      const effectivePendingBytesGlobal = Math.max(
-        0,
-        this.pendingBytesValue - this.asyncInFlightBytesGlobal,
-      );
-      const effectivePendingEventsGlobal = Math.max(
-        0,
-        this.pendingEventsValue - this.asyncInFlightEventsGlobal,
-      );
+      const threadEvents = entry?.events.length ?? 0;
+      const threadBytes = entry?.estimatedBytes ?? 0;
       const globalBytesLeft =
         this.bounds.maxPendingBytesGlobal -
-        effectivePendingBytesGlobal -
+        this.pendingBytesValue -
         (this.reservations?.bytes ?? 0);
       const globalEventsLeft =
         this.bounds.maxPendingEventsGlobal -
-        effectivePendingEventsGlobal -
+        this.pendingEventsValue -
         (this.reservations?.events ?? 0);
 
       // The explicit hard bound comes first: it is a property of the event
@@ -615,39 +596,18 @@ export class RuntimeWriteQueue {
     for (;;) {
       const promises =
         threadId !== undefined
-          ? [this.asyncInFlightByThread.get(threadId)?.promise].filter((p): p is Promise<void> =>
-              Boolean(p),
-            )
-          : [...this.asyncInFlightByThread.values()].map((slot) => slot.promise);
+          ? [this.asyncInFlightByThread.get(threadId)].filter((p): p is Promise<void> => Boolean(p))
+          : [...this.asyncInFlightByThread.values()];
       if (promises.length === 0) return;
       await Promise.all(promises);
     }
   }
 
-  private reserveThreadInFlight(
-    threadId: string,
-    promise: Promise<void>,
-    plan: { readonly eventCount: number; readonly inputBytes: number },
-  ): () => void {
-    const slot = {
-      promise,
-      eventCount: plan.eventCount,
-      inputBytes: plan.inputBytes,
-    };
-    this.asyncInFlightByThread.set(threadId, slot);
-    this.asyncInFlightEventsGlobal += slot.eventCount;
-    this.asyncInFlightBytesGlobal += slot.inputBytes;
+  private reserveThreadInFlight(threadId: string, promise: Promise<void>): () => void {
+    this.asyncInFlightByThread.set(threadId, promise);
     return () => {
-      if (this.asyncInFlightByThread.get(threadId) === slot) {
+      if (this.asyncInFlightByThread.get(threadId) === promise) {
         this.asyncInFlightByThread.delete(threadId);
-        this.asyncInFlightEventsGlobal = Math.max(
-          0,
-          this.asyncInFlightEventsGlobal - slot.eventCount,
-        );
-        this.asyncInFlightBytesGlobal = Math.max(
-          0,
-          this.asyncInFlightBytesGlobal - slot.inputBytes,
-        );
       }
     };
   }
@@ -682,8 +642,7 @@ export class RuntimeWriteQueue {
         atomicBatchWriterAsync: writers.atomicBatchWriterAsync,
         recovery: this.flushRecovery,
         isThreadInFlight: (threadId) => this.asyncInFlightByThread.has(threadId),
-        reserveThreadInFlight: (threadId, promise, plan) =>
-          this.reserveThreadInFlight(threadId, promise, plan),
+        reserveThreadInFlight: (threadId, promise) => this.reserveThreadInFlight(threadId, promise),
         isPlanCurrent: (plan) =>
           generation === this.queueGeneration &&
           this.pending.get(plan.threadId) === plan.entry &&
@@ -701,7 +660,9 @@ export class RuntimeWriteQueue {
     writeAsync: RuntimeAsyncWriteFlush,
     chunk: RuntimeFlushChunkBounds = DEFAULT_RUNTIME_FLUSH_CHUNK,
   ): Promise<RuntimeFlushOutcome> {
-    await this.waitForAsyncWriteInFlight(threadId);
+    while (this.hasAsyncWriteInFlight(threadId)) {
+      await this.waitForAsyncWriteInFlight(threadId);
+    }
     const generation = this.queueGeneration;
     const through = Math.min(throughSeq, this.pins.get(threadId) ?? Number.MAX_SAFE_INTEGER);
     const settled = Promise.withResolvers<void>();
@@ -710,7 +671,7 @@ export class RuntimeWriteQueue {
     try {
       plan = planRuntimeFlush(threadId, this.pending.get(threadId), through, chunk);
       if (plan) {
-        release = this.reserveThreadInFlight(threadId, settled.promise, plan);
+        release = this.reserveThreadInFlight(threadId, settled.promise);
         await writeAsync(threadId, plan.events);
       }
     } catch (error) {
@@ -906,8 +867,6 @@ export class RuntimeWriteQueue {
     this.committedByThread.clear();
     this.pins.clear();
     this.asyncInFlightByThread.clear();
-    this.asyncInFlightEventsGlobal = 0;
-    this.asyncInFlightBytesGlobal = 0;
     this.oversizeEvents = 0;
     this.oversizeBytes = 0;
     this.pendingEventsValue = 0;

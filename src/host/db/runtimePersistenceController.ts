@@ -270,7 +270,9 @@ export class RuntimePersistenceController {
         flushChunkAsync: async (threadId, through) => {
           const asyncWriters = this.options.resolveAsyncWriters?.();
           if (!asyncWriters) {
-            await this.queue.waitForAsyncWriteInFlight(threadId);
+            while (this.queue.hasAsyncWriteInFlight(threadId)) {
+              await this.queue.waitForAsyncWriteInFlight(threadId);
+            }
             return this.queue.flushThreadThrough(threadId, through, this.options.fenceFlushChunk);
           }
           this.asyncChunkThreadsInFlight.add(threadId);
@@ -878,31 +880,31 @@ export class RuntimePersistenceController {
     if (contamination && kind === "truncate") {
       throw contaminationError(threadId, contamination, this.health.currentRetryDelayMs("storage"));
     }
-    if (kind === "acknowledge") {
-      // The acknowledgement owns its own supersede on `applied` only (inside
-      // the synchronous callback, before this returns): the accepted prefix is
-      // never committed and never discarded unless the durable transaction
-      // applied. Committing it first would make the counted loss untruthful.
-      return requireSynchronousMutationResult(operation());
+    if (kind === "truncate" || ((kind === "reset" || kind === "replace") && !contamination)) {
+      await this.fenceControl.flushPrefix(threadId);
     }
-    if (kind === "delete") {
+    // Join already-posted writes before the synchronous mutation. In particular,
+    // acknowledgement counts/discards only the uncommitted remainder; it must
+    // not flush that remainder before its durable transaction applies.
+    while (this.queue.hasAsyncWriteInFlight(threadId)) {
       await this.queue.waitForAsyncWriteInFlight(threadId);
-      const value = requireSynchronousMutationResult(operation());
-      this.supersedePendingPrefix(threadId);
-      return value;
     }
-    if (kind === "reset" || kind === "replace") {
-      if (!contamination) await this.fenceControl.flushPrefix(threadId);
-      else await this.queue.waitForAsyncWriteInFlight(threadId);
-      const value = requireSynchronousMutationResult(operation());
-      this.supersedePendingPrefix(threadId);
-      return value;
+    if (kind === "truncate") {
+      const currentContamination = this.admission.getContamination(threadId);
+      if (currentContamination) {
+        throw contaminationError(
+          threadId,
+          currentContamination,
+          this.health.currentRetryDelayMs("storage"),
+        );
+      }
     }
-    // truncate on a clean thread: commit the accepted prefix, then apply.
-    await this.fenceControl.flushPrefix(threadId);
-    await this.queue.waitForAsyncWriteInFlight(threadId);
     const value = requireSynchronousMutationResult(operation());
-    this.options.onAuthoritativeHistoryChanged?.(threadId);
+    if (kind === "delete" || kind === "reset" || kind === "replace") {
+      this.supersedePendingPrefix(threadId);
+    } else if (kind === "truncate") {
+      this.options.onAuthoritativeHistoryChanged?.(threadId);
+    }
     return value;
   }
 

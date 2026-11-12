@@ -143,6 +143,19 @@ parentPort?.on("message", (message: GitExecWorkerInbound) => {
     return;
   }
   if (message.kind === "exec") {
-    handleExec(message);
+    try {
+      handleExec(message);
+    } catch (error) {
+      const execError = error as Error & { code?: string };
+      post({
+        id: message.id,
+        ok: false,
+        message: execError.message,
+        name: execError.name,
+        ...(execError.code !== undefined ? { code: execError.code } : {}),
+        stdout: "",
+        stderr: "",
+      });
+    }
   }
 });

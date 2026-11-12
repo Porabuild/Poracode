@@ -18,6 +18,11 @@ import { addRuntimeItemCommitListener } from "./runtimeItemCommitListeners";
 import { dbReadThreadRuntimeItems } from "./runtimeItems";
 import { testThread } from "./runtimeItems.testFixtures";
 import { readRuntimePayloadOrigin } from "./runtimePayloadOrigins";
+import { RuntimePersistenceController } from "./runtimePersistenceController";
+import { applyThreadRuntimeEventsNow } from "./runtimeItemsWriter";
+import { RuntimeWriteQueue } from "./runtimeWriteQueue";
+import type { RuntimeEvent } from "@/shared/contracts";
+import { estimateRuntimeEventBytes } from "@/shared/runtimeEventSize";
 import {
   applyAdmittedRuntimePayloadBatch,
   applyRuntimeEvents,
@@ -268,7 +273,6 @@ describe("AsyncDatabaseWrites worker offload", () => {
   });
 
   it("holds per-thread in-flight reservations across rolled-back batch fallbacks so fences never double-write", async () => {
-    const { RuntimeWriteQueue } = await import("./runtimeWriteQueue");
     const singleWrites: Array<{ threadId: string; delta: string }> = [];
     const queue = new RuntimeWriteQueue(() => {});
 
@@ -325,57 +329,245 @@ describe("AsyncDatabaseWrites worker offload", () => {
     ]);
   });
 
-  it("discounts an in-flight worker chunk from per-thread admission bounds so bursts are not refused", async () => {
-    const { RuntimeWriteQueue } = await import("./runtimeWriteQueue");
-    const gate = Promise.withResolvers<void>();
+  it.each([{ maxPendingEventsPerThread: 3 }, { maxPendingEventsGlobal: 3 }])(
+    "keeps in-flight occupancy charged until COMMIT with bounds %j",
+    async (bounds) => {
+      const gate = Promise.withResolvers<void>();
+      const queue = new RuntimeWriteQueue(() => {}, bounds);
+
+      expect(
+        queue.enqueue("t1", [
+          {
+            type: "content.delta",
+            threadId: "t1",
+            itemId: "i1",
+            stream: "assistant_text",
+            delta: "1",
+          },
+          {
+            type: "content.delta",
+            threadId: "t1",
+            itemId: "i1",
+            stream: "assistant_text",
+            delta: "2",
+          },
+          {
+            type: "content.delta",
+            threadId: "t1",
+            itemId: "i1",
+            stream: "assistant_text",
+            delta: "3",
+          },
+        ]).kind,
+      ).toBe("accepted");
+
+      const flushPromise = queue.flushBudgetedAsync(
+        { maxThreads: 4, maxBytes: 1024 * 1024, maxMs: 50 },
+        {
+          atomicBatchWriterAsync: async () => ({ kind: "committed" }),
+          writeAsync: () => gate.promise,
+        },
+      );
+
+      expect(
+        queue.reserveAdmission("t1", { eventCount: 2, eventBytes: 2, maxEventBytes: 1 }).kind,
+      ).toBe("blocked");
+      const burst = queue.enqueue("t1", [
+        {
+          type: "content.delta",
+          threadId: "t1",
+          itemId: "i1",
+          stream: "assistant_text",
+          delta: "4",
+        },
+        {
+          type: "content.delta",
+          threadId: "t1",
+          itemId: "i1",
+          stream: "assistant_text",
+          delta: "5",
+        },
+      ]);
+      expect(burst.kind).toBe("refused");
+      expect(burst.refusedEvents).toBe(2);
+
+      gate.reject(Object.assign(new Error("busy"), { code: "SQLITE_BUSY" }));
+      expect((await flushPromise).failure).not.toBeNull();
+      expect(queue.pendingEvents("t1")).toBe(3);
+      queue.flushThreadThrough("t1", Number.MAX_SAFE_INTEGER);
+      expect(
+        queue.reserveAdmission("t1", { eventCount: 2, eventBytes: 2, maxEventBytes: 1 }).kind,
+      ).toBe("granted");
+    },
+  );
+
+  it("preserves an already-granted lease through worker rollback and competing admission", async () => {
+    const event: RuntimeEvent = {
+      type: "content.delta",
+      threadId: "t1",
+      itemId: "i1",
+      stream: "assistant_text",
+      delta: "x",
+    };
     const queue = new RuntimeWriteQueue(() => {}, { maxPendingEventsPerThread: 3 });
-
-    expect(
-      queue.enqueue("t1", [
-        {
-          type: "content.delta",
-          threadId: "t1",
-          itemId: "i1",
-          stream: "assistant_text",
-          delta: "1",
-        },
-        {
-          type: "content.delta",
-          threadId: "t1",
-          itemId: "i1",
-          stream: "assistant_text",
-          delta: "2",
-        },
-        {
-          type: "content.delta",
-          threadId: "t1",
-          itemId: "i1",
-          stream: "assistant_text",
-          delta: "3",
-        },
-      ]).kind,
-    ).toBe("accepted");
-
-    // Start flushing all 3 events on the async worker and hold the worker mid-write:
-    const flushPromise = queue.flushBudgetedAsync(
+    queue.enqueue("t1", [event]);
+    const bytes = estimateRuntimeEventBytes(event);
+    const grant = queue.reserveAdmission("t1", {
+      eventCount: 2,
+      eventBytes: bytes * 2,
+      maxEventBytes: bytes,
+    });
+    if (grant.kind !== "granted") throw new Error("expected grant");
+    const gate = Promise.withResolvers<void>();
+    const flush = queue.flushBudgetedAsync(
       { maxThreads: 4, maxBytes: 1024 * 1024, maxMs: 50 },
       {
-        atomicBatchWriterAsync: async () => ({ kind: "committed" }),
         writeAsync: () => gate.promise,
+        atomicBatchWriterAsync: async () => ({ kind: "committed" }),
       },
     );
+    expect(queue.enqueue("t1", [event]).kind).toBe("refused");
+    gate.reject(Object.assign(new Error("busy"), { code: "SQLITE_BUSY" }));
+    expect((await flush).failure).not.toBeNull();
+    expect(queue.enqueueReserved("t1", grant.reservation.id, [event, event])).toMatchObject({
+      kind: "accepted",
+      acceptedEvents: 2,
+      refusedEvents: 0,
+    });
+    expect(queue.pendingEvents("t1")).toBe(3);
+  });
 
-    // Admitting 2 more events while those 3 are in-flight on the worker must succeed
-    // (effective un-draining backlog is 0 + 2 <= 3) rather than refusing and contaminating!
-    const burst = queue.enqueue("t1", [
-      { type: "content.delta", threadId: "t1", itemId: "i1", stream: "assistant_text", delta: "4" },
-      { type: "content.delta", threadId: "t1", itemId: "i1", stream: "assistant_text", delta: "5" },
-    ]);
-    expect(burst.kind).toBe("accepted");
-    expect(burst.refusedEvents).toBe(0);
+  it("serializes prefix and read-fence waiters resuming behind the same worker chunk", async () => {
+    const first = Promise.withResolvers<void>();
+    const tail = Promise.withResolvers<void>();
+    const writes: string[] = [];
+    const controller = new RuntimePersistenceController({
+      write: () => {},
+      flushIntervalMs: 60_000,
+      resolveAsyncWriters: () => ({
+        atomicBatchWriterAsync: async () => ({ kind: "committed" }),
+        writeAsync: async (_id, events) => {
+          writes.push(
+            events.map((event) => (event.type === "content.delta" ? event.delta : "")).join(""),
+          );
+          await (writes.length === 1 ? first.promise : tail.promise);
+        },
+      }),
+    });
+    const event = (delta: string): RuntimeEvent => ({
+      type: "content.delta",
+      threadId: "t1",
+      itemId: "i1",
+      stream: "assistant_text",
+      delta,
+    });
+    try {
+      controller.admit("t1", [event("FIRST")]);
+      const initial = controller.commitThreadPrefixAsync("t1");
+      controller.admit("t1", [event("TAIL")]);
+      const prefix = controller.commitThreadPrefixAsync("t1");
+      const fence = controller.beginFence("t1");
+      const reading = controller.flushFence(fence);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      first.resolve();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(writes).toEqual(["FIRST", "TAIL"]);
+      tail.resolve();
+      const results = await Promise.all([initial, prefix, reading]);
+      controller.releaseFence(fence);
+      expect(results[2]).toMatchObject({ kind: "committed" });
+      expect(writes).toEqual(["FIRST", "TAIL"]);
+      expect(controller.pendingStats().events).toBe(0);
+    } finally {
+      first.resolve();
+      tail.resolve();
+      controller.stopTimers();
+    }
+  });
 
-    gate.resolve();
-    await flushPromise;
-    expect(queue.pendingEvents("t1")).toBe(2);
+  it("joins worker custody before acknowledging a gap and discards only the unposted remainder", async () => {
+    const gate = Promise.withResolvers<void>();
+    const controller = new RuntimePersistenceController({
+      write: applyThreadRuntimeEventsNow,
+      flushIntervalMs: 60_000,
+      bounds: { maxSingleEventBytes: 512 },
+      resolveAsyncWriters: () => ({
+        atomicBatchWriterAsync: async () => ({ kind: "committed" }),
+        writeAsync: async (id, events) => {
+          await gate.promise;
+          applyThreadRuntimeEventsNow(id, events);
+        },
+      }),
+    });
+    controller.attachDurableGapForConnection(getSqlite());
+    const delta = (text: string): RuntimeEvent => ({
+      type: "content.delta",
+      threadId: "thread-1",
+      itemId: "ack-item",
+      stream: "assistant_text",
+      delta: text,
+    });
+    try {
+      controller.admit("thread-1", [
+        {
+          type: "item.started",
+          threadId: "thread-1",
+          itemId: "ack-item",
+          itemType: "assistant_message",
+        },
+        delta("COMMITTED"),
+      ]);
+      const writing = controller.commitThreadPrefixAsync("thread-1");
+      controller.admit("thread-1", [delta("DISCARDED")]);
+      expect(controller.admit("thread-1", [delta("x".repeat(1024))]).kind).toBe("refused");
+      const descriptor = controller.getThreadRuntimeGapDescriptor("thread-1");
+      if (!descriptor) throw new Error("expected gap");
+      const settled = vi.fn<() => void>();
+      const acknowledging = controller.acknowledgeThreadRuntimeGap("thread-1", descriptor.token);
+      void acknowledging.then(settled);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(settled).not.toHaveBeenCalled();
+      gate.resolve();
+      const [result] = await Promise.all([acknowledging, writing]);
+      expect(result).toMatchObject({ outcome: "applied", supersededAcceptedEvents: 1 });
+      expect(dbReadThreadRuntimeItems("thread-1")[0]?.streams.assistant_text).toBe("COMMITTED");
+      expect(controller.pendingStats().events).toBe(0);
+    } finally {
+      gate.resolve();
+      controller.stopTimers();
+    }
+  });
+
+  it("revalidates truncate contamination after joining a worker write", async () => {
+    const gate = Promise.withResolvers<void>();
+    const truncate = vi.fn<() => void>();
+    const controller = new RuntimePersistenceController({
+      write: () => {},
+      flushIntervalMs: 60_000,
+      bounds: { maxSingleEventBytes: 512 },
+      resolveAsyncWriters: () => ({
+        atomicBatchWriterAsync: async () => ({ kind: "committed" }),
+        writeAsync: () => gate.promise,
+      }),
+    });
+    const event = (delta: string): RuntimeEvent => ({
+      type: "content.delta",
+      threadId: "t1",
+      itemId: "i1",
+      stream: "assistant_text",
+      delta,
+    });
+    try {
+      controller.admit("t1", [event("posted")]);
+      const truncating = controller.runThreadMutation("t1", "truncate", truncate);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(controller.admit("t1", [event("x".repeat(1024))]).kind).toBe("refused");
+      gate.resolve();
+      await expect(truncating).rejects.toMatchObject({ reason: "oversize" });
+      expect(truncate).not.toHaveBeenCalled();
+    } finally {
+      gate.resolve();
+      controller.stopTimers();
+    }
   });
 });
