@@ -32,7 +32,7 @@ import {
   readRecentHistory,
 } from "@/renderer/browser/recentHistoryCache";
 import { currentRemoteServerGeneration } from "@/renderer/state/remoteServers/eventSocketRegistry";
-import type { HistoryRuntimeItem } from "@/shared/remote/historyPresentation";
+import type { CachedThreadHistory } from "@/shared/remote/historyReadSchemas";
 import {
   __resetTokenVaultForTest,
   getDesktopToken,
@@ -592,14 +592,21 @@ describe("connection incarnation across store re-pair and removal", () => {
 });
 
 describe("recent history tails across removal and re-pair", () => {
-  const tail: HistoryRuntimeItem[] = [
-    {
-      id: "reply",
-      type: "assistant_message",
-      state: "completed",
-      streams: { assistant_text: "Cached tail" },
-    },
-  ];
+  const tail: CachedThreadHistory = {
+    revision: "hc1.fixture",
+    runtimeNextCursor: null,
+    completedTurns: [],
+    completedTurnsNextCursor: null,
+    contextUsage: null,
+    runtimeItems: [
+      {
+        id: "reply",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Cached tail" },
+      },
+    ],
+  };
   const parentAuthority = pairedRecentHistoryAuthority(PARENT_KEY, "old-pair", PARENT_KEY);
   const childAuthority = pairedRecentHistoryAuthority(CHILD_KEY, "old-pair", "child-desktop");
   const otherAuthority = pairedRecentHistoryAuthority(

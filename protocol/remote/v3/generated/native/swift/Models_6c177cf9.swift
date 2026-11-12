@@ -1,20 +1,20 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public enum RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d: Codable, Sendable {
-  case option1(RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_83daa5e81e)
+public enum RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00: Codable, Sendable {
+  case option1(RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_d5e402f736)
   case option2(RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_c5dd902378)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d)] = []
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("snapshot")]), let value = try? container.decode(RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_83daa5e81e.self) {
+    var matches: [(Int, RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00)] = []
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("snapshot")]), let value = try? container.decode(RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_d5e402f736.self) {
       matches.append((1, .option1(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("events")]), let value = try? container.decode(RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_c5dd902378.self) {
       matches.append((2, .option2(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d" : "Ambiguous union RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00" : "Ambiguous union RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }

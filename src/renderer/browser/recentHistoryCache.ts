@@ -1,24 +1,27 @@
 import { z } from "zod";
 import {
-  historyRuntimeItemSchema,
-  type HistoryRuntimeItem,
-} from "@/shared/remote/historyPresentation";
+  cachedThreadHistorySchema,
+  type CachedThreadHistory,
+} from "@/shared/remote/historyReadSchemas";
 import { HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES } from "@/shared/remote/historyReadContract";
 
-/** A separate v1 derived cache: never imports expanded/offline history records. */
+/** v2 records invalidate unverified v1 tails; old readers reject v2 as a miss. */
 const DATABASE = "poracode-recent-history-v1";
 const STORE = "tails";
 /** Follows the host's tail budget; an older build reads a larger record as a miss. */
 export const RECENT_HISTORY_MAX_BYTES = HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES;
 const MAX_TOTAL_BYTES = 8 * RECENT_HISTORY_MAX_BYTES;
 const MAX_ENTRIES = 20;
+const MAX_ITEMS = 500;
 const recordSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   key: z.string(),
   threadId: z.string(),
   updatedAt: z.number().finite(),
   bytes: z.number().int().nonnegative(),
-  items: z.array(historyRuntimeItemSchema).max(500),
+  history: cachedThreadHistorySchema.extend({
+    runtimeItems: cachedThreadHistorySchema.shape.runtimeItems.max(MAX_ITEMS),
+  }),
 });
 let opening: Promise<IDBDatabase> | undefined;
 
@@ -72,7 +75,7 @@ function pairedAuthorityPrefix(connectionKey: string): string {
  * The cache authority of one paired authorization: its local connection key,
  * the per-pairing `recentHistoryCacheId` (minted fresh for every pairing, so a
  * tail whose cleanup failed is unreachable from a newer grant) and the host
- * identity verified at connect. Never a credential. Same v1 record shape.
+ * identity verified at connect. Never a credential.
  */
 export function pairedRecentHistoryAuthority(
   connectionKey: string,
@@ -103,11 +106,11 @@ export async function purgeRecentHistoryForConnection(connectionKey: string): Pr
   }
 }
 
-/** Cache I/O runs alongside HTTP; it never gates a host read or installs a cursor. */
+/** Reading a candidate grants no display authority; the owning host must validate it. */
 export async function readRecentHistory(
   authority: string,
   threadId: string,
-): Promise<HistoryRuntimeItem[] | null> {
+): Promise<CachedThreadHistory | null> {
   if (typeof indexedDB === "undefined") return null;
   try {
     const db = await database();
@@ -126,10 +129,10 @@ export async function readRecentHistory(
             parsed.data.key !== recentHistoryCacheKey(authority, threadId)
           )
             return resolve(null);
-          const bytes = new TextEncoder().encode(JSON.stringify(parsed.data.items)).byteLength;
+          const bytes = new TextEncoder().encode(JSON.stringify(parsed.data.history)).byteLength;
           resolve(
             bytes <= RECENT_HISTORY_MAX_BYTES && bytes === parsed.data.bytes
-              ? parsed.data.items
+              ? parsed.data.history
               : null,
           );
         } catch {
@@ -146,15 +149,15 @@ export async function readRecentHistory(
 export async function cacheRecentHistory(
   authority: string,
   threadId: string,
-  items: readonly HistoryRuntimeItem[],
+  history: CachedThreadHistory,
   isCurrent: () => boolean,
 ): Promise<void> {
   if (typeof indexedDB === "undefined" || !isCurrent()) return;
   try {
     const bytes =
-      items.length > 500
+      history.runtimeItems.length > MAX_ITEMS
         ? RECENT_HISTORY_MAX_BYTES + 1
-        : new TextEncoder().encode(JSON.stringify(items)).byteLength;
+        : new TextEncoder().encode(JSON.stringify(history)).byteLength;
     const key = recentHistoryCacheKey(authority, threadId);
     const db = await database();
     if (!isCurrent()) return;
@@ -162,7 +165,7 @@ export async function cacheRecentHistory(
       const transaction = db.transaction(STORE, "readwrite");
       const store = transaction.objectStore(STORE);
       if (bytes > RECENT_HISTORY_MAX_BYTES) store.delete(key);
-      else store.put({ version: 1, key, threadId, items, bytes, updatedAt: Date.now() });
+      else store.put({ version: 2, key, threadId, history, bytes, updatedAt: Date.now() });
       let retainedBytes = bytes <= RECENT_HISTORY_MAX_BYTES ? bytes : 0;
       let retainedCount = bytes <= RECENT_HISTORY_MAX_BYTES ? 1 : 0;
       const request = store.index("updatedAt").openCursor(null, "prev");

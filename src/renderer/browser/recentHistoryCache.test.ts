@@ -1,7 +1,7 @@
 import "fake-indexeddb/auto";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
-  cacheRecentHistory,
+  cacheRecentHistory as writeCache,
   readRecentHistory,
   pairedRecentHistoryAuthority,
   purgeRecentHistoryForConnection,
@@ -20,6 +20,24 @@ const items: HistoryRuntimeItem[] = [
     streams: { assistant_text: "Cached tail" },
   },
 ];
+function history(runtimeItems: HistoryRuntimeItem[]) {
+  return {
+    revision: "hc1.fixture",
+    runtimeItems,
+    runtimeNextCursor: null,
+    completedTurns: [],
+    completedTurnsNextCursor: null,
+    contextUsage: null,
+  };
+}
+function cacheRecentHistory(
+  authority: string,
+  threadId: string,
+  runtimeItems: HistoryRuntimeItem[],
+  isCurrent: () => boolean,
+) {
+  return writeCache(authority, threadId, history(runtimeItems), isCurrent);
+}
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength;
 
 async function rawRecords(write?: unknown): Promise<unknown[]> {
@@ -58,26 +76,27 @@ afterEach(async () => {
 it("survives a connection restart and binds rows to the verified host and thread", async () => {
   await cacheRecentHistory("host-a", "thread", items, () => true);
   await __closeRecentHistoryCacheForTest();
-  expect(await readRecentHistory("host-a", "thread")).toEqual(items);
+  expect(await readRecentHistory("host-a", "thread")).toEqual(history(items));
   expect(await readRecentHistory("host-b", "thread")).toBeNull();
   expect(await readRecentHistory("host-a", "other")).toBeNull();
 });
 
 it.each([
   { version: 0 },
-  { version: 2 },
+  { version: 1 },
+  { version: 3 },
   { threadId: "wrong" },
   { bytes: 0 },
-  { items: [{ id: "invalid" }] },
+  { history: { runtimeItems: [{ id: "invalid" }] } },
 ])("ignores pre-upgrade or invalid derived records: %j", async (patch) => {
   await cacheRecentHistory("host", "thread", items, () => true);
   await rawRecords({
-    version: 1,
+    version: 2,
     key: recentHistoryCacheKey("host", "thread"),
     threadId: "thread",
     updatedAt: 1,
-    bytes: bytes(items),
-    items,
+    bytes: bytes(history(items)),
+    history: history(items),
     ...patch,
   });
   expect(await readRecentHistory("host", "thread")).toBeNull();
@@ -102,7 +121,7 @@ it("removes an old tail when the new initial response exceeds the entry or byte 
   expect(await readRecentHistory("host", "thread")).toBeNull();
 });
 
-it("reads a tail record written under the former 1 MiB cap", async () => {
+it("rejects the previous released unverified v1 tail, including records below the old byte cap", async () => {
   const written = [{ ...items[0]!, streams: { assistant_text: "x".repeat(900_000) } }];
   await cacheRecentHistory("host", "seed", items, () => true);
   await rawRecords({
@@ -113,13 +132,29 @@ it("reads a tail record written under the former 1 MiB cap", async () => {
     bytes: bytes(written),
     items: written,
   });
-  expect(await readRecentHistory("host", "old")).toEqual(written);
+  expect(await readRecentHistory("host", "old")).toBeNull();
 });
 
 it("keeps an initial tail above the former 1 MiB cap", async () => {
   const large = [{ ...items[0]!, streams: { assistant_text: "x".repeat(1_500_000) } }];
   await cacheRecentHistory("host", "thread", large, () => true);
-  expect(await readRecentHistory("host", "thread")).toEqual(large);
+  expect(await readRecentHistory("host", "thread")).toEqual(history(large));
+});
+
+it("rejects an oversized item count even when the stored byte count is valid", async () => {
+  await cacheRecentHistory("host", "thread", items, () => true);
+  const oversized = history(
+    Array.from({ length: 501 }, (_, i) => ({ ...items[0]!, id: String(i) })),
+  );
+  await rawRecords({
+    version: 2,
+    key: recentHistoryCacheKey("host", "thread"),
+    threadId: "thread",
+    updatedAt: 1,
+    bytes: bytes(oversized),
+    history: oversized,
+  });
+  expect(await readRecentHistory("host", "thread")).toBeNull();
 });
 
 it("keeps twenty equal-time records without double-charging the current index entry", async () => {
@@ -128,7 +163,7 @@ it("keeps twenty equal-time records without double-charging the current index en
   expect(await rawRecords()).toHaveLength(20);
   await cacheRecentHistory("host", "newest", items, () => true);
   expect(await rawRecords()).toHaveLength(20);
-  expect(await readRecentHistory("host", "newest")).toEqual(items);
+  expect(await readRecentHistory("host", "newest")).toEqual(history(items));
 });
 
 it("prunes aggregate bytes while retaining the newly accepted tail", async () => {
@@ -141,7 +176,7 @@ it("prunes aggregate bytes while retaining the newly accepted tail", async () =>
   expect(rows.reduce((sum, row) => sum + row.bytes, 0)).toBeLessThanOrEqual(
     8 * RECENT_HISTORY_MAX_BYTES,
   );
-  expect(await readRecentHistory("host", "9")).toEqual(large);
+  expect(await readRecentHistory("host", "9")).toEqual(history(large));
 });
 
 it("does not admit a retired owner's write", async () => {
@@ -165,7 +200,7 @@ it("purges only the named paired connection, leaving other connections and manag
   expect(await readRecentHistory(mine, "thread")).toBeNull();
   expect(await readRecentHistory(nextPairing, "thread")).toBeNull();
   for (const kept of [longer, other, "managed:desktop"])
-    expect(await readRecentHistory(kept, "thread")).toEqual(items);
+    expect(await readRecentHistory(kept, "thread")).toEqual(history(items));
 });
 
 it("separates paired authorities by connection, pairing and verified host, never from a managed one", () => {
@@ -193,10 +228,10 @@ it("never reads a tail written under an earlier pairing's authority or the pre-i
   expect(
     await readRecentHistory(pairedRecentHistoryAuthority("conn", "new", "desktop"), "thread"),
   ).toBeNull();
-  // The record shape is the unchanged v1 one.
+  // Authority isolation is independent of the versioned payload.
   expect(await rawRecords()).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ version: 1, key: recentHistoryCacheKey(preId, "thread") }),
+      expect.objectContaining({ version: 2, key: recentHistoryCacheKey(preId, "thread") }),
     ]),
   );
 });

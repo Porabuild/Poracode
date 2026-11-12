@@ -23,6 +23,10 @@ import {
 } from "./runtimeInlineImagesSchema";
 import { writeLegacyMigrationItemStreams } from "./runtimeStreamLegacyMigration";
 import { migrateTerminalScrollbackChunks } from "./terminalScrollbackSchema";
+import {
+  assertHistoryCacheRevisionSchema,
+  createHistoryCacheRevisionSchema,
+} from "./historyCacheRevision";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -1113,6 +1117,14 @@ export const DATABASE_MIGRATIONS = [
       backfillRuntimeInlineImages(sqlite);
     },
   },
+  {
+    version: 73,
+    name: "durable thread history cache revisions",
+    // Additive transactional invalidation; old history is retained and receives
+    // a fresh incarnation. Pre-revision client caches cannot prove freshness.
+    rollback: "rollback-compatible",
+    migrate: createHistoryCacheRevisionSchema,
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 // Worktree link reconciliation refreshes existing path/branch columns from Git;
@@ -1371,6 +1383,7 @@ const REQUIRED_COLUMNS = {
     "last_turn_ended_at",
     "interrupted_turn",
   ],
+  thread_history_revisions: ["thread_id", "incarnation", "revision"],
   thread_runtime_items: [
     "thread_id",
     "item_id",
@@ -1533,4 +1546,5 @@ export function assertRequiredDatabaseSchema(sqlite: SqliteDatabase): void {
   assertRuntimePayloadOriginSchema(sqlite);
   assertRuntimeInlineImageSchema(sqlite);
   assertThreadWorkspaceGrantsSchema(sqlite);
+  assertHistoryCacheRevisionSchema(sqlite);
 }

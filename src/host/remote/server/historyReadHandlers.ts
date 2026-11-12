@@ -111,10 +111,22 @@ export async function handleBoundedThreadHistory(call: HttpRouteCall): Promise<v
   const targetTimelineEntryCount = parseTargetTimelineEntryCount(
     url.searchParams.get("targetTimelineEntryCount"),
   );
+  const historyCache = url.searchParams.get("historyCache");
+  const historyRevision = url.searchParams.get("historyRevision");
+  if (
+    (historyCache !== null && historyCache !== "v1") ||
+    (historyRevision !== null &&
+      (historyCache !== "v1" || historyRevision.length === 0 || historyRevision.length > 160))
+  ) {
+    throw new RemoteHttpError("invalid_reads_request", "Invalid history cache declaration.", 400);
+  }
   await writeBoundedHistoryResponse(call, () =>
     buildBoundedThreadSnapshot(ctx, threadId, negotiation, {
       ...(omitScrollback ? { omitScrollback } : {}),
       ...(targetTimelineEntryCount !== undefined ? { targetTimelineEntryCount } : {}),
+      ...(historyCache === "v1"
+        ? { historyCache: { ...(historyRevision !== null ? { revision: historyRevision } : {}) } }
+        : {}),
     }),
   );
 }

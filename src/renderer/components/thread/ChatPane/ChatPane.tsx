@@ -155,9 +155,16 @@ export function ChatPane(props: ChatPaneProps) {
   const scrollControlsRef = useRef<ChatScrollControlsHandle>(null);
   const [readerFollow] = useState(createChatReaderFollowSignal);
   const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
-  const timelineEntries = useAppStore(
+  const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
+  const storedTimelineEntries = useAppStore(
     useShallow((s) => selectVisibleThreadTimelineEntries(s, threadId, hiddenRuntimeItemId)),
   );
+  // A reopened resident window may have missed events. Keep its first rows
+  // out of layout until validation; an already displayed reader stays stable.
+  const waitingForInitialHistory =
+    hydrationStatus !== undefined &&
+    !(initialScrollSettlement?.threadId === threadId && initialScrollSettlement.hasVisibleHistory);
+  const timelineEntries = waitingForInitialHistory ? [] : storedTimelineEntries;
   const promptJump = usePromptJump({
     threadId,
     entries: timelineEntries,
@@ -350,7 +357,6 @@ export function ChatPane(props: ChatPaneProps) {
     (s) => s.provisioningWorktreeThreadIds[threadId] === true && status === "launching",
   );
   const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
-  const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
   // Published while the thread's composer bubble row is mounted; missing means
   // this pane has no bubble row and the status stays in the transcript tail.
   const statusSlot = useComposerBubbleSlotStore((s) => s.status[threadId] ?? null);

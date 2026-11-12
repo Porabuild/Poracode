@@ -1,4 +1,6 @@
 import { msg } from "@lingui/core/macro";
+import { cachedThreadHistorySchema } from "@/shared/remote/historyReadSchemas";
+import { cacheRecentHistory, readRecentHistory } from "../browser/recentHistoryCache";
 import {
   REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
   REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
@@ -34,6 +36,7 @@ import {
 import {
   setHostOlderRuntimePageReader,
   setHostThreadHistoryReader,
+  setHostHistoryCacheRefresher,
   type HostThreadHistoryReadOutcome,
 } from "./chatRuntimePersister";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
@@ -86,12 +89,26 @@ export interface HostThreadHistoryOptions {
   readonly isCurrent?: () => boolean;
 }
 
-function readHistoryPage(
+async function readHistoryPage(
   host: EntityHost,
   signal: AbortSignal | undefined,
   client: RemoteDesktopClient | undefined,
 ): Promise<Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>> {
+  const cacheAuthority = host.recentHistoryKey;
+  // Allow IndexedDB to open during startup layout; a blocked cache still gives
+  // way to a full host read after a bounded wait.
+  let cacheDeadline: ReturnType<typeof setTimeout> | undefined;
+  const cached = cacheAuthority
+    ? await Promise.race([
+        readRecentHistory(cacheAuthority, host.hostId),
+        new Promise<null>((resolve) => {
+          cacheDeadline = setTimeout(() => resolve(null), 100);
+        }),
+      ]).finally(() => clearTimeout(cacheDeadline))
+    : null;
+  signal?.throwIfAborted();
   const options = {
+    ...(cacheAuthority ? { historyCache: cached ?? (true as const) } : {}),
     targetTimelineEntryCount: INITIAL_HISTORY_TIMELINE_ENTRIES,
     compactDetails: true,
     ...(host.omitsHistoryScrollback ? { omitScrollback: true as const } : {}),
@@ -115,6 +132,57 @@ function readHistoryPage(
   );
 }
 
+function cacheHistoryPage(
+  host: EntityHost,
+  page: RemoteBoundedThreadHistoryPage,
+  isCurrent: () => boolean,
+): void {
+  const authority = host.recentHistoryKey;
+  if (!authority || !page.historyCache || page.thread.id !== host.hostId) return;
+  const history = cachedThreadHistorySchema.parse({
+    ...page,
+    revision: page.historyCache.revision,
+  });
+  void cacheRecentHistory(
+    authority,
+    host.hostId,
+    history,
+    () => isCurrent() && host.recentHistoryKey === authority,
+  );
+}
+
+// Refresh only host snapshots, never renderer projections whose revision is
+// unknown. Debounce settle/release together and bound work to hydrated threads.
+const cacheRefreshes = new Map<string, ReturnType<typeof setTimeout>>();
+setHostHistoryCacheRefresher((threadId) => {
+  clearTimeout(cacheRefreshes.get(threadId));
+  cacheRefreshes.set(
+    threadId,
+    setTimeout(() => {
+      cacheRefreshes.delete(threadId);
+      const row = getThreadMap(useAppStore.getState().threads).get(threadId);
+      const host = row ? entityHost(row) : undefined;
+      if (!host?.isConnected() || !host.recentHistoryKey || row?.presentationMode !== "gui") return;
+      const fence = host.session.resumeFence;
+      void readHistoryPage(host, undefined, undefined)
+        .then((result) => {
+          if (result.negotiation === "bounded")
+            cacheHistoryPage(
+              host,
+              result.page,
+              () =>
+                host.isCurrent() &&
+                host.session.resumeFence === fence &&
+                getThreadMap(useAppStore.getState().threads).get(threadId) !== undefined,
+            );
+        })
+        .catch(() => {
+          /* The next open validates or fetches; background caching is optional. */
+        });
+    }, 250),
+  );
+});
+
 /**
  * Reads one thread's authoritative bounded history tail from the host that
  * owns it and installs it, whichever host that is. Every reader of a thread's
@@ -123,8 +191,8 @@ function readHistoryPage(
  *
  * Transient failures retry under the shared policy. A response from a
  * replaced connection is never applied, and an epoch change during the read
- * re-reads on the new one. An empty pane paints the cached tail and holds
- * live deltas until the baseline lands.
+ * re-reads on the new one. An empty pane holds live deltas until the
+ * baseline lands; no cached rows are painted first.
  */
 export async function readHostThreadHistory(
   entity: HostThreadEntity,
@@ -148,7 +216,7 @@ export async function readHostThreadHistory(
         (request) => request.requestId,
       ),
     );
-    const preview = beginHostHistoryPreview(host, viewThreadId, signal);
+    const preview = beginHostHistoryPreview(viewThreadId, signal);
     let snapshot: RemoteThreadSnapshot;
     let boundedPage: RemoteBoundedThreadHistoryPage | undefined;
     try {
@@ -246,7 +314,7 @@ export async function readHostThreadHistory(
         // This baseline supersedes an earlier failed read or recovery: drop
         // the stale load warning and resume a queue that failure left blocked.
         noteRuntimeHistoryBaselines([viewThreadId]);
-        preview.cacheAccepted(projected.runtimeItems);
+        if (boundedPage) cacheHistoryPage(host, boundedPage, isConnectionCurrent);
       }
       host.session.advanceResume(snapshot.snapshotSeq, fence);
       preview.complete(snapshot.snapshotSeq);
