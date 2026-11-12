@@ -148,12 +148,41 @@ describe("normalizeKimiProbeEfforts", () => {
     });
   });
 
-  // Kimi's own picker shows K2.7 as `On` / `Off (Unsupported)`; `off` is not a
-  // level the model can actually run at.
-  it("reduces an on/off thinking switch to `on`", () => {
+  it("preserves the on/off thinking switch for an external model", () => {
     expect(
-      normalizeKimiProbeEfforts({ modelEfforts: { "kimi-for-coding": ["on", "off"] } }),
-    ).toEqual({ modelEfforts: { "kimi-for-coding": ["on"] } });
+      normalizeKimiProbeEfforts({ modelEfforts: { "local/fixture-model": ["off", "on"] } }),
+    ).toEqual({ modelEfforts: { "local/fixture-model": ["off", "on"] } });
+  });
+
+  it("keeps the K2.8 ladder when the untiered placeholder is also advertised", () => {
+    expect(
+      normalizeKimiProbeEfforts({
+        modelEfforts: { "kimi-code/kimi-for-coding": ["low", "high", "max", "on"] },
+        modelDefaultEfforts: { "kimi-code/kimi-for-coding": "on" },
+      }),
+    ).toEqual({
+      modelEfforts: { "kimi-code/kimi-for-coding": ["low", "high", "max"] },
+      modelDefaultEfforts: { "kimi-code/kimi-for-coding": "high" },
+    });
+  });
+
+  it("drops the unsupported off choice from a legacy highspeed alias", () => {
+    expect(
+      normalizeKimiProbeEfforts({
+        modelEfforts: { "kimi-code/kimi-for-coding-highspeed": ["on", "off"] },
+      }),
+    ).toEqual({ modelEfforts: { "kimi-code/kimi-for-coding-highspeed": ["on"] } });
+  });
+
+  it("drops a carried tier listed beside off for a legacy highspeed alias", () => {
+    expect(
+      normalizeKimiProbeEfforts({
+        modelEfforts: { "kimi-for-coding-highspeed": ["off", "on", "max"] },
+        modelDefaultEfforts: { "kimi-for-coding-highspeed": "max" },
+      }),
+    ).toEqual({
+      modelEfforts: { "kimi-for-coding-highspeed": ["on"] },
+    });
   });
 
   it("keeps multi-value effort tiers with their default", () => {
@@ -281,6 +310,27 @@ describe("buildKimiProbeCapabilities", () => {
     const models = [{ id: "k3", label: "Kimi for Coding" }];
     expect(buildKimiProbeCapabilities({ models }, noCredentials).models).toEqual(models);
     expect(buildKimiProbeCapabilities(undefined, noCredentials).models).toBeUndefined();
+  });
+
+  it("keeps dynamic K3.1 model metadata and its configured default effort", () => {
+    const models = [{ id: "kimi-code/k3.1-pro", label: "K3.1 Pro" }];
+    expect(
+      buildKimiProbeCapabilities(
+        {
+          models,
+          modelEfforts: { "kimi-code/k3.1-pro": ["low", "high", "max"] },
+          modelDefaultEfforts: { "kimi-code/k3.1-pro": "high" },
+          modelMetadata: { "kimi-code/k3.1-pro": { totalContextTokens: 1_048_576 } },
+        },
+        noCredentials,
+      ),
+    ).toMatchObject({
+      models,
+      modelEfforts: { "kimi-code/k3.1-pro": ["low", "high", "max"] },
+      modelDefaultEfforts: { "kimi-code/k3.1-pro": "high" },
+      contextSizes: [{ id: "1M", label: "1M" }],
+      modelContextSizes: { "kimi-code/k3.1-pro": ["1M"] },
+    });
   });
 
   it("preserves ACP thinking model capabilities", () => {
