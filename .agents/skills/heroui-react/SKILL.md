@@ -24,13 +24,13 @@ curl -fsSL https://heroui.com/install | bash -s heroui-react
 
 **This guide is for HeroUI v3 ONLY.** Do NOT apply v2 patterns — the provider, styling, and component API all changed:
 
-| Feature       | v2 (DO NOT USE)                   | v3 (USE THIS)                     |
-| ------------- | --------------------------------- | --------------------------------- |
-| Provider      | `<HeroUIProvider>` required       | **No Provider needed**            |
-| Animations    | `framer-motion` package           | CSS-based, no extra deps          |
-| Component API | Flat props: `<Card title="x">`    | Compound: `<Card><Card.Header>`   |
-| Styling       | Tailwind v3 + `@heroui/theme`     | Tailwind v4 + `@heroui/styles`    |
-| Packages      | `@heroui/system`, `@heroui/theme` | `@heroui/react`, `@heroui/styles` |
+| Feature       | v2 (DO NOT USE)                   | v3 (USE THIS)                               |
+| ------------- | --------------------------------- | ------------------------------------------- |
+| Provider      | `<HeroUIProvider>` required       | **No Provider needed**                      |
+| Animations    | `framer-motion` package           | CSS-based, no extra deps                    |
+| Component API | Flat props: `<Card title="x">`    | Compound: `<Card><Card.Header>`             |
+| Styling       | Tailwind v3 + `@heroui/theme`     | Tailwind v4 + `@heroui/styles`         	  |
+| Packages      | `@heroui/system`, `@heroui/theme` | `@heroui/react`, `@heroui/styles` 		  |
 
 ```tsx
 // DO NOT DO THIS - v2 pattern
@@ -38,7 +38,7 @@ import { HeroUIProvider } from "@heroui/react";
 import { motion } from "framer-motion";
 
 <HeroUIProvider>
-  <Card title="Product" description="A great product" />
+	<Card title="Product" description="A great product" />
 </HeroUIProvider>;
 ```
 
@@ -49,10 +49,10 @@ import { motion } from "framer-motion";
 import { Card } from "@heroui/react";
 
 <Card>
-  <Card.Header>
-    <Card.Title>Product</Card.Title>
-    <Card.Description>A great product</Card.Description>
-  </Card.Header>
+	<Card.Header>
+		<Card.Title>Product</Card.Title>
+		<Card.Description>A great product</Card.Description>
+	</Card.Header>
 </Card>;
 ```
 
@@ -98,7 +98,7 @@ node scripts/get_docs.mjs /docs/react/getting-started/theming
 
 ### Direct MDX URLs
 
-Component docs: `https://heroui.com/docs/react/components/{component-name}.mdx`
+Component docs: fetch `.mdx` with a concrete kebab-case slug. Run `node scripts/list_components.mjs` when the slug is unknown, and never fetch a URL that still contains a placeholder.
 
 Examples:
 
@@ -106,7 +106,7 @@ Examples:
 - Modal: `https://heroui.com/docs/react/components/modal.mdx`
 - Form: `https://heroui.com/docs/react/components/form.mdx`
 
-Getting started guides: `https://heroui.com/docs/react/getting-started/{topic}.mdx`
+Getting started guides: use a concrete topic URL such as `https://heroui.com/docs/react/getting-started/quick-start.mdx`.
 
 **Important:** Always fetch component docs before implementing. The MDX docs include complete examples, props, anatomy, and API references.
 
@@ -143,15 +143,19 @@ npm i @heroui/styles @heroui/react tailwind-variants tailwindcss @tailwindcss/po
 ```tsx
 import "./globals.css";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-        {/* No Provider needed in HeroUI v3! */}
-        {children}
-      </body>
-    </html>
-  );
+export default function RootLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	return (
+		<html lang="en" suppressHydrationWarning>
+			<body>
+				{/* No Provider needed in HeroUI v3! */}
+				{children}
+			</body>
+		</html>
+	);
 }
 ```
 
@@ -159,9 +163,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ```js
 export default {
-  plugins: {
-    "@tailwindcss/postcss": {},
-  },
+	plugins: {
+		"@tailwindcss/postcss": {},
+	},
 };
 ```
 
@@ -203,10 +207,10 @@ HeroUI v3 uses CSS variables with `oklch` color space:
 
 ```css
 :root {
-  --accent: oklch(0.6204 0.195 253.83);
-  --accent-foreground: var(--snow);
-  --background: oklch(0.9702 0 0);
-  --foreground: var(--eclipse);
+	--accent: oklch(0.6204 0.195 253.83);
+	--accent-foreground: var(--snow);
+	--background: oklch(0.9702 0 0);
+	--foreground: var(--eclipse);
 }
 ```
 

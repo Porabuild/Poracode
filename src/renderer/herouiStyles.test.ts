@@ -42,7 +42,7 @@ function productionSources(directory: string): string[] {
 
 describe("HeroUI stylesheet registration", () => {
   it("preserves the pinned component order, layers and non-component scaffold", () => {
-    expect(JSON.parse(readFileSync(join(styles, "package.json"), "utf8")).version).toBe("3.2.4");
+    expect(JSON.parse(readFileSync(join(styles, "package.json"), "utf8")).version).toBe("3.2.7");
     const upstream = readFileSync(join(styles, "dist/components/index.css"), "utf8");
     const original = [...upstream.matchAll(/@import "\.\/([^"/]+)\.css";/g)].map(
       (match) => match[1],
@@ -53,7 +53,7 @@ describe("HeroUI stylesheet registration", () => {
         /@import "@heroui\/styles\/components\/([^"/]+)\.css" layer\(components\);/g,
       ),
     ].map((match) => match[1]);
-    expect(original).toHaveLength(83);
+    expect(original).toHaveLength(85);
     expect(registered).toEqual(original.filter((family) => !omittedFamilies.has(family!)));
     expect(registry).toContain("@layer theme, base, components, utilities;");
     expect(registry.indexOf('@import "tw-animate-css";')).toBeLessThan(

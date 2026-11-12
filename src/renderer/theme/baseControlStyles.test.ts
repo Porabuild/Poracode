@@ -235,6 +235,39 @@ describe("base control styles", () => {
     );
   });
 
+  it("keeps anchored HeroUI overlays geometrically stable while entering and exiting", () => {
+    for (const selector of [
+      ".popover",
+      ".dropdown__popover",
+      ".select__popover",
+      ".autocomplete__popover",
+      ".combo-box__popover",
+      ".color-picker__popover",
+      ".tooltip",
+    ]) {
+      expect(styles).toContain(selector);
+    }
+    // Opacity only: a transform in the enter/exit animation would move the
+    // surface and poison React Aria's rect-based positioning.
+    expect(styles).toMatch(/\[data-entering="true"\] \{\s*animation: heroui-overlay-fade-in 120ms/);
+    expect(styles).toMatch(/\[data-exiting="true"\] \{\s*animation: heroui-overlay-fade-out 80ms/);
+    // Overlay triggers stay unscaled while pressed/open so the anchor rect
+    // React Aria positions against cannot alternate between two sizes.
+    expect(styles).toMatch(
+      /:is\(\.button, \.dropdown__trigger, \.menu-item\)\[aria-haspopup\]:is\(\s*:active,\s*\[data-pressed="true"\],\s*\[aria-expanded="true"\]\s*\),\s*\.popover__trigger \.button:is\(:active, \[data-pressed="true"\]\) \{\s*transform: none;/,
+    );
+  });
+
+  it("composes toast swipe dismissal with HeroUI's stack transform", () => {
+    const toast = ruleFor(".lc-toast");
+    expect(toast).toContain("display: flex");
+    expect(toast).toContain("var(--toast-y, 0px)");
+    expect(toast).toContain("var(--toast-enter, 0%)");
+    expect(toast).toContain("scale(var(--toast-scale, 1))");
+    expect(toast).toContain("translate3d(var(--lc-toast-swipe-x), var(--lc-toast-swipe-y), 0)");
+    expect(toast).toContain("height var(--toast-height-duration, 350ms)");
+  });
+
   it("uses shared translucent chrome for bottom-sheet headers", () => {
     const header = ruleFor(".m-sheet-head");
     expect(header).toContain("var(--sidebar-background, var(--background)) 78%");
