@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import { readFile, stat } from "node:fs/promises";
 import { join, posix } from "node:path";
 import {
@@ -28,7 +27,7 @@ import {
   gitProcessAdmissionUsage,
   isGitProcessAdmissionError,
 } from "./gitProcessAdmission";
-import { queryNativeGitStatusBatch } from "./gitNativeHelperClient";
+import { isNativeGitHelperActive, queryNativeGitStatusBatch } from "./gitNativeHelperClient";
 import type { NativeGitStatusEntry } from "./gitNativeHelperProtocol";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
@@ -737,10 +736,7 @@ export class GitStatusService {
     detail: GitStatusDetail,
   ): Promise<Record<string, GitStatusResult> | null> {
     if (worktreePaths.length === 0) return {};
-    // When tests mock `execGit` or `node:child_process.execFile`, bypass the
-    // native sidecar so mocked git outputs continue exercising the TypeScript
-    // parser/service layer directly.
-    if ("mock" in execGit || "mock" in execFile) return null;
+    if (!isNativeGitHelperActive()) return null;
 
     const classLimit = Math.max(1, gitProcessAdmissionUsage().short.limit);
     const units = Math.min(classLimit, worktreePaths.length * (detail === "summary" ? 2 : 4));
@@ -778,7 +774,7 @@ export class GitStatusService {
     location: ProjectLocation & { kind: "posix" | "windows" },
     detail: GitStatusDetail,
   ): Promise<GitStatusResult | null> {
-    if ("mock" in execGit || "mock" in execFile) return null;
+    if (!isNativeGitHelperActive()) return null;
 
     const classLimit = Math.max(1, gitProcessAdmissionUsage().short.limit);
     const units = Math.min(classLimit, detail === "summary" ? 2 : 4);

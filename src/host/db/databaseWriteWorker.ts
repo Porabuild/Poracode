@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { parentPort, workerData } from "node:worker_threads";
+import { restoreWorkerAdmittedBatchOrigins } from "@/shared/runtimePayloadOriginProtocol";
 import { resolveBetterSqliteNativeBindingOptions } from "./nativeBinding";
 import { attachEditableDatabaseHandle } from "./connection";
 import {
@@ -48,7 +49,7 @@ function startWorker(): void {
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("synchronous = NORMAL");
   sqlite.pragma("foreign_keys = ON");
-  sqlite.pragma("busy_timeout = 50");
+  sqlite.pragma("busy_timeout = 250");
   sqlite.pragma("cache_size = -65536");
   sqlite.pragma("temp_store = MEMORY");
   sqlite.pragma("journal_size_limit = 134217728");
@@ -83,7 +84,8 @@ function startWorker(): void {
 
     if (message.kind === "write-batches") {
       try {
-        const result = applyRuntimeEventBatchesNow(message.batches);
+        const batches = restoreWorkerAdmittedBatchOrigins(message.batches, message.origins);
+        const result = applyRuntimeEventBatchesNow(batches);
         if (result.kind === "committed") {
           post({
             v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
@@ -112,7 +114,11 @@ function startWorker(): void {
 
     if (message.kind === "write-single") {
       try {
-        applyThreadRuntimeEventsNow(message.threadId, message.events);
+        const restored = restoreWorkerAdmittedBatchOrigins(
+          [{ threadId: message.threadId, events: message.events }],
+          message.origins,
+        )[0]!;
+        applyThreadRuntimeEventsNow(restored.threadId, restored.events);
         post({
           v: DATABASE_WRITE_WORKER_PROTOCOL_VERSION,
           id: message.id,

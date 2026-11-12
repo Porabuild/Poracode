@@ -49,7 +49,8 @@ const IGNORED_PREFIXES = [
   ".turbo/",
   "__pycache__/",
   ".venv/",
-  "target/",
+  "target/debug/",
+  "target/release/",
   "tmp/",
   ".tmp/",
 ];
@@ -60,7 +61,9 @@ const IGNORED_NESTED_SEGMENTS = [
   "/.turbo/",
   "/__pycache__/",
   "/.venv/",
-  "/target/",
+  "/target/debug/",
+  "/target/release/",
+  "/.tmp/",
 ];
 
 export function isIgnoredWorkTreeFile(name: string): boolean {

@@ -1,10 +1,11 @@
-import { spawn, type ChildProcessByStdio } from "node:child_process";
+import { execFile, spawn, type ChildProcessByStdio } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import type { Readable, Writable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import type { FileEntry, GitStatusDetail, ProjectTreeEntry } from "@/shared/contracts";
 import { resolveWslHelpersDir } from "../wsl/wslDeploy";
+import { execGit } from "./exec";
 import {
   GIT_HELPER_BINARY_NAME,
   GIT_HELPER_PROTOCOL_VERSION,
@@ -26,6 +27,17 @@ const REQUEST_GRACE_MS = 5_000;
  * (`{a,b}`, `!(foo)`, `+(bar)`, `\` escapes) that require `micromatch`. Standard
  * globs (`*`, `**`, `?`, `[abc]`, `[!abc]`) are handled natively in Rust.
  */
+/**
+ * True when the native `poracode-git-helper` sidecar may execute real OS/Git
+ * queries without bypassing an active unit-test mock on `execGit` or `execFile`.
+ */
+export function isNativeGitHelperActive(): boolean {
+  if ("mock" in execGit || "mock" in execFile) {
+    return false;
+  }
+  return nativeGitHelperBinaryPath() !== undefined;
+}
+
 export function areSearchExcludePatternsNativeCompatible(patterns: readonly string[]): boolean {
   for (const p of patterns) {
     if (/[{}\\]|(?:!|\+|\*|@|\?)\(/u.test(p)) {

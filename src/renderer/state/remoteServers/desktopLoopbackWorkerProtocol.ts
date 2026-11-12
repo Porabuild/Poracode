@@ -107,12 +107,13 @@ export function coalesceKeyForSupervisorEvent(event: SupervisorEvent): string | 
 
 /**
  * Coalesces a batch of raw loopback WebSocket strings into validated, compact
- * `DesktopLoopbackFrame`s ready for UI routing.
+ * `DesktopLoopbackFrame`s ready for UI routing while strictly preserving
+ * monotonic sequence ordering (`PreloadIpcTransport` drops `seq <= lastSeq`).
  */
 export function coalesceDecodedLoopbackFrames(
   decoded: readonly DesktopLoopbackFrame[],
 ): DesktopLoopbackFrame[] {
-  const out: DesktopLoopbackFrame[] = [];
+  const slots: Array<DesktopLoopbackFrame | null> = [];
   const coalescedIndexByKey = new Map<string, number>();
 
   for (const frame of decoded) {
@@ -122,15 +123,19 @@ export function coalesceDecodedLoopbackFrames(
       if (key !== null) {
         const existingIndex = coalescedIndexByKey.get(key);
         if (existingIndex !== undefined) {
-          out[existingIndex] = frame;
-          continue;
+          // Tombstone the older slot and append at the tail so `seq` stays
+          // strictly increasing across interleaved frames in the same space!
+          slots[existingIndex] = null;
         }
-        coalescedIndexByKey.set(key, out.length);
-      } else if (frame.event.type === "thread-state" && out.length > 0) {
-        // Coalesce consecutive identical-status `thread-state` updates for the
-        // same thread when no runtime event for that thread sits after the
-        // previous `thread-state` entry.
-        const prev = out[out.length - 1];
+        coalescedIndexByKey.set(key, slots.length);
+        slots.push(frame);
+        continue;
+      }
+      if (frame.event.type === "thread-state") {
+        // Walk back past tombstones to inspect the last surviving frame.
+        let prevIdx = slots.length - 1;
+        while (prevIdx >= 0 && slots[prevIdx] === null) prevIdx -= 1;
+        const prev = prevIdx >= 0 ? slots[prevIdx] : null;
         if (
           prev?.kind === "event" &&
           prev.event.type === "thread-state" &&
@@ -138,16 +143,19 @@ export function coalesceDecodedLoopbackFrames(
           prev.event.status === frame.event.status &&
           prev.event.attention === frame.event.attention &&
           !frame.event.forceCloseActiveTurn &&
-          !prev.event.forceCloseActiveTurn
+          !prev.event.forceCloseActiveTurn &&
+          prev.event.interruptedTurn === undefined &&
+          prev.event.errorMessage === undefined &&
+          !prev.event.turnStopRequested
         ) {
-          out[out.length - 1] = frame;
+          slots[prevIdx] = frame;
           continue;
         }
       }
     }
-    out.push(frame);
+    slots.push(frame);
   }
-  return out;
+  return slots.filter((slot): slot is DesktopLoopbackFrame => slot !== null);
 }
 
 export function decodeAndCoalesceRawLoopbackBatch(

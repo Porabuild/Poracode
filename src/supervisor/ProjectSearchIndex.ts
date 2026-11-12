@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import { readdir } from "node:fs/promises";
 import micromatch from "micromatch";
 import type {
@@ -15,6 +14,7 @@ import { admitGitProcess } from "./git/gitProcessAdmission";
 import {
   areSearchExcludePatternsNativeCompatible,
   invalidateNativeSearchCache,
+  isNativeGitHelperActive,
   queryNativeSearchTree,
 } from "./git/gitNativeHelperClient";
 import type { WslBridgeClient } from "./wsl/bridge/client";
@@ -129,8 +129,7 @@ export class ProjectSearchIndex {
     const config = payload.searchConfig ?? { useIgnoreFiles: true, excludePatterns: [] };
     if (
       payload.projectLocation.kind !== "wsl" &&
-      !("mock" in execGit) &&
-      !("mock" in execFile) &&
+      isNativeGitHelperActive() &&
       areSearchExcludePatternsNativeCompatible(config.excludePatterns)
     ) {
       const nativeEntries = await this.tryNativeSearchTree(

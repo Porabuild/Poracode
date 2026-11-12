@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import micromatch from "micromatch";
 import type {
   FileEntry,
@@ -13,6 +12,7 @@ import { admitGitProcess } from "./git/gitProcessAdmission";
 import {
   areSearchExcludePatternsNativeCompatible,
   invalidateNativeSearchCache,
+  isNativeGitHelperActive,
   queryNativeSearchFiles,
 } from "./git/gitNativeHelperClient";
 
@@ -45,8 +45,7 @@ export class FileIndexService {
 
     if (
       projectLocation.kind !== "wsl" &&
-      !("mock" in execGit) &&
-      !("mock" in execFile) &&
+      isNativeGitHelperActive() &&
       areSearchExcludePatternsNativeCompatible(config.excludePatterns)
     ) {
       const nativeResult = await this.tryNativeSearchFiles(projectLocation, query, limit, config);

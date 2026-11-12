@@ -3,6 +3,12 @@ import type { RuntimeWriteBatch } from "./runtimeWriteQueue";
 
 export const DATABASE_WRITE_WORKER_PROTOCOL_VERSION = 1 as const;
 
+export type SerializedAdmittedOriginTuple = readonly [
+  batchIndex: number,
+  eventIndex: number,
+  formatOwnerKey: string,
+];
+
 export interface DatabaseWriteWorkerData {
   readonly version: typeof DATABASE_WRITE_WORKER_PROTOCOL_VERSION;
   readonly dbPath: string;
@@ -14,6 +20,7 @@ export type DatabaseWriteWorkerRequest =
       readonly id: number;
       readonly kind: "write-batches";
       readonly batches: readonly RuntimeWriteBatch[];
+      readonly origins?: readonly SerializedAdmittedOriginTuple[];
     }
   | {
       readonly v: typeof DATABASE_WRITE_WORKER_PROTOCOL_VERSION;
@@ -21,6 +28,7 @@ export type DatabaseWriteWorkerRequest =
       readonly kind: "write-single";
       readonly threadId: string;
       readonly events: readonly RuntimeEvent[];
+      readonly origins?: readonly SerializedAdmittedOriginTuple[];
     }
   | {
       readonly v: typeof DATABASE_WRITE_WORKER_PROTOCOL_VERSION;

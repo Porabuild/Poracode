@@ -12,19 +12,27 @@ import {
   enableAsyncDatabaseWrites,
   getAsyncDatabaseWrites,
 } from "./asyncWrites";
-import { closeDatabase, getProfileDataGeneration, initDatabase } from "./connection";
+import { closeDatabase, getProfileDataGeneration, getSqlite, initDatabase } from "./connection";
 import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import { addRuntimeItemCommitListener } from "./runtimeItemCommitListeners";
 import { dbReadThreadRuntimeItems } from "./runtimeItems";
 import { testThread } from "./runtimeItems.testFixtures";
+import { readRuntimePayloadOrigin } from "./runtimePayloadOrigins";
 import {
+  applyAdmittedRuntimePayloadBatch,
   applyRuntimeEvents,
   attachRuntimePersistenceDurableGapFromCurrentConnection,
   beginRuntimeFence,
+  commitRuntimeThreadPrefixAsync,
   flushRuntimeFence,
   releaseRuntimeFence,
   resetRuntimePersistenceForTests,
 } from "./runtimePersistenceRuntime";
+import {
+  admitRuntimePayloadOriginEnvelope,
+  captureRuntimePayloadOrigin,
+  serializeRuntimePayloadOrigins,
+} from "@/shared/runtimePayloadOriginProtocol";
 
 let artifactsDir: string;
 let writeWorkerPath: string;
@@ -176,5 +184,86 @@ describe("AsyncDatabaseWrites worker offload", () => {
     } finally {
       unsubCommit();
     }
+  });
+
+  it("preserves admitted payload-origin Symbol custody across worker postMessage", async () => {
+    enableAsyncDatabaseWrites(dbPath, writeWorkerPath);
+    await vi.waitFor(() => expect(getAsyncDatabaseWrites()).not.toBeNull());
+
+    const captured = captureRuntimePayloadOrigin(
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "tool-1",
+        itemType: "command_execution",
+        payload: { command: "echo hi" },
+      },
+      "codex",
+    );
+    const serialized = serializeRuntimePayloadOrigins(
+      {
+        type: "thread-runtime-events",
+        threadId: "thread-1",
+        events: [captured],
+      },
+      "gen-test-1",
+    );
+    const admission = admitRuntimePayloadOriginEnvelope(serialized, "gen-test-1");
+    expect(admission).toBeDefined();
+
+    expect(applyAdmittedRuntimePayloadBatch(admission!, 0).kind).toBe("accepted");
+    await commitRuntimeThreadPrefixAsync("thread-1");
+
+    const storedOrigin = readRuntimePayloadOrigin(getSqlite(), "thread-1", "tool-1");
+    expect(storedOrigin).toEqual({
+      formatOwnerKey: "codex",
+      originFormatVersion: 1,
+    });
+  });
+
+  it("never double-commits content.delta when async flush, fence flush, and close overlap", async () => {
+    enableAsyncDatabaseWrites(dbPath, writeWorkerPath);
+    await vi.waitFor(() => expect(getAsyncDatabaseWrites()).not.toBeNull());
+
+    expect(
+      applyRuntimeEvents("thread-1", [
+        {
+          type: "item.started",
+          threadId: "thread-1",
+          itemId: "msg-race",
+          itemType: "assistant_message",
+        },
+        {
+          type: "content.delta",
+          threadId: "thread-1",
+          itemId: "msg-race",
+          stream: "assistant_text",
+          delta: "EXACT_ONCE",
+        },
+      ]).kind,
+    ).toBe("accepted");
+
+    // Overlap scheduled worker flush, an explicit async prefix commit (turn-end path),
+    // a read fence flush, and worker close/shutdown drain!
+    const [, fenceOutcome] = await Promise.all([
+      commitRuntimeThreadPrefixAsync("thread-1"),
+      (async () => {
+        const fence = beginRuntimeFence("thread-1");
+        try {
+          return await flushRuntimeFence(fence);
+        } finally {
+          releaseRuntimeFence(fence);
+        }
+      })(),
+    ]);
+    expect(fenceOutcome.kind).toBe("committed");
+
+    await closeAsyncDatabaseWrites();
+    closeDatabase();
+
+    initDatabase(dbPath);
+    const items = dbReadThreadRuntimeItems("thread-1");
+    expect(items).toHaveLength(1);
+    expect(items[0]?.streams.assistant_text).toBe("EXACT_ONCE");
   });
 });

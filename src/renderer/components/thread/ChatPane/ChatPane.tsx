@@ -14,6 +14,7 @@ import {
   useThreadIsWaitingForBackground,
 } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
+import { getRuntimeHydrationPendingStartedAtMs } from "@/renderer/state/slices/runtimeEventSlice";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { loadOlderThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
@@ -467,9 +468,12 @@ export function ChatPane(props: ChatPaneProps) {
     canShowDelayedHydrationLoader && delayedHydrationLoaderThreadId === threadId;
   useEffect(() => {
     if (!canShowDelayedHydrationLoader) return;
+    const startedAt = getRuntimeHydrationPendingStartedAtMs(threadId);
+    const elapsed = startedAt !== undefined ? Math.max(0, Date.now() - startedAt) : 0;
+    const remainingMs = Math.max(0, 180 - elapsed);
     const timer = window.setTimeout(() => {
       setDelayedHydrationLoaderThreadId(threadId);
-    }, 180);
+    }, remainingMs);
     return () => window.clearTimeout(timer);
   }, [canShowDelayedHydrationLoader, threadId]);
   // The tail loader displays the most recent completed turn's frozen elapsed

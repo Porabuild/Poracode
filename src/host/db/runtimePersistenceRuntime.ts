@@ -378,6 +378,16 @@ export function commitRuntimeThreadPrefixSync(threadId: string): number {
   return runtimePersistenceController.commitThreadPrefixSync(threadId);
 }
 
+export function commitRuntimeThreadPrefixAsync(threadId: string): Promise<number> {
+  bindCurrentConnection();
+  return runtimePersistenceController.commitThreadPrefixAsync(threadId);
+}
+
+export function waitForAsyncRuntimeWrites(threadId?: string): Promise<void> {
+  bindCurrentConnection();
+  return runtimePersistenceController.waitForAsyncWrites(threadId);
+}
+
 export function hasPendingRuntimeWrites(threadId?: string): boolean {
   bindCurrentConnection();
   return runtimePersistenceController.hasPending(threadId);

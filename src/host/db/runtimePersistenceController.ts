@@ -270,6 +270,7 @@ export class RuntimePersistenceController {
         flushChunkAsync: async (threadId, through) => {
           const asyncWriters = this.options.resolveAsyncWriters?.();
           if (!asyncWriters) {
+            await this.queue.waitForAsyncWriteInFlight(threadId);
             return this.queue.flushThreadThrough(threadId, through, this.options.fenceFlushChunk);
           }
           this.asyncChunkThreadsInFlight.add(threadId);
@@ -850,6 +851,13 @@ export class RuntimePersistenceController {
     kind: "truncate" | "replace" | "reset",
     operation: SynchronousMutationCallback<T>,
   ): T {
+    if (this.queue.hasAsyncWriteInFlight(threadId)) {
+      throw new RuntimePersistenceBusyError(
+        threadId,
+        "mutation",
+        this.health.currentRetryDelayMs(),
+      );
+    }
     return this.fenceControl.tryRunMutation(threadId, kind, () =>
       this.executeMutationSync(threadId, kind, operation),
     );
@@ -878,33 +886,21 @@ export class RuntimePersistenceController {
       return requireSynchronousMutationResult(operation());
     }
     if (kind === "delete") {
-      // The operation applies before the in-memory prefix is discarded: a
-      // failed or thenable delete must keep the accepted events and the
-      // contamination marker. Calling the SQL delete first and discarding
-      // only after it returns keeps the discard exact (the callback is
-      // synchronous, so nothing can be admitted in between); the durable rows
-      // are gone, so discarding the accepted-but-uncommitted prefix is the
-      // explicit supersede.
+      await this.queue.waitForAsyncWriteInFlight(threadId);
       const value = requireSynchronousMutationResult(operation());
       this.supersedePendingPrefix(threadId);
       return value;
     }
     if (kind === "reset" || kind === "replace") {
-      // Authoritative rebase. On a clean thread the accepted prefix must not be
-      // bypassed: commit it first. On a contaminated thread the rebase is the
-      // explicit recovery, so the supersede is the point; it is recorded by
-      // `supersedePendingPrefix`, never silent. The operation is applied
-      // before the in-memory prefix is discarded, so a failed rebase keeps
-      // both the pending events and the contamination. The operation result is
-      // checked synchronously: no event can be admitted between it and the
-      // supersede, so the discard is exact.
       if (!contamination) await this.fenceControl.flushPrefix(threadId);
+      else await this.queue.waitForAsyncWriteInFlight(threadId);
       const value = requireSynchronousMutationResult(operation());
       this.supersedePendingPrefix(threadId);
       return value;
     }
     // truncate on a clean thread: commit the accepted prefix, then apply.
     await this.fenceControl.flushPrefix(threadId);
+    await this.queue.waitForAsyncWriteInFlight(threadId);
     const value = requireSynchronousMutationResult(operation());
     this.options.onAuthoritativeHistoryChanged?.(threadId);
     return value;
@@ -965,6 +961,21 @@ export class RuntimePersistenceController {
   commitThreadPrefixSync(threadId: string): number {
     this.fenceControl.commitPrefixSync(threadId);
     return this.queue.committedThrough(threadId);
+  }
+
+  /**
+   * Async prefix commit for control-queue callers (e.g. `thread-state` turn
+   * completion) and async `revertCheckpoint` preflight, safely joining any
+   * in-flight `databaseWriteWorker` batch before committing remaining events.
+   */
+  async commitThreadPrefixAsync(threadId: string): Promise<number> {
+    await this.fenceControl.flushPrefix(threadId);
+    await this.queue.waitForAsyncWriteInFlight(threadId);
+    return this.queue.committedThrough(threadId);
+  }
+
+  waitForAsyncWrites(threadId?: string): Promise<void> {
+    return this.queue.waitForAsyncWriteInFlight(threadId);
   }
 
   hasPending(threadId?: string): boolean {
@@ -1304,6 +1315,7 @@ export class RuntimePersistenceController {
     const threadIds =
       scope === "thread" && threadId !== undefined ? [threadId] : this.queue.pendingThreadIds();
     for (const id of threadIds) {
+      if (this.queue.hasAsyncWriteInFlight(id)) continue;
       if (this.queue.isPinned(id)) this.fenceControl.preemptFences(id);
       const started = this.options.now();
       const outcome = this.queue.flushThreadThrough(

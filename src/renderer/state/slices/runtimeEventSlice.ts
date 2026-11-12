@@ -247,6 +247,12 @@ export { getRuntimeItemPayload };
  * added here. The slice creator below spreads it too, so a newly-added map is
  * a type error until it lands in this factory.
  */
+const runtimeHydrationPendingStartedAtMs = new Map<string, number>();
+
+export function getRuntimeHydrationPendingStartedAtMs(threadId: string): number | undefined {
+  return runtimeHydrationPendingStartedAtMs.get(threadId);
+}
+
 export function createInitialRuntimeEventState(): Pick<
   RuntimeEventSlice,
   | "runtimeItemIdsByThread"
@@ -261,6 +267,7 @@ export function createInitialRuntimeEventState(): Pick<
   | "fileCheckpointTurnsByThread"
   | "runtimeHydrationStatus"
 > {
+  runtimeHydrationPendingStartedAtMs.clear();
   return {
     runtimeItemIdsByThread: {},
     runtimeItemsByIdByThread: {},
@@ -282,9 +289,17 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set, ge
   setRuntimeHydrationStatus: (threadId, status) =>
     set((state) => {
       if (status === null) {
+        runtimeHydrationPendingStartedAtMs.delete(threadId);
         if (!(threadId in state.runtimeHydrationStatus)) return {};
         const { [threadId]: _removed, ...runtimeHydrationStatus } = state.runtimeHydrationStatus;
         return { runtimeHydrationStatus };
+      }
+      if (status === "pending") {
+        if (!runtimeHydrationPendingStartedAtMs.has(threadId)) {
+          runtimeHydrationPendingStartedAtMs.set(threadId, Date.now());
+        }
+      } else {
+        runtimeHydrationPendingStartedAtMs.delete(threadId);
       }
       if (state.runtimeHydrationStatus[threadId] === status) return {};
       return {

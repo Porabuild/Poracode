@@ -186,6 +186,7 @@ export class RuntimeWriteQueue {
   private pendingBytesValue = 0;
   private reservations: RuntimeAdmissionReservations | null = null;
   private readonly flushRecovery: RuntimeFlushRecovery = { retryIndividually: false };
+  private readonly asyncInFlightByThread = new Map<string, Promise<void>>();
 
   constructor(
     private readonly write: RuntimeWriteFlush,
@@ -518,6 +519,19 @@ export class RuntimeWriteQueue {
     throughSeq: number,
     chunk: RuntimeFlushChunkBounds = DEFAULT_RUNTIME_FLUSH_CHUNK,
   ): RuntimeFlushOutcome {
+    if (this.asyncInFlightByThread.has(threadId)) {
+      return {
+        kind: "failed",
+        persistSeq: this.committedThrough(threadId),
+        committedEvents: 0,
+        committedBytes: 0,
+        remainingWithinThrough: true,
+        error: Object.assign(
+          new Error(`Async runtime worker write is in flight for thread ${threadId}.`),
+          { code: "SQLITE_BUSY" },
+        ),
+      };
+    }
     const through = Math.min(throughSeq, this.pins.get(threadId) ?? Number.MAX_SAFE_INTEGER);
     let plan: RuntimeFlushPlan | null;
     try {
@@ -555,9 +569,13 @@ export class RuntimeWriteQueue {
 
   /** Oldest-first bounded prefixes; the optional atomic writer commits a group. */
   flushBudgeted(options: RuntimeBudgetedFlushOptions): RuntimeBudgetedFlushResult {
+    const pendingView =
+      this.asyncInFlightByThread.size > 0
+        ? new Map([...this.pending.entries()].filter(([id]) => !this.asyncInFlightByThread.has(id)))
+        : this.pending;
     return flushRuntimeQueueBudgeted(
       {
-        pending: this.pending,
+        pending: pendingView,
         pins: this.pins,
         write: this.write,
         atomicBatchWriter: this.atomicBatchWriter,
@@ -566,6 +584,31 @@ export class RuntimeWriteQueue {
       },
       options,
     );
+  }
+
+  hasAsyncWriteInFlight(threadId?: string): boolean {
+    if (threadId !== undefined) return this.asyncInFlightByThread.has(threadId);
+    return this.asyncInFlightByThread.size > 0;
+  }
+
+  async waitForAsyncWriteInFlight(threadId?: string): Promise<void> {
+    for (;;) {
+      const promises =
+        threadId !== undefined
+          ? [this.asyncInFlightByThread.get(threadId)].filter((p): p is Promise<void> => Boolean(p))
+          : [...this.asyncInFlightByThread.values()];
+      if (promises.length === 0) return;
+      await Promise.all(promises);
+    }
+  }
+
+  private reserveThreadInFlight(threadId: string, promise: Promise<void>): () => void {
+    this.asyncInFlightByThread.set(threadId, promise);
+    return () => {
+      if (this.asyncInFlightByThread.get(threadId) === promise) {
+        this.asyncInFlightByThread.delete(threadId);
+      }
+    };
   }
 
   /**
@@ -580,9 +623,16 @@ export class RuntimeWriteQueue {
     },
   ): Promise<RuntimeBudgetedFlushResult> {
     const generation = this.queueGeneration;
-    const filteredPending = options.excludeThreadIds
-      ? new Map([...this.pending.entries()].filter(([id]) => !options.excludeThreadIds!.has(id)))
-      : this.pending;
+    const filteredPending =
+      options.excludeThreadIds || this.asyncInFlightByThread.size > 0
+        ? new Map(
+            [...this.pending.entries()].filter(
+              ([id]) =>
+                !this.asyncInFlightByThread.has(id) &&
+                !(options.excludeThreadIds?.has(id) ?? false),
+            ),
+          )
+        : this.pending;
     return flushRuntimeQueueBudgetedAsync(
       {
         pending: filteredPending,
@@ -590,6 +640,7 @@ export class RuntimeWriteQueue {
         writeAsync: writers.writeAsync,
         atomicBatchWriterAsync: writers.atomicBatchWriterAsync,
         recovery: this.flushRecovery,
+        reserveThreadInFlight: (threadId, promise) => this.reserveThreadInFlight(threadId, promise),
         isPlanCurrent: (plan) =>
           generation === this.queueGeneration &&
           this.pending.get(plan.threadId) === plan.entry &&
@@ -607,13 +658,21 @@ export class RuntimeWriteQueue {
     writeAsync: RuntimeAsyncWriteFlush,
     chunk: RuntimeFlushChunkBounds = DEFAULT_RUNTIME_FLUSH_CHUNK,
   ): Promise<RuntimeFlushOutcome> {
+    await this.waitForAsyncWriteInFlight(threadId);
     const generation = this.queueGeneration;
     const through = Math.min(throughSeq, this.pins.get(threadId) ?? Number.MAX_SAFE_INTEGER);
+    const settled = Promise.withResolvers<void>();
+    let release: (() => void) | null = null;
     let plan: RuntimeFlushPlan | null;
     try {
       plan = planRuntimeFlush(threadId, this.pending.get(threadId), through, chunk);
-      if (plan) await writeAsync(threadId, plan.events);
+      if (plan) {
+        release = this.reserveThreadInFlight(threadId, settled.promise);
+        await writeAsync(threadId, plan.events);
+      }
     } catch (error) {
+      release?.();
+      settled.resolve();
       return {
         kind: "failed",
         persistSeq: this.committedThrough(threadId),
@@ -623,6 +682,8 @@ export class RuntimeWriteQueue {
         error,
       };
     }
+    release?.();
+    settled.resolve();
     if (!plan) {
       return {
         kind: "empty",
@@ -801,6 +862,7 @@ export class RuntimeWriteQueue {
     this.pending.clear();
     this.committedByThread.clear();
     this.pins.clear();
+    this.asyncInFlightByThread.clear();
     this.oversizeEvents = 0;
     this.oversizeBytes = 0;
     this.pendingEventsValue = 0;

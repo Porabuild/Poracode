@@ -4,9 +4,9 @@ use std::io::Read;
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 use std::process::{Command, Stdio};
-use std::sync::{Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 #[cfg(windows)]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -71,6 +71,8 @@ impl Drop for Permit<'_> {
 pub struct GitOutput {
     /// Whether `git` exited with code `0`.
     pub ok: bool,
+    /// Numeric exit code when the process terminated normally.
+    pub exit_code: Option<i32>,
     /// Decoded UTF-8 stdout.
     pub stdout: String,
     /// Decoded UTF-8 stderr.
@@ -94,7 +96,7 @@ fn read_bounded<R: Read>(mut reader: R, max_bytes: usize) -> Result<Vec<u8>, Str
 }
 
 /// Execute `git -c core.quotepath=false <args...>` in `cwd` with `GIT_OPTIONAL_LOCKS=0`,
-/// acquiring a slot from `limiter` and enforcing `timeout`.
+/// acquiring a slot from `limiter` and enforcing `timeout` without busy-polling.
 pub fn run_git_command(
     cwd: &str,
     args: &[&str],
@@ -120,38 +122,73 @@ pub fn run_git_command(
     let stdout_pipe = child.stdout.take();
     let stderr_pipe = child.stderr.take();
 
-    let stdout_handle = thread::spawn(move || {
-        stdout_pipe.map_or_else(|| Ok(Vec::new()), |p| read_bounded(p, MAX_STDOUT_BYTES))
-    });
-    let stderr_handle = thread::spawn(move || {
-        stderr_pipe.map_or_else(|| Ok(Vec::new()), |p| read_bounded(p, MAX_STDERR_BYTES))
-    });
+    // Event-driven timeout guard: sleeps on a Condvar woken immediately when
+    // `child.wait()` finishes; kills the child only if `timeout` elapses first!
+    let done_pair = Arc::new((Mutex::new(false), Condvar::new()));
+    let done_for_watchdog = Arc::clone(&done_pair);
 
-    let deadline = Instant::now() + timeout;
-    let mut timed_out = false;
-    let exit_status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break Ok(status),
-            Ok(None) => {
-                if Instant::now() >= deadline {
-                    timed_out = true;
-                    let _ = child.kill();
-                    break child.wait().map_err(|e| e.to_string());
-                }
-                thread::sleep(Duration::from_millis(1));
+    let exit_status_res = thread::scope(|scope| {
+        let stdout_handle = scope.spawn(move || {
+            stdout_pipe.map_or_else(|| Ok(Vec::new()), |p| read_bounded(p, MAX_STDOUT_BYTES))
+        });
+        let stderr_handle = scope.spawn(move || {
+            stderr_pipe.map_or_else(|| Ok(Vec::new()), |p| read_bounded(p, MAX_STDERR_BYTES))
+        });
+
+        let child_mutex = Arc::new(Mutex::new(child));
+        let child_for_watchdog = Arc::clone(&child_mutex);
+        let timed_out = Arc::new(Mutex::new(false));
+        let timed_out_for_watchdog = Arc::clone(&timed_out);
+
+        let watchdog = scope.spawn(move || {
+            let (lock, cvar) = &*done_for_watchdog;
+            let guard = match lock.lock() {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+            if *guard {
+                return;
             }
-            Err(e) => break Err(e.to_string()),
+            let wait_res = match cvar.wait_timeout_while(guard, timeout, |finished| !*finished) {
+                Ok(pair) => pair,
+                Err(p) => p.into_inner(),
+            };
+            if !*wait_res.0 {
+                if let Ok(mut flag) = timed_out_for_watchdog.lock() {
+                    *flag = true;
+                }
+                if let Ok(mut c) = child_for_watchdog.lock() {
+                    let _ = c.kill();
+                }
+            }
+        });
+
+        let status_res = wait_child_unlockable(&child_mutex, &done_pair);
+
+        {
+            let (lock, cvar) = &*done_pair;
+            let mut guard = match lock.lock() {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+            *guard = true;
+            cvar.notify_all();
         }
-    }?;
+        let _ = watchdog.join();
 
-    let stdout_bytes = stdout_handle
-        .join()
-        .map_err(|_| "stdout reader thread panicked".to_owned())??;
-    let stderr_bytes = stderr_handle
-        .join()
-        .map_err(|_| "stderr reader thread panicked".to_owned())??;
+        let stdout_bytes = stdout_handle
+            .join()
+            .map_err(|_| "stdout reader thread panicked".to_owned())??;
+        let stderr_bytes = stderr_handle
+            .join()
+            .map_err(|_| "stderr reader thread panicked".to_owned())??;
+        let did_time_out = timed_out.lock().map(|g| *g).unwrap_or(false);
 
-    if timed_out {
+        Ok::<_, String>((status_res?, did_time_out, stdout_bytes, stderr_bytes))
+    })?;
+
+    let (exit_status, did_time_out, stdout_bytes, stderr_bytes) = exit_status_res;
+    if did_time_out {
         return Err(format!(
             "git {:?} timed out after {}ms",
             args.first().unwrap_or(&""),
@@ -161,7 +198,44 @@ pub fn run_git_command(
 
     Ok(GitOutput {
         ok: exit_status.success(),
+        exit_code: exit_status.code(),
         stdout: String::from_utf8_lossy(&stdout_bytes).into_owned(),
         stderr: String::from_utf8_lossy(&stderr_bytes).into_owned(),
     })
+}
+
+fn wait_child_unlockable(
+    child_mutex: &Mutex<std::process::Child>,
+    done_pair: &(Mutex<bool>, Condvar),
+) -> Result<std::process::ExitStatus, String> {
+    let mut sleep_ms = 1u64;
+    loop {
+        let poll = {
+            let mut c = match child_mutex.lock() {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+            c.try_wait()
+        };
+        match poll {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) => {
+                let (lock, cvar) = done_pair;
+                let guard = match lock.lock() {
+                    Ok(g) => g,
+                    Err(p) => p.into_inner(),
+                };
+                if *guard {
+                    let mut c = match child_mutex.lock() {
+                        Ok(g) => g,
+                        Err(p) => p.into_inner(),
+                    };
+                    return c.wait().map_err(|e| e.to_string());
+                }
+                let _ = cvar.wait_timeout(guard, Duration::from_millis(sleep_ms));
+                sleep_ms = (sleep_ms * 2).min(10);
+            }
+            Err(e) => return Err(e.to_string()),
+        }
+    }
 }

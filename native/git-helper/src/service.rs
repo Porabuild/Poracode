@@ -73,11 +73,13 @@ impl GitHelperService {
         if paths.len() == 1 {
             let path = &paths[0];
             let mut out = BTreeMap::new();
-            let entry = match detail {
-                StatusDetail::Summary => self.collect_summary(path, timeout, &limiter),
+            let entry_opt = match detail {
+                StatusDetail::Summary => Some(self.collect_summary(path, timeout, &limiter)),
                 StatusDetail::Full => self.collect_full(path, timeout, &limiter),
             };
-            out.insert(path.clone(), entry);
+            if let Some(entry) = entry_opt {
+                out.insert(path.clone(), entry);
+            }
             return out;
         }
 
@@ -102,15 +104,19 @@ impl GitHelperService {
                             current
                         };
                         let path = &paths[idx];
-                        let entry = match detail {
-                            StatusDetail::Summary => self.collect_summary(path, timeout, &limiter),
+                        let entry_opt = match detail {
+                            StatusDetail::Summary => {
+                                Some(self.collect_summary(path, timeout, &limiter))
+                            }
                             StatusDetail::Full => self.collect_full(path, timeout, &limiter),
                         };
-                        let mut map = match results.lock() {
-                            Ok(guard) => guard,
-                            Err(poisoned) => poisoned.into_inner(),
-                        };
-                        map.insert(path.clone(), entry);
+                        if let Some(entry) = entry_opt {
+                            let mut map = match results.lock() {
+                                Ok(guard) => guard,
+                                Err(poisoned) => poisoned.into_inner(),
+                            };
+                            map.insert(path.clone(), entry);
+                        }
                     }
                 });
             }
@@ -206,21 +212,38 @@ impl GitHelperService {
         cwd: &str,
         timeout: Duration,
         limiter: &SubprocessLimiter,
-    ) -> NativeGitStatusEntry {
+    ) -> Option<NativeGitStatusEntry> {
         if !Path::new(cwd).is_dir() {
-            return non_repo_full_entry();
+            return Some(non_repo_full_entry());
         }
 
-        // Probe with `status --porcelain=v2 -b` directly: it exits 128 on
-        // non-repositories just like `rev-parse --is-inside-work-tree`, saving
-        // an entire sequential `git.exe` spawn on every full refresh!
+        // Probe with `status --porcelain=v2 -b` directly: on non-repositories it
+        // exits 128 with "not a git repository", saving an entire `rev-parse`
+        // spawn on every full refresh. Transient errors or timeouts return `None`
+        // so callers preserve prior state or fall back rather than wiping status
+        // to `isRepo: false`!
         let Ok(status_out) =
             run_git_command(cwd, &["status", "--porcelain=v2", "-b"], timeout, limiter)
         else {
-            return non_repo_full_entry();
+            return None;
         };
         if !status_out.ok {
-            return non_repo_full_entry();
+            let stderr_lower = status_out.stderr.to_ascii_lowercase();
+            if stderr_lower.contains("not a git repository")
+                || stderr_lower.contains("must be run in a work tree")
+            {
+                return Some(non_repo_full_entry());
+            }
+            // Disambiguate any other non-zero status failure via `rev-parse`:
+            match run_git_command(
+                cwd,
+                &["rev-parse", "--is-inside-work-tree"],
+                timeout,
+                limiter,
+            ) {
+                Ok(probe) if !probe.ok => return Some(non_repo_full_entry()),
+                _ => return None,
+            }
         }
 
         let mut parsed = parse_status_porcelain_v2(&status_out.stdout);
@@ -324,7 +347,7 @@ impl GitHelperService {
         // Note: `GitStatusService.getStatus` omits `headSha` on the local full
         // path (only summary and `buildGitStatusResultFromOutputs` populate it),
         // so leave `head_sha: None` here for exact field-for-field parity.
-        NativeGitStatusEntry {
+        Some(NativeGitStatusEntry {
             detail: None,
             is_repo: true,
             branch: parsed.branch,
@@ -341,7 +364,7 @@ impl GitHelperService {
             merge_in_progress,
             conflict_files,
             merge_message,
-        }
+        })
     }
 
     fn populate_untracked_insertions(&self, cwd: &str, parsed: &mut ParsedPorcelainStatus) {

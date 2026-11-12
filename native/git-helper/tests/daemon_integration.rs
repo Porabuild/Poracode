@@ -263,6 +263,32 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
     let inv_resp: HelperResponse = serde_json::from_str(&line).expect("parse invalidateSearch");
     assert!(inv_resp.ok);
 
+    // 5. Corrupt index inside a real git repo omits the entry on full status
+    // rather than falsely reporting `isRepo: false`!
+    fs::write(repo_b.join(".git/index"), b"corrupt-index-bytes").expect("corrupt index");
+    let corrupt_req = serde_json::json!({
+        "protocolVersion": 2,
+        "id": 6,
+        "kind": "statusBatch",
+        "paths": [paths[1], paths[2]],
+        "detail": "full",
+        "timeoutMs": 10000,
+        "maxConcurrency": 4
+    });
+    writeln!(stdin, "{corrupt_req}").expect("write corrupt req");
+    stdin.flush().expect("flush");
+
+    line.clear();
+    stdout.read_line(&mut line).expect("read corrupt line");
+    let corrupt_resp: HelperResponse = serde_json::from_str(&line).expect("parse corrupt");
+    assert!(corrupt_resp.ok);
+    let corrupt_statuses = corrupt_resp.statuses.expect("corrupt statuses");
+    assert!(
+        !corrupt_statuses.contains_key(&paths[1]),
+        "transient/corrupt git status inside a real repo must be omitted rather than marked isRepo=false"
+    );
+    assert!(!corrupt_statuses[&paths[2]].is_repo);
+
     drop(stdin);
     let exit = child.wait().expect("wait clean exit");
     assert!(exit.success());

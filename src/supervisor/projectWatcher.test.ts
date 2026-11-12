@@ -70,6 +70,7 @@ describe("isIgnoredWorkTreeFile", () => {
   it("does not hide unrelated project files", () => {
     expect(isIgnoredWorkTreeFile(".poracode/settings.json")).toBe(false);
     expect(isIgnoredWorkTreeFile("src/worktrees/create.ts")).toBe(false);
+    expect(isIgnoredWorkTreeFile("src/target/router.ts")).toBe(false);
   });
 });
 

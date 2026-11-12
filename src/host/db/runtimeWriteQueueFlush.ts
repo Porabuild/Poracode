@@ -307,6 +307,7 @@ export interface AsyncFlushHost {
   writeAsync: RuntimeAsyncWriteFlush;
   atomicBatchWriterAsync: RuntimeAsyncAtomicBatchWriter;
   recovery: RuntimeFlushRecovery;
+  reserveThreadInFlight(threadId: string, promise: Promise<void>): () => void;
   isPlanCurrent(plan: RuntimeFlushPlan): boolean;
   acknowledge(plan: RuntimeFlushPlan): void;
 }
@@ -336,11 +337,16 @@ export async function flushRuntimeQueueBudgetedAsync(
   };
   const writeSingle = async (plan: RuntimeFlushPlan): Promise<boolean> => {
     if (!host.isPlanCurrent(plan)) return true;
+    const settled = Promise.withResolvers<void>();
+    const release = host.reserveThreadInFlight(plan.threadId, settled.promise);
     try {
       await host.writeAsync(plan.threadId, plan.events);
     } catch (error) {
       result.failure = { threadId: plan.threadId, error };
       return false;
+    } finally {
+      release();
+      settled.resolve();
     }
     acknowledge(plan);
     return true;
@@ -408,8 +414,17 @@ export async function flushRuntimeQueueBudgetedAsync(
       if (currentPlans.length === 1) {
         await writeSingle(currentPlans[0]!);
       } else if (currentPlans.length > 1) {
+        const settled = Promise.withResolvers<void>();
+        const releases = currentPlans.map((plan) =>
+          host.reserveThreadInFlight(plan.threadId, settled.promise),
+        );
+        const releaseAll = () => {
+          for (const rel of releases) rel();
+          settled.resolve();
+        };
         try {
           const outcome = await host.atomicBatchWriterAsync(currentPlans);
+          releaseAll();
           if (outcome.kind === "committed") {
             for (const plan of currentPlans) acknowledge(plan);
           } else if (outcome.kind === "rolled-back") {
@@ -425,6 +440,7 @@ export async function flushRuntimeQueueBudgetedAsync(
             result.failure = { threadId: currentPlans[0]!.threadId, error: outcome.error };
           }
         } catch (error) {
+          releaseAll();
           result.failure = { threadId: currentPlans[0]!.threadId, error };
         }
       }

@@ -262,7 +262,8 @@ export class DesktopLoopbackIntake {
   private readonly socketFactory: (url: string) => DesktopLoopbackSocket;
   private readonly usesDefaultSocketFactory: boolean;
   private readonly workerSocketTransport: WorkerDesktopLoopbackTransport | null;
-  private pendingWorkerFrames: DesktopLoopbackFrame[] = [];
+  private pendingWorkerFrames: Array<DesktopLoopbackFrame | undefined> = [];
+  private pendingWorkerReadIndex = 0;
   private workerBatchContinuationTimer: ReturnType<typeof setTimeout> | null = null;
   /** A4: one counter fenced over every socket callback; dispose advances it so
    * a late `onopen`/`onmessage`/`onclose` is inert. */
@@ -825,6 +826,7 @@ export class DesktopLoopbackIntake {
 
   private clearPendingWorkerFrames(): void {
     this.pendingWorkerFrames = [];
+    this.pendingWorkerReadIndex = 0;
     if (this.workerBatchContinuationTimer !== null) {
       clearTimeout(this.workerBatchContinuationTimer);
       this.workerBatchContinuationTimer = null;
@@ -842,6 +844,7 @@ export class DesktopLoopbackIntake {
     socket: DesktopLoopbackSocket,
   ): void {
     if (frames.length === 0) return;
+    const MAX_PENDING_WORKER_FRAMES = 4_096;
     this.noteDecodeHealthy();
     for (const frame of frames) {
       // Correlated health pongs settle immediately regardless of yield slices.
@@ -851,7 +854,12 @@ export class DesktopLoopbackIntake {
       }
       this.pendingWorkerFrames.push(frame);
     }
-    if (this.pendingWorkerFrames.length > 0 && this.workerBatchContinuationTimer === null) {
+    const backlog = this.pendingWorkerFrames.length - this.pendingWorkerReadIndex;
+    if (backlog > MAX_PENDING_WORKER_FRAMES) {
+      this.noteDecodeUnavailable("overflow");
+      return;
+    }
+    if (backlog > 0 && this.workerBatchContinuationTimer === null) {
       this.drainPendingWorkerFrames(generation, socket);
     }
   }
@@ -859,18 +867,27 @@ export class DesktopLoopbackIntake {
   private drainPendingWorkerFrames(generation: number, socket: DesktopLoopbackSocket): void {
     const STREAM_YIELD_MS = 8;
     const startedAt = performance.now();
-    while (this.pendingWorkerFrames.length > 0) {
+    while (this.pendingWorkerReadIndex < this.pendingWorkerFrames.length) {
       if (this.disposed || this.socket !== socket || this.generation !== generation) {
         this.clearPendingWorkerFrames();
         return;
       }
-      const frame = this.pendingWorkerFrames.shift()!;
+      const idx = this.pendingWorkerReadIndex++;
+      const frame = this.pendingWorkerFrames[idx]!;
+      this.pendingWorkerFrames[idx] = undefined;
       try {
         routeDesktopLoopbackFrame(frame, this.framePorts);
       } catch {
         // HTTP snapshots stay authoritative; isolate individual listener faults.
       }
-      if (this.pendingWorkerFrames.length > 0 && performance.now() - startedAt >= STREAM_YIELD_MS) {
+      if (
+        this.pendingWorkerReadIndex < this.pendingWorkerFrames.length &&
+        performance.now() - startedAt >= STREAM_YIELD_MS
+      ) {
+        if (this.pendingWorkerReadIndex >= 512) {
+          this.pendingWorkerFrames = this.pendingWorkerFrames.slice(this.pendingWorkerReadIndex);
+          this.pendingWorkerReadIndex = 0;
+        }
         this.workerBatchContinuationTimer = setTimeout(() => {
           this.workerBatchContinuationTimer = null;
           this.drainPendingWorkerFrames(generation, socket);
@@ -878,6 +895,8 @@ export class DesktopLoopbackIntake {
         return;
       }
     }
+    this.pendingWorkerFrames = [];
+    this.pendingWorkerReadIndex = 0;
   }
 
   private forceReconnect(socket: DesktopLoopbackSocket): void {

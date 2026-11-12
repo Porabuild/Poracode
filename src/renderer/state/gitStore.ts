@@ -495,7 +495,9 @@ function loadPersistedSnapshot(): Partial<PersistedSnapshot> {
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let persistIdleHandle: number | null = null;
 let pendingPersistState: GitState | null = null;
+let persistWindowStartedAt: number | null = null;
 const PERSIST_DEBOUNCE_MS = 1_500;
+const PERSIST_MAX_WAIT_MS = 8_000;
 const PERSIST_IDLE_TIMEOUT_MS = 2_000;
 
 function cancelScheduledPersist(): void {
@@ -512,6 +514,7 @@ function cancelScheduledPersist(): void {
   }
   persistIdleHandle = null;
   pendingPersistState = null;
+  persistWindowStartedAt = null;
 }
 
 function flushPersistSnapshot(state: GitState): void {
@@ -536,13 +539,22 @@ function flushPersistSnapshot(state: GitState): void {
 
 function schedulePersist(state: GitState) {
   if (typeof localStorage === "undefined") return;
+  const now = Date.now();
   pendingPersistState = state;
-  if (persistTimer !== null) clearTimeout(persistTimer);
+  if (persistWindowStartedAt === null) {
+    persistWindowStartedAt = now;
+  }
+  const remainingMaxWait = Math.max(0, PERSIST_MAX_WAIT_MS - (now - persistWindowStartedAt));
+  const delayMs = Math.min(PERSIST_DEBOUNCE_MS, remainingMaxWait);
+  if (persistTimer !== null && delayMs > 0) clearTimeout(persistTimer);
+  else if (persistTimer !== null && delayMs === 0) return;
   // Coalesce bursts during active agent edits and defer the synchronous
   // `JSON.stringify` + `localStorage.setItem` write to an idle frame so
-  // background worktree churn never stalls UI animations or thread switches.
+  // background worktree churn never stalls UI animations or thread switches,
+  // bounded by `PERSIST_MAX_WAIT_MS` so continuous churn still checkpoints.
   persistTimer = setTimeout(() => {
     persistTimer = null;
+    persistWindowStartedAt = null;
     if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
       if (persistIdleHandle !== null) return;
       persistIdleHandle = window.requestIdleCallback(
@@ -559,7 +571,7 @@ function schedulePersist(state: GitState) {
     const latest = pendingPersistState;
     pendingPersistState = null;
     if (latest) flushPersistSnapshot(latest);
-  }, PERSIST_DEBOUNCE_MS);
+  }, delayMs);
 }
 
 if (typeof window !== "undefined") {
