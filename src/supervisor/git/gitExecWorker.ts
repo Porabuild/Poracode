@@ -1,5 +1,6 @@
 import { execFile, type ChildProcess } from "node:child_process";
 import { parentPort } from "node:worker_threads";
+import { attachChildProcessTreeCleanup } from "@/shared/processTree";
 
 export interface GitExecWorkerRequest {
   readonly id: number;
@@ -108,6 +109,7 @@ function handleExec(request: GitExecWorkerRequest): void {
     },
   );
 
+  attachChildProcessTreeCleanup(child);
   inFlightChildren.set(request.id, child);
 
   if (request.input !== undefined) {

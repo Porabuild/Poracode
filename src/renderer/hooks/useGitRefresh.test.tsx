@@ -7,6 +7,7 @@ import type { GitRefreshOptions, GitRefreshReason } from "@/renderer/state/gitRe
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitRefresh } from "./useGitRefresh";
 
 const { bridgeMock, gitRefreshMocks } = vi.hoisted(() => ({
@@ -466,6 +467,41 @@ describe("useGitRefresh branch PR prefetch triggers", () => {
       unmount();
     },
   );
+
+  it("refreshes Files and open buffers without scheduling Git for ignored-file events", async () => {
+    vi.useFakeTimers();
+    const previous = useFileEditorStore.getState();
+    const refreshOpenBuffers = vi.fn<() => Promise<void>>(async () => {});
+    useFileEditorStore.setState({
+      rootContext: {
+        projectId: localProject.id,
+        projectName: localProject.name,
+        projectLocation: localProject.location,
+        rootLabel: "Files",
+      },
+      refreshOpenBuffers,
+    });
+    const { unmount } = await renderAndClearInitialPrefetch();
+    gitRefreshMocks.refreshGitProject.mockClear();
+    const refreshToken = useFileEditorStore.getState().refreshToken;
+    try {
+      act(() =>
+        bridgeMock.onSupervisorEvent.mock.calls[0]![0]({
+          type: "project-tree-changed",
+          projectId: localProject.id,
+          gitChanged: false,
+        }),
+      );
+      await act(() => vi.advanceTimersByTimeAsync(2_000));
+      expect(gitRefreshMocks.refreshGitProject).not.toHaveBeenCalled();
+      expect(useFileEditorStore.getState().refreshToken).toBe(refreshToken + 1);
+      expect(refreshOpenBuffers).toHaveBeenCalledOnce();
+    } finally {
+      unmount();
+      useFileEditorStore.setState(previous);
+      vi.useRealTimers();
+    }
+  });
 
   it.each(["git-changed", "project-tree-changed"] as const)(
     "coalesces six scoped %s events without refreshing the main checkout",

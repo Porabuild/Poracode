@@ -405,7 +405,7 @@ describe("ToolCallGroup", () => {
     // No nested per-edit disclosure rows — one merged file diff renders directly.
     expect(screen.queryByRole("button", { name: /^Edit:/i })).not.toBeInTheDocument();
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(1);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(1);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
       expect((viewport.textContent?.match(/new/g) ?? []).length).toBeGreaterThanOrEqual(2);
@@ -432,7 +432,7 @@ describe("ToolCallGroup", () => {
 
     expandGroup(/2 edits:/i);
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(1);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(1);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
       expect((viewport.textContent?.match(/const answer = 42;/g) ?? []).length).toBe(2);
@@ -920,7 +920,7 @@ describe("ToolCallGroup", () => {
     // Mixed group auto-expands live; the two consecutive foo.ts edits render
     // as one merged "2 edits: foo.ts" run row next to the view row.
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(2);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(2);
     const runRow = screen.getByRole("button", { name: /2 edits:/i });
     expect(within(runRow).getByText("foo.ts")).toBeInTheDocument();
     expect(within(runRow).getByText("+9")).toHaveClass("text-success");
@@ -958,7 +958,7 @@ describe("ToolCallGroup", () => {
     // 6 items render as 5 rows: the consecutive same-file pair collapses into
     // one "2 edits: chatPaneSelectors.test.ts" row with the summed diff.
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(5);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(5);
     const runRow = screen.getByRole("button", { name: /2 edits:/i });
     expect(within(runRow).getByText("chatPaneSelectors.test.ts")).toBeInTheDocument();
     expect(within(runRow).getByText("+8")).toHaveClass("text-success");
@@ -983,7 +983,7 @@ describe("ToolCallGroup", () => {
     // The interposed tool call breaks the run: no merged "2 edits" row, each
     // edit stays its own row — but all three still live in the same group.
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(3);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(3);
     expect(screen.queryByRole("button", { name: /2 edits:/i })).not.toBeInTheDocument();
     expect(screen.getAllByText("foo.ts")).toHaveLength(2);
   });
@@ -1486,7 +1486,7 @@ describe("ToolCallGroup sliding window", () => {
     // The row that scrolled off the top is the one fading, and it is no longer
     // in flow — so the group's measured height is unchanged.
     expect(ghost?.textContent).toContain("Read file 3");
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(8);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(8);
     expect(ghost?.parentElement).toBe(viewport.parentElement);
     expect(viewport.parentElement).toHaveClass("relative");
     expect(viewport.parentElement).toHaveClass("poracode-tool-call-group-windowed");

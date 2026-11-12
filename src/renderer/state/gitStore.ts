@@ -457,35 +457,52 @@ export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boole
  * to serialize and useful at first paint are persisted — the in-flight `prFiles`
  * / `prDiffs` caches are kept session-local since they're tied to overlay state.
  */
-// v2 recomputes GitHub-only availability and truncated repository namespaces.
-// v2 remains valid: raw SSH/SCP URLs cached by older hosts still paint branch
-// and diff state, but repoIdentityKey treats them as unconfirmed. The owning
-// host publishes canonical HTTPS only when it proves a direct route; routes it
-// cannot prove stay raw/unconfirmed and are retried on future catalog imports.
-// No cache version or field change is needed.
-const PERSIST_KEY = "poracode-git-cache-v2";
+// v3 stores fields separately so status churn does not copy every cached PR and
+// branch into Blink storage. Released v2 data remains valid and migrates on the
+// next write; raw SSH origins still require confirmation by the owning host.
+const PERSIST_KEY = "poracode-git-cache-v3";
+const LEGACY_PERSIST_KEY = "poracode-git-cache-v2";
 const PERSIST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-interface PersistedSnapshot {
-  v: 2;
-  ts: number;
-  statuses: Record<string, GitStatusResult>;
-  worktreeStatuses: Record<string, GitStatusResult>;
-  worktrees: Record<string, GitWorktreeInfo[]>;
-  branches: Record<string, GitBranchListResult>;
-  ghAvailable: Record<string, boolean>;
-  prData: Record<string, PrData | null>;
-  worktreeSourceInfo: Record<string, WorktreeSourceInfo>;
-}
+const PERSIST_FIELDS = [
+  "statuses",
+  "worktreeStatuses",
+  "worktrees",
+  "branches",
+  "ghAvailable",
+  "prData",
+  "worktreeSourceInfo",
+] as const;
+type PersistedSnapshot = Pick<GitState, (typeof PERSIST_FIELDS)[number]>;
+let persistedFields: Partial<PersistedSnapshot> = {};
+let legacySnapshot: string | null = null;
+let canPersist = true;
 
 function loadPersistedSnapshot(): Partial<PersistedSnapshot> {
   if (typeof localStorage === "undefined") return {};
   try {
     const raw = localStorage.getItem(PERSIST_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as PersistedSnapshot;
+    if (raw) {
+      const metadata = JSON.parse(raw) as { v: number; ts: number };
+      if (metadata.v !== 3) {
+        canPersist = false;
+        return {};
+      }
+      if (typeof metadata.ts !== "number" || Date.now() - metadata.ts > PERSIST_TTL_MS) return {};
+      const snapshot = Object.fromEntries(
+        PERSIST_FIELDS.map((field) => [
+          field,
+          JSON.parse(localStorage.getItem(`${PERSIST_KEY}:${field}`) ?? "{}"),
+        ]),
+      ) as PersistedSnapshot;
+      persistedFields = snapshot;
+      return snapshot;
+    }
+    const legacy = localStorage.getItem(LEGACY_PERSIST_KEY);
+    if (!legacy) return {};
+    const parsed = JSON.parse(legacy) as Partial<PersistedSnapshot> & { v: number; ts: number };
     if (parsed.v !== 2) return {};
-    if (Date.now() - parsed.ts > PERSIST_TTL_MS) return {};
+    legacySnapshot = legacy;
+    if (typeof parsed.ts !== "number" || Date.now() - parsed.ts > PERSIST_TTL_MS) return {};
     return parsed;
   } catch {
     return {};
@@ -518,22 +535,32 @@ function cancelScheduledPersist(): void {
 }
 
 function flushPersistSnapshot(state: GitState): void {
-  if (typeof localStorage === "undefined") return;
+  if (typeof localStorage === "undefined" || !canPersist) return;
   try {
-    const snapshot: PersistedSnapshot = {
-      v: 2,
-      ts: Date.now(),
-      statuses: state.statuses,
-      worktreeStatuses: state.worktreeStatuses,
-      worktrees: state.worktrees,
-      branches: state.branches,
-      ghAvailable: state.ghAvailable,
-      prData: state.prData,
-      worktreeSourceInfo: state.worktreeSourceInfo,
-    };
-    localStorage.setItem(PERSIST_KEY, JSON.stringify(snapshot));
+    if (legacySnapshot !== null) {
+      // The loaded snapshot is still in the store. Release its old storage
+      // quota before writing the split cache instead of requiring two copies.
+      localStorage.removeItem(LEGACY_PERSIST_KEY);
+    }
+    for (const field of PERSIST_FIELDS) {
+      if (persistedFields[field] === state[field]) continue;
+      localStorage.setItem(`${PERSIST_KEY}:${field}`, JSON.stringify(state[field]));
+      persistedFields = { ...persistedFields, [field]: state[field] };
+    }
+    localStorage.setItem(PERSIST_KEY, JSON.stringify({ v: 3, ts: Date.now() }));
+    legacySnapshot = null;
   } catch {
-    // localStorage may be full or unavailable — silently skip.
+    if (legacySnapshot !== null) {
+      persistedFields = {};
+      try {
+        for (const field of PERSIST_FIELDS) localStorage.removeItem(`${PERSIST_KEY}:${field}`);
+        localStorage.removeItem(PERSIST_KEY);
+        localStorage.setItem(LEGACY_PERSIST_KEY, legacySnapshot);
+      } catch {
+        // Keep the migration snapshot in memory for the next attempt.
+      }
+    }
+    // localStorage may be full or unavailable — the live store remains usable.
   }
 }
 
@@ -939,9 +966,13 @@ export function resetGitStoreCache(): void {
   // below. A desktop/session reset must remove the previous identity's cache
   // immediately, rather than leave a reload window before that debounce fires.
   cancelScheduledPersist();
-  if (typeof localStorage !== "undefined") {
+  persistedFields = {};
+  legacySnapshot = null;
+  if (typeof localStorage !== "undefined" && canPersist) {
     try {
       localStorage.removeItem(PERSIST_KEY);
+      localStorage.removeItem(LEGACY_PERSIST_KEY);
+      for (const field of PERSIST_FIELDS) localStorage.removeItem(`${PERSIST_KEY}:${field}`);
     } catch {
       // Storage may be unavailable (privacy mode / sandboxed webview).
     }
@@ -962,3 +993,5 @@ useGitStore.subscribe((state, prev) => {
     schedulePersist(state);
   }
 });
+
+if (legacySnapshot !== null) schedulePersist(useGitStore.getState());

@@ -9,6 +9,7 @@ import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { attachErrorDetails, errorDetail, msg } from "@/shared/messages";
 import { getProjectName } from "@/shared/wsl";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "@/shared/worktree";
+import { attachChildProcessTreeCleanup } from "@/shared/processTree";
 import type { WslBridgeClient, WslGitExecResult } from "../wsl/bridge/client";
 import {
   admitGitProcess,
@@ -50,6 +51,7 @@ function execFileWithInput(
       }
       settle(stdinError ?? null, { stdout: stdoutText, stderr: stderrText });
     });
+    attachChildProcessTreeCleanup(child);
     if (!child.stdin) {
       child.kill();
       settle(new Error(`Unable to write stdin for ${command}.`));
@@ -270,11 +272,12 @@ async function execGitAdmitted(
       windowsHide: true,
       ...(options?.signal ? { signal: options.signal } : {}),
     };
-    const { stdout } =
-      options?.input !== undefined
-        ? await execFileWithInput("git", fullArgs, execOptions, options.input)
-        : await execFileAsync("git", fullArgs, execOptions);
-    return stdout;
+    if (options?.input !== undefined) {
+      return (await execFileWithInput("git", fullArgs, execOptions, options.input)).stdout;
+    }
+    const pending = execFileAsync("git", fullArgs, execOptions);
+    attachChildProcessTreeCleanup(pending.child);
+    return (await pending).stdout;
   } catch (error: unknown) {
     if (
       options?.signal?.aborted &&

@@ -45,8 +45,12 @@ struct Daemon {
 }
 impl Daemon {
     fn new() -> Self {
+        Self::with_env(&[])
+    }
+    fn with_env(variables: &[(&str, &Path)]) -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_poracode-git-helper"))
             .arg("--watch-v3")
+            .envs(variables.iter().copied())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -120,6 +124,211 @@ impl Drop for Daemon {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+#[test]
+fn keeps_file_notifications_for_ignored_writes_and_git_fresh_for_tracked_and_rule_changes() {
+    let root = Fixture::new();
+    let repo = git2::Repository::init(&root.0).expect("init repository");
+    root.mkdir("scratch");
+    root.write(".gitignore", "scratch/*\n!scratch/keep.txt\n");
+    root.write("scratch/tracked.txt", "tracked before\n");
+    root.write("scratch/output.log", "ignored before watching\n");
+    let mut index = repo.index().expect("index");
+    index
+        .add_path(Path::new("scratch/tracked.txt"))
+        .expect("force add");
+    index.write().expect("write index");
+    let mut daemon = Daemon::new();
+    daemon.watch(1, &root.0);
+
+    root.write("scratch/output.log", "ignored output\n");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+    root.write("scratch/output.log", "ignored output again\n");
+    assert_eq!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+    for name in [
+        "scratch/keep.txt",
+        "scratch/tracked.txt",
+        "scratch/.gitignore",
+        "scratch/.gitattributes",
+    ] {
+        root.write(name, "changed\n");
+        assert_ne!(
+            daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+            false,
+            "{name}"
+        );
+    }
+    fs::remove_file(root.0.join("scratch/tracked.txt")).expect("remove tracked");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+
+    // The classifier must read the current index, not retain the original one.
+    index
+        .add_path(Path::new("scratch/output.log"))
+        .expect("force add later");
+    index.write().expect("write new index");
+    root.write("scratch/output.log", "new tracked output\n");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+    root.write(".gitignore", "");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+    root.write("scratch/new.log", "now unignored\n");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+}
+
+#[test]
+fn keeps_git_refresh_for_ignored_configuration_sources() {
+    for included in [false, true] {
+        let root = Fixture::new();
+        let repo = git2::Repository::init(&root.0).expect("init repository");
+        root.write(".gitignore", "settings\noutput.log\n");
+        root.write("output.log", "ignored before watching\n");
+        root.write(
+            "settings",
+            if included {
+                "[core]\nignorecase = true\n"
+            } else {
+                "output.log\n"
+            },
+        );
+        repo.config()
+            .expect("config")
+            .set_str(
+                if included {
+                    "include.path"
+                } else {
+                    "core.excludesfile"
+                },
+                root.0.join("settings").to_str().expect("fixture path"),
+            )
+            .expect("set config source");
+        let mut daemon = Daemon::new();
+        daemon.watch(1, &root.0);
+        root.write("output.log", "establish configuration\n");
+        daemon.wait("changed", 1, Some("worktree"));
+        root.write("output.log", "unchanged configuration\n");
+        assert_eq!(
+            daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+            false
+        );
+        root.write(
+            "settings",
+            if included {
+                "[core]\nignorecase = false\n"
+            } else {
+                "\n"
+            },
+        );
+        assert_ne!(
+            daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+            false
+        );
+        fs::remove_file(root.0.join("settings")).expect("remove config source");
+        assert_ne!(
+            daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+            false
+        );
+    }
+}
+
+#[test]
+fn reconciles_status_after_external_excludes_change() {
+    let root = Fixture::new();
+    let external = Fixture::new();
+    let repo = git2::Repository::init(&root.0).expect("init repository");
+    external.write("ignore", "");
+    repo.config()
+        .expect("config")
+        .set_str(
+            "core.excludesfile",
+            external.0.join("ignore").to_str().expect("external path"),
+        )
+        .expect("global excludes");
+    root.write("output.log", "visible untracked file\n");
+    let mut daemon = Daemon::new();
+    daemon.watch(1, &root.0);
+    root.write("output.log", "still visible\n");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+    external.write("ignore", "output.log\n");
+    root.write("output.log", "now ignored\n");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+    root.write("output.log", "unchanged external rules\n");
+    assert_eq!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+}
+
+#[test]
+fn reconciles_status_after_default_global_ignore_changes() {
+    let root = Fixture::new();
+    let external = Fixture::new();
+    git2::Repository::init(&root.0).expect("init repository");
+    external.mkdir("git");
+    external.write("git/ignore", "");
+    root.write("output.log", "visible untracked file\n");
+    let mut daemon = Daemon::with_env(&[("HOME", &external.0), ("XDG_CONFIG_HOME", &external.0)]);
+    daemon.watch(1, &root.0);
+    root.write("output.log", "establish external rules\n");
+    daemon.wait("changed", 1, Some("worktree"));
+    external.write("git/ignore", "output.log\n");
+    root.write("output.log", "now ignored\n");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+    root.write("output.log", "unchanged external rules\n");
+    assert_eq!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn does_not_classify_lossy_filenames_as_ignore_only() {
+    use std::ffi::OsString;
+    use std::os::unix::ffi::OsStringExt;
+    let root = Fixture::new();
+    let repo = git2::Repository::init(&root.0).expect("init repository");
+    root.write(".gitignore", "*.log\n");
+    let name = PathBuf::from(OsString::from_vec(b"tracked-\xff.log".to_vec()));
+    fs::write(root.0.join(&name), "tracked before").expect("write byte path");
+    let mut index = repo.index().expect("index");
+    index.add_path(&name).expect("add byte path");
+    index.write().expect("write index");
+    let mut daemon = Daemon::new();
+    daemon.watch(1, &root.0);
+    root.write("warmup.txt", "establish config fingerprint");
+    daemon.wait("changed", 1, Some("worktree"));
+    fs::write(root.0.join(&name), "tracked after").expect("edit byte path");
+    assert_ne!(
+        daemon.wait("changed", 1, Some("worktree"))["gitChanged"],
+        false
+    );
 }
 
 #[cfg(windows)]

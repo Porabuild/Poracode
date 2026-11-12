@@ -45,15 +45,28 @@ struct Message<'a> {
     scope: Option<Scope>,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    git_changed: Option<bool>,
 }
 
 fn emit(id: u64, kind: &str, scope: Option<Scope>, error: Option<&str>) -> io::Result<()> {
+    emit_with_git_hint(id, kind, scope, error, None)
+}
+
+fn emit_with_git_hint(
+    id: u64,
+    kind: &str,
+    scope: Option<Scope>,
+    error: Option<&str>,
+    git_changed: Option<bool>,
+) -> io::Result<()> {
     let message = Message {
         protocol_version: GIT_HELPER_PROTOCOL_VERSION,
         id,
         kind,
         scope,
         error,
+        git_changed,
     };
     let mut stdout = io::stdout().lock();
     serde_json::to_writer(&mut stdout, &message)?;
@@ -96,6 +109,9 @@ struct Subscription {
     paths: HashSet<PathBuf>,
     // Exactly two possible deadlines per subscription, regardless of event volume.
     pending: HashMap<Scope, Instant>,
+    // None means pathless/overflowed: preserve the conservative status refresh.
+    status_paths: Option<HashSet<String>>,
+    config_fingerprint: Option<u64>,
 }
 
 struct WatchService {
@@ -257,6 +273,7 @@ impl WatchService {
                 path.starts_with(&subscription.root) || subscription.root.starts_with(path)
             }) {
                 subscription.pending.insert(Scope::Worktree, deadline);
+                subscription.status_paths = None;
             }
             if subscription.git_dirs.iter().any(|git| {
                 removed
@@ -308,6 +325,8 @@ impl WatchService {
                 git_dirs,
                 paths,
                 pending: HashMap::new(),
+                status_paths: Some(HashSet::new()),
+                config_fingerprint: None,
             },
         );
         Ok(())
@@ -355,11 +374,12 @@ impl WatchService {
         }
         let mut changes = HashSet::new();
         let mut refresh = HashSet::new();
-        for (id, subscription) in &self.subscriptions {
+        for (id, subscription) in &mut self.subscriptions {
             if event.need_rescan() {
                 changes.insert((*id, Scope::Git));
                 changes.insert((*id, Scope::Worktree));
                 refresh.insert(*id);
+                subscription.status_paths = None;
             }
             for path in &event.paths {
                 if let Some(name) = relative_name(&subscription.root, path) {
@@ -379,6 +399,16 @@ impl WatchService {
                         }
                     } else if !ignored_tree(&name) {
                         changes.insert((*id, Scope::Worktree));
+                        if path.to_str().is_none() {
+                            subscription.status_paths = None;
+                        }
+                        if let Some(paths) = &mut subscription.status_paths {
+                            if paths.len() < 256 {
+                                paths.insert(name);
+                            } else {
+                                subscription.status_paths = None;
+                            }
+                        }
                     }
                 }
                 for (index, git_dir) in subscription.git_dirs.iter().enumerate() {
@@ -441,7 +471,22 @@ impl WatchService {
                 .collect();
             for scope in due {
                 subscription.pending.remove(&scope);
-                emit(*id, "changed", Some(scope), None)?;
+                let git_changed = if scope == Scope::Worktree {
+                    let paths = subscription.status_paths.take();
+                    subscription.status_paths = Some(HashSet::new());
+                    paths
+                        .map(|paths| {
+                            crate::service::changes_may_affect_status(
+                                &subscription.root,
+                                &paths,
+                                &mut subscription.config_fingerprint,
+                            )
+                        })
+                        .filter(|changed| !changed)
+                } else {
+                    None
+                };
+                emit_with_git_hint(*id, "changed", Some(scope), None, git_changed)?;
             }
         }
         Ok(())
@@ -626,6 +671,8 @@ mod tests {
                 git_dirs: Vec::new(),
                 paths: HashSet::new(),
                 pending: HashMap::new(),
+                status_paths: Some(HashSet::new()),
+                config_fingerprint: None,
             },
         );
         service.event(Event::new(EventKind::Access(AccessKind::Open(

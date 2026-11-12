@@ -47,6 +47,7 @@ import { ToolCallRowOpenContext, useToolCallRowOpenSignal } from "./toolCallRowO
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
 import { GroupSummarySection } from "./GroupSummarySection";
 import { useToolCallWindowShift } from "./useToolCallWindowShift";
+import { ToolCallEnterRow, useRememberToolCallItems } from "./toolCallEntrance";
 import {
   extractAcpAddedFileText,
   extractAcpArgsPart,
@@ -104,6 +105,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   onHeightChange,
   onVirtualizerLayoutChange,
 }: ToolCallGroupProps) {
+  useRememberToolCallItems(itemIds);
   const sourceItems = useAppStore(
     useShallow((state) =>
       itemIds
@@ -276,7 +278,12 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                     ) : (
                       <ToolCallRowOpenContext.Provider value={onRowOpenChange}>
                         {visibleSegments.map((segment) => (
-                          <div key={segmentKey(segment)} className="animate-tool-call-enter">
+                          <ToolCallEnterRow
+                            key={segmentKey(segment)}
+                            item={
+                              segment.kind === "same-file-edits" ? segment.items[0]! : segment.item
+                            }
+                          >
                             {segment.kind === "same-file-edits" ? (
                               <SameFileEditRunInline
                                 items={segment.items}
@@ -285,7 +292,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                             ) : (
                               <GroupRowInline item={segment.item} />
                             )}
-                          </div>
+                          </ToolCallEnterRow>
                         ))}
                       </ToolCallRowOpenContext.Provider>
                     )}
@@ -383,24 +390,26 @@ function SameFileEditGroupBody({ items: source }: { items: readonly RuntimeChatI
     return (
       <>
         {source.map((item) => (
-          <div key={item.id} className="animate-tool-call-enter">
+          <ToolCallEnterRow key={item.id} item={item}>
             <GroupRowInline item={item} />
-          </div>
+          </ToolCallEnterRow>
         ))}
       </>
     );
   const diffRows: InlineRow[] = [];
-  const nonDiffBodies: InlineRow[] = [];
+  let firstDiffItem: RuntimeChatItem | undefined;
+  const nonDiffBodies: { item: RuntimeChatItem; row: InlineRow }[] = [];
   const fallbackItems: RuntimeChatItem[] = [];
 
   for (const item of resolved.items) {
     const row = getInlineRow(item, true, t);
     if (row?.bodyText && row.bodyKind === "diff") {
+      firstDiffItem ??= item;
       diffRows.push(row);
       continue;
     }
     if (row?.bodyText) {
-      nonDiffBodies.push(row);
+      nonDiffBodies.push({ item, row });
       continue;
     }
     fallbackItems.push(item);
@@ -421,26 +430,26 @@ function SameFileEditGroupBody({ items: source }: { items: readonly RuntimeChatI
   return (
     <>
       {mergedDiffText ? (
-        <div className="animate-tool-call-enter">
+        <ToolCallEnterRow item={firstDiffItem!}>
           <LazyInlineDiffView
             diffText={mergedDiffText}
             filePath={filePath}
             {...(singleContent ?? {})}
           />
-        </div>
+        </ToolCallEnterRow>
       ) : null}
-      {nonDiffBodies.map((row, index) => (
-        <div key={`same-file-body-${index}`} className="animate-tool-call-enter">
+      {nonDiffBodies.map(({ item, row }, index) => (
+        <ToolCallEnterRow key={`same-file-body-${index}`} item={item}>
           <CommandOutputViewport
             text={row.bodyText!}
             {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
           />
-        </div>
+        </ToolCallEnterRow>
       ))}
       {fallbackItems.map((item) => (
-        <div key={item.id} className="animate-tool-call-enter">
+        <ToolCallEnterRow key={item.id} item={item}>
           <GroupRowInline item={item} />
-        </div>
+        </ToolCallEnterRow>
       ))}
     </>
   );

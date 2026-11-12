@@ -15,7 +15,7 @@ export interface ProjectWatcherCallbacks {
   /** Fires when `.git` metadata (refs, index, HEAD, worktrees/*) changes. */
   onGitChanged: (projectId: string, worktreePath?: string) => void;
   /** Fires when working-tree files change. */
-  onTreeChanged: (projectId: string, worktreePath?: string) => void;
+  onTreeChanged: (projectId: string, worktreePath?: string, gitChanged?: boolean) => void;
 }
 
 type WslUnsubscribe = () => Promise<void>;
@@ -176,9 +176,10 @@ export class ProjectWatcher {
     this.watchers.set(projectId, entry);
     const subscription = this.localClient.watch(
       location.path,
-      (scope) => {
+      (scope, gitChanged) => {
         if (this.watchers.get(projectId) !== entry) return;
         if (scope === "git") this.callbacks.onGitChanged(projectId);
+        else if (gitChanged === false) this.callbacks.onTreeChanged(projectId, undefined, false);
         else this.callbacks.onTreeChanged(projectId);
       },
       () => {
@@ -255,9 +256,10 @@ export class ProjectWatcher {
       this.worktreeWatchers.set(wtPath, entry);
       const subscription = this.localClient.watch(
         wtPath,
-        (scope) => {
+        (scope, gitChanged) => {
           if (this.worktreeWatchers.get(wtPath) !== entry) return;
           if (scope === "git") this.callbacks.onGitChanged(projectId, wtPath);
+          else if (gitChanged === false) this.callbacks.onTreeChanged(projectId, wtPath, false);
           else this.callbacks.onTreeChanged(projectId, wtPath);
         },
         () => {

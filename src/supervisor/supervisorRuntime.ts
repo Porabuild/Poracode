@@ -241,13 +241,14 @@ export class SupervisorRuntime {
             ...(worktreePath ? { worktreePath } : {}),
           });
         },
-        onTreeChanged: (projectId, worktreePath) => {
+        onTreeChanged: (projectId, worktreePath, gitChanged) => {
           this.projectTreeService.invalidateAllCaches();
-          this.gitService.invalidateStatus();
+          if (gitChanged !== false) this.gitService.invalidateStatus();
           this.emit({
             type: "project-tree-changed",
             projectId,
             ...(worktreePath ? { worktreePath } : {}),
+            ...(gitChanged === false ? { gitChanged: false } : {}),
           });
         },
       });

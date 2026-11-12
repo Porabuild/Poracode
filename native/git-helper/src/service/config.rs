@@ -11,6 +11,7 @@ use gix_glob::wildmatch::Mode;
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::fs;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
@@ -28,6 +29,14 @@ struct Resolver<'a> {
 }
 
 pub(super) fn resolved(repo: &Repository) -> Result<Config, Error> {
+    resolve(repo, false).map(|(config, _)| config)
+}
+
+pub(super) fn resolved_for_watch(repo: &Repository) -> Result<(Config, u64), Error> {
+    resolve(repo, true)
+}
+
+fn resolve(repo: &Repository, fingerprint: bool) -> Result<(Config, u64), Error> {
     let config = repo.config()?;
     let mut entries = config.entries(None)?;
     let mut roots = BTreeSet::new();
@@ -65,8 +74,8 @@ pub(super) fn resolved(repo: &Repository) -> Result<Config, Error> {
         }
     }
     drop(entries);
-    if !has_hasconfig && !ignored_xdg {
-        return Ok(config);
+    if !has_hasconfig && !ignored_xdg && !fingerprint {
+        return Ok((config, 0));
     }
     let mut resolver = Resolver {
         repo,
@@ -104,7 +113,32 @@ pub(super) fn resolved(repo: &Repository) -> Result<Config, Error> {
         return Err(config_error());
     }
     repo.set_config(&resolved)?;
-    Ok(resolved)
+    let mut hash = DefaultHasher::new();
+    if fingerprint {
+        // These sources may live outside watched roots. A changed fingerprint
+        // makes the next worktree notification reconcile Git before skipping.
+        output.hash(&mut hash);
+        let excludes = match resolved.get_path("core.excludesfile") {
+            Ok(path) if path.is_absolute() => Some(path),
+            Ok(_) => return Err(config_error()),
+            Err(error) if error.code() == ErrorCode::NotFound => {
+                std::env::var_os("XDG_CONFIG_HOME")
+                    .map(PathBuf::from)
+                    .or_else(|| resolver.home.as_ref().map(|home| home.join(".config")))
+                    .map(|path| path.join("git/ignore"))
+            }
+            Err(error) => return Err(error),
+        };
+        if let Some(path) = excludes {
+            let bytes = match fs::read(path) {
+                Ok(bytes) => Some(bytes),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+                Err(_) => return Err(config_error()),
+            };
+            bytes.hash(&mut hash);
+        }
+    }
+    Ok((resolved, hash.finish()))
 }
 
 fn layout(config: &Config) -> Result<BTreeMap<String, Option<Vec<u8>>>, Error> {

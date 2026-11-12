@@ -62,10 +62,10 @@
    Highlight API so matches never mutate React-managed / virtualized DOM. The
    active match (lc-find-current) is registered at higher priority so it paints
    over the base set. Theme-independent colors so both light and dark read well. */
-::highlight(lc-find) {
+[data-poracode-find-highlights] ::highlight(lc-find) {
   background-color: rgb(250 204 21 / 0.4);
 }
-::highlight(lc-find-current) {
+[data-poracode-find-highlights] ::highlight(lc-find-current) {
   background-color: rgb(249 115 22 / 0.95);
   color: rgb(0 0 0 / 0.92);
 }

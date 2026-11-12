@@ -516,6 +516,10 @@ describe("ProjectWatcher native registration readiness", () => {
     expect([worktreeReady, repeatedReady]).toEqual([true, true]);
     h.registrations[1]!.changed("worktree");
     expect(h.onTreeChanged).toHaveBeenCalledWith("p", "/topic");
+    h.registrations[0]!.changed("worktree", false);
+    expect(h.onTreeChanged).toHaveBeenLastCalledWith("p", undefined, false);
+    h.registrations[1]!.changed("worktree", false);
+    expect(h.onTreeChanged).toHaveBeenLastCalledWith("p", "/topic", false);
     await h.watcher.dispose();
   });
 

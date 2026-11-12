@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import type { ChildProcess } from "node:child_process";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -55,6 +56,10 @@ vi.mock("node:child_process", async () => {
     execFile: execFileMock,
   };
 });
+
+vi.mock("@/shared/processTree", () => ({
+  attachChildProcessTreeCleanup: vi.fn<(child: ChildProcess) => void>(),
+}));
 
 import { computeDefaultWorktreePath, GitService, parseRemoteUrl } from "./git";
 import {

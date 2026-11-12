@@ -264,10 +264,12 @@ export function useGitRefresh(storeHydrated: boolean) {
     }
 
     const unsubWatcher = readBridge().onSupervisorEvent((event) => {
-      // Both events are git-affecting: `.git` metadata clearly, and worktree
-      // edits change `git status` output (a tracked file becomes modified,
-      // an untracked file appears, etc.). Refresh git state for either.
-      if (event.type === "git-changed" || event.type === "project-tree-changed") {
+      // Ignore-only edits still refresh file views. Older hosts/fallbacks omit
+      // the hint, so their worktree notifications retain the full refresh.
+      if (
+        event.type === "git-changed" ||
+        (event.type === "project-tree-changed" && event.gitChanged !== false)
+      ) {
         console.log(
           `[git-refresh] watcher-event ${event.type} project=${event.projectId}${event.worktreePath ? ` worktree=${event.worktreePath}` : ""}`,
         );

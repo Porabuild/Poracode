@@ -150,6 +150,24 @@ function createService(overrides: Partial<GitStateServiceOptions> = {}): {
 }
 
 describe("GitStateService", () => {
+  it("keeps interested Git snapshots through ignore-only edits and refreshes unhinted events", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    service.setInterests("client", [{ kind: "target", projectId: project.id }]);
+    await vi.waitFor(() => expect(fakeExecutor.gitProjectSnapshot).toHaveBeenCalledTimes(1));
+    await service.refreshInterests([{ kind: "target", projectId: project.id }]);
+    vi.mocked(fakeExecutor.gitProjectSnapshot).mockClear();
+    service.observeSupervisorEvent({
+      type: "project-tree-changed",
+      projectId: project.id,
+      gitChanged: false,
+    });
+    await Promise.resolve();
+    expect(fakeExecutor.gitProjectSnapshot).not.toHaveBeenCalled();
+    service.observeSupervisorEvent({ type: "project-tree-changed", projectId: project.id });
+    await vi.waitFor(() => expect(fakeExecutor.gitProjectSnapshot).toHaveBeenCalledTimes(1));
+    await service.dispose();
+  });
+
   it("repairs links on Git watcher changes without client interests", async () => {
     const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
     const { service, executor: fakeExecutor } = createService({

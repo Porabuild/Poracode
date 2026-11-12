@@ -11,9 +11,79 @@ use crate::protocol::{
 };
 use crate::search::{NativeSearchCache, SearchParams};
 use crate::untracked::UntrackedStatsCache;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
+use std::path::Path;
 use std::sync::Mutex;
 use std::thread;
+
+/// Ignore-only bursts still refresh file views, but need no Git status scan.
+pub(crate) fn changes_may_affect_status(
+    root: &Path,
+    paths: &HashSet<String>,
+    previous_config: &mut Option<u64>,
+) -> bool {
+    if paths.is_empty()
+        || [
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_CONFIG_COUNT",
+            "GIT_CONFIG_PARAMETERS",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_SYSTEM",
+            "GIT_CONFIG_NOSYSTEM",
+        ]
+        .iter()
+        .any(|name| std::env::var_os(name).is_some())
+    {
+        return true;
+    }
+    let mut check = || -> Result<bool, git2::Error> {
+        let repo = git2::Repository::open(root)?;
+        if repo
+            .workdir()
+            .and_then(|path| std::fs::canonicalize(path).ok())
+            .as_deref()
+            != Some(root)
+        {
+            return Ok(true);
+        }
+        let (config, fingerprint) = config::resolved_for_watch(&repo)?;
+        if previous_config.replace(fingerprint) != Some(fingerprint) {
+            return Ok(true);
+        }
+        match config.get_bool("core.sparsecheckout") {
+            Ok(true) => return Ok(true),
+            Err(error) if error.code() != git2::ErrorCode::NotFound => return Err(error),
+            _ => {}
+        }
+        let index = repo.index()?;
+        for name in paths {
+            let path = Path::new(name);
+            if matches!(
+                path.file_name().and_then(|name| name.to_str()),
+                Some(".gitignore" | ".gitattributes" | ".gitmodules" | ".gitconfig")
+            ) || name == "git/ignore"
+                || name.ends_with("/git/ignore")
+                || name == "git/config"
+                || name.ends_with("/git/config")
+                || (0..=3).any(|stage| index.get_path(path, stage).is_some())
+                || index.find_prefix(format!("{name}/")).is_ok()
+                || path
+                    .ancestors()
+                    .skip(1)
+                    .filter(|parent| !parent.as_os_str().is_empty())
+                    .any(|parent| index.get_path(parent, 0).is_some())
+                || !repo.is_path_ignored(path)?
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    };
+    // Config, index, non-repository and topology uncertainty must refresh Git.
+    check().unwrap_or(true)
+}
 
 /// Stateful service owning untracked-file statistics and project search indexes.
 #[derive(Debug, Default)]

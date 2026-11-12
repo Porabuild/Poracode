@@ -42,6 +42,7 @@ import {
 import { useRevertedPromptStore } from "../../revertedPrompt";
 import { ThreadForkBoundary, ThreadForkTurnAction } from "../../ThreadForkControls";
 import { ChatItemRow } from "./items/ChatItemRow";
+import { ToolCallEntranceScope } from "./items/toolCallEntrance";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
@@ -461,7 +462,7 @@ export function MessageList({
   );
 
   return (
-    <>
+    <ToolCallEntranceScope key={threadId} threadId={threadId}>
       <LegendList
         ref={setListRef}
         data={entries}
@@ -588,7 +589,7 @@ export function MessageList({
         onClose={closeRevertDialog}
         onConfirm={confirmRevert}
       />
-    </>
+    </ToolCallEntranceScope>
   );
 }
 
