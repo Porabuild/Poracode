@@ -7,6 +7,8 @@
 //! ampersands, and parentheses arrive intact.
 
 use std::ffi::OsString;
+use std::fs::File;
+use std::io::Read;
 use std::os::windows::process::CommandExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
@@ -31,36 +33,48 @@ pub fn build_windows_command(
         .is_some_and(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"))
         || has_batch_extension(command);
 
-    let mut cmd = if is_batch_shim {
-        let comspec = find_env(env, "ComSpec")
-            .filter(|v| !v.is_empty())
-            .unwrap_or_else(|| {
-                if let Some(root) = find_env(env, "SystemRoot").filter(|v| !v.is_empty()) {
-                    let mut p = PathBuf::from(root);
-                    p.push("System32");
-                    p.push("cmd.exe");
-                    p.into_os_string()
-                } else {
-                    OsString::from("cmd.exe")
-                }
-            });
-        let target = command;
-        let double_escape_meta_chars = resolved
-            .as_deref()
-            .and_then(|path| path.to_str())
-            .is_some_and(is_node_modules_bin_cmd);
-        let shell_command = build_cmd_shell_line(target, args, double_escape_meta_chars);
-        let mut c = Command::new(comspec);
-        c.raw_arg("/d /s /c");
-        c.raw_arg(format!("\"{shell_command}\""));
+    let mut effective_command = command.to_string();
+    let mut effective_args = args.to_vec();
+    let mut effective_path = resolved.clone();
+    let mut has_shebang = false;
+    if let (Some(path), Some(interpreter)) = (
+        resolved.as_deref(),
+        resolved.as_deref().and_then(read_shebang_command),
+    ) {
+        let mut script_args = Vec::with_capacity(args.len() + 1);
+        script_args.push(path.to_string_lossy().into_owned());
+        script_args.extend_from_slice(args);
+        effective_command = interpreter;
+        effective_args = script_args;
+        effective_path = resolve_executable(&effective_command, cwd, env);
+        has_shebang = true;
+    }
+
+    let mut cmd = if is_batch_shim && !has_shebang {
+        build_cmd_wrapped(command, args, env, resolved.as_deref())
+    } else if effective_path.is_none() && !has_shebang {
+        // Keep missing commands as spawn errors so the launcher can emit its
+        // concise failure message instead of cmd.exe's diagnostic.
+        let mut c = Command::new(&effective_command);
+        c.args(&effective_args);
+        c
+    } else if effective_path
+        .as_deref()
+        .and_then(Path::extension)
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("com") || ext.eq_ignore_ascii_case("exe"))
+    {
+        let mut c =
+            Command::new(effective_path.unwrap_or_else(|| PathBuf::from(&effective_command)));
+        c.args(&effective_args);
         c
     } else {
-        let mut c = match resolved {
-            Some(path) => Command::new(path),
-            None => Command::new(command),
-        };
-        c.args(args);
-        c
+        build_cmd_wrapped(
+            &effective_command,
+            &effective_args,
+            env,
+            effective_path.as_deref(),
+        )
     };
 
     cmd.creation_flags(CREATE_NO_WINDOW);
@@ -72,6 +86,73 @@ pub fn build_windows_command(
         cmd.env(k, v);
     }
     cmd
+}
+
+fn build_cmd_wrapped(
+    command: &str,
+    args: &[String],
+    env: &[(OsString, OsString)],
+    resolved: Option<&Path>,
+) -> Command {
+    let comspec = find_env(env, "ComSpec")
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| {
+            if let Some(root) = find_env(env, "SystemRoot").filter(|value| !value.is_empty()) {
+                let mut path = PathBuf::from(root);
+                path.push("System32");
+                path.push("cmd.exe");
+                path.into_os_string()
+            } else {
+                OsString::from("cmd.exe")
+            }
+        });
+    let double_escape_meta_chars = resolved
+        .and_then(Path::to_str)
+        .is_some_and(is_node_modules_bin_cmd);
+    let shell_command = build_cmd_shell_line(command, args, double_escape_meta_chars);
+    let mut cmd = Command::new(comspec);
+    cmd.raw_arg("/d /s /c");
+    cmd.raw_arg(format!("\"{shell_command}\""));
+    cmd
+}
+
+fn absolute_command_path(path: &Path, cwd: Option<&str>) -> PathBuf {
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    let base = cwd
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    std::env::current_dir()
+        .unwrap_or_default()
+        .join(base)
+        .join(path)
+}
+
+fn read_shebang_command(path: &Path) -> Option<String> {
+    let mut file = File::open(path).ok()?;
+    let mut buffer = [0u8; 150];
+    let count = file.read(&mut buffer).ok()?;
+    let contents = String::from_utf8_lossy(&buffer[..count]);
+    let without_prefix = contents.strip_prefix("#!")?;
+    let line = without_prefix.strip_prefix(' ').unwrap_or(without_prefix);
+    let shebang = line.split(['\n', '\r']).next()?;
+    let mut parts = shebang.split(' ');
+    let path = parts.next()?;
+    if path.is_empty() {
+        return None;
+    }
+    let argument = parts.next().unwrap_or_default();
+    let binary = path.rsplit('/').next().unwrap_or(path);
+    if binary == "env" {
+        return (!argument.is_empty()).then(|| argument.to_string());
+    }
+    Some(if argument.is_empty() {
+        binary.to_string()
+    } else {
+        format!("{binary} {argument}")
+    })
 }
 
 fn has_batch_extension(command: &str) -> bool {
@@ -110,30 +191,41 @@ fn resolve_executable(
     let cmd_path = Path::new(command);
     let has_sep = command.contains('\\') || command.contains('/') || cmd_path.is_absolute();
     if has_sep {
-        let base = if cmd_path.is_absolute() {
-            cmd_path.to_path_buf()
-        } else if let Some(dir) = cwd.filter(|d| !d.is_empty()) {
-            Path::new(dir).join(cmd_path)
-        } else {
-            cmd_path.to_path_buf()
-        };
-        return probe_with_extensions(&base, &exts, command.contains('.'));
+        let base = absolute_command_path(cmd_path, cwd);
+        return probe_with_extensions(&base, &exts, command.contains('.'))
+            .or_else(|| base.is_file().then_some(base));
     }
 
     let mut search_dirs: Vec<PathBuf> = Vec::new();
     if let Some(dir) = cwd.filter(|d| !d.is_empty()) {
-        search_dirs.push(PathBuf::from(dir));
+        search_dirs.push(absolute_command_path(Path::new(dir), None));
     } else if let Ok(current) = std::env::current_dir() {
         search_dirs.push(current);
     }
     if let Some(path_val) = find_env(env, "PATH") {
-        search_dirs.extend(std::env::split_paths(&path_val));
+        let base = cwd
+            .filter(|d| !d.is_empty())
+            .map(|dir| absolute_command_path(Path::new(dir), None))
+            .or_else(|| std::env::current_dir().ok());
+        search_dirs.extend(std::env::split_paths(&path_val).map(|dir| {
+            if dir.is_absolute() {
+                dir
+            } else {
+                base.as_deref().map_or(dir.clone(), |base| base.join(dir))
+            }
+        }));
     }
 
-    for dir in search_dirs {
+    for dir in &search_dirs {
         if let Some(found) = probe_with_extensions(&dir.join(command), &exts, command.contains('.'))
         {
             return Some(found);
+        }
+    }
+    for dir in search_dirs {
+        let candidate = dir.join(command);
+        if candidate.is_file() {
+            return Some(candidate);
         }
     }
     None
@@ -398,6 +490,148 @@ mod tests {
                 "command: {command}"
             );
         }
+    }
+
+    #[test]
+    fn launches_extensionless_and_js_shebang_scripts_like_cross_spawn() {
+        let root = std::env::temp_dir().join(format!(
+            "poracode mcp relay shebang-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _cleanup = TestDir(root.clone());
+        fs::create_dir_all(&root).unwrap();
+        let args = vec![
+            "a&b".to_string(),
+            "space value".to_string(),
+            "%TEMP%".to_string(),
+            "quote\"value".to_string(),
+        ];
+        let env: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        let mut env_with_cwd = env;
+        upsert_env(&mut env_with_cwd, "PATH", &std::env::var("PATH").unwrap());
+        for (name, shebang) in [
+            (
+                "fixture-server-without-extension",
+                "#! /usr/bin/env node\r\n",
+            ),
+            ("fixture-server-with-js.js", "#!/usr/bin/env node\r\n"),
+        ] {
+            let script = root.join(name);
+            fs::write(
+                &script,
+                format!(
+                    "{shebang}process.stdout.write(JSON.stringify(process.argv.slice(2)));\r\n"
+                ),
+            )
+            .unwrap();
+            let output = build_windows_command(
+                script.to_str().unwrap(),
+                &args,
+                Some(root.to_str().unwrap()),
+                &env_with_cwd,
+            )
+            .output()
+            .unwrap();
+
+            assert!(output.status.success(), "script: {}", script.display());
+            assert_eq!(
+                serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap(),
+                args,
+                "script: {}",
+                script.display()
+            );
+        }
+
+        let current = std::env::current_dir().unwrap();
+        let relative_root = current.join("tmp").join(format!(
+            "poracode mcp relay relative shebang-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _relative_cleanup = TestDir(relative_root.clone());
+        fs::create_dir_all(&relative_root).unwrap();
+        let script = relative_root.join("relative-server.js");
+        fs::write(
+            &script,
+            "#!/usr/bin/env node\r\nprocess.stdout.write(JSON.stringify(process.argv.slice(2)));\r\n",
+        )
+        .unwrap();
+        let relative_cwd = relative_root
+            .strip_prefix(&current)
+            .unwrap()
+            .to_string_lossy()
+            .into_owned();
+        let output = build_windows_command(
+            r".\relative-server.js",
+            &args,
+            Some(&relative_cwd),
+            &env_with_cwd,
+        )
+        .output()
+        .unwrap();
+        assert!(output.status.success(), "relative cwd: {relative_cwd}");
+        assert_eq!(
+            serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap(),
+            args
+        );
+    }
+
+    #[test]
+    fn searches_all_pathext_directories_before_literal_files() {
+        let root = std::env::temp_dir().join(format!(
+            "poracode mcp relay search order-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _cleanup = TestDir(root.clone());
+        let first_dir = root.join("first");
+        let second_dir = root.join("second");
+        fs::create_dir_all(&first_dir).unwrap();
+        fs::create_dir_all(&second_dir).unwrap();
+        fs::write(first_dir.join("ordered"), "extensionless script").unwrap();
+        fs::write(
+            second_dir.join("ordered.cmd"),
+            "@echo off\r\nnode \"%~dp0argv.js\" %*\r\n",
+        )
+        .unwrap();
+        fs::write(
+            second_dir.join("argv.js"),
+            "process.stdout.write(JSON.stringify(process.argv.slice(2)))",
+        )
+        .unwrap();
+        let args = vec!["from-cmd".to_string()];
+        let mut env: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        upsert_env(&mut env, "PATHEXT", ".COM;.EXE;.BAT;.CMD");
+        let mut path_dirs = vec![first_dir, second_dir];
+        path_dirs.extend(
+            std::env::split_paths(&find_env(&env, "PATH").unwrap_or_default()).collect::<Vec<_>>(),
+        );
+        let path = std::env::join_paths(path_dirs).unwrap();
+        upsert_env(&mut env, "PATH", &path.to_string_lossy());
+
+        let output = build_windows_command("ordered", &args, None, &env)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "status: {}; stderr: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap(),
+            args
+        );
     }
 
     #[test]
