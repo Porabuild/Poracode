@@ -53,7 +53,7 @@ import {
   connectionRefreshSubject,
   forgetRefreshTokenForSubject,
   ownsConnectionIncarnation,
-  readSharedCredential,
+  readSharedRefreshSlot,
   rememberRefreshToken,
 } from "./refreshTokens";
 import { SharedCredentialRefusedError } from "./sharedCredentials";
@@ -305,7 +305,7 @@ export function createPairingActions(deps: PairingActionDeps) {
     const subject = connectionRefreshSubject(connectionId);
     // Re-pairing retires the old incarnation and must not wait for its
     // suspended refresh lock/encryption; its late commit is fenced by CAS.
-    const previous = await readSharedCredential(subject, connectionId);
+    const previous = await readSharedRefreshSlot(subject);
     if (!ownsConnectionIncarnation(connectionId, incarnation)) return record;
     if (previous.status === "failed") rejectPairing();
     const outcome = await commitSharedCredential({
