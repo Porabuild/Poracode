@@ -132,6 +132,10 @@ export class GitService {
     this.statusService.setWslClient(client);
   }
 
+  invalidateStatus(): void {
+    this.statusService.invalidateStatus();
+  }
+
   async getStatus(
     location: ProjectLocation,
     detail: GitStatusDetail = "full",

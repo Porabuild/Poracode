@@ -2084,11 +2084,6 @@ export class ThreadSessionManager {
           confirmed = false;
         }
       }
-      if (this.retiringShells.has(payload.threadId)) {
-        if (!(await this.retryRetainedShell(payload.threadId))) {
-          confirmed = false;
-        }
-      }
       return { confirmed };
     }
 

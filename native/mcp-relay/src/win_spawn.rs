@@ -94,12 +94,12 @@ fn resolve_executable(
 ) -> Option<PathBuf> {
     let pathext_raw = find_env(env, "PATHEXT")
         .map(|v| v.to_string_lossy().into_owned())
-        .unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".to_string());
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| ".EXE;.CMD;.BAT;.COM".to_string());
     let exts: Vec<String> = pathext_raw
         .split(';')
-        .filter(|e| !e.is_empty())
         .map(|e| {
-            if e.starts_with('.') {
+            if e.is_empty() || e.starts_with('.') {
                 e.to_string()
             } else {
                 format!(".{e}")
@@ -117,7 +117,7 @@ fn resolve_executable(
         } else {
             cmd_path.to_path_buf()
         };
-        return probe_with_extensions(&base, &exts);
+        return probe_with_extensions(&base, &exts, command.contains('.'));
     }
 
     let mut search_dirs: Vec<PathBuf> = Vec::new();
@@ -131,15 +131,26 @@ fn resolve_executable(
     }
 
     for dir in search_dirs {
-        if let Some(found) = probe_with_extensions(&dir.join(command), &exts) {
+        if let Some(found) = probe_with_extensions(&dir.join(command), &exts, command.contains('.'))
+        {
             return Some(found);
         }
     }
     None
 }
 
-fn probe_with_extensions(base: &Path, exts: &[String]) -> Option<PathBuf> {
-    if base.is_file() {
+fn probe_with_extensions(base: &Path, exts: &[String], try_exact: bool) -> Option<PathBuf> {
+    let is_pathext_executable = |path: &Path| {
+        exts.iter().any(|ext| {
+            ext.is_empty()
+                || path
+                    .as_os_str()
+                    .to_string_lossy()
+                    .to_ascii_lowercase()
+                    .ends_with(&ext.to_ascii_lowercase())
+        })
+    };
+    if try_exact && base.is_file() && is_pathext_executable(base) {
         return Some(base.to_path_buf());
     }
     let base_os = base.as_os_str();
@@ -147,7 +158,7 @@ fn probe_with_extensions(base: &Path, exts: &[String]) -> Option<PathBuf> {
         let mut candidate_os = base_os.to_os_string();
         candidate_os.push(ext);
         let candidate = PathBuf::from(candidate_os);
-        if candidate.is_file() {
+        if candidate.is_file() && is_pathext_executable(&candidate) {
             return Some(candidate);
         }
     }
@@ -269,6 +280,7 @@ fn escape_cmd_meta(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::stdio_launcher::upsert_env;
     use std::fs;
 
     #[test]
@@ -323,7 +335,14 @@ mod tests {
             "[brackets]".to_string(),
             "trailing\\".to_string(),
         ];
-        let env: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        let mut env: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        upsert_env(&mut env, "PATHEXT", ".COM;.EXE;.BAT;.CMD");
+        let mut path = root.as_os_str().to_os_string();
+        path.push(";");
+        if let Some(original_path) = find_env(&env, "PATH") {
+            path.push(original_path);
+        }
+        upsert_env(&mut env, "PATH", &path.to_string_lossy());
         for shim in [
             shim_dir.join("fixture.cmd"),
             root.join("ordinary.cmd"),
@@ -351,6 +370,32 @@ mod tests {
                 args,
                 "shim: {}",
                 shim.display()
+            );
+        }
+
+        let bare_shim = root.join("lookup.cmd");
+        let bare_script = root.join("argv.js");
+        fs::write(root.join("lookup"), "extensionless POSIX shim").unwrap();
+        fs::write(&bare_shim, "@echo off\r\nnode \"%~dp0argv.js\" %*\r\n").unwrap();
+        fs::write(
+            &bare_script,
+            "process.stdout.write(JSON.stringify(process.argv.slice(2)))",
+        )
+        .unwrap();
+        for (command, cwd) in [
+            ("lookup".to_string(), None),
+            (r".\lookup".to_string(), Some(root.to_str().unwrap())),
+            (root.join("lookup").to_str().unwrap().to_string(), None),
+        ] {
+            let output = build_windows_command(&command, &args, cwd, &env)
+                .output()
+                .unwrap();
+
+            assert!(output.status.success(), "command: {command}");
+            assert_eq!(
+                serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap(),
+                args,
+                "command: {command}"
             );
         }
     }
