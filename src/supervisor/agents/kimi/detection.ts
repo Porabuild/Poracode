@@ -71,9 +71,10 @@ export const kimiTerminalAuthMethod: AgentTerminalAuthMethod = {
  * Turn Kimi's `thought_level` selector into real effort tiers.
  *
  * Each model keeps the levels it actually offers (see thoughtLevels.ts for the
- * probed payloads): the `low`/`high`/`max` ladder for K3, and the lone untiered
- * `on` for K2.7 — which the composer renders as no picker at all, since there is
- * nothing to choose, while still giving the thread a level to send.
+ * probed payloads): the `low`/`high`/`max` ladder for K3, `off` / `on` for an
+ * external model with optional thinking, and the lone untiered `on` for K2.7
+ * and the other legacy managed aliases. A one-option list draws no picker,
+ * while still giving the thread a level to send.
  *
  * Kimi reports `currentValue: "on"` even for the tiered K3 models, so defaults
  * resolve through {@link preferredKimiThoughtTier} (`high`) rather than adopting
@@ -94,7 +95,7 @@ export function normalizeKimiProbeEfforts(probe: AcpProbeResult | undefined): {
     // `modelEfforts[model] ?? efforts`, so omitting a model makes it inherit the
     // global list — and that list holds only the levels of whichever model the
     // probe started on, which is whatever the Kimi CLI last persisted.
-    modelEfforts[modelId] = kimiThoughtLevelChoices(levels);
+    modelEfforts[modelId] = kimiThoughtLevelChoices(levels, modelId);
   }
   // Kimi's probed default (`on`) names no tier for the tiered models, so resolve
   // every model's default against the levels that model actually offers.

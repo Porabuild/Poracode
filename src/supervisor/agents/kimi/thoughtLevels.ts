@@ -9,6 +9,11 @@
  *   kimi-code/k3                         -> ["low", "high", "max", "on"]
  *   kimi-code/k3-256k                    -> ["low", "high", "max", "on"]
  *
+ * That list is the managed catalog. An external model can advertise a real
+ * `off` / `on` pair, and that pair is kept. The legacy managed aliases below
+ * still collapse to `on`, including when a previous model's tier is listed
+ * beside `on`.
+ *
  * `currentValue` is `on` for all four, including the tiered K3 models. Kimi's
  * own picker never offers `on` next to the tiers (it shows `Low High Max` for
  * K3 and `On` / `Off (Unsupported)` for K2.7), so passing the raw list through
@@ -20,6 +25,15 @@
  * only be recognized by its id.
  */
 export const KIMI_UNTIERED_THOUGHT_LEVEL = "on";
+export const KIMI_DISABLED_THOUGHT_LEVEL = "off";
+
+// 2.5.3 probes `kimi-code/kimi-for-coding` (shown as K2.8 Preview) as a real
+// `low` / `high` / `max` ladder. Only the highspeed aliases still advertise a
+// lone `on`, and older builds of those aliases also listed an unsupported `off`.
+const KIMI_LEGACY_UNTIERED_MODEL_IDS = new Set([
+  "kimi-for-coding-highspeed",
+  "kimi-code/kimi-for-coding-highspeed",
+]);
 
 /**
  * Default tier for a model whose probed default is the untiered `on`. Kimi
@@ -50,15 +64,30 @@ export function preferredKimiThoughtTier(
  * K3 leaves `["low","high","max"]`), confirming it is the "no tier chosen yet"
  * placeholder rather than a level.
  *
- * Otherwise → just `on`. Keeping the single level, instead of reporting no
- * levels at all, is what lets Poracode put an untiered model back into its only
- * state: Kimi carries the previous model's tier across a model switch, so after
- * K3 `max` → K2.7 the session stays on `max` (and even lists it as a K2.7
- * option) until `thinking=on` is sent explicitly.
+ * An `off` / `on` pair is a real choice for external models with optional
+ * thinking. Legacy managed aliases collapse to `on` whenever `on` is present,
+ * so a carried tier listed next to `off` is not treated as a ladder. Keeping
+ * `on` for an untiered model also lets Poracode clear that carried tier after
+ * a model switch.
  */
-export function kimiThoughtLevelChoices(levels: readonly string[]): string[] {
+export function kimiThoughtLevelChoices(levels: readonly string[], modelId?: string): string[] {
+  const legacy = modelId !== undefined && KIMI_LEGACY_UNTIERED_MODEL_IDS.has(modelId);
+  // A previous model's tier can sit beside `on` and `off`. Two non-`on` values
+  // would otherwise look like a real ladder and keep the carried tier.
+  if (legacy && levels.includes(KIMI_UNTIERED_THOUGHT_LEVEL)) {
+    return [KIMI_UNTIERED_THOUGHT_LEVEL];
+  }
   const tiers = levels.filter((level) => level !== KIMI_UNTIERED_THOUGHT_LEVEL);
-  if (tiers.length > 1) return tiers;
+  if (tiers.length > 1) {
+    return legacy ? tiers.filter((level) => level !== KIMI_DISABLED_THOUGHT_LEVEL) : tiers;
+  }
+  if (legacy) return tiers;
+  if (
+    levels.includes(KIMI_DISABLED_THOUGHT_LEVEL) &&
+    levels.includes(KIMI_UNTIERED_THOUGHT_LEVEL)
+  ) {
+    return [...levels];
+  }
   return levels.includes(KIMI_UNTIERED_THOUGHT_LEVEL) ? [KIMI_UNTIERED_THOUGHT_LEVEL] : tiers;
 }
 
@@ -76,13 +105,13 @@ type KimiThoughtLevelOption = { value?: unknown };
  */
 export function normalizeKimiThoughtLevelOption<
   T extends { currentValue?: string; options?: unknown },
->(option: T): T {
+>(option: T, modelId?: string): T {
   if (!Array.isArray(option.options)) return option;
   const values = option.options.flatMap((entry: unknown) => {
     const value = (entry as KimiThoughtLevelOption | null)?.value;
     return typeof value === "string" ? [value] : [];
   });
-  const tiers = new Set(kimiThoughtLevelChoices(values));
+  const tiers = new Set(kimiThoughtLevelChoices(values, modelId));
   if (tiers.size === values.length) return option;
   const options = option.options.filter((entry: unknown) => {
     const value = (entry as KimiThoughtLevelOption | null)?.value;
