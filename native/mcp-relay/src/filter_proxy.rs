@@ -8,7 +8,7 @@ use crate::framing::{
     mcp_filtered_stdio_environment, read_framed_stream, write_framed_message,
 };
 use crate::messages::{IdKey, id_key, is_mcp_tool_visible_to_model};
-use crate::schema::omit_invalid_schema_patterns;
+use crate::schema::{limit_tool_schema_depth, omit_invalid_schema_patterns};
 use serde_json::{Map, Value, json};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::{self, BufWriter};
@@ -50,6 +50,7 @@ struct FilterProxyCtx {
     server_name: String,
     disabled_tools: HashSet<String>,
     omit_invalid_patterns: bool,
+    max_schema_depth: Option<usize>,
     timeout: Duration,
     backend: UpstreamBackend,
     next_req_id: AtomicU64,
@@ -443,10 +444,16 @@ impl FilterProxyCtx {
             }
         }
 
-        if self.omit_invalid_patterns {
+        if self.max_schema_depth.is_some() || self.omit_invalid_patterns {
             for tool in &mut visible_tools {
-                if let Some(obj) = tool.as_object_mut()
-                    && let Some(schema) = obj.remove("inputSchema")
+                let Some(obj) = tool.as_object_mut() else {
+                    continue;
+                };
+                if let Some(max_depth) = self.max_schema_depth {
+                    limit_tool_schema_depth(obj, max_depth);
+                }
+                if self.omit_invalid_patterns
+                    && let Some(schema) = obj.get("inputSchema").cloned()
                 {
                     obj.insert(
                         "inputSchema".to_string(),
@@ -737,6 +744,7 @@ pub fn run_filter_proxy(config: FilterConfig, #[cfg(unix)] signal_set: libc::sig
         server_name: config.server_name,
         disabled_tools: config.disabled_tools,
         omit_invalid_patterns: config.omit_invalid_schema_patterns,
+        max_schema_depth: config.max_schema_depth,
         timeout: config.timeout,
         backend,
         next_req_id: AtomicU64::new(1),

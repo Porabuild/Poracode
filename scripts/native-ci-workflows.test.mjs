@@ -38,6 +38,135 @@ void test("the remote-v3 contract and core lint jobs lock the committed operatio
   assert.match(coreLock.run, /tests\/native-e2e\/vitest\.config\.ts/u);
 });
 
+void test("Linux setups recover mirror DNS failures without hiding install errors", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+  );
+  const step = workflow.jobs.rust_helper.steps.find(
+    (item) => item.name === "Install Linux integration-test tools",
+  );
+  assert.ok(step);
+  const browser = parse(
+    await readFile(new URL("../.github/workflows/browser-layout.yml", import.meta.url), "utf8"),
+  );
+  const browserSteps = browser.jobs.browser_layout.steps;
+  const browserStep = browserSteps.find((item) => item.name === "Prepare Ubuntu package mirrors");
+  assert.ok(browserStep);
+  assert.ok(
+    browserSteps.indexOf(browserStep) <
+      browserSteps.findIndex((item) => item.name === "Install Chromium for Playwright"),
+  );
+  const temporaryRoot = fileURLToPath(new URL("../tmp/", import.meta.url));
+  await mkdir(temporaryRoot, { recursive: true });
+  const temporary = await mkdtemp(join(temporaryRoot, "ci-mirror-"));
+  try {
+    const bin = join(temporary, "bin");
+    const mirrors = join(temporary, "mirrors");
+    const hosts = join(temporary, "hosts");
+    const calls = join(temporary, "calls");
+    await mkdir(bin);
+    await Promise.all([
+      writeFile(
+        join(bin, "getent"),
+        [
+          "#!/bin/sh",
+          'case "$MOCK_DNS:$2" in',
+          "  ok:*) exit 0 ;;",
+          "  azure-down:azure.archive.ubuntu.com) exit 1 ;;",
+          "  azure-down:*) exit 0 ;;",
+          "  all-down:*) exit 1 ;;",
+          "esac",
+          "exit 2",
+          "",
+        ].join("\n"),
+        { mode: 0o755 },
+      ),
+      writeFile(
+        join(bin, "curl"),
+        [
+          "#!/bin/sh",
+          'if [ "$DNS_BAD" = "1" ]; then',
+          "  printf '%s\\n' '{\"Status\":2,\"Answer\":[]}'",
+          "else",
+          '  printf \'%s\\n\' \'{"Status":0,"Answer":[{"type":1,"data":"203.0.113.42"}]}\'',
+          "fi",
+          "",
+        ].join("\n"),
+        { mode: 0o755 },
+      ),
+      writeFile(
+        join(bin, "sudo"),
+        [
+          "#!/bin/sh",
+          'case "$1" in',
+          '  sed) shift; [ "$1" = "-i" ] || exit 2; shift; expr="$1"; shift; [ "$1" = "/etc/apt/apt-mirrors.txt" ] || exit 2; sed -i "$expr" "$MIRROR_FILE" ;;',
+          '  tee) [ "$2" = "-a" ] && [ "$3" = "/etc/hosts" ] || exit 2; cat >> "$HOSTS_FILE" ;;',
+          '  apt-get) printf "%s\\n" "$*" >> "$CALLS_FILE"; [ "$FAIL_APT" != "$2" ] ;;',
+          "  *) exit 3 ;;",
+          "esac",
+          "",
+        ].join("\n"),
+        { mode: 0o755 },
+      ),
+    ]);
+    for (const [setup, dns, dnsBad, failApt] of [
+      [step, "ok", "0", ""],
+      [step, "azure-down", "0", ""],
+      [step, "all-down", "0", ""],
+      [step, "all-down", "1", ""],
+      [step, "ok", "0", "update"],
+      [browserStep, "ok", "0", ""],
+      [browserStep, "azure-down", "0", ""],
+      [browserStep, "all-down", "0", ""],
+      [browserStep, "all-down", "1", ""],
+    ]) {
+      await writeFile(
+        mirrors,
+        "http://azure.archive.ubuntu.com/ubuntu/ priority:1\n" +
+          "https://archive.ubuntu.com/ubuntu/ priority:2\n" +
+          "https://security.ubuntu.com/ubuntu/ priority:3\n",
+      );
+      await Promise.all([writeFile(hosts, ""), writeFile(calls, "")]);
+      const result = spawnSync("bash", ["-e", "-c", setup.run], {
+        cwd: temporary,
+        env: {
+          ...process.env,
+          PATH: bin + ":" + process.env.PATH,
+          MIRROR_FILE: mirrors,
+          HOSTS_FILE: hosts,
+          CALLS_FILE: calls,
+          MOCK_DNS: dns,
+          DNS_BAD: dnsBad,
+          FAIL_APT: failApt,
+        },
+        encoding: "utf8",
+        timeout: 15_000,
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status === 0, dnsBad === "0" && failApt === "", result.stderr);
+      const mirrorList = await readFile(mirrors, "utf8");
+      assert.equal(mirrorList.includes("azure.archive.ubuntu.com"), dns === "ok");
+      assert.match(mirrorList, /https:\/\/archive\.ubuntu\.com\/ubuntu\//u);
+      assert.match(mirrorList, /https:\/\/security\.ubuntu\.com\/ubuntu\//u);
+      const hostEntries = await readFile(hosts, "utf8");
+      if (dns === "all-down" && dnsBad === "0") {
+        assert.equal(
+          hostEntries,
+          "203.0.113.42 archive.ubuntu.com\n203.0.113.42 security.ubuntu.com\n",
+        );
+      } else {
+        assert.equal(hostEntries, "");
+      }
+      const aptCalls = await readFile(calls, "utf8");
+      if (setup === browserStep || dnsBad === "1") assert.equal(aptCalls, "");
+      else if (failApt) assert.equal(aptCalls, "apt-get update\n");
+      else assert.equal(aptCalls, "apt-get update\napt-get install --yes dbus-x11 xvfb\n");
+    }
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
 void test("portable Swift suites run concurrently, join every suite, and propagate failures", async () => {
   const native = parse(
     await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),

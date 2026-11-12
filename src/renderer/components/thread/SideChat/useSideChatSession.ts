@@ -30,10 +30,33 @@ import { entityHost } from "@/renderer/state/entityHost";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 
+function storedPrompt(text: string, segments: PromptSegment[]) {
+  return [
+    ...segments.flatMap((segment) =>
+      segment.kind === "text" && segment.selection ? [segment.content] : [],
+    ),
+    text,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | "window") {
   // Submission belongs to the opening request, never to subsequently typed drafts.
   const openingRequest = useRef(entry);
-  const [prompt, setPromptState] = useState(entry.prompt);
+  const initialSegments: PromptSegment[] = entry.segments ?? [];
+  const initialSelections = initialSegments
+    .flatMap((segment) => (segment.kind === "text" && segment.selection ? [segment.content] : []))
+    .join("\n\n");
+  const [prompt, setPromptState] = useState(
+    entry.prompt === initialSelections
+      ? ""
+      : initialSelections && entry.prompt.startsWith(`${initialSelections}\n\n`)
+        ? entry.prompt.slice(initialSelections.length + 2)
+        : entry.prompt,
+  );
+  const [draftSegments, setDraftSegmentsState] = useState<PromptSegment[]>(initialSegments);
+  const latestSegments = useRef(draftSegments);
   const [selection, setSelectionState] = useState<SideChatSelection>(
     entry.selection ?? {
       agentKind: entry.source.agentKind,
@@ -48,25 +71,47 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
   function setSelection(value: SideChatSelection) {
     latestSelection.current = value;
     setSelectionState(value);
-    if (surface === "panel") updateSideChatPanelDraft(entry.id, latestPrompt.current, value);
+    if (surface === "panel")
+      updateSideChatPanelDraft(
+        entry.id,
+        storedPrompt(latestPrompt.current, latestSegments.current),
+        value,
+        latestSegments.current,
+      );
   }
   const latestPrompt = useRef(prompt);
   function setPrompt(value: string) {
     latestPrompt.current = value;
     setPromptState(value);
-    if (surface === "panel") updateSideChatPanelDraft(entry.id, value, latestSelection.current);
+    if (surface === "panel")
+      updateSideChatPanelDraft(
+        entry.id,
+        storedPrompt(value, latestSegments.current),
+        latestSelection.current,
+        latestSegments.current,
+      );
+  }
+  function setDraftSegments(value: PromptSegment[]) {
+    latestSegments.current = value;
+    setDraftSegmentsState(value);
+    if (surface === "panel")
+      updateSideChatPanelDraft(
+        entry.id,
+        storedPrompt(latestPrompt.current, value),
+        latestSelection.current,
+        value,
+      );
   }
   const composerId = `side-chat:${entry.id}`;
   const pendingInputs = useComposerInputInbox((state) => state.itemsByComposer[composerId]);
   const adoptExternalDraft = useEffectEvent(() => {
-    const additions = useComposerInputInbox
-      .getState()
-      .drain(composerId)
-      .flatMap((segments) =>
-        segments.flatMap((segment) => (segment.kind === "text" ? [segment.content] : [])),
-      );
-    if (additions.length === 0) return;
-    setPrompt([latestPrompt.current, ...additions].filter(Boolean).join("\n\n"));
+    const additions = useComposerInputInbox.getState().drain(composerId).flat();
+    const selections = additions.filter((segment) => segment.kind === "text" && segment.selection);
+    const text = additions.flatMap((segment) =>
+      segment.kind === "text" && !segment.selection ? [segment.content] : [],
+    );
+    if (selections.length > 0) setDraftSegments([...latestSegments.current, ...selections]);
+    if (text.length > 0) setPrompt([latestPrompt.current, ...text].filter(Boolean).join("\n\n"));
   });
   useEffect(() => {
     if (pendingInputs) adoptExternalDraft();
@@ -113,7 +158,8 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
         void readBridge()
           .bindSideChatThread?.({
             ...(entry.id ? { id: entry.id } : {}),
-            prompt: latestPrompt.current,
+            prompt: storedPrompt(latestPrompt.current, latestSegments.current),
+            segments: latestSegments.current,
             selection: latestSelection.current,
           })
           .catch(() => undefined);
@@ -274,6 +320,8 @@ export function useSideChatSession(entry: SideChatBootstrap, surface: "panel" | 
   return {
     prompt,
     setPrompt,
+    draftSegments,
+    setDraftSegments,
     selection,
     setSelection,
     project,

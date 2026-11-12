@@ -1,7 +1,14 @@
-import { useState, type ComponentProps } from "react";
+import { use, useEffect, useEffectEvent, useState, type ComponentProps } from "react";
 import { selectVariants } from "@heroui/styles";
-import { ListBox, Select as HeroSelect, type SelectProps as HeroSelectProps } from "@heroui/react";
+import {
+  ListBox,
+  Select as HeroSelect,
+  Tooltip,
+  type SelectProps as HeroSelectProps,
+} from "@heroui/react";
 import { Check } from "lucide-react";
+import { TooltipTriggerStateContext } from "react-aria-components";
+import { pushEscapeHandler } from "@/renderer/components/layout/overlayEscapeStack";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "./ResponsiveMenuSurface";
 import type { SelectOption } from "./Select";
 
@@ -17,6 +24,18 @@ export interface MultiSelectProps extends Omit<
   /** Trigger text for the current selection, including the empty selection. */
   summary: string;
   popoverProps?: Omit<ComponentProps<typeof HeroSelect.Popover>, "children">;
+}
+
+/** Let an open tooltip dismiss before its enclosing overlay. */
+function TooltipEscapeHandler() {
+  const state = use(TooltipTriggerStateContext);
+  const isOpen = state?.isOpen ?? false;
+  const close = useEffectEvent(() => state?.close(true));
+  useEffect(() => {
+    if (!isOpen) return;
+    return pushEscapeHandler(close);
+  }, [isOpen]);
+  return null;
 }
 
 /**
@@ -102,14 +121,16 @@ export function MultiSelect(props: MultiSelectProps) {
       value={selected}
       onChange={(keys) => onChange(keys.map(String))}
     >
-      <HeroSelect.Trigger>
-        <HeroSelect.Value className="min-w-0">
-          <span className="min-w-0 truncate" title={summary}>
-            {summary}
-          </span>
-        </HeroSelect.Value>
-        <HeroSelect.Indicator />
-      </HeroSelect.Trigger>
+      <Tooltip delay={300}>
+        <HeroSelect.Trigger>
+          <HeroSelect.Value className="min-w-0 truncate">{summary}</HeroSelect.Value>
+          <HeroSelect.Indicator />
+        </HeroSelect.Trigger>
+        <Tooltip.Content placement="top" className="max-w-72 break-words">
+          <TooltipEscapeHandler />
+          {summary}
+        </Tooltip.Content>
+      </Tooltip>
       <HeroSelect.Popover {...popoverProps}>
         <ListBox>
           {options.map((option) => (

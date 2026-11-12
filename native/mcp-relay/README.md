@@ -4,7 +4,7 @@ Native Rust MCP helper (`0.2.0`) replacing per-server Node launch wrappers acros
 
 - `PORACODE_MCP_HTTP_RELAY_CONFIG` (`src/supervisor/mcp/mcpHttpRelay.ts` — stdio↔Streamable HTTP relay, version 1),
 - `PORACODE_MCP_STDIO_CONFIG` (`src/supervisor/mcp/mcpStdioWorker.ts` — protocol-transparent cwd/env stdio launcher, version 1), and
-- `PORACODE_MCP_FILTER_CONFIG` / `PORACODE_MCP_FILTER_CONFIG_V2` (`src/supervisor/mcp/mcpToolFilterProxy.ts` + `mcpSchemaProxy.ts` — tool-filtering, schema-pattern normalization, and wire-level `schemaOnly` proxy over stdio and plain-HTTP MCP transports).
+- `PORACODE_MCP_FILTER_CONFIG` / `PORACODE_MCP_FILTER_CONFIG_V1` / `PORACODE_MCP_FILTER_CONFIG_V2` / `PORACODE_MCP_FILTER_CONFIG_V3` (`src/supervisor/mcp/mcpToolFilterProxy.ts` + `mcpSchemaProxy.ts` — tool-filtering, schema-pattern normalization, `maxSchemaDepth` bounding, and wire-level `schemaOnly` proxy over stdio and plain-HTTP MCP transports).
 
 One native process per wrapped MCP server replaces a Node/Electron helper worker, cutting per-server private memory from ~35–40 MB (Node MCP SDK filter) or ~15–20 MB (Node stdio/relay worker) to ~2–3 MB, and running directly inside x64 WSL distros via the static musl `linux-x64` build without requiring Node inside WSL.
 
@@ -27,8 +27,8 @@ One native process per wrapped MCP server replaces a Node/Electron helper worker
   individually, matching the JS relay's per-dispatch promise.
 - Framing & schema parity: filter/schema modes support both newline-delimited
   JSON-RPC and `Content-Length` headers, paginate `tools/list`, hide disabled
-  and app-only tools, and strip invalid ECMA-262 `/u` regex `pattern` keywords
-  from `inputSchema` / `outputSchema`.
+  and app-only tools, bound nested container schemas via `maxSchemaDepth`, and
+  strip invalid ECMA-262 `/u` regex `pattern` keywords from `inputSchema`.
 - The unterminated stdin buffer is capped at 10 Mi UTF-16 code units, matching
   the JS `buffer.length` check.
 

@@ -152,6 +152,60 @@ export async function mockSideChatGate({
       Boolean,
       "selected side model in panel header",
     );
+    const quote =
+      "A selected passage with enough text to be shortened in the chip.\nSecond line of the selection.";
+    await main(`(async () => {
+      const entry = await window.poracode.getSideChatWindowInfo();
+      await window.poracode.openSideChatPanel({ ...entry, autoStart: false, appendText: ${JSON.stringify(quote)} });
+    })()`);
+    await waitForValue(
+      () =>
+        main(
+          "document.querySelector('[data-side-chat-surface=panel] .poracode-selection-chip')?.textContent",
+        ),
+      (value) => value?.includes("A selected passage"),
+      "selected text chip in the side draft",
+    );
+    assert.equal(
+      await main("document.querySelector('[data-side-chat-surface=panel] textarea').value"),
+      "",
+    );
+    const chip = await waitForValue(
+      () =>
+        main(`(async () => {
+      const element = document.querySelector('[data-side-chat-surface=panel] .poracode-selection-chip__trigger');
+      if (!element) return null;
+      const before = element.getBoundingClientRect();
+      await new Promise(requestAnimationFrame);
+      const rect = element.getBoundingClientRect();
+      if (before.x !== rect.x || before.y !== rect.y) return null;
+      const x = rect.x + rect.width / 2;
+      const y = rect.y + rect.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      return hit && element.contains(hit) ? { x, y } : null;
+    })()`),
+      Boolean,
+      "unobscured side selection chip",
+    );
+    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 0, y: 0 });
+    await client.send("Input.dispatchMouseEvent", { type: "mouseMoved", ...chip });
+    await waitForValue(
+      () => main("document.querySelector('[role=tooltip]')?.textContent"),
+      (value) => value === quote,
+      "full selection on hover",
+    );
+    await screenshot(client, join(outDir, "mock-side-chat-selection.png"));
+    await main(
+      "document.querySelector('[data-side-chat-surface=panel] .poracode-selection-chip button').click()",
+    );
+    await waitForValue(
+      () =>
+        main(
+          "Boolean(document.querySelector('[data-side-chat-surface=panel] .poracode-selection-chip'))",
+        ),
+      (value) => value === false,
+      "removed side draft selection",
+    );
     await main("document.querySelector('[data-side-chat-surface=panel] textarea').focus()");
     await client.send("Input.insertText", { text: "Unsent side question" });
     await screenshot(client, join(outDir, "mock-side-chat-panel.png"));

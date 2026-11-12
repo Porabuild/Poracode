@@ -599,7 +599,9 @@ function openInSystemBrowser(url: string): void {
 }
 
 function addSelectionToChat(quote: ThreadQuote): void {
-  useComposerInputInbox.getState().enqueue(quote.threadId, [{ kind: "text", content: quote.text }]);
+  useComposerInputInbox
+    .getState()
+    .enqueue(quote.threadId, [{ kind: "text", content: quote.text, selection: true }]);
   useAppStore.getState().requestComposerFocus(quote.threadId);
 }
 

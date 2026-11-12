@@ -194,8 +194,9 @@ export function resolveModeValue(agent: AgentStatus, preferred?: string): string
 export { formatEffortLabel } from "@/renderer/components/common/effortLabel";
 
 /**
- * A saved policy only wins while the surface still advertises it. Carrying an
- * unsupported id through as "" left the draft with no permission selected —
+ * Keep a provider-declared default or bypass policy while its catalog is empty;
+ * once advertised, only supported ids win. Carrying an unsupported id through
+ * as "" left the draft with no permission selected —
  * and dual-runtime providers hit that on every draft, because one id space
  * (Antigravity's `agy` says `yolo`) is not the other's (Chat says `never`).
  * Falling back to the provider's declared default keeps a valid posture
@@ -203,6 +204,13 @@ export { formatEffortLabel } from "@/renderer/components/common/effortLabel";
  */
 export function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: string): string {
   const policies = agent.capabilities.approvalPolicies;
+  if (policies.length === 0) {
+    return preferred &&
+      (preferred === agent.capabilities.defaultApprovalPolicy ||
+        preferred === agent.capabilities.bypassPermissions?.approvalPolicy)
+      ? preferred
+      : "";
+  }
   if (preferred !== undefined && policies.some((p) => p.id === preferred)) {
     return preferred;
   }
@@ -215,6 +223,13 @@ export function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: strin
 
 export function resolveSandboxModeValue(agent: AgentStatus, preferred?: string): string {
   const modes = agent.capabilities.sandboxModes;
+  if (modes.length === 0) {
+    return preferred &&
+      (preferred === agent.capabilities.defaultSandboxMode ||
+        preferred === agent.capabilities.bypassPermissions?.sandboxMode)
+      ? preferred
+      : "";
+  }
   if (preferred !== undefined) {
     return modes.some((m) => m.id === preferred) ? preferred : "";
   }

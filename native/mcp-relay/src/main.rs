@@ -259,7 +259,8 @@ fn main() -> ExitCode {
     // Filter/schema envelopes take precedence over inner stdio/relay envelopes
     // so a schema-only wrapper around a nested helper runs the outer wrapper
     // first and passes the inner envelope through to the child process.
-    if has_non_empty_env("PORACODE_MCP_FILTER_CONFIG_V2")
+    if has_non_empty_env("PORACODE_MCP_FILTER_CONFIG_V3")
+        || has_non_empty_env("PORACODE_MCP_FILTER_CONFIG_V2")
         || has_non_empty_env("PORACODE_MCP_FILTER_CONFIG_V1")
         || has_non_empty_env("PORACODE_MCP_FILTER_CONFIG")
     {

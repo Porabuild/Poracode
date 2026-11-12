@@ -26,6 +26,7 @@ export default defineConfig({
       "react",
       "react-dom",
       "react-dom/client",
+      "react-aria-components",
       "@legendapp/list/react",
       "@testing-library/react",
     ],

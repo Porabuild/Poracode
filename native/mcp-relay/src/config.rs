@@ -4,11 +4,12 @@
 //! Supported envelopes:
 //! - `PORACODE_MCP_HTTP_RELAY_CONFIG`: plain-`http:` host endpoint relay
 //! - `PORACODE_MCP_STDIO_CONFIG`: execution-only stdio `cwd`/`env` wrapper
-//! - `PORACODE_MCP_FILTER_CONFIG_V2` / `V1` / `PORACODE_MCP_FILTER_CONFIG`:
-//!   protocol-preserving schema proxy (`schemaOnly: true`) and tool-filtering
-//!   proxy (`isolateConnectionFailures: false`, `stdio` or plain-`http:`
-//!   upstream). `https:`, `sse`, and `isolateConnectionFailures: true` stay on
-//!   the JavaScript fallback and fail closed here.
+//! - `PORACODE_MCP_FILTER_CONFIG_V3` / `V2` / `V1` / `PORACODE_MCP_FILTER_CONFIG`:
+//!   protocol-preserving schema proxy (`schemaOnly: true`), schema depth
+//!   limiting (`maxSchemaDepth`), and tool-filtering proxy
+//!   (`isolateConnectionFailures: false`, `stdio` or plain-`http:` upstream).
+//!   `https:`, `sse`, and `isolateConnectionFailures: true` stay on the
+//!   JavaScript fallback and fail closed here.
 
 use base64::Engine;
 use serde_json::Value;
@@ -27,6 +28,7 @@ pub const MCP_HELPER_CONFIG_ENVS: &[&str] = &[
     "PORACODE_MCP_FILTER_CONFIG",
     "PORACODE_MCP_FILTER_CONFIG_V1",
     "PORACODE_MCP_FILTER_CONFIG_V2",
+    "PORACODE_MCP_FILTER_CONFIG_V3",
     "PORACODE_MCP_STDIO_CONFIG",
     "PORACODE_MCP_HTTP_RELAY_CONFIG",
 ];
@@ -39,6 +41,7 @@ pub enum ConfigError {
     UnsupportedStdio,
     MissingFilter,
     UnsupportedFilterVersion,
+    UnsupportedSchemaDepth,
     InvalidSchemaOnly,
     UnsupportedFilter,
 }
@@ -52,6 +55,7 @@ impl ConfigError {
             ConfigError::UnsupportedStdio => "Unsupported MCP stdio launch configuration",
             ConfigError::MissingFilter => "Missing MCP filter configuration",
             ConfigError::UnsupportedFilterVersion => "Unsupported MCP filter configuration version",
+            ConfigError::UnsupportedSchemaDepth => "Unsupported MCP schema depth limit",
             ConfigError::InvalidSchemaOnly => {
                 "Schema-only MCP configuration cannot filter tools or isolate failures"
             }
@@ -102,6 +106,7 @@ pub struct FilterConfig {
     pub transport: UpstreamTransportConfig,
     pub disabled_tools: HashSet<String>,
     pub omit_invalid_schema_patterns: bool,
+    pub max_schema_depth: Option<usize>,
     pub schema_only: bool,
 }
 
@@ -293,28 +298,48 @@ pub fn read_stdio_config() -> Result<StdioLauncherConfig, ConfigError> {
     parse_stdio_config(std::env::var("PORACODE_MCP_STDIO_CONFIG").ok().as_deref())
 }
 
-/// Parses and validates `PORACODE_MCP_FILTER_CONFIG_V2` / `V1` / unversioned
-/// envelopes, matching `readMcpToolFilterConfig` in `mcpToolFilterConfig.ts`.
+/// Parses and validates `PORACODE_MCP_FILTER_CONFIG_V3` / `V2` / `V1` /
+/// unversioned envelopes, matching `readMcpToolFilterConfig` in
+/// `mcpToolFilterConfig.ts`.
 pub fn parse_filter_config(
+    v3: Option<&str>,
     v2: Option<&str>,
     v1: Option<&str>,
     unversioned: Option<&str>,
 ) -> Result<FilterConfig, ConfigError> {
+    let v3 = v3.filter(|value| !value.is_empty());
     let v2 = v2.filter(|value| !value.is_empty());
     let v1 = v1.filter(|value| !value.is_empty());
     let unversioned = unversioned.filter(|value| !value.is_empty());
-    let versioned = v2.or(v1);
+    let versioned = v3.or(v2).or(v1);
     let Some(encoded) = versioned.or(unversioned) else {
         return Err(ConfigError::MissingFilter);
     };
     let object = decode_json_object(encoded).ok_or(ConfigError::UnsupportedFilter)?;
 
     if versioned.is_some() {
-        let expected = if v2.is_some() { 2.0 } else { 1.0 };
+        let expected = if v3.is_some() {
+            3.0
+        } else if v2.is_some() {
+            2.0
+        } else {
+            1.0
+        };
         if object.get("version").and_then(Value::as_f64) != Some(expected) {
             return Err(ConfigError::UnsupportedFilterVersion);
         }
     }
+
+    let max_schema_depth = match object.get("maxSchemaDepth") {
+        None => None,
+        Some(other) => {
+            let depth = other
+                .as_f64()
+                .filter(|n| v3.is_some() && n.fract() == 0.0 && *n >= 1.0 && *n <= MAX_SAFE_INTEGER)
+                .ok_or(ConfigError::UnsupportedSchemaDepth)?;
+            Some(depth as usize)
+        }
+    };
 
     let disabled_tools: HashSet<String> = object
         .get("disabledTools")
@@ -330,9 +355,9 @@ pub fn parse_filter_config(
         Some(Value::Bool(true)) => true,
         Some(_) => return Err(ConfigError::UnsupportedFilter),
     };
-    let omit_invalid_schema_patterns = match object.get("omitInvalidSchemaPatterns") {
-        None | Some(Value::Null) | Some(Value::Bool(false)) => false,
-        Some(Value::Bool(true)) => true,
+    let raw_omit_invalid_schema_patterns = match object.get("omitInvalidSchemaPatterns") {
+        None | Some(Value::Null) => None,
+        Some(Value::Bool(flag)) => Some(*flag),
         Some(_) => return Err(ConfigError::UnsupportedFilter),
     };
     let schema_only = match object.get("schemaOnly") {
@@ -341,12 +366,23 @@ pub fn parse_filter_config(
         Some(_) => return Err(ConfigError::UnsupportedFilter),
     };
 
-    if schema_only && (v2.is_none() || !disabled_tools.is_empty() || isolate_connection_failures) {
+    if schema_only
+        && ((v3.is_none() && v2.is_none())
+            || !disabled_tools.is_empty()
+            || isolate_connection_failures)
+    {
         return Err(ConfigError::InvalidSchemaOnly);
     }
     if isolate_connection_failures {
         return Err(ConfigError::UnsupportedFilter);
     }
+
+    // Matches `mcpToolFilterWorker.ts`: schema-only defaults `omitInvalidSchemaPatterns`
+    // to `config.maxSchemaDepth === undefined`, while filter mode defaults to `false`.
+    let omit_invalid_schema_patterns = match raw_omit_invalid_schema_patterns {
+        Some(flag) => flag,
+        None => schema_only && max_schema_depth.is_none(),
+    };
 
     let server = object
         .get("server")
@@ -370,16 +406,23 @@ pub fn parse_filter_config(
         transport,
         disabled_tools,
         omit_invalid_schema_patterns,
+        max_schema_depth,
         schema_only,
     })
 }
 
 /// Reads the highest-precedence MCP filter envelope from the environment.
 pub fn read_filter_config() -> Result<FilterConfig, ConfigError> {
+    let v3 = std::env::var("PORACODE_MCP_FILTER_CONFIG_V3").ok();
     let v2 = std::env::var("PORACODE_MCP_FILTER_CONFIG_V2").ok();
     let v1 = std::env::var("PORACODE_MCP_FILTER_CONFIG_V1").ok();
     let unversioned = std::env::var("PORACODE_MCP_FILTER_CONFIG").ok();
-    parse_filter_config(v2.as_deref(), v1.as_deref(), unversioned.as_deref())
+    parse_filter_config(
+        v3.as_deref(),
+        v2.as_deref(),
+        v1.as_deref(),
+        unversioned.as_deref(),
+    )
 }
 
 #[cfg(test)]
@@ -496,16 +539,51 @@ mod tests {
         let v2_schema = encode(
             r#"{"version":2,"schemaOnly":true,"omitInvalidSchemaPatterns":true,"disabledTools":[],"server":{"name":"s","timeoutMs":1000,"transport":{"type":"stdio","command":"node","args":[],"env":{}}}}"#,
         );
-        let parsed = parse_filter_config(Some(&v2_schema), None, None).unwrap();
+        let parsed = parse_filter_config(None, Some(&v2_schema), None, None).unwrap();
         assert!(parsed.schema_only);
         assert!(parsed.omit_invalid_schema_patterns);
+        assert_eq!(parsed.max_schema_depth, None);
+
+        // V3 schema-only with maxSchemaDepth and omitted omitInvalidSchemaPatterns defaults
+        // omit_invalid_schema_patterns to false, matching `mcpToolFilterWorker.ts`.
+        let v3_depth_only = encode(
+            r#"{"version":3,"schemaOnly":true,"maxSchemaDepth":10,"disabledTools":[],"server":{"name":"s","timeoutMs":1000,"transport":{"type":"stdio","command":"node","args":[],"env":{}}}}"#,
+        );
+        let parsed_v3 = parse_filter_config(Some(&v3_depth_only), None, None, None).unwrap();
+        assert!(parsed_v3.schema_only);
+        assert!(!parsed_v3.omit_invalid_schema_patterns);
+        assert_eq!(parsed_v3.max_schema_depth, Some(10));
+
+        // V3 with both maxSchemaDepth and omitInvalidSchemaPatterns: true enables both.
+        let v3_both = encode(
+            r#"{"version":3,"schemaOnly":true,"maxSchemaDepth":10,"omitInvalidSchemaPatterns":true,"disabledTools":[],"server":{"name":"s","timeoutMs":1000,"transport":{"type":"stdio","command":"node","args":[],"env":{}}}}"#,
+        );
+        let parsed_v3_both = parse_filter_config(Some(&v3_both), None, None, None).unwrap();
+        assert!(parsed_v3_both.omit_invalid_schema_patterns);
+        assert_eq!(parsed_v3_both.max_schema_depth, Some(10));
+
+        // Invalid maxSchemaDepth or maxSchemaDepth outside V3 fails closed.
+        let v3_zero = encode(
+            r#"{"version":3,"schemaOnly":true,"maxSchemaDepth":0,"disabledTools":[],"server":{"name":"s","timeoutMs":1000,"transport":{"type":"stdio","command":"node","args":[],"env":{}}}}"#,
+        );
+        assert_eq!(
+            parse_filter_config(Some(&v3_zero), None, None, None),
+            Err(ConfigError::UnsupportedSchemaDepth)
+        );
+        let v2_with_depth = encode(
+            r#"{"version":2,"schemaOnly":true,"maxSchemaDepth":10,"disabledTools":[],"server":{"name":"s","timeoutMs":1000,"transport":{"type":"stdio","command":"node","args":[],"env":{}}}}"#,
+        );
+        assert_eq!(
+            parse_filter_config(None, Some(&v2_with_depth), None, None),
+            Err(ConfigError::UnsupportedSchemaDepth)
+        );
 
         // schemaOnly with disabled tools fails closed.
         let bad_schema = encode(
             r#"{"version":2,"schemaOnly":true,"disabledTools":["x"],"server":{"name":"s","timeoutMs":1000,"transport":{"type":"stdio","command":"node","args":[],"env":{}}}}"#,
         );
         assert_eq!(
-            parse_filter_config(Some(&bad_schema), None, None),
+            parse_filter_config(None, Some(&bad_schema), None, None),
             Err(ConfigError::InvalidSchemaOnly)
         );
 
@@ -514,7 +592,7 @@ mod tests {
             r#"{"version":1,"isolateConnectionFailures":true,"disabledTools":[],"server":{"name":"s","timeoutMs":1000,"transport":{"type":"stdio","command":"node","args":[],"env":{}}}}"#,
         );
         assert_eq!(
-            parse_filter_config(None, Some(&isolated), None),
+            parse_filter_config(None, None, Some(&isolated), None),
             Err(ConfigError::UnsupportedFilter)
         );
 
@@ -523,7 +601,7 @@ mod tests {
             r#"{"disabledTools":["x"],"server":{"name":"s","timeoutMs":1000,"transport":{"type":"http","url":"https://example.com/mcp","headers":{}}}}"#,
         );
         assert_eq!(
-            parse_filter_config(None, None, Some(&https_filter)),
+            parse_filter_config(None, None, None, Some(&https_filter)),
             Err(ConfigError::UnsupportedFilter)
         );
     }

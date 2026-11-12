@@ -44,7 +44,11 @@ fn stdio_launcher_executes_child_with_cwd_and_scrubs_config_env() {
         }
     }));
 
-    let output = Command::new(RELAY_BIN)
+    let mut cmd = Command::new(RELAY_BIN);
+    for key in poracode_mcp_relay::config::MCP_HELPER_CONFIG_ENVS {
+        cmd.env_remove(key);
+    }
+    let output = cmd
         .env("PORACODE_MCP_STDIO_CONFIG", &cfg)
         .stdin(Stdio::null())
         .output()
@@ -70,7 +74,11 @@ fn stdio_launcher_reports_clean_message_when_command_missing() {
         }
     }));
 
-    let output = Command::new(RELAY_BIN)
+    let mut cmd = Command::new(RELAY_BIN);
+    for key in poracode_mcp_relay::config::MCP_HELPER_CONFIG_ENVS {
+        cmd.env_remove(key);
+    }
+    let output = cmd
         .env("PORACODE_MCP_STDIO_CONFIG", &cfg)
         .stdin(Stdio::null())
         .output()
@@ -412,6 +420,110 @@ fn filter_proxy_paginates_filters_normalizes_and_blocks_disabled_or_app_only_too
     let ok = recv_json(&proc);
     assert_eq!(ok["result"]["content"][0]["text"], "ran:allowed");
     assert_eq!(call_count.load(Ordering::SeqCst), 1);
+
+    proc.close_stdin();
+    let status = proc.wait_exit(TIMEOUT).expect("process exit");
+    assert!(status.success());
+}
+
+#[test]
+fn v3_filter_limits_deep_schemas_and_omits_invalid_patterns() {
+    let mut deep = json!({ "type": "string", "pattern": "[" });
+    for _ in 0..11 {
+        deep = json!({ "type": "object", "properties": { "x": deep } });
+    }
+    let deep_for_server = deep.clone();
+
+    let server = MockServer::start(Arc::new(move |req, mut stream| {
+        if req.method == "DELETE" {
+            respond(&mut stream, 200, &[], "");
+            return;
+        }
+        let body = req.json_body();
+        if body.get("id").is_none() {
+            respond(&mut stream, 202, &[], "");
+            return;
+        }
+        let id = body["id"].clone();
+        let method = body["method"].as_str().unwrap_or("");
+        let result = match method {
+            "initialize" => json!({
+                "protocolVersion": "2025-11-25",
+                "capabilities": { "tools": {} },
+                "serverInfo": { "name": "v3-http", "version": "1" }
+            }),
+            "tools/list" => json!({
+                "tools": [{
+                    "name": "deep_tool",
+                    "description": "deep fixture",
+                    "inputSchema": deep_for_server
+                }, {
+                    "name": "shallow_tool",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": { "email": { "type": "string", "pattern": "[" } }
+                    }
+                }]
+            }),
+            _ => json!({}),
+        };
+        respond_json(
+            &mut stream,
+            200,
+            &json!({ "jsonrpc": "2.0", "id": id, "result": result }).to_string(),
+        );
+    }));
+
+    let v3_cfg = encode_json(&json!({
+        "version": 3,
+        "maxSchemaDepth": 10,
+        "omitInvalidSchemaPatterns": true,
+        "disabledTools": [],
+        "server": {
+            "name": "v3-http",
+            "timeoutMs": 5000,
+            "transport": {
+                "type": "http",
+                "url": server.url(),
+                "headers": {}
+            }
+        }
+    }));
+
+    let mut proc = RelayProcess::spawn(None, &[("PORACODE_MCP_FILTER_CONFIG_V3", &v3_cfg)]);
+    proc.send(
+        &json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-11-25",
+                "capabilities": {},
+                "clientInfo": { "name": "client", "version": "1" }
+            }
+        })
+        .to_string(),
+    );
+    let _ = recv_json(&proc);
+    proc.send(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }).to_string());
+    proc.send(
+        &json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {} }).to_string(),
+    );
+    let listed = recv_json(&proc);
+    let tools = listed["result"]["tools"].as_array().unwrap();
+    assert_eq!(tools.len(), 2);
+    assert!(
+        tools[0]["description"]
+            .as_str()
+            .unwrap()
+            .contains(&serde_json::to_string(&deep).unwrap())
+    );
+    assert_ne!(tools[0]["inputSchema"], deep);
+    assert!(
+        tools[1]["inputSchema"]["properties"]["email"]
+            .get("pattern")
+            .is_none()
+    );
 
     proc.close_stdin();
     let status = proc.wait_exit(TIMEOUT).expect("process exit");

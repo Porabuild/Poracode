@@ -4,10 +4,10 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
-import { Server, type Transport } from "@modelcontextprotocol/server";
+import { Server, type Tool, type Transport } from "@modelcontextprotocol/server";
 import { nativeMcpRelayBinaryPath, nativeRelaySupportsExtendedModes } from "./McpToolFilterService";
 import { startSchemaProxy } from "./mcpSchemaProxy";
-import { MCP_FILTER_CONFIG_V2_ENV } from "./mcpToolFilterConfig";
+import { MCP_FILTER_CONFIG_V3_ENV } from "./mcpToolFilterConfig";
 import { createUpstreamTransport } from "./mcpToolFilterProxy";
 
 function nativeRelayBin(): string | undefined {
@@ -25,7 +25,9 @@ afterEach(async () => {
   await Promise.allSettled(cleanups.splice(0).map((close) => close()));
 });
 
-async function fixture() {
+async function fixture(
+  options: { inputSchema?: Tool["inputSchema"]; maxSchemaDepth?: number } = {},
+) {
   const upstream = new Server(
     { name: "original-server", version: "1" },
     {
@@ -40,7 +42,10 @@ async function fixture() {
     tools: [
       {
         name: "fixture",
-        inputSchema: { type: "object", properties: { email: { type: "string", pattern: "[" } } },
+        inputSchema: options.inputSchema ?? {
+          type: "object",
+          properties: { email: { type: "string", pattern: "[" } },
+        },
         _meta: { fixture: true },
       },
     ],
@@ -61,7 +66,12 @@ async function fixture() {
   const [upstreamTransport, serverSide] = InMemoryTransport.createLinkedPair();
   const [downstreamTransport, clientSide] = InMemoryTransport.createLinkedPair();
   await upstream.connect(serverSide);
-  const proxy = await startSchemaProxy({ upstreamTransport, downstreamTransport, timeoutMs: 1000 });
+  const proxy = await startSchemaProxy({
+    upstreamTransport,
+    downstreamTransport,
+    timeoutMs: 1000,
+    ...(options.maxSchemaDepth !== undefined ? { maxSchemaDepth: options.maxSchemaDepth } : {}),
+  });
   const client = new Client(
     { name: "original-client", version: "1" },
     { capabilities: { roots: { listChanged: true } } },
@@ -79,6 +89,26 @@ async function fixture() {
 }
 
 describe("schema-only MCP protocol proxy", () => {
+  it("limits deep tool schemas while forwarding arguments unchanged", async () => {
+    let nested: unknown = { type: "string" };
+    for (let i = 0; i < 11; i += 1) nested = { type: "object", properties: { x: nested } };
+    const { client, upstream } = await fixture({
+      inputSchema: nested as Tool["inputSchema"],
+      maxSchemaDepth: 10,
+    });
+    const listed = (await client.listTools()).tools[0]!;
+    expect(listed.description).toContain(JSON.stringify(nested));
+    expect(listed.inputSchema).not.toEqual(nested);
+    let received: unknown;
+    upstream.setRequestHandler("tools/call", async (request) => {
+      received = request.params.arguments;
+      return { content: [{ type: "text", text: "ok" }] };
+    });
+    const args = { x: { x: { marker: "original" } } };
+    await client.callTool({ name: "fixture", arguments: args });
+    expect(received).toEqual(args);
+  });
+
   it("normalizes only tool schemas and preserves capabilities, resources, prompts and reverse requests", async () => {
     const { client, upstream } = await fixture();
     expect(client.getServerVersion()).toEqual({ name: "original-server", version: "1" });
@@ -341,6 +371,8 @@ it.skipIf(!nativeRelayBin())(
   async () => {
     const bin = nativeRelayBin()!;
     const script = String.raw`
+      let nested = { type: 'string' };
+      for (let i = 0; i < 11; i += 1) nested = { type: 'object', properties: { x: nested } };
       let buffer = '';
       process.stdin.setEncoding('utf8');
       process.stdin.on('data', chunk => {
@@ -354,7 +386,10 @@ it.skipIf(!nativeRelayBin())(
           if (m.method === 'initialize') {
             result = { protocolVersion: '2025-11-25', capabilities: { tools: {}, resources: {}, prompts: {} }, serverInfo: { name: 'native-schema-fixture', version: '1' } };
           } else if (m.method === 'tools/list') {
-            result = { tools: [{ name: 'email_tool', inputSchema: { type: 'object', properties: { email: { type: 'string', pattern: '[' }, ok: { type: 'string', pattern: '^[a-z]+$' } } } }] };
+            result = { tools: [
+              { name: 'email_tool', inputSchema: { type: 'object', properties: { email: { type: 'string', pattern: '[' }, ok: { type: 'string', pattern: '^[a-z]+$' } } } },
+              { name: 'deep_tool', description: 'deep', inputSchema: nested }
+            ] };
           } else if (m.method === 'resources/list') {
             result = { resources: [{ uri: 'fixture://doc', name: 'doc' }] };
           } else if (m.method === 'prompts/list') {
@@ -368,8 +403,9 @@ it.skipIf(!nativeRelayBin())(
     `;
     const encoded = Buffer.from(
       JSON.stringify({
-        version: 2,
+        version: 3,
         omitInvalidSchemaPatterns: true,
+        maxSchemaDepth: 10,
         schemaOnly: true,
         disabledTools: [],
         server: {
@@ -390,7 +426,7 @@ it.skipIf(!nativeRelayBin())(
       env: {
         ...(process.env as Record<string, string>),
         OWNER_EXPANDED: "expanded-by-owner",
-        [MCP_FILTER_CONFIG_V2_ENV]: encoded,
+        [MCP_FILTER_CONFIG_V3_ENV]: encoded,
       },
     });
     const client = new Client({ name: "native-schema-client", version: "1" });
@@ -403,6 +439,7 @@ it.skipIf(!nativeRelayBin())(
       type: "string",
       pattern: "^[a-z]+$",
     });
+    expect(tools[1]?.description).toContain("Original input JSON schema");
     expect((await client.listResources()).resources).toEqual([
       { uri: "fixture://doc", name: "doc" },
     ]);

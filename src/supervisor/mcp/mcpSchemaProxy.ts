@@ -1,6 +1,6 @@
 import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/server";
 import type { JSONRPCMessage, Transport } from "@modelcontextprotocol/server";
-import { omitInvalidSchemaPatterns } from "./portableSchemaPatterns";
+import { limitToolSchemaDepth, omitInvalidSchemaPatterns } from "./portableSchemaPatterns";
 
 /**
  * Normalize tools/list without replacing either peer's MCP handshake or
@@ -11,6 +11,8 @@ export async function startSchemaProxy(options: {
   upstreamTransport: Transport;
   downstreamTransport: Transport;
   timeoutMs: number;
+  omitInvalidSchemaPatterns?: boolean;
+  maxSchemaDepth?: number;
 }): Promise<{ close(): Promise<void> }> {
   const { upstreamTransport: upstream, downstreamTransport: downstream } = options;
   const lists = new Set<string | number>();
@@ -103,7 +105,13 @@ export async function startSchemaProxy(options: {
                 !("inputSchema" in tool)
               )
                 return tool;
-              return { ...tool, inputSchema: omitInvalidSchemaPatterns(tool.inputSchema) };
+              const limited =
+                options.maxSchemaDepth === undefined
+                  ? tool
+                  : limitToolSchemaDepth(tool, options.maxSchemaDepth);
+              return options.omitInvalidSchemaPatterns === false
+                ? limited
+                : { ...limited, inputSchema: omitInvalidSchemaPatterns(limited.inputSchema) };
             }),
           },
         };

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { createComposerDraftStorage } from "./composerDraftStorage";
 import type { DraftContent } from "./slices/types";
 
@@ -36,6 +37,27 @@ describe("composer draft checkpoints", () => {
       segments: content.segments,
       attachments: [{ id: "image", path: "/saved/image.png", name: "image.png", isImage: true }],
     });
+  });
+
+  it("keeps old text drafts and selection metadata across reloads", () => {
+    const oldContent = { segments: [{ kind: "text", content: "old draft" }], attachments: [] };
+    localStorage.setItem(
+      'poracode-composer-draft-v2:["thread","old"]',
+      JSON.stringify({ formatVersion: 2, draftId: "old", revision: 1, content: oldContent }),
+    );
+    const store = createComposerDraftStorage(localStorage, window);
+    expect(store.load("thread").old).toEqual(oldContent);
+    const segments: DraftContent["segments"] = [
+      { kind: "text", content: "old draft" },
+      { kind: "text", content: "selected\ntext", selection: true },
+    ];
+    store.save("thread", "one", { segments, attachments: [] });
+    store.flush();
+    expect(createComposerDraftStorage(localStorage, window).load("thread").one?.segments).toEqual(
+      segments,
+    );
+    const oldTextReader = z.object({ kind: z.literal("text"), content: z.string() });
+    expect(oldTextReader.parse(segments[1])).toEqual({ kind: "text", content: "selected\ntext" });
   });
 
   it("coalesces rapid typing and flushes the latest content on pagehide", () => {

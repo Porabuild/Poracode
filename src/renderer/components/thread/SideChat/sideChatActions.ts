@@ -104,7 +104,15 @@ export async function addSelectionToSideChat(
   if (!quote || !canOpenSideChat(sourceThreadId)) return false;
   const state = useSideChatPanelStore.getState();
   const existing = state.entries[sourceThreadId];
-  if (!existing) return openSideChat(sourceThreadId, quote, undefined, { autoStart: false });
+  if (!existing)
+    return openSideChat(
+      sourceThreadId,
+      quote,
+      [{ kind: "text", content: quote, selection: true }],
+      {
+        autoStart: false,
+      },
+    );
 
   if (existing.id && state.detachedIds.has(existing.id)) {
     await readBridge().openSideChatWindow?.({ ...existing, autoStart: false, appendText: quote });
@@ -114,6 +122,7 @@ export async function addSelectionToSideChat(
     await readBridge().bindSideChatThread?.({
       ...(existing.id ? { id: existing.id } : {}),
       prompt: existing.prompt,
+      ...(existing.segments ? { segments: existing.segments } : {}),
       ...(existing.selection ? { selection: existing.selection } : {}),
     });
   await readBridge().openSideChatPanel?.({ ...existing, autoStart: false, appendText: quote });

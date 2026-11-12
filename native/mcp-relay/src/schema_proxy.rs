@@ -1,9 +1,10 @@
-//! Wire-level MCP schema proxy (`PORACODE_MCP_FILTER_CONFIG_V2` with
+//! Wire-level MCP schema proxy (`PORACODE_MCP_FILTER_CONFIG_V2` / `V3` with
 //! `schemaOnly: true`), ported from `src/supervisor/mcp/mcpSchemaProxy.ts`.
 //!
 //! Preserves all MCP capabilities (tools, resources, prompts, roots, sampling,
 //! notifications, and `line` / `Content-Length` framing) while rewriting only
-//! `tools/list` response `inputSchema` objects through
+//! `tools/list` response tool definitions through
+//! [`crate::schema::limit_tool_schema_depth`] and
 //! [`crate::schema::omit_invalid_schema_patterns`].
 
 use crate::config::{FilterConfig, UpstreamTransportConfig};
@@ -12,7 +13,7 @@ use crate::framing::{
     read_framed_stream, write_framed_message,
 };
 use crate::messages::{IdKey, id_key};
-use crate::schema::omit_invalid_schema_patterns;
+use crate::schema::{limit_tool_schema_depth, omit_invalid_schema_patterns};
 use serde_json::Value;
 use std::collections::{HashSet, VecDeque};
 use std::io::{self, BufWriter};
@@ -48,6 +49,8 @@ struct ProxyInner {
 struct SchemaProxyCtx {
     upstream: UpstreamHandle,
     timeout: Duration,
+    omit_invalid_patterns: bool,
+    max_schema_depth: Option<usize>,
     downstream_framing: AtomicU8,
     stdout_writer: Mutex<BufWriter<io::Stdout>>,
     inner: Mutex<ProxyInner>,
@@ -150,8 +153,17 @@ impl SchemaProxyCtx {
                     .and_then(Value::as_array_mut)
             {
                 for tool in tools.iter_mut() {
-                    if let Some(tool_obj) = tool.as_object_mut()
-                        && let Some(schema) = tool_obj.remove("inputSchema")
+                    let Some(tool_obj) = tool.as_object_mut() else {
+                        continue;
+                    };
+                    if !tool_obj.contains_key("inputSchema") {
+                        continue;
+                    }
+                    if let Some(max_depth) = self.max_schema_depth {
+                        limit_tool_schema_depth(tool_obj, max_depth);
+                    }
+                    if self.omit_invalid_patterns
+                        && let Some(schema) = tool_obj.get("inputSchema").cloned()
                     {
                         tool_obj.insert(
                             "inputSchema".to_string(),
@@ -408,6 +420,8 @@ pub fn run_schema_proxy(config: FilterConfig, #[cfg(unix)] signal_set: libc::sig
     let ctx = Arc::new(SchemaProxyCtx {
         upstream,
         timeout: config.timeout,
+        omit_invalid_patterns: config.omit_invalid_schema_patterns,
+        max_schema_depth: config.max_schema_depth,
         downstream_framing: AtomicU8::new(Framing::Line as u8),
         stdout_writer: Mutex::new(BufWriter::new(io::stdout())),
         inner: Mutex::new(ProxyInner {

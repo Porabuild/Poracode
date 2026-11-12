@@ -7,10 +7,16 @@
 //! schema while leaving user data (`default`, `examples`, or a property named
 //! `pattern`) untouched.
 
-use serde_json::Value;
-use std::collections::HashSet;
+use serde_json::{Value, json};
+use std::collections::{HashMap, HashSet};
 
 const MAX_REGEX_NESTING: usize = 512;
+
+const DEPTH_PLACEHOLDER_DESCRIPTION: &str =
+    "See the original input schema in the tool description.";
+
+const DEPTH_OBJECT_MAP_SCHEMA_KEYS: &[&str] =
+    &["properties", "patternProperties", "dependentSchemas"];
 
 const OBJECT_MAP_SCHEMA_KEYS: &[&str] = &[
     "properties",
@@ -79,6 +85,223 @@ pub fn omit_invalid_schema_patterns(schema: &Value) -> Value {
     }
 
     Value::Object(result)
+}
+
+enum DepthVisitOut {
+    Placeholder,
+    Node(Value),
+}
+
+impl DepthVisitOut {
+    fn into_child_value(self) -> Value {
+        match self {
+            Self::Placeholder => json!({ "description": DEPTH_PLACEHOLDER_DESCRIPTION }),
+            Self::Node(value) => value,
+        }
+    }
+}
+
+fn resolve_local_json_pointer<'a>(root: &'a Value, pointer: &str) -> Option<&'a Value> {
+    if pointer == "#" {
+        return Some(root);
+    }
+    let tail = pointer.strip_prefix("#/")?;
+    let mut target = root;
+    for raw_part in tail.split('/') {
+        let key = raw_part.replace("~1", "/").replace("~0", "~");
+        target = match target {
+            Value::Object(map) => map.get(&key)?,
+            Value::Array(items) => {
+                let is_canonical_index = key == "0"
+                    || (!key.starts_with('0')
+                        && !key.is_empty()
+                        && key.bytes().all(|b| b.is_ascii_digit()));
+                if !is_canonical_index {
+                    return None;
+                }
+                let index = key.parse::<usize>().ok()?;
+                items.get(index)?
+            }
+            _ => return None,
+        };
+    }
+    Some(target)
+}
+
+fn visit_schema_depth(
+    value: &Value,
+    depth: usize,
+    refs: &HashSet<String>,
+    root: &Value,
+    max_depth: usize,
+    reference_results: &mut HashMap<(usize, String), bool>,
+) -> (DepthVisitOut, bool) {
+    let Value::Object(node) = value else {
+        return (DepthVisitOut::Node(value.clone()), false);
+    };
+    if matches!(node.get("$dynamicRef"), Some(Value::String(_)))
+        || matches!(node.get("$recursiveRef"), Some(Value::String(_)))
+    {
+        return (DepthVisitOut::Placeholder, true);
+    }
+    if let Some(Value::String(ref_str)) = node.get("$ref") {
+        // References outside this local-pointer form cannot be safely bounded here.
+        if (ref_str != "#" && !ref_str.starts_with("#/")) || ref_str.contains('%') {
+            return (DepthVisitOut::Placeholder, true);
+        }
+        if refs.contains(ref_str.as_str()) {
+            return (DepthVisitOut::Placeholder, true);
+        }
+        let Some(target) = resolve_local_json_pointer(root, ref_str) else {
+            return (DepthVisitOut::Placeholder, true);
+        };
+        let cache_key = (depth, ref_str.clone());
+        let limited = if let Some(&cached) = reference_results.get(&cache_key) {
+            cached
+        } else {
+            let mut next_refs = refs.clone();
+            next_refs.insert(ref_str.clone());
+            let (_, is_limited) = visit_schema_depth(
+                target,
+                depth,
+                &next_refs,
+                root,
+                max_depth,
+                reference_results,
+            );
+            reference_results.insert(cache_key, is_limited);
+            is_limited
+        };
+        if limited {
+            return (DepthVisitOut::Placeholder, true);
+        }
+    }
+
+    let container = match node.get("type") {
+        Some(Value::String(kind)) => kind == "object" || kind == "array",
+        Some(Value::Array(types)) => types
+            .iter()
+            .any(|entry| matches!(entry.as_str(), Some("object" | "array"))),
+        None => {
+            node.contains_key("properties")
+                || node.contains_key("patternProperties")
+                || node.contains_key("items")
+        }
+        Some(_) => false,
+    };
+    let next_depth = depth + usize::from(container);
+    if next_depth > max_depth {
+        return (DepthVisitOut::Placeholder, true);
+    }
+
+    let mut result = node.clone();
+    let mut changed = false;
+
+    for key in DEPTH_OBJECT_MAP_SCHEMA_KEYS {
+        let Some(Value::Object(entries)) = node.get(*key) else {
+            continue;
+        };
+        let mut mapped = serde_json::Map::with_capacity(entries.len());
+        for (name, child) in entries {
+            let (out, limited) =
+                visit_schema_depth(child, next_depth, refs, root, max_depth, reference_results);
+            changed |= limited;
+            mapped.insert(name.clone(), out.into_child_value());
+        }
+        result.insert((*key).to_string(), Value::Object(mapped));
+    }
+
+    for key in ARRAY_SCHEMA_KEYS {
+        let Some(Value::Array(entries)) = node.get(*key) else {
+            continue;
+        };
+        let mut mapped = Vec::with_capacity(entries.len());
+        for child in entries {
+            let (out, limited) =
+                visit_schema_depth(child, next_depth, refs, root, max_depth, reference_results);
+            changed |= limited;
+            mapped.push(out.into_child_value());
+        }
+        result.insert((*key).to_string(), Value::Array(mapped));
+    }
+
+    for key in SINGLE_OR_ARRAY_SCHEMA_KEYS {
+        let Some(child) = node.get(*key) else {
+            continue;
+        };
+        match child {
+            Value::Array(entries) => {
+                let mut mapped = Vec::with_capacity(entries.len());
+                for entry in entries {
+                    let (out, limited) = visit_schema_depth(
+                        entry,
+                        next_depth,
+                        refs,
+                        root,
+                        max_depth,
+                        reference_results,
+                    );
+                    changed |= limited;
+                    mapped.push(out.into_child_value());
+                }
+                result.insert((*key).to_string(), Value::Array(mapped));
+            }
+            other => {
+                let (out, limited) =
+                    visit_schema_depth(other, next_depth, refs, root, max_depth, reference_results);
+                changed |= limited;
+                result.insert((*key).to_string(), out.into_child_value());
+            }
+        }
+    }
+
+    if changed {
+        (DepthVisitOut::Node(Value::Object(result)), true)
+    } else {
+        (DepthVisitOut::Node(value.clone()), false)
+    }
+}
+
+/// Limits nested object/array schemas on a tool object (`inputSchema` +
+/// `description`) while leaving validation to the MCP server, ported from
+/// `limitToolSchemaDepth` in `src/supervisor/mcp/portableSchemaPatterns.ts`.
+pub fn limit_tool_schema_depth(tool_obj: &mut serde_json::Map<String, Value>, max_depth: usize) {
+    let Some(root) = tool_obj.get("inputSchema").cloned() else {
+        return;
+    };
+    let mut reference_results: HashMap<(usize, String), bool> = HashMap::new();
+    let empty_refs = HashSet::new();
+    let (out, limited) = visit_schema_depth(
+        &root,
+        0,
+        &empty_refs,
+        &root,
+        max_depth,
+        &mut reference_results,
+    );
+    if !limited {
+        return;
+    }
+
+    let next_input_schema = match out {
+        DepthVisitOut::Placeholder => json!({
+            "description": DEPTH_PLACEHOLDER_DESCRIPTION,
+            "type": "object"
+        }),
+        DepthVisitOut::Node(node) => node,
+    };
+    let serialized_root = serde_json::to_string(&root).unwrap_or_else(|_| "{}".to_string());
+    let prefix = match tool_obj.get("description") {
+        Some(Value::String(desc)) if !desc.is_empty() => format!("{desc}\n\n"),
+        _ => String::new(),
+    };
+    tool_obj.insert("inputSchema".to_string(), next_input_schema);
+    tool_obj.insert(
+        "description".to_string(),
+        Value::String(format!(
+            "{prefix}Original input JSON schema (the tool server is responsible for validating arguments):\n{serialized_root}"
+        )),
+    );
 }
 
 /// Validates `pattern` against ECMA-262 `Pattern[+Unicode, ~UnicodeSets]`
@@ -908,6 +1131,111 @@ mod tests {
                 "not": true,
                 "if": {},
                 "then": { "pattern": "^\\p{L}+$" }
+            })
+        );
+    }
+
+    fn nested_schema(levels: usize, is_array: bool) -> Value {
+        let mut schema = json!({ "type": "string" });
+        for _ in 0..levels {
+            schema = if is_array {
+                json!({ "type": "array", "items": schema })
+            } else {
+                json!({ "type": "object", "properties": { "x": schema }, "required": ["x"] })
+            };
+        }
+        schema
+    }
+
+    #[test]
+    fn limits_tool_schema_depth_matching_js_helper_semantics() {
+        for is_array in [false, true] {
+            let mut valid = json!({
+                "inputSchema": nested_schema(10, is_array),
+                "description": "fixture"
+            });
+            let before_valid = valid.clone();
+            limit_tool_schema_depth(valid.as_object_mut().unwrap(), 10);
+            assert_eq!(valid, before_valid);
+
+            let orig_schema = nested_schema(11, is_array);
+            let mut tool = json!({
+                "inputSchema": orig_schema.clone(),
+                "description": "fixture"
+            });
+            limit_tool_schema_depth(tool.as_object_mut().unwrap(), 10);
+            let mut cursor = &tool["inputSchema"];
+            for _ in 0..10 {
+                cursor = if is_array {
+                    &cursor["items"]
+                } else {
+                    &cursor["properties"]["x"]
+                };
+            }
+            assert_eq!(
+                *cursor,
+                json!({ "description": DEPTH_PLACEHOLDER_DESCRIPTION })
+            );
+            let desc = tool["description"].as_str().unwrap();
+            assert!(desc.starts_with("fixture\n\nOriginal input JSON schema"));
+            assert!(desc.contains(&serde_json::to_string(&orig_schema).unwrap()));
+        }
+
+        // Follows local JSON Pointer `$ref` at use site, preserves `$defs` & `examples`,
+        // bounds cycles, unresolved refs, percent-encoded refs, and `$dynamicRef`.
+        let ref_schema = json!({
+            "type": "object",
+            "properties": {
+                "deep": { "$ref": "#/$defs/deep" },
+                "shallow": { "$ref": "#/$defs/shallow" },
+                "cycle": { "$ref": "#" },
+                "encoded": { "$ref": "#/$defs/deep%20schema" },
+                "dynamic": { "$dynamicRef": "#node" }
+            },
+            "required": ["deep"],
+            "$defs": {
+                "deep": nested_schema(10, false),
+                "shallow": nested_schema(2, false),
+                "deep schema": nested_schema(2, false)
+            },
+            "examples": [{ "properties": { "x": nested_schema(12, false) } }]
+        });
+        let mut ref_tool = json!({ "inputSchema": ref_schema.clone() });
+        limit_tool_schema_depth(ref_tool.as_object_mut().unwrap(), 10);
+        let placeholder = json!({ "description": DEPTH_PLACEHOLDER_DESCRIPTION });
+        assert_eq!(ref_tool["inputSchema"]["properties"]["deep"], placeholder);
+        assert_eq!(
+            ref_tool["inputSchema"]["properties"]["shallow"],
+            json!({ "$ref": "#/$defs/shallow" })
+        );
+        assert_eq!(ref_tool["inputSchema"]["properties"]["cycle"], placeholder);
+        assert_eq!(
+            ref_tool["inputSchema"]["properties"]["encoded"],
+            placeholder
+        );
+        assert_eq!(
+            ref_tool["inputSchema"]["properties"]["dynamic"],
+            placeholder
+        );
+        assert_eq!(ref_tool["inputSchema"]["$defs"], ref_schema["$defs"]);
+        assert_eq!(ref_tool["inputSchema"]["examples"], ref_schema["examples"]);
+        assert!(
+            ref_tool["description"]
+                .as_str()
+                .unwrap()
+                .starts_with("Original input JSON schema")
+        );
+
+        // Keeps root an object when root `$ref` is unresolved.
+        let mut root_bad = json!({
+            "inputSchema": { "type": "object", "$ref": "#missing" }
+        });
+        limit_tool_schema_depth(root_bad.as_object_mut().unwrap(), 10);
+        assert_eq!(
+            root_bad["inputSchema"],
+            json!({
+                "description": DEPTH_PLACEHOLDER_DESCRIPTION,
+                "type": "object"
             })
         );
     }
