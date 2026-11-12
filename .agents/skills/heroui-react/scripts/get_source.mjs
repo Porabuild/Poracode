@@ -66,7 +66,7 @@ async function fetchGithubFallback(component) {
 
     try {
       const response = await fetch(url, {
-        headers: { "User-Agent": "HeroUI-Skill/1.0" },
+        headers: {"User-Agent": "HeroUI-Skill/1.0"},
         signal: AbortSignal.timeout(30000),
       });
 
@@ -86,7 +86,7 @@ async function fetchGithubFallback(component) {
     }
   }
 
-  return { component, error: `Failed to fetch source for ${component}` };
+  return {component, error: `Failed to fetch source for ${component}`};
 }
 
 /**
@@ -105,7 +105,7 @@ async function main() {
 
   // Try API first
   console.error(`# Fetching source code for: ${components.join(", ")}...`);
-  const data = await fetchApi("/v1/components/source", "POST", { components });
+  const data = await fetchApi("/v1/components/source", "POST", {components});
 
   if (data && data.results) {
     for (const result of data.results) {
@@ -153,11 +153,8 @@ async function main() {
       console.log(JSON.stringify(result, null, 2));
     }
   } else {
-    console.log(JSON.stringify({ results }, null, 2));
+    console.log(JSON.stringify({results}, null, 2));
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main();

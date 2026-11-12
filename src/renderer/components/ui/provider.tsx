@@ -237,7 +237,7 @@ export function AppProvider(props: {
               <SwipeDismissToast
                 toast={toastItem}
                 variant={variant}
-                className={`lc-toast relative w-full border border-border/40 ${isToastPressable ? "cursor-pointer" : ""}`}
+                className={`lc-toast w-full border border-border/40 ${isToastPressable ? "cursor-pointer" : ""}`}
               >
                 {isToastPressable ? (
                   <div

@@ -18,6 +18,7 @@
     "node_modules",
     "tui/**",
     "ios/App/App/Resources/mcp-app-host.js",
-    "android/app/src/main/assets/mcp-app-host.js"
+    "android/app/src/main/assets/mcp-app-host.js",
+    "**/skills/heroui-react/**"
   ]
 }
