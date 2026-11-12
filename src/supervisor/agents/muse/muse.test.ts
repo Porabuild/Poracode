@@ -42,6 +42,7 @@ import {
 } from "./sessionFiles";
 import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./terminal";
 import { buildMuseTerminalMcpForLocation } from "./mcpSupport";
+import { limitToolSchemaDepth } from "../../mcp/portableSchemaPatterns";
 
 const location = { kind: "posix", path: "/tmp/demo" } as ProjectLocation;
 const config = { mode: "agent", model: "muse-spark-1.3" } as ThreadConfig;
@@ -87,8 +88,34 @@ describe("createMuseAdapter shape", () => {
   it("uses the stdio launcher to preserve an MCP server working directory", () => {
     expect(adapter.mcpRequiresStdioCwdProxy).toBe(true);
     expect(adapter.mcpRequiresPortableSchemaPatterns).toBe(true);
-    expect(adapter.mcpMaxSchemaDepth).toBe(10);
+    expect(adapter.mcpMaxSchemaDepth).toBe(9);
   });
+
+  it.each(["object", "array"] as const)(
+    "reserves a leaf level within the gateway's ten-level %s schema budget",
+    (kind) => {
+      // The released ten-container policy leaves an eleventh schema node (a
+      // primitive or the limiter's placeholder). Muse 1.4.7 rejects that catalog
+      // with HTTP 400 before native children produce their first response.
+      let inputSchema: Record<string, unknown> = { type: "string" };
+      for (let level = 0; level < 15; level += 1) {
+        inputSchema =
+          kind === "object"
+            ? { type: "object", properties: { value: inputSchema } }
+            : { type: "array", items: inputSchema };
+      }
+      const tool = { inputSchema: { type: "object", properties: { value: inputSchema } } };
+      const limited = limitToolSchemaDepth(tool, adapter.mcpMaxSchemaDepth!);
+      let node: Record<string, unknown> | undefined = limited.inputSchema;
+      let levels = 0;
+      while (node) {
+        levels += 1;
+        const properties = node["properties"] as Record<string, unknown> | undefined;
+        node = (node["items"] ?? properties?.["value"]) as Record<string, unknown> | undefined;
+      }
+      expect(levels).toBeLessThanOrEqual(10);
+    },
+  );
 
   it("builds a `muse logout` command so the Settings logout button can drive it", async () => {
     const command = await adapter.buildAcpLogoutCommand?.();
