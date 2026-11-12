@@ -23,6 +23,30 @@ function runtimeFor(output = "hostname github.com\n") {
 }
 
 describe("resolveGitRemoteInfo", () => {
+  it("uses known native config evidence without spawning git, retaining SSH resolution", async () => {
+    const runtime = runtimeFor();
+    const result = await resolveGitRemoteInfo(location, remote, runtime, false);
+    expect(result?.url).toBe("https://github.com/Porabuild/Poracode.git");
+    expect(runtime.environment).toHaveBeenCalledWith(location);
+    expect(runtime.run.mock.calls.map(([, command]) => command)).toEqual(["ssh"]);
+  });
+
+  it("retains the unconfirmed URL when native config reports an SSH override", async () => {
+    const runtime = runtimeFor();
+    expect(await resolveGitRemoteInfo(location, remote, runtime, true)).toBe(remote);
+    expect(runtime.run).not.toHaveBeenCalled();
+  });
+
+  it.each(["GIT_SSH", "GIT_SSH_COMMAND", "GIT_SSH_VARIANT"])(
+    "honors %s even when native config reports no override",
+    async (key) => {
+      const runtime = runtimeFor();
+      runtime.environment.mockResolvedValue({ [key]: "custom-ssh" });
+      expect(await resolveGitRemoteInfo(location, remote, runtime, false)).toBe(remote);
+      expect(runtime.run).not.toHaveBeenCalled();
+    },
+  );
+
   it("resolves the released alias URL through the owning host's SSH config", async () => {
     const runtime = runtimeFor();
     const result = await resolveGitRemoteInfo(location, remote, runtime);

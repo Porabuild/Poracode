@@ -1,28 +1,21 @@
-//! Parallel multi-worktree Git status batch execution in Rust.
+//! Parallel multi-worktree Git status collection without Git subprocesses.
 
-use crate::git_exec::{SubprocessLimiter, run_git_command};
-use crate::parser::{
-    ParsedPorcelainStatus, apply_numstat_counts, expand_untracked_entries, has_remote_lines,
-    is_inherited_start_point_upstream, parse_diff_numstat, parse_status_porcelain_v2,
-    strip_commit_message_comments, sum_change_totals,
-};
+mod attributes;
+mod config;
+mod remotes;
+mod status;
+
+use crate::git_exec::SubprocessLimiter;
 use crate::protocol::{
-    GitFileChange, NativeFileEntry, NativeGitStatusEntry, NativeProjectTreeEntry, StatusDetail,
+    NativeFileEntry, NativeGitStatusEntry, NativeProjectTreeEntry, StatusDetail,
 };
 use crate::search::{NativeSearchCache, SearchParams};
 use crate::untracked::UntrackedStatsCache;
-use std::collections::{BTreeMap, HashMap};
-use std::fs;
-use std::path::Path;
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::thread;
-use std::time::Duration;
 
-const LS_FILES_UNTRACKED_ARGS: &[&str] = &["ls-files", "--others", "--exclude-standard", "-z"];
-const MAX_MERGE_MESSAGE_BYTES: u64 = 64 * 1024;
-
-/// Stateful service owning the untracked-file `(size, mtime)` cache and
-/// arena-allocated project search indexes across requests.
+/// Stateful service owning untracked-file statistics and project search indexes.
 #[derive(Debug, Default)]
 pub struct GitHelperService {
     untracked_cache: UntrackedStatsCache,
@@ -30,72 +23,52 @@ pub struct GitHelperService {
 }
 
 impl GitHelperService {
-    /// Construct a new [`GitHelperService`].
+    /// Construct a new service with empty, process-local caches.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Execute `ProjectSearchIndex.searchProjectTree` natively.
+    /// Execute tree search; this independent route can still start Git.
     pub fn search_tree(&self, params: &SearchParams<'_>) -> Vec<NativeProjectTreeEntry> {
-        let limiter = SubprocessLimiter::new(2);
-        self.search_cache.search_tree(params, &limiter)
+        self.search_cache
+            .search_tree(params, &SubprocessLimiter::new(2))
     }
 
-    /// Execute `FileIndexService.searchProjectFiles` natively.
+    /// Execute file search; this independent route can still start Git.
     pub fn search_files(&self, params: &SearchParams<'_>) -> (Vec<NativeFileEntry>, usize) {
-        let limiter = SubprocessLimiter::new(2);
-        self.search_cache.search_files(params, &limiter)
+        self.search_cache
+            .search_files(params, &SubprocessLimiter::new(2))
     }
 
-    /// Invalidate cached project search indexes for `root_path` (or all when `None`).
+    /// Invalidate search indexes for one root, or all roots when absent.
     pub fn invalidate_search(&self, root_path: Option<&str>) {
         self.search_cache.invalidate(root_path);
     }
 
-    /// Execute a parallel `statusBatch` across `paths`. Worktrees that cannot
-    /// be opened at the OS level (e.g. deleted directory during race) are omitted
-    /// when `paths.len() > 1` or returned as non-repo for single-path queries,
-    /// matching `GitStatusService` + `GitService.getWorktreeStatusBatch`.
+    /// Collect a bounded parallel batch. Transient repository failures are
+    /// omitted, allowing single-path callers to use the TypeScript fallback and
+    /// batch callers to preserve prior rows rather than report a clean/non-repo.
+    /// The client still owns the request deadline and helper process lifetime.
     pub fn status_batch(
         &self,
         paths: &[String],
         detail: StatusDetail,
         timeout_ms: u64,
         max_concurrency: usize,
-    ) -> BTreeMap<String, NativeGitStatusEntry> {
-        if paths.is_empty() {
-            return BTreeMap::new();
-        }
-        let timeout = Duration::from_millis(timeout_ms.max(250));
-        let limiter = SubprocessLimiter::new(max_concurrency.clamp(1, 32));
-
-        if paths.len() == 1 {
-            let path = &paths[0];
-            let mut out = BTreeMap::new();
-            let entry_opt = match detail {
-                StatusDetail::Summary => Some(self.collect_summary(path, timeout, &limiter)),
-                StatusDetail::Full => self.collect_full(path, timeout, &limiter),
-            };
-            if let Some(entry) = entry_opt {
-                out.insert(path.clone(), entry);
-            }
-            return out;
-        }
-
+    ) -> Result<BTreeMap<String, NativeGitStatusEntry>, String> {
         let worker_count = paths.len().min(max_concurrency.clamp(1, 16));
-        let queue: Mutex<usize> = Mutex::new(0);
-        let results: Mutex<BTreeMap<String, NativeGitStatusEntry>> = Mutex::new(BTreeMap::new());
-
+        let queue = Mutex::new(0usize);
+        let results = Mutex::new(BTreeMap::new());
+        let unsupported = Mutex::new(false);
         thread::scope(|scope| {
             for _ in 0..worker_count {
                 scope.spawn(|| {
                     loop {
-                        let idx = {
-                            let mut next = match queue.lock() {
-                                Ok(guard) => guard,
-                                Err(poisoned) => poisoned.into_inner(),
-                            };
+                        let index = {
+                            let mut next = queue
+                                .lock()
+                                .unwrap_or_else(|poisoned| poisoned.into_inner());
                             if *next >= paths.len() {
                                 break;
                             }
@@ -103,479 +76,88 @@ impl GitHelperService {
                             *next += 1;
                             current
                         };
-                        let path = &paths[idx];
-                        let entry_opt = match detail {
-                            StatusDetail::Summary => {
-                                Some(self.collect_summary(path, timeout, &limiter))
+                        let path = &paths[index];
+                        match status::collect(path, detail, &self.untracked_cache, timeout_ms) {
+                            Ok(entry) => {
+                                results
+                                    .lock()
+                                    .unwrap_or_else(|poisoned| poisoned.into_inner())
+                                    .insert(path.clone(), entry);
                             }
-                            StatusDetail::Full => self.collect_full(path, timeout, &limiter),
-                        };
-                        if let Some(entry) = entry_opt {
-                            let mut map = match results.lock() {
-                                Ok(guard) => guard,
-                                Err(poisoned) => poisoned.into_inner(),
-                            };
-                            map.insert(path.clone(), entry);
+                            Err(error) if requires_fallback(&error) => {
+                                *unsupported
+                                    .lock()
+                                    .unwrap_or_else(|poisoned| poisoned.into_inner()) = true;
+                            }
+                            Err(_) => {}
                         }
                     }
                 });
             }
         });
-
-        match results.into_inner() {
-            Ok(map) => map,
-            Err(poisoned) => poisoned.into_inner(),
-        }
-    }
-
-    fn collect_summary(
-        &self,
-        cwd: &str,
-        timeout: Duration,
-        limiter: &SubprocessLimiter,
-    ) -> NativeGitStatusEntry {
-        if !Path::new(cwd).is_dir() {
-            return non_repo_summary_entry();
-        }
-
-        let Ok(status_out) =
-            run_git_command(cwd, &["status", "--porcelain=v2", "-b"], timeout, limiter)
-        else {
-            return non_repo_summary_entry();
-        };
-        if !status_out.ok {
-            return non_repo_summary_entry();
-        }
-
-        let mut parsed = parse_status_porcelain_v2(&status_out.stdout);
-        // Only spawn `git ls-files --others` when porcelain actually reported
-        // collapsed `? dir/` untracked directories! Individual `? file.txt`
-        // entries are already listed in `status --porcelain=v2`.
-        if parsed
-            .unstaged
-            .iter()
-            .any(|f| f.status == "?" && f.path.ends_with('/'))
+        if unsupported
+            .into_inner()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
         {
-            let untracked_stdout =
-                match run_git_command(cwd, LS_FILES_UNTRACKED_ARGS, timeout, limiter) {
-                    Ok(out) if out.ok => out.stdout,
-                    _ => String::new(),
-                };
-            expand_untracked_entries(&mut parsed, &untracked_stdout);
-        }
-        clear_inherited_start_point_upstream(cwd, &mut parsed, timeout, limiter);
-
-        let (merge_in_progress, conflict_files) = if parsed.merge_in_progress {
-            let conflicts = parsed
-                .conflict_files
-                .iter()
-                .map(|path| GitFileChange {
-                    path: path.clone(),
-                    old_path: None,
-                    status: "U".to_owned(),
-                    staged: false,
-                    insertions: 0,
-                    deletions: 0,
-                })
-                .collect();
-            (Some(true), Some(conflicts))
+            Err("Native Git repository or configuration requires TypeScript fallback".to_owned())
         } else {
-            (None, None)
-        };
-
-        NativeGitStatusEntry {
-            detail: Some("summary".to_owned()),
-            is_repo: true,
-            branch: parsed.branch,
-            head_sha: if parsed.head_sha.is_empty() {
-                None
-            } else {
-                Some(parsed.head_sha)
-            },
-            has_remote: !parsed.tracking.is_empty(),
-            tracking: parsed.tracking,
-            remote_output: None,
-            ahead: parsed.ahead,
-            behind: parsed.behind,
-            staged: parsed.staged,
-            unstaged: parsed.unstaged,
-            total_insertions: 0,
-            total_deletions: 0,
-            merge_in_progress,
-            conflict_files,
-            merge_message: None,
+            Ok(results
+                .into_inner()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()))
         }
     }
+}
 
-    fn collect_full(
-        &self,
-        cwd: &str,
-        timeout: Duration,
-        limiter: &SubprocessLimiter,
-    ) -> Option<NativeGitStatusEntry> {
-        if !Path::new(cwd).is_dir() {
-            return Some(non_repo_full_entry());
+fn requires_fallback(error: &git2::Error) -> bool {
+    use git2::ErrorClass;
+    match error.class() {
+        ErrorClass::Config => true,
+        // These pinned libgit2 diagnostics identify persistent format limits,
+        // unlike corrupt/missing indexes or transient filesystem failures.
+        ErrorClass::Repository => {
+            error.message().starts_with("unknown object format ")
+                || error.message().starts_with("unsupported extension name ")
+                || error
+                    .message()
+                    .starts_with("unsupported repository version ")
         }
+        ErrorClass::Index => error
+            .message()
+            .starts_with("unsupported mandatory extension:"),
+        _ => false,
+    }
+}
 
-        // Probe with `status --porcelain=v2 -b` directly: on non-repositories it
-        // exits 128 with "not a git repository", saving an entire `rev-parse`
-        // spawn on every full refresh. Transient errors or timeouts return `None`
-        // so callers preserve prior state or fall back rather than wiping status
-        // to `isRepo: false`!
-        let Ok(status_out) =
-            run_git_command(cwd, &["status", "--porcelain=v2", "-b"], timeout, limiter)
-        else {
-            return None;
-        };
-        if !status_out.ok {
-            let stderr_lower = status_out.stderr.to_ascii_lowercase();
-            if stderr_lower.contains("not a git repository")
-                || stderr_lower.contains("must be run in a work tree")
-            {
-                return Some(non_repo_full_entry());
-            }
-            // Disambiguate any other non-zero status failure via `rev-parse`:
-            match run_git_command(
-                cwd,
-                &["rev-parse", "--is-inside-work-tree"],
-                timeout,
-                limiter,
-            ) {
-                Ok(probe) if !probe.ok => return Some(non_repo_full_entry()),
-                _ => return None,
-            }
-        }
+#[cfg(test)]
+mod tests {
+    use super::requires_fallback;
+    use git2::{Error, ErrorClass, ErrorCode};
 
-        let mut parsed = parse_status_porcelain_v2(&status_out.stdout);
-        let need_staged_numstat = !parsed.staged.is_empty();
-        let need_unstaged_numstat = parsed.unstaged.iter().any(|f| f.status != "?");
-        let need_ls_files = parsed
-            .unstaged
-            .iter()
-            .any(|f| f.status == "?" && f.path.ends_with('/'));
-
-        let (remote_res, staged_res, unstaged_res, ls_res) = thread::scope(|scope| {
-            let r = scope.spawn(|| run_git_command(cwd, &["remote", "-v"], timeout, limiter));
-            let st = scope.spawn(|| {
-                if need_staged_numstat {
-                    Some(run_git_command(
-                        cwd,
-                        &["diff", "--cached", "--numstat"],
-                        timeout,
-                        limiter,
-                    ))
-                } else {
-                    None
-                }
-            });
-            let un = scope.spawn(|| {
-                if need_unstaged_numstat {
-                    Some(run_git_command(
-                        cwd,
-                        &["diff", "--numstat"],
-                        timeout,
-                        limiter,
-                    ))
-                } else {
-                    None
-                }
-            });
-            let ls = scope.spawn(|| {
-                if need_ls_files {
-                    Some(run_git_command(
-                        cwd,
-                        LS_FILES_UNTRACKED_ARGS,
-                        timeout,
-                        limiter,
-                    ))
-                } else {
-                    None
-                }
-            });
-
+    #[test]
+    fn persistent_format_limits_require_fallback_but_corruption_remains_transient() {
+        for (class, message) in [
+            (ErrorClass::Repository, "unknown object format 'sha256'"),
             (
-                r.join()
-                    .unwrap_or_else(|_| Err("remote thread panicked".to_owned())),
-                st.join()
-                    .unwrap_or_else(|_| Some(Err("staged numstat thread panicked".to_owned()))),
-                un.join()
-                    .unwrap_or_else(|_| Some(Err("unstaged numstat thread panicked".to_owned()))),
-                ls.join()
-                    .unwrap_or_else(|_| Some(Err("ls-files thread panicked".to_owned()))),
-            )
-        });
-
-        let remote_stdout = match remote_res {
-            Ok(out) if out.ok => out.stdout,
-            _ => String::new(),
-        };
-        // `None` on command failure so `apply_numstat_counts` preserves tracked
-        // rows rather than mistaking an errored numstat for "no diffs".
-        let staged_numstat = match staged_res {
-            None => Some(""),
-            Some(Ok(ref out)) if out.ok => Some(out.stdout.as_str()),
-            _ => None,
-        };
-        let unstaged_numstat = match unstaged_res {
-            None => Some(""),
-            Some(Ok(ref out)) if out.ok => Some(out.stdout.as_str()),
-            _ => None,
-        };
-
-        clear_inherited_start_point_upstream(cwd, &mut parsed, timeout, limiter);
-        let has_remote = has_remote_lines(&remote_stdout);
-        apply_numstat_counts(&mut parsed, staged_numstat, unstaged_numstat);
-
-        if let Some(Ok(ref ls_out)) = ls_res
-            && ls_out.ok
-        {
-            expand_untracked_entries(&mut parsed, &ls_out.stdout);
+                ErrorClass::Repository,
+                "unsupported extension name extensions.refstorage",
+            ),
+            (
+                ErrorClass::Repository,
+                "unsupported repository version 2; only versions up to 1 are supported",
+            ),
+            (ErrorClass::Index, "unsupported mandatory extension: 'link'"),
+            (ErrorClass::Index, "unsupported mandatory extension: 'sdir'"),
+        ] {
+            assert!(requires_fallback(&Error::new(
+                ErrorCode::Invalid,
+                class,
+                message
+            )));
         }
-        self.populate_untracked_insertions(cwd, &mut parsed);
-
-        let (total_insertions, total_deletions) = sum_change_totals(&parsed);
-
-        let (merge_in_progress, conflict_files, merge_message) = if parsed.merge_in_progress {
-            let conflicts =
-                build_conflict_file_changes(cwd, &parsed.conflict_files, timeout, limiter);
-            let msg = read_merge_message(cwd, timeout, limiter);
-            (Some(true), Some(conflicts), msg)
-        } else {
-            (None, None, None)
-        };
-
-        // Note: `GitStatusService.getStatus` omits `headSha` on the local full
-        // path (only summary and `buildGitStatusResultFromOutputs` populate it),
-        // so leave `head_sha: None` here for exact field-for-field parity.
-        Some(NativeGitStatusEntry {
-            detail: None,
-            is_repo: true,
-            branch: parsed.branch,
-            head_sha: None,
-            tracking: parsed.tracking,
-            has_remote,
-            remote_output: Some(remote_stdout),
-            ahead: parsed.ahead,
-            behind: parsed.behind,
-            staged: parsed.staged,
-            unstaged: parsed.unstaged,
-            total_insertions,
-            total_deletions,
-            merge_in_progress,
-            conflict_files,
-            merge_message,
-        })
-    }
-
-    fn populate_untracked_insertions(&self, cwd: &str, parsed: &mut ParsedPorcelainStatus) {
-        let untracked_indices: Vec<usize> = parsed
-            .unstaged
-            .iter()
-            .enumerate()
-            .filter_map(|(i, f)| (f.status == "?").then_some(i))
-            .collect();
-        if untracked_indices.is_empty() {
-            return;
-        }
-
-        if untracked_indices.len() <= 4 {
-            for idx in untracked_indices {
-                let path = parsed.unstaged[idx].path.clone();
-                parsed.unstaged[idx].insertions = self.untracked_cache.read_insertions(cwd, &path);
-            }
-            return;
-        }
-
-        // Parallelize untracked file line/binary counting across up to 8 OS threads!
-        let paths_to_count: Vec<(usize, String)> = untracked_indices
-            .into_iter()
-            .map(|idx| (idx, parsed.unstaged[idx].path.clone()))
-            .collect();
-        let next_cursor = Mutex::new(0usize);
-        let counts = Mutex::new(Vec::with_capacity(paths_to_count.len()));
-        let workers = paths_to_count.len().min(8);
-
-        thread::scope(|scope| {
-            for _ in 0..workers {
-                scope.spawn(|| {
-                    let mut local = Vec::new();
-                    loop {
-                        let item_idx = {
-                            let mut guard = match next_cursor.lock() {
-                                Ok(g) => g,
-                                Err(p) => p.into_inner(),
-                            };
-                            if *guard >= paths_to_count.len() {
-                                break;
-                            }
-                            let current = *guard;
-                            *guard += 1;
-                            current
-                        };
-                        let (unstaged_idx, ref rel_path) = paths_to_count[item_idx];
-                        let insertions = self.untracked_cache.read_insertions(cwd, rel_path);
-                        local.push((unstaged_idx, insertions));
-                    }
-                    if !local.is_empty() {
-                        let mut guard = match counts.lock() {
-                            Ok(g) => g,
-                            Err(p) => p.into_inner(),
-                        };
-                        guard.extend(local);
-                    }
-                });
-            }
-        });
-
-        let computed = match counts.into_inner() {
-            Ok(v) => v,
-            Err(p) => p.into_inner(),
-        };
-        for (unstaged_idx, insertions) in computed {
-            parsed.unstaged[unstaged_idx].insertions = insertions;
-        }
-    }
-}
-
-fn clear_inherited_start_point_upstream(
-    cwd: &str,
-    parsed: &mut ParsedPorcelainStatus,
-    timeout: Duration,
-    limiter: &SubprocessLimiter,
-) {
-    if parsed.branch.is_empty() || parsed.tracking.is_empty() {
-        return;
-    }
-    let Some(slash) = parsed.tracking.find('/') else {
-        return;
-    };
-    if slash == 0 || parsed.tracking[slash + 1..] == parsed.branch {
-        return;
-    }
-    let config_key = format!("branch.{}.poracodeSource", parsed.branch);
-    let Ok(cfg_out) = run_git_command(cwd, &["config", "--get", &config_key], timeout, limiter)
-    else {
-        return;
-    };
-    if !cfg_out.ok {
-        return;
-    }
-    let trimmed = cfg_out.stdout.trim();
-    let poracode_source = (!trimmed.is_empty()).then_some(trimmed);
-    if !is_inherited_start_point_upstream(&parsed.branch, &parsed.tracking, poracode_source) {
-        return;
-    }
-    if let Ok(unset_out) = run_git_command(
-        cwd,
-        &["branch", "--unset-upstream", &parsed.branch],
-        timeout,
-        limiter,
-    ) && unset_out.ok
-    {
-        parsed.tracking.clear();
-        parsed.ahead = 0;
-        parsed.behind = 0;
-    }
-}
-
-fn build_conflict_file_changes(
-    cwd: &str,
-    paths: &[String],
-    timeout: Duration,
-    limiter: &SubprocessLimiter,
-) -> Vec<GitFileChange> {
-    let head_numstat = match run_git_command(cwd, &["diff", "HEAD", "--numstat"], timeout, limiter)
-    {
-        Ok(out) if out.ok => out.stdout,
-        _ => String::new(),
-    };
-    let mut stats: HashMap<String, (usize, usize)> = HashMap::new();
-    for entry in parse_diff_numstat(&head_numstat) {
-        stats.insert(entry.path, (entry.insertions, entry.deletions));
-    }
-    paths
-        .iter()
-        .map(|path| {
-            let (insertions, deletions) = stats.get(path).copied().unwrap_or((0, 0));
-            GitFileChange {
-                path: path.clone(),
-                old_path: None,
-                status: "U".to_owned(),
-                staged: false,
-                insertions,
-                deletions,
-            }
-        })
-        .collect()
-}
-
-fn read_merge_message(cwd: &str, timeout: Duration, limiter: &SubprocessLimiter) -> Option<String> {
-    let out = run_git_command(
-        cwd,
-        &[
-            "rev-parse",
-            "--path-format=absolute",
-            "--git-path",
-            "MERGE_MSG",
-        ],
-        timeout,
-        limiter,
-    )
-    .ok()?;
-    if !out.ok {
-        return None;
-    }
-    let msg_path = out.stdout.trim();
-    if msg_path.is_empty() {
-        return None;
-    }
-    let meta = fs::metadata(msg_path).ok()?;
-    if !meta.is_file() || meta.len() > MAX_MERGE_MESSAGE_BYTES {
-        return None;
-    }
-    let raw = fs::read_to_string(msg_path).ok()?;
-    let cleaned = strip_commit_message_comments(&raw);
-    (!cleaned.is_empty()).then_some(cleaned)
-}
-
-fn non_repo_summary_entry() -> NativeGitStatusEntry {
-    NativeGitStatusEntry {
-        detail: Some("summary".to_owned()),
-        is_repo: false,
-        branch: String::new(),
-        head_sha: None,
-        tracking: String::new(),
-        has_remote: false,
-        remote_output: None,
-        ahead: 0,
-        behind: 0,
-        staged: Vec::new(),
-        unstaged: Vec::new(),
-        total_insertions: 0,
-        total_deletions: 0,
-        merge_in_progress: None,
-        conflict_files: None,
-        merge_message: None,
-    }
-}
-
-fn non_repo_full_entry() -> NativeGitStatusEntry {
-    NativeGitStatusEntry {
-        detail: None,
-        is_repo: false,
-        branch: String::new(),
-        head_sha: None,
-        tracking: String::new(),
-        has_remote: false,
-        remote_output: None,
-        ahead: 0,
-        behind: 0,
-        staged: Vec::new(),
-        unstaged: Vec::new(),
-        total_insertions: 0,
-        total_deletions: 0,
-        merge_in_progress: None,
-        conflict_files: None,
-        merge_message: None,
+        assert!(!requires_fallback(&Error::new(
+            ErrorCode::Invalid,
+            ErrorClass::Index,
+            "invalid data in index - incorrect header signature",
+        )));
     }
 }

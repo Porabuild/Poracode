@@ -2,7 +2,8 @@
 //!
 //! - `--hello` prints the staging handshake (`helper`, `helperVersion`,
 //!   `protocolVersion`, `platform`, `arch`) and exits 0.
-//! - `--serve-v2` runs the bounded worker-pool request loop until stdin EOF.
+//! - `--serve-v3` runs the bounded worker-pool request loop until stdin EOF.
+//! - `--watch-v3` owns filesystem callbacks, filtering and scoped debounce.
 //! - Any unknown argument or mismatched `protocolVersion` fails closed.
 
 use poracode_git_helper::protocol::{
@@ -139,9 +140,11 @@ fn handle_request(service: &GitHelperService, req: HelperRequest) -> HelperRespo
     match req.kind.as_str() {
         "ping" => HelperResponse::ok_empty(req.id),
         "statusBatch" => {
-            let statuses =
-                service.status_batch(&req.paths, req.detail, req.timeout_ms, req.max_concurrency);
-            HelperResponse::ok_statuses(req.id, statuses)
+            match service.status_batch(&req.paths, req.detail, req.timeout_ms, req.max_concurrency)
+            {
+                Ok(statuses) => HelperResponse::ok_statuses(req.id, statuses),
+                Err(error) => HelperResponse::err(req.id, error),
+            }
         }
         "searchTree" => {
             let Some(ref root_path) = req.root_path else {
@@ -267,11 +270,12 @@ fn main() -> ExitCode {
             println!("{}", hello_line());
             ExitCode::SUCCESS
         }
-        [flag] if flag == "--serve-v2" => run_daemon(),
+        [flag] if flag == "--serve-v3" => run_daemon(),
+        [flag] if flag == "--watch-v3" => poracode_git_helper::watch::run(),
         _ => {
             let _ = writeln!(
                 io::stderr(),
-                "Usage: poracode-git-helper (--hello | --serve-v2)"
+                "Usage: poracode-git-helper (--hello | --serve-v3 | --watch-v3)"
             );
             ExitCode::from(2)
         }

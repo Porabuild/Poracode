@@ -12,3 +12,4 @@ pub mod protocol;
 pub mod search;
 pub mod service;
 pub mod untracked;
+pub mod watch;

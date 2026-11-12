@@ -279,6 +279,11 @@ export function ProjectAuxiliaryPanel(props: {
   }
 
   const activeTab = requestedTabIsAvailable() ? requestedTab : fallbackActiveTab();
+  useEffect(() => {
+    if (props.visible && gitPanelOpen && activeTab === "git" && rightPanelTab !== "git") {
+      setRightPanelTab("git");
+    }
+  }, [activeTab, gitPanelOpen, props.visible, rightPanelTab, setRightPanelTab]);
   // Tracks the last git context this sync observed (null initially, so a
   // context present on mount counts as an explicit target and wins). Read and
   // written only inside the effect — never during render.

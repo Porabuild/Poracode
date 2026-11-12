@@ -737,6 +737,11 @@ export class GitStatusService {
   ): Promise<Record<string, GitStatusResult> | null> {
     if (worktreePaths.length === 0) return {};
     if (!isNativeGitHelperActive()) return null;
+    if (
+      process.env.GIT_CONFIG_COUNT !== undefined ||
+      process.env.GIT_CONFIG_PARAMETERS !== undefined
+    )
+      return null;
 
     const classLimit = Math.max(1, gitProcessAdmissionUsage().short.limit);
     const units = Math.min(classLimit, worktreePaths.length * (detail === "summary" ? 2 : 4));
@@ -775,6 +780,13 @@ export class GitStatusService {
     detail: GitStatusDetail,
   ): Promise<GitStatusResult | null> {
     if (!isNativeGitHelperActive()) return null;
+
+    // libgit2 does not apply Git's inherited command-line config environment.
+    if (
+      process.env.GIT_CONFIG_COUNT !== undefined ||
+      process.env.GIT_CONFIG_PARAMETERS !== undefined
+    )
+      return null;
 
     const classLimit = Math.max(1, gitProcessAdmissionUsage().short.limit);
     const units = Math.min(classLimit, detail === "summary" ? 2 : 4);
@@ -849,6 +861,7 @@ export class GitStatusService {
       location,
       remoteInfo,
       this.remoteIdentityRuntime,
+      entry.hasSshOverrides,
     );
     return {
       isRepo: true,

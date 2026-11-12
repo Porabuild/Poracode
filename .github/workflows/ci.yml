@@ -374,6 +374,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
+      - name: Install Linux helper build tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
@@ -423,6 +427,11 @@ jobs:
         env:
           PORACODE_GIT_HELPER_BIN: ${{ github.workspace }}/native/git-helper/target/debug/poracode-git-helper
         run: bun run vitest run src/supervisor/git/gitNativeHelper.test.ts
+
+      - name: Build and verify the shipped Linux helper
+        if: runner.os == 'Linux'
+        working-directory: .
+        run: node scripts/prepare-git-helper.mjs --platform linux --require
 
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)

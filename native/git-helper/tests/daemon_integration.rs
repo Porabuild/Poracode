@@ -51,7 +51,7 @@ fn git(cwd: &Path, args: &[&str]) {
 }
 
 #[test]
-fn hello_handshake_reports_protocol_v2() {
+fn hello_handshake_reports_protocol_v3() {
     let output = Command::new(bin_path())
         .arg("--hello")
         .output()
@@ -60,7 +60,7 @@ fn hello_handshake_reports_protocol_v2() {
     let parsed: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("valid hello JSON");
     assert_eq!(parsed["helper"], "poracode-git-helper");
-    assert_eq!(parsed["protocolVersion"], 2);
+    assert_eq!(parsed["protocolVersion"], 3);
     assert!(parsed["helperVersion"].as_str().is_some());
 }
 
@@ -71,14 +71,22 @@ fn unknown_flag_and_protocol_mismatch_fail_closed() {
         .output()
         .expect("spawn --serve-v1");
     assert!(!bad_flag.status.success());
+    assert!(
+        !Command::new(bin_path())
+            .arg("--serve-v2")
+            .output()
+            .expect("old helper mode")
+            .status
+            .success()
+    );
 
     let mut child = Command::new(bin_path())
-        .arg("--serve-v2")
+        .arg("--serve-v3")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .expect("spawn --serve-v2");
+        .expect("spawn --serve-v3");
 
     {
         let stdin = child.stdin.as_mut().expect("stdin");
@@ -89,6 +97,79 @@ fn unknown_flag_and_protocol_mismatch_fail_closed() {
     let resp: HelperResponse = serde_json::from_slice(&output.stdout).expect("error response JSON");
     assert!(!resp.ok);
     assert_eq!(resp.id, 7);
+}
+
+#[test]
+fn native_status_succeeds_without_git_in_path() {
+    let temp = TempDir::new("no-git-status");
+    let repo = temp.path.join("repo");
+    let empty_path = temp.path.join("empty-path");
+    fs::create_dir_all(&repo).expect("repo");
+    fs::create_dir_all(&empty_path).expect("path");
+    git(&repo, &["init", "-b", "main"]);
+    git(&repo, &["config", "user.name", "Test"]);
+    git(&repo, &["config", "user.email", "test@poracode.dev"]);
+    fs::write(repo.join("tracked.txt"), "base\n").expect("tracked");
+    git(&repo, &["add", "."]);
+    git(&repo, &["commit", "-m", "base"]);
+    git(
+        &repo,
+        &[
+            "remote",
+            "add",
+            "origin",
+            "git@github.com-work:poracode/status.git",
+        ],
+    );
+    fs::write(repo.join("tracked.txt"), "changed\nextra\n").expect("modified");
+    fs::write(repo.join("new.txt"), "one\ntwo\n").expect("new");
+    // Resolve Git inside the child environment: Rust's Windows launcher can
+    // resolve an executable against its parent's PATH before applying env().
+    #[cfg(windows)]
+    let probe = Command::new(std::env::var_os("ComSpec").expect("ComSpec"))
+        .args(["/d", "/c", "git --version"])
+        .env("PATH", &empty_path)
+        .current_dir(&temp.path)
+        .output()
+        .expect("probe");
+    #[cfg(not(windows))]
+    let probe = Command::new("/bin/sh")
+        .args(["-c", "command -v git"])
+        .env("PATH", &empty_path)
+        .current_dir(&temp.path)
+        .output()
+        .expect("probe");
+    assert!(!probe.status.success());
+    let mut child = Command::new(bin_path())
+        .arg("--serve-v3")
+        .env("PATH", &empty_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("daemon");
+    let mut stdin = child.stdin.take().expect("stdin");
+    let mut stdout = BufReader::new(child.stdout.take().expect("stdout"));
+    for detail in ["full", "summary"] {
+        writeln!(stdin, "{}", serde_json::json!({"protocolVersion":3,"id":1,"kind":"statusBatch","paths":[repo],"detail":detail})).expect("write");
+        stdin.flush().expect("flush");
+        let mut line = String::new();
+        stdout.read_line(&mut line).expect("response");
+        let response: HelperResponse = serde_json::from_str(&line).expect("JSON");
+        assert!(response.ok, "{response:?}");
+        let status = &response.statuses.as_ref().expect("statuses")[repo.to_str().expect("path")];
+        assert!(status.is_repo);
+        assert_eq!(status.branch, "main");
+        assert_eq!(status.unstaged.len(), 2);
+        if detail == "full" {
+            assert_eq!(status.total_insertions, 4);
+            assert_eq!(status.total_deletions, 1);
+            assert_eq!(status.has_ssh_overrides, Some(false));
+        } else {
+            assert_eq!(status.total_insertions, 0);
+        }
+    }
+    drop(stdin);
+    assert!(child.wait().expect("exit").success());
 }
 
 #[test]
@@ -119,14 +200,14 @@ fn walk_lists_symlinks_as_files_without_traversing_targets() {
     }
 
     let mut child = Command::new(bin_path())
-        .arg("--serve-v2")
+        .arg("--serve-v3")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
         .expect("spawn daemon");
     let mut stdin = child.stdin.take().expect("stdin");
     let request = serde_json::json!({
-        "protocolVersion": 2,
+        "protocolVersion": 3,
         "id": 1,
         "kind": "searchTree",
         "rootPath": root,
@@ -194,7 +275,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
     git(&repo_b, &["add", "staged.txt"]);
 
     let mut child = Command::new(bin_path())
-        .arg("--serve-v2")
+        .arg("--serve-v3")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -212,7 +293,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
 
     // 1. Summary batch
     let summary_req = serde_json::json!({
-        "protocolVersion": 2,
+        "protocolVersion": 3,
         "id": 1,
         "kind": "statusBatch",
         "paths": paths,
@@ -236,7 +317,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
 
     // 2. Full batch
     let full_req = serde_json::json!({
-        "protocolVersion": 2,
+        "protocolVersion": 3,
         "id": 2,
         "kind": "statusBatch",
         "paths": paths,
@@ -257,7 +338,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
 
     // 3. searchTree (fuzzy + literal ranking)
     let search_tree_req = serde_json::json!({
-        "protocolVersion": 2,
+        "protocolVersion": 3,
         "id": 3,
         "kind": "searchTree",
         "rootPath": paths[0],
@@ -284,7 +365,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
 
     // 4. searchFiles + invalidateSearch
     let search_files_req = serde_json::json!({
-        "protocolVersion": 2,
+        "protocolVersion": 3,
         "id": 4,
         "kind": "searchFiles",
         "rootPath": paths[0],
@@ -307,7 +388,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
     );
 
     let inv_req = serde_json::json!({
-        "protocolVersion": 2,
+        "protocolVersion": 3,
         "id": 5,
         "kind": "invalidateSearch",
         "rootPath": paths[0]
@@ -326,7 +407,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
     // rather than falsely reporting `isRepo: false`!
     fs::write(repo_b.join(".git/index"), b"corrupt-index-bytes").expect("corrupt index");
     let corrupt_req = serde_json::json!({
-        "protocolVersion": 2,
+        "protocolVersion": 3,
         "id": 6,
         "kind": "statusBatch",
         "paths": [paths[1], paths[2]],

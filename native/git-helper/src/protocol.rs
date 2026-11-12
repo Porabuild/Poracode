@@ -8,7 +8,8 @@ pub const HELLO_HELPER: &str = "poracode-git-helper";
 
 /// Must match `GIT_HELPER_PROTOCOL_VERSION` in
 /// `src/supervisor/git/gitNativeHelperProtocol.ts`.
-pub const GIT_HELPER_PROTOCOL_VERSION: u32 = 2;
+// v3 adds --watch-v3. A v2 helper cannot own live watcher subscriptions.
+pub const GIT_HELPER_PROTOCOL_VERSION: u32 = 3;
 
 /// Detail level requested for a status query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -62,6 +63,9 @@ pub struct NativeGitStatusEntry {
     /// `parseRemoteInfo` + `resolveGitRemoteInfo` identically.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_output: Option<String>,
+    /// Whether the full query found SSH URL/config overrides requiring host resolution.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_ssh_overrides: Option<bool>,
     /// Commits ahead of upstream.
     pub ahead: usize,
     /// Commits behind upstream.

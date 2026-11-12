@@ -88,6 +88,7 @@ function writeFixture() {
   writeFileSync(join(wslHelpersDir, "mcp-relay", "linux-x64", "poracode-mcp-relay"), "elf\n");
   mkdirSync(join(wslHelpersDir, "git-helper", "darwin-universal"), { recursive: true });
   mkdirSync(join(wslHelpersDir, "git-helper", "linux-x64"), { recursive: true });
+  writeFileSync(join(wslHelpersDir, "git-helper", "libgit2-COPYING.txt"), "libgit2 license\n");
   writeFileSync(
     join(wslHelpersDir, "git-helper", "darwin-universal", "poracode-git-helper"),
     "mach-o\n",
@@ -267,6 +268,10 @@ void test("buildSshRuntimeArchive emits the loader manifest from the frozen clos
     existsSync(join(extract, "wsl-helpers", "mcp-relay", "linux-x64", "poracode-mcp-relay")),
   );
   assert.equal(existsSync(join(extract, "wsl-helpers", "git-helper", "darwin-universal")), false);
+  assert.equal(
+    readFileSync(join(extract, "wsl-helpers", "git-helper", "libgit2-COPYING.txt"), "utf8"),
+    "libgit2 license\n",
+  );
   assert.ok(
     existsSync(join(extract, "wsl-helpers", "git-helper", "linux-x64", "poracode-git-helper")),
   );

@@ -606,9 +606,10 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   prDetails: {},
 
   setStatus: (projectId, status) => {
-    if (areGitStatusesEqual(get().statuses[projectId], status)) return;
+    const nextStatus = mergeSummaryStatus(get().statuses[projectId], status);
+    if (areGitStatusesEqual(get().statuses[projectId], nextStatus)) return;
     set((state) => ({
-      statuses: { ...state.statuses, [projectId]: status },
+      statuses: { ...state.statuses, [projectId]: nextStatus },
     }));
   },
 

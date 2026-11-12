@@ -1147,7 +1147,7 @@ export class SupervisorRuntime {
     this.fileIndexService.invalidateCacheForLocation(newLocation);
 
     // Re-point the file watcher at the new path (idempotent: replaces the old entry).
-    this.projectWatcher.watch(payload.projectId, newLocation);
+    await this.projectWatcher.watch(payload.projectId, newLocation);
 
     return { repairedWorktrees };
   }

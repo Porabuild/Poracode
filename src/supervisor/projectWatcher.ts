@@ -1,10 +1,15 @@
-import { watch, type FSWatcher } from "node:fs";
-import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
+import { ProjectWatcherClient } from "./projectWatcherClient";
+import {
+  isIgnoredWorkTreeFile,
+  isKnownGitNoisePath,
+  isRecoverableGitPath,
+  PROJECT_WATCH_DEBOUNCE_MS as DEBOUNCE_MS,
+} from "./projectWatcherFilters";
 import type { WslBridgeClient, WslLocation } from "./wsl/bridge/client";
 
-const DEBOUNCE_MS = 300;
+export { isIgnoredWorkTreeFile } from "./projectWatcherFilters";
 
 export interface ProjectWatcherCallbacks {
   /** Fires when `.git` metadata (refs, index, HEAD, worktrees/*) changes. */
@@ -17,8 +22,7 @@ type WslUnsubscribe = () => Promise<void>;
 type WslSchedule = { onGit: () => void; onTree: () => void };
 
 interface WatcherEntry {
-  gitWatcher: FSWatcher | null;
-  workTreeWatcher: FSWatcher | null;
+  localUnsubscribe: (() => void) | null;
   wslUnsubscribe: WslUnsubscribe | null;
   gitDebounceTimer: ReturnType<typeof setTimeout> | null;
   treeDebounceTimer: ReturnType<typeof setTimeout> | null;
@@ -29,7 +33,8 @@ interface WatcherEntry {
 }
 
 interface WorktreeWatcherEntry {
-  watcher: FSWatcher | null;
+  localUnsubscribe: (() => void) | null;
+  localReady?: Promise<void>;
   wslUnsubscribe: WslUnsubscribe | null;
   gitDebounceTimer: ReturnType<typeof setTimeout> | null;
   treeDebounceTimer: ReturnType<typeof setTimeout> | null;
@@ -38,43 +43,6 @@ interface WorktreeWatcherEntry {
   wslLinuxPath?: string;
   wslSchedule?: WslSchedule;
   wslSubscriptionPending?: boolean;
-}
-
-const IGNORED_PREFIXES = [
-  "node_modules/",
-  ".poracode/worktrees/",
-  ".next/",
-  "dist/",
-  "build/",
-  ".turbo/",
-  "__pycache__/",
-  ".venv/",
-  "target/debug/",
-  "target/release/",
-  ".tmp/",
-];
-
-const IGNORED_NESTED_SEGMENTS = [
-  "/node_modules/",
-  "/.next/",
-  "/.turbo/",
-  "/__pycache__/",
-  "/.venv/",
-  "/target/debug/",
-  "/target/release/",
-  "/.tmp/",
-];
-
-export function isIgnoredWorkTreeFile(name: string): boolean {
-  if (name === ".git" || name.startsWith(".git/") || name.includes("/.git/")) return true;
-  if (IGNORED_PREFIXES.some((p) => name.startsWith(p))) return true;
-  return IGNORED_NESTED_SEGMENTS.some((seg) => name.includes(seg));
-}
-
-function isRecoverableGitPath(name: string): boolean {
-  if (name === ".git") return true;
-  if (!name.startsWith(".git/")) return false;
-  return !isKnownGitNoisePath(name.slice(".git/".length));
 }
 
 const WSL_IGNORE_DIRS = [
@@ -86,20 +54,6 @@ const WSL_IGNORE_DIRS = [
   "__pycache__",
   ".venv",
 ];
-
-function isKnownGitNoisePath(value: string): boolean {
-  return (
-    value === "FETCH_HEAD" ||
-    value === "index" ||
-    value === "index.lock" ||
-    /^worktrees\/[^/]+$/.test(value) ||
-    /^worktrees\/[^/]+\/index$/.test(value) ||
-    /^worktrees\/[^/]+\/index\.lock$/.test(value) ||
-    /^\.watchman-cookie-/.test(value) ||
-    value.startsWith("logs/") ||
-    value.startsWith("objects/")
-  );
-}
 
 /**
  * Read the project root's `.gitignore` and pick out entries that are plain
@@ -147,14 +101,15 @@ async function readGitignoreTopLevelDirs(
  * Watches a project for filesystem changes and emits debounced notifications
  * on two channels: `.git` metadata and the working tree.
  *
- * Native projects use `fs.watch` (recursive) on both the repo root and
- * `.git`. WSL projects delegate to `WslBridgeClient.watch()`, which asks
+ * Native projects offload callbacks, filtering and debounce to the native
+ * helper or bundled worker. WSL projects delegate to `WslBridgeClient.watch()`, which asks
  * the per-distro bridge server to subscribe with parcel-watcher or a
  * fallback — no separate wsl-watcher child process any more.
  */
 export class ProjectWatcher {
   private readonly watchers = new Map<string, WatcherEntry>();
   private readonly worktreeWatchers = new Map<string, WorktreeWatcherEntry>();
+  private readonly localClient = new ProjectWatcherClient();
   private wslClient: WslBridgeClient | undefined;
 
   constructor(private readonly callbacks: ProjectWatcherCallbacks) {}
@@ -184,12 +139,11 @@ export class ProjectWatcher {
    * Start watching a project. Idempotent — calling with the same projectId
    * replaces the previous watcher.
    */
-  watch(projectId: string, location: ProjectLocation): void {
+  watch(projectId: string, location: ProjectLocation): Promise<void> {
     void this.unwatch(projectId);
 
     const entry: WatcherEntry = {
-      gitWatcher: null,
-      workTreeWatcher: null,
+      localUnsubscribe: null,
       wslUnsubscribe: null,
       gitDebounceTimer: null,
       treeDebounceTimer: null,
@@ -216,61 +170,29 @@ export class ProjectWatcher {
       entry.wslSchedule = { onGit: scheduleGitNotify, onTree: scheduleTreeNotify };
       this.watchers.set(projectId, entry);
       void this.startWslSubscription(entry, location, location.linuxPath, entry.wslSchedule);
-      return;
-    }
-
-    const repoPath = location.path;
-    const gitDir = join(repoPath, ".git");
-
-    const startGitWatcher = () => {
-      if (entry.gitWatcher) return;
-      try {
-        entry.gitWatcher = watch(gitDir, { recursive: true }, (_eventType, filename) => {
-          // Windows fs.watch coalesces bursts into filename-less events, which
-          // we cannot filter — they cause a refresh→write→event→refresh loop.
-          // Real isolated changes always deliver a filename, so drop the rest.
-          if (!filename) return;
-          const name = filename.replace(/\\/g, "/");
-          if (isKnownGitNoisePath(name)) return;
-          scheduleGitNotify();
-        });
-        entry.gitWatcher.on("error", () => {
-          entry.gitWatcher?.close();
-          entry.gitWatcher = null;
-        });
-      } catch {
-        // .git directory may not exist yet or may not be watchable
-      }
-    };
-
-    startGitWatcher();
-
-    try {
-      entry.workTreeWatcher = watch(repoPath, { recursive: true }, (_eventType, filename) => {
-        // Windows fs.watch coalesces bursts into filename-less events, which
-        // we cannot filter — they cause a refresh→write→event→refresh loop.
-        // Real isolated changes always deliver a filename, so drop the rest.
-        if (!filename) return;
-        const name = filename.replace(/\\/g, "/");
-        if (isRecoverableGitPath(name)) {
-          if (!entry.gitWatcher) {
-            startGitWatcher();
-            scheduleGitNotify();
-          }
-          return;
-        }
-        if (isIgnoredWorkTreeFile(name)) return;
-        scheduleTreeNotify();
-      });
-      entry.workTreeWatcher.on("error", () => {
-        entry.workTreeWatcher?.close();
-        entry.workTreeWatcher = null;
-      });
-    } catch {
-      // Working tree may not be watchable
+      return Promise.resolve();
     }
 
     this.watchers.set(projectId, entry);
+    const subscription = this.localClient.watch(
+      location.path,
+      (scope) => {
+        if (this.watchers.get(projectId) !== entry) return;
+        if (scope === "git") this.callbacks.onGitChanged(projectId);
+        else this.callbacks.onTreeChanged(projectId);
+      },
+      () => {
+        if (this.watchers.get(projectId) === entry) this.watchers.delete(projectId);
+      },
+    );
+    entry.localUnsubscribe = subscription.unsubscribe;
+    return subscription.ready.catch((error: unknown) => {
+      if (this.watchers.get(projectId) === entry) {
+        this.watchers.delete(projectId);
+        entry.localUnsubscribe?.();
+      }
+      throw error;
+    });
   }
 
   /**
@@ -278,8 +200,9 @@ export class ProjectWatcher {
    * Diffs against existing watchers — only adds/removes what changed.
    * All worktree watchers emit the parent projectId.
    */
-  watchWorktrees(projectId: string, worktreePaths: string[]): void {
+  watchWorktrees(projectId: string, worktreePaths: string[]): Promise<void> {
     const desired = new Set(worktreePaths);
+    const ready: Promise<void>[] = [];
 
     for (const [path, entry] of this.worktreeWatchers) {
       if (entry.projectId === projectId && !desired.has(path)) {
@@ -291,10 +214,14 @@ export class ProjectWatcher {
     const location = mainEntry?.location;
 
     for (const wtPath of worktreePaths) {
-      if (this.worktreeWatchers.has(wtPath)) continue;
+      const existing = this.worktreeWatchers.get(wtPath);
+      if (existing) {
+        if (existing.localReady) ready.push(existing.localReady);
+        continue;
+      }
 
       const entry: WorktreeWatcherEntry = {
-        watcher: null,
+        localUnsubscribe: null,
         wslUnsubscribe: null,
         gitDebounceTimer: null,
         treeDebounceTimer: null,
@@ -325,26 +252,29 @@ export class ProjectWatcher {
         continue;
       }
 
-      try {
-        entry.watcher = watch(wtPath, { recursive: true }, (_eventType, filename) => {
-          // Windows fs.watch coalesces bursts into filename-less events, which
-          // we cannot filter — they cause a refresh→write→event→refresh loop.
-          // Real isolated changes always deliver a filename, so drop the rest.
-          if (!filename) return;
-          const name = filename.replace(/\\/g, "/");
-          if (isIgnoredWorkTreeFile(name)) return;
-          scheduleTreeNotify();
-        });
-        entry.watcher.on("error", () => {
-          entry.watcher?.close();
-          entry.watcher = null;
-        });
-      } catch {
-        // Worktree path may not exist or may not be watchable
-      }
-
       this.worktreeWatchers.set(wtPath, entry);
+      const subscription = this.localClient.watch(
+        wtPath,
+        (scope) => {
+          if (this.worktreeWatchers.get(wtPath) !== entry) return;
+          if (scope === "git") this.callbacks.onGitChanged(projectId, wtPath);
+          else this.callbacks.onTreeChanged(projectId, wtPath);
+        },
+        () => {
+          if (this.worktreeWatchers.get(wtPath) === entry) this.worktreeWatchers.delete(wtPath);
+        },
+      );
+      entry.localUnsubscribe = subscription.unsubscribe;
+      entry.localReady = subscription.ready.catch((error: unknown) => {
+        if (this.worktreeWatchers.get(wtPath) === entry) {
+          this.worktreeWatchers.delete(wtPath);
+          entry.localUnsubscribe?.();
+        }
+        throw error;
+      });
+      ready.push(entry.localReady);
     }
+    return Promise.all(ready).then(() => {});
   }
 
   /** Stop watching a project and its worktrees. */
@@ -363,8 +293,7 @@ export class ProjectWatcher {
       this.watchers.delete(projectId);
       if (entry.gitDebounceTimer) clearTimeout(entry.gitDebounceTimer);
       if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
-      entry.gitWatcher?.close();
-      entry.workTreeWatcher?.close();
+      entry.localUnsubscribe?.();
       if (entry.wslUnsubscribe) {
         await entry.wslUnsubscribe().catch((error) => {
           console.warn(`[watcher] WSL unsubscribe failed for project ${projectId}:`, error);
@@ -401,6 +330,8 @@ export class ProjectWatcher {
     for (const [projectId] of this.watchers) {
       await this.unwatch(projectId);
     }
+    for (const [path] of this.worktreeWatchers) await this.closeWorktreeWatcher(path);
+    await this.localClient.dispose();
   }
 
   handleWslBridgeExit(distro: string): void {
@@ -458,7 +389,7 @@ export class ProjectWatcher {
   ): Promise<void> {
     if (entry.gitDebounceTimer) clearTimeout(entry.gitDebounceTimer);
     if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
-    entry.watcher?.close();
+    entry.localUnsubscribe?.();
     if (entry.wslUnsubscribe) {
       await entry.wslUnsubscribe().catch((error) => {
         console.warn(`[watcher] WSL worktree unsubscribe failed for ${path}:`, error);

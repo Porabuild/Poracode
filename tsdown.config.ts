@@ -147,6 +147,7 @@ export default defineConfig(
         supervisor: "src/supervisor/index.ts",
         wslStagingWorker: "src/supervisor/wsl/staging/worker.ts",
         gitExecWorker: "src/supervisor/git/gitExecWorker.ts",
+        projectWatcherWorker: "src/supervisor/projectWatcherWorker.ts",
         ptyBroker: "src/supervisor/pty/ptyBroker.ts",
       },
       clean: false,

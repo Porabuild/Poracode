@@ -40,7 +40,8 @@ resources/wsl-helpers/pi-mcp-extension.mjs
 resources/wsl-helpers/mcp-stdio.mjs
 resources/wsl-helpers/mcp-relay.mjs
 resources/wsl-helpers/mcp-relay/
-resources/wsl-helpers/git-helper/
+resources/wsl-helpers/git-helper/*
+!resources/wsl-helpers/git-helper/libgit2-COPYING.txt
 resources/agent-plugins/
 resources/computer-use-helper/
 resources/computer-use-helper-dev/

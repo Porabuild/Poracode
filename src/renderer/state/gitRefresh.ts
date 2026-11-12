@@ -3,6 +3,7 @@ import type { GitStatusDetail, GitStatusResult, PrData, ProjectLocation } from "
 import { isHomeProjectId } from "@/shared/homeScope";
 import { friendlyError, msg } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import { reviewClient, reviewSourceIdentity } from "@/renderer/utils/forgeReviews";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
@@ -18,6 +19,7 @@ import {
   resolvePrKey,
 } from "@/renderer/state/gitSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { isTabBottomDocked } from "@/renderer/state/panelDockSelectors";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
@@ -27,7 +29,13 @@ import {
   SIDEBAR_THREAD_LIST_PAGE_SIZE,
 } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 
-export type GitRefreshReason = "initial" | "watcher" | "fetch" | "manual" | "poll";
+export type GitRefreshReason =
+  | "initial"
+  | "watcher"
+  | "watcher-details"
+  | "fetch"
+  | "manual"
+  | "poll";
 export type GitRefreshMode = "status" | "full";
 
 export interface GitRefreshOptions {
@@ -45,6 +53,7 @@ export interface GitRefreshOptions {
 }
 
 type PendingWatcherScope = {
+  details: boolean;
   includeMainStatus: boolean;
   allWorktrees: boolean;
   worktreePaths: Set<string>;
@@ -306,6 +315,24 @@ function getWorktreeStatusDetail(
   return reason === "fetch" || reason === "poll" ? "summary" : "full";
 }
 
+function isGitReviewRootVisible(projectId: string, worktreePath?: string): boolean {
+  const panel = usePanelStore.getState();
+  const panelVisible = isCompactLayoutViewport()
+    ? panel.mobileUtilityPage === "workspace" && panel.rightPanelTab !== "files"
+    : (panel.gitReviewAsPanel &&
+        (panel.rightPanelTab === "git" || panel.rightPanelSplit?.tab === "git")) ||
+      isTabBottomDocked("git");
+  return (
+    panel.gitReviewContext?.projectId === projectId &&
+    panel.gitReviewContext.worktreePath === worktreePath &&
+    (panel.gitOverlayOpen || panelVisible)
+  );
+}
+
+function getWatcherStatusDetail(projectId: string, worktreePath?: string): GitStatusDetail {
+  return isGitReviewRootVisible(projectId, worktreePath) ? "full" : "summary";
+}
+
 export function getWatcherRefreshMode(projectId: string): GitRefreshMode {
   return useGitStore.getState().statuses[projectId]?.isRepo === false ? "full" : "status";
 }
@@ -373,15 +400,16 @@ function escalateSummaryToFull(location: ProjectLocation, worktreePaths: readonl
 function applyWorktreeStatusBatch(
   location: ProjectLocation,
   statuses: Record<string, GitStatusResult>,
+  escalate = true,
 ): void {
-  const missed = findSummaryBackfillMisses(statuses);
+  const missed = escalate ? findSummaryBackfillMisses(statuses) : [];
   for (const p of missed) summaryFullEscalationPending.add(p);
   for (const [p, status] of Object.entries(statuses)) {
     if (status.detail !== "summary") summaryFullEscalationPending.delete(p);
   }
   useGitStore.getState().setWorktreeStatuses(statuses);
   const stale = Object.keys(statuses).filter((p) => summaryFullEscalationPending.has(p));
-  if (stale.length > 0) escalateSummaryToFull(location, stale);
+  if (escalate && stale.length > 0) escalateSummaryToFull(location, stale);
 }
 
 type ActiveGitProject = { id: string; location: ProjectLocation };
@@ -486,8 +514,7 @@ export function getProjectActiveWorktreePaths(projectId: string): string[] {
   addPanelContextWorktreePath(
     paths,
     projectId,
-    (panelState.rightPanelTab === "git" && panelState.gitReviewAsPanel) ||
-      panelState.gitOverlayOpen,
+    isGitReviewRootVisible(projectId, panelState.gitReviewContext?.worktreePath),
     panelState.gitReviewContext,
   );
   addPanelContextWorktreePath(
@@ -902,11 +929,12 @@ async function refreshProjectStatusOnly(
 ): Promise<void> {
   const includeMainStatus = options.includeMainStatus ?? options.worktreePaths === undefined;
   if (includeMainStatus) {
+    const detail = reason === "watcher" ? getWatcherStatusDetail(project.id) : undefined;
     const statusResult = await readBridge()
-      .getGitStatus({ projectLocation: project.location })
+      .getGitStatus({ projectLocation: project.location, ...(detail ? { detail } : {}) })
       .catch(() => undefined);
     if (!isActive()) return;
-    if (statusResult) {
+    if (statusResult && !(detail === "summary" && isGitReviewRootVisible(project.id))) {
       useGitStore.getState().setStatus(project.id, statusResult);
     }
   }
@@ -918,25 +946,61 @@ async function refreshProjectStatusOnly(
     ? activeWorktreePaths.filter((p) => scopedSet.has(p))
     : activeWorktreePaths;
   if (threadWorktreePaths.length === 0) return;
-  const batch = await readBridge()
-    .gitWorktreeStatusBatch({
-      projectLocation: project.location,
-      worktreePaths: threadWorktreePaths,
-      detail: getWorktreeStatusDetail(reason, project.location),
-    })
-    .catch(() => undefined);
-  if (!isActive() || !batch) return;
-  if (Object.keys(batch.statuses).length > 0) {
-    applyWorktreeStatusBatch(project.location, batch.statuses);
-  }
+  await refreshWorktreeStatuses(project, reason, threadWorktreePaths, isActive);
 }
 
-function recordPendingWatcherScope(projectId: string, options: GitRefreshOptions): void {
+async function refreshWorktreeStatuses(
+  project: { id: string; location: ProjectLocation },
+  reason: GitRefreshReason,
+  worktreePaths: readonly string[],
+  isActive: () => boolean,
+): Promise<void> {
+  const pathsByDetail = new Map<GitStatusDetail, string[]>();
+  for (const path of worktreePaths) {
+    const detail =
+      reason === "watcher"
+        ? getWatcherStatusDetail(project.id, path)
+        : getWorktreeStatusDetail(reason, project.location);
+    const paths = pathsByDetail.get(detail) ?? [];
+    paths.push(path);
+    pathsByDetail.set(detail, paths);
+  }
+  await Promise.all(
+    [...pathsByDetail].map(async ([detail, paths]) => {
+      const batch = await readBridge()
+        .gitWorktreeStatusBatch({
+          projectLocation: project.location,
+          worktreePaths: paths,
+          detail,
+        })
+        .catch(() => undefined);
+      if (!isActive() || !batch) return;
+      // A review can open and hydrate while a hidden-root summary is in flight.
+      // Its full snapshot must remain authoritative for the visible file list.
+      const statuses = Object.fromEntries(
+        Object.entries(batch.statuses).filter(
+          ([path]) => detail !== "summary" || !isGitReviewRootVisible(project.id, path),
+        ),
+      );
+      if (Object.keys(statuses).length > 0) {
+        applyWorktreeStatusBatch(project.location, statuses, reason !== "watcher");
+      }
+    }),
+  );
+}
+
+function recordPendingWatcherScope(
+  projectId: string,
+  options: GitRefreshOptions,
+  details: boolean,
+): void {
   const existing: PendingWatcherScope = pendingWatcherRefreshProjects.get(projectId) ?? {
+    details: false,
     includeMainStatus: false,
     allWorktrees: false,
     worktreePaths: new Set<string>(),
   };
+  existing.details ||= details;
   const includeMain = options.includeMainStatus ?? options.worktreePaths === undefined;
   if (includeMain) existing.includeMainStatus = true;
   if (options.worktreePaths === undefined) {
@@ -956,8 +1020,8 @@ export async function refreshGitProject(
   const isActive = options.isActive ?? alwaysActive;
   if (!isActive()) return;
   if (refreshingProjects.has(project.id)) {
-    if (reason === "watcher") {
-      recordPendingWatcherScope(project.id, options);
+    if (reason === "watcher" || reason === "watcher-details") {
+      recordPendingWatcherScope(project.id, options, reason === "watcher-details");
     }
     console.log(
       `[git-refresh] skip project=${project.id} reason=${reason} mode=${mode} inFlight=true`,
@@ -997,20 +1061,47 @@ export async function refreshGitProject(
           return;
         }
 
-        // One IPC round-trip pulls status + branches + worktrees (+ gh check
-        // when not cached) via supervisor-side Promise.all. Cuts three IPC
-        // handshakes to one and lets the supervisor parallelize freely. Each
-        // field writes to the store as soon as the bundle lands.
+        // Regular full refreshes bundle status + metadata in one round-trip.
+        // Repository-discovery watchers read metadata separately so status can
+        // stay lightweight outside the visible review root.
         const cachedGhAvailable = useGitStore.getState().ghAvailable[project.id] === true;
-        const snapshotPromise = readBridge()
-          .gitProjectSnapshot({
-            projectLocation: project.location,
-            includeGhCheck: !cachedGhAvailable,
-          })
+        const mainDetail = reason === "watcher" ? getWatcherStatusDetail(project.id) : "full";
+        const snapshotPromise = (
+          reason === "watcher"
+            ? Promise.all([
+                readBridge()
+                  .getGitStatus({ projectLocation: project.location, detail: mainDetail })
+                  .catch(() => null),
+                readBridge()
+                  .gitListBranches({ projectLocation: project.location, includeRemote: true })
+                  .catch(() => null),
+                readBridge()
+                  .gitListWorktrees({ projectLocation: project.location })
+                  .then((result) => result.worktrees)
+                  .catch(() => null),
+                cachedGhAvailable
+                  ? true
+                  : readBridge()
+                      .ghCheckAvailable({ projectLocation: project.location })
+                      .then((result) => result.available)
+                      .catch(() => null),
+              ]).then(([status, branches, worktrees, ghAvailable]) => ({
+                status,
+                branches,
+                worktrees,
+                ghAvailable,
+              }))
+            : readBridge().gitProjectSnapshot({
+                projectLocation: project.location,
+                includeGhCheck: !cachedGhAvailable,
+              })
+        )
           .then((snap) => {
             if (!isRefreshCurrent(project.id, refreshToken, isActive)) return snap;
             const store = useGitStore.getState();
-            if (snap.status) store.setStatus(project.id, snap.status);
+            if (snap.status && !(mainDetail === "summary" && isGitReviewRootVisible(project.id))) {
+              store.setStatus(project.id, snap.status);
+            }
             if (snap.branches) store.setBranches(project.id, snap.branches);
             if (snap.worktrees) store.setWorktrees(project.id, snap.worktrees);
             if (snap.ghAvailable === true) store.setGhAvailable(project.id, true);
@@ -1052,19 +1143,9 @@ export async function refreshGitProject(
             (reason === "fetch" && project.location.kind !== "wsl") ||
             watchWorktreePaths.length === 0
               ? Promise.resolve()
-              : readBridge()
-                  .gitWorktreeStatusBatch({
-                    projectLocation: project.location,
-                    worktreePaths: watchWorktreePaths,
-                    detail: getWorktreeStatusDetail(reason, project.location),
-                  })
-                  .then((batch) => {
-                    if (!isRefreshCurrent(project.id, refreshToken, isActive)) return;
-                    if (Object.keys(batch.statuses).length > 0) {
-                      applyWorktreeStatusBatch(project.location, batch.statuses);
-                    }
-                  })
-                  .catch(() => undefined);
+              : refreshWorktreeStatuses(project, reason, watchWorktreePaths, () =>
+                  isRefreshCurrent(project.id, refreshToken, isActive),
+                );
 
           const sourceInfoPromise = Promise.all(
             activeChildWorktrees
@@ -1198,23 +1279,26 @@ export async function refreshGitProject(
     );
     if (activeRefreshTokens.get(project.id) === refreshToken) {
       activeRefreshTokens.delete(project.id);
-    }
-    refreshingProjects.delete(project.id);
-    const pendingWatcherScope = pendingWatcherRefreshProjects.get(project.id);
-    if (pendingWatcherScope) {
-      pendingWatcherRefreshProjects.delete(project.id);
-      const nextMode = getWatcherRefreshMode(project.id);
-      console.log(`[git-refresh] rerun project=${project.id} reason=watcher mode=${nextMode}`);
-      const rerunOptions: GitRefreshOptions = {
-        ...(options.isActive ? { isActive: options.isActive } : {}),
-        ...(pendingWatcherScope.allWorktrees
-          ? { includeMainStatus: pendingWatcherScope.includeMainStatus }
-          : {
-              includeMainStatus: pendingWatcherScope.includeMainStatus,
-              worktreePaths: [...pendingWatcherScope.worktreePaths],
-            }),
-      };
-      void refreshGitProject(project, "watcher", nextMode, rerunOptions);
+      refreshingProjects.delete(project.id);
+      const pendingWatcherScope = pendingWatcherRefreshProjects.get(project.id);
+      if (pendingWatcherScope) {
+        pendingWatcherRefreshProjects.delete(project.id);
+        const nextReason = pendingWatcherScope.details ? "watcher-details" : "watcher";
+        const nextMode = getWatcherRefreshMode(project.id);
+        console.log(
+          `[git-refresh] rerun project=${project.id} reason=${nextReason} mode=${nextMode}`,
+        );
+        const rerunOptions: GitRefreshOptions = {
+          ...(options.isActive ? { isActive: options.isActive } : {}),
+          ...(pendingWatcherScope.allWorktrees
+            ? { includeMainStatus: pendingWatcherScope.includeMainStatus }
+            : {
+                includeMainStatus: pendingWatcherScope.includeMainStatus,
+                worktreePaths: [...pendingWatcherScope.worktreePaths],
+              }),
+        };
+        void refreshGitProject(project, nextReason, nextMode, rerunOptions);
+      }
     }
   }
 }

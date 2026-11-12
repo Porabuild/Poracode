@@ -117,7 +117,7 @@ class GitNativeHelperDaemon {
     }
 
     try {
-      const child = spawn(this.binaryPath, ["--serve-v2"], {
+      const child = spawn(this.binaryPath, ["--serve-v3"], {
         stdio: ["pipe", "pipe", "ignore"],
         windowsHide: true,
       });

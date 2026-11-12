@@ -115,6 +115,10 @@ jobs:
           RELEASE_VERSION: ${{ inputs.version }}
         run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
 
+      - name: Install Linux helper build tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+
       - name: Setup Rust for the computer-use helper
         # Pinned to the verified `stable` head (2026-09-03); the previous SHA did
         # not resolve (HTTP 422) and failed the whole reusable workflow at action

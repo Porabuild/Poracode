@@ -9,7 +9,9 @@ import type {
  * Must match `GIT_HELPER_PROTOCOL_VERSION` in `native/git-helper/src/protocol.rs`;
  * `scripts/prepare-git-helper.mjs` verifies `--hello` against this constant.
  */
-export const GIT_HELPER_PROTOCOL_VERSION = 2;
+// v3 adds the isolated watcher mode; old helpers must fall back rather than
+// accept watch subscriptions without delivering scoped notifications.
+export const GIT_HELPER_PROTOCOL_VERSION = 3;
 
 export const GIT_HELPER_BINARY_NAME = "poracode-git-helper";
 
@@ -21,6 +23,7 @@ export interface NativeGitStatusEntry {
   tracking: string;
   hasRemote: boolean;
   remoteOutput?: string;
+  hasSshOverrides?: boolean;
   ahead: number;
   behind: number;
   staged: GitFileChange[];

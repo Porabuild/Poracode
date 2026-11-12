@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isIgnoredWorkTreeFile, ProjectWatcher } from "./projectWatcher";
+import { ProjectWatcherClient } from "./projectWatcherClient";
 import type { WslBridgeClient, WslLocation } from "./wsl/bridge/client";
 
 function makeLocation(linuxPath: string, distro = "Ubuntu"): WslLocation {
@@ -98,7 +99,7 @@ describe("ProjectWatcher WSL worktrees", () => {
       stat: vi.fn<WslBridgeClient["stat"]>(async () => ({ stats: [] })),
       watch,
     } as unknown as WslBridgeClient);
-    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
     await firstStarted;
     watcher.handleWslBridgeExit("Ubuntu");
     rejectFirst(new Error("bridge exited"));
@@ -122,8 +123,8 @@ describe("ProjectWatcher WSL worktrees", () => {
       watch,
     } as unknown as WslBridgeClient;
     watcher.setWslClient(client);
-    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
-    watcher.watchWorktrees("project-1", ["/home/demo/work/feature"]);
+    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watchWorktrees("project-1", ["/home/demo/work/feature"]);
     await waitForSubscription(2);
     expect(watch).toHaveBeenCalledTimes(2);
     await watcher.dispose();
@@ -159,8 +160,8 @@ describe("ProjectWatcher WSL worktrees", () => {
     });
     watcher.setWslClient(client);
 
-    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
-    watcher.watchWorktrees("project-1", ["/home/demo/.poracode/worktrees/repo/feature"]);
+    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watchWorktrees("project-1", ["/home/demo/.poracode/worktrees/repo/feature"]);
 
     await waitForSubscription(2);
     expect(watch).toHaveBeenCalledTimes(2);
@@ -200,7 +201,7 @@ describe("ProjectWatcher WSL worktrees", () => {
     });
     watcher.setWslClient(client);
 
-    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
 
     await waitForSubscription(1);
     expect(watch).toHaveBeenCalledTimes(1);
@@ -228,7 +229,7 @@ describe("ProjectWatcher WSL worktrees", () => {
       onTreeChanged,
     });
     watcher.setWslClient(client);
-    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
 
     await waitForSubscription(1);
     const onEvent = watch.mock.calls[0]![2];
@@ -261,7 +262,7 @@ describe("ProjectWatcher WSL worktrees", () => {
     });
     watcher.setWslClient(client);
 
-    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
 
     await waitForSubscription(1);
     expect(watch).toHaveBeenCalledTimes(1);
@@ -301,12 +302,12 @@ describe("ProjectWatcher WSL worktrees", () => {
     watcher.setWslClient(client);
     const worktreePath = "/home/demo/.poracode/worktrees/repo/feature";
 
-    watcher.watch("project-1", makeLocation("/home/demo/old"));
-    watcher.watchWorktrees("project-1", [worktreePath]);
+    await watcher.watch("project-1", makeLocation("/home/demo/old"));
+    await watcher.watchWorktrees("project-1", [worktreePath]);
     await waitForSubscription(2);
 
-    watcher.watch("project-1", makeLocation("/home/demo/new", "Debian"));
-    watcher.watchWorktrees("project-1", [worktreePath]);
+    await watcher.watch("project-1", makeLocation("/home/demo/new", "Debian"));
+    await watcher.watchWorktrees("project-1", [worktreePath]);
     await waitForSubscription(4);
     finishOldProjectUnsubscribe();
     await oldProjectUnsubscribe;
@@ -348,7 +349,7 @@ describe("ProjectWatcher WSL worktrees", () => {
     });
     watcher.setWslClient(client);
 
-    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
 
     await waitForSubscription(1);
     expect(watch).toHaveBeenCalledTimes(1);
@@ -384,7 +385,7 @@ describe("ProjectWatcher WSL worktrees", () => {
     });
     watcher.setWslClient(client);
 
-    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
 
     await waitForSubscription(1);
     expect(watch).toHaveBeenCalledTimes(1);
@@ -406,15 +407,18 @@ describe("ProjectWatcher.hasWslProjects", () => {
     expect(watcher.hasWslProjects()).toBe(false);
     expect(watcher.getWslDistros()).toEqual([]);
 
-    // Native projects don't count. The path doesn't exist — both fs.watch
-    // calls fail into their try/catch, but the entry still registers.
-    watcher.watch("native", { kind: "windows", path: "C:\\poracode-test-does-not-exist" });
+    // Native setup is asynchronous; retiring this entry cancels its pending
+    // registration without waking a missing filesystem root.
+    const nativeReady = watcher.watch("native", {
+      kind: "windows",
+      path: "C:\\poracode-test-does-not-exist",
+    });
     expect(watcher.hasWslProjects()).toBe(false);
     expect(watcher.getWslDistros()).toEqual([]);
 
     // No wslClient is wired, so the WSL subscription itself is a no-op while
     // the watcher entry registers synchronously.
-    watcher.watch("wsl", makeLocation("/home/u/repo"));
+    await watcher.watch("wsl", makeLocation("/home/u/repo"));
     expect(watcher.hasWslProjects()).toBe(true);
     expect(watcher.getWslDistros()).toEqual(["Ubuntu"]);
 
@@ -422,6 +426,7 @@ describe("ProjectWatcher.hasWslProjects", () => {
     expect(watcher.hasWslProjects()).toBe(false);
     expect(watcher.getWslDistros()).toEqual([]);
     await watcher.dispose();
+    await nativeReady;
   });
 
   it("keeps a replacement WSL watcher while the previous unsubscribe finishes", async () => {
@@ -444,9 +449,9 @@ describe("ProjectWatcher.hasWslProjects", () => {
     });
     watcher.setWslClient(client);
 
-    watcher.watch("project-1", makeLocation("/home/demo/old"));
+    await watcher.watch("project-1", makeLocation("/home/demo/old"));
     await waitForSubscription(1);
-    watcher.watch("project-1", makeLocation("/home/demo/new", "Debian"));
+    await watcher.watch("project-1", makeLocation("/home/demo/new", "Debian"));
     await waitForSubscription(2);
 
     expect(watcher.getWslDistros()).toEqual(["Debian"]);
@@ -456,5 +461,105 @@ describe("ProjectWatcher.hasWslProjects", () => {
     expect(watcher.getWslDistros()).toEqual(["Debian"]);
 
     await watcher.dispose();
+  });
+});
+
+describe("ProjectWatcher native registration readiness", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function harness() {
+    const registrations: Array<{
+      root: string;
+      resolve: () => void;
+      reject: (error: Error) => void;
+      changed: Parameters<ProjectWatcherClient["watch"]>[1];
+      unsubscribe: ReturnType<typeof vi.fn>;
+    }> = [];
+    vi.spyOn(ProjectWatcherClient.prototype, "watch").mockImplementation((root, changed) => {
+      let resolve!: () => void, reject!: (error: Error) => void;
+      const ready = new Promise<void>((done, fail) => {
+        resolve = done;
+        reject = fail;
+      });
+      const unsubscribe = vi.fn<() => void>(() => resolve());
+      registrations.push({ root, resolve, reject, changed, unsubscribe });
+      return { ready, unsubscribe };
+    });
+    const onGitChanged = vi.fn<(projectId: string, worktreePath?: string) => void>(),
+      onTreeChanged = vi.fn<(projectId: string, worktreePath?: string) => void>();
+    const watcher = new ProjectWatcher({ onGitChanged, onTreeChanged });
+    return { watcher, registrations, onGitChanged, onTreeChanged };
+  }
+
+  it("keeps project and idempotent worktree registration pending until their ACKs", async () => {
+    const h = harness();
+    let projectReady = false,
+      worktreeReady = false,
+      repeatedReady = false;
+    const project = h.watcher.watch("p", { kind: "posix", path: "/repo" }).then(() => {
+      projectReady = true;
+    });
+    const worktrees = h.watcher.watchWorktrees("p", ["/topic"]).then(() => {
+      worktreeReady = true;
+    });
+    const repeated = h.watcher.watchWorktrees("p", ["/topic"]).then(() => {
+      repeatedReady = true;
+    });
+    await Promise.resolve();
+    expect([projectReady, worktreeReady, repeatedReady]).toEqual([false, false, false]);
+    h.registrations[0]!.resolve();
+    await project;
+    expect(projectReady).toBe(true);
+    expect(worktreeReady).toBe(false);
+    h.registrations[1]!.resolve();
+    await Promise.all([worktrees, repeated]);
+    expect([worktreeReady, repeatedReady]).toEqual([true, true]);
+    h.registrations[1]!.changed("worktree");
+    expect(h.onTreeChanged).toHaveBeenCalledWith("p", "/topic");
+    await h.watcher.dispose();
+  });
+
+  it("ignores retired callbacks and keeps a replacement during pending teardown", async () => {
+    const h = harness();
+    const first = h.watcher.watch("p", { kind: "posix", path: "/old" });
+    const oldWorktree = h.watcher.watchWorktrees("p", ["/topic"]);
+    const replacement = h.watcher.watch("p", { kind: "posix", path: "/new" });
+    const nextWorktree = h.watcher.watchWorktrees("p", ["/topic"]);
+    await Promise.all([first, oldWorktree]);
+    h.registrations[0]!.changed("git");
+    h.registrations[1]!.changed("worktree");
+    expect(h.onGitChanged).not.toHaveBeenCalled();
+    expect(h.onTreeChanged).not.toHaveBeenCalled();
+    h.registrations[2]!.resolve();
+    h.registrations[3]!.resolve();
+    await Promise.all([replacement, nextWorktree]);
+    h.registrations[3]!.changed("git");
+    expect(h.onGitChanged).toHaveBeenCalledWith("p", "/topic");
+    await h.watcher.dispose();
+  });
+
+  it("propagates failed registration and removes only the failed current entry", async () => {
+    const h = harness();
+    const pending = h.watcher.watch("p", { kind: "posix", path: "/missing" });
+    h.registrations[0]!.reject(new Error("registration failed"));
+    await expect(pending).rejects.toThrow("registration failed");
+    expect(h.registrations[0]!.unsubscribe).toHaveBeenCalledOnce();
+    const next = h.watcher.watch("p", { kind: "posix", path: "/valid" });
+    h.registrations[1]!.resolve();
+    await next;
+    h.registrations[1]!.changed("git");
+    expect(h.onGitChanged).toHaveBeenCalledExactlyOnceWith("p");
+    await h.watcher.dispose();
+  });
+
+  it("cancels pending worktree setup on explicit unwatch without late notifications", async () => {
+    const h = harness();
+    const pending = h.watcher.watchWorktrees("p", ["/topic"]);
+    await h.watcher.unwatchWorktree("/topic");
+    await pending;
+    h.registrations[0]!.changed("worktree");
+    expect(h.onTreeChanged).not.toHaveBeenCalled();
+    expect(h.registrations[0]!.unsubscribe).toHaveBeenCalledOnce();
+    await h.watcher.dispose();
   });
 });
