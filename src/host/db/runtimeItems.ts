@@ -15,6 +15,7 @@ import { dbGetThreadRuntimeItemCommitted, type RuntimeItemReadOptions } from "./
 import { clearThreadStreamChunks, writeItemStreams } from "./runtimeStreamStore";
 import {
   externalizeRuntimeItemPayload,
+  prepareRuntimeItemPayloadsForRead,
   readVerifiedDisplayImageRefItems,
   syncRuntimeItemInlineImageRefs,
 } from "./runtimeInlineImages";
@@ -456,7 +457,7 @@ export function dbReadLatestThreadGoalItem(threadId: string): PersistedRuntimeIt
       )
       .get(threadId) as PersistedRuntimeItemRow | undefined;
     if (!row) return null;
-    return mapRuntimeItemRows(sqlite, threadId, [row])[0] ?? null;
+    return mapRuntimeItemRows(sqlite, threadId, [row], { includeStreamTails: false })[0] ?? null;
   });
 }
 
@@ -494,27 +495,49 @@ export function dbReadRunningToolCallItems(
   payload: unknown;
 }> {
   const sqlite = getSqlite();
-  const statement = sqlite.prepare(
-    `SELECT thread_id, item_id, payload
-     FROM thread_runtime_items
-     WHERE type = 'tool_call'
-       AND (state != 'completed'
-         ${includeLegacyCompleted ? "OR ((instr(payload, 'running') > 0 OR instr(payload, char(92) || 'u') > 0) AND CASE WHEN json_valid(payload) THEN json_extract(payload, '$.status') END = 'running')" : ""})
-       ${threadId === undefined ? "" : "AND thread_id = ?"}`,
-  );
-  const rows = (threadId === undefined ? statement.all() : statement.all(threadId)) as Array<{
-    thread_id: string;
-    item_id: string;
-    payload: string | null;
-  }>;
+  const rows = readRuntimeSnapshot(sqlite, () => {
+    const statement = sqlite.prepare(
+      `SELECT thread_id, item_id, payload
+       FROM thread_runtime_items
+       WHERE type = 'tool_call'
+         AND (state != 'completed'
+           ${includeLegacyCompleted ? "OR ((instr(payload, 'running') > 0 OR instr(payload, char(92) || 'u') > 0) AND CASE WHEN json_valid(payload) THEN json_extract(payload, '$.status') END = 'running')" : ""})
+         ${threadId === undefined ? "" : "AND thread_id = ?"}`,
+    );
+    const selectedRows = (
+      threadId === undefined ? statement.all() : statement.all(threadId)
+    ) as Array<{
+      thread_id: string;
+      item_id: string;
+      payload: string | null;
+    }>;
+    const stubRowsByThread = new Map<string, Array<{ item_id: string; payload: string | null }>>();
+    for (const row of selectedRows) {
+      if (!row.payload?.includes("$poracodeInlineImageBlob")) continue;
+      const threadRows = stubRowsByThread.get(row.thread_id) ?? [];
+      threadRows.push(row);
+      stubRowsByThread.set(row.thread_id, threadRows);
+    }
+    const rehydratedByThread = new Map<string, Map<string, unknown>>();
+    for (const [selectedThreadId, payloadRows] of stubRowsByThread) {
+      const prepared = prepareRuntimeItemPayloadsForRead(sqlite, selectedThreadId, payloadRows);
+      rehydratedByThread.set(
+        selectedThreadId,
+        new Map([...prepared].map(([itemId, value]) => [itemId, value.payload])),
+      );
+    }
+    return selectedRows.map((row) => ({
+      threadId: row.thread_id,
+      itemId: row.item_id,
+      payload:
+        rehydratedByThread.get(row.thread_id)?.get(row.item_id) ??
+        (row.payload === null ? undefined : safeParse(row.payload)),
+    }));
+  });
   if (includeLegacyCompleted && threadId === undefined) {
     sqlite.pragma("shrink_memory");
   }
-  return rows.map((row) => ({
-    threadId: row.thread_id,
-    itemId: row.item_id,
-    payload: row.payload === null ? undefined : safeParse(row.payload),
-  }));
+  return rows;
 }
 
 /** Synchronous committed-prefix page read. Only call behind a held fence. */

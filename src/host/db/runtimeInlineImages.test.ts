@@ -14,11 +14,8 @@ import {
   runDatabaseMigrations,
 } from "./migrations";
 import { dbDeleteThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
-import {
-  dbReadCommittedRuntimeItemImageBlob,
-  isPersistedInlineImageStub,
-  reclaimOrphanInlineImageBlobs,
-} from "./runtimeInlineImages";
+import { dbReadCommittedRuntimeItemImageBlob } from "./runtimeInlineImageReads";
+import { isPersistedInlineImageStub, reclaimOrphanInlineImageBlobs } from "./runtimeInlineImages";
 import {
   dbApplyThreadRuntimeEvents,
   dbFlushThreadRuntimeWrites,

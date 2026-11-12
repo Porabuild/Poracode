@@ -555,7 +555,11 @@ export class GitHubService {
   private actionsAccountCache = new Map<string, GitHubAccountRef | null>();
   /** Locations whose gh install rejects the `attempt` run field. */
   private unsupportedRunAttemptFieldLocations = new Set<string>();
-  private reviewRepoInFlight = new Map<string, Promise<ReviewRepositorySelection>>();
+  private reviewRepoEpoch = 0;
+  private reviewRepoInFlight = new Map<
+    string,
+    { epoch: number; promise: Promise<ReviewRepositorySelection> }
+  >();
   private reviewRepoCache = new Map<
     string,
     { value: ReviewRepositorySelection; expiresAt: number }
@@ -564,8 +568,27 @@ export class GitHubService {
 
   setWslClient(client: WslBridgeClient | undefined): void {
     this.wslClient = client;
-    this.reviewRepoInFlight.clear();
-    this.reviewRepoCache.clear();
+    this.invalidateReviewRepositoryCache();
+  }
+
+  invalidateReviewRepositoryCache(location?: ProjectLocation): void {
+    this.reviewRepoEpoch += 1;
+    if (!location) {
+      this.reviewRepoInFlight.clear();
+      this.reviewRepoCache.clear();
+      return;
+    }
+    const prefix = `${getLocationIdentity(location)}\0`;
+    for (const key of this.reviewRepoCache.keys()) {
+      if (key.startsWith(prefix)) {
+        this.reviewRepoCache.delete(key);
+      }
+    }
+    for (const key of this.reviewRepoInFlight.keys()) {
+      if (key.startsWith(prefix)) {
+        this.reviewRepoInFlight.delete(key);
+      }
+    }
   }
 
   /** Freeze gh's actual repository choice, including a configured default or SSH alias. */
@@ -582,34 +605,42 @@ export class GitHubService {
       this.reviewRepoCache.delete(key);
     }
 
-    let pending = this.reviewRepoInFlight.get(key);
-    if (!pending) {
-      pending = this.resolveReviewRepositoryUncached(location, account)
+    const epoch = this.reviewRepoEpoch;
+    let entry = this.reviewRepoInFlight.get(key);
+    if (!entry || entry.epoch !== epoch) {
+      const created = {
+        epoch,
+        promise: undefined as unknown as Promise<ReviewRepositorySelection>,
+      };
+      created.promise = this.resolveReviewRepositoryUncached(location, account)
         .then((selection) => {
-          if (
-            !this.reviewRepoCache.has(key) &&
-            this.reviewRepoCache.size >= MAX_REVIEW_REPO_CACHE_ENTRIES
-          ) {
-            const oldestKey = this.reviewRepoCache.keys().next().value;
-            if (oldestKey !== undefined) {
-              this.reviewRepoCache.delete(oldestKey);
+          if (this.reviewRepoEpoch === epoch) {
+            if (
+              !this.reviewRepoCache.has(key) &&
+              this.reviewRepoCache.size >= MAX_REVIEW_REPO_CACHE_ENTRIES
+            ) {
+              const oldestKey = this.reviewRepoCache.keys().next().value;
+              if (oldestKey !== undefined) {
+                this.reviewRepoCache.delete(oldestKey);
+              }
             }
+            this.reviewRepoCache.set(key, {
+              value: cloneReviewRepositorySelection(selection),
+              expiresAt: Date.now() + REVIEW_REPO_CACHE_TTL_MS,
+            });
           }
-          this.reviewRepoCache.set(key, {
-            value: cloneReviewRepositorySelection(selection),
-            expiresAt: Date.now() + REVIEW_REPO_CACHE_TTL_MS,
-          });
           return selection;
         })
         .finally(() => {
-          if (this.reviewRepoInFlight.get(key) === pending) {
+          if (this.reviewRepoInFlight.get(key) === created) {
             this.reviewRepoInFlight.delete(key);
           }
         });
-      this.reviewRepoInFlight.set(key, pending);
+      this.reviewRepoInFlight.set(key, created);
+      entry = created;
     }
 
-    return cloneReviewRepositorySelection(await pending);
+    return cloneReviewRepositorySelection(await entry.promise);
   }
 
   private async resolveReviewRepositoryUncached(

@@ -7,6 +7,14 @@ import type { WslBridgeClient } from "../wsl/bridge/client";
 import { execGit } from "./exec";
 import { GitStatusService } from "./statusService";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 vi.mock("./exec", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./exec")>()),
   execGit: vi.fn<typeof execGit>(async () => ""),
@@ -91,5 +99,32 @@ describe("Git working-file boundaries", () => {
     expect(vi.mocked(execGit).mock.calls.some((call) => call[1].includes("--no-index"))).toBe(
       false,
     );
+  });
+
+  it("starts a fresh coalesced status read after mutation invalidation", async () => {
+    const oldStatus = deferred<string>();
+    const freshStatus = deferred<string>();
+    let revParseCalls = 0;
+    vi.mocked(execGit).mockImplementation(async (_location, args) => {
+      if (args[0] !== "rev-parse") return "";
+      revParseCalls += 1;
+      return revParseCalls === 1 ? oldStatus.promise : freshStatus.promise;
+    });
+
+    const oldRequest = service.getStatus(location);
+    expect(revParseCalls).toBe(1);
+
+    service.invalidateStatus(location);
+    const freshRequest = service.getStatus(location);
+    const coalescedFreshRequest = service.getStatus(location);
+    expect(revParseCalls).toBe(2);
+
+    oldStatus.resolve("true");
+    await oldRequest;
+
+    const anotherCoalescedRequest = service.getStatus(location);
+    expect(revParseCalls).toBe(2);
+    freshStatus.resolve("true");
+    await Promise.all([freshRequest, coalescedFreshRequest, anotherCoalescedRequest]);
   });
 });

@@ -92,7 +92,7 @@ describe("buildCodexThreadOverrides", () => {
     ).toMatchObject({ command: "node" });
   });
 
-  it("suppresses detected Codex desktop bundled sidecars per thread and preserves opt-in", () => {
+  it("suppresses detected Codex desktop bundled sidecars per thread", () => {
     const detectedSidecars = {
       enabledPlugins: new Set([
         "codex-app-tools@openai-bundled",
@@ -111,17 +111,10 @@ describe("buildCodexThreadOverrides", () => {
       "mcp_servers.node_repl": { enabled: false },
     });
 
-    const optedIn = buildCodexThreadOverrides(
+    const nativeNameOnly = buildCodexThreadOverrides(
       { model: "gpt-5.6" },
-      {
-        detectedSidecars,
-        agentSettings: { allowBundledCuaSidecars: true },
-      },
+      { nativeMcpNames: ["node_repl"] },
     );
-    expect(optedIn.config).toMatchObject({
-      "plugins.codex-app-tools@openai-bundled": { enabled: false },
-    });
-    expect(optedIn.config).not.toHaveProperty("plugins.unified-computer-use@openai-bundled");
-    expect(optedIn.config).not.toHaveProperty("mcp_servers.node_repl");
+    expect(nativeNameOnly.config).not.toHaveProperty("mcp_servers.node_repl");
   });
 });

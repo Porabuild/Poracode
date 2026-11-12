@@ -149,8 +149,6 @@ export async function buildCodexArgvFor(
   const bundledSidecarArgs = buildCodexBundledSidecarCliArgs({
     detected: detectedSidecars,
     mcpServers,
-    nativeMcpNames: nativeNames,
-    ...(launchOptions?.agentSettings ? { agentSettings: launchOptions.agentSettings } : {}),
   });
   const mcpArgs = [...skillConflictArgs, ...mcp.args];
   const mcpEnv = { ...mcp.env, ...env };

@@ -234,11 +234,12 @@ function forgeConnectionCacheKey(location: ProjectLocation, account?: ForgeAccou
 
 export class ForgeConnections {
   private readonly ttlMs: number;
-  private readonly inFlightResolves = new Map<string, Promise<ForgeConnection | null>>();
-  private readonly resolvedCache = new Map<
+  private invalidationEpoch = 0;
+  private readonly inFlightResolves = new Map<
     string,
-    { value: ForgeConnection | null; expiresAt: number }
+    { epoch: number; promise: Promise<ForgeConnection | null> }
   >();
+  private readonly resolvedCache = new Map<string, { value: ForgeConnection; expiresAt: number }>();
 
   constructor(
     private readonly runtime: ForgeRuntime,
@@ -248,14 +249,21 @@ export class ForgeConnections {
   }
 
   invalidate(location?: ProjectLocation): void {
+    this.invalidationEpoch += 1;
     if (!location) {
       this.resolvedCache.clear();
+      this.inFlightResolves.clear();
       return;
     }
     const prefix = `${getLocationIdentity(location)}\0`;
     for (const key of this.resolvedCache.keys()) {
       if (key.startsWith(prefix)) {
         this.resolvedCache.delete(key);
+      }
+    }
+    for (const key of this.inFlightResolves.keys()) {
+      if (key.startsWith(prefix)) {
+        this.inFlightResolves.delete(key);
       }
     }
   }
@@ -275,11 +283,16 @@ export class ForgeConnections {
       }
     }
 
-    let pending = this.inFlightResolves.get(key);
-    if (!pending) {
-      pending = this.resolveUncached(location, account)
+    const epoch = this.invalidationEpoch;
+    let entry = this.inFlightResolves.get(key);
+    if (!entry || entry.epoch !== epoch) {
+      const created = {
+        epoch,
+        promise: undefined as unknown as Promise<ForgeConnection | null>,
+      };
+      created.promise = this.resolveUncached(location, account)
         .then((value) => {
-          if (this.ttlMs > 0) {
+          if (this.ttlMs > 0 && value !== null && this.invalidationEpoch === epoch) {
             if (
               !this.resolvedCache.has(key) &&
               this.resolvedCache.size >= MAX_FORGE_CONNECTION_CACHE_ENTRIES
@@ -289,22 +302,26 @@ export class ForgeConnections {
                 this.resolvedCache.delete(oldestKey);
               }
             }
-            this.resolvedCache.set(key, {
-              value: cloneForgeConnection(value),
-              expiresAt: Date.now() + this.ttlMs,
-            });
+            const cloned = cloneForgeConnection(value);
+            if (cloned) {
+              this.resolvedCache.set(key, {
+                value: cloned,
+                expiresAt: Date.now() + this.ttlMs,
+              });
+            }
           }
           return value;
         })
         .finally(() => {
-          if (this.inFlightResolves.get(key) === pending) {
+          if (this.inFlightResolves.get(key) === created) {
             this.inFlightResolves.delete(key);
           }
         });
-      this.inFlightResolves.set(key, pending);
+      this.inFlightResolves.set(key, created);
+      entry = created;
     }
 
-    return cloneForgeConnection(await pending);
+    return cloneForgeConnection(await entry.promise);
   }
 
   private async resolveUncached(

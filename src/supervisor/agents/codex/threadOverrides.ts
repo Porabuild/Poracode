@@ -21,7 +21,6 @@ export function buildCodexThreadOverrides(
     mcpServers?: readonly ResolvedMcpServer[];
     nativeMcpNames?: readonly string[];
     detectedSidecars?: DetectedCodexBundledSidecars;
-    agentSettings?: Record<string, boolean | string>;
   },
 ): ThreadConfigOverrides {
   const mcpConfig = options?.mcpServers
@@ -30,8 +29,6 @@ export function buildCodexThreadOverrides(
   const bundledSidecarConfig = buildCodexBundledSidecarThreadConfig({
     ...(options?.detectedSidecars ? { detected: options.detectedSidecars } : {}),
     ...(options?.mcpServers ? { mcpServers: options.mcpServers } : {}),
-    ...(options?.nativeMcpNames ? { nativeMcpNames: options.nativeMcpNames } : {}),
-    ...(options?.agentSettings ? { agentSettings: options.agentSettings } : {}),
   });
   const approvalsReviewer = config.approvalPolicy === "never" ? "user" : config.approvalsReviewer;
   return {

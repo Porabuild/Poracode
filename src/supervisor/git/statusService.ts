@@ -88,6 +88,18 @@ export class GitStatusService {
 
   setWslClient(client: WslBridgeClient | undefined): void {
     this.wslClient = client;
+    this.invalidateStatus();
+  }
+
+  invalidateStatus(location?: ProjectLocation): void {
+    if (!location) {
+      this.statusInFlight.clear();
+      this.statusSummaryInFlight.clear();
+      return;
+    }
+    const key = getLocationIdentity(location);
+    this.statusInFlight.delete(key);
+    this.statusSummaryInFlight.delete(key);
   }
 
   async getStatus(location: ProjectLocation): Promise<GitStatusResult> {

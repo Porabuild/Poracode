@@ -80,7 +80,6 @@ import {
   HostResourceAdmissionOwner,
   UNLIMITED_HOST_RESOURCE_ADMISSION_POLICY,
   type HostResourceAdmission,
-  type HostResourceLease,
 } from "./hostResourceAdmission";
 import { canonicalThreadIdsOf } from "../supervisorIpcMessagePolicy";
 import type { QueuedStructuredTurn, SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
@@ -142,17 +141,10 @@ import {
   buildRetainedShellSnapshot,
   isRetainedShellExpired,
   putRetainedShellSnapshot,
-  shellTerminalSize,
   snapshotFromLiveSession,
   snapshotFromLiveShell,
   type RetainedShellSnapshot,
 } from "./retainedShellSnapshots";
-import {
-  DEFAULT_SHELL_IDLE_SUSPEND_MS,
-  hasShellChildProcesses,
-  snapshotFromSuspendedShell,
-  type SuspendedShellSession,
-} from "./threadSession/shellIdleCheck";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
@@ -176,12 +168,6 @@ function requireThreadMentionTools(
 export class ThreadSessionManager {
   readonly sessions = new Map<string, SessionRuntime>();
   readonly shellSessions = new Map<string, ShellSessionRuntime>();
-  readonly suspendedShells = new Map<string, SuspendedShellSession>();
-  private readonly suspendingShells = new Map<string, Promise<void>>();
-  private readonly wakingShells = new Map<
-    string,
-    { promise: Promise<ShellSessionRuntime>; queuedInputs: string[] }
-  >();
   /**
    * The one host execution-slot owner for this supervisor. Every counted
    * launch funnel (threads, shells, subagents, generation helpers) acquires
@@ -234,9 +220,6 @@ export class ThreadSessionManager {
       if (
         this.sessions.has(threadId) ||
         this.shellSessions.has(threadId) ||
-        this.suspendedShells.has(threadId) ||
-        this.suspendingShells.has(threadId) ||
-        this.wakingShells.has(threadId) ||
         this.startLocks.has(threadId) ||
         this.retiringSessions.has(threadId) ||
         this.retiringShells.has(threadId) ||
@@ -519,7 +502,7 @@ export class ThreadSessionManager {
   }
 
   getTerminalShellSnapshots(): TerminalShellSnapshot[] {
-    return [...this.shellSessions.values(), ...this.suspendedShells.values()].map((session) => ({
+    return [...this.shellSessions.values()].map((session) => ({
       terminalId: session.shellId,
       projectLocation: session.projectLocation,
       ...(session.worktreePath ? { worktreePath: session.worktreePath } : {}),
@@ -1705,23 +1688,8 @@ export class ThreadSessionManager {
 
   async writeTerminal(payload: WriteTerminalPayload): Promise<void> {
     this.executionControl.assertUnowned(payload.threadId);
-    const suspending = this.suspendingShells.get(payload.threadId);
-    if (suspending) {
-      await suspending;
-    }
-    const waking = this.wakingShells.get(payload.threadId);
-    if (waking) {
-      waking.queuedInputs.push(payload.data);
-      await waking.promise;
-      return;
-    }
-    if (this.suspendedShells.has(payload.threadId)) {
-      await this.wakeSuspendedShell(payload.threadId, payload.data);
-      return;
-    }
     const shell = this.shellSessions.get(payload.threadId);
     if (shell) {
-      this.armShellIdleTimer(shell);
       shell.pty.write(payload.data);
       return;
     }
@@ -1904,14 +1872,7 @@ export class ThreadSessionManager {
   async resizeTerminal(payload: ResizeTerminalPayload): Promise<void> {
     const shell = this.shellSessions.get(payload.threadId);
     if (shell) {
-      this.armShellIdleTimer(shell);
       this.ptyLifecycle.resize(shell, payload.cols, payload.rows);
-      return;
-    }
-    const suspended = this.suspendedShells.get(payload.threadId);
-    if (suspended) {
-      suspended.cols = payload.cols;
-      suspended.rows = payload.rows;
       return;
     }
     const session = this.sessions.get(payload.threadId);
@@ -2070,20 +2031,10 @@ export class ThreadSessionManager {
     payload: CloseThreadPayload,
     options: { replacement?: boolean } = {},
   ): Promise<CloseThreadConfirmedResult> {
-    const suspending = this.suspendingShells.get(payload.threadId);
-    if (suspending) {
-      await suspending;
-    }
-    const waking = this.wakingShells.get(payload.threadId);
-    if (waking) {
-      await waking.promise.catch(() => undefined);
-    }
     const shell = this.shellSessions.get(payload.threadId);
     if (shell) {
-      this.clearShellIdleTimer(shell);
       shell.ignoreExit = true;
       this.shellSessions.delete(payload.threadId);
-      this.suspendedShells.delete(payload.threadId);
       this.clearRetainedShellSnapshot(payload.threadId);
       this.rememberRemovedThread(payload.threadId);
       const confirmed = await this.sessionRetirement.retireShellSession(shell);
@@ -2098,11 +2049,6 @@ export class ThreadSessionManager {
         );
       }
       return { confirmed };
-    }
-    if (this.suspendedShells.delete(payload.threadId)) {
-      this.clearRetainedShellSnapshot(payload.threadId);
-      this.rememberRemovedThread(payload.threadId);
-      return { confirmed: true };
     }
 
     const existing = this.sessions.get(payload.threadId);
@@ -2135,6 +2081,11 @@ export class ThreadSessionManager {
           await this.retryRetainedSession(payload.threadId);
         } catch (error) {
           console.warn(`[supervisor] thread ${payload.threadId} retirement retry failed:`, error);
+          confirmed = false;
+        }
+      }
+      if (this.retiringShells.has(payload.threadId)) {
+        if (!(await this.retryRetainedShell(payload.threadId))) {
           confirmed = false;
         }
       }
@@ -2182,16 +2133,7 @@ export class ThreadSessionManager {
   async startShell(payload: StartShellPayload): Promise<void> {
     this.executionControl.assertUnowned(payload.shellId);
     ensureNodePtySpawnHelperExecutable();
-    const suspending = this.suspendingShells.get(payload.shellId);
-    if (suspending) {
-      await suspending;
-    }
-    const waking = this.wakingShells.get(payload.shellId);
-    if (waking) {
-      await waking.promise.catch(() => undefined);
-    }
     this.recentlyRemovedThreadIds.delete(payload.shellId);
-    this.suspendedShells.delete(payload.shellId);
     // Id reuse must not append old retained bytes to a new generation.
     this.clearRetainedShellSnapshot(payload.shellId);
     // A same-id shell whose close was never confirmed is joined/retried
@@ -2216,7 +2158,6 @@ export class ThreadSessionManager {
       // Replacement gate: the successor must not start until the predecessor's
       // exit is observed. An unconfirmed kill retains the slot and refuses the
       // replacement instead of running two shells under one id.
-      this.clearShellIdleTimer(existing);
       existing.ignoreExit = true;
       const confirmed = await this.sessionRetirement.retireShellSession(existing);
       if (!confirmed) {
@@ -2230,42 +2171,17 @@ export class ThreadSessionManager {
       }
     }
 
-    this.options.emit({ type: "thread-reset", threadId: payload.shellId });
-    this.spawnShellRuntime({
-      shellId: payload.shellId,
-      projectLocation: payload.projectLocation,
-      cols: payload.initialSize?.cols ?? 120,
-      rows: payload.initialSize?.rows ?? 30,
-      resourceLease,
-      ...(payload.worktreePath ? { worktreePath: payload.worktreePath } : {}),
-      ...(payload.windowsShellRuntime ? { windowsShellRuntime: payload.windowsShellRuntime } : {}),
-      ...(payload.startInHome !== undefined ? { startInHome: payload.startInHome } : {}),
-    });
-  }
-
-  private spawnShellRuntime(input: {
-    shellId: string;
-    projectLocation: ProjectLocation;
-    cols: number;
-    rows: number;
-    resourceLease: HostResourceLease;
-    instanceId?: string;
-    outputLength?: number;
-    outputTranscript?: TranscriptBuffer;
-    worktreePath?: string;
-    windowsShellRuntime?: StartShellPayload["windowsShellRuntime"];
-    startInHome?: boolean;
-  }): ShellSessionRuntime {
     const windowsShell =
-      process.platform === "win32" && input.projectLocation.kind === "windows"
+      process.platform === "win32" && payload.projectLocation.kind === "windows"
         ? this.options.resolveWindowsShell(
-            input.windowsShellRuntime === "powershell" ? "powershell" : "preferred",
+            payload.windowsShellRuntime === "powershell" ? "powershell" : "preferred",
           )
         : { shell: "", kind: "cmd" as const, args: [] };
-    const shellCommand = buildShellCommand(input.projectLocation, windowsShell, {
-      startInHome: input.startInHome === true,
+    const shellCommand = buildShellCommand(payload.projectLocation, windowsShell, {
+      startInHome: payload.startInHome === true,
     });
-    const terminalEnv = resolveTerminalColorEnv(input.projectLocation);
+    this.options.emit({ type: "thread-reset", threadId: payload.shellId });
+    const terminalEnv = resolveTerminalColorEnv(payload.projectLocation);
 
     // node-pty's C binding expects every env value to be a string. process.env
     // is typed `Record<string, string | undefined>` and spreading can carry
@@ -2274,7 +2190,7 @@ export class ThreadSessionManager {
       ...sanitizedProcessEnv,
       ...terminalEnv,
     };
-    if (input.projectLocation.kind === "wsl") {
+    if (payload.projectLocation.kind === "wsl") {
       const existingWslEnv = process.env.WSLENV ?? "";
       const wslEnvNames = new Set(
         existingWslEnv.split(":").map((value) => value.replace(/\/.*/, "")),
@@ -2312,52 +2228,46 @@ export class ThreadSessionManager {
         shellCommand.args,
         {
           name: process.platform === "win32" ? "xterm-color" : terminalEnv.TERM,
-          cols: input.cols,
-          rows: input.rows,
+          cols: payload.initialSize?.cols ?? 120,
+          rows: payload.initialSize?.rows ?? 30,
           ...(shellCommand.cwd ? { cwd: shellCommand.cwd } : {}),
           env: shellEnv,
         },
-        input.projectLocation,
+        payload.projectLocation,
         false,
       );
     } catch (error) {
-      input.resourceLease.cancel();
+      resourceLease.cancel();
       throw new Error(describeSpawnFailure("shell", shellCommand, shellEnv, error), {
         cause: error,
       });
     }
 
     const session: ShellSessionRuntime = {
-      instanceId: input.instanceId ?? randomUUID(),
-      shellId: input.shellId,
+      instanceId: randomUUID(),
+      shellId: payload.shellId,
       pty,
-      resourceLease: input.resourceLease,
-      projectLocation: input.projectLocation,
-      outputLength: input.outputLength ?? 0,
-      outputTranscript: input.outputTranscript ?? new TranscriptBuffer(200_000),
-      ...(input.worktreePath ? { worktreePath: input.worktreePath } : {}),
-      ...(input.windowsShellRuntime ? { windowsShellRuntime: input.windowsShellRuntime } : {}),
-      ...(input.startInHome !== undefined ? { startInHome: input.startInHome } : {}),
+      resourceLease,
+      projectLocation: payload.projectLocation,
+      outputLength: 0,
+      outputTranscript: new TranscriptBuffer(200_000),
+      ...(payload.worktreePath ? { worktreePath: payload.worktreePath } : {}),
     };
 
-    this.shellSessions.set(input.shellId, session);
+    this.shellSessions.set(payload.shellId, session);
     this.ptyLifecycle.track(session);
     pty.onData((data) => {
-      if (
-        this.shellSessions.get(input.shellId)?.instanceId !== session.instanceId ||
-        session.ignoreExit
-      ) {
+      if (this.shellSessions.get(payload.shellId)?.instanceId !== session.instanceId) {
         return;
       }
-      this.armShellIdleTimer(session);
       session.outputLength += data.length;
       session.outputTranscript.append(data);
       if (this.options.isDev) {
-        this.logWriter.append(this.resolveLogPath(input.shellId.replace(/:/g, "_")), data);
+        this.logWriter.append(this.resolveLogPath(payload.shellId.replace(/:/g, "_")), data);
       }
       this.options.emit({
         type: "thread-output",
-        threadId: input.shellId,
+        threadId: payload.shellId,
         data,
         outputLength: session.outputLength,
         terminalInstanceId: session.instanceId,
@@ -2365,213 +2275,30 @@ export class ThreadSessionManager {
     });
 
     pty.onExit(({ exitCode }) => {
-      this.clearShellIdleTimer(session);
       this.ptyLifecycle.resolveExit(session);
       // Exit is the only release signal; a late predecessor exit is
       // instance-keyed, so it can neither free nor evict its successor.
       session.resourceLease?.confirmExit();
-      if (this.retiringShells.get(input.shellId) === session) {
-        this.retiringShells.delete(input.shellId);
+      if (this.retiringShells.get(payload.shellId) === session) {
+        this.retiringShells.delete(payload.shellId);
       }
       if (session.ignoreExit) {
         return;
       }
-      if (this.shellSessions.get(input.shellId)?.instanceId !== session.instanceId) {
+      if (this.shellSessions.get(payload.shellId)?.instanceId !== session.instanceId) {
         return;
       }
       this.retainExitedShellSnapshot(session);
-      this.shellSessions.delete(input.shellId);
-      this.rememberRemovedThread(input.shellId);
+      this.shellSessions.delete(payload.shellId);
+      this.rememberRemovedThread(payload.shellId);
       this.options.emit({
         type: "thread-exited",
-        threadId: input.shellId,
+        threadId: payload.shellId,
         exitCode: exitCode ?? null,
       });
     });
 
-    input.resourceLease.activate();
-    this.armShellIdleTimer(session);
-    return session;
-  }
-
-  private clearShellIdleTimer(session: ShellSessionRuntime): void {
-    if (session.idleTimer !== undefined) {
-      clearTimeout(session.idleTimer);
-      session.idleTimer = undefined;
-    }
-  }
-
-  private armShellIdleTimer(session: ShellSessionRuntime): void {
-    this.clearShellIdleTimer(session);
-    const timeoutMs = this.options.shellIdleTimeoutMs ?? DEFAULT_SHELL_IDLE_SUSPEND_MS;
-    if (
-      timeoutMs <= 0 ||
-      this.disposed ||
-      session.ptyExited ||
-      session.ignoreExit ||
-      session.projectLocation.kind === "wsl"
-    ) {
-      return;
-    }
-    session.idleTimer = setTimeout(() => {
-      session.idleTimer = undefined;
-      void this.trySuspendIdleShell(session);
-    }, timeoutMs);
-    session.idleTimer.unref?.();
-  }
-
-  private async trySuspendIdleShell(session: ShellSessionRuntime): Promise<void> {
-    if (
-      this.disposed ||
-      session.ignoreExit ||
-      session.ptyExited ||
-      this.shellSessions.get(session.shellId) !== session ||
-      this.suspendingShells.has(session.shellId)
-    ) {
-      return;
-    }
-
-    const suspendPromise = (async () => {
-      const checkChildren = this.options.hasShellChildProcesses ?? hasShellChildProcesses;
-      let hasChildren = true;
-      try {
-        hasChildren = await checkChildren(session.pty.pid, session.projectLocation);
-      } catch {
-        hasChildren = true;
-      }
-      if (
-        this.disposed ||
-        session.ignoreExit ||
-        session.ptyExited ||
-        this.shellSessions.get(session.shellId) !== session
-      ) {
-        return;
-      }
-      // Activity arrived while the child-process check was running; keep the new timer.
-      if (session.idleTimer !== undefined) {
-        return;
-      }
-      if (hasChildren) {
-        this.armShellIdleTimer(session);
-        return;
-      }
-
-      const currentSize = shellTerminalSize(session) ?? { cols: 120, rows: 30 };
-      const suspended: SuspendedShellSession = {
-        instanceId: session.instanceId,
-        shellId: session.shellId,
-        projectLocation: session.projectLocation,
-        outputLength: session.outputLength,
-        outputTranscript: session.outputTranscript,
-        cols: currentSize.cols,
-        rows: currentSize.rows,
-        ...(session.worktreePath ? { worktreePath: session.worktreePath } : {}),
-        ...(session.windowsShellRuntime
-          ? { windowsShellRuntime: session.windowsShellRuntime }
-          : {}),
-        ...(session.startInHome !== undefined ? { startInHome: session.startInHome } : {}),
-      };
-
-      this.clearShellIdleTimer(session);
-      session.ignoreExit = true;
-      this.shellSessions.delete(session.shellId);
-      const confirmed = await this.sessionRetirement.retireShellSession(session);
-      if (!confirmed) {
-        this.retiringShells.set(session.shellId, session);
-        console.warn(
-          `[supervisor] idle shell ${session.shellId} retirement was not confirmed; its execution slot stays counted.`,
-        );
-      }
-      if (!this.disposed && !this.recentlyRemovedThreadIds.has(session.shellId)) {
-        this.suspendedShells.set(session.shellId, suspended);
-      }
-    })().finally(() => {
-      if (this.suspendingShells.get(session.shellId) === suspendPromise) {
-        this.suspendingShells.delete(session.shellId);
-      }
-    });
-
-    this.suspendingShells.set(session.shellId, suspendPromise);
-    await suspendPromise;
-  }
-
-  private wakeSuspendedShell(shellId: string, initialInput?: string): Promise<ShellSessionRuntime> {
-    const existing = this.wakingShells.get(shellId);
-    if (existing) {
-      if (initialInput !== undefined) {
-        existing.queuedInputs.push(initialInput);
-      }
-      return existing.promise;
-    }
-    const entry: { promise: Promise<ShellSessionRuntime>; queuedInputs: string[] } = {
-      promise: undefined as unknown as Promise<ShellSessionRuntime>,
-      queuedInputs: initialInput !== undefined ? [initialInput] : [],
-    };
-    this.wakingShells.set(shellId, entry);
-    entry.promise = (async () => {
-      const live = this.shellSessions.get(shellId);
-      if (live) {
-        while (entry.queuedInputs.length > 0) {
-          live.pty.write(entry.queuedInputs.shift()!);
-        }
-        this.armShellIdleTimer(live);
-        return live;
-      }
-      const suspended = this.suspendedShells.get(shellId);
-      if (!suspended) {
-        throw new Error(`Unknown thread session: ${shellId}`);
-      }
-      ensureNodePtySpawnHelperExecutable();
-      if (this.retiringShells.has(shellId) && !(await this.retryRetainedShell(shellId))) {
-        throw new Error(
-          `Shell ${shellId} did not confirm exit; refusing to resume suspended shell.`,
-        );
-      }
-      const resourceLease = acquireOrHandoff(this.hostResourceAdmission, undefined, {
-        resourceClass: "terminal-shell",
-        key: shellId,
-      });
-      this.suspendedShells.delete(shellId);
-      try {
-        const session = this.spawnShellRuntime({
-          shellId,
-          projectLocation: suspended.projectLocation,
-          cols: suspended.cols,
-          rows: suspended.rows,
-          resourceLease,
-          instanceId: suspended.instanceId,
-          outputLength: suspended.outputLength,
-          outputTranscript: suspended.outputTranscript,
-          ...(suspended.worktreePath ? { worktreePath: suspended.worktreePath } : {}),
-          ...(suspended.windowsShellRuntime
-            ? { windowsShellRuntime: suspended.windowsShellRuntime }
-            : {}),
-          ...(suspended.startInHome !== undefined ? { startInHome: suspended.startInHome } : {}),
-        });
-        while (entry.queuedInputs.length > 0) {
-          session.pty.write(entry.queuedInputs.shift()!);
-        }
-        this.armShellIdleTimer(session);
-        if (this.wakingShells.get(shellId) === entry) {
-          this.wakingShells.delete(shellId);
-        }
-        return session;
-      } catch (error) {
-        if (
-          !this.disposed &&
-          !this.shellSessions.has(shellId) &&
-          !this.recentlyRemovedThreadIds.has(shellId)
-        ) {
-          this.suspendedShells.set(shellId, suspended);
-        }
-        throw error;
-      }
-    })().finally(() => {
-      if (this.wakingShells.get(shellId) === entry) {
-        this.wakingShells.delete(shellId);
-      }
-    });
-    return entry.promise;
+    resourceLease.activate();
   }
 
   async resolveThreadServerRequest(payload: ResolveThreadServerRequestPayload): Promise<void> {
@@ -2603,9 +2330,7 @@ export class ThreadSessionManager {
 
   readTerminalScrollback(threadId: string): string {
     return this.outputPipeline.readTerminalScrollback(
-      this.sessions.get(threadId) ??
-        this.shellSessions.get(threadId) ??
-        this.suspendedShells.get(threadId),
+      this.sessions.get(threadId) ?? this.shellSessions.get(threadId),
     );
   }
 
@@ -2633,10 +2358,6 @@ export class ThreadSessionManager {
     const shell = this.shellSessions.get(threadId);
     if (shell) {
       return snapshotFromLiveShell(shell, shell.ptyExited ? "exited" : "running");
-    }
-    const suspended = this.suspendedShells.get(threadId);
-    if (suspended) {
-      return snapshotFromSuspendedShell(suspended);
     }
     const retained = this.exitedShellSnapshots.get(threadId);
     if (retained && !isRetainedShellExpired(retained)) {
@@ -2693,12 +2414,10 @@ export class ThreadSessionManager {
         }),
     );
     for (const shell of this.shellSessions.values()) {
-      this.clearShellIdleTimer(shell);
       shell.ignoreExit = true;
       this.rememberRemovedThread(shell.shellId);
       void this.sessionRetirement.retireShellSession(shell);
     }
-    this.suspendedShells.clear();
     const controlledExited = await controlledRetirement;
     this.sessions.clear();
     this.sessionsBySessionId.clear();

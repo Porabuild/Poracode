@@ -314,3 +314,7 @@ export {
   type CompletedTurnRowMeta,
 } from "./db/completedTurnPages";
 export { dbMeasureLegacyHistoryCharge, dbMeasureLegacySnapshotCharge } from "./db/legacyReadCharge";
+export {
+  dbReadCommittedRuntimeItemImageBlob,
+  dbReadInlineImageBlobPreviewSource,
+} from "./db/runtimeInlineImageReads";

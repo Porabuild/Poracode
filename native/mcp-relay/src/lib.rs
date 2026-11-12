@@ -18,5 +18,5 @@ pub mod relay;
 pub mod schema;
 pub mod schema_proxy;
 pub mod stdio_launcher;
-#[cfg(any(windows, test))]
+#[cfg(windows)]
 pub mod win_spawn;

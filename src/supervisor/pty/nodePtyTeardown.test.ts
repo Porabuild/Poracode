@@ -13,7 +13,7 @@ describe("nodePtyTeardown", () => {
     vi.restoreAllMocks();
   });
 
-  it("terminates a Windows node-pty tree and disposes conout worker without calling pty.kill", () => {
+  it("terminates a Windows node-pty tree and defers worker disposal until exit", () => {
     vi.spyOn(process, "platform", "get").mockReturnValue("win32");
     const treeSpy = vi.spyOn(processTree, "terminateProcessTree").mockImplementation(() => {});
     const ptyKill = vi.fn<IPty["kill"]>();
@@ -31,7 +31,7 @@ describe("nodePtyTeardown", () => {
     terminateNodePty(pty, "SIGKILL");
 
     expect(treeSpy).toHaveBeenCalledExactlyOnceWith(9876);
-    expect(workerDispose).toHaveBeenCalledOnce();
+    expect(workerDispose).not.toHaveBeenCalled();
     expect(ptyKill).not.toHaveBeenCalled();
   });
 

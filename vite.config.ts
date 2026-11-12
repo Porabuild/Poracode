@@ -86,6 +86,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   // Deferred settings/devices import these roots directly. Optimizing only
   // I18nProvider leaves their nested CommonJS dependencies raw in dev.
   "react-aria",
+  "react-aria/private/utils/runAfterTransition",
   "react-aria-components",
   "react-aria-components/I18nProvider",
   "react/compiler-runtime",

@@ -384,8 +384,11 @@ export interface DatabaseSpaceReclamationResult {
 /**
  * Bounded space reclamation after startup pruning or thread-housekeeping purges:
  * removes unreferenced content-addressed inline image blobs, returns bounded
- * freelist pages on `auto_vacuum = INCREMENTAL` databases, checkpoints idle WAL
- * frames passively (respecting `journal_size_limit`), and shrinks SQLite's page cache.
+ * freelist pages to disk on `auto_vacuum = INCREMENTAL` databases (existing
+ * non-incremental profiles keep `auto_vacuum = NONE` without a blocking full
+ * `VACUUM` and reuse freed pages in-place), checkpoints idle WAL frames
+ * passively (bounded by `journal_size_limit = 32 MiB`), and shrinks SQLite's
+ * in-memory page cache.
  */
 export function reclaimDatabaseSpace(
   sqlite: InstanceType<typeof Database>,

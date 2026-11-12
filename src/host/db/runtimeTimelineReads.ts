@@ -125,7 +125,10 @@ export function mapRuntimeItemRows(
   sqlite: InstanceType<typeof Database>,
   threadId: string,
   rows: readonly RuntimeTimelineItemRow[],
-  options: { readonly includeStreams?: boolean } & RuntimeInlineImageReadOptions = {},
+  options: {
+    readonly includeStreams?: boolean;
+    readonly includeStreamTails?: boolean;
+  } & RuntimeInlineImageReadOptions = {},
 ): PersistedRuntimeItem[] {
   if (rows.length === 0) return [];
   if (!sqlite.inTransaction) {
@@ -144,15 +147,18 @@ export function mapRuntimeItemRows(
       ),
     );
   const heads = readRuntimeStreamHeads(sqlite, threadId, rows);
-  const tails = readStreamTails(
-    sqlite,
-    threadId,
-    rows.map((row) => row.item_id),
-  );
+  const tails =
+    options.includeStreamTails === false
+      ? undefined
+      : readStreamTails(
+          sqlite,
+          threadId,
+          rows.map((row) => row.item_id),
+        );
   return rows.map((row) =>
     mapRuntimeItemRow(
       row,
-      tails.get(row.item_id),
+      tails?.get(row.item_id),
       { value: heads.get(row.item_id) },
       projections.get(row.item_id),
       preparedPayloads.get(row.item_id),

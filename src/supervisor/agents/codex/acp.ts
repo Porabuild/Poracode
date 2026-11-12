@@ -235,7 +235,6 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private readonly mcpServers: readonly ResolvedMcpServer[];
   private readonly nativeMcpNames: readonly string[];
   private readonly detectedSidecars: DetectedCodexBundledSidecars | undefined;
-  private readonly agentSettings: Record<string, boolean | string> | undefined;
   private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
@@ -316,7 +315,6 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     wslDistro?: string,
     nativeMcpNames: readonly string[] = [],
     detectedSidecars?: DetectedCodexBundledSidecars,
-    agentSettings?: Record<string, boolean | string>,
   ) {
     this.rpc = rpc;
     this.liveVoice = new CodexLiveVoice(
@@ -330,7 +328,6 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.mcpServers = mcpServers;
     this.nativeMcpNames = nativeMcpNames;
     this.detectedSidecars = detectedSidecars;
-    this.agentSettings = agentSettings;
     this.releaseAppServer = releaseAppServer;
     this.wslDistro = wslDistro;
     this.launchOptions = {
@@ -344,7 +341,6 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       mcpServers: this.mcpServers,
       nativeMcpNames: this.nativeMcpNames,
       ...(this.detectedSidecars ? { detectedSidecars: this.detectedSidecars } : {}),
-      ...(this.agentSettings ? { agentSettings: this.agentSettings } : {}),
     });
   }
 
@@ -645,7 +641,6 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       wslDistro,
       nativeMcpNames,
       detectedSidecars,
-      input.agentSettings,
     );
     session.attachRpcHandlers();
 

@@ -56,29 +56,11 @@ describe("codex bundled sidecar suppression", () => {
     ).not.toHaveProperty("mcp_servers.node_repl");
   });
 
-  it("honors allowBundledCuaSidecars opt-in while still suppressing codex-app-tools", () => {
-    const config = buildCodexBundledSidecarThreadConfig({
-      detected: {
-        enabledPlugins: new Set([
-          "codex-app-tools@openai-bundled",
-          "unified-computer-use@openai-bundled",
-          "computer-use@openai-bundled",
-          "chrome@openai-bundled",
-        ]),
-        hasNodeRepl: true,
-      },
-      agentSettings: { allowBundledCuaSidecars: true },
-    });
-
-    expect(config).toEqual({
-      "plugins.codex-app-tools@openai-bundled": { enabled: false },
-    });
-  });
-
   it("detects configured bundled sidecars from config.toml and emits minimal CLI overrides", async () => {
     const toml = `
 [mcp_servers.node_repl]
 enabled = true
+command = "cua_node"
 
 [plugins."unified-computer-use@openai-bundled"]
 enabled = true
@@ -108,5 +90,94 @@ enabled = true
       "-c",
       "mcp_servers.node_repl.enabled=false",
     ]);
+  });
+
+  it.each([
+    ["custom command", '[mcp_servers.node_repl]\ncommand = "node"\nargs = ["repl.mjs"]'],
+    ["unknown commandless entry", "[mcp_servers.node_repl]\nenabled = true"],
+    [
+      "custom command with bundled-looking argument",
+      '[mcp_servers.node_repl]\ncommand = "node"\nargs = ["/usr/bin/cua_node"]',
+    ],
+    ["remote transport", '[mcp_servers.node_repl]\nurl = "https://example.test/mcp"'],
+    ["disabled bundled command", '[mcp_servers.node_repl]\nenabled = false\ncommand = "cua_node"'],
+  ])("leaves a custom or disabled node_repl entry alone (%s)", async (_name, toml) => {
+    const detected = await detectConfiguredCodexBundledSidecarsForPaths(
+      ["/home/dev/.codex/config.toml"],
+      {
+        readTextFile: async () => toml,
+      },
+    );
+
+    expect(detected.hasNodeRepl).toBe(false);
+    expect(buildCodexBundledSidecarCliArgs({ detected })).toEqual([]);
+  });
+
+  it("does not infer a bundled sidecar when its config is unreadable", () => {
+    expect(buildCodexBundledSidecarThreadConfig()).toEqual({});
+  });
+
+  it("detects the enabled bundled CUA binary and preserves an injected custom native server", async () => {
+    const detected = await detectConfiguredCodexBundledSidecarsForPaths(
+      ["/home/dev/.codex/config.toml"],
+      {
+        readTextFile: async () =>
+          '[mcp_servers.node_repl]\ncommand = "C:\\\\Codex\\\\cua_node.exe"',
+      },
+    );
+
+    expect(detected.hasNodeRepl).toBe(true);
+    expect(
+      buildCodexBundledSidecarCliArgs({
+        detected,
+        mcpServers: [
+          {
+            id: "node_repl",
+            name: "node_repl",
+            timeoutMs: 30_000,
+            transport: { type: "stdio", command: "node", args: ["custom.mjs"], env: {} },
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("merges home and project node_repl config before identifying the effective command", async () => {
+    const home = '[mcp_servers.node_repl]\ncommand = "custom-repl"';
+    const project = "[mcp_servers.node_repl]\nenabled = true";
+    const detected = await detectConfiguredCodexBundledSidecarsForPaths(
+      ["/home/dev/.codex/config.toml", "/project/.codex/config.toml"],
+      {
+        readTextFile: async (path) => (path === "/home/dev/.codex/config.toml" ? home : project),
+      },
+    );
+
+    expect(detected.hasNodeRepl).toBe(false);
+  });
+
+  it("retains the bundled home command when the project layer only enables it", async () => {
+    const home = '[mcp_servers.node_repl]\ncommand = "C:\\\\Codex\\\\cua_node.exe"';
+    const project = "[mcp_servers.node_repl]\nenabled = true";
+    const detected = await detectConfiguredCodexBundledSidecarsForPaths(
+      ["/home/dev/.codex/config.toml", "/project/.codex/config.toml"],
+      {
+        readTextFile: async (path) => (path === "/home/dev/.codex/config.toml" ? home : project),
+      },
+    );
+
+    expect(detected.hasNodeRepl).toBe(true);
+  });
+
+  it("honors an explicit project-layer disable for the bundled home command", async () => {
+    const home = '[mcp_servers.node_repl]\ncommand = "C:\\\\Codex\\\\cua_node.exe"';
+    const project = "[mcp_servers.node_repl]\nenabled = false";
+    const detected = await detectConfiguredCodexBundledSidecarsForPaths(
+      ["/home/dev/.codex/config.toml", "/project/.codex/config.toml"],
+      {
+        readTextFile: async (path) => (path === "/home/dev/.codex/config.toml" ? home : project),
+      },
+    );
+
+    expect(detected.hasNodeRepl).toBe(false);
   });
 });

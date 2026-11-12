@@ -9,12 +9,13 @@ import {
 import { readImageDimensions } from "@/shared/imageDimensions";
 import { remoteImageRef, type RemoteImageRefValue } from "@/shared/remote";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
-import { dbGetThreadRuntimeItem, dbGetThreadRuntimeItemCommitted } from "@/host/db";
 import {
+  dbGetThreadRuntimeItem,
+  dbGetThreadRuntimeItemCommitted,
   dbReadCommittedRuntimeItemImageBlob,
   dbReadInlineImageBlobPreviewSource,
-  readVerifiedInlineImageRefs,
-} from "@/host/db/runtimeInlineImages";
+} from "@/host/db";
+import { readVerifiedInlineImageRefs } from "@/host/db/runtimeInlineImages";
 import { canReadCommittedRuntimeItem } from "@/host/db/runtimePersistenceRuntime";
 import { getCachedImagePreview, imagePreviewKey, scheduleImagePreview } from "./imagePreview";
 import { getCachedImageBytes, putCachedImageBytes } from "./imageBytesCache";

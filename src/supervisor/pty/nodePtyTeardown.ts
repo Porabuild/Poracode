@@ -39,27 +39,19 @@ interface NodePtyInternals {
  * Terminate an unmanaged `node-pty` instance without invoking `node-pty`'s
  * `conpty_console_list_agent` fork or `WindowsTerminal` signal/ready traps on Windows.
  *
- * On Windows:
- * 1. Terminates the full process tree via `taskkill /PID <pid> /T /F` while the
- *    root PID is still alive so descendants cannot escape tree termination.
- * 2. Starts `conoutSocketWorker.dispose()` so the worker thread drains final
- *    bytes and closes its pipe without cutting off `ready_datapipe` or `onExit`,
- *    and without touching `conpty.cc`'s unguarded `ptyHandles` vector concurrently
- *    with its native exit waiter thread.
+ * On Windows, terminates the full process tree via `taskkill /PID <pid> /T /F`
+ * while the root PID is still alive so descendants cannot escape tree
+ * termination, without touching `conpty.cc`'s unguarded `ptyHandles` vector
+ * concurrently with its native exit waiter thread. Socket and worker-thread
+ * disposal is intentionally deferred to `disposeNodePtyAfterExit` after real
+ * `pty.onExit` confirmation so `node-pty`'s 1s `_drainTimeout` never synthesizes
+ * a premature `exit` event while the OS process is still alive.
  */
 export function terminateNodePty(pty: IPty, signal?: string): void {
   if (managedPtyCustody(pty)) return;
   if (process.platform === "win32") {
     if (typeof pty.pid === "number" && pty.pid > 0) {
       terminateProcessTree(pty.pid);
-    }
-    const agent = (pty as unknown as NodePtyInternals)._agent;
-    if (agent?._conoutSocketWorker) {
-      try {
-        agent._conoutSocketWorker.dispose();
-      } catch {
-        // Worker may already be terminating.
-      }
     }
     return;
   }

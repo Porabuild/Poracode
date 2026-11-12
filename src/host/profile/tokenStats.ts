@@ -6,13 +6,8 @@ import {
   type ProfileTokenStats,
 } from "@/shared/contracts";
 import type { ProfileCostTotals, UsageCostRecord } from "@/shared/contracts/costHistory";
-import { dbGetAllUsageEvents, getProfileDataGeneration } from "../db";
-import { isDatabaseInitialized } from "../db/connection";
-import {
-  dbIterateTokenUsageScanRows,
-  parseUsageCostRecord,
-  type UsageEventRow,
-} from "../db/usageEvents";
+import { getProfileDataGeneration } from "../db";
+import { dbIterateTokenUsageScanRows, parseUsageCostRecord } from "../db/usageEvents";
 import {
   buildHeatmap,
   dayKeyFromIndex,
@@ -115,28 +110,15 @@ function* iterateTokenRollupSourceRows(): IterableIterator<{
   value: number;
   costDetails: UsageCostRecord | undefined;
 }> {
-  if (isDatabaseInitialized()) {
-    for (const row of dbIterateTokenUsageScanRows()) {
-      const costDetails = row.cost_details ? parseUsageCostRecord(row.cost_details) : undefined;
-      yield {
-        ts: row.ts,
-        kind: row.kind,
-        provider: row.provider,
-        model: row.model,
-        value: row.value,
-        costDetails,
-      };
-    }
-    return;
-  }
-  for (const row of dbGetAllUsageEvents() as UsageEventRow[]) {
+  for (const row of dbIterateTokenUsageScanRows()) {
+    const costDetails = row.cost_details ? parseUsageCostRecord(row.cost_details) : undefined;
     yield {
       ts: row.ts,
       kind: row.kind,
       provider: row.provider,
       model: row.model,
       value: row.value,
-      costDetails: row.costDetails,
+      costDetails,
     };
   }
 }

@@ -20,6 +20,10 @@ import { createCursorSdkWorkerHarness } from "./sdkWorkerTestHarness";
 
 vi.mock("./sdkInstallPin", () => ({ readCursorSdkInstallPin: () => undefined }));
 
+function isChildTerminated(child: ChildProcess): boolean {
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -275,8 +279,9 @@ describe("CursorSdkSession idle worker reaper", () => {
     expect(spawnedChildren).toHaveLength(1);
     const firstChild = spawnedChildren[0]!;
     expect(firstChild.exitCode).toBeNull();
+    expect(firstChild.signalCode).toBeNull();
 
-    await vi.waitFor(() => expect(firstChild.exitCode).not.toBeNull(), { timeout: 5_000 });
+    await vi.waitFor(() => expect(isChildTerminated(firstChild)).toBe(true), { timeout: 5_000 });
     expect(recorded.errors).toEqual([]);
     expect(recorded.closes).toBe(0);
 
@@ -290,7 +295,7 @@ describe("CursorSdkSession idle worker reaper", () => {
     );
 
     await session.dispose();
-    expect(secondChild.exitCode).not.toBeNull();
+    expect(isChildTerminated(secondChild)).toBe(true);
     expect(recorded.closes).toBe(1);
   });
 });

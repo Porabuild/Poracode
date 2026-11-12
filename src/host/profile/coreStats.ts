@@ -10,10 +10,8 @@ import {
   type ProfileStatsRequest,
   type ProfileTotals,
 } from "@/shared/contracts";
-import { dbGetAllUsageEvents, getProfileDataGeneration, type UsageEventRow } from "../db";
-import { isDatabaseInitialized } from "../db/connection";
+import { getProfileDataGeneration } from "../db";
 import {
-  CORE_USAGE_EVENT_KINDS,
   dbIterateCoreUsageEvents,
   dbQueryUsageAccountCounts,
   type CoreUsageEventRow,
@@ -45,7 +43,6 @@ import {
  */
 
 const MAX_SKILLS = 8;
-const CORE_EVENT_KIND_SET: ReadonlySet<string> = new Set(CORE_USAGE_EVENT_KINDS);
 
 function hourLabel(hour: number): string {
   const period = hour < 12 ? "AM" : "PM";
@@ -171,29 +168,6 @@ function topSkillsByCount(
     .map(([name, runCount]) => ({ name, displayName: display(name), kind, runCount }));
 }
 
-/** Distinct accounts (account-scoped provider kinds) seen across all events. */
-function collectAccountsFromRows(rows: readonly UsageEventRow[]): { key: string; label: string }[] {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    if (!row.provider) continue;
-    counts.set(row.provider, (counts.get(row.provider) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([key]) => ({ key, label: accountLabel(key) }));
-}
-
-function* iterateMockedCoreRows(
-  rows: readonly UsageEventRow[],
-  provider: string | undefined,
-): IterableIterator<CoreUsageEventRow> {
-  for (const row of rows) {
-    if (!CORE_EVENT_KIND_SET.has(row.kind)) continue;
-    if (provider && row.provider !== provider) continue;
-    yield row;
-  }
-}
-
 // -- Entry point ------------------------------------------------------
 
 function emptyTotals(): ProfileTotals {
@@ -283,19 +257,11 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
   // When SQLite is open, query account counts and stream only non-token core
   // events directly so `tokens`/`tokens_v2` rows and `cost_details` JSON are
   // never loaded or retained in memory.
-  let availableAccounts: { key: string; label: string }[];
-  let coreRowStream: IterableIterator<CoreUsageEventRow>;
-  if (isDatabaseInitialized()) {
-    availableAccounts = dbQueryUsageAccountCounts().map(({ provider }) => ({
-      key: provider,
-      label: accountLabel(provider),
-    }));
-    coreRowStream = dbIterateCoreUsageEvents(req.provider);
-  } else {
-    const allRows = dbGetAllUsageEvents();
-    availableAccounts = collectAccountsFromRows(allRows);
-    coreRowStream = iterateMockedCoreRows(allRows, req.provider);
-  }
+  const availableAccounts = dbQueryUsageAccountCounts().map(({ provider }) => ({
+    key: provider,
+    label: accountLabel(provider),
+  }));
+  const coreRowStream = dbIterateCoreUsageEvents(req.provider);
 
   const windowDays = statsWindowDays(req.window);
   const startIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;

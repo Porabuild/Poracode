@@ -8,7 +8,7 @@
 
 use std::ffi::OsString;
 use std::os::windows::process::CommandExt;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
 /// `CREATE_NO_WINDOW` from `winbase.h`.
@@ -44,11 +44,12 @@ pub fn build_windows_command(
                     OsString::from("cmd.exe")
                 }
             });
-        let target = resolved
-            .as_ref()
-            .and_then(|p| p.to_str())
-            .unwrap_or(command);
-        let shell_command = build_cmd_shell_line(target, args);
+        let target = command;
+        let double_escape_meta_chars = resolved
+            .as_deref()
+            .and_then(|path| path.to_str())
+            .is_some_and(is_node_modules_bin_cmd);
+        let shell_command = build_cmd_shell_line(target, args, double_escape_meta_chars);
         let mut c = Command::new(comspec);
         c.raw_arg("/d /s /c");
         c.raw_arg(format!("\"{shell_command}\""));
@@ -153,33 +154,60 @@ fn probe_with_extensions(base: &Path, exts: &[String]) -> Option<PathBuf> {
     None
 }
 
-/// Escapes command and arguments identically to `cross-spawn`:
-/// 1. Quote command/argument for `CommandLineToArgvW` (`\"` + doubled trailing
-///    backslashes) when empty or containing `[ \t"]`.
-/// 2. Prefix `^` before every `cmd.exe` metacharacter `()%!^"<>&|`.
-fn build_cmd_shell_line(command: &str, args: &[String]) -> String {
+fn is_node_modules_bin_cmd(path: &str) -> bool {
+    let normalized = path.replace('/', "\\");
+    let parts: Vec<_> = normalized.split('\\').collect();
+    let Some(name) = parts.last() else {
+        return false;
+    };
+    parts.len() >= 3
+        && parts[parts.len() - 3].eq_ignore_ascii_case("node_modules")
+        && parts[parts.len() - 2].eq_ignore_ascii_case(".bin")
+        && name.to_ascii_lowercase().ends_with(".cmd")
+        && name.len() > 4
+}
+
+fn normalize_windows_command(command: &str) -> String {
+    if command.is_empty() {
+        return ".".to_string();
+    }
+    let mut normalized = PathBuf::new();
+    for component in Path::new(command).components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if normalized
+                    .file_name()
+                    .is_some_and(|name| name != std::ffi::OsStr::new(".."))
+                {
+                    normalized.pop();
+                } else if !normalized.has_root() {
+                    normalized.push("..");
+                }
+            }
+            other => normalized.push(other.as_os_str()),
+        }
+    }
+    if normalized.as_os_str().is_empty() {
+        normalized.push(".");
+    }
+    normalized.to_string_lossy().replace('/', "\\")
+}
+
+fn build_cmd_shell_line(command: &str, args: &[String], double_escape_meta_chars: bool) -> String {
     let mut parts = Vec::with_capacity(1 + args.len());
-    parts.push(escape_cmd_meta(&quote_cmd_token(command, true)));
+    parts.push(escape_cmd_meta(&normalize_windows_command(command)));
     for arg in args {
-        parts.push(escape_cmd_meta(&quote_cmd_token(arg, false)));
+        parts.push(escape_cmd_argument(arg, double_escape_meta_chars));
     }
     parts.join(" ")
 }
 
-fn quote_cmd_token(token: &str, is_command: bool) -> String {
-    let needs_quotes = token.is_empty()
-        || token.chars().any(|c| matches!(c, ' ' | '\t' | '"'))
-        || (is_command
-            && token
-                .chars()
-                .any(|c| matches!(c, '(' | ')' | '%' | '!' | '^' | '<' | '>' | '&' | '|')));
-    if !needs_quotes {
-        return token.to_string();
-    }
-    let mut quoted = String::with_capacity(token.len() + 2);
+fn escape_cmd_argument(argument: &str, double_escape_meta_chars: bool) -> String {
+    let mut quoted = String::with_capacity(argument.len() + 2);
     quoted.push('"');
     let mut backslashes = 0usize;
-    for ch in token.chars() {
+    for ch in argument.chars() {
         if ch == '\\' {
             backslashes += 1;
         } else if ch == '"' {
@@ -200,7 +228,12 @@ fn quote_cmd_token(token: &str, is_command: bool) -> String {
         quoted.push('\\');
     }
     quoted.push('"');
-    quoted
+    let quoted = escape_cmd_meta(&quoted);
+    if double_escape_meta_chars {
+        escape_cmd_meta(&quoted)
+    } else {
+        quoted
+    }
 }
 
 fn escape_cmd_meta(value: &str) -> String {
@@ -208,7 +241,23 @@ fn escape_cmd_meta(value: &str) -> String {
     for ch in value.chars() {
         if matches!(
             ch,
-            '(' | ')' | '%' | '!' | '^' | '"' | '<' | '>' | '&' | '|'
+            '(' | ')'
+                | '['
+                | ']'
+                | '%'
+                | '!'
+                | '^'
+                | '"'
+                | '`'
+                | '<'
+                | '>'
+                | '&'
+                | '|'
+                | ';'
+                | ','
+                | ' '
+                | '*'
+                | '?'
         ) {
             out.push('^');
         }
@@ -220,16 +269,113 @@ fn escape_cmd_meta(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn escapes_spaces_ampersands_and_parentheses_like_cross_spawn() {
         let line = build_cmd_shell_line(
             r"C:\Temp\fixture.cmd",
             &["value with spaces & parentheses (literal)".to_string()],
+            false,
         );
         assert_eq!(
             line,
-            r#"C:\Temp\fixture.cmd ^"value with spaces ^& parentheses ^(literal^)^""#
+            r#"C:\Temp\fixture.cmd ^"value^ with^ spaces^ ^&^ parentheses^ ^(literal^)^""#
         );
+    }
+
+    struct TestDir(PathBuf);
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn node_modules_cmd_shim_forwards_arguments_without_running_shell_syntax() {
+        let root = std::env::temp_dir().join(format!(
+            "poracode mcp relay win spawn-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _cleanup = TestDir(root.clone());
+        let shim_dir = root.join("node_modules").join(".bin");
+        fs::create_dir_all(&shim_dir).unwrap();
+        let args = vec![
+            "a=1&echo.INJECTED".to_string(),
+            "https://host/mcp?a=1&b=2".to_string(),
+            "pipe|arg".to_string(),
+            "lt<arg".to_string(),
+            "gt>arg".to_string(),
+            "%TEMP%".to_string(),
+            "!bang!".to_string(),
+            "^caret".to_string(),
+            "a\"b".to_string(),
+            "tick`x".to_string(),
+            "semi;comma,".to_string(),
+            "space value".to_string(),
+            "star*".to_string(),
+            "question?".to_string(),
+            "[brackets]".to_string(),
+            "trailing\\".to_string(),
+        ];
+        let env: Vec<(OsString, OsString)> = std::env::vars_os().collect();
+        for shim in [
+            shim_dir.join("fixture.cmd"),
+            root.join("ordinary.cmd"),
+            root.join("ordinary.bat"),
+        ] {
+            let script = shim.with_file_name("argv.js");
+            fs::write(&shim, "@echo off\r\nnode \"%~dp0argv.js\" %*\r\n").unwrap();
+            fs::write(
+                &script,
+                "process.stdout.write(JSON.stringify(process.argv.slice(2)))",
+            )
+            .unwrap();
+            let output = build_windows_command(
+                shim.to_str().unwrap(),
+                &args,
+                Some(root.to_str().unwrap()),
+                &env,
+            )
+            .output()
+            .unwrap();
+
+            assert!(output.status.success(), "shim: {}", shim.display());
+            assert_eq!(
+                serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap(),
+                args,
+                "shim: {}",
+                shim.display()
+            );
+        }
+    }
+
+    #[test]
+    fn matches_cross_spawn_escape_for_cmd_shims_and_node_modules_bin() {
+        assert_eq!(
+            build_cmd_shell_line("C:/x/npx.cmd", &["a=1&b=2".to_string()], false),
+            r#"C:\x\npx.cmd ^"a=1^&b=2^""#
+        );
+        assert_eq!(
+            build_cmd_shell_line("C:/x/../npx.cmd", &[], false),
+            r#"C:\npx.cmd"#
+        );
+        assert_eq!(
+            build_cmd_shell_line(
+                "C:/x/node_modules/.bin/npx.cmd",
+                &["a=1&b=2".to_string()],
+                true
+            ),
+            r#"C:\x\node_modules\.bin\npx.cmd ^^^"a=1^^^&b=2^^^""#
+        );
+        assert!(is_node_modules_bin_cmd(r"C:\x\node_modules\.bin\npx.cmd"));
+        assert!(is_node_modules_bin_cmd(r"C:/x/NODE_MODULES/.BIN/npx.CMD"));
+        assert!(!is_node_modules_bin_cmd(r"C:\x\node_modules\npx.cmd"));
+        assert!(!is_node_modules_bin_cmd(r"C:\x\node_modules\.bin\npx.bat"));
     }
 }
