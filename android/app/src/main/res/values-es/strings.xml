@@ -167,4 +167,6 @@
     <string name="rich_chat_download_failed">No se pudo descargar el archivo.</string>
     <string name="home_filter_by_project">Filtrar por proyecto</string>
     <string name="common_more_actions">Más acciones</string>
+    <string name="rich_chat_ask_when_needed">Preguntar cuando sea necesario</string>
+    <string name="rich_chat_never_ask">No preguntar nunca</string>
 </resources>

@@ -163,6 +163,8 @@ export type AgentSettingDef = z.infer<typeof agentSettingDefSchema>;
 const bypassPermissionsSchema = z.object({
   approvalPolicy: z.string().optional(),
   sandboxMode: z.string().optional(),
+  /** The declared policy is authoritative even when another standard bypass id is advertised. */
+  preferDeclaredApprovalPolicy: z.boolean().optional(),
 });
 
 // ── Model family relations ─────────────────────────────────────────────────

@@ -6,16 +6,16 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
-data class ProcedurerefreshAgentStatusesResult_e5e44e3ce8(
+data class ProcedurerefreshAgentStatusesResult_ced7436778(
     @SerialName("fromCache") val fromCache: Boolean,
-    @SerialName("windows") val windows: List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_fff3547caa>,
-    @SerialName("wsl") val wsl: List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_fff3547caa>,
+    @SerialName("windows") val windows: List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d>,
+    @SerialName("wsl") val wsl: List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d>,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("fromCache", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("windows", "List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_fff3547caa>", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("wsl", "List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_fff3547caa>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("windows", "List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("wsl", "List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d>", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

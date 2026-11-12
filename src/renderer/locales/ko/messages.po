@@ -2433,6 +2433,10 @@ msgstr "질문할 수 없습니다. 이 프로젝트에서 채팅을 시작할 �
 msgid "Ask Question"
 msgstr "질문하기"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "필요할 때 묻기"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "남은 스레드가 없는 연결된 작업 트리도 삭제됩니다."
@@ -6230,6 +6234,7 @@ msgstr "영구 세션, 추론 설정, MCP 도구를 지원하는 DeepSeek Harnes
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -12484,6 +12489,10 @@ msgstr "중립"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Never"
 msgstr "안 함"
+
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "묻지 않기"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"

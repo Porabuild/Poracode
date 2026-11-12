@@ -2433,6 +2433,10 @@ msgstr "无法提问：没有可为此项目启动聊天的智能体。"
 msgid "Ask Question"
 msgstr "提问"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "需要时询问"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "没有剩余线程的关联工作树也将被删除。"
@@ -6230,6 +6234,7 @@ msgstr "DeepSeek Harness 聊天，支持持久会话、推理设置和 MCP 工�
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -12483,6 +12488,10 @@ msgstr "中立"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Never"
 msgstr "从不"
+
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "从不询问"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"

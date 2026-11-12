@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { resolveUnrestrictedPermissionConfig } from "@/shared/agents/unrestrictedPermissions";
+import { capabilitiesForPresentation } from "@/shared/agentSelection";
 import {
   buildKimiProbeCapabilities,
   hasKimiCredential,
@@ -116,14 +118,35 @@ describe("kimiDetectionSpec", () => {
 });
 
 describe("kimiDefaultCapabilities", () => {
-  it("advertises manual/auto/yolo approval policies with a yolo bypass posture", () => {
-    expect(kimiDefaultCapabilities.approvalPolicies?.map((p) => p.id)).toEqual([
-      "default",
-      "auto",
-      "yolo",
+  it("uses Kimi's native permission posture for both presentations", () => {
+    const terminal = capabilitiesForPresentation(kimiDefaultCapabilities, "terminal");
+    const gui = capabilitiesForPresentation(kimiDefaultCapabilities, "gui");
+    expect(terminal.approvalPolicies).toEqual([
+      { id: "default", label: "Default" },
+      { id: "yolo", label: "Ask When Needed" },
+      { id: "auto", label: "Never Ask" },
     ]);
-    expect(kimiDefaultCapabilities.bypassPermissions).toEqual({ approvalPolicy: "yolo" });
-    expect(kimiDefaultCapabilities.defaultApprovalPolicy).toBe("auto");
+    expect(gui.approvalPolicies).toEqual([
+      { id: "default", label: "Default" },
+      { id: "never", label: "Ask When Needed" },
+      { id: "auto", label: "Never Ask" },
+    ]);
+    expect(terminal.defaultApprovalPolicy).toBe("auto");
+    expect(gui.defaultApprovalPolicy).toBe("auto");
+    expect(resolveUnrestrictedPermissionConfig(terminal)).toEqual({ approvalPolicy: "auto" });
+    expect(resolveUnrestrictedPermissionConfig(gui)).toEqual({ approvalPolicy: "auto" });
+    expect(
+      resolveUnrestrictedPermissionConfig({
+        ...gui,
+        approvalPolicies: gui.approvalPolicies.filter((policy) => policy.id !== "auto"),
+      }),
+    ).toEqual({});
+    expect(
+      resolveUnrestrictedPermissionConfig({
+        ...gui,
+        bypassPermissions: { approvalPolicy: "auto" },
+      }),
+    ).toEqual({ approvalPolicy: "never" });
   });
 
   it("supports both terminal and GUI presentation", () => {
@@ -310,6 +333,24 @@ describe("buildKimiProbeCapabilities", () => {
     const models = [{ id: "k3", label: "Kimi for Coding" }];
     expect(buildKimiProbeCapabilities({ models }, noCredentials).models).toEqual(models);
     expect(buildKimiProbeCapabilities(undefined, noCredentials).models).toBeUndefined();
+  });
+
+  it("keeps discovered models in the GUI while ignoring incorrect ACP permission labels", () => {
+    const probe = {
+      models: [{ id: "model-1", label: "Model" }],
+      modelEfforts: { "model-1": ["low", "high"] },
+      approvalPolicies: [{ id: "never", label: "YOLO" }],
+    };
+    const capabilities = {
+      ...kimiDefaultCapabilities,
+      ...buildKimiProbeCapabilities(probe, noCredentials),
+    };
+    const gui = capabilitiesForPresentation(capabilities, "gui");
+    expect(gui.models).toEqual(probe.models);
+    expect(gui.modelEfforts).toEqual(probe.modelEfforts);
+    expect(gui.approvalPolicies.find((policy) => policy.id === "never")?.label).toBe(
+      "Ask When Needed",
+    );
   });
 
   it("keeps dynamic K3.1 model metadata and its configured default effort", () => {

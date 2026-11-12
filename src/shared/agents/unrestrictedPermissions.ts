@@ -33,8 +33,7 @@ export function isFullBypassApprovalPolicy(policy: string | undefined): boolean 
 
 /**
  * Resolve a provider's most-permissive approval/sandbox choice from its
- * advertised capabilities, falling back to its declared bypass posture when
- * the probe exposes no choices. Provider-agnostic: the preferred-id lists are
+ * advertised capabilities. Provider-agnostic: the preferred-id lists are
  * only ranked candidates — a value is used solely when the target provider
  * itself advertises it. Shared by the subagent lane (unrestricted children)
  * and scheduled runs (unattended, so approvals cannot be answered).
@@ -46,6 +45,7 @@ export function resolveUnrestrictedPermissionConfig(
     capabilities.approvalPolicies,
     capabilities.bypassPermissions?.approvalPolicy,
     FULL_BYPASS_APPROVAL_POLICIES,
+    capabilities.bypassPermissions?.preferDeclaredApprovalPolicy,
   );
   const sandboxMode = resolveUnrestrictedOption(
     capabilities.sandboxModes,
@@ -78,7 +78,14 @@ function resolveUnrestrictedOption(
   options: readonly { id: string }[],
   declaredBypass: string | undefined,
   preferredIds: readonly string[],
+  preferDeclared = false,
 ): string | undefined {
+  if (preferDeclared) {
+    return declaredBypass &&
+      (options.length === 0 || options.some((option) => option.id === declaredBypass))
+      ? declaredBypass
+      : undefined;
+  }
   for (const id of preferredIds) {
     const match = options.find((option) => option.id === id);
     if (match) return match.id;

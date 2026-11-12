@@ -2438,6 +2438,10 @@ msgstr "Ask is unavailable: no agent can start a chat for this project."
 msgid "Ask Question"
 msgstr "Ask Question"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "Ask When Needed"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "Associated worktrees with no remaining threads will also be removed."
@@ -6239,6 +6243,7 @@ msgstr "DeepSeek Harness chat with persistent sessions, reasoning controls, and 
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -12493,6 +12498,10 @@ msgstr "Neutral"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Never"
 msgstr "Never"
+
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "Never Ask"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"

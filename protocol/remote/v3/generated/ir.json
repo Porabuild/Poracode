@@ -31790,6 +31790,9 @@
                 "approvalPolicy": {
                   "type": "string"
                 },
+                "preferDeclaredApprovalPolicy": {
+                  "type": "boolean"
+                },
                 "sandboxMode": {
                   "type": "string"
                 }
@@ -40352,6 +40355,9 @@
               "properties": {
                 "approvalPolicy": {
                   "type": "string"
+                },
+                "preferDeclaredApprovalPolicy": {
+                  "type": "boolean"
                 },
                 "sandboxMode": {
                   "type": "string"
@@ -84914,7 +84920,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:ed400b5f4388c42f54755aa1a401a057ab57fbcb48b4388691d81d1b799af47a",
+  "sourceHash": "sha256:a34a7b8a853261a8e6bfebf468aa87345fa9c4d86c93271d0e413c56cbc93d9d",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

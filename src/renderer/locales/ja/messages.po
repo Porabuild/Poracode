@@ -2432,6 +2432,10 @@ msgstr "質問できません。このプロジェクトでチャットを開始
 msgid "Ask Question"
 msgstr "質問する"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "必要に応じて確認"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "残っているスレッドがない関連ワークツリーも削除されます。"
@@ -6229,6 +6233,7 @@ msgstr "永続セッション、推論設定、MCPツールに対応したDeepSe
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -12482,6 +12487,10 @@ msgstr "中立"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Never"
 msgstr "しない"
+
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "確認しない"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"

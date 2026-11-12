@@ -826,7 +826,11 @@ struct RichChatComposerControlsSheet: View {
 
   @ViewBuilder
   private var permissionSection: some View {
-    let options = catalog.permissionOptions
+    let options = catalog.permissionOptions.map {
+      RichChatComposerOption(
+        id: $0.id, label: RichChatStrings.permissionOption($0.label),
+        modelDescription: $0.modelDescription)
+    }
     if options.count > 1 {
       Section(HomeStrings.permissions) {
         choicePicker(

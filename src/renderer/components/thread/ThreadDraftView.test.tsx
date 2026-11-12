@@ -2752,6 +2752,56 @@ describe("ThreadDraftView", () => {
     });
   });
 
+  it("launches with the displayed permission when the policy catalog changes after a local edit", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const initial = {
+      ...claudeStatus,
+      capabilities: {
+        ...claudeStatus.capabilities,
+        approvalPolicies: [{ id: "old", label: "Old" }],
+        defaultApprovalPolicy: "old",
+      },
+    };
+    const refreshed = {
+      ...initial,
+      capabilities: {
+        ...initial.capabilities,
+        approvalPolicies: [{ id: "auto", label: "Auto mode" }],
+        defaultApprovalPolicy: "auto",
+      },
+    };
+    const { rerender } = render(
+      <ThreadDraftView project={project} agentStatuses={[initial]} onStart={onStart} />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ kind?: string }> };
+      expect(props.controls.some((control) => control.kind === "provider-model")).toBe(true);
+    });
+    const props = composerSpy.mock.lastCall?.[0] as {
+      controls: Array<{
+        kind?: string;
+        onChange?: (next: { agentKind: string; model: string }) => void;
+      }>;
+    };
+    act(() => {
+      props.controls
+        .find((control) => control.kind === "provider-model")
+        ?.onChange?.({
+          agentKind: "claude",
+          model: "claude-opus-4-7",
+        });
+    });
+    rerender(<ThreadDraftView project={project} agentStatuses={[refreshed]} onStart={onStart} />);
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({ config: expect.objectContaining({ approvalPolicy: "auto" }) }),
+      );
+    });
+  });
+
   it("submits codex defaults on first launch", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
 
@@ -3930,7 +3980,9 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("submit"));
     await waitFor(() =>
       expect(onStart).toHaveBeenCalledWith(
-        expect.objectContaining({ config: expect.objectContaining({ mode: "agent" }) }),
+        expect.objectContaining({
+          config: expect.objectContaining({ mode: "agent", approvalPolicy: "auto" }),
+        }),
       ),
     );
   });

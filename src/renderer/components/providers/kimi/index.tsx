@@ -1,6 +1,8 @@
 export * from "./KimiIcon";
 
 import { KimiIcon } from "./KimiIcon";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 import providerManifest from "./manifest";
 import { standardPlanApprovalControls } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
@@ -28,4 +30,20 @@ registerConflictResolverDefaults(PROVIDER_KIND, KIMI_UTILITY_DEFAULTS);
 
 // Kimi exposes Default, Auto, and YOLO as distinct ACP permission modes, so
 // keep the full approval menu alongside the capability-driven Plan/Work toggle.
-registerComposerControls(PROVIDER_KIND, (input) => standardPlanApprovalControls(input));
+registerComposerControls(PROVIDER_KIND, (input) =>
+  standardPlanApprovalControls({
+    ...input,
+    capabilities: {
+      ...input.capabilities,
+      approvalPolicies: input.capabilities.approvalPolicies.map((policy) => ({
+        ...policy,
+        label:
+          policy.id === "auto"
+            ? i18n._(msg`Never Ask`)
+            : policy.id === "yolo" || policy.id === "never"
+              ? i18n._(msg`Ask When Needed`)
+              : i18n._(msg`Default`),
+      })),
+    },
+  }),
+);

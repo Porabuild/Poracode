@@ -167,4 +167,6 @@
     <string name="rich_chat_download_failed">파일을 다운로드할 수 없습니다.</string>
     <string name="home_filter_by_project">프로젝트별 필터</string>
     <string name="common_more_actions">추가 작업</string>
+    <string name="rich_chat_ask_when_needed">필요할 때 묻기</string>
+    <string name="rich_chat_never_ask">묻지 않기</string>
 </resources>

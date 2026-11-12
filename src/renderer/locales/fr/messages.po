@@ -2433,6 +2433,10 @@ msgstr "Poser une question est indisponible : aucun agent ne peut démarrer un c
 msgid "Ask Question"
 msgstr "Poser une question"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "Demander si nécessaire"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "Les arbres de travail associés ne contenant plus de fils seront également supprimés."
@@ -6230,6 +6234,7 @@ msgstr "Discussion DeepSeek Harness avec sessions persistantes, réglages du rai
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -12483,6 +12488,10 @@ msgstr "Neutre"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Never"
 msgstr "Jamais"
+
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "Ne jamais demander"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"

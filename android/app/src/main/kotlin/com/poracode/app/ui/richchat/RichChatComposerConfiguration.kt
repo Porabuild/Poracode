@@ -263,7 +263,12 @@ internal class RichChatComposerControlCatalog(
             },
             mode = normalizeOptional(configuration.mode, modes),
             approvalPolicy = normalizeOptional(
-                configuration.approvalPolicy,
+                configuration.approvalPolicy ?: (capabilities["bypassPermissions"] as? JsonObject)
+                    ?.get("preferDeclaredApprovalPolicy")
+                    ?.let { it as? JsonPrimitive }
+                    ?.booleanOrNull
+                    ?.takeIf { it }
+                    ?.let { capabilities["defaultApprovalPolicy"]?.stringValue() },
                 approvalPolicies,
             ),
         )

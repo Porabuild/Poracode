@@ -2433,6 +2433,10 @@ msgstr "Soru sorma kullanılamıyor: bu proje için sohbet başlatabilecek bir t
 msgid "Ask Question"
 msgstr "Soru Sor"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "Gerektiğinde sor"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "Kalan ileti dizisi olmayan ilişkili çalışma ağaçları da kaldırılacaktır."
@@ -6230,6 +6234,7 @@ msgstr "Kalıcı oturumlar, akıl yürütme ayarları ve MCP araçlarıyla DeepS
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -12484,6 +12489,10 @@ msgstr "Nötr"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 msgid "Never"
 msgstr "Asla"
+
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "Asla sorma"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"

@@ -167,4 +167,6 @@
     <string name="rich_chat_download_failed">Không thể tải xuống tệp.</string>
     <string name="home_filter_by_project">Lọc theo dự án</string>
     <string name="common_more_actions">Thêm tác vụ</string>
+    <string name="rich_chat_ask_when_needed">Hỏi khi cần</string>
+    <string name="rich_chat_never_ask">Không bao giờ hỏi</string>
 </resources>
