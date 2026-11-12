@@ -37,6 +37,11 @@ import {
   readRuntimePayloadProjectionInputs,
   type RuntimePayloadProjectionInput,
 } from "./runtimePayloadProjection";
+import {
+  measureExternalizedImageSizesByItem,
+  readVerifiedDisplayImageRefItems,
+  type ExternalizedItemImageSize,
+} from "./runtimeInlineImages";
 
 /**
  * B4 bounded history reads: metadata-only phase 1 (classification + size
@@ -200,6 +205,8 @@ class HistoryTimelineClassifier {
   private readonly childParentIds: ReadonlySet<string>;
   private readonly projectionInputs = new Map<string, RuntimePayloadProjectionInput>();
   private readonly payloadById = new Map<string, unknown>();
+  private readonly externalizedDisplayImageIds = new Set<string>();
+  private readonly externalizedSizesById = new Map<string, ExternalizedItemImageSize>();
   private readonly reasoningContentById = new Map<string, boolean>();
   private readonly tailSizeById = new Map<string, HistoryTailSize>();
   private readonly headSizeById = new Map<string, RuntimeStreamHeadStorageSize>();
@@ -249,6 +256,13 @@ class HistoryTimelineClassifier {
     if (rows.length === 0) return;
     for (const [id, input] of readRuntimePayloadProjectionInputs(this.sqlite, this.threadId, rows))
       this.projectionInputs.set(id, input);
+    for (const [id, sizes] of measureExternalizedImageSizesByItem(
+      this.sqlite,
+      this.threadId,
+      rows.map((row) => row.item_id),
+    )) {
+      this.externalizedSizesById.set(id, sizes);
+    }
     const streamedRows = this.compactDetails
       ? rows.filter((row) => !hasDeferredHistoryStreams(row.type, row.state))
       : rows;
@@ -311,6 +325,7 @@ class HistoryTimelineClassifier {
         (row) => RUNTIME_PAGE_NAMED_TOOL_TYPES.has(row.type) && !this.payloadById.has(row.item_id),
       )
       .map((row) => row.item_id);
+    const newlyProbed: Array<{ itemId: string; payload: Record<string, unknown> }> = [];
     for (const chunk of chunkValues([...new Set(missing)], HISTORY_PROBE_BATCH)) {
       if (chunk.length === 0) continue;
       const payloadRows = this.sqlite
@@ -320,11 +335,25 @@ class HistoryTimelineClassifier {
         )
         .all(this.threadId, ...chunk) as Array<{ item_id: string; payload: string | null }>;
       for (const row of payloadRows) {
-        this.payloadById.set(row.item_id, row.payload ? safeParse(row.payload) : undefined);
+        const parsed = row.payload ? safeParse(row.payload) : undefined;
+        this.payloadById.set(row.item_id, parsed);
+        if (parsed && typeof parsed === "object") {
+          newlyProbed.push({
+            itemId: row.item_id,
+            payload: parsed as Record<string, unknown>,
+          });
+        }
       }
       for (const itemId of chunk) {
         if (!this.payloadById.has(itemId)) this.payloadById.set(itemId, undefined);
       }
+    }
+    for (const itemId of readVerifiedDisplayImageRefItems(
+      this.sqlite,
+      this.threadId,
+      newlyProbed,
+    )) {
+      this.externalizedDisplayImageIds.add(itemId);
     }
   }
 
@@ -358,6 +387,7 @@ class HistoryTimelineClassifier {
     const tailStoredBytes = this.tailSizeById.get(row.item_id)?.storedBytes ?? 0;
     const head = this.headSizeById.get(row.item_id);
     const headStoredBytes = (head?.metadataKeyBytes ?? 0) + (head?.blockBytes ?? 0);
+    const ext = this.externalizedSizesById.get(row.item_id);
     // Stored JSON seed/payload, UTF-16 head blocks and appended tail text
     // re-serialize into JSON at at most `6 × stored bytes` (including control
     // and lone-surrogate escapes). Metadata keys cover indexed stream names;
@@ -369,6 +399,7 @@ class HistoryTimelineClassifier {
       CATALOG_ROW_ENVELOPE_BYTES +
       // This is an UPPER packing reserve, never an oversized lower-bound proof.
       (this.projectionInputs.get(row.item_id)?.spec.maxWireExpansionBytes ?? 0) +
+      (ext ? CATALOG_JSON_BOUND_FACTOR * ext.inlineUtf8Bytes + 2048 * ext.refCount : 0) +
       CATALOG_JSON_BOUND_FACTOR *
         (row.payload_bytes + seedBytes + headStoredBytes + tailStoredBytes)
     );
@@ -391,6 +422,10 @@ class HistoryTimelineClassifier {
       this.compactDetails && hasDeferredHistoryStreams(row.type, row.state) ? 0 : row.streams_bytes;
     const head = this.headSizeById.get(row.item_id);
     let payloadBytes = row.payload_bytes;
+    const ext = this.externalizedSizesById.get(row.item_id);
+    if (ext) {
+      payloadBytes += 512 * ext.refCount;
+    }
     // Named-tool payloads are already probed for timeline classification. Use
     // that same payload to account for images as references before packing,
     // without materializing any additional candidate payloads.
@@ -460,6 +495,7 @@ class HistoryTimelineClassifier {
           ? (parsed as Record<string, unknown>)
           : undefined;
       },
+      hasExternalizedDisplayImage: () => this.externalizedDisplayImageIds.has(row.item_id),
       reasoningHasContent: () => this.reasoningContentById.get(row.item_id) === true,
     });
   }
@@ -571,11 +607,18 @@ function readHistoryPhase1InSnapshot(
 export function dbReadThreadHistoryPhase2(
   threadId: string,
   itemIds: readonly string[],
-  options: { readonly compactDetails?: boolean } = {},
+  options: {
+    readonly compactDetails?: boolean;
+    readonly preserveExternalizedImageStubs?: boolean;
+  } = {},
 ): HistoryRuntimeItem[] {
   if (itemIds.length === 0) return [];
   const sqlite = getSqlite();
   return readRuntimeSnapshot(sqlite, () => {
+    const inlineImageOptions =
+      options.preserveExternalizedImageStubs !== undefined
+        ? { preserveExternalizedImageStubs: options.preserveExternalizedImageStubs }
+        : {};
     const byId = new Map<string, HistoryMaterializedSqlRow & { details_deferred?: number }>();
     for (const chunk of chunkValues(itemIds, HISTORY_ITEM_FETCH_BATCH)) {
       const rows = sqlite
@@ -601,13 +644,18 @@ export function dbReadThreadHistoryPhase2(
       const row = byId.get(itemId);
       return row ? [row] : [];
     });
-    if (!options.compactDetails) return mapRuntimeItemRows(sqlite, threadId, ordered);
+    if (!options.compactDetails) {
+      return mapRuntimeItemRows(sqlite, threadId, ordered, inlineImageOptions);
+    }
     const deferred = ordered.filter((row) => hasDeferredHistoryStreams(row.type, row.state));
     const ordinary = ordered.filter((row) => !hasDeferredHistoryStreams(row.type, row.state));
     const items = new Map(
       [
-        ...mapRuntimeItemRows(sqlite, threadId, ordinary),
-        ...mapRuntimeItemRows(sqlite, threadId, deferred, { includeStreams: false }),
+        ...mapRuntimeItemRows(sqlite, threadId, ordinary, inlineImageOptions),
+        ...mapRuntimeItemRows(sqlite, threadId, deferred, {
+          includeStreams: false,
+          ...inlineImageOptions,
+        }),
       ].map((item) => [item.id, item]),
     );
     return ordered.map((row) => ({

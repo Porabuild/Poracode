@@ -107,6 +107,7 @@ export async function dbStageThreadTransferTranscript(
         handle.pragma("query_only = ON");
         handle.pragma("busy_timeout = 250");
         handle.pragma("cache_size = -2048");
+        handle.pragma("mmap_size = 0");
         handle.pragma("temp_store = FILE");
         handle.exec("BEGIN");
         // Establish the MVCC WAL read snapshot while the runtime fence is held.

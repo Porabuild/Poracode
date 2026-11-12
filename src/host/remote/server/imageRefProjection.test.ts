@@ -212,14 +212,17 @@ describe.skipIf(!sqliteAvailable)("resolveImageRef", () => {
       Buffer.from(bigPngBase64, "base64"),
     );
     expect(prepare.mock.calls).toHaveLength(1);
-    expect(prepare.mock.calls[0]![0]).toContain("NULL AS streams");
+    expect(prepare.mock.calls[0]![0]).toContain("FROM thread_runtime_item_image_refs");
+    expect(prepare.mock.calls[0]![0]).not.toMatch(/\bstreams\b|thread_runtime_item_stream_/);
     prepare.mockClear();
     expect((await resolveImageRefAfterFence("thread-1", "item-1", ["images", 0]))?.data).toEqual(
       Buffer.from(bigPngBase64, "base64"),
     );
-    expect(prepare.mock.calls.some(([sql]) => sql.includes("NULL AS streams"))).toBe(true);
     expect(
-      prepare.mock.calls.some(([sql]) => /thread_runtime_item_stream_(?:state|chunks)/.test(sql)),
+      prepare.mock.calls.some(([sql]) => sql.includes("FROM thread_runtime_item_image_refs")),
+    ).toBe(true);
+    expect(
+      prepare.mock.calls.some(([sql]) => /\bstreams\b|thread_runtime_item_stream_/.test(sql)),
     ).toBe(false);
     prepare.mockRestore();
     expect((await dbGetThreadRuntimeItem("thread-1", "item-1"))?.streams.command_output).toBe(

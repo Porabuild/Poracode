@@ -57,6 +57,7 @@ export {
   dbArchiveDoneThreads,
   dbSelectPurgeCandidateThreadIds,
   dbIsThreadPurgeEligible,
+  dbReclaimDeletedThreadSpace,
 } from "./db/threadHousekeeping";
 
 export { dbSyncAll, dbSyncChanges } from "./db/sync";
