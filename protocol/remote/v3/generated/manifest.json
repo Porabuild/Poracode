@@ -943,6 +943,8 @@
       "method": "GET",
       "path": "/api/threads/{threadId}/history",
       "queryParameters": [
+        "historyCache",
+        "historyRevision",
         "projection",
         "deferBodies",
         "reads",

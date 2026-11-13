@@ -93,6 +93,9 @@ export function boundVisibleThreadRuntimeWindows(threadIds: readonly string[]): 
 }
 
 export function boundSettledThreadRuntimeWindows(threadIds: readonly string[]): void {
+  for (const threadId of threadIds) {
+    if (hydratedThreadRuntimeIds.has(threadId)) hostHistoryCacheRefresher?.(threadId);
+  }
   const pinnedThreadIds = threadIds.filter((threadId) => hasPinnedLiveRuntimeWindow(threadId));
   if (pinnedThreadIds.length > 0) {
     boundVisibleThreadRuntimeWindows(pinnedThreadIds);
@@ -217,6 +220,11 @@ export type HostThreadHistoryReader = (
 ) => Promise<HostThreadHistoryReadOutcome> | undefined;
 
 let hostThreadHistoryReader: HostThreadHistoryReader | null = null;
+let hostHistoryCacheRefresher: ((threadId: string) => void) | null = null;
+
+export function setHostHistoryCacheRefresher(refresh: (threadId: string) => void): void {
+  hostHistoryCacheRefresher = refresh;
+}
 
 export function setHostThreadHistoryReader(reader: HostThreadHistoryReader | null): void {
   hostThreadHistoryReader = reader;
@@ -282,6 +290,7 @@ export function releaseThreadRuntimeItems(threadId: string): void {
   inactiveThreadRuntimeLru.delete(threadId);
   inactiveThreadRuntimeLru.add(threadId);
   if (hydratedThreadRuntimeIds.has(threadId)) {
+    hostHistoryCacheRefresher?.(threadId);
     rememberRecentRuntimeWireInterest(threadId);
   }
   evictOversizedInactiveThreadRuntimeItems([threadId]);
@@ -542,6 +551,43 @@ async function hydrateThreadRuntimeItemsFromDb(
   threadId: string,
   request: RuntimeHydrationRequest,
 ): Promise<boolean | typeof AWAITING_HOST> {
+  // A host-owned thread, whichever host owns it, reads its authoritative tail
+  // through that host's one bounded history read (items + completed turns +
+  // `ct1.` cursor + durable notice). It never falls back to an unbounded local
+  // read. Browser disk caches cannot establish a baseline before validation.
+  const hostRead = hostThreadHistoryReader?.(threadId, request.controller.signal, {
+    ...(request.historyPage ? { page: request.historyPage } : {}),
+    ...(request.beforeInstall ? { beforeInstall: request.beforeInstall } : {}),
+  });
+  if (hostRead) {
+    const outcome = await hostRead;
+    if (request.controller.signal.aborted) return false;
+    if (outcome.kind === "installed") return true;
+    if (outcome.kind === "absent") {
+      // A read that reached the host before it created this thread waits for
+      // it; the live stream fills the pane and a later read loads its history.
+      if (
+        isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }])
+      )
+        return AWAITING_HOST;
+      // An unpersisted or authoritatively removed row has no transcript to
+      // lose. A later pass/pin fills the empty transcript when it is created.
+      if (request.beforeInstall && !request.beforeInstall()) return false;
+      runtimeHistoryBoundary(threadId).cursor = null;
+      return true;
+    }
+    if (outcome.kind === "stale") return false;
+    // Nothing failed yet: the pane waits for its host, whose connection reads
+    // the threads panes retain once it is live.
+    if (outcome.kind === "offline") return AWAITING_HOST;
+    // Before the warning: a read that reached the host before it created
+    // this thread is expected, not reportable.
+    if (isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }]))
+      return AWAITING_HOST;
+    console.warn("[chat] failed to hydrate runtime history for thread %s", threadId, outcome.error);
+    captureRendererException(outcome.error, { featureArea: "runtime-persistence" });
+    return false;
+  }
   // Browser startup can restore the same complete cached snapshot already
   // written by the host read installer. Routing four derived reads to the host
   // would both duplicate its tail response and fail this initial read offline.
@@ -571,51 +617,6 @@ async function hydrateThreadRuntimeItemsFromDb(
       cachedSnapshot.thread.remoteServerId,
       cachedSnapshot.runtimeNotice,
     );
-  }
-  // A host-owned thread, whichever host owns it, reads its authoritative tail
-  // through that host's one bounded history read (items + completed turns +
-  // `ct1.` cursor + durable notice). It never falls back to an unbounded local
-  // read. A browser's cached tail paints first, provisionally, and stands
-  // while the host is unreachable.
-  const hostRead = hostThreadHistoryReader?.(threadId, request.controller.signal, {
-    ...(request.historyPage ? { page: request.historyPage } : {}),
-    ...(request.beforeInstall ? { beforeInstall: request.beforeInstall } : {}),
-  });
-  if (hostRead) {
-    const cached =
-      cachedSnapshot === null
-        ? false
-        : installHydrationResults(threadId, browserRuntimeHydrationResults(cachedSnapshot), {
-            provisional: true,
-          }) === true;
-    const outcome = await hostRead;
-    if (request.controller.signal.aborted) return false;
-    if (outcome.kind === "installed") return true;
-    if (outcome.kind === "absent") {
-      // A read that reached the host before it created this thread waits for
-      // it; the live stream fills the pane and a later read loads its history.
-      if (
-        isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }])
-      )
-        return AWAITING_HOST;
-      // An unpersisted or authoritatively removed row has no transcript to
-      // lose. A later pass/pin fills the empty transcript when it is created.
-      if (request.beforeInstall && !request.beforeInstall()) return false;
-      runtimeHistoryBoundary(threadId).cursor = null;
-      return true;
-    }
-    if (outcome.kind === "stale") return cached;
-    // Nothing failed yet: the pane waits for its host, whose connection reads
-    // the threads panes retain once it is live.
-    if (outcome.kind === "offline") return cached || AWAITING_HOST;
-    // Before the warning: a read that reached the host before it created
-    // this thread is expected, not reportable.
-    if (isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }]))
-      return AWAITING_HOST;
-    if (cached) return true;
-    console.warn("[chat] failed to hydrate runtime history for thread %s", threadId, outcome.error);
-    captureRendererException(outcome.error, { featureArea: "runtime-persistence" });
-    return false;
   }
   const results = cachedSnapshot
     ? browserRuntimeHydrationResults(cachedSnapshot)

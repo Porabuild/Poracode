@@ -33,6 +33,10 @@ internal val schema_23b45e35f743c6ce: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_9262f6553ee2010b, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_23c74d6e00fed957: RemoteSchema by lazy {
+    RemoteSchema(unionKind = "oneOf", options = listOf(schema_d5e402f736e2ff98, schema_c5dd90237864dee9), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_23e05d248383ea40: RemoteSchema by lazy {
     RemoteSchema(type = "integer", maximum = 9007199254740991.0, exclusiveMinimum = 0.0, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

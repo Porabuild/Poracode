@@ -20,10 +20,8 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { readNativeVisualHostId } from "@/renderer/state/nativeVisualOwner";
 import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
-import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { forgetRecentRuntimeWireInterest } from "@/renderer/state/rendererEventInterests";
 import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
-import { isRuntimeHistoryReadHeld } from "@/renderer/state/runtimeHistoryReadBarrier";
 import { readThreadPromptIndex } from "@/renderer/state/threadPromptIndex";
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -57,8 +55,6 @@ import {
   applyCatalogPatchFields,
   dispatchOptimisticCatalogEdit,
 } from "@/renderer/state/pendingCatalogEdits";
-
-export const GUI_OPEN_LOADING_REVEAL_DELAY_MS = 180;
 
 let openThreadRequestId = 0;
 let threadRuntimeReopenEnabled = true;
@@ -344,12 +340,11 @@ export function openThread(
     return true;
   };
 
-  // Prepare history before replacing the current pane, and warm its outline
+  // Prepare history while opening the destination pane, and warm its outline
   // concurrently so the secondary read cannot delay opening the transcript.
   // Retain its live stream too, so the mounted reader adopts this baseline
   // across the interest grace period instead of starting a second recovery.
   if (thread?.presentationMode === "gui") {
-    const hydrated = hasHydratedThreadRuntimeItems(threadId);
     void readThreadPromptIndex(threadId);
     let unsubscribe = () => {};
     let active = true;
@@ -358,11 +353,9 @@ export function openThread(
     let succeeded = false;
     let frameId: number | undefined;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    let slowReadRevealTimeoutId: ReturnType<typeof setTimeout> | undefined;
     const retire = () => {
       active = false;
       clearTimeout(timeoutId);
-      if (slowReadRevealTimeoutId !== undefined) clearTimeout(slowReadRevealTimeoutId);
       if (frameId !== undefined) cancelAnimationFrame(frameId);
       unsubscribe();
       if (cancelPendingThreadOpen === cancel) cancelPendingThreadOpen = null;
@@ -377,12 +370,6 @@ export function openThread(
       }
     };
     cancelPendingThreadOpen = cancel;
-    // Rows resident under a held initial-read barrier are a cached preview the
-    // pane can show while the authoritative baseline loads (never a baseline).
-    const heldRowsResident = () =>
-      !hydrated &&
-      (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) > 0 &&
-      isRuntimeHistoryReadHeld(threadId);
     unsubscribe = useAppStore.subscribe((state, previous) => {
       const departed = opened
         ? state.view.kind !== "thread" || !state.view.panes.includes(threadId)
@@ -395,17 +382,10 @@ export function openThread(
         cancel();
         return;
       }
-      if (
-        !opened &&
-        state.runtimeItemIdsByThread !== previous.runtimeItemIdsByThread &&
-        heldRowsResident()
-      )
-        finishOpen(false);
     });
     const finishOpen = (reopenRuntime: boolean) => {
       if (!active || opened) return;
       clearTimeout(timeoutId);
-      if (slowReadRevealTimeoutId !== undefined) clearTimeout(slowReadRevealTimeoutId);
       opened = true;
       if (!applyOpen(reopenRuntime)) return cancel();
     };
@@ -413,7 +393,6 @@ export function openThread(
       ready = true;
       succeeded = result !== false;
       if (!opened) {
-        if (!hydrated) finishOpen(succeeded);
         return;
       }
       // The pane can adopt the reader while the baseline is still pending.
@@ -431,18 +410,8 @@ export function openThread(
         reopenStoredThread(threadId);
       }
     };
-    if (hydrated || heldRowsResident()) {
-      frameId = requestAnimationFrame(() => finishOpen(ready && succeeded));
-      if (!opened) timeoutId = setTimeout(() => finishOpen(ready && succeeded), 50);
-    } else {
-      // Normal fast switches (<180ms) keep the previous pane seamlessly until
-      // history settles with zero loading flash; slow reads under load swap to
-      // the destination pane after 180ms so navigation never feels stuck.
-      slowReadRevealTimeoutId = setTimeout(
-        () => finishOpen(ready && succeeded),
-        GUI_OPEN_LOADING_REVEAL_DELAY_MS,
-      );
-    }
+    frameId = requestAnimationFrame(() => finishOpen(ready && succeeded));
+    if (!opened) timeoutId = setTimeout(() => finishOpen(ready && succeeded), 50);
     void reader.ready.then(finishRead, () => finishRead(false));
     return;
   }

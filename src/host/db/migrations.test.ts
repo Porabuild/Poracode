@@ -80,8 +80,9 @@ describe("database migration registry", () => {
       [70, "remember turns cut off before they finished"],
       [71, "project plugin overrides"],
       [72, "externalize inline runtime images"],
+      [73, "durable thread history cache revisions"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(72);
+    expect(LATEST_SCHEMA_VERSION).toBe(73);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -119,9 +120,9 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 72,
-      name: "externalize inline runtime images",
-      rollback: "forward-only",
+      version: 73,
+      name: "durable thread history cache revisions",
+      rollback: "rollback-compatible",
     });
     // Migrations below the floor keep their reviewed defaults.
     expect(() =>

@@ -20,6 +20,7 @@ import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotS
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
 import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
+import { clearPendingRuntimeEvents } from "@/renderer/state/remote";
 import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
@@ -59,6 +60,7 @@ vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
   return {
     ...actual,
     hydrateThreadRuntimeItems,
+    hasHydratedThreadRuntimeItems: () => false,
     loadOlderThreadRuntimeItems,
     releaseThreadRuntimeItems,
     retainThreadRuntimeItems,
@@ -305,6 +307,8 @@ describe("ChatPane", () => {
     }));
   });
 
+  afterEach(clearPendingRuntimeEvents);
+
   it("shows the submitted prompt while its worktree is being created", async () => {
     const thread = {
       ...makeThread(),
@@ -406,7 +410,7 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
   });
 
-  it("keeps a loaded reply and its completed timer during recovery", async () => {
+  it("keeps a reopened failed transcript hidden until recovery validates it", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -422,11 +426,16 @@ describe("ChatPane", () => {
     const uninstall = installRuntimeHistoryRecovery(recover);
     try {
       renderChatPane(thread);
-      expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
-      expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
+      expect(screen.queryByText("Previously loaded reply")).not.toBeInTheDocument();
+      expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
       expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
       await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
-      expect(screen.getByText("Previously loaded reply")).toBeInTheDocument();
+      expect(screen.queryByText("Previously loaded reply")).not.toBeInTheDocument();
+      act(() => {
+        useAppStore.getState().setRuntimeHydrationStatus(thread.id, null);
+      });
+      expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
+      expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
     } finally {
       uninstall();
     }
@@ -520,6 +529,8 @@ describe("ChatPane", () => {
       threads: [thread],
       runtimeHydrationStatus: { [thread.id]: "pending" },
     });
+    useAppStore.getState().setRuntimeHydrationStatus(thread.id, null);
+    useAppStore.getState().setRuntimeHydrationStatus(thread.id, "pending");
     try {
       renderChatPane(thread);
       expect(screen.queryByTestId("chat-delayed-hydration-loader")).not.toBeInTheDocument();
@@ -535,6 +546,28 @@ describe("ChatPane", () => {
       expect(screen.getByTestId("chat-delayed-hydration-loader")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it("does not mount an unverified resident transcript before its authoritative replacement", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread], runtimeHydrationStatus: { [thread.id]: "pending" } });
+    seedAssistantMessage(thread.id, "Stale cached answer");
+    const reader = vi
+      .spyOn(runtimeInterestHydration, "adoptRuntimeThreadReader")
+      .mockReturnValue({ ready: new Promise(() => {}), release: () => {} });
+    try {
+      renderChatPane(thread);
+      expect(screen.queryByText("Stale cached answer")).not.toBeInTheDocument();
+      act(() => {
+        useAppStore.getState().clearThreadRuntimeEvents(thread.id);
+        seedAssistantMessage(thread.id, "Authoritative final answer");
+        useAppStore.getState().setRuntimeHydrationStatus(thread.id, null);
+      });
+      expect(await screen.findByText("Authoritative final answer")).toBeInTheDocument();
+      expect(screen.queryByText("Stale cached answer")).not.toBeInTheDocument();
+    } finally {
+      reader.mockRestore();
     }
   });
 

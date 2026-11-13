@@ -100,8 +100,8 @@ describe("remote v3 native binding generator", () => {
         // Link metadata adds one read procedure, two roots and structural types.
         // Thread transfer adds two operate-scoped routes (command and raw upload)
         // with their request, query and result roots and structural types.
-        sourceHash: "sha256:a34a7b8a853261a8e6bfebf468aa87345fa9c4d86c93271d0e413c56cbc93d9d",
-        manifestHash: "sha256:aa02ce63840c7b523ef2c18c1f3ffbd9151673f9b2ce7c1a6350f481486a0928",
+        sourceHash: "sha256:adc7e4695f2ae14b7ba2783c52d154a6a469c4c0bd96b55f1aac3bff37853ff8",
+        manifestHash: "sha256:3e7df7fb4e1730e3551ebb8438ac97c73f845d8caa8170ab81dbd2bcc7efec9d",
         counts: {
           routes: 121,
           procedures: 173,
@@ -111,12 +111,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 569,
-          structuralTypes: 1352,
+          structuralTypes: 1353,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 150,
-          kotlinFiles: 127,
+          swiftFiles: 149,
+          kotlinFiles: 126,
           stateMachines: 5,
         },
       });

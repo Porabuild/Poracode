@@ -650,6 +650,13 @@ export const remoteAgentSlashCommandsSchema = z.object({
 export type RemoteAgentSlashCommands = z.infer<typeof remoteAgentSlashCommandsSchema>;
 
 export const remoteThreadSnapshotSchema = z.object({
+  /** Opt-in historyCache=v1 only. Unchanged payloads require the matching local cache. */
+  historyCache: z
+    .object({
+      revision: z.string().min(1).max(160),
+      unchanged: z.boolean(),
+    })
+    .optional(),
   /** Process-epoch and thread-bound cursor for independent transcript recovery. */
   runtimeResumeCursor: z.string().min(1).optional(),
   historyProjection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
