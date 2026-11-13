@@ -20,10 +20,12 @@ import { usePaneDragAndDrop } from "@/renderer/components/thread/PaneDragAndDrop
 import { useThreadAgentStatuses, useThreadPendingLaunch } from "@/renderer/hooks/uiSelectors";
 import { useHostAgentStatuses } from "@/renderer/hooks/useHostAgentStatuses";
 
-// Non-subscribing action read: these stable store actions don't need a
-// subscription, and aliasing keeps the render path from referencing the hook
-// as a value.
-const getAppState = useAppStore.getState;
+// Only actions may enter React Compiler's memo cache; the whole store would
+// keep obsolete transcript snapshots alive for the lifetime of this pane.
+const getAppActions = () => {
+  const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = useAppStore.getState();
+  return { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch };
+};
 
 export function ThreadPane(props: {
   threadId: string;
@@ -62,7 +64,7 @@ export function ThreadPane(props: {
     providerSwitch: pendingLaunchProviderSwitch,
     mentionHandoff: pendingLaunchMentionHandoff,
   } = useThreadPendingLaunch(props.threadId);
-  const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = getAppState();
+  const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = getAppActions();
 
   const { paneElementRef, dragHandleRef } = usePaneDragAndDrop({
     paneId: props.threadId,

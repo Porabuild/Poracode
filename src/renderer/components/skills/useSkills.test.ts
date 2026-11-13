@@ -110,6 +110,60 @@ describe("useSkills", () => {
     await waitFor(() => expect(second.result.current.scan).toBe(refreshed));
   });
 
+  it("shares an in-flight scan between readers of the same scope", async () => {
+    const pending = Promise.withResolvers<SkillScanResult>();
+    scanSkillsMock.mockReturnValueOnce(pending.promise);
+    const first = renderHook(() => useSkills(undefined, undefined, "SharedScan"));
+    const second = renderHook(() => useSkills(undefined, undefined, "SharedScan"));
+    expect(scanSkillsMock).toHaveBeenCalledTimes(1);
+    const scan = emptyScan();
+    await act(async () => pending.resolve(scan));
+    expect(first.result.current.scan).toBe(scan);
+    expect(second.result.current.scan).toBe(scan);
+    first.unmount();
+    second.unmount();
+  });
+
+  it("does not restore an obsolete plugin generation when its pending scan finishes", async () => {
+    const old = Promise.withResolvers<SkillScanResult>();
+    const fresh = { ...emptyScan(), canLinkToGlobal: false };
+    scanSkillsMock.mockReturnValueOnce(old.promise).mockResolvedValueOnce(fresh);
+    const hook = renderHook(() => useSkills(undefined, undefined, "ScanGeneration"));
+    act(() => usePlugins.setState((state) => ({ revision: state.revision + 1 })));
+    await waitFor(() => expect(hook.result.current.scan).toBe(fresh));
+    await act(async () => old.resolve(emptyScan()));
+    expect(hook.result.current.scan).toBe(fresh);
+    hook.unmount();
+    const refresh = Promise.withResolvers<SkillScanResult>();
+    scanSkillsMock.mockReturnValueOnce(refresh.promise);
+    const reopened = renderHook(() => useSkills(undefined, undefined, "ScanGeneration"));
+    expect(reopened.result.current.scan).toBe(fresh);
+    await act(async () => refresh.resolve(fresh));
+    reopened.unmount();
+  });
+
+  it("keeps the newest reload in the warm cache when requests finish out of order", async () => {
+    scanSkillsMock.mockResolvedValueOnce(emptyScan());
+    const hook = renderHook(() => useSkills(undefined, undefined, "ReloadRace"));
+    await waitFor(() => expect(hook.result.current.loading).toBe(false));
+    const old = Promise.withResolvers<SkillScanResult>();
+    const latest = Promise.withResolvers<SkillScanResult>();
+    scanSkillsMock.mockReturnValueOnce(old.promise).mockReturnValueOnce(latest.promise);
+    act(() => {
+      void hook.result.current.reload();
+      void hook.result.current.reload();
+    });
+    const fresh = { ...emptyScan(), canLinkToGlobal: false };
+    await act(async () => latest.resolve(fresh));
+    await act(async () => old.resolve(emptyScan()));
+    hook.unmount();
+    scanSkillsMock.mockResolvedValueOnce(fresh);
+    const reopened = renderHook(() => useSkills(undefined, undefined, "ReloadRace"));
+    expect(reopened.result.current.scan).toBe(fresh);
+    await waitFor(() => expect(reopened.result.current.loading).toBe(false));
+    reopened.unmount();
+  });
+
   it("invalidates mounted composer skills immediately when plugin state changes", async () => {
     useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     const initial = pluginSkillScan();
