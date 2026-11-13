@@ -8,6 +8,7 @@ import type {
 import type {
   ThreadWindowBootstrap,
   ThreadWindowCloseOptions,
+  ThreadWindowNavigation,
   ThreadWindowsChanged,
 } from "./threadWindow";
 import type { RemoteThreadCommand } from "../contracts";
@@ -68,6 +69,7 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   openThreadWindow?: (input: ThreadWindowBootstrap) => Promise<void>;
   /** Closes the thread's window and, unless told otherwise, shows the thread in the main window. */
   closeThreadWindow?: (threadId: string, options?: ThreadWindowCloseOptions) => Promise<void>;
+  navigateFromThreadWindow?: (navigation: ThreadWindowNavigation) => Promise<void>;
   getThreadWindowInfo?: () => Promise<ThreadWindowBootstrap | null>;
   getThreadWindowIds?: () => Promise<string[]>;
   onThreadWindowsChanged?: (listener: (event: ThreadWindowsChanged) => void) => () => void;

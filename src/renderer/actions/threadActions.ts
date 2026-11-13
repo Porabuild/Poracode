@@ -50,7 +50,11 @@ import {
   useAuxiliaryThreadWindows,
 } from "@/renderer/state/auxiliaryThreadWindows";
 import { closePanelsForUnloadedThread } from "./panelActions";
-import { dismissThreadWindow, returnThreadToMainWindow } from "./threadWindowActions";
+import {
+  dismissThreadWindow,
+  openInMainWindowFromThread,
+  returnThreadToMainWindow,
+} from "./threadWindowActions";
 import { getCurrentProjectId } from "./currentProject";
 import { switchWorkspaceForProject } from "./workspaceActions";
 import { deleteWorktreeGroup } from "./worktreeActions";
@@ -280,6 +284,7 @@ export function openThread(
     reopenRuntime?: boolean;
   },
 ): void {
+  if (openInMainWindowFromThread({ kind: "thread", threadId })) return;
   const requestId = nextThreadOpenRequest();
   allowAutomaticThreadReopen(threadId);
   const store = useAppStore.getState();

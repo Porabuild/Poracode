@@ -4238,6 +4238,7 @@ msgstr "Fermer la superposition"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Fermer le volet"
 
@@ -5458,6 +5459,7 @@ msgstr "Impossible de gérer ce marketplace ou ce plugin. Vérifiez la source, l
 #~ msgid "Could not open this PDF."
 #~ msgstr "Impossible d’ouvrir ce PDF."
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "Impossible d'ouvrir ce fil de discussion. Réessayez."

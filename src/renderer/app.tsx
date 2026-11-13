@@ -7,7 +7,7 @@ import { Trans } from "@lingui/react/macro";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { PixelLoader } from "./components/common/PixelLoader";
 import { StartupRecoveryScreen } from "./components/startup/StartupRecoveryScreen";
-import { msg } from "@/shared/messages";
+import { friendlyError, msg } from "@/shared/messages";
 import type { UpdateStatus } from "@/shared/ipc";
 import { readBridge } from "./bridge";
 import { captureRendererException } from "./diagnostics/sentry";
@@ -18,6 +18,13 @@ import { useAppStore } from "./state/appStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
 import { projectGitReadModelIntoLegacyStore } from "./state/gitReadModelLegacyProjection";
 import { openThread } from "./actions/threadActions";
+import { returnThreadToMainWindow } from "./actions/threadWindowActions";
+import { showGitReviewPage } from "./actions/panelActions";
+import { hasOwnWindow } from "./state/auxiliaryThreadWindows";
+import { entityHost } from "./state/entityHost";
+import { readHostThreadExistence } from "./state/hostThreadLaunch";
+import { openFileInEditor, resolveWorktreeBranch } from "./utils/gitHelpers";
+import type { ThreadWindowNavigation } from "@/shared/ipc/threadWindow";
 import { applyForwardedRemoteThreadCommand } from "./actions/remoteThreadCommandApplication";
 import { isManagedHostEventInterest } from "./state/rendererEventInterests";
 import { pruneLiveObservedCrossagentItems } from "./state/slices/staleSubAgents";
@@ -245,6 +252,37 @@ export function installUpdateStatusSync(
   };
 }
 
+async function applyThreadWindowNavigation(
+  threadId: string,
+  navigation: ThreadWindowNavigation,
+): Promise<void> {
+  if (navigation.kind === "thread") {
+    if (hasOwnWindow(threadId)) returnThreadToMainWindow(threadId);
+    else openThread(threadId, { focusComposer: true, switchWorkspace: true });
+    return;
+  }
+  let thread = useAppStore.getState().threads.find((row) => row.id === threadId);
+  if (!thread) {
+    const host = entityHost({ id: threadId });
+    if (host) await readHostThreadExistence(host, threadId);
+    thread = useAppStore.getState().threads.find((row) => row.id === threadId);
+  }
+  const project = useAppStore.getState().projects.find((row) => row.id === thread?.projectId);
+  if (!thread || !project)
+    throw new Error(i18n._(linguiMsg`Could not open this thread. Try again.`));
+  if (navigation.kind === "file") {
+    await openFileInEditor(
+      project,
+      thread.worktreePath,
+      thread.worktreePath
+        ? (resolveWorktreeBranch(thread.projectId, thread.worktreePath) ?? undefined)
+        : undefined,
+      navigation.path,
+      navigation.lineNumber,
+    );
+  } else showGitReviewPage(thread.projectId, thread.worktreePath);
+}
+
 // Chat windows consume the same runtime reducer; shell navigation and global
 // notification policies remain owned by the main window.
 const runtimeWindowCleanups: Array<() => void> =
@@ -316,7 +354,13 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onUserNotification((notification) => {
         showUserNotification(notification);
       }),
-      readBridge().onThreadOpenRequested(({ threadId, source }) => {
+      readBridge().onThreadOpenRequested(({ threadId, source, navigation }) => {
+        if (navigation) {
+          void applyThreadWindowNavigation(threadId, navigation).catch((error: unknown) =>
+            toast.danger(friendlyError(error)),
+          );
+          return;
+        }
         openThread(threadId, {
           focusComposer: true,
           ...(source === "notification" ? { switchWorkspace: true } : {}),

@@ -8,6 +8,7 @@ import type {
 } from "@/shared/contracts";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { toggleMarkThreadDone } from "@/renderer/actions/threadActions";
+import { openInMainWindowFromThread } from "@/renderer/actions/threadWindowActions";
 import type { ProviderHandoffContext } from "@/renderer/actions/providerHandoff";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
@@ -98,6 +99,17 @@ export function ThreadPane(props: {
       isWsl={project.location.kind === "wsl"}
       {...(props.chatOnly ? { chatOnly: true } : {})}
       {...(props.surface === "window" ? { surface: "window" as const } : { showCloseButton: true })}
+      {...(props.surface === "window"
+        ? {
+            onOpenProjectRelativePath: (path: string, lineNumber?: number) => {
+              openInMainWindowFromThread({
+                kind: "file",
+                path,
+                ...(lineNumber !== undefined ? { lineNumber } : {}),
+              });
+            },
+          }
+        : {})}
       paneAlign={props.paneAlign}
       isDragging={isDragging}
       dropIndicator={dropIndicator}

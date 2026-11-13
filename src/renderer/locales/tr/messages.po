@@ -4238,6 +4238,7 @@ msgstr "Yer paylaşımını kapat"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Bölmeyi kapat"
 
@@ -5458,6 +5459,7 @@ msgstr "Bu pazar yeri veya eklenti yönetilemedi. Kaynağı, uyumluluğu ve yere
 #~ msgid "Could not open this PDF."
 #~ msgstr "Bu PDF açılamadı."
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "Bu konu açılamadı. Tekrar deneyin."

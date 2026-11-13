@@ -28,6 +28,7 @@ import { closeThreads } from "@/renderer/utils/shellUtils";
 import { resolveActivePaneId } from "./currentProject";
 import { showTerminalPanel } from "./terminalActions";
 import { activateFileEditorContext, isFileEditorContextActive } from "./fileEditorContext";
+import { openInMainWindowFromThread } from "./threadWindowActions";
 
 function panelContextMatchesThread(
   projectId: string,
@@ -343,6 +344,7 @@ export function openGitReview(
   worktreePath?: string,
   originComposerId?: string,
 ): void {
+  if (openInMainWindowFromThread({ kind: "review" })) return;
   const panelStore = usePanelStore.getState();
   if (isCompactLayoutViewport()) {
     showGitReviewPanel(projectId, worktreePath, originComposerId);
@@ -389,6 +391,7 @@ export function showGitReviewPanel(
   worktreePath?: string,
   originComposerId?: string,
 ): void {
+  if (openInMainWindowFromThread({ kind: "review" })) return;
   const panelStore = usePanelStore.getState();
   panelStore.setGitReviewContext({
     projectId,
@@ -402,6 +405,7 @@ export function showGitReviewPanel(
 
 /** Open Git review as a full page, independent of the desktop panel preference. */
 export function showGitReviewPage(projectId: string, worktreePath?: string): void {
+  if (openInMainWindowFromThread({ kind: "review" })) return;
   const panelStore = usePanelStore.getState();
   panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
   panelStore.setGitReviewAsPanel(false);

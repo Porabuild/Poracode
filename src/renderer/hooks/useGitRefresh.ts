@@ -52,16 +52,24 @@ function subscribeToFieldChanges<S>(
   });
 }
 
-export function useGitRefresh(storeHydrated: boolean) {
+export function useGitRefresh(storeHydrated: boolean, scopeProjectId?: string) {
   // Subscribe only to the active-project identity/location key so draft config
   // writes do not invalidate the whole shell.
-  const activeProjectsKey = useAppStore((state) => buildActiveProjectsKey(state.projects));
+  const activeProjectsKey = useAppStore((state) =>
+    buildActiveProjectsKey(
+      scopeProjectId
+        ? state.projects.filter((project) => project.id === scopeProjectId)
+        : state.projects,
+    ),
+  );
   useEffect(() => {
     // `activeProjectsKey` is this run's request identity: the project set
     // below must derive from the same store snapshot, otherwise the key raced
     // ahead and this run would watch/fetch a stale set.
     const requestKey = activeProjectsKey;
-    const projectsSnapshot = useAppStore.getState().projects;
+    const projectsSnapshot = useAppStore
+      .getState()
+      .projects.filter((project) => scopeProjectId === undefined || project.id === scopeProjectId);
     if (buildActiveProjectsKey(projectsSnapshot) !== requestKey) return;
     const allActiveProjects = projectsSnapshot.filter((project) => !project.disabled);
     if (!storeHydrated) return;
@@ -423,5 +431,5 @@ export function useGitRefresh(storeHydrated: boolean) {
       for (const project of activeProjects) releaseProjectWatch(project);
       cleanupGitRefreshProjects(new Set());
     };
-  }, [storeHydrated, activeProjectsKey]);
+  }, [storeHydrated, activeProjectsKey, scopeProjectId]);
 }

@@ -58,11 +58,29 @@ function attachLifecycle() {
 afterEach(() => {
   desktopApp.mainWindow = null;
   desktopApp.quickComposerLifecycle = null;
-  desktopApp.pendingTrayThreadId = null;
+  desktopApp.pendingThreadOpenRequest = null;
   hoisted.createMainWindow.mockReset();
 });
 
 describe("returning a thread to the main window", () => {
+  it("focuses main and retains a link destination until its renderer is ready", () => {
+    const lifecycle = attachLifecycle();
+    const main = { ...fakeWindow(), focus: vi.fn<() => void>() };
+    desktopApp.mainWindow = main as unknown as BrowserWindow;
+    lifecycle.markMainNotReady();
+    const navigation = { kind: "file" as const, path: "src/app.ts", lineNumber: 12 };
+
+    openThreadFromTray("thread-a", undefined, navigation);
+    expect(main.focus).toHaveBeenCalledOnce();
+    expect(main.webContents.send).not.toHaveBeenCalled();
+    lifecycle.handleMainReady();
+    flushTrayThreadOpen();
+    expect(main.webContents.send).toHaveBeenCalledExactlyOnceWith(
+      IPC_EVENT_CHANNELS.threadOpenRequested,
+      { threadId: "thread-a", navigation },
+    );
+  });
+
   it("waits for a reloading main renderer before asking it to show the thread", () => {
     const lifecycle = attachLifecycle();
     const main = fakeWindow();
@@ -93,6 +111,6 @@ describe("returning a thread to the main window", () => {
     );
     // The new renderer is not ready yet; the thread waits for its ready ping.
     expect(recreated.webContents.send).not.toHaveBeenCalled();
-    expect(desktopApp.pendingTrayThreadId).toBe("thread-a");
+    expect(desktopApp.pendingThreadOpenRequest).toEqual({ threadId: "thread-a" });
   });
 });

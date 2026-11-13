@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import type { ThreadWindowBootstrap } from "@/shared/ipc/threadWindow";
@@ -10,8 +10,14 @@ import { ImageLightboxHost } from "@/renderer/components/composer/ImageLightbox"
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useRemoteServerConnection } from "@/renderer/hooks/useRemoteServerConnection";
 import { useRetainedThreadRestore } from "@/renderer/hooks/useRetainedThreadRestore";
+import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
 import { useThread } from "@/renderer/state/useThread";
 import { reopenStoredThread } from "@/renderer/actions/threadActions";
+import {
+  flushThreadWindowDraft,
+  hasPendingThreadAttachmentImports,
+} from "@/renderer/actions/threadWindowActions";
+import { friendlyError } from "@/shared/messages";
 import { useAppStore } from "@/renderer/state/appStore";
 import { setOwnWindowThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { hydrateThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
@@ -53,6 +59,18 @@ export function ThreadWindowApp() {
 
 function ThreadWindowBody({ entry }: { entry: ThreadWindowBootstrap }) {
   const { t } = useLingui();
+  useEffect(() => {
+    const waitForAttachments = (event: BeforeUnloadEvent) => {
+      if (!hasPendingThreadAttachmentImports(entry.threadId)) return;
+      event.preventDefault();
+      event.returnValue = "";
+      void flushThreadWindowDraft(entry.threadId)
+        .then(() => window.close())
+        .catch((error: unknown) => toast.danger(friendlyError(error)));
+    };
+    window.addEventListener("beforeunload", waitForAttachments);
+    return () => window.removeEventListener("beforeunload", waitForAttachments);
+  }, [entry.threadId]);
   const restore = useRetainedThreadRestore(
     entry.threadId,
     entry.remoteServerId,
@@ -60,6 +78,7 @@ function ThreadWindowBody({ entry }: { entry: ThreadWindowBootstrap }) {
     { attachRemote: true },
   );
   const thread = useThread(entry.threadId);
+  useGitRefresh(thread !== undefined, thread?.projectId);
   const title = thread?.title;
   useEffect(() => {
     document.title = title || entry.title;

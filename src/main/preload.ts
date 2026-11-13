@@ -159,6 +159,8 @@ const bridge: ElectronHostBridge = {
   openThreadWindow: (input) => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowOpen, input),
   closeThreadWindow: (threadId, options) =>
     ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowClose, threadId, options),
+  navigateFromThreadWindow: (navigation) =>
+    ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowNavigate, navigation),
   getThreadWindowInfo: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowInfo),
   getThreadWindowIds: () => ipcRenderer.invoke(IPC_WINDOW_CHANNELS.threadWindowIds),
   onThreadWindowsChanged: (listener) => {

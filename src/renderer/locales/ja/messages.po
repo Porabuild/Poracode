@@ -4237,6 +4237,7 @@ msgstr "オーバーレイを閉じる"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "ペインを閉じる"
 
@@ -5457,6 +5458,7 @@ msgstr "このマーケットプレイスまたはプラグインを管理でき
 #~ msgid "Could not open this PDF."
 #~ msgstr "このPDFを開けませんでした。"
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "このスレッドを開けませんでした。もう一度お試しください。"

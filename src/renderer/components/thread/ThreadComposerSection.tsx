@@ -33,6 +33,7 @@ import {
   clearThreadPendingSteer,
 } from "@/renderer/actions/threadRuntimeActions";
 import { openMcpServersSettings } from "@/renderer/actions/panelActions";
+import { trackThreadAttachmentImport } from "@/renderer/actions/threadWindowActions";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
@@ -1666,15 +1667,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               showFileOption={hostIsLocalToClient || props.pickFiles !== undefined}
                               onPickFiles={() => {
                                 const originThreadId = thread.id;
-                                void (
-                                  props.pickFiles
+                                void trackThreadAttachmentImport(
+                                  originThreadId,
+                                  (props.pickFiles
                                     ? props.pickFiles()
                                     : readBridge().pickFiles({ attachmentThreadId: thread.id })
-                                )
-                                  .then((paths) => {
+                                  ).then((paths) => {
                                     if (paths) attachPickedFiles(originThreadId, paths);
-                                  })
-                                  .catch((error: unknown) => toast.danger(friendlyError(error)));
+                                  }),
+                                ).catch((error: unknown) => toast.danger(friendlyError(error)));
                               }}
                             />
                           )}
@@ -1724,9 +1725,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       ? {
                           onImportFiles: (files: File[]) => {
                             const originThreadId = thread.id;
-                            void importFiles(files)
-                              .then((paths) => attachPickedFiles(originThreadId, paths))
-                              .catch((error: unknown) => toast.danger(friendlyError(error)));
+                            void trackThreadAttachmentImport(
+                              originThreadId,
+                              importFiles(files).then((paths) =>
+                                attachPickedFiles(originThreadId, paths),
+                              ),
+                            ).catch((error: unknown) => toast.danger(friendlyError(error)));
                           },
                         }
                       : {})}

@@ -128,6 +128,7 @@ const bridge = vi.hoisted(() => ({
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
   isQuickComposerWindow: () => false,
+  isConversationWindow: () => false,
 }));
 
 const browserBridge = vi.hoisted(() => ({

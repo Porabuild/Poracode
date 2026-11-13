@@ -4238,6 +4238,7 @@ msgstr "Zamknij nakładkę"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Zamknij okienko"
 
@@ -5458,6 +5459,7 @@ msgstr "Nie można zarządzać tym marketplaceiem lub wtyczkaem. Sprawdź źród
 #~ msgid "Could not open this PDF."
 #~ msgstr "Nie udało się otworzyć tego pliku PDF."
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "Nie udało się otworzyć tego wątku. Spróbuj ponownie."

@@ -4238,6 +4238,7 @@ msgstr "Fechar sobreposição"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Fechar painel"
 
@@ -5458,6 +5459,7 @@ msgstr "Não foi possível gerenciar este marketplace ou plugin. Verifique a ori
 #~ msgid "Could not open this PDF."
 #~ msgstr "Não foi possível abrir este PDF."
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "Não foi possível abrir este tópico. Tente novamente."

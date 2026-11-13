@@ -4238,6 +4238,7 @@ msgstr "오버레이 닫기"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "창 닫기"
 
@@ -5458,6 +5459,7 @@ msgstr "이 마켓플레이스 또는 플러그인를 관리할 수 없습니다
 #~ msgid "Could not open this PDF."
 #~ msgstr "이 PDF를 열 수 없습니다."
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "이 스레드를 열 수 없습니다. 다시 시도하세요."

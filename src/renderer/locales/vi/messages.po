@@ -4238,6 +4238,7 @@ msgstr "Đóng lớp phủ"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Đóng ngăn"
 
@@ -5458,6 +5459,7 @@ msgstr "Không thể quản lý chợ plugin hoặc plugin này. Kiểm tra ngu�
 #~ msgid "Could not open this PDF."
 #~ msgstr "Không thể mở tệp PDF này."
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "Không thể mở luồng này. Hãy thử lại."

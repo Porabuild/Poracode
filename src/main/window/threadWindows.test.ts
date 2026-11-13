@@ -77,6 +77,41 @@ afterEach(() => {
 });
 
 describe("thread windows", () => {
+  it("forwards links from a thread window without closing its conversation", () => {
+    open("thread-a");
+    const sender = created[0]!.sender;
+    invoke(IPC_WINDOW_CHANNELS.threadWindowNavigate, sender, {
+      kind: "thread",
+      threadId: "thread-b",
+    });
+    expect(showThreadInMain).toHaveBeenLastCalledWith("thread-b", {
+      kind: "thread",
+      threadId: "thread-b",
+    });
+    invoke(IPC_WINDOW_CHANNELS.threadWindowNavigate, sender, {
+      kind: "file",
+      path: "src/app.ts",
+      lineNumber: 12,
+    });
+    expect(showThreadInMain).toHaveBeenLastCalledWith("thread-a", {
+      kind: "file",
+      path: "src/app.ts",
+      lineNumber: 12,
+    });
+    invoke(IPC_WINDOW_CHANNELS.threadWindowNavigate, sender, { kind: "review" });
+    expect(showThreadInMain).toHaveBeenLastCalledWith("thread-a", { kind: "review" });
+    expect(created[0]!.window.close).not.toHaveBeenCalled();
+    expect(() => invoke(IPC_WINDOW_CHANNELS.threadWindowNavigate, {}, { kind: "review" })).toThrow(
+      "not an app window",
+    );
+    expect(() =>
+      invoke(IPC_WINDOW_CHANNELS.threadWindowNavigate, main.sender, { kind: "review" }),
+    ).toThrow("Only a thread window");
+    expect(() =>
+      invoke(IPC_WINDOW_CHANNELS.threadWindowNavigate, sender, { kind: "file", path: "" }),
+    ).toThrow("path");
+  });
+
   it("opens one window per thread and focuses it when opened again", () => {
     open("thread-a");
     open("thread-a");

@@ -80,7 +80,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     getMainWindow: () => desktopApp.mainWindow,
     createWindow: createThreadAppWindow,
     // Waits for the main renderer, which may be reloading when a thread returns.
-    showThreadInMain: openThreadFromTray,
+    showThreadInMain: (threadId, navigation) => openThreadFromTray(threadId, undefined, navigation),
     isQuitting: () => desktopApp.isQuitting,
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {

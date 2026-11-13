@@ -45,6 +45,7 @@ export const IPC_WINDOW_CHANNELS = {
   sideChatReleased: createChannel("sideChatReleased"),
   threadWindowOpen: createChannel("threadWindowOpen"),
   threadWindowClose: createChannel("threadWindowClose"),
+  threadWindowNavigate: createChannel("threadWindowNavigate"),
   threadWindowInfo: createChannel("threadWindowInfo"),
   threadWindowIds: createChannel("threadWindowIds"),
   clientProcedureInvoke: createChannel("clientProcedureInvoke"),

@@ -104,7 +104,8 @@ export async function startStandaloneAttachMode(): Promise<void> {
     createSideChatWindow: createSideChatAppWindow,
     createThreadWindow: createThreadAppWindow,
     // Same queued handoff as managed mode, recreating main on the attach shell.
-    showThreadInMain: (threadId) => openThreadFromTray(threadId, shellState),
+    showThreadInMain: (threadId, navigation) =>
+      openThreadFromTray(threadId, shellState, navigation),
     flushMainThreadOpen: flushTrayThreadOpen,
     getMainWindow: () => desktopApp.mainWindow,
     getQuickComposerWindow: () => desktopApp.quickComposerWindow,

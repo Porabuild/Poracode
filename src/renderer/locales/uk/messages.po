@@ -4238,6 +4238,7 @@ msgstr "Закрити накладання"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Закрити панель"
 
@@ -5458,6 +5459,7 @@ msgstr "Не вдалося обробити маркетплейс або пл�
 #~ msgid "Could not open this PDF."
 #~ msgstr "Не вдалося відкрити цей PDF-файл."
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "Не вдалося відкрити цей тред. Спробуйте ще раз."

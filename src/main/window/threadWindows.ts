@@ -3,7 +3,9 @@ import { IPC_EVENT_CHANNELS, IPC_WINDOW_CHANNELS } from "@/shared/ipc";
 import {
   threadWindowBootstrapSchema,
   threadWindowCloseOptionsSchema,
+  threadWindowNavigationSchema,
   type ThreadWindowBootstrap,
+  type ThreadWindowNavigation,
   type ThreadWindowsChanged,
 } from "@/shared/ipc/threadWindow";
 import { showAndFocusWindow } from "./showAndFocusWindow";
@@ -33,7 +35,7 @@ export function registerThreadWindowIpc(deps: {
    * Shows a thread whose window closed in the main window. Queues until the
    * main renderer is ready and recreates the main window when there is none.
    */
-  showThreadInMain: (threadId: string) => void;
+  showThreadInMain: (threadId: string, navigation?: ThreadWindowNavigation) => void;
   /** Windows closing because the app quits keep their thread where it is. */
   isQuitting: () => boolean;
 }): void {
@@ -101,6 +103,15 @@ export function registerThreadWindowIpc(deps: {
   ipcMain.handle(IPC_WINDOW_CHANNELS.threadWindowInfo, (event) => {
     const owner = BrowserWindow.fromWebContents(event.sender);
     return (owner && threadWindows.get(owner)) ?? null;
+  });
+  ipcMain.handle(IPC_WINDOW_CHANNELS.threadWindowNavigate, (event, input: unknown) => {
+    const entry = threadWindows.get(sender(event));
+    if (!entry) throw new Error("Only a thread window forwards navigation");
+    const navigation = threadWindowNavigationSchema.parse(input);
+    deps.showThreadInMain(
+      navigation.kind === "thread" ? navigation.threadId : entry.threadId,
+      navigation,
+    );
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.threadWindowIds, (event) => {
     sender(event);

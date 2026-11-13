@@ -4,6 +4,7 @@ import { app, type BrowserWindow } from "electron";
 import { resolvePoracodeChannel } from "@/shared/channel";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { RemoteThreadCommand } from "@/shared/contracts";
+import type { ThreadOpenRequestedEvent } from "@/shared/ipc";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import type { NodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import type { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
@@ -81,7 +82,7 @@ export interface DesktopAppState {
   // attach). Window functions delegate to it; each startup assigns its own host
   // (attach binds the ephemeral shell state for main recreation).
   quickComposerLifecycle: QuickComposerLifecycle | null;
-  pendingTrayThreadId: string | null;
+  pendingThreadOpenRequest: ThreadOpenRequestedEvent | null;
   windowsJobObjectManager: WindowsJobObjectOwner | null;
   browserPanelManager: BrowserPanelManager | null;
   browserMcpIngress: BrowserMcpIngress | null;
@@ -125,7 +126,7 @@ export const desktopApp: DesktopAppState = {
   mainWindow: null,
   quickComposerWindow: null,
   quickComposerLifecycle: null,
-  pendingTrayThreadId: null,
+  pendingThreadOpenRequest: null,
   windowsJobObjectManager: null,
   browserPanelManager: null,
   browserMcpIngress: null,

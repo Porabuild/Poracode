@@ -4247,6 +4247,7 @@ msgstr "Close overlay"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Close pane"
 
@@ -5467,6 +5468,7 @@ msgstr "Could not manage this plugin or marketplace. Check the source, compatibi
 #~ msgid "Could not open this PDF."
 #~ msgstr "Could not open this PDF."
 
+#: src/renderer/app.tsx
 #: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Could not open this thread. Try again."
 msgstr "Could not open this thread. Try again."

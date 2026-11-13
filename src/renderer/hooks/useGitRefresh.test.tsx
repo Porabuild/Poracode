@@ -83,6 +83,37 @@ describe("useGitRefresh remote reachability", () => {
     unmount();
   });
 
+  it("limits a thread window's refresh and watch ownership to its project", async () => {
+    useAppStore.setState({ projects: [localProject, remoteProject] });
+    useRemoteServersStore.setState({
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    });
+    const { unmount } = renderHook(() => useGitRefresh(true, localProject.id));
+    await act(async () => {});
+    expect(bridgeMock.gitWatchProject).toHaveBeenCalledExactlyOnceWith({
+      projectId: localProject.id,
+      projectLocation: localProject.location,
+    });
+    expect(gitRefreshMocks.refreshGitProject).toHaveBeenCalledExactlyOnceWith(
+      localProject,
+      "initial",
+      "full",
+      expect.any(Object),
+    );
+
+    act(() => {
+      useAppStore.setState({
+        projects: [localProject, { ...remoteProject, location: { kind: "posix", path: "/other" } }],
+      });
+    });
+    expect(bridgeMock.gitWatchProject).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.gitUnwatchProject).not.toHaveBeenCalled();
+    unmount();
+    expect(bridgeMock.gitUnwatchProject).toHaveBeenCalledExactlyOnceWith({
+      projectId: localProject.id,
+    });
+  });
+
   it("keeps Git prefetch and recovery active for a reachable server error", async () => {
     useRemoteServersStore.setState({
       runtime: {

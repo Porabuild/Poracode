@@ -10,12 +10,14 @@ import { ThreadComposerSection } from "@/renderer/components/thread/ThreadCompos
 import { setOwnWindowThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { createSupervisorEventReducer } from "@/renderer/state/remote/reducers/supervisorEventReducer";
 import { ThreadWindowApp } from "./ThreadWindowApp";
+import { trackThreadAttachmentImport } from "@/renderer/actions/threadWindowActions";
 
 const mocks = vi.hoisted(() => ({
   initialLoading: false,
   submit: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   hydrate: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   reopen: vi.fn<() => void>(),
+  refreshGit: vi.fn<(ready: boolean, projectId?: string) => void>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -36,6 +38,7 @@ vi.mock("@/renderer/hooks/useAppHydration", () => ({
 vi.mock("@/renderer/hooks/useRemoteServerConnection", () => ({
   useRemoteServerConnection: () => ({ initialConnectSettled: true }),
 }));
+vi.mock("@/renderer/hooks/useGitRefresh", () => ({ useGitRefresh: mocks.refreshGit }));
 vi.mock("@/renderer/actions/threadActions", () => ({ reopenStoredThread: mocks.reopen }));
 vi.mock("@/renderer/actions/threadRuntimeActions", () => ({
   changeThreadConfig: vi.fn<() => void>(),
@@ -174,6 +177,32 @@ beforeEach(() => {
 afterEach(() => setOwnWindowThreadIds([]));
 
 describe("ThreadWindowApp", () => {
+  it("keeps the displayed thread's Git state refreshed", async () => {
+    render(<ThreadWindowApp />);
+    await waitFor(() => expect(mocks.refreshGit).toHaveBeenLastCalledWith(true, thread.projectId));
+  });
+
+  it("waits for an attachment before a native close hands its draft back", async () => {
+    const close = vi.spyOn(window, "close").mockImplementation(() => {});
+    render(<ThreadWindowApp />);
+    await screen.findByRole("button", { name: "Send" });
+    let finishImport!: () => void;
+    const imported = trackThreadAttachmentImport(
+      thread.id,
+      new Promise<void>((resolve) => {
+        finishImport = resolve;
+      }),
+    );
+    const closing = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(closing);
+    expect(closing.defaultPrevented).toBe(true);
+    expect(close).not.toHaveBeenCalled();
+    finishImport();
+    await imported;
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    close.mockRestore();
+  });
+
   it("keeps Send usable through consecutive replies when the main window was on Home", async () => {
     const reducer = createSupervisorEventReducer({
       recovery: { recoverFromQueueOverflow: () => {}, recoverFromThreadReset: () => {} },

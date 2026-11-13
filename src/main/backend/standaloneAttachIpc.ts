@@ -31,7 +31,7 @@ import { requestTrackedRendererReload } from "../window/windowHardening";
 import { registerSideChatWindowIpc, isSideChatWindow } from "../window/sideChatWindows";
 import { registerThreadWindowIpc, isThreadWindow } from "../window/threadWindows";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
-import type { ThreadWindowBootstrap } from "@/shared/ipc/threadWindow";
+import type { ThreadWindowBootstrap, ThreadWindowNavigation } from "@/shared/ipc/threadWindow";
 import type { QuickComposerLifecycle } from "../window/quickComposerLifecycle";
 import { createAutoUpdaterController, type AutoUpdaterController } from "../updates/autoUpdater";
 import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
@@ -40,7 +40,7 @@ export interface StandaloneAttachIpcDeps {
   createSideChatWindow?: (bootstrap: SideChatBootstrap) => BrowserWindow;
   createThreadWindow?: (bootstrap: ThreadWindowBootstrap) => BrowserWindow;
   /** Queues a thread returned from its own window until the main renderer is ready. */
-  showThreadInMain?: (threadId: string) => void;
+  showThreadInMain?: (threadId: string, navigation?: ThreadWindowNavigation) => void;
   /** Delivers the queued thread; called on every main renderer ready ping. */
   flushMainThreadOpen?: () => void;
   getMainWindow(): BrowserWindow | null;
@@ -105,7 +105,7 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
       if (!deps.createThreadWindow) throw new Error("Thread windows are unavailable");
       return deps.createThreadWindow(bootstrap);
     },
-    showThreadInMain: (threadId) => deps.showThreadInMain?.(threadId),
+    showThreadInMain: (threadId, navigation) => deps.showThreadInMain?.(threadId, navigation),
     isQuitting: () => deps.isQuitting?.() ?? false,
   });
   const autoUpdater = createAutoUpdaterController(
