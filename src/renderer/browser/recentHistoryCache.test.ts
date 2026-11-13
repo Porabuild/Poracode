@@ -81,6 +81,37 @@ it("survives a connection restart and binds rows to the verified host and thread
   expect(await readRecentHistory("host-a", "other")).toBeNull();
 });
 
+it("retains a bounded initial window containing a large completed tool group", async () => {
+  const tools: HistoryRuntimeItem[] = Array.from({ length: 1_000 }, (_, index) => ({
+    id: `tool-${index}`,
+    type: "command_execution",
+    state: "completed",
+    payload: { command: `rg marker-${index} src`, exitCode: 0 },
+    streams: {},
+  }));
+  const window = [...items, ...tools, { ...items[0]!, id: "final" }];
+  expect(bytes(history(window))).toBeLessThan(RECENT_HISTORY_MAX_BYTES);
+  await cacheRecentHistory("host", "thread", window, () => true);
+  await __closeRecentHistoryCacheForTest();
+  expect(await readRecentHistory("host", "thread")).toEqual(history(window));
+});
+
+it("reads existing v2 records written under the original 500-item allowance", async () => {
+  await cacheRecentHistory("host", "seed", items, () => true);
+  const previous = history(
+    Array.from({ length: 500 }, (_, index) => ({ ...items[0]!, id: String(index) })),
+  );
+  await rawRecords({
+    version: 2,
+    key: recentHistoryCacheKey("host", "thread"),
+    threadId: "thread",
+    updatedAt: 1,
+    bytes: bytes(previous),
+    history: previous,
+  });
+  expect(await readRecentHistory("host", "thread")).toEqual(previous);
+});
+
 it.each([
   { version: 0 },
   { version: 1 },
@@ -115,7 +146,7 @@ it("removes an old tail when the new initial response exceeds the entry or byte 
   await cacheRecentHistory(
     "host",
     "thread",
-    Array.from({ length: 501 }, (_, i) => ({ ...items[0]!, id: String(i) })),
+    Array.from({ length: 10_000 }, (_, i) => ({ ...items[0]!, id: String(i) })),
     () => true,
   );
   expect(await readRecentHistory("host", "thread")).toBeNull();
@@ -144,8 +175,9 @@ it("keeps an initial tail above the former 1 MiB cap", async () => {
 it("rejects an oversized item count even when the stored byte count is valid", async () => {
   await cacheRecentHistory("host", "thread", items, () => true);
   const oversized = history(
-    Array.from({ length: 501 }, (_, i) => ({ ...items[0]!, id: String(i) })),
+    Array.from({ length: 10_000 }, (_, i) => ({ ...items[0]!, id: String(i) })),
   );
+  expect(bytes(oversized)).toBeLessThan(RECENT_HISTORY_MAX_BYTES);
   await rawRecords({
     version: 2,
     key: recentHistoryCacheKey("host", "thread"),

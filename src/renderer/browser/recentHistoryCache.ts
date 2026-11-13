@@ -3,16 +3,23 @@ import {
   cachedThreadHistorySchema,
   type CachedThreadHistory,
 } from "@/shared/remote/historyReadSchemas";
-import { HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES } from "@/shared/remote/historyReadContract";
+import {
+  CATALOG_HOST_WIRE_MAX_BYTES,
+  CATALOG_ROW_ENVELOPE_BYTES,
+  HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES,
+} from "@/shared/remote/historyReadContract";
 
-/** v2 records invalidate unverified v1 tails; old readers reject v2 as a miss. */
+/** v2 records invalidate unverified v1 tails. The larger row allowance keeps
+ * existing records valid; older v2 readers treat larger groups as a miss. */
 const DATABASE = "poracode-recent-history-v1";
 const STORE = "tails";
 /** Follows the host's tail budget; an older build reads a larger record as a miss. */
 export const RECENT_HISTORY_MAX_BYTES = HISTORY_ITEMS_SOFT_PACK_WIRE_BYTES;
 const MAX_TOTAL_BYTES = 8 * RECENT_HISTORY_MAX_BYTES;
 const MAX_ENTRIES = 20;
-const MAX_ITEMS = 500;
+// Completed tool groups can exceed the requested page size. Match the host's
+// materialization bound plus its sparse goal; the cache's byte cap still applies.
+const MAX_ITEMS = Math.floor(CATALOG_HOST_WIRE_MAX_BYTES / CATALOG_ROW_ENVELOPE_BYTES) + 1;
 const recordSchema = z.object({
   version: z.literal(2),
   key: z.string(),

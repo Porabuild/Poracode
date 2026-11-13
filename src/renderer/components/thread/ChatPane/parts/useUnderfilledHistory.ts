@@ -1,7 +1,11 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { runtimeHistoryBoundary } from "@/renderer/state/runtimeHistoryBoundary";
-import { createUnderfilledHistoryTrigger, type HistoryStartReached } from "./underfilledHistory";
+import {
+  createUnderfilledHistoryTrigger,
+  type HistoryGroupBoundary,
+  type HistoryStartReached,
+} from "./underfilledHistory";
 
 export const HISTORY_START_REACHED_THRESHOLD = 0.75;
 
@@ -9,12 +13,14 @@ export const HISTORY_START_REACHED_THRESHOLD = 0.75;
 export function useUnderfilledHistory({
   threadId,
   oldestVisibleEntryId,
+  oldestVisibleGroup,
   scrollElementRef,
   onStartReached,
   onContentHeightChange,
 }: {
   threadId: string;
   oldestVisibleEntryId: string | undefined;
+  oldestVisibleGroup?: HistoryGroupBoundary;
   scrollElementRef: RefObject<HTMLDivElement | null>;
   onStartReached: HistoryStartReached | undefined;
   onContentHeightChange: (() => void) | undefined;
@@ -50,6 +56,7 @@ export function useUnderfilledHistory({
       trigger.measure({
         threadId,
         oldestEntryId,
+        ...(oldestVisibleGroup ? { oldestGroup: oldestVisibleGroup } : {}),
         scroller,
         onStartReached,
       });
@@ -96,13 +103,22 @@ export function useUnderfilledHistory({
       if (frame !== null) cancelAnimationFrame(frame);
       scheduleMeasurementRef.current = () => {};
     };
-  }, [threadId, oldestEntryId, hydrationStatus, scrollElementRef, onStartReached, trigger]);
+  }, [
+    threadId,
+    oldestEntryId,
+    oldestVisibleGroup,
+    hydrationStatus,
+    scrollElementRef,
+    onStartReached,
+    trigger,
+  ]);
 
   function notifyContentHeight() {
     onContentHeightChange?.();
     trigger.measure({
       threadId,
       oldestEntryId,
+      ...(oldestVisibleGroup ? { oldestGroup: oldestVisibleGroup } : {}),
       scroller: scrollElementRef.current,
       onStartReached,
     });
@@ -147,13 +163,25 @@ export function useUnderfilledHistory({
     trigger.retry({
       threadId,
       oldestEntryId,
+      ...(oldestVisibleGroup ? { oldestGroup: oldestVisibleGroup } : {}),
       scroller: scrollElementRef.current,
       onStartReached,
     });
   }
   function handleStartReached() {
     if (hydrationStatus === "pending") pendingStartReachedRef.current = threadId;
-    else void onStartReached?.();
+    else {
+      const scroller = scrollElementRef.current;
+      if (scroller && scroller.scrollHeight <= scroller.clientHeight) {
+        trigger.measure({
+          threadId,
+          oldestEntryId,
+          scroller,
+          onStartReached,
+          ...(oldestVisibleGroup ? { oldestGroup: oldestVisibleGroup } : {}),
+        });
+      } else void onStartReached?.();
+    }
   }
   return {
     handleStartReached,
