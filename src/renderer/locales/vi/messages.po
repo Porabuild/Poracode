@@ -23079,6 +23079,7 @@ msgstr "Đã cập nhật"
 msgid "Updated {0}"
 msgstr "Đã cập nhật {0}"
 
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"

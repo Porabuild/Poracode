@@ -38,7 +38,8 @@ interface UpdateOptions {
 }
 
 function statusKey(status: AgentStatus): string {
-  return `${status.kind}:${status.envKind ?? "native"}:${status.envDistro ?? ""}`;
+  const env = scopeEnvForStatus(status);
+  return `${status.kind}:${env.kind}:${env.kind === "wsl" ? env.distro : ""}`;
 }
 
 function probeKey(status: AgentStatus, runtime: CombinedRuntimeUpdate, hostKey: string): string {
