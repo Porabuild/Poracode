@@ -594,36 +594,38 @@ function ToolCallInline({ item: source }: { item: RuntimeChatItem }) {
         </Disclosure.Trigger>
       </Disclosure.Heading>
       <Disclosure.Content>
-        <Disclosure.Body className="pb-1 pl-4 pt-1">
-          {details.pending ? (
-            <HistoryItemDetailPlaceholder failed={details.failed} retry={details.retry} />
-          ) : fetchTarget ? (
-            fetched.content !== undefined ? (
-              <CommandOutputViewport
-                text={fetched.content}
-                language={detectLanguageFromPath(fetchTarget.path)}
-              />
-            ) : (
-              <FileContentPlaceholder state={fetched.state} reason={fetched.reason} />
-            )
-          ) : row.bodyText ? (
-            row.bodyKind === "diff" ? (
-              <LazyInlineDiffView
-                diffText={row.bodyText}
-                filePath={row.bodyFilePath ?? ""}
-                {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
-                  ? { oldText: row.bodyOldText, newText: row.bodyNewText }
-                  : {})}
-              />
-            ) : (
-              <CommandOutputViewport
-                text={row.bodyText}
-                {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
-              />
-            )
-          ) : null}
-          {fetchTarget ? null : <ToolCallSections sections={row.sections} />}
-        </Disclosure.Body>
+        {isExpanded ? (
+          <Disclosure.Body className="pb-1 pl-4 pt-1">
+            {details.pending ? (
+              <HistoryItemDetailPlaceholder failed={details.failed} retry={details.retry} />
+            ) : fetchTarget ? (
+              fetched.content !== undefined ? (
+                <CommandOutputViewport
+                  text={fetched.content}
+                  language={detectLanguageFromPath(fetchTarget.path)}
+                />
+              ) : (
+                <FileContentPlaceholder state={fetched.state} reason={fetched.reason} />
+              )
+            ) : row.bodyText ? (
+              row.bodyKind === "diff" ? (
+                <LazyInlineDiffView
+                  diffText={row.bodyText}
+                  filePath={row.bodyFilePath ?? ""}
+                  {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
+                    ? { oldText: row.bodyOldText, newText: row.bodyNewText }
+                    : {})}
+                />
+              ) : (
+                <CommandOutputViewport
+                  text={row.bodyText}
+                  {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
+                />
+              )
+            ) : null}
+            {fetchTarget ? null : <ToolCallSections sections={row.sections} />}
+          </Disclosure.Body>
+        ) : null}
       </Disclosure.Content>
     </Disclosure>
   );

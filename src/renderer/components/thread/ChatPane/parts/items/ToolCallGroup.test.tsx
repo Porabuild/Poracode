@@ -72,6 +72,51 @@ describe("ToolCallGroup", () => {
     expect(viewport.className).not.toContain("overflow-y-auto");
   });
 
+  it("mounts only open tool bodies and preserves them through Show all", () => {
+    const threadId = "thread-1";
+    const items = Array.from({ length: 10 }, (_, index) => ({
+      ...makeCommandItem(`tool-${index}`, `echo result-${index}`),
+      streams: { command_output: `Output ${index}` },
+    }));
+    seedThread(threadId, items);
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+    const viewport = getViewport(view.container);
+    const trigger = screen.getByRole("button", { name: /echo result-9/ });
+    const panelId = trigger.getAttribute("aria-controls")!;
+    expect(document.getElementById(panelId)).toHaveAttribute("aria-hidden", "true");
+    expect(viewport.querySelectorAll('[data-slot="disclosure-body"]')).toHaveLength(0);
+
+    fireEvent.click(trigger);
+    expect(document.getElementById(panelId)).toHaveTextContent("Output 9");
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(viewport.querySelectorAll('[data-slot="disclosure-body"]')).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /echo result-9/ })).toBe(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById(panelId)).toHaveTextContent("Output 9");
+
+    fireEvent.click(trigger);
+    expect(document.getElementById(panelId)).toHaveAttribute("aria-hidden", "true");
+    expect(viewport.querySelectorAll('[data-slot="disclosure-body"]')).toHaveLength(0);
+    act(() =>
+      useAppStore.getState().applyRuntimeEvent(threadId, {
+        type: "content.delta",
+        threadId,
+        itemId: "tool-9",
+        stream: "command_output",
+        delta: " updated",
+      }),
+    );
+    fireEvent.click(trigger);
+    expect(document.getElementById(panelId)).toHaveTextContent("Output 9 updated");
+    fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
   it("does not mount child rows while collapsed and mounts them once expanded", () => {
     const threadId = "thread-1";
     const items = [
