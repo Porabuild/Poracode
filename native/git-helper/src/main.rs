@@ -139,6 +139,15 @@ fn handle_request(service: &GitHelperService, req: HelperRequest) -> HelperRespo
     }
     match req.kind.as_str() {
         "ping" => HelperResponse::ok_empty(req.id),
+        "listTree" => {
+            let Some(ref root_path) = req.root_path else {
+                return HelperResponse::err(req.id, "listTree requires rootPath");
+            };
+            match service.list_tree(root_path, &req.directory_path, req.timeout_ms) {
+                Ok(entries) => HelperResponse::ok_tree_search(req.id, entries),
+                Err(error) => HelperResponse::err(req.id, error),
+            }
+        }
         "statusBatch" => {
             match service.status_batch(&req.paths, req.detail, req.timeout_ms, req.max_concurrency)
             {

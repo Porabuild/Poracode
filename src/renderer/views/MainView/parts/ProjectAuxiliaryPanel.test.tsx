@@ -1,16 +1,18 @@
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
-import type { ReactElement, ReactNode } from "react";
+import { useContext, type ReactElement, type ReactNode } from "react";
 import { I18nProvider } from "@lingui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { deleteProject } from "@/renderer/actions/projectActions";
 import { closeExitedShell } from "@/renderer/actions/terminalTabActions";
+import { showFilesPanel } from "@/renderer/actions/panelActions";
 import type { PoracodeBridge } from "@/shared/ipc";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import * as deviceHost from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { i18n } from "@/renderer/i18n/i18n";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -20,6 +22,7 @@ import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideCh
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
 import { GlobalTerminalPanel } from "@/renderer/views/GlobalTerminalPanel/GlobalTerminalPanel";
 import { usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
+import { ProjectFilesPanelVisibilityContext } from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
 
 vi.mock("@/renderer/analytics/useProductViewTracking", () => ({
   productSurfaceView: vi.fn<(tab: string, mode: string) => string>(() => "git"),
@@ -42,6 +45,7 @@ interface CapturedRightPanelProps {
   gitContent?: ReactElement<{
     gitPanelContext: { projectId: string; worktreePath?: string } | null;
   }>;
+  filesContent?: ReactElement<{ rootContext: FileEditorRootContext; visible: boolean }>;
   docksContent?: ReactElement;
   docksHeaderActions?: ReactElement;
   notesContent?: ReactElement<{ projectId: string }>;
@@ -56,6 +60,7 @@ interface CapturedRightPanelProps {
 
 const unifiedRightPanelProps = vi.hoisted(() => ({
   current: null as CapturedRightPanelProps | null,
+  filesVisible: true,
 }));
 const deviceFixture = vi.hoisted(() => ({ mounted: 0, retired: [] as string[] }));
 
@@ -89,6 +94,7 @@ vi.mock("@/renderer/deferredFeatures", async () => {
 vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
   UnifiedRightPanel: (props: CapturedRightPanelProps) => {
     unifiedRightPanelProps.current = props;
+    unifiedRightPanelProps.filesVisible = useContext(ProjectFilesPanelVisibilityContext);
     return <>{props.devicesContent}</>;
   },
 }));
@@ -241,6 +247,7 @@ describe("ProjectAuxiliaryPanel", () => {
       runtimeStructuralVersionByThread: {},
     });
     useDevTerminalStore.setState({ isOpen: false, source: "project", tabs: [] });
+    useFileEditorStore.setState({ buffers: {}, overlayMode: null });
     useSharedSettings.setState({ threadDocksPlacement: "composer", terminalPosition: "right" });
     usePanelStore.setState({
       gitReviewContext: {
@@ -556,6 +563,67 @@ describe("ProjectAuxiliaryPanel", () => {
         worktreePath: threadC.worktreePath!,
       });
     });
+  });
+
+  it.each(["files", "git"] as const)(
+    "syncs %s when the focused thread finishes worktree provisioning",
+    async (tab) => {
+      const pendingThread = { ...threadA };
+      delete pendingThread.worktreePath;
+      useAppStore.setState({
+        projects: [makeProject(threadA.projectId)],
+        threads: [pendingThread],
+      });
+      showFilesPanel(threadA.projectId);
+      usePanelStore.setState({
+        rightPanelTab: tab,
+        gitReviewContext: { projectId: threadA.projectId },
+      });
+      render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal visible />
+        </I18nProvider>,
+      );
+      await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+      await act(async () => {
+        useAppStore.setState({
+          threads: [{ ...pendingThread, worktreePath: "C:\\created-worktree" }],
+        });
+      });
+      await waitFor(() => {
+        const context =
+          tab === "files"
+            ? usePanelStore.getState().filesPanelContext
+            : usePanelStore.getState().gitReviewContext;
+        expect(context?.worktreePath).toBe("C:\\created-worktree");
+      });
+      const displayedWorktree =
+        tab === "files"
+          ? unifiedRightPanelProps.current?.filesContent?.props.rootContext.worktreePath
+          : unifiedRightPanelProps.current?.gitContent?.props.gitPanelContext?.worktreePath;
+      expect(displayedWorktree).toBe("C:\\created-worktree");
+    },
+  );
+
+  it("only refreshes the Files panel when its main or split tab is visible", () => {
+    useAppStore.setState({ projects: [makeProject(threadA.projectId)] });
+    showFilesPanel(threadA.projectId);
+    const panel = (visible: boolean) => (
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible={visible} />
+      </I18nProvider>
+    );
+    const view = render(panel(true));
+    const visible = () =>
+      unifiedRightPanelProps.filesVisible &&
+      unifiedRightPanelProps.current?.filesContent?.props.visible;
+    expect(visible()).toBe(true);
+    act(() => usePanelStore.setState({ rightPanelTab: "usage", usagePanelOpen: true }));
+    expect(visible()).toBe(false);
+    act(() => usePanelStore.setState({ rightPanelSplit: { tab: "files", placement: "bottom" } }));
+    expect(visible()).toBe(true);
+    view.rerender(panel(false));
+    expect(visible()).toBe(false);
   });
 
   it("keeps the remote Mac panel and prefetches its checkout while the local draft project changes", async () => {

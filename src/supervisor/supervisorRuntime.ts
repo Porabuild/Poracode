@@ -241,8 +241,8 @@ export class SupervisorRuntime {
             ...(worktreePath ? { worktreePath } : {}),
           });
         },
-        onTreeChanged: (projectId, worktreePath) => {
-          this.projectTreeService.invalidateAllCaches();
+        onTreeChanged: (projectId, worktreePath, location) => {
+          this.projectTreeService.invalidateCaches(location);
           this.gitService.invalidateStatus();
           this.emit({
             type: "project-tree-changed",

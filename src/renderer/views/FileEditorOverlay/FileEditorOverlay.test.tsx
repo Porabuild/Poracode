@@ -96,6 +96,7 @@ describe("FileEditorOverlay", () => {
     expect(within(main).getByPlaceholderText("Search files")).toBeInTheDocument();
     expect(within(main).queryByTestId("monaco-editor")).not.toBeInTheDocument();
     expect(await within(main).findByText("README.md")).toBeInTheDocument();
+    expect(bridge.listProjectTree).toHaveBeenCalledTimes(1);
 
     fireEvent.click(within(main).getByText("README.md"));
     await waitFor(() => {

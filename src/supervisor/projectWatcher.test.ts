@@ -71,6 +71,22 @@ describe("isIgnoredWorkTreeFile", () => {
     expect(isIgnoredWorkTreeFile(".poracode/settings.json")).toBe(false);
     expect(isIgnoredWorkTreeFile("src/worktrees/create.ts")).toBe(false);
     expect(isIgnoredWorkTreeFile("src/target/router.ts")).toBe(false);
+    expect(isIgnoredWorkTreeFile("src/targeting/router.ts")).toBe(false);
+  });
+
+  it.each([
+    "target/x86_64-pc-windows-msvc/release/helper.exe",
+    "native/helper/target/aarch64-apple-darwin/debug/helper",
+    ".vite/deps/a.js",
+    "packages/a/.vite/deps/a.js",
+    ".cache/a",
+    "packages/a/.cache/a",
+    ".swc/a",
+    "packages/a/.swc/a",
+    ".parcel-cache/a",
+    "packages/a/.parcel-cache/a",
+  ])("ignores build/cache noise like the native watcher: %s", (path) => {
+    expect(isIgnoredWorkTreeFile(path)).toBe(true);
   });
 });
 
@@ -136,7 +152,7 @@ describe("ProjectWatcher WSL worktrees", () => {
     vi.restoreAllMocks();
   });
 
-  it("watches linked worktree roots when .git is a file", async () => {
+  it("watches linked worktree roots and preserves WSL location metadata", async () => {
     vi.useFakeTimers();
     const { watch, waitForSubscription } = createWatchHarness();
     const client = {
@@ -160,7 +176,10 @@ describe("ProjectWatcher WSL worktrees", () => {
     });
     watcher.setWslClient(client);
 
-    await watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await watcher.watch("project-1", {
+      ...makeLocation("/home/demo/work/repo"),
+      remoteServerId: "remote-host",
+    });
     await watcher.watchWorktrees("project-1", ["/home/demo/.poracode/worktrees/repo/feature"]);
 
     await waitForSubscription(2);
@@ -180,6 +199,10 @@ describe("ProjectWatcher WSL worktrees", () => {
     expect(onTreeChanged).toHaveBeenCalledWith(
       "project-1",
       "/home/demo/.poracode/worktrees/repo/feature",
+      {
+        ...makeLocation("/home/demo/.poracode/worktrees/repo/feature"),
+        remoteServerId: "remote-host",
+      },
     );
     await watcher.dispose();
   });
@@ -209,7 +232,11 @@ describe("ProjectWatcher WSL worktrees", () => {
     onEvent({ subscriptionId: "sub", scope: "worktree", paths: [] });
 
     await vi.advanceTimersByTimeAsync(300);
-    expect(onTreeChanged).toHaveBeenCalledWith("project-1");
+    expect(onTreeChanged).toHaveBeenCalledWith(
+      "project-1",
+      undefined,
+      makeLocation("/home/demo/work/repo"),
+    );
     await watcher.dispose();
   });
 
@@ -320,7 +347,11 @@ describe("ProjectWatcher WSL worktrees", () => {
       paths: ["src/App.tsx"],
     });
     await vi.advanceTimersByTimeAsync(300);
-    expect(onTreeChanged).toHaveBeenCalledWith("project-1", worktreePath);
+    expect(onTreeChanged).toHaveBeenCalledWith(
+      "project-1",
+      worktreePath,
+      makeLocation(worktreePath, "Debian"),
+    );
 
     await watcher.dispose();
   });
@@ -491,6 +522,41 @@ describe("ProjectWatcher native registration readiness", () => {
     return { watcher, registrations, onGitChanged, onTreeChanged };
   }
 
+  it.each([
+    { kind: "windows" as const, root: "C:\\repo", worktree: "C:\\topic" },
+    { kind: "posix" as const, root: "/repo", worktree: "/topic" },
+  ])("preserves $kind location metadata in tree callbacks", async ({ kind, root, worktree }) => {
+    const h = harness();
+    const location = { kind, path: root, remoteServerId: "remote-host" };
+    const project = h.watcher.watch("p", location);
+    const registration = h.watcher.watchWorktrees("p", [worktree]);
+    h.registrations[0]!.resolve();
+    h.registrations[1]!.resolve();
+    await Promise.all([project, registration]);
+
+    h.registrations[0]!.changed("worktree");
+    h.registrations[1]!.changed("worktree");
+    expect(h.onTreeChanged.mock.calls).toEqual([
+      ["p", undefined, location],
+      ["p", worktree, { kind, path: worktree, remoteServerId: "remote-host" }],
+    ]);
+    await h.watcher.dispose();
+  });
+
+  it("uses the host platform for worktree callbacks without a project location", async () => {
+    const h = harness();
+    const worktree = process.platform === "win32" ? "C:\\topic" : "/topic";
+    const registration = h.watcher.watchWorktrees("p", [worktree]);
+    h.registrations[0]!.resolve();
+    await registration;
+    h.registrations[0]!.changed("worktree");
+    expect(h.onTreeChanged).toHaveBeenCalledExactlyOnceWith("p", worktree, {
+      kind: process.platform === "win32" ? "windows" : "posix",
+      path: worktree,
+    });
+    await h.watcher.dispose();
+  });
+
   it("keeps project and idempotent worktree registration pending until their ACKs", async () => {
     const h = harness();
     let projectReady = false,
@@ -515,7 +581,9 @@ describe("ProjectWatcher native registration readiness", () => {
     await Promise.all([worktrees, repeated]);
     expect([worktreeReady, repeatedReady]).toEqual([true, true]);
     h.registrations[1]!.changed("worktree");
-    expect(h.onTreeChanged).toHaveBeenCalledWith("p", "/topic");
+    expect(h.onTreeChanged).toHaveBeenCalledWith("p", "/topic", { kind: "posix", path: "/topic" });
+    h.registrations[0]!.changed("worktree");
+    expect(h.onTreeChanged).toHaveBeenCalledWith("p", undefined, { kind: "posix", path: "/repo" });
     await h.watcher.dispose();
   });
 

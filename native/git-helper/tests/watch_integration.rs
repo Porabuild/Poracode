@@ -79,7 +79,7 @@ impl Daemon {
             .expect("send watch command");
     }
     fn watch(&mut self, id: u64, root: &Path) {
-        self.send(json!({"protocolVersion":3,"id":id,"kind":"watch","rootPath":root}));
+        self.send(json!({"protocolVersion":4,"id":id,"kind":"watch","rootPath":root}));
         self.wait("ready", id, None);
     }
     fn wait(&self, kind: &str, id: u64, scope: Option<&str>) -> Value {
@@ -89,7 +89,7 @@ impl Daemon {
                 .messages
                 .recv_timeout(deadline.saturating_duration_since(Instant::now()))
                 .expect("watch response before deadline");
-            assert_eq!(message["protocolVersion"], 3);
+            assert_eq!(message["protocolVersion"], 4);
             assert_ne!(message["kind"], "error", "{message}");
             if message["kind"] == kind
                 && message["id"] == id
@@ -217,7 +217,7 @@ fn coalesces_real_changes_and_filters_noise_without_crossing_scopes() {
             .iter()
             .all(|message| message.get("paths").is_none())
     );
-    daemon.send(json!({"protocolVersion":3,"id":1,"kind":"unwatch"}));
+    daemon.send(json!({"protocolVersion":4,"id":1,"kind":"unwatch"}));
     daemon.wait("unwatched", 1, None);
     root.write("src/late.ts", "retired\n");
     other.write("active.ts", "live\n");
@@ -262,7 +262,7 @@ fn replacement_and_eof_drop_pending_notifications_and_handles() {
     let mut daemon = Daemon::new();
     daemon.watch(1, &old.0);
     old.write("pending.ts", "old\n");
-    daemon.send(json!({"protocolVersion":3,"id":1,"kind":"unwatch"}));
+    daemon.send(json!({"protocolVersion":4,"id":1,"kind":"unwatch"}));
     daemon.wait("unwatched", 1, None);
     daemon.watch(2, &new.0);
     old.write("retired.ts", "old\n");
@@ -295,12 +295,12 @@ fn removing_overlapping_roots_preserves_live_linked_metadata_and_parent_coverage
     let mut daemon = Daemon::new();
     daemon.watch(1, &root.0);
     daemon.watch(2, &linked.0);
-    daemon.send(json!({"protocolVersion":3,"id":2,"kind":"unwatch"}));
+    daemon.send(json!({"protocolVersion":4,"id":2,"kind":"unwatch"}));
     daemon.wait("unwatched", 2, None);
     root.write(".git/worktrees/topic/HEAD", "parent-still-watching\n");
     daemon.wait("changed", 1, Some("git"));
     daemon.watch(3, &linked.0);
-    daemon.send(json!({"protocolVersion":3,"id":1,"kind":"unwatch"}));
+    daemon.send(json!({"protocolVersion":4,"id":1,"kind":"unwatch"}));
     daemon.wait("unwatched", 1, None);
     let _ = daemon.changed_for(Duration::from_millis(500));
     root.write(".git/worktrees/topic/HEAD", "linked-still-watching\n");
@@ -310,10 +310,10 @@ fn removing_overlapping_roots_preserves_live_linked_metadata_and_parent_coverage
 #[test]
 fn rejects_previous_protocol_and_invalid_watch_paths() {
     for message in [
-        json!({"protocolVersion":2,"id":1,"kind":"watch","rootPath":"/old"}),
-        json!({"protocolVersion":3,"id":1,"kind":"watch","rootPath":"relative/path"}),
-        json!({"protocolVersion":3,"id":0,"kind":"watch","rootPath":"/zero"}),
-        json!({"protocolVersion":3,"id":1,"kind":"unknown"}),
+        json!({"protocolVersion":3,"id":1,"kind":"watch","rootPath":"/old"}),
+        json!({"protocolVersion":4,"id":1,"kind":"watch","rootPath":"relative/path"}),
+        json!({"protocolVersion":4,"id":0,"kind":"watch","rootPath":"/zero"}),
+        json!({"protocolVersion":4,"id":1,"kind":"unknown"}),
     ] {
         let mut daemon = Daemon::new();
         daemon.send(message);

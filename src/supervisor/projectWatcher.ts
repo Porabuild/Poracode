@@ -1,4 +1,5 @@
 import type { ProjectLocation } from "@/shared/contracts";
+import { buildWorktreeLocation } from "@/shared/worktree";
 import { toWslUncPath } from "@/shared/wsl";
 import { ProjectWatcherClient } from "./projectWatcherClient";
 import {
@@ -15,7 +16,11 @@ export interface ProjectWatcherCallbacks {
   /** Fires when `.git` metadata (refs, index, HEAD, worktrees/*) changes. */
   onGitChanged: (projectId: string, worktreePath?: string) => void;
   /** Fires when working-tree files change. */
-  onTreeChanged: (projectId: string, worktreePath?: string) => void;
+  onTreeChanged: (
+    projectId: string,
+    worktreePath: string | undefined,
+    location: ProjectLocation,
+  ) => void;
 }
 
 type WslUnsubscribe = () => Promise<void>;
@@ -162,7 +167,7 @@ export class ProjectWatcher {
       if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
       entry.treeDebounceTimer = setTimeout(() => {
         entry.treeDebounceTimer = null;
-        this.callbacks.onTreeChanged(projectId);
+        this.callbacks.onTreeChanged(projectId, undefined, location);
       }, DEBOUNCE_MS);
     };
 
@@ -179,7 +184,7 @@ export class ProjectWatcher {
       (scope) => {
         if (this.watchers.get(projectId) !== entry) return;
         if (scope === "git") this.callbacks.onGitChanged(projectId);
-        else this.callbacks.onTreeChanged(projectId);
+        else this.callbacks.onTreeChanged(projectId, undefined, location);
       },
       () => {
         if (this.watchers.get(projectId) === entry) this.watchers.delete(projectId);
@@ -227,6 +232,9 @@ export class ProjectWatcher {
         treeDebounceTimer: null,
         projectId,
       };
+      const worktreeLocation: ProjectLocation = location
+        ? buildWorktreeLocation(location, wtPath)
+        : { kind: process.platform === "win32" ? "windows" : "posix", path: wtPath };
 
       const scheduleGitNotify = () => {
         if (entry.gitDebounceTimer) clearTimeout(entry.gitDebounceTimer);
@@ -239,7 +247,7 @@ export class ProjectWatcher {
         if (entry.treeDebounceTimer) clearTimeout(entry.treeDebounceTimer);
         entry.treeDebounceTimer = setTimeout(() => {
           entry.treeDebounceTimer = null;
-          this.callbacks.onTreeChanged(projectId, wtPath);
+          this.callbacks.onTreeChanged(projectId, wtPath, worktreeLocation);
         }, DEBOUNCE_MS);
       };
 
@@ -258,7 +266,7 @@ export class ProjectWatcher {
         (scope) => {
           if (this.worktreeWatchers.get(wtPath) !== entry) return;
           if (scope === "git") this.callbacks.onGitChanged(projectId, wtPath);
-          else this.callbacks.onTreeChanged(projectId, wtPath);
+          else this.callbacks.onTreeChanged(projectId, wtPath, worktreeLocation);
         },
         () => {
           if (this.worktreeWatchers.get(wtPath) === entry) this.worktreeWatchers.delete(wtPath);

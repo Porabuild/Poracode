@@ -2,7 +2,7 @@ import type { GIT_HELPER_PROTOCOL_VERSION } from "./git/gitNativeHelperProtocol"
 
 export type ProjectWatchScope = "git" | "worktree";
 
-// v3 is shared by the native --watch-v3 mode and the bundled TS worker.
+// Shares the Git helper envelope version; --watch-v3 and the TS worker move together.
 export type ProjectWatchCommand = {
   protocolVersion: typeof GIT_HELPER_PROTOCOL_VERSION;
   id: number;
