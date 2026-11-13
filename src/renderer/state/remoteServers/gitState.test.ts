@@ -415,6 +415,7 @@ describe("syncRemoteGitStatePatch", () => {
     });
 
     expect(useGitStore.getState().worktreeStatuses[WORKTREE]).toEqual(makeStatus());
+    expect(useGitStore.getState().prData[WORKTREE]).toEqual(makePrData("Initial"));
   });
 
   it("preserves a newer direct PR, status, details, and gh flag across an unrelated patch", () => {

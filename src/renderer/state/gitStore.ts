@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { clearGitCache, loadGitCache, persistGitCache } from "./gitStorePersistence";
 import type {
   GitBranchListResult,
   GitStatusResult,
@@ -79,6 +80,43 @@ interface GitActions {
 }
 
 type FileChange = GitStatusResult["staged"][number];
+
+function removeWorktreeCacheEntries(
+  state: GitState,
+  paths: ReadonlySet<string>,
+): Partial<GitState> {
+  if (paths.size === 0) return {};
+  return {
+    worktreeStatuses: Object.fromEntries(
+      Object.entries(state.worktreeStatuses).filter(([key]) => !paths.has(key)),
+    ),
+    prData: Object.fromEntries(Object.entries(state.prData).filter(([key]) => !paths.has(key))),
+    worktreeSourceInfo: Object.fromEntries(
+      Object.entries(state.worktreeSourceInfo).filter(([key]) => !paths.has(key)),
+    ),
+  };
+}
+
+function removedCatalogWorktreeEntries(
+  state: GitState,
+  projectId: string,
+  worktrees: GitWorktreeInfo[],
+): Partial<GitState> {
+  const retained = new Set([
+    ...worktrees.map((worktree) => worktree.path),
+    ...Object.entries(state.worktrees).flatMap(([id, items]) =>
+      id === projectId ? [] : items.map((worktree) => worktree.path),
+    ),
+  ]);
+  return removeWorktreeCacheEntries(
+    state,
+    new Set(
+      (state.worktrees[projectId] ?? [])
+        .filter((worktree) => !retained.has(worktree.path))
+        .map((worktree) => worktree.path),
+    ),
+  );
+}
 
 /** Replace any entry with the same path, then append. Mirrors VS Code resource-group semantics. */
 function upsertByPath(list: readonly FileChange[], item: FileChange): FileChange[] {
@@ -450,48 +488,6 @@ export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boole
   );
 }
 
-/**
- * Persist a snapshot of git state to localStorage so the next app launch can
- * paint the previous session's +/- chips, branch, and PR section instantly,
- * while the background refresh runs to update them. Only fields that are cheap
- * to serialize and useful at first paint are persisted — the in-flight `prFiles`
- * / `prDiffs` caches are kept session-local since they're tied to overlay state.
- */
-// v2 recomputes GitHub-only availability and truncated repository namespaces.
-// v2 remains valid: raw SSH/SCP URLs cached by older hosts still paint branch
-// and diff state, but repoIdentityKey treats them as unconfirmed. The owning
-// host publishes canonical HTTPS only when it proves a direct route; routes it
-// cannot prove stay raw/unconfirmed and are retried on future catalog imports.
-// No cache version or field change is needed.
-const PERSIST_KEY = "poracode-git-cache-v2";
-const PERSIST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-interface PersistedSnapshot {
-  v: 2;
-  ts: number;
-  statuses: Record<string, GitStatusResult>;
-  worktreeStatuses: Record<string, GitStatusResult>;
-  worktrees: Record<string, GitWorktreeInfo[]>;
-  branches: Record<string, GitBranchListResult>;
-  ghAvailable: Record<string, boolean>;
-  prData: Record<string, PrData | null>;
-  worktreeSourceInfo: Record<string, WorktreeSourceInfo>;
-}
-
-function loadPersistedSnapshot(): Partial<PersistedSnapshot> {
-  if (typeof localStorage === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(PERSIST_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as PersistedSnapshot;
-    if (parsed.v !== 2) return {};
-    if (Date.now() - parsed.ts > PERSIST_TTL_MS) return {};
-    return parsed;
-  } catch {
-    return {};
-  }
-}
-
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let persistIdleHandle: number | null = null;
 let pendingPersistState: GitState | null = null;
@@ -517,26 +513,6 @@ function cancelScheduledPersist(): void {
   persistWindowStartedAt = null;
 }
 
-function flushPersistSnapshot(state: GitState): void {
-  if (typeof localStorage === "undefined") return;
-  try {
-    const snapshot: PersistedSnapshot = {
-      v: 2,
-      ts: Date.now(),
-      statuses: state.statuses,
-      worktreeStatuses: state.worktreeStatuses,
-      worktrees: state.worktrees,
-      branches: state.branches,
-      ghAvailable: state.ghAvailable,
-      prData: state.prData,
-      worktreeSourceInfo: state.worktreeSourceInfo,
-    };
-    localStorage.setItem(PERSIST_KEY, JSON.stringify(snapshot));
-  } catch {
-    // localStorage may be full or unavailable — silently skip.
-  }
-}
-
 function schedulePersist(state: GitState) {
   if (typeof localStorage === "undefined") return;
   const now = Date.now();
@@ -549,7 +525,7 @@ function schedulePersist(state: GitState) {
   if (persistTimer !== null && delayMs > 0) clearTimeout(persistTimer);
   else if (persistTimer !== null && delayMs === 0) return;
   // Coalesce bursts during active agent edits and defer the synchronous
-  // `JSON.stringify` + `localStorage.setItem` write to an idle frame so
+  // cache serialization and `localStorage.setItem` writes to an idle frame so
   // background worktree churn never stalls UI animations or thread switches,
   // bounded by `PERSIST_MAX_WAIT_MS` so continuous churn still checkpoints.
   persistTimer = setTimeout(() => {
@@ -562,7 +538,7 @@ function schedulePersist(state: GitState) {
           persistIdleHandle = null;
           const latest = pendingPersistState;
           pendingPersistState = null;
-          if (latest) flushPersistSnapshot(latest);
+          if (latest) persistGitCache(latest);
         },
         { timeout: PERSIST_IDLE_TIMEOUT_MS },
       );
@@ -570,7 +546,7 @@ function schedulePersist(state: GitState) {
     }
     const latest = pendingPersistState;
     pendingPersistState = null;
-    if (latest) flushPersistSnapshot(latest);
+    if (latest) persistGitCache(latest);
   }, delayMs);
 }
 
@@ -579,11 +555,11 @@ if (typeof window !== "undefined") {
     if (!pendingPersistState) return;
     const latest = pendingPersistState;
     cancelScheduledPersist();
-    flushPersistSnapshot(latest);
+    persistGitCache(latest);
   });
 }
 
-const initialPersisted = loadPersistedSnapshot();
+const initialPersisted = loadGitCache();
 
 export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   githubPollingProblems: {},
@@ -661,6 +637,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   setWorktrees: (projectId, worktrees) => {
     if (areWorktreesEqual(get().worktrees[projectId], worktrees)) return;
     set((state) => ({
+      ...removedCatalogWorktreeEntries(state, projectId, worktrees),
       worktrees: { ...state.worktrees, [projectId]: worktrees },
     }));
   },
@@ -678,6 +655,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
       let nextBranches = state.branches;
       let nextWorktrees = state.worktrees;
       let nextGhAvailable = state.ghAvailable;
+      let removedWorktreeEntries: Partial<GitState> = {};
       let changed = false;
 
       if (snapshot.status && !areGitStatusesEqual(state.statuses[projectId], snapshot.status)) {
@@ -694,6 +672,11 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
         snapshot.worktrees &&
         !areWorktreesEqual(state.worktrees[projectId], snapshot.worktrees)
       ) {
+        removedWorktreeEntries = removedCatalogWorktreeEntries(
+          state,
+          projectId,
+          snapshot.worktrees,
+        );
         nextWorktrees = { ...nextWorktrees, [projectId]: snapshot.worktrees };
         changed = true;
       }
@@ -708,6 +691,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
 
       return changed
         ? {
+            ...removedWorktreeEntries,
             statuses: nextStatuses,
             branches: nextBranches,
             worktrees: nextWorktrees,
@@ -939,16 +923,10 @@ export function resetGitStoreCache(): void {
   // below. A desktop/session reset must remove the previous identity's cache
   // immediately, rather than leave a reload window before that debounce fires.
   cancelScheduledPersist();
-  if (typeof localStorage !== "undefined") {
-    try {
-      localStorage.removeItem(PERSIST_KEY);
-    } catch {
-      // Storage may be unavailable (privacy mode / sandboxed webview).
-    }
-  }
+  clearGitCache();
 }
 
-// Persist a snapshot whenever any of the cached fields change.
+// Coalesce cache changes; the writer persists only changed, retained entries.
 useGitStore.subscribe((state, prev) => {
   if (
     state.statuses !== prev.statuses ||

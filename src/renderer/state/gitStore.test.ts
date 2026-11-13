@@ -151,6 +151,60 @@ describe("gitStore batch updates", () => {
     expect(localStorage.getItem("poracode-git-cache-v2")).toBeNull();
   });
 
+  it("clears worktree status without discarding PR or source data", () => {
+    const current = useGitStore.getState();
+    current.setWorktreeStatus("/wt/removed", baseStatus);
+    current.setPrData("/wt/removed", basePr);
+    current.setPrData("/wt/kept", basePr);
+    current.setWorktreeSourceInfo("/wt/removed", {
+      sourceBranch: "main",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    current.clearWorktreeStatus("/wt/removed");
+    const result = useGitStore.getState();
+    expect(result.worktreeStatuses["/wt/removed"]).toBeUndefined();
+    expect(result.prData["/wt/removed"]).toEqual(basePr);
+    expect(result.worktreeSourceInfo["/wt/removed"]).toEqual({
+      sourceBranch: "main",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    expect(result.prData["/wt/kept"]).toEqual(basePr);
+  });
+
+  it.each(["setWorktrees", "setProjectSnapshot"] as const)(
+    "%s removes only worktrees previously owned by that catalog",
+    (method) => {
+      const removed = { ...baseWorktrees[0]!, path: "/wt/removed", isMain: false };
+      const kept = { ...removed, path: "/wt/kept" };
+      const current = useGitStore.getState();
+      current.setWorktrees("p1", [removed, kept]);
+      current.setWorktreeStatus(removed.path, baseStatus);
+      current.setWorktreeStatus(kept.path, baseStatus);
+      current.setPrData(removed.path, basePr);
+      current.setPrData(kept.path, basePr);
+      current.setWorktreeSourceInfo(removed.path, {
+        sourceBranch: "main",
+        commitsAhead: 1,
+        sourceAhead: 0,
+      });
+      current.setPrData("__branchname:p1:feature", basePr);
+      current.setRemoteWorktreeSummary("/remote/awaiting-catalog", baseStatus);
+      if (method === "setWorktrees") current.setWorktrees("p1", [kept]);
+      else current.setProjectSnapshot("p1", { worktrees: [kept] });
+      expect(useGitStore.getState().prData[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().worktreeStatuses[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().worktreeSourceInfo[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().prData[kept.path]).toEqual(basePr);
+      expect(useGitStore.getState().worktreeStatuses[kept.path]).toEqual(baseStatus);
+      expect(useGitStore.getState().prData["__branchname:p1:feature"]).toEqual(basePr);
+      expect(useGitStore.getState().worktreeStatuses["/remote/awaiting-catalog"]).toEqual(
+        baseStatus,
+      );
+    },
+  );
+
   it("recomputes released v1 GitHub availability and repository caches without rewriting them", async () => {
     resetGitStoreCache();
     const previous = JSON.stringify({
@@ -175,7 +229,7 @@ describe("gitStore batch updates", () => {
     }
   });
 
-  it("keeps released v2 raw SSH statuses but treats their origins as unconfirmed until a canonical refresh", async () => {
+  it("migrates released v2 raw SSH statuses unconfirmed until a canonical refresh", async () => {
     resetGitStoreCache();
     const alias = {
       ...baseStatus,
