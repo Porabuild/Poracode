@@ -408,6 +408,8 @@ fn coalesces_real_changes_and_filters_noise_without_crossing_scopes() {
     let mut daemon = Daemon::new();
     daemon.watch(1, &root.0);
     daemon.watch(2, &other.0);
+    // Drain setup events (macOS FSEvents can deliver pre-watch mkdirs asynchronously).
+    let _ = daemon.changed_for(Duration::from_millis(800));
     for index in 0..80 {
         root.write(&format!("src/file-{index}.ts"), "export {}\n");
         root.write(".git/index.lock", "noise");
