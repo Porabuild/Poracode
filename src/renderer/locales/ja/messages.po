@@ -631,6 +631,7 @@ msgstr "{head}または{tail}"
 msgid "{heading} mode"
 msgstr "{heading}モード"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {さらに # 件を表示}}"
@@ -4482,7 +4483,7 @@ msgstr "エラーを折りたたむ"
 #~ msgid "Collapse experiment"
 #~ msgstr "実験を折りたたむ"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "ファイルと成果物を折りたたむ"
 
@@ -4496,8 +4497,12 @@ msgid "Collapse group"
 msgstr "グループを折りたたむ"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "画像を折りたたむ"
+#~ msgid "Collapse images"
+#~ msgstr "画像を折りたたむ"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "メディアを折りたたむ"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7925,7 +7930,7 @@ msgstr "エラーを展開"
 #~ msgid "Expand experiment"
 #~ msgstr "実験を展開する"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "ファイルと成果物を展開"
 
@@ -7939,8 +7944,12 @@ msgid "Expand group"
 msgstr "グループを展開"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "画像を展開"
+#~ msgid "Expand images"
+#~ msgstr "画像を展開"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "メディアを展開"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8343,9 +8352,9 @@ msgstr "ファイルはサポートされていないエンコーディングを
 msgid "Files"
 msgstr "ファイル"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "ファイルと成果物"
 
@@ -9348,6 +9357,7 @@ msgstr "非表示の再開可能なスレッドは 5 分ごとにスイープさ
 msgid "Hide"
 msgstr "隠す"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9665,9 +9675,6 @@ msgstr "画像"
 msgid "Image preview"
 msgstr "画像プレビュー"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "画像"
@@ -11722,6 +11729,12 @@ msgstr "mcp.json を読み取れなかったため、このプラグインのサ
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json はこのビルドが対応していない Agent Plugins バージョンを指定しています。"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "メディア"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14130,6 +14143,17 @@ msgstr "モデルピッカーを開く"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "概要でスレッドを開く"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "動画 {0}/{1} を開く: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "動画プレビューを開く"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17047,6 +17071,7 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18755,6 +18780,7 @@ msgstr "ドックを右パネルに表示"
 msgid "Show estimated cost"
 msgstr "推定コストを表示"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "表示を減らす"
@@ -18763,7 +18789,7 @@ msgstr "表示を減らす"
 msgid "Show file tree"
 msgstr "ファイルツリーを表示"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "ファイルと成果物を表示"
 
@@ -18777,8 +18803,8 @@ msgstr "フォントの候補を表示"
 #~ msgstr "サイドバーのフッターに GitHub Actions を表示します。"
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "画像を表示"
+#~ msgid "Show images"
+#~ msgstr "画像を表示"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18801,6 +18827,10 @@ msgstr "{providerLabel} の MCP サーバーを表示"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "表示"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "メディアを表示"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21386,6 +21416,7 @@ msgstr "このマシン"
 msgid "This machine (local)"
 msgstr "このマシン（ローカル）"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21754,8 +21785,8 @@ msgid "Thread goal dock"
 msgstr "スレッドゴールドック"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "スレッドの画像"
+#~ msgid "Thread images"
+#~ msgstr "スレッドの画像"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21771,6 +21802,10 @@ msgstr "スレッドはすでにアンロードされています。"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "スレッドリストのオプション"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "スレッドのメディア"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22312,7 +22347,7 @@ msgstr "ピクチャーインピクチャーを開けません"
 msgid "Unable to open the file"
 msgstr "ファイルを開けませんでした"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "エディターでファイルを開けませんでした"
@@ -23418,6 +23453,7 @@ msgstr "バージョン"
 msgid "via {0}"
 msgstr "{0}経由"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

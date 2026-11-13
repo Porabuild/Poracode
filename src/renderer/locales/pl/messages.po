@@ -631,6 +631,7 @@ msgstr "{head} lub {tail}"
 msgid "{heading} mode"
 msgstr "Tryb {heading}"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {Pokaż jeszcze #}}"
@@ -4483,7 +4484,7 @@ msgstr "Zwiń błąd"
 #~ msgid "Collapse experiment"
 #~ msgstr "Zwiń eksperyment"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Zwiń pliki i artefakty"
 
@@ -4497,8 +4498,12 @@ msgid "Collapse group"
 msgstr "Zwiń grupę"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Zwiń obrazy"
+#~ msgid "Collapse images"
+#~ msgstr "Zwiń obrazy"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Zwiń multimedia"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7926,7 +7931,7 @@ msgstr "Rozwiń błąd"
 #~ msgid "Expand experiment"
 #~ msgstr "Rozwiń eksperyment"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Rozwiń pliki i artefakty"
 
@@ -7940,8 +7945,12 @@ msgid "Expand group"
 msgstr "Rozwiń grupę"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Rozwiń obrazy"
+#~ msgid "Expand images"
+#~ msgstr "Rozwiń obrazy"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Rozwiń multimedia"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8344,9 +8353,9 @@ msgstr "Plik używa nieobsługiwanego kodowania."
 msgid "Files"
 msgstr "Pliki"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Pliki i artefakty"
 
@@ -9349,6 +9358,7 @@ msgstr "Ukryte wątki, które można wznowić, są czyszczone co 5 minut i rozł
 msgid "Hide"
 msgstr "Ukryj"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9666,9 +9676,6 @@ msgstr "Obraz"
 msgid "Image preview"
 msgstr "Podgląd obrazu"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Obrazy"
@@ -11723,6 +11730,12 @@ msgstr "Nie udało się odczytać mcp.json, więc serwery tej wtyczki zostały p
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json wskazuje wersję Agent Plugins nieobsługiwaną przez tę kompilację."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Multimedia"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14132,6 +14145,17 @@ msgstr "Otwórz selektor modeli"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Otwórz wątek w podsumowaniu"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "Otwórz wideo {0} z {1}: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Otwórz podgląd wideo"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17049,6 +17073,7 @@ msgstr "Tylko użycie zachowane na tym hoście."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18757,6 +18782,7 @@ msgstr "Pokaż doki w prawym panelu"
 msgid "Show estimated cost"
 msgstr "Pokaż szacunkowy koszt"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Pokaż mniej"
@@ -18765,7 +18791,7 @@ msgstr "Pokaż mniej"
 msgid "Show file tree"
 msgstr "Pokaż drzewo plików"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Pokaż pliki i artefakty"
 
@@ -18779,8 +18805,8 @@ msgstr "Pokaż propozycje czcionek"
 #~ msgstr "Pokaż GitHub Actions w stopce paska bocznego."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Pokaż obrazy"
+#~ msgid "Show images"
+#~ msgstr "Pokaż obrazy"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18803,6 +18829,10 @@ msgstr "Pokaż serwery MCP z {providerLabel}"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Pokaż"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Pokaż multimedia"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21388,6 +21418,7 @@ msgstr "Ten komputer"
 msgid "This machine (local)"
 msgstr "Ta maszyna (lokalnie)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21756,8 +21787,8 @@ msgid "Thread goal dock"
 msgstr "Stacja dokująca celu wątku"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "Obrazy wątku"
+#~ msgid "Thread images"
+#~ msgstr "Obrazy wątku"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21773,6 +21804,10 @@ msgstr "Wątek został już wyładowany."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Opcje listy wątków"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "Multimedia wątku"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22314,7 +22349,7 @@ msgstr "Nie można otworzyć obrazu w obrazie"
 msgid "Unable to open the file"
 msgstr "Nie można otworzyć pliku"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Nie można otworzyć pliku w edytorze"
@@ -23420,6 +23455,7 @@ msgstr "Wersja"
 msgid "via {0}"
 msgstr "przez {0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

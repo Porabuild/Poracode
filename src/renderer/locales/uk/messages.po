@@ -631,6 +631,7 @@ msgstr "{head} або {tail}"
 msgid "{heading} mode"
 msgstr "Режим {heading}"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {Показати ще #}}"
@@ -4483,7 +4484,7 @@ msgstr "Згорнути помилку"
 #~ msgid "Collapse experiment"
 #~ msgstr "Згорнути експеримент"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Згорнути файли й артефакти"
 
@@ -4497,8 +4498,12 @@ msgid "Collapse group"
 msgstr "Згорнути групу"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Згорнути зображення"
+#~ msgid "Collapse images"
+#~ msgstr "Згорнути зображення"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Згорнути медіа"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7926,7 +7931,7 @@ msgstr "Розгорнути помилку"
 #~ msgid "Expand experiment"
 #~ msgstr "Розгорнути експеримент"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Розгорнути файли й артефакти"
 
@@ -7940,8 +7945,12 @@ msgid "Expand group"
 msgstr "Розгорнути групу"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Розгорнути зображення"
+#~ msgid "Expand images"
+#~ msgstr "Розгорнути зображення"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Розгорнути медіа"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8344,9 +8353,9 @@ msgstr "Файл використовує непідтримуване коду�
 msgid "Files"
 msgstr "Файли"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Файли й артефакти"
 
@@ -9349,6 +9358,7 @@ msgstr "Приховані відновлювані треди перевіря�
 msgid "Hide"
 msgstr "Сховати"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9666,9 +9676,6 @@ msgstr "Зображення"
 msgid "Image preview"
 msgstr "Попередній перегляд зображення"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Зображення"
@@ -11723,6 +11730,12 @@ msgstr "Не вдалося прочитати mcp.json, тому сервери
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json вказує версію Agent Plugins, яку ця збірка не підтримує."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Медіа"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14132,6 +14145,17 @@ msgstr "Відкрити вибір моделі"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Відкрити тред у підсумку"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "Відкрити відео {0} з {1}: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Відкрити попередній перегляд відео"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17049,6 +17073,7 @@ msgstr "Лише використання, збережене на цьому х
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18757,6 +18782,7 @@ msgstr "Показувати доки на правій панелі"
 msgid "Show estimated cost"
 msgstr "Показувати орієнтовну вартість"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Показати менше"
@@ -18765,7 +18791,7 @@ msgstr "Показати менше"
 msgid "Show file tree"
 msgstr "Показати дерево файлів"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Показати файли й артефакти"
 
@@ -18779,8 +18805,8 @@ msgstr "Показати варіанти шрифтів"
 #~ msgstr "Показувати GitHub Actions унизу бічної панелі."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Показати зображення"
+#~ msgid "Show images"
+#~ msgstr "Показати зображення"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18803,6 +18829,10 @@ msgstr "Показати MCP-сервери з {providerLabel}"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Показати"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Показати медіа"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21388,6 +21418,7 @@ msgstr "Цей комп’ютер"
 msgid "This machine (local)"
 msgstr "Ця машина (локально)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21756,8 +21787,8 @@ msgid "Thread goal dock"
 msgstr "Панель мети треда"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "Зображення потоку"
+#~ msgid "Thread images"
+#~ msgstr "Зображення потоку"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21773,6 +21804,10 @@ msgstr "Тред уже вивантажено."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Параметри списку тредів"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "Медіа потоку"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22314,7 +22349,7 @@ msgstr "Не вдалося відкрити зображення в зобра�
 msgid "Unable to open the file"
 msgstr "Не вдалося відкрити файл"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Не вдалося відкрити файл у редакторі"
@@ -23420,6 +23455,7 @@ msgstr "Версія"
 msgid "via {0}"
 msgstr "через {0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

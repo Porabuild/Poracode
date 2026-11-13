@@ -16,6 +16,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
+import { ThreadArtifactsDock } from "./ThreadArtifactsDock";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
 import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadImagesDock } from "./ThreadImagesDock";
@@ -28,6 +29,7 @@ import {
 } from "./ThreadDetailsDocks";
 import { useThreadArtifacts } from "./threadArtifacts";
 import { ThreadTodoDock } from "./ThreadTodoDock";
+import { useThreadVideos } from "./threadVideos";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
 import { selectThreadGoalDockItem } from "./threadGoalState";
 import {
@@ -37,8 +39,8 @@ import {
 } from "./useThreadDocksSummary";
 
 /**
- * Right-panel "Docks" tab: the thread's informational docks and image gallery
- * stacked as sortable sections in one panel.
+ * Right-panel "Docks" tab: the thread's informational docks, media gallery, and
+ * files & artifacts stacked as sortable sections in one panel.
  */
 export function ThreadDocksPanel({
   threadId,
@@ -65,6 +67,7 @@ export function ThreadDocksPanel({
   const visionCollapsed = visionCollapse.threadId === threadId && visionCollapse.collapsed;
   const vision = useThreadAgentVision(threadId, visible, !visionCollapsed);
   const gallery = useThreadGalleryImages(threadId, { lightbox: true, requestPending: visible });
+  const videos = useThreadVideos(threadId);
   const artifacts = useThreadArtifacts(threadId);
   const thread = useAppStore((state) =>
     state.threads.find((candidate) => candidate.id === threadId),
@@ -92,7 +95,8 @@ export function ThreadDocksPanel({
     (focus === "plan" && todoDockState !== null) ||
     (focus === "agents" && (summary.agentCount > 0 || crewBinding !== undefined)) ||
     (focus === "backgroundTasks" && summary.backgroundTaskCount > 0) ||
-    (focus === "images" && (gallery.length > 0 || artifacts.length > 0)) ||
+    (focus === "images" && (gallery.length > 0 || videos.length > 0)) ||
+    (focus === "artifacts" && artifacts.length > 0) ||
     (focus === "info" && threadExists) ||
     (focus === "context" && threadExists) ||
     (focus === "usage" && usage !== null);
@@ -155,14 +159,18 @@ export function ThreadDocksPanel({
         <ThreadBackgroundTasksDock threadId={threadId} placement="right" />
       ) : null,
     images:
-      gallery.length > 0 || artifacts.length > 0 ? (
+      gallery.length > 0 || videos.length > 0 ? (
         <ThreadImagesDock
           key={threadId}
           gallery={gallery}
+          videos={videos}
           threadId={threadId}
-          artifacts={artifacts}
           visible={visible}
         />
+      ) : null,
+    artifacts:
+      artifacts.length > 0 ? (
+        <ThreadArtifactsDock key={threadId} artifacts={artifacts} threadId={threadId} />
       ) : null,
     info: threadExists ? <ThreadWorkspaceDock key={threadId} threadId={threadId} /> : null,
     context: threadExists ? <ThreadContextWindowDock key={threadId} threadId={threadId} /> : null,
@@ -174,7 +182,8 @@ export function ThreadDocksPanel({
     plan: t`Plan`,
     agents: t`Agents`,
     backgroundTasks: t`Background tasks`,
-    images: artifacts.length > 0 ? t`Files & artifacts` : t`Images`,
+    images: t`Media`,
+    artifacts: t`Files & artifacts`,
     info: t`Thread info`,
     context: t`Context window`,
     usage: t`Usage`,

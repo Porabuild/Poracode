@@ -631,6 +631,7 @@ msgstr "{head}或{tail}"
 msgid "{heading} mode"
 msgstr "{heading}模式"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {再显示 # 项}}"
@@ -4483,7 +4484,7 @@ msgstr "折叠错误"
 #~ msgid "Collapse experiment"
 #~ msgstr "折叠实验"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "折叠文件与产物"
 
@@ -4497,8 +4498,12 @@ msgid "Collapse group"
 msgstr "折叠分组"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "折叠图像"
+#~ msgid "Collapse images"
+#~ msgstr "折叠图像"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "折叠媒体"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7926,7 +7931,7 @@ msgstr "展开错误"
 #~ msgid "Expand experiment"
 #~ msgstr "展开实验"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "展开文件与产物"
 
@@ -7940,8 +7945,12 @@ msgid "Expand group"
 msgstr "展开分组"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "展开图像"
+#~ msgid "Expand images"
+#~ msgstr "展开图像"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "展开媒体"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8344,9 +8353,9 @@ msgstr "文件使用不受支持的编码。"
 msgid "Files"
 msgstr "文件"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "文件与产物"
 
@@ -9349,6 +9358,7 @@ msgstr "隐藏的可恢复线程每 5 分钟清理一次，并在此空闲期限
 msgid "Hide"
 msgstr "隐藏"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9666,9 +9676,6 @@ msgstr "图片"
 msgid "Image preview"
 msgstr "图片预览"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "图片"
@@ -11723,6 +11730,12 @@ msgstr "无法读取 mcp.json，因此已跳过此插件的服务器。"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json 指向此版本不支持的 Agent Plugins 版本。"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "媒体"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14131,6 +14144,17 @@ msgstr "打开模型选择器"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "在摘要中打开线程"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "打开视频 {0}/{1}：{2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "打开视频预览"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17048,6 +17072,7 @@ msgstr "仅显示此主机保留的用量。"
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18756,6 +18781,7 @@ msgstr "在右侧面板显示停靠面板"
 msgid "Show estimated cost"
 msgstr "显示预计费用"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "显示更少"
@@ -18764,7 +18790,7 @@ msgstr "显示更少"
 msgid "Show file tree"
 msgstr "显示文件树"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "显示文件与产物"
 
@@ -18778,8 +18804,8 @@ msgstr "显示字体建议"
 #~ msgstr "在侧边栏底部显示 GitHub Actions。"
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "显示图片"
+#~ msgid "Show images"
+#~ msgstr "显示图片"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18802,6 +18828,10 @@ msgstr "显示 {providerLabel} 的 MCP 服务器"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "查看"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "显示媒体"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21387,6 +21417,7 @@ msgstr "此设备"
 msgid "This machine (local)"
 msgstr "本机（本地）"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21755,8 +21786,8 @@ msgid "Thread goal dock"
 msgstr "线程目标停靠栏"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "线程图片"
+#~ msgid "Thread images"
+#~ msgstr "线程图片"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21772,6 +21803,10 @@ msgstr "线程已经卸载。"
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "线程列表选项"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "线程媒体"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22313,7 +22348,7 @@ msgstr "无法打开画中画"
 msgid "Unable to open the file"
 msgstr "无法打开文件"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "无法在编辑器中打开文件"
@@ -23419,6 +23454,7 @@ msgstr "版本"
 msgid "via {0}"
 msgstr "通过{0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

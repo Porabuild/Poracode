@@ -631,6 +631,7 @@ msgstr "{head} veya {tail}"
 msgid "{heading} mode"
 msgstr "{heading} modu"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {# tane daha göster}}"
@@ -4483,7 +4484,7 @@ msgstr "Hatayı daralt"
 #~ msgid "Collapse experiment"
 #~ msgstr "Deneyi daralt"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Dosyaları ve çıktıları daralt"
 
@@ -4497,8 +4498,12 @@ msgid "Collapse group"
 msgstr "Grubu daralt"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Görüntüleri daralt"
+#~ msgid "Collapse images"
+#~ msgstr "Görüntüleri daralt"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Medyayı daralt"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7926,7 +7931,7 @@ msgstr "Hatayı genişlet"
 #~ msgid "Expand experiment"
 #~ msgstr "Deneyi genişlet"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Dosyaları ve çıktıları genişlet"
 
@@ -7940,8 +7945,12 @@ msgid "Expand group"
 msgstr "Grubu genişlet"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Görüntüleri genişlet"
+#~ msgid "Expand images"
+#~ msgstr "Görüntüleri genişlet"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Medyayı genişlet"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8344,9 +8353,9 @@ msgstr "Dosya desteklenmeyen bir kodlama kullanıyor."
 msgid "Files"
 msgstr "Dosyalar"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Dosyalar ve çıktılar"
 
@@ -9349,6 +9358,7 @@ msgstr "Gizli devam ettirilebilir konular her 5 dakikada bir taranır ve bu boş
 msgid "Hide"
 msgstr "Gizle"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9666,9 +9676,6 @@ msgstr "Resim"
 msgid "Image preview"
 msgstr "Resim önizlemesi"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Görseller"
@@ -11723,6 +11730,12 @@ msgstr "mcp.json okunamadı, bu yüzden bu eklentinin sunucuları atlandı."
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json, bu sürümün desteklemediği bir Agent Plugins sürümünü hedefliyor."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Medya"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14132,6 +14145,17 @@ msgstr "Model seçiciyi açın"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Konuyu özette aç"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "{0}/{1} videosunu aç: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Video önizlemesini aç"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17049,6 +17073,7 @@ msgstr "Yalnızca bu sunucuda saklanan kullanım."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18757,6 +18782,7 @@ msgstr "Panoları sağ panelde göster"
 msgid "Show estimated cost"
 msgstr "Tahmini maliyeti göster"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Daha az göster"
@@ -18765,7 +18791,7 @@ msgstr "Daha az göster"
 msgid "Show file tree"
 msgstr "Dosya ağacını göster"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Dosyaları ve çıktıları göster"
 
@@ -18779,8 +18805,8 @@ msgstr "Yazı tipi önerilerini göster"
 #~ msgstr "GitHub Actions'ı kenar çubuğu alt kısmında göster."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Görselleri göster"
+#~ msgid "Show images"
+#~ msgstr "Görselleri göster"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18803,6 +18829,10 @@ msgstr "{providerLabel} kaynağındaki MCP sunucularını göster"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Göster"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Medyayı göster"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21388,6 +21418,7 @@ msgstr "Bu makine"
 msgid "This machine (local)"
 msgstr "Bu makine (yerel)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21756,8 +21787,8 @@ msgid "Thread goal dock"
 msgstr "Konu hedefi yuvası"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "İş parçacığı görselleri"
+#~ msgid "Thread images"
+#~ msgstr "İş parçacığı görselleri"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21773,6 +21804,10 @@ msgstr "Konu zaten kaldırıldı."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Konu listesi seçenekleri"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "İş parçacığı medyası"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22314,7 +22349,7 @@ msgstr "Resim içinde resim açılamadı"
 msgid "Unable to open the file"
 msgstr "Dosya açılamadı"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Dosya düzenleyicide açılamadı"
@@ -23420,6 +23455,7 @@ msgstr "Sürüm"
 msgid "via {0}"
 msgstr "{0} aracılığıyla"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

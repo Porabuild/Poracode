@@ -289,6 +289,7 @@ export const THREAD_DOCK_KINDS = [
   "agents",
   "backgroundTasks",
   "images",
+  "artifacts",
   "info",
   "context",
   "usage",
@@ -345,6 +346,12 @@ export function normalizeSidebarShortcutOrder(
 
 export function normalizeThreadDocksOrder(order: readonly ThreadDockKind[]): ThreadDockKind[] {
   const normalized = [...new Set(order)];
+  // Compatibility: orders saved before the unversioned "artifacts" dock existed
+  // stay valid; insert it beside the old combined "images" section instead
+  // of appending it at the end. No settings version bump needed.
+  if (!normalized.includes("artifacts") && normalized.includes("images")) {
+    normalized.splice(normalized.indexOf("images") + 1, 0, "artifacts");
+  }
   // Compatibility: orders saved before the unversioned "info" dock existed
   // stay valid; insert it beside the old combined "context" section instead
   // of appending it at the end. No settings version bump needed.

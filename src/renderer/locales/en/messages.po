@@ -631,6 +631,7 @@ msgstr "{head}, or {tail}"
 msgid "{heading} mode"
 msgstr "{heading} mode"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {Show # more}}"
@@ -4492,7 +4493,7 @@ msgstr "Collapse error"
 #~ msgid "Collapse experiment"
 #~ msgstr "Collapse experiment"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Collapse files & artifacts"
 
@@ -4506,8 +4507,12 @@ msgid "Collapse group"
 msgstr "Collapse group"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Collapse images"
+#~ msgid "Collapse images"
+#~ msgstr "Collapse images"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Collapse media"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7935,7 +7940,7 @@ msgstr "Expand error"
 #~ msgid "Expand experiment"
 #~ msgstr "Expand experiment"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Expand files & artifacts"
 
@@ -7949,8 +7954,12 @@ msgid "Expand group"
 msgstr "Expand group"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Expand images"
+#~ msgid "Expand images"
+#~ msgstr "Expand images"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Expand media"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8353,9 +8362,9 @@ msgstr "File uses an unsupported encoding."
 msgid "Files"
 msgstr "Files"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Files & artifacts"
 
@@ -9358,6 +9367,7 @@ msgstr "Hidden resumable threads are swept every 5 minutes and unloaded after th
 msgid "Hide"
 msgstr "Hide"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9675,9 +9685,6 @@ msgstr "Image"
 msgid "Image preview"
 msgstr "Image preview"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Images"
@@ -11732,6 +11739,12 @@ msgstr "mcp.json could not be read, so this plugin's servers were skipped."
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json targets an Agent Plugins version this build does not support."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Media"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14141,6 +14154,17 @@ msgstr "Open the model picker"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Open thread in summary"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "Open video {0} of {1}: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Open video preview"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17058,6 +17082,7 @@ msgstr "Retained usage on this host only."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18766,6 +18791,7 @@ msgstr "Show docks in the right panel"
 msgid "Show estimated cost"
 msgstr "Show estimated cost"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Show fewer"
@@ -18774,7 +18800,7 @@ msgstr "Show fewer"
 msgid "Show file tree"
 msgstr "Show file tree"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Show files & artifacts"
 
@@ -18788,8 +18814,8 @@ msgstr "Show font suggestions"
 #~ msgstr "Show GitHub Actions in the sidebar footer."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Show images"
+#~ msgid "Show images"
+#~ msgstr "Show images"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18812,6 +18838,10 @@ msgstr "Show MCP servers from {providerLabel}"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Show me"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Show media"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21397,6 +21427,7 @@ msgstr "This machine"
 msgid "This machine (local)"
 msgstr "This machine (local)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21765,8 +21796,8 @@ msgid "Thread goal dock"
 msgstr "Thread goal dock"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "Thread images"
+#~ msgid "Thread images"
+#~ msgstr "Thread images"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21782,6 +21813,10 @@ msgstr "Thread is already unloaded."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Thread list options"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "Thread media"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22323,7 +22358,7 @@ msgstr "Unable to open picture-in-picture"
 msgid "Unable to open the file"
 msgstr "Unable to open the file"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Unable to open the file in the editor"
@@ -23429,6 +23464,7 @@ msgstr "Version"
 msgid "via {0}"
 msgstr "via {0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"
