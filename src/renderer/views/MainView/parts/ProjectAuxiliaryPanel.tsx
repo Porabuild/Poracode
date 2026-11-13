@@ -24,7 +24,10 @@ import {
   UnifiedRightPanel,
   type RightPanelTab,
 } from "@/renderer/components/layout/UnifiedRightPanel";
-import { ProjectFilesPanel } from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
+import {
+  ProjectFilesPanel,
+  ProjectFilesPanelVisibilityContext,
+} from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
 import { NotesPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel";
 import { UsagePanel } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel";
 import { UsagePanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions";
@@ -301,6 +304,16 @@ export function ProjectAuxiliaryPanel(props: {
     prevDeviceWorkspaceThreadIdRef.current = deviceWorkspaceThreadId;
     let refreshTimer: number | undefined;
     const frame = requestAnimationFrame(() => {
+      const currentState = useAppStore.getState();
+      const focusedThread = currentThreadId
+        ? getThreadMap(currentState.threads).get(currentThreadId)
+        : undefined;
+      if (
+        selectFocusedThreadId(currentState) !== currentThreadId ||
+        focusedThread?.projectId !== currentThreadProjectId ||
+        focusedThread?.worktreePath !== currentThreadWorktreePath
+      )
+        return;
       if (
         rightPanelFollowsThread &&
         (activeTab !== "git" || !gitReviewContextChanged) &&
@@ -329,6 +342,8 @@ export function ProjectAuxiliaryPanel(props: {
   }, [
     activeTab,
     currentThreadId,
+    currentThreadProjectId,
+    currentThreadWorktreePath,
     gitReviewContext,
     deviceWorkspaceThreadId,
     props.visible,
@@ -503,7 +518,10 @@ export function ProjectAuxiliaryPanel(props: {
       }
       filesContent={
         renderFilesContent && resolvedFilesPanelContext ? (
-          <ProjectFilesPanel rootContext={resolvedFilesPanelContext} />
+          <ProjectFilesPanel
+            rootContext={resolvedFilesPanelContext}
+            visible={props.visible && (activeTab === "files" || rightPanelSplit?.tab === "files")}
+          />
         ) : undefined
       }
       browserContent={
@@ -667,7 +685,9 @@ export function ProjectAuxiliaryPanel(props: {
   );
   return (
     <>
-      <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>
+      <ProjectFilesPanelVisibilityContext value={props.visible}>
+        <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>
+      </ProjectFilesPanelVisibilityContext>
       {deviceWorkspaceThreadExists && deviceWorkspaceThreadId && devicesBodyTarget
         ? createPortal(
             <Suspense fallback={null}>

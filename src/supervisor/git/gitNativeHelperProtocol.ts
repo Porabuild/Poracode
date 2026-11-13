@@ -9,9 +9,9 @@ import type {
  * Must match `GIT_HELPER_PROTOCOL_VERSION` in `native/git-helper/src/protocol.rs`;
  * `scripts/prepare-git-helper.mjs` verifies `--hello` against this constant.
  */
-// v3 adds the isolated watcher mode; old helpers must fall back rather than
-// accept watch subscriptions without delivering scoped notifications.
-export const GIT_HELPER_PROTOCOL_VERSION = 3;
+// v4 adds listTree. Older helpers fail closed and use the TypeScript fallback.
+// Launch modes remain --serve-v3 / --watch-v3; envelopes negotiate this version.
+export const GIT_HELPER_PROTOCOL_VERSION = 4;
 
 export const GIT_HELPER_BINARY_NAME = "poracode-git-helper";
 
@@ -58,6 +58,15 @@ export interface GitHelperSearchTreeRequest {
   timeoutMs: number;
 }
 
+export interface GitHelperListTreeRequest {
+  protocolVersion: typeof GIT_HELPER_PROTOCOL_VERSION;
+  id: number;
+  kind: "listTree";
+  rootPath: string;
+  directoryPath: string;
+  timeoutMs: number;
+}
+
 export interface GitHelperSearchFilesRequest {
   protocolVersion: typeof GIT_HELPER_PROTOCOL_VERSION;
   id: number;
@@ -85,6 +94,7 @@ export interface GitHelperPingRequest {
 
 export type GitHelperRequest =
   | GitHelperStatusBatchRequest
+  | GitHelperListTreeRequest
   | GitHelperSearchTreeRequest
   | GitHelperSearchFilesRequest
   | GitHelperInvalidateSearchRequest

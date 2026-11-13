@@ -1,4 +1,4 @@
-import { opendir } from "node:fs/promises";
+import { opendir, realpath } from "node:fs/promises";
 import {
   existsSync,
   mkdirSync,
@@ -6,6 +6,7 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, posix, resolve } from "node:path";
@@ -17,7 +18,11 @@ import type { WslBridgeClient } from "./wsl/bridge/client";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
-  return { ...actual, opendir: vi.fn<typeof actual.opendir>(actual.opendir) };
+  return {
+    ...actual,
+    opendir: vi.fn<typeof actual.opendir>(actual.opendir),
+    realpath: vi.fn<typeof actual.realpath>(actual.realpath),
+  };
 });
 
 describe("ProjectTreeService", () => {
@@ -55,6 +60,71 @@ describe("ProjectTreeService", () => {
       { path: "src", name: "src", type: "directory", hasChildren: true },
       { path: "README.md", name: "README.md", type: "file" },
     ]);
+  });
+
+  it("resolves the root only once per root listing", async () => {
+    mkdirSync(join(tempDir, "src"));
+    vi.mocked(realpath).mockClear();
+    const payload = { projectLocation: location, directoryPath: "" };
+    await service.listProjectTree(payload);
+    await service.listProjectTree(payload);
+    expect(vi.mocked(realpath).mock.calls.map(([path]) => path)).toEqual([
+      resolve(tempDir),
+      resolve(tempDir),
+    ]);
+    await service.listProjectTree({ ...payload, directoryPath: "src" });
+    expect(vi.mocked(realpath).mock.calls.map(([path]) => path)).toEqual([
+      resolve(tempDir),
+      resolve(tempDir),
+      resolve(tempDir),
+      join(tempDir, "src"),
+    ]);
+  });
+
+  it("follows a retargeted symlink root and still refuses escaping directory links", async () => {
+    for (const name of ["first", "second"]) {
+      mkdirSync(join(tempDir, name));
+      writeFileSync(join(tempDir, name, `${name}.txt`), "");
+    }
+    const alias = join(tempDir, "alias");
+    const kind = process.platform === "win32" ? "junction" : "dir";
+    symlinkSync(join(tempDir, "first"), alias, kind);
+    const projectLocation = { ...location, path: alias } as ProjectLocation;
+    const payload = { projectLocation, directoryPath: "" };
+    expect((await service.listProjectTree(payload)).entries.map((entry) => entry.name)).toEqual([
+      "first.txt",
+    ]);
+    unlinkSync(alias);
+    symlinkSync(join(tempDir, "second"), alias, kind);
+    expect((await service.listProjectTree(payload)).entries.map((entry) => entry.name)).toEqual([
+      "second.txt",
+    ]);
+    symlinkSync(join(tempDir, "first"), join(alias, "escape"), kind);
+    await expect(
+      service.listProjectTree({ projectLocation, directoryPath: "escape" }),
+    ).rejects.toThrow("escapes the project root");
+  });
+
+  it("invalidates only the selected worktree's search index", async () => {
+    const otherRoot = join(tempDir, "other");
+    mkdirSync(otherRoot);
+    const otherLocation = { ...location, path: otherRoot } as ProjectLocation;
+    const query = (projectLocation: ProjectLocation) =>
+      service.searchProjectTree({
+        projectLocation,
+        query: "fresh",
+        limit: 10,
+        searchConfig: { useIgnoreFiles: false, excludePatterns: [] },
+      });
+    await query(location);
+    await query(otherLocation);
+    writeFileSync(join(tempDir, "fresh.txt"), "");
+    writeFileSync(join(otherRoot, "fresh.txt"), "");
+    service.invalidateCaches(location);
+    expect((await query(location)).entries.map((entry) => entry.path)).toContain("fresh.txt");
+    expect((await query(otherLocation)).entries).toEqual([]);
+    service.invalidateCaches(otherLocation);
+    expect((await query(otherLocation)).entries.map((entry) => entry.path)).toEqual(["fresh.txt"]);
   });
 
   it("treats a directory containing only .git as childless and sorts numerically", async () => {

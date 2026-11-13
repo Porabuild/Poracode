@@ -393,6 +393,55 @@ describe("startThreadFromDraft host transport", () => {
     );
   });
 
+  it.each([false, true])(
+    "defers a new worktree's full refresh without delaying launch or setup (project removed: %s)",
+    async (removed) => {
+      vi.useFakeTimers();
+      try {
+        mocks.appState.projects = [localProject];
+        await startThreadFromDraft(localProject, {
+          agentKind: "example",
+          config: { model: "example/model" },
+          prompt: "build it",
+          presentationMode: "gui",
+          worktreeBranch: "feature",
+          worktreeIsNewBranch: true,
+        });
+
+        expect(mocks.bridge.startThread).toHaveBeenCalledTimes(1);
+        expect(mocks.primeWorktreeGitState).toHaveBeenCalledTimes(1);
+        expect(mocks.runWorktreeSetupScript).toHaveBeenCalledTimes(1);
+        expect(mocks.refreshGitProject).not.toHaveBeenCalled();
+        // Background refresh does not depend on the new pane remaining open.
+        mocks.appState.view = { kind: "home" };
+        if (removed) mocks.appState.projects = [];
+        await vi.advanceTimersByTimeAsync(250);
+        expect(mocks.refreshGitProject.mock.calls).toEqual(
+          removed ? [] : [[localProject, "manual", "full"]],
+        );
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("refreshes an existing worktree immediately after launch", async () => {
+    await startThreadFromDraft(localProject, {
+      agentKind: "example",
+      config: { model: "example/model" },
+      prompt: "build it",
+      presentationMode: "gui",
+      existingWorktreePath: "C:\\shared-worktrees\\existing",
+    });
+
+    expect(mocks.refreshGitProject).toHaveBeenCalledExactlyOnceWith(
+      { id: localProject.id, location: localProject.location },
+      "manual",
+      "full",
+    );
+    expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
+  });
+
   it("starts title generation while the worktree is still provisioning", async () => {
     const worktree = deferred<{ path: string }>();
     const started = deferred<{ threadId: string }>();

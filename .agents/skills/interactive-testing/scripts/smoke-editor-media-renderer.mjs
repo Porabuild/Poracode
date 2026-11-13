@@ -138,6 +138,10 @@ export function rendererRead(ownerToken) {
       (candidate) =>
         visible(candidate.getDomNode()) && candidate.getModel()?.getValue() === buffer?.content,
     );
+  const sourceRoot = source?.getDomNode();
+  const input = sourceRoot?.querySelector(
+    'textarea.inputarea,[contenteditable="true"][role="textbox"],.native-edit-context[role="textbox"]',
+  );
   return {
     activePath: editor.activePath,
     buffer: buffer
@@ -150,6 +154,23 @@ export function rendererRead(ownerToken) {
       : null,
     sourceVisible: Boolean(source),
     sourceValue: source?.getModel()?.getValue(),
+    sourceEditable: Boolean(
+      input &&
+      !input.disabled &&
+      !input.readOnly &&
+      input.getAttribute("aria-readonly") !== "true" &&
+      (!input.matches(".native-edit-context") || input.editContext != null),
+    ),
+    sourceFocused: Boolean(sourceRoot?.contains(document.activeElement)),
+    sourceInputKind: input?.matches(".native-edit-context") ? "native-edit-context" : "text-input",
+    sourceSelection: input?.editContext
+      ? {
+          text: input.editContext.text,
+          start: input.editContext.selectionStart,
+          end: input.editContext.selectionEnd,
+        }
+      : null,
+    mac: /Mac/i.test(navigator.platform),
     image: visible(image)
       ? {
           complete: image.complete,

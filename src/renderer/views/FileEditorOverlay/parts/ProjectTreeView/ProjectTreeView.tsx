@@ -44,6 +44,7 @@ export function ProjectTreeView(props: {
   onPinFile?: (path: string) => void;
   compact?: boolean;
   compactActionsVisible?: boolean;
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const tree = useProjectTree(props);

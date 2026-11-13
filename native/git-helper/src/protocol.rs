@@ -8,8 +8,9 @@ pub const HELLO_HELPER: &str = "poracode-git-helper";
 
 /// Must match `GIT_HELPER_PROTOCOL_VERSION` in
 /// `src/supervisor/git/gitNativeHelperProtocol.ts`.
-// v3 adds --watch-v3. A v2 helper cannot own live watcher subscriptions.
-pub const GIT_HELPER_PROTOCOL_VERSION: u32 = 3;
+// v4 adds listTree. Older helpers fail closed; hosts retain the TS fallback.
+// The --serve-v3 / --watch-v3 launch modes still negotiate this envelope version.
+pub const GIT_HELPER_PROTOCOL_VERSION: u32 = 4;
 
 /// Detail level requested for a status query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
@@ -100,7 +101,7 @@ pub struct NativeProjectTreeEntry {
     /// `"file"` or `"directory"`.
     #[serde(rename = "type")]
     pub entry_type: String,
-    /// Set to `true` for directory entries in `searchProjectTree`.
+    /// Directory child presence for listings; always true for tree search results.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_children: Option<bool>,
 }
@@ -126,7 +127,7 @@ pub struct HelperRequest {
     pub protocol_version: u32,
     /// Caller correlation ID echoed back in [`HelperResponse`].
     pub id: u64,
-    /// Request kind (`"statusBatch"`, `"searchTree"`, `"searchFiles"`, `"invalidateSearch"`, `"ping"`).
+    /// Request kind (`"statusBatch"`, `"listTree"`, `"searchTree"`, `"searchFiles"`, `"invalidateSearch"`, `"ping"`).
     pub kind: String,
     /// Worktree filesystem paths to inspect (for `"statusBatch"`).
     #[serde(default)]
@@ -140,9 +141,12 @@ pub struct HelperRequest {
     /// Maximum concurrent `git` subprocesses spawned for this request.
     #[serde(default = "default_max_concurrency")]
     pub max_concurrency: usize,
-    /// Project/worktree root path for `"searchTree"`, `"searchFiles"`, or `"invalidateSearch"`.
+    /// Project/worktree root path for listing, searching, or invalidation.
     #[serde(default)]
     pub root_path: Option<String>,
+    /// Project-relative directory for `"listTree"`; empty lists the root.
+    #[serde(default)]
+    pub directory_path: String,
     /// Search query string for `"searchTree"` or `"searchFiles"`.
     #[serde(default)]
     pub query: String,
@@ -184,7 +188,7 @@ fn default_true() -> bool {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HelperResponse {
-    /// Wire protocol version (`2`).
+    /// Wire protocol version (must match the client).
     pub protocol_version: u32,
     /// Correlation ID matching [`HelperRequest::id`].
     pub id: u64,
@@ -193,7 +197,7 @@ pub struct HelperResponse {
     /// Per-path status map when `ok == true` on `"statusBatch"`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statuses: Option<BTreeMap<String, NativeGitStatusEntry>>,
-    /// Ranked tree entries when `ok == true` on `"searchTree"`.
+    /// Tree entries when `ok == true` on `"searchTree"` or `"listTree"`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tree_entries: Option<Vec<NativeProjectTreeEntry>>,
     /// Ranked file entries when `ok == true` on `"searchFiles"`.

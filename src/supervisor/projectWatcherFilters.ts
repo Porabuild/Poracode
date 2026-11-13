@@ -11,6 +11,10 @@ const IGNORED_PREFIXES = [
   ".venv/",
   "target/debug/",
   "target/release/",
+  ".vite/",
+  ".cache/",
+  ".swc/",
+  ".parcel-cache/",
   ".tmp/",
 ];
 
@@ -22,12 +26,17 @@ const IGNORED_NESTED_SEGMENTS = [
   "/.venv/",
   "/target/debug/",
   "/target/release/",
+  "/.vite/",
+  "/.cache/",
+  "/.swc/",
+  "/.parcel-cache/",
   "/.tmp/",
 ];
 
 // Mirrored in native/git-helper/src/watch.rs; both paths use the same fixtures.
 export function isIgnoredWorkTreeFile(name: string): boolean {
   if (name === ".git" || name.startsWith(".git/") || name.includes("/.git/")) return true;
+  if (/(?:^|\/)target\/[^/]+-[^/]+\/(?:debug|release)\//u.test(name)) return true;
   if (IGNORED_PREFIXES.some((p) => name.startsWith(p))) return true;
   return IGNORED_NESTED_SEGMENTS.some((seg) => name.includes(seg));
 }
