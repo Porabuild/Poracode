@@ -279,6 +279,31 @@ describe.skipIf(!sqliteAvailable)("persistSupervisorEvent failure contract", () 
     expect(dbGetThread(THREAD_ID)?.interruptedTurn).toBeUndefined();
   });
 
+  it("persists a successor state received while the previous state awaits a worker prefix", async () => {
+    vi.useFakeTimers();
+    const writes = await import("@/host/db/asyncWrites");
+    const runtime = await import("@/host/db/runtimePersistenceRuntime");
+    const gate = Promise.withResolvers<number>();
+    vi.spyOn(writes, "isAsyncDatabaseWritesReady").mockReturnValue(true);
+    const commit = vi
+      .spyOn(runtime, "commitRuntimeThreadPrefixAsync")
+      .mockReturnValue(gate.promise);
+    dbUpsertThread({ ...testThread(), status: "working" }, 0);
+    const state = {
+      type: "thread-state",
+      threadId: THREAD_ID,
+      attention: "none",
+      canResumeWithConfig: true,
+    } as const;
+    persistSupervisorEvent({ ...state, status: "idle" });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(commit).toHaveBeenCalledOnce();
+    persistSupervisorEvent({ ...state, status: "error", interruptedTurn: "error" });
+    gate.resolve(0);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "error", interruptedTurn: "error" });
+  });
+
   it.each(["working", "idle"] as const)(
     "keeps accepted Stop across an immediate restart while cancellation is %s",
     async (status) => {

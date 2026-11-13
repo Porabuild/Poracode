@@ -23,7 +23,11 @@ import {
   catalogProjectListPageSchema,
   type CatalogProjectListPage,
 } from "./catalogReadSchemas";
-import { boundedRuntimeItemsPageSchema, boundedThreadSnapshotSchema } from "./historyReadSchemas";
+import {
+  boundedRuntimeItemsPageSchema,
+  boundedThreadSnapshotSchema,
+  type CachedThreadHistory,
+} from "./historyReadSchemas";
 import {
   HISTORY_COMPLETED_TURNS_DEFAULT_LIMIT,
   HISTORY_ITEMS_DEFAULT_LIMIT,
@@ -203,6 +207,8 @@ export interface RemoteBoundedProjectPageOptions extends RemoteBoundedReadByteBu
 }
 
 export interface RemoteBoundedThreadHistoryOptions extends RemoteBoundedReadByteBudget {
+  /** Opt in to durable validation; the cached payload stays private until the host confirms it. */
+  readonly historyCache?: true | CachedThreadHistory;
   /**
    * Requires the host's advertised historyDetails v1 capability. Also asks the
    * host to defer completed file-change bodies (`deferBodies`), so a reader that

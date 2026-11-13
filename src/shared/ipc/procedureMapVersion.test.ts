@@ -135,9 +135,34 @@ import { isRemoteProcedure } from "../remote/procedures";
 // only the owning backend calls. Older supervisors reject unknown names before
 // any effect, none enters the remote allowlist, and existing names and payloads
 // are unchanged, so hop 19 stays compatible.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:e7d56779b0a1910e7bf1b1e1a877255af172c66dec31b92512f223dc7250f2c9`;
+// Local port management adds two same-bundle main-local names. Older peers
+// reject unknown names; no existing payload or remote allowlist changes.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:faa92559ca82d8af9dd1a5c87e7832d9000b326519f2ee986ec4b05727bf47c1`;
 
 describe("IPC procedure map versioning", () => {
+  it("preserves the previous map while keeping port termination off remote transports", () => {
+    const previous = ipcProcedureMapFingerprint()
+      .split("\n")
+      .filter((line) => !/^(listLocalPorts|closeLocalPort):/.test(line))
+      .join("\n");
+    expect(createHash("sha256").update(previous).digest("hex")).toBe(
+      "e7d56779b0a1910e7bf1b1e1a877255af172c66dec31b92512f223dc7250f2c9",
+    );
+    for (const name of ["listLocalPorts", "closeLocalPort"] as const) {
+      expect(ipcProcedureMap[name].transport).toBe("main-local");
+      expect(isRemoteProcedure(name)).toBe(false);
+    }
+    const schema = ipcProcedureMap.closeLocalPort.payloadSchema;
+    expect(schema.safeParse({ port: 3000 }).success).toBe(false);
+    expect(
+      schema.safeParse({ port: 3000, address: "127.0.0.1", pid: 4, processStartedAt: "old" })
+        .success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({ port: 3000, address: "127.0.0.1", pid: 1234, processStartedAt: "old" })
+        .success,
+    ).toBe(true);
+  });
   it("routes Hex voice through the supervisor as an additive procedure", () => {
     expect(ipcProcedureMap.hexVoice.transport).toBe("supervisor");
     expect(

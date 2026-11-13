@@ -16,6 +16,16 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
 }));
 
+const windowActions = vi.hoisted(() => ({
+  available: false,
+  open: vi.fn<(thread: Thread) => void>(),
+}));
+vi.mock("@/renderer/actions/threadWindowActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadWindowActions")>()),
+  canOpenThreadWindow: () => windowActions.available,
+  openThreadWindow: windowActions.open,
+}));
+
 const groupIntentsMock = vi.hoisted(() => vi.fn<(assignments: unknown) => void>());
 vi.mock("@/renderer/state/managedRootCatalog/rootCatalogIntents", async (importOriginal) => ({
   ...(await importOriginal<
@@ -66,7 +76,7 @@ function thread(overrides: Partial<Thread> = {}): Thread {
 function renderMenu(
   target: Thread,
   owner: Project = project,
-  options: { showProjectActions?: boolean } = {},
+  options: { showProjectActions?: boolean; onRename?: () => void } = {},
 ) {
   render(
     <ThreadContextMenu thread={target} project={owner} {...options}>
@@ -96,6 +106,7 @@ function status(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
 
 describe("ThreadContextMenu project actions", () => {
   beforeEach(() => {
+    windowActions.available = false;
     resetDevTerminalStore();
     useExperimentStore.setState({ experiments: {} });
     useAppStore.setState({ threads: [], view: { kind: "home" } });
@@ -103,6 +114,21 @@ describe("ThreadContextMenu project actions", () => {
     useSharedSettings.setState({ workspaces: [] } as never);
     useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
     transferCandidatesMock.mockReturnValue([]);
+  });
+
+  it("opens the desktop thread window from the item between Rename and Unload", async () => {
+    windowActions.available = true;
+    const target = thread();
+    await renderMenu(target, project, { onRename: () => {} });
+    const labels = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    const renameIndex = labels.indexOf("Rename");
+    expect(labels.slice(renameIndex, renameIndex + 3)).toEqual([
+      "Rename",
+      "Open in New Window",
+      "Unload Thread",
+    ]);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open in New Window" }));
+    expect(windowActions.open).toHaveBeenCalledExactlyOnceWith(target);
   });
 
   it.each([undefined, status()])(

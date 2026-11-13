@@ -47,7 +47,8 @@ vi.mock("@/renderer/actions/threadRuntimeActions", () => ({
   setThreadPendingSteer: vi.fn<() => void>(),
   submitThreadInput: mocks.submit,
 }));
-vi.mock("@/renderer/state/chatRuntimePersister", () => ({
+vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>()),
   boundVisibleThreadRuntimeWindows: vi.fn<() => void>(),
   evictOversizedInactiveThreadRuntimeItems: vi.fn<() => void>(),
   forgetThreadRuntimeWindow: vi.fn<() => void>(),

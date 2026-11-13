@@ -159,12 +159,14 @@ export function buildSshRuntimeArchive(options = {}) {
     }
     // Apple notarization rejects an unsigned Mach-O nested inside an archive
     // in the app bundle, and electron-builder cannot sign a binary inside this
-    // tarball, so macOS relay builds stay out; a remote macOS SSH host then
-    // falls back to the JS relay (nativeMcpRelayBinaryPath() returns undefined
-    // and launchHelper uses mcp-relay.mjs, as for HTTPS and WSL).
+    // tarball, so macOS helper builds stay out; a remote macOS SSH host then
+    // falls back to the JS/TS implementations (as for WSL and linux-arm64).
     const wslHelpersFilter = (source) => {
       const segments = relative(wslHelpersDir, source).split(sep).join("/").split("/");
-      return !(segments[0] === "mcp-relay" && segments[1]?.startsWith("darwin-"));
+      return !(
+        (segments[0] === "mcp-relay" || segments[0] === "git-helper") &&
+        segments[1]?.startsWith("darwin-")
+      );
     };
     const resources = [
       ["agent-plugins", agentPluginsDir, true],

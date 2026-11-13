@@ -650,9 +650,22 @@ async function startThreadFromDraftPending(
   }
 
   if (worktreePath) {
-    if (isNewWorktree) initializeCreatedWorktree(project, worktreePath);
-    else void primeWorktreeGitState(project, worktreePath);
-    void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
+    if (isNewWorktree) {
+      initializeCreatedWorktree(project, worktreePath);
+      // Let the new file panel submit its reads before the full refresh's
+      // worktree and PR fan-out fills the host's HTTP connection slots.
+      setTimeout(() => {
+        const currentProject = useAppStore
+          .getState()
+          .projects.find((item) => item.id === project.id);
+        if (currentProject) {
+          void refreshGitProject(currentProject, "manual", "full");
+        }
+      }, 250);
+    } else {
+      void primeWorktreeGitState(project, worktreePath);
+      void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
+    }
   }
   return "accepted";
 }

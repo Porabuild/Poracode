@@ -631,6 +631,7 @@ msgstr "{head}, hoặc {tail}"
 msgid "{heading} mode"
 msgstr "Chế độ {heading}"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {Hiện thêm #}}"
@@ -1387,6 +1388,11 @@ msgstr "Hành động"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Actions for {title}"
 #~ msgstr "Hành động cho {title}"
+
+#. placeholder {0}: port.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Actions for port {0}"
+msgstr "Thao tác cho cổng {0}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -2433,6 +2439,10 @@ msgstr "Không thể hỏi: không có tác nhân nào có thể bắt đầu cu
 msgid "Ask Question"
 msgstr "Đặt câu hỏi"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "Hỏi khi cần"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "Các cây làm việc liên kết không còn luồng nào cũng sẽ bị xóa."
@@ -3253,6 +3263,7 @@ msgstr "Máy ảnh"
 msgid "Camera access blocked"
 msgstr "Quyền truy cập camera bị chặn"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
 msgstr "Không thể tải danh sách cổng"
@@ -4254,6 +4265,15 @@ msgstr "Đóng hình trong hình"
 msgid "Close plan"
 msgstr "Đóng kế hoạch"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port"
+msgstr "Đóng cổng"
+
+#. placeholder {0}: confirmPort.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port {0}?"
+msgstr "Đóng cổng {0}?"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Close PR"
 msgstr "Đóng PR"
@@ -4484,7 +4504,7 @@ msgstr "Thu gọn lỗi"
 #~ msgid "Collapse experiment"
 #~ msgstr "Thu gọn thí nghiệm"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Thu gọn tệp và sản phẩm"
 
@@ -4498,8 +4518,12 @@ msgid "Collapse group"
 msgstr "Thu gọn nhóm"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Thu gọn hình ảnh"
+#~ msgid "Collapse images"
+#~ msgstr "Thu gọn hình ảnh"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Thu gọn đa phương tiện"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -5239,6 +5263,7 @@ msgstr "Cookie"
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 #: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copied"
 msgstr "Đã sao chép"
@@ -5275,6 +5300,10 @@ msgstr "Sao chép {0} mã thiết bị {1}"
 msgid "Copy accessibility tree"
 msgstr "Sao chép cây trợ năng"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Copy address"
+msgstr "Sao chép địa chỉ"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "Sao chép mã"
@@ -5310,6 +5339,7 @@ msgid "Copy image"
 msgstr "Sao chép hình ảnh"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5410,6 +5440,10 @@ msgstr "Không thể hủy việc hợp nhất: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Could not access installed fonts. You can keep the saved font or use Default."
 msgstr "Không thể truy cập các phông chữ đã cài đặt. Bạn có thể giữ phông chữ đã lưu hoặc chọn Mặc định."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Could not close this port. Refresh the list and try again."
+msgstr "Không thể đóng cổng này. Hãy làm mới danh sách và thử lại."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
@@ -6121,6 +6155,7 @@ msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Đã cập nhật Cursor SDK lên v{nextVersion}."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6239,6 +6274,7 @@ msgstr "Trò chuyện DeepSeek Harness với phiên được lưu, tùy chỉnh 
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -7930,7 +7966,7 @@ msgstr "Mở rộng lỗi"
 #~ msgid "Expand experiment"
 #~ msgstr "Mở rộng thí nghiệm"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Mở rộng tệp và sản phẩm"
 
@@ -7944,8 +7980,12 @@ msgid "Expand group"
 msgstr "Mở rộng nhóm"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Mở rộng hình ảnh"
+#~ msgid "Expand images"
+#~ msgstr "Mở rộng hình ảnh"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Mở rộng đa phương tiện"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8348,9 +8388,9 @@ msgstr "Tệp sử dụng mã hóa không được hỗ trợ."
 msgid "Files"
 msgstr "Tập tin"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Tệp và sản phẩm"
 
@@ -9354,6 +9394,7 @@ msgstr "Các chủ đề tiếp tục ẩn sẽ được quét 5 phút một l�
 msgid "Hide"
 msgstr "Ẩn"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9671,9 +9712,6 @@ msgstr "Hình ảnh"
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Ảnh"
@@ -10869,6 +10907,10 @@ msgstr "Liệt kê nhiệm vụ"
 msgid "Listening — speak or type a message"
 msgstr "Đang nghe — hãy nói hoặc nhập tin nhắn"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Listening ports on this computer."
+msgstr "Các cổng đang lắng nghe trên máy tính này."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Trực tuyến"
@@ -11254,6 +11296,10 @@ msgstr "Đang tìm hồ sơ trình duyệt…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "Đang tìm máy chủ phát triển…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Looking for listening ports…"
+msgstr "Đang tìm các cổng đang lắng nghe…"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
@@ -11728,6 +11774,12 @@ msgstr "Không đọc được mcp.json nên đã bỏ qua các máy chủ của
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json nhắm tới phiên bản Agent Plugins mà bản dựng này không hỗ trợ."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Đa phương tiện"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -12499,6 +12551,10 @@ msgstr "Trung lập"
 msgid "Never"
 msgstr "Không bao giờ"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "Không bao giờ hỏi"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Mới"
@@ -13061,6 +13117,10 @@ msgstr "Chưa có lựa chọn đã học nào."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "Không giới hạn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "No listening ports"
+msgstr "Không có cổng nào đang lắng nghe"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
@@ -13943,10 +14003,12 @@ msgid "Open in New Window"
 msgstr "Mở trong cửa sổ mới"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in Poracode browser"
 msgstr "Mở trong trình duyệt Poracode"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in system browser"
 msgstr "Mở trong trình duyệt hệ thống"
 
@@ -14145,6 +14207,17 @@ msgstr "Mở bộ chọn mô hình"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Mở luồng trong phần tóm tắt"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "Mở video {0}/{1}: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Mở xem trước video"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -15308,6 +15381,7 @@ msgstr "Ngăn khóa màn hình"
 msgid "Prevent system sleep"
 msgstr "Ngăn hệ thống chuyển sang chế độ ngủ"
 
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
@@ -16370,9 +16444,11 @@ msgid "Remote URL"
 msgstr "URL từ xa"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -17059,6 +17135,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -17075,6 +17152,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
@@ -18768,6 +18846,7 @@ msgstr "Hiện dock trong bảng bên phải"
 msgid "Show estimated cost"
 msgstr "Hiển thị chi phí ước tính"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Hiện ít hơn"
@@ -18776,7 +18855,7 @@ msgstr "Hiện ít hơn"
 msgid "Show file tree"
 msgstr "Hiện cây tệp"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Hiện tệp và sản phẩm"
 
@@ -18790,8 +18869,8 @@ msgstr "Hiển thị gợi ý phông chữ"
 #~ msgstr "Hiển thị GitHub Actions ở chân thanh bên."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Hiển thị ảnh"
+#~ msgid "Show images"
+#~ msgstr "Hiển thị ảnh"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18814,6 +18893,10 @@ msgstr "Hiện máy chủ MCP từ {providerLabel}"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Xem"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Hiển thị đa phương tiện"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21399,6 +21482,7 @@ msgstr "Máy này"
 msgid "This machine (local)"
 msgstr "Máy này (cục bộ)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21620,6 +21704,12 @@ msgstr "Thao tác này tắt trình giả lập đã chọn và ngắt mọi ng�
 msgid "This source host does not support safe automatic merge."
 msgstr "Máy chủ nguồn này không hỗ trợ hợp nhất tự động an toàn."
 
+#. placeholder {0}: confirmPort.processName ?? confirmPort.pid
+#. placeholder {1}: confirmPort.pid
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "This stops {0} (PID {1}) and closes all ports used by that process."
+msgstr "Thao tác này dừng {0} (PID {1}) và đóng tất cả các cổng mà tiến trình đó sử dụng."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "This submission has expired. Your draft is kept."
 msgstr "Lần gửi này đã hết hạn. Bản nháp đã được giữ lại."
@@ -21771,8 +21861,8 @@ msgid "Thread goal dock"
 msgstr "Dock mục tiêu luồng"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "Hình ảnh của luồng"
+#~ msgid "Thread images"
+#~ msgstr "Hình ảnh của luồng"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21788,6 +21878,10 @@ msgstr "Luồng đã được dỡ bỏ."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Tùy chọn danh sách luồng"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "Đa phương tiện của luồng"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22329,7 +22423,7 @@ msgstr "Không thể mở hình trong hình"
 msgid "Unable to open the file"
 msgstr "Không thể mở tệp"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Không thể mở tệp trong trình soạn thảo"
@@ -22683,6 +22777,10 @@ msgstr "Không xác định"
 msgid "Unknown folder"
 msgstr "Thư mục không xác định"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Unknown process"
+msgstr "Tiến trình không xác định"
+
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"
 #~ msgstr "Dự án không xác định"
@@ -23009,6 +23107,7 @@ msgstr "Đã cập nhật"
 msgid "Updated {0}"
 msgstr "Đã cập nhật {0}"
 
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
@@ -23435,6 +23534,7 @@ msgstr "Phiên bản"
 msgid "via {0}"
 msgstr "qua {0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

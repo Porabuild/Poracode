@@ -168,4 +168,6 @@
     <string name="rich_chat_download_failed">Die Datei konnte nicht heruntergeladen werden.</string>
     <string name="home_filter_by_project">Nach Projekt filtern</string>
     <string name="common_more_actions">Weitere Aktionen</string>
+    <string name="rich_chat_ask_when_needed">Bei Bedarf fragen</string>
+    <string name="rich_chat_never_ask">Nie fragen</string>
 </resources>

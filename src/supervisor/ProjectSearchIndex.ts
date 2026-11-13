@@ -9,6 +9,14 @@ import type {
 } from "@/shared/contracts";
 import { getProjectFsPath } from "@/shared/wsl";
 import { execGit, getLocationIdentity } from "./git";
+import { GIT_DEFAULT_TIMEOUT } from "./git/exec";
+import { admitGitProcess } from "./git/gitProcessAdmission";
+import {
+  areSearchExcludePatternsNativeCompatible,
+  invalidateNativeSearchCache,
+  isNativeGitHelperActive,
+  queryNativeSearchTree,
+} from "./git/gitNativeHelperClient";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 import { createSearchQuery, scoreFileSearchEntry } from "@/shared/searchMatching";
 
@@ -95,6 +103,7 @@ function pathHitsIgnoredName(path: string, ignored: Set<string>): boolean {
  */
 export class ProjectSearchIndex {
   private cache = new Map<string, CachedSearchIndex>();
+  private nativeWarmTimestamps = new Map<string, number>();
   private wslClient: WslBridgeClient | undefined;
 
   constructor(
@@ -118,10 +127,75 @@ export class ProjectSearchIndex {
     if (!query) return { entries: [] };
 
     const config = payload.searchConfig ?? { useIgnoreFiles: true, excludePatterns: [] };
+    if (
+      payload.projectLocation.kind !== "wsl" &&
+      isNativeGitHelperActive() &&
+      areSearchExcludePatternsNativeCompatible(config.excludePatterns)
+    ) {
+      const nativeEntries = await this.tryNativeSearchTree(
+        payload.projectLocation,
+        payload.query,
+        payload.limit,
+        payload.entryType,
+        config,
+      );
+      if (nativeEntries) {
+        return { entries: nativeEntries };
+      }
+    }
+
     const { entries } = await this.getOrBuildSearchIndex(payload.projectLocation, config);
     return {
       entries: this.rankEntries(entries, query, payload.limit, payload.entryType),
     };
+  }
+
+  private async tryNativeSearchTree(
+    location: ProjectLocation & { kind: "posix" | "windows" },
+    rawQuery: string,
+    limit: number,
+    entryType: SearchProjectTreePayload["entryType"],
+    config: SearchConfigPayload,
+  ): Promise<ProjectTreeEntry[] | null> {
+    const key = `${JSON.stringify(getLocationIdentity(location))}:${cacheKeyForSearchConfig(config)}`;
+    const warmSince = this.nativeWarmTimestamps.get(key);
+    const isWarm = warmSince !== undefined && Date.now() - warmSince < CACHE_TTL_MS;
+
+    const ticket =
+      !isWarm && config.useIgnoreFiles
+        ? await admitGitProcess("short", {
+            units: 1,
+            environment: location.kind,
+            subcommand: "ls-files",
+          })
+        : null;
+    let entries: ProjectTreeEntry[] | null;
+    try {
+      entries = await queryNativeSearchTree({
+        rootPath: location.path,
+        query: rawQuery,
+        limit,
+        ...(entryType ? { entryType } : {}),
+        useIgnoreFiles: config.useIgnoreFiles,
+        excludePatterns: config.excludePatterns,
+        timeoutMs: GIT_DEFAULT_TIMEOUT,
+      });
+    } finally {
+      ticket?.release();
+    }
+    if (!entries) return null;
+
+    if (isWarm) {
+      this.nativeWarmTimestamps.delete(key);
+      this.nativeWarmTimestamps.set(key, warmSince);
+    } else {
+      if (this.nativeWarmTimestamps.size >= MAX_CACHE_ENTRIES) {
+        const oldest = this.nativeWarmTimestamps.keys().next().value;
+        if (oldest !== undefined) this.nativeWarmTimestamps.delete(oldest);
+      }
+      this.nativeWarmTimestamps.set(key, Date.now());
+    }
+    return entries;
   }
 
   async getOrBuildSearchIndex(
@@ -296,6 +370,14 @@ export class ProjectSearchIndex {
         this.cache.delete(key);
       }
     }
+    for (const key of this.nativeWarmTimestamps.keys()) {
+      if (key.startsWith(prefix)) {
+        this.nativeWarmTimestamps.delete(key);
+      }
+    }
+    if (location.kind !== "wsl") {
+      invalidateNativeSearchCache(location.path);
+    }
   }
 
   /**
@@ -304,5 +386,7 @@ export class ProjectSearchIndex {
    */
   invalidateAllCaches(): void {
     this.cache.clear();
+    this.nativeWarmTimestamps.clear();
+    invalidateNativeSearchCache();
   }
 }

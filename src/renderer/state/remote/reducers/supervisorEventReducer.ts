@@ -16,6 +16,7 @@ import {
   subscribeRuntimeHistoryReadCompletion,
 } from "@/renderer/state/runtimeHistoryReadBarrier";
 import {
+  boundSettledThreadRuntimeWindows,
   boundVisibleThreadRuntimeWindows,
   evictOversizedInactiveThreadRuntimeItems,
   forgetThreadRuntimeWindow,
@@ -32,7 +33,7 @@ import {
   type AgentStatusSupervisorEvent,
   type SupervisorEvent,
 } from "@/shared/ipc";
-import type { RuntimeEvent, Thread } from "@/shared/contracts";
+import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 
 /**
@@ -316,15 +317,20 @@ export function createSupervisorEventReducer(
         (threadId) => !isRuntimeHistoryReadHeld(threadId) && shouldFlush(threadId),
         (batches, sliceStats) => {
           const store = useAppStore.getState();
+          const previousRuntimeItemsByThread = store.runtimeItemsByIdByThread;
           const threadMetadata = store.threads;
           const applyBatches = (): void => {
             store.applyRuntimeEventBatches(batches);
           };
           if (config.wrapApply) config.wrapApply(applyBatches, sliceStats);
           else applyBatches();
+          const nextStore = useAppStore.getState();
+          const batchThreadIds = batches.map((batch) => batch.threadId);
           noteAppliedHistoryBatches(batches, threadMetadata);
-          evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-          boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
+          if (nextStore.runtimeItemsByIdByThread !== previousRuntimeItemsByThread) {
+            evictOversizedInactiveThreadRuntimeItems(batchThreadIds);
+          }
+          boundVisibleThreadRuntimeWindows(batchThreadIds);
           config.afterApply?.(batches, {
             threadMetadata,
             ...sliceStats,
@@ -614,8 +620,7 @@ export function createSupervisorEventReducer(
     if (runtimeRecoveryInFlight.has(threadId)) return;
     recoveryRetries.cancel(threadId);
     // A visible failure gives way to the attempt; it returns if retries run out.
-    if (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed")
-      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
+    useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
     queue.block(threadId);
     runtimeRecoveryInFlight.add(threadId);
     const resume = createGroupResume([threadId]);
@@ -692,6 +697,9 @@ export function createSupervisorEventReducer(
         if (event.status === "inactive" || event.status === "error") {
           useAppStore.getState().reconcileStaleSubAgents(event.threadId);
         }
+        if (!isThreadTurnActive(event.status)) {
+          boundSettledThreadRuntimeWindows([event.threadId]);
+        }
         options?.sideEffects?.onThreadState?.({
           threadId: event.threadId,
           status: event.status,
@@ -726,7 +734,9 @@ export function createSupervisorEventReducer(
       }
       case "thread-exited":
         useAppStore.getState().markThreadExited(event.threadId);
+        useAppStore.getState().reconcileStaleSubAgents(event.threadId);
         useAppStore.getState().clearAllPendingSteer(event.threadId);
+        boundSettledThreadRuntimeWindows([event.threadId]);
         options?.sideEffects?.onThreadExited?.({
           threadId: event.threadId,
           exitCode: event.exitCode,

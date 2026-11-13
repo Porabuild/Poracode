@@ -21,7 +21,7 @@
     "webSocketServerMessages": 12
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:aa02ce63840c7b523ef2c18c1f3ffbd9151673f9b2ce7c1a6350f481486a0928",
+  "manifestHash": "sha256:3e7df7fb4e1730e3551ebb8438ac97c73f845d8caa8170ab81dbd2bcc7efec9d",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -31790,6 +31790,9 @@
                 "approvalPolicy": {
                   "type": "string"
                 },
+                "preferDeclaredApprovalPolicy": {
+                  "type": "boolean"
+                },
                 "sandboxMode": {
                   "type": "string"
                 }
@@ -40352,6 +40355,9 @@
               "properties": {
                 "approvalPolicy": {
                   "type": "string"
+                },
+                "preferDeclaredApprovalPolicy": {
+                  "type": "boolean"
                 },
                 "sandboxMode": {
                   "type": "string"
@@ -72764,6 +72770,18 @@
       "queryCodecs": [
         {
           "kind": "string",
+          "name": "historyCache",
+          "optional": true,
+          "repeated": false
+        },
+        {
+          "kind": "string",
+          "name": "historyRevision",
+          "optional": true,
+          "repeated": false
+        },
+        {
+          "kind": "string",
           "name": "projection",
           "optional": true,
           "repeated": false
@@ -72824,6 +72842,8 @@
         }
       ],
       "queryParameters": [
+        "historyCache",
+        "historyRevision",
         "projection",
         "deferBodies",
         "reads",
@@ -72870,6 +72890,15 @@
             },
             "deferBodies": {
               "const": "file_change",
+              "type": "string"
+            },
+            "historyCache": {
+              "const": "v1",
+              "type": "string"
+            },
+            "historyRevision": {
+              "maxLength": 160,
+              "minLength": 1,
               "type": "string"
             },
             "maxBytes": {
@@ -73540,6 +73569,25 @@
                   "type": "null"
                 }
               ]
+            },
+            "historyCache": {
+              "additionalProperties": true,
+              "properties": {
+                "revision": {
+                  "maxLength": 160,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "unchanged": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "revision",
+                "unchanged"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "historyProjection": {
               "const": "details-v1",
@@ -76256,6 +76304,25 @@
                     },
                     "followUpQueue": {
                       "$ref": "#/$defs/__schema20"
+                    },
+                    "historyCache": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "revision": {
+                          "maxLength": 160,
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "unchanged": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "revision",
+                        "unchanged"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
                     },
                     "historyProjection": {
                       "const": "details-v1",
@@ -84914,7 +84981,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:ed400b5f4388c42f54755aa1a401a057ab57fbcb48b4388691d81d1b799af47a",
+  "sourceHash": "sha256:adc7e4695f2ae14b7ba2783c52d154a6a469c4c0bd96b55f1aac3bff37853ff8",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

@@ -79,8 +79,10 @@ describe("database migration registry", () => {
       [69, "project branch pins"],
       [70, "remember turns cut off before they finished"],
       [71, "project plugin overrides"],
+      [72, "externalize inline runtime images"],
+      [73, "durable thread history cache revisions"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(71);
+    expect(LATEST_SCHEMA_VERSION).toBe(73);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -118,8 +120,8 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 71,
-      name: "project plugin overrides",
+      version: 73,
+      name: "durable thread history cache revisions",
       rollback: "rollback-compatible",
     });
     // Migrations below the floor keep their reviewed defaults.

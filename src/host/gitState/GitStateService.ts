@@ -123,6 +123,7 @@ export class GitStateService {
       return;
     }
     if (event.type !== "git-changed" && event.type !== "project-tree-changed") return;
+    if (event.type === "project-tree-changed" && event.gitChanged === false) return;
     void this.refreshInterestedProject(event.projectId, event.type === "git-changed");
   }
 

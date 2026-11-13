@@ -1,7 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
-import { buildCrewHelperOptions } from "./crewHelperOptions";
+import { buildCrewHelperOptions, useCrewHelperOptions } from "./crewHelperOptions";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+
+const routingBridge = vi.hoisted(() => ({
+  remote: false,
+  getCrossagentRouting: vi.fn<() => Promise<CrossagentRoutingState>>(),
+}));
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => routingBridge,
+  isRemoteSession: () => routingBridge.remote,
+}));
 
 function status(
   kind: string,
@@ -174,5 +186,81 @@ describe("buildCrewHelperOptions", () => {
       model: "alpha-mini",
       effort: "medium",
     });
+  });
+});
+
+describe("crew routing refresh identity", () => {
+  beforeEach(() => {
+    routingBridge.remote = false;
+    routingBridge.getCrossagentRouting.mockReset();
+    useSharedSettings.setState(settings);
+    useAgentStatusesStore.setState({
+      agentStatuses: [status("alpha", "Alpha", "alpha-mini", "medium")],
+      wslAgentStatuses: [],
+    });
+  });
+
+  function routing(): CrossagentRoutingState {
+    return {
+      providers: [{ kind: "alpha", label: "Alpha", execution: "structured" }],
+      ranked: [
+        {
+          provider: "alpha",
+          label: "Alpha",
+          execution: "structured",
+          rank: 1,
+          source: "built-in",
+          usageCount: 0,
+          model: { id: "alpha-mini", label: "Mini" },
+          fast: false,
+          learnedTags: [],
+        },
+      ],
+    };
+  }
+
+  it("keeps a completed request stable across unrelated renders and equal status updates", async () => {
+    routingBridge.getCrossagentRouting.mockResolvedValue(routing());
+    const hook = renderHook(() => useCrewHelperOptions());
+    await waitFor(() => expect(hook.result.current.providers).toHaveLength(1));
+    hook.rerender();
+    act(() =>
+      useAgentStatusesStore
+        .getState()
+        .setAgentStatuses([status("alpha", "Alpha", "alpha-mini", "medium")]),
+    );
+    act(() =>
+      useAgentStatusesStore.getState().hydrateFromCache({
+        windows: [status("alpha", "Alpha", "alpha-mini", "medium")],
+        wsl: [],
+      }),
+    );
+    await act(async () => {});
+    expect(routingBridge.getCrossagentRouting).toHaveBeenCalledTimes(1);
+    hook.unmount();
+  });
+
+  it("rejects obsolete routing responses after visibility changes", async () => {
+    const old = Promise.withResolvers<CrossagentRoutingState>();
+    routingBridge.getCrossagentRouting
+      .mockReturnValueOnce(old.promise)
+      .mockResolvedValueOnce({ providers: [], ranked: [] });
+    const hook = renderHook(() => useCrewHelperOptions());
+    await waitFor(() => expect(routingBridge.getCrossagentRouting).toHaveBeenCalledTimes(1));
+    act(() => useSharedSettings.setState({ crossagentPausedProviders: ["alpha"] }));
+    await waitFor(() => expect(routingBridge.getCrossagentRouting).toHaveBeenCalledTimes(2));
+    await act(async () => old.resolve(routing()));
+    expect(hook.result.current.providers).toEqual([]);
+    expect(hook.result.current.ranked).toEqual([]);
+    hook.unmount();
+  });
+
+  it("keeps browser sessions independent of local routing", async () => {
+    routingBridge.remote = true;
+    const hook = renderHook(() => useCrewHelperOptions());
+    await act(async () => {});
+    expect(hook.result.current.providers).toHaveLength(1);
+    expect(routingBridge.getCrossagentRouting).not.toHaveBeenCalled();
+    hook.unmount();
   });
 });

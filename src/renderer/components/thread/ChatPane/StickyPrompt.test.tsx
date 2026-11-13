@@ -233,6 +233,72 @@ describe("StickyPrompt", () => {
     expect(bar.style.transform).toBe("translateY(0px)");
   });
 
+  it("reuses prompt nodes while scrolling through unchanged rows", () => {
+    const { scroller, scrollTo } = createScroller();
+    renderStickyPrompt(scroller);
+    scrollTo(ROW_HEIGHT);
+    const queryRows = vi.spyOn(scroller, "querySelectorAll");
+    try {
+      scrollTo(ROW_HEIGHT + 10);
+      scrollTo(ROW_HEIGHT + 20);
+      scrollTo(ROW_HEIGHT + 30);
+      // The shared visible-range hook still measures once per scroll. The
+      // sticky handoff no longer discovers the same rows a second time.
+      expect(queryRows).toHaveBeenCalledTimes(3);
+    } finally {
+      queryRows.mockRestore();
+    }
+  });
+
+  it("rediscovers replaced and removed prompts before positioning the handoff", async () => {
+    const { scroller, scrollTo } = createScroller();
+    renderStickyPrompt(scroller);
+    scrollTo(ROW_HEIGHT);
+    const bar = screen.getByRole("button", {
+      name: "Scroll to prompt: First question",
+    }).parentElement!;
+    bar.parentElement!.style.paddingTop = "8px";
+    Object.defineProperty(bar, "offsetHeight", { configurable: true, value: 28 });
+    const row = scroller.querySelector<HTMLElement>('[data-item-id="prompt-2"]')!;
+    const replacement = document.createElement("div");
+    replacement.dataset.userMessage = "true";
+    replacement.getBoundingClientRect = () => new DOMRect(0, 20, 400, ROW_HEIGHT);
+    await act(async () => {
+      row.replaceChildren(replacement);
+      await Promise.resolve();
+      vi.runAllTimers();
+    });
+    expect(bar.style.transform).toBe("translateY(-24px)");
+    await act(async () => {
+      row.remove();
+      await Promise.resolve();
+      vi.runAllTimers();
+    });
+    expect(bar.style.transform).toBe("translateY(0px)");
+  });
+
+  it("does not rediscover rows when streamed markup changes inside an existing row", async () => {
+    const { scroller, scrollTo } = createScroller();
+    renderStickyPrompt(scroller);
+    scrollTo(ROW_HEIGHT);
+    const row = scroller.querySelector<HTMLElement>('[data-item-id="reply-1"]')!;
+    const queryRows = vi.spyOn(scroller, "querySelectorAll");
+    try {
+      for (let index = 0; index < 5; index += 1) {
+        await act(async () => {
+          const paragraph = document.createElement("p");
+          paragraph.textContent = `Streamed paragraph ${index}`;
+          row.replaceChildren(paragraph);
+          await Promise.resolve();
+          vi.runAllTimers();
+        });
+      }
+      expect(queryRows).not.toHaveBeenCalled();
+    } finally {
+      queryRows.mockRestore();
+    }
+  });
+
   it("hides while Find in chat is open for the thread", () => {
     const { scroller, scrollTo } = createScroller();
     renderStickyPrompt(scroller);

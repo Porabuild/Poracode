@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
-import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -58,7 +58,14 @@ vi.mock("@/renderer/components/layout/MobilePageHeaderActions", () => ({
 vi.mock("@/renderer/components/mobileComposer/MobileCircleButton", () => ({
   MobileCircleButton: () => <span />,
 }));
-vi.mock("./parts/UsageProviderCard", () => ({ UsageProviderCard: () => <span /> }));
+const cardRendered = vi.hoisted(() => vi.fn<(id: string) => void>());
+vi.mock("./parts/UsageProviderCard", () => ({
+  UsageProviderCard: ({ id }: { id: string }) => {
+    const usage = useProviderUsage(id);
+    cardRendered(id);
+    return <span data-testid={`usage-card-${id}`}>{usage?.windows[0]?.usedPercent}</span>;
+  },
+}));
 vi.mock("@/renderer/components/providers/hostUsage", () => ({
   fetchHostUsage: vi.fn<typeof fetchHostUsage>(),
 }));
@@ -77,6 +84,68 @@ vi.mock("@dnd-kit/react", () => ({
 }));
 
 describe("usage panel host ownership", () => {
+  it("keeps sidebar usage live while hidden cards pause, then reveals current data without refetching", async () => {
+    vi.useFakeTimers();
+    try {
+      const snapshot = {
+        providerId: "codex",
+        status: "ok" as const,
+        fetchedAt: Date.now(),
+        windows: [{ id: "session", label: "Session", usedPercent: 20 }],
+      };
+      bridge.getProviderUsage.mockResolvedValue({ snapshots: [], fromCache: true });
+      function SidebarUsage() {
+        const usage = useProviderUsage("codex");
+        return <span data-testid="sidebar-usage">{usage?.windows[0]?.usedPercent}</span>;
+      }
+      const view = render(
+        <>
+          <SidebarUsage />
+          <UsagePanel visible />
+        </>,
+      );
+      await act(async () => {});
+      act(() => {
+        useProviderUsageStore.getState().mergeSnapshot(snapshot);
+        useUsageScopeStore.setState({ preferredProviderId: "codex" });
+      });
+      expect(screen.getByTestId("usage-card-codex")).toHaveTextContent("20");
+      const card = screen.getByTestId("usage-card-codex");
+      view.rerender(
+        <>
+          <SidebarUsage />
+          <UsagePanel visible={false} />
+        </>,
+      );
+      await act(() => vi.advanceTimersByTime(120));
+      cardRendered.mockClear();
+      const reads = bridge.getProviderUsage.mock.calls.length;
+      act(() =>
+        useProviderUsageStore.getState().mergeSnapshot({
+          ...snapshot,
+          fetchedAt: Date.now(),
+          windows: [{ ...snapshot.windows[0]!, usedPercent: 80 }],
+        }),
+      );
+      expect(screen.getByTestId("sidebar-usage")).toHaveTextContent("80");
+      expect(card).toHaveTextContent("20");
+      expect(cardRendered).not.toHaveBeenCalled();
+      expect(useUsageScopeStore.getState().preferredProviderId).toBe("codex");
+      view.rerender(
+        <>
+          <SidebarUsage />
+          <UsagePanel visible />
+        </>,
+      );
+      expect(screen.getByTestId("usage-card-codex")).toBe(card);
+      expect(card).toHaveTextContent("80");
+      expect(bridge.getProviderUsage).toHaveBeenCalledTimes(reads);
+      expect(useUsageScopeStore.getState().preferredProviderId).toBe("codex");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   beforeEach(() => {
     session.remote = false;
     useHostUsageStore.setState({ hosts: {} });

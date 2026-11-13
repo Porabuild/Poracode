@@ -66,6 +66,8 @@ function fixture(count: number, options: Partial<RemoteAccessServerOptions> = {}
       sockets.map((socket, index) => [socket.ws, { sessionId: `principal-${index}` }]),
     ),
     replayingClients: new Set(),
+    desktopInternalClients: new Set(),
+    desktopReplayingClients: new Set(),
     clientLiveness: new Map(),
     terminalWatches: new Map(),
     gitStateInterests: new Map(),
@@ -378,5 +380,37 @@ describe("publication-local runtime frame cache", () => {
     expect(admission.outboundQueuedBytes("principal-1")).toBe(bytes);
     sockets[2]!.flush();
     expect(admission.outboundQueuedBytes("principal-1")).toBe(0);
+  });
+
+  it("drops emptied content-only frames for desktop-internal loopback clients while keeping paired clients seq-contiguous", () => {
+    const { host, sockets, publish } = fixture(2);
+    host.desktopInternalClients.add(sockets[0]!.ws);
+    host.itemInterests.set(sockets[0]!.ws, new Set(["foreground-thread"]));
+    host.itemInterests.set(sockets[1]!.ws, new Set(["foreground-thread"]));
+
+    // Background token delta: suppressed completely on desktop-internal socket,
+    // still delivered as empty frame on paired remote socket for seq contiguity.
+    publish(single("background-thread", "chunk-1"));
+    expect(sockets[0]!.sent).toHaveLength(0);
+    expect(sockets[1]!.frames).toHaveLength(1);
+    expect(sockets[1]!.frames[0]!.event).toEqual({
+      type: "thread-runtime-events",
+      threadId: "background-thread",
+      events: [],
+    });
+
+    // Control event on background thread still reaches desktop-internal socket with latest seq.
+    publish({
+      type: "thread-runtime-events",
+      threadId: "background-thread",
+      events: [delta("background-thread", "chunk-2"), request],
+    });
+    expect(sockets[0]!.frames).toHaveLength(1);
+    expect(sockets[0]!.frames[0]!.seq).toBe(2);
+    expect(sockets[0]!.frames[0]!.event).toEqual({
+      type: "thread-runtime-events",
+      threadId: "background-thread",
+      events: [request],
+    });
   });
 });

@@ -33,6 +33,7 @@ import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 import { modelFamilyMemberDisplay } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
 import { CrewRosterMenu } from "@/renderer/components/crew/CrewRosterMenu";
 import type { CrewRosterModel } from "@/renderer/components/crew/crewComposerModel";
+import { scheduleDetachedTransitionCleanup } from "@/renderer/utils/detachedTransitionCleanup";
 
 export type OptionMenuOption = string | { id: string; label: string; hint?: string };
 
@@ -343,6 +344,13 @@ export function ThreadComposer(props: {
   const probeContainerRef = useRef<HTMLDivElement>(null);
   const editorHostRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(
+    () => () => {
+      scheduleDetachedTransitionCleanup();
+    },
+    [],
+  );
   const mobileComposer = compact && isCompactClientSurface();
   const mobileOverflowControls = mobileComposer
     ? controls
@@ -937,7 +945,7 @@ export function ThreadComposer(props: {
     if (onStop && submitDisabled) {
       return (
         <Tooltip delay={0}>
-          <Tooltip.Trigger>
+          <Tooltip.Trigger data-composer-send="">
             <Button
               isIconOnly
               aria-label={t`Stop response`}
@@ -961,7 +969,7 @@ export function ThreadComposer(props: {
     if (resume) {
       return (
         <Tooltip delay={0}>
-          <Tooltip.Trigger>
+          <Tooltip.Trigger data-composer-send="">
             <Button
               isIconOnly
               aria-label={resume.label}
@@ -1089,7 +1097,7 @@ export function ThreadComposer(props: {
         </div>
       )}
       {renderControls()}
-      <div className="flex shrink-0 items-end gap-1">
+      <div className="poracode-composer-actions flex shrink-0 items-end gap-1">
         {typeof afterControls === "function" ? afterControls(0) : afterControls}
         {renderSendButton()}
       </div>

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
+import "fake-indexeddb/auto";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, Project } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
 import { useSidebarOverlayStore } from "@/renderer/state/sidebarOverlayStore";
 
@@ -111,6 +113,38 @@ describe("GitReviewOverlay", () => {
     expect(await within(main).findByText("Unable to load diff.")).toBeInTheDocument();
     expect(within(main).getByPlaceholderText("Commit message (Ctrl+Enter)")).toBeInTheDocument();
   });
+
+  it.each([false, true])(
+    "hydrates a summary-only worktree when review opens, compact=%s",
+    async (compact) => {
+      layout.compact = compact;
+      const worktreeLocation = { ...project.location, path: "C:\\worktree" };
+      const fullStatus = { ...gitStatus, detail: "full" as const };
+      useGitStore.getState().setWorktreeStatus("C:\\worktree", { ...gitStatus, detail: "summary" });
+      usePanelStore.setState({ gitOverlayOpen: true, rightPanelTab: "files" });
+      bridge.getGitStatus.mockResolvedValue(fullStatus);
+
+      render(
+        <GitReviewOverlay
+          project={project}
+          locationOverride={worktreeLocation}
+          statusKey={worktreeLocation.path}
+          worktreePath={worktreeLocation.path}
+          onClose={() => {}}
+        />,
+      );
+
+      await waitFor(() =>
+        expect(bridge.getGitStatus).toHaveBeenCalledExactlyOnceWith({
+          projectLocation: worktreeLocation,
+        }),
+      );
+      await waitFor(() =>
+        expect(useGitStore.getState().worktreeStatuses["C:\\worktree"]).toEqual(fullStatus),
+      );
+      expect(useGitStore.getState().statuses[project.id]).toEqual(gitStatus);
+    },
+  );
 
   it("stages a file from the compact long-press drawer while the shell sidebar is collapsed", async () => {
     layout.compact = true;

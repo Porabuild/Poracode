@@ -13,8 +13,9 @@ import {
 } from "./databaseReadProtocol";
 
 const READ_WORKERS = 2;
-// Bursts get both workers; once reads go quiet, one stays warm for the next.
-const IDLE_READ_WORKERS = 1;
+const WARM_READ_WORKERS = 1;
+// Bursts get both workers; once reads go quiet, all idle workers retire.
+const IDLE_READ_WORKERS = 0;
 const IDLE_WORKER_RETIREMENT_MS = 60_000;
 const MAX_READS = 64;
 // Complete or cancel before the runtime fence's five-second maximum hold.
@@ -116,12 +117,12 @@ export class AsyncDatabaseReads {
   }
 
   /**
-   * Start the workers before the first read needs one. A worker is a forked
+   * Start one worker before the first read needs it. A worker is a forked
    * process that loads SQLite and opens the database, which took ~250 ms on
-   * Windows, so the first catalog reads after launch would otherwise wait.
+   * Windows, so the first catalog read after launch would otherwise wait.
    */
   warm(): void {
-    while (!this.closed && this.slots.size + this.terminating.size < READ_WORKERS) {
+    while (!this.closed && this.slots.size + this.terminating.size < WARM_READ_WORKERS) {
       if (!this.spawnWorker()) return;
     }
   }

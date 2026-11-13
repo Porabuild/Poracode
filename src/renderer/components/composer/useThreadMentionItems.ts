@@ -44,7 +44,10 @@ function normalizePath(p: string | undefined): string | undefined {
   return p ? normalizeWorktreePathForComparison(p, true) : undefined;
 }
 
-function getWorktreeRank(thread: Thread, normalizedCurrentWorktree?: string): number {
+function getWorktreeRank(
+  thread: ThreadMentionSnapshot,
+  normalizedCurrentWorktree?: string,
+): number {
   // Current-worktree threads first, then other worktrees, then main-checkout
   // chats — worktree chats are prioritized even without a current worktree.
   if (
@@ -56,12 +59,73 @@ function getWorktreeRank(thread: Thread, normalizedCurrentWorktree?: string): nu
   return thread.worktreePath ? 1 : 2;
 }
 
-function getThreadWorktreeName(thread: Thread): string | undefined {
+function getThreadWorktreeName(thread: ThreadMentionSnapshot): string | undefined {
   if (!thread.worktreePath) return undefined;
   return (
     resolveWorktreeBranch(thread.projectId, thread.worktreePath, thread.worktreeBranch) ??
     getBasename(thread.worktreePath)
   );
+}
+
+interface ThreadMentionSnapshot {
+  readonly id: string;
+  readonly projectId: string;
+  readonly workspaceId: string | undefined;
+  readonly remoteServerId: string | undefined;
+  readonly title: string;
+  readonly updatedAt: string;
+  readonly worktreePath: string | undefined;
+  readonly worktreeBranch: string | undefined;
+}
+
+function sameThreadMentionSnapshot(a: ThreadMentionSnapshot, b: ThreadMentionSnapshot): boolean {
+  return (
+    a.id === b.id &&
+    a.projectId === b.projectId &&
+    a.workspaceId === b.workspaceId &&
+    a.remoteServerId === b.remoteServerId &&
+    a.title === b.title &&
+    a.updatedAt === b.updatedAt &&
+    a.worktreePath === b.worktreePath &&
+    a.worktreeBranch === b.worktreeBranch
+  );
+}
+
+let lastSourceThreads: readonly Thread[] | null = null;
+let lastThreadMentionSnapshots: readonly ThreadMentionSnapshot[] = [];
+
+function selectThreadMentionSnapshots(
+  threads: readonly Thread[],
+): readonly ThreadMentionSnapshot[] {
+  if (threads === lastSourceThreads) return lastThreadMentionSnapshots;
+
+  const next: ThreadMentionSnapshot[] = [];
+  for (const thread of threads) {
+    if (thread.archived) continue;
+    next.push({
+      id: thread.id,
+      projectId: thread.projectId,
+      workspaceId: thread.workspaceId,
+      remoteServerId: thread.remoteServerId,
+      title: thread.title,
+      updatedAt: thread.updatedAt,
+      worktreePath: thread.worktreePath,
+      worktreeBranch: thread.worktreeBranch,
+    });
+  }
+
+  lastSourceThreads = threads;
+  if (
+    next.length === lastThreadMentionSnapshots.length &&
+    next.every((snapshot, index) =>
+      sameThreadMentionSnapshot(lastThreadMentionSnapshots[index]!, snapshot),
+    )
+  ) {
+    return lastThreadMentionSnapshots;
+  }
+
+  lastThreadMentionSnapshots = next;
+  return next;
 }
 
 const EMPTY_THREAD_MENTIONS: ThreadMentionItem[] = [];
@@ -83,7 +147,7 @@ export function useThreadMentionItems(
   const isThreadVisible = useWorkspaceThreadFilter();
   const mentionToolsAvailable = useSharedSettings(readThreadToolEnabled);
   const projects = useAppStore((state) => state.projects);
-  const threads = useAppStore((state) => state.threads);
+  const threads = useAppStore((state) => selectThreadMentionSnapshots(state.threads));
   const groupIndex = useProjectGroupIndex();
   const serverLabels = useRemoteServersStore(
     useShallow((state) => {
@@ -113,7 +177,7 @@ export function useThreadMentionItems(
         )
       : undefined;
   const normalizedCurrentWorktree = normalizePath(scope.currentWorktreePath);
-  const getScopeRank = (thread: Thread): number => {
+  const getScopeRank = (thread: ThreadMentionSnapshot): number => {
     if (!isThreadVisible(thread)) return 2;
     if (scopeProjectIds?.has(thread.projectId)) return 0;
     const project = projectsById.get(thread.projectId);
@@ -122,7 +186,7 @@ export function useThreadMentionItems(
 
   return threads
     .filter((thread) => {
-      if (thread.archived || thread.id === excludeThreadId) return false;
+      if (thread.id === excludeThreadId) return false;
       return (
         projectsById.has(thread.projectId) ||
         isHomeProjectId(thread.projectId) ||

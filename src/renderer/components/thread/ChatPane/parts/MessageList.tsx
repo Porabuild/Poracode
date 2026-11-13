@@ -42,6 +42,7 @@ import {
 import { useRevertedPromptStore } from "../../revertedPrompt";
 import { ThreadForkBoundary, ThreadForkTurnAction } from "../../ThreadForkControls";
 import { ChatItemRow } from "./items/ChatItemRow";
+import { ToolCallEntranceScope } from "./items/toolCallEntrance";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
@@ -191,6 +192,14 @@ export function MessageList({
   } = useUnderfilledHistory({
     threadId,
     oldestVisibleEntryId: entries[0]?.id,
+    ...(entries[0]?.kind === "tool_call_group"
+      ? {
+          oldestVisibleGroup: {
+            headId: entries[0].itemIds[0]!,
+            tailId: entries[0].itemIds.at(-1)!,
+          },
+        }
+      : {}),
     scrollElementRef,
     onStartReached,
     onContentHeightChange: () => {
@@ -461,7 +470,7 @@ export function MessageList({
   );
 
   return (
-    <>
+    <ToolCallEntranceScope key={threadId} threadId={threadId}>
       <LegendList
         ref={setListRef}
         data={entries}
@@ -588,7 +597,7 @@ export function MessageList({
         onClose={closeRevertDialog}
         onConfirm={confirmRevert}
       />
-    </>
+    </ToolCallEntranceScope>
   );
 }
 

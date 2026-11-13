@@ -46,6 +46,17 @@ export function isOpaqueScriptError(event: ErrorEvent): boolean {
   );
 }
 
+// Electron executeJavaScript failures also reach window.error, with an empty or
+// document URL source and anonymous stack frames. A failed diagnostic evaluation
+// does not mean the app failed to render. Any sourced frame remains fatal.
+export function isAnonymousEvaluationError(event: ErrorEvent, documentUrl: string): boolean {
+  if ((event.filename && event.filename !== documentUrl) || !(event.error instanceof Error)) {
+    return false;
+  }
+  const frames = event.error.stack?.split("\n").slice(1);
+  return !!frames?.length && frames.every((frame) => /^\s*at <anonymous>:\d+:\d+\s*$/.test(frame));
+}
+
 // HeroUI/react-aria-components wraps toast queue updates in
 // document.startViewTransition(). The ViewTransition's finished/ready/
 // updateCallbackDone promises reject with AbortError "Transition was skipped"

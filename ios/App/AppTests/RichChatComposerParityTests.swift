@@ -5,6 +5,35 @@ import UIKit
 @testable import App
 
 final class RichChatComposerParityTests: XCTestCase {
+  func testHomePermissionsHonorAnExplicitProviderBypass() {
+    let capabilities: [String: JSONValue] = [
+      "defaultApprovalPolicy": .string("auto"),
+      "bypassPermissions": .object([
+        "approvalPolicy": .string("auto"),
+        "preferDeclaredApprovalPolicy": .bool(true),
+      ]),
+    ]
+    XCTAssertEqual(HomeComposerPermission.auto.approvalPolicy(capabilities: capabilities), "auto")
+    XCTAssertEqual(HomeComposerPermission.bypass.approvalPolicy(capabilities: capabilities), "auto")
+    XCTAssertNil(HomeComposerPermission.auto.approvalPolicy(capabilities: [:]))
+    XCTAssertEqual(HomeComposerPermission.bypass.approvalPolicy(capabilities: [:]), "never")
+  }
+
+  func testGuiPermissionsUseThePresentationOverride() throws {
+    let agent = try AgentStatusRecord(wire: .object([
+      "kind": .string("fixture"), "label": .string("Fixture"),
+      "installed": .bool(true), "authState": .string("authenticated"),
+      "capabilities": .object([
+        "approvalPolicies": .array([.object(["id": .string("yolo"), "label": .string("Ask When Needed")])]),
+        "presentationCapabilities": .object(["gui": .object([
+          "approvalPolicies": .array([.object(["id": .string("never"), "label": .string("Ask When Needed")])]),
+        ])]),
+      ]),
+    ]))
+    let catalog = RichChatComposerControlCatalog(agentStatus: agent, presentationMode: .gui, configuration: ThreadConfig(model: "model"))
+    XCTAssertEqual(catalog.permissionOptions.map(\.id), ["never"])
+  }
+
   func testContextReloadConfirmationUsesDeclaredCapabilitiesAndStartedSession() throws {
     let previous = ThreadConfig(model: "wide")
     let next = ThreadConfig(model: "wide", contextSize: "400k")

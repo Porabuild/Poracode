@@ -27,10 +27,11 @@ import { MobileTerminalLayout } from "./parts/MobileTerminalLayout";
 
 export function DevTerminalPanel(props: {
   hideHeader?: boolean;
+  visible?: boolean;
   positionOverride?: "bottom" | "right" | "mobile";
   onEmpty?: () => void;
 }) {
-  const { hideHeader, onEmpty } = props;
+  const { hideHeader, onEmpty, visible = true } = props;
   const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const tabs = useDevTerminalStore((s) => s.tabs);
@@ -274,6 +275,7 @@ export function DevTerminalPanel(props: {
 
   return (
     <RightTerminalLayout
+      visible={visible}
       tabs={tabs}
       projectTabs={projectTabs}
       activeScopeLabel={activeScopeLabel}

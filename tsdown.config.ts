@@ -146,6 +146,8 @@ export default defineConfig(
       entry: {
         supervisor: "src/supervisor/index.ts",
         wslStagingWorker: "src/supervisor/wsl/staging/worker.ts",
+        gitExecWorker: "src/supervisor/git/gitExecWorker.ts",
+        projectWatcherWorker: "src/supervisor/projectWatcherWorker.ts",
         ptyBroker: "src/supervisor/pty/ptyBroker.ts",
       },
       clean: false,
@@ -161,6 +163,7 @@ export default defineConfig(
       entry: {
         server: "src/server/cli.ts",
         databaseReadWorker: "src/host/db/databaseReadWorker.ts",
+        databaseWriteWorker: "src/host/db/databaseWriteWorker.ts",
         sessionExportWorker: "src/server/sessionExportWorker.ts",
       },
       clean: false,

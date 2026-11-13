@@ -44,6 +44,12 @@ import { isPdfPath } from "@/shared/promptContent";
 import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { ProjectSearchIndex } from "./ProjectSearchIndex";
 import {
+  isNativeGitHelperActive,
+  isNativeGitHelperIdle,
+  queryNativeListTree,
+} from "./git/gitNativeHelperClient";
+import { GIT_DEFAULT_TIMEOUT } from "./git/exec";
+import {
   BOM,
   MAX_EDITABLE_FILE_SIZE,
   isBinaryBuffer,
@@ -165,6 +171,17 @@ export class ProjectTreeService {
         directoryPath,
         this.requireWslClient(),
       );
+    }
+
+    // Reuse an idle Git helper. Local reads avoid both cold process startup
+    // and queueing the Files panel behind status/search requests.
+    if (!("mock" in opendir) && isNativeGitHelperActive() && isNativeGitHelperIdle()) {
+      const entries = await queryNativeListTree({
+        rootPath: getProjectFsPath(payload.projectLocation),
+        directoryPath,
+        timeoutMs: GIT_DEFAULT_TIMEOUT,
+      });
+      if (entries) return { directoryPath, entries };
     }
 
     const fullPath = await this.resolveContainedEntryPath(payload.projectLocation, directoryPath);
@@ -1044,7 +1061,7 @@ export class ProjectTreeService {
     }
   }
 
-  private invalidateCaches(location: ProjectLocation): void {
+  invalidateCaches(location: ProjectLocation): void {
     this.searchIndex.invalidateCaches(location);
   }
 

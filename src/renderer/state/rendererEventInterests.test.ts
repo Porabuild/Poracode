@@ -10,7 +10,10 @@ vi.mock("@/renderer/diagnostics/sentry", () => ({
 
 import {
   __resetRendererEventInterestsForTest,
+  forgetRecentRuntimeWireInterest,
+  MAX_RECENT_RUNTIME_WIRE_INTERESTS,
   noteRendererEventInterestWireCoverage,
+  rememberRecentRuntimeWireInterest,
   retainRendererEventInterest,
   snapshotRendererEventInterests,
   subscribeRendererEventInterests,
@@ -254,5 +257,46 @@ describe("rendererEventInterests", () => {
     lease.release();
     first.release();
     await vi.advanceTimersByTimeAsync(250);
+  });
+
+  it("retains up to MAX_RECENT_RUNTIME_WIRE_INTERESTS in LRU order after grace release so revisits stay continuous", async () => {
+    const unsubscribe = subscribeRendererEventInterests((snapshot) => {
+      noteRendererEventInterestWireCoverage(snapshot.runtimeThreadIds);
+    });
+
+    for (let i = 1; i <= MAX_RECENT_RUNTIME_WIRE_INTERESTS + 1; i += 1) {
+      const id = `recent-${i}`;
+      const lease = retainRendererEventInterest("runtime", id);
+      await lease.ready;
+      lease.release();
+      rememberRecentRuntimeWireInterest(id);
+    }
+    await vi.advanceTimersByTimeAsync(250);
+    await vi.waitFor(() => {
+      expect(snapshotRendererEventInterests().runtimeThreadIds).toEqual([
+        "recent-5",
+        "recent-4",
+        "recent-3",
+        "recent-2",
+      ]);
+    });
+
+    // Revisiting a recent thread well after the 250ms grace still reports continuous === true!
+    const revisited = retainRendererEventInterest("runtime", "recent-3");
+    expect(revisited.continuous).toBe(true);
+    revisited.release();
+
+    // Evicted oldest thread is no longer continuous.
+    const evicted = retainRendererEventInterest("runtime", "recent-1");
+    expect(evicted.continuous).toBe(false);
+    evicted.release();
+
+    // Explicit forget removes a thread from wire coverage.
+    forgetRecentRuntimeWireInterest("recent-3");
+    await vi.advanceTimersByTimeAsync(250);
+    await vi.waitFor(() => {
+      expect(snapshotRendererEventInterests().runtimeThreadIds).not.toContain("recent-3");
+    });
+    unsubscribe();
   });
 });

@@ -86,6 +86,64 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 describe("SubAgentContent", () => {
+  it("keeps the child subscription while hidden and catches up its retained transcript on reveal", async () => {
+    await DeferredItemMarkdownInner.preload();
+    const threadId = "retained-child";
+    const parent = makeSubAgentItem("retained-parent");
+    useAppStore.getState().hydrateThreadRuntimeItems(threadId, [
+      parent,
+      {
+        id: "reply",
+        parentItemId: parent.id,
+        type: "assistant_message",
+        state: "started",
+        payload: { role: "assistant", content: [] },
+        streams: { assistant_text: "Visible child response." },
+      },
+    ]);
+    const view = render(
+      <SubAgentContent
+        threadId={threadId}
+        parentItemId={parent.id}
+        visible
+        initialScrollRevealDelayMs={0}
+      />,
+    );
+    await screen.findByText("Visible child response.");
+    view.rerender(
+      <SubAgentContent
+        threadId={threadId}
+        parentItemId={parent.id}
+        visible={false}
+        initialScrollRevealDelayMs={0}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText("Visible child response.")).not.toBeVisible());
+    expect(mockBridge.subagentUnsubscribe).not.toHaveBeenCalled();
+    act(() =>
+      useAppStore.getState().applyRuntimeEvent(threadId, {
+        type: "content.delta",
+        threadId,
+        itemId: "reply",
+        stream: "assistant_text",
+        delta: " Arrived while hidden.",
+      }),
+    );
+    expect(screen.queryByText(/Arrived while hidden/)).toBeNull();
+    view.rerender(
+      <SubAgentContent
+        threadId={threadId}
+        parentItemId={parent.id}
+        visible
+        initialScrollRevealDelayMs={0}
+      />,
+    );
+    await screen.findByText(/Arrived while hidden/);
+    expect(mockBridge.subagentSubscribe).toHaveBeenCalledTimes(1);
+    view.unmount();
+    expect(mockBridge.subagentUnsubscribe).toHaveBeenCalledTimes(1);
+  });
+
   beforeEach(() => {
     mockBridge.subagentSubscribe.mockReset().mockResolvedValue({ history: [] });
     mockBridge.subagentUnsubscribe.mockReset().mockResolvedValue(undefined);

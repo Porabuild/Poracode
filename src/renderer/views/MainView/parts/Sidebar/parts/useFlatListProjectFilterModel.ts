@@ -1,5 +1,6 @@
 import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import { useShallow } from "zustand/shallow";
+import type { Thread } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useProjectRemoteServerLookup } from "@/renderer/components/common/ProjectRemoteServer";
@@ -11,6 +12,44 @@ import {
   useWorkspaceProjectIds,
   useWorkspaceThreadFilter,
 } from "@/renderer/state/workspaceSelectors";
+
+const FLAT_LIST_THREAD_FIELDS = [
+  "id",
+  "projectId",
+  "workspaceId",
+  "title",
+  "status",
+  "attention",
+  "archived",
+  "done",
+  "starred",
+  "groupId",
+  "groupName",
+  "worktreePath",
+  "worktreeBranch",
+  "createdAt",
+  "updatedAt",
+] as const satisfies readonly (keyof Thread)[];
+
+let lastSourceThreads: readonly Thread[] | undefined;
+let lastFlatListThreads: readonly Thread[] = [];
+
+// Containers need list structure and group-header state; individual thread rows
+// subscribe to their live records instead of rendering these retained snapshots.
+function selectFlatListThreads(threads: readonly Thread[]): readonly Thread[] {
+  if (threads === lastSourceThreads) return lastFlatListThreads;
+  if (
+    threads.length !== lastFlatListThreads.length ||
+    threads.some((thread, index) => {
+      const previous = lastFlatListThreads[index]!;
+      return FLAT_LIST_THREAD_FIELDS.some((field) => thread[field] !== previous[field]);
+    })
+  ) {
+    lastFlatListThreads = threads;
+  }
+  lastSourceThreads = threads;
+  return lastFlatListThreads;
+}
 
 /**
  * One source of truth for the flat list and its project selector. Desktop
@@ -24,7 +63,7 @@ export function useFlatListProjectFilterModel() {
   const isThreadInActiveWorkspace = useWorkspaceThreadFilter();
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const projects = useAppStore(useShallow((state) => state.projects));
-  const threads = useAppStore((state) => state.threads);
+  const threads = useAppStore((state) => selectFlatListThreads(state.threads));
   const auxiliaryIds = useAuxiliaryThreadWindows((s) => s.hiddenThreadIds);
   const remoteServerFor = useProjectRemoteServerLookup();
   const flatListProjectFilter = useSidebarUiStore((state) => state.flatListProjectFilter);

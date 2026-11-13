@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useLingui } from "@lingui/react/macro";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { PanelExitContent } from "@/renderer/components/layout/panelMotion";
 import { DeferredDeviceWorkspace } from "@/renderer/deferredFeatures";
 import {
@@ -24,7 +25,10 @@ import {
   UnifiedRightPanel,
   type RightPanelTab,
 } from "@/renderer/components/layout/UnifiedRightPanel";
-import { ProjectFilesPanel } from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
+import {
+  ProjectFilesPanel,
+  ProjectFilesPanelVisibilityContext,
+} from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
 import { NotesPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel";
 import { UsagePanel } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel";
 import { UsagePanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions";
@@ -38,7 +42,9 @@ import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel"
 import { SideChatModelText } from "@/renderer/components/thread/SideChat/SideChatModelText";
 import { SideChatBody } from "@/renderer/components/thread/SideChat/SideChatBody";
 import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
+import { useThreadArtifacts } from "@/renderer/components/thread/threadArtifacts";
 import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
+import { useThreadVideos } from "@/renderer/components/thread/threadVideos";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -58,8 +64,9 @@ import {
   undockPanelTab,
 } from "@/renderer/actions/panelActions";
 import { showTerminalPanel } from "@/renderer/actions/terminalActions";
-import { getCurrentProjectId } from "@/renderer/actions/currentProject";
+import { selectCurrentProjectIdForView } from "@/renderer/actions/currentProject";
 import { selectFocusedThreadId, useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
+import { getProjectMap, getThreadMap } from "@/renderer/state/useThread";
 import { syncRightPanelTabToFocusedThread } from "@/renderer/hooks/useRightPanelThreadLock";
 import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
 import { useBottomDockedTabs } from "@/renderer/state/panelDockSelectors";
@@ -92,6 +99,31 @@ export function ProjectAuxiliaryPanel(props: {
   visible: boolean;
   onClose?: () => void;
 }) {
+  const threadId = useFocusedThreadId() ?? undefined;
+  const gallery = useThreadGalleryCollection(threadId, { requestPending: false });
+  const videos = useThreadVideos(threadId);
+  const artifacts = useThreadArtifacts(threadId);
+  return (
+    <ProjectAuxiliaryPanelContent
+      {...props}
+      mediaOrArtifactsInCurrentThread={
+        gallery.images.length +
+          gallery.pendingRemoteRefs.length +
+          gallery.pendingRemotePaths.length +
+          videos.length +
+          artifacts.length >
+        0
+      }
+    />
+  );
+}
+
+function ProjectAuxiliaryPanelContent(props: {
+  includeTerminal: boolean;
+  visible: boolean;
+  onClose?: () => void;
+  mediaOrArtifactsInCurrentThread: boolean;
+}) {
   const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
@@ -122,16 +154,19 @@ export function ProjectAuxiliaryPanel(props: {
   const deviceWorkspaceThreadId = usePanelStore((s) => s.deviceWorkspaceThreadId);
   const deviceWorkspaceDetached = usePanelStore((s) => s.deviceWorkspaceDetached);
   const deviceWorkspaceThreadExists = useAppStore(
-    (s) =>
-      deviceWorkspaceThreadId !== null &&
-      s.threads.some((thread) => thread.id === deviceWorkspaceThreadId),
+    (s) => deviceWorkspaceThreadId !== null && getThreadMap(s.threads).has(deviceWorkspaceThreadId),
   );
   const deviceHostId = useAppStore(
     (s) =>
-      s.threads.find((thread) => thread.id === deviceWorkspaceThreadId)?.remoteServerId ?? null,
+      (deviceWorkspaceThreadId
+        ? getThreadMap(s.threads).get(deviceWorkspaceThreadId)?.remoteServerId
+        : undefined) ?? null,
   );
   const deviceHostThreadId = useAppStore(
-    (s) => s.threads.find((thread) => thread.id === deviceWorkspaceThreadId)?.remoteId ?? null,
+    (s) =>
+      (deviceWorkspaceThreadId
+        ? getThreadMap(s.threads).get(deviceWorkspaceThreadId)?.remoteId
+        : undefined) ?? null,
   );
   const deviceHostEndpoint = useRemoteServersStore(
     (s) =>
@@ -153,13 +188,10 @@ export function ProjectAuxiliaryPanel(props: {
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const setPortsPanelOpen = usePanelStore((s) => s.setPortsPanelOpen);
   const browserBridgeServer = useRemoteServersStore(selectBrowserBridgeServer);
-  // Ports forwarding operates on the connected remote server in every client
-  // runtime — the PWA's desktop host and the Electron-as-client's mirrored
-  // hosts expose the same routes, and entry URLs open externally.
-  const portsAvailable = browserBridgeServer !== undefined;
+  const portsAvailable = hasClientCapability("nativeShell") || browserBridgeServer !== undefined;
   // Reactive id of the project the notes panel should show — recomputed (and
   // re-rendered) as the user navigates between threads/drafts/projects.
-  const currentProjectId = useAppStore(() => getCurrentProjectId());
+  const currentProjectId = useAppStore(selectCurrentProjectIdForView);
   const setBrowserPanelOpen = usePanelStore((s) => s.setBrowserPanelOpen);
   const setBrowserOverlayOpen = usePanelStore((s) => s.setBrowserOverlayOpen);
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
@@ -170,26 +202,22 @@ export function ProjectAuxiliaryPanel(props: {
   const globalTerminal = useDevTerminalStore((s) => s.source === "global");
   const terminalProjectId = useDevTerminalStore((s) => s.activeProjectId);
   const terminalWorktreePath = useDevTerminalStore((s) => s.activeWorktreePath);
-  const currentThread = useAppStore((state) =>
-    currentThreadId ? state.threads.find((thread) => thread.id === currentThreadId) : undefined,
+  const currentThreadProjectId = useAppStore((state) =>
+    currentThreadId ? getThreadMap(state.threads).get(currentThreadId)?.projectId : undefined,
   );
-  const currentThreadProject = currentThread
-    ? projects.find((project) => project.id === currentThread.projectId)
+  const currentThreadWorktreePath = useAppStore((state) =>
+    currentThreadId ? getThreadMap(state.threads).get(currentThreadId)?.worktreePath : undefined,
+  );
+  const currentThreadProject = currentThreadProjectId
+    ? getProjectMap(projects).get(currentThreadProjectId)
     : undefined;
-  const currentThreadProjectLocation =
-    currentThread && currentThreadProject
-      ? resolveProjectLocation(currentThreadProject.location, currentThread.worktreePath)
-      : undefined;
+  const currentThreadProjectLocation = currentThreadProject
+    ? resolveProjectLocation(currentThreadProject.location, currentThreadWorktreePath)
+    : undefined;
   const docksInCurrentThread = useThreadDocksPanelAvailable();
-  // Image-only threads offer the Docks tab without making image presence itself
-  // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
-  const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
-    requestPending: false,
-  });
-  const imagesInCurrentThread =
-    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
-    0;
-  const docksTabAvailable = docksInCurrentThread || imagesInCurrentThread;
+  // Media/file-only threads offer the Docks tab without making media or file
+  // presence itself an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
+  const docksTabAvailable = docksInCurrentThread || props.mediaOrArtifactsInCurrentThread;
 
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
   const filesPanelOpen = filesPanelContext !== null;
@@ -273,6 +301,11 @@ export function ProjectAuxiliaryPanel(props: {
   }
 
   const activeTab = requestedTabIsAvailable() ? requestedTab : fallbackActiveTab();
+  useEffect(() => {
+    if (props.visible && gitPanelOpen && activeTab === "git" && rightPanelTab !== "git") {
+      setRightPanelTab("git");
+    }
+  }, [activeTab, gitPanelOpen, props.visible, rightPanelTab, setRightPanelTab]);
   // Tracks the last git context this sync observed (null initially, so a
   // context present on mount counts as an explicit target and wins). Read and
   // written only inside the effect — never during render.
@@ -290,6 +323,16 @@ export function ProjectAuxiliaryPanel(props: {
     prevDeviceWorkspaceThreadIdRef.current = deviceWorkspaceThreadId;
     let refreshTimer: number | undefined;
     const frame = requestAnimationFrame(() => {
+      const currentState = useAppStore.getState();
+      const focusedThread = currentThreadId
+        ? getThreadMap(currentState.threads).get(currentThreadId)
+        : undefined;
+      if (
+        selectFocusedThreadId(currentState) !== currentThreadId ||
+        focusedThread?.projectId !== currentThreadProjectId ||
+        focusedThread?.worktreePath !== currentThreadWorktreePath
+      )
+        return;
       if (
         rightPanelFollowsThread &&
         (activeTab !== "git" || !gitReviewContextChanged) &&
@@ -318,6 +361,8 @@ export function ProjectAuxiliaryPanel(props: {
   }, [
     activeTab,
     currentThreadId,
+    currentThreadProjectId,
+    currentThreadWorktreePath,
     gitReviewContext,
     deviceWorkspaceThreadId,
     props.visible,
@@ -477,7 +522,12 @@ export function ProjectAuxiliaryPanel(props: {
                 }
               />
             ) : (
-              <DevTerminalPanel hideHeader />
+              <DevTerminalPanel
+                hideHeader
+                visible={
+                  props.visible && (activeTab === "terminal" || rightPanelSplit?.tab === "terminal")
+                }
+              />
             ),
           }
         : {})}
@@ -492,7 +542,10 @@ export function ProjectAuxiliaryPanel(props: {
       }
       filesContent={
         renderFilesContent && resolvedFilesPanelContext ? (
-          <ProjectFilesPanel rootContext={resolvedFilesPanelContext} />
+          <ProjectFilesPanel
+            rootContext={resolvedFilesPanelContext}
+            visible={props.visible && (activeTab === "files" || rightPanelSplit?.tab === "files")}
+          />
         ) : undefined
       }
       browserContent={
@@ -505,7 +558,13 @@ export function ProjectAuxiliaryPanel(props: {
         ) : undefined
       }
       showBrowserTab={browserPanelAvailable}
-      usageContent={renderUsageContent ? <UsagePanel /> : undefined}
+      usageContent={
+        renderUsageContent ? (
+          <UsagePanel
+            visible={props.visible && (activeTab === "usage" || rightPanelSplit?.tab === "usage")}
+          />
+        ) : undefined
+      }
       notesContent={
         renderNotesContent && notesProjectId ? (
           <NotesPanel key={notesProjectId} projectId={notesProjectId} />
@@ -538,6 +597,9 @@ export function ProjectAuxiliaryPanel(props: {
             threadId={subAgentPanelContext.threadId}
             parentItemId={subAgentPanelContext.parentItemId}
             hideHeader
+            visible={
+              props.visible && (activeTab === "subagent" || rightPanelSplit?.tab === "subagent")
+            }
             initialScrollRevealDelayMs={0}
             {...(subAgentPanelContext.projectLocation
               ? { projectLocation: subAgentPanelContext.projectLocation }
@@ -547,7 +609,14 @@ export function ProjectAuxiliaryPanel(props: {
       }
       sideChatContent={
         sideChatEntry ? (
-          <SideChatBody key={sideChatEntry.id} entry={sideChatEntry} surface="panel" />
+          <SideChatBody
+            key={sideChatEntry.id}
+            entry={sideChatEntry}
+            surface="panel"
+            visible={
+              props.visible && (activeTab === "sideChat" || rightPanelSplit?.tab === "sideChat")
+            }
+          />
         ) : undefined
       }
       showSideChatTab={sideChatEntry !== null}
@@ -656,7 +725,9 @@ export function ProjectAuxiliaryPanel(props: {
   );
   return (
     <>
-      <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>
+      <ProjectFilesPanelVisibilityContext value={props.visible}>
+        <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>
+      </ProjectFilesPanelVisibilityContext>
       {deviceWorkspaceThreadExists && deviceWorkspaceThreadId && devicesBodyTarget
         ? createPortal(
             <Suspense fallback={null}>

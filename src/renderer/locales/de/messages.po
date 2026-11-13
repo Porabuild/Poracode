@@ -631,6 +631,7 @@ msgstr "{head} oder {tail}"
 msgid "{heading} mode"
 msgstr "{heading}-Modus"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {# weitere anzeigen}}"
@@ -1387,6 +1388,11 @@ msgstr "Aktionen"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Actions for {title}"
 #~ msgstr "Aktionen für {title}"
+
+#. placeholder {0}: port.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Actions for port {0}"
+msgstr "Aktionen für Port {0}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -2433,6 +2439,10 @@ msgstr "Fragen ist nicht verfügbar: Kein Agent kann einen Chat für dieses Proj
 msgid "Ask Question"
 msgstr "Frage stellen"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "Bei Bedarf fragen"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "Zugehörige Worktrees ohne verbleibende Threads werden ebenfalls entfernt."
@@ -3253,6 +3263,7 @@ msgstr "Kamera"
 msgid "Camera access blocked"
 msgstr "Kamerazugriff blockiert"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
 msgstr "Ports konnten nicht geladen werden"
@@ -4254,6 +4265,15 @@ msgstr "Bild-in-Bild schließen"
 msgid "Close plan"
 msgstr "Plan schließen"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port"
+msgstr "Port schließen"
+
+#. placeholder {0}: confirmPort.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port {0}?"
+msgstr "Port {0} schließen?"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Close PR"
 msgstr "PR schließen"
@@ -4484,7 +4504,7 @@ msgstr "Fehler einklappen"
 #~ msgid "Collapse experiment"
 #~ msgstr "Experiment einklappen"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Dateien und Artefakte einklappen"
 
@@ -4498,8 +4518,12 @@ msgid "Collapse group"
 msgstr "Gruppe einklappen"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Bilder einklappen"
+#~ msgid "Collapse images"
+#~ msgstr "Bilder einklappen"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Medien einklappen"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -5239,6 +5263,7 @@ msgstr "Cookies"
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 #: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copied"
 msgstr "Kopiert"
@@ -5275,6 +5300,10 @@ msgstr "{0} Gerätecode {1} kopieren"
 msgid "Copy accessibility tree"
 msgstr "Barrierefreiheitsbaum kopieren"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Copy address"
+msgstr "Adresse kopieren"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "Code kopieren"
@@ -5310,6 +5339,7 @@ msgid "Copy image"
 msgstr "Bild kopieren"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5410,6 +5440,10 @@ msgstr "Die Zusammenführung konnte nicht abgebrochen werden: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Could not access installed fonts. You can keep the saved font or use Default."
 msgstr "Auf die installierten Schriftarten konnte nicht zugegriffen werden. Du kannst die gespeicherte Schriftart behalten oder „Standard“ wählen."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Could not close this port. Refresh the list and try again."
+msgstr "Dieser Port konnte nicht geschlossen werden. Aktualisiere die Liste und versuche es erneut."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
@@ -6121,6 +6155,7 @@ msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK wurde auf v{nextVersion} aktualisiert."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6239,6 +6274,7 @@ msgstr "DeepSeek Harness-Chat mit dauerhaften Sitzungen, Steuerung des Denkaufwa
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -7930,7 +7966,7 @@ msgstr "Fehler erweitern"
 #~ msgid "Expand experiment"
 #~ msgstr "Experiment ausklappen"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Dateien und Artefakte ausklappen"
 
@@ -7944,8 +7980,12 @@ msgid "Expand group"
 msgstr "Gruppe ausklappen"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Bilder ausklappen"
+#~ msgid "Expand images"
+#~ msgstr "Bilder ausklappen"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Medien ausklappen"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8348,9 +8388,9 @@ msgstr "Die Datei verwendet eine nicht unterstützte Codierung."
 msgid "Files"
 msgstr "Dateien"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Dateien und Artefakte"
 
@@ -9354,6 +9394,7 @@ msgstr "Versteckte fortsetzbare Threads werden alle 5 Minuten durchsucht und nac
 msgid "Hide"
 msgstr "Verstecken"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9671,9 +9712,6 @@ msgstr "Bild"
 msgid "Image preview"
 msgstr "Bildvorschau"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Bilder"
@@ -10869,6 +10907,10 @@ msgstr "Aufgaben auflisten"
 msgid "Listening — speak or type a message"
 msgstr "Hört zu – sprechen oder Nachricht eingeben"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Listening ports on this computer."
+msgstr "Ports auf diesem Computer, die auf Verbindungen warten."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Live"
@@ -11254,6 +11296,10 @@ msgstr "Browserprofile werden gesucht…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "Suche nach Dev-Servern…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Looking for listening ports…"
+msgstr "Suche nach offenen Ports…"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
@@ -11728,6 +11774,12 @@ msgstr "mcp.json konnte nicht gelesen werden, daher wurden die Server dieses Plu
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json zielt auf eine Agent-Plugins-Version, die dieser Build nicht unterstützt."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Medien"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -12499,6 +12551,10 @@ msgstr "Neutral"
 msgid "Never"
 msgstr "Nie"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "Nie fragen"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Neu"
@@ -13061,6 +13117,10 @@ msgstr "Noch keine gelernten Auswahlen."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "Kein Limit"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "No listening ports"
+msgstr "Keine offenen Ports"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
@@ -13943,10 +14003,12 @@ msgid "Open in New Window"
 msgstr "In neuem Fenster öffnen"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in Poracode browser"
 msgstr "Im Poracode-Browser öffnen"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in system browser"
 msgstr "Im Systembrowser öffnen"
 
@@ -14145,6 +14207,17 @@ msgstr "Modellauswahl öffnen"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Thread in der Zusammenfassung öffnen"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "Video {0} von {1} öffnen: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Videovorschau öffnen"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -15308,6 +15381,7 @@ msgstr "Bildschirmsperre verhindern"
 msgid "Prevent system sleep"
 msgstr "Ruhezustand verhindern"
 
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
@@ -16370,9 +16444,11 @@ msgid "Remote URL"
 msgstr "Remote-URL"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -17059,6 +17135,7 @@ msgstr "Nur gespeicherte Nutzung auf diesem Host."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -17075,6 +17152,7 @@ msgstr "Nur gespeicherte Nutzung auf diesem Host."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
@@ -18768,6 +18846,7 @@ msgstr "Docks im rechten Bereich anzeigen"
 msgid "Show estimated cost"
 msgstr "Geschätzte Kosten anzeigen"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Weniger anzeigen"
@@ -18776,7 +18855,7 @@ msgstr "Weniger anzeigen"
 msgid "Show file tree"
 msgstr "Dateibaum anzeigen"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Dateien und Artefakte anzeigen"
 
@@ -18790,8 +18869,8 @@ msgstr "Schriftvorschläge anzeigen"
 #~ msgstr "GitHub Actions in der Fußzeile der Seitenleiste anzeigen."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Bilder anzeigen"
+#~ msgid "Show images"
+#~ msgstr "Bilder anzeigen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18814,6 +18893,10 @@ msgstr "MCP-Server von {providerLabel} anzeigen"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Zeigen"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Medien anzeigen"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21399,6 +21482,7 @@ msgstr "Dieser Computer"
 msgid "This machine (local)"
 msgstr "Diese Maschine (lokal)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21620,6 +21704,12 @@ msgstr "Dies fährt den ausgewählten Emulator herunter und trennt alle Zuschaue
 msgid "This source host does not support safe automatic merge."
 msgstr "Dieser Quellhost unterstützt kein sicheres automatisches Zusammenführen."
 
+#. placeholder {0}: confirmPort.processName ?? confirmPort.pid
+#. placeholder {1}: confirmPort.pid
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "This stops {0} (PID {1}) and closes all ports used by that process."
+msgstr "Dies beendet {0} (PID {1}) und schließt alle von diesem Prozess verwendeten Ports."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "This submission has expired. Your draft is kept."
 msgstr "Diese Einsendung ist abgelaufen. Dein Entwurf bleibt erhalten."
@@ -21771,8 +21861,8 @@ msgid "Thread goal dock"
 msgstr "Thread-Zieldock"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "Thread-Bilder"
+#~ msgid "Thread images"
+#~ msgstr "Thread-Bilder"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21788,6 +21878,10 @@ msgstr "Thread ist bereits entladen."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Optionen der Thread-Liste"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "Thread-Medien"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22329,7 +22423,7 @@ msgstr "Bild-in-Bild kann nicht geöffnet werden"
 msgid "Unable to open the file"
 msgstr "Datei konnte nicht geöffnet werden"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Datei konnte nicht im Editor geöffnet werden"
@@ -22683,6 +22777,10 @@ msgstr "Unbekannt"
 msgid "Unknown folder"
 msgstr "Unbekannter Ordner"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Unknown process"
+msgstr "Unbekannter Prozess"
+
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"
 #~ msgstr "Unbekanntes Projekt"
@@ -23009,6 +23107,7 @@ msgstr "Aktualisiert"
 msgid "Updated {0}"
 msgstr "{0} aktualisiert"
 
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
@@ -23435,6 +23534,7 @@ msgstr "Version"
 msgid "via {0}"
 msgstr "über {0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

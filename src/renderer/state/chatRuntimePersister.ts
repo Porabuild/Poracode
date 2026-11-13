@@ -21,6 +21,7 @@ import { toRuntimeChatItem, type CompletedTurnRecord } from "./slices/runtimeEve
 import {
   boundThreadRuntimeWindows,
   forgetThreadWindowLedger as forgetWindowLedger,
+  hasPinnedLiveRuntimeWindow,
   markRuntimeItemsPaged,
   MAX_CACHED_COMPLETED_TURN_RECORDS,
   setRuntimeWindowPaging,
@@ -40,6 +41,10 @@ import {
   MAX_INACTIVE_THREAD_ESTIMATED_BYTES,
   selectInactiveRuntimeEvictions,
 } from "./inactiveRuntimeRetention";
+import {
+  forgetRecentRuntimeWireInterest,
+  rememberRecentRuntimeWireInterest,
+} from "./rendererEventInterests";
 
 export { compactRuntimeItemsForHydration } from "./runtimeHistoryCompaction";
 
@@ -85,6 +90,16 @@ export function boundVisibleThreadRuntimeWindows(threadIds: readonly string[]): 
     }
   }
   boundThreadRuntimeWindows(threadIds);
+}
+
+export function boundSettledThreadRuntimeWindows(threadIds: readonly string[]): void {
+  for (const threadId of threadIds) {
+    if (hydratedThreadRuntimeIds.has(threadId)) hostHistoryCacheRefresher?.(threadId);
+  }
+  const pinnedThreadIds = threadIds.filter((threadId) => hasPinnedLiveRuntimeWindow(threadId));
+  if (pinnedThreadIds.length > 0) {
+    boundVisibleThreadRuntimeWindows(pinnedThreadIds);
+  }
 }
 
 /**
@@ -205,6 +220,11 @@ export type HostThreadHistoryReader = (
 ) => Promise<HostThreadHistoryReadOutcome> | undefined;
 
 let hostThreadHistoryReader: HostThreadHistoryReader | null = null;
+let hostHistoryCacheRefresher: ((threadId: string) => void) | null = null;
+
+export function setHostHistoryCacheRefresher(refresh: (threadId: string) => void): void {
+  hostHistoryCacheRefresher = refresh;
+}
 
 export function setHostThreadHistoryReader(reader: HostThreadHistoryReader | null): void {
   hostThreadHistoryReader = reader;
@@ -269,6 +289,10 @@ export function releaseThreadRuntimeItems(threadId: string): void {
   cancelPendingControlAlignment(threadId);
   inactiveThreadRuntimeLru.delete(threadId);
   inactiveThreadRuntimeLru.add(threadId);
+  if (hydratedThreadRuntimeIds.has(threadId)) {
+    hostHistoryCacheRefresher?.(threadId);
+    rememberRecentRuntimeWireInterest(threadId);
+  }
   evictOversizedInactiveThreadRuntimeItems([threadId]);
 }
 
@@ -337,7 +361,7 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
         const items = compactRuntimeItemsForHydration(page.items.map(toRuntimeChatItem));
         const existing = useAppStore.getState().runtimeItemsByIdByThread[threadId];
         const addedVisibleItems = items.filter(
-          (item) => item.type !== "goal" && !existing?.[item.id],
+          (item) => item.type !== "goal" && item.type !== "plan" && !existing?.[item.id],
         );
         const sparseControls = new Set(boundary.sparseControlIds);
         for (const item of page.items) boundary.sparseControlIds.delete(item.id);
@@ -527,6 +551,43 @@ async function hydrateThreadRuntimeItemsFromDb(
   threadId: string,
   request: RuntimeHydrationRequest,
 ): Promise<boolean | typeof AWAITING_HOST> {
+  // A host-owned thread, whichever host owns it, reads its authoritative tail
+  // through that host's one bounded history read (items + completed turns +
+  // `ct1.` cursor + durable notice). It never falls back to an unbounded local
+  // read. Browser disk caches cannot establish a baseline before validation.
+  const hostRead = hostThreadHistoryReader?.(threadId, request.controller.signal, {
+    ...(request.historyPage ? { page: request.historyPage } : {}),
+    ...(request.beforeInstall ? { beforeInstall: request.beforeInstall } : {}),
+  });
+  if (hostRead) {
+    const outcome = await hostRead;
+    if (request.controller.signal.aborted) return false;
+    if (outcome.kind === "installed") return true;
+    if (outcome.kind === "absent") {
+      // A read that reached the host before it created this thread waits for
+      // it; the live stream fills the pane and a later read loads its history.
+      if (
+        isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }])
+      )
+        return AWAITING_HOST;
+      // An unpersisted or authoritatively removed row has no transcript to
+      // lose. A later pass/pin fills the empty transcript when it is created.
+      if (request.beforeInstall && !request.beforeInstall()) return false;
+      runtimeHistoryBoundary(threadId).cursor = null;
+      return true;
+    }
+    if (outcome.kind === "stale") return false;
+    // Nothing failed yet: the pane waits for its host, whose connection reads
+    // the threads panes retain once it is live.
+    if (outcome.kind === "offline") return AWAITING_HOST;
+    // Before the warning: a read that reached the host before it created
+    // this thread is expected, not reportable.
+    if (isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }]))
+      return AWAITING_HOST;
+    console.warn("[chat] failed to hydrate runtime history for thread %s", threadId, outcome.error);
+    captureRendererException(outcome.error, { featureArea: "runtime-persistence" });
+    return false;
+  }
   // Browser startup can restore the same complete cached snapshot already
   // written by the host read installer. Routing four derived reads to the host
   // would both duplicate its tail response and fail this initial read offline.
@@ -556,51 +617,6 @@ async function hydrateThreadRuntimeItemsFromDb(
       cachedSnapshot.thread.remoteServerId,
       cachedSnapshot.runtimeNotice,
     );
-  }
-  // A host-owned thread, whichever host owns it, reads its authoritative tail
-  // through that host's one bounded history read (items + completed turns +
-  // `ct1.` cursor + durable notice). It never falls back to an unbounded local
-  // read. A browser's cached tail paints first, provisionally, and stands
-  // while the host is unreachable.
-  const hostRead = hostThreadHistoryReader?.(threadId, request.controller.signal, {
-    ...(request.historyPage ? { page: request.historyPage } : {}),
-    ...(request.beforeInstall ? { beforeInstall: request.beforeInstall } : {}),
-  });
-  if (hostRead) {
-    const cached =
-      cachedSnapshot === null
-        ? false
-        : installHydrationResults(threadId, browserRuntimeHydrationResults(cachedSnapshot), {
-            provisional: true,
-          }) === true;
-    const outcome = await hostRead;
-    if (request.controller.signal.aborted) return false;
-    if (outcome.kind === "installed") return true;
-    if (outcome.kind === "absent") {
-      // A read that reached the host before it created this thread waits for
-      // it; the live stream fills the pane and a later read loads its history.
-      if (
-        isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }])
-      )
-        return AWAITING_HOST;
-      // An unpersisted or authoritatively removed row has no transcript to
-      // lose. A later pass/pin fills the empty transcript when it is created.
-      if (request.beforeInstall && !request.beforeInstall()) return false;
-      runtimeHistoryBoundary(threadId).cursor = null;
-      return true;
-    }
-    if (outcome.kind === "stale") return cached;
-    // Nothing failed yet: the pane waits for its host, whose connection reads
-    // the threads panes retain once it is live.
-    if (outcome.kind === "offline") return cached || AWAITING_HOST;
-    // Before the warning: a read that reached the host before it created
-    // this thread is expected, not reportable.
-    if (isHistoryReadBeforeHostCreation(threadId, [{ status: "rejected", reason: outcome.error }]))
-      return AWAITING_HOST;
-    if (cached) return true;
-    console.warn("[chat] failed to hydrate runtime history for thread %s", threadId, outcome.error);
-    captureRendererException(outcome.error, { featureArea: "runtime-persistence" });
-    return false;
   }
   const results = cachedSnapshot
     ? browserRuntimeHydrationResults(cachedSnapshot)
@@ -814,6 +830,7 @@ function evictInactiveThreadRuntimeItems(): void {
 function evictThreadRuntimeItems(threadId: string): void {
   inactiveThreadRuntimeLru.delete(threadId);
   hydratedThreadRuntimeIds.delete(threadId);
+  forgetRecentRuntimeWireInterest(threadId);
 
   // Evicting the cached window does not retire its reducer recovery owner.
   if (!pendingThreadRuntimeHydrations.get(threadId)?.beforeInstall)
@@ -845,6 +862,7 @@ export function hasPendingThreadRuntimeHydration(threadId: string): boolean {
 export function invalidateThreadRuntimeHydration(threadId: string): void {
   forgetThreadRuntimeWindow(threadId);
   hydratedThreadRuntimeIds.delete(threadId);
+  forgetRecentRuntimeWireInterest(threadId);
 
   // An in-flight older page from before the reset must not prepend across the
   // reset boundary or write back its stale cursor after the fresh read.

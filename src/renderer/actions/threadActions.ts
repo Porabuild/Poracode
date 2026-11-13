@@ -20,9 +20,8 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { readNativeVisualHostId } from "@/renderer/state/nativeVisualOwner";
 import { useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
-import { hasHydratedThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import { forgetRecentRuntimeWireInterest } from "@/renderer/state/rendererEventInterests";
 import { prepareRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
-import { isRuntimeHistoryReadHeld } from "@/renderer/state/runtimeHistoryReadBarrier";
 import { readThreadPromptIndex } from "@/renderer/state/threadPromptIndex";
 import { findExperimentByThreadId, useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -349,12 +348,11 @@ export function openThread(
     return true;
   };
 
-  // Prepare history before replacing the current pane, and warm its outline
+  // Prepare history while opening the destination pane, and warm its outline
   // concurrently so the secondary read cannot delay opening the transcript.
   // Retain its live stream too, so the mounted reader adopts this baseline
   // across the interest grace period instead of starting a second recovery.
   if (thread?.presentationMode === "gui") {
-    const hydrated = hasHydratedThreadRuntimeItems(threadId);
     void readThreadPromptIndex(threadId);
     let unsubscribe = () => {};
     let active = true;
@@ -380,12 +378,6 @@ export function openThread(
       }
     };
     cancelPendingThreadOpen = cancel;
-    // Rows resident under a held initial-read barrier are a cached preview the
-    // pane can show while the authoritative baseline loads (never a baseline).
-    const heldRowsResident = () =>
-      !hydrated &&
-      (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) > 0 &&
-      isRuntimeHistoryReadHeld(threadId);
     unsubscribe = useAppStore.subscribe((state, previous) => {
       const departed = opened
         ? state.view.kind !== "thread" || !state.view.panes.includes(threadId)
@@ -398,12 +390,6 @@ export function openThread(
         cancel();
         return;
       }
-      if (
-        !opened &&
-        state.runtimeItemIdsByThread !== previous.runtimeItemIdsByThread &&
-        heldRowsResident()
-      )
-        finishOpen(false);
     });
     const finishOpen = (reopenRuntime: boolean) => {
       if (!active || opened) return;
@@ -415,7 +401,6 @@ export function openThread(
       ready = true;
       succeeded = result !== false;
       if (!opened) {
-        if (!hydrated) finishOpen(succeeded);
         return;
       }
       // The pane can adopt the reader while the baseline is still pending.
@@ -433,10 +418,8 @@ export function openThread(
         reopenStoredThread(threadId);
       }
     };
-    if (hydrated || heldRowsResident()) {
-      frameId = requestAnimationFrame(() => finishOpen(ready && succeeded));
-      if (!opened) timeoutId = setTimeout(() => finishOpen(ready && succeeded), 50);
-    }
+    frameId = requestAnimationFrame(() => finishOpen(ready && succeeded));
+    if (!opened) timeoutId = setTimeout(() => finishOpen(ready && succeeded), 50);
     void reader.ready.then(finishRead, () => finishRead(false));
     return;
   }
@@ -548,6 +531,7 @@ export async function unloadStoredThread(
   const inVisiblePane = view.kind === "thread" && view.panes.includes(threadId);
 
   await readBridge().closeThread({ threadId });
+  forgetRecentRuntimeWireInterest(threadId);
   entityHost(thread)?.refreshCatalog();
   startTransition(() => {
     useAppStore.getState().markThreadExited(threadId);

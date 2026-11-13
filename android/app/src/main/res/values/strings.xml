@@ -218,4 +218,6 @@
     <string name="rich_chat_download_failed">Unable to download the file.</string>
     <string name="home_filter_by_project">Filter by project</string>
     <string name="common_more_actions">More actions</string>
+    <string name="rich_chat_ask_when_needed">Ask When Needed</string>
+    <string name="rich_chat_never_ask">Never Ask</string>
 </resources>

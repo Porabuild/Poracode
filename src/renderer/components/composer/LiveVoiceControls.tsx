@@ -21,7 +21,7 @@ export function LiveVoiceButton(props: {
       : t`Start live voice`;
   return (
     <Tooltip delay={0}>
-      <Tooltip.Trigger>
+      <Tooltip.Trigger data-composer-send="">
         <Button
           isIconOnly
           size="sm"
@@ -59,7 +59,11 @@ export function LiveVoiceSessionControls(props: { threadId: string; hasDraft: bo
   const connecting = state.phase === "connecting";
   const endLabel = connecting ? t`Cancel voice connection` : t`End voice chat`;
   return (
-    <div data-live-voice="" className="flex shrink-0 items-center gap-1">
+    <div
+      data-live-voice=""
+      data-composer-send={!props.hasDraft || undefined}
+      className="flex shrink-0 items-center gap-1"
+    >
       <span role="status" className="sr-only">
         {connecting ? t`Connecting voice…` : state.muted ? t`Microphone muted` : t`Live voice`}
       </span>

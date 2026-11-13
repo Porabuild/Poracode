@@ -14,6 +14,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import type { ThreadGoalDockState } from "./threadGoalState";
 import { ThreadGoalStatusIcon } from "./ThreadGoalStatusIcon";
+import { ThreadArtifactsBubble } from "./ThreadArtifactsBubble";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useGoalElapsedSeconds } from "./threadGoalTiming";
 import {
@@ -83,6 +84,7 @@ export function ThreadDockBubbles({
       />
     ),
     images: <ThreadImagesBubble key="images" threadId={threadId} />,
+    artifacts: <ThreadArtifactsBubble key="artifacts" threadId={threadId} />,
     info: null,
     context: null,
     usage: null,

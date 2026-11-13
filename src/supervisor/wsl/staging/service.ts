@@ -24,6 +24,8 @@ export interface WslStagingTempInput {
 export interface WslStagingBaseResult {
   /** Linux path of the staged base directory inside the distro. */
   linuxBaseDir: string;
+  /** Number of staged files written or overwritten during this deploy. */
+  filesWritten?: number;
 }
 
 export interface WslStagingServiceOptions {
@@ -129,10 +131,10 @@ export class WslStagingService {
     const safeBaseName = input.baseName.replace(/[^A-Za-z0-9._-]/gu, "-");
     const linuxBaseDir = `/tmp/${safeBaseName}-${contentKey.slice(0, 12)}`;
     const base = toWslUncPath(distro, linuxBaseDir);
-    await this.flights.run(
+    const result = await this.flights.run(
       `temp:${distro}:${linuxBaseDir}`,
       (signal) =>
-        this.execute(
+        this.execute<WslStagingDeployResult>(
           distro,
           { op: "deploy", base, files: input.files, freshness: "content" },
           this.requestTimeoutMs,
@@ -140,7 +142,7 @@ export class WslStagingService {
         ),
       options,
     );
-    return { linuxBaseDir };
+    return { linuxBaseDir, filesWritten: result.filesWritten };
   }
 
   /**

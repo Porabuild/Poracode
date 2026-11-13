@@ -46,14 +46,23 @@ export function useThreadAgentVision(threadId: string, visible: boolean, preview
         );
         if (!host.isCurrent()) return;
         if (controller.signal.aborted) return;
-        if (!stopStream || !hasAgentVisionStream(ownerId)) setSnapshot({ threadId, vision });
+        if (!stopStream || !hasAgentVisionStream(ownerId))
+          setSnapshot((current) =>
+            current.threadId === threadId && current.vision === vision
+              ? current
+              : { threadId, vision },
+          );
         if (preview && vision?.streamVersion === 1 && !stopStream)
           stopStream = subscribeAgentVisionStream(ownerId, host.hostId, (frame) => {
             if (!controller.signal.aborted) setSnapshot({ threadId, vision: frame });
           });
       } catch {
         if (!controller.signal.aborted && !(stopStream && hasAgentVisionStream(ownerId)))
-          setSnapshot({ threadId, vision: null });
+          setSnapshot((current) =>
+            current.threadId === threadId && current.vision === null
+              ? current
+              : { threadId, vision: null },
+          );
       } finally {
         if (!controller.signal.aborted)
           timer = setTimeout(() => {

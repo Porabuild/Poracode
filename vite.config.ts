@@ -86,6 +86,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   // Deferred settings/devices import these roots directly. Optimizing only
   // I18nProvider leaves their nested CommonJS dependencies raw in dev.
   "react-aria",
+  "react-aria/private/utils/runAfterTransition",
   "react-aria-components",
   "react-aria-components/I18nProvider",
   "react/compiler-runtime",
@@ -109,6 +110,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "zustand/middleware",
   "zustand/react/shallow",
   "zustand/shallow",
+  "zustand/traditional",
   // Web-host-only deps. The default dev server can also serve the browser app and
   // noDiscovery skips anything not listed. Keep in sync with the browser graph;
   // compare against a one-off discovery-enabled cache when dependencies change.

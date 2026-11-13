@@ -54,6 +54,7 @@ describe("PortsPanel", () => {
     Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
+        arch: "web",
         openExternal: vi.fn<(url: string) => Promise<void>>(async () => undefined),
       } as unknown as PoracodeBridge,
     });
@@ -142,10 +143,9 @@ describe("PortsPanel", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Actions" }));
     expect(await screen.findByText("Stop forwarding")).toBeInTheDocument();
     expect(window.poracode.openExternal).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Close forward actions" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Port 3000" })).not.toBeInTheDocument(),
-    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
 
     fireEvent.click(await screen.findByRole("button", { name: /Port 3000/u }));
     await waitFor(() => expect(enterPortForward).toHaveBeenCalledWith("forward-1"));
@@ -162,6 +162,16 @@ describe("PortsPanel", () => {
     render(<PortsPanel />);
 
     expect(await screen.findByText("Port forwarding isn't enabled")).toBeInTheDocument();
+  });
+
+  it("keeps compact forward actions in a bottom sheet", async () => {
+    adaptiveLayout.compact = true;
+    clientFor({ listPorts: async () => ({ detected: [], forwards: [forward] }) });
+    render(<PortsPanel />);
+    fireEvent.click(await screen.findByRole("button", { name: "Actions" }));
+    expect(await screen.findByRole("dialog", { name: "Port 3000" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy link" })).toBeInTheDocument();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
   it("places compact refresh at the bottom left and tightens the header gap", async () => {
@@ -343,10 +353,10 @@ describe("PortsPanel", () => {
 
     render(<PortsPanel />);
     fireEvent.click(await screen.findByRole("button", { name: "Actions" }));
-    expect(screen.getByRole("button", { name: "Copy link" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy raw address" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Copy link" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Copy raw address" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy raw address" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy raw address" }));
     await waitFor(() =>
       expect(success).toHaveBeenCalledWith(
         "Copied raw TCP address + connect ticket (LAN only) — send the ticket as the first line.",
@@ -358,7 +368,8 @@ describe("PortsPanel", () => {
     expect(writeText).toHaveBeenCalledWith("http://192.168.1.10:4100/\nfixture-connect-ticket");
     expect(enterPortForward).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy link" }));
     await waitFor(() => expect(success).toHaveBeenCalledWith("Copied"));
     expect(enterPortForward).toHaveBeenCalledWith("forward-1");
     expect(writeText).toHaveBeenCalledWith(
@@ -387,9 +398,9 @@ describe("PortsPanel", () => {
 
     render(<PortsPanel />);
     fireEvent.click(await screen.findByRole("button", { name: "Actions" }));
-    expect(screen.queryByRole("button", { name: "Copy raw address" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Copy raw address" })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy link" }));
     await waitFor(() => expect(success).toHaveBeenCalledWith("Copied"));
     expect(writeText).toHaveBeenCalledWith(
       "https://relay.example.test/s/desktop-1/forward/forward-1/enter?fwt=fresh",
@@ -415,7 +426,7 @@ describe("PortsPanel", () => {
 
     render(<PortsPanel />);
     fireEvent.click(await screen.findByRole("button", { name: "Actions" }));
-    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Copy link" }));
 
     await waitFor(() =>
       expect(warning).toHaveBeenCalledWith("Browser forwarding isn't set up on this desktop."),
@@ -428,6 +439,7 @@ describe("PortsPanel", () => {
     Object.defineProperty(window, "poracode", {
       configurable: true,
       value: {
+        arch: "web",
         openExternal: vi.fn<(url: string) => Promise<void>>(async () => {
           throw new Error("no browser");
         }),

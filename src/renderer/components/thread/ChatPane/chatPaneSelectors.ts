@@ -10,6 +10,7 @@ import {
 } from "@/renderer/state/runtimeStructuralChanges";
 import { readRuntimeItemChanges } from "@/renderer/state/runtimeItemChanges";
 import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
+import { clearThreadTodoDockStateCache } from "../threadTodoState";
 import { isToolGroupItem } from "./chatToolGroupItem";
 
 export const EMPTY_THREAD_ITEM_IDS = Object.freeze([]) as readonly string[];
@@ -459,7 +460,13 @@ export function selectChildItemIds(
   }
   const items = state.runtimeItemsByIdByThread[threadId];
   const result = itemIds.filter((id) => items?.[id]?.parentItemId === parentItemId);
-  const finalResult = result.length === 0 ? EMPTY_THREAD_ITEM_IDS : result;
+  const finalResult =
+    result.length === 0
+      ? EMPTY_THREAD_ITEM_IDS
+      : cached?.result.length === result.length &&
+          result.every((id, index) => cached.result[index] === id)
+        ? cached.result
+        : result;
   if (childIdsCache.size > 500) childIdsCache.clear();
   childIdsCache.set(cacheKey, { sourceItemIds: itemIds, structuralVersion, result: finalResult });
   return finalResult;
@@ -502,7 +509,22 @@ export function selectChildTimelineEntries(
   if (cached && cached.itemIds === itemIds && cached.structuralVersion === structuralVersion) {
     return cached.entries;
   }
-  const entries = buildTimelineEntries(state, threadId, itemIds);
+  const nextEntries = buildTimelineEntries(state, threadId, itemIds);
+  const entries =
+    cached?.entries.length === nextEntries.length &&
+    nextEntries.every((entry, index) => {
+      const previous = cached.entries[index];
+      return (
+        previous?.kind === entry.kind &&
+        previous.id === entry.id &&
+        (entry.kind === "item" ||
+          (previous.kind === "tool_call_group" &&
+            previous.itemIds.length === entry.itemIds.length &&
+            entry.itemIds.every((id, childIndex) => previous.itemIds[childIndex] === id)))
+      );
+    })
+      ? cached.entries
+      : nextEntries;
   if (childTimelineEntryCache.size > 500) childTimelineEntryCache.clear();
   childTimelineEntryCache.set(cacheKey, { itemIds, structuralVersion, entries });
   return entries;
@@ -877,6 +899,7 @@ export function selectAssistantTurnRowState(
 export function clearRuntimeItemStoreSelectorCacheForThread(threadId: string): void {
   assistantTurnProjectionCache.delete(threadId);
   clearRuntimeStructuralChangeHint(threadId);
+  clearThreadTodoDockStateCache(threadId);
   const prefix = `${threadId}\0`;
   for (const key of runtimeItemStoreSelectorCache.keys()) {
     if (key.startsWith(prefix)) {

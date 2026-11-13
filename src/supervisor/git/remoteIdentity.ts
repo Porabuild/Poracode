@@ -9,21 +9,25 @@ export async function resolveGitRemoteInfo(
   location: ProjectLocation,
   info: GitRemoteInfo | null,
   runtime: Pick<ForgeRuntime, "run" | "environment">,
+  hasSshOverrides?: boolean,
 ): Promise<GitRemoteInfo | null> {
   if (!info) return info;
   if (!isUnconfirmedSshOrigin(info.url)) return info;
   if (!parseForgeRemote(info.url, "origin")) return info;
+  if (hasSshOverrides) return info;
   try {
     const env = await runtime.environment(location);
     if (env.GIT_SSH || env.GIT_SSH_COMMAND || env.GIT_SSH_VARIANT) return info;
-    const overrides = await runtime.run(
-      location,
-      "git",
-      ["config", "--get-regexp", "^(core\\.sshcommand|ssh\\.variant)$"],
-      undefined,
-      true,
-    );
-    if (overrides.trim()) return info;
+    if (hasSshOverrides === undefined) {
+      const overrides = await runtime.run(
+        location,
+        "git",
+        ["config", "--get-regexp", "^(core\\.sshcommand|ssh\\.variant)$"],
+        undefined,
+        true,
+      );
+      if (overrides.trim()) return info;
+    }
     const url = new URL(
       info.url.includes("://") ? info.url : info.url.replace(/^((?:[^@/]+@)?[^/:]+):/, "ssh://$1/"),
     );

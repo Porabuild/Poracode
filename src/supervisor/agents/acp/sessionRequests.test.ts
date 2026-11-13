@@ -153,6 +153,7 @@ function makeRequests(
   overrides: {
     config?: ThreadConfig;
     availableModeIds?: string[];
+    disableSyntheticPermissionAutoApproval?: boolean;
   } = {},
 ) {
   const config = overrides.config ?? {
@@ -165,6 +166,9 @@ function makeRequests(
   const setRequestAttention =
     vi.fn<(attention: "needs_approval" | "needs_reply" | "working") => void>();
   const requests = new AcpSessionRequests({
+    ...(overrides.disableSyntheticPermissionAutoApproval
+      ? { disableSyntheticPermissionAutoApproval: true }
+      : {}),
     threadId: "thread-1",
     getPermissionContext: () => ({ config, availableModeIds }),
     ensureMapperState: () => createAcpMapperState("thread-1"),
@@ -516,6 +520,18 @@ describe("AcpSessionRequests permissions", () => {
       expect(setRequestAttention).not.toHaveBeenCalled();
     },
   );
+
+  it("keeps provider-owned permission requests interactive without advertised modes", async () => {
+    const { requests, setRequestAttention } = makeRequests({
+      config: { model: "model-a", mode: "agent", approvalPolicy: "never" },
+      availableModeIds: [],
+      disableSyntheticPermissionAutoApproval: true,
+    });
+    const response = requests.requestPermission(permissionRequest());
+    expect(setRequestAttention).toHaveBeenCalledExactlyOnceWith("needs_approval");
+    requests.resolve("acp-perm-0", { optionId: "once" });
+    await expect(response).resolves.toEqual({ outcome: { outcome: "selected", optionId: "once" } });
+  });
 
   it.each([
     {

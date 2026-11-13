@@ -2,6 +2,7 @@
 import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Button } from "@heroui/react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FloatingComposerDock } from "./FloatingComposerDock";
 import { resetComposerKeyboardMemoryForTests } from "./useComposerKeyboard";
@@ -205,7 +206,71 @@ describe("FloatingComposerDock", () => {
     expect(document.querySelector(".m-compose-dock")).not.toHaveAttribute("data-expanded");
   });
 
+  it("opens a selection preview without expanding or focusing the composer", () => {
+    const onPress = vi.fn<() => void>();
+    render(
+      <FloatingComposerDock
+        keyboardKey="thread-1"
+        scrimLabel="Close composer"
+        collapsedTapLabel="Open composer"
+      >
+        <div data-composer-input-anchor="">
+          <div
+            role="textbox"
+            aria-label="Composer input"
+            contentEditable
+            suppressContentEditableWarning
+          >
+            <span className="poracode-selection-chip" contentEditable={false}>
+              <button type="button" onClick={onPress}>
+                Selection
+              </button>
+            </span>
+          </div>
+        </div>
+        {createPortal(
+          <div data-selection-preview-dialog="">
+            <button type="button">Preview content</button>
+          </div>,
+          document.body,
+        )}
+      </FloatingComposerDock>,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Selection" });
+    const pointerDown = createEvent.pointerDown(trigger, {
+      cancelable: true,
+      pointerType: "touch",
+    });
+    fireEvent.touchStart(trigger);
+    fireEvent(trigger, pointerDown);
+    act(() => trigger.focus());
+    fireEvent.click(trigger);
+
+    expect(pointerDown.defaultPrevented).toBe(false);
+    expect(onPress).toHaveBeenCalledOnce();
+    expect(document.querySelector(".m-compose-dock")).not.toHaveAttribute("data-expanded");
+    expect(scrollLockMock.focusWithoutScroll).not.toHaveBeenCalled();
+    expect(scrollLockMock.lockComposeScroll).not.toHaveBeenCalled();
+
+    const preview = screen.getByRole("button", { name: "Preview content" });
+    const previewPointerDown = createEvent.pointerDown(preview, {
+      cancelable: true,
+      pointerType: "touch",
+    });
+    fireEvent(preview, previewPointerDown);
+    act(() => preview.focus());
+    expect(previewPointerDown.defaultPrevented).toBe(false);
+    expect(document.querySelector(".m-compose-dock")).not.toHaveAttribute("data-expanded");
+  });
+
   it("reports composer focus before focusing the editor on guarded first focus", () => {
+    // React Aria 3.53 installs a test-only window.visualViewport polyfill
+    // on module load. Its presence is the hook's "real mobile browser"
+    // signal and would route this tap through the async cold-keyboard
+    // probe; remove it so the warm synchronous path stays under test.
+    const visualViewportDescriptor = Object.getOwnPropertyDescriptor(window, "visualViewport");
+    Reflect.deleteProperty(window, "visualViewport");
     const order: string[] = [];
     scrollLockMock.focusWithoutScroll.mockImplementation((element) => {
       order.push(element?.hasAttribute("data-composer-focus-sentinel") ? "sentinel" : "input");
@@ -241,6 +306,9 @@ describe("FloatingComposerDock", () => {
     expect(order.indexOf("focus:true")).toBeGreaterThanOrEqual(0);
     expect(order.indexOf("focus:true")).toBeLessThan(order.indexOf("sentinel"));
     expect(order.indexOf("sentinel")).toBeLessThan(order.indexOf("input"));
+    if (visualViewportDescriptor) {
+      Object.defineProperty(window, "visualViewport", visualViewportDescriptor);
+    }
   });
 
   it("uses the keyboard primer before expanding from the compact composer on cold first focus", async () => {

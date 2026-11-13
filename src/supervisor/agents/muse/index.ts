@@ -78,8 +78,10 @@ export function createMuseAdapter(): AgentAdapter {
     // Native children eagerly expose MCP schemas. A malformed email pattern in
     // one connected tool rejects every child model request with HTTP 400.
     mcpRequiresPortableSchemaPatterns: true,
-    // Meta's model API rejects tool schemas deeper than ten object/array levels.
-    mcpMaxSchemaDepth: 10,
+    // Meta's ten-level schema budget includes the primitive/unconstrained leaf.
+    // The shared limiter counts containers, then leaves a placeholder below
+    // them, so ten containers still produce eleven levels and reject children.
+    mcpMaxSchemaDepth: 9,
     ...inheritBaseSpawnEnv(museDetectionSpec),
 
     async detectInstall(ctx) {

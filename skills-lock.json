@@ -1,10 +1,11 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
     "heroui-react": {
       "source": "heroui-inc/heroui",
       "sourceType": "github",
-      "computedHash": "53d7d8ac1f13d64d0d6a0e7ee7ea7f3918fda5769db8e7958acbbb0f83df1a39"
+      "skillPath": "skills/heroui-react/SKILL.md",
+      "computedHash": "30701672e3efefe0e1fbeaadd118010d18b697db674d87ac24103e0a470064a9"
     }
   }
 }

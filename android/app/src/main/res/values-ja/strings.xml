@@ -167,4 +167,6 @@
     <string name="rich_chat_download_failed">ファイルをダウンロードできませんでした。</string>
     <string name="home_filter_by_project">プロジェクトで絞り込み</string>
     <string name="common_more_actions">その他の操作</string>
+    <string name="rich_chat_ask_when_needed">必要に応じて確認</string>
+    <string name="rich_chat_never_ask">確認しない</string>
 </resources>

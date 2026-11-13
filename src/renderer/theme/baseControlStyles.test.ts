@@ -110,17 +110,17 @@ describe("base control styles", () => {
 
   it("keeps direct and tooltip-wrapped send controls in the collapsed composer", () => {
     const selector = styles.match(
-      /(html\[data-compact-layout\]\s+\.m-thread-compose-dock[^{}]+?\.poracode-composer-toolbar\s+> :has\(\.poracode-composer-send\)\s+> [^{}]+)\s*\{\s*display:\s*none;/,
+      /(html\[data-compact-layout\]\s+\.m-thread-compose-dock[^{}]+?\.poracode-composer-toolbar\s+> \.poracode-composer-actions\s+> [^{}]+)\s*\{\s*display:\s*none;/,
     )?.[1];
     if (!selector) throw new Error("Missing collapsed composer control rule");
     const fixture = document.createElement("div");
     fixture.innerHTML = `
       <div class="m-thread-compose-dock" data-input-has-content>
         <div class="poracode-composer-shell"><div class="poracode-composer-toolbar">
-          <div>
+          <div class="poracode-composer-actions">
             <button id="unrelated">Attach</button>
             <button id="direct" class="poracode-composer-send">Send</button>
-            <div id="wrapped" class="tooltip__trigger">
+            <div id="wrapped" class="tooltip__trigger" data-composer-send>
               <button class="poracode-composer-send">Resume</button>
             </div>
           </div>
@@ -137,6 +137,12 @@ describe("base control styles", () => {
       fixture.remove();
       document.documentElement.toggleAttribute("data-compact-layout", wasCompact);
     }
+  });
+
+  it("avoids whole-app invalidation from compact descendant exclusions", () => {
+    expect(styles).not.toContain(":not(:has(.poracode-composer-shell))");
+    expect(styles).not.toContain(":not(:has(.poracode-composer-send))");
+    expect(styles).not.toContain('.settings-row:has([role="switch"])');
   });
 
   it("uses one safe-zone token for compact headers and under-header page scrolling", () => {
@@ -233,6 +239,39 @@ describe("base control styles", () => {
     expect(ruleFor(".m-sheet-list::after")).toContain(
       "flex: 0 0 calc(0.375rem + env(safe-area-inset-bottom))",
     );
+  });
+
+  it("keeps anchored HeroUI overlays geometrically stable while entering and exiting", () => {
+    for (const selector of [
+      ".popover",
+      ".dropdown__popover",
+      ".select__popover",
+      ".autocomplete__popover",
+      ".combo-box__popover",
+      ".color-picker__popover",
+      ".tooltip",
+    ]) {
+      expect(styles).toContain(selector);
+    }
+    // Opacity only: a transform in the enter/exit animation would move the
+    // surface and poison React Aria's rect-based positioning.
+    expect(styles).toMatch(/\[data-entering="true"\] \{\s*animation: heroui-overlay-fade-in 120ms/);
+    expect(styles).toMatch(/\[data-exiting="true"\] \{\s*animation: heroui-overlay-fade-out 80ms/);
+    // Overlay triggers stay unscaled while pressed/open so the anchor rect
+    // React Aria positions against cannot alternate between two sizes.
+    expect(styles).toMatch(
+      /:is\(\.button, \.dropdown__trigger, \.menu-item\)\[aria-haspopup\]:is\(\s*:active,\s*\[data-pressed="true"\],\s*\[aria-expanded="true"\]\s*\),\s*\.popover__trigger \.button:is\(:active, \[data-pressed="true"\]\) \{\s*transform: none;/,
+    );
+  });
+
+  it("composes toast swipe dismissal with HeroUI's stack transform", () => {
+    const toast = ruleFor(".lc-toast");
+    expect(toast).toContain("display: flex");
+    expect(toast).toContain("var(--toast-y, 0px)");
+    expect(toast).toContain("var(--toast-enter, 0%)");
+    expect(toast).toContain("scale(var(--toast-scale, 1))");
+    expect(toast).toContain("translate3d(var(--lc-toast-swipe-x), var(--lc-toast-swipe-y), 0)");
+    expect(toast).toContain("height var(--toast-height-duration, 350ms)");
   });
 
   it("uses shared translucent chrome for bottom-sheet headers", () => {

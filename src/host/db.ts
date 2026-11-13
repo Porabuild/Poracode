@@ -1,8 +1,8 @@
 // Barrel for the host SQLite layer. The implementation lives in `./db/*`.
-// Keep module-level singleton state (the db handle, profile-data generation
-// counter, usage-events cache) inside its owning module so identity is
-// preserved across all consumers. Desktop and backend code import this barrel
-// directly; the former `src/main/db` compatibility re-exports are gone.
+// Keep module-level singleton state (the db handle and profile-data generation
+// counter) inside its owning module so identity is preserved across consumers.
+// Desktop and backend code import this barrel directly; the former
+// `src/main/db` compatibility re-exports are gone.
 
 export {
   getProfileDataGeneration,
@@ -57,6 +57,7 @@ export {
   dbArchiveDoneThreads,
   dbSelectPurgeCandidateThreadIds,
   dbIsThreadPurgeEligible,
+  dbReclaimDeletedThreadSpace,
 } from "./db/threadHousekeeping";
 
 export { dbSyncAll, dbSyncChanges } from "./db/sync";
@@ -172,8 +173,21 @@ export {
   dbClearThreadTerminalScrollback,
 } from "./db/terminalScrollback";
 
-export { dbAppendUsageEvents, dbGetAllUsageEvents } from "./db/usageEvents";
-export type { UsageEventRow } from "./db/usageEvents";
+export {
+  CORE_USAGE_EVENT_KINDS,
+  dbAppendUsageEvents,
+  dbGetAllUsageEvents,
+  dbIterateCoreUsageEvents,
+  dbIterateTokenUsageScanRows,
+  dbQueryUsageAccountCounts,
+  parseUsageCostRecord,
+} from "./db/usageEvents";
+export type {
+  CoreUsageEventRow,
+  TokenUsageScanRow,
+  UsageAccountCountRow,
+  UsageEventRow,
+} from "./db/usageEvents";
 
 export {
   dbClaimRemoteCommand,
@@ -300,3 +314,7 @@ export {
   type CompletedTurnRowMeta,
 } from "./db/completedTurnPages";
 export { dbMeasureLegacyHistoryCharge, dbMeasureLegacySnapshotCharge } from "./db/legacyReadCharge";
+export {
+  dbReadCommittedRuntimeItemImageBlob,
+  dbReadInlineImageBlobPreviewSource,
+} from "./db/runtimeInlineImageReads";

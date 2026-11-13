@@ -117,25 +117,36 @@ export function StickyPrompt({
     const bar = barRef.current;
     if (!wrapper || !bar) return;
     const promptIndex = entries.findIndex((entry) => entry.id === stickyItemId);
-    let observedRows = new Set<HTMLElement>();
+    let observedRows = new Map<HTMLElement, HTMLElement | null>();
+    let rowsChanged = true;
     const updatePosition = () => {
+      // Scrolling changes geometry, not row membership. Rediscover prompts
+      // only when virtual rows or prompt markers change.
+      if (rowsChanged) {
+        rowsChanged = false;
+        const rows = new Map(
+          [...scrollElement.querySelectorAll<HTMLElement>("[data-chat-virtual-row]")].map(
+            (row) => [row, row.querySelector<HTMLElement>("[data-user-message]")] as const,
+          ),
+        );
+        for (const row of observedRows.keys()) {
+          if (!rows.has(row)) observer.unobserve(row);
+        }
+        for (const row of rows.keys()) {
+          if (!observedRows.has(row)) observer.observe(row);
+        }
+        observedRows = rows;
+      }
       const stickyBottom =
         wrapper.getBoundingClientRect().top +
         Number.parseFloat(getComputedStyle(wrapper).paddingTop || "0") +
         bar.offsetHeight;
       let nextPromptTop = Number.POSITIVE_INFINITY;
-      const rows = new Set(scrollElement.querySelectorAll<HTMLElement>("[data-chat-virtual-row]"));
-      for (const row of observedRows) {
-        if (!rows.has(row)) observer.unobserve(row);
-      }
-      for (const row of rows) {
-        if (!observedRows.has(row)) observer.observe(row);
+      for (const [row, prompt] of observedRows) {
         const index = Number(row.dataset.index);
         if (index <= promptIndex || entries[index]?.id !== row.dataset.itemId) continue;
-        const prompt = row.querySelector<HTMLElement>("[data-user-message]");
         if (prompt) nextPromptTop = Math.min(nextPromptTop, prompt.getBoundingClientRect().top);
       }
-      observedRows = rows;
       bar.style.transform = `translateY(${Math.min(0, nextPromptTop - stickyBottom - PROMPT_HANDOFF_GAP_PX)}px)`;
     };
     let frame: number | null = null;
@@ -147,12 +158,34 @@ export function StickyPrompt({
       });
     };
     const observer = new ResizeObserver(schedule);
+    const markers = "[data-chat-virtual-row], [data-user-message]";
+    const containsMarker = (node: Node) =>
+      node instanceof Element && (node.matches(markers) || node.querySelector(markers) !== null);
+    const mutationObserver = new MutationObserver((records) => {
+      if (
+        !records.some(
+          (record) =>
+            record.type === "attributes" ||
+            [...record.addedNodes, ...record.removedNodes].some(containsMarker),
+        )
+      )
+        return;
+      rowsChanged = true;
+      schedule();
+    });
+    mutationObserver.observe(scrollElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-chat-virtual-row", "data-user-message", "data-index", "data-item-id"],
+    });
     observer.observe(scrollElement);
     updatePosition();
     scrollElement.addEventListener("scroll", schedule, { passive: true });
     return () => {
       scrollElement.removeEventListener("scroll", schedule);
       observer.disconnect();
+      mutationObserver.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
     };
   }, [scrollElement, entries, stickyItemId, preview, isEnabled, isFindOpen]);

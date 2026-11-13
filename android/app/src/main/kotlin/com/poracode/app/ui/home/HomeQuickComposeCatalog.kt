@@ -17,6 +17,8 @@ import com.poracode.app.ui.components.ProjectedModelFamilies
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 
 /** A capability option with a stable host-provided id and a human label. */
@@ -294,7 +296,15 @@ internal class HomeQuickComposeCatalog(
             },
             workflows = launchWorkflows(base, base.model),
             mode = normalizeOptional(base.mode, modes),
-            approvalPolicy = normalizeOptional(base.approvalPolicy, approvalPolicies),
+            approvalPolicy = normalizeOptional(
+                base.approvalPolicy ?: (capabilities["bypassPermissions"] as? JsonObject)
+                    ?.get("preferDeclaredApprovalPolicy")
+                    ?.let { it as? JsonPrimitive }
+                    ?.booleanOrNull
+                    ?.takeIf { it }
+                    ?.let { capabilities["defaultApprovalPolicy"]?.stringOrNull() },
+                approvalPolicies,
+            ),
         )
     }
 

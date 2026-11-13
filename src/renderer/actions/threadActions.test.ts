@@ -347,7 +347,7 @@ describe("threadActions", () => {
     });
   });
 
-  it("prepares the first GUI chunk before replacing the pane or reconnecting the agent", async () => {
+  it("opens the destination immediately while the first GUI chunk gates agent reconnect", async () => {
     let finishRead = () => {};
     hydrateThreadRuntimeItems.mockReturnValueOnce(
       new Promise<void>((resolve) => {
@@ -365,12 +365,14 @@ describe("threadActions", () => {
     await waitFor(() =>
       expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id),
     );
-    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    await waitFor(() =>
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] }),
+    );
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
     expect(useAppStore.getState().connectingThreadIds[thread.id]).toBeUndefined();
     finishRead();
     await waitFor(() =>
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] }),
+      expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined(),
     );
     expect(hydrateThreadRuntimeItems).toHaveBeenCalledExactlyOnceWith(thread.id);
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
@@ -524,7 +526,7 @@ describe("threadActions", () => {
   });
 
   it.each([false, true])(
-    "keeps the previous pane until slow history is ready for remote=%s",
+    "opens the destination while slow history loads and waits to reconnect for remote=%s",
     async (remote) => {
       vi.useFakeTimers();
       const history = Promise.withResolvers<void>();
@@ -542,8 +544,8 @@ describe("threadActions", () => {
         openThread(thread.id);
         expect(useAppStore.getState().view).toEqual({ kind: "home" });
         await vi.advanceTimersByTimeAsync(150);
-        expect(useAppStore.getState().view).toEqual({ kind: "home" });
-        expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+        expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+        expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
         expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
         history.resolve();
         await vi.advanceTimersByTimeAsync(0);
@@ -561,8 +563,8 @@ describe("threadActions", () => {
     },
   );
 
-  describe("cold open with an admitted cached preview", () => {
-    function installPreviewRows(threadId: string): void {
+  describe("immediate cold navigation with verified history", () => {
+    function installCachedRows(threadId: string): void {
       useAppStore.setState((state) => ({
         ...state,
         runtimeItemIdsByThread: { ...state.runtimeItemIdsByThread, [threadId]: ["preview-1"] },
@@ -596,7 +598,7 @@ describe("threadActions", () => {
       { remote: true, succeeds: false },
       { remote: true, succeeds: true },
     ])(
-      "reveals before the baseline, and reconnects only on success for remote=$remote success=$succeeds",
+      "opens the destination with held cached rows but reconnects only after baseline success for remote=$remote success=$succeeds",
       async ({ remote, succeeds }) => {
         vi.useFakeTimers();
         const thread = makeThread({
@@ -611,16 +613,18 @@ describe("threadActions", () => {
         const releaseBarrier = holdRuntimeHistoryRead(thread.id);
         try {
           openThread(thread.id);
-          await vi.advanceTimersByTimeAsync(1_000);
-          expect(useAppStore.getState().view).toEqual({ kind: "home" });
-          installPreviewRows(thread.id);
+          await vi.advanceTimersByTimeAsync(100);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+          installCachedRows(thread.id);
+          await vi.advanceTimersByTimeAsync(100);
           expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
           expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
-          await vi.advanceTimersByTimeAsync(100);
           expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
           expect(release).not.toHaveBeenCalled();
           ready.resolve(succeeds);
           await vi.advanceTimersByTimeAsync(0);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+          expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
           expect(useAppStore.getState().pendingThreadLaunches[thread.id] !== undefined).toBe(
             succeeds,
           );
@@ -638,7 +642,7 @@ describe("threadActions", () => {
     );
 
     it.each([false, true])(
-      "reveals preview rows already resident under a held read on the next frame for remote=%s",
+      "opens a resident destination while its held read validates for remote=%s",
       async (remote) => {
         vi.useFakeTimers();
         const thread = makeThread({
@@ -650,18 +654,18 @@ describe("threadActions", () => {
         });
         useAppStore.setState({ threads: [thread] });
         const releaseBarrier = holdRuntimeHistoryRead(thread.id);
-        installPreviewRows(thread.id);
+        installCachedRows(thread.id);
         const { ready, release, prepare } = prepareColdReader();
         try {
           openThread(thread.id);
-          expect(useAppStore.getState().view).toEqual({ kind: "home" });
-          await vi.advanceTimersByTimeAsync(50);
+          await vi.advanceTimersByTimeAsync(550);
           expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
           expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
           expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeUndefined();
           expect(release).not.toHaveBeenCalled();
           ready.resolve(true);
           await vi.advanceTimersByTimeAsync(0);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
           expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBeDefined();
           expect(prepare).toHaveBeenCalledOnce();
           useAppStore.getState().openHome();
@@ -676,7 +680,7 @@ describe("threadActions", () => {
     );
 
     it.each([false, true])(
-      "does not reveal resident rows once the read barrier is gone for remote=%s",
+      "does not delay navigation for an unheld resident window for remote=%s",
       async (remote) => {
         vi.useFakeTimers();
         const thread = makeThread({
@@ -686,12 +690,14 @@ describe("threadActions", () => {
           ...(remote ? { remoteServerId: "host", remoteId: "unheld" } : {}),
         });
         useAppStore.setState({ threads: [thread] });
-        installPreviewRows(thread.id);
+        installCachedRows(thread.id);
         const { ready, prepare } = prepareColdReader();
         try {
           openThread(thread.id);
-          await vi.advanceTimersByTimeAsync(2_000);
-          expect(useAppStore.getState().view).toEqual({ kind: "home" });
+          await vi.advanceTimersByTimeAsync(50);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+          await vi.advanceTimersByTimeAsync(15);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
         } finally {
           ready.resolve(false);
           prepare.mockRestore();
@@ -702,7 +708,7 @@ describe("threadActions", () => {
     );
 
     it.each([false, true])(
-      "keeps waiting without cached rows, and ignores rows outside a held read for remote=%s",
+      "opens the destination on the first frame independently of later cached rows for remote=%s",
       async (remote) => {
         vi.useFakeTimers();
         const thread = makeThread({
@@ -716,14 +722,18 @@ describe("threadActions", () => {
         const releaseBarrier = holdRuntimeHistoryRead(thread.id);
         try {
           openThread(thread.id);
-          await vi.advanceTimersByTimeAsync(2_000);
-          expect(useAppStore.getState().view).toEqual({ kind: "home" });
+          await vi.advanceTimersByTimeAsync(80);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
           // Live rows with no read barrier are an arbitrary partial tail, not a baseline.
           releaseBarrier();
-          installPreviewRows(thread.id);
-          await vi.advanceTimersByTimeAsync(2_000);
-          expect(useAppStore.getState().view).toEqual({ kind: "home" });
-          expect(useAppStore.getState().pendingActiveThreadId).toBe(thread.id);
+          installCachedRows(thread.id);
+          await vi.advanceTimersByTimeAsync(80);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+          expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
+          // A slow read stays in the destination while its baseline is pending.
+          await vi.advanceTimersByTimeAsync(845);
+          expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
+          expect(useAppStore.getState().pendingActiveThreadId).toBeNull();
         } finally {
           releaseBarrier();
           ready.resolve(false);
@@ -751,12 +761,13 @@ describe("threadActions", () => {
         const releaseBarrier = holdRuntimeHistoryRead(first.id);
         try {
           openThread(first.id);
-          installPreviewRows(first.id);
+          installCachedRows(first.id);
+          await vi.advanceTimersByTimeAsync(50);
           expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [first.id] });
           openThread(second.id);
+          expect(release).toHaveBeenCalledOnce();
           await vi.advanceTimersByTimeAsync(50);
           expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: [second.id] });
-          expect(release).toHaveBeenCalledOnce();
           ready.resolve(true);
           await vi.advanceTimersByTimeAsync(0);
           expect(useAppStore.getState().view).toMatchObject({ kind: "thread", panes: [second.id] });
@@ -811,7 +822,7 @@ describe("threadActions", () => {
     try {
       openThread(thread.id, { reopenRuntime: false, focusComposer: false });
       await vi.advanceTimersByTimeAsync(150);
-      expect(useAppStore.getState().view).toEqual({ kind: "home" });
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
       history.resolve();
       await vi.advanceTimersByTimeAsync(0);
       reader = runtimeInterestHydration.adoptRuntimeThreadReader(thread.id);

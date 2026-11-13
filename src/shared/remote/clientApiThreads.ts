@@ -62,6 +62,7 @@ import {
   assertRemoteBoundedCompletedTurnCursor,
   assertRemoteBoundedThreadCursor,
   boundedReadLimit,
+  boundedReadProtocolError,
   boundedTimelineEntryCount,
   invalidReadsRequest,
   parseBoundedHistoryItemsPage,
@@ -271,6 +272,11 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
     options: RemoteBoundedThreadHistoryOptions = {},
   ): Promise<RemoteBoundedThreadHistoryResult> {
     const search = new URLSearchParams();
+    if (options.historyCache) {
+      search.set("historyCache", "v1");
+      if (options.historyCache !== true)
+        search.set("historyRevision", options.historyCache.revision);
+    }
     if (options.compactDetails) {
       search.set("projection", HISTORY_DETAILS_PROJECTION);
       search.set("deferBodies", HISTORY_DEFER_FILE_CHANGE_BODIES);
@@ -305,7 +311,34 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
           `/api/threads/${encodeURIComponent(threadId)}/history?${search.toString()}`,
           options.signal !== undefined ? { signal: options.signal } : {},
         ),
-      parse: parseBoundedThreadHistoryPage,
+      parse: (body) => {
+        const result = parseBoundedThreadHistoryPage(body);
+        if (!result.page.historyCache?.unchanged) return result;
+        const cached = options.historyCache;
+        if (
+          result.negotiation !== "bounded" ||
+          !cached ||
+          cached === true ||
+          result.page.thread.id !== threadId ||
+          result.page.historyCache.revision !== cached.revision
+        ) {
+          throw boundedReadProtocolError(
+            "bounded_response_invalid",
+            "History cache validation has no matching payload.",
+          );
+        }
+        return {
+          negotiation: "bounded",
+          page: {
+            ...result.page,
+            runtimeItems: cached.runtimeItems,
+            runtimeNextCursor: cached.runtimeNextCursor,
+            completedTurns: cached.completedTurns,
+            completedTurnsNextCursor: cached.completedTurnsNextCursor,
+            contextUsage: cached.contextUsage,
+          },
+        };
+      },
     });
   }
 

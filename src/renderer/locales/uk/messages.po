@@ -631,6 +631,7 @@ msgstr "{head} або {tail}"
 msgid "{heading} mode"
 msgstr "Режим {heading}"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {Показати ще #}}"
@@ -1387,6 +1388,11 @@ msgstr "Дії"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Actions for {title}"
 #~ msgstr "Дії для {title}"
+
+#. placeholder {0}: port.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Actions for port {0}"
+msgstr "Дії для порту {0}"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -2433,6 +2439,10 @@ msgstr "Запитання недоступні: жоден агент не мо
 msgid "Ask Question"
 msgstr "Поставити запитання"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "Запитувати за потреби"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "Пов’язані worktree, у яких не залишилося потоків, також буде видалено."
@@ -3253,6 +3263,7 @@ msgstr "Камера"
 msgid "Camera access blocked"
 msgstr "Доступ до камери заблоковано"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
 msgstr "Не вдалося завантажити порти"
@@ -4254,6 +4265,15 @@ msgstr "Закрити зображення в зображенні"
 msgid "Close plan"
 msgstr "Закрити план"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port"
+msgstr "Закрити порт"
+
+#. placeholder {0}: confirmPort.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port {0}?"
+msgstr "Закрити порт {0}?"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Close PR"
 msgstr "Закрити PR"
@@ -4484,7 +4504,7 @@ msgstr "Згорнути помилку"
 #~ msgid "Collapse experiment"
 #~ msgstr "Згорнути експеримент"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Згорнути файли й артефакти"
 
@@ -4498,8 +4518,12 @@ msgid "Collapse group"
 msgstr "Згорнути групу"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Згорнути зображення"
+#~ msgid "Collapse images"
+#~ msgstr "Згорнути зображення"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Згорнути медіа"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -5239,6 +5263,7 @@ msgstr "Файли cookie"
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 #: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copied"
 msgstr "Скопійовано"
@@ -5275,6 +5300,10 @@ msgstr "Копіювати код пристрою {0} {1}"
 msgid "Copy accessibility tree"
 msgstr "Копіювати дерево доступності"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Copy address"
+msgstr "Копіювати адресу"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "Копіювати код"
@@ -5310,6 +5339,7 @@ msgid "Copy image"
 msgstr "Копіювати зображення"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5410,6 +5440,10 @@ msgstr "Не вдалося перервати злиття: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Could not access installed fonts. You can keep the saved font or use Default."
 msgstr "Не вдалося отримати доступ до встановлених шрифтів. Можна залишити збережений шрифт або вибрати «За замовчуванням»."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Could not close this port. Refresh the list and try again."
+msgstr "Не вдалося закрити цей порт. Оновіть список і спробуйте ще раз."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
@@ -6121,6 +6155,7 @@ msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK оновлено до v{nextVersion}."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6239,6 +6274,7 @@ msgstr "Чат DeepSeek Harness зі збереженням сесій, нала
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -7930,7 +7966,7 @@ msgstr "Розгорнути помилку"
 #~ msgid "Expand experiment"
 #~ msgstr "Розгорнути експеримент"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Розгорнути файли й артефакти"
 
@@ -7944,8 +7980,12 @@ msgid "Expand group"
 msgstr "Розгорнути групу"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Розгорнути зображення"
+#~ msgid "Expand images"
+#~ msgstr "Розгорнути зображення"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Розгорнути медіа"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8348,9 +8388,9 @@ msgstr "Файл використовує непідтримуване коду�
 msgid "Files"
 msgstr "Файли"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Файли й артефакти"
 
@@ -9354,6 +9394,7 @@ msgstr "Приховані відновлювані треди перевіря�
 msgid "Hide"
 msgstr "Сховати"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9671,9 +9712,6 @@ msgstr "Зображення"
 msgid "Image preview"
 msgstr "Попередній перегляд зображення"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Зображення"
@@ -10869,6 +10907,10 @@ msgstr "Список завдань"
 msgid "Listening — speak or type a message"
 msgstr "Слухаю — говоріть або введіть повідомлення"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Listening ports on this computer."
+msgstr "Порти, що прослуховуються на цьому комп’ютері."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Онлайн"
@@ -11254,6 +11296,10 @@ msgstr "Пошук профілів браузера…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "Пошук серверів розробки…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Looking for listening ports…"
+msgstr "Пошук портів, що прослуховуються…"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
@@ -11728,6 +11774,12 @@ msgstr "Не вдалося прочитати mcp.json, тому сервери
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json вказує версію Agent Plugins, яку ця збірка не підтримує."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Медіа"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -12499,6 +12551,10 @@ msgstr "Нейтрально"
 msgid "Never"
 msgstr "Ніколи"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "Ніколи не запитувати"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "Нове"
@@ -13061,6 +13117,10 @@ msgstr "Вивчених виборів поки немає."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "Без обмежень"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "No listening ports"
+msgstr "Немає портів, що прослуховуються"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
@@ -13943,10 +14003,12 @@ msgid "Open in New Window"
 msgstr "Відкрити в новому вікні"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in Poracode browser"
 msgstr "Відкрити в браузері Poracode"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in system browser"
 msgstr "Відкрити в системному браузері"
 
@@ -14145,6 +14207,17 @@ msgstr "Відкрити вибір моделі"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Відкрити тред у підсумку"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "Відкрити відео {0} з {1}: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Відкрити попередній перегляд відео"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -15308,6 +15381,7 @@ msgstr "Запобігати блокуванню екрана"
 msgid "Prevent system sleep"
 msgstr "Запобігати сну системи"
 
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
@@ -16370,9 +16444,11 @@ msgid "Remote URL"
 msgstr "URL віддаленого репозиторію"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -17059,6 +17135,7 @@ msgstr "Лише використання, збережене на цьому х
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -17075,6 +17152,7 @@ msgstr "Лише використання, збережене на цьому х
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
@@ -18768,6 +18846,7 @@ msgstr "Показувати доки на правій панелі"
 msgid "Show estimated cost"
 msgstr "Показувати орієнтовну вартість"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Показати менше"
@@ -18776,7 +18855,7 @@ msgstr "Показати менше"
 msgid "Show file tree"
 msgstr "Показати дерево файлів"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Показати файли й артефакти"
 
@@ -18790,8 +18869,8 @@ msgstr "Показати варіанти шрифтів"
 #~ msgstr "Показувати GitHub Actions унизу бічної панелі."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Показати зображення"
+#~ msgid "Show images"
+#~ msgstr "Показати зображення"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18814,6 +18893,10 @@ msgstr "Показати MCP-сервери з {providerLabel}"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Показати"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Показати медіа"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21399,6 +21482,7 @@ msgstr "Цей комп’ютер"
 msgid "This machine (local)"
 msgstr "Ця машина (локально)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21620,6 +21704,12 @@ msgstr "Вибраний емулятор завершить роботу, ус�
 msgid "This source host does not support safe automatic merge."
 msgstr "Цей вихідний сервер не підтримує безпечне автоматичне злиття."
 
+#. placeholder {0}: confirmPort.processName ?? confirmPort.pid
+#. placeholder {1}: confirmPort.pid
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "This stops {0} (PID {1}) and closes all ports used by that process."
+msgstr "Це зупинить {0} (PID {1}) і закриє всі порти, які використовує цей процес."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "This submission has expired. Your draft is kept."
 msgstr "Термін надсилання минув. Чернетку збережено."
@@ -21771,8 +21861,8 @@ msgid "Thread goal dock"
 msgstr "Панель мети треда"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "Зображення потоку"
+#~ msgid "Thread images"
+#~ msgstr "Зображення потоку"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21788,6 +21878,10 @@ msgstr "Тред уже вивантажено."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Параметри списку тредів"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "Медіа потоку"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22329,7 +22423,7 @@ msgstr "Не вдалося відкрити зображення в зобра�
 msgid "Unable to open the file"
 msgstr "Не вдалося відкрити файл"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Не вдалося відкрити файл у редакторі"
@@ -22683,6 +22777,10 @@ msgstr "Невідомо"
 msgid "Unknown folder"
 msgstr "Невідома папка"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Unknown process"
+msgstr "Невідомий процес"
+
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"
 #~ msgstr "Невідомий проєкт"
@@ -23009,6 +23107,7 @@ msgstr "Оновлено"
 msgid "Updated {0}"
 msgstr "Оновлено {0}"
 
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
@@ -23435,6 +23534,7 @@ msgstr "Версія"
 msgid "via {0}"
 msgstr "через {0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

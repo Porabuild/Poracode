@@ -356,7 +356,7 @@ describe("supervisorEventReducer — queue overflow recovery", () => {
 
       await vi.advanceTimersByTimeAsync(500);
       expect(recoverFromQueueOverflow).toHaveBeenCalledTimes(2);
-      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBe("pending");
 
       await vi.advanceTimersByTimeAsync(2_000);
       expect(recoverFromQueueOverflow).toHaveBeenCalledTimes(3);
@@ -371,7 +371,7 @@ describe("supervisorEventReducer — queue overflow recovery", () => {
           }),
       );
       reducer.recoverRuntimeHistory("thread-1");
-      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();
+      expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBe("pending");
       settleRetry!(true);
       await vi.advanceTimersByTimeAsync(0);
       expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBeUndefined();

@@ -20,6 +20,11 @@ import {
   installRuntimeItemPayloadOrigin,
   originForRuntimePayloadMerge,
 } from "./runtimePayloadOriginWriteCustody";
+import {
+  externalizeRuntimeItemPayload,
+  readRuntimeItemInlineImageRefHashes,
+  syncRuntimeItemInlineImageRefs,
+} from "./runtimeInlineImages";
 import { runtimeWriterStreamHasContent } from "./runtimeStreamHeadProbes";
 import {
   RuntimeItemStreamWriter,
@@ -141,12 +146,13 @@ export function threadExistsInSqlite(
 export function applyThreadRuntimeEventsNow(
   threadId: string,
   events: readonly RuntimeEvent[],
+  busyTimeoutMs?: number,
 ): void {
   if (events.length === 0) return;
   const sqlite = getSqlite();
   withRuntimeBusyTimeout(() => {
     writerStatements(sqlite).writeEvents(threadId, events);
-  });
+  }, busyTimeoutMs);
   notifyRuntimeItemsCommitted(threadId, events);
 }
 
@@ -158,16 +164,23 @@ export function applyThreadRuntimeEventsNow(
  * cache follows the SQLite handle and is discarded on clean close/rebind;
  * schema 53 stores heads in bounded blocks; event and read-fence formats are unchanged.
  */
-export const applyRuntimeEventBatchesNow: RuntimeAtomicBatchWriter = (batches) => {
+export function applyRuntimeEventBatchesNow(
+  batches: readonly RuntimeWriteBatch[],
+  busyTimeoutMs?: number,
+): ReturnType<RuntimeAtomicBatchWriter> {
   const sqlite = getSqlite();
-  const result = commitRuntimeAtomicWrite(sqlite, () => {
-    writerStatements(sqlite).writeBatches(batches);
-  });
+  const result = commitRuntimeAtomicWrite(
+    sqlite,
+    () => {
+      writerStatements(sqlite).writeBatches(batches);
+    },
+    busyTimeoutMs,
+  );
   if (result.kind === "committed") {
     for (const batch of batches) notifyRuntimeItemsCommitted(batch.threadId, batch.events);
   }
   return result;
-};
+}
 
 function applyRuntimeEventsInTransaction(
   sqlite: InstanceType<typeof Database>,
@@ -183,7 +196,10 @@ function applyRuntimeEventsInTransaction(
   let nextItemPosition: number | undefined;
   const appendItem = (item: PersistedRuntimeItem, origin?: RuntimePayloadOrigin) => {
     nextItemPosition ??= (statements.nextPosition.get(threadId) as { position: number }).position;
-    const installedPayload = item.payload === undefined ? null : JSON.stringify(item.payload);
+    const { persistedPayloadJson: installedPayload, refs } = externalizeRuntimeItemPayload(
+      sqlite,
+      item.payload,
+    );
     const result = statements.insertItem.run(
       threadId,
       item.id,
@@ -194,6 +210,9 @@ function applyRuntimeEventsInTransaction(
       JSON.stringify(item.streams),
       item.parentItemId ?? null,
     );
+    if (result.changes === 1 && refs.size > 0) {
+      syncRuntimeItemInlineImageRefs(sqlite, threadId, item.id, refs, new Map());
+    }
     installRuntimeItemPayloadOrigin(
       sqlite,
       threadId,
@@ -227,6 +246,9 @@ function applyRuntimeEventsInTransaction(
         const row = readItem(event.itemId);
         if (!row) break;
         const previousPayload = row.payload ? safeParse(row.payload) : undefined;
+        const existingRefs = row.payload
+          ? readRuntimeItemInlineImageRefHashes(sqlite, threadId, event.itemId)
+          : new Map<string, string>();
         const origin = originForRuntimePayloadMerge(
           sqlite,
           threadId,
@@ -235,13 +257,18 @@ function applyRuntimeEventsInTransaction(
           previousPayload,
           event.payload,
         );
-        const installedPayload = JSON.stringify(mergePayload(previousPayload, event.payload));
+        const { persistedPayloadJson: installedPayload, refs } = externalizeRuntimeItemPayload(
+          sqlite,
+          mergePayload(previousPayload, event.payload),
+          { previousPayload, existingRefs },
+        );
         const result = statements.updateItem.run(
           row.state === "completed" ? "completed" : "updated",
           installedPayload,
           threadId,
           event.itemId,
         );
+        syncRuntimeItemInlineImageRefs(sqlite, threadId, event.itemId, refs, existingRefs);
         installRuntimeItemPayloadOrigin(
           sqlite,
           threadId,
@@ -265,11 +292,18 @@ function applyRuntimeEventsInTransaction(
           break;
         }
         const previousPayload = row.payload ? safeParse(row.payload) : undefined;
+        const existingRefs = row.payload
+          ? readRuntimeItemInlineImageRefHashes(sqlite, threadId, event.itemId)
+          : new Map<string, string>();
         const payload =
           event.payload === undefined
             ? previousPayload
             : mergePayload(previousPayload, event.payload);
-        const installedPayload = payload === undefined ? null : JSON.stringify(payload);
+        const { persistedPayloadJson: installedPayload, refs } = externalizeRuntimeItemPayload(
+          sqlite,
+          payload,
+          { previousPayload, existingRefs },
+        );
         const origin =
           event.payload === undefined
             ? // Keep the original writer's JSON serialization. A valid prior
@@ -292,6 +326,7 @@ function applyRuntimeEventsInTransaction(
           threadId,
           event.itemId,
         );
+        syncRuntimeItemInlineImageRefs(sqlite, threadId, event.itemId, refs, existingRefs);
         installRuntimeItemPayloadOrigin(
           sqlite,
           threadId,
@@ -347,7 +382,16 @@ function applyRuntimeEventsInTransaction(
         };
         const row = readItem(itemId);
         if (row) {
-          statements.updateItem.run("started", JSON.stringify(payload), threadId, itemId);
+          const previousPayload = row.payload ? safeParse(row.payload) : undefined;
+          const existingRefs = row.payload
+            ? readRuntimeItemInlineImageRefHashes(sqlite, threadId, itemId)
+            : new Map<string, string>();
+          const { persistedPayloadJson, refs } = externalizeRuntimeItemPayload(sqlite, payload, {
+            previousPayload,
+            existingRefs,
+          });
+          statements.updateItem.run("started", persistedPayloadJson, threadId, itemId);
+          syncRuntimeItemInlineImageRefs(sqlite, threadId, itemId, refs, existingRefs);
         } else {
           appendItem({
             id: itemId,

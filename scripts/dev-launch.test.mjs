@@ -53,6 +53,7 @@ async function fixture(t, holdAcquisition = false) {
     "prepare-pty-job-owner.mjs",
     "prepare-computer-use-helper.mjs",
     "prepare-mcp-relay.mjs",
+    "prepare-git-helper.mjs",
     "prepare-wsl-helpers.mjs",
     "prepare-agent-plugins.mjs",
     "wait-dev-server.mjs",

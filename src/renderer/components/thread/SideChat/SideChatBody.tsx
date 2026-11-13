@@ -21,6 +21,7 @@ import {
   macosTrafficLightGutterClass,
 } from "@/renderer/components/layout/sidebarChrome";
 import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
+import { SelectionPreview } from "@/renderer/components/composer/MentionInput";
 import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
 import { SideChatThreadView } from "./SideChatThreadView";
 import { useSideChatDraftControls } from "./useSideChatDraftControls";
@@ -29,14 +30,18 @@ import { useSideChatSession } from "./useSideChatSession";
 export function SideChatBody({
   entry,
   surface = "window",
+  visible = true,
 }: {
   entry: SideChatBootstrap;
   surface?: "panel" | "window";
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const {
     prompt,
     setPrompt,
+    draftSegments,
+    setDraftSegments,
     selection,
     setSelection,
     project,
@@ -55,6 +60,25 @@ export function SideChatBody({
     busy || uncertain,
   );
   const transferLabel = surface === "panel" ? t`Detach side chat` : t`Attach side chat`;
+  const selections = draftSegments.flatMap((segment, index) =>
+    segment.kind === "text" && segment.selection ? [{ segment, index }] : [],
+  );
+  const question = [...selections.map(({ segment }) => segment.content), prompt]
+    .filter(Boolean)
+    .join("\n\n");
+  const submit = () => {
+    const segments = [
+      ...draftSegments.filter((segment) => segment.kind !== "text"),
+      ...selections.flatMap(({ segment }, index) => [
+        ...(index > 0 ? [{ kind: "text" as const, content: "\n\n" }] : []),
+        segment,
+      ]),
+      ...(prompt
+        ? [{ kind: "text" as const, content: `${selections.length > 0 ? "\n\n" : ""}${prompt}` }]
+        : []),
+    ];
+    void start(question, segments);
+  };
   return (
     <div
       className={`${surface === "window" ? "h-screen" : "h-full"} flex min-h-0 flex-col bg-[var(--content-background)] text-foreground`}
@@ -88,12 +112,17 @@ export function SideChatBody({
                       surface === "panel"
                         ? readBridge().openSideChatWindow?.({
                             ...entry,
-                            prompt,
+                            prompt: question,
+                            segments: draftSegments,
                             selection,
                             autoStart: false,
                             ...(threadId ? { existingThreadId: threadId } : {}),
                           })
-                        : readBridge().attachSideChatWindow?.({ prompt, selection });
+                        : readBridge().attachSideChatWindow?.({
+                            prompt: question,
+                            segments: draftSegments,
+                            selection,
+                          });
                     void action?.catch((error: unknown) => toast.danger(friendlyError(error)));
                   }}
                 >
@@ -144,7 +173,7 @@ export function SideChatBody({
         }
       />
       {threadId ? (
-        <SideChatThreadView threadId={threadId} source={entry.source} />
+        <SideChatThreadView threadId={threadId} source={entry.source} visible={visible} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col justify-end px-3 pb-2">
           {launchError ? (
@@ -158,7 +187,7 @@ export function SideChatBody({
                   size="sm"
                   isDisabled={busy}
                   onPress={() => {
-                    void start(prompt);
+                    submit();
                   }}
                 >
                   <Trans>Retry</Trans>
@@ -174,7 +203,36 @@ export function SideChatBody({
             promptDisabled={busy || uncertain}
             attachmentBar={
               <AttachmentBar
-                attachments={(entry.segments ?? []).flatMap((segment, index) =>
+                leading={
+                  selections.length > 0
+                    ? selections.map(({ segment, index }) => (
+                        <span key={index} className="poracode-slash-chip poracode-selection-chip">
+                          <SelectionPreview text={segment.content} />
+                          <button
+                            type="button"
+                            className="poracode-diff-comment-chip__delete"
+                            aria-label={t`Remove`}
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={(event) => {
+                              if (
+                                event.detail === 0 &&
+                                document.activeElement === event.currentTarget
+                              ) {
+                                event.currentTarget
+                                  .closest("[data-poracode-composer]")
+                                  ?.querySelector<HTMLTextAreaElement>("textarea")
+                                  ?.focus();
+                              }
+                              setDraftSegments(draftSegments.filter((_, i) => i !== index));
+                            }}
+                          >
+                            <X aria-hidden="true" />
+                          </button>
+                        </span>
+                      ))
+                    : null
+                }
+                attachments={draftSegments.flatMap((segment, index) =>
                   segment.kind === "attachment"
                     ? [
                         {
@@ -190,12 +248,10 @@ export function SideChatBody({
               />
             }
             submitLabel={launchError ? t`Retry` : t`Send`}
-            submitDisabled={busy || !hasProject || !prompt.trim()}
+            submitDisabled={busy || !hasProject || !question.trim()}
             submitPending={busy}
             onPromptChange={setPrompt}
-            onSubmit={() => {
-              void start(prompt);
-            }}
+            onSubmit={submit}
             controls={controls}
             afterControls={
               <ComposerAddMenu

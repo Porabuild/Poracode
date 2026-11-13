@@ -4291,6 +4291,9 @@ describe("useRemoteServersStore", () => {
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
 
     const replacement = useRemoteServersStore.getState().openRemoteThread("d1", "rt-2");
+    await vi.waitFor(() =>
+      expect(threadHistory.mock.calls.some(([id]) => id === "rt-2")).toBe(true),
+    );
     await useRemoteServersStore.getState().refreshServer("d1");
     pendingHistory.reject(new Error("history failed"));
 

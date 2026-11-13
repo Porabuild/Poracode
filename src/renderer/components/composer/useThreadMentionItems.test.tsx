@@ -74,6 +74,19 @@ describe("useThreadMentionItems", () => {
     });
     expect(renders).toBe(rendersAfterMount);
 
+    // Volatile runtime transitions on background threads (status, attention,
+    // turn timing, slashCommands, sessionConfigOptions, usage) must NOT
+    // re-render the active composer's mention list.
+    act(() => {
+      useAppStore.getState().updateThreadRuntime("a", {
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        slashCommands: [{ id: "review", label: "review", description: "Review" }],
+      });
+    });
+    expect(renders).toBe(rendersAfterMount);
+
     // A real thread change still re-renders with fresh content.
     act(() => {
       useAppStore.setState({

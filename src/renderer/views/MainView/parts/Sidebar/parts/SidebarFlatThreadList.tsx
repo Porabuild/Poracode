@@ -151,6 +151,29 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
       />
     ) : null;
 
+  const stackedTagByProjectId = new Map(
+    visibleProjects.map((project) => [
+      project.id,
+      <FlatListProjectTag
+        key={project.id}
+        project={project}
+        remote={remoteServerFor(project)}
+        stacked
+      />,
+    ]),
+  );
+  const inlineTagByProjectId = new Map(
+    visibleProjects.map((project) => [
+      project.id,
+      <FlatListProjectTag
+        key={project.id}
+        project={project}
+        remote={remoteServerFor(project)}
+        stacked={false}
+      />,
+    ]),
+  );
+
   const renderRow = (row: SidebarRow) => {
     if (row.kind === "see-more") {
       const scope = row.section === "done" ? FLAT_DONE_SCOPE : FLAT_THREAD_LIST_ID;
@@ -171,9 +194,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     // Thread rows and worktree headers stack the tag on a second line;
     // provider/experiment group headers keep the inline trailing form.
     const stackedTag = row.kind === "thread" || row.kind === "worktree-group";
-    // Remote mirrors carry the machine name so their rows read as
-    // non-local; mirrors the grouped project header's server chip.
-    const remote = remoteServerFor(project);
+    const projectTag = tagged
+      ? (stackedTag ? stackedTagByProjectId : inlineTagByProjectId).get(project.id)
+      : undefined;
     return (
       <SidebarThreadRow
         key={row.key}
@@ -181,13 +204,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
         project={project}
         editingThreadId={editingThreadId}
         setEditingThreadId={setEditingThreadId}
-        {...(tagged
-          ? {
-              projectTag: (
-                <FlatListProjectTag project={project} remote={remote} stacked={stackedTag} />
-              ),
-            }
-          : {})}
+        {...(projectTag !== undefined ? { projectTag } : {})}
       />
     );
   };

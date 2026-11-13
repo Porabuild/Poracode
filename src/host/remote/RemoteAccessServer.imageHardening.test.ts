@@ -9,10 +9,16 @@ const dbGetThreadRuntimeItemCommitted = vi.fn<(...args: unknown[]) => unknown>()
 const dbGetThreadRuntimeItem = vi.fn<(...args: unknown[]) => Promise<unknown>>(async (...args) =>
   dbGetThreadRuntimeItemCommitted(...args),
 );
+const dbReadCommittedRuntimeItemImageBlob = vi.fn<(...args: unknown[]) => unknown>(() => null);
+const dbReadInlineImageBlobPreviewSource = vi.fn<(...args: unknown[]) => unknown>(() => null);
 
 vi.mock("@/host/db", () => ({
   dbGetThreadRuntimeItemCommitted: (...args: unknown[]) => dbGetThreadRuntimeItemCommitted(...args),
   dbGetThreadRuntimeItem: (...args: unknown[]) => dbGetThreadRuntimeItem(...args),
+  dbReadCommittedRuntimeItemImageBlob: (...args: unknown[]) =>
+    dbReadCommittedRuntimeItemImageBlob(...args),
+  dbReadInlineImageBlobPreviewSource: (...args: unknown[]) =>
+    dbReadInlineImageBlobPreviewSource(...args),
   dbGetThreads: vi.fn<(...args: unknown[]) => unknown>(() => []),
   dbGetThread: vi.fn<(...args: unknown[]) => unknown>(() => null),
   dbGetProject: vi.fn<(...args: unknown[]) => unknown>(() => null),
@@ -32,6 +38,8 @@ afterEach(async () => {
   dbGetThreadRuntimeItem
     .mockReset()
     .mockImplementation(async (...args) => dbGetThreadRuntimeItemCommitted(...args));
+  dbReadCommittedRuntimeItemImageBlob.mockReset().mockReturnValue(null);
+  dbReadInlineImageBlobPreviewSource.mockReset().mockReturnValue(null);
 });
 
 function createServer(): RemoteAccessServer {
@@ -150,6 +158,7 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
     expect(svgResponse.status).toBe(200);
     expect(dbGetThreadRuntimeItemCommitted).toHaveBeenCalledWith("thread-1", "item-1", {
       includeStreams: false,
+      rehydrateInlineImages: false,
     });
     expect(dbGetThreadRuntimeItem).not.toHaveBeenCalled();
     expect(svgResponse.headers.get("content-type")).toBe("image/svg+xml");
@@ -199,6 +208,7 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
       expect(responded).toBe(false);
       expect(dbGetThreadRuntimeItemCommitted).toHaveBeenCalledWith("thread-1", "live-image", {
         includeStreams: false,
+        rehydrateInlineImages: false,
       });
     } finally {
       release({ payload: { images: [SVG_TEXT] } });

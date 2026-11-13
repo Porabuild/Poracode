@@ -262,6 +262,8 @@ function isReplacementOnlyDeltaBatch(events: RuntimeEvent[]): boolean {
 // ── Session ──────────────────────────────────────────────────────
 
 export interface AcpSessionBehavior {
+  /** Keep provider-owned permission requests interactive even without a negotiated mode. */
+  disableSyntheticPermissionAutoApproval?: boolean;
   /** Use resource links when image admission can differ from the initialized route. */
   inlineImagePrompts?: boolean;
   /** Require advertised, confirmed configuration selections before admitting a prompt. */
@@ -933,6 +935,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     if (!this._sessionRequests) {
       this._sessionRequests = new AcpSessionRequests({
         ...(this.resolveMode ? { resolveMode: this.resolveMode } : {}),
+        ...(this.behavior?.disableSyntheticPermissionAutoApproval
+          ? { disableSyntheticPermissionAutoApproval: true }
+          : {}),
         threadId: this.threadId,
         getPermissionContext: () => ({
           config: this.currentConfig,

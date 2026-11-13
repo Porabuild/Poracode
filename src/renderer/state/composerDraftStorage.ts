@@ -25,6 +25,7 @@ import {
 // V2 can contain client asset references. A v1 reader would mistake them for
 // host paths, so use a new namespace. Retain v1 bytes with fingerprint-bound
 // migration markers: an older tab can still be editing that legacy key.
+// Selection chips add only optional text metadata; older v2 readers retain the text.
 const PREFIX = "poracode-composer-draft-v2:";
 const LEGACY_PREFIX = "poracode-composer-draft-v1:";
 import {

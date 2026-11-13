@@ -54,6 +54,7 @@ import {
   resolveFastValue,
   resolveInitialPresentationMode,
   resolveModelValue,
+  resolveApprovalPolicyValue,
   resolvePreferredAgentKind,
   resolveProviderDraftConfig,
   resolveProviderModelPreference,
@@ -135,24 +136,51 @@ const COMPOSER_ANCHOR_MIN_TOP = 8;
  * stay put). Implemented by driving the height of a spacer above the block so
  * the input's top edge holds a fixed fraction of the container height.
  */
-function useStableComposerAnchor(opts: {
-  enabled: boolean;
-  containerRef: React.RefObject<HTMLDivElement | null>;
-  blockRef: React.RefObject<HTMLDivElement | null>;
-  spacerRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  const { enabled, containerRef, blockRef, spacerRef } = opts;
+function useStableComposerAnchor(enabled: boolean) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const blockRef = useRef<HTMLDivElement | null>(null);
+  const spacerRef = useRef<HTMLDivElement | null>(null);
   // Fraction of the container height where the input's top edge is pinned.
   // Captured once from the initial centered layout so window resizes keep the
   // composer at the same relative position.
   const anchorRatioRef = useRef<number | null>(null);
+  const activeBindingRef = useRef<{
+    container: HTMLDivElement;
+    block: HTMLDivElement;
+    spacer: HTMLDivElement;
+    observer: ResizeObserver;
+  } | null>(null);
 
+  // Re-bind whenever the anchor elements mount or remount (for example, when
+  // a remote host transitions through connecting/error and back to online
+  // while `enabled` stays true).
   useLayoutEffect(() => {
-    if (!enabled) return;
-    const container = containerRef.current;
-    const block = blockRef.current;
-    const spacer = spacerRef.current;
-    if (!container || !block || !spacer) return;
+    if (!enabled) {
+      anchorRatioRef.current = null;
+    }
+    const container = enabled ? containerRef.current : null;
+    const block = enabled ? blockRef.current : null;
+    const spacer = enabled ? spacerRef.current : null;
+    const active = activeBindingRef.current;
+
+    if (!container || !block || !spacer) {
+      if (active) {
+        active.observer.disconnect();
+        activeBindingRef.current = null;
+      }
+      return;
+    }
+    if (
+      active &&
+      active.container === container &&
+      active.block === block &&
+      active.spacer === spacer
+    ) {
+      return;
+    }
+
+    active?.observer.disconnect();
+    activeBindingRef.current = null;
 
     const apply = () => {
       const height = container.clientHeight;
@@ -165,18 +193,28 @@ function useStableComposerAnchor(opts: {
       // inserted above the input (command panel, attachments, docks).
       const aboveInput = inputTop - blockTop;
       const blockHeight = block.offsetHeight;
-
-      // Establish the anchor once from the initial (centered) layout: the line
-      // the input's top edge would sit on if the block were centered.
-      if (anchorRatioRef.current === null) {
-        const centeredInputOffset = (height - blockHeight) / 2 + aboveInput;
-        anchorRatioRef.current = clampNumber(centeredInputOffset / height, 0, 1);
-      }
-
-      const desiredInputOffset = Math.round(anchorRatioRef.current * height);
       const currentInputOffset = inputTop - containerTop;
       const currentSpacer = spacer.offsetHeight;
-      const maxSpacer = Math.max(COMPOSER_ANCHOR_MIN_TOP, height - blockHeight);
+
+      // Establish the anchor once from the initial (centered) layout: the line
+      // the input's top edge would sit on if the block were centered. Wait
+      // until the container actually has room to center so a temporarily
+      // cramped layout never freezes a top-clamped ratio.
+      const centeredInputOffset = (height - blockHeight) / 2 + aboveInput;
+      const centeredRatio = clampNumber(centeredInputOffset / height, 0, 1);
+      if (
+        anchorRatioRef.current === null &&
+        currentSpacer + (centeredInputOffset - currentInputOffset) > COMPOSER_ANCHOR_MIN_TOP
+      ) {
+        anchorRatioRef.current = centeredRatio;
+      }
+
+      const desiredInputOffset = Math.round((anchorRatioRef.current ?? centeredRatio) * height);
+      const styles = getComputedStyle(container);
+      const verticalPadding =
+        (Number.parseFloat(styles.paddingTop) || 0) +
+        (Number.parseFloat(styles.paddingBottom) || 0);
+      const maxSpacer = Math.max(COMPOSER_ANCHOR_MIN_TOP, height - verticalPadding - blockHeight);
       // Snap to whole pixels. A fractional spacer height (e.g. 443.5px) reads
       // back from offsetHeight rounded, so the next correction measures a stale
       // value and the input/toolbar drift by a sub-pixel each time the box
@@ -196,11 +234,20 @@ function useStableComposerAnchor(opts: {
     };
 
     apply();
-    const observer = new ResizeObserver(() => apply());
+    const observer = new ResizeObserver(apply);
     observer.observe(container);
     observer.observe(block);
-    return () => observer.disconnect();
-  }, [enabled, containerRef, blockRef, spacerRef]);
+    activeBindingRef.current = { container, block, spacer, observer };
+  });
+
+  useLayoutEffect(() => {
+    return () => {
+      activeBindingRef.current?.observer.disconnect();
+      activeBindingRef.current = null;
+    };
+  }, []);
+
+  return { containerRef, blockRef, spacerRef };
 }
 
 export function ThreadDraftView(props: {
@@ -1609,17 +1656,15 @@ export function ThreadDraftView(props: {
   // Stable centering for the full (non-compact) draft view: center once, then
   // pin the input's top edge so the composer no longer jumps when it grows.
   // Declared before the early returns below to keep hook order consistent.
-  const anchorContainerRef = useRef<HTMLDivElement>(null);
-  const anchorBlockRef = useRef<HTMLDivElement>(null);
-  const anchorSpacerRef = useRef<HTMLDivElement>(null);
-  useStableComposerAnchor({
-    // Agent detection can render the draft view before the composer DOM exists.
-    // Only arm the anchor once the selected-agent branch can actually mount it.
-    enabled: !props.compact && !props.quickComposer && !!selectedAgent,
+  // Agent detection can render the draft view before the composer DOM exists.
+  // Only arm the anchor once the selected-agent branch can actually mount it.
+  const {
     containerRef: anchorContainerRef,
     blockRef: anchorBlockRef,
     spacerRef: anchorSpacerRef,
-  });
+  } = useStableComposerAnchor(
+    !props.compact && !props.quickComposer && !props.chatOnly && !!selectedAgent,
+  );
 
   if (!props.submissionPending && remoteConnection === "connecting" && !hostUpdateRestarting) {
     return (
@@ -1767,10 +1812,14 @@ export function ThreadDraftView(props: {
     },
     implicitMcpServers,
   );
+  const launchApprovalPolicy = selectedAgentForConfig?.capabilities.approvalPolicies.length
+    ? resolveApprovalPolicyValue(selectedAgentForConfig, approvalPolicy)
+    : approvalPolicy;
 
   return (
     <div
       ref={props.droppableRef}
+      data-draft-composer=""
       data-poracode-attachment-drop-target=""
       className={`relative flex ${rootSizeClass} flex-col ${props.isDragging ? "opacity-50" : ""}`}
     >
@@ -1812,6 +1861,7 @@ export function ThreadDraftView(props: {
         {/* Composer block: centered initially, then anchored by the input's top edge. */}
         <div
           ref={compactComposer ? undefined : anchorBlockRef}
+          data-draft-composer-block=""
           className={`${compactComposer ? alignClass : "mx-auto shrink-0"} w-full ${blockMaxWidthClass} ${props.quickComposer ? "quick-composer-control-surface" : ""}`}
         >
           {props.chatOnly ? null : (
@@ -1846,7 +1896,7 @@ export function ThreadDraftView(props: {
                 ? { workflows: true }
                 : {}),
               ...(mode ? { mode } : {}),
-              ...(approvalPolicy ? { approvalPolicy } : {}),
+              ...(launchApprovalPolicy ? { approvalPolicy: launchApprovalPolicy } : {}),
               ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
               ...mcpConfig,

@@ -18,7 +18,7 @@ function isVoicePreview(node: Node): boolean {
 
 /** Matches every kind of composer chip. */
 export const CHIP_SELECTOR =
-  "[data-mention-path], [data-slash-command], [data-diff-comment-path], [data-mcp-id], [data-thread-mention-id]";
+  "[data-mention-path], [data-slash-command], [data-diff-comment-path], [data-mcp-id], [data-thread-mention-id], [data-selection-text]";
 
 /** Chips and line breaks count as one character and the caret never goes inside them. */
 function isAtomic(node: Node): boolean {

@@ -85,6 +85,25 @@ export class GitService {
   private readonly mergeService = new GitMergeService(this.worktreeService);
   private readonly repositoryMutationTails = new Map<string, Promise<void>>();
 
+  private async withStatusInvalidation<T>(
+    locations: ProjectLocation | readonly ProjectLocation[],
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const targets = Array.isArray(locations)
+      ? (locations as readonly ProjectLocation[])
+      : [locations as ProjectLocation];
+    for (const loc of targets) {
+      this.statusService.invalidateStatus(loc);
+    }
+    try {
+      return await operation();
+    } finally {
+      for (const loc of targets) {
+        this.statusService.invalidateStatus(loc);
+      }
+    }
+  }
+
   private async withRepositoryMutation<T>(
     location: ProjectLocation,
     operation: () => Promise<T>,
@@ -99,7 +118,7 @@ export class GitService {
     this.repositoryMutationTails.set(key, tail);
     await previous.catch(() => undefined);
     try {
-      return await operation();
+      return await this.withStatusInvalidation(location, operation);
     } finally {
       release();
       if (this.repositoryMutationTails.get(key) === tail) {
@@ -111,6 +130,10 @@ export class GitService {
   setWslClient(client: WslBridgeClient | undefined): void {
     setWslGitBridgeClient(client);
     this.statusService.setWslClient(client);
+  }
+
+  invalidateStatus(): void {
+    this.statusService.invalidateStatus();
   }
 
   async getStatus(
@@ -193,6 +216,15 @@ export class GitService {
         return this.statusService.getWorktreeStatusSummaryBatchWsl(location, worktreePaths);
       }
       return this.statusService.getWorktreeStatusBatchWsl(location, worktreePaths);
+    }
+
+    const nativeStatuses = await this.statusService.getWorktreeStatusBatchNative(
+      location,
+      worktreePaths,
+      detail,
+    );
+    if (nativeStatuses) {
+      return nativeStatuses;
     }
 
     const statuses: Record<string, GitStatusResult> = {};
@@ -345,29 +377,33 @@ export class GitService {
   }
 
   async stage(location: ProjectLocation, filePath: string): Promise<void> {
-    await execGit(location, ["add", "--", filePath]);
+    await this.withStatusInvalidation(location, () => execGit(location, ["add", "--", filePath]));
   }
 
   async unstage(location: ProjectLocation, filePath: string): Promise<void> {
-    await execGit(location, ["reset", "HEAD", "--", filePath]);
+    await this.withStatusInvalidation(location, () =>
+      execGit(location, ["reset", "HEAD", "--", filePath]),
+    );
   }
 
   async revert(location: ProjectLocation, filePath: string): Promise<void> {
-    const statusOutput = await execGit(location, ["status", "--porcelain=v2", "--", filePath]);
-    const parsed = parseStatusPorcelainV2(statusOutput);
-    const unstagedEntry = parsed.unstaged.find(
-      (entry) => entry.path === filePath.replace(/\\/g, "/"),
-    );
-    if (unstagedEntry?.status === "?") {
-      await execGit(location, ["clean", "-f", "--", filePath]);
-      return;
-    }
-    if (unstagedEntry?.status === "R" && unstagedEntry.oldPath) {
-      await execGit(location, ["clean", "-f", "--", filePath]);
-      await execGit(location, ["checkout", "--", unstagedEntry.oldPath]);
-      return;
-    }
-    await execGit(location, ["checkout", "--", filePath]);
+    await this.withStatusInvalidation(location, async () => {
+      const statusOutput = await execGit(location, ["status", "--porcelain=v2", "--", filePath]);
+      const parsed = parseStatusPorcelainV2(statusOutput);
+      const unstagedEntry = parsed.unstaged.find(
+        (entry) => entry.path === filePath.replace(/\\/g, "/"),
+      );
+      if (unstagedEntry?.status === "?") {
+        await execGit(location, ["clean", "-f", "--", filePath]);
+        return;
+      }
+      if (unstagedEntry?.status === "R" && unstagedEntry.oldPath) {
+        await execGit(location, ["clean", "-f", "--", filePath]);
+        await execGit(location, ["checkout", "--", unstagedEntry.oldPath]);
+        return;
+      }
+      await execGit(location, ["checkout", "--", filePath]);
+    });
   }
 
   async getDiffBatch(
@@ -386,16 +422,18 @@ export class GitService {
   }
 
   async stageAll(location: ProjectLocation): Promise<void> {
-    await execGit(location, ["add", "."]);
+    await this.withStatusInvalidation(location, () => execGit(location, ["add", "."]));
   }
 
   async unstageAll(location: ProjectLocation): Promise<void> {
-    await execGit(location, ["reset", "HEAD"]);
+    await this.withStatusInvalidation(location, () => execGit(location, ["reset", "HEAD"]));
   }
 
   async revertAll(location: ProjectLocation): Promise<void> {
-    await execGit(location, ["checkout", "--", "."]);
-    await execGit(location, ["clean", "-fd"]);
+    await this.withStatusInvalidation(location, async () => {
+      await execGit(location, ["checkout", "--", "."]);
+      await execGit(location, ["clean", "-fd"]);
+    });
   }
 
   async commit(
@@ -404,27 +442,29 @@ export class GitService {
     addAll: boolean,
     reapplyStashCommit?: string,
   ): Promise<Omit<GitCommitResult, "message">> {
-    if (addAll) {
-      await execGit(location, ["add", "."]);
-    }
-    const output = await execGit(location, ["commit", "-m", message], {
-      timeout: GIT_HOOK_TIMEOUT,
-    });
-    const hashMatch = output.match(/\[.+?\s+([a-f0-9]+)\]/);
-    const hash = hashMatch?.[1] ?? "";
-    if (!reapplyStashCommit) return { hash };
+    return this.withStatusInvalidation(location, async () => {
+      if (addAll) {
+        await execGit(location, ["add", "."]);
+      }
+      const output = await execGit(location, ["commit", "-m", message], {
+        timeout: GIT_HOOK_TIMEOUT,
+      });
+      const hashMatch = output.match(/\[.+?\s+([a-f0-9]+)\]/);
+      const hash = hashMatch?.[1] ?? "";
+      if (!reapplyStashCommit) return { hash };
 
-    const reapply = await this.mergeService.reapplyPullStash(location, reapplyStashCommit);
-    if (reapply.outcome === "reapplied") return { hash, stashReapplied: true };
-    if (reapply.outcome === "conflict") {
-      return {
-        hash,
-        reapplyConflicting: true,
-        stashPreserved: true,
-        conflictFiles: reapply.conflictFiles,
-      };
-    }
-    return { hash, stashPreserved: true };
+      const reapply = await this.mergeService.reapplyPullStash(location, reapplyStashCommit);
+      if (reapply.outcome === "reapplied") return { hash, stashReapplied: true };
+      if (reapply.outcome === "conflict") {
+        return {
+          hash,
+          reapplyConflicting: true,
+          stashPreserved: true,
+          conflictFiles: reapply.conflictFiles,
+        };
+      }
+      return { hash, stashPreserved: true };
+    });
   }
 
   async getStagedDiff(location: ProjectLocation): Promise<string> {
@@ -432,7 +472,7 @@ export class GitService {
   }
 
   async init(location: ProjectLocation): Promise<void> {
-    await execGit(location, ["init"]);
+    await this.withStatusInvalidation(location, () => execGit(location, ["init"]));
   }
 
   /**
@@ -469,11 +509,15 @@ export class GitService {
   }
 
   async fetch(location: ProjectLocation, remote: string, prune: boolean): Promise<void> {
-    return this.worktreeService.fetch(location, remote, prune);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.fetch(location, remote, prune),
+    );
   }
 
   async addRemote(location: ProjectLocation, remote: string, url: string): Promise<void> {
-    return this.worktreeService.addRemote(location, remote, url);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.addRemote(location, remote, url),
+    );
   }
 
   async pull(
@@ -481,7 +525,9 @@ export class GitService {
     remote: string,
     preserveLocalChanges = false,
   ): Promise<void> {
-    return this.worktreeService.pull(location, remote, preserveLocalChanges);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.pull(location, remote, preserveLocalChanges),
+    );
   }
 
   async pullRebase(
@@ -489,7 +535,9 @@ export class GitService {
     remote: string,
     preserveLocalChanges = false,
   ): Promise<void> {
-    return this.worktreeService.pullRebase(location, remote, preserveLocalChanges);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.pullRebase(location, remote, preserveLocalChanges),
+    );
   }
 
   async push(
@@ -498,7 +546,9 @@ export class GitService {
     branch?: string,
     setUpstream?: boolean,
   ): Promise<void> {
-    return this.worktreeService.push(location, remote, branch, setUpstream);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.push(location, remote, branch, setUpstream),
+    );
   }
 
   async listWorktrees(location: ProjectLocation): Promise<GitWorktreeListResult> {
@@ -579,7 +629,9 @@ export class GitService {
     remote: string,
     branch: string,
   ): Promise<void> {
-    return this.worktreeService.deleteRemoteBranch(location, remote, branch);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.deleteRemoteBranch(location, remote, branch),
+    );
   }
 
   async deleteBranch(
@@ -598,7 +650,9 @@ export class GitService {
     branch: string,
     createNew: boolean,
   ): Promise<GitSwitchBranchResult> {
-    return this.worktreeService.switchBranch(location, branch, createNew);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.switchBranch(location, branch, createNew),
+    );
   }
 
   async getWorktreeSourceBranch(
@@ -623,12 +677,14 @@ export class GitService {
     sourceBranch: string,
     expectedWorktreeCommit?: string,
   ): Promise<GitMergeToSourceResult> {
-    return this.mergeService.mergeToSource(
-      repoLocation,
-      worktreeLocation,
-      worktreeBranch,
-      sourceBranch,
-      expectedWorktreeCommit,
+    return this.withStatusInvalidation([repoLocation, worktreeLocation], () =>
+      this.mergeService.mergeToSource(
+        repoLocation,
+        worktreeLocation,
+        worktreeBranch,
+        sourceBranch,
+        expectedWorktreeCommit,
+      ),
     );
   }
 
@@ -637,21 +693,27 @@ export class GitService {
     sourceBranch: string,
     preserveLocalChanges = false,
   ): Promise<GitPullFromSourceResult> {
-    return this.mergeService.pullFromSource(worktreeLocation, sourceBranch, preserveLocalChanges);
+    return this.withStatusInvalidation(worktreeLocation, () =>
+      this.mergeService.pullFromSource(worktreeLocation, sourceBranch, preserveLocalChanges),
+    );
   }
 
   async abortMerge(
     worktreeLocation: ProjectLocation,
     reapplyStashCommit?: string,
   ): Promise<GitAbortMergeResult> {
-    return this.mergeService.abortMerge(worktreeLocation, reapplyStashCommit);
+    return this.withStatusInvalidation(worktreeLocation, () =>
+      this.mergeService.abortMerge(worktreeLocation, reapplyStashCommit),
+    );
   }
 
   async finishMerge(
     worktreeLocation: ProjectLocation,
     reapplyStashCommit?: string,
   ): Promise<GitFinishMergeResult> {
-    return this.mergeService.finishMerge(worktreeLocation, reapplyStashCommit);
+    return this.withStatusInvalidation(worktreeLocation, () =>
+      this.mergeService.finishMerge(worktreeLocation, reapplyStashCommit),
+    );
   }
 
   async pruneWorktrees(
@@ -659,10 +721,14 @@ export class GitService {
     activeWorktreePaths: string[],
     managedRoots?: string[],
   ): Promise<void> {
-    return this.worktreeService.pruneWorktrees(location, activeWorktreePaths, managedRoots);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.pruneWorktrees(location, activeWorktreePaths, managedRoots),
+    );
   }
 
   async repairWorktrees(location: ProjectLocation): Promise<number> {
-    return this.worktreeService.repairWorktrees(location);
+    return this.withStatusInvalidation(location, () =>
+      this.worktreeService.repairWorktrees(location),
+    );
   }
 }

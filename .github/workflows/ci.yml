@@ -367,7 +367,87 @@ jobs:
         working-directory: .
         env:
           PORACODE_MCP_RELAY_BIN: ${{ github.workspace }}/native/mcp-relay/target/debug/poracode-mcp-relay
-        run: bun run vitest run src/supervisor/mcp/mcpHttpRelay.test.ts
+        run: >-
+          bun run vitest run
+          src/supervisor/mcp/mcpHttpRelay.test.ts
+          src/supervisor/mcp/mcpStdioWorker.test.ts
+          src/supervisor/mcp/mcpSchemaProxy.test.ts
+          src/supervisor/mcp/mcpToolFilterProxy.test.ts
+
+  git_helper:
+    name: Git helper (${{ matrix.os }})
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: native/git-helper
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install Linux helper build tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: native/git-helper
+          prefix: git-helper-ci
+
+      - name: Install cargo-deny
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --locked
+
+      - name: Check documentation
+        run: cargo doc --no-deps --all-features --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Check dependencies
+        if: runner.os == 'Linux'
+        run: cargo deny check
+
+      - name: Setup Bun
+        if: runner.os == 'Linux'
+        uses: ./.github/actions/setup-bun
+
+      - name: Install dependencies
+        if: runner.os == 'Linux'
+        working-directory: .
+        run: bun install --frozen-lockfile --ignore-scripts && node node_modules/bun/install.js
+
+      - name: Git helper parity tests (native)
+        if: runner.os == 'Linux'
+        working-directory: .
+        env:
+          PORACODE_GIT_HELPER_BIN: ${{ github.workspace }}/native/git-helper/target/debug/poracode-git-helper
+        run: bun run vitest run src/supervisor/git/gitNativeHelper.test.ts
+
+      - name: Build and verify the shipped Linux helper
+        if: runner.os == 'Linux'
+        working-directory: .
+        run: node scripts/prepare-git-helper.mjs --platform linux --require
 
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)
@@ -465,6 +545,7 @@ jobs:
         runtime_deps,
         rust_helper,
         mcp_relay,
+        git_helper,
         test_shard,
         test_perf,
       ]
@@ -481,7 +562,7 @@ jobs:
           if (!["true", "false"].includes(process.env.CORE_REQUIRED)) throw new Error("core change scope is missing");
           const required = new Set(["changes", "fmt"]);
           if (process.env.CORE_REQUIRED === "true") {
-            for (const name of ["typecheck", "lint", "tui", "web_build", "runtime_deps", "rust_helper", "mcp_relay", "test_shard", "test_perf"]) required.add(name);
+            for (const name of ["typecheck", "lint", "tui", "web_build", "runtime_deps", "rust_helper", "mcp_relay", "git_helper", "test_shard", "test_perf"]) required.add(name);
           }
           for (const [name, job] of Object.entries(jobs)) {
             const expected = required.has(name) ? "success" : "skipped";

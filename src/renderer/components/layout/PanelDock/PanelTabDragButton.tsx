@@ -1,6 +1,7 @@
 import { type ReactNode, useId, useRef } from "react";
 import { useDraggable } from "@dnd-kit/react";
 import type { DragSourceData } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 import type { RightPanelTab } from "@/renderer/state/panelStore";
 
 /**
@@ -19,12 +20,13 @@ export function PanelTabDragButton(props: {
 }) {
   const elementRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
-  useDraggable({
-    id: `panel-tab:${props.tab}:${dragId}`,
+  const draggableResult = useDraggable({
+    id: `panel-tab:${dragId}`,
     type: "panel-tab",
     data: { type: "panel-tab", tab: props.tab } satisfies DragSourceData,
     element: elementRef,
   });
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   return (
     <div

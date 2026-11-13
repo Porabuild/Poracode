@@ -32,6 +32,7 @@ import { hasOwnWindow } from "../auxiliaryThreadWindows";
 import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { forgetRecentRuntimeWireInterest } from "../rendererEventInterests";
 import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import {
@@ -531,6 +532,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
     set((state) => {
       composerDraftStorage()?.remove("thread", threadId);
       clearRuntimeStructuralChangeHint(threadId);
+      forgetRecentRuntimeWireInterest(threadId);
       forgetTimelineMeasurements(threadId);
       forgetThreadGalleryCache(threadId);
       confirmPendingThreadInput(threadId);
@@ -895,12 +897,14 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
         };
       });
 
-      const pendingConfigMapPatch = {
-        pendingThreadConfigByThreadId: retainPendingThreadConfigs(
-          state.pendingThreadConfigByThreadId,
-          threads,
-        ),
-      };
+      const retainedPending = retainPendingThreadConfigs(
+        state.pendingThreadConfigByThreadId,
+        threads,
+      );
+      const pendingConfigMapPatch =
+        retainedPending !== state.pendingThreadConfigByThreadId
+          ? { pendingThreadConfigByThreadId: retainedPending }
+          : undefined;
       const runtimeConfigMapPatch: Pick<ThreadSlice, "lastRuntimeConfigByThreadId"> | undefined =
         runtimeConfigChanged
           ? {
@@ -928,19 +932,29 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
                 },
               };
       }
-      const mentionToolsPatch =
-        input.threadMentionToolsAvailable === undefined
-          ? undefined
-          : {
-              threadMentionToolsAvailableByThreadId: {
-                ...state.threadMentionToolsAvailableByThreadId,
-                [threadId]: input.threadMentionToolsAvailable,
-              },
-            };
+      const mentionToolsChanged =
+        input.threadMentionToolsAvailable !== undefined &&
+        state.threadMentionToolsAvailableByThreadId[threadId] !== input.threadMentionToolsAvailable;
+      const mentionToolsPatch = mentionToolsChanged
+        ? {
+            threadMentionToolsAvailableByThreadId: {
+              ...state.threadMentionToolsAvailableByThreadId,
+              [threadId]: input.threadMentionToolsAvailable!,
+            },
+          }
+        : undefined;
 
       if (!changed) {
+        if (
+          !pendingConfigMapPatch &&
+          !runtimeConfigMapPatch &&
+          !launchConfigMapPatch &&
+          !mentionToolsPatch
+        ) {
+          return {};
+        }
         return {
-          ...pendingConfigMapPatch,
+          ...(pendingConfigMapPatch ?? {}),
           ...(runtimeConfigMapPatch ?? {}),
           ...(launchConfigMapPatch ?? {}),
           ...(mentionToolsPatch ?? {}),
@@ -951,7 +965,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
       return {
         threads,
         ...(turnsChanged ? turnUpdate : {}),
-        ...pendingConfigMapPatch,
+        ...(pendingConfigMapPatch ?? {}),
         ...(runtimeConfigMapPatch ?? {}),
         ...(launchConfigMapPatch ?? {}),
         ...(mentionToolsPatch ?? {}),
@@ -973,6 +987,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
       }
 
       // Archived threads leave the cache so their terminal disposes.
+      forgetRecentRuntimeWireInterest(threadId);
       const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
       return { threads, view: nextView, keepAlivePaneIds };
     }),

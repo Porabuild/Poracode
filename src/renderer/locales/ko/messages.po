@@ -631,6 +631,7 @@ msgstr "{head} 또는 {tail}"
 msgid "{heading} mode"
 msgstr "{heading} 모드"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {#개 더 보기}}"
@@ -1387,6 +1388,11 @@ msgstr "작업"
 #: src/mobile/views/threadActionSurfaces.tsx
 #~ msgid "Actions for {title}"
 #~ msgstr "{title} 작업"
+
+#. placeholder {0}: port.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Actions for port {0}"
+msgstr "포트 {0} 작업"
 
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
@@ -2433,6 +2439,10 @@ msgstr "질문할 수 없습니다. 이 프로젝트에서 채팅을 시작할 �
 msgid "Ask Question"
 msgstr "질문하기"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Ask When Needed"
+msgstr "필요할 때 묻기"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
 msgstr "남은 스레드가 없는 연결된 작업 트리도 삭제됩니다."
@@ -3253,6 +3263,7 @@ msgstr "카메라"
 msgid "Camera access blocked"
 msgstr "카메라 접근이 차단됨"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
 msgstr "포트를 불러올 수 없습니다"
@@ -4254,6 +4265,15 @@ msgstr "화면 속 화면 닫기"
 msgid "Close plan"
 msgstr "계획 종료"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port"
+msgstr "포트 닫기"
+
+#. placeholder {0}: confirmPort.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port {0}?"
+msgstr "포트 {0}을(를) 닫을까요?"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Close PR"
 msgstr "PR 닫기"
@@ -4484,7 +4504,7 @@ msgstr "오류 접기"
 #~ msgid "Collapse experiment"
 #~ msgstr "실험 접기"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "파일 및 결과물 접기"
 
@@ -4498,8 +4518,12 @@ msgid "Collapse group"
 msgstr "그룹 접기"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "이미지 접기"
+#~ msgid "Collapse images"
+#~ msgstr "이미지 접기"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "미디어 접기"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -5239,6 +5263,7 @@ msgstr "쿠키"
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 #: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copied"
 msgstr "복사됨"
@@ -5275,6 +5300,10 @@ msgstr "{0} 장치 코드 {1} 복사"
 msgid "Copy accessibility tree"
 msgstr "접근성 트리 복사"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Copy address"
+msgstr "주소 복사"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "코드 복사"
@@ -5310,6 +5339,7 @@ msgid "Copy image"
 msgstr "이미지 복사"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5410,6 +5440,10 @@ msgstr "병합을 중단할 수 없습니다: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Could not access installed fonts. You can keep the saved font or use Default."
 msgstr "설치된 글꼴에 접근할 수 없습니다. 저장된 글꼴을 유지하거나 기본값을 선택할 수 있습니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Could not close this port. Refresh the list and try again."
+msgstr "이 포트를 닫지 못했습니다. 목록을 새로 고친 후 다시 시도하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
@@ -6121,6 +6155,7 @@ msgid "Cursor SDK updated to v{nextVersion}."
 msgstr "Cursor SDK를 v{nextVersion}(으)로 업데이트했습니다."
 
 #: src/renderer/commands/shortcutCatalog.ts
+#: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
@@ -6239,6 +6274,7 @@ msgstr "영구 세션, 추론 설정, MCP 도구를 지원하는 DeepSeek Harnes
 
 #: src/renderer/components/devices/DeviceTools.tsx
 #: src/renderer/components/providers/deepseek/index.tsx
+#: src/renderer/components/providers/kimi/index.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
@@ -7930,7 +7966,7 @@ msgstr "확장 오류"
 #~ msgid "Expand experiment"
 #~ msgstr "실험 펼치기"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "파일 및 결과물 펼치기"
 
@@ -7944,8 +7980,12 @@ msgid "Expand group"
 msgstr "그룹 펼치기"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "이미지 펼치기"
+#~ msgid "Expand images"
+#~ msgstr "이미지 펼치기"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "미디어 펼치기"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8348,9 +8388,9 @@ msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 msgid "Files"
 msgstr "파일"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "파일 및 결과물"
 
@@ -9354,6 +9394,7 @@ msgstr "숨겨진 재개 가능 스레드는 5분마다 청소되고 이 유휴 
 msgid "Hide"
 msgstr "숨기기"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9671,9 +9712,6 @@ msgstr "이미지"
 msgid "Image preview"
 msgstr "이미지 미리보기"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "이미지"
@@ -10869,6 +10907,10 @@ msgstr "작업 나열"
 msgid "Listening — speak or type a message"
 msgstr "듣는 중 — 말하거나 메시지를 입력하세요"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Listening ports on this computer."
+msgstr "이 컴퓨터에서 연결을 기다리는 포트입니다."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "실시간"
@@ -11254,6 +11296,10 @@ msgstr "브라우저 프로필을 찾는 중…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "개발 서버를 찾는 중…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Looking for listening ports…"
+msgstr "연결을 기다리는 포트 검색 중…"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
@@ -11728,6 +11774,12 @@ msgstr "mcp.json을 읽을 수 없어 이 플러그인의 서버를 건너뛰었
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json이 이 빌드에서 지원하지 않는 Agent Plugins 버전을 지정합니다."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "미디어"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -12499,6 +12551,10 @@ msgstr "중립"
 msgid "Never"
 msgstr "안 함"
 
+#: src/renderer/components/providers/kimi/index.tsx
+msgid "Never Ask"
+msgstr "묻지 않기"
+
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
 msgstr "신규"
@@ -13061,6 +13117,10 @@ msgstr "아직 학습된 선택이 없습니다."
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "No limit"
 msgstr "제한 없음"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "No listening ports"
+msgstr "연결을 기다리는 포트가 없습니다"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
@@ -13943,10 +14003,12 @@ msgid "Open in New Window"
 msgstr "새 창에서 열기"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in Poracode browser"
 msgstr "Poracode 브라우저에서 열기"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in system browser"
 msgstr "시스템 브라우저에서 열기"
 
@@ -14145,6 +14207,17 @@ msgstr "모델 선택기 열기"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "요약에서 스레드 열기"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "동영상 {0}/{1} 열기: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "동영상 미리보기 열기"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -15308,6 +15381,7 @@ msgstr "화면 잠금 방지"
 msgid "Prevent system sleep"
 msgstr "시스템 절전 방지"
 
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx
 msgid "Preview"
@@ -16370,9 +16444,11 @@ msgid "Remote URL"
 msgstr "원격 URL"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/composer/MentionInput.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/thread/SideChat/SideChatBody.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -17059,6 +17135,7 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -17075,6 +17152,7 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
@@ -18768,6 +18846,7 @@ msgstr "도크를 오른쪽 패널에 표시"
 msgid "Show estimated cost"
 msgstr "예상 비용 표시"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "간략히 보기"
@@ -18776,7 +18855,7 @@ msgstr "간략히 보기"
 msgid "Show file tree"
 msgstr "파일 트리 표시"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "파일 및 결과물 표시"
 
@@ -18790,8 +18869,8 @@ msgstr "글꼴 제안 표시"
 #~ msgstr "사이드바 바닥글에 GitHub Actions를 표시합니다."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "이미지 보기"
+#~ msgid "Show images"
+#~ msgstr "이미지 보기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18814,6 +18893,10 @@ msgstr "{providerLabel}의 MCP 서버 표시"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "보기"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "미디어 보기"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21399,6 +21482,7 @@ msgstr "이 기기"
 msgid "This machine (local)"
 msgstr "이 머신(로컬)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21620,6 +21704,12 @@ msgstr "선택한 에뮬레이터를 종료하고 모든 뷰어의 연결을 끊
 msgid "This source host does not support safe automatic merge."
 msgstr "이 소스 호스트는 안전한 자동 병합을 지원하지 않습니다."
 
+#. placeholder {0}: confirmPort.processName ?? confirmPort.pid
+#. placeholder {1}: confirmPort.pid
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "This stops {0} (PID {1}) and closes all ports used by that process."
+msgstr "{0}(PID {1})을(를) 중지하고 이 프로세스가 사용하는 모든 포트를 닫습니다."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "This submission has expired. Your draft is kept."
 msgstr "이 제출은 만료되었습니다. 초안은 유지됩니다."
@@ -21771,8 +21861,8 @@ msgid "Thread goal dock"
 msgstr "스레드 목표 도크"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "스레드 이미지"
+#~ msgid "Thread images"
+#~ msgstr "스레드 이미지"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21788,6 +21878,10 @@ msgstr "스레드가 이미 언로드되었습니다."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "스레드 목록 옵션"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "스레드 미디어"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22329,7 +22423,7 @@ msgstr "화면 속 화면을 열 수 없습니다"
 msgid "Unable to open the file"
 msgstr "파일을 열 수 없습니다"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "편집기에서 파일을 열 수 없습니다"
@@ -22683,6 +22777,10 @@ msgstr "알 수 없음"
 msgid "Unknown folder"
 msgstr "알 수 없는 폴더"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Unknown process"
+msgstr "알 수 없는 프로세스"
+
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"
 #~ msgstr "알 수 없는 프로젝트"
@@ -23009,6 +23107,7 @@ msgstr "업데이트됨"
 msgid "Updated {0}"
 msgstr "{0} 업데이트됨"
 
+#: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Updating"
@@ -23435,6 +23534,7 @@ msgstr "버전"
 msgid "via {0}"
 msgstr "{0}을(를) 통해"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

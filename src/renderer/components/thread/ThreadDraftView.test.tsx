@@ -2136,11 +2136,12 @@ describe("ThreadDraftView", () => {
 
   it("switches to the first installed agent when statuses resolve after mount", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
-    const { rerender } = render(
+    const { container, rerender } = render(
       <ThreadDraftView project={project} agentStatuses={[]} onStart={onStart} />,
     );
 
     expect(screen.getByText("No supported agents detected")).toBeInTheDocument();
+    expect(container.querySelector("[data-draft-composer]")).toBeNull();
 
     rerender(
       <ThreadDraftView project={project} agentStatuses={[geminiStatus]} onStart={onStart} />,
@@ -2160,6 +2161,7 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("auto");
       expect(props.controls.some((control) => control.value === "never")).toBe(true);
     });
+    expect(container.querySelector("[data-draft-composer]")).not.toBeNull();
   });
 
   it("anchors the full draft composer after agents resolve on the initial mount", async () => {
@@ -2687,6 +2689,119 @@ describe("ThreadDraftView", () => {
 
     const composer = composerSpy.mock.lastCall?.[0] as { fixedContent?: ReactNode };
     expect(collectElementTypeNames(composer.fixedContent)).toContain("RemoteHostUpdateDock");
+  });
+
+  it("preserves saved Codex Full access while permission capabilities load", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const saved = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      contextSize: "400k",
+      approvalPolicy: "never",
+      approvalsReviewer: "auto_review",
+      sandboxMode: "danger-full-access",
+    };
+    const pending = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        approvalPolicies: [],
+        sandboxModes: [],
+        bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+      },
+    };
+    const { rerender } = render(
+      <ThreadDraftView
+        project={project}
+        lastDraftConfig={saved}
+        agentStatuses={[pending]}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(useSharedSettings.getState().providerConfigs.codex).toMatchObject({
+        approvalPolicy: "never",
+        approvalsReviewer: "auto_review",
+        sandboxMode: "danger-full-access",
+      });
+    });
+    rerender(
+      <ThreadDraftView
+        project={project}
+        lastDraftConfig={saved}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={onStart}
+      />,
+    );
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ value?: string }> };
+      expect(props.controls.some((control) => control.value === "full-access")).toBe(true);
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            approvalPolicy: "never",
+            approvalsReviewer: "auto_review",
+            sandboxMode: "danger-full-access",
+          }),
+        }),
+      );
+    });
+  });
+
+  it("launches with the displayed permission when the policy catalog changes after a local edit", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const initial = {
+      ...claudeStatus,
+      capabilities: {
+        ...claudeStatus.capabilities,
+        approvalPolicies: [{ id: "old", label: "Old" }],
+        defaultApprovalPolicy: "old",
+      },
+    };
+    const refreshed = {
+      ...initial,
+      capabilities: {
+        ...initial.capabilities,
+        approvalPolicies: [{ id: "auto", label: "Auto mode" }],
+        defaultApprovalPolicy: "auto",
+      },
+    };
+    const { rerender } = render(
+      <ThreadDraftView project={project} agentStatuses={[initial]} onStart={onStart} />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ kind?: string }> };
+      expect(props.controls.some((control) => control.kind === "provider-model")).toBe(true);
+    });
+    const props = composerSpy.mock.lastCall?.[0] as {
+      controls: Array<{
+        kind?: string;
+        onChange?: (next: { agentKind: string; model: string }) => void;
+      }>;
+    };
+    act(() => {
+      props.controls
+        .find((control) => control.kind === "provider-model")
+        ?.onChange?.({
+          agentKind: "claude",
+          model: "claude-opus-4-7",
+        });
+    });
+    rerender(<ThreadDraftView project={project} agentStatuses={[refreshed]} onStart={onStart} />);
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({ config: expect.objectContaining({ approvalPolicy: "auto" }) }),
+      );
+    });
   });
 
   it("submits codex defaults on first launch", async () => {
@@ -3867,7 +3982,9 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("submit"));
     await waitFor(() =>
       expect(onStart).toHaveBeenCalledWith(
-        expect.objectContaining({ config: expect.objectContaining({ mode: "agent" }) }),
+        expect.objectContaining({
+          config: expect.objectContaining({ mode: "agent", approvalPolicy: "auto" }),
+        }),
       ),
     );
   });

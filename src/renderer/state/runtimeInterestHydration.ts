@@ -53,6 +53,13 @@ export function retainRuntimeThreadReader(threadId: string): RuntimeThreadReader
   retainThreadRuntimeItems(threadId);
   const interest = retainRendererEventInterest("runtime", threadId);
   const continuous = interest.continuous;
+  if (
+    !continuous &&
+    hasHydratedThreadRuntimeItems(threadId) &&
+    useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed"
+  ) {
+    useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
+  }
   let active = true;
   // Resolves false only when this reader's own history read failed.
   const ready: Promise<boolean | void> = interest.ready.then(async () => {

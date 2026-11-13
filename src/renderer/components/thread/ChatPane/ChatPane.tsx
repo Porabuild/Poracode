@@ -14,6 +14,7 @@ import {
   useThreadIsWaitingForBackground,
 } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
+import { getRuntimeHydrationPendingStartedAtMs } from "@/renderer/state/slices/runtimeEventSlice";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { loadOlderThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
 import { adoptRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
@@ -27,6 +28,7 @@ import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalo
 import { useThreadImageAuthority } from "../threadImageAuthority";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
@@ -153,9 +155,16 @@ export function ChatPane(props: ChatPaneProps) {
   const scrollControlsRef = useRef<ChatScrollControlsHandle>(null);
   const [readerFollow] = useState(createChatReaderFollowSignal);
   const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
-  const timelineEntries = useAppStore(
+  const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
+  const storedTimelineEntries = useAppStore(
     useShallow((s) => selectVisibleThreadTimelineEntries(s, threadId, hiddenRuntimeItemId)),
   );
+  // A reopened resident window may have missed events. Keep its first rows
+  // out of layout until validation; an already displayed reader stays stable.
+  const waitingForInitialHistory =
+    hydrationStatus !== undefined &&
+    !(initialScrollSettlement?.threadId === threadId && initialScrollSettlement.hasVisibleHistory);
+  const timelineEntries = waitingForInitialHistory ? [] : storedTimelineEntries;
   const promptJump = usePromptJump({
     threadId,
     entries: timelineEntries,
@@ -348,7 +357,6 @@ export function ChatPane(props: ChatPaneProps) {
     (s) => s.provisioningWorktreeThreadIds[threadId] === true && status === "launching",
   );
   const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
-  const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
   // Published while the thread's composer bubble row is mounted; missing means
   // this pane has no bubble row and the status stays in the transcript tail.
   const statusSlot = useComposerBubbleSlotStore((s) => s.status[threadId] ?? null);
@@ -452,6 +460,28 @@ export function ChatPane(props: ChatPaneProps) {
   ) : null;
   const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
   const isHydrating = isEmpty && hydrationStatus === "pending";
+  const canShowDelayedHydrationLoader = isHydrating && !isLive && !isConnecting;
+  const [delayedHydrationLoaderThreadId, setDelayedHydrationLoaderThreadId] = useState<
+    string | null
+  >(null);
+  if (
+    delayedHydrationLoaderThreadId !== null &&
+    (!canShowDelayedHydrationLoader || delayedHydrationLoaderThreadId !== threadId)
+  ) {
+    setDelayedHydrationLoaderThreadId(null);
+  }
+  const showDelayedHydrationLoader =
+    canShowDelayedHydrationLoader && delayedHydrationLoaderThreadId === threadId;
+  useEffect(() => {
+    if (!canShowDelayedHydrationLoader) return;
+    const startedAt = getRuntimeHydrationPendingStartedAtMs(threadId);
+    const elapsed = startedAt !== undefined ? Math.max(0, Date.now() - startedAt) : 0;
+    const remainingMs = Math.max(0, 180 - elapsed);
+    const timer = window.setTimeout(() => {
+      setDelayedHydrationLoaderThreadId(threadId);
+    }, remainingMs);
+    return () => window.clearTimeout(timer);
+  }, [canShowDelayedHydrationLoader, threadId]);
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -532,7 +562,14 @@ export function ChatPane(props: ChatPaneProps) {
               scrollStyle={scrollFadeStyle}
               contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
               emptyContent={
-                isEmpty && !showTailLoader && showEmptyHint ? (
+                showDelayedHydrationLoader ? (
+                  <div
+                    className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted"
+                    data-testid="chat-delayed-hydration-loader"
+                  >
+                    <PixelLoader size="md" />
+                  </div>
+                ) : isEmpty && !showTailLoader && showEmptyHint ? (
                   <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                     <span>
                       <Trans>No messages yet</Trans>

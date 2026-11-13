@@ -188,7 +188,7 @@ it("never submits typed draft updates or restored unsent text automatically", ()
 });
 
 it.each(["panel", "window"] as const)(
-  "appends selected text to a live %s draft without submitting",
+  "adds selection chips to a live %s draft without replacing or submitting text",
   (surface) => {
     const hook = renderHook(() => useSideChatSession({ ...entry, autoStart: false }, surface), {
       wrapper,
@@ -197,14 +197,46 @@ it.each(["panel", "window"] as const)(
     act(() =>
       useComposerInputInbox
         .getState()
-        .enqueue("side-chat:entry", [{ kind: "text", content: "quote" }]),
+        .enqueue("side-chat:entry", [{ kind: "text", content: "quote", selection: true }]),
     );
-    expect(hook.result.current.prompt).toBe("unsent draft\n\nquote");
+    expect(hook.result.current.prompt).toBe("unsent draft");
+    expect(hook.result.current.draftSegments).toEqual([
+      { kind: "text", content: "quote", selection: true },
+    ]);
     expect(useComposerInputInbox.getState().itemsByComposer["side-chat:entry"]).toBeUndefined();
     expect(mocks.launch).not.toHaveBeenCalled();
     hook.unmount();
+    expect(mocks.bind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "quote\n\nunsent draft",
+        segments: [{ kind: "text", content: "quote", selection: true }],
+      }),
+    );
   },
 );
+
+it("restores a side draft with its selected text separate from the typed question", () => {
+  const hook = renderHook(
+    () =>
+      useSideChatSession(
+        {
+          ...entry,
+          autoStart: false,
+          prompt: "first\n\nsecond\n\nquestion",
+          segments: [
+            { kind: "text", content: "first", selection: true },
+            { kind: "text", content: "second", selection: true },
+          ],
+        },
+        "panel",
+      ),
+    { wrapper },
+  );
+  expect(hook.result.current.prompt).toBe("question");
+  expect(hook.result.current.draftSegments).toHaveLength(2);
+  expect(mocks.launch).not.toHaveBeenCalled();
+  hook.unmount();
+});
 
 it("never creates a new thread over a retained child that is outside the resident catalog", async () => {
   const hook = renderHook(

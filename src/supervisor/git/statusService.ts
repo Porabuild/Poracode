@@ -5,6 +5,7 @@ import {
   type GitDiffResult,
   type GitFileChange,
   type GitFileContentResult,
+  type GitStatusDetail,
   type GitStatusResult,
   type ProjectLocation,
 } from "@/shared/contracts";
@@ -21,7 +22,14 @@ import {
   getLocationIdentity,
   toForwardSlash,
 } from "./exec";
-import { isGitProcessAdmissionError } from "./gitProcessAdmission";
+import {
+  admitGitProcess,
+  gitProcessAdmissionUsage,
+  isGitProcessAdmissionError,
+} from "./gitProcessAdmission";
+import { isNativeGitHelperActive, queryNativeGitStatusBatch } from "./gitNativeHelperClient";
+import type { NativeGitStatusEntry } from "./gitNativeHelperProtocol";
+import { buildWorktreeLocation } from "@/shared/worktree";
 import {
   applyNumstatCounts,
   buildGitStatusResultFromOutputs,
@@ -81,16 +89,49 @@ function countTextLines(buffer: Buffer): number {
 
 export class GitStatusService {
   private readonly untrackedStatsCache = new Map<string, UntrackedStatsCacheEntry>();
+  private readonly statusInFlight = new Map<string, Promise<GitStatusResult>>();
+  private readonly statusSummaryInFlight = new Map<string, Promise<GitStatusResult>>();
   private wslClient: WslBridgeClient | undefined;
   private readonly remoteIdentityRuntime = new ForgeRuntime(() => this.wslClient);
 
   setWslClient(client: WslBridgeClient | undefined): void {
     this.wslClient = client;
+    this.invalidateStatus();
+  }
+
+  invalidateStatus(location?: ProjectLocation): void {
+    if (!location) {
+      this.statusInFlight.clear();
+      this.statusSummaryInFlight.clear();
+      return;
+    }
+    const key = getLocationIdentity(location);
+    this.statusInFlight.delete(key);
+    this.statusSummaryInFlight.delete(key);
   }
 
   async getStatus(location: ProjectLocation): Promise<GitStatusResult> {
+    const key = getLocationIdentity(location);
+    let pending = this.statusInFlight.get(key);
+    if (!pending) {
+      pending = this.computeStatus(location).finally(() => {
+        if (this.statusInFlight.get(key) === pending) {
+          this.statusInFlight.delete(key);
+        }
+      });
+      this.statusInFlight.set(key, pending);
+    }
+    return structuredClone(await pending);
+  }
+
+  private async computeStatus(location: ProjectLocation): Promise<GitStatusResult> {
     if (location.kind === "wsl") {
       return this.getStatusBatchedWsl(location);
+    }
+
+    const nativeStatus = await this.tryNativeStatusSingle(location, "full");
+    if (nativeStatus) {
+      return nativeStatus;
     }
 
     try {
@@ -163,6 +204,20 @@ export class GitStatusService {
   }
 
   async getStatusSummary(location: ProjectLocation): Promise<GitStatusResult> {
+    const key = getLocationIdentity(location);
+    let pending = this.statusSummaryInFlight.get(key);
+    if (!pending) {
+      pending = this.computeStatusSummary(location).finally(() => {
+        if (this.statusSummaryInFlight.get(key) === pending) {
+          this.statusSummaryInFlight.delete(key);
+        }
+      });
+      this.statusSummaryInFlight.set(key, pending);
+    }
+    return structuredClone(await pending);
+  }
+
+  private async computeStatusSummary(location: ProjectLocation): Promise<GitStatusResult> {
     if (location.kind === "wsl") {
       const results = await execGitBatchWslBridge(
         location,
@@ -181,6 +236,11 @@ export class GitStatusService {
       );
       await this.clearInheritedStartPointUpstream(location, summary);
       return summary;
+    }
+
+    const nativeSummary = await this.tryNativeStatusSingle(location, "summary");
+    if (nativeSummary) {
+      return nativeSummary;
     }
 
     try {
@@ -710,5 +770,161 @@ export class GitStatusService {
     } catch {
       return 0;
     }
+  }
+
+  async getWorktreeStatusBatchNative(
+    location: ProjectLocation & { kind: "posix" | "windows" },
+    worktreePaths: string[],
+    detail: GitStatusDetail,
+  ): Promise<Record<string, GitStatusResult> | null> {
+    if (worktreePaths.length === 0) return {};
+    if (!isNativeGitHelperActive()) return null;
+    if (
+      process.env.GIT_CONFIG_COUNT !== undefined ||
+      process.env.GIT_CONFIG_PARAMETERS !== undefined
+    )
+      return null;
+
+    const classLimit = Math.max(1, gitProcessAdmissionUsage().short.limit);
+    const units = Math.min(classLimit, worktreePaths.length * (detail === "summary" ? 2 : 4));
+    const ticket = await admitGitProcess("short", {
+      units,
+      environment: location.kind,
+      subcommand: "status",
+    });
+    let rawBatch: Record<string, NativeGitStatusEntry> | null;
+    try {
+      rawBatch = await queryNativeGitStatusBatch({
+        paths: worktreePaths,
+        detail,
+        timeoutMs: GIT_STATUS_TIMEOUT,
+        maxConcurrency: units,
+      });
+    } finally {
+      ticket.release();
+    }
+    if (!rawBatch) return null;
+
+    const out: Record<string, GitStatusResult> = {};
+    await Promise.all(
+      worktreePaths.map(async (path) => {
+        const entry = rawBatch[path];
+        if (!entry) return;
+        const wtLocation = buildWorktreeLocation(location, path);
+        out[path] = await this.materializeNativeEntry(wtLocation, entry);
+      }),
+    );
+    return out;
+  }
+
+  private async tryNativeStatusSingle(
+    location: ProjectLocation & { kind: "posix" | "windows" },
+    detail: GitStatusDetail,
+  ): Promise<GitStatusResult | null> {
+    if (!isNativeGitHelperActive()) return null;
+
+    // libgit2 does not apply Git's inherited command-line config environment.
+    if (
+      process.env.GIT_CONFIG_COUNT !== undefined ||
+      process.env.GIT_CONFIG_PARAMETERS !== undefined
+    )
+      return null;
+
+    const classLimit = Math.max(1, gitProcessAdmissionUsage().short.limit);
+    const units = Math.min(classLimit, detail === "summary" ? 2 : 4);
+    const ticket = await admitGitProcess("short", {
+      units,
+      environment: location.kind,
+      subcommand: "status",
+    });
+    let rawBatch: Record<string, NativeGitStatusEntry> | null;
+    try {
+      rawBatch = await queryNativeGitStatusBatch({
+        paths: [location.path],
+        detail,
+        timeoutMs: GIT_STATUS_TIMEOUT,
+        maxConcurrency: units,
+      });
+    } finally {
+      ticket.release();
+    }
+    const entry = rawBatch?.[location.path];
+    if (!entry) return null;
+    return this.materializeNativeEntry(location, entry);
+  }
+
+  private async materializeNativeEntry(
+    location: ProjectLocation,
+    entry: NativeGitStatusEntry,
+  ): Promise<GitStatusResult> {
+    if (entry.detail === "summary") {
+      if (!entry.isRepo) return nonRepoSummaryStatus();
+      return {
+        detail: "summary",
+        isRepo: true,
+        branch: entry.branch,
+        ...(entry.headSha ? { headSha: entry.headSha } : {}),
+        tracking: entry.tracking,
+        hasRemote: entry.hasRemote,
+        remoteInfo: null,
+        ahead: entry.ahead,
+        behind: entry.behind,
+        staged: entry.staged,
+        unstaged: entry.unstaged,
+        totalInsertions: entry.totalInsertions,
+        totalDeletions: entry.totalDeletions,
+        ...(entry.mergeInProgress
+          ? {
+              mergeInProgress: true,
+              conflictFiles: entry.conflictFiles ?? [],
+            }
+          : {}),
+      };
+    }
+
+    if (!entry.isRepo) {
+      return {
+        isRepo: false,
+        branch: "",
+        tracking: "",
+        hasRemote: false,
+        remoteInfo: null,
+        ahead: 0,
+        behind: 0,
+        staged: [],
+        unstaged: [],
+        totalInsertions: 0,
+        totalDeletions: 0,
+      };
+    }
+
+    const { hasRemote, remoteInfo } = parseRemoteInfo(entry.remoteOutput ?? "");
+    const resolvedRemote = await resolveGitRemoteInfo(
+      location,
+      remoteInfo,
+      this.remoteIdentityRuntime,
+      entry.hasSshOverrides,
+    );
+    return {
+      isRepo: true,
+      branch: entry.branch,
+      ...(entry.headSha ? { headSha: entry.headSha } : {}),
+      tracking: entry.tracking,
+      hasRemote: entry.hasRemote || hasRemote,
+      remoteInfo: resolvedRemote,
+      ahead: entry.ahead,
+      behind: entry.behind,
+      staged: entry.staged,
+      unstaged: entry.unstaged,
+      totalInsertions: entry.totalInsertions,
+      totalDeletions: entry.totalDeletions,
+      ...(entry.mergeInProgress
+        ? {
+            mergeInProgress: true,
+            conflictFiles: entry.conflictFiles ?? [],
+            ...(entry.mergeMessage ? { mergeMessage: entry.mergeMessage } : {}),
+          }
+        : {}),
+    };
   }
 }

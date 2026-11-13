@@ -597,7 +597,7 @@ describe("worker-backed SQLite reads", () => {
     ).toEqual({ value: "999" });
   });
 
-  it("starts its workers before the first read when warmed", async () => {
+  it("starts a warm worker before the first read when warmed", async () => {
     // Each forked worker records its pid before loading the worker module.
     const spawns = join(directory, "spawns.txt");
     const recorder = join(directory, "record-spawn.cjs");
@@ -612,18 +612,18 @@ describe("worker-backed SQLite reads", () => {
     try {
       const reads = pool();
       reads.warm();
-      await vi.waitFor(() => expect(countSpawns()).toBe(2), { timeout: 10_000 });
+      await vi.waitFor(() => expect(countSpawns()).toBe(1), { timeout: 10_000 });
       expect(await reads.read("runtimeItems", ["thread-1"])).toEqual(
         dbReadThreadRuntimeItems("thread-1"),
       );
-      expect(countSpawns()).toBe(2);
+      expect(countSpawns()).toBe(1);
     } finally {
       if (previous === undefined) delete process.env.NODE_OPTIONS;
       else process.env.NODE_OPTIONS = previous;
     }
   });
 
-  it("keeps one warm worker once reads go quiet and adds one back for a burst", async () => {
+  it("retires all workers once reads go quiet and scales up for a burst", async () => {
     const spawns = join(directory, "spawns.txt");
     const recorder = join(directory, "record-spawn.cjs");
     writeFileSync(
@@ -647,8 +647,8 @@ describe("worker-backed SQLite reads", () => {
       const reads = new AsyncDatabaseReads(dbPath, workerPath, false, 100);
       pools.push(reads);
       reads.warm();
-      await vi.waitFor(() => expect(pids()).toHaveLength(2), { timeout: 10_000 });
-      await vi.waitFor(() => expect(alive()).toHaveLength(1), { timeout: 10_000 });
+      await vi.waitFor(() => expect(pids()).toHaveLength(1), { timeout: 10_000 });
+      await vi.waitFor(() => expect(alive()).toHaveLength(0), { timeout: 10_000 });
 
       const expected = dbReadThreadRuntimeItems("thread-1");
       await expect(
@@ -658,8 +658,9 @@ describe("worker-backed SQLite reads", () => {
         ]),
       ).resolves.toEqual([expected, expected]);
       await vi.waitFor(() => expect(pids()).toHaveLength(3), { timeout: 10_000 });
-      await vi.waitFor(() => expect(alive()).toHaveLength(1), { timeout: 10_000 });
+      await vi.waitFor(() => expect(alive()).toHaveLength(0), { timeout: 10_000 });
       expect(await reads.read("runtimeItems", ["thread-1"])).toEqual(expected);
+      expect(pids()).toHaveLength(4);
     } finally {
       if (previous === undefined) delete process.env.NODE_OPTIONS;
       else process.env.NODE_OPTIONS = previous;

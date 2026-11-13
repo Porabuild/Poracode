@@ -1,11 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { appendFile, mkdir, open, readdir, realpath, rm, stat, truncate } from "node:fs/promises";
 import { basename, isAbsolute, join, relative, sep } from "node:path";
-import { gzip, gunzip } from "node:zlib";
+import { gunzip } from "node:zlib";
 import { promisify } from "node:util";
 import { z, ZodError } from "zod";
 import type { Project, ProjectLocation, Thread } from "@/shared/contracts";
-import { canonicalContentBlockSchema } from "@/shared/contracts/runtimeEvent";
 import { isHomeProjectId } from "@/shared/homeScope";
 import type {
   IpcProcedurePayload,
@@ -19,7 +18,6 @@ import { toLocalFileUrl } from "@/shared/promptContent";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import {
   canTransferThread,
-  selectThreadTransferSnapshot,
   THREAD_TRANSFER_CHUNK_MAX_BYTES,
   THREAD_TRANSFER_PACKAGE_MAX_BYTES,
   transferableThreadConfig,
@@ -36,7 +34,8 @@ import {
   saveUploadedAttachmentFile,
 } from "@/host/attachments/attachmentStorage";
 import { dbGetProject, dbGetProjects, dbGetThread } from "@/host/db";
-import { dbCreateTransferredThread, dbReadThreadTransferTranscript } from "@/host/db/threadForks";
+import { dbCreateTransferredThread } from "@/host/db/threadForks";
+import { dbStageThreadTransferTranscript } from "@/host/db/threadTransferTranscript";
 import { RemoteHttpError } from "@/host/remote/auth";
 import {
   openThreadTransferPackage,
@@ -178,36 +177,27 @@ interface OwnedAttachment {
 
 /** Owned attachment files referenced by the moving conversation, once each. */
 async function collectOwnedAttachments(
-  items: readonly PersistedRuntimeItem[],
+  candidatePaths: readonly string[],
   attachmentsDir: string,
 ): Promise<OwnedAttachment[]> {
   const found = new Map<string, OwnedAttachment>();
   let realRoot: string | undefined;
-  for (const item of items) {
-    if (item.type !== "user_message" && item.type !== "assistant_message") continue;
-    const content = (item.payload as { content?: unknown } | undefined)?.content;
-    if (!Array.isArray(content)) continue;
-    for (const entry of content) {
-      const parsed = canonicalContentBlockSchema.safeParse(entry);
-      if (!parsed.success) continue;
-      const block = parsed.data;
-      if ((block.kind !== "image" && block.kind !== "file") || !block.path) continue;
-      if (found.has(block.path) || found.size >= MAX_ATTACHMENTS) continue;
-      const owned = relative(attachmentsDir, block.path);
-      if (!owned || owned === ".." || owned.startsWith(`..${sep}`) || isAbsolute(owned)) continue;
-      realRoot ??= await realpath(attachmentsDir);
-      const actual = await realpath(block.path).catch(() => undefined);
-      if (!actual) continue;
-      const inside = relative(realRoot, actual);
-      if (inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) continue;
-      const info = await stat(actual);
-      if (!info.isFile() || info.size > MAX_ATTACHMENT_BYTES) continue;
-      found.set(block.path, {
-        sourcePath: block.path,
-        fileName: basename(block.path).slice(0, 255),
-        file: actual,
-      });
-    }
+  for (const sourcePath of candidatePaths) {
+    if (found.has(sourcePath) || found.size >= MAX_ATTACHMENTS) continue;
+    const owned = relative(attachmentsDir, sourcePath);
+    if (!owned || owned === ".." || owned.startsWith(`..${sep}`) || isAbsolute(owned)) continue;
+    realRoot ??= await realpath(attachmentsDir);
+    const actual = await realpath(sourcePath).catch(() => undefined);
+    if (!actual) continue;
+    const inside = relative(realRoot, actual);
+    if (inside === ".." || inside.startsWith(`..${sep}`) || isAbsolute(inside)) continue;
+    const info = await stat(actual);
+    if (!info.isFile() || info.size > MAX_ATTACHMENT_BYTES) continue;
+    found.set(sourcePath, {
+      sourcePath,
+      fileName: basename(sourcePath).slice(0, 255),
+      file: actual,
+    });
   }
   return [...found.values()];
 }
@@ -237,7 +227,6 @@ function rewriteAttachmentPaths(
 }
 
 const gunzipAsync = promisify(gunzip);
-const gzipAsync = promisify(gzip);
 
 async function parsePackagedItems(compressed: Buffer, header: ThreadTransferPackageHeader) {
   const json = (await gunzipAsync(compressed, { maxOutputLength: MAX_ITEMS_JSON_BYTES })).toString(
@@ -468,10 +457,10 @@ export class ThreadTransferService {
     if (!canTransferThread(thread)) throw blockerRefusals.busy();
     if (!home && location.kind === "wsl") throw blockerRefusals.unsupported_location();
     const dir = join(this.root, "exports", command.transferId);
+    const itemsPath = join(dir, "items.json.gz");
     await mkdir(dir, { recursive: true });
     try {
-      const transcript = await dbReadThreadTransferTranscript(thread.id);
-      const snapshot = selectThreadTransferSnapshot(transcript.items, transcript.turns);
+      const snapshot = await dbStageThreadTransferTranscript(thread.id, itemsPath);
       if (!snapshot) throw blockerRefusals.no_history();
       let git: ThreadTransferPackageHeader["git"] = null;
       let bundleFile: string | undefined;
@@ -495,7 +484,7 @@ export class ThreadTransferService {
         if (written > 0) bundleFile = bundlePath;
       }
       const attachments = await collectOwnedAttachments(
-        snapshot.items,
+        snapshot.attachmentCandidatePaths,
         this.options.paths.attachmentsDir,
       );
       const identity = this.options.identity();
@@ -532,7 +521,7 @@ export class ThreadTransferService {
         [
           {
             name: "items",
-            data: await gzipAsync(Buffer.from(JSON.stringify(snapshot.items), "utf8")),
+            file: itemsPath,
           },
           ...(bundleFile ? [{ name: "bundle", file: bundleFile }] : []),
           ...attachments.map((attachment, index) => ({
@@ -541,6 +530,7 @@ export class ThreadTransferService {
           })),
         ],
       );
+      await rm(itemsPath, { force: true });
       if (bundleFile) await rm(bundleFile, { force: true });
       if (written.byteLength > THREAD_TRANSFER_PACKAGE_MAX_BYTES) {
         throw new RemoteHttpError(
@@ -552,7 +542,7 @@ export class ThreadTransferService {
         );
       }
       const summary: ThreadTransferExportSummary = {
-        itemCount: snapshot.items.length,
+        itemCount: snapshot.itemCount,
         turnCount: snapshot.turns.length,
         attachmentCount: attachments.length,
         git: git

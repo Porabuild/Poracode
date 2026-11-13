@@ -337,6 +337,9 @@ async function main() {
     const relayArgs = ["scripts/prepare-mcp-relay.mjs", "--require", "--platform", platform];
     if (arch && platform !== "mac") relayArgs.push("--arch", arch);
     run("node", relayArgs, { cwd: repoRoot });
+    const gitHelperArgs = ["scripts/prepare-git-helper.mjs", "--require", "--platform", platform];
+    if (arch && platform !== "mac") gitHelperArgs.push("--arch", arch);
+    run("node", gitHelperArgs, { cwd: repoRoot });
     if (platform === "mac") {
       run("node", ["scripts/prepare-locked-computer-use.mjs"], { cwd: repoRoot });
     }

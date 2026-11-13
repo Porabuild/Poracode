@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { threadSchema, promptSegmentSchema, extractContextResultSchema } from "../contracts";
+import { threadSchema, draftPromptSegmentSchema, extractContextResultSchema } from "../contracts";
 
 /** Same-build desktop bootstrap. The device ownership ledger separately versions persisted copies. */
 const sideChatSelectionSchema = threadSchema.pick({
@@ -13,7 +13,7 @@ export const sideChatBootstrapSchema = z.object({
   source: threadSchema,
   context: extractContextResultSchema.nullable(),
   prompt: z.string(),
-  segments: z.array(promptSegmentSchema).optional(),
+  segments: z.array(draftPromptSegmentSchema).optional(),
   title: z.string().min(1),
   existingThreadId: z.string().min(1).optional(),
   autoStart: z.boolean().optional(),
@@ -30,7 +30,7 @@ export const sideChatThreadBindingSchema = z.object({
   id: z.string().optional(),
   threadId: z.string().min(1).optional(),
   prompt: z.string(),
-  segments: z.array(promptSegmentSchema).optional(),
+  segments: z.array(draftPromptSegmentSchema).optional(),
   selection: sideChatSelectionSchema.optional(),
 });
 export type SideChatThreadBinding = z.infer<typeof sideChatThreadBindingSchema>;

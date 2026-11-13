@@ -16,34 +16,34 @@ const APP_PARAM = "app=react-skills";
 const FALLBACK_THEME = {
   common: {
     base: [
-      { name: "--font-sans", value: "ui-sans-serif, system-ui, sans-serif" },
-      { name: "--font-mono", value: "ui-monospace, monospace" },
-      { name: "--radius-sm", value: "0.375rem" },
-      { name: "--radius-md", value: "0.5rem" },
-      { name: "--radius-lg", value: "0.75rem" },
-      { name: "--radius-full", value: "9999px" },
+      {name: "--font-sans", value: "ui-sans-serif, system-ui, sans-serif"},
+      {name: "--font-mono", value: "ui-monospace, monospace"},
+      {name: "--radius-sm", value: "0.375rem"},
+      {name: "--radius-md", value: "0.5rem"},
+      {name: "--radius-lg", value: "0.75rem"},
+      {name: "--radius-full", value: "9999px"},
     ],
-    calculated: [{ name: "--spacing-unit", value: "0.25rem" }],
+    calculated: [{name: "--spacing-unit", value: "0.25rem"}],
   },
   dark: {
     semantic: [
-      { name: "--color-background", value: "oklch(14.5% 0 0)" },
-      { name: "--color-foreground", value: "oklch(98.4% 0 0)" },
-      { name: "--color-accent", value: "oklch(55.1% 0.228 264.1)" },
-      { name: "--color-danger", value: "oklch(63.7% 0.237 25.3)" },
-      { name: "--color-success", value: "oklch(76.5% 0.177 163.2)" },
-      { name: "--color-warning", value: "oklch(79.5% 0.184 86.0)" },
+      {name: "--color-background", value: "oklch(14.5% 0 0)"},
+      {name: "--color-foreground", value: "oklch(98.4% 0 0)"},
+      {name: "--color-accent", value: "oklch(55.1% 0.228 264.1)"},
+      {name: "--color-danger", value: "oklch(63.7% 0.237 25.3)"},
+      {name: "--color-success", value: "oklch(76.5% 0.177 163.2)"},
+      {name: "--color-warning", value: "oklch(79.5% 0.184 86.0)"},
     ],
   },
   latestVersion: "3.0.0-beta",
   light: {
     semantic: [
-      { name: "--color-background", value: "oklch(100% 0 0)" },
-      { name: "--color-foreground", value: "oklch(14.5% 0 0)" },
-      { name: "--color-accent", value: "oklch(55.1% 0.228 264.1)" },
-      { name: "--color-danger", value: "oklch(63.7% 0.237 25.3)" },
-      { name: "--color-success", value: "oklch(76.5% 0.177 163.2)" },
-      { name: "--color-warning", value: "oklch(79.5% 0.184 86.0)" },
+      {name: "--color-background", value: "oklch(100% 0 0)"},
+      {name: "--color-foreground", value: "oklch(14.5% 0 0)"},
+      {name: "--color-accent", value: "oklch(55.1% 0.228 264.1)"},
+      {name: "--color-danger", value: "oklch(63.7% 0.237 25.3)"},
+      {name: "--color-success", value: "oklch(76.5% 0.177 163.2)"},
+      {name: "--color-warning", value: "oklch(79.5% 0.184 86.0)"},
     ],
   },
   note: "This is a fallback. For complete theme variables, ensure the API is accessible.",
@@ -60,7 +60,7 @@ async function fetchApi(endpoint) {
 
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": "HeroUI-Skill/1.0" },
+      headers: {"User-Agent": "HeroUI-Skill/1.0"},
       signal: AbortSignal.timeout(30000),
     });
 
@@ -174,7 +174,4 @@ async function main() {
   console.error(JSON.stringify(rawData || data, null, 2));
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main();

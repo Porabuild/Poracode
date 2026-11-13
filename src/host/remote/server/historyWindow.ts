@@ -144,7 +144,7 @@ export function readProjectedHistoryWindow(
     const materialized = dbReadThreadHistoryPhase2(
       threadId,
       batchMeta.map((row) => row.itemId),
-      { compactDetails },
+      { compactDetails, preserveExternalizedImageStubs: true },
     );
     const byId = new Map(
       projectRuntimeItemsImageRefs(threadId, materialized).map((item) => [

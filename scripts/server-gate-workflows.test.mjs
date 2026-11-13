@@ -197,7 +197,7 @@ void test("the TUI manifest every build waits for comes from one Linux job", asy
   for (const workflowName of ["_build.yml", "_server-artifact.yml"]) {
     const workflow = await readWorkflow(workflowName);
     const waits = workflow.jobs.build.steps.filter((step) =>
-      /wait-for-run-artifact\.mjs/u.test(step.run ?? ""),
+      /wait-for-run-artifact\.mjs tui-manifest/u.test(step.run ?? ""),
     );
     assert.equal(waits.length, 1, `${workflowName} stages the TUI manifest once`);
     assert.match(
@@ -216,6 +216,52 @@ void test("the TUI manifest every build waits for comes from one Linux job", asy
     const pattern = new RegExp(`^${download.with.pattern.replace("*", ".*")}$`, "u");
     assert.match(binaries.with.name, pattern);
     assert.doesNotMatch(manifest.with.name, pattern);
+  }
+});
+
+void test("Windows desktop build stages the Linux x64 MCP relay for WSL without leaking release assets", async () => {
+  const workflow = await readWorkflow("_build.yml");
+  assert.equal(workflow.jobs.build.name, "build (${{ matrix.artifact }})");
+  const steps = workflow.jobs.build.steps;
+  const prepareIndex = steps.findIndex((step) => step.name === "Prepare MCP relay");
+  const uploadIndex = steps.findIndex(
+    (step) => step.name === "Upload Linux MCP relay for Windows WSL",
+  );
+  const stageIndex = steps.findIndex((step) => step.name === "Stage Linux MCP relay for WSL");
+  const sshArchiveIndex = steps.findIndex(
+    (step) => step.name === "Build the immutable SSH runtime archive",
+  );
+  const packageWinIndex = steps.findIndex((step) => step.name === "Package Windows/Linux");
+
+  assert.ok(prepareIndex >= 0 && uploadIndex > prepareIndex);
+  assert.ok(stageIndex > prepareIndex && stageIndex < sshArchiveIndex);
+  assert.ok(sshArchiveIndex < packageWinIndex);
+
+  const upload = steps[uploadIndex];
+  assert.equal(upload.if, "matrix.platform == 'linux'");
+  assert.equal(upload.with.name, "mcp-relay-linux-x64");
+  assert.equal(upload.with.path, "resources/wsl-helpers/mcp-relay/linux-x64/poracode-mcp-relay");
+  assert.equal(upload.with["if-no-files-found"], "error");
+  assert.equal(upload.with.overwrite, true);
+
+  const stage = steps[stageIndex];
+  assert.equal(stage.if, "matrix.platform == 'win'");
+  assert.match(stage.run, /rm -rf resources\/wsl-helpers\/mcp-relay\/linux-x64/u);
+  assert.match(
+    stage.run,
+    /wait-for-run-artifact\.mjs mcp-relay-linux-x64 resources\/wsl-helpers\/mcp-relay\/linux-x64 "build \/ build \(dist-linux\)"/u,
+  );
+  assert.match(stage.run, /prepare-mcp-relay\.mjs --platform win --require/u);
+
+  for (const releaseName of ["release.yml", "release-nightly.yml"]) {
+    const release = await readWorkflow(releaseName);
+    assert.equal(release.jobs.build.name, undefined);
+    for (const step of release.jobs.release.steps.filter((candidate) =>
+      candidate.uses?.startsWith("actions/download-artifact@"),
+    )) {
+      const pattern = new RegExp(`^${step.with.pattern.replace("*", ".*")}$`, "u");
+      assert.doesNotMatch("mcp-relay-linux-x64", pattern);
+    }
   }
 });
 

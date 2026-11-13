@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -81,6 +80,7 @@ describe("Codex native MCP transport collision", () => {
       env: { ...process.env, ...command.env },
       stdio: ["pipe", "pipe", "pipe"],
     });
+    const closed = new Promise<void>((resolveClose) => child.once("close", () => resolveClose()));
     const connection = new CodexAppServerConnection(new CodexStdioTransport(child));
     const rpc = new CodexAppServerRpc(connection, "mcp-regression");
     try {
@@ -108,11 +108,7 @@ describe("Codex native MCP transport collision", () => {
       expect(readFileSync(join(root, "config.toml"), "utf8")).toBe(previousConfig);
     } finally {
       connection.dispose(new Error("Test complete"));
-      if (child.exitCode === null && child.signalCode === null) {
-        const exited = once(child, "exit");
-        child.kill();
-        await exited;
-      }
+      await closed;
     }
   });
 });

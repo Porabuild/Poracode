@@ -157,6 +157,48 @@ describe("spawnAgentPty", () => {
       vi.useRealTimers();
     }
   });
+
+  it("reclaims Windows node-pty worker isolate on natural one-shot exit", async () => {
+    const platform = vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    let onData: ((chunk: string) => void) | undefined;
+    let onExit: ((event: { exitCode: number }) => void) | undefined;
+    const workerTerminate = vi.fn<() => Promise<number>>(async () => 0);
+    const inDestroy = vi.fn<() => void>();
+    spawnPtyMock.mockReturnValue({
+      pid: 4322,
+      kill: vi.fn<() => void>(),
+      write: vi.fn<() => void>(),
+      _agent: {
+        _inSocket: { readable: true, destroyed: false, destroy: inDestroy },
+        _conoutSocketWorker: {
+          _isDisposed: false,
+          _worker: { terminate: workerTerminate },
+          dispose: vi.fn<() => void>(),
+        },
+      },
+      onData: vi.fn<(cb: (chunk: string) => void) => { dispose: () => void }>((cb) => {
+        onData = cb;
+        return { dispose: vi.fn<() => void>() };
+      }),
+      onExit: vi.fn<(cb: (event: { exitCode: number }) => void) => { dispose: () => void }>(
+        (cb) => {
+          onExit = cb;
+          return { dispose: vi.fn<() => void>() };
+        },
+      ),
+    });
+
+    try {
+      const result = spawnAgentPty({ command: "agy", args: [] }, "", 5_000);
+      onData?.("Title output\r\n");
+      onExit?.({ exitCode: 0 });
+      await expect(result).resolves.toBe("Title output");
+      expect(inDestroy).toHaveBeenCalledOnce();
+      expect(workerTerminate).toHaveBeenCalledOnce();
+    } finally {
+      platform.mockRestore();
+    }
+  });
 });
 
 describe("one-shot banner fencing", () => {

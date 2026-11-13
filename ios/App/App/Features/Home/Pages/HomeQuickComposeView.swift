@@ -130,13 +130,16 @@ struct HomeQuickComposeView: View {
 
   var effectiveConfiguration: ThreadLaunchConfiguration? {
     guard var configuration = targetConfiguration else { return nil }
+    let capabilities = selectedAgent.map {
+      HomeComposerCatalog.capabilities(for: $0, presentationMode: presentationMode)
+    }
     switch permissionMode {
     case .auto:
-      configuration.approvalPolicy = nil
+      configuration.approvalPolicy = permissionMode.approvalPolicy(capabilities: capabilities ?? [:])
       configuration.approvalsReviewer = nil
       configuration.sandboxMode = nil
     case .bypass:
-      configuration.approvalPolicy = "never"
+      configuration.approvalPolicy = permissionMode.approvalPolicy(capabilities: capabilities ?? [:])
       configuration.approvalsReviewer = nil
       configuration.sandboxMode = "danger-full-access"
     case .configured:
