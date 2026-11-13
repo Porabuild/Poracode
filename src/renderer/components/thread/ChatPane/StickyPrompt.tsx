@@ -121,7 +121,7 @@ export function StickyPrompt({
     let rowsChanged = true;
     const updatePosition = () => {
       // Scrolling changes geometry, not row membership. Rediscover prompts
-      // only when the virtualizer or a row's content changes the DOM.
+      // only when virtual rows or prompt markers change.
       if (rowsChanged) {
         rowsChanged = false;
         const rows = new Map(
@@ -158,7 +158,18 @@ export function StickyPrompt({
       });
     };
     const observer = new ResizeObserver(schedule);
-    const mutationObserver = new MutationObserver(() => {
+    const markers = "[data-chat-virtual-row], [data-user-message]";
+    const containsMarker = (node: Node) =>
+      node instanceof Element && (node.matches(markers) || node.querySelector(markers) !== null);
+    const mutationObserver = new MutationObserver((records) => {
+      if (
+        !records.some(
+          (record) =>
+            record.type === "attributes" ||
+            [...record.addedNodes, ...record.removedNodes].some(containsMarker),
+        )
+      )
+        return;
       rowsChanged = true;
       schedule();
     });

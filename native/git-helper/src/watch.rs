@@ -761,4 +761,39 @@ mod tests {
             assert!(!ignored_tree(name), "{name}");
         }
     }
+
+    #[test]
+    fn lossy_event_paths_keep_status_unknown() -> Result<(), Box<dyn std::error::Error>> {
+        #[cfg(unix)]
+        let name = {
+            use std::os::unix::ffi::OsStringExt;
+            std::ffi::OsString::from_vec(vec![0xff])
+        };
+        #[cfg(windows)]
+        let name = {
+            use std::os::windows::ffi::OsStringExt;
+            std::ffi::OsString::from_wide(&[0xd800])
+        };
+        let root = std::env::temp_dir().join("poracode-lossy-watch-event");
+        let path = root.join(name);
+        assert!(path.to_str().is_none());
+        let watcher = notify::recommended_watcher(|_| {})?;
+        let mut service = WatchService::new(watcher);
+        service.subscriptions.insert(
+            1,
+            Subscription {
+                root,
+                git_dirs: Vec::new(),
+                paths: HashSet::new(),
+                pending: HashMap::new(),
+                status_paths: Some(HashSet::from(["ignored.log".to_owned()])),
+                config_fingerprint: None,
+            },
+        );
+        service.event(Event::new(EventKind::Any).add_path(path))?;
+        let subscription = &service.subscriptions[&1];
+        assert!(subscription.pending.contains_key(&Scope::Worktree));
+        assert!(subscription.status_paths.is_none());
+        Ok(())
+    }
 }

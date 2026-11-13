@@ -309,13 +309,19 @@ fn reconciles_status_after_default_global_ignore_changes() {
 
 #[cfg(unix)]
 #[test]
-fn does_not_classify_lossy_filenames_as_ignore_only() {
+fn keeps_non_ascii_tracked_filenames_fresh() {
     use std::ffi::OsString;
     use std::os::unix::ffi::OsStringExt;
     let root = Fixture::new();
     let repo = git2::Repository::init(&root.0).expect("init repository");
     root.write(".gitignore", "*.log\n");
-    let name = PathBuf::from(OsString::from_vec(b"tracked-\xff.log".to_vec()));
+    // macOS filesystems reject invalid UTF-8; the event-level unit test covers
+    // lossy paths without requiring the filesystem to create one.
+    let name = if cfg!(target_os = "macos") {
+        PathBuf::from("tracked-\u{fffd}.log")
+    } else {
+        PathBuf::from(OsString::from_vec(b"tracked-\xff.log".to_vec()))
+    };
     fs::write(root.0.join(&name), "tracked before").expect("write byte path");
     let mut index = repo.index().expect("index");
     index.add_path(&name).expect("add byte path");

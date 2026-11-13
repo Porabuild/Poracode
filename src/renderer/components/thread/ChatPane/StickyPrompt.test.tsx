@@ -250,7 +250,7 @@ describe("StickyPrompt", () => {
     }
   });
 
-  it("rediscovers a replaced prompt before positioning the handoff", async () => {
+  it("rediscovers replaced and removed prompts before positioning the handoff", async () => {
     const { scroller, scrollTo } = createScroller();
     renderStickyPrompt(scroller);
     scrollTo(ROW_HEIGHT);
@@ -269,6 +269,34 @@ describe("StickyPrompt", () => {
       vi.runAllTimers();
     });
     expect(bar.style.transform).toBe("translateY(-24px)");
+    await act(async () => {
+      row.remove();
+      await Promise.resolve();
+      vi.runAllTimers();
+    });
+    expect(bar.style.transform).toBe("translateY(0px)");
+  });
+
+  it("does not rediscover rows when streamed markup changes inside an existing row", async () => {
+    const { scroller, scrollTo } = createScroller();
+    renderStickyPrompt(scroller);
+    scrollTo(ROW_HEIGHT);
+    const row = scroller.querySelector<HTMLElement>('[data-item-id="reply-1"]')!;
+    const queryRows = vi.spyOn(scroller, "querySelectorAll");
+    try {
+      for (let index = 0; index < 5; index += 1) {
+        await act(async () => {
+          const paragraph = document.createElement("p");
+          paragraph.textContent = `Streamed paragraph ${index}`;
+          row.replaceChildren(paragraph);
+          await Promise.resolve();
+          vi.runAllTimers();
+        });
+      }
+      expect(queryRows).not.toHaveBeenCalled();
+    } finally {
+      queryRows.mockRestore();
+    }
   });
 
   it("hides while Find in chat is open for the thread", () => {
