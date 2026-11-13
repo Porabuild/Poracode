@@ -16,8 +16,11 @@ import type {
 } from "../../contracts/lockedComputerUse";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
+  closeLocalPortPayloadSchema,
+  closeLocalPortResultSchema,
   copyImageToClipboardPayloadSchema,
   createProjectDirectoryPayloadSchema,
+  listLocalPortsResultSchema,
   openExternalPayloadSchema,
   pickFilesOptionsSchema,
   readLocalImageFilePayloadSchema,
@@ -25,7 +28,10 @@ import {
   saveHandoffContextPayloadSchema,
   saveImageFilePayloadSchema,
   showNotificationPayloadSchema,
+  type CloseLocalPortPayload,
+  type CloseLocalPortResult,
   type CreateProjectDirectoryResult,
+  type ListLocalPortsResult,
 } from "../schemas";
 
 export const publishRemoteGitSummariesPayloadSchema = z.object({
@@ -204,6 +210,17 @@ export const appProcedures = {
   getHomeScopeLocation: defineNoArgProcedure<ProjectLocation, "main-local">(
     "getHomeScopeLocation",
     "main-local",
+  ),
+  listLocalPorts: defineNoArgProcedure<ListLocalPortsResult, "main-local">(
+    "listLocalPorts",
+    "main-local",
+    listLocalPortsResultSchema,
+  ),
+  closeLocalPort: definePayloadProcedure<CloseLocalPortPayload, CloseLocalPortResult, "main-local">(
+    "closeLocalPort",
+    "main-local",
+    closeLocalPortPayloadSchema,
+    closeLocalPortResultSchema,
   ),
   getKeybindings: defineNoArgProcedure<KeybindingsConfig, "main-local">(
     "getKeybindings",

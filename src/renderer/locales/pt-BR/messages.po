@@ -1388,6 +1388,11 @@ msgstr "Ações"
 #~ msgid "Actions for {title}"
 #~ msgstr "Ações para {title}"
 
+#. placeholder {0}: port.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Actions for port {0}"
+msgstr "Ações para a porta {0}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -3253,6 +3258,7 @@ msgstr "Câmera"
 msgid "Camera access blocked"
 msgstr "Acesso à câmera bloqueado"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
 msgstr "Não foi possível carregar as portas"
@@ -4253,6 +4259,15 @@ msgstr "Fechar picture-in-picture"
 msgid "Close plan"
 msgstr "Fechar plano"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port"
+msgstr "Fechar porta"
+
+#. placeholder {0}: confirmPort.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port {0}?"
+msgstr "Fechar a porta {0}?"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Close PR"
 msgstr "Fechar PR"
@@ -5238,6 +5253,7 @@ msgstr "Cookies"
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 #: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copied"
 msgstr "Copiado"
@@ -5274,6 +5290,10 @@ msgstr "Copiar código do dispositivo {0} {1}"
 msgid "Copy accessibility tree"
 msgstr "Copiar árvore de acessibilidade"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Copy address"
+msgstr "Copiar endereço"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "Copiar código"
@@ -5309,6 +5329,7 @@ msgid "Copy image"
 msgstr "Copiar imagem"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5409,6 +5430,10 @@ msgstr "Não foi possível cancelar a mesclagem: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Could not access installed fonts. You can keep the saved font or use Default."
 msgstr "Não foi possível acessar as fontes instaladas. Você pode manter a fonte salva ou usar Padrão."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Could not close this port. Refresh the list and try again."
+msgstr "Não foi possível fechar esta porta. Atualize a lista e tente novamente."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
@@ -10864,6 +10889,10 @@ msgstr "Listar tarefas"
 msgid "Listening — speak or type a message"
 msgstr "Ouvindo — fale ou digite uma mensagem"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Listening ports on this computer."
+msgstr "Portas em escuta neste computador."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Ao vivo"
@@ -11249,6 +11278,10 @@ msgstr "Procurando perfis de navegador…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "Procurando servidores de desenvolvimento…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Looking for listening ports…"
+msgstr "Procurando portas em escuta…"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
@@ -13057,6 +13090,10 @@ msgstr "Ainda não há seleções aprendidas."
 msgid "No limit"
 msgstr "Sem limite"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "No listening ports"
+msgstr "Nenhuma porta em escuta"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "Nenhuma skill do marketplace corresponde a estes filtros."
@@ -13930,10 +13967,12 @@ msgid "Open in editor"
 msgstr "Abrir no editor"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in Poracode browser"
 msgstr "Abrir no navegador do Poracode"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in system browser"
 msgstr "Abrir no navegador do sistema"
 
@@ -17065,6 +17104,7 @@ msgstr "Somente o uso retido neste host."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
@@ -21609,6 +21649,12 @@ msgstr "Isso desliga o emulador selecionado e desconecta todos os visualizadores
 msgid "This source host does not support safe automatic merge."
 msgstr "Este servidor de origem não oferece merge automático seguro."
 
+#. placeholder {0}: confirmPort.processName ?? confirmPort.pid
+#. placeholder {1}: confirmPort.pid
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "This stops {0} (PID {1}) and closes all ports used by that process."
+msgstr "Isso interrompe {0} (PID {1}) e fecha todas as portas usadas por esse processo."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "This submission has expired. Your draft is kept."
 msgstr "Este envio expirou. Seu rascunho foi mantido."
@@ -22667,6 +22713,10 @@ msgstr "Desconhecido"
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Unknown folder"
 msgstr "Pasta desconhecida"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Unknown process"
+msgstr "Processo desconhecido"
 
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"

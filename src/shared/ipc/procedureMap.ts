@@ -118,6 +118,8 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * before effects. Native configuration and credential formats remain provider-owned.
  * Review marks, owned-comment edits and guides add negotiated names only;
  * existing peers reject unknown names before effects, so hop 18 stays compatible.
+ * Local port inspection and closing add same-bundle, main-local names only;
+ * older peers reject unknown names and remote clients cannot invoke them.
  */
 export const IPC_PROCEDURE_MAP_VERSION = CLIENT_HOST_HOP_VERSION;
 
@@ -196,6 +198,8 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "showNotification",
   "relaunchApp",
   "getHomeScopeLocation",
+  "listLocalPorts",
+  "closeLocalPort",
   "getKeybindings",
   "setKeybindings",
   "setGlobalShortcutsSuspended",

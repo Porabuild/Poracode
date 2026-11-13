@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useLingui } from "@lingui/react/macro";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { PanelExitContent } from "@/renderer/components/layout/panelMotion";
 import { DeferredDeviceWorkspace } from "@/renderer/deferredFeatures";
 import {
@@ -157,10 +158,7 @@ export function ProjectAuxiliaryPanel(props: {
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const setPortsPanelOpen = usePanelStore((s) => s.setPortsPanelOpen);
   const browserBridgeServer = useRemoteServersStore(selectBrowserBridgeServer);
-  // Ports forwarding operates on the connected remote server in every client
-  // runtime — the PWA's desktop host and the Electron-as-client's mirrored
-  // hosts expose the same routes, and entry URLs open externally.
-  const portsAvailable = browserBridgeServer !== undefined;
+  const portsAvailable = hasClientCapability("nativeShell") || browserBridgeServer !== undefined;
   // Reactive id of the project the notes panel should show — recomputed (and
   // re-rendered) as the user navigates between threads/drafts/projects.
   const currentProjectId = useAppStore(selectCurrentProjectIdForView);

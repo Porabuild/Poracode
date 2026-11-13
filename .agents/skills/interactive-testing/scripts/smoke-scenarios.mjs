@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "local-ports",
+    title: "Local listening ports and desktop port action menus",
+    patterns: [/localPorts/i, /PortsPanel/],
+    automated: ["baseline"],
+    manual: ["changed-surface", "ipc-roundtrip", "visual-a11y"],
+  },
+  {
     id: "feedback",
     title: "Sidebar feedback modal and public website form",
     patterns: [
