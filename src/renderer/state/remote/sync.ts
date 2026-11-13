@@ -68,6 +68,7 @@ import {
 } from "./reducers/hostHistoryRecovery";
 import { recordRuntimeUsage } from "../usageRecorder";
 import { hostRunsOnThisMachine } from "../hostLocality";
+import { hasOwnWindow, recordsUsageInThisWindow } from "../auxiliaryThreadWindows";
 import { isHistoryIncorporated } from "../historyBaselines";
 
 /**
@@ -86,12 +87,13 @@ import { isHistoryIncorporated } from "../historyBaselines";
 type AppView = ReturnType<typeof useAppStore.getState>["view"];
 
 /**
- * True when `threadId` is one of the panes currently shown in the thread view.
- * A visible thread has already been acknowledged on this client, so an
- * authoritative snapshot must not resurrect its `finished` unread badge.
+ * True when `threadId` is one of the panes currently shown in the thread view,
+ * or is open in its own window. A visible thread has already been acknowledged
+ * on this client, so an authoritative snapshot must not resurrect its
+ * `finished` unread badge.
  */
 export function isThreadVisible(view: AppView, threadId: string): boolean {
-  return view.kind === "thread" && view.panes.includes(threadId);
+  return (view.kind === "thread" && view.panes.includes(threadId)) || hasOwnWindow(threadId);
 }
 
 function toCompletedTurnRecords(
@@ -708,7 +710,10 @@ function liveReducer(): SupervisorEventReducer {
       for (const { threadId, events } of batches) {
         // Usage is captured on the machine whose provider accounts run the
         // thread; a host on another machine records its own.
-        if (hostRunsOnThisMachine(threadMetadata.find((thread) => thread.id === threadId)))
+        if (
+          hostRunsOnThisMachine(threadMetadata.find((thread) => thread.id === threadId)) &&
+          recordsUsageInThisWindow(threadId)
+        )
           recordRuntimeUsage(threadId, events, threadMetadata);
       }
     },

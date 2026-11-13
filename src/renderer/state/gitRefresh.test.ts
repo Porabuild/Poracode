@@ -22,6 +22,7 @@ import { usePanelStore } from "./panelStore";
 import { useSidebarUiStore } from "./sidebarUiStore";
 import { useDevTerminalStore } from "./devTerminalStore";
 import { useSharedSettings } from "./sharedSettingsStore";
+import { setOwnWindowThreadIds } from "./auxiliaryThreadWindows";
 import { shouldPollProject } from "./wslBackgroundActivity";
 import {
   cleanupGitRefreshProjects,
@@ -37,6 +38,7 @@ import {
   stopPendingPrRefresh,
   startPostPushPrStatusRefresh,
   syncPendingPrRefreshProjects,
+  syncWatchedWorktreeProject,
 } from "./gitRefresh";
 
 const ghGetPrForBranchMock =
@@ -1027,6 +1029,39 @@ describe("watcher git status refresh", () => {
 
   afterEach(() => {
     cleanupGitRefreshProjects(new Set());
+    setOwnWindowThreadIds([]);
+  });
+
+  it("retains a detached worktree when main has no pane and its sidebar project is collapsed", () => {
+    const target = {
+      id: "detached-git",
+      projectId: project.id,
+      worktreePath: "/repo-detached",
+      archived: false,
+    } as Thread;
+    useAppStore.setState({ threads: [target], view: { kind: "home" } });
+    useSidebarUiStore.setState({ collapsedProjects: { [project.id]: true } });
+    setOwnWindowThreadIds([target.id]);
+    expect(getProjectActiveWorktreePaths(project.id)).toEqual([target.worktreePath]);
+  });
+
+  it("reads a detached worktree without replacing the shared worktree watch set", () => {
+    const gitWatchWorktrees = vi
+      .fn<PoracodeBridge["gitWatchWorktrees"]>()
+      .mockResolvedValue(undefined);
+    Object.defineProperty(window, "poracode", {
+      configurable: true,
+      value: { windowKind: "thread", gitWatchWorktrees },
+    });
+    const target = {
+      id: "detached-git",
+      projectId: project.id,
+      worktreePath: "/repo-detached",
+      archived: false,
+    } as Thread;
+    useAppStore.setState({ threads: [target], view: { kind: "thread", panes: [target.id] } });
+    expect(syncWatchedWorktreeProject(project.id)).toEqual([target.worktreePath]);
+    expect(gitWatchWorktrees).not.toHaveBeenCalled();
   });
 
   it("refreshes thread worktree statuses before the full worktree cache catches up", async () => {

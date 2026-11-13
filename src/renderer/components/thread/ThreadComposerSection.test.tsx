@@ -1,4 +1,5 @@
 import "@/renderer/testUtils/clientDraftDatabase";
+import { flushThreadWindowDraft } from "@/renderer/actions/threadWindowActions";
 import {
   isClientDraftAsset,
   readClientDraftAsset,
@@ -2273,6 +2274,25 @@ describe("ThreadComposerSection", () => {
       startPick();
       await finishPick(resolvers[0]);
       expect(screen.getByText("private-A.txt")).toBeInTheDocument();
+    });
+
+    it("settles a file pick before handing the draft to another window", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      renderComposer({ pickFiles });
+      startPick();
+      let flushed = false;
+      const handoff = flushThreadWindowDraft(guiThread.id).then(() => {
+        flushed = true;
+      });
+      await Promise.resolve();
+      expect(flushed).toBe(false);
+
+      await finishPick(resolvers[0]);
+      await handoff;
+      const received = createComposerDraftStorage(localStorage, window).load("thread")[
+        guiThread.id
+      ];
+      expect(received?.attachments.map((file) => file.name)).toEqual(["private-A.txt"]);
     });
 
     it("imports dropped files into the thread they were dropped on", async () => {

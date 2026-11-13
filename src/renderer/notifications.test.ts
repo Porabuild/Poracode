@@ -1,30 +1,47 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { capabilityState, sharedSettingsState, toastMock, bridgeMock, openThreadMock } = vi.hoisted(
-  () => ({
-    /** Mirrors the negotiated client capability; tests flip it per flavor. */
-    capabilityState: { current: { osNotifications: true } },
-    sharedSettingsState: {
-      current: {
-        notificationsEnabled: true,
-        notificationSound: true,
-        notificationFilter: "unfocused",
-        notificationStatuses: { done: true, needsAttention: true, error: true },
-      },
+const {
+  appState,
+  capabilityState,
+  sharedSettingsState,
+  toastMock,
+  bridgeMock,
+  openThreadMock,
+  openThreadWindowMock,
+  threadsInOtherWindows,
+} = vi.hoisted(() => ({
+  /** Mirrors the negotiated client capability; tests flip it per flavor. */
+  capabilityState: { current: { osNotifications: true } },
+  sharedSettingsState: {
+    current: {
+      notificationsEnabled: true,
+      notificationSound: true,
+      notificationFilter: "unfocused",
+      notificationStatuses: { done: true, needsAttention: true, error: true },
     },
-    toastMock: {
-      danger: vi.fn<(title: string, options: unknown) => void>(),
-      success: vi.fn<(title: string, options: unknown) => void>(),
-      warning: vi.fn<(title: string, options: unknown) => void>(),
+  },
+  toastMock: {
+    close: vi.fn<(id: unknown) => void>(),
+    danger: vi.fn<(title: string, options: unknown) => void>(),
+    success: vi.fn<(title: string, options: unknown) => void>(),
+    warning: vi.fn<(title: string, options: unknown) => void>(),
+  },
+  bridgeMock: {
+    focusWindow: vi.fn<() => Promise<void>>(),
+    remote: false,
+    showNotification: vi.fn<(payload: unknown) => Promise<boolean>>(),
+  },
+  openThreadMock: vi.fn<(threadId: string, options?: unknown) => void>(),
+  openThreadWindowMock: vi.fn<(thread: { id: string }) => void>(),
+  threadsInOtherWindows: new Set<string>(),
+  appState: {
+    current: {
+      view: { kind: "home" } as { kind: string; panes?: string[] },
+      projects: [] as unknown[],
+      threads: [] as Array<{ id: string }>,
     },
-    bridgeMock: {
-      focusWindow: vi.fn<() => Promise<void>>(),
-      remote: false,
-      showNotification: vi.fn<(payload: unknown) => Promise<boolean>>(),
-    },
-    openThreadMock: vi.fn<(threadId: string, options?: unknown) => void>(),
-  }),
-);
+  },
+}));
 
 vi.mock("@heroui/react", () => ({
   toast: toastMock,
@@ -32,6 +49,14 @@ vi.mock("@heroui/react", () => ({
 
 vi.mock("@/renderer/actions/threadActions", () => ({
   openThread: openThreadMock,
+}));
+
+vi.mock("@/renderer/actions/threadWindowActions", () => ({
+  openThreadWindow: openThreadWindowMock,
+}));
+
+vi.mock("@/renderer/state/auxiliaryThreadWindows", () => ({
+  livesInAnotherWindow: (threadId: string) => threadsInOtherWindows.has(threadId),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -46,10 +71,7 @@ vi.mock("@/renderer/clientRuntime", () => ({
 
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
-    getState: () => ({
-      view: { kind: "home" },
-      projects: [],
-    }),
+    getState: () => appState.current,
   },
 }));
 
@@ -107,6 +129,9 @@ beforeEach(() => {
   bridgeMock.remote = false;
   bridgeMock.focusWindow.mockClear();
   openThreadMock.mockClear();
+  openThreadWindowMock.mockClear();
+  threadsInOtherWindows.clear();
+  appState.current = { view: { kind: "home" }, projects: [], threads: [] };
   vi.unstubAllGlobals();
 });
 
@@ -137,6 +162,42 @@ describe("showUserNotification", () => {
       onPress: expect.any(Function),
       timeout: 6000,
     });
+  });
+
+  it("does not count the placeholder of a thread in its own window as showing it", () => {
+    appState.current = {
+      view: { kind: "thread", panes: ["thread-1"] },
+      projects: [],
+      threads: [{ id: "thread-1" }],
+    };
+    showUserNotification(notification());
+    expect(toastMock.success).not.toHaveBeenCalled();
+
+    threadsInOtherWindows.add("thread-1");
+    showUserNotification(notification());
+    expect(toastMock.success).toHaveBeenCalledOnce();
+  });
+
+  it("opens a thread in its own window by focusing that window", () => {
+    const thread = { id: "thread-1" };
+    appState.current = {
+      view: { kind: "thread", panes: ["other"] },
+      projects: [],
+      threads: [thread],
+    };
+    threadsInOtherWindows.add("thread-1");
+    showUserNotification(notification());
+
+    const [, options] = toastMock.success.mock.calls[0]! as [
+      string,
+      { actionProps: { onPress(): void }; onPress(): void },
+    ];
+    options.actionProps.onPress();
+    options.onPress();
+
+    expect(openThreadWindowMock).toHaveBeenCalledTimes(2);
+    expect(openThreadWindowMock).toHaveBeenCalledWith(thread);
+    expect(openThreadMock).not.toHaveBeenCalled();
   });
 });
 

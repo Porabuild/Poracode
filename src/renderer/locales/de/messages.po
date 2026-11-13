@@ -3003,6 +3003,10 @@ msgstr "Branch-Schutzregeln haben diese Zusammenführung blockiert."
 msgid "Branches"
 msgstr "Branches"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "Zurück ins Hauptfenster holen"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Zurück ins Panel holen"
@@ -4245,6 +4249,7 @@ msgstr "Overlay schließen"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "Bereich schließen"
 
@@ -5487,6 +5492,11 @@ msgstr "Dieser Marketplace oder dieses Plugin konnte nicht verwaltet werden. Pr�
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Diese PDF-Datei konnte nicht geöffnet werden."
+
+#: src/renderer/app.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "Dieser Thread konnte nicht geöffnet werden. Versuche es erneut."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -8686,6 +8696,7 @@ msgstr "Browseradressleiste fokussieren"
 msgid "Focus the in-app browser address bar"
 msgstr "In-App-Browser-Adressleiste fokussieren"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "Zum Fenster wechseln"
@@ -12270,6 +12281,10 @@ msgstr "Bewegen"
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "Verschiebt eine vorhandene gerätelokale SSH-Verbindung über ihre Verbindungs-ID in diese Umgebung. Schlüssel werden nie hochgeladen."
 
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "Zurück ins Hauptfenster verschieben"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Browser zurück ins Hauptfenster verschieben"
@@ -13978,6 +13993,14 @@ msgstr "Im Browser öffnen"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "Im Editor öffnen"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "In neuem Fenster öffnen"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "In neuem Fenster öffnen"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
@@ -17140,6 +17163,7 @@ msgstr "Nur gespeicherte Nutzung auf diesem Host."
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "Erneut versuchen"
 
@@ -21722,6 +21746,10 @@ msgstr "Dieser Thread ist bereits auf {label}."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "Dieser Thread ist noch nicht bereit für eine Steuerung."
+
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "Dieser Thread ist in einem separaten Fenster geöffnet."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

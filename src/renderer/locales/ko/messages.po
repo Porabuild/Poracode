@@ -3003,6 +3003,10 @@ msgstr "브랜치 보호 규칙이 이 병합을 차단했습니다."
 msgid "Branches"
 msgstr "브랜치"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "메인 창으로 되돌리기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "패널로 되돌리기"
@@ -4245,6 +4249,7 @@ msgstr "오버레이 닫기"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "창 닫기"
 
@@ -5487,6 +5492,11 @@ msgstr "이 마켓플레이스 또는 플러그인를 관리할 수 없습니다
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "이 PDF를 열 수 없습니다."
+
+#: src/renderer/app.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "이 스레드를 열 수 없습니다. 다시 시도하세요."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -8686,6 +8696,7 @@ msgstr "브라우저 주소 표시줄에 포커스"
 msgid "Focus the in-app browser address bar"
 msgstr "인앱 브라우저 주소 표시줄에 포커스"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "창 활성화"
@@ -12270,6 +12281,10 @@ msgstr "이동"
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "연결 ID로 기존 장치 로컬 SSH 연결을 이 환경으로 이동합니다. 키는 업로드되지 않습니다."
 
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "메인 창으로 다시 이동"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "브라우저를 메인 창으로 다시 이동"
@@ -13978,6 +13993,14 @@ msgstr "브라우저에서 열기"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "편집기에서 열기"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "새 창에서 열기"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "새 창에서 열기"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
@@ -17140,6 +17163,7 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "다시 시도"
 
@@ -21722,6 +21746,10 @@ msgstr "이 스레드는 이미 {label}에 있습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "이 스레드는 아직 방향 수정을 받을 준비가 되지 않았습니다."
+
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "이 스레드는 별도의 창에서 열려 있습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

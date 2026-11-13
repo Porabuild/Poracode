@@ -20,6 +20,7 @@ const { bridgeMock, gitRefreshMocks } = vi.hoisted(() => ({
   gitRefreshMocks: {
     cleanupGitRefreshProjects: vi.fn<(activeProjectIds: ReadonlySet<string>) => void>(),
     getWatcherRefreshMode: vi.fn<(projectId: string) => "status" | "full">(() => "full"),
+    ownsGitProjectWatches: vi.fn<() => boolean>(() => true),
     prefetchBranchPrData: vi.fn<(project: Pick<Project, "id" | "location">) => Promise<void>>(),
     refreshGitProject:
       vi.fn<
@@ -53,6 +54,7 @@ const remoteProject: Project = {
 describe("useGitRefresh remote reachability", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    gitRefreshMocks.ownsGitProjectWatches.mockReturnValue(true);
     bridgeMock.gitWatchProject.mockResolvedValue(undefined);
     bridgeMock.gitUnwatchProject.mockResolvedValue(undefined);
     bridgeMock.gitFetch.mockResolvedValue(undefined);
@@ -85,6 +87,53 @@ describe("useGitRefresh remote reachability", () => {
     expect(gitRefreshMocks.refreshGitProject).not.toHaveBeenCalled();
     expect(bridgeMock.gitWatchProject).not.toHaveBeenCalled();
     unmount();
+  });
+
+  it("limits a thread window's refresh and watch ownership to its project", async () => {
+    useAppStore.setState({ projects: [localProject, remoteProject] });
+    useRemoteServersStore.setState({
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    });
+    const { unmount } = renderHook(() => useGitRefresh(true, localProject.id));
+    await act(async () => {});
+    expect(bridgeMock.gitWatchProject).toHaveBeenCalledExactlyOnceWith({
+      projectId: localProject.id,
+      projectLocation: localProject.location,
+    });
+    expect(gitRefreshMocks.refreshGitProject).toHaveBeenCalledExactlyOnceWith(
+      localProject,
+      "initial",
+      "full",
+      expect.any(Object),
+    );
+
+    act(() => {
+      useAppStore.setState({
+        projects: [localProject, { ...remoteProject, location: { kind: "posix", path: "/other" } }],
+      });
+    });
+    expect(bridgeMock.gitWatchProject).toHaveBeenCalledTimes(1);
+    expect(bridgeMock.gitUnwatchProject).not.toHaveBeenCalled();
+    unmount();
+    expect(bridgeMock.gitUnwatchProject).toHaveBeenCalledExactlyOnceWith({
+      projectId: localProject.id,
+    });
+  });
+
+  it("refreshes a detached view without replacing or releasing main's watches", async () => {
+    gitRefreshMocks.ownsGitProjectWatches.mockReturnValue(false);
+    useAppStore.setState({ projects: [localProject] });
+    const { unmount } = renderHook(() => useGitRefresh(true, localProject.id));
+    await act(async () => {});
+    expect(gitRefreshMocks.refreshGitProject).toHaveBeenCalledWith(
+      localProject,
+      "initial",
+      "full",
+      expect.any(Object),
+    );
+    expect(bridgeMock.gitWatchProject).not.toHaveBeenCalled();
+    unmount();
+    expect(bridgeMock.gitUnwatchProject).not.toHaveBeenCalled();
   });
 
   it("keeps Git prefetch and recovery active for a reachable server error", async () => {

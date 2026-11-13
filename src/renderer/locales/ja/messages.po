@@ -3002,6 +3002,10 @@ msgstr "ブランチ保護ルールにより、このマージがブロックさ
 msgid "Branches"
 msgstr "ブランチ"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "Bring back to main window"
+msgstr "メインウィンドウに戻す"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "パネルに戻す"
@@ -4244,6 +4248,7 @@ msgstr "オーバーレイを閉じる"
 
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
 #: src/renderer/components/thread/ThreadView.tsx
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 msgid "Close pane"
 msgstr "ペインを閉じる"
 
@@ -5486,6 +5491,11 @@ msgstr "このマーケットプレイスまたはプラグインを管理でき
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "このPDFを開けませんでした。"
+
+#: src/renderer/app.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
+msgid "Could not open this thread. Try again."
+msgstr "このスレッドを開けませんでした。もう一度お試しください。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -8685,6 +8695,7 @@ msgstr "ブラウザのアドレスバーをフォーカス"
 msgid "Focus the in-app browser address bar"
 msgstr "組み込みブラウザのアドレスバーをフォーカス"
 
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Focus window"
 msgstr "ウィンドウに切り替え"
@@ -12268,6 +12279,10 @@ msgstr "移動"
 msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
 msgstr "接続 ID を指定して、既存のデバイスローカル SSH 接続をこの環境へ移行します。キーはアップロードされません。"
 
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Move back to main window"
+msgstr "メインウィンドウに戻す"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "ブラウザーをメインウィンドウに戻す"
@@ -13976,6 +13991,14 @@ msgstr "ブラウザで開く"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Open in editor"
 msgstr "エディタで開く"
+
+#: src/renderer/components/thread/ThreadView.tsx
+msgid "Open in new window"
+msgstr "新しいウィンドウで開く"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Open in New Window"
+msgstr "新しいウィンドウで開く"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
@@ -17138,6 +17161,7 @@ msgstr "このホストに保存された使用量のみです。"
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+#: src/renderer/windowApps/ThreadWindowApp.tsx
 msgid "Retry"
 msgstr "再試行"
 
@@ -21720,6 +21744,10 @@ msgstr "このスレッドはすでに {label} にあります。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
 msgstr "このスレッドはまだ軌道修正を受け付けられません。"
+
+#: src/renderer/views/MainView/parts/AppContent/parts/ThreadWindowPlaceholder.tsx
+msgid "This thread is open in a separate window."
+msgstr "このスレッドは別のウィンドウで開いています。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

@@ -1,4 +1,5 @@
 import * as clientDraftSubmission from "./actions/clientDraftSubmission";
+import * as gitHelpers from "./utils/gitHelpers";
 import {
   __resetRemoteServersStoreForTest,
   useRemoteServersStore,
@@ -818,6 +819,55 @@ describe("App", () => {
 
     expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+  });
+
+  it("opens detached-window file and review links in their source worktree", async () => {
+    const project = {
+      id: "link-project",
+      name: "Links",
+      location: { kind: "windows" as const, path: "C:/repo" },
+      createdAt: "2026-11-13T00:00:00Z",
+    };
+    const thread: Thread = {
+      id: "link-thread",
+      projectId: project.id,
+      title: "Links",
+      agentKind: "codex",
+      config: { model: "test-model" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-11-13T00:00:00Z",
+      updatedAt: "2026-11-13T00:00:00Z",
+      worktreePath: "C:/repo-worktree",
+    };
+    useAppStore.setState({ projects: [project], threads: [thread] });
+    const openFile = vi.spyOn(gitHelpers, "openFileInEditor").mockResolvedValue(undefined);
+    threadOpenRequestedListeners.at(-1)?.({
+      threadId: thread.id,
+      navigation: { kind: "file", path: "src/app.ts", lineNumber: 12 },
+    });
+    await waitFor(() =>
+      expect(openFile).toHaveBeenCalledExactlyOnceWith(
+        project,
+        thread.worktreePath,
+        undefined,
+        "src/app.ts",
+        12,
+      ),
+    );
+
+    threadOpenRequestedListeners.at(-1)?.({ threadId: thread.id, navigation: { kind: "review" } });
+    expect(usePanelStore.getState()).toMatchObject({
+      gitOverlayOpen: true,
+      gitReviewAsPanel: false,
+      gitReviewContext: { projectId: project.id, worktreePath: thread.worktreePath },
+    });
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    usePanelStore.getState().setGitOverlayOpen(false);
   });
 
   it("switches workspaces when a notification requests a thread in another workspace", async () => {

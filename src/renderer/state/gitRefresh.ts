@@ -22,6 +22,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { isTabBottomDocked } from "@/renderer/state/panelDockSelectors";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useAuxiliaryThreadWindows } from "./auxiliaryThreadWindows";
 import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
 import { aggregatePrChecksStatus, combineChecksStatus } from "@/renderer/utils/prStatus";
 import {
@@ -502,12 +503,13 @@ export function getProjectActiveWorktreePaths(projectId: string): string[] {
     }
   }
 
-  if (appState.view.kind === "thread") {
-    const paneIds = new Set(appState.view.panes);
-    for (const thread of appState.threads) {
-      if (thread.projectId === projectId && paneIds.has(thread.id) && thread.worktreePath) {
-        paths.add(thread.worktreePath);
-      }
+  const paneIds = new Set([
+    ...(appState.view.kind === "thread" ? appState.view.panes : []),
+    ...useAuxiliaryThreadWindows.getState().ownWindowThreadIds,
+  ]);
+  for (const thread of appState.threads) {
+    if (thread.projectId === projectId && paneIds.has(thread.id) && thread.worktreePath) {
+      paths.add(thread.worktreePath);
     }
   }
 
@@ -544,8 +546,14 @@ function getProjectActiveWorktreePathSet(projectId: string): Set<string> {
   return new Set(getProjectActiveWorktreePaths(projectId));
 }
 
+/** Managed windows share one host watch owner; main owns its registrations. */
+export function ownsGitProjectWatches(): boolean {
+  return readBridge().windowKind !== "thread";
+}
+
 export function syncWatchedWorktreeProject(projectId: string): string[] {
   const worktreePaths = getProjectActiveWorktreePaths(projectId);
+  if (!ownsGitProjectWatches()) return worktreePaths;
   const wtPaths = worktreePaths.join("\0");
   if (wtPaths !== watchedWorktreePaths.get(projectId)) {
     watchedWorktreePaths.set(projectId, wtPaths);

@@ -28,6 +28,7 @@ import {
   type TurnCloseUpdate,
 } from "./threadTurnHelpers";
 import { recordThreadStarted } from "../usageRecorder";
+import { hasOwnWindow } from "../auxiliaryThreadWindows";
 import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
@@ -745,7 +746,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
       let turnUpdate: TurnCloseUpdate = {
         runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread,
       };
-      const isVisible = state.view.kind === "thread" && state.view.panes.includes(threadId);
+      // A thread in its own window stays on screen whatever this window shows.
+      const isVisible =
+        (state.view.kind === "thread" && state.view.panes.includes(threadId)) ||
+        hasOwnWindow(threadId);
       const nowIso = new Date().toISOString();
 
       // Track confirmed config independently of the GUI's next-turn edits.

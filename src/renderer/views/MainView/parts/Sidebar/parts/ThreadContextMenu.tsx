@@ -11,6 +11,7 @@ import {
   Loader2,
   MonitorUp,
   Pencil,
+  PictureInPicture2,
   Play,
   Plus,
   RefreshCw,
@@ -74,6 +75,7 @@ import {
   openNewThreadInWorktree,
 } from "@/renderer/actions/threadActions";
 import { runProjectAction, stopProjectAction } from "@/renderer/actions/terminalActions";
+import { canOpenThreadWindow, openThreadWindow } from "@/renderer/actions/threadWindowActions";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import {
   dispatchThreadGroupIntents,
@@ -353,6 +355,15 @@ function OpenThreadContextMenuSurface(props: {
           },
         ]
       : []),
+    ...(canOpenThreadWindow()
+      ? [
+          {
+            id: "open-in-window",
+            label: t`Open in New Window`,
+            icon: <PictureInPicture2 className="size-3.5" />,
+          },
+        ]
+      : []),
     {
       id: "unload",
       label: t`Unload Thread`,
@@ -482,6 +493,7 @@ function OpenThreadContextMenuSurface(props: {
     if (key === "create-pr") openGitReview(thread.projectId, thread.worktreePath, thread.id);
     if (key === "open-experiment" && experiment)
       useAppStore.getState().openExperiment(experiment.id, experiment.projectId);
+    if (key === "open-in-window") openThreadWindow(thread);
     if (key === "continue-in" && !isExperimentCandidate) continueInProvider(thread.id);
     if (key === "fork-thread" && !isExperimentCandidate)
       useThreadForkStore.getState().request(thread.id);

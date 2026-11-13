@@ -16,6 +16,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import { runRendererAction } from "@/renderer/state/rendererActionStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
@@ -23,6 +24,7 @@ import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
 import {
   cleanupGitRefreshProjects,
   getWatcherRefreshMode,
+  ownsGitProjectWatches,
   prefetchBranchPrData,
   refreshGitProject,
   stopPendingPrRefresh,
@@ -54,16 +56,24 @@ function subscribeToFieldChanges<S>(
   });
 }
 
-export function useGitRefresh(storeHydrated: boolean) {
+export function useGitRefresh(storeHydrated: boolean, scopeProjectId?: string) {
   // Subscribe only to the active-project identity/location key so draft config
   // writes do not invalidate the whole shell.
-  const activeProjectsKey = useAppStore((state) => buildActiveProjectsKey(state.projects));
+  const activeProjectsKey = useAppStore((state) =>
+    buildActiveProjectsKey(
+      scopeProjectId
+        ? state.projects.filter((project) => project.id === scopeProjectId)
+        : state.projects,
+    ),
+  );
   useEffect(() => {
     // `activeProjectsKey` is this run's request identity: the project set
     // below must derive from the same store snapshot, otherwise the key raced
     // ahead and this run would watch/fetch a stale set.
     const requestKey = activeProjectsKey;
-    const projectsSnapshot = useAppStore.getState().projects;
+    const projectsSnapshot = useAppStore
+      .getState()
+      .projects.filter((project) => scopeProjectId === undefined || project.id === scopeProjectId);
     if (buildActiveProjectsKey(projectsSnapshot) !== requestKey) return;
     const allActiveProjects = projectsSnapshot.filter((project) => !project.disabled);
     if (!storeHydrated) return;
@@ -207,9 +217,10 @@ export function useGitRefresh(storeHydrated: boolean) {
         `git:initial:${project.remoteServerId ?? "local"}`,
         async () => {
           if (!isProjectActive()) return;
-          await readBridge()
-            .gitWatchProject({ projectId: project.id, projectLocation: project.location })
-            .catch(() => undefined);
+          if (ownsGitProjectWatches())
+            await readBridge()
+              .gitWatchProject({ projectId: project.id, projectLocation: project.location })
+              .catch(() => undefined);
           if (!isProjectActive()) return;
           watchedProjectIds.add(project.id);
           // The watch dropped this project's worktree watchers, so anything this
@@ -243,7 +254,7 @@ export function useGitRefresh(storeHydrated: boolean) {
     // wait out its deadline once per project on the shared desktop bridge. Its
     // watch is replaced when the host returns.
     function releaseProjectWatch(project: Project) {
-      if (isRemoteProjectUnreachable(project)) return;
+      if (!ownsGitProjectWatches() || isRemoteProjectUnreachable(project)) return;
       readBridge()
         .gitUnwatchProject({ projectId: project.id })
         .catch(() => undefined);
@@ -356,6 +367,11 @@ export function useGitRefresh(storeHydrated: boolean) {
       );
       if (changedProjectIds.size > 0) prefetchVisibleBranchPrData(changedProjectIds);
     });
+    const unsubThreadWindows = subscribeToFieldChanges(
+      useAuxiliaryThreadWindows.subscribe,
+      (state) => [state.ownWindowThreadIds],
+      syncActiveWorktrees,
+    );
     const unsubActiveWorktreeExperiments = subscribeToFieldChanges(
       useExperimentStore.subscribe,
       (state) => [state.experiments],
@@ -504,6 +520,7 @@ export function useGitRefresh(storeHydrated: boolean) {
       unsubPendingPrRefresh();
       unsubActiveWorktreeApp();
       unsubBranchPrPrefetchApp();
+      unsubThreadWindows();
       unsubActiveWorktreeExperiments();
       unsubActiveWorktreePanel();
       unsubActiveWorktreeSidebar();
@@ -514,5 +531,5 @@ export function useGitRefresh(storeHydrated: boolean) {
       for (const project of activeProjects) releaseProjectWatch(project);
       cleanupGitRefreshProjects(new Set());
     };
-  }, [storeHydrated, activeProjectsKey]);
+  }, [storeHydrated, activeProjectsKey, scopeProjectId]);
 }
