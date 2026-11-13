@@ -191,7 +191,7 @@
     "remark-math-extended": "^6.1.1",
     "remark-parse": "^11.0.0",
     "sharp": "0.35.5",
-    "shiki": "^4.4.3",
+    "shiki": "^4.6.0",
     "smol-toml": "^1.9.0",
     "streamdown": "^2.6.0",
     "streamdown-marked": "npm:marked@17.0.6",

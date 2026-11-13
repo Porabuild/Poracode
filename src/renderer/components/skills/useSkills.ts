@@ -26,7 +26,17 @@ import { formatSkillInvocation } from "@/shared/promptContent";
 
 const scanCache = new Map<string, SkillScanResult>();
 const pendingScans = new Map<string, Promise<SkillScanResult>>();
-const scanVersions = new Map<string, number>();
+let scanCacheRevision: number | undefined;
+
+// Document-local results from older plugin revisions cannot serve a current scan.
+function currentScanCache(revision: number): ReadonlyMap<string, SkillScanResult> {
+  if (scanCacheRevision !== revision) {
+    scanCacheRevision = revision;
+    scanCache.clear();
+    pendingScans.clear();
+  }
+  return scanCache;
+}
 
 function pluginSkillScanKey(installedPlugins: InstalledPlugins): string {
   return JSON.stringify(
@@ -53,12 +63,10 @@ function requestSkillScan(
   const pending = pendingScans.get(requestKey);
   if (reusePending && pending) return pending;
 
-  const version = (scanVersions.get(requestKey) ?? 0) + 1;
-  scanVersions.set(requestKey, version);
   const request = readBridge()
     .scanSkills(payload)
     .then((result) => {
-      if (scanVersions.get(requestKey) === version) scanCache.set(requestKey, result);
+      if (pendingScans.get(requestKey) === request) scanCache.set(requestKey, result);
       return result;
     });
   pendingScans.set(requestKey, request);
@@ -79,7 +87,7 @@ export function useSkills(
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const pluginRevision = usePlugins((state) => state.revision);
   const requestKey = `${agentKind ?? ""}\0${wslDistro ?? ""}\0${presentationMode ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}\0${pluginSkillScanKey(installedPlugins)}\0${pluginRevision}\0${pluginOverridesScanKey(pluginOverrides)}`;
-  const cachedScan = scanCache.get(requestKey);
+  const cachedScan = currentScanCache(pluginRevision).get(requestKey);
   const [scanState, setScanState] = useState<
     | {
         requestKey: string;

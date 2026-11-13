@@ -38,14 +38,12 @@ export function CodeBlock({ text, lang, className }: CodeBlockProps) {
   const theme: ShikiTheme = appearance === "dark" ? "github-dark" : "github-light";
   const key = cacheKey(theme, lang, text);
   const [html, setHtml] = useState<string | null>(() => cache.get(key) ?? null);
-  // Swap in the cached highlight during render on input change; on a cache
-  // miss the previous highlight stays until the async pass below resolves
-  // (the synchronous effect reset this replaces used to do the same).
+  // Show the current source immediately while an uncached grammar/theme loads.
   const [prevKey, setPrevKey] = useState(key);
   if (prevKey !== key) {
     setPrevKey(key);
     const cached = cache.get(key);
-    if (cached !== undefined) setHtml(cached);
+    setHtml(cached ?? null);
   }
 
   useEffect(() => {
@@ -65,6 +63,7 @@ export function CodeBlock({ text, lang, className }: CodeBlockProps) {
         const out = highlighter.codeToHtml(text, {
           lang,
           theme,
+          mergeSameStyleTokens: true,
           transformers: [transparentBgTransformer],
         });
         cache.set(key, out);

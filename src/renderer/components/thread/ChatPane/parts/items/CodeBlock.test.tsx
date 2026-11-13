@@ -30,6 +30,18 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("highlight request lifecycle", () => {
+  it("shows the current text while a newly requested grammar loads", async () => {
+    const view = render(<CodeBlock text="before-language-switch" lang="json" />);
+    await act(async () => {});
+    const language = deferred<boolean>();
+    mocks.ensureLanguage.mockReturnValueOnce(language.promise);
+    view.rerender(<CodeBlock text="after-language-switch" lang="python" />);
+    expect(screen.queryByText("before-language-switch")).toBeNull();
+    expect(screen.getByText("after-language-switch").tagName).toBe("PRE");
+    await act(async () => language.resolve(true));
+    expect(mocks.codeToHtml.mock.lastCall?.[0]).toBe("after-language-switch");
+  });
+
   it.each(["language", "highlighter"])(
     "keeps plain code visible when %s loading fails",
     async (stage) => {
@@ -62,6 +74,7 @@ describe("highlight request lifecycle", () => {
     await act(async () => highlighter.resolve({ codeToHtml: mocks.codeToHtml }));
     expect(mocks.codeToHtml).toHaveBeenCalledTimes(1);
     expect(mocks.codeToHtml.mock.calls[0]?.[0]).toBe("current-body");
+    expect(mocks.codeToHtml.mock.calls[0]?.[1]).toMatchObject({ mergeSameStyleTokens: true });
     expect(screen.getByText("current-body")).toBeTruthy();
   });
 
