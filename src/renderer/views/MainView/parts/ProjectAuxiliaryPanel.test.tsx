@@ -11,6 +11,7 @@ import type { RemoteDesktopClient } from "@/shared/remote/client";
 import * as deviceHost from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { i18n } from "@/renderer/i18n/i18n";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
+import * as clientRuntime from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -49,6 +50,8 @@ interface CapturedRightPanelProps {
   docksContent?: ReactElement;
   docksHeaderActions?: ReactElement;
   notesContent?: ReactElement<{ projectId: string }>;
+  portsContent?: ReactElement;
+  showPortsTab?: boolean;
   devicesContent?: ReactNode;
   showDevicesTab?: boolean;
   onOpenDevices?: () => void;
@@ -172,6 +175,30 @@ function seedImageOnlyThread(): void {
 }
 
 describe("ProjectAuxiliaryPanel", () => {
+  it.each([true, false])("offers unpaired ports only to the native shell (%s)", (nativeShell) => {
+    const capability = vi
+      .spyOn(clientRuntime, "hasClientCapability")
+      .mockImplementation((name) => name === "nativeShell" && nativeShell);
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    usePanelStore.setState({
+      portsPanelOpen: true,
+      rightPanelTab: "ports",
+      rightPanelFollowsThread: false,
+    });
+    try {
+      render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal visible />
+        </I18nProvider>,
+      );
+      expect(unifiedRightPanelProps.current?.showPortsTab).toBe(nativeShell);
+      expect(Boolean(unifiedRightPanelProps.current?.portsContent)).toBe(nativeShell);
+      expect(unifiedRightPanelProps.current?.activeTab === "ports").toBe(nativeShell);
+    } finally {
+      capability.mockRestore();
+    }
+  });
+
   it("keeps device title and actions inside the shared panel header", async () => {
     const { UnifiedRightPanel } = await vi.importActual<
       typeof import("@/renderer/components/layout/UnifiedRightPanel")
@@ -263,6 +290,7 @@ describe("ProjectAuxiliaryPanel", () => {
       browserPanelOpen: false,
       usagePanelOpen: false,
       notesPanelOpen: false,
+      portsPanelOpen: false,
       deviceWorkspaceThreadId: null,
       deviceWorkspaceDetached: false,
       threadDocksPanelOpen: false,

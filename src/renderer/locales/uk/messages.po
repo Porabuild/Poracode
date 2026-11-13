@@ -1388,6 +1388,11 @@ msgstr "Дії"
 #~ msgid "Actions for {title}"
 #~ msgstr "Дії для {title}"
 
+#. placeholder {0}: port.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Actions for port {0}"
+msgstr "Дії для порту {0}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -3253,6 +3258,7 @@ msgstr "Камера"
 msgid "Camera access blocked"
 msgstr "Доступ до камери заблоковано"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
 msgstr "Не вдалося завантажити порти"
@@ -4253,6 +4259,15 @@ msgstr "Закрити зображення в зображенні"
 msgid "Close plan"
 msgstr "Закрити план"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port"
+msgstr "Закрити порт"
+
+#. placeholder {0}: confirmPort.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port {0}?"
+msgstr "Закрити порт {0}?"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Close PR"
 msgstr "Закрити PR"
@@ -5238,6 +5253,7 @@ msgstr "Файли cookie"
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 #: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copied"
 msgstr "Скопійовано"
@@ -5274,6 +5290,10 @@ msgstr "Копіювати код пристрою {0} {1}"
 msgid "Copy accessibility tree"
 msgstr "Копіювати дерево доступності"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Copy address"
+msgstr "Копіювати адресу"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "Копіювати код"
@@ -5309,6 +5329,7 @@ msgid "Copy image"
 msgstr "Копіювати зображення"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5409,6 +5430,10 @@ msgstr "Не вдалося перервати злиття: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Could not access installed fonts. You can keep the saved font or use Default."
 msgstr "Не вдалося отримати доступ до встановлених шрифтів. Можна залишити збережений шрифт або вибрати «За замовчуванням»."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Could not close this port. Refresh the list and try again."
+msgstr "Не вдалося закрити цей порт. Оновіть список і спробуйте ще раз."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
@@ -10864,6 +10889,10 @@ msgstr "Список завдань"
 msgid "Listening — speak or type a message"
 msgstr "Слухаю — говоріть або введіть повідомлення"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Listening ports on this computer."
+msgstr "Порти, що прослуховуються на цьому комп’ютері."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Онлайн"
@@ -11249,6 +11278,10 @@ msgstr "Пошук профілів браузера…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "Пошук серверів розробки…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Looking for listening ports…"
+msgstr "Пошук портів, що прослуховуються…"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
@@ -13057,6 +13090,10 @@ msgstr "Вивчених виборів поки немає."
 msgid "No limit"
 msgstr "Без обмежень"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "No listening ports"
+msgstr "Немає портів, що прослуховуються"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "Немає навичок маркетплейсу, що відповідають цим фільтрам."
@@ -13930,10 +13967,12 @@ msgid "Open in editor"
 msgstr "Відкрити в редакторі"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in Poracode browser"
 msgstr "Відкрити в браузері Poracode"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in system browser"
 msgstr "Відкрити в системному браузері"
 
@@ -17065,6 +17104,7 @@ msgstr "Лише використання, збережене на цьому х
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
@@ -21609,6 +21649,12 @@ msgstr "Вибраний емулятор завершить роботу, ус�
 msgid "This source host does not support safe automatic merge."
 msgstr "Цей вихідний сервер не підтримує безпечне автоматичне злиття."
 
+#. placeholder {0}: confirmPort.processName ?? confirmPort.pid
+#. placeholder {1}: confirmPort.pid
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "This stops {0} (PID {1}) and closes all ports used by that process."
+msgstr "Це зупинить {0} (PID {1}) і закриє всі порти, які використовує цей процес."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "This submission has expired. Your draft is kept."
 msgstr "Термін надсилання минув. Чернетку збережено."
@@ -22667,6 +22713,10 @@ msgstr "Невідомо"
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Unknown folder"
 msgstr "Невідома папка"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Unknown process"
+msgstr "Невідомий процес"
 
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"

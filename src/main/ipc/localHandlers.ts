@@ -1,4 +1,5 @@
 import { mkdir } from "node:fs/promises";
+import { closeLocalPort, listLocalPorts } from "@/host/localPorts";
 import {
   clipboard,
   ClipboardItem,
@@ -230,6 +231,8 @@ export function createLocalIpcHandlers(
       options.requestRelaunch();
     },
     getHomeScopeLocation: () => homeScopeLocation(),
+    listLocalPorts: () => listLocalPorts(),
+    closeLocalPort: (payload) => closeLocalPort(payload),
     getKeybindings: () => readKeybindingsFile(options.requirePoracodePaths().keybindingsPath),
     setKeybindings: (file) => {
       const path = options.requirePoracodePaths().keybindingsPath;

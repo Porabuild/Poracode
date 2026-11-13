@@ -1388,6 +1388,11 @@ msgstr "Hành động"
 #~ msgid "Actions for {title}"
 #~ msgstr "Hành động cho {title}"
 
+#. placeholder {0}: port.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Actions for port {0}"
+msgstr "Thao tác cho cổng {0}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -3253,6 +3258,7 @@ msgstr "Máy ảnh"
 msgid "Camera access blocked"
 msgstr "Quyền truy cập camera bị chặn"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Can't load ports"
 msgstr "Không thể tải danh sách cổng"
@@ -4253,6 +4259,15 @@ msgstr "Đóng hình trong hình"
 msgid "Close plan"
 msgstr "Đóng kế hoạch"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port"
+msgstr "Đóng cổng"
+
+#. placeholder {0}: confirmPort.port
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Close port {0}?"
+msgstr "Đóng cổng {0}?"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Close PR"
 msgstr "Đóng PR"
@@ -5238,6 +5253,7 @@ msgstr "Cookie"
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 #: src/renderer/RendererCrashScreen.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Copied"
 msgstr "Đã sao chép"
@@ -5274,6 +5290,10 @@ msgstr "Sao chép {0} mã thiết bị {1}"
 msgid "Copy accessibility tree"
 msgstr "Sao chép cây trợ năng"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Copy address"
+msgstr "Sao chép địa chỉ"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdownInner.tsx
 msgid "Copy code"
 msgstr "Sao chép mã"
@@ -5309,6 +5329,7 @@ msgid "Copy image"
 msgstr "Sao chép hình ảnh"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMenu.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrDetailHeader.tsx
@@ -5409,6 +5430,10 @@ msgstr "Không thể hủy việc hợp nhất: {detail}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Could not access installed fonts. You can keep the saved font or use Default."
 msgstr "Không thể truy cập các phông chữ đã cài đặt. Bạn có thể giữ phông chữ đã lưu hoặc chọn Mặc định."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Could not close this port. Refresh the list and try again."
+msgstr "Không thể đóng cổng này. Hãy làm mới danh sách và thử lại."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
@@ -10864,6 +10889,10 @@ msgstr "Liệt kê nhiệm vụ"
 msgid "Listening — speak or type a message"
 msgstr "Đang nghe — hãy nói hoặc nhập tin nhắn"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Listening ports on this computer."
+msgstr "Các cổng đang lắng nghe trên máy tính này."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Live"
 msgstr "Trực tuyến"
@@ -11249,6 +11278,10 @@ msgstr "Đang tìm hồ sơ trình duyệt…"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Looking for dev servers…"
 msgstr "Đang tìm máy chủ phát triển…"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Looking for listening ports…"
+msgstr "Đang tìm các cổng đang lắng nghe…"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
@@ -13057,6 +13090,10 @@ msgstr "Chưa có lựa chọn đã học nào."
 msgid "No limit"
 msgstr "Không giới hạn"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "No listening ports"
+msgstr "Không có cổng nào đang lắng nghe"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "Không có skill nào trên marketplace khớp với các bộ lọc này."
@@ -13930,10 +13967,12 @@ msgid "Open in editor"
 msgstr "Mở trong trình chỉnh sửa"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in Poracode browser"
 msgstr "Mở trong trình duyệt Poracode"
 
 #: src/renderer/components/common/EditContextMenuHost.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 msgid "Open in system browser"
 msgstr "Mở trong trình duyệt hệ thống"
 
@@ -17065,6 +17104,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/chat/PrAskChatPanel.tsx
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
@@ -21609,6 +21649,12 @@ msgstr "Thao tác này tắt trình giả lập đã chọn và ngắt mọi ng�
 msgid "This source host does not support safe automatic merge."
 msgstr "Máy chủ nguồn này không hỗ trợ hợp nhất tự động an toàn."
 
+#. placeholder {0}: confirmPort.processName ?? confirmPort.pid
+#. placeholder {1}: confirmPort.pid
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "This stops {0} (PID {1}) and closes all ports used by that process."
+msgstr "Thao tác này dừng {0} (PID {1}) và đóng tất cả các cổng mà tiến trình đó sử dụng."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "This submission has expired. Your draft is kept."
 msgstr "Lần gửi này đã hết hạn. Bản nháp đã được giữ lại."
@@ -22667,6 +22713,10 @@ msgstr "Không xác định"
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Unknown folder"
 msgstr "Thư mục không xác định"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/LocalPortsPanel.tsx
+msgid "Unknown process"
+msgstr "Tiến trình không xác định"
 
 #: src/renderer/notifications.ts
 #~ msgid "Unknown project"
