@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { clearGitCache, loadGitCache, persistGitCache } from "./gitStorePersistence";
 import type {
   GitBranchListResult,
   GitStatusResult,
@@ -79,6 +80,43 @@ interface GitActions {
 }
 
 type FileChange = GitStatusResult["staged"][number];
+
+function removeWorktreeCacheEntries(
+  state: GitState,
+  paths: ReadonlySet<string>,
+): Partial<GitState> {
+  if (paths.size === 0) return {};
+  return {
+    worktreeStatuses: Object.fromEntries(
+      Object.entries(state.worktreeStatuses).filter(([key]) => !paths.has(key)),
+    ),
+    prData: Object.fromEntries(Object.entries(state.prData).filter(([key]) => !paths.has(key))),
+    worktreeSourceInfo: Object.fromEntries(
+      Object.entries(state.worktreeSourceInfo).filter(([key]) => !paths.has(key)),
+    ),
+  };
+}
+
+function removedCatalogWorktreeEntries(
+  state: GitState,
+  projectId: string,
+  worktrees: GitWorktreeInfo[],
+): Partial<GitState> {
+  const retained = new Set([
+    ...worktrees.map((worktree) => worktree.path),
+    ...Object.entries(state.worktrees).flatMap(([id, items]) =>
+      id === projectId ? [] : items.map((worktree) => worktree.path),
+    ),
+  ]);
+  return removeWorktreeCacheEntries(
+    state,
+    new Set(
+      (state.worktrees[projectId] ?? [])
+        .filter((worktree) => !retained.has(worktree.path))
+        .map((worktree) => worktree.path),
+    ),
+  );
+}
 
 /** Replace any entry with the same path, then append. Mirrors VS Code resource-group semantics. */
 function upsertByPath(list: readonly FileChange[], item: FileChange): FileChange[] {
@@ -450,65 +488,6 @@ export function arePrDetailsEqual(a: PrDetails | undefined, b: PrDetails): boole
   );
 }
 
-/**
- * Persist a snapshot of git state to localStorage so the next app launch can
- * paint the previous session's +/- chips, branch, and PR section instantly,
- * while the background refresh runs to update them. Only fields that are cheap
- * to serialize and useful at first paint are persisted — the in-flight `prFiles`
- * / `prDiffs` caches are kept session-local since they're tied to overlay state.
- */
-// v3 stores fields separately so status churn does not copy every cached PR and
-// branch into Blink storage. Released v2 data remains valid and migrates on the
-// next write; raw SSH origins still require confirmation by the owning host.
-const PERSIST_KEY = "poracode-git-cache-v3";
-const LEGACY_PERSIST_KEY = "poracode-git-cache-v2";
-const PERSIST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-const PERSIST_FIELDS = [
-  "statuses",
-  "worktreeStatuses",
-  "worktrees",
-  "branches",
-  "ghAvailable",
-  "prData",
-  "worktreeSourceInfo",
-] as const;
-type PersistedSnapshot = Pick<GitState, (typeof PERSIST_FIELDS)[number]>;
-let persistedFields: Partial<PersistedSnapshot> = {};
-let legacySnapshot: string | null = null;
-let canPersist = true;
-
-function loadPersistedSnapshot(): Partial<PersistedSnapshot> {
-  if (typeof localStorage === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(PERSIST_KEY);
-    if (raw) {
-      const metadata = JSON.parse(raw) as { v: number; ts: number };
-      if (metadata.v !== 3) {
-        canPersist = false;
-        return {};
-      }
-      if (typeof metadata.ts !== "number" || Date.now() - metadata.ts > PERSIST_TTL_MS) return {};
-      const snapshot = Object.fromEntries(
-        PERSIST_FIELDS.map((field) => [
-          field,
-          JSON.parse(localStorage.getItem(`${PERSIST_KEY}:${field}`) ?? "{}"),
-        ]),
-      ) as PersistedSnapshot;
-      persistedFields = snapshot;
-      return snapshot;
-    }
-    const legacy = localStorage.getItem(LEGACY_PERSIST_KEY);
-    if (!legacy) return {};
-    const parsed = JSON.parse(legacy) as Partial<PersistedSnapshot> & { v: number; ts: number };
-    if (parsed.v !== 2) return {};
-    legacySnapshot = legacy;
-    if (typeof parsed.ts !== "number" || Date.now() - parsed.ts > PERSIST_TTL_MS) return {};
-    return parsed;
-  } catch {
-    return {};
-  }
-}
-
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let persistIdleHandle: number | null = null;
 let pendingPersistState: GitState | null = null;
@@ -534,36 +513,6 @@ function cancelScheduledPersist(): void {
   persistWindowStartedAt = null;
 }
 
-function flushPersistSnapshot(state: GitState): void {
-  if (typeof localStorage === "undefined" || !canPersist) return;
-  try {
-    if (legacySnapshot !== null) {
-      // The loaded snapshot is still in the store. Release its old storage
-      // quota before writing the split cache instead of requiring two copies.
-      localStorage.removeItem(LEGACY_PERSIST_KEY);
-    }
-    for (const field of PERSIST_FIELDS) {
-      if (persistedFields[field] === state[field]) continue;
-      localStorage.setItem(`${PERSIST_KEY}:${field}`, JSON.stringify(state[field]));
-      persistedFields = { ...persistedFields, [field]: state[field] };
-    }
-    localStorage.setItem(PERSIST_KEY, JSON.stringify({ v: 3, ts: Date.now() }));
-    legacySnapshot = null;
-  } catch {
-    if (legacySnapshot !== null) {
-      persistedFields = {};
-      try {
-        for (const field of PERSIST_FIELDS) localStorage.removeItem(`${PERSIST_KEY}:${field}`);
-        localStorage.removeItem(PERSIST_KEY);
-        localStorage.setItem(LEGACY_PERSIST_KEY, legacySnapshot);
-      } catch {
-        // Keep the migration snapshot in memory for the next attempt.
-      }
-    }
-    // localStorage may be full or unavailable — the live store remains usable.
-  }
-}
-
 function schedulePersist(state: GitState) {
   if (typeof localStorage === "undefined") return;
   const now = Date.now();
@@ -576,7 +525,7 @@ function schedulePersist(state: GitState) {
   if (persistTimer !== null && delayMs > 0) clearTimeout(persistTimer);
   else if (persistTimer !== null && delayMs === 0) return;
   // Coalesce bursts during active agent edits and defer the synchronous
-  // `JSON.stringify` + `localStorage.setItem` write to an idle frame so
+  // cache serialization and `localStorage.setItem` writes to an idle frame so
   // background worktree churn never stalls UI animations or thread switches,
   // bounded by `PERSIST_MAX_WAIT_MS` so continuous churn still checkpoints.
   persistTimer = setTimeout(() => {
@@ -589,7 +538,7 @@ function schedulePersist(state: GitState) {
           persistIdleHandle = null;
           const latest = pendingPersistState;
           pendingPersistState = null;
-          if (latest) flushPersistSnapshot(latest);
+          if (latest) persistGitCache(latest);
         },
         { timeout: PERSIST_IDLE_TIMEOUT_MS },
       );
@@ -597,7 +546,7 @@ function schedulePersist(state: GitState) {
     }
     const latest = pendingPersistState;
     pendingPersistState = null;
-    if (latest) flushPersistSnapshot(latest);
+    if (latest) persistGitCache(latest);
   }, delayMs);
 }
 
@@ -606,11 +555,11 @@ if (typeof window !== "undefined") {
     if (!pendingPersistState) return;
     const latest = pendingPersistState;
     cancelScheduledPersist();
-    flushPersistSnapshot(latest);
+    persistGitCache(latest);
   });
 }
 
-const initialPersisted = loadPersistedSnapshot();
+const initialPersisted = loadGitCache();
 
 export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   githubPollingProblems: {},
@@ -688,6 +637,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
   setWorktrees: (projectId, worktrees) => {
     if (areWorktreesEqual(get().worktrees[projectId], worktrees)) return;
     set((state) => ({
+      ...removedCatalogWorktreeEntries(state, projectId, worktrees),
       worktrees: { ...state.worktrees, [projectId]: worktrees },
     }));
   },
@@ -705,6 +655,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
       let nextBranches = state.branches;
       let nextWorktrees = state.worktrees;
       let nextGhAvailable = state.ghAvailable;
+      let removedWorktreeEntries: Partial<GitState> = {};
       let changed = false;
 
       if (snapshot.status && !areGitStatusesEqual(state.statuses[projectId], snapshot.status)) {
@@ -721,6 +672,11 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
         snapshot.worktrees &&
         !areWorktreesEqual(state.worktrees[projectId], snapshot.worktrees)
       ) {
+        removedWorktreeEntries = removedCatalogWorktreeEntries(
+          state,
+          projectId,
+          snapshot.worktrees,
+        );
         nextWorktrees = { ...nextWorktrees, [projectId]: snapshot.worktrees };
         changed = true;
       }
@@ -735,6 +691,7 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
 
       return changed
         ? {
+            ...removedWorktreeEntries,
             statuses: nextStatuses,
             branches: nextBranches,
             worktrees: nextWorktrees,
@@ -966,20 +923,10 @@ export function resetGitStoreCache(): void {
   // below. A desktop/session reset must remove the previous identity's cache
   // immediately, rather than leave a reload window before that debounce fires.
   cancelScheduledPersist();
-  persistedFields = {};
-  legacySnapshot = null;
-  if (typeof localStorage !== "undefined" && canPersist) {
-    try {
-      localStorage.removeItem(PERSIST_KEY);
-      localStorage.removeItem(LEGACY_PERSIST_KEY);
-      for (const field of PERSIST_FIELDS) localStorage.removeItem(`${PERSIST_KEY}:${field}`);
-    } catch {
-      // Storage may be unavailable (privacy mode / sandboxed webview).
-    }
-  }
+  clearGitCache();
 }
 
-// Persist a snapshot whenever any of the cached fields change.
+// Coalesce cache changes; the writer persists only changed, retained entries.
 useGitStore.subscribe((state, prev) => {
   if (
     state.statuses !== prev.statuses ||
@@ -993,5 +940,3 @@ useGitStore.subscribe((state, prev) => {
     schedulePersist(state);
   }
 });
-
-if (legacySnapshot !== null) schedulePersist(useGitStore.getState());

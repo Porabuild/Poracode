@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GitBranchListResult,
   GitStatusResult,
@@ -151,6 +151,60 @@ describe("gitStore batch updates", () => {
     expect(localStorage.getItem("poracode-git-cache-v2")).toBeNull();
   });
 
+  it("clears worktree status without discarding PR or source data", () => {
+    const current = useGitStore.getState();
+    current.setWorktreeStatus("/wt/removed", baseStatus);
+    current.setPrData("/wt/removed", basePr);
+    current.setPrData("/wt/kept", basePr);
+    current.setWorktreeSourceInfo("/wt/removed", {
+      sourceBranch: "main",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    current.clearWorktreeStatus("/wt/removed");
+    const result = useGitStore.getState();
+    expect(result.worktreeStatuses["/wt/removed"]).toBeUndefined();
+    expect(result.prData["/wt/removed"]).toEqual(basePr);
+    expect(result.worktreeSourceInfo["/wt/removed"]).toEqual({
+      sourceBranch: "main",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    expect(result.prData["/wt/kept"]).toEqual(basePr);
+  });
+
+  it.each(["setWorktrees", "setProjectSnapshot"] as const)(
+    "%s removes only worktrees previously owned by that catalog",
+    (method) => {
+      const removed = { ...baseWorktrees[0]!, path: "/wt/removed", isMain: false };
+      const kept = { ...removed, path: "/wt/kept" };
+      const current = useGitStore.getState();
+      current.setWorktrees("p1", [removed, kept]);
+      current.setWorktreeStatus(removed.path, baseStatus);
+      current.setWorktreeStatus(kept.path, baseStatus);
+      current.setPrData(removed.path, basePr);
+      current.setPrData(kept.path, basePr);
+      current.setWorktreeSourceInfo(removed.path, {
+        sourceBranch: "main",
+        commitsAhead: 1,
+        sourceAhead: 0,
+      });
+      current.setPrData("__branchname:p1:feature", basePr);
+      current.setRemoteWorktreeSummary("/remote/awaiting-catalog", baseStatus);
+      if (method === "setWorktrees") current.setWorktrees("p1", [kept]);
+      else current.setProjectSnapshot("p1", { worktrees: [kept] });
+      expect(useGitStore.getState().prData[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().worktreeStatuses[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().worktreeSourceInfo[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().prData[kept.path]).toEqual(basePr);
+      expect(useGitStore.getState().worktreeStatuses[kept.path]).toEqual(baseStatus);
+      expect(useGitStore.getState().prData["__branchname:p1:feature"]).toEqual(basePr);
+      expect(useGitStore.getState().worktreeStatuses["/remote/awaiting-catalog"]).toEqual(
+        baseStatus,
+      );
+    },
+  );
+
   it("recomputes released v1 GitHub availability and repository caches without rewriting them", async () => {
     resetGitStoreCache();
     const previous = JSON.stringify({
@@ -175,7 +229,7 @@ describe("gitStore batch updates", () => {
     }
   });
 
-  it("keeps released v2 raw SSH statuses but treats their origins as unconfirmed until a canonical refresh", async () => {
+  it("migrates released v2 raw SSH statuses unconfirmed until a canonical refresh", async () => {
     resetGitStoreCache();
     const alias = {
       ...baseStatus,
@@ -680,217 +734,5 @@ describe("setBranches", () => {
     useGitStore.getState().setBranches("p1", { ...list, defaultBranch: "origin/main" });
 
     expect(useGitStore.getState().branches.p1?.defaultBranch).toBe("origin/main");
-  });
-});
-
-describe("Git cache persistence", () => {
-  beforeEach(() => {
-    resetGitStoreCache();
-    localStorage.clear();
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    resetGitStoreCache();
-    vi.restoreAllMocks();
-    vi.useRealTimers();
-    localStorage.clear();
-  });
-
-  it("writes changed status fields without rewriting cached PRs or branches", async () => {
-    useGitStore.getState().setPrData("/wt/a", basePr);
-    useGitStore.getState().setBranches("p1", baseBranches);
-    await vi.advanceTimersByTimeAsync(1_600);
-    const prSnapshot = localStorage.getItem("poracode-git-cache-v3:prData");
-    const write = vi.spyOn(Storage.prototype, "setItem");
-
-    useGitStore.getState().setStatus("p1", baseStatus);
-    await vi.advanceTimersByTimeAsync(1_600);
-
-    expect(write.mock.calls.map(([key]) => key)).toEqual([
-      "poracode-git-cache-v3:statuses",
-      "poracode-git-cache-v3",
-    ]);
-    expect(localStorage.getItem("poracode-git-cache-v3:prData")).toBe(prSnapshot);
-    expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3:statuses")!)).toEqual({
-      p1: baseStatus,
-    });
-  });
-
-  it("checkpoints continuous updates within the existing maximum wait", async () => {
-    const write = vi.spyOn(Storage.prototype, "setItem");
-    for (let i = 0; i < 18; i++) {
-      useGitStore.getState().setWorktreeSourceInfo("/wt/a", {
-        sourceBranch: "main",
-        commitsAhead: i,
-        sourceAhead: 0,
-      });
-      await vi.advanceTimersByTimeAsync(500);
-    }
-    expect(write.mock.calls.some(([key]) => key === "poracode-git-cache-v3")).toBe(true);
-    window.dispatchEvent(new Event("pagehide"));
-    expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3:worktreeSourceInfo")!)).toEqual({
-      "/wt/a": { sourceBranch: "main", commitsAhead: 17, sourceAhead: 0 },
-    });
-  });
-
-  it("migrates released v2 data without needing quota for two snapshots", async () => {
-    const previous = JSON.stringify({
-      v: 2,
-      ts: Date.now(),
-      statuses: { p1: baseStatus },
-      branches: { p1: baseBranches },
-      prData: { "/wt/a": basePr },
-    });
-    localStorage.setItem("poracode-git-cache-v2", previous);
-    vi.resetModules();
-    const upgraded = await import("./gitStore");
-    const setItem = Storage.prototype.setItem;
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
-      if (key.startsWith("poracode-git-cache-v3") && this.getItem("poracode-git-cache-v2")) {
-        throw new DOMException("Two snapshots exceed quota", "QuotaExceededError");
-      }
-      setItem.call(this, key, value);
-    });
-    try {
-      expect(upgraded.useGitStore.getState().prData["/wt/a"]).toEqual(basePr);
-      upgraded.useGitStore.getState().setStatus("p1", { ...baseStatus, ahead: 1 });
-      await vi.advanceTimersByTimeAsync(1_600);
-      expect(localStorage.getItem("poracode-git-cache-v2")).toBeNull();
-      expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3:prData")!)).toEqual({
-        "/wt/a": basePr,
-      });
-      expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3:branches")!)).toEqual({
-        p1: baseBranches,
-      });
-      expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3")!)).toMatchObject({ v: 3 });
-    } finally {
-      upgraded.resetGitStoreCache();
-      vi.resetModules();
-    }
-  });
-
-  it("reloads split fields and persists deletion without reviving the old entry", async () => {
-    useGitStore.getState().setStatus("p1", baseStatus);
-    useGitStore.getState().setPrData("/wt/a", basePr);
-    await vi.advanceTimersByTimeAsync(1_600);
-    useGitStore.getState().clearStatus("p1");
-    window.dispatchEvent(new Event("pagehide"));
-    vi.resetModules();
-    const reloaded = await import("./gitStore");
-    try {
-      expect(reloaded.useGitStore.getState().statuses).toEqual({});
-      expect(reloaded.useGitStore.getState().prData["/wt/a"]).toEqual(basePr);
-    } finally {
-      reloaded.resetGitStoreCache();
-      vi.resetModules();
-    }
-  });
-
-  it("restores v2 after a partial migration failure and retries the latest state", async () => {
-    const previous = JSON.stringify({
-      v: 2,
-      ts: Date.now(),
-      statuses: { p1: baseStatus },
-      prData: { "/wt/a": basePr },
-    });
-    localStorage.setItem("poracode-git-cache-v2", previous);
-    vi.resetModules();
-    const upgraded = await import("./gitStore");
-    const setItem = Storage.prototype.setItem;
-    const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
-      this: Storage,
-      key,
-      value,
-    ) {
-      if (key === "poracode-git-cache-v3:prData") {
-        throw new DOMException("Split representation exceeds quota", "QuotaExceededError");
-      }
-      setItem.call(this, key, value);
-    });
-    try {
-      upgraded.useGitStore.getState().setStatus("p1", { ...baseStatus, ahead: 1 });
-      await vi.advanceTimersByTimeAsync(1_600);
-      expect(localStorage.getItem("poracode-git-cache-v2")).toBe(previous);
-      expect(
-        Object.keys(localStorage).filter((key) => key.startsWith("poracode-git-cache-v3")),
-      ).toEqual([]);
-      write.mockRestore();
-      upgraded.useGitStore.getState().setStatus("p1", { ...baseStatus, ahead: 2 });
-      await vi.advanceTimersByTimeAsync(1_600);
-      expect(localStorage.getItem("poracode-git-cache-v2")).toBeNull();
-      expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3:statuses")!).p1.ahead).toBe(2);
-      expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3:prData")!)["/wt/a"]).toEqual(
-        basePr,
-      );
-    } finally {
-      upgraded.resetGitStoreCache();
-      vi.resetModules();
-    }
-  });
-
-  it("releases quota occupied by expired v2 data without hydrating stale values", async () => {
-    localStorage.setItem(
-      "poracode-git-cache-v2",
-      JSON.stringify({ v: 2, ts: Date.now() - 8 * 24 * 60 * 60 * 1000, prData: { old: basePr } }),
-    );
-    vi.resetModules();
-    const upgraded = await import("./gitStore");
-    const setItem = Storage.prototype.setItem;
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
-      expect(this.getItem("poracode-git-cache-v2")).toBeNull();
-      setItem.call(this, key, value);
-    });
-    try {
-      expect(upgraded.useGitStore.getState().prData).toEqual({});
-      await vi.advanceTimersByTimeAsync(1_600);
-      expect(localStorage.getItem("poracode-git-cache-v2")).toBeNull();
-      expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3:prData")!)).toEqual({});
-      expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3")!).v).toBe(3);
-    } finally {
-      upgraded.resetGitStoreCache();
-      vi.resetModules();
-    }
-  });
-
-  it("retries a field whose storage write failed", async () => {
-    useGitStore.getState().setPrData("/wt/a", basePr);
-    await vi.advanceTimersByTimeAsync(1_600);
-    const setItem = Storage.prototype.setItem;
-    let fail = true;
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
-      if (key === "poracode-git-cache-v3:statuses" && fail) {
-        fail = false;
-        throw new DOMException("Storage is full", "QuotaExceededError");
-      }
-      setItem.call(this, key, value);
-    });
-    useGitStore.getState().setStatus("p1", baseStatus);
-    await vi.advanceTimersByTimeAsync(1_600);
-    useGitStore.getState().setStatus("p2", baseStatus);
-    await vi.advanceTimersByTimeAsync(1_600);
-    expect(JSON.parse(localStorage.getItem("poracode-git-cache-v3:statuses")!)).toEqual({
-      p1: baseStatus,
-      p2: baseStatus,
-    });
-  });
-
-  it("preserves an unknown future cache without reading or overwriting it", async () => {
-    const future = JSON.stringify({ v: 4, ts: Date.now(), futureField: true });
-    localStorage.setItem("poracode-git-cache-v3", future);
-    localStorage.setItem("poracode-git-cache-v3:statuses", "future-format");
-    vi.resetModules();
-    const older = await import("./gitStore");
-    try {
-      expect(older.useGitStore.getState().statuses).toEqual({});
-      older.useGitStore.getState().setStatus("p1", baseStatus);
-      await vi.advanceTimersByTimeAsync(1_600);
-      older.resetGitStoreCache();
-      expect(localStorage.getItem("poracode-git-cache-v3")).toBe(future);
-      expect(localStorage.getItem("poracode-git-cache-v3:statuses")).toBe("future-format");
-    } finally {
-      older.resetGitStoreCache();
-      vi.resetModules();
-    }
   });
 });
