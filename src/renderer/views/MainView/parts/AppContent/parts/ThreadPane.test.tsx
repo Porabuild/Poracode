@@ -1,9 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { AppDndProvider } from "@/renderer/dnd";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  composerDraftStorage,
+  resetComposerDraftStorageForTest,
+} from "@/renderer/state/composerDraftStorage";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { buildPaneLayoutFromLegacy } from "@/shared/paneLayout";
@@ -157,6 +161,15 @@ describe("ThreadPane drag registration accessibility", () => {
       provisioningWorktreeThreadIds: {},
       connectingThreadIds: {},
     });
+  });
+
+  afterEach(async () => {
+    cleanup();
+    try {
+      await composerDraftStorage()?.flushRequired();
+    } finally {
+      resetComposerDraftStorageForTest();
+    }
   });
 
   it("exposes a single-pane thread without drag-button semantics", async () => {
