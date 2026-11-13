@@ -369,7 +369,13 @@ export type SupervisorEvent =
       projectLocation: ProjectLocation;
       problem: GithubPollingProblem | null;
     }
-  | { type: "project-tree-changed"; projectId: string; worktreePath?: string }
+  | {
+      type: "project-tree-changed";
+      projectId: string;
+      worktreePath?: string;
+      /** Absent on older hosts: conservatively refresh status as well as files. */
+      gitChanged?: boolean;
+    }
   | { type: "lsp-message"; sessionId: string; message: unknown }
   | {
       type: "lsp-status";

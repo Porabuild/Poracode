@@ -22,6 +22,7 @@ import { WebSearchItem } from "./WebSearchItem";
 import { isDelegatedAgentTool } from "./toolDisplay";
 import { completedToolVideoSources } from "@/shared/chatVideo";
 import { MarkdownVideo } from "./MarkdownVideo";
+import { useRememberToolCallItems } from "./toolCallEntrance";
 
 interface ChatItemRowProps {
   threadId: string;
@@ -91,6 +92,7 @@ const SingleChatItemRow = memo(function SingleChatItemRow({
   checkpointRevert: CheckpointRevertRequest | null;
 }) {
   const item = useThreadRuntimeItem(threadId, itemId);
+  useRememberToolCallItems(itemId);
   if (import.meta.env.DEV && window.localStorage.getItem("lc-chat-debug-renders") === "1") {
     console.log("[lc-chat-debug] ChatItemRow render", {
       threadId,

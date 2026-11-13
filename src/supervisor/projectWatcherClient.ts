@@ -13,7 +13,7 @@ import type {
 
 interface Subscription {
   rootPath: string;
-  onChanged: (scope: ProjectWatchScope) => void;
+  onChanged: (scope: ProjectWatchScope, gitChanged?: boolean) => void;
   onError: ((error: Error) => void) | undefined;
   resolve: () => void;
   reject: (error: Error) => void;
@@ -54,7 +54,9 @@ function isWatchMessage(value: unknown): value is ProjectWatchMessage {
     Number(message.id) >= 0 &&
     (message.kind === "ready" ||
       message.kind === "unwatched" ||
-      (message.kind === "changed" && (message.scope === "git" || message.scope === "worktree")) ||
+      (message.kind === "changed" &&
+        (message.scope === "git" || message.scope === "worktree") &&
+        (message.gitChanged === undefined || typeof message.gitChanged === "boolean")) ||
       (message.kind === "error" && typeof message.error === "string"))
   );
 }
@@ -75,7 +77,7 @@ export class ProjectWatcherClient {
 
   watch(
     rootPath: string,
-    onChanged: (scope: ProjectWatchScope) => void,
+    onChanged: (scope: ProjectWatchScope, gitChanged?: boolean) => void,
     onError?: (error: Error) => void,
   ): {
     ready: Promise<void>;
@@ -254,7 +256,10 @@ export class ProjectWatcherClient {
         entry.onChanged("worktree");
       }
     } else if (value.kind === "changed") {
-      if (entry.ready) entry.onChanged(value.scope);
+      if (entry.ready) {
+        if (value.gitChanged === false) entry.onChanged(value.scope, false);
+        else entry.onChanged(value.scope);
+      }
     } else if (value.kind === "error") {
       if (entry.ready) {
         entry.ready = false;

@@ -27,8 +27,13 @@ vi.mock("@dnd-kit/react/sortable", () => ({
   useSortable: () => ({ ref: () => {}, handleRef: () => {}, isDragging: false }),
 }));
 
-function View(props: { liveOnOpen?: boolean; refreshVersion?: number }) {
-  const view = useHostUsageView("connection", props.refreshVersion, props.liveOnOpen);
+function View(props: { liveOnOpen?: boolean; refreshVersion?: number; visible?: boolean }) {
+  const view = useHostUsageView(
+    "connection",
+    props.refreshVersion,
+    props.liveOnOpen,
+    props.visible,
+  );
   return (
     <>
       <HostUsageStatus view={view} />
@@ -114,6 +119,27 @@ function fixture(
 }
 
 describe("host usage lifecycle with the real owning-host client", () => {
+  it("pauses only its hidden age clock and catches up on reveal without invalidating or reading again", async () => {
+    const requests = fixture();
+    const view = render(<View visible />);
+    await screen.findByText("legacy-fixture-account");
+    const before = useHostUsageStore.getState().hosts.connection;
+    const reads = requests.length;
+    vi.useFakeTimers();
+    try {
+      view.rerender(<View visible={false} />);
+      await act(() => vi.advanceTimersByTime(150_000));
+      expect(useHostUsageStore.getState().hosts.connection).toBe(before);
+      expect(requests).toHaveLength(reads);
+      view.rerender(<View visible />);
+      expect(screen.getByText("Usage is stale. Refresh to update.")).toBeVisible();
+      expect(requests).toHaveLength(reads);
+      expect(useHostUsageStore.getState().hosts.connection).toBe(before);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([{ liveOnOpen: true }, { refreshVersion: 3 }])(
     "loads legacy cache after unsupported refresh on open (%j)",
     async (trigger) => {

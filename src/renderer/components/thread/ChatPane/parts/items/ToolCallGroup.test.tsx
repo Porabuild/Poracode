@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -7,6 +7,9 @@ import { ToolCallGroup } from "./ToolCallGroup";
 import { byTextContent } from "@/renderer/testUtils/text";
 import { acquireHistoryItemDetails } from "@/renderer/state/historyItemDetails";
 import { ChatPaneActionsContext } from "../../chatPaneActionsContext";
+import * as toolCallEntrance from "./toolCallEntrance";
+import * as groupSummary from "./GroupSummarySection";
+import * as toolCallCategorization from "./toolCallCategorization";
 
 vi.mock("@/renderer/state/historyItemDetails", () => ({
   acquireHistoryItemDetails: vi.fn<typeof acquireHistoryItemDetails>(),
@@ -69,6 +72,51 @@ describe("ToolCallGroup", () => {
     expect(viewport.className).not.toContain("overflow-y-auto");
   });
 
+  it("mounts only open tool bodies and preserves them through Show all", () => {
+    const threadId = "thread-1";
+    const items = Array.from({ length: 10 }, (_, index) => ({
+      ...makeCommandItem(`tool-${index}`, `echo result-${index}`),
+      streams: { command_output: `Output ${index}` },
+    }));
+    seedThread(threadId, items);
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+    const viewport = getViewport(view.container);
+    const trigger = screen.getByRole("button", { name: /echo result-9/ });
+    const panelId = trigger.getAttribute("aria-controls")!;
+    expect(document.getElementById(panelId)).toHaveAttribute("aria-hidden", "true");
+    expect(viewport.querySelectorAll('[data-slot="disclosure-body"]')).toHaveLength(0);
+
+    fireEvent.click(trigger);
+    expect(document.getElementById(panelId)).toHaveTextContent("Output 9");
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(viewport.querySelectorAll('[data-slot="disclosure-body"]')).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /echo result-9/ })).toBe(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById(panelId)).toHaveTextContent("Output 9");
+
+    fireEvent.click(trigger);
+    expect(document.getElementById(panelId)).toHaveAttribute("aria-hidden", "true");
+    expect(viewport.querySelectorAll('[data-slot="disclosure-body"]')).toHaveLength(0);
+    act(() =>
+      useAppStore.getState().applyRuntimeEvent(threadId, {
+        type: "content.delta",
+        threadId,
+        itemId: "tool-9",
+        stream: "command_output",
+        delta: " updated",
+      }),
+    );
+    fireEvent.click(trigger);
+    expect(document.getElementById(panelId)).toHaveTextContent("Output 9 updated");
+    fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
   it("does not mount child rows while collapsed and mounts them once expanded", () => {
     const threadId = "thread-1";
     const items = [
@@ -99,6 +147,144 @@ describe("ToolCallGroup", () => {
     expect(view.container.querySelector(".poracode-tool-call-group-viewport")).not.toBeNull();
     expect(screen.getByText("Read file one")).toBeInTheDocument();
     expect(screen.getByText("Read file two")).toBeInTheDocument();
+  });
+
+  it("renders only the changed row when output streams into an expanded group", () => {
+    const threadId = "thread-1";
+    const items = Array.from({ length: 32 }, (_, index) =>
+      makeCommandItem(`tool-${index}`, `echo result-${index}`),
+    );
+    seedThread(threadId, items);
+    const enterRow = vi.spyOn(toolCallEntrance, "ToolCallEnterRow");
+    const summary = vi.spyOn(groupSummary, "GroupSummarySection");
+    try {
+      const view = renderToolCallGroup(
+        threadId,
+        items.map((item) => item.id),
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+      expect(getViewport(view.container).children).toHaveLength(32);
+      enterRow.mockClear();
+      summary.mockClear();
+      act(() =>
+        useAppStore.getState().applyRuntimeEvent(threadId, {
+          type: "content.delta",
+          threadId,
+          itemId: "tool-31",
+          stream: "command_output",
+          delta: "new output",
+        }),
+      );
+      expect(enterRow).toHaveBeenCalledOnce();
+      expect(summary).not.toHaveBeenCalled();
+      expect(enterRow.mock.calls[0]?.[0].item.id).toBe("tool-31");
+      expect(
+        useAppStore.getState().runtimeItemsByIdByThread[threadId]?.["tool-31"]?.streams
+          .command_output,
+      ).toBe("new output");
+      expect(getViewport(view.container).children).toHaveLength(32);
+    } finally {
+      enterRow.mockRestore();
+      summary.mockRestore();
+    }
+  });
+
+  it("keeps grouped reasoning current when only its stream changes", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeCommandItem("command", "git status"),
+      makeReasoningItem("thought", "Before"),
+    ];
+    seedThread(threadId, items);
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+    act(() =>
+      useAppStore.getState().applyRuntimeEvent(threadId, {
+        type: "content.delta",
+        threadId,
+        itemId: "thought",
+        stream: "reasoning_text",
+        delta: " after",
+      }),
+    );
+    expect(screen.getByText("Before after")).toBeVisible();
+  });
+
+  it("keeps streamed bodies out of retained group structure while rows read them", () => {
+    const threadId = "thread-1";
+    const output = "large output\n".repeat(1_000);
+    const item = {
+      ...makeCommandItem("command", "git status"),
+      streams: { command_output: output },
+    };
+    seedThread(threadId, [item]);
+    const summarize = vi.spyOn(toolCallCategorization, "summarizeToolCalls");
+    const enterRow = vi.spyOn(toolCallEntrance, "ToolCallEnterRow");
+    try {
+      renderToolCallGroup(threadId, [item.id]);
+      expect(summarize).toHaveBeenCalled();
+      for (const [items] of summarize.mock.calls) {
+        expect(items.every((entry) => Object.keys(entry.streams).length === 0)).toBe(true);
+      }
+      expect(
+        enterRow.mock.calls.some(([props]) => props.item.streams.command_output === output),
+      ).toBe(true);
+      expect(
+        useAppStore.getState().runtimeItemsByIdByThread[threadId]?.[item.id]?.streams
+          .command_output,
+      ).toBe(output);
+    } finally {
+      summarize.mockRestore();
+      enterRow.mockRestore();
+    }
+  });
+
+  it("updates the group header when a tool payload changes category", () => {
+    const threadId = "thread-1";
+    const items = [makeToolItem("read", "Read file"), makeToolItem("search", "Grep")];
+    seedThread(threadId, items);
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+    act(() =>
+      useAppStore.getState().applyRuntimeEvent(threadId, {
+        type: "item.updated",
+        threadId,
+        itemId: "search",
+        payload: { name: "Read file", status: "success" },
+      }),
+    );
+    expect(screen.getByRole("button", { name: /2 views/i })).toBeVisible();
+  });
+
+  it("keeps streamed output current inside an expanded same-file group", async () => {
+    const threadId = "thread-1";
+    const items: RuntimeChatItem[] = [0, 1].map((index) => ({
+      id: `edit-${index}`,
+      type: "file_change",
+      state: "completed",
+      payload: { path: "src/foo.ts", changeKind: "edit" },
+      streams: { file_change_output: index === 0 ? "Before" : "Second edit" },
+    }));
+    seedThread(threadId, items);
+    renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+    expandGroup(/2 edits:/i);
+    act(() =>
+      useAppStore.getState().applyRuntimeEvent(threadId, {
+        type: "content.delta",
+        threadId,
+        itemId: "edit-0",
+        stream: "file_change_output",
+        delta: " after",
+      }),
+    );
+    await waitFor(() => expect(document.body).toHaveTextContent("Before after"));
   });
 
   it("requests row remeasurement after the collapsed layout commits", () => {
@@ -405,7 +591,7 @@ describe("ToolCallGroup", () => {
     // No nested per-edit disclosure rows — one merged file diff renders directly.
     expect(screen.queryByRole("button", { name: /^Edit:/i })).not.toBeInTheDocument();
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(1);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(1);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
       expect((viewport.textContent?.match(/new/g) ?? []).length).toBeGreaterThanOrEqual(2);
@@ -432,7 +618,7 @@ describe("ToolCallGroup", () => {
 
     expandGroup(/2 edits:/i);
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(1);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(1);
     expect(within(viewport).queryAllByRole("button")).toHaveLength(0);
     await waitFor(() => {
       expect((viewport.textContent?.match(/const answer = 42;/g) ?? []).length).toBe(2);
@@ -920,7 +1106,7 @@ describe("ToolCallGroup", () => {
     // Mixed group auto-expands live; the two consecutive foo.ts edits render
     // as one merged "2 edits: foo.ts" run row next to the view row.
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(2);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(2);
     const runRow = screen.getByRole("button", { name: /2 edits:/i });
     expect(within(runRow).getByText("foo.ts")).toBeInTheDocument();
     expect(within(runRow).getByText("+9")).toHaveClass("text-success");
@@ -958,7 +1144,7 @@ describe("ToolCallGroup", () => {
     // 6 items render as 5 rows: the consecutive same-file pair collapses into
     // one "2 edits: chatPaneSelectors.test.ts" row with the summed diff.
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(5);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(5);
     const runRow = screen.getByRole("button", { name: /2 edits:/i });
     expect(within(runRow).getByText("chatPaneSelectors.test.ts")).toBeInTheDocument();
     expect(within(runRow).getByText("+8")).toHaveClass("text-success");
@@ -983,7 +1169,7 @@ describe("ToolCallGroup", () => {
     // The interposed tool call breaks the run: no merged "2 edits" row, each
     // edit stays its own row — but all three still live in the same group.
     const viewport = getViewport(view.container);
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(3);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(3);
     expect(screen.queryByRole("button", { name: /2 edits:/i })).not.toBeInTheDocument();
     expect(screen.getAllByText("foo.ts")).toHaveLength(2);
   });
@@ -1486,7 +1672,7 @@ describe("ToolCallGroup sliding window", () => {
     // The row that scrolled off the top is the one fading, and it is no longer
     // in flow — so the group's measured height is unchanged.
     expect(ghost?.textContent).toContain("Read file 3");
-    expect(viewport.querySelectorAll(":scope > .animate-tool-call-enter")).toHaveLength(8);
+    expect(viewport.querySelectorAll(":scope > div")).toHaveLength(8);
     expect(ghost?.parentElement).toBe(viewport.parentElement);
     expect(viewport.parentElement).toHaveClass("relative");
     expect(viewport.parentElement).toHaveClass("poracode-tool-call-group-windowed");

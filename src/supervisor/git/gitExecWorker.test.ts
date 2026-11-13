@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { execGit } from "./exec";
 import {
@@ -117,4 +117,69 @@ describe("gitExecWorkerClient", () => {
 
     await expect(pending!).rejects.toMatchObject({ name: "AbortError" });
   });
+
+  it.skipIf(process.platform !== "win32").each(["timeout", "abort", "output limit"] as const)(
+    "terminates Windows shim descendants on %s",
+    async (reason) => {
+      setGitExecWorkerPathForTests(workerBundlePath);
+      const fixture = mkdtempSync(join(artifactsDir, "shim-"));
+      const pidFile = join(fixture, "pids.json");
+      const wrapperFile = join(fixture, "wrapper.cmd");
+      writeFileSync(wrapperFile, `@"${process.execPath}" "%~dp0leaf.cjs"\r\n`);
+      writeFileSync(
+        join(fixture, "leaf.cjs"),
+        `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, JSON.stringify({ parent: process.ppid, child: process.pid }));
+${reason === "output limit" ? "process.stdout.write('x'.repeat(4096));" : ""}
+setInterval(() => {}, 1000);`,
+      );
+      const controller = new AbortController();
+      let pids: { parent: number; child: number } | undefined;
+      const alive = (pid: number): boolean => {
+        try {
+          process.kill(pid, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      };
+      try {
+        const pending = execGitOnWorkerThread({
+          command: process.env.ComSpec!,
+          args: ["/d", "/c", wrapperFile],
+          cwd: fixture,
+          env: process.env,
+          timeout: reason === "timeout" ? 2_000 : 10_000,
+          maxBuffer: 1024,
+          signal: controller.signal,
+        });
+        expect(pending).not.toBeNull();
+        const outcome = pending!.catch((error: unknown) => error);
+        await vi.waitFor(() => expect(existsSync(pidFile)).toBe(true), { timeout: 2_000 });
+        pids = JSON.parse(readFileSync(pidFile, "utf8")) as typeof pids;
+        if (reason === "abort") controller.abort();
+        expect(await outcome).toMatchObject(
+          reason === "abort"
+            ? { name: "AbortError" }
+            : reason === "output limit"
+              ? { code: "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" }
+              : { killed: true },
+        );
+        await vi.waitFor(
+          () => {
+            expect(alive(pids!.parent)).toBe(false);
+            expect(alive(pids!.child)).toBe(false);
+          },
+          { timeout: 2_000 },
+        );
+      } finally {
+        controller.abort();
+        if (!pids && existsSync(pidFile)) {
+          pids = JSON.parse(readFileSync(pidFile, "utf8")) as typeof pids;
+        }
+        for (const pid of pids ? [pids.child, pids.parent] : []) {
+          if (alive(pid)) process.kill(pid);
+        }
+      }
+    },
+  );
 });

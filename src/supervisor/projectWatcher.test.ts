@@ -584,6 +584,20 @@ describe("ProjectWatcher native registration readiness", () => {
     expect(h.onTreeChanged).toHaveBeenCalledWith("p", "/topic", { kind: "posix", path: "/topic" });
     h.registrations[0]!.changed("worktree");
     expect(h.onTreeChanged).toHaveBeenCalledWith("p", undefined, { kind: "posix", path: "/repo" });
+    h.registrations[0]!.changed("worktree", false);
+    expect(h.onTreeChanged).toHaveBeenLastCalledWith(
+      "p",
+      undefined,
+      { kind: "posix", path: "/repo" },
+      false,
+    );
+    h.registrations[1]!.changed("worktree", false);
+    expect(h.onTreeChanged).toHaveBeenLastCalledWith(
+      "p",
+      "/topic",
+      { kind: "posix", path: "/topic" },
+      false,
+    );
     await h.watcher.dispose();
   });
 

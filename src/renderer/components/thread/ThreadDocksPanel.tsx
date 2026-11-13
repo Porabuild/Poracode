@@ -29,6 +29,7 @@ import {
 } from "./ThreadDetailsDocks";
 import { useThreadArtifacts } from "./threadArtifacts";
 import { ThreadTodoDock } from "./ThreadTodoDock";
+import { PanelActivity } from "@/renderer/components/layout/panelMotion";
 import { useThreadVideos } from "./threadVideos";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
 import { selectThreadGoalDockItem } from "./threadGoalState";
@@ -42,7 +43,19 @@ import {
  * Right-panel "Docks" tab: the thread's informational docks, media gallery, and
  * files & artifacts stacked as sortable sections in one panel.
  */
-export function ThreadDocksPanel({
+export function ThreadDocksPanel(props: {
+  threadId: string;
+  projectLocation?: ProjectLocation;
+  visible?: boolean;
+}) {
+  return (
+    <PanelActivity visible={props.visible ?? true}>
+      <ThreadDocksContent {...props} />
+    </PanelActivity>
+  );
+}
+
+function ThreadDocksContent({
   threadId,
   projectLocation,
   visible = true,

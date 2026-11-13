@@ -11,6 +11,7 @@ import {
   sidebarFooterNavClass,
 } from "@/renderer/components/layout/sidebarChrome";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { ProjectTreeView } from "@/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView";
 import { getBasename } from "@/shared/pathUtils";
 import { FileEditorPane } from "./parts/FileEditorPane/FileEditorPane";
@@ -20,7 +21,6 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
   const { t } = useLingui();
   const compactLayout = useCompactLayout();
   const rootContext = useFileEditorStore((state) => state.rootContext);
-  const buffers = useFileEditorStore((state) => state.buffers);
   const activePath = useFileEditorStore((state) => state.activePath);
   const openFile = useFileEditorStore((state) => state.openFile);
   const pinTab = useFileEditorStore((state) => state.pinTab);
@@ -28,13 +28,10 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
 
   if (!rootContext) return null;
 
-  const hasDirtyBuffers = Object.values(buffers).some(
-    (buffer) => buffer.status === "ready" && buffer.isDirty,
-  );
   const showTree = !isHomeProjectId(rootContext.projectId);
 
   function requestClose() {
-    if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {
+    if (hasDirtyEditorBuffers() && !window.confirm(t`Discard unsaved editor changes?`)) {
       return;
     }
     props.onClose();

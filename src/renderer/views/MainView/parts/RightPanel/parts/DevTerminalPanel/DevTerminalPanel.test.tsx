@@ -33,11 +33,13 @@ vi.mock("@/renderer/bridge", () => ({
 
 vi.mock("./parts/RightTerminalLayout", () => ({
   RightTerminalLayout: (props: {
+    visible: boolean;
     projectTabs: DevTerminalTab[];
     activeScopeLabel: string | undefined;
     handleCloseTab: (tab: DevTerminalTab) => void;
   }) => (
     <>
+      <span data-testid="terminal-visible">{String(props.visible)}</span>
       <span>{props.activeScopeLabel}</span>
       <button type="button" onClick={() => props.handleCloseTab(props.projectTabs[0]!)}>
         close right tab
@@ -124,6 +126,19 @@ function resetStores() {
 }
 
 describe("DevTerminalPanel", () => {
+  it("pauses only the renderer while a retained right-panel terminal is hidden", () => {
+    resetStores();
+    bridge.closeThread.mockClear();
+    const view = render(<DevTerminalPanel hideHeader visible />);
+    expect(screen.getByTestId("terminal-visible")).toHaveTextContent("true");
+    view.rerender(<DevTerminalPanel hideHeader visible={false} />);
+    expect(screen.getByTestId("terminal-visible")).toHaveTextContent("false");
+    expect(useDevTerminalStore.getState().tabs).toEqual([tab]);
+    expect(bridge.closeThread).not.toHaveBeenCalled();
+    view.rerender(<DevTerminalPanel hideHeader visible />);
+    expect(screen.getByTestId("terminal-visible")).toHaveTextContent("true");
+  });
+
   beforeEach(() => {
     bridge.closeThread.mockClear();
     bridge.startShell.mockReset().mockResolvedValue(undefined);

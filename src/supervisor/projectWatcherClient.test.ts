@@ -80,6 +80,20 @@ afterEach(async () => {
 });
 
 describe("ProjectWatcherClient", () => {
+  it("accepts ignore-only hints while preserving notifications without hints", async () => {
+    const harness = childHarness();
+    mocks.spawn.mockReturnValue(harness.child);
+    const changed = vi.fn<(scope: ProjectWatchScope, gitChanged?: boolean) => void>();
+    const subscription = client().watch("/repo", changed);
+    harness.reply({ kind: "ready", id: 0 });
+    harness.reply({ kind: "ready", id: 1 });
+    await subscription.ready;
+    harness.reply({ kind: "changed", id: 1, scope: "worktree", gitChanged: false });
+    harness.reply({ kind: "changed", id: 1, scope: "worktree" });
+    harness.reply({ kind: "changed", id: 1, scope: "git" });
+    expect(changed.mock.calls).toEqual([["worktree", false], ["worktree"], ["git"]]);
+  });
+
   it.each([false, true])(
     "recovers after a stable replacement with clean close %s",
     async (cleanClose) => {

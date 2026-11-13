@@ -12,7 +12,9 @@ export type ProjectWatchEvent = {
   id: number;
 } & (
   | { kind: "ready" | "unwatched" }
-  | { kind: "changed"; scope: ProjectWatchScope }
+  // Optional hint: compatible helpers/fallbacks without it conservatively refresh Git; old
+  // clients ignore the hint and continue refreshing both Git and file views.
+  | { kind: "changed"; scope: ProjectWatchScope; gitChanged?: boolean }
   | { kind: "error"; error: string }
 );
 

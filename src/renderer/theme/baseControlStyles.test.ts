@@ -110,17 +110,17 @@ describe("base control styles", () => {
 
   it("keeps direct and tooltip-wrapped send controls in the collapsed composer", () => {
     const selector = styles.match(
-      /(html\[data-compact-layout\]\s+\.m-thread-compose-dock[^{}]+?\.poracode-composer-toolbar\s+> :has\(\.poracode-composer-send\)\s+> [^{}]+)\s*\{\s*display:\s*none;/,
+      /(html\[data-compact-layout\]\s+\.m-thread-compose-dock[^{}]+?\.poracode-composer-toolbar\s+> \.poracode-composer-actions\s+> [^{}]+)\s*\{\s*display:\s*none;/,
     )?.[1];
     if (!selector) throw new Error("Missing collapsed composer control rule");
     const fixture = document.createElement("div");
     fixture.innerHTML = `
       <div class="m-thread-compose-dock" data-input-has-content>
         <div class="poracode-composer-shell"><div class="poracode-composer-toolbar">
-          <div>
+          <div class="poracode-composer-actions">
             <button id="unrelated">Attach</button>
             <button id="direct" class="poracode-composer-send">Send</button>
-            <div id="wrapped" class="tooltip__trigger">
+            <div id="wrapped" class="tooltip__trigger" data-composer-send>
               <button class="poracode-composer-send">Resume</button>
             </div>
           </div>
@@ -137,6 +137,12 @@ describe("base control styles", () => {
       fixture.remove();
       document.documentElement.toggleAttribute("data-compact-layout", wasCompact);
     }
+  });
+
+  it("avoids whole-app invalidation from compact descendant exclusions", () => {
+    expect(styles).not.toContain(":not(:has(.poracode-composer-shell))");
+    expect(styles).not.toContain(":not(:has(.poracode-composer-send))");
+    expect(styles).not.toContain('.settings-row:has([role="switch"])');
   });
 
   it("uses one safe-zone token for compact headers and under-header page scrolling", () => {

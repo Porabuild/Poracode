@@ -20,6 +20,7 @@ export interface ProjectWatcherCallbacks {
     projectId: string,
     worktreePath: string | undefined,
     location: ProjectLocation,
+    gitChanged?: boolean,
   ) => void;
 }
 
@@ -181,9 +182,11 @@ export class ProjectWatcher {
     this.watchers.set(projectId, entry);
     const subscription = this.localClient.watch(
       location.path,
-      (scope) => {
+      (scope, gitChanged) => {
         if (this.watchers.get(projectId) !== entry) return;
         if (scope === "git") this.callbacks.onGitChanged(projectId);
+        else if (gitChanged === false)
+          this.callbacks.onTreeChanged(projectId, undefined, location, false);
         else this.callbacks.onTreeChanged(projectId, undefined, location);
       },
       () => {
@@ -263,9 +266,11 @@ export class ProjectWatcher {
       this.worktreeWatchers.set(wtPath, entry);
       const subscription = this.localClient.watch(
         wtPath,
-        (scope) => {
+        (scope, gitChanged) => {
           if (this.worktreeWatchers.get(wtPath) !== entry) return;
           if (scope === "git") this.callbacks.onGitChanged(projectId, wtPath);
+          else if (gitChanged === false)
+            this.callbacks.onTreeChanged(projectId, wtPath, worktreeLocation, false);
           else this.callbacks.onTreeChanged(projectId, wtPath, worktreeLocation);
         },
         () => {

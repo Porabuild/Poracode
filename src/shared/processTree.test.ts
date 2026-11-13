@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ChildProcess } from "node:child_process";
 
 const taskkillSpawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 
@@ -15,7 +16,11 @@ vi.mock("node:child_process", async (importActual) => {
   };
 });
 
-import { terminateChildProcessTree, terminateProcessTree } from "./processTree";
+import {
+  attachChildProcessTreeCleanup,
+  terminateChildProcessTree,
+  terminateProcessTree,
+} from "./processTree";
 
 describe("processTree", () => {
   const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
@@ -136,5 +141,46 @@ describe("processTree", () => {
 
     expect(taskkillSpawnSyncMock).not.toHaveBeenCalled();
     expect(processKillSpy).toHaveBeenCalledExactlyOnceWith(-31337, "SIGKILL");
+  });
+
+  it("kills Windows descendants before the immediate child is gone", () => {
+    Object.defineProperty(process, "platform", { configurable: true, value: "win32" });
+    vi.spyOn(process, "kill").mockImplementation(() => true);
+    taskkillSpawnSyncMock.mockReturnValue({ status: 0 });
+    const child = new ChildProcess();
+    Object.assign(child, { pid: 4242 });
+    const kill = vi.fn<typeof child.kill>(() => true);
+    child.kill = kill;
+    attachChildProcessTreeCleanup(child);
+
+    child.kill();
+
+    expect(taskkillSpawnSyncMock).toHaveBeenCalledOnce();
+    expect(kill).toHaveBeenCalledOnce();
+    expect(taskkillSpawnSyncMock.mock.invocationCallOrder[0]).toBeLessThan(
+      kill.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("does not terminate descendants for a liveness probe or an exited child", () => {
+    Object.defineProperty(process, "platform", { configurable: true, value: "win32" });
+    const child = new ChildProcess();
+    Object.assign(child, { pid: 4242 });
+    child.kill = vi.fn<typeof child.kill>(() => true);
+    attachChildProcessTreeCleanup(child);
+
+    expect(child.kill(0)).toBe(true);
+    Object.assign(child, { exitCode: 0 });
+    child.kill();
+
+    expect(taskkillSpawnSyncMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps non-Windows child signal handling unchanged", () => {
+    Object.defineProperty(process, "platform", { configurable: true, value: "linux" });
+    const child = new ChildProcess();
+    const kill = child.kill;
+    attachChildProcessTreeCleanup(child);
+    expect(child.kill).toBe(kill);
   });
 });

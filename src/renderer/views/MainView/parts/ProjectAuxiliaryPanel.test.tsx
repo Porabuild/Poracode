@@ -568,6 +568,26 @@ describe("ProjectAuxiliaryPanel", () => {
     expect(result.current.rightPanelOpen).toBe(false);
   });
 
+  it("keeps a split project terminal visible and pauses it behind another tab", () => {
+    useAppStore.setState({ projects: [makeProject("project-a")] });
+    focusThread(threadA.id);
+    useDevTerminalStore.getState().addTab("project-a", "Shell");
+    useDevTerminalStore.getState().openPanel("project-a");
+    usePanelStore.setState({ notesPanelOpen: true, rightPanelTab: "terminal" });
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+    expect(unifiedRightPanelProps.current?.terminalContent?.props.visible).toBe(true);
+    act(() => usePanelStore.setState({ rightPanelTab: "notes" }));
+    expect(unifiedRightPanelProps.current?.terminalContent?.props.visible).toBe(false);
+    act(() =>
+      usePanelStore.setState({ rightPanelSplit: { tab: "terminal", placement: "bottom" } }),
+    );
+    expect(unifiedRightPanelProps.current?.terminalContent?.props.visible).toBe(true);
+  });
+
   it("preserves a git badge target when the locked panel opens", async () => {
     render(
       <I18nProvider i18n={i18n}>

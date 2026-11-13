@@ -140,6 +140,7 @@ export function AudioSettings() {
       <AudioGroup title={t`Microphone`} description={t`Capture audio from this device.`}>
         <SettingRow
           anchorId="audio.showVoiceInputButton"
+          className="settings-row--switch"
           title={t`Show voice input button`}
           description={<Trans>Show the microphone button in the composer.</Trans>}
         >
@@ -246,6 +247,7 @@ export function AudioSettings() {
             </SettingRow>
             <SettingRow
               anchorId="audio.useWebGpu"
+              className="settings-row--switch"
               title={t`Use WebGPU acceleration`}
               description={<Trans>Run local transcription on the GPU when available.</Trans>}
             >

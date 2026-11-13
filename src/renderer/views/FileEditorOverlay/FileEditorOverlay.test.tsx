@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { buildCommandRegistry } from "@/renderer/commands/registry";
@@ -53,6 +54,18 @@ const rootContext = {
   projectName: "Poracode",
   projectLocation: { kind: "windows" as const, path: "C:\\repo" },
   rootLabel: "Poracode",
+};
+
+const backgroundBuffer = {
+  path: "background.txt",
+  status: "ready" as const,
+  modifiedAtMs: 1,
+  content: "unsaved",
+  savedContent: "saved",
+  lineEnding: "lf" as const,
+  hasBom: false,
+  isDirty: true,
+  isLoading: false,
 };
 
 describe("FileEditorOverlay", () => {
@@ -122,6 +135,52 @@ describe("FileEditorOverlay", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(within(main).getByPlaceholderText("Search files")).toBeInTheDocument();
     expect(within(main).queryByTestId("monaco-editor")).not.toBeInTheDocument();
+  });
+
+  it("does not commit the editor shell for background buffer edits", async () => {
+    useFileEditorStore.setState({ buffers: { "background.txt": backgroundBuffer } });
+    const onRender = vi.fn<ProfilerOnRenderCallback>();
+    render(
+      <Profiler id="editor" onRender={onRender}>
+        <FileEditorOverlay onClose={() => {}} />
+      </Profiler>,
+    );
+    await screen.findByText("README.md");
+    await act(async () => {});
+    onRender.mockClear();
+    for (let index = 0; index < 30; index++) {
+      act(() => useFileEditorStore.getState().updateBuffer("background.txt", `edit ${index}`));
+    }
+    expect(useFileEditorStore.getState().buffers["background.txt"]?.content).toBe("edit 29");
+    expect(onRender).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("checks current unsaved buffers when closing (compact=%s)", (compact) => {
+    layout.compact = compact;
+    const onClose = vi.fn<() => void>();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    try {
+      render(<FileEditorOverlay onClose={onClose} />);
+      act(() => useFileEditorStore.setState({ buffers: { "background.txt": backgroundBuffer } }));
+      fireEvent.click(screen.getByRole("button", { name: "Return to app" }));
+      expect(confirm).toHaveBeenCalledExactlyOnceWith("Discard unsaved editor changes?");
+      expect(onClose).not.toHaveBeenCalled();
+      expect(useFileEditorStore.getState().buffers["background.txt"]?.content).toBe("unsaved");
+      confirm.mockReturnValue(true);
+      fireEvent.click(screen.getByRole("button", { name: "Return to app" }));
+      expect(onClose).toHaveBeenCalledOnce();
+      act(() =>
+        useFileEditorStore.setState({
+          buffers: { "background.txt": { ...backgroundBuffer, isDirty: false } },
+        }),
+      );
+      confirm.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Return to app" }));
+      expect(confirm).not.toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalledTimes(2);
+    } finally {
+      confirm.mockRestore();
+    }
   });
 
   it.each([false, true])(

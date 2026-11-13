@@ -15,6 +15,7 @@ import type {
 } from "@/shared/contracts";
 import { GitService } from "./git";
 import type { ProjectWatcher } from "./projectWatcher";
+import { ProjectWatcherClient } from "./projectWatcherClient";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
 function deferred<T>() {
@@ -43,6 +44,46 @@ function status(branch: string): GitStatusResult {
 
 describe("SupervisorRuntime Git watcher status invalidation", () => {
   afterEach(() => vi.useRealTimers());
+
+  it("invalidates Files but retains Git caches for native ignore-only notifications", async () => {
+    let changed: Parameters<ProjectWatcherClient["watch"]>[1] | undefined;
+    const watch = vi
+      .spyOn(ProjectWatcherClient.prototype, "watch")
+      .mockImplementation((_root, onChanged) => {
+        changed = onChanged;
+        return { ready: Promise.resolve(), unsubscribe: () => {} };
+      });
+    const emit = vi.fn<(...args: unknown[]) => void>();
+    const invalidateStatus = vi.fn<() => void>();
+    const invalidateCaches = vi.fn<(location: ProjectLocation) => void>();
+    const runtime = Object.assign(Object.create(SupervisorRuntime.prototype), {
+      emit,
+      gitService: { invalidateStatus },
+      projectTreeService: { invalidateCaches },
+    }) as { projectWatcher: ProjectWatcher };
+    const watcher = runtime.projectWatcher;
+    try {
+      await watcher.watch("project-1", { kind: "posix", path: "/repo" });
+      changed!("worktree", false);
+      expect(invalidateStatus).not.toHaveBeenCalled();
+      expect(invalidateCaches).toHaveBeenCalledExactlyOnceWith({ kind: "posix", path: "/repo" });
+      expect(emit).toHaveBeenLastCalledWith({
+        type: "project-tree-changed",
+        projectId: "project-1",
+        gitChanged: false,
+      });
+      changed!("worktree");
+      expect(invalidateStatus).toHaveBeenCalledOnce();
+      expect(invalidateCaches).toHaveBeenCalledTimes(2);
+      expect(emit).toHaveBeenLastCalledWith({
+        type: "project-tree-changed",
+        projectId: "project-1",
+      });
+    } finally {
+      await watcher.dispose();
+      watch.mockRestore();
+    }
+  });
 
   it.each([
     { scope: "worktree" as const, paths: ["src/file.ts"], detail: "full" as const },

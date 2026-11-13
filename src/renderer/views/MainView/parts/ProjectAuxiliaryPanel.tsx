@@ -99,6 +99,31 @@ export function ProjectAuxiliaryPanel(props: {
   visible: boolean;
   onClose?: () => void;
 }) {
+  const threadId = useFocusedThreadId() ?? undefined;
+  const gallery = useThreadGalleryCollection(threadId, { requestPending: false });
+  const videos = useThreadVideos(threadId);
+  const artifacts = useThreadArtifacts(threadId);
+  return (
+    <ProjectAuxiliaryPanelContent
+      {...props}
+      mediaOrArtifactsInCurrentThread={
+        gallery.images.length +
+          gallery.pendingRemoteRefs.length +
+          gallery.pendingRemotePaths.length +
+          videos.length +
+          artifacts.length >
+        0
+      }
+    />
+  );
+}
+
+function ProjectAuxiliaryPanelContent(props: {
+  includeTerminal: boolean;
+  visible: boolean;
+  onClose?: () => void;
+  mediaOrArtifactsInCurrentThread: boolean;
+}) {
   const { t } = useLingui();
   const projects = useAppStore((s) => s.projects);
   const gitReviewContext = usePanelStore((s) => s.gitReviewContext);
@@ -192,19 +217,7 @@ export function ProjectAuxiliaryPanel(props: {
   const docksInCurrentThread = useThreadDocksPanelAvailable();
   // Media/file-only threads offer the Docks tab without making media or file
   // presence itself an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
-  const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
-    requestPending: false,
-  });
-  const videos = useThreadVideos(currentThreadId ?? undefined);
-  const artifacts = useThreadArtifacts(currentThreadId ?? undefined);
-  const mediaOrArtifactsInCurrentThread =
-    gallery.images.length +
-      gallery.pendingRemoteRefs.length +
-      gallery.pendingRemotePaths.length +
-      videos.length +
-      artifacts.length >
-    0;
-  const docksTabAvailable = docksInCurrentThread || mediaOrArtifactsInCurrentThread;
+  const docksTabAvailable = docksInCurrentThread || props.mediaOrArtifactsInCurrentThread;
 
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
   const filesPanelOpen = filesPanelContext !== null;
@@ -509,7 +522,12 @@ export function ProjectAuxiliaryPanel(props: {
                 }
               />
             ) : (
-              <DevTerminalPanel hideHeader />
+              <DevTerminalPanel
+                hideHeader
+                visible={
+                  props.visible && (activeTab === "terminal" || rightPanelSplit?.tab === "terminal")
+                }
+              />
             ),
           }
         : {})}
@@ -540,7 +558,13 @@ export function ProjectAuxiliaryPanel(props: {
         ) : undefined
       }
       showBrowserTab={browserPanelAvailable}
-      usageContent={renderUsageContent ? <UsagePanel /> : undefined}
+      usageContent={
+        renderUsageContent ? (
+          <UsagePanel
+            visible={props.visible && (activeTab === "usage" || rightPanelSplit?.tab === "usage")}
+          />
+        ) : undefined
+      }
       notesContent={
         renderNotesContent && notesProjectId ? (
           <NotesPanel key={notesProjectId} projectId={notesProjectId} />
@@ -573,6 +597,9 @@ export function ProjectAuxiliaryPanel(props: {
             threadId={subAgentPanelContext.threadId}
             parentItemId={subAgentPanelContext.parentItemId}
             hideHeader
+            visible={
+              props.visible && (activeTab === "subagent" || rightPanelSplit?.tab === "subagent")
+            }
             initialScrollRevealDelayMs={0}
             {...(subAgentPanelContext.projectLocation
               ? { projectLocation: subAgentPanelContext.projectLocation }
@@ -582,7 +609,14 @@ export function ProjectAuxiliaryPanel(props: {
       }
       sideChatContent={
         sideChatEntry ? (
-          <SideChatBody key={sideChatEntry.id} entry={sideChatEntry} surface="panel" />
+          <SideChatBody
+            key={sideChatEntry.id}
+            entry={sideChatEntry}
+            surface="panel"
+            visible={
+              props.visible && (activeTab === "sideChat" || rightPanelSplit?.tab === "sideChat")
+            }
+          />
         ) : undefined
       }
       showSideChatTab={sideChatEntry !== null}

@@ -75,3 +75,15 @@ export function terminateChildProcessTree(
 
   terminateProcessTree(child.pid, options);
 }
+
+/** Include Windows shim descendants when execFile kills for timeout or output limits. */
+export function attachChildProcessTreeCleanup(child: ChildProcess): void {
+  if (process.platform !== "win32") return;
+  const kill = child.kill.bind(child);
+  child.kill = (signal) => {
+    if (signal !== 0 && child.exitCode === null && child.signalCode === null) {
+      terminateChildProcessTree(child);
+    }
+    return kill(signal);
+  };
+}

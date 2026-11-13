@@ -113,6 +113,7 @@ export function ChatScrollControls(props: {
   // that row; otherwise it floats over the pane (sub-agent overlays, previews).
   const bubbleSlot = useComposerBubbleSlotStore((s) => s.control[threadId] ?? null);
   const initialLayoutChangeTokenRef = useRef(layoutChangeToken);
+  const initializedThreadRef = useRef<string | null>(null);
   const lastScrollTopRef = useRef(0);
   const stickToBottomRef = useRef(true);
   const promptAnchoredRef = useRef(false);
@@ -650,6 +651,9 @@ export function ChatScrollControls(props: {
   }));
 
   useLayoutEffect(() => {
+    // Activity reconnects effects without opening a new thread or resetting its reader.
+    if (initializedThreadRef.current === threadId) return;
+    initializedThreadRef.current = threadId;
     promptAnchoredRef.current = false;
     readerFollow?.resume();
     cancelScheduledPin();

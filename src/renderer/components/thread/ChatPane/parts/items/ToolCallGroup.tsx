@@ -15,6 +15,7 @@ import { StartTruncatedText } from "@/renderer/components/common/StartTruncatedT
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit, Globe, Pencil, Terminal, type LucideIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
+import { useStoreWithEqualityFn } from "zustand/traditional";
 import type {
   CommandExecutionPayload,
   FileChangePayload,
@@ -22,6 +23,7 @@ import type {
   WebSearchPayload,
 } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadRuntimeItem } from "@/renderer/state/useThreadRuntimeItem";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   getRuntimeItemPayload,
@@ -47,6 +49,7 @@ import { ToolCallRowOpenContext, useToolCallRowOpenSignal } from "./toolCallRowO
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
 import { GroupSummarySection } from "./GroupSummarySection";
 import { useToolCallWindowShift } from "./useToolCallWindowShift";
+import { ToolCallEnterRow, useRememberToolCallItems } from "./toolCallEntrance";
 import {
   extractAcpAddedFileText,
   extractAcpArgsPart,
@@ -95,6 +98,13 @@ interface ToolCallGroupProps {
 }
 
 const TOOL_CALL_GROUP_MAX_VISIBLE_ROWS = 8;
+const EMPTY_GROUP_STREAMS: RuntimeChatItem["streams"] = {};
+const groupStructureItems = new WeakMap<RuntimeChatItem, RuntimeChatItem>();
+const toolGroupStore = {
+  getState: useAppStore.getState,
+  getInitialState: useAppStore.getInitialState,
+  subscribe: useAppStore.subscribe,
+};
 
 export const ToolCallGroup = memo(function ToolCallGroup({
   threadId,
@@ -104,12 +114,15 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   onHeightChange,
   onVirtualizerLayoutChange,
 }: ToolCallGroupProps) {
-  const sourceItems = useAppStore(
-    useShallow((state) =>
+  useRememberToolCallItems(itemIds);
+  const sourceItems = useStoreWithEqualityFn(
+    toolGroupStore,
+    (state) =>
       itemIds
         .map((itemId) => state.runtimeItemsByIdByThread[threadId]?.[itemId])
-        .filter((item): item is RuntimeChatItem => !!item && isToolGroupItem(item)),
-    ),
+        .filter((item): item is RuntimeChatItem => !!item && isToolGroupItem(item))
+        .map(toolGroupStructureItem),
+    equalToolGroupStructure,
   );
   // A missed completion must not animate historical thoughts or pre-fix saved
   // non-command tool rows. Keep command_execution states intact: background
@@ -272,21 +285,26 @@ export const ToolCallGroup = memo(function ToolCallGroup({
                     }`}
                   >
                     {sameFileEditSummary ? (
-                      <SameFileEditGroupBody items={items} />
+                      <SameFileEditGroupBody threadId={threadId} items={items} />
                     ) : (
                       <ToolCallRowOpenContext.Provider value={onRowOpenChange}>
-                        {visibleSegments.map((segment) => (
-                          <div key={segmentKey(segment)} className="animate-tool-call-enter">
-                            {segment.kind === "same-file-edits" ? (
+                        {visibleSegments.map((segment) =>
+                          segment.kind === "same-file-edits" ? (
+                            <ToolCallEnterRow key={segmentKey(segment)} item={segment.items[0]!}>
                               <SameFileEditRunInline
+                                threadId={threadId}
                                 items={segment.items}
                                 summary={segment.summary}
                               />
-                            ) : (
-                              <GroupRowInline item={segment.item} />
-                            )}
-                          </div>
-                        ))}
+                            </ToolCallEnterRow>
+                          ) : (
+                            <ToolCallGroupItem
+                              key={segment.item.id}
+                              threadId={threadId}
+                              item={segment.item}
+                            />
+                          ),
+                        )}
                       </ToolCallRowOpenContext.Provider>
                     )}
                   </div>
@@ -304,15 +322,70 @@ function segmentKey(segment: ToolGroupRowSegment): string {
   return segment.kind === "same-file-edits" ? segment.items[0]!.id : segment.item.id;
 }
 
+// Output belongs to the subscribed row. Updating the group's Disclosure for
+// each delta also invalidates its context throughout every expanded child.
+function toolGroupStructureItem(item: RuntimeChatItem): RuntimeChatItem {
+  let structure = groupStructureItems.get(item);
+  if (!structure) {
+    // Equality may retain this projection through many stream updates. It
+    // must not keep the old output string after the canonical item drops it.
+    structure = { ...item, streams: EMPTY_GROUP_STREAMS };
+    groupStructureItems.set(item, structure);
+  }
+  return structure;
+}
+
+function equalToolGroupStructure(a: readonly RuntimeChatItem[], b: readonly RuntimeChatItem[]) {
+  return (
+    a.length === b.length &&
+    a.every((item, index) => {
+      const next = b[index]!;
+      return (
+        item === next ||
+        (item.id === next.id &&
+          item.type === next.type &&
+          (item.state === "completed") === (next.state === "completed") &&
+          item.payload === next.payload &&
+          item.detailsDeferred === next.detailsDeferred &&
+          item.observedLive === next.observedLive)
+      );
+    })
+  );
+}
+
+function currentGroupItem(source: RuntimeChatItem, current = source): RuntimeChatItem {
+  return source.state === "completed" && current.state !== "completed"
+    ? { ...current, state: "completed" }
+    : current;
+}
+
+// Keep mapped rows stable when another item changes the group's structure.
+const ToolCallGroupItem = memo(function ToolCallGroupItem({
+  threadId,
+  item: source,
+}: {
+  threadId: string;
+  item: RuntimeChatItem;
+}) {
+  const item = currentGroupItem(source, useThreadRuntimeItem(threadId, source.id));
+  return (
+    <ToolCallEnterRow item={item}>
+      <GroupRowInline item={item} />
+    </ToolCallEnterRow>
+  );
+});
+
 /**
  * Inline row for a consecutive same-file edit run inside a mixed group: the
  * compact "N edits: path" header with the aggregated diff count, expanding to
  * the same merged file diff the whole-group same-file treatment uses.
  */
 function SameFileEditRunInline({
+  threadId,
   items,
   summary,
 }: {
+  threadId: string;
   items: readonly RuntimeChatItem[];
   summary: SameFileEditGroupSummary;
 }) {
@@ -336,7 +409,7 @@ function SameFileEditRunInline({
       </Disclosure.Heading>
       <Disclosure.Content>
         <Disclosure.Body className="pb-1 pl-4 pt-1">
-          {isExpanded ? <SameFileEditGroupBody items={items} /> : null}
+          {isExpanded ? <SameFileEditGroupBody threadId={threadId} items={items} /> : null}
         </Disclosure.Body>
       </Disclosure.Content>
     </Disclosure>
@@ -374,8 +447,18 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
  * diff, without nesting each patch behind its own disclosure row. Edits without
  * a renderable patch (e.g. still running) fall back to the regular inline row.
  */
-function SameFileEditGroupBody({ items: source }: { items: readonly RuntimeChatItem[] }) {
+function SameFileEditGroupBody({
+  threadId,
+  items,
+}: {
+  threadId: string;
+  items: readonly RuntimeChatItem[];
+}) {
   const { t } = useLingui();
+  const currentItems = useAppStore(
+    useShallow((state) => items.map((item) => state.runtimeItemsByIdByThread[threadId]?.[item.id])),
+  );
+  const source = items.map((item, index) => currentGroupItem(item, currentItems[index]));
   // Deferred rows carry no body; the merged diff needs them resolved together.
   const resolved = useResolvedDeferredItems(source);
   if (resolved.status === "pending") return <HistoryItemDetailPlaceholder />;
@@ -383,24 +466,26 @@ function SameFileEditGroupBody({ items: source }: { items: readonly RuntimeChatI
     return (
       <>
         {source.map((item) => (
-          <div key={item.id} className="animate-tool-call-enter">
+          <ToolCallEnterRow key={item.id} item={item}>
             <GroupRowInline item={item} />
-          </div>
+          </ToolCallEnterRow>
         ))}
       </>
     );
   const diffRows: InlineRow[] = [];
-  const nonDiffBodies: InlineRow[] = [];
+  let firstDiffItem: RuntimeChatItem | undefined;
+  const nonDiffBodies: { item: RuntimeChatItem; row: InlineRow }[] = [];
   const fallbackItems: RuntimeChatItem[] = [];
 
   for (const item of resolved.items) {
     const row = getInlineRow(item, true, t);
     if (row?.bodyText && row.bodyKind === "diff") {
+      firstDiffItem ??= item;
       diffRows.push(row);
       continue;
     }
     if (row?.bodyText) {
-      nonDiffBodies.push(row);
+      nonDiffBodies.push({ item, row });
       continue;
     }
     fallbackItems.push(item);
@@ -421,26 +506,26 @@ function SameFileEditGroupBody({ items: source }: { items: readonly RuntimeChatI
   return (
     <>
       {mergedDiffText ? (
-        <div className="animate-tool-call-enter">
+        <ToolCallEnterRow item={firstDiffItem!}>
           <LazyInlineDiffView
             diffText={mergedDiffText}
             filePath={filePath}
             {...(singleContent ?? {})}
           />
-        </div>
+        </ToolCallEnterRow>
       ) : null}
-      {nonDiffBodies.map((row, index) => (
-        <div key={`same-file-body-${index}`} className="animate-tool-call-enter">
+      {nonDiffBodies.map(({ item, row }, index) => (
+        <ToolCallEnterRow key={`same-file-body-${index}`} item={item}>
           <CommandOutputViewport
             text={row.bodyText!}
             {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
           />
-        </div>
+        </ToolCallEnterRow>
       ))}
       {fallbackItems.map((item) => (
-        <div key={item.id} className="animate-tool-call-enter">
+        <ToolCallEnterRow key={item.id} item={item}>
           <GroupRowInline item={item} />
-        </div>
+        </ToolCallEnterRow>
       ))}
     </>
   );
@@ -509,36 +594,38 @@ function ToolCallInline({ item: source }: { item: RuntimeChatItem }) {
         </Disclosure.Trigger>
       </Disclosure.Heading>
       <Disclosure.Content>
-        <Disclosure.Body className="pb-1 pl-4 pt-1">
-          {details.pending ? (
-            <HistoryItemDetailPlaceholder failed={details.failed} retry={details.retry} />
-          ) : fetchTarget ? (
-            fetched.content !== undefined ? (
-              <CommandOutputViewport
-                text={fetched.content}
-                language={detectLanguageFromPath(fetchTarget.path)}
-              />
-            ) : (
-              <FileContentPlaceholder state={fetched.state} reason={fetched.reason} />
-            )
-          ) : row.bodyText ? (
-            row.bodyKind === "diff" ? (
-              <LazyInlineDiffView
-                diffText={row.bodyText}
-                filePath={row.bodyFilePath ?? ""}
-                {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
-                  ? { oldText: row.bodyOldText, newText: row.bodyNewText }
-                  : {})}
-              />
-            ) : (
-              <CommandOutputViewport
-                text={row.bodyText}
-                {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
-              />
-            )
-          ) : null}
-          {fetchTarget ? null : <ToolCallSections sections={row.sections} />}
-        </Disclosure.Body>
+        {isExpanded ? (
+          <Disclosure.Body className="pb-1 pl-4 pt-1">
+            {details.pending ? (
+              <HistoryItemDetailPlaceholder failed={details.failed} retry={details.retry} />
+            ) : fetchTarget ? (
+              fetched.content !== undefined ? (
+                <CommandOutputViewport
+                  text={fetched.content}
+                  language={detectLanguageFromPath(fetchTarget.path)}
+                />
+              ) : (
+                <FileContentPlaceholder state={fetched.state} reason={fetched.reason} />
+              )
+            ) : row.bodyText ? (
+              row.bodyKind === "diff" ? (
+                <LazyInlineDiffView
+                  diffText={row.bodyText}
+                  filePath={row.bodyFilePath ?? ""}
+                  {...(row.bodyOldText !== undefined && row.bodyNewText !== undefined
+                    ? { oldText: row.bodyOldText, newText: row.bodyNewText }
+                    : {})}
+                />
+              ) : (
+                <CommandOutputViewport
+                  text={row.bodyText}
+                  {...(row.bodyLanguage ? { language: row.bodyLanguage } : {})}
+                />
+              )
+            ) : null}
+            {fetchTarget ? null : <ToolCallSections sections={row.sections} />}
+          </Disclosure.Body>
+        ) : null}
       </Disclosure.Content>
     </Disclosure>
   );

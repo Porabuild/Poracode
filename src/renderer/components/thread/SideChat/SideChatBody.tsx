@@ -30,9 +30,11 @@ import { useSideChatSession } from "./useSideChatSession";
 export function SideChatBody({
   entry,
   surface = "window",
+  visible = true,
 }: {
   entry: SideChatBootstrap;
   surface?: "panel" | "window";
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const {
@@ -171,7 +173,7 @@ export function SideChatBody({
         }
       />
       {threadId ? (
-        <SideChatThreadView threadId={threadId} source={entry.source} />
+        <SideChatThreadView threadId={threadId} source={entry.source} visible={visible} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col justify-end px-3 pb-2">
           {launchError ? (

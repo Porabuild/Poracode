@@ -110,6 +110,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "zustand/middleware",
   "zustand/react/shallow",
   "zustand/shallow",
+  "zustand/traditional",
   // Web-host-only deps. The default dev server can also serve the browser app and
   // noDiscovery skips anything not listed. Keep in sync with the browser graph;
   // compare against a one-off discovery-enabled cache when dependencies change.
