@@ -631,6 +631,7 @@ msgstr "{head} 또는 {tail}"
 msgid "{heading} mode"
 msgstr "{heading} 모드"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {#개 더 보기}}"
@@ -4498,7 +4499,7 @@ msgstr "오류 접기"
 #~ msgid "Collapse experiment"
 #~ msgstr "실험 접기"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "파일 및 결과물 접기"
 
@@ -4512,8 +4513,12 @@ msgid "Collapse group"
 msgstr "그룹 접기"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "이미지 접기"
+#~ msgid "Collapse images"
+#~ msgstr "이미지 접기"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "미디어 접기"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7951,7 +7956,7 @@ msgstr "확장 오류"
 #~ msgid "Expand experiment"
 #~ msgstr "실험 펼치기"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "파일 및 결과물 펼치기"
 
@@ -7965,8 +7970,12 @@ msgid "Expand group"
 msgstr "그룹 펼치기"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "이미지 펼치기"
+#~ msgid "Expand images"
+#~ msgstr "이미지 펼치기"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "미디어 펼치기"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8369,9 +8378,9 @@ msgstr "파일이 지원되지 않는 인코딩을 사용합니다."
 msgid "Files"
 msgstr "파일"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "파일 및 결과물"
 
@@ -9374,6 +9383,7 @@ msgstr "숨겨진 재개 가능 스레드는 5분마다 청소되고 이 유휴 
 msgid "Hide"
 msgstr "숨기기"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9691,9 +9701,6 @@ msgstr "이미지"
 msgid "Image preview"
 msgstr "이미지 미리보기"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "이미지"
@@ -11756,6 +11763,12 @@ msgstr "mcp.json을 읽을 수 없어 이 플러그인의 서버를 건너뛰었
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json이 이 빌드에서 지원하지 않는 Agent Plugins 버전을 지정합니다."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "미디어"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14171,6 +14184,17 @@ msgstr "모델 선택기 열기"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "요약에서 스레드 열기"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "동영상 {0}/{1} 열기: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "동영상 미리보기 열기"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17088,6 +17112,7 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18797,6 +18822,7 @@ msgstr "도크를 오른쪽 패널에 표시"
 msgid "Show estimated cost"
 msgstr "예상 비용 표시"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "간략히 보기"
@@ -18805,7 +18831,7 @@ msgstr "간략히 보기"
 msgid "Show file tree"
 msgstr "파일 트리 표시"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "파일 및 결과물 표시"
 
@@ -18819,8 +18845,8 @@ msgstr "글꼴 제안 표시"
 #~ msgstr "사이드바 바닥글에 GitHub Actions를 표시합니다."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "이미지 보기"
+#~ msgid "Show images"
+#~ msgstr "이미지 보기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18843,6 +18869,10 @@ msgstr "{providerLabel}의 MCP 서버 표시"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "보기"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "미디어 보기"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21428,6 +21458,7 @@ msgstr "이 기기"
 msgid "This machine (local)"
 msgstr "이 머신(로컬)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21802,8 +21833,8 @@ msgid "Thread goal dock"
 msgstr "스레드 목표 도크"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "스레드 이미지"
+#~ msgid "Thread images"
+#~ msgstr "스레드 이미지"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21819,6 +21850,10 @@ msgstr "스레드가 이미 언로드되었습니다."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "스레드 목록 옵션"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "스레드 미디어"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22360,7 +22395,7 @@ msgstr "화면 속 화면을 열 수 없습니다"
 msgid "Unable to open the file"
 msgstr "파일을 열 수 없습니다"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "편집기에서 파일을 열 수 없습니다"
@@ -23470,6 +23505,7 @@ msgstr "버전"
 msgid "via {0}"
 msgstr "{0}을(를) 통해"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

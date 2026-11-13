@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
@@ -12,11 +12,23 @@ import {
   closeImageLightbox,
   ImageLightboxHost,
 } from "@/renderer/components/composer/ImageLightbox";
+import { ThreadArtifactsBubble } from "./ThreadArtifactsBubble";
+import { ThreadArtifactsDock } from "./ThreadArtifactsDock";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { getThreadGalleryImages } from "./useThreadGalleryImages";
+import { collectThreadVideos } from "./threadVideos";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
+import {
+  createEditorMediaSource,
+  type EditorMediaSource,
+} from "@/renderer/components/media/fileMediaSource";
+
+vi.mock("@/renderer/components/media/fileMediaSource", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/components/media/fileMediaSource")>()),
+  createEditorMediaSource: vi.fn<typeof createEditorMediaSource>(),
+}));
 
 vi.mock("@/renderer/utils/gitHelpers", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/utils/gitHelpers")>()),
@@ -147,7 +159,7 @@ describe("ThreadImagesBubble", () => {
     cleanup();
   });
 
-  it("stays hidden when the thread holds no image", () => {
+  it("stays hidden when the thread holds no media", () => {
     const now = new Date().toISOString();
     useAppStore.setState({
       threads: [
@@ -173,21 +185,47 @@ describe("ThreadImagesBubble", () => {
       runtimeItemsByIdByThread: { "t-empty": {} },
     });
     render(<ThreadImagesBubble threadId="t-empty" />);
-    expect(screen.queryByRole("button", { name: "Show images" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show media" })).not.toBeInTheDocument();
   });
 
-  it("shows the thread image count and toggles Thread info focused on images", () => {
+  it("shows combined image and video count and toggles Thread info focused on media", () => {
     seedThreadWithImages("t-gallery");
+    const existing = useAppStore.getState().runtimeItemsByIdByThread["t-gallery"]!;
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "t-gallery": ["u1", "a1", "t1", "v1"] },
+      runtimeItemsByIdByThread: {
+        "t-gallery": {
+          ...existing,
+          v1: {
+            id: "v1",
+            type: "user_message",
+            state: "completed",
+            payload: {
+              content: [
+                {
+                  kind: "file",
+                  path: "/tmp/demo.mp4",
+                  name: "demo.mp4",
+                  mimeType: "video/mp4",
+                },
+              ],
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { "t-gallery": 1 },
+    });
     render(
       <>
         <ThreadImagesBubble threadId="t-gallery" />
         <ImageLightboxHost />
       </>,
     );
-    const bubble = screen.getByRole("button", { name: "Show images" });
-    // user attachment + markdown + assistant block + tool image = 4
+    const bubble = screen.getByRole("button", { name: "Show media" });
+    // 4 images + 1 video = 5
     expect(bubble).toHaveClass("poracode-floating-chrome--bubble");
-    expect(bubble).toHaveTextContent("4");
+    expect(bubble).toHaveTextContent("5");
     fireEvent.click(bubble);
     expect(usePanelStore.getState()).toMatchObject({
       threadDocksPanelOpen: true,
@@ -195,7 +233,7 @@ describe("ThreadImagesBubble", () => {
       rightPanelTab: "docks",
     });
     expect(document.querySelector(".poracode-image-lightbox")).toBeNull();
-    const activeBubble = screen.getByRole("button", { name: "Hide Images" });
+    const activeBubble = screen.getByRole("button", { name: "Hide Media" });
     expect(activeBubble).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(activeBubble);
@@ -219,7 +257,7 @@ describe("ThreadImagesBubble", () => {
       runtimeStructuralVersionByThread: { "t-gallery": 1 },
     });
     render(<ThreadImagesBubble threadId="t-gallery" />);
-    expect(screen.queryByRole("button", { name: "Show images" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show media" })).not.toBeInTheDocument();
 
     act(() => {
       itemsById.a1!.state = "completed";
@@ -230,7 +268,7 @@ describe("ThreadImagesBubble", () => {
       });
     });
 
-    expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: "Show media" })).toHaveTextContent("1");
   });
 
   it("re-resolves unchanged remote history when the desktop reconnects", () => {
@@ -271,7 +309,7 @@ describe("ThreadImagesBubble", () => {
     render(<ThreadImagesBubble threadId="t-gallery" />);
     // The bubble counts the pending image without fetching it; the count is
     // unchanged once the desktop reconnects and the image becomes ready.
-    expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: "Show media" })).toHaveTextContent("1");
 
     act(() => {
       useRemoteServersStore.setState({
@@ -281,7 +319,7 @@ describe("ThreadImagesBubble", () => {
       });
     });
 
-    expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: "Show media" })).toHaveTextContent("1");
   });
 
   it("counts a pending attachment without requesting its bytes", () => {
@@ -322,7 +360,7 @@ describe("ThreadImagesBubble", () => {
     render(<ThreadImagesBubble threadId="t-gallery" />);
     // Counted from the pending coordinate, with no background fetch started:
     // fetching the whole history from this bubble starved visible cards.
-    expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: "Show media" })).toHaveTextContent("1");
     expect(requestPath).not.toHaveBeenCalled();
     expect(requestRef).not.toHaveBeenCalled();
 
@@ -330,19 +368,33 @@ describe("ThreadImagesBubble", () => {
       url = "blob:direct-attachment";
       for (const listener of listeners) listener();
     });
-    expect(screen.getByRole("button", { name: "Show images" })).toHaveTextContent("1");
+    expect(screen.getByRole("button", { name: "Show media" })).toHaveTextContent("1");
   });
 
-  it("follows the persisted dock order beside informational bubbles", () => {
+  it("follows the persisted dock order alongside files & artifacts and informational bubbles", () => {
     seedThreadWithImages("t-gallery");
-    // The task bubble counts the live roster, not the summary.
+    const existing = useAppStore.getState().runtimeItemsByIdByThread["t-gallery"]!;
     useAppStore.setState({
+      runtimeItemIdsByThread: { "t-gallery": ["u1", "a1", "t1", "doc"] },
+      runtimeItemsByIdByThread: {
+        "t-gallery": {
+          ...existing,
+          doc: {
+            id: "doc",
+            type: "assistant_message",
+            state: "completed",
+            payload: { content: [{ kind: "text", text: "[Report](report.pdf)" }] },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { "t-gallery": 1 },
       runtimeBackgroundTasksByThread: {
         "t-gallery": [{ taskId: "task-1", kind: "command", description: "pnpm test" }],
       },
     });
     useSharedSettings.setState({
-      threadDocksOrder: ["images", "backgroundTasks", "goal", "plan", "agents"],
+      threadDocksOrder: ["images", "backgroundTasks", "artifacts", "goal", "plan", "agents"],
     });
     const { container } = render(
       <ThreadDockBubbles
@@ -357,7 +409,7 @@ describe("ThreadImagesBubble", () => {
           ? "images"
           : button.getAttribute("data-dock-bubble"),
       ),
-    ).toEqual(["images", "backgroundTasks"]);
+    ).toEqual(["images", "backgroundTasks", "artifacts"]);
   });
 });
 
@@ -392,11 +444,11 @@ describe("ThreadImagesDock", () => {
         <ImageLightboxHost />
       </>,
     );
-    const region = screen.getByRole("region", { name: "Images" });
+    const region = screen.getByRole("region", { name: "Media" });
     expect(region).toHaveTextContent("4");
-    const header = screen.getByRole("button", { name: "Images" });
+    const header = screen.getByRole("button", { name: "Media" });
     expect(header).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("button", { name: "Collapse images" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collapse media" })).toBeInTheDocument();
     const tiles = screen.getAllByRole("button", { name: /Open image \d+ of 4/ });
     expect(tiles.length).toBe(4);
     const imgs = container.querySelectorAll('img[loading="lazy"]');
@@ -419,15 +471,165 @@ describe("ThreadImagesDock", () => {
     expect(document.querySelector(".poracode-image-lightbox__counter")).toHaveTextContent("3 / 4");
   });
 
+  it("renders video tiles in Media and opens them for playback in the lightbox", () => {
+    seedThreadWithImages("t-media");
+    const existing = useAppStore.getState().runtimeItemsByIdByThread["t-media"]!;
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "t-media": ["u1", "a1", "t1", "v1"] },
+      runtimeItemsByIdByThread: {
+        "t-media": {
+          ...existing,
+          v1: {
+            id: "v1",
+            type: "assistant_message",
+            state: "completed",
+            payload: {
+              content: [
+                { kind: "text", text: "[Walkthrough](https://example.com/walkthrough.mp4)" },
+              ],
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { "t-media": 1 },
+    });
+    const gallery = getThreadGalleryImages("t-media");
+    const videos = collectThreadVideos([
+      existing.u1!,
+      existing.a1!,
+      existing.t1!,
+      useAppStore.getState().runtimeItemsByIdByThread["t-media"]!.v1!,
+    ]);
+    render(
+      <>
+        <ThreadImagesDock gallery={gallery} videos={videos} threadId="t-media" />
+        <ImageLightboxHost />
+      </>,
+    );
+
+    expect(screen.getByRole("region", { name: "Media" })).toHaveTextContent("5");
+    const videoTile = screen.getByRole("button", { name: "Open video 1 of 1: Walkthrough" });
+    fireEvent.click(videoTile);
+
+    const dialog = screen.getByRole("dialog", { name: "Walkthrough" });
+    const player = dialog.querySelector("video");
+    expect(player).not.toBeNull();
+    expect(player).toHaveAttribute("src", "https://example.com/walkthrough.mp4");
+    expect(dialog.querySelector(".poracode-image-lightbox__zoom")).toBeNull();
+    expect(dialog.querySelector(".poracode-image-lightbox__counter")).toHaveTextContent("5 / 5");
+
+    act(() => {
+      const state = useAppStore.getState();
+      useAppStore.setState({
+        runtimeItemIdsByThread: { "t-media": [...state.runtimeItemIdsByThread["t-media"]!, "new"] },
+        runtimeItemsByIdByThread: {
+          "t-media": {
+            ...state.runtimeItemsByIdByThread["t-media"],
+            new: {
+              id: "new",
+              type: "assistant_message",
+              state: "completed",
+              payload: {
+                content: [
+                  {
+                    kind: "text",
+                    text: "![New](https://example.com/new.png) [New clip](https://example.com/new.mp4)",
+                  },
+                ],
+              },
+              streams: {},
+            },
+          },
+        },
+        runtimeStructuralVersionByThread: { "t-media": 2 },
+      });
+    });
+    expect(screen.getByRole("dialog", { name: "Walkthrough" }).querySelector("video")).toBe(player);
+    expect(dialog.querySelector(".poracode-image-lightbox__counter")).toHaveTextContent("7 / 7");
+    fireEvent.click(screen.getByRole("button", { name: "Previous image" }));
+    expect(screen.getByRole("dialog", { name: "New clip" }).querySelector("video")).toHaveAttribute(
+      "src",
+      "https://example.com/new.mp4",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next image" }));
+    expect(screen.getByRole("dialog", { name: "Walkthrough" })).toBeInTheDocument();
+  });
+
+  it("keeps a playing video grant across gallery updates and releases it when closed", async () => {
+    seedThreadWithImages("t-grant");
+    const release = vi.fn<EditorMediaSource["release"]>(async () => {});
+    const source = {
+      url: "https://host.test/media/recording",
+      ticket: "video-ticket",
+      expiresAt: new Date(Date.now() + 300_000).toISOString(),
+      sizeBytes: 100,
+      modifiedAtMs: 0,
+      contentType: "video/webm",
+      release,
+      renew: vi.fn<EditorMediaSource["renew"]>(),
+      readImageBytes: vi.fn<EditorMediaSource["readImageBytes"]>(),
+    };
+    vi.mocked(createEditorMediaSource).mockClear().mockResolvedValue(source);
+    const videoItem = {
+      id: "video",
+      type: "assistant_message" as const,
+      state: "completed" as const,
+      payload: { content: [{ kind: "text" as const, text: "[Recording](recording.webm)" }] },
+      streams: {},
+    };
+    useAppStore.setState((state) => ({
+      threads: state.threads.map((thread) => ({ ...thread, worktreePath: "E:/work/branch" })),
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+    }));
+    useAppStore.getState().hydrateThreadRuntimeItems("t-grant", [videoItem]);
+    render(
+      <>
+        <ThreadImagesDock
+          gallery={[]}
+          videos={collectThreadVideos([videoItem], undefined, { projectRoot: "E:/work/branch" })}
+          threadId="t-grant"
+        />
+        <ImageLightboxHost />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open video 1 of 1: Recording" }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog").querySelector("video")).toHaveAttribute("src", source.url),
+    );
+    const player = screen.getByRole("dialog").querySelector("video");
+    expect(createEditorMediaSource).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      useAppStore.getState().prependThreadRuntimeItems("t-grant", [
+        {
+          id: "image",
+          type: "assistant_message",
+          state: "completed",
+          payload: { content: [{ kind: "text", text: "![New](https://example.com/new.png)" }] },
+          streams: {},
+        },
+      ]);
+    });
+    expect(screen.getByRole("dialog").querySelector("video")).toBe(player);
+    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    expect(createEditorMediaSource).toHaveBeenCalledTimes(1);
+    expect(release).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close preview" }));
+    await waitFor(() => expect(release).toHaveBeenCalledTimes(1));
+  });
+
   it("starts expanded, toggles the mosaic from its header, and keeps a user collapse across gallery updates", () => {
     seedThreadWithImages("t-gallery");
     const { rerender } = render(<ThreadImagesDock gallery={getThreadGalleryImages("t-gallery")} />);
 
-    const header = screen.getByRole("button", { name: "Images" });
+    const header = screen.getByRole("button", { name: "Media" });
     expect(header).toHaveAttribute("aria-expanded", "true");
     expect(screen.getAllByRole("button", { name: /Open image \d+ of 4/ })).toHaveLength(4);
 
-    fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
+    fireEvent.click(screen.getByRole("button", { name: "Collapse media" }));
     expect(header).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: /Open image \d+ of 4/ })).not.toBeInTheDocument();
 
@@ -443,7 +645,7 @@ describe("ThreadImagesDock", () => {
     expect(header).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: /Open image \d+ of 5/ })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Expand images" }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand media" }));
     expect(header).toHaveAttribute("aria-expanded", "true");
     expect(screen.getAllByRole("button", { name: /Open image \d+ of 5/ })).toHaveLength(5);
     fireEvent.click(header);
@@ -460,6 +662,32 @@ describe("ThreadImagesDock", () => {
     rerender(<ThreadImagesDock gallery={[newer, first, second]} />);
 
     expect(container.querySelector('img[alt="first"]')).toBe(firstElement);
+  });
+
+  it("stays hidden when the thread holds no media", () => {
+    render(<ThreadImagesDock gallery={[]} />);
+    expect(screen.queryByRole("region", { name: "Media" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ThreadArtifactsBubble and ThreadArtifactsDock", () => {
+  beforeEach(() => {
+    useAppStore.setState({
+      threads: [],
+      projects: [],
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+      runtimeStructuralVersionByThread: {},
+    });
+    usePanelStore.setState({
+      threadDocksPanelOpen: false,
+      threadDocksFocus: null,
+      rightPanelTab: "git",
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("opens files-only thread info and resolves bare output names through the transcript file actions", async () => {
@@ -489,9 +717,8 @@ describe("ThreadImagesDock", () => {
     vi.mocked(openFileInEditor).mockClear();
     render(
       <>
-        <ThreadImagesBubble threadId="t-files" />
-        <ThreadImagesDock
-          gallery={[]}
+        <ThreadArtifactsBubble threadId="t-files" />
+        <ThreadArtifactsDock
           threadId="t-files"
           artifacts={[{ target: "report.pdf", name: "report.pdf", external: false }]}
         />
@@ -500,9 +727,8 @@ describe("ThreadImagesDock", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show files & artifacts" }));
     expect(usePanelStore.getState()).toMatchObject({
       threadDocksPanelOpen: true,
-      threadDocksFocus: "images",
+      threadDocksFocus: "artifacts",
     });
-    // The files & artifacts dock starts expanded like the images mosaic.
     fireEvent.click(screen.getByRole("button", { name: /report\.pdf/ }));
     await vi.waitFor(() =>
       expect(openFileInEditor).toHaveBeenCalledExactlyOnceWith(
@@ -520,8 +746,44 @@ describe("ThreadImagesDock", () => {
     });
   });
 
-  it("stays hidden when the thread holds no image", () => {
-    render(<ThreadImagesDock gallery={[]} />);
-    expect(screen.queryByRole("region", { name: "Images" })).not.toBeInTheDocument();
+  it("shows the first 5 files and artifacts with a Show more toggle when more exist", () => {
+    const artifacts = Array.from({ length: 7 }, (_, index) => ({
+      target: `src/file-${index + 1}.ts`,
+      name: `file-${index + 1}.ts`,
+      external: false,
+    }));
+
+    const { rerender } = render(
+      <ThreadArtifactsDock threadId="t-files" artifacts={artifacts.slice(0, 5)} />,
+    );
+    expect(screen.getByRole("region", { name: "Files & artifacts" })).toHaveTextContent("5");
+    expect(screen.getByText("file-5.ts")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Show/ })).not.toBeInTheDocument();
+
+    rerender(<ThreadArtifactsDock threadId="t-files" artifacts={artifacts} />);
+    expect(screen.getByRole("region", { name: "Files & artifacts" })).toHaveTextContent("7");
+    expect(screen.getByText("file-5.ts")).toBeInTheDocument();
+    expect(screen.queryByText("file-6.ts")).not.toBeInTheDocument();
+
+    const showMore = screen.getByRole("button", { name: "Show 2 more" });
+    expect(showMore).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(showMore);
+
+    expect(screen.getByText("file-6.ts")).toBeInTheDocument();
+    expect(screen.getByText("file-7.ts")).toBeInTheDocument();
+    const showFewer = screen.getByRole("button", { name: "Show fewer" });
+    expect(showFewer).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(showFewer);
+    expect(screen.queryByText("file-6.ts")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show 2 more" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  it("stays hidden when the thread holds no files or artifacts", () => {
+    render(<ThreadArtifactsDock artifacts={[]} />);
+    expect(screen.queryByRole("region", { name: "Files & artifacts" })).not.toBeInTheDocument();
   });
 });

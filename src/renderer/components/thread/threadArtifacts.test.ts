@@ -56,7 +56,8 @@ describe("collectThreadArtifacts", () => {
     ).toEqual([{ target: "D:/Output files/report.pdf", name: "report.pdf", external: false }]);
     expect(collectThreadArtifacts([item])).toEqual([]);
   });
-  it("collects attachments and output links newest first without duplicate files or images", () => {
+
+  it("collects attachments and output links newest first without duplicate files, images, or videos", () => {
     const attached: RuntimeChatItem = {
       id: "user",
       type: "user_message",
@@ -65,6 +66,7 @@ describe("collectThreadArtifacts", () => {
         content: [
           { kind: "file", path: "/tmp/input.csv", name: "Input data" },
           { kind: "file", path: "/tmp/picture.png" },
+          { kind: "file", path: "/tmp/recording.mp4", mimeType: "video/mp4" },
         ],
       },
       streams: {},
@@ -72,10 +74,10 @@ describe("collectThreadArtifacts", () => {
     expect(
       collectThreadArtifacts([
         attached,
-        message("a", "[Report](report.pdf)"),
+        message("a", "[Report](report.pdf) [Demo](demo.webm)"),
         message(
           "b",
-          "[Report](report.pdf) [Download](https://example.com/results.zip?token=abc) ![Preview](preview.png)",
+          "[Report](report.pdf) [Download](https://example.com/results.zip?token=abc) [Clip](https://example.com/clip.mp4) ![Preview](preview.png) ![Video](clip.mov)",
         ),
       ]),
     ).toEqual([

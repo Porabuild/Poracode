@@ -631,6 +631,7 @@ msgstr "{head}, hoặc {tail}"
 msgid "{heading} mode"
 msgstr "Chế độ {heading}"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {Hiện thêm #}}"
@@ -4498,7 +4499,7 @@ msgstr "Thu gọn lỗi"
 #~ msgid "Collapse experiment"
 #~ msgstr "Thu gọn thí nghiệm"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Thu gọn tệp và sản phẩm"
 
@@ -4512,8 +4513,12 @@ msgid "Collapse group"
 msgstr "Thu gọn nhóm"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Thu gọn hình ảnh"
+#~ msgid "Collapse images"
+#~ msgstr "Thu gọn hình ảnh"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Thu gọn đa phương tiện"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7951,7 +7956,7 @@ msgstr "Mở rộng lỗi"
 #~ msgid "Expand experiment"
 #~ msgstr "Mở rộng thí nghiệm"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Mở rộng tệp và sản phẩm"
 
@@ -7965,8 +7970,12 @@ msgid "Expand group"
 msgstr "Mở rộng nhóm"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Mở rộng hình ảnh"
+#~ msgid "Expand images"
+#~ msgstr "Mở rộng hình ảnh"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Mở rộng đa phương tiện"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8369,9 +8378,9 @@ msgstr "Tệp sử dụng mã hóa không được hỗ trợ."
 msgid "Files"
 msgstr "Tập tin"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Tệp và sản phẩm"
 
@@ -9374,6 +9383,7 @@ msgstr "Các chủ đề tiếp tục ẩn sẽ được quét 5 phút một l�
 msgid "Hide"
 msgstr "Ẩn"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9691,9 +9701,6 @@ msgstr "Hình ảnh"
 msgid "Image preview"
 msgstr "Xem trước hình ảnh"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Ảnh"
@@ -11756,6 +11763,12 @@ msgstr "Không đọc được mcp.json nên đã bỏ qua các máy chủ của
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json nhắm tới phiên bản Agent Plugins mà bản dựng này không hỗ trợ."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Đa phương tiện"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14171,6 +14184,17 @@ msgstr "Mở bộ chọn mô hình"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Mở luồng trong phần tóm tắt"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "Mở video {0}/{1}: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Mở xem trước video"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17088,6 +17112,7 @@ msgstr "Chỉ mức sử dụng được lưu trên máy chủ này."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18797,6 +18822,7 @@ msgstr "Hiện dock trong bảng bên phải"
 msgid "Show estimated cost"
 msgstr "Hiển thị chi phí ước tính"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Hiện ít hơn"
@@ -18805,7 +18831,7 @@ msgstr "Hiện ít hơn"
 msgid "Show file tree"
 msgstr "Hiện cây tệp"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Hiện tệp và sản phẩm"
 
@@ -18819,8 +18845,8 @@ msgstr "Hiển thị gợi ý phông chữ"
 #~ msgstr "Hiển thị GitHub Actions ở chân thanh bên."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Hiển thị ảnh"
+#~ msgid "Show images"
+#~ msgstr "Hiển thị ảnh"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18843,6 +18869,10 @@ msgstr "Hiện máy chủ MCP từ {providerLabel}"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Xem"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Hiển thị đa phương tiện"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21428,6 +21458,7 @@ msgstr "Máy này"
 msgid "This machine (local)"
 msgstr "Máy này (cục bộ)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21802,8 +21833,8 @@ msgid "Thread goal dock"
 msgstr "Dock mục tiêu luồng"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "Hình ảnh của luồng"
+#~ msgid "Thread images"
+#~ msgstr "Hình ảnh của luồng"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21819,6 +21850,10 @@ msgstr "Luồng đã được dỡ bỏ."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Tùy chọn danh sách luồng"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "Đa phương tiện của luồng"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22360,7 +22395,7 @@ msgstr "Không thể mở hình trong hình"
 msgid "Unable to open the file"
 msgstr "Không thể mở tệp"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Không thể mở tệp trong trình soạn thảo"
@@ -23470,6 +23505,7 @@ msgstr "Phiên bản"
 msgid "via {0}"
 msgstr "qua {0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"

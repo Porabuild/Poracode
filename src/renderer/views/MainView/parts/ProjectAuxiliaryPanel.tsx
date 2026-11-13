@@ -42,7 +42,9 @@ import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel"
 import { SideChatModelText } from "@/renderer/components/thread/SideChat/SideChatModelText";
 import { SideChatBody } from "@/renderer/components/thread/SideChat/SideChatBody";
 import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
+import { useThreadArtifacts } from "@/renderer/components/thread/threadArtifacts";
 import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
+import { useThreadVideos } from "@/renderer/components/thread/threadVideos";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -188,15 +190,21 @@ export function ProjectAuxiliaryPanel(props: {
     ? resolveProjectLocation(currentThreadProject.location, currentThreadWorktreePath)
     : undefined;
   const docksInCurrentThread = useThreadDocksPanelAvailable();
-  // Image-only threads offer the Docks tab without making image presence itself
-  // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
+  // Media/file-only threads offer the Docks tab without making media or file
+  // presence itself an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
   const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
     requestPending: false,
   });
-  const imagesInCurrentThread =
-    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
+  const videos = useThreadVideos(currentThreadId ?? undefined);
+  const artifacts = useThreadArtifacts(currentThreadId ?? undefined);
+  const mediaOrArtifactsInCurrentThread =
+    gallery.images.length +
+      gallery.pendingRemoteRefs.length +
+      gallery.pendingRemotePaths.length +
+      videos.length +
+      artifacts.length >
     0;
-  const docksTabAvailable = docksInCurrentThread || imagesInCurrentThread;
+  const docksTabAvailable = docksInCurrentThread || mediaOrArtifactsInCurrentThread;
 
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
   const filesPanelOpen = filesPanelContext !== null;

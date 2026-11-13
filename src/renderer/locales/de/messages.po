@@ -631,6 +631,7 @@ msgstr "{head} oder {tail}"
 msgid "{heading} mode"
 msgstr "{heading}-Modus"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "{hidden, plural, other {Show # more}}"
 msgstr "{hidden, plural, other {# weitere anzeigen}}"
@@ -4498,7 +4499,7 @@ msgstr "Fehler einklappen"
 #~ msgid "Collapse experiment"
 #~ msgstr "Experiment einklappen"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Collapse files & artifacts"
 msgstr "Dateien und Artefakte einklappen"
 
@@ -4512,8 +4513,12 @@ msgid "Collapse group"
 msgstr "Gruppe einklappen"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Collapse images"
-msgstr "Bilder einklappen"
+#~ msgid "Collapse images"
+#~ msgstr "Bilder einklappen"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse media"
+msgstr "Medien einklappen"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -7951,7 +7956,7 @@ msgstr "Fehler erweitern"
 #~ msgid "Expand experiment"
 #~ msgstr "Experiment ausklappen"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 msgid "Expand files & artifacts"
 msgstr "Dateien und Artefakte ausklappen"
 
@@ -7965,8 +7970,12 @@ msgid "Expand group"
 msgstr "Gruppe ausklappen"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Expand images"
-msgstr "Bilder ausklappen"
+#~ msgid "Expand images"
+#~ msgstr "Bilder ausklappen"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand media"
+msgstr "Medien ausklappen"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #~ msgid "Expand thread context"
@@ -8369,9 +8378,9 @@ msgstr "Die Datei verwendet eine nicht unterstützte Codierung."
 msgid "Files"
 msgstr "Dateien"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Files & artifacts"
 msgstr "Dateien und Artefakte"
 
@@ -9374,6 +9383,7 @@ msgstr "Versteckte fortsetzbare Threads werden alle 5 Minuten durchsucht und nac
 msgid "Hide"
 msgstr "Verstecken"
 
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
@@ -9691,9 +9701,6 @@ msgstr "Bild"
 msgid "Image preview"
 msgstr "Bildvorschau"
 
-#: src/renderer/components/thread/ThreadDocksPanel.tsx
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
-#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Bilder"
@@ -11756,6 +11763,12 @@ msgstr "mcp.json konnte nicht gelesen werden, daher wurden die Server dieses Plu
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json zielt auf eine Agent-Plugins-Version, die dieser Build nicht unterstützt."
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Media"
+msgstr "Medien"
 
 #: src/renderer/components/common/effortLabel.ts
 msgid "Medium"
@@ -14171,6 +14184,17 @@ msgstr "Modellauswahl öffnen"
 #: src/renderer/views/PullRequestsOverlay/timeline/TimelineEntryRow.tsx
 msgid "Open thread in summary"
 msgstr "Thread in der Zusammenfassung öffnen"
+
+#. placeholder {0}: index + 1
+#. placeholder {1}: videos.length
+#. placeholder {2}: video.name
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video {0} of {1}: {2}"
+msgstr "Video {0} von {1} öffnen: {2}"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Open video preview"
+msgstr "Videovorschau öffnen"
 
 #: src/renderer/components/devices/DeviceListItem.tsx
 msgid "Open view only"
@@ -17088,6 +17112,7 @@ msgstr "Nur gespeicherte Nutzung auf diesem Host."
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/common/GithubPollingNotice.tsx
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -18797,6 +18822,7 @@ msgstr "Docks im rechten Bereich anzeigen"
 msgid "Show estimated cost"
 msgstr "Geschätzte Kosten anzeigen"
 
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Weniger anzeigen"
@@ -18805,7 +18831,7 @@ msgstr "Weniger anzeigen"
 msgid "Show file tree"
 msgstr "Dateibaum anzeigen"
 
-#: src/renderer/components/thread/ThreadImagesBubble.tsx
+#: src/renderer/components/thread/ThreadArtifactsBubble.tsx
 msgid "Show files & artifacts"
 msgstr "Dateien und Artefakte anzeigen"
 
@@ -18819,8 +18845,8 @@ msgstr "Schriftvorschläge anzeigen"
 #~ msgstr "GitHub Actions in der Fußzeile der Seitenleiste anzeigen."
 
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
-msgid "Show images"
-msgstr "Bilder anzeigen"
+#~ msgid "Show images"
+#~ msgstr "Bilder anzeigen"
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Show in file explorer"
@@ -18843,6 +18869,10 @@ msgstr "MCP-Server von {providerLabel} anzeigen"
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "Show me"
 msgstr "Zeigen"
+
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
+msgid "Show media"
+msgstr "Medien anzeigen"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/EverythingSearchResults.tsx
@@ -21428,6 +21458,7 @@ msgstr "Dieser Computer"
 msgid "This machine (local)"
 msgstr "Diese Maschine (lokal)"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "This media preview is unavailable."
@@ -21802,8 +21833,8 @@ msgid "Thread goal dock"
 msgstr "Thread-Zieldock"
 
 #: src/renderer/components/thread/ThreadImagesDock.tsx
-msgid "Thread images"
-msgstr "Thread-Bilder"
+#~ msgid "Thread images"
+#~ msgstr "Thread-Bilder"
 
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
@@ -21819,6 +21850,10 @@ msgstr "Thread ist bereits entladen."
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 msgid "Thread list options"
 msgstr "Optionen der Thread-Liste"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Thread media"
+msgstr "Thread-Medien"
 
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 msgid "Thread mode"
@@ -22360,7 +22395,7 @@ msgstr "Bild-in-Bild kann nicht geöffnet werden"
 msgid "Unable to open the file"
 msgstr "Datei konnte nicht geöffnet werden"
 
-#: src/renderer/components/thread/ThreadImagesDock.tsx
+#: src/renderer/components/thread/ThreadArtifactsDock.tsx
 #: src/renderer/utils/gitHelpers.ts
 msgid "Unable to open the file in the editor"
 msgstr "Datei konnte nicht im Editor geöffnet werden"
@@ -23470,6 +23505,7 @@ msgstr "Version"
 msgid "via {0}"
 msgstr "über {0}"
 
+#: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/media/NativeMediaView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownVideo.tsx
 msgid "Video preview"
