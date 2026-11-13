@@ -42,31 +42,31 @@ describe.skipIf(!sqliteAvailable)("durable history cache revisions", () => {
   });
 
   it("survives restart and rolls back atomically with a failed history write", () => {
-    const before = readHistoryCacheRevision("thread-1");
+    const before = readHistoryCacheRevision(getSqlite(), "thread-1");
     expect(before).toEqual(expect.any(String));
     expect(() =>
       getSqlite().transaction(() => {
         getSqlite()
           .prepare("UPDATE thread_runtime_items SET streams = '{}' WHERE thread_id = ?")
           .run("thread-1");
-        expect(readHistoryCacheRevision("thread-1")).not.toBe(before);
+        expect(readHistoryCacheRevision(getSqlite(), "thread-1")).not.toBe(before);
         throw new Error("rollback");
       })(),
     ).toThrow("rollback");
-    expect(readHistoryCacheRevision("thread-1")).toBe(before);
+    expect(readHistoryCacheRevision(getSqlite(), "thread-1")).toBe(before);
     closeDatabase();
     initDatabase(path);
-    expect(readHistoryCacheRevision("thread-1")).toBe(before);
+    expect(readHistoryCacheRevision(getSqlite(), "thread-1")).toBe(before);
   });
 
   it("invalidates stream-only, turn and context writes without invalidating other threads", () => {
     dbUpsertThread({ ...testThread(), id: "other" }, 1);
-    const other = readHistoryCacheRevision("other");
+    const other = readHistoryCacheRevision(getSqlite(), "other");
     const mutate = (sql: string) => {
-      const previous = readHistoryCacheRevision("thread-1");
+      const previous = readHistoryCacheRevision(getSqlite(), "thread-1");
       getSqlite().exec(sql);
-      expect(readHistoryCacheRevision("thread-1")).not.toBe(previous);
-      expect(readHistoryCacheRevision("other")).toBe(other);
+      expect(readHistoryCacheRevision(getSqlite(), "thread-1")).not.toBe(previous);
+      expect(readHistoryCacheRevision(getSqlite(), "other")).toBe(other);
     };
     mutate(
       "INSERT INTO thread_runtime_item_stream_chunks VALUES ('thread-1', 'reply', 'assistant_text', 0, 5, 'after')",
@@ -81,14 +81,14 @@ describe.skipIf(!sqliteAvailable)("durable history cache revisions", () => {
   });
 
   it("does not reuse a proof after deleting and recreating the same thread id", async () => {
-    const before = readHistoryCacheRevision("thread-1");
+    const before = readHistoryCacheRevision(getSqlite(), "thread-1");
     getSqlite().prepare("DELETE FROM threads WHERE id = ?").run("thread-1");
-    expect(readHistoryCacheRevision("thread-1")).toBeUndefined();
+    expect(readHistoryCacheRevision(getSqlite(), "thread-1")).toBeUndefined();
     dbUpsertThread(testThread(), 0);
     await dbReplaceThreadRuntimeItems("thread-1", [
       { id: "reply", type: "assistant_message", state: "completed", streams: {} },
     ]);
-    expect(readHistoryCacheRevision("thread-1")).not.toBe(before);
+    expect(readHistoryCacheRevision(getSqlite(), "thread-1")).not.toBe(before);
   });
 
   it("upgrades a schema72 database without rewriting its transcript", () => {
@@ -105,10 +105,10 @@ describe.skipIf(!sqliteAvailable)("durable history cache revisions", () => {
     const before = sqlite.prepare("SELECT * FROM thread_runtime_items").all();
     closeDatabase();
     initDatabase(path);
-    expect(readHistoryCacheRevision("thread-1")).toEqual(expect.any(String));
+    expect(readHistoryCacheRevision(getSqlite(), "thread-1")).toEqual(expect.any(String));
     expect(getSqlite().prepare("SELECT * FROM thread_runtime_items").all()).toEqual(before);
-    const revision = readHistoryCacheRevision("thread-1");
+    const revision = readHistoryCacheRevision(getSqlite(), "thread-1");
     getSqlite().exec("UPDATE thread_runtime_items SET state = 'completed'");
-    expect(readHistoryCacheRevision("thread-1")).not.toBe(revision);
+    expect(readHistoryCacheRevision(getSqlite(), "thread-1")).not.toBe(revision);
   });
 });

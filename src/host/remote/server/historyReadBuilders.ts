@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readDatabaseAsync } from "@/host/db/asyncReads";
+import { getSqlite } from "@/host/db/connection";
 import { readHistoryCacheRevision } from "@/host/db/historyCacheRevision";
 import {
   readBoundedHistorySnapshotData,
@@ -104,7 +105,9 @@ export async function buildBoundedThreadSnapshot(
         caps,
       };
       const revision =
-        options.historyCache && !readsTerminal ? readHistoryCacheRevision(threadId) : undefined;
+        options.historyCache && !readsTerminal
+          ? readHistoryCacheRevision(getSqlite(), threadId)
+          : undefined;
       // hc1 versions the projected payload and its selection. A changed bound,
       // projection or thread incarnation must never validate a different tail.
       const cacheRevision =

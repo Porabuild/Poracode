@@ -1,5 +1,4 @@
 import type Database from "better-sqlite3";
-import { getSqlite } from "./connection";
 
 // The revision covers the persisted history payload, not live thread controls.
 // SQL triggers also cover asynchronous writers and rollback/reset paths, in the
@@ -74,8 +73,11 @@ export function assertHistoryCacheRevisionSchema(sqlite: InstanceType<typeof Dat
 }
 
 /** Read only inside the owning thread's committed-prefix history fence. */
-export function readHistoryCacheRevision(threadId: string): string | undefined {
-  const row = getSqlite()
+export function readHistoryCacheRevision(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
+): string | undefined {
+  const row = sqlite
     .prepare(
       "SELECT incarnation || '.' || revision AS revision FROM thread_history_revisions WHERE thread_id = ?",
     )
