@@ -265,6 +265,12 @@ describe("FloatingComposerDock", () => {
   });
 
   it("reports composer focus before focusing the editor on guarded first focus", () => {
+    // React Aria 3.53 installs a test-only window.visualViewport polyfill
+    // on module load. Its presence is the hook's "real mobile browser"
+    // signal and would route this tap through the async cold-keyboard
+    // probe; remove it so the warm synchronous path stays under test.
+    const visualViewportDescriptor = Object.getOwnPropertyDescriptor(window, "visualViewport");
+    Reflect.deleteProperty(window, "visualViewport");
     const order: string[] = [];
     scrollLockMock.focusWithoutScroll.mockImplementation((element) => {
       order.push(element?.hasAttribute("data-composer-focus-sentinel") ? "sentinel" : "input");
@@ -300,6 +306,9 @@ describe("FloatingComposerDock", () => {
     expect(order.indexOf("focus:true")).toBeGreaterThanOrEqual(0);
     expect(order.indexOf("focus:true")).toBeLessThan(order.indexOf("sentinel"));
     expect(order.indexOf("sentinel")).toBeLessThan(order.indexOf("input"));
+    if (visualViewportDescriptor) {
+      Object.defineProperty(window, "visualViewport", visualViewportDescriptor);
+    }
   });
 
   it("uses the keyboard primer before expanding from the compact composer on cold first focus", async () => {

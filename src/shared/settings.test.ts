@@ -261,6 +261,7 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "artifacts",
       "info",
       "context",
       "usage",
@@ -275,11 +276,16 @@ describe("shared settings defaults", () => {
     ).toEqual(["goal", "images", "agents", "plan", "backgroundTasks"]);
   });
 
-  it("preserves existing saved dock order and appends new docks on upgrade", () => {
+  it("preserves existing saved dock order and inserts artifacts beside images on upgrade", () => {
     const priorOrder = ["images", "plan", "agents", "goal", "backgroundTasks"];
     const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
     expect(upgraded.threadDocksOrder).toEqual([
-      ...priorOrder,
+      "images",
+      "artifacts",
+      "plan",
+      "agents",
+      "goal",
+      "backgroundTasks",
       "vision",
       "info",
       "context",
@@ -294,6 +300,7 @@ describe("shared settings defaults", () => {
       ),
     ).toEqual([
       "usage",
+      "artifacts",
       "images",
       "agents",
       "goal",
@@ -305,9 +312,9 @@ describe("shared settings defaults", () => {
     ]);
   });
 
-  it("inserts the info dock beside a prior-release context slot without moving saved positions", () => {
-    // Orders saved before the unversioned "info" dock existed remain valid:
-    // the new dock lands next to the old combined section.
+  it("inserts split info and artifacts docks beside their prior combined slots without moving saved positions", () => {
+    // Orders saved before the unversioned "info" and "artifacts" docks existed remain valid:
+    // each new dock lands next to the old combined section.
     const priorOrder = [
       "vision",
       "goal",
@@ -325,15 +332,17 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "artifacts",
       "info",
       "context",
       "usage",
     ]);
-    // A legacy order without context/usage keeps its relative order and gets
-    // the new docks appended in default order.
+    // A legacy order without context/usage keeps its relative order and inserts
+    // artifacts right after images while appending remaining defaults.
     expect(normalizeThreadDocksOrder(["usage", "images", "plan"])).toEqual([
       "usage",
       "images",
+      "artifacts",
       "plan",
       "vision",
       "goal",
@@ -342,8 +351,9 @@ describe("shared settings defaults", () => {
       "info",
       "context",
     ]);
-    // An explicitly saved info position is never rewritten.
-    expect(normalizeThreadDocksOrder(["info", "context", "images"])).toEqual([
+    // Explicitly saved info and artifacts positions are never rewritten.
+    expect(normalizeThreadDocksOrder(["artifacts", "info", "context", "images"])).toEqual([
+      "artifacts",
       "info",
       "context",
       "images",

@@ -4,6 +4,7 @@ mod attributes;
 mod config;
 mod remotes;
 mod status;
+mod tree;
 
 use crate::git_exec::SubprocessLimiter;
 use crate::protocol::{
@@ -97,6 +98,16 @@ impl GitHelperService {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// List a contained directory without spawning Git or using the host's IO pool.
+    pub fn list_tree(
+        &self,
+        root_path: &str,
+        directory_path: &str,
+        timeout_ms: u64,
+    ) -> Result<Vec<NativeProjectTreeEntry>, String> {
+        tree::list(root_path, directory_path, timeout_ms).map_err(|error| error.to_string())
     }
 
     /// Execute tree search; this independent route can still start Git.

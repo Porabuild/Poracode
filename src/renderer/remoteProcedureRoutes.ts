@@ -82,6 +82,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   openMicrophoneSettings: "local-shell: opens this machine's OS settings app",
   showNotification: "local-shell: OS notification",
   getHomeScopeLocation: "local-shell: this machine's home directory as the default project parent",
+  listLocalPorts: "local-shell: inspects this machine's listening sockets and process owners",
+  closeLocalPort: "local-shell: stops a validated socket owner on this machine",
   listWslDistros: "local-shell: enumerates this machine's WSL distros for location picking",
   getAvailableWindowsShells: "local-shell: this machine's terminal shell inventory",
 

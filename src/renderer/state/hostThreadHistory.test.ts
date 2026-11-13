@@ -6,6 +6,8 @@ import {
   type RemoteDesktopClient,
 } from "@/shared/remote/client";
 import { HostSession } from "@/renderer/hostTransport/hostSession";
+import * as recentHistoryCache from "../browser/recentHistoryCache";
+import { cachedThreadHistorySchema } from "@/shared/remote/historyReadSchemas";
 import type { EntityHost } from "./entityHost";
 import { useAppStore } from "./appStore";
 import {
@@ -34,13 +36,12 @@ vi.mock("./entityHost", () => ({
   entityHost: (entity: { remoteServerId?: string }) =>
     mocks.requireOwner && !entity.remoteServerId ? undefined : mocks.host,
 }));
-// The cold-read preview's on-device cache needs IndexedDB.
+// The cold-read hold needs no store access in this suite.
 vi.mock("./hostHistoryPreview", () => ({
   beginHostHistoryPreview: () => ({
     retire() {},
     cancel() {},
     complete() {},
-    cacheAccepted() {},
   }),
 }));
 
@@ -161,6 +162,38 @@ afterEach(() => {
 });
 
 describe("readHostThreadHistory", () => {
+  it.each(["ready", "blocked"] as const)(
+    "bounds a %s startup cache lookup without painting it first",
+    async (cacheState) => {
+      vi.useFakeTimers();
+      const { host, read } = testHost();
+      Object.defineProperty(host, "recentHistoryKey", { value: "managed:test" });
+      const cached = cachedThreadHistorySchema.parse({ ...page(), revision: "hc1.cached" });
+      const lookup = Promise.withResolvers<typeof cached | null>();
+      const cacheRead = vi
+        .spyOn(recentHistoryCache, "readRecentHistory")
+        .mockReturnValue(lookup.promise);
+      read.mockResolvedValue({ negotiation: "bounded", page: page() });
+      const pending = readHostThreadHistory({ id: VIEW });
+      try {
+        await vi.advanceTimersByTimeAsync(50);
+        expect(read).not.toHaveBeenCalled();
+        expect(useAppStore.getState().runtimeItemIdsByThread[VIEW]).toBeUndefined();
+        if (cacheState === "ready") lookup.resolve(cached);
+        else await vi.advanceTimersByTimeAsync(50);
+        await pending;
+        expect(read).toHaveBeenCalledWith(
+          HOST_ID,
+          expect.objectContaining({ historyCache: cacheState === "ready" ? cached : true }),
+        );
+      } finally {
+        lookup.resolve(null);
+        await pending;
+        cacheRead.mockRestore();
+        vi.useRealTimers();
+      }
+    },
+  );
   it("resumes an id-only paired reopen from its resident owner without another history read", async () => {
     const { read, resume } = testHost();
     const row = { ...hostThread, id: VIEW, remoteServerId: "test-host", remoteId: HOST_ID };

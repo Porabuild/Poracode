@@ -28,7 +28,7 @@ function targetKey(target: Pick<AgentStatus, "kind" | "envKind" | "envDistro">):
  * In-memory ownership for detection publications. Reserve targets before a
  * job waits in the probe queue: only the latest request for each target may
  * publish. An accepted snapshot remains last-known while that target refreshes;
- * registry invalidation/full refresh retires the entire view instead.
+ * explicit invalidation/full refresh retires the entire view instead.
  *
  * Maps contain target identities, not a history of jobs. Persistence is allowed
  * only when every latest requested target has completed, never for a partial
@@ -107,26 +107,38 @@ export class AgentStatusPublication {
     );
   }
 
-  discardKinds(
-    kinds: ReadonlySet<string>,
-    baseline: AgentStatusesResponse,
-    tickets: readonly AgentStatusPublicationTicket[],
-  ): void {
+  /**
+   * Retire pre-change probe custody for still-registered `kinds` without
+   * erasing their last-known accepted snapshots while a replacement probe runs.
+   */
+  retireKinds(kinds: ReadonlySet<string>, tickets: readonly AgentStatusPublicationTicket[]): void {
     for (const ticket of tickets) {
       const retired = this.retiredTargets.get(ticket) ?? new Set<string>();
       for (const [key, target] of ticket.targets) if (kinds.has(target.kind)) retired.add(key);
       this.retiredTargets.set(ticket, retired);
     }
+    for (const key of new Set([...this.owners.keys(), ...this.completed.keys()])) {
+      const [kind] = JSON.parse(key) as [string];
+      if (!kinds.has(kind)) continue;
+      this.owners.delete(key);
+      this.completed.delete(key);
+    }
+  }
+
+  discardKinds(
+    kinds: ReadonlySet<string>,
+    baseline: AgentStatusesResponse,
+    tickets: readonly AgentStatusPublicationTicket[],
+  ): void {
     const keys = new Set([
       ...this.owners.keys(),
       ...this.ready.keys(),
       ...[...baseline.windows, ...baseline.wsl].map(targetKey),
     ]);
+    this.retireKinds(kinds, tickets);
     for (const key of keys) {
       const [kind] = JSON.parse(key) as [string];
       if (!kinds.has(kind)) continue;
-      this.owners.delete(key);
-      this.completed.delete(key);
       this.ready.set(key, null);
     }
   }

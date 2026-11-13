@@ -21,6 +21,7 @@ import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
 import {
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeItems,
+  dbApplyThreadRuntimeEvents,
   type PersistedCompletedTurn,
 } from "@/host/db/runtimeItems";
 import { RuntimePersistenceBusyError } from "@/host/db/runtimePersistenceTypes";
@@ -196,6 +197,101 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
     vi.useRealTimers();
+  });
+
+  it("validates durable history after restart while refreshing live state and sequence proofs", async () => {
+    dbUpsertThread({ ...testThread(), presentationMode: "gui" }, 0);
+    await dbReplaceThreadRuntimeItems("thread-1", [item(1)]);
+    const first = boundedThreadSnapshotSchema.parse(
+      JSON.parse(
+        await buildBoundedThreadSnapshot(context(), "thread-1", negotiation(), {
+          historyCache: {},
+        }),
+      ),
+    );
+    expect(first.historyCache?.unchanged).toBe(false);
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+    const ctx = { ...context(), seq: 1 };
+    ctx.threadLiveReadState.observe({
+      type: "thread-state",
+      threadId: "thread-1",
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    let second!: typeof first;
+    const sql = await captureSqlAsync(async () => {
+      second = boundedThreadSnapshotSchema.parse(
+        JSON.parse(
+          await buildBoundedThreadSnapshot(ctx, "thread-1", negotiation(), {
+            historyCache: { revision: first.historyCache!.revision },
+          }),
+        ),
+      );
+    });
+    expect(second.historyCache).toEqual({
+      revision: first.historyCache!.revision,
+      unchanged: true,
+    });
+    expect(second.runtimeItems).toEqual([]);
+    expect(second.thread.status).toBe("working");
+    expect(second.snapshotSeq).toBe(1);
+    expect(second.runtimeResumeCursor).not.toBe(first.runtimeResumeCursor);
+    expect(sql.some((statement) => /FROM thread_runtime_items\b/i.test(statement))).toBe(false);
+  });
+
+  it("returns fresh history in the same read when its revision or selection changed", async () => {
+    dbUpsertThread({ ...testThread(), presentationMode: "gui" }, 0);
+    await dbReplaceThreadRuntimeItems("thread-1", [item(1)]);
+    const read = (revision?: string, targetTimelineEntryCount = 20) =>
+      buildBoundedThreadSnapshot(context(), "thread-1", negotiation(), {
+        targetTimelineEntryCount,
+        historyCache: { ...(revision ? { revision } : {}) },
+      }).then((body) => boundedThreadSnapshotSchema.parse(JSON.parse(body)));
+    const first = await read();
+    const differentWindow = await read(first.historyCache!.revision, 40);
+    expect(differentWindow.historyCache?.unchanged).toBe(false);
+    await dbReplaceThreadRuntimeItems("thread-1", [item(2)]);
+    const changed = await read(first.historyCache!.revision);
+    expect(changed.historyCache?.unchanged).toBe(false);
+    expect(changed.runtimeItems.map(({ id }) => id)).toEqual(["item-002"]);
+    const legacy = JSON.parse(
+      await buildBoundedThreadSnapshot(context(), "thread-1", negotiation()),
+    );
+    expect(legacy.historyCache).toBeUndefined();
+    expect(legacy.runtimeItems).toEqual(changed.runtimeItems);
+  });
+
+  it("flushes admitted stream writes before validating a cached revision", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      { ...item(1), state: "started", streams: { assistant_text: "before" } },
+    ]);
+    const ctx = context();
+    const first = boundedThreadSnapshotSchema.parse(
+      JSON.parse(
+        await buildBoundedThreadSnapshot(ctx, "thread-1", negotiation(), { historyCache: {} }),
+      ),
+    );
+    const accepted = dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "content.delta",
+        threadId: "thread-1",
+        itemId: "item-001",
+        stream: "assistant_text",
+        delta: " after",
+      },
+    ]);
+    expect(accepted.kind).toBe("accepted");
+    const latest = boundedThreadSnapshotSchema.parse(
+      JSON.parse(
+        await buildBoundedThreadSnapshot(ctx, "thread-1", negotiation(), {
+          historyCache: { revision: first.historyCache!.revision },
+        }),
+      ),
+    );
+    expect(latest.historyCache?.unchanged).toBe(false);
+    expect(latest.runtimeItems[0]?.streams.assistant_text).toBe("before after");
   });
 
   it.each(["legacy", "bounded"] as const)(

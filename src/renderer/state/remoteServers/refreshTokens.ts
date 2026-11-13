@@ -511,6 +511,34 @@ function readVaultRecords(keys: readonly string[]): Promise<unknown[]> {
 }
 
 /**
+ * A fresh pairing replaces the old credentials rather than using them. Read
+ * the persisted key and ciphertext needed to fence its commit without
+ * decrypting an obsolete bearer or grant, which would prevent QR repair.
+ * Existing v1 vault records stay valid; no schema or key change is needed.
+ */
+export async function readSharedRefreshSlot(
+  subject: RefreshSubject,
+): Promise<
+  | { readonly status: "unavailable" | "failed" }
+  | { readonly status: "ok"; readonly refreshSlot: VaultSlotCiphertext | null }
+> {
+  if (!vaultAvailable()) return { status: "unavailable" };
+  try {
+    const [keyRecord, grantRecord] = await readVaultRecords([
+      "cryptoKey",
+      refreshSubjectVaultKey(subject),
+    ]);
+    if (!(keyRecord as { cryptoKey?: CryptoKey } | undefined)?.cryptoKey) {
+      return { status: "unavailable" };
+    }
+    return { status: "ok", refreshSlot: slotCiphertext(grantRecord) };
+  } catch (error) {
+    console.warn("[remoteServers] unable to read the shared refresh slot", error);
+    return { status: "failed" };
+  }
+}
+
+/**
  * Reads a subject's refresh grant, and the bearer committed with it, straight
  * from the shared vault, bypassing this realm's caches: another window or tab
  * may have rotated either since this realm loaded them.

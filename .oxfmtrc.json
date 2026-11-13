@@ -6,6 +6,7 @@
     "protocol/remote/v3/generated/**",
     "tui/opencode/**",
     "tui/node_modules/**",
-    "tui/dist/**"
+    "tui/dist/**",
+    "**/skills/heroui-react/**"
   ]
 }

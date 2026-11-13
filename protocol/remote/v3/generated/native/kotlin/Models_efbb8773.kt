@@ -6,14 +6,14 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
-data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_83daa5e81e(
+data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_d5e402f736(
     @SerialName("kind") val kind: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DKind_9e712b4f87,
-    @SerialName("snapshot") val snapshot: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_193c5a32b1,
+    @SerialName("snapshot") val snapshot: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_7641767459,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("kind", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DKind_9e712b4f87", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("snapshot", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_193c5a32b1", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("snapshot", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshot_7641767459", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
@@ -69,24 +69,24 @@ data class RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_c5dd902378(
     }
 }
 
-@Serializable(with = RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d.Serializer::class)
-sealed interface RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d {
-    data class Option1(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_83daa5e81e) : RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d
-    data class Option2(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_c5dd902378) : RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d
-    object Serializer : KSerializer<RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d")
-        override fun deserialize(decoder: Decoder): RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d supports JSON only")
+@Serializable(with = RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00.Serializer::class)
+sealed interface RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00 {
+    data class Option1(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_d5e402f736) : RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00
+    data class Option2(val value: RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_c5dd902378) : RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00
+    object Serializer : KSerializer<RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00")
+        override fun deserialize(decoder: Decoder): RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00 supports JSON only")
             val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("snapshot")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_83daa5e81e>(element)) }
+            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("snapshot")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_d5e402f736>(element)) }
             RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("events")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_c5dd902378>(element)) }
-            return RemoteUnionCodec.single("RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d", matches)
+            return RemoteUnionCodec.single("RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00", matches)
         }
-        override fun serialize(encoder: Encoder, value: RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_dfcc147f5d supports JSON only")
+        override fun serialize(encoder: Encoder, value: RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DHistoryU2DChangesResponse_23c74d6e00 supports JSON only")
             val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_83daa5e81e>(value.value)
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1_d5e402f736>(value.value)
                 is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D2_c5dd902378>(value.value)
             }
             jsonEncoder.encodeJsonElement(element)

@@ -18,3 +18,16 @@ export const boundedThreadSnapshotSchema = remoteThreadSnapshotSchema.extend({
 export const boundedRuntimeItemsPageSchema = remoteRuntimeItemsPageSchema.extend({
   reads: z.literal(CATALOG_READS_CAPABILITY),
 });
+
+/** Only durable history is reusable; controls, notices and sequence proofs are always fresh. */
+export const cachedThreadHistorySchema = boundedThreadSnapshotSchema
+  .pick({
+    runtimeItems: true,
+    runtimeNextCursor: true,
+    completedTurns: true,
+    completedTurnsNextCursor: true,
+    contextUsage: true,
+    historyProjection: true,
+  })
+  .extend({ revision: z.string().min(1).max(160) });
+export type CachedThreadHistory = z.infer<typeof cachedThreadHistorySchema>;

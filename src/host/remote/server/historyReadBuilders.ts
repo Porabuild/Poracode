@@ -1,4 +1,7 @@
+import { createHash } from "node:crypto";
 import { readDatabaseAsync } from "@/host/db/asyncReads";
+import { getSqlite } from "@/host/db/connection";
+import { readHistoryCacheRevision } from "@/host/db/historyCacheRevision";
 import {
   readBoundedHistorySnapshotData,
   readBoundedHistoryItems,
@@ -47,6 +50,7 @@ import { withStableUpdatedAt } from "./stableUpdatedAt";
 export interface BoundedHistorySnapshotOptions {
   readonly omitScrollback?: boolean;
   readonly targetTimelineEntryCount?: number;
+  readonly historyCache?: { readonly revision?: string };
 }
 
 /**
@@ -100,10 +104,24 @@ export async function buildBoundedThreadSnapshot(
         targetTimelineEntryCount,
         caps,
       };
-      const data = await readDatabaseAsync("boundedSnapshot", [threadId, input], () =>
-        readBoundedHistorySnapshotData(threadId, input),
-      );
-      return { ...data, runtimeNotice };
+      const revision =
+        options.historyCache && !readsTerminal
+          ? readHistoryCacheRevision(getSqlite(), threadId)
+          : undefined;
+      // hc1 versions the projected payload and its selection. A changed bound,
+      // projection or thread incarnation must never validate a different tail.
+      const cacheRevision =
+        revision === undefined
+          ? undefined
+          : `hc1.${revision}.${createHash("sha256").update(JSON.stringify(input)).digest("hex")}`;
+      const unchanged =
+        cacheRevision !== undefined && options.historyCache?.revision === cacheRevision;
+      const data = unchanged
+        ? null
+        : await readDatabaseAsync("boundedSnapshot", [threadId, input], () =>
+            readBoundedHistorySnapshotData(threadId, input),
+          );
+      return { data, runtimeNotice, cacheRevision };
     });
   } catch (error) {
     throw mapHistoryPersistenceRefusal(error);
@@ -112,7 +130,7 @@ export async function buildBoundedThreadSnapshot(
   // Stored history and latest host-projected controls are independent of
   // supervisor/agent readiness. Live terminal contents arrive through the
   // separately subscribed terminal watch; a cold snapshot uses its durable tail.
-  const terminalScrollback = fenced.terminalScrollback || undefined;
+  const terminalScrollback = fenced.data?.terminalScrollback || undefined;
   const backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? [])];
   const followUpQueue = readsTerminal ? null : ctx.threadLiveReadState.queueFor(threadId);
 
@@ -121,27 +139,61 @@ export async function buildBoundedThreadSnapshot(
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
 
-  const projectedDesc = fenced.projectedDesc;
-  const goalInPage =
-    fenced.goal !== null && projectedDesc.some((item) => item.id === fenced.goal!.id);
+  const controls = {
+    snapshotSeq,
+    runtimeResumeCursor,
+    ...ctx.threadLiveReadState.projectSnapshotRuntime(
+      ctx.sessionConfigInventory.enrichThreadRow(thread),
+    ),
+    reads: CATALOG_READS_CAPABILITY,
+    ...(negotiation.compactDetails ? { historyProjection: HISTORY_DETAILS_PROJECTION } : {}),
+    backgroundTasks,
+    ...(terminalScrollback ? { terminalScrollback } : {}),
+    ...(followUpQueue !== undefined ? { followUpQueue } : {}),
+    ...(fenced.runtimeNotice ? { runtimeNotice: fenced.runtimeNotice } : {}),
+    ...(fenced.cacheRevision
+      ? { historyCache: { revision: fenced.cacheRevision, unchanged: fenced.data === null } }
+      : {}),
+  };
+  if (fenced.data === null) {
+    const body = JSON.stringify(
+      boundedThreadSnapshotSchema.parse(
+        withStableUpdatedAt(`thread:${threadId}`, {
+          ...controls,
+          runtimeItems: [],
+          runtimeNextCursor: null,
+          completedTurns: [],
+          completedTurnsNextCursor: null,
+          contextUsage: null,
+        }),
+      ),
+    );
+    const sizes = measureCatalogBody(body);
+    if (!catalogSizesFit(sizes, caps)) throw historyEnvelopeTooLarge(sizes, caps);
+    return `${body}\n`;
+  }
+  const data = fenced.data;
+
+  const projectedDesc = data.projectedDesc;
+  const goalInPage = data.goal !== null && projectedDesc.some((item) => item.id === data.goal!.id);
   const projectedGoal =
-    fenced.goal !== null && !goalInPage
-      ? projectRuntimeItemsImageRefs(threadId, [fenced.goal])[0]!
+    data.goal !== null && !goalInPage
+      ? projectRuntimeItemsImageRefs(threadId, [data.goal])[0]!
       : null;
   const pageItemsAsc = [...projectedDesc].reverse();
   const itemCountAvailable = pageItemsAsc.length;
-  const turnsAsc = [...fenced.turnsMeta].reverse();
+  const turnsAsc = [...data.turnsMeta].reverse();
   const turnsTotal = turnsAsc.length;
 
   const nextRuntimeCursor = (count: number): number | null => {
-    const omitted = fenced.itemsOmitted || count < itemCountAvailable;
+    const omitted = data.itemsOmitted || count < itemCountAvailable;
     if (!omitted) return null;
-    if (count > 0) return fenced.keptMeta[count - 1]!.position;
-    if (fenced.newestCandidatePosition !== undefined) return fenced.newestCandidatePosition + 1;
+    if (count > 0) return data.keptMeta[count - 1]!.position;
+    if (data.newestCandidatePosition !== undefined) return data.newestCandidatePosition + 1;
     return null;
   };
   const nextTurnsCursor = (count: number): string | null => {
-    const omitted = fenced.turnsOmitted || count < turnsTotal;
+    const omitted = data.turnsOmitted || count < turnsTotal;
     if (!omitted) return null;
     if (count > 0) return encodeCompletedTurnCursor(turnsAsc[turnsTotal - count]!.idx);
     if (turnsTotal > 0) return encodeCompletedTurnCursor(turnsAsc[turnsTotal - 1]!.idx + 1);
@@ -156,24 +208,14 @@ export async function buildBoundedThreadSnapshot(
     `${JSON.stringify(
       boundedThreadSnapshotSchema.parse(
         withStableUpdatedAt(`thread:${threadId}`, {
-          snapshotSeq,
-          runtimeResumeCursor,
-          ...ctx.threadLiveReadState.projectSnapshotRuntime(
-            ctx.sessionConfigInventory.enrichThreadRow(thread),
-          ),
-          reads: CATALOG_READS_CAPABILITY,
-          ...(negotiation.compactDetails ? { historyProjection: HISTORY_DETAILS_PROJECTION } : {}),
+          ...controls,
           runtimeItems: projectedGoal
             ? [projectedGoal, ...pageItemsAsc.slice(itemCountAvailable - itemCount)]
             : pageItemsAsc.slice(itemCountAvailable - itemCount),
           runtimeNextCursor: nextRuntimeCursor(itemCount),
           completedTurns: turnSlice(turnCount),
           completedTurnsNextCursor: nextTurnsCursor(turnCount),
-          contextUsage: fenced.contextUsage,
-          backgroundTasks,
-          ...(terminalScrollback ? { terminalScrollback } : {}),
-          ...(followUpQueue !== undefined ? { followUpQueue } : {}),
-          ...(fenced.runtimeNotice ? { runtimeNotice: fenced.runtimeNotice } : {}),
+          contextUsage: data.contextUsage,
         }),
       ),
     )}\n`;
@@ -189,7 +231,7 @@ export async function buildBoundedThreadSnapshot(
     throw historyEnvelopeTooLarge(emptySizes, caps);
   }
   const trimmed = trimHistoryPrefixToCaps({
-    rows: fenced.keptMeta,
+    rows: data.keptMeta,
     serialize: (count) => serialize(count, 0),
     caps,
   });
@@ -197,7 +239,7 @@ export async function buildBoundedThreadSnapshot(
     if (itemCountAvailable > 0) {
       throw historyItemTooLarge(
         "runtime_item",
-        fenced.keptMeta[0]!.itemId,
+        data.keptMeta[0]!.itemId,
         trimmed.singleSizes,
         caps,
       );

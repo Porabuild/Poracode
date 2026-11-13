@@ -96,6 +96,14 @@ export {
 } from "./procedures/browser";
 export {
   windowChromePayloadSchema,
+  localPortInfoSchema,
+  listLocalPortsResultSchema,
+  closeLocalPortPayloadSchema,
+  closeLocalPortResultSchema,
+  type LocalPortInfo,
+  type ListLocalPortsResult,
+  type CloseLocalPortPayload,
+  type CloseLocalPortResult,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedPromptIndex,

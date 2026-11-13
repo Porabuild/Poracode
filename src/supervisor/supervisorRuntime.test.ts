@@ -55,18 +55,18 @@ describe("SupervisorRuntime Git watcher status invalidation", () => {
       });
     const emit = vi.fn<(...args: unknown[]) => void>();
     const invalidateStatus = vi.fn<() => void>();
-    const invalidateAllCaches = vi.fn<() => void>();
+    const invalidateCaches = vi.fn<(location: ProjectLocation) => void>();
     const runtime = Object.assign(Object.create(SupervisorRuntime.prototype), {
       emit,
       gitService: { invalidateStatus },
-      projectTreeService: { invalidateAllCaches },
+      projectTreeService: { invalidateCaches },
     }) as { projectWatcher: ProjectWatcher };
     const watcher = runtime.projectWatcher;
     try {
       await watcher.watch("project-1", { kind: "posix", path: "/repo" });
       changed!("worktree", false);
       expect(invalidateStatus).not.toHaveBeenCalled();
-      expect(invalidateAllCaches).toHaveBeenCalledOnce();
+      expect(invalidateCaches).toHaveBeenCalledExactlyOnceWith({ kind: "posix", path: "/repo" });
       expect(emit).toHaveBeenLastCalledWith({
         type: "project-tree-changed",
         projectId: "project-1",
@@ -74,7 +74,7 @@ describe("SupervisorRuntime Git watcher status invalidation", () => {
       });
       changed!("worktree");
       expect(invalidateStatus).toHaveBeenCalledOnce();
-      expect(invalidateAllCaches).toHaveBeenCalledTimes(2);
+      expect(invalidateCaches).toHaveBeenCalledTimes(2);
       expect(emit).toHaveBeenLastCalledWith({
         type: "project-tree-changed",
         projectId: "project-1",
@@ -134,18 +134,18 @@ describe("SupervisorRuntime Git watcher status invalidation", () => {
       const emit = vi.fn<(...args: unknown[]) => void>(() => {
         watcherRequest = gitService.getStatus(location, detail);
       });
-      const invalidateProjectTree = vi.fn<() => void>();
+      const invalidateProjectTree = vi.fn<(location: ProjectLocation) => void>();
       const runtime = Object.create(SupervisorRuntime.prototype) as unknown as {
         emit: typeof emit;
         gitService: GitService;
-        projectTreeService: { invalidateAllCaches: typeof invalidateProjectTree };
+        projectTreeService: { invalidateCaches: typeof invalidateProjectTree };
         _projectWatcher: ProjectWatcher | undefined;
         wslBridgeClient: WslBridgeClient | undefined;
         projectWatcher: ProjectWatcher;
       };
       runtime.emit = emit;
       runtime.gitService = gitService;
-      runtime.projectTreeService = { invalidateAllCaches: invalidateProjectTree };
+      runtime.projectTreeService = { invalidateCaches: invalidateProjectTree };
       runtime._projectWatcher = undefined;
       runtime.wslBridgeClient = wslClient;
 
@@ -172,7 +172,7 @@ describe("SupervisorRuntime Git watcher status invalidation", () => {
         type: scope === "git" ? "git-changed" : "project-tree-changed",
         projectId: "project-1",
       });
-      expect(invalidateProjectTree).toHaveBeenCalledTimes(scope === "worktree" ? 1 : 0);
+      expect(invalidateProjectTree.mock.calls).toEqual(scope === "worktree" ? [[location]] : []);
 
       await watcher.dispose();
     },

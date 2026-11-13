@@ -1,18 +1,23 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReadProjectFileResult } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
-import { ProjectFilesPanel } from "./ProjectFilesPanel";
+import { ProjectFilesPanel, ProjectFilesPanelVisibilityContext } from "./ProjectFilesPanel";
 
-const openFile = vi.fn<() => Promise<never>>();
+const openFile = vi.fn<() => Promise<ReadProjectFileResult>>();
 
 vi.mock("@/renderer/actions/panelActions", () => ({
   showFilesPanel: vi.fn<() => void>(),
 }));
 
 vi.mock("./ProjectTreeView/ProjectTreeView", () => ({
-  ProjectTreeView: (props: { onSelectFile: (path: string) => void }) => (
-    <button type="button" onClick={() => props.onSelectFile("README.md")}>
+  ProjectTreeView: (props: { onSelectFile: (path: string) => void; visible: boolean }) => (
+    <button
+      type="button"
+      data-visible={String(props.visible)}
+      onClick={() => props.onSelectFile("README.md")}
+    >
       README.md
     </button>
   ),
@@ -39,12 +44,75 @@ describe("ProjectFilesPanel", () => {
     expect(openFile).toHaveBeenCalledWith("README.md", "fullscreen", true);
   });
 
-  it("preserves modal file opening for the desktop panel", () => {
+  it("preserves inline file opening for the desktop panel", () => {
     render(<ProjectFilesPanel rootContext={rootContext} />);
 
     fireEvent.click(screen.getByRole("button", { name: "README.md" }));
 
     expect(openFile).toHaveBeenCalledWith("README.md", "modal", true);
+  });
+
+  it("preserves panel and compact-tab visibility while the inline editor is open", () => {
+    const view = render(<ProjectFilesPanel rootContext={rootContext} />);
+    const visible = () =>
+      screen.getByRole("button", { name: "README.md" }).getAttribute("data-visible");
+    expect(visible()).toBe("true");
+    view.rerender(<ProjectFilesPanel rootContext={rootContext} visible={false} />);
+    expect(visible()).toBe("false");
+    view.rerender(
+      <ProjectFilesPanel rootContext={rootContext} compact compactActionsVisible={false} visible />,
+    );
+    expect(visible()).toBe("false");
+    view.rerender(<ProjectFilesPanel rootContext={rootContext} compact compactActionsVisible />);
+    expect(visible()).toBe("true");
+    act(() => useFileEditorStore.getState().setOverlayMode("modal"));
+    expect(visible()).toBe("true");
+    view.rerender(<ProjectFilesPanel rootContext={rootContext} visible={false} />);
+    expect(visible()).toBe("false");
+    view.rerender(<ProjectFilesPanel rootContext={rootContext} visible />);
+    act(() => useFileEditorStore.getState().setOverlayMode(null));
+    expect(visible()).toBe("true");
+  });
+
+  it("keeps the visible tree active when opening a file activates the inline editor", async () => {
+    openFile.mockImplementation(async () => {
+      useFileEditorStore.getState().setOverlayMode("modal");
+      return {
+        path: "README.md",
+        status: "ready",
+        content: "# Hello",
+        modifiedAtMs: 1,
+        lineEnding: "lf",
+        hasBom: false,
+      };
+    });
+    render(<ProjectFilesPanel rootContext={rootContext} />);
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "README.md" })));
+    expect(useFileEditorStore.getState().overlayMode).toBe("modal");
+    expect(screen.getByRole("button", { name: "README.md" })).toHaveAttribute(
+      "data-visible",
+      "true",
+    );
+  });
+
+  it("suspends the retained panel during its exit animation", () => {
+    const panel = <ProjectFilesPanel rootContext={rootContext} visible />;
+    const view = render(
+      <ProjectFilesPanelVisibilityContext value={true}>{panel}</ProjectFilesPanelVisibilityContext>,
+    );
+    expect(screen.getByRole("button", { name: "README.md" })).toHaveAttribute(
+      "data-visible",
+      "true",
+    );
+    view.rerender(
+      <ProjectFilesPanelVisibilityContext value={false}>
+        {panel}
+      </ProjectFilesPanelVisibilityContext>,
+    );
+    expect(screen.getByRole("button", { name: "README.md" })).toHaveAttribute(
+      "data-visible",
+      "false",
+    );
   });
 
   it.each([false, true])(

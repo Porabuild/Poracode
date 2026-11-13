@@ -1234,3 +1234,48 @@ describe("progressive image preview", () => {
     expect(image.style.transform).toBe("translate3d(50px, 25px, 0) scale(1.5)");
   });
 });
+
+describe("video lightbox items", () => {
+  it("renders a video player without image zoom controls and supports prev/next navigation with images", () => {
+    const onClose = vi.fn<() => void>();
+    render(
+      <ImageLightboxView
+        images={[
+          { src: "data:image/png;base64,AAA", alt: "shot.png" },
+          {
+            kind: "video",
+            src: "https://example.com/demo.mp4",
+            alt: "demo.mp4",
+            fileName: "demo.mp4",
+          },
+        ]}
+        initialIndex={0}
+        onClose={onClose}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next image" }));
+
+    const dialog = screen.getByRole("dialog", { name: "demo.mp4" });
+    const player = dialog.querySelector("video");
+    expect(player).not.toBeNull();
+    expect(player).toHaveAttribute("src", "https://example.com/demo.mp4");
+    expect(screen.queryByRole("button", { name: "Zoom in" })).not.toBeInTheDocument();
+    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+
+    fireEvent.keyDown(player!, { key: "ArrowLeft" });
+    fireEvent.keyDown(player!, { key: "ArrowRight" });
+    expect(dialog.querySelector("video")).toBe(player);
+    expect(screen.getByText("2 / 2")).toBeInTheDocument();
+
+    fireEvent.keyDown(dialog, { key: "ArrowLeft" });
+    expect(screen.getByRole("img", { name: "shot.png" })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "ArrowRight" });
+
+    fireEvent(dialog.querySelector("video")!, new Event("error"));
+    expect(screen.getByRole("status")).toHaveTextContent("This media preview is unavailable.");
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(dialog.querySelector("video")).not.toBeNull();
+  });
+});

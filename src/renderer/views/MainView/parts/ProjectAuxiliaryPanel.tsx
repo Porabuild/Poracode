@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useLingui } from "@lingui/react/macro";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { PanelExitContent } from "@/renderer/components/layout/panelMotion";
 import { DeferredDeviceWorkspace } from "@/renderer/deferredFeatures";
 import {
@@ -24,7 +25,10 @@ import {
   UnifiedRightPanel,
   type RightPanelTab,
 } from "@/renderer/components/layout/UnifiedRightPanel";
-import { ProjectFilesPanel } from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
+import {
+  ProjectFilesPanel,
+  ProjectFilesPanelVisibilityContext,
+} from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
 import { NotesPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel";
 import { UsagePanel } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel";
 import { UsagePanelHeaderActions } from "@/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions";
@@ -38,7 +42,9 @@ import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel"
 import { SideChatModelText } from "@/renderer/components/thread/SideChat/SideChatModelText";
 import { SideChatBody } from "@/renderer/components/thread/SideChat/SideChatBody";
 import { useSideChatPanelStore } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
+import { useThreadArtifacts } from "@/renderer/components/thread/threadArtifacts";
 import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
+import { useThreadVideos } from "@/renderer/components/thread/threadVideos";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -157,10 +163,7 @@ export function ProjectAuxiliaryPanel(props: {
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const setPortsPanelOpen = usePanelStore((s) => s.setPortsPanelOpen);
   const browserBridgeServer = useRemoteServersStore(selectBrowserBridgeServer);
-  // Ports forwarding operates on the connected remote server in every client
-  // runtime — the PWA's desktop host and the Electron-as-client's mirrored
-  // hosts expose the same routes, and entry URLs open externally.
-  const portsAvailable = browserBridgeServer !== undefined;
+  const portsAvailable = hasClientCapability("nativeShell") || browserBridgeServer !== undefined;
   // Reactive id of the project the notes panel should show — recomputed (and
   // re-rendered) as the user navigates between threads/drafts/projects.
   const currentProjectId = useAppStore(selectCurrentProjectIdForView);
@@ -187,15 +190,21 @@ export function ProjectAuxiliaryPanel(props: {
     ? resolveProjectLocation(currentThreadProject.location, currentThreadWorktreePath)
     : undefined;
   const docksInCurrentThread = useThreadDocksPanelAvailable();
-  // Image-only threads offer the Docks tab without making image presence itself
-  // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
+  // Media/file-only threads offer the Docks tab without making media or file
+  // presence itself an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
   const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
     requestPending: false,
   });
-  const imagesInCurrentThread =
-    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
+  const videos = useThreadVideos(currentThreadId ?? undefined);
+  const artifacts = useThreadArtifacts(currentThreadId ?? undefined);
+  const mediaOrArtifactsInCurrentThread =
+    gallery.images.length +
+      gallery.pendingRemoteRefs.length +
+      gallery.pendingRemotePaths.length +
+      videos.length +
+      artifacts.length >
     0;
-  const docksTabAvailable = docksInCurrentThread || imagesInCurrentThread;
+  const docksTabAvailable = docksInCurrentThread || mediaOrArtifactsInCurrentThread;
 
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;
   const filesPanelOpen = filesPanelContext !== null;
@@ -301,6 +310,16 @@ export function ProjectAuxiliaryPanel(props: {
     prevDeviceWorkspaceThreadIdRef.current = deviceWorkspaceThreadId;
     let refreshTimer: number | undefined;
     const frame = requestAnimationFrame(() => {
+      const currentState = useAppStore.getState();
+      const focusedThread = currentThreadId
+        ? getThreadMap(currentState.threads).get(currentThreadId)
+        : undefined;
+      if (
+        selectFocusedThreadId(currentState) !== currentThreadId ||
+        focusedThread?.projectId !== currentThreadProjectId ||
+        focusedThread?.worktreePath !== currentThreadWorktreePath
+      )
+        return;
       if (
         rightPanelFollowsThread &&
         (activeTab !== "git" || !gitReviewContextChanged) &&
@@ -329,6 +348,8 @@ export function ProjectAuxiliaryPanel(props: {
   }, [
     activeTab,
     currentThreadId,
+    currentThreadProjectId,
+    currentThreadWorktreePath,
     gitReviewContext,
     deviceWorkspaceThreadId,
     props.visible,
@@ -503,7 +524,10 @@ export function ProjectAuxiliaryPanel(props: {
       }
       filesContent={
         renderFilesContent && resolvedFilesPanelContext ? (
-          <ProjectFilesPanel rootContext={resolvedFilesPanelContext} />
+          <ProjectFilesPanel
+            rootContext={resolvedFilesPanelContext}
+            visible={props.visible && (activeTab === "files" || rightPanelSplit?.tab === "files")}
+          />
         ) : undefined
       }
       browserContent={
@@ -667,7 +691,9 @@ export function ProjectAuxiliaryPanel(props: {
   );
   return (
     <>
-      <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>
+      <ProjectFilesPanelVisibilityContext value={props.visible}>
+        <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>
+      </ProjectFilesPanelVisibilityContext>
       {deviceWorkspaceThreadExists && deviceWorkspaceThreadId && devicesBodyTarget
         ? createPortal(
             <Suspense fallback={null}>

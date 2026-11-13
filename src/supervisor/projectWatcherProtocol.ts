@@ -2,7 +2,7 @@ import type { GIT_HELPER_PROTOCOL_VERSION } from "./git/gitNativeHelperProtocol"
 
 export type ProjectWatchScope = "git" | "worktree";
 
-// v3 is shared by the native --watch-v3 mode and the bundled TS worker.
+// Shares the Git helper envelope version; --watch-v3 and the TS worker move together.
 export type ProjectWatchCommand = {
   protocolVersion: typeof GIT_HELPER_PROTOCOL_VERSION;
   id: number;
@@ -12,7 +12,7 @@ export type ProjectWatchEvent = {
   id: number;
 } & (
   | { kind: "ready" | "unwatched" }
-  // Optional v3 hint: old helpers/fallbacks conservatively refresh Git; old
+  // Optional hint: compatible helpers/fallbacks without it conservatively refresh Git; old
   // clients ignore the hint and continue refreshing both Git and file views.
   | { kind: "changed"; scope: ProjectWatchScope; gitChanged?: boolean }
   | { kind: "error"; error: string }

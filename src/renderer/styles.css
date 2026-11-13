@@ -829,6 +829,9 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   --lc-toast-swipe-y: 0px;
   --lc-toast-swipe-opacity: 1;
 
+  /* Our renderer wraps HeroUI's indicator/content slots in its own rows, so
+     keep a flex row instead of HeroUI 3.2.7's slot grid. */
+  display: flex;
   max-height: calc(100dvh - 2rem);
   overflow: hidden;
   box-shadow:
@@ -840,9 +843,15 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   /* Preserve upward finger drags that scroll long descriptions down; downward
      and horizontal finger drags belong to swipe dismissal. */
   touch-action: pan-down;
-  transform: translate3d(var(--lc-toast-swipe-x), var(--lc-toast-swipe-y), 0);
+  /* HeroUI 3.2.5+ owns stack placement through --toast-y/--toast-enter/
+     --toast-scale on an absolutely positioned toast; compose the swipe
+     offset with that transform instead of replacing it. */
+  transform: translateY(calc(var(--dir, 1) * (var(--toast-y, 0px) + var(--toast-enter, 0%))))
+    translate3d(var(--lc-toast-swipe-x), var(--lc-toast-swipe-y), 0) scale(var(--toast-scale, 1));
   transition:
-    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--toast-translate-duration, 350ms) var(--toast-ease, ease),
+    height var(--toast-height-duration, 350ms) var(--toast-ease, ease),
+    opacity var(--toast-opacity-duration, 150ms) var(--toast-ease, ease),
     filter 0.2s ease,
     box-shadow 0.2s ease;
 }
@@ -856,12 +865,6 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   transition:
     transform 0.16s ease-in,
     filter 0.16s ease-in;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .lc-toast:hover {
-    transform: translate3d(var(--lc-toast-swipe-x), var(--lc-toast-swipe-y), 0) translateY(-2px);
-  }
 }
 
 .lc-toast:hover {
@@ -909,6 +912,66 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
 /* HeroUI component overrides */
 [data-react-aria-pressable] {
   cursor: default;
+}
+
+/* Keep anchored HeroUI overlays (popovers, dropdowns, selects, tooltips)
+   geometrically stable. The stock enter motion scales from 0.9 and slides
+   4px, so the surface visibly grows into place; worse, React Aria measures
+   the overlay and its trigger through getBoundingClientRect, which includes
+   those transforms, so a mid-animation reposition snaps by a pixel when the
+   animation ends. Fade opacity only: the box never moves.
+   Trigger buttons must not press-scale either: React Aria keeps
+   data-pressed="true" on an overlay trigger for as long as its popover is
+   open, and HeroUI's scale(0.97-0.98) shrinks the anchor rect React Aria
+   positions against — the popover then alternates between the scaled and
+   unscaled anchor on open and again on the first row hover. These rules are
+   unlayered, so they win over HeroUI's layered placement animation-name
+   longhands without per-placement duplicates. */
+:is(
+  .popover,
+  .dropdown__popover,
+  .select__popover,
+  .autocomplete__popover,
+  .combo-box__popover,
+  .color-picker__popover,
+  .tooltip
+)[data-entering="true"] {
+  animation: heroui-overlay-fade-in 120ms var(--ease-out, ease-out);
+}
+
+:is(
+  .popover,
+  .dropdown__popover,
+  .select__popover,
+  .autocomplete__popover,
+  .combo-box__popover,
+  .color-picker__popover,
+  .tooltip
+)[data-exiting="true"] {
+  animation: heroui-overlay-fade-out 80ms var(--ease-out, ease-out);
+}
+
+:is(.button, .dropdown__trigger, .menu-item)[aria-haspopup]:is(
+    :active,
+    [data-pressed="true"],
+    [aria-expanded="true"]
+  ),
+.popover__trigger .button:is(:active, [data-pressed="true"]) {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(
+    .popover,
+    .dropdown__popover,
+    .select__popover,
+    .autocomplete__popover,
+    .combo-box__popover,
+    .color-picker__popover,
+    .tooltip
+  ):is([data-entering="true"], [data-exiting="true"]) {
+    animation: none;
+  }
 }
 
 /* Buttons use neutral foregrounds across every app theme. HeroUI's stock
@@ -3826,16 +3889,18 @@ html[data-native-material="on"] [data-overlay-surface]:has(.poracode-sidebar-asi
    sidebar reveals the desktop, not the app underneath (which would bleed through
    the tint). visibility:hidden keeps the app mounted — preserving scroll, chat,
    and terminal state — while painting nothing. Hide every shell, then keep the
-   overlay's own shell visible. Gated on [data-overlay-visible] (set only while
-   the overlay is fully shown) so on open/close the base app fades in/out with
-   the overlay instead of flashing bare desktop underneath. */
-html[data-native-material="on"]
-  #root:has([data-overlay-surface][data-overlay-visible] .poracode-sidebar-aside)
-  .poracode-shell {
+   overlay's own shell visible. Gated on [data-glass-overlay-visible], which
+   useGlassOverlaySidebar sets only while a sidebar sits inside a surface that
+   carries [data-overlay-visible] (the overlay is fully shown), so on open/close
+   the base app fades in/out with the overlay instead of flashing bare desktop
+   underneath. Do not express this as `#root:has(…)`: a relational selector on
+   the app root makes every element inserted or removed in the window restyle
+   it. */
+html[data-native-material="on"][data-glass-overlay-visible] #root .poracode-shell {
   visibility: hidden;
 }
-html[data-native-material="on"]
-  #root:has([data-overlay-surface][data-overlay-visible] .poracode-sidebar-aside)
+html[data-native-material="on"][data-glass-overlay-visible]
+  #root
   [data-overlay-surface]
   .poracode-shell {
   visibility: visible;

@@ -223,6 +223,7 @@ it("re-baselines a reopened paired thread through the live reducer's recovery", 
     ready: Promise.resolve(),
   });
   const reader = retainRuntimeThreadReader(id);
+  expect(mocks.setHydrationStatus).toHaveBeenCalledWith(id, "pending");
   await reader.ready;
   expect(mocks.recoverRemote).toHaveBeenCalledExactlyOnceWith(id);
   expect(mocks.hydrate).not.toHaveBeenCalled();

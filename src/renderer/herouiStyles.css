@@ -1,4 +1,4 @@
-/* HeroUI 3.2.4 stylesheet registration: preserve the published layer/import
+/* HeroUI 3.2.7 stylesheet registration: preserve the published layer/import
  * order. The app uses no date/calendar widgets; a new widget must register its
  * style closure before rendering. Re-audit this registry on package upgrades. */
 @layer theme, base, components, utilities;
@@ -70,8 +70,10 @@
 @import "@heroui/styles/components/separator.css" layer(components);
 @import "@heroui/styles/components/surface.css" layer(components);
 @import "@heroui/styles/components/avatar.css" layer(components);
+@import "@heroui/styles/components/avatar-group.css" layer(components);
 @import "@heroui/styles/components/alert-dialog.css" layer(components);
 @import "@heroui/styles/components/drawer.css" layer(components);
+@import "@heroui/styles/components/sheet.css" layer(components);
 @import "@heroui/styles/components/modal.css" layer(components);
 @import "@heroui/styles/components/popover.css" layer(components);
 @import "@heroui/styles/components/tooltip.css" layer(components);
