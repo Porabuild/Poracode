@@ -76,11 +76,16 @@ function harness(owned, options = {}) {
   let generation = 0;
   let hit;
   let evaluations = 0;
+  let modelContent = "";
+  let selectionStart = 0;
+  let selectionEnd = 0;
+  let selectionReads = 0;
+  let nativeInsertions = 0;
   const allPlayers = [];
   const calls = [];
   const frames = [];
   const model = {
-    getValue: () => editor.buffers[editor.activePath]?.content,
+    getValue: () => modelContent,
     getFullModelRange: () => ({ all: true }),
   };
 
@@ -101,13 +106,17 @@ function harness(owned, options = {}) {
       return name === "aria-label" ? this.label : null;
     }
     matches(selector) {
+      if (selector === ".native-edit-context") return this === sourceInput && options.nativeInput;
       return selector === ":disabled" && this.disabled;
     }
     closest() {
       return null;
     }
     contains(element) {
-      return element === this;
+      return element === this || (this === source && element === sourceInput);
+    }
+    querySelector() {
+      return this === source ? sourceInput : null;
     }
     scrollIntoView() {
       hit = this;
@@ -115,6 +124,25 @@ function harness(owned, options = {}) {
     click() {
       return this.press?.();
     }
+  }
+  const sourceInput = new Element();
+  sourceInput.readOnly = options.nativeReadOnly === true;
+  if (options.nativeInput) {
+    sourceInput.editContext = {
+      get text() {
+        return modelContent;
+      },
+      get selectionStart() {
+        return selectionStart;
+      },
+      get selectionEnd() {
+        selectionReads++;
+        return options.nativeWrongSelection ||
+          (options.nativeDelayedSelection && selectionReads < 3)
+          ? Math.max(selectionStart, selectionEnd - 1)
+          : selectionEnd;
+      },
+    };
   }
   class Media extends Element {
     constructor(kind, duration, src, time = 0) {
@@ -290,6 +318,7 @@ function harness(owned, options = {}) {
     },
     async openFile(path, mode) {
       const result = await readPath(path);
+      modelContent = result.content ?? "";
       current = path;
       preview = false;
       editor = {
@@ -321,6 +350,7 @@ function harness(owned, options = {}) {
     },
     async refreshOpenBuffers() {
       const result = await readPath(current);
+      modelContent = result.content ?? "";
       editor = {
         ...editor,
         buffers: {
@@ -338,8 +368,13 @@ function harness(owned, options = {}) {
   const sourceEditor = {
     getModel: () => model,
     getDomNode: () => source,
-    focus() {},
-    setSelection() {},
+    focus() {
+      document.activeElement = options.nativeLostFocus ? null : sourceInput;
+    },
+    setSelection() {
+      selectionStart = 0;
+      selectionEnd = modelContent.length;
+    },
   };
   const button = (label, press, disabled = false) => {
     const element = new Element(
@@ -378,6 +413,7 @@ function harness(owned, options = {}) {
   };
   const document = {
     visibilityState: "visible",
+    activeElement: null,
     documentElement: { hasAttribute: () => false },
     body: {
       get innerText() {
@@ -387,6 +423,8 @@ function harness(owned, options = {}) {
     elementFromPoint: () => (options.occludedControls ? null : hit),
     querySelectorAll: (selector) => (selector === "button,[role=button],a" ? buttons() : []),
     querySelector(selector) {
+      if (selector === '[data-editor-media-inline="forbidden"]' && options.inlineSvg && preview)
+        return new Element();
       if (selector === '[data-testid="image-file-view"] img') return image;
       if (
         selector ===
@@ -433,6 +471,7 @@ function harness(owned, options = {}) {
     Event,
     HTMLElement: Element,
     document,
+    navigator: { platform: "Win32" },
     location: {
       href: `http://127.0.0.1:12345/?poracodeDebugSession=${options.token ?? owned.session.token}`,
     },
@@ -494,15 +533,45 @@ function harness(owned, options = {}) {
       }
       if (method === "Input.dispatchMouseEvent" && payload.type === "mouseReleased")
         await hit.press();
+      if (method === "Input.dispatchKeyEvent" && payload.type === "keyDown") {
+        selectionReads = 0;
+        if (payload.key === "a") {
+          assert.equal(payload.modifiers, 2);
+          selectionStart = 0;
+          selectionEnd = modelContent.length;
+        } else if (payload.key === "ArrowLeft") selectionEnd = selectionStart;
+        else if (payload.key === "ArrowRight" && payload.modifiers === 8) selectionEnd++;
+        else if (payload.key === "ArrowRight") {
+          selectionStart = selectionEnd + 1;
+          selectionEnd = selectionStart;
+        }
+      }
       if (method === "Input.insertText") {
+        if (options.nativeInput) {
+          assert.match(payload.text, /^\d{2}$/u, "bulk XML typing invokes Monaco autoSurround");
+          if (options.nativeDelayedSelection)
+            assert(selectionReads >= 3, "input preceded native selection delivery");
+          nativeInsertions++;
+          modelContent =
+            modelContent.slice(0, selectionStart) + payload.text + modelContent.slice(selectionEnd);
+          if (nativeInsertions === 2 && options.nativeExtraWhitespace) modelContent += " ";
+        } else modelContent = payload.text;
         const buffer = editor.buffers[current];
         editor = {
           ...editor,
           buffers: {
             ...editor.buffers,
-            [current]: { ...buffer, content: payload.text, isDirty: true },
+            [current]: {
+              ...buffer,
+              content:
+                modelContent + (nativeInsertions === 2 && options.nativeExtraBuffer ? ">" : ""),
+              isDirty: !options.nativeNotDirty,
+            },
           },
         };
+        if (nativeInsertions === 2 && options.nativeExtraModel) modelContent += ">";
+        if (nativeInsertions === 2 && options.nativeAutoSave)
+          await writeFile(join(owned.projectDir, current), modelContent);
       }
     },
   };
@@ -599,6 +668,73 @@ void test("driver exercises all desktop dimensions but refuses a blanket PASS fo
   driver.assertRestored();
   await assertFilesRestored(owned);
 });
+
+void test("native SVG input waits for delivered attribute selections and preserves every desktop oracle", async (t) => {
+  const owned = await fixture(t);
+  const driver = harness(owned, { nativeInput: true, nativeDelayedSelection: true });
+  const result = await resultOf(driver.args);
+  assert.equal(result.code, "EDITOR_MEDIA_UNQUALIFIED");
+  const svgResult = result.coverage.dimensions.find((row) => row.id === "svg-source-preview");
+  assert.equal(svgResult.status, "pass", svgResult.detail);
+  assert.deepEqual(
+    driver.calls
+      .filter((call) => call.method === "Input.insertText")
+      .map((call) => call.payload.text),
+    ["36", "18"],
+  );
+  const receipts = JSON.parse(
+    svgResult.checks
+      .find((check) => check.startsWith("native numeric input selections: "))
+      .split(": ")[1],
+  );
+  assert.deepEqual(
+    receipts.map(({ attribute, start, end }) => ({ attribute, start, end })),
+    [
+      { attribute: "width", start: 47, end: 49 },
+      { attribute: "height", start: 59, end: 61 },
+    ],
+  );
+  assert(svgResult.checks.some((check) => check.includes("did not auto-save")));
+  assert(svgResult.checks.some((check) => check.includes("decoded changed 40 × 24")));
+  driver.assertRestored();
+  await assertFilesRestored(owned);
+});
+
+for (const option of ["nativeLostFocus", "nativeWrongSelection", "nativeReadOnly"])
+  void test(`${option} refuses native SVG input before dispatch`, async (t) => {
+    const owned = await fixture(t);
+    const driver = harness(owned, { nativeInput: true, [option]: true });
+    const result = await resultOf(driver.args);
+    assert.equal(
+      result.coverage.dimensions.find((row) => row.id === "svg-source-preview").status,
+      "fail",
+    );
+    assert.equal(driver.calls.filter((call) => call.method === "Input.insertText").length, 0);
+    driver.assertRestored();
+    await assertFilesRestored(owned);
+  });
+
+for (const option of [
+  "nativeExtraWhitespace",
+  "nativeExtraModel",
+  "nativeExtraBuffer",
+  "nativeNotDirty",
+  "nativeAutoSave",
+  "activeSvg",
+  "inlineSvg",
+])
+  void test(`${option} cannot qualify a native SVG source/preview edit`, async (t) => {
+    const owned = await fixture(t);
+    const driver = harness(owned, { nativeInput: true, [option]: true });
+    const result = await resultOf(driver.args);
+    assert.equal(result.code, "EDITOR_MEDIA_FAILED");
+    assert.equal(
+      result.coverage.dimensions.find((row) => row.id === "svg-source-preview").status,
+      "fail",
+    );
+    driver.assertRestored();
+    await assertFilesRestored(owned);
+  });
 
 void test("decode failure cannot pass because media controls and APIs exist", async (t) => {
   const owned = await fixture(t);
