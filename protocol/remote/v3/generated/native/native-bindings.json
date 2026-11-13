@@ -557,10 +557,10 @@
           "sha256": "sha256:40f7c4ff1fa908c817e3c2f1f26e7bed7aa0a9c9f763b1e990f66d87ad3f940d"
         },
         {
-          "bytes": 10643,
-          "lines": 250,
+          "bytes": 11386,
+          "lines": 265,
           "path": "kotlin/PairingMachine.kt",
-          "sha256": "sha256:37b546efbbbe283dfc01d3da58d75930c545b40b4e3ac480770ca6eef02307b1"
+          "sha256": "sha256:f3f4d4fb647345349a1c16af524595b5ecf1fa2a9a6903eac83e0508ddbf0c97"
         },
         {
           "bytes": 41241,
@@ -780,7 +780,7 @@
         }
       ],
       "languageVersion": "2.4",
-      "lines": 29482,
+      "lines": 29497,
       "treeHash": "sha256:7db5d14af283b395fb274a49311495ad84b871b11ac3b2eae2e0d66d3c58978c"
     },
     "swift": {
@@ -1440,10 +1440,10 @@
           "sha256": "sha256:33493552b1a8fd4e2c5c8e9b07de1a7be935e1e5f48c3d894d73cbbd812a3f01"
         },
         {
-          "bytes": 10243,
-          "lines": 203,
+          "bytes": 10930,
+          "lines": 217,
           "path": "swift/PairingMachine.swift",
-          "sha256": "sha256:00f8f46969bfed8ae27aeb9080f8e9b4456f64ea2a010a1031f28ee73a9028f9"
+          "sha256": "sha256:e142c9400ce02c1f8efda774c3ff83d66bfe256d4de257f711a7ef0a83531500"
         },
         {
           "bytes": 23489,
@@ -1681,12 +1681,12 @@
         }
       ],
       "languageVersion": "6",
-      "lines": 33919,
+      "lines": 33933,
       "treeHash": "sha256:1c96c5205151300b0579a3b424d96cb0f6072c2aaccac3688b959fe7ce56bdf3"
     }
   },
   "manifestHash": "sha256:3e7df7fb4e1730e3551ebb8438ac97c73f845d8caa8170ab81dbd2bcc7efec9d",
-  "outputHash": "sha256:b5493435287ae6d44feb6b8ce10efa14a1329842d841bbd527ed421dc78f3726",
+  "outputHash": "sha256:2f8bfee26c41f1fe35d572e29436b562e33f1950970beb75661d1b10552a884c",
   "protocolVersion": 14,
   "sourceHash": "sha256:adc7e4695f2ae14b7ba2783c52d154a6a469c4c0bd96b55f1aac3bff37853ff8",
   "stateMachines": [
@@ -1699,7 +1699,7 @@
         "kotlin": "kotlin/PairingMachine.kt",
         "swift": "swift/PairingMachine.swift"
       },
-      "specVersion": 1,
+      "specVersion": 2,
       "standardScopeCount": 7
     },
     {

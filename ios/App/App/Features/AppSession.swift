@@ -167,6 +167,7 @@ final class AppSession {
 
     func bootstrap() async {
         await live.bootstrap()
+        await pairing.resumeDeferredAutoPair()
     }
 
     func handleScenePhase(_ phase: ScenePhase) {

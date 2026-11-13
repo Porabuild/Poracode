@@ -5,6 +5,25 @@ import Foundation
 struct PairingCoordinator {
     unowned let host: AppSession
 
+    /// A validated loopback candidate held until launch bootstrap settles.
+    private struct DeferredAutoPair {
+        let endpoint: String
+        let credential: String
+        let certFingerprint: String?
+    }
+
+    /// A reference holder so this value-type coordinator can retain a candidate
+    /// across the launch bootstrap without becoming mutating.
+    private final class DeferredAutoPairStore {
+        var candidate: DeferredAutoPair?
+    }
+
+    private let deferredAutoPairStore = DeferredAutoPairStore()
+
+    init(host: AppSession) {
+        self.host = host
+    }
+
     func handleIncomingPairingURL(_ url: URL) async {
         guard let candidate = PairingURL.validatedPairingCandidate(from: url) else {
             return
@@ -24,12 +43,75 @@ struct PairingCoordinator {
             endpoint: resolved.endpoint,
             credential: resolved.credential,
             tracker: host.state.pairingTracker,
-            hasExistingPair: host.state.profile != nil && !(host.state.accessToken ?? "").isEmpty
+            hasExistingPair: host.state.profile != nil || !host.state.hosts.isEmpty
         )
         guard case .pending(let pending) = decision else { return }
-        host.state.pendingPairing = pending
-        host.state.pendingCertFingerprint = resolved.certFingerprint
+        let certFingerprint = resolved.certFingerprint
             ?? PairingURL.parseCertFingerprint(url.absoluteString)
+        let requiresConfirmation =
+            pending.replacesExistingPair
+            || host.state.phase == .localStoreInconsistent
+            || RemotePairingMachine.requiresBrowsableConfirmation(
+                fromBrowsableIntent: true,
+                endpoint: pending.endpoint
+            )
+        if requiresConfirmation {
+            // A newer external candidate supersedes any loopback link still
+            // waiting on bootstrap.
+            deferredAutoPairStore.candidate = nil
+            host.state.pendingPairing = pending
+            host.state.pendingCertFingerprint = certFingerprint
+            return
+        }
+        // A loopback link is local by construction: pair like an in-app scan.
+        // Any earlier unconfirmed candidate is stale once this session replaces it.
+        host.state.pendingPairing = nil
+        host.state.pendingCertFingerprint = nil
+        let deferred = DeferredAutoPair(
+            endpoint: pending.endpoint,
+            credential: pending.credential,
+            certFingerprint: certFingerprint
+        )
+        // Launch bootstrap owns the first operation. Starting the pair now would
+        // be superseded by bootstrap's ownership epoch, silently dropping the link.
+        guard host.state.bootstrapCompleted else {
+            deferredAutoPairStore.candidate = deferred
+            return
+        }
+        await pairResolvedCandidate(
+            endpoint: deferred.endpoint,
+            credential: deferred.credential,
+            certFingerprint: deferred.certFingerprint,
+            digest: pending.digest
+        )
+    }
+
+    /// Starts a loopback candidate deferred behind launch bootstrap. The
+    /// replacement check runs again because bootstrap may have loaded a stored
+    /// pair while the link was waiting.
+    func resumeDeferredAutoPair() async {
+        guard host.state.bootstrapCompleted, let deferred = deferredAutoPairStore.candidate else {
+            return
+        }
+        deferredAutoPairStore.candidate = nil
+        let decision = RemotePairingMachine.decideDeepLink(
+            endpoint: deferred.endpoint,
+            credential: deferred.credential,
+            tracker: host.state.pairingTracker,
+            hasExistingPair: host.state.profile != nil || !host.state.hosts.isEmpty
+        )
+        guard case .pending(let pending) = decision else { return }
+        if pending.replacesExistingPair || host.state.phase != .needsPairing {
+            host.state.pendingPairing = pending
+            host.state.pendingCertFingerprint = deferred.certFingerprint
+            return
+        }
+        await pairResolvedCandidate(
+            endpoint: pending.endpoint,
+            credential: pending.credential,
+            certFingerprint: deferred.certFingerprint,
+            digest: pending.digest
+        )
     }
 
     func cancelPendingPairing() {
@@ -40,14 +122,32 @@ struct PairingCoordinator {
     func confirmPendingPairing() async {
         guard let pending = host.state.pendingPairing else { return }
         let digest = pending.digest
-        let input = AppSession.PairingInput(
-            pairingURLOrEmpty: "",
-            manualBaseURL: pending.endpoint,
-            manualToken: pending.credential,
-            certFingerprint: host.state.pendingCertFingerprint
-        )
+        let certFingerprint = host.state.pendingCertFingerprint
         host.state.pendingPairing = nil
         host.state.pendingCertFingerprint = nil
+        await pairResolvedCandidate(
+            endpoint: pending.endpoint,
+            credential: pending.credential,
+            certFingerprint: certFingerprint,
+            digest: digest
+        )
+    }
+
+    /// Starts a resolved deep-link candidate under the pair operation owner and
+    /// marks its digest in flight, so a duplicate delivery is ignored rather
+    /// than paired twice.
+    private func pairResolvedCandidate(
+        endpoint: String,
+        credential: String,
+        certFingerprint: String?,
+        digest: String
+    ) async {
+        let input = AppSession.PairingInput(
+            pairingURLOrEmpty: "",
+            manualBaseURL: endpoint,
+            manualToken: credential,
+            certFingerprint: certFingerprint
+        )
         host.state.pairingTracker.markInFlight(digest)
         let began = host.state.operationOwner.begin(.pair)
         await pair(
@@ -347,6 +447,7 @@ struct PairingCoordinator {
     /// Explicit Disconnect — the only path that removes Keychain credentials and profile.
     /// Durable clear runs to completion even if the caller task is cancelled after begin.
     func unpair() async {
+        deferredAutoPairStore.candidate = nil
         let began = host.state.operationOwner.begin(.unpair)
         host.cancelUnauthorizedRetry()
         let unpairingEndpoint = host.state.profile?.httpBaseURL
@@ -405,6 +506,7 @@ struct PairingCoordinator {
     /// catalog journal or registry is itself unreadable, so clear both durable
     /// domains independently and allow either half to be retried.
     func clearInconsistentLocalStorage() async {
+        deferredAutoPairStore.candidate = nil
         let began = host.state.operationOwner.begin(.unpair)
         host.cancelUnauthorizedRetry()
         // Repair clears every host: drop the pins of the endpoints we know.

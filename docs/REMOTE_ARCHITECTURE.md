@@ -260,7 +260,8 @@ storage and scrub transient pairing material.
 The browser removes pairing material from the address bar after exchange. The
 native apps parse verified links and the `poracode://pair` development fallback,
 validate the endpoint before replacing an existing host, and show a sanitized
-host during confirmation.
+host during confirmation. A loopback endpoint pairs without that confirmation
+unless it would replace an existing pairing: it cannot leave the device.
 
 - **Clone RCE (high, security).** `applyRemoteProjectCommand` now validates a
   clone `url` against an allowlist of safe transports (https/http/ssh/git/ftp(s)

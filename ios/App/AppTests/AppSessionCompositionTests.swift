@@ -1448,6 +1448,182 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(session.phase, .launching)
   }
 
+  func testLoopbackDeepLinkPairsWithoutConfirmation() async throws {
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a", label: "A"))
+      api.tokenResult = .success(
+        RemoteAccessTokenResult(
+          accessToken: "token-loopback",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          scopes: ["session:read", "session:operate"]
+        )
+      )
+      api.snapshotResult = .success(makeShell(seq: 1))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+
+    await session.bootstrap()
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=loopback-token")!
+    )
+
+    XCTAssertNil(session.pendingPairing)
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(session.profile?.httpBaseURL, "http://127.0.0.1:49152")
+    XCTAssertEqual(session.state.accessToken, "token-loopback")
+  }
+
+  func testColdLaunchLoopbackLinkPairsAfterBootstrap() async throws {
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a", label: "A"))
+      api.tokenResult = .success(
+        RemoteAccessTokenResult(
+          accessToken: "token-loopback",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          scopes: ["session:read", "session:operate"]
+        )
+      )
+      api.snapshotResult = .success(makeShell(seq: 1))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+
+    // onOpenURL can arrive before the launch bootstrap starts: the candidate
+    // must survive bootstrap's operation epoch and pair afterward.
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=cold-token")!
+    )
+    XCTAssertNil(session.pendingPairing)
+    XCTAssertNil(session.profile)
+
+    await session.bootstrap()
+
+    XCTAssertNil(session.pendingPairing)
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(session.profile?.httpBaseURL, "http://127.0.0.1:49152")
+    XCTAssertEqual(session.state.accessToken, "token-loopback")
+  }
+
+  func testDeferredLoopbackLinkConfirmsWhenBootstrapLoadsStoredPair() async throws {
+    let (session, repo, _) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "live"
+    ) { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment())
+      api.snapshotResult = .success(makeShell(seq: 3))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=deferred-token")!
+    )
+    XCTAssertNil(session.pendingPairing)
+
+    // Bootstrap loads the stored pair, so the deferred link must now replace
+    // only through the confirmation card.
+    await session.bootstrap()
+
+    XCTAssertEqual(session.profile?.desktopId, "desk-a")
+    let pending = try XCTUnwrap(session.pendingPairing)
+    XCTAssertTrue(pending.replacesExistingPair)
+    XCTAssertEqual(pending.endpoint, "http://127.0.0.1:49152")
+  }
+
+  func testLoopbackDeepLinkReplacingPairStillConfirms() async throws {
+    let (session, repo, _) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "live"
+    ) { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment())
+      api.snapshotResult = .success(makeShell(seq: 3))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+    await session.bootstrap()
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=replace-token")!
+    )
+
+    XCTAssertEqual(session.profile?.desktopId, "desk-a")
+    let pending = try XCTUnwrap(session.pendingPairing)
+    XCTAssertTrue(pending.replacesExistingPair)
+    XCTAssertEqual(pending.endpoint, "http://127.0.0.1:49152")
+    XCTAssertEqual(session.phase, .ready)
+  }
+
+  func testDeferredLoopbackLinkConfirmsWhenStoredCredentialsCannotBeRead() async throws {
+    var pairingRequests = 0
+    let (session, repo, keychain) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "stored-token"
+    ) { e, t in
+      pairingRequests += 1
+      return FakeRemoteAPI(endpoint: e, accessToken: t)
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let stored = try await repo.v2RawData()
+    try keychain.save(
+      account: HostTransactionJournal.account,
+      data: Data("corrupt-journal".utf8)
+    )
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=unreadable-store")!
+    )
+    await session.bootstrap()
+
+    XCTAssertEqual(session.phase, .localStoreInconsistent)
+    XCTAssertNotNil(session.pendingPairing)
+    XCTAssertEqual(pairingRequests, 0)
+    let after = try await repo.v2RawData()
+    XCTAssertEqual(after, stored)
+  }
+
+  func testDeferredLoopbackLinkConfirmsWhenStoredHostIsIncompatible() async throws {
+    var pairingRequests = 0
+    let (session, repo, _) = try await makeSession { e, t in
+      pairingRequests += 1
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .failure(RemoteClientError.protocolMismatch(found: 9))
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let stored = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: makeProfileV9(), token: "stored-v9-token")
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=incompatible-store")!
+    )
+    await session.bootstrap()
+
+    XCTAssertEqual(session.phase, .protocolIncompatible)
+    let pending = try XCTUnwrap(session.pendingPairing)
+    XCTAssertTrue(pending.replacesExistingPair)
+    XCTAssertEqual(pairingRequests, 1)
+    let after = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(after.selected?.connectionId, stored.connectionId)
+    XCTAssertEqual(after.selected?.protocolVersion, 9)
+  }
+
   func testDeepLinkCancelLeavesSessionUntouched() async throws {
     let (session, repo, _) = try await makeSession(
       seedProfile: makeProfile(),
