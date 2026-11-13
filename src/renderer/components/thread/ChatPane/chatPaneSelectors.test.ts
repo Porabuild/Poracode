@@ -21,6 +21,58 @@ import {
 } from "./chatPaneSelectors";
 
 describe("chatPaneSelectors", () => {
+  it("keeps a child timeline stable for sibling arrivals, but updates child membership and grouping", () => {
+    const threadId = "child-isolation";
+    let state = {
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+      runtimeItemIdsByThread: { [threadId]: ["child"] },
+      runtimeItemsByIdByThread: {
+        [threadId]: {
+          child: {
+            id: "child",
+            parentItemId: "parent",
+            type: "command_execution",
+            state: "completed",
+            payload: { command: "echo test" },
+            streams: {},
+          },
+        },
+      },
+    } as unknown as AppStoreState;
+    const first = selectChildTimelineEntries(state, threadId, "parent");
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        {
+          type: "item.started",
+          threadId,
+          itemId: "sibling",
+          itemType: "command_execution",
+          payload: { command: "echo sibling" },
+        },
+      ]),
+    };
+    expect(selectChildTimelineEntries(state, threadId, "parent")).toBe(first);
+    state = {
+      ...state,
+      ...applyRuntimeEventsToState(state, threadId, [
+        {
+          type: "item.started",
+          threadId,
+          itemId: "child-2",
+          parentItemId: "parent",
+          itemType: "command_execution",
+          payload: { command: "echo child" },
+        },
+      ]),
+    };
+    const appended = selectChildTimelineEntries(state, threadId, "parent");
+    expect(appended).not.toBe(first);
+    expect(appended).toEqual([
+      { kind: "tool_call_group", id: "tool-call-group:child", itemIds: ["child", "child-2"] },
+    ]);
+  });
+
   it("promotes a completed MCP App out of a tool group without changing its item ID", () => {
     const threadId = "visual-group";
     let state = {

@@ -196,6 +196,8 @@ export function useSmoothStreamedText(
   useEffect(
     () => () => {
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      lastFrameRef.current = 0;
     },
     [],
   );

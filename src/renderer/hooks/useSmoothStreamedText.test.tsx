@@ -1,4 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
+import { Activity } from "react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSmoothStreamedText } from "./useSmoothStreamedText";
 
@@ -295,5 +296,36 @@ describe("useSmoothStreamedText", () => {
     expect(frames.size).toBe(1);
     unmount();
     expect(frames.size).toBe(0);
+  });
+
+  it("resumes an interrupted reveal after Activity hides and shows the retained row", () => {
+    function Row({ text }: { text: string }) {
+      return <p data-testid="streamed-row">{useSmoothStreamedText(text, true)}</p>;
+    }
+    const content = (visible: boolean, text: string) => (
+      <Activity mode={visible ? "visible" : "hidden"}>
+        <Row text={text} />
+      </Activity>
+    );
+    const view = render(content(true, "Start "));
+    const target = `Start ${"remaining text ".repeat(20)}`;
+    view.rerender(content(true, target));
+    flushFrame(1_000);
+    expect(frames.size).toBe(1);
+    const row = screen.getByTestId("streamed-row");
+    const beforeHide = row.textContent;
+    view.rerender(content(false, target));
+    expect(frames.size).toBe(0);
+    const latest = `${target}Arrived while hidden.`;
+    view.rerender(content(false, latest));
+    expect(row.textContent).toBe(beforeHide);
+    expect(frames.size).toBe(0);
+    view.rerender(content(true, latest));
+    expect(frames.size).toBe(1);
+    for (let frame = 0; frame < 120 && frames.size > 0; frame += 1) {
+      flushFrame(2_000 + frame * 16);
+    }
+    expect(screen.getByTestId("streamed-row")).toBe(row);
+    expect(row.textContent).toBe(latest);
   });
 });

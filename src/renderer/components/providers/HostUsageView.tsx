@@ -1,23 +1,40 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Trans } from "@lingui/react/macro";
 import { fetchHostUsage } from "./hostUsage";
 import { useHostUsage, useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 
+function subscribeUsageClock(onChange: () => void) {
+  const timer = setInterval(onChange, 30_000);
+  return () => clearInterval(timer);
+}
+const subscribeHiddenClock = () => () => {};
+const readUsageClock = () => Math.floor(Date.now() / 1000) * 1000;
+
+/** Read the current second on reveal; hidden views have no presentation timer. */
+export function useUsageClock(visible = true) {
+  return useSyncExternalStore(visible ? subscribeUsageClock : subscribeHiddenClock, readUsageClock);
+}
+
 /** Shared connection lifecycle for settings and panel; never touches device usage or credentials. */
-export function useHostUsageView(connectionId: string, refreshVersion = 0, liveOnOpen = false) {
+export function useHostUsageView(
+  connectionId: string,
+  refreshVersion = 0,
+  liveOnOpen = false,
+  visible = true,
+) {
   const server = useRemoteServersStore((state) =>
     state.servers.find((candidate) => remoteConnectionKey(candidate) === connectionId),
   );
   const status = useRemoteServersStore((state) => state.runtime[connectionId]?.status);
   const agents = useRemoteServersStore((state) => state.runtime[connectionId]?.agentStatuses);
   const usage = useHostUsage(connectionId);
-  const [now, setNow] = useState(() => Date.now());
   const initialReadAfter = useRef(0);
   const canRead = server?.scopes.includes("session:read") === true;
   const canRefresh = canRead && server?.scopes.includes("session:operate") === true;
   const online = status === "online";
+  const now = useUsageClock(visible && !!server && canRead && online);
 
   useEffect(() => {
     if (canRefresh && (liveOnOpen || refreshVersion > 0))
@@ -34,13 +51,8 @@ export function useHostUsageView(connectionId: string, refreshVersion = 0, liveO
         void fetchHostUsage(connectionId);
     };
     read();
-    // Read on mount/reconnect. The clock updates labels only: repeatedly
-    // reading a legacy host can otherwise trigger its old collection policy.
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 30_000);
-    return () => clearInterval(timer);
   }, [connectionId, server, canRead, online]);
+
   useEffect(() => {
     // A compact/live-open refresh can occupy the initial read slot. If the
     // host cannot collect remotely, load its cache once after that refusal.

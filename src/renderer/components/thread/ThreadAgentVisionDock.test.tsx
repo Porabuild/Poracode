@@ -56,6 +56,43 @@ afterEach(() => {
 });
 
 describe("ThreadAgentVisionDock", () => {
+  it("does not rerender an unchanged empty vision, but accepts a later frame and clears it", async () => {
+    vi.useFakeTimers();
+    fixture.agentVision.mockReset().mockResolvedValue(null);
+    fixture.activation = { client: { agentVision: fixture.agentVision } };
+    const rendered = vi.fn<() => void>();
+    const hook = renderHook(() => {
+      rendered();
+      return useThreadAgentVision("empty", true, true);
+    });
+    await act(async () => {});
+    rendered.mockClear();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(fixture.agentVision).toHaveBeenCalledTimes(4);
+    expect(rendered).not.toHaveBeenCalled();
+    fixture.agentVision.mockResolvedValue(vision);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(hook.result.current).toBe(vision);
+    fixture.agentVision.mockRejectedValue(new Error("disconnected"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(hook.result.current).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    rendered.mockClear();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(rendered).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
   it("polls only without a stream and preserves a reconnected stream after a failed fallback", async () => {
     vi.useFakeTimers();
     const send = vi.fn<(message: RemoteWebSocketClientMessage) => boolean>(() => true);
