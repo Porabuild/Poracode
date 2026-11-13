@@ -6,7 +6,7 @@ import {
   stripAgentProfileBasePrefix,
 } from "@/shared/contracts";
 import type { StatusTone } from "./statusTone";
-import { syncMaskScanPhase } from "./syncMaskScanPhase";
+import { useIconShine } from "@/renderer/thinkingAnimator";
 import { lookupProviderRegistration } from "./providerRegistry";
 
 // --- Icon registry ---
@@ -48,6 +48,7 @@ function DoneCheckOverlay() {
 
 function ExternalProviderIcon(props: { src: string; tone: StatusTone; className?: string }) {
   const style = externalIconStyle(props.src);
+  const scanRef = useIconShine(props.tone === "working");
   return (
     <span
       className={`poracode-provider-icon poracode-provider-icon--external poracode-provider-icon--${props.tone}${props.className ? ` ${props.className}` : ""}`}
@@ -58,10 +59,11 @@ function ExternalProviderIcon(props: { src: string; tone: StatusTone; className?
       />
       {props.tone === "working" ? (
         <span
-          ref={syncMaskScanPhase}
           className="poracode-provider-icon__mask poracode-provider-icon__mask-scan"
           style={style}
-        />
+        >
+          <span ref={scanRef} className="poracode-provider-icon__mask-scan-band" />
+        </span>
       ) : null}
       {props.tone === "done" ? <DoneCheckOverlay /> : null}
     </span>

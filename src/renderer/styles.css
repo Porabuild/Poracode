@@ -4170,8 +4170,7 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-content-over
   transform: translate3d(0, 0, 0);
 }
 
-.poracode-provider-icon__mask-scan::before {
-  content: "";
+.poracode-provider-icon__mask-scan-band {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -4188,12 +4187,7 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-content-over
     transparent 100%
   );
   transform: translate3d(-33.333%, 0, 0);
-  /* Throttle the shine to 20fps with steps() rather than advancing every display
-     refresh. The compositor only produces a new frame when the stepped transform
-     actually changes, so a 120Hz ProMotion panel draws ~20 frames/s here instead
-     of ~120 — a ~6x cut in GPU compositing for a sweep this subtle and slow.
-     32 steps / 1.6s = 20fps. Raise the step count for a smoother sweep. */
-  animation: poracode-provider-icon-mask-scan 1.6s steps(32, jump-end) infinite;
+  /* thinkingAnimator updates this transform with the text shimmer's shared clock. */
   will-change: transform;
 }
 
@@ -4218,24 +4212,10 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-content-over
   line-height: 1;
 }
 
-@keyframes poracode-provider-icon-mask-scan {
-  from {
-    transform: translate3d(-33.333%, 0, 0);
-  }
-  to {
-    transform: translate3d(33.333%, 0, 0);
-  }
-}
-
 /* Keep status-icon animations alive at about 5fps when the window is hidden or
    unfocused (attributes toggled by uiAnimationActivity.ts). This preserves the
    working signal in a visible background window without paying the foreground
    compositor cost. */
-html[data-app-hidden] .poracode-provider-icon__mask-scan::before,
-html[data-app-unfocused] .poracode-provider-icon__mask-scan::before {
-  animation-timing-function: steps(8, jump-end);
-}
-
 html[data-app-hidden] .poracode-provider-icon--attention,
 html[data-app-unfocused] .poracode-provider-icon--attention,
 html[data-app-hidden] .poracode-provider-icon--finished,
@@ -4244,11 +4224,10 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 /* Honour the OS "reduce motion" setting — drop the moving sweep/pulse entirely
-   and let the static glow + colour signal status. (The thinking shimmer + brain
-   are JS-driven via thinkingAnimator.ts, which checks prefers-reduced-motion
+   and let the static glow + colour signal status. (The shine, thinking shimmer
+   and brain are JS-driven via thinkingAnimator.ts, which checks prefers-reduced-motion
    itself and paints a single static frame.) */
 @media (prefers-reduced-motion: reduce) {
-  .poracode-provider-icon__mask-scan::before,
   .poracode-provider-icon--attention,
   .poracode-provider-icon--finished {
     animation: none;
