@@ -51,13 +51,15 @@ export function ThreadAgentUpdateDock(props: {
   const [latestVersion, setLatestVersion] = useState<
     { updateKey: string; version: string | undefined } | undefined
   >(undefined);
-  const [pending, setPending] = useState(false);
+  const [pendingUpdateKey, setPendingUpdateKey] = useState<string>();
   const combinedUpdates = useCombinedProviderRuntimeUpdates([agentStatus]);
   const combinedEntry = combinedUpdates.entryFor(agentStatus);
 
   const registryAgentId = extractAcpGenericInstanceId(agentStatus.kind);
   const runtimeUpdate = getComposerRuntimeUpdate(agentStatus.kind)?.({ agentStatus, project });
   const updateKey = `${agentStatus.kind}:${runtimeUpdate?.label ?? "provider"}`;
+  const updateTargetKey = JSON.stringify([updateKey, scopeEnvForStatus(agentStatus)]);
+  const pending = pendingUpdateKey === updateTargetKey;
   const installed = runtimeUpdate?.installed ?? agentStatus.installed;
   const installedVersion = runtimeUpdate?.installedVersion ?? agentStatus.version;
   const npmPackageName = runtimeUpdate?.npmPackage?.name;
@@ -145,7 +147,7 @@ export function ThreadAgentUpdateDock(props: {
           : [],
       )
       .join(" · ");
-    if (!summary) return null;
+    if (!summary && !combinedEntry.pending) return null;
     return (
       <ThreadDockSection
         placement="composer"
@@ -170,19 +172,19 @@ export function ThreadAgentUpdateDock(props: {
               ) : (
                 <Download className="size-3.5" />
               )}
-              <Trans>Update</Trans>
+              {combinedEntry.pending ? <Trans>Updating</Trans> : <Trans>Update</Trans>}
             </Button>
           }
         >
           <span className="min-w-0 flex-1 truncate leading-5 text-[color:var(--muted)]">
-            {summary}
+            {summary || agentStatus.label}
           </span>
         </ThreadDockHeader>
       </ThreadDockSection>
     );
   }
 
-  if (!isOutdated || !resolvedLatest || !installedVersion) {
+  if ((!isOutdated && !pending) || !resolvedLatest || !installedVersion) {
     return null;
   }
 
@@ -200,8 +202,8 @@ export function ThreadAgentUpdateDock(props: {
   const updateLabel = runtimeUpdate?.label ?? agentStatus.label;
 
   async function handleUpdate() {
-    if (!resolvedLatest || pending) return;
-    setPending(true);
+    if (!resolvedLatest || pendingUpdateKey !== undefined) return;
+    setPendingUpdateKey(updateTargetKey);
     onUpdatingChange?.(true);
     try {
       const versionedCommand = runtimeUpdate?.commandForVersion?.(resolvedLatest);
@@ -269,7 +271,7 @@ export function ThreadAgentUpdateDock(props: {
         error instanceof Error ? error.message : t`Unable to update ${agentStatus.label}.`,
       );
     } finally {
-      setPending(false);
+      setPendingUpdateKey(undefined);
       onUpdatingChange?.(false);
     }
   }
@@ -290,12 +292,12 @@ export function ThreadAgentUpdateDock(props: {
               size="sm"
               variant="ghost"
               className="h-6 min-w-0 px-2 text-xs text-foreground"
-              isDisabled={pending}
+              isDisabled={pendingUpdateKey !== undefined}
               isPending={pending}
               onPress={() => void handleUpdate()}
             >
               {pending ? <PixelLoader size="xs" /> : <Download className="size-3.5" />}
-              <Trans>Update</Trans>
+              {pending ? <Trans>Updating</Trans> : <Trans>Update</Trans>}
             </Button>
           </div>
         }
