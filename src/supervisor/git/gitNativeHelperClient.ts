@@ -106,6 +106,16 @@ class GitNativeHelperDaemon {
     return !this.disabled;
   }
 
+  isIdle(): boolean {
+    return (
+      this.isAvailable() &&
+      this.child !== null &&
+      this.child.exitCode === null &&
+      !this.child.killed &&
+      this.pending.size === 0
+    );
+  }
+
   nextRequestId(): number {
     return this.nextId++;
   }
@@ -304,6 +314,49 @@ export async function queryNativeGitStatusBatch(args: {
   try {
     const res = await pending;
     return res.statuses ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const treeNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+export function isNativeGitHelperIdle(): boolean {
+  return sharedDaemon?.instance.isIdle() === true;
+}
+
+export async function queryNativeListTree(args: {
+  rootPath: string;
+  directoryPath: string;
+  timeoutMs: number;
+}): Promise<ProjectTreeEntry[] | null> {
+  const daemon = getSharedDaemon();
+  if (!daemon) return null;
+  const pending = daemon.request(
+    {
+      protocolVersion: GIT_HELPER_PROTOCOL_VERSION,
+      id: daemon.nextRequestId(),
+      kind: "listTree",
+      ...args,
+    },
+    args.timeoutMs,
+  );
+  if (!pending) return null;
+  try {
+    const res = await pending;
+    // libuv sorts POSIX names by bytes, but Windows retains filesystem order.
+    // Preserve the same tie order before applying the host's locale collator.
+    return (
+      res.treeEntries?.sort((a, b) => {
+        if (a.type !== b.type) return a.type === "directory" ? -1 : 1;
+        return (
+          treeNameCollator.compare(a.name, b.name) ||
+          (process.platform === "win32"
+            ? 0
+            : Buffer.compare(Buffer.from(a.name), Buffer.from(b.name)))
+        );
+      }) ?? null
+    );
   } catch {
     return null;
   }

@@ -1,3 +1,4 @@
+import { createContext, useContext } from "react";
 import { toast } from "@heroui/react";
 import { overlaySidebarColumnClass } from "@/renderer/components/layout/sidebarChrome";
 import {
@@ -8,13 +9,17 @@ import {
 import { showFilesPanel } from "@/renderer/actions/panelActions";
 import { ProjectTreeView } from "@/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView";
 
+export const ProjectFilesPanelVisibilityContext = createContext(true);
+
 export function ProjectFilesPanel(props: {
   rootContext: FileEditorRootContext;
   compact?: boolean;
   compactActionsVisible?: boolean;
+  visible?: boolean;
 }) {
   const overlayMode = useFileEditorStore((state) => state.overlayMode);
   const pinTab = useFileEditorStore((state) => state.pinTab);
+  const panelVisible = useContext(ProjectFilesPanelVisibilityContext);
 
   // The fullscreen editor owns the tree while it covers this panel. Keeping
   // both mounted duplicates loads and lets a retained panel show another root.
@@ -35,6 +40,11 @@ export function ProjectFilesPanel(props: {
     >
       <ProjectTreeView
         rootContext={props.rootContext}
+        visible={
+          panelVisible &&
+          (props.visible ?? true) &&
+          (!props.compact || (props.compactActionsVisible ?? true))
+        }
         onSelectFile={handleSelectFile}
         onPinFile={pinTab}
         {...(props.compact ? { compact: true } : {})}

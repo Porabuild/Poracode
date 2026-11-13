@@ -9,6 +9,7 @@ import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
+import { isMissingPathError, useProjectTreeReloads } from "./useProjectTreeReloads";
 
 export interface TreeDraftState {
   mode: "create" | "rename";
@@ -22,11 +23,14 @@ export function useProjectTree(props: {
   rootContext: FileEditorRootContext;
   onSelectFile: (path: string) => void;
   onPinFile?: (path: string) => void;
+  visible?: boolean;
 }) {
   const remoteServerId = props.rootContext.remoteServerId;
   const refreshToken = useFileEditorStore((state) => state.refreshToken);
+  const rootKey = `${props.rootContext.projectId}:${props.rootContext.worktreePath ?? ""}`;
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [stateRootKey, setStateRootKey] = useState(rootKey);
+  const [searchQuery, setSearchQueryState] = useState("");
   const [searchResults, setSearchResults] = useState<ProjectTreeEntry[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [draft, setDraft] = useState<TreeDraftState | null>(null);
@@ -37,75 +41,34 @@ export function useProjectTree(props: {
     (s) => s.projects.find((p) => p.id === props.rootContext.projectId)?.searchSettings,
   );
 
-  const rootKey = `${props.rootContext.projectId}:${props.rootContext.worktreePath ?? ""}`;
+  const { reloadPaths, refresh, invalidatePendingLoads } = useProjectTreeReloads(
+    props.rootContext.projectLocation,
+    rootKey,
+    refreshToken,
+    props.visible ?? true,
+  );
 
-  async function reloadPaths(paths: string[]) {
-    const uniquePaths = [...new Set(paths.flatMap((path) => [getParentPath(path), path]))];
-    const treeStore = useProjectTreeStore.getState();
-    if (treeStore.rootKey !== rootKey) return;
-    const generation = treeStore.generation;
-    for (const path of uniquePaths) treeStore.setLoading(path, true);
-
-    const results = await Promise.all(
-      uniquePaths.map(async (path) => {
-        try {
-          return {
-            path,
-            result: await readBridge().listProjectTree({
-              projectLocation: props.rootContext.projectLocation,
-              directoryPath: path,
-            }),
-          };
-        } catch (error) {
-          if (path && isMissingPathError(error)) {
-            return { path, result: { directoryPath: path, entries: [] } };
-          }
-          throw error;
-        }
-      }),
-    ).catch((error: unknown) => {
-      if (useProjectTreeStore.getState().generation !== generation) return [];
-      toast.danger(error instanceof Error ? error.message : String(error));
-      return [];
-    });
-
-    if (useProjectTreeStore.getState().generation !== generation) return;
-    if (results.length > 0) {
-      useProjectTreeStore
-        .getState()
-        .setDirectoryEntries(
-          Object.fromEntries(results.map((item) => [item.path, item.result.entries])),
-        );
-    }
-    useProjectTreeStore.getState().clearLoadingFor(uniquePaths);
-  }
-
-  useEffect(() => {
-    useProjectTreeStore.getState().resetForRoot(rootKey);
+  if (stateRootKey !== rootKey) {
+    setStateRootKey(rootKey);
     setDraft(null);
     setSearchQuery("");
-    setSearchResults([]);
-    void reloadPaths([""]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- root changes must reset and load exactly once; reloadPaths reads the matching render's root context.
-  }, [rootKey]);
+  }
 
-  useEffect(() => {
-    const paths = Object.keys(useProjectTreeStore.getState().directoryEntries);
-    void reloadPaths(paths.length > 0 ? paths : [""]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshToken, rootKey]);
+  function setSearchQuery(query: string) {
+    setSearchQueryState(query);
+    setSearchLoading(Boolean(query.trim()));
+    if (!query.trim()) setSearchResults([]);
+  }
 
   useEffect(() => {
     const trimmed = searchQuery.trim();
     if (!trimmed) {
-      setSearchResults([]);
-      setSearchLoading(false);
       useProjectTreeStore.getState().setCommittedSearchQuery("");
       return;
     }
 
-    setSearchLoading(true);
     const handle = setTimeout(() => {
+      setSearchLoading(true);
       useProjectTreeStore.getState().setCommittedSearchQuery(trimmed);
       const searchConfig = resolveSearchConfig({
         globalUseIgnoreFiles,
@@ -138,7 +101,7 @@ export function useProjectTree(props: {
     const treeStore = useProjectTreeStore.getState();
     const isExpanded = treeStore.expandedPaths[path] ?? false;
     treeStore.toggleExpanded(path);
-    if (!isExpanded && !(path in treeStore.directoryEntries)) {
+    if (!isExpanded && !(path in treeStore.directoryEntries) && !treeStore.loadingPaths[path]) {
       await reloadPaths([path]);
     }
   }
@@ -183,6 +146,7 @@ export function useProjectTree(props: {
       path: nextPath,
       type,
     });
+    invalidatePendingLoads();
     useFileEditorStore.getState().bumpRefreshToken();
     setDraft(null);
     if (type === "file") {
@@ -201,6 +165,7 @@ export function useProjectTree(props: {
       path,
       nextName: trimmed,
     });
+    invalidatePendingLoads();
     useFileEditorStore.getState().renamePath(path, nextPath);
     setDraft(null);
   }
@@ -215,6 +180,7 @@ export function useProjectTree(props: {
       .catch((error: unknown) => {
         if (!isMissingPathError(error)) throw error;
       });
+    invalidatePendingLoads();
     useFileEditorStore.getState().removePath(entry.path);
     if (entry.type === "directory") {
       useProjectTreeStore.getState().setDirectoryEntries({ [entry.path]: [] });
@@ -231,6 +197,7 @@ export function useProjectTree(props: {
     const currentName = getBasename(sourcePath);
     if (!currentName) return;
     const nextPath = nextParentPath ? `${nextParentPath}/${currentName}` : currentName;
+    invalidatePendingLoads();
     useFileEditorStore.getState().renamePath(sourcePath, nextPath);
   }
 
@@ -245,7 +212,13 @@ export function useProjectTree(props: {
       pathsToLoad.push(cursor);
     }
     useProjectTreeStore.getState().expandMany(pathsToExpand);
-    void reloadPaths(pathsToLoad);
+    const treeStore = useProjectTreeStore.getState();
+    void reloadPaths(
+      pathsToLoad.filter(
+        (ancestorPath) =>
+          !(ancestorPath in treeStore.directoryEntries) && !treeStore.loadingPaths[ancestorPath],
+      ),
+    );
   }
 
   function openSearchResult(entry: ProjectTreeEntry) {
@@ -346,8 +319,7 @@ export function useProjectTree(props: {
         return;
       }
       if (action === "refresh") {
-        const entries = useProjectTreeStore.getState().directoryEntries;
-        await reloadPaths(Object.keys(entries).length > 0 ? Object.keys(entries) : [""]);
+        await refresh();
         void useFileEditorStore.getState().refreshOpenBuffers();
       }
     } catch (error) {
@@ -375,12 +347,4 @@ export function useProjectTree(props: {
 
 function getParentPath(path: string): string {
   return path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-}
-
-function isMissingPathError(error: unknown): boolean {
-  if (typeof error === "object" && error !== null && "code" in error) {
-    const code = (error as { code?: unknown }).code;
-    if (code === "ENOENT") return true;
-  }
-  return error instanceof Error && /\bENOENT\b/.test(error.message);
 }

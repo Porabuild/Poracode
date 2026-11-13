@@ -221,7 +221,7 @@ describe("ProjectWatcherClient", () => {
     old.unsubscribe();
     const replacement = instance.watch("/new", nextChanged);
     native.reply({ kind: "ready", id: 0 });
-    expect(native.writes).toEqual([{ protocolVersion: 3, id: 2, kind: "watch", rootPath: "/new" }]);
+    expect(native.writes).toEqual([{ protocolVersion: 4, id: 2, kind: "watch", rootPath: "/new" }]);
     native.reply({ kind: "ready", id: 1 });
     native.reply({ kind: "changed", id: 1, scope: "git" });
     native.reply({ kind: "ready", id: 2 });
@@ -233,19 +233,19 @@ describe("ProjectWatcherClient", () => {
     expect(mocks.spawn).toHaveBeenCalledOnce();
   });
 
-  it("rejects the previous v2 helper and installs an off-supervisor fallback", async () => {
+  it("rejects the previous v3 helper and installs an off-supervisor fallback", async () => {
     const native = childHarness();
     mocks.spawn.mockReturnValue(native.child);
     const instance = client();
     const changed = vi.fn<(scope: ProjectWatchScope) => void>();
     const subscription = instance.watch("/repo", changed);
-    native.reply({ protocolVersion: 2, kind: "ready", id: 0 });
+    native.reply({ protocolVersion: 3, kind: "ready", id: 0 });
     expect(native.child.kill).toHaveBeenCalledOnce();
     expect(mocks.workers).toHaveLength(1);
     const worker = mocks.workers[0]!;
     workerReply(worker, { kind: "ready", id: 0 });
     expect(worker.postMessage).toHaveBeenCalledWith({
-      protocolVersion: 3,
+      protocolVersion: 4,
       kind: "watch",
       id: 1,
       rootPath: "/repo",
@@ -322,7 +322,7 @@ describe("ProjectWatcherClient", () => {
     await Promise.resolve();
     expect(mocks.spawn).not.toHaveBeenCalled();
     expect(worker.postMessage).toHaveBeenLastCalledWith({
-      protocolVersion: 3,
+      protocolVersion: 4,
       kind: "unwatch",
       id: 1,
     });

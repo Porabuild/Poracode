@@ -15,6 +15,7 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { GitService } from "../git";
 import { FileIndexService } from "../fileIndex";
 import { ProjectSearchIndex } from "../ProjectSearchIndex";
+import { ProjectTreeService } from "../projectTree";
 import { resolveProjectEntryPath } from "../projectPaths";
 import { disposeGitExecWorker } from "./exec";
 import {
@@ -26,8 +27,10 @@ import {
 import {
   areSearchExcludePatternsNativeCompatible,
   disposeNativeGitHelper,
+  isNativeGitHelperIdle,
   nativeGitHelperBinaryPath,
   queryNativeGitStatusBatch,
+  queryNativeListTree,
   queryNativeSearchTree,
 } from "./gitNativeHelperClient";
 import { GitStatusService } from "./statusService";
@@ -101,6 +104,115 @@ afterEach(async () => {
 });
 
 describe("poracode-git-helper parity & fallback", () => {
+  it("keeps cold and busy tree listings local and reuses an idle helper", async () => {
+    if (!nativeGitHelperBinaryPath()) {
+      if (initialHelperBinEnv !== undefined) throw new Error("Expected native helper");
+      return;
+    }
+    const root = makeTempDir("poracode-list-startup-");
+    writeFileSync(join(root, "visible.txt"), "");
+    disposeNativeGitHelper();
+    const service = new ProjectTreeService();
+    const payload = { projectLocation: localLocation(root), directoryPath: "" };
+    const local = await service.listProjectTree(payload);
+    expect(isNativeGitHelperIdle()).toBe(false);
+    const status = queryNativeGitStatusBatch({
+      paths: [root],
+      detail: "summary",
+      timeoutMs: 10_000,
+      maxConcurrency: 1,
+    });
+    expect(isNativeGitHelperIdle()).toBe(false);
+    expect(await service.listProjectTree(payload)).toEqual(local);
+    expect(await status).not.toBeNull();
+    expect(isNativeGitHelperIdle()).toBe(true);
+    expect(await service.listProjectTree(payload)).toEqual(local);
+  });
+
+  it("matches native listings to the TS fallback including collation and contained symlinks", async () => {
+    const bin = nativeGitHelperBinaryPath();
+    if (!bin) {
+      if (initialHelperBinEnv !== undefined) throw new Error("Expected native helper");
+      return;
+    }
+    const root = makeTempDir("poracode-list-parity-");
+    const outside = makeTempDir("poracode-list-outside-");
+    for (const name of [".git", "empty", "git-only/.git", "dir10", "dir2"])
+      mkdirSync(join(root, name), { recursive: true });
+    for (const name of [
+      "z.txt",
+      "Ä.txt",
+      "a.txt",
+      "á.txt",
+      "A02.txt",
+      "a2.txt",
+      "a10.txt",
+      "é.txt",
+      "e\u0301.txt",
+      "_a.txt",
+      "-a.txt",
+      "file２.txt",
+      "dir2/child.txt",
+    ]) {
+      writeFileSync(join(root, name), "");
+    }
+    const kind = process.platform === "win32" ? "junction" : "dir";
+    symlinkSync(join(root, "dir2"), join(root, "inside-link"), kind);
+    symlinkSync(outside, join(root, "outside-link"), kind);
+    symlinkSync(join(root, "missing"), join(root, "broken-link"), "file");
+    const service = new ProjectTreeService();
+    const projectLocation = localLocation(root);
+    const paths = ["", ".", "dir2", "/./dir2//", "dir2\\", "inside-link", "empty", "git-only"];
+    const native = [];
+    for (const directoryPath of paths) {
+      const entries = await queryNativeListTree({
+        rootPath: root,
+        directoryPath,
+        timeoutMs: 10_000,
+      });
+      expect(entries).not.toBeNull();
+      native.push(entries);
+      expect((await service.listProjectTree({ projectLocation, directoryPath })).entries).toEqual(
+        entries,
+      );
+    }
+    for (const directoryPath of ["..", "dir2/../", "dir2\\..", "outside-link", "missing"]) {
+      expect(
+        await queryNativeListTree({ rootPath: root, directoryPath, timeoutMs: 10_000 }),
+      ).toBeNull();
+      await expect(service.listProjectTree({ projectLocation, directoryPath })).rejects.toThrow(
+        /traversal|escapes|ENOENT/u,
+      );
+    }
+    delete process.env.PORACODE_GIT_HELPER_BIN;
+    process.env.PORACODE_DISABLE_GIT_HELPER = "1";
+    for (const [index, directoryPath] of paths.entries()) {
+      expect((await service.listProjectTree({ projectLocation, directoryPath })).entries).toEqual(
+        native[index],
+      );
+    }
+  });
+
+  it("follows native roots when a junction or directory symlink is retargeted", async () => {
+    if (!nativeGitHelperBinaryPath()) {
+      if (initialHelperBinEnv !== undefined) throw new Error("Expected native helper");
+      return;
+    }
+    const fixture = makeTempDir("poracode-list-root-");
+    for (const name of ["first", "second"]) {
+      mkdirSync(join(fixture, name));
+      writeFileSync(join(fixture, name, `${name}.txt`), "");
+    }
+    const rootPath = join(fixture, "alias");
+    const kind = process.platform === "win32" ? "junction" : "dir";
+    const list = () => queryNativeListTree({ rootPath, directoryPath: "", timeoutMs: 10_000 });
+    symlinkSync(join(fixture, "first"), rootPath, kind);
+    expect((await list())?.map((entry) => entry.name)).toEqual(["first.txt"]);
+    unlinkSync(rootPath);
+    symlinkSync(join(fixture, "second"), rootPath, kind);
+    expect((await list())?.map((entry) => entry.name)).toEqual(["second.txt"]);
+  });
+
   it.each(["linked", "literal wildcard", "directory"])(
     "resolves relative gitdir conditions from a %s config path like Git",
     async (kind) => {
@@ -873,7 +985,7 @@ describe("poracode-git-helper parity & fallback", () => {
     },
   );
 
-  it("refuses an old protocol-2 helper and preserves the TypeScript status fallback", async () => {
+  it("refuses the previous protocol helper and preserves the TypeScript status and tree fallback", async () => {
     const old = process.env.PORACODE_OLD_GIT_HELPER_BIN;
     if (!old) return;
     process.env.PORACODE_GIT_HELPER_BIN = old;
@@ -890,6 +1002,17 @@ describe("poracode-git-helper parity & fallback", () => {
       branch: "main",
       totalInsertions: 1,
     });
+    expect(
+      await queryNativeListTree({ rootPath: root, directoryPath: "", timeoutMs: 10_000 }),
+    ).toBeNull();
+    expect(
+      (
+        await new ProjectTreeService().listProjectTree({
+          projectLocation: localLocation(root),
+          directoryPath: "",
+        })
+      ).entries,
+    ).toEqual([{ path: "new.txt", name: "new.txt", type: "file" }]);
   });
 
   it.each(["system", "global", "local-include", "gitdir-include", "onbranch-include"])(

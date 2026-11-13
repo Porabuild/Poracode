@@ -119,6 +119,10 @@ fn ignored_tree(name: &str) -> bool {
         ".venv/",
         "target/debug/",
         "target/release/",
+        ".vite/",
+        ".cache/",
+        ".swc/",
+        ".parcel-cache/",
         ".tmp/",
     ];
     const SEGMENTS: &[&str] = &[
@@ -129,6 +133,10 @@ fn ignored_tree(name: &str) -> bool {
         "/.venv/",
         "/target/debug/",
         "/target/release/",
+        "/.vite/",
+        "/.cache/",
+        "/.swc/",
+        "/.parcel-cache/",
         "/.tmp/",
     ];
     name == ".git"
@@ -136,6 +144,18 @@ fn ignored_tree(name: &str) -> bool {
         || name.contains("/.git/")
         || PREFIXES.iter().any(|prefix| name.starts_with(prefix))
         || SEGMENTS.iter().any(|segment| name.contains(segment))
+        || name.split('/').enumerate().any(|(index, segment)| {
+            if segment != "target" {
+                return false;
+            }
+            let mut tail = name.split('/').skip(index + 1);
+            tail.next().is_some_and(|target| {
+                target
+                    .split_once('-')
+                    .is_some_and(|(a, b)| !a.is_empty() && !b.is_empty())
+            }) && matches!(tail.next(), Some("debug" | "release"))
+                && tail.next().is_some()
+        })
 }
 
 fn git_noise(name: &str) -> bool {
@@ -671,6 +691,16 @@ mod tests {
             ".poracode/worktrees/topic/src/app.ts",
             "packages/a/node_modules/a.js",
             "native/helper/target/release/helper",
+            "target/x86_64-pc-windows-msvc/release/helper.exe",
+            "native/helper/target/aarch64-apple-darwin/debug/helper",
+            ".vite/deps/a.js",
+            "packages/a/.vite/deps/a.js",
+            ".cache/a",
+            "packages/a/.cache/a",
+            ".swc/a",
+            "packages/a/.swc/a",
+            ".parcel-cache/a",
+            "packages/a/.parcel-cache/a",
             ".tmp/a",
         ] {
             assert!(ignored_tree(name), "{name}");
@@ -679,6 +709,7 @@ mod tests {
             "src/app.ts",
             ".poracode/settings.json",
             "src/target/router.ts",
+            "src/targeting/router.ts",
         ] {
             assert!(!ignored_tree(name), "{name}");
         }

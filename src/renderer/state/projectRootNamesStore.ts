@@ -1,56 +1,76 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { create } from "zustand";
-import type { ProjectLocation } from "@/shared/contracts";
+import type { ListProjectTreeResult, ProjectLocation } from "@/shared/contracts";
+import { projectIdentityKey } from "@/shared/projectIdentity";
 import { readBridge } from "@/renderer/bridge";
 
 const EMPTY_SET: ReadonlySet<string> = new Set();
 
 interface State {
   byKey: Record<string, ReadonlySet<string>>;
-  loadingKeys: Record<string, true>;
   set: (key: string, names: ReadonlySet<string>) => void;
-  markLoading: (key: string) => void;
-  clearLoading: (key: string) => void;
 }
 
 const useStore = create<State>()((setState) => ({
   byKey: {},
-  loadingKeys: {},
-  set: (key, names) =>
-    setState((state) => {
-      const nextLoading = { ...state.loadingKeys };
-      delete nextLoading[key];
-      return { byKey: { ...state.byKey, [key]: names }, loadingKeys: nextLoading };
-    }),
-  markLoading: (key) =>
-    setState((state) =>
-      state.loadingKeys[key] ? {} : { loadingKeys: { ...state.loadingKeys, [key]: true } },
-    ),
-  clearLoading: (key) =>
-    setState((state) => {
-      if (!state.loadingKeys[key]) return {};
-      const next = { ...state.loadingKeys };
-      delete next[key];
-      return { loadingKeys: next };
-    }),
+  set: (key, names) => setState((state) => ({ byKey: { ...state.byKey, [key]: names } })),
 }));
 
 function keyFor(projectLocation: ProjectLocation): string {
-  return JSON.stringify(projectLocation);
+  return projectIdentityKey({ location: projectLocation });
 }
 
-async function fetchAndCache(projectLocation: ProjectLocation): Promise<void> {
+interface RootRequest {
+  promise: Promise<ListProjectTreeResult>;
+  owners: Set<() => boolean>;
+}
+
+const inFlight = new Map<string, RootRequest>();
+
+function hasCurrentOwner(request: RootRequest): boolean {
+  return [...request.owners].some((ownsRoot) => ownsRoot());
+}
+
+export function invalidateProjectRoot(projectLocation: ProjectLocation): void {
+  inFlight.delete(keyFor(projectLocation));
+}
+
+/** Share the root listing with chat validation, but never reuse a departed tree's request. */
+export function listProjectRoot(
+  projectLocation: ProjectLocation,
+  ownsRoot: () => boolean,
+): Promise<ListProjectTreeResult> {
   const key = keyFor(projectLocation);
-  const state = useStore.getState();
-  if (state.byKey[key] || state.loadingKeys[key]) return;
-  state.markLoading(key);
-  try {
-    const result = await readBridge().listProjectTree({ projectLocation, directoryPath: "" });
-    const names = new Set(result.entries.map((entry) => entry.name));
-    useStore.getState().set(key, names);
-  } catch {
-    useStore.getState().clearLoading(key);
+  const pending = inFlight.get(key);
+  if (pending && hasCurrentOwner(pending)) {
+    pending.owners.add(ownsRoot);
+    return pending.promise;
   }
+  const request: RootRequest = {
+    owners: new Set([ownsRoot]),
+    promise: readBridge()
+      .listProjectTree({ projectLocation, directoryPath: "" })
+      .then((result) => {
+        if (inFlight.get(key) === request && hasCurrentOwner(request)) {
+          useStore.getState().set(key, new Set(result.entries.map((entry) => entry.name)));
+        }
+        return result;
+      })
+      .finally(() => {
+        if (inFlight.get(key) === request) inFlight.delete(key);
+      }),
+  };
+  inFlight.set(key, request);
+  return request.promise;
+}
+
+async function fetchAndCache(
+  projectLocation: ProjectLocation,
+  ownsRoot: () => boolean,
+): Promise<void> {
+  const key = keyFor(projectLocation);
+  if (useStore.getState().byKey[key]) return;
+  await listProjectRoot(projectLocation, ownsRoot);
 }
 
 /**
@@ -63,11 +83,18 @@ export function useProjectRootNames(
 ): ReadonlySet<string> {
   const key = projectLocation ? keyFor(projectLocation) : "";
   const names = useStore((s) => (key ? s.byKey[key] : undefined));
+  const ownerRef = useRef({ key, active: false });
 
   useEffect(() => {
+    if (ownerRef.current.key !== key) ownerRef.current = { key, active: false };
     if (!projectLocation) return;
-    void fetchAndCache(projectLocation);
-  }, [projectLocation]);
+    const owner = ownerRef.current;
+    owner.active = true;
+    void fetchAndCache(projectLocation, () => owner.active).catch(() => undefined);
+    return () => {
+      owner.active = false;
+    };
+  }, [key, projectLocation]);
 
   return names ?? EMPTY_SET;
 }

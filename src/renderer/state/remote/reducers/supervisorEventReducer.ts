@@ -620,8 +620,7 @@ export function createSupervisorEventReducer(
     if (runtimeRecoveryInFlight.has(threadId)) return;
     recoveryRetries.cancel(threadId);
     // A visible failure gives way to the attempt; it returns if retries run out.
-    if (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed")
-      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
+    useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
     queue.block(threadId);
     runtimeRecoveryInFlight.add(threadId);
     const resume = createGroupResume([threadId]);

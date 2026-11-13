@@ -1,4 +1,6 @@
 import "fake-indexeddb/auto";
+import { getSqlite } from "@/host/db/connection";
+import { cachedThreadHistorySchema } from "@/shared/remote/historyReadSchemas";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   dbReplaceThreadRuntimeItems,
@@ -7,7 +9,13 @@ import {
 import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { cacheRecentHistory, readRecentHistory } from "@/renderer/browser/recentHistoryCache";
 import { getManagedParentAuthorityState } from "../remoteServers/managedLoopbackOwner";
-import { hydrateThreadRuntimeItems, hasHydratedThreadRuntimeItems } from "../chatRuntimePersister";
+import {
+  hydrateThreadRuntimeItems,
+  hasHydratedThreadRuntimeItems,
+  boundSettledThreadRuntimeWindows,
+  retainThreadRuntimeItems,
+  releaseThreadRuntimeItems,
+} from "../chatRuntimePersister";
 import { useAppStore } from "../appStore";
 import { readHostThreadHistory } from "../hostThreadHistory";
 import { beginHistorySnapshotRead, readHistoryResume } from "../historyResumeRegistry";
@@ -45,6 +53,81 @@ async function readBoundedPage(threadId: string) {
   return read.boundedPage;
 }
 afterEach(teardownManagedRootFixture);
+
+it("holds a matching durable cache until the owning host validates it, then installs once", async () => {
+  const id = "validated-cache";
+  seedThread(id);
+  getSqlite().prepare("UPDATE threads SET presentation_mode = 'gui' WHERE id = ?").run(id);
+  seedRuntimeItems(id, 80);
+  await activate();
+  const first = await readBoundedPage(id);
+  const parent = getManagedParentAuthorityState();
+  if (parent.status !== "ready") throw new Error("Missing verified host");
+  const key = `managed:${parent.authority.ref.hostDesktopId}`;
+  await vi.waitFor(async () =>
+    expect((await readRecentHistory(key, id))?.revision).toBe(first.historyCache!.revision),
+  );
+  useAppStore.getState().clearThreadRuntimeEvents(id);
+  const client = readManagedLoopbackActivation()!.client;
+  const original = client.boundedThreadHistory.bind(client);
+  const response = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const spy = vi.spyOn(client, "boundedThreadHistory").mockImplementation(async (...args) => {
+    const result = await original(...args);
+    expect(result.page.historyCache?.unchanged).toBe(true);
+    response.resolve();
+    await release.promise;
+    return result;
+  });
+  const pending = readHostThreadHistory({ id });
+  try {
+    await response.promise;
+    expect(useAppStore.getState().runtimeItemIdsByThread[id] ?? []).toEqual([]);
+    release.resolve();
+    const installed = await pending;
+    expect(installed.kind).toBe("installed");
+    expect(useAppStore.getState().runtimeItemIdsByThread[id]).toEqual(
+      first.runtimeItems.map((item) => item.id),
+    );
+    expect(spy).toHaveBeenCalledOnce();
+  } finally {
+    release.resolve();
+    await pending;
+    spy.mockRestore();
+  }
+}, 60_000);
+
+it.each(["settle", "release"] as const)(
+  "refreshes durable cache from the host after %s",
+  async (trigger) => {
+    const id = `cache-${trigger}`;
+    seedThread(id);
+    getSqlite().prepare("UPDATE threads SET presentation_mode = 'gui' WHERE id = ?").run(id);
+    seedRuntimeItems(id, 2);
+    await activate();
+    await hydrateThreadRuntimeItems(id);
+    const parent = getManagedParentAuthorityState();
+    if (parent.status !== "ready") throw new Error("Missing verified host");
+    const key = `managed:${parent.authority.ref.hostDesktopId}`;
+    await dbReplaceThreadRuntimeItems(id, [
+      {
+        id: "final",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Final answer" },
+      },
+    ]);
+    if (trigger === "settle") boundSettledThreadRuntimeWindows([id]);
+    else {
+      retainThreadRuntimeItems(id);
+      releaseThreadRuntimeItems(id);
+    }
+    await vi.waitFor(async () =>
+      expect((await readRecentHistory(key, id))?.runtimeItems[0]?.id).toBe("final"),
+    );
+  },
+  60_000,
+);
 
 it("fills the first window without decoding completed command bodies and retrieves their stored details", async () => {
   const id = "compact-history";
@@ -193,9 +276,10 @@ it("replays missed output once and returns a useful bounded tail after a durable
   expect(rebuilt.snapshot.runtimeItems).toHaveLength(40);
 }, 60_000);
 
-it("paints a cached window while HTTP is pending and retires stale preview rows on admission", async () => {
+it("never paints a cached window while HTTP is pending and installs the authoritative window first", async () => {
   const id = "cached-history";
   seedThread(id);
+  getSqlite().prepare("UPDATE threads SET presentation_mode = 'gui' WHERE id = ?").run(id);
   seedRuntimeItems(id, 80);
   await activate();
   const authority = getManagedParentAuthorityState();
@@ -207,8 +291,16 @@ it("paints a cached window while HTTP is pending and retires stale preview rows 
     state: "completed" as const,
     streams: { assistant_text: `Cached ${i}` },
   }));
-  await cacheRecentHistory(key, id, stale, () => true);
-  expect(await readRecentHistory(key, id)).toEqual(stale);
+  const staleHistory = {
+    revision: "hc1.stale",
+    runtimeItems: stale,
+    runtimeNextCursor: null,
+    completedTurns: [],
+    completedTurnsNextCursor: null,
+    contextUsage: null,
+  };
+  await cacheRecentHistory(key, id, staleHistory, () => true);
+  expect(await readRecentHistory(key, id)).toEqual(staleHistory);
   const client = readManagedLoopbackActivation()!.client;
   const original = client.boundedThreadHistory.bind(client);
   const held = Promise.withResolvers<void>();
@@ -219,17 +311,21 @@ it("paints a cached window while HTTP is pending and retires stale preview rows 
   });
   const pending = hydrateThreadRuntimeItems(id);
   try {
-    await vi.waitFor(() =>
-      expect(useAppStore.getState().runtimeItemIdsByThread[id]).toHaveLength(40),
-    );
-    expect(useAppStore.getState().runtimeItemIdsByThread[id]?.[0]).toBe("cached-0");
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    // Give a cached preview every chance to paint; it must not.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(useAppStore.getState().runtimeItemIdsByThread[id] ?? []).toHaveLength(0);
     expect(hasHydratedThreadRuntimeItems(id)).toBe(false);
-    expect(read).toHaveBeenCalledOnce();
     held.resolve();
     await pending;
     expect(hasHydratedThreadRuntimeItems(id)).toBe(true);
     expect(useAppStore.getState().runtimeItemIdsByThread[id]?.[0]).toBe("item-60");
     expect(useAppStore.getState().runtimeItemIdsByThread[id]).not.toContain("cached-0");
+    await vi.waitFor(async () => {
+      const cached = await readRecentHistory(key, id);
+      expect(cached?.runtimeItems[0]?.id).toBe("item-60");
+      expect(cached?.revision).not.toBe(staleHistory.revision);
+    });
   } finally {
     held.resolve();
     await pending;
@@ -237,11 +333,12 @@ it("paints a cached window while HTTP is pending and retires stale preview rows 
   }
 }, 60_000);
 
-it.each([true, false])(
-  "keeps live deltas behind a cold baseline with cached preview=%s",
+it.each(["stale", "matching", "none"] as const)(
+  "keeps live deltas behind a cold baseline with a cached tail on disk=%s",
   async (cached) => {
     const id = `cold-baseline-${cached}`;
     seedThread(id);
+    getSqlite().prepare("UPDATE threads SET presentation_mode = 'gui' WHERE id = ?").run(id);
     await dbReplaceThreadRuntimeItems(id, [
       {
         id: "reply",
@@ -253,27 +350,52 @@ it.each([true, false])(
     await activate();
     const parent = getManagedParentAuthorityState();
     if (parent.status !== "ready") throw new Error("Missing verified host identity");
-    if (cached)
+    if (cached === "stale")
       await cacheRecentHistory(
         `managed:${parent.authority.ref.hostDesktopId}`,
         id,
-        [
-          {
-            id: "reply",
-            type: "assistant_message",
-            state: "started",
-            streams: { assistant_text: "A" },
-          },
-        ],
+        {
+          revision: "hc1.stale",
+          runtimeNextCursor: null,
+          completedTurns: [],
+          completedTurnsNextCursor: null,
+          contextUsage: null,
+          runtimeItems: [
+            {
+              id: "reply",
+              type: "assistant_message",
+              state: "started",
+              streams: { assistant_text: "A" },
+            },
+          ],
+        },
         () => true,
       );
     const client = readManagedLoopbackActivation()!.client;
+    if (cached === "matching") {
+      const initial = await client.boundedThreadHistory(id, {
+        historyCache: true,
+        compactDetails: true,
+        targetTimelineEntryCount: 20,
+        noticesCapable: true,
+      });
+      await cacheRecentHistory(
+        `managed:${parent.authority.ref.hostDesktopId}`,
+        id,
+        cachedThreadHistorySchema.parse({
+          ...initial.page,
+          revision: initial.page.historyCache!.revision,
+        }),
+        () => true,
+      );
+    }
     const original = client.boundedThreadHistory.bind(client);
     const held = Promise.withResolvers<void>();
     let snapshotSeq = 0;
     const received = Promise.withResolvers<void>();
     const read = vi.spyOn(client, "boundedThreadHistory").mockImplementation(async (...args) => {
       const response = await original(...args);
+      expect(response.page.historyCache?.unchanged).toBe(cached === "matching");
       snapshotSeq = response.page.snapshotSeq;
       received.resolve();
       await held.promise;
@@ -293,11 +415,11 @@ it.each([true, false])(
     try {
       await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
       await received.promise;
-      await vi.waitFor(() =>
-        expect(
-          useAppStore.getState().runtimeItemsByIdByThread[id]?.reply?.streams.assistant_text,
-        ).toBe(cached ? "A" : undefined),
-      );
+      // The on-disk tail is never painted; only the baseline installs rows.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(
+        useAppStore.getState().runtimeItemsByIdByThread[id]?.reply?.streams.assistant_text,
+      ).toBeUndefined();
       expect(isRuntimeHistoryReadHeld(id)).toBe(true);
       noteRendererEventInterestWireCoverage([id]);
       reducer.enqueueRuntimeBatches(
@@ -321,7 +443,7 @@ it.each([true, false])(
       reducer.flushSync(id);
       expect(
         useAppStore.getState().runtimeItemsByIdByThread[id]?.reply?.streams.assistant_text,
-      ).toBe(cached ? "A" : undefined);
+      ).toBeUndefined();
       held.resolve();
       await pending;
       reducer.flushSync(id);

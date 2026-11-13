@@ -191,6 +191,14 @@ export function MessageList({
   } = useUnderfilledHistory({
     threadId,
     oldestVisibleEntryId: entries[0]?.id,
+    ...(entries[0]?.kind === "tool_call_group"
+      ? {
+          oldestVisibleGroup: {
+            headId: entries[0].itemIds[0]!,
+            tailId: entries[0].itemIds.at(-1)!,
+          },
+        }
+      : {}),
     scrollElementRef,
     onStartReached,
     onContentHeightChange: () => {

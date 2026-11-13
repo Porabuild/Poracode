@@ -18,12 +18,14 @@ import {
   type CatalogPaintOrder,
 } from "./catalogReadContract";
 import { encodeCompletedTurnCursor, decodeCompletedTurnCursor } from "./historyReadContract";
+import { cachedThreadHistorySchema } from "./historyReadSchemas";
 
 const TOKEN = "lc_access_bounded_test";
 const CAPABILITY = "bounded-v1" as const;
 const UPDATED_AT = "2026-01-02T00:00:00.000Z";
 
 interface FixtureOptions {
+  historyCache?: { revision: string; unchanged: boolean };
   legacy?: boolean;
   omitEcho?: boolean;
   echo?: unknown;
@@ -519,7 +521,21 @@ async function startFixture(options: FixtureOptions = {}): Promise<Fixture> {
             sendJson(response, 200, legacyHistoryBody());
             return;
           }
-          sendJson(response, 200, { ...boundedHistoryBody(), ...echoField });
+          sendJson(response, 200, {
+            ...boundedHistoryBody(),
+            ...echoField,
+            ...(options.historyCache ? { historyCache: options.historyCache } : {}),
+            ...(options.historyCache?.unchanged
+              ? {
+                  runtimeItems: [],
+                  runtimeNextCursor: null,
+                  completedTurns: [],
+                  completedTurnsNextCursor: null,
+                  snapshotSeq: 99,
+                  runtimeResumeCursor: "hr1.current",
+                }
+              : {}),
+          });
           return;
         }
         if (route === "history/items") {
@@ -789,6 +805,57 @@ describe("RemoteDesktopClient bounded reads", () => {
     expect([...positions].sort((left, right) => left - right)).toEqual(
       ITEMS.map((item) => item.position),
     );
+  });
+
+  it("reuses only a matching durable payload and keeps the host's new epoch and controls", async () => {
+    const fixture = await startFixture({
+      historyCache: { revision: "hc1.current", unchanged: true },
+    });
+    const cached = cachedThreadHistorySchema.parse({
+      ...boundedHistoryBody(),
+      revision: "hc1.current",
+    });
+    const page = boundedPage(
+      await clientFor(fixture).boundedThreadHistory("th-000", { historyCache: cached }),
+    );
+    expect(page.runtimeItems).toEqual(cached.runtimeItems);
+    expect(page.completedTurns).toEqual(cached.completedTurns);
+    expect(page.runtimeNextCursor).toBe(cached.runtimeNextCursor);
+    expect(page.snapshotSeq).toBe(99);
+    expect(page.runtimeResumeCursor).toBe("hr1.current");
+    expect(fixture.requests[0]?.params.get("historyCache")).toBe("v1");
+    expect(fixture.requests[0]?.params.get("historyRevision")).toBe("hc1.current");
+  });
+
+  it.each([undefined, true, "hc1.wrong"] as const)(
+    "refuses an unchanged response without matching proof: %s",
+    async (proof) => {
+      const fixture = await startFixture({
+        historyCache: { revision: "hc1.current", unchanged: true },
+      });
+      const historyCache =
+        typeof proof === "string"
+          ? cachedThreadHistorySchema.parse({ ...boundedHistoryBody(), revision: proof })
+          : proof;
+      await expect(
+        clientFor(fixture).boundedThreadHistory("th-000", historyCache ? { historyCache } : {}),
+      ).rejects.toMatchObject({ code: "bounded_read_protocol_error" });
+    },
+  );
+
+  it("treats an older host's complete response as authoritative without using the cache", async () => {
+    const fixture = await startFixture({ legacy: true });
+    const cached = cachedThreadHistorySchema.parse({
+      ...boundedHistoryBody(),
+      revision: "hc1.old",
+      runtimeItems: [],
+    });
+    const result = await clientFor(fixture).boundedThreadHistory("th-000", {
+      historyCache: cached,
+    });
+    expect(result.negotiation).toBe("legacy");
+    expect(result.page.runtimeItems.length).toBeGreaterThan(0);
+    expect(result.page.historyCache).toBeUndefined();
   });
 
   it("asks for deferred file-change bodies only together with the compact projection", async () => {

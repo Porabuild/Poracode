@@ -588,7 +588,7 @@ describe("MessageList", () => {
 
   it("configures LegendList anchoring and dynamic-size preservation", () => {
     const onStartReached = vi.fn<() => void>();
-    render(
+    const { container } = render(
       <MessageList
         threadId="thread-1"
         entries={makeEntries(["item-1", "item-2"])}
@@ -608,6 +608,10 @@ describe("MessageList", () => {
     expect(props.maintainScrollAtEndThreshold).toBe(0);
     expect(props.maintainVisibleContentPosition).toEqual({ data: true, size: true });
     expect(props.onStartReachedThreshold).toBe(0.75);
+    Object.defineProperties(container.querySelector("[data-poracode-chat-scroller]")!, {
+      clientHeight: { value: 100 },
+      scrollHeight: { value: 200 },
+    });
     props.onStartReached?.();
     expect(onStartReached).toHaveBeenCalledOnce();
     expect(props.recycleItems).toBe(false);

@@ -327,7 +327,7 @@ it("paints a small initial tail and pages back through all saved history without
   );
 }, 60_000);
 
-it("keeps the loaded reader visible while a discontinuous interest refresh is pending", async () => {
+it("marks retained history pending until a discontinuous interest is validated", async () => {
   const threadId = "t-retained-reader";
   seedThread(threadId);
   seedRuntimeItems(threadId, 2);
@@ -353,9 +353,11 @@ it("keeps the loaded reader visible while a discontinuous interest refresh is pe
     void hydrateThreadRuntimeItemsForInterest(threadId, false);
     await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
     expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
-    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("pending");
     releaseRead();
-    await vi.waitFor(() => expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true));
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined(),
+    );
     expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["item-0", "item-1"]);
   } finally {
     releaseRead();

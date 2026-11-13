@@ -24,9 +24,11 @@ export async function resolveContainedProjectEntryPath(
   location: ProjectLocation,
   path: string,
 ): Promise<string> {
+  const normalized = normalizeProjectRelativePath(path);
+  if (!normalized) return realpath(getProjectFsPath(location));
   const [root, target] = await Promise.all([
     realpath(getProjectFsPath(location)),
-    realpath(resolveProjectEntryPath(location, path)),
+    realpath(resolveProjectEntryPath(location, normalized)),
   ]);
   assertContained(root, target);
   return target;

@@ -51,7 +51,7 @@ fn git(cwd: &Path, args: &[&str]) {
 }
 
 #[test]
-fn hello_handshake_reports_protocol_v3() {
+fn hello_handshake_reports_protocol_v4() {
     let output = Command::new(bin_path())
         .arg("--hello")
         .output()
@@ -60,7 +60,7 @@ fn hello_handshake_reports_protocol_v3() {
     let parsed: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("valid hello JSON");
     assert_eq!(parsed["helper"], "poracode-git-helper");
-    assert_eq!(parsed["protocolVersion"], 3);
+    assert_eq!(parsed["protocolVersion"], 4);
     assert!(parsed["helperVersion"].as_str().is_some());
 }
 
@@ -97,6 +97,213 @@ fn unknown_flag_and_protocol_mismatch_fail_closed() {
     let resp: HelperResponse = serde_json::from_slice(&output.stdout).expect("error response JSON");
     assert!(!resp.ok);
     assert_eq!(resp.id, 7);
+}
+
+#[test]
+fn previous_protocol_cannot_accept_list_tree() {
+    let mut child = Command::new(bin_path())
+        .arg("--serve-v3")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("daemon");
+    writeln!(
+        child.stdin.as_mut().expect("stdin"),
+        r#"{{"protocolVersion":3,"id":1,"kind":"listTree","rootPath":"missing"}}"#
+    )
+    .expect("request");
+    let output = child.wait_with_output().expect("exit");
+    assert_eq!(output.status.code(), Some(2));
+    let response: HelperResponse = serde_json::from_slice(&output.stdout).expect("response");
+    assert!(!response.ok);
+    assert!(
+        response
+            .error
+            .expect("error")
+            .contains("Incompatible protocolVersion 3")
+    );
+}
+
+#[test]
+fn lists_directories_without_git_and_refuses_traversal() {
+    let fixture = TempDir::new("list-tree");
+    for path in [".git", "empty", "git-only/.git", "dir10", "dir2"] {
+        fs::create_dir_all(fixture.path.join(path)).expect("directory");
+    }
+    for path in ["a10.txt", "a2.txt", "dir2/child.txt"] {
+        fs::write(fixture.path.join(path), "").expect("file");
+    }
+    let mut child = Command::new(bin_path())
+        .arg("--serve-v3")
+        .env("PATH", "")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("daemon");
+    let mut stdin = child.stdin.take().expect("stdin");
+    let mut stdout = BufReader::new(child.stdout.take().expect("stdout"));
+    for (id, path) in ["", "dir2", "..", "dir2/../empty"].iter().enumerate() {
+        writeln!(stdin, "{}", serde_json::json!({"protocolVersion":4,"id":id,"kind":"listTree","rootPath":fixture.path,"directoryPath":path,"timeoutMs":10_000})).expect("request");
+        stdin.flush().expect("flush");
+        let mut line = String::new();
+        stdout.read_line(&mut line).expect("line");
+        let response: HelperResponse = serde_json::from_str(&line).expect("response");
+        if id >= 2 {
+            assert!(!response.ok);
+            assert!(response.error.expect("error").contains("traversal"));
+            continue;
+        }
+        assert!(response.ok, "{response:?}");
+        let mut entries = response.tree_entries.expect("entries");
+        if id == 0 {
+            entries.sort_by(|a, b| a.name.cmp(&b.name));
+            assert_eq!(
+                entries
+                    .iter()
+                    .map(|entry| entry.name.as_str())
+                    .collect::<Vec<_>>(),
+                ["a10.txt", "a2.txt", "dir10", "dir2", "empty", "git-only"]
+            );
+            assert_eq!(entries[3].has_children, Some(true));
+            for entry in [&entries[2], &entries[4], &entries[5]] {
+                assert_eq!(entry.has_children, Some(false));
+            }
+            assert_eq!(entries[0].has_children, None);
+        } else {
+            assert_eq!(entries.len(), 1);
+            assert_eq!(entries[0].path, "dir2/child.txt");
+        }
+    }
+    drop(stdin);
+    assert!(child.wait().expect("exit").success());
+}
+
+#[test]
+fn concurrent_tree_requests_keep_ids_and_child_presence_isolated() {
+    let fixture = TempDir::new("concurrent-trees");
+    for root in ["a", "b"] {
+        for index in 0..96 {
+            let path = fixture.path.join(root).join(format!("dir{index}"));
+            fs::create_dir_all(&path).expect("directory");
+            if index % 3 == 0 {
+                fs::write(path.join("file.txt"), "").expect("file");
+            } else if index % 3 == 1 {
+                fs::create_dir(path.join(".git")).expect("hidden directory");
+            }
+        }
+        fs::write(fixture.path.join(root).join(format!("{root}.txt")), "").expect("root marker");
+    }
+    let mut child = Command::new(bin_path())
+        .arg("--serve-v3")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("daemon");
+    let mut stdin = child.stdin.take().expect("stdin");
+    let root = fixture.path.clone();
+    let writer = std::thread::spawn(move || {
+        for id in 0..80 {
+            let root = root.join(if id % 2 == 0 { "a" } else { "b" });
+            writeln!(
+                stdin,
+                "{}",
+                serde_json::json!({
+                    "protocolVersion": 4, "id": id, "kind": "listTree",
+                    "rootPath": root, "directoryPath": "", "timeoutMs": 10_000,
+                })
+            )
+            .expect("request");
+        }
+    });
+    let mut ids = std::collections::HashSet::new();
+    for line in BufReader::new(child.stdout.take().expect("stdout")).lines() {
+        let response: HelperResponse =
+            serde_json::from_str(&line.expect("line")).expect("response");
+        assert!(response.ok, "{response:?}");
+        assert!(ids.insert(response.id), "duplicate response");
+        let entries = response.tree_entries.expect("entries");
+        assert_eq!(entries.len(), 97);
+        let marker = if response.id.is_multiple_of(2) {
+            "a.txt"
+        } else {
+            "b.txt"
+        };
+        assert!(
+            entries
+                .iter()
+                .any(|entry| entry.name == marker && entry.entry_type == "file")
+        );
+        for entry in entries {
+            if entry.entry_type == "file" {
+                continue;
+            }
+            let index: usize = entry.name.trim_start_matches("dir").parse().expect("index");
+            assert_eq!(entry.has_children, Some(index.is_multiple_of(3)));
+        }
+    }
+    writer.join().expect("writer");
+    assert_eq!(ids.len(), 80);
+    assert!(child.wait().expect("exit").success());
+}
+
+#[test]
+fn contained_symlinks_and_root_replacement_are_resolved_on_each_listing() {
+    use poracode_git_helper::service::GitHelperService;
+    let fixture = TempDir::new("list-root");
+    let root = fixture.path.join("root");
+    let outside = fixture.path.join("outside");
+    fs::create_dir_all(root.join("inside")).expect("inside");
+    fs::create_dir_all(&outside).expect("outside");
+    fs::write(root.join("inside/visible.txt"), "").expect("file");
+    fs::write(outside.join("outside.txt"), "").expect("file");
+    #[cfg(unix)]
+    use std::os::unix::fs::symlink as link;
+    #[cfg(windows)]
+    use std::os::windows::fs::symlink_dir as link;
+    link(root.join("inside"), root.join("link")).expect("inside link");
+    link(&outside, root.join("escape")).expect("escape link");
+    link(&root, fixture.path.join("alias")).expect("root link");
+    let service = GitHelperService::new();
+    let root_str = root.to_str().expect("root path");
+    let entries = service.list_tree(root_str, "", 10_000).expect("list");
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry.name == "link" && entry.has_children == Some(true))
+    );
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry.name == "escape" && entry.entry_type == "file")
+    );
+    assert!(
+        service
+            .list_tree(root_str, "escape", 10_000)
+            .is_err_and(|error| error.contains("escapes"))
+    );
+    assert!(
+        service
+            .list_tree(root_str, "link", 10_000)
+            .is_ok_and(|entries| entries[0].path == "link/visible.txt")
+    );
+    let alias = fixture.path.join("alias");
+    let alias_str = alias.to_str().expect("alias path");
+    assert!(service.list_tree(alias_str, "", 10_000).is_ok());
+    #[cfg(unix)]
+    fs::remove_file(&alias).expect("remove link");
+    #[cfg(windows)]
+    fs::remove_dir(&alias).expect("remove link");
+    link(&outside, &alias).expect("retarget link");
+    let entries = service
+        .list_tree(alias_str, "", 10_000)
+        .expect("refreshed root");
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].name, "outside.txt");
+    assert!(
+        service
+            .list_tree(alias_str, "", 0)
+            .is_err_and(|error| error.contains("timed out"))
+    );
 }
 
 #[test]
@@ -150,7 +357,7 @@ fn native_status_succeeds_without_git_in_path() {
     let mut stdin = child.stdin.take().expect("stdin");
     let mut stdout = BufReader::new(child.stdout.take().expect("stdout"));
     for detail in ["full", "summary"] {
-        writeln!(stdin, "{}", serde_json::json!({"protocolVersion":3,"id":1,"kind":"statusBatch","paths":[repo],"detail":detail})).expect("write");
+        writeln!(stdin, "{}", serde_json::json!({"protocolVersion":4,"id":1,"kind":"statusBatch","paths":[repo],"detail":detail})).expect("write");
         stdin.flush().expect("flush");
         let mut line = String::new();
         stdout.read_line(&mut line).expect("response");
@@ -207,7 +414,7 @@ fn walk_lists_symlinks_as_files_without_traversing_targets() {
         .expect("spawn daemon");
     let mut stdin = child.stdin.take().expect("stdin");
     let request = serde_json::json!({
-        "protocolVersion": 3,
+        "protocolVersion": 4,
         "id": 1,
         "kind": "searchTree",
         "rootPath": root,
@@ -293,7 +500,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
 
     // 1. Summary batch
     let summary_req = serde_json::json!({
-        "protocolVersion": 3,
+        "protocolVersion": 4,
         "id": 1,
         "kind": "statusBatch",
         "paths": paths,
@@ -317,7 +524,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
 
     // 2. Full batch
     let full_req = serde_json::json!({
-        "protocolVersion": 3,
+        "protocolVersion": 4,
         "id": 2,
         "kind": "statusBatch",
         "paths": paths,
@@ -338,7 +545,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
 
     // 3. searchTree (fuzzy + literal ranking)
     let search_tree_req = serde_json::json!({
-        "protocolVersion": 3,
+        "protocolVersion": 4,
         "id": 3,
         "kind": "searchTree",
         "rootPath": paths[0],
@@ -365,7 +572,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
 
     // 4. searchFiles + invalidateSearch
     let search_files_req = serde_json::json!({
-        "protocolVersion": 3,
+        "protocolVersion": 4,
         "id": 4,
         "kind": "searchFiles",
         "rootPath": paths[0],
@@ -388,7 +595,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
     );
 
     let inv_req = serde_json::json!({
-        "protocolVersion": 3,
+        "protocolVersion": 4,
         "id": 5,
         "kind": "invalidateSearch",
         "rootPath": paths[0]
@@ -407,7 +614,7 @@ fn serves_parallel_worktree_batches_and_search_indexes() {
     // rather than falsely reporting `isRepo: false`!
     fs::write(repo_b.join(".git/index"), b"corrupt-index-bytes").expect("corrupt index");
     let corrupt_req = serde_json::json!({
-        "protocolVersion": 3,
+        "protocolVersion": 4,
         "id": 6,
         "kind": "statusBatch",
         "paths": [paths[1], paths[2]],
