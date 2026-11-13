@@ -1560,6 +1560,70 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(session.phase, .ready)
   }
 
+  func testDeferredLoopbackLinkConfirmsWhenStoredCredentialsCannotBeRead() async throws {
+    var pairingRequests = 0
+    let (session, repo, keychain) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "stored-token"
+    ) { e, t in
+      pairingRequests += 1
+      return FakeRemoteAPI(endpoint: e, accessToken: t)
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let stored = try await repo.v2RawData()
+    try keychain.save(
+      account: HostTransactionJournal.account,
+      data: Data("corrupt-journal".utf8)
+    )
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=unreadable-store")!
+    )
+    await session.bootstrap()
+
+    XCTAssertEqual(session.phase, .localStoreInconsistent)
+    XCTAssertNotNil(session.pendingPairing)
+    XCTAssertEqual(pairingRequests, 0)
+    let after = try await repo.v2RawData()
+    XCTAssertEqual(after, stored)
+  }
+
+  func testDeferredLoopbackLinkConfirmsWhenStoredHostIsIncompatible() async throws {
+    var pairingRequests = 0
+    let (session, repo, _) = try await makeSession { e, t in
+      pairingRequests += 1
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .failure(RemoteClientError.protocolMismatch(found: 9))
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let stored = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: makeProfileV9(), token: "stored-v9-token")
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=incompatible-store")!
+    )
+    await session.bootstrap()
+
+    XCTAssertEqual(session.phase, .protocolIncompatible)
+    let pending = try XCTUnwrap(session.pendingPairing)
+    XCTAssertTrue(pending.replacesExistingPair)
+    XCTAssertEqual(pairingRequests, 1)
+    let after = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(after.selected?.connectionId, stored.connectionId)
+    XCTAssertEqual(after.selected?.protocolVersion, 9)
+  }
+
   func testDeepLinkCancelLeavesSessionUntouched() async throws {
     let (session, repo, _) = try await makeSession(
       seedProfile: makeProfile(),

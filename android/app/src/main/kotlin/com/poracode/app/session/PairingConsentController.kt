@@ -1,8 +1,6 @@
 package com.poracode.app.session
 
 import com.poracode.remote.v3.generated.RemotePairingMachine
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 
 /**
  * Consent and bootstrap deferral for deep-link pairing candidates.
@@ -12,9 +10,7 @@ import kotlinx.coroutines.launch
  * bootstrap, so the coordinator stays focused on durable pairing.
  */
 internal class PairingConsentController(
-    private val scope: CoroutineScope,
     private val state: () -> AppSession.UiState,
-    private val accessToken: () -> String?,
     private val updateState: ((AppSession.UiState) -> AppSession.UiState) -> Unit,
     private val pair: (
         input: PairingCoordinator.PairingInput,
@@ -42,25 +38,23 @@ internal class PairingConsentController(
      * check runs again because bootstrap may have loaded a stored pair while the
      * link was waiting. */
     fun resumeDeferredAutoPair() {
-        scope.launch {
-            bootstrapInFlight = false
-            val candidate = deferredAutoPair ?: return@launch
-            deferredAutoPair = null
-            if (state().profile != null && !accessToken().isNullOrBlank()) {
-                present(
-                    endpoint = candidate.endpoint,
-                    credential = candidate.credential,
-                    fingerprint = candidate.fingerprint,
-                    certFingerprint = candidate.certFingerprint,
-                )
-                return@launch
-            }
-            pair(
-                input(candidate.endpoint, candidate.credential),
-                candidate.fingerprint,
-                candidate.certFingerprint,
+        bootstrapInFlight = false
+        val candidate = deferredAutoPair ?: return
+        deferredAutoPair = null
+        if (state().phase != AppSession.Phase.NeedsPairing || state().profile != null) {
+            present(
+                endpoint = candidate.endpoint,
+                credential = candidate.credential,
+                fingerprint = candidate.fingerprint,
+                certFingerprint = candidate.certFingerprint,
             )
+            return
         }
+        pair(
+            input(candidate.endpoint, candidate.credential),
+            candidate.fingerprint,
+            candidate.certFingerprint,
+        )
     }
 
     /** Shows consent, defers behind bootstrap, or starts the pair attempt. */
@@ -114,9 +108,10 @@ internal class PairingConsentController(
         }
     }
 
-    /** Drops a link waiting on bootstrap without touching a visible consent card. */
+    /** A newer pair or unpair supersedes bootstrap and its deferred link. */
     fun clearDeferredAutoPair() {
         deferredAutoPair = null
+        bootstrapInFlight = false
     }
 
     private fun present(

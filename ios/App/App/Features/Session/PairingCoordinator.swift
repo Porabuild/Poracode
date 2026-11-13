@@ -43,13 +43,14 @@ struct PairingCoordinator {
             endpoint: resolved.endpoint,
             credential: resolved.credential,
             tracker: host.state.pairingTracker,
-            hasExistingPair: host.state.profile != nil && !(host.state.accessToken ?? "").isEmpty
+            hasExistingPair: host.state.profile != nil || !host.state.hosts.isEmpty
         )
         guard case .pending(let pending) = decision else { return }
         let certFingerprint = resolved.certFingerprint
             ?? PairingURL.parseCertFingerprint(url.absoluteString)
         let requiresConfirmation =
             pending.replacesExistingPair
+            || host.state.phase == .localStoreInconsistent
             || RemotePairingMachine.requiresBrowsableConfirmation(
                 fromBrowsableIntent: true,
                 endpoint: pending.endpoint
@@ -97,10 +98,10 @@ struct PairingCoordinator {
             endpoint: deferred.endpoint,
             credential: deferred.credential,
             tracker: host.state.pairingTracker,
-            hasExistingPair: host.state.profile != nil && !(host.state.accessToken ?? "").isEmpty
+            hasExistingPair: host.state.profile != nil || !host.state.hosts.isEmpty
         )
         guard case .pending(let pending) = decision else { return }
-        if pending.replacesExistingPair {
+        if pending.replacesExistingPair || host.state.phase != .needsPairing {
             host.state.pendingPairing = pending
             host.state.pendingCertFingerprint = deferred.certFingerprint
             return

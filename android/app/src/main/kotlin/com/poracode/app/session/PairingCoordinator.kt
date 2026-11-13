@@ -45,9 +45,7 @@ class PairingCoordinator(
     private val consumedPairFingerprints = mutableSetOf<String>()
     private val inFlightPairFingerprint = AtomicReference<String?>(null)
     private val consent = PairingConsentController(
-        scope = scope,
         state = state,
-        accessToken = accessToken,
         updateState = updateState,
     ) { input, fingerprint, certFingerprint ->
         pair(input, fingerprint, certFingerprint)
@@ -88,7 +86,8 @@ class PairingCoordinator(
             credential = credential,
             fingerprint = fingerprint,
             certFingerprint = PairingUrl.parseCertFingerprint(raw),
-            replacesExistingPair = state().profile != null && !accessToken().isNullOrBlank(),
+            replacesExistingPair = state().profile != null ||
+                state().phase == AppSession.Phase.LocalStoreInconsistent,
         )
     }
 
@@ -109,6 +108,7 @@ class PairingCoordinator(
             if (inFlightPairFingerprint.get() == fingerprint) return
             inFlightPairFingerprint.set(fingerprint)
         }
+        consent.clearDeferredAutoPair()
         // Exclusive UI owner + durable intent at public receipt (sync, ordered).
         val sessionToken = owner.begin(SessionOperationOwner.Kind.Pair)
         val durable = credentials.beginDurableOperation(DurableOperationToken.Kind.Pair)

@@ -512,6 +512,125 @@ class AppSessionIntegrationTest {
     }
 
     @Test
+    fun deferredLoopbackLinkRequiresConfirmationWhenStoredCredentialsCannotBeRead() = runTest {
+        val credentials = InMemorySessionCredentialRepository()
+        val (seed, _, _) = buildSession(credentials = credentials)
+        pairReady(seed)
+        val stored = credentials.credentials
+        credentials.forcedLoadOutcome =
+            com.poracode.app.storage.SessionCredentialLoadOutcome.Rejected.LocalStoreInconsistent
+        val (session, _, apis) = buildSession(credentials = credentials)
+
+        session.bootstrap()
+        session.handleIncomingPairingUrl(
+            raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=unreadable-store",
+            external = true,
+        )
+        advanceUntilIdle()
+
+        assertEquals(AppSession.Phase.LocalStoreInconsistent, session.state.value.phase)
+        assertNotNull(session.state.value.pendingPairConfirm)
+        assertTrue(apis.isEmpty())
+        assertEquals(stored, credentials.credentials)
+    }
+
+    @Test
+    fun supersededBootstrapKeepsLoopbackLinkDeferredUntilStoredPairLoads() = runTest {
+        val credentials = InMemorySessionCredentialRepository()
+        val (seed, _, _) = buildSession(credentials = credentials)
+        pairReady(seed)
+        val stored = credentials.credentials
+        val loadHold = CompletableDeferred<Unit>()
+        val loadReached = CompletableDeferred<Unit>()
+        credentials.loadHold = loadHold
+        credentials.loadReachedHold = loadReached
+        val (session, _, apis) = buildSession(credentials = credentials)
+
+        session.bootstrap()
+        session.handleIncomingPairingUrl(
+            raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=superseded-bootstrap",
+            external = true,
+        )
+        loadReached.await()
+        session.onAppForeground()
+        advanceUntilIdle()
+        val requestsBeforeLoad = apis.size
+        loadHold.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(0, requestsBeforeLoad)
+        assertNotNull(session.state.value.pendingPairConfirm)
+        assertEquals(stored, credentials.credentials)
+        assertEquals("https://host-a.test", session.state.value.profile?.httpBaseUrl)
+    }
+
+    @Test
+    fun cancelledBootstrapResumesLoopbackLinkAfterForegroundLoadsEmptyStore() = runTest {
+        val credentials = InMemorySessionCredentialRepository()
+        val loadHold = CompletableDeferred<Unit>()
+        val loadReached = CompletableDeferred<Unit>()
+        credentials.loadHold = loadHold
+        credentials.loadReachedHold = loadReached
+        val (session, _, apis) = buildSession(credentials = credentials)
+
+        session.bootstrap()
+        session.handleIncomingPairingUrl(
+            raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=cancelled-bootstrap",
+            external = true,
+        )
+        loadReached.await()
+        session.onAppBackground()
+        advanceUntilIdle()
+        val requestsWhileBackgrounded = apis.size
+        credentials.loadHold = null
+        loadHold.complete(Unit)
+        session.onAppForeground()
+        advanceUntilIdle()
+
+        assertEquals(0, requestsWhileBackgrounded)
+        assertNull(session.state.value.pendingPairConfirm)
+        assertEquals(AppSession.Phase.Ready, session.state.value.phase)
+        assertEquals("http://127.0.0.1:49152", session.state.value.profile?.httpBaseUrl)
+    }
+
+    @Test
+    fun explicitPairSupersedesDeferredBootstrapWithoutBlockingLaterLoopbackLinks() = runTest {
+        val credentials = InMemorySessionCredentialRepository()
+        val loadHold = CompletableDeferred<Unit>()
+        val loadReached = CompletableDeferred<Unit>()
+        credentials.loadHold = loadHold
+        credentials.loadReachedHold = loadReached
+        val (session, _, _) = buildSession(credentials = credentials)
+
+        session.bootstrap()
+        session.handleIncomingPairingUrl(
+            raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=stale-loopback",
+            external = true,
+        )
+        loadReached.await()
+        session.pair(
+            AppSession.PairingInput(manualBaseUrl = "https://host-b.test", manualToken = "explicit-pair"),
+        )
+        credentials.loadHold = null
+        loadHold.complete(Unit)
+        advanceUntilIdle()
+        assertEquals("desktop-b", session.state.value.profile?.desktopId)
+        assertNull(session.state.value.pendingPairConfirm)
+
+        session.unpair()
+        advanceUntilIdle()
+        session.handleIncomingPairingUrl(
+            raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=fresh-loopback",
+            external = true,
+        )
+        advanceUntilIdle()
+
+        assertNull(session.state.value.pendingPairConfirm)
+        assertEquals(AppSession.Phase.Ready, session.state.value.phase)
+        assertEquals("http://127.0.0.1:49152", session.state.value.profile?.httpBaseUrl)
+    }
+
+    @Test
     fun duplicateLoopbackLinkDoesNotCancelTheFirstAttempt() = runTest {
         val (session, _, apis) = buildSession()
         val raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=secret-dup"
