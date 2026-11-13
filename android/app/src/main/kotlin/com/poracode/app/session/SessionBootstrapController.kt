@@ -29,7 +29,7 @@ internal class SessionBootstrapController(
 ) {
     private val attempt = AtomicInteger(0)
 
-    fun start() {
+    fun start(onComplete: (() -> Unit)? = null) {
         val attemptAtStart = attempt.incrementAndGet()
         val job = scope.launch {
             val token = owner.begin(SessionOperationOwner.Kind.Bootstrap)
@@ -137,6 +137,9 @@ internal class SessionBootstrapController(
                 SessionCredentialLoadOutcome.Rejected.LocalStoreInconsistent,
                 -> updateState { it.copy(phase = AppSession.Phase.LocalStoreInconsistent) }
             }
+        }
+        if (onComplete != null) {
+            job.invokeOnCompletion { onComplete() }
         }
         jobs.replace(SessionLifecycleJobs.BOOTSTRAP, job)
     }

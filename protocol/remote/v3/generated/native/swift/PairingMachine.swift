@@ -1,6 +1,6 @@
 // GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.
 // Pairing state machine rendered from the declarative spec in
-// src/shared/remote/contract/pairingMachineSpec.ts (spec version 1).
+// src/shared/remote/contract/pairingMachineSpec.ts (spec version 2).
 import CryptoKit
 import Foundation
 
@@ -46,7 +46,9 @@ public struct RemotePairingPending: Sendable, Equatable {
 public enum RemotePairingDeepLinkDecision: Sendable, Equatable {
   /// Malformed / incomplete / duplicate fingerprint — leave the session alone.
   case ignore
-  /// Enter pending confirmation (show the sanitized host only).
+  /// A resolved external candidate. The caller decides whether confirmation is
+  /// required (see requiresBrowsableConfirmation) and whether a live pair
+  /// would be replaced.
   case pending(RemotePairingPending)
 }
 
@@ -146,9 +148,14 @@ public enum RemotePairingMachine {
     return trimmed.isEmpty ? nil : trimmed
   }
 
-  /// An externally delivered link always requires explicit sanitized-host
-  /// confirmation; it can never silently replace an existing pair.
-  public static func requiresBrowsableConfirmation(fromBrowsableIntent: Bool) -> Bool { fromBrowsableIntent }
+  /// An externally delivered link requires explicit sanitized-host
+  /// confirmation so it can never silently replace a live pair. A loopback
+  /// endpoint cannot leave the device, so it pairs exactly like an in-app scan;
+  /// callers must still confirm when an existing pair would be replaced.
+  public static func requiresBrowsableConfirmation(fromBrowsableIntent: Bool, endpoint: String) -> Bool {
+    if !fromBrowsableIntent { return false }
+    return !isLoopbackEndpoint(endpoint)
+  }
 
   static let maxHostDisplayCharacters: Int = 80
 
@@ -175,6 +182,13 @@ public enum RemotePairingMachine {
   public static func isLoopbackHostname(_ hostname: String) -> Bool {
     let host = hostname.lowercased()
     return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]" || host.hasSuffix(".localhost")
+  }
+
+  /// Whether the endpoint's host is a loopback address. A malformed value is
+  /// not loopback, so it still asks for confirmation.
+  private static func isLoopbackEndpoint(_ endpoint: String) -> Bool {
+    guard let url = URL(string: endpoint), let host = url.host else { return false }
+    return isLoopbackHostname(host)
   }
 
   /// Decide a resolved candidate without starting a network pair. Malformed

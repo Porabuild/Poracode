@@ -181,7 +181,10 @@ class AppSession(
         lifecycleCoordinator = graph.lifecycleCoordinator
     }
 
-    fun bootstrap() = bootstrapController.start()
+    fun bootstrap() {
+        pairing.noteBootstrapStarted()
+        bootstrapController.start { pairing.resumeDeferredAutoPair() }
+    }
     internal fun resetBootstrapForTests() = bootstrapController.resetForTests()
     internal fun isBootstrappedForTests(): Boolean = bootstrapController.hasStartedForTests()
     internal fun bootstrapAttemptForTests(): Int = bootstrapController.attemptForTests()

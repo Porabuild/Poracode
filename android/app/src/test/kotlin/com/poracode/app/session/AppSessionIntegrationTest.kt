@@ -482,6 +482,91 @@ class AppSessionIntegrationTest {
     }
 
     @Test
+    fun loopbackDeepLinkPairsWithoutConfirmation() = runTest {
+        val (session, _, _) = buildSession()
+
+        session.handleIncomingPairingUrl(
+            raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=secret-loop",
+            external = true,
+        )
+        advanceUntilIdle()
+
+        assertNull(session.state.value.pendingPairConfirm)
+        assertEquals(AppSession.Phase.Ready, session.state.value.phase)
+        assertEquals("http://127.0.0.1:49152", session.state.value.profile?.httpBaseUrl)
+        assertEquals("desktop-a", session.state.value.profile?.desktopId)
+    }
+
+    @Test
+    fun coldLaunchLoopbackLinkDeferredUntilBootstrapCompletes() = runTest {
+        val (session, _, _) = buildSession()
+        val raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=secret-cold"
+
+        session.bootstrap()
+        session.handleIncomingPairingUrl(raw = raw, external = true)
+        advanceUntilIdle()
+
+        assertNull(session.state.value.pendingPairConfirm)
+        assertEquals(AppSession.Phase.Ready, session.state.value.phase)
+        assertEquals("http://127.0.0.1:49152", session.state.value.profile?.httpBaseUrl)
+    }
+
+    @Test
+    fun duplicateLoopbackLinkDoesNotCancelTheFirstAttempt() = runTest {
+        val (session, _, apis) = buildSession()
+        val raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=secret-dup"
+
+        session.handleIncomingPairingUrl(raw = raw, external = true)
+        session.handleIncomingPairingUrl(raw = raw, external = true)
+        advanceUntilIdle()
+
+        assertNull(session.state.value.globalError)
+        assertEquals(AppSession.Phase.Ready, session.state.value.phase)
+        assertEquals("desktop-a", session.state.value.profile?.desktopId)
+        // One pair attempt plus the live connection's client.
+        assertEquals(2, apis.size)
+    }
+
+    @Test
+    fun loopbackLinkReplacingAPairStillRequiresConfirmation() = runTest {
+        val (session, _, _) = buildSession()
+        pairReady(session)
+        val before = session.state.value.profile?.desktopId
+
+        session.handleIncomingPairingUrl(
+            raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=secret-replace",
+            external = true,
+        )
+        advanceUntilIdle()
+
+        assertNotNull(session.state.value.pendingPairConfirm)
+        assertEquals(before, session.state.value.profile?.desktopId)
+        assertEquals(AppSession.Phase.Ready, session.state.value.phase)
+
+        session.cancelPendingPair()
+        advanceUntilIdle()
+        assertNull(session.state.value.pendingPairConfirm)
+    }
+
+    @Test
+    fun deferredLoopbackLinkConfirmsWhenBootstrapLoadsAStoredPair() = runTest {
+        val credentials = InMemorySessionCredentialRepository()
+        val (session, _, _) = buildSession(credentials = credentials)
+        pairReady(session)
+        session.resetBootstrapForTests()
+
+        session.bootstrap()
+        session.handleIncomingPairingUrl(
+            raw = "poracode://pair?host=http%3A%2F%2F127.0.0.1%3A49152%2F#token=secret-deferred",
+            external = true,
+        )
+        advanceUntilIdle()
+
+        assertNotNull(session.state.value.pendingPairConfirm)
+        assertEquals("desktop-a", session.state.value.profile?.desktopId)
+    }
+
+    @Test
     fun liveEventBufferedWhileHydratingIncludingLegacyFlat() = runTest {
         val (session, sockets, _) = buildSession()
         pairReady(session)

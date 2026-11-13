@@ -115,10 +115,16 @@ export function extractPairingData(dataString: string | null | undefined): strin
   return trimmed ? trimmed : null;
 }
 
-/** A browsable (externally delivered) link always requires explicit
- * confirmation; it can never silently replace an existing pair. */
-export function requiresBrowsableConfirmation(fromBrowsableIntent: boolean): boolean {
-  return fromBrowsableIntent;
+/** Whether an externally delivered link must ask for explicit confirmation
+ * before pairing. A browsable link can never silently replace a live pair,
+ * except when its endpoint is loopback: that link cannot leave the device, so
+ * it pairs like an in-app scan. Callers must still confirm a replacement. */
+export function requiresBrowsableConfirmation(
+  fromBrowsableIntent: boolean,
+  endpoint: string,
+): boolean {
+  if (!fromBrowsableIntent) return false;
+  return !isLoopbackEndpoint(endpoint);
 }
 
 /** UI-safe host label: authority `host[:port]`, or a fragment/query-stripped,
@@ -146,6 +152,16 @@ export function isCleartextLanEndpoint(endpoint: string): boolean {
   try {
     const url = new URL(endpoint);
     return url.protocol === "http:" && !isLoopbackHostname(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+/** Whether the endpoint's host is loopback (`localhost`, `127.0.0.1`, `::1`,
+ * or a `*.localhost` subdomain). A malformed value is not loopback. */
+function isLoopbackEndpoint(endpoint: string): boolean {
+  try {
+    return isLoopbackHostname(new URL(endpoint).hostname);
   } catch {
     return false;
   }
@@ -273,7 +289,11 @@ function guardMatches(guard: string, context: PairingIntentContext, inputs: Guar
       return context.tracker.decide(digest) === "ignoreDuplicate";
     }
     case "externalConfirmationRequired":
-      return inputs.external;
+      return (
+        inputs.external &&
+        (context.hasExistingPair ||
+          requiresBrowsableConfirmation(true, inputs.candidateEndpoint ?? ""))
+      );
     default:
       return false;
   }

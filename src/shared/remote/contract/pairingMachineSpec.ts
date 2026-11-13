@@ -21,7 +21,9 @@
  */
 
 export const PAIRING_MACHINE_ID = "pairing" as const;
-export const PAIRING_MACHINE_SPEC_VERSION = 1 as const;
+/** v2: a loopback pairing link skips the confirmation gate unless it would
+ * replace an existing pair. */
+export const PAIRING_MACHINE_SPEC_VERSION = 2 as const;
 
 /** Session pairing phases. Superset of every native UI phase enum; platforms
  * map their own enum to these literals at the call boundary. */
@@ -131,6 +133,7 @@ export interface PairingScopesSpec {
   readonly emptyRequestMeans: "refuse-before-consuming-credential";
 }
 
+/** Policy for externally delivered pairing links. */
 export const PAIRING_MACHINE_SPEC = {
   id: PAIRING_MACHINE_ID,
   specVersion: PAIRING_MACHINE_SPEC_VERSION,
@@ -251,9 +254,12 @@ export const PAIRING_MACHINE_SPEC = {
     ] satisfies readonly PairingIntentTransition[],
   },
   deepLink: {
-    /** Externally delivered links always require explicit sanitized-host
-     * confirmation so a link can never silently replace a live pair. */
-    externalConfirmation: "always",
+    /** Externally delivered links require explicit sanitized-host confirmation
+     * so a link can never silently replace a live pair — except for a loopback
+     * endpoint (`localhost`, `127.0.0.1`, `::1`). A loopback link cannot leave
+     * the device (on a simulator it addresses the developer's own machine), so
+     * it pairs exactly like an in-app scan unless it would replace a live pair. */
+    externalConfirmation: "unless-loopback",
     /** `hostDisplay` is UI-safe: authority host[:port], or a fragment/query
      * stripped and length-bounded fallback — never a credential. */
     hostDisplayFallback: "strip-fragment-then-query",
@@ -330,6 +336,9 @@ export function validatePairingMachineSpec(spec: PairingMachineSpec): string[] {
   }
   if (spec.scopes.presets.operator.length !== spec.scopes.standardOrder.length) {
     errors.push("operator preset must equal the full standard order");
+  }
+  if (spec.deepLink.externalConfirmation !== "unless-loopback") {
+    errors.push('deepLink.externalConfirmation must be "unless-loopback"');
   }
   return errors;
 }

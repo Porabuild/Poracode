@@ -241,8 +241,10 @@ adb shell am start -a android.intent.action.VIEW -d "$PORACODE_PAIRING_URL"
 ```
 
 Do not commit, log, or attach pairing URLs: the token is a one-time credential.
-External links are validated before an existing session is replaced, and the
-native confirmation UI displays only a sanitized host.
+Loopback links (the usual simulator/emulator dev link) pair immediately, except
+when they would replace an existing pairing — that replacement still asks for
+confirmation. Links to any other host are validated before an existing session
+is replaced, and the native confirmation UI displays only a sanitized host.
 
 Production universal/app links require the matching Apple associated-domain and
 Android Digital Asset Links files at `poracode.com`. The custom scheme is a

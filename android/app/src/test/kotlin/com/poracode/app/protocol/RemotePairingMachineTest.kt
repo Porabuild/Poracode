@@ -87,9 +87,18 @@ class RemotePairingMachineTest {
     }
 
     @Test
-    fun browsableRequiresConfirmation() {
-        assertTrue(RemotePairingMachine.requiresBrowsableConfirmation(true))
-        assertFalse(RemotePairingMachine.requiresBrowsableConfirmation(false))
+    fun browsableRequiresConfirmationExceptLoopback() {
+        assertTrue(RemotePairingMachine.requiresBrowsableConfirmation(true, "https://host.test"))
+        assertTrue(
+            RemotePairingMachine.requiresBrowsableConfirmation(true, "http://192.168.1.10:49152"),
+        )
+        assertFalse(
+            RemotePairingMachine.requiresBrowsableConfirmation(true, "http://127.0.0.1:49152"),
+        )
+        assertFalse(
+            RemotePairingMachine.requiresBrowsableConfirmation(true, "http://localhost:49152"),
+        )
+        assertFalse(RemotePairingMachine.requiresBrowsableConfirmation(false, "https://host.test"))
     }
 
     @Test

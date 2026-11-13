@@ -13,6 +13,7 @@ import com.poracode.app.storage.SessionCredentialRepository
 import com.poracode.app.transport.RemoteApiGatewayFactory
 import com.poracode.app.transport.TlsCertPinStore
 import com.poracode.remote.v3.generated.RemotePairingMachine
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -41,14 +42,26 @@ class PairingCoordinator(
     private val onUnpairComplete: () -> Unit,
     private val onCatalogChanged: suspend () -> Unit = {},
 ) {
-    private var pendingPairSecret: PendingPairSecret? = null
     private val consumedPairFingerprints = mutableSetOf<String>()
+    private val inFlightPairFingerprint = AtomicReference<String?>(null)
+    private val consent = PairingConsentController(
+        scope = scope,
+        state = state,
+        accessToken = accessToken,
+        updateState = updateState,
+    ) { input, fingerprint, certFingerprint ->
+        pair(input, fingerprint, certFingerprint)
+    }
 
     data class PairingInput(
         val pairingUrlOrEmpty: String = "",
         val manualBaseUrl: String = "",
         val manualToken: String = "",
     )
+
+    fun noteBootstrapStarted() = consent.noteBootstrapStarted()
+
+    fun resumeDeferredAutoPair() = consent.resumeDeferredAutoPair()
 
     fun handleIncomingPairingUrl(raw: String, external: Boolean) {
         val route = runCatching {
@@ -65,75 +78,37 @@ class PairingCoordinator(
         if (RemotePairingMachine.shouldSkipDuplicateFingerprint(
                 fingerprint,
                 consumedPairFingerprints,
-            )
+            ) || inFlightPairFingerprint.get() == fingerprint
         ) {
             return
         }
-        // Default EVERY externally delivered Intent URL to sanitized explicit confirmation.
-        if (external) {
-            pendingPairSecret = PendingPairSecret(
-                endpoint = endpoint,
-                credential = credential,
-                fingerprint = fingerprint,
-                sanitizedHost = RemotePairingMachine.sanitizedHostLabel(endpoint),
-                certFingerprint = PairingUrl.parseCertFingerprint(raw),
-            )
-            updateState {
-                it.copy(
-                    pendingPairConfirm = AppSession.PendingPairConfirmUi(
-                        sanitizedHost = RemotePairingMachine.sanitizedHostLabel(endpoint),
-                        endpoint = endpoint,
-                        fingerprint = fingerprint,
-                    ),
-                    globalError = null,
-                )
-            }
-            return
-        }
-        // Direct in-app manual form only: pair without confirmation.
-        pair(
-            PairingInput(
-                pairingUrlOrEmpty = "",
-                manualBaseUrl = endpoint,
-                manualToken = credential,
-            ),
+        consent.presentOrPair(
+            external = external,
+            endpoint = endpoint,
+            credential = credential,
             fingerprint = fingerprint,
             certFingerprint = PairingUrl.parseCertFingerprint(raw),
+            replacesExistingPair = state().profile != null && !accessToken().isNullOrBlank(),
         )
     }
 
-    fun confirmPendingPair() {
-        val secret = pendingPairSecret ?: return
-        pendingPairSecret = null
-        updateState { it.copy(pendingPairConfirm = null) }
-        pair(
-            PairingInput(
-                pairingUrlOrEmpty = "",
-                manualBaseUrl = secret.endpoint,
-                manualToken = secret.credential,
-            ),
-            fingerprint = secret.fingerprint,
-            certFingerprint = secret.certFingerprint,
-        )
-    }
+    fun confirmPendingPair() = consent.confirmPendingPair()
 
-    fun cancelPendingPair() {
-        clearPendingPairSecret()
-        updateState { it.copy(pendingPairConfirm = null) }
-    }
+    fun cancelPendingPair() = consent.cancelPendingPair()
 
-    fun clearPendingPairSecret() {
-        pendingPairSecret = null
-        if (state().pendingPairConfirm != null) {
-            updateState { it.copy(pendingPairConfirm = null) }
-        }
-    }
+    fun clearPendingPairSecret() = consent.clearPendingSecret()
 
     fun pair(
         input: PairingInput,
         fingerprint: String? = null,
         certFingerprint: String? = null,
     ) {
+        // A repeated delivery of the same deep link must not cancel the attempt
+        // that may already be redeeming its one-time credential.
+        if (fingerprint != null) {
+            if (inFlightPairFingerprint.get() == fingerprint) return
+            inFlightPairFingerprint.set(fingerprint)
+        }
         // Exclusive UI owner + durable intent at public receipt (sync, ordered).
         val sessionToken = owner.begin(SessionOperationOwner.Kind.Pair)
         val durable = credentials.beginDurableOperation(DurableOperationToken.Kind.Pair)
@@ -150,7 +125,7 @@ class PairingCoordinator(
                     pendingPairConfirm = null,
                 )
             }
-            pendingPairSecret = null
+            consent.clearPendingSecret()
             try {
                 val resolved = resolvePairing(input)
                 val endpoint = resolved.endpoint
@@ -293,11 +268,17 @@ class PairingCoordinator(
                 )
             }
         }
+        if (fingerprint != null) {
+            job.invokeOnCompletion {
+                inFlightPairFingerprint.compareAndSet(fingerprint, null)
+            }
+        }
         jobs.replace(SessionLifecycleJobs.PAIR, job)
     }
 
     /** Explicit disconnect wins over older operations and completes its durable clear. */
     fun unpair() {
+        consent.clearDeferredAutoPair()
         val sessionToken = owner.begin(SessionOperationOwner.Kind.Unpair)
         // Claim durable generation before tear-down so delayed Pair A cannot commit after.
         val durable = credentials.beginDurableOperation(DurableOperationToken.Kind.Unpair)
