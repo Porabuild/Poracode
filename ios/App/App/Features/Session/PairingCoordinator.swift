@@ -12,7 +12,17 @@ struct PairingCoordinator {
         let certFingerprint: String?
     }
 
-    private var deferredAutoPair: DeferredAutoPair?
+    /// A reference holder so this value-type coordinator can retain a candidate
+    /// across the launch bootstrap without becoming mutating.
+    private final class DeferredAutoPairStore {
+        var candidate: DeferredAutoPair?
+    }
+
+    private let deferredAutoPairStore = DeferredAutoPairStore()
+
+    init(host: AppSession) {
+        self.host = host
+    }
 
     func handleIncomingPairingURL(_ url: URL) async {
         guard let candidate = PairingURL.validatedPairingCandidate(from: url) else {
@@ -47,7 +57,7 @@ struct PairingCoordinator {
         if requiresConfirmation {
             // A newer external candidate supersedes any loopback link still
             // waiting on bootstrap.
-            deferredAutoPair = nil
+            deferredAutoPairStore.candidate = nil
             host.state.pendingPairing = pending
             host.state.pendingCertFingerprint = certFingerprint
             return
@@ -64,7 +74,7 @@ struct PairingCoordinator {
         // Launch bootstrap owns the first operation. Starting the pair now would
         // be superseded by bootstrap's ownership epoch, silently dropping the link.
         guard host.state.bootstrapCompleted else {
-            deferredAutoPair = deferred
+            deferredAutoPairStore.candidate = deferred
             return
         }
         await pairResolvedCandidate(
@@ -79,8 +89,10 @@ struct PairingCoordinator {
     /// replacement check runs again because bootstrap may have loaded a stored
     /// pair while the link was waiting.
     func resumeDeferredAutoPair() async {
-        guard host.state.bootstrapCompleted, let deferred = deferredAutoPair else { return }
-        deferredAutoPair = nil
+        guard host.state.bootstrapCompleted, let deferred = deferredAutoPairStore.candidate else {
+            return
+        }
+        deferredAutoPairStore.candidate = nil
         let decision = RemotePairingMachine.decideDeepLink(
             endpoint: deferred.endpoint,
             credential: deferred.credential,
@@ -434,7 +446,7 @@ struct PairingCoordinator {
     /// Explicit Disconnect — the only path that removes Keychain credentials and profile.
     /// Durable clear runs to completion even if the caller task is cancelled after begin.
     func unpair() async {
-        deferredAutoPair = nil
+        deferredAutoPairStore.candidate = nil
         let began = host.state.operationOwner.begin(.unpair)
         host.cancelUnauthorizedRetry()
         let unpairingEndpoint = host.state.profile?.httpBaseURL
@@ -493,7 +505,7 @@ struct PairingCoordinator {
     /// catalog journal or registry is itself unreadable, so clear both durable
     /// domains independently and allow either half to be retried.
     func clearInconsistentLocalStorage() async {
-        deferredAutoPair = nil
+        deferredAutoPairStore.candidate = nil
         let began = host.state.operationOwner.begin(.unpair)
         host.cancelUnauthorizedRetry()
         // Repair clears every host: drop the pins of the endpoints we know.
