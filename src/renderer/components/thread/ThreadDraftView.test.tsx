@@ -2136,11 +2136,12 @@ describe("ThreadDraftView", () => {
 
   it("switches to the first installed agent when statuses resolve after mount", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
-    const { rerender } = render(
+    const { container, rerender } = render(
       <ThreadDraftView project={project} agentStatuses={[]} onStart={onStart} />,
     );
 
     expect(screen.getByText("No supported agents detected")).toBeInTheDocument();
+    expect(container.querySelector("[data-draft-composer]")).toBeNull();
 
     rerender(
       <ThreadDraftView project={project} agentStatuses={[geminiStatus]} onStart={onStart} />,
@@ -2160,6 +2161,7 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("auto");
       expect(props.controls.some((control) => control.value === "never")).toBe(true);
     });
+    expect(container.querySelector("[data-draft-composer]")).not.toBeNull();
   });
 
   it("anchors the full draft composer after agents resolve on the initial mount", async () => {

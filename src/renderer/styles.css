@@ -3533,13 +3533,13 @@ html[data-compact-layout] .m-page-edge-action {
   flex: initial;
 }
 
-.m-settings__body .audio-settings .settings-row:has([role="switch"]) {
+.m-settings__body .audio-settings .settings-row--switch {
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
 }
 
-.m-settings__body .audio-settings .settings-row:has([role="switch"]) > :not(.settings-row__text) {
+.m-settings__body .audio-settings .settings-row--switch > :not(.settings-row__text) {
   width: auto;
 }
 
@@ -7158,17 +7158,17 @@ html[data-compact-layout]
   display: none;
 }
 
-/* Match adaptiveLayout.ts's viewport predicate. These docks are rendered only
-   by compact branches; wide clients need no relational-selector dependency. */
+/* The ready draft marks its root. Avoid a negated descendant :has(): Blink
+   otherwise invalidates the app root when unrelated transcript nodes change. */
 @media (max-width: 767px) {
   .m-compose-dock:is(:not([data-expanded]), [data-compact-content])
-    .m-draft:not(:has(.poracode-composer-shell))
-    > :not(.m-draft-collapsed-placeholder) {
+    .m-draft
+    > :not(.m-draft-collapsed-placeholder):not([data-draft-composer]) {
     display: none;
   }
 
   .m-compose-dock:is(:not([data-expanded]), [data-compact-content])
-    .m-draft:not(:has(.poracode-composer-shell))
+    .m-draft
     > .m-draft-collapsed-placeholder {
     display: flex;
     height: var(--m-floating-control-line-height);
@@ -7177,6 +7177,12 @@ html[data-compact-layout]
     padding-inline: 1rem;
     color: var(--muted);
     white-space: nowrap;
+  }
+
+  .m-compose-dock:is(:not([data-expanded]), [data-compact-content])
+    .m-draft:has(> [data-draft-composer])
+    > .m-draft-collapsed-placeholder {
+    display: none;
   }
 }
 
@@ -7439,7 +7445,7 @@ html[data-compact-layout]
     .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
     .poracode-composer-shell
     .poracode-composer-toolbar
-    > :not(:has(.poracode-composer-send)) {
+    > * {
     display: none;
   }
 
@@ -7447,7 +7453,7 @@ html[data-compact-layout]
     .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
     .poracode-composer-shell
     .poracode-composer-toolbar
-    > :has(.poracode-composer-send) {
+    > .poracode-composer-actions:has(.poracode-composer-send) {
     display: flex;
     margin-left: 0;
   }
@@ -7456,8 +7462,8 @@ html[data-compact-layout]
     .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
     .poracode-composer-shell
     .poracode-composer-toolbar
-    > :has(.poracode-composer-send)
-    > :not(.poracode-composer-send):not(:has(.poracode-composer-send)) {
+    > .poracode-composer-actions
+    > :not(.poracode-composer-send):not([data-composer-send]) {
     display: none;
   }
 }

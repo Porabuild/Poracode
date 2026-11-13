@@ -781,13 +781,20 @@ describe("ThreadComposer resume button", () => {
   it("takes the empty composer's send slot", () => {
     const onPress = renderWithResume();
     expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Resume response" }));
+    const button = screen.getByRole("button", { name: "Resume response" });
+    expect(button.closest("[data-composer-send]")?.parentElement).toHaveClass(
+      "poracode-composer-actions",
+    );
+    fireEvent.click(button);
     expect(onPress).toHaveBeenCalledOnce();
   });
 
   it("gives way to Stop while a turn runs", () => {
     renderWithResume({ onStop: vi.fn<() => void>() });
-    expect(screen.getByRole("button", { name: "Stop response" })).toBeTruthy();
+    const button = screen.getByRole("button", { name: "Stop response" });
+    expect(button.closest("[data-composer-send]")?.parentElement).toHaveClass(
+      "poracode-composer-actions",
+    );
     expect(screen.queryByRole("button", { name: "Resume response" })).toBeNull();
   });
 });

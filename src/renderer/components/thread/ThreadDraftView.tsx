@@ -1775,6 +1775,7 @@ export function ThreadDraftView(props: {
   return (
     <div
       ref={props.droppableRef}
+      data-draft-composer=""
       data-poracode-attachment-drop-target=""
       className={`relative flex ${rootSizeClass} flex-col ${props.isDragging ? "opacity-50" : ""}`}
     >

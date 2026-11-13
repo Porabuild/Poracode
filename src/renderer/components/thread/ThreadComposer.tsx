@@ -945,7 +945,7 @@ export function ThreadComposer(props: {
     if (onStop && submitDisabled) {
       return (
         <Tooltip delay={0}>
-          <Tooltip.Trigger>
+          <Tooltip.Trigger data-composer-send="">
             <Button
               isIconOnly
               aria-label={t`Stop response`}
@@ -969,7 +969,7 @@ export function ThreadComposer(props: {
     if (resume) {
       return (
         <Tooltip delay={0}>
-          <Tooltip.Trigger>
+          <Tooltip.Trigger data-composer-send="">
             <Button
               isIconOnly
               aria-label={resume.label}
@@ -1097,7 +1097,7 @@ export function ThreadComposer(props: {
         </div>
       )}
       {renderControls()}
-      <div className="flex shrink-0 items-end gap-1">
+      <div className="poracode-composer-actions flex shrink-0 items-end gap-1">
         {typeof afterControls === "function" ? afterControls(0) : afterControls}
         {renderSendButton()}
       </div>
