@@ -16279,6 +16279,10 @@ msgstr "{label} aktualisieren"
 #~ msgid "Refresh {label} usage"
 #~ msgstr "Nutzung von {label} aktualisieren"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Refresh agent"
+msgstr "Agent aktualisieren"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
 msgstr "Erkannte Agenten aktualisieren"
@@ -23655,8 +23659,8 @@ msgstr "Violett"
 
 #. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
-msgid "Visible {0} models"
-msgstr "Sichtbare {0}-Modelle"
+#~ msgid "Visible {0} models"
+#~ msgstr "Sichtbare {0}-Modelle"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

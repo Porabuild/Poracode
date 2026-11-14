@@ -16279,6 +16279,10 @@ msgstr "Làm mới {label}"
 #~ msgid "Refresh {label} usage"
 #~ msgstr "Làm mới mức sử dụng của {label}"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Refresh agent"
+msgstr "Làm mới tác nhân"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
 msgstr "Làm mới các tác nhân được phát hiện"
@@ -23655,8 +23659,8 @@ msgstr "Tím"
 
 #. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
-msgid "Visible {0} models"
-msgstr "Mô hình {0} có thể nhìn thấy"
+#~ msgid "Visible {0} models"
+#~ msgstr "Mô hình {0} có thể nhìn thấy"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

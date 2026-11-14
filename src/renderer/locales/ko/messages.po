@@ -16279,6 +16279,10 @@ msgstr "{label} 새로고침"
 #~ msgid "Refresh {label} usage"
 #~ msgstr "{label} 사용량 새로고침"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Refresh agent"
+msgstr "에이전트 새로고침"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
 msgstr "감지된 에이전트 새로 고침"
@@ -23655,8 +23659,8 @@ msgstr "보라"
 
 #. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
-msgid "Visible {0} models"
-msgstr "표시되는 {0} 모델"
+#~ msgid "Visible {0} models"
+#~ msgstr "표시되는 {0} 모델"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

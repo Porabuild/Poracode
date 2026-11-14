@@ -68,7 +68,7 @@ it("Hide all persists every exact family UID and Show all persists an explicit e
   expect(onHiddenIdsChange).toHaveBeenLastCalledWith("example", []);
 });
 
-it("ModelVisibilityDropdown preserves sibling-surface hidden IDs when two surfaces share one settings key", async () => {
+it("the unified profile selector preserves sibling-surface defaults when toggling one surface", async () => {
   useSharedSettings.setState({ hiddenModels: {} });
   const baseCaps = {
     efforts: [],
@@ -115,22 +115,31 @@ it("ModelVisibilityDropdown preserves sibling-surface hidden IDs when two surfac
 
   renderWithI18n(
     <ModelVisibilityDropdown
-      settingsKey="acme"
-      provider={chatSurface}
-      siblingProviders={[terminalSurface, chatSurface]}
-      surfaceLabel="Acme Chat"
+      agent={{
+        kind: "acme",
+        label: "Acme",
+        installed: true,
+        authState: "authenticated",
+        capabilities: {
+          ...terminalSurface.capabilities,
+          presentationModes: ["terminal", "gui"],
+          presentationCapabilities: { gui: chatSurface.capabilities },
+        },
+      }}
     />,
   );
 
-  fireEvent.click(screen.getByRole("button", { name: "Visible Acme Chat models" }));
+  expect(screen.getByRole("button", { name: "Visible models" })).toHaveTextContent("2 / 3");
+  fireEvent.click(screen.getByRole("button", { name: "Visible models" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Hide all" })).toBeInTheDocument());
-  fireEvent.click(screen.getByRole("button", { name: "Hide all" }));
+  fireEvent.click(screen.getByRole("tab", { name: /Chat/ }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Acme · Chat" }));
   expect(useSharedSettings.getState().hiddenModels.acme?.toSorted()).toEqual([
     "chat-next",
     "shared-current",
     "terminal-legacy",
   ]);
 
-  fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Acme · Chat" }));
   expect(useSharedSettings.getState().hiddenModels.acme).toEqual(["terminal-legacy"]);
 });
