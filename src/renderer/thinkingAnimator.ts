@@ -1,26 +1,8 @@
-// Shared 20fps driver for the "thinking" UI animations — the
-// `.poracode-thinking-text` shimmer ("Working for"/"Thinking"/"Compacting"/
-// "Proposed plan") and the `.poracode-brain-thinking` firing.
-//
-// Why this exists instead of CSS animations:
-// Both effects animate properties that CANNOT run on the compositor —
-// `background-position` (the shimmer) and per-path `opacity` on an SVG (the
-// brain). A continuously-active CSS animation on such a property forces Blink to
-// re-run style recalc + the entire frame pipeline EVERY display refresh (~120fps
-// on ProMotion) for as long as the animation is active, even though the value
-// only needs to change ~15×/s. Traces showed UpdateLayoutTree ≡
-// serviceScriptedAnimations ≡ ~124/s during streaming — a main-thread frame
-// every refresh — purely from these two animations. `steps()` throttles the
-// paint but NOT that per-frame recalc loop, because the animation is still
-// "active" every frame.
-//
-// Driving the exact same values from a single `setInterval` at 20fps means the
-// element is only dirtied ~20×/s; between ticks nothing is invalidated, so the
-// renderer's frame pipeline goes idle. The visuals are identical (same gradient
-// sweep, same staggered brain firing), and a shared wall-clock phase keeps every
-// instance perfectly in sync. The timer drops to 5fps while the window is
-// hidden or unfocused (using the state from uiAnimationActivity.ts), and honours
-// `prefers-reduced-motion` by painting one static frame.
+// One clock batches text shimmer, brain firing and provider-icon shine. CSS
+// steps() limits visible changes but still wakes Chromium at display refresh
+// rate; direct writes to cached targets avoid that continuous animation work.
+// Visible effects share 20fps (5fps when unfocused). Hidden pages and targets
+// stop updating and resume at the current phase without replaying the sweep.
 
 import { useContext, useEffect, useRef } from "react";
 import type { RefObject } from "react";
@@ -33,28 +15,28 @@ const BACKGROUND_TICK_MS = Math.round(1000 / BACKGROUND_FPS); // 200ms
 const SHIMMER_PERIOD_MS = 2200; // matches the previous 2.2s background-position sweep
 const BRAIN_PERIOD_MS = 1800; // matches the previous 1.8s opacity pulse
 const BRAIN_GROUP_DELAY_MS = 600; // matches the previous 0s / 0.6s / 1.2s stagger
+const ICON_PERIOD_MS = 1600;
 
 const shimmerEls = new Set<HTMLElement>();
+const iconBands = new Set<HTMLElement>();
 // Brains map to their path list, cached once at registration so the tick loop
 // doesn't re-run querySelectorAll on every frame.
 const brainPaths = new Map<SVGSVGElement, SVGPathElement[]>();
 let timer: ReturnType<typeof setInterval> | null = null;
-let lastPaintAt = Number.NEGATIVE_INFINITY;
+let timerInterval = 0;
+let motionQuery: MediaQueryList | null = null;
+let observer: IntersectionObserver | null = null;
+const targets = new Map<Element, (visible: boolean) => void>();
 
 function hasRegistered(): boolean {
-  return shimmerEls.size > 0 || brainPaths.size > 0;
+  return shimmerEls.size > 0 || brainPaths.size > 0 || iconBands.size > 0;
 }
 
 function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+  return motionQuery?.matches ?? false;
 }
 
-// uiAnimationActivity.ts toggles these attributes on visibilitychange/focus/blur,
-// and styles.css uses the same state to slow compositor-driven icon animations.
+// uiAnimationActivity.ts updates these attributes before our activity listeners.
 function isAppBackgrounded(): boolean {
   if (typeof document === "undefined") return true;
   const root = document.documentElement;
@@ -69,6 +51,16 @@ function brainOpacity(phase01: number): number {
 }
 
 function paintFrame(now: number): void {
+  if (iconBands.size > 0) {
+    const steps = isAppBackgrounded()
+      ? ICON_PERIOD_MS / BACKGROUND_TICK_MS
+      : ICON_PERIOD_MS / TICK_MS;
+    const phase = Math.floor(((now % ICON_PERIOD_MS) / ICON_PERIOD_MS) * steps) / steps;
+    const transform = `translate3d(${(-33.333 + 66.666 * phase).toFixed(4)}%, 0, 0)`;
+    for (const el of iconBands) {
+      if (el.style.transform !== transform) el.style.transform = transform;
+    }
+  }
   if (shimmerEls.size > 0) {
     // background-position-x sweeps 0% → -200% (with 200% size + repeat-x this loops seamlessly).
     const phase = (now % SHIMMER_PERIOD_MS) / SHIMMER_PERIOD_MS;
@@ -85,30 +77,52 @@ function paintFrame(now: number): void {
 }
 
 function tick(): void {
-  const now = Date.now();
-  if (isAppBackgrounded() && now - lastPaintAt < BACKGROUND_TICK_MS) return;
-  paintFrame(now);
-  lastPaintAt = now;
+  paintFrame(Date.now());
 }
 
 function ensureRunning(): void {
-  if (timer !== null) return;
-  if (prefersReducedMotion()) {
-    paintFrame(0); // one static frame; no loop
-    return;
+  const hidden = document.documentElement.hasAttribute("data-app-hidden");
+  const nextInterval =
+    hasRegistered() && !hidden && !prefersReducedMotion()
+      ? isAppBackgrounded()
+        ? BACKGROUND_TICK_MS
+        : TICK_MS
+      : 0;
+  if (timer !== null && timerInterval === nextInterval) return;
+  if (timer !== null) {
+    clearInterval(timer);
+    timer = null;
   }
-  if (typeof setInterval !== "function") return;
-  const now = Date.now();
-  paintFrame(now);
-  lastPaintAt = now;
-  timer = setInterval(tick, TICK_MS);
+  timerInterval = nextInterval;
+  if (!hasRegistered() || hidden) return;
+  paintFrame(prefersReducedMotion() ? 0 : Date.now());
+  if (nextInterval > 0) timer = setInterval(tick, nextInterval);
 }
 
 function maybeStop(): void {
   if (timer !== null && !hasRegistered()) {
     clearInterval(timer);
     timer = null;
+    timerInterval = 0;
   }
+}
+
+function listenForActivity(): void {
+  document.addEventListener("visibilitychange", ensureRunning);
+  window.addEventListener("focus", ensureRunning);
+  window.addEventListener("blur", ensureRunning);
+  motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  motionQuery.addEventListener("change", ensureRunning);
+}
+
+function stopListeningForActivity(): void {
+  document.removeEventListener("visibilitychange", ensureRunning);
+  window.removeEventListener("focus", ensureRunning);
+  window.removeEventListener("blur", ensureRunning);
+  motionQuery?.removeEventListener("change", ensureRunning);
+  motionQuery = null;
+  observer?.disconnect();
+  observer = null;
 }
 
 function addShimmer(el: HTMLElement): void {
@@ -124,6 +138,13 @@ function removeBrain(el: SVGSVGElement): void {
   brainPaths.delete(el);
 }
 
+function addIconBand(el: HTMLElement): void {
+  iconBands.add(el);
+}
+function removeIconBand(el: HTMLElement): void {
+  iconBands.delete(el);
+}
+
 // Shared registration effect for every animated element: while `active`, add the
 // element to its registry and keep the shared timer running; clean up on unmount
 // or when it goes inactive.
@@ -137,11 +158,33 @@ function useAnimatedElement<T extends Element>(
   useEffect(() => {
     const el = ref.current;
     if (!active || !visible || !el) return;
+    if (targets.size === 0) listenForActivity();
+    let inViewport = true;
+    targets.set(el, (nextVisible) => {
+      if (inViewport === nextVisible) return;
+      inViewport = nextVisible;
+      if (nextVisible) {
+        add(el);
+        ensureRunning();
+      } else {
+        remove(el);
+        maybeStop();
+      }
+    });
+    if (typeof IntersectionObserver === "function") {
+      observer ??= new IntersectionObserver((entries) => {
+        for (const entry of entries) targets.get(entry.target)?.(entry.isIntersecting);
+      });
+      observer.observe(el);
+    }
     add(el);
     ensureRunning();
     return () => {
+      observer?.unobserve(el);
+      targets.delete(el);
       remove(el);
       maybeStop();
+      if (targets.size === 0) stopListeningForActivity();
     };
   }, [ref, active, visible, add, remove]);
 }
@@ -176,5 +219,11 @@ export function useShimmerRef<T extends HTMLElement>(
 export function useBrainThinking(active: boolean): RefObject<SVGSVGElement | null> {
   const ref = useRef<SVGSVGElement | null>(null);
   useAnimatedElement<SVGSVGElement>(ref, active, addBrain, removeBrain);
+  return ref;
+}
+
+export function useIconShine(active: boolean): RefObject<HTMLSpanElement | null> {
+  const ref = useRef<HTMLSpanElement | null>(null);
+  useAnimatedElement(ref, active, addIconBand, removeIconBand);
   return ref;
 }

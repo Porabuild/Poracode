@@ -1,5 +1,5 @@
 import type { StatusTone } from "./statusTone";
-import { syncMaskScanPhase } from "./syncMaskScanPhase";
+import { useIconShine } from "@/renderer/thinkingAnimator";
 
 export function StatusIcon(props: {
   tone: StatusTone;
@@ -25,6 +25,7 @@ export function StatusIcon(props: {
 }) {
   const { tone, path, viewBox, fillRule, cssPrefix, className, title, secondaryPath, maskUrl } =
     props;
+  const scanRef = useIconShine(tone === "working" && !!maskUrl);
 
   const [, , vbW, vbH] = viewBox.split(" ").map(Number);
   const viewBoxWidth = vbW ?? 16;
@@ -76,11 +77,12 @@ export function StatusIcon(props: {
       </svg>
       {tone === "working" && maskUrl ? (
         <span
-          ref={syncMaskScanPhase}
           className="poracode-provider-icon__mask-scan"
           aria-hidden="true"
           style={{ WebkitMaskImage: maskUrl, maskImage: maskUrl }}
-        />
+        >
+          <span ref={scanRef} className="poracode-provider-icon__mask-scan-band" />
+        </span>
       ) : null}
     </span>
   );

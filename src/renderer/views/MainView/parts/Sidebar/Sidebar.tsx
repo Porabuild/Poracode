@@ -1,6 +1,6 @@
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { Globe, House, PanelLeft, Plus, Search, Settings2, TerminalSquare } from "lucide-react";
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useContext, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getAppName } from "@/shared/appName";
@@ -21,6 +21,7 @@ import { readBridge } from "@/renderer/bridge";
 import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { PaneVisibility } from "@/renderer/paneVisibility";
 import {
   openRemoteAccessSettings,
   openSettings,
@@ -95,6 +96,7 @@ export function Sidebar() {
   const setProjectCollapsed = useSidebarUiStore((s) => s.setProjectCollapsed);
   const setWorktreeCollapsed = useSidebarUiStore((s) => s.setWorktreeCollapsed);
   const { isCollapsed, expand } = useSidebar();
+  const visible = useContext(PaneVisibility);
   const openHome = useAppStore((s) => s.openHome);
   const appView = useAppStore((s) => s.view);
   const appNameForHome = getAppName(readBridge().channel, import.meta.env.DEV);
@@ -271,72 +273,74 @@ export function Sidebar() {
         </div>
       )}
 
-      <div
-        className={`${sidebarColumnLayoutClass} ${isCollapsed ? "invisible" : ""}`}
-        style={{ minWidth: SIDEBAR_MIN_WIDTH }}
-      >
-        {projectIds.length === 0 && !(homeScopeEnabled && homeProjects.length > 0) ? (
-          <div
-            ref={setScrollContainer}
-            className={`${sidebarBodyScrollClass()} flex items-center justify-center`}
-            style={scrollFadeStyle}
-          >
-            <ManagedRootCatalogStatusNotice
-              fallback={
-                <p className="text-center text-sm text-muted">
-                  {hiddenProjectCount > 0 ? (
-                    // Distinguish "you own no projects" from "this workspace is
-                    // empty but others aren't" — otherwise the sidebar looks broken.
-                    <Trans>No projects in this workspace</Trans>
-                  ) : (
-                    <Trans>Add a project to start</Trans>
-                  )}
-                </p>
-              }
-            />
-          </div>
-        ) : compactLayout ? (
-          // The compact home is one active-only list whose scroller fills the
-          // page under the transparent header and dock.
-          <CompactHomeThreadList sortMode={sortMode} />
-        ) : listLayout === "flat" ? (
-          // The flat list pins its filter/new-thread head above the thread
-          // rows, so it renders its own scroll container instead of this one.
-          <SidebarFlatThreadList sortMode={sortMode} />
-        ) : (
-          <div
-            ref={setScrollContainer}
-            className={sidebarBodyScrollClass()}
-            style={scrollFadeStyle}
-          >
-            <div className="space-y-4">
-              {homeScopeEnabled
-                ? homeProjects.map((project) => (
-                    <SidebarHomeSection key={project.id} project={project} sortMode={sortMode} />
-                  ))
-                : null}
-              {projectIds.map((projectId, projectIndex) => (
-                <SidebarProjectSection
-                  key={projectId}
-                  projectId={projectId}
-                  projectIndex={projectIndex}
-                  sortMode={sortMode}
-                />
-              ))}
+      <PaneVisibility value={visible && !isCollapsed}>
+        <div
+          className={`${sidebarColumnLayoutClass} ${isCollapsed ? "invisible" : ""}`}
+          style={{ minWidth: SIDEBAR_MIN_WIDTH }}
+        >
+          {projectIds.length === 0 && !(homeScopeEnabled && homeProjects.length > 0) ? (
+            <div
+              ref={setScrollContainer}
+              className={`${sidebarBodyScrollClass()} flex items-center justify-center`}
+              style={scrollFadeStyle}
+            >
+              <ManagedRootCatalogStatusNotice
+                fallback={
+                  <p className="text-center text-sm text-muted">
+                    {hiddenProjectCount > 0 ? (
+                      // Distinguish "you own no projects" from "this workspace is
+                      // empty but others aren't" — otherwise the sidebar looks broken.
+                      <Trans>No projects in this workspace</Trans>
+                    ) : (
+                      <Trans>Add a project to start</Trans>
+                    )}
+                  </p>
+                }
+              />
             </div>
-          </div>
-        )}
+          ) : compactLayout ? (
+            // The compact home is one active-only list whose scroller fills the
+            // page under the transparent header and dock.
+            <CompactHomeThreadList sortMode={sortMode} />
+          ) : listLayout === "flat" ? (
+            // The flat list pins its filter/new-thread head above the thread
+            // rows, so it renders its own scroll container instead of this one.
+            <SidebarFlatThreadList sortMode={sortMode} />
+          ) : (
+            <div
+              ref={setScrollContainer}
+              className={sidebarBodyScrollClass()}
+              style={scrollFadeStyle}
+            >
+              <div className="space-y-4">
+                {homeScopeEnabled
+                  ? homeProjects.map((project) => (
+                      <SidebarHomeSection key={project.id} project={project} sortMode={sortMode} />
+                    ))
+                  : null}
+                {projectIds.map((projectId, projectIndex) => (
+                  <SidebarProjectSection
+                    key={projectId}
+                    projectId={projectId}
+                    projectIndex={projectIndex}
+                    sortMode={sortMode}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
-        {compactLayout ? null : <ProviderUsageRail orientation="row" />}
-        {compactLayout ? (
-          <MobileHomeActions />
-        ) : (
-          <SidebarFooterNav
-            remoteAccessStatus={remoteAccessStatus}
-            showRemoteAccess={showRemoteAccess}
-          />
-        )}
-      </div>
+          {compactLayout ? null : <ProviderUsageRail orientation="row" />}
+          {compactLayout ? (
+            <MobileHomeActions />
+          ) : (
+            <SidebarFooterNav
+              remoteAccessStatus={remoteAccessStatus}
+              showRemoteAccess={showRemoteAccess}
+            />
+          )}
+        </div>
+      </PaneVisibility>
     </div>
   );
 }

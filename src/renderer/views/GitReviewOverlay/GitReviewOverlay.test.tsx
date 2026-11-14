@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "fake-indexeddb/auto";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, Project } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -76,7 +76,15 @@ const gitStatus: GitStatusResult = {
 };
 
 describe("GitReviewOverlay", () => {
+  afterEach(() => vi.unstubAllGlobals());
   beforeEach(() => {
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      },
+    );
     layout.compact = false;
     bridge.getGitStatus.mockReset().mockResolvedValue(gitStatus);
     bridge.getGitDiffBatch.mockReset().mockResolvedValue({ staged: [], unstaged: [] });

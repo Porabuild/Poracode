@@ -25,7 +25,9 @@ export function FileHeader(props: {
       <span className={entry.staged ? "text-success" : "text-warning"}>
         {entry.staged ? <Trans>staged</Trans> : <Trans>unstaged</Trans>}
       </span>
-      <span className="min-w-0 truncate font-medium text-foreground">{entry.filePath}</span>
+      <span data-diff-file-name className="min-w-0 truncate font-medium text-foreground">
+        {entry.filePath}
+      </span>
       <span className="ml-auto flex shrink-0 gap-2">
         {entry.insertions > 0 && <span className="text-success">+{entry.insertions}</span>}
         {entry.deletions > 0 && <span className="text-danger">-{entry.deletions}</span>}
