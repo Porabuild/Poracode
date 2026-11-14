@@ -232,6 +232,31 @@ describe("agent management hosts", () => {
     expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
   });
 
+  it("forwards an individual profile and environment scope to local discovery", async () => {
+    const scope = { agentKinds: ["claude:work"], envs: [{ kind: "native" as const }] };
+    bridge.refreshAgentStatuses.mockResolvedValue({ windows: [], wsl: [], fromCache: false });
+    await LOCAL_AGENT_MANAGEMENT_HOST.rediscoverAgents([], scope);
+    expect(bridge.refreshAgentStatuses).toHaveBeenCalledExactlyOnceWith([], scope);
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+  });
+
+  it("forwards an individual profile and environment scope to paired-host discovery", async () => {
+    const scope = {
+      agentKinds: ["claude:work"],
+      envs: [{ kind: "wsl" as const, distro: "Ubuntu" }],
+    };
+    const statuses = makeRemoteStatuses();
+    callRemoteProcedure.mockResolvedValueOnce({ windows: [], wsl: [], fromCache: false });
+    agentStatuses.mockResolvedValue(statuses);
+    await agentManagementHostForMachine(REMOTE_MACHINE).rediscoverAgents(["Ubuntu"], scope);
+    expect(callRemoteProcedure).toHaveBeenCalledExactlyOnceWith("refreshAgentStatuses", {
+      wslDistros: ["Ubuntu"],
+      scope,
+    });
+    expect(bridge.refreshAgentStatuses).not.toHaveBeenCalled();
+    expect(useRemoteServersStore.getState().runtime["conn-1"]?.agentStatuses).toEqual(statuses);
+  });
+
   it("keeps a discovered WSL distro absent from the host's project-scoped snapshot", async () => {
     const statuses = makeRemoteStatuses();
     const retained = makeStatus({ kind: "claude", envKind: "wsl", envDistro: "Debian" });

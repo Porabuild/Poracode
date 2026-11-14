@@ -2,7 +2,7 @@ import { NativeMcpSettings } from "./parts/NativeMcpSettings";
 import { useEffect, useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { AlertTriangle, LogIn, LogOut, Save } from "lucide-react";
+import { AlertTriangle, LogIn, LogOut, RefreshCw, Save } from "lucide-react";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import type {
   AgentProviderMetadata,
@@ -36,12 +36,7 @@ import {
   statusUpdateScope,
   shouldPreferTerminalLogin,
 } from "@/renderer/utils/acpRegistryAuth";
-import { Input } from "@/renderer/components/common";
-import {
-  providerMenuKey,
-  providerVisibilityKey,
-} from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
-import { expandAgentToVisibilityProviders } from "@/renderer/components/thread/buildModelPickerControls";
+import { Input, PixelLoader } from "@/renderer/components/common";
 import {
   loadAcpRegistryListing,
   useCombinedProviderRuntimeUpdates,
@@ -63,7 +58,6 @@ import { SAVED_CREDENTIAL_MASK } from "../secretMask";
 import { AgentHeader } from "./parts/AgentHeader";
 import { AgentSettingRow } from "./parts/AgentSettingRow";
 import { ModelVisibilityDropdown } from "./parts/ModelVisibilityDropdown";
-import { modelSurfaceLabel } from "./parts/modelSurfaceLabel";
 import {
   AgentEnvironmentRow,
   AgentInstallEnvironmentRow,
@@ -120,6 +114,7 @@ export function SingleAgentSettings(props: {
     ReadonlySet<string>
   >(() => new Set());
   const [updatePending, setUpdatePending] = useState(false);
+  const [refreshingAgents, setRefreshingAgents] = useState<string[]>([]);
   // Some providers' signed-in accounts aren't part of the detected status
   // (e.g. Antigravity's credential sits behind its language server). Resolved
   // lazily via the registry entry's `accountResolver` when this page opens;
@@ -297,6 +292,41 @@ export function SingleAgentSettings(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accountResolver, wslProjectDistrosKey]);
 
+  const refreshKey = `${selectedMachine.id}\0${props.agentKind}`;
+  const isRefreshing = refreshingAgents.includes(refreshKey);
+  const refreshAgent = async () => {
+    if (isRefreshing || selectedMachine.status !== "online") return;
+    setRefreshingAgents((current) => [...current, refreshKey]);
+    try {
+      const refreshDistros = agentHost.isRemote
+        ? selectedMachine.ref.env.kind === "wsl"
+          ? [selectedMachine.ref.env.distro]
+          : []
+        : wslDistros;
+      await agentHost.rediscoverAgents(refreshDistros, {
+        agentKinds: [props.agentKind],
+        envs: [selectedMachine.ref.env],
+      });
+    } catch (error) {
+      toast.danger(friendlyError(error));
+    } finally {
+      setRefreshingAgents((current) => current.filter((key) => key !== refreshKey));
+    }
+  };
+  const refreshButton = (
+    <Button
+      isIconOnly
+      size="sm"
+      variant="ghost"
+      aria-label={t`Refresh agent`}
+      isPending={isRefreshing}
+      isDisabled={isRefreshing || selectedMachine.status !== "online"}
+      onPress={() => void refreshAgent()}
+    >
+      {isRefreshing ? <PixelLoader size="xs" /> : <RefreshCw className="size-4" />}
+    </Button>
+  );
+
   if (!agent) {
     // A profile whose base provider is not installed here — or whose detection
     // has not landed yet — still needs its settings page: it is the only place
@@ -321,6 +351,7 @@ export function SingleAgentSettings(props: {
         <SettingsPage
           title={`${providerLabel} ${profileInstance.displayName ?? profileInstance.id}`}
           bodyClassName=""
+          actions={refreshButton}
         >
           <ProfilePanel
             agentKind={props.agentKind}
@@ -333,7 +364,11 @@ export function SingleAgentSettings(props: {
     }
     if (!isRemoteMachine && profileInstance)
       return (
-        <SettingsPage title={profileInstance.displayName ?? profileInstance.id} bodyClassName="">
+        <SettingsPage
+          title={profileInstance.displayName ?? profileInstance.id}
+          bodyClassName=""
+          actions={refreshButton}
+        >
           <p className="text-sm text-muted">
             {profileInstance.enabled === false ? (
               <Trans>Agent is currently disabled</Trans>
@@ -346,7 +381,7 @@ export function SingleAgentSettings(props: {
         </SettingsPage>
       );
     return (
-      <SettingsPage title={t`Agent not found`} bodyClassName="">
+      <SettingsPage title={t`Agent not found`} bodyClassName="" actions={refreshButton}>
         <p className="text-sm text-muted">
           <Trans>This agent is not installed.</Trans>
         </p>
@@ -357,8 +392,6 @@ export function SingleAgentSettings(props: {
   const defs = (agent.capabilities.settingDefs ?? []).filter(
     (def) => !def.platforms || def.platforms.includes(platform),
   );
-  const modelVisibilityProviders = expandAgentToVisibilityProviders(agent);
-  const hasSelectableModels = modelVisibilityProviders.length > 0;
 
   const missingAuthStatuses = installedStatuses.filter((status) => status.authState === "missing");
   const envVarAuthMethod =
@@ -992,6 +1025,7 @@ export function SingleAgentSettings(props: {
           wslDistros={wslDistros}
           onPerformUpdate={performUpdate}
           onSetAgentDisabled={setAgentDisabled}
+          refreshButton={refreshButton}
         />
 
         {panelOwnsInstallRows && !isRemoteMachine ? null : (
@@ -1201,23 +1235,10 @@ export function SingleAgentSettings(props: {
           </div>
         )}
 
-        {hasSelectableModels && (
-          <div className="mt-6">
-            {modelVisibilityProviders.map((provider) => (
-              <ModelVisibilityDropdown
-                key={providerMenuKey(provider)}
-                settingsKey={providerVisibilityKey(provider)}
-                provider={provider}
-                siblingProviders={modelVisibilityProviders}
-                {...(modelVisibilityProviders.length > 1
-                  ? {
-                      surfaceLabel: modelSurfaceLabel(provider, agent, providerEntry?.runtimeSlots),
-                    }
-                  : {})}
-              />
-            ))}
-          </div>
-        )}
+        <ModelVisibilityDropdown
+          agent={agent}
+          {...(providerEntry?.runtimeSlots ? { runtimeSlots: providerEntry.runtimeSlots } : {})}
+        />
       </div>
 
       {isRemoteMachine ? null : (

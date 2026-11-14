@@ -16279,6 +16279,10 @@ msgstr "Оновити {label}"
 #~ msgid "Refresh {label} usage"
 #~ msgstr "Оновити використання {label}"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Refresh agent"
+msgstr "Оновити агента"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
 msgstr "Оновити виявлених агентів"
@@ -23655,8 +23659,8 @@ msgstr "Фіолетовий"
 
 #. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
-msgid "Visible {0} models"
-msgstr "Видимі моделі {0}"
+#~ msgid "Visible {0} models"
+#~ msgstr "Видимі моделі {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
