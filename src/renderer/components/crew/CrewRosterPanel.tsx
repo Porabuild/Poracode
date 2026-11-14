@@ -15,7 +15,7 @@ import { Button } from "@/renderer/components/common/Button";
 import { Input } from "@/renderer/components/common/Input";
 import { OptionMenu } from "@/renderer/components/common/OptionMenu";
 import { ThreadDockIconButton } from "@/renderer/components/thread/ThreadDockUI";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { openCrewsSettings } from "@/renderer/actions/panelActions";
 import { MAX_CREW_ROLES, crewBindingFromSavedCrew } from "@/shared/crew";
 import {
   addRole,
@@ -155,12 +155,8 @@ export function CrewRosterPanel(props: {
               label={t`Edit crews in settings`}
               onPress={() => {
                 props.onClose?.();
-                usePanelStore
-                  .getState()
-                  .openSettingsSection(
-                    "crews",
-                    model.binding.crewId ? `crews.${model.binding.crewId}` : undefined,
-                  );
+                if (model.onEditInSettings) model.onEditInSettings();
+                else openCrewsSettings(model.binding.crewId);
               }}
             >
               <Settings2 className="size-3.5" />

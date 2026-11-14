@@ -319,8 +319,11 @@ msgstr "{0}이(가) 익명화된 diff를 비교하고 있습니다…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0}이(가) 오프라인입니다. 마지막으로 확인된 상태를 표시합니다."
 
+#. placeholder {0}: provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind
 #. placeholder {0}: target?.label ?? saved.lead.agentKind
 #. placeholder {1}: modelLabelOf(draftLead)
+#. placeholder {1}: modelLabelOf(targetLead)
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "{0} isn't available, so {1} stays the lead."
 msgstr "{0}을(를) 사용할 수 없어 {1}이(가) 리드로 유지됩니다."
@@ -685,6 +688,7 @@ msgstr "{label} API 키"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} 자동 새로고침 간격(분)"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "{label} can't lead a crew. Pick another model first."
 msgstr "{label}은(는) 크루를 이끌 수 없습니다. 먼저 다른 모델을 선택하세요."
@@ -10732,6 +10736,7 @@ msgstr "스레드 시작"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 #: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -16050,6 +16055,7 @@ msgstr "이 작업 트리의 터미널 패널을 읽고 출력 내용을 보고�
 #~ msgstr "읽기 전용"
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Read-only"

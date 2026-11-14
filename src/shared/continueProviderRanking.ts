@@ -1,5 +1,9 @@
 import type { AgentStatus, ThreadPresentationMode } from "./contracts";
-import { capabilitiesForPresentation, modelSelectionFor } from "./agentSelection";
+import {
+  capabilitiesForPresentation,
+  modelSelectionFor,
+  visibleModelCapabilities,
+} from "./agentSelection";
 import {
   rankCrossagentCandidates,
   type CrossagentRankingCandidate,
@@ -54,12 +58,21 @@ export function continuesInPlace(
  * Adapt an installed agent to the ranking layer's candidate shape. Mirrors the
  * supervisor's `rankingCandidateOf`, but reads from an `AgentStatus` because
  * the renderer has no spawnable-agent roster.
+ *
+ * The candidate is built from the surface the dialog's pickers display (hidden
+ * models removed), because the dialog resolves the ranked model against that
+ * surface: a hidden model that wins the ranking collapses to the first visible
+ * entry instead of the best visible choice.
  */
 export function continueRankingCandidate(
   agent: AgentStatus,
   presentationMode: ThreadPresentationMode,
+  hiddenModelIds?: readonly string[],
 ): CrossagentRankingCandidate {
-  const capabilities = capabilitiesForPresentation(agent.capabilities, presentationMode);
+  const capabilities = visibleModelCapabilities(
+    capabilitiesForPresentation(agent.capabilities, presentationMode),
+    hiddenModelIds,
+  );
   return {
     provider: agent.kind,
     defaultModel: capabilities.models[0]?.id ?? "",
@@ -86,12 +99,22 @@ export function rankContinueProviders(
   lastPresentationModeByAgent: Record<string, ThreadPresentationMode>,
   sourcePresentationMode: ThreadPresentationMode,
   preferences: CrossagentRankingPreferences,
+  hiddenModelIdsFor?: (
+    agent: AgentStatus,
+    presentationMode: ThreadPresentationMode,
+  ) => readonly string[] | undefined,
 ): RankedCrossagentCandidate[] {
-  const candidates = agents.map((agent) =>
-    continueRankingCandidate(
+  const candidates = agents.map((agent) => {
+    const presentationMode = resolveInitialPresentationMode(
       agent,
-      resolveInitialPresentationMode(agent, lastPresentationModeByAgent, sourcePresentationMode),
-    ),
-  );
+      lastPresentationModeByAgent,
+      sourcePresentationMode,
+    );
+    return continueRankingCandidate(
+      agent,
+      presentationMode,
+      hiddenModelIdsFor?.(agent, presentationMode),
+    );
+  });
   return rankCrossagentCandidates(candidates, preferences);
 }

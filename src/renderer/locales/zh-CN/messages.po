@@ -319,8 +319,11 @@ msgstr "{0} 正在比较匿名化的差异…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} 已离线。正在显示最后已知状态。"
 
+#. placeholder {0}: provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind
 #. placeholder {0}: target?.label ?? saved.lead.agentKind
 #. placeholder {1}: modelLabelOf(draftLead)
+#. placeholder {1}: modelLabelOf(targetLead)
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "{0} isn't available, so {1} stays the lead."
 msgstr "{0} 不可用，因此仍由 {1} 担任负责人。"
@@ -685,6 +688,7 @@ msgstr "{label} API 密钥"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} 自动刷新间隔（分钟）"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "{label} can't lead a crew. Pick another model first."
 msgstr "{label} 无法领导团队。请先选择其他模型。"
@@ -10732,6 +10736,7 @@ msgstr "启动线程"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 #: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -16049,6 +16054,7 @@ msgstr "读取此工作树的 Terminal 面板并报告正在输出的内容。"
 #~ msgstr "只读"
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Read-only"

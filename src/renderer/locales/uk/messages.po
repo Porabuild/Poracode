@@ -319,8 +319,11 @@ msgstr "{0} порівнює анонімізовані відмінності�
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} офлайн. Показано останній відомий статус."
 
+#. placeholder {0}: provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind
 #. placeholder {0}: target?.label ?? saved.lead.agentKind
 #. placeholder {1}: modelLabelOf(draftLead)
+#. placeholder {1}: modelLabelOf(targetLead)
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "{0} isn't available, so {1} stays the lead."
 msgstr "{0} недоступний, тому лідером залишиться {1}."
@@ -685,6 +688,7 @@ msgstr "API-ключ {label}"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "Інтервал автооновлення {label} у хвилинах"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "{label} can't lead a crew. Pick another model first."
 msgstr "{label} не може очолювати команду. Спочатку виберіть іншу модель."
@@ -10732,6 +10736,7 @@ msgstr "Запустити тред"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 #: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -16050,6 +16055,7 @@ msgstr "Прочитайте панель Terminal цього worktree і пов
 #~ msgstr "лише для читання"
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Read-only"

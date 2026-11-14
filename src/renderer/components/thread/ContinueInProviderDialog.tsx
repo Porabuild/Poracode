@@ -52,12 +52,31 @@ import {
   type ComposerCustomMcpItem,
   type ComposerMcpMenuItem,
 } from "../composer/ComposerAddMenu";
-import { openMcpServersSettings } from "@/renderer/actions/panelActions";
+import { openCrewsSettings, openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { getComputerUseScope } from "../composer/computerUseScope";
 import { composerCustomMcpItems } from "../composer/composerCustomMcpServers";
 import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
-import { canLeadCrew, threadCrewBinding } from "@/shared/crew";
+import {
+  canLeadCrew,
+  crewBindingFromSavedCrew,
+  threadCrewBinding,
+  type CrewMemberSelection,
+  type SavedCrew,
+  type ThreadCrewBinding,
+} from "@/shared/crew";
+import { applyCrewComposerControls } from "../crew/applyCrewComposerControls";
+import {
+  crewModelLabelOf,
+  crewPickerEntry,
+  crewSummary,
+  leadSelectionOf,
+  newCrewBinding,
+  savedCrewFor,
+} from "../crew/crewComposerModel";
+import { useCrewHelperOptions } from "../crew/crewHelperOptions";
+import { CREW_ROLE_TEMPLATE_DESCRIPTORS, DEFAULT_CREW_ROLE_ID } from "../crew/crewRoleTemplates";
+import { buildProviderModelMenuProviders } from "./buildModelPickerControls";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import {
   bindLeadingSkillUnlessLocalAction,
@@ -105,6 +124,7 @@ import {
   preferredConfigPatch,
   resolveDefaultConfig,
   visibleCapabilities,
+  withoutLaunchSelection,
 } from "./continueTargetConfig";
 
 type Phase = "select" | "extracting" | "error";
@@ -160,6 +180,9 @@ export function ContinueInProviderDialog(props: {
   // project's last-used one.
   const providerConfigs = useSharedSettings((s) => s.providerConfigs);
   const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
+  const savedCrews = useSharedSettings((s) => s.crews);
+  const upsertCrew = useSharedSettings((s) => s.upsertCrew);
+  const helperOptions = useCrewHelperOptions();
 
   // Whether this thread's sessions get the app-controls `read_thread` tool —
   // the transcript-reading path a handoff hands to the incoming provider in
@@ -176,9 +199,10 @@ export function ContinueInProviderDialog(props: {
   const sourcePresentationMode =
     thread.presentationMode ?? sourceAgent?.capabilities.presentationMode ?? "terminal";
 
-  // Propose the provider the user actually reaches for most; `proposedRanking`
-  // feeds `preferredConfigPatch` below so the proposal carries the model the
-  // selection normally launches with.
+  // Propose the provider the user actually reaches for most. Ranking runs
+  // against the hidden-filtered surface the pickers display, so a hidden
+  // model can never be proposed; `proposedRanking` then feeds the initial
+  // config below when the provider has no saved last-selected model.
   const rankedTargets = rankContinueProviders(
     otherAgents,
     lastPresentationModeByAgent,
@@ -189,6 +213,7 @@ export function ContinueInProviderDialog(props: {
       crossagentRoutingOverrides,
       favoriteModels,
     }),
+    (agent, mode) => allHiddenModels[modelVisibilityKey(agent.kind, mode)],
   );
   const proposedAgent =
     otherAgents.find((a) => a.kind === rankedTargets[0]?.provider) ?? otherAgents[0];
@@ -225,28 +250,49 @@ export function ContinueInProviderDialog(props: {
     agent: selectedAgent,
     capabilities: selectedTargetCapabilities,
     controls: targetControls,
+    handleProviderChange,
     handlePresentationModeChange,
     handleConfigPatch: handleTargetConfigPatch,
   } = useProviderTargetSelection({
     agents: otherAgents,
     initialAgentKind: proposedAgent?.kind,
     initialPresentationMode: proposedPresentationMode,
-    resolveInitialConfig: (agent, mode) =>
-      resolveDefaultConfig(
-        visibleCapabilities(agent, mode, allHiddenModels),
+    resolveInitialConfig: (agent, mode) => {
+      const saved = savedProviderTargetConfig(agent, mode, {
+        lastDraftConfig: props.lastDraftConfig,
+        providerConfigs,
+        providerModelPreferences,
+        hiddenModelsByAgent: allHiddenModels,
+      });
+      const capabilities = visibleCapabilities(agent, mode, allHiddenModels);
+      // The saved model arrives verbatim, without a check against this
+      // surface: it may have been hidden since, dropped from the catalog, or
+      // saved on the other presentation surface. It only takes precedence
+      // while the pickers can still offer it.
+      const savedModelUsable =
+        saved?.model !== undefined && capabilities.models.some((model) => model.id === saved.model);
+      return resolveDefaultConfig(
+        capabilities,
         mode,
         {
-          ...savedProviderTargetConfig(agent, mode, {
-            lastDraftConfig: props.lastDraftConfig,
-            providerConfigs,
-            providerModelPreferences,
-            hiddenModelsByAgent: allHiddenModels,
-          }),
-          ...preferredConfigPatch(proposedRanking),
+          // The model the user last selected for this provider wins as a
+          // whole tuple, exactly as a new-thread draft opens. The ranking's
+          // most-used tuple only fills in when no usable selection is saved,
+          // together with the saved non-model fields: spreading both tuples
+          // would let the ranked model stomp the saved one or leak its effort.
+          ...(savedModelUsable
+            ? saved
+            : {
+                ...(agent.kind === proposedRanking?.provider
+                  ? preferredConfigPatch(proposedRanking)
+                  : {}),
+                ...withoutLaunchSelection(saved),
+              }),
           ...sourceMcpConfig,
         },
         props.projectLocation,
-      ),
+      );
+    },
     projectLocation: props.projectLocation,
     lastDraftConfig: props.lastDraftConfig,
     providerConfigs,
@@ -262,6 +308,17 @@ export function ContinueInProviderDialog(props: {
     : undefined;
 
   const sourceCrew = threadCrewBinding(thread.config);
+  // The crew edited in this dialog: `undefined` leaves the source thread's crew
+  // carried over, `null` clears it, and a binding is a crew picked, built, or
+  // edited here. Once touched, submitting writes an explicit `crew: null` for a
+  // cleared crew instead of letting an in-place switch keep the source's.
+  const [crewEdit, setCrewEdit] = useState<ThreadCrewBinding | null | undefined>(undefined);
+  const crewTouched = crewEdit !== undefined;
+  const targetCrew = crewTouched ? (crewEdit ?? undefined) : sourceCrew;
+  const [crewOpenSignal, setCrewOpenSignal] = useState(0);
+  function commitTargetCrew(next: ThreadCrewBinding | undefined) {
+    setCrewEdit(next ?? null);
+  }
   const targetCanLeadCrew = Boolean(
     selectedAgent &&
     canLeadCrew(
@@ -269,9 +326,177 @@ export function ContinueInProviderDialog(props: {
       targetPresentationMode,
     ),
   );
-  const targetConfigForHandoff = sourceCrew
-    ? { ...targetConfig, crew: targetCanLeadCrew ? sourceCrew : null }
-    : targetConfig;
+  // The crew the continued thread will actually launch with: none when the
+  // target cannot lead one, so the crew stays behind. The roster, the picker's
+  // current crew, and the submitted config all follow this one value.
+  const launchCrew = targetCanLeadCrew ? targetCrew : undefined;
+  const targetConfigForHandoff =
+    sourceCrew || crewTouched ? { ...targetConfig, crew: launchCrew ?? null } : targetConfig;
+
+  // --- Crew selection (the same picker + roster the draft composer offers) ---
+  const roleTemplates = CREW_ROLE_TEMPLATE_DESCRIPTORS.map(({ brief, label, ...template }) => ({
+    ...template,
+    label: t(label),
+    ...(brief ? { brief: t(brief) } : {}),
+  }));
+  const crewLeadProviders = buildProviderModelMenuProviders(otherAgents, {
+    presentationMode: targetPresentationMode,
+    hiddenModelsByAgent: allHiddenModels,
+    filterAgent: (agent) =>
+      canLeadCrew(
+        capabilitiesForPresentation(agent.capabilities, targetPresentationMode),
+        targetPresentationMode,
+      ),
+  });
+  const targetLead = leadSelectionOf(selectedKind, targetConfig);
+  const crewsOffered = targetPresentationMode === "gui" || targetCanLeadCrew;
+  const defaultHelper = helperOptions.defaultSelectionFor(targetLead);
+  const modelLabelOf = (selection: CrewMemberSelection) =>
+    crewModelLabelOf(installedAgents, selection);
+  function leadFields(selection: CrewMemberSelection): Partial<ThreadConfig> {
+    return {
+      effort: selection.effort ?? "",
+      fast: selection.fast ?? false,
+      ...(selection.contextSize ? { contextSize: selection.contextSize } : {}),
+    };
+  }
+  function leadPatch(selection: CrewMemberSelection): Partial<ThreadConfig> {
+    return { model: selection.model, ...leadFields(selection) };
+  }
+  // The placeholder expressions are part of the Lingui message id, so they stay
+  // inline: this keeps the toast on the catalog entry the draft composer
+  // already ships translations for.
+  function warnLeadUnavailable(agentKind: string, provider: { label: string } | undefined) {
+    toast.warning(
+      t`${provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind} isn't available, so ${modelLabelOf(targetLead)} stays the lead.`,
+    );
+  }
+  function handleCrewChoice(choice: { crewId: string } | { newCrew: true }) {
+    // Same reasoning for `label`: the placeholder name is part of the message id.
+    const label = modelLabelOf(targetLead);
+    if ("newCrew" in choice) {
+      const sidekick = roleTemplates.find((template) => template.id === DEFAULT_CREW_ROLE_ID);
+      if (!defaultHelper || !sidekick) return;
+      commitTargetCrew(newCrewBinding(defaultHelper, sidekick));
+      // Open the roster for editing once it mounts: the crew control opens
+      // when the signal changes after its first commit, and React flushes
+      // this event's commit before the microtask runs.
+      queueMicrotask(() => setCrewOpenSignal((current) => current + 1));
+      return;
+    }
+    const saved = savedCrews.find((crew) => crew.id === choice.crewId);
+    if (!saved) return;
+    const binding = crewBindingFromSavedCrew(saved);
+    const target = crewLeadProviders.find((provider) => provider.kind === saved.lead.agentKind);
+    const targetModel = target?.capabilities.models.find(
+      (candidate) => candidate.id === saved.lead.model,
+    );
+    if (!target || !targetModel) {
+      // The crew's lead cannot continue this thread (unavailable, or the
+      // source provider itself, which this dialog never targets). Keep the
+      // crew under the current lead when it can lead one, like the draft.
+      if (!targetCanLeadCrew) {
+        toast.danger(t`${label} can't lead a crew. Pick another model first.`);
+        return;
+      }
+      commitTargetCrew(binding);
+      warnLeadUnavailable(saved.lead.agentKind, target);
+      return;
+    }
+    commitTargetCrew(binding);
+    handleProviderChange(saved.lead.agentKind, leadPatch(saved.lead));
+  }
+  const crewSection = crewsOffered
+    ? {
+        entries: savedCrews.map((crew) =>
+          crewPickerEntry(crew, helperOptions.modelLabelOf, {
+            lead: t`Lead`,
+            readOnly: t`Read-only`,
+          }),
+        ),
+        ...(launchCrew?.crewId ? { currentCrewId: launchCrew.crewId } : {}),
+        ...(launchCrew ? { current: { name: launchCrew.name ?? t`Crew` } } : {}),
+        canCreate: targetCanLeadCrew && defaultHelper !== undefined,
+        onSelect: handleCrewChoice,
+      }
+    : undefined;
+  function saveTargetCrew(crew: SavedCrew, binding: ThreadCrewBinding) {
+    upsertCrew(crew);
+    commitTargetCrew(binding);
+  }
+  const activeSavedCrew = savedCrewFor(launchCrew, savedCrews);
+  const crewRoster = launchCrew
+    ? {
+        binding: launchCrew,
+        lead: targetLead,
+        ...(activeSavedCrew ? { savedCrew: activeSavedCrew } : {}),
+        helperOptions,
+        roleTemplates,
+        leadProviders: crewLeadProviders,
+        ...(defaultHelper ? { defaultHelper } : {}),
+        summary: crewSummary(
+          modelLabelOf(targetLead),
+          launchCrew.roles,
+          helperOptions.modelLabelOf,
+        ),
+        isDraft: true,
+        isDisabled: false,
+        onBindingChange: (binding: ThreadCrewBinding) => commitTargetCrew(binding),
+        onLeadChange: (selection: CrewMemberSelection) => {
+          const kindChanged = selection.agentKind !== targetLead.agentKind;
+          if (kindChanged) {
+            // The roster's Reset hands back the saved crew's lead without
+            // going through `crewLeadProviders`. That lead can be the source
+            // provider (excluded from this dialog's targets) or an unavailable
+            // one; retargeting onto it would strand the dialog on an agent it
+            // does not offer, so keep the current lead.
+            const target = crewLeadProviders.find(
+              (provider) => provider.kind === selection.agentKind,
+            );
+            if (!target?.capabilities.models.some((model) => model.id === selection.model)) {
+              warnLeadUnavailable(selection.agentKind, target);
+              return;
+            }
+          }
+          if (kindChanged || selection.model !== targetLead.model) {
+            handleProviderChange(selection.agentKind, leadPatch(selection));
+          } else {
+            handleTargetConfigPatch(leadFields(selection));
+          }
+        },
+        onSaveToCrew: saveTargetCrew,
+        onSaveAsNewCrew: saveTargetCrew,
+        onEditInSettings: () => {
+          // Settings sit behind the modal — dismiss it first.
+          handleCancel();
+          openCrewsSettings(launchCrew.crewId);
+        },
+      }
+    : undefined;
+  // A thread that already ran with a crew keeps one: a plain pick only
+  // retargets its lead, as it did before crews could be picked here, so a
+  // roster edit or a swap to another crew can never drop it silently. A crew
+  // added to a plain thread is a selection like in the draft composer, so a
+  // plain pick leaves it. Crew picks bypass this handler: `handleCrewChoice`
+  // changes the lead directly.
+  const crewAwareControls = targetControls.map((control) =>
+    control.kind === "provider-model"
+      ? {
+          ...control,
+          onChange: (next: Parameters<typeof control.onChange>[0]) => {
+            if (targetCrew && !sourceCrew) commitTargetCrew(undefined);
+            control.onChange(next);
+          },
+        }
+      : control,
+  );
+  const dialogControls = crewSection
+    ? applyCrewComposerControls(crewAwareControls, {
+        crewSection,
+        ...(crewRoster ? { roster: crewRoster } : {}),
+        openSignal: crewOpenSignal,
+      })
+    : crewAwareControls;
 
   // --- Composer affordances (same set the normal composer offers) ---
   // The prompt typed here is the target provider's first turn, so it takes
@@ -746,7 +971,9 @@ export function ContinueInProviderDialog(props: {
 
   const canSubmit = Boolean(selectedKind && targetConfig.model) && !attachments.isUploading;
   const targetProviderFallback = t`the target provider`;
-  const sourceCrewName = sourceCrew?.name ?? t`Crew`;
+  // Named for the catalog entries the carry-over captions already ship with
+  // (the placeholder name is part of the Lingui message id).
+  const sourceCrewName = targetCrew?.name ?? t`Crew`;
   const targetProviderLabel = selectedAgent?.label ?? targetProviderFallback;
   const switchOpensNewThread = !continuesInPlace(sourcePresentationMode, targetPresentationMode);
 
@@ -781,11 +1008,13 @@ export function ContinueInProviderDialog(props: {
                         </Trans>
                       </p>
                     )}
-                    {sourceCrew ? (
+                    {targetCrew && !targetCanLeadCrew ? (
                       <p className="text-center text-xs text-muted">
-                        {targetCanLeadCrew
-                          ? t`${sourceCrewName} comes along.`
-                          : t`${sourceCrewName} stays behind: ${targetProviderLabel} can't lead a crew.`}
+                        {t`${sourceCrewName} stays behind: ${targetProviderLabel} can't lead a crew.`}
+                      </p>
+                    ) : launchCrew && !crewTouched ? (
+                      <p className="text-center text-xs text-muted">
+                        {t`${sourceCrewName} comes along.`}
                       </p>
                     ) : null}
                   </div>
@@ -827,7 +1056,7 @@ export function ContinueInProviderDialog(props: {
                       compact
                       variant="draft"
                       hideSubmitButton
-                      controls={targetControls}
+                      controls={dialogControls}
                       toolbarLayoutKey={[
                         selectedKind,
                         targetPresentationMode,
@@ -836,6 +1065,9 @@ export function ContinueInProviderDialog(props: {
                         targetConfig.contextSize ?? "",
                         targetConfig.fast ? "fast" : "normal",
                         targetConfig.thinking ? "thinking" : "standard",
+                        launchCrew
+                          ? `crew:${launchCrew.crewId ?? launchCrew.name ?? "custom"}:${launchCrew.roles.length}`
+                          : "no-crew",
                       ].join("|")}
                       attachmentBar={
                         <AttachmentBar

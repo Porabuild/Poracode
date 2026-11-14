@@ -319,8 +319,11 @@ msgstr "{0} está comparando los diffs anonimizados…"
 msgid "{0} is offline. Showing last known status."
 msgstr "{0} está sin conexión. Se muestra el último estado conocido."
 
+#. placeholder {0}: provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind
 #. placeholder {0}: target?.label ?? saved.lead.agentKind
 #. placeholder {1}: modelLabelOf(draftLead)
+#. placeholder {1}: modelLabelOf(targetLead)
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "{0} isn't available, so {1} stays the lead."
 msgstr "{0} no está disponible, así que {1} seguirá liderando."
@@ -685,6 +688,7 @@ msgstr "Clave API de {label}"
 msgid "{label} auto-refresh interval in minutes"
 msgstr "Intervalo de actualización automática de {label} en minutos"
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "{label} can't lead a crew. Pick another model first."
 msgstr "{label} no puede liderar un equipo. Elige otro modelo primero."
@@ -10732,6 +10736,7 @@ msgstr "Iniciar hilo"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 #: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/CrewDockSection.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -16050,6 +16055,7 @@ msgstr "Lee el panel Terminal de este worktree e informa de lo que está imprimi
 #~ msgstr "solo lectura"
 
 #: src/renderer/components/crew/CrewRoleDetails.tsx
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "Read-only"
