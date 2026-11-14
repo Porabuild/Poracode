@@ -16299,6 +16299,10 @@ msgstr "刷新 {label}"
 #~ msgid "Refresh {label} usage"
 #~ msgstr "刷新 {label} 的用量"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Refresh agent"
+msgstr "刷新智能体"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentsGeneralSettings.tsx
 msgid "Refresh detected agents"
 msgstr "刷新检测到的代理"
@@ -23687,8 +23691,8 @@ msgstr "紫色"
 
 #. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
-msgid "Visible {0} models"
-msgstr "可见{0}模型"
+#~ msgid "Visible {0} models"
+#~ msgstr "可见{0}模型"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

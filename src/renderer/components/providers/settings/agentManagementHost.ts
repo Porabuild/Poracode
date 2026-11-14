@@ -69,7 +69,7 @@ export interface AgentManagementHost {
     scope?: RefreshAgentScope,
   ): Promise<HostAgentStatusPools>;
   /** Starts fresh host discovery, including when no agents have been found yet. */
-  rediscoverAgents(wslDistros: string[]): Promise<HostAgentStatusPools>;
+  rediscoverAgents(wslDistros: string[], scope?: RefreshAgentScope): Promise<HostAgentStatusPools>;
 }
 
 export const LOCAL_AGENT_MANAGEMENT_HOST: AgentManagementHost = {
@@ -86,7 +86,8 @@ export const LOCAL_AGENT_MANAGEMENT_HOST: AgentManagementHost = {
     const response = await readBridge().refreshAgentStatuses(wslDistros, scope);
     return { windows: response.windows, wsl: response.wsl };
   },
-  rediscoverAgents: (wslDistros) => LOCAL_AGENT_MANAGEMENT_HOST.refreshAgentStatuses(wslDistros),
+  rediscoverAgents: (wslDistros, scope) =>
+    LOCAL_AGENT_MANAGEMENT_HOST.refreshAgentStatuses(wslDistros, scope),
 };
 
 function readRuntimeStatuses(connectionKey: string) {
@@ -151,10 +152,10 @@ function createRemoteAgentManagementHost(connectionKey: string): AgentManagement
       acpRegistryMutationResultSchema.parse(await call("updateAcpRegistryAgent", payload)),
     recordRegistryInstalls: () => undefined,
     refreshAgentStatuses: () => refreshRemoteAgentStatuses(connectionKey),
-    rediscoverAgents: async (wslDistros) => {
+    rediscoverAgents: async (wslDistros, scope) => {
       const generation = currentRemoteServerGeneration(connectionKey);
       const response = agentStatusesResponseSchema.parse(
-        await call("refreshAgentStatuses", { wslDistros }),
+        await call("refreshAgentStatuses", { wslDistros, ...(scope ? { scope } : {}) }),
       );
       return refreshRemoteAgentStatuses(connectionKey, {
         generation,

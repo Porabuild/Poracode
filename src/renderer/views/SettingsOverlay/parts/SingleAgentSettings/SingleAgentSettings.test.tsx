@@ -189,6 +189,7 @@ vi.mock("@heroui/react", () => {
     Switch,
     Tooltip,
     toast: toastMock,
+    useMediaQuery: () => true,
     Virtualizer: Wrapper,
   };
 });
@@ -549,6 +550,59 @@ describe("SingleAgentSettings", () => {
   const selectMachine = (machineId: string) => {
     act(() => useMachineSelectionStore.getState().setSelectedMachine(machineId));
   };
+
+  it("refreshes only the selected profile and machine and keeps pending state scoped", async () => {
+    const kind = "acp-generic:work";
+    statusesState.agentStatuses = [makeStatus(kind)];
+    statusesState.wslAgentStatuses = [makeStatus(kind, { envKind: "wsl", envDistro: "Ubuntu" })];
+    let finishRefresh!: (response: AgentStatusesResponse) => void;
+    refreshAgentStatusesMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishRefresh = resolve;
+      }),
+    );
+    render(<SingleAgentSettings agentKind={kind} />);
+    const refresh = screen.getByRole("button", { name: "Refresh agent" });
+    fireEvent.click(refresh);
+    expect(refreshAgentStatusesMock).toHaveBeenCalledExactlyOnceWith([], {
+      agentKinds: [kind],
+      envs: [{ kind: "native" }],
+    });
+    expect(refresh).toBeDisabled();
+    selectMachine("local/wsl:Ubuntu");
+    expect(screen.getByRole("button", { name: "Refresh agent" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh agent" }));
+    expect(refreshAgentStatusesMock).toHaveBeenLastCalledWith(["Ubuntu"], {
+      agentKinds: [kind],
+      envs: [{ kind: "wsl", distro: "Ubuntu" }],
+    });
+    selectMachine("local");
+    expect(screen.getByRole("button", { name: "Refresh agent" })).toBeDisabled();
+    await act(async () => {
+      finishRefresh({ windows: [], wsl: [], fromCache: false });
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Refresh agent" })).toBeEnabled(),
+    );
+  });
+
+  it("offers an individual probe before detection and allows retry after failure", async () => {
+    sharedSettingsState.agentInstances.fixture = {
+      id: "fixture",
+      driver: "acp-generic",
+      displayName: "Fixture",
+      enabled: true,
+    };
+    refreshAgentStatusesMock.mockRejectedValueOnce(new Error("Probe failed"));
+    render(<SingleAgentSettings agentKind="acp-generic:fixture" />);
+    fireEvent.click(screen.getByRole("button", { name: "Refresh agent" }));
+    await waitFor(() => expect(toastMock.danger).toHaveBeenCalledWith("Probe failed"));
+    expect(screen.getByRole("button", { name: "Refresh agent" })).toBeEnabled();
+    expect(refreshAgentStatusesMock).toHaveBeenCalledExactlyOnceWith([], {
+      agentKinds: ["acp-generic:fixture"],
+      envs: [{ kind: "native" }],
+    });
+  });
 
   it("shows configured provider metadata without inventing an installation verdict or starting a probe", () => {
     sharedSettingsState.agentInstances.fixture = {
@@ -1391,7 +1445,7 @@ describe("SingleAgentSettings", () => {
     await waitFor(() => expect(refreshAgentStatusesMock).toHaveBeenCalled());
   });
 
-  it("labels each Antigravity model surface with its runtime", () => {
+  it("combines an agent's model surfaces in one visibility selector", () => {
     const authed = makeAntigravityStatus("1.1.27", "1.1.1");
     const cliCapabilities = {
       ...baseCapabilities,
@@ -1423,9 +1477,8 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="antigravity" />);
 
-    expect(screen.getByText("Visible Antigravity CLI models")).toBeInTheDocument();
-    expect(screen.getByText("Visible Antigravity ACP models")).toBeInTheDocument();
-    expect(screen.queryByText("Visible Antigravity models")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Visible models")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Visible models" })).toHaveTextContent("2 / 2");
   });
 
   it("shows a native Windows install row when Grok is only installed in WSL", async () => {
@@ -2324,5 +2377,79 @@ describe("SingleAgentSettings", () => {
     await waitFor(() => expect(remoteClientMock.agentStatuses).toHaveBeenCalled());
     await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("Antigravity updated."));
     expect(remoteClientMock.agentStatuses).toHaveBeenCalledWith({ omitSlashCommands: true });
+  });
+
+  it.each([
+    ["online", null],
+    ["offline", null],
+    ["online", "Ubuntu"],
+  ] as const)("scopes remote refresh to one profile when %s in %s", async (status, distro) => {
+    const kind = "acp-generic:work";
+    const statuses = {
+      windows: [makeStatus(kind)],
+      wsl: distro ? [makeStatus(kind, { envKind: "wsl", envDistro: distro })] : [],
+      updatedAt: new Date(0).toISOString(),
+    };
+    appState.projects = [
+      makeProject({
+        id: "local-wsl",
+        name: "Local WSL",
+        location: {
+          kind: "wsl",
+          distro: "Debian",
+          linuxPath: "/project",
+          uncPath: "\\\\wsl.localhost\\Debian\\project",
+        },
+      }),
+    ];
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "conn-1",
+          desktopId: "conn-1",
+          label: "Studio",
+          endpoint: "https://conn-1.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: { "conn-1": { status, projects: [], threads: [], agentStatuses: statuses } },
+    });
+    remoteClientMock.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "refreshAgentStatuses")
+        return { windows: statuses.windows, wsl: [], fromCache: false };
+      if (procedure === "getLatestAgentVersion") return {};
+      throw new Error(`Unexpected procedure ${procedure}`);
+    });
+    remoteClientMock.agentStatuses.mockResolvedValue(statuses);
+    render(<SingleAgentSettings agentKind={kind} />);
+    selectMachine(distro ? `remote:conn-1/wsl:${distro}` : "remote:conn-1");
+    const refresh = screen.getByRole("button", { name: "Refresh agent" });
+    expect(refresh).toHaveProperty("disabled", status === "offline");
+    fireEvent.click(refresh);
+    await waitFor(() =>
+      expect(remoteClientMock.agentStatuses).toHaveBeenCalledTimes(status === "online" ? 1 : 0),
+    );
+    expect(
+      remoteClientMock.callRemoteProcedure.mock.calls.filter(
+        ([procedure]) => procedure === "refreshAgentStatuses",
+      ),
+    ).toEqual(
+      status === "online"
+        ? [
+            [
+              "refreshAgentStatuses",
+              {
+                wslDistros: distro ? [distro] : [],
+                scope: {
+                  agentKinds: [kind],
+                  envs: [distro ? { kind: "wsl", distro } : { kind: "native" }],
+                },
+              },
+            ],
+          ]
+        : [],
+    );
+    expect(refreshAgentStatusesMock).not.toHaveBeenCalled();
   });
 });
