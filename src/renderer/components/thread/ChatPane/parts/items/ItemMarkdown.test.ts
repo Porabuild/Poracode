@@ -43,6 +43,13 @@ describe("long streaming text", () => {
 });
 
 describe("normalizeShortCodeFenceClosers", () => {
+  it("preserves marker-free prefixes and repairs a closer once it arrives", () => {
+    const prefix = "## Heading\r\nFormatted **prose** and `inline code`.\r\n";
+    expect(normalizeShortCodeFenceClosers(prefix)).toBe(prefix);
+    expect(normalizeShortCodeFenceClosers(`${prefix}\`\`\`js\r\ncode\r\n\`\`\r\n`)).toBe(
+      `${prefix}\`\`\`js\r\ncode\r\n\`\`\`\r\n`,
+    );
+  });
   it("treats a two-backtick line as a closer inside a triple-backtick fence", () => {
     expect(
       normalizeShortCodeFenceClosers("before\n\n```text\nwriting is blocked\n``\n\nafter\n"),
@@ -55,6 +62,13 @@ describe("normalizeShortCodeFenceClosers", () => {
 });
 
 describe("normalizeGfmTableSeparators", () => {
+  it("preserves prose prefixes and normalizes a table appended during streaming", () => {
+    const prefix = "## Heading\n\nProse with **formatting**.\n\n";
+    expect(normalizeGfmTableSeparators(prefix)).toBe(prefix);
+    expect(normalizeGfmTableSeparators(`${prefix}| a | b |\n| --- |\n`)).toBe(
+      `${prefix}| a | b |\n| --- | --- |\n`,
+    );
+  });
   it("expands a short separator to match a wider header", () => {
     const input = "| a | b | c | d |\n|---|---|---|\n| 1 | 2 | 3 | 4 |\n";
     const out = normalizeGfmTableSeparators(input);

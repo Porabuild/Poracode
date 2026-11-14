@@ -3956,11 +3956,6 @@ html[data-platform="darwin"][data-client-host="electron"] .poracode-content-over
   contain: layout paint;
 }
 
-.poracode-git-diff-body {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 260px;
-}
-
 .poracode-window-header {
   background: var(--window-header-background);
 }
@@ -4221,17 +4216,6 @@ html[data-app-unfocused] .poracode-provider-icon--attention,
 html[data-app-hidden] .poracode-provider-icon--finished,
 html[data-app-unfocused] .poracode-provider-icon--finished {
   animation-timing-function: steps(9, jump-end);
-}
-
-/* Honour the OS "reduce motion" setting — drop the moving sweep/pulse entirely
-   and let the static glow + colour signal status. (The shine, thinking shimmer
-   and brain are JS-driven via thinkingAnimator.ts, which checks prefers-reduced-motion
-   itself and paints a single static frame.) */
-@media (prefers-reduced-motion: reduce) {
-  .poracode-provider-icon--attention,
-  .poracode-provider-icon--finished {
-    animation: none;
-  }
 }
 
 .poracode-provider-icon__shell {
@@ -6329,6 +6313,21 @@ html[data-poracode-drag-active="true"] [data-poracode-chat-scroller="true"] {
 .poracode-pixel-loader--animated .poracode-pixel-loader__cell {
   /* Prevent keyframe animation from thrashing with the CSS transition */
   transition: none !important;
+}
+
+/* Keep status colours and static glows without motion. The JS-driven shine,
+   text shimmer and brain handle the same preference in thinkingAnimator.ts. */
+@media (prefers-reduced-motion: reduce) {
+  .poracode-provider-icon--attention,
+  .poracode-provider-icon--finished,
+  .poracode-goal-active-icon__ring::before,
+  .poracode-goal-active-icon::after,
+  .poracode-plan-proposal-icon .poracode-plan-check-1,
+  .poracode-plan-proposal-icon .poracode-plan-check-2,
+  .poracode-compacting-icon {
+    animation: none;
+    will-change: auto;
+  }
 }
 
 /* ── Project notes editor (TipTap) ──────────────────────────────────

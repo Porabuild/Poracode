@@ -6,7 +6,6 @@ import "@git-diff-view/react/styles/diff-view.css";
 // Must match worker setting — enables pre-rendered HTML templates (dangerouslySetInnerHTML)
 setEnableFastDiffTemplate(true);
 import type { GitStatusResult, Project } from "@/shared/contracts";
-import type { DiffBuildItem } from "@/renderer/workers/diffBuildWorker";
 
 // Suppress noisy dev-only warnings from @git-diff-view/core
 {
@@ -19,7 +18,7 @@ import type { DiffBuildItem } from "@/renderer/workers/diffBuildWorker";
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common";
 import { GitFindBar } from "@/renderer/components/find/GitFindBar";
-import { buildInWorker, diffFileFromBundle, useDiffTheme } from "../diffBuildClient";
+import { useDiffTheme } from "../diffBuildClient";
 import { DiffSection } from "./parts/DiffSection";
 import { SingleFileDiff } from "./parts/SingleFileDiff";
 import {
@@ -54,15 +53,15 @@ export function GitDiffContent(props: {
     worktreePath,
   } = props;
   const theme = useDiffTheme();
+  const contentKey = `${JSON.stringify(project.location)}\0${refreshKey}`;
   const [entries, setEntries] = useState<DiffEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [panelReady, setPanelReady] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const singleFileScrollRef = useRef<HTMLDivElement>(null);
   const statusKeyRef = useRef<string | null>(null);
   const refreshKeyRef = useRef(refreshKey);
 
-  // Load batch diffs, then build DiffFile instances in a Web Worker
+  // Fetch patch text once; sections build their models only near the viewport.
   useEffect(() => {
     let cancelled = false;
     const forceRefresh = refreshKeyRef.current !== refreshKey;
@@ -78,7 +77,7 @@ export function GitDiffContent(props: {
         return;
       }
 
-      const statusKey = buildGitStatusKey(gitStatus);
+      const statusKey = `${JSON.stringify(project.location)}\0${buildGitStatusKey(gitStatus)}`;
       if (!forceRefresh && statusKeyRef.current === statusKey) {
         return;
       }
@@ -118,27 +117,6 @@ export function GitDiffContent(props: {
           ),
         ];
 
-        // Build DiffFile instances in the worker before showing entries
-        const workerItems: DiffBuildItem[] = populated
-          .filter((e) => !e.tooLarge && e.rawDiff.trim())
-          .map((e) => ({
-            key: entryKey(e),
-            diff: e.rawDiff,
-            oldName: e.oldName,
-            newName: e.newName,
-            fileLang: e.fileLang,
-          }));
-
-        if (workerItems.length > 0) {
-          const results = await buildInWorker(workerItems);
-          if (cancelled) return;
-          const resultMap = new Map(results.map((r) => [r.key, r]));
-          for (const e of populated) {
-            const r = resultMap.get(entryKey(e));
-            if (r?.bundle) e.diffFile = diffFileFromBundle(r.data, r.bundle);
-          }
-        }
-
         if (!cancelled) {
           statusKeyRef.current = statusKey;
           setEntries(populated);
@@ -161,32 +139,6 @@ export function GitDiffContent(props: {
   const filtered =
     diffFilter === "staged" ? entries.filter((e) => e.staged) : entries.filter((e) => !e.staged);
 
-  // Track staggered mount progress — loader hides when last DiffSection mounts.
-  // The counters live in refs because the mount callback fires from children;
-  // the visible readiness flag resets during render whenever a new batch of
-  // diffs (or the loading state) arrives.
-  const mountedCountRef = useRef(0);
-  const expectedCountRef = useRef(0);
-  const onSectionMounted = () => {
-    mountedCountRef.current++;
-    if (mountedCountRef.current >= expectedCountRef.current) {
-      setPanelReady(true);
-    }
-  };
-
-  const filteredWithDiffs = filtered.filter((e) => e.diffFile);
-  const readyKey = `${filteredWithDiffs.length}\0${loading ? "1" : "0"}`;
-  const [prevReadyKey, setPrevReadyKey] = useState<string | null>(null);
-  if (prevReadyKey !== readyKey) {
-    setPrevReadyKey(readyKey);
-    if (filteredWithDiffs.length === 0) setPanelReady(!loading);
-    else setPanelReady(false);
-  }
-  useEffect(() => {
-    mountedCountRef.current = 0;
-    expectedCountRef.current = filteredWithDiffs.length;
-  }, [expectedCountRef, filteredWithDiffs.length]);
-
   if (!gitStatus?.isRepo) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted">
@@ -195,21 +147,26 @@ export function GitDiffContent(props: {
     );
   }
 
-  const showLoader = (loading || !panelReady) && filtered.length > 0;
+  const showLoader = loading && filtered.length > 0 && !selectedFile;
 
   return (
     <div
       data-poracode-find-scope="git"
       className="poracode-git-diff-content relative h-full min-h-0"
     >
-      <GitFindBar containerRef={selectedFile ? singleFileScrollRef : scrollRef} />
+      <GitFindBar
+        key={selectedFile ?? diffFilter}
+        containerRef={selectedFile ? singleFileScrollRef : scrollRef}
+        contentKey={contentKey}
+        {...(!selectedFile ? { entries: filtered, diffMode } : {})}
+      />
       {showLoader && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--content-background)]">
           <PixelLoader size="lg" />
         </div>
       )}
 
-      <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto px-4">
+      <div ref={scrollRef} hidden={!!selectedFile} className="h-full min-h-0 overflow-y-auto px-4">
         {filtered.length === 0 && !loading && (
           <div className="flex items-center justify-center py-8 text-sm text-muted">
             {diffFilter === "staged" ? (
@@ -220,19 +177,21 @@ export function GitDiffContent(props: {
           </div>
         )}
         <div className="space-y-4">
-          {filtered.map((entry, i) => (
-            <DiffSection
-              key={entryKey(entry)}
-              entry={entry}
-              mode={diffMode}
-              theme={theme}
-              projectLocation={project.location}
-              projectId={project.id}
-              worktreePath={worktreePath}
-              mountDelay={i * 4}
-              onMounted={onSectionMounted}
-            />
-          ))}
+          {!loading &&
+            filtered.map((entry) => (
+              <DiffSection
+                key={entryKey(entry)}
+                entry={entry}
+                mode={diffMode}
+                theme={theme}
+                projectLocation={project.location}
+                projectId={project.id}
+                worktreePath={worktreePath}
+                scrollRef={scrollRef}
+                visible={!selectedFile}
+                contentKey={contentKey}
+              />
+            ))}
         </div>
       </div>
 
