@@ -61,15 +61,15 @@ export function AgentProfileList(props: {
   // The id `addProfile` will allocate, so a derived default matches what is
   // actually persisted.
   const draftId = uniqueProfileId(trimmedName, agentInstances);
-  const fieldPlaceholder = support.field.placeholderFor
+  const fieldPlaceholder = support.field?.placeholderFor
     ? support.field.placeholderFor(newName, draftId)
-    : support.field.placeholder
+    : support.field?.placeholder
       ? t(support.field.placeholder)
       : "";
   const canSubmit =
     trimmedName.length > 0 &&
     !isDuplicate &&
-    (support.field.required !== true || newField.trim().length > 0);
+    (support.field?.required !== true || newField.trim().length > 0);
 
   const closeAddForm = () => {
     setIsAdding(false);
@@ -102,7 +102,7 @@ export function AgentProfileList(props: {
         support.createPayload({
           id,
           displayName,
-          field: support.field.placeholderFor
+          field: support.field?.placeholderFor
             ? newField.trim() || support.field.placeholderFor(displayName, id)
             : newField.trim(),
         }),
@@ -265,7 +265,9 @@ export function AgentProfileList(props: {
 
         {isAdding ? (
           <div className="rounded-xl border border-border/15 bg-surface-secondary/30 p-3">
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] items-center gap-2">
+            <div
+              className={`grid items-center gap-2 ${support.field ? "grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]"}`}
+            >
               <Input
                 ref={nameInputRef}
                 aria-label={t`New profile name`}
@@ -276,23 +278,25 @@ export function AgentProfileList(props: {
                 onChange={(event) => setNewName(event.target.value)}
                 onKeyDown={submitOnEnter}
               />
-              <Input
-                aria-label={t(support.field.ariaLabel)}
-                className={`min-w-0${support.field.secret ? " font-mono text-xs" : ""}`}
-                placeholder={fieldPlaceholder}
-                value={newField}
-                disabled={isSaving}
-                onChange={(event) => setNewField(event.target.value)}
-                onKeyDown={submitOnEnter}
-                {...(support.field.secret
-                  ? {
-                      type: "password" as const,
-                      spellCheck: false,
-                      autoCapitalize: "off" as const,
-                      autoCorrect: "off" as const,
-                    }
-                  : {})}
-              />
+              {support.field ? (
+                <Input
+                  aria-label={t(support.field.ariaLabel)}
+                  className={`min-w-0${support.field.secret ? " font-mono text-xs" : ""}`}
+                  placeholder={fieldPlaceholder}
+                  value={newField}
+                  disabled={isSaving}
+                  onChange={(event) => setNewField(event.target.value)}
+                  onKeyDown={submitOnEnter}
+                  {...(support.field.secret
+                    ? {
+                        type: "password" as const,
+                        spellCheck: false,
+                        autoCapitalize: "off" as const,
+                        autoCorrect: "off" as const,
+                      }
+                    : {})}
+                />
+              ) : null}
               {/* Icon-only actions matching the saved rows' action pair, so the
                   action column keeps the same width when the draft opens. */}
               <div className="flex shrink-0 items-center gap-1 justify-self-end">

@@ -18,7 +18,7 @@ import { join } from "node:path";
 import JSON5 from "json5";
 import type { ProjectLocation, ResolvedMcpServer, ThreadConfig } from "@/shared/contracts";
 import { quotePosixShellArg, readAgentCommandOutput } from "../base";
-import { devinDefaultRoots, devinPosixJoin } from "./accountRoots";
+import { devinDefaultRoots, devinPosixJoin, prepareDevinWindowsHome } from "./accountRoots";
 import { devinDefaultConfigRoot } from "./credentials";
 import type { DevinExecutionContext } from "./profileContext";
 import { resolveDevinModel } from "./models";
@@ -335,6 +335,9 @@ done`;
  * the user's own and are never rewritten. Idempotent per launch.
  */
 export async function prepareDevinProfileLaunch(context: DevinExecutionContext): Promise<void> {
+  if (context.location.kind === "windows" && context.account.kind !== "default") {
+    await prepareDevinWindowsHome(context.roots.configRoot);
+  }
   if (!context.requiresConfigSeed || context.orgId === undefined) return;
   if (context.location.kind === "wsl") {
     await seedWslConfigView(context);
@@ -558,7 +561,15 @@ export async function planDevinProfileMcpOverlay(
           "mcp_config.json",
         );
         await writeFile(join(root, "devin", "mcp_config.json"), merged, { mode: 0o600 });
-        return { env: { [variable]: root }, cleanup };
+        return {
+          env: {
+            [variable]: root,
+            ...(location.kind === "windows"
+              ? { USERPROFILE: await prepareDevinWindowsHome(root) }
+              : {}),
+          },
+          cleanup,
+        };
       } catch (error) {
         await cleanup();
         throw error;

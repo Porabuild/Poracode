@@ -422,7 +422,7 @@ msgstr "{0} lần chạy"
 msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
 msgstr "{0} dùng chung đăng nhập riêng của hồ sơ này và sẽ mất đăng nhập cho đến khi chọn chủ sở hữu khác."
 
-#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#. placeholder {0}: loginDependents .map((dependent) => dependent.displayName ?? dependent.id) .join(", ")
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 msgstr "{0} đang dùng chung đăng nhập riêng của hồ sơ này. Hãy chuyển chúng sang chủ sở hữu khác trước — máy chủ từ chối thay đổi khiến chúng mất đăng nhập."
@@ -1313,6 +1313,10 @@ msgstr "Nhãn tài khoản cho {0}"
 msgid "Account options"
 msgstr "Tùy chọn tài khoản"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Account sharing and launch defaults."
+msgstr "Chia sẻ tài khoản và thiết lập khởi chạy mặc định."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
@@ -1534,6 +1538,10 @@ msgstr "Thêm hành động"
 msgid "Add an existing folder"
 msgstr "Thêm thư mục hiện có"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Add another Devin account with its own sign-in."
+msgstr "Thêm một tài khoản Devin khác với thông tin đăng nhập riêng."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "Thêm tệp đính kèm hoặc khả năng"
@@ -1736,6 +1744,7 @@ msgstr "Chuyển kết nối cũ"
 msgid "Advanced"
 msgstr "Nâng cao"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
 msgstr "Cài đặt nâng cao"
@@ -2260,8 +2269,8 @@ msgstr "Chế độ giao diện"
 #~ msgstr "Áp dụng cho một cuộc trò chuyện đám mây mới hoặc đang chờ trước tin nhắn đầu tiên của nó — cuộc trò chuyện đám mây đã có không gian làm việc sẽ giữ nguyên không gian đó. Để một lựa chọn ở \"Giữ lựa chọn hiện tại của Devin\" nghĩa là để Devin quyết định; điều này không khôi phục cài đặt trước đó."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
-msgstr "Áp dụng cho chế độ xem cấu hình của hồ sơ này (devin.org_id). Poracode không thể liệt kê các tổ chức mà một đăng nhập thuộc về; Devin xác thực id khi khởi động và tổ chức chưa được ủy quyền sẽ thất bại rõ ràng."
+#~ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+#~ msgstr "Áp dụng cho chế độ xem cấu hình của hồ sơ này (devin.org_id). Poracode không thể liệt kê các tổ chức mà một đăng nhập thuộc về; Devin xác thực id khi khởi động và tổ chức chưa được ủy quyền sẽ thất bại rõ ràng."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
@@ -3902,6 +3911,10 @@ msgstr "Chọn việc Poracode sẽ làm với pull request mới: không làm g
 #~ msgid "Choose when this machine stays awake."
 #~ msgstr "Chọn khi máy này được giữ ở trạng thái hoạt động."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
+msgstr "Chọn nơi bắt đầu các phiên mới. Dùng /handoff trong cuộc trò chuyện để chuyển một phiên hiện có."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
 msgstr "Chọn xem các tin nhắn trò chuyện được gửi khi tác nhân đang làm việc sẽ điều hướng phản hồi hiện tại hay được xếp hàng cho phản hồi tiếp theo. {followUpShortcut} sử dụng hành động ngược lại."
@@ -4060,6 +4073,10 @@ msgstr "CLI"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "CLI hooks"
 msgstr "Hook CLI"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "CLI MCP setup"
+msgstr "Thiết lập MCP cho CLI"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Click"
@@ -4892,8 +4909,8 @@ msgid "Config file (optional)"
 msgstr "Tệp cấu hình (tùy chọn)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Config file path (optional)"
-msgstr "Đường dẫn tệp cấu hình (tùy chọn)"
+#~ msgid "Config file path (optional)"
+#~ msgstr "Đường dẫn tệp cấu hình (tùy chọn)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
@@ -6835,8 +6852,8 @@ msgstr "Devin đề xuất một lệnh đã sửa; bạn xem xét nó trước 
 #~ msgstr "Devin trả về một danh sách cài đặt mà Poracode không thể diễn giải."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Devin's own login (default)"
-msgstr "Đăng nhập riêng của Devin (mặc định)"
+#~ msgid "Devin's own login (default)"
+#~ msgstr "Đăng nhập riêng của Devin (mặc định)"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Dictate prompts instead of typing them"
@@ -10793,6 +10810,10 @@ msgstr "Để trống để giữ thông tin xác thực hiện có hoặc dùng
 msgid "Leave blank to use the installed model catalog."
 msgstr "Để trống để dùng danh mục mô hình đã cài đặt."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Leave empty to use the organization selected by Devin. Set this only to choose a different organization for this account."
+msgstr "Để trống để dùng tổ chức do Devin chọn. Chỉ điền khi cần chọn tổ chức khác cho tài khoản này."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Để trống để dùng nhánh mặc định của kho lưu trữ."
@@ -11260,8 +11281,8 @@ msgid "Login source"
 msgstr "Nguồn đăng nhập"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
-msgstr "Nguồn đăng nhập, tệp cấu hình, tổ chức và môi trường chạy cho cấu hình này. Các tùy chọn của luồng như mô hình và phê duyệt vẫn ở bộ soạn."
+#~ msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+#~ msgstr "Nguồn đăng nhập, tệp cấu hình, tổ chức và môi trường chạy cho cấu hình này. Các tùy chọn của luồng như mô hình và phê duyệt vẫn ở bộ soạn."
 
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
@@ -11417,6 +11438,10 @@ msgstr "Quản lý các skill dùng chung trong phạm vi toàn cục và dự �
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Quản lý các skill dùng chung trên Windows, WSL và các dự án."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Manage the Devin account used by this profile."
+msgstr "Quản lý tài khoản Devin được dùng cho hồ sơ này."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12411,8 +12436,8 @@ msgid "Multilingual speech recognition."
 msgstr "Nhận dạng giọng nói đa ngôn ngữ."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
-msgstr "Nhiều cấu hình Devin dưới một đăng nhập — tệp cấu hình, tổ chức hoặc mặc định phê duyệt khác nhau — hoặc một đăng nhập thứ hai riêng biệt. Không bao giờ sao chép thông tin xác thực gốc."
+#~ msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+#~ msgstr "Nhiều cấu hình Devin dưới một đăng nhập — tệp cấu hình, tổ chức hoặc mặc định phê duyệt khác nhau — hoặc một đăng nhập thứ hai riêng biệt. Không bao giờ sao chép thông tin xác thực gốc."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
@@ -12470,10 +12495,6 @@ msgstr "Bản địa"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP configuration updated. Start a new CLI session to use it."
 msgstr "Đã cập nhật cấu hình MCP gốc. Hãy bắt đầu phiên CLI mới để sử dụng."
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
-msgid "Native MCP setup"
-msgstr "Thiết lập MCP gốc"
 
 #: src/renderer/components/providers/devin/sessionPersonas.tsx
 #~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
@@ -12614,8 +12635,8 @@ msgstr "Khóa API của hồ sơ Cursor mới"
 #~ msgstr "Tên hồ sơ Cursor mới"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "New Devin profile config file (optional)"
-msgstr "Tệp cấu hình hồ sơ Devin mới (tùy chọn)"
+#~ msgid "New Devin profile config file (optional)"
+#~ msgstr "Tệp cấu hình hồ sơ Devin mới (tùy chọn)"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
@@ -18705,8 +18726,8 @@ msgid "Share"
 msgstr "Chia sẻ"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Share another profile's isolated login"
-msgstr "Dùng chung đăng nhập riêng của hồ sơ khác"
+#~ msgid "Share another profile's isolated login"
+#~ msgstr "Dùng chung đăng nhập riêng của hồ sơ khác"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
@@ -23291,6 +23312,10 @@ msgstr "Dùng từ 2 đến 6 lần thử và thời gian chờ từ 1 đến 36
 msgid "Use a run limit between 1 and 100, or leave it empty."
 msgstr "Đặt giới hạn từ 1 đến 100 lượt chạy hoặc để trống."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use a separate account"
+msgstr "Dùng tài khoản riêng"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "Đặt giới hạn thời gian từ 1 đến 1440 phút."
@@ -23306,6 +23331,10 @@ msgstr "Dùng tài khoản"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Dùng ảnh từ thư mục dự án..."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use another profile's account"
+msgstr "Dùng tài khoản của hồ sơ khác"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Use as default for new worktrees"
@@ -23330,6 +23359,10 @@ msgstr "Dùng phông chữ mặc định"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "Sử dụng phiên được phát hiện?"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use Devin's main account"
+msgstr "Dùng tài khoản chính của Devin"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Use global (off)"

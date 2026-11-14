@@ -1,6 +1,15 @@
 import { homedir } from "node:os";
 import { join, posix } from "node:path";
-import { lstat, mkdir, readFile, writeFile, link, unlink } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  readFile,
+  writeFile,
+  link,
+  unlink,
+  realpath,
+  symlink,
+} from "node:fs/promises";
 import { createHash, randomBytes } from "node:crypto";
 import type { ProjectLocation } from "@/shared/contracts";
 import { quotePosixShellArg, readAgentCommandOutput } from "../base";
@@ -29,6 +38,55 @@ import { DEVIN_ACCOUNT_ROOT_FORMAT } from "./profileConfig";
 export function devinAccountRootSegment(ownerId: string): string {
   const base = ownerId.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 48) || "_";
   return `${base}-${createHash("sha256").update(ownerId).digest("hex")}`;
+}
+
+export function devinWindowsHomePath(root: string): string {
+  return join(root, ".poracode-devin-home");
+}
+
+/**
+ * Windows Known Folder APIs ignore APPDATA overrides (Devin 3000.12.32).
+ * Redirect their USERPROFILE expansion through junctions to the existing
+ * account directories. Format-1 credentials/config/session paths stay valid;
+ * no stored data or manifest changes, so no account-root version bump.
+ */
+export async function prepareDevinWindowsHome(root: string): Promise<string> {
+  const home = devinWindowsHomePath(root);
+  const appData = join(home, "AppData");
+  const roaming = join(appData, "Roaming");
+  // Non-recursive mkdir never follows an existing link or creates an
+  // unprovisioned account root during detection.
+  for (const path of [home, appData, roaming, join(appData, "Local")]) {
+    await mkdir(path).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "EEXIST") throw error;
+    });
+    if ((await lstat(path)).isSymbolicLink()) {
+      throw new DevinAccountRootGuardError(
+        `The Devin Windows profile path ${path} is a symbolic link; refusing to touch it.`,
+      );
+    }
+  }
+  for (const name of ["devin", "cognition"]) {
+    const source = join(root, name);
+    await mkdir(source).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "EEXIST") throw error;
+    });
+    if (name === "devin" && (await lstat(source)).isSymbolicLink()) {
+      throw new DevinAccountRootGuardError(
+        `The Devin account directory ${source} is a symbolic link; refusing to touch it.`,
+      );
+    }
+    const target = join(roaming, name);
+    await symlink(source, target, "junction").catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "EEXIST") throw error;
+    });
+    if ((await realpath(target)) !== (await realpath(source))) {
+      throw new DevinAccountRootGuardError(
+        `The Devin Windows profile path ${target} points outside its account; refusing to touch it.`,
+      );
+    }
+  }
+  return home;
 }
 
 /**

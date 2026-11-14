@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -41,6 +41,7 @@ import {
   devinDefaultRoots,
   devinPosixJoin,
   devinProfileConfigViewDir,
+  prepareDevinWindowsHome,
   provisionDevinAccountRoot,
   validateDevinAccountRoot,
 } from "./accountRoots";
@@ -70,6 +71,79 @@ const manifestFor = (ownerId: string, format = 1) =>
 async function tempBase() {
   return mkdtemp(join(tmpdir(), "poracode-devin-roots-"));
 }
+
+it("keeps a format-1 Windows account's credentials, config, resources and sessions in place", async () => {
+  const root = await tempBase();
+  try {
+    const manifest = manifestFor("backup");
+    await writeFile(join(root, "poracode-account.json"), manifest);
+    await mkdir(join(root, "devin", "cli"), { recursive: true });
+    await mkdir(join(root, "cognition", "skills"), { recursive: true });
+    await writeFile(join(root, "devin", "credentials.toml"), 'windsurf_api_key = "backup-fixture"');
+    await writeFile(join(root, "devin", "config.json"), '{"version":1}');
+    await writeFile(join(root, "devin", "cli", "sessions.db"), "backup-session");
+    await writeFile(join(root, "cognition", "skills", "fixture"), "backup-skill");
+    const home = await prepareDevinWindowsHome(root);
+    expect(await prepareDevinWindowsHome(root)).toBe(home);
+    const roaming = join(home, "AppData", "Roaming");
+    expect(await readFile(join(roaming, "devin", "credentials.toml"), "utf8")).toContain(
+      "backup-fixture",
+    );
+    expect(await readFile(join(roaming, "devin", "config.json"), "utf8")).toBe('{"version":1}');
+    expect(await readFile(join(roaming, "devin", "cli", "sessions.db"), "utf8")).toBe(
+      "backup-session",
+    );
+    expect(await readFile(join(roaming, "cognition", "skills", "fixture"), "utf8")).toBe(
+      "backup-skill",
+    );
+    await writeFile(
+      join(roaming, "devin", "credentials.toml"),
+      'windsurf_api_key = "rotated-fixture"',
+    );
+    expect(await readFile(join(root, "devin", "credentials.toml"), "utf8")).toContain(
+      "rotated-fixture",
+    );
+    expect(await readFile(join(root, "poracode-account.json"), "utf8")).toBe(manifest);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("refuses a Windows profile directory redirected outside the account", async () => {
+  const root = await tempBase();
+  try {
+    const home = join(root, ".poracode-devin-home");
+    const elsewhere = join(root, "elsewhere");
+    await mkdir(home);
+    await mkdir(elsewhere);
+    await symlink(elsewhere, join(home, "AppData"), "junction");
+    await expect(prepareDevinWindowsHome(root)).rejects.toThrow("symbolic link");
+    await expect(
+      readFile(join(elsewhere, "Roaming", "devin", "credentials.toml")),
+    ).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+it("refuses a Windows profile junction targeting another login", async () => {
+  const root = await tempBase();
+  try {
+    const home = await prepareDevinWindowsHome(root);
+    const roaming = join(home, "AppData", "Roaming");
+    const other = join(root, "other-login");
+    await mkdir(other);
+    await writeFile(join(other, "credentials.toml"), "other-account");
+    await rm(join(roaming, "devin"));
+    await symlink(other, join(roaming, "devin"), "junction");
+    await expect(prepareDevinWindowsHome(root)).rejects.toThrow("outside its account");
+    expect(await readFile(join(other, "credentials.toml"), "utf8")).toBe("other-account");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 it("builds every WSL path with POSIX separators, never the host platform join", () => {
   const roots = devinAccountRootsFor(wsl(), "work owner", "/home/wsluser");

@@ -1,3 +1,6 @@
+import { lstat, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AgentCapability, ProjectLocation } from "@/shared/contracts";
 import { dedupeAcpAuthMethods, probeAcpCapabilities, type AcpProbeResult } from "../acp";
 import {
@@ -25,6 +28,7 @@ import { prepareDevinProfileLaunch } from "./launchContext";
 import { resolveDevinVolatileCatalogScope } from "./volatileCatalog";
 import { resolveDevinAuthStateForContext } from "./profileAuth";
 import { DEVIN_GOAL_THREAD_TITLE_COMMAND } from "./goals";
+import { prepareDevinWindowsHome } from "./accountRoots";
 
 type DevinProbeAuthMethod = NonNullable<AcpProbeResult["authMethods"]>[number];
 
@@ -330,6 +334,13 @@ export function createDevinDetectionSpec(settings: DevinExecutionSettings): Dete
       if (!resolution.ok) return undefined;
       const context = resolution.context;
       const isCloud = context.runtimeTarget === "cloud";
+      const freshWindowsAccount =
+        ctx.location.kind === "windows" &&
+        context.account.kind !== "default" &&
+        !(await lstat(context.roots.configRoot).catch((error: NodeJS.ErrnoException) => {
+          if (error.code === "ENOENT") return undefined;
+          throw error;
+        }));
       const command = buildDevinCommand(
         ctx.location,
         [
@@ -358,7 +369,7 @@ export function createDevinDetectionSpec(settings: DevinExecutionSettings): Dete
         seedSucceeded = false;
       }
       const catalogPromise =
-        isCloud || !seedSucceeded
+        isCloud || !seedSucceeded || freshWindowsAccount
           ? Promise.resolve(undefined)
           : resolveDevinVolatileCatalogScope(context, ctx.signal)
               .then((volatileGeneration) =>
@@ -386,26 +397,42 @@ export function createDevinDetectionSpec(settings: DevinExecutionSettings): Dete
               // reports the negotiated ACP menu without a catalog instead.
               .catch(() => undefined);
       const configOptionMeta = devinProbeClientCapabilitiesMeta();
-      const probe = await probeAcpCapabilities(
-        command.command,
-        command.args,
-        getAgentProbeCwd(ctx.location),
-        {
-          ...(processCwd ? { processCwd } : {}),
-          ...(command.env ? { env: command.env } : {}),
-          ...(ctx.signal ? { signal: ctx.signal } : {}),
-          ...(configOptionMeta ? { clientCapabilitiesMeta: configOptionMeta } : {}),
-          timeoutMs: 30_000,
-          label: `devin:${ctx.location.kind}:${context.instanceId}`,
-          ...(isCloud
-            ? {
-                sessionProbe: "initialize-only" as const,
-                fsTextCapability: false,
-                terminalCapability: false,
-              }
-            : {}),
-        },
-      );
+      let probe: AcpProbeResult | undefined;
+      let probeRoot: string | undefined;
+      try {
+        if (freshWindowsAccount) {
+          // Negotiate login methods without provisioning the account or
+          // letting Windows fall back to the user's primary credentials.
+          probeRoot = await mkdtemp(join(tmpdir(), "poracode-devin-probe-"));
+          command.env = {
+            ...command.env,
+            APPDATA: probeRoot,
+            USERPROFILE: await prepareDevinWindowsHome(probeRoot),
+          };
+        }
+        probe = await probeAcpCapabilities(
+          command.command,
+          command.args,
+          getAgentProbeCwd(ctx.location),
+          {
+            ...(processCwd ? { processCwd } : {}),
+            ...(command.env ? { env: command.env } : {}),
+            ...(ctx.signal ? { signal: ctx.signal } : {}),
+            ...(configOptionMeta ? { clientCapabilitiesMeta: configOptionMeta } : {}),
+            timeoutMs: 30_000,
+            label: `devin:${ctx.location.kind}:${context.instanceId}`,
+            ...(isCloud || freshWindowsAccount
+              ? {
+                  sessionProbe: "initialize-only" as const,
+                  fsTextCapability: false,
+                  terminalCapability: false,
+                }
+              : {}),
+          },
+        );
+      } finally {
+        if (probeRoot) await rm(probeRoot, { recursive: true, force: true });
+      }
       const families = await catalogPromise;
       // Cloud prelaunch startability: the initialize-only probe can never see
       // a cloud `model` menu (no model option exists; the model role is the

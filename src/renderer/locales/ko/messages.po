@@ -422,7 +422,7 @@ msgstr "{0}회 실행"
 msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
 msgstr "{0}은(는) 이 프로필의 격리 로그인을 공유하며, 다른 소유자를 선택할 때까지 로그인을 잃습니다."
 
-#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#. placeholder {0}: loginDependents .map((dependent) => dependent.displayName ?? dependent.id) .join(", ")
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 msgstr "{0}은(는) 이 프로필의 격리 로그인을 공유합니다. 먼저 다른 소유자로 옮기세요 — 호스트는 로그인 없이 남겨지는 변경을 거부합니다."
@@ -1313,6 +1313,10 @@ msgstr "{0}의 계정 이름"
 msgid "Account options"
 msgstr "계정 옵션"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Account sharing and launch defaults."
+msgstr "계정 공유 및 시작 기본 설정입니다."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
@@ -1534,6 +1538,10 @@ msgstr "작업 추가"
 msgid "Add an existing folder"
 msgstr "기존 폴더 추가"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Add another Devin account with its own sign-in."
+msgstr "별도로 로그인하는 Devin 계정을 추가합니다."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "첨부 파일 또는 기능 추가"
@@ -1736,6 +1744,7 @@ msgstr "레거시 연결 채택"
 msgid "Advanced"
 msgstr "고급"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
 msgstr "고급 설정"
@@ -2260,8 +2269,8 @@ msgstr "모양 모드"
 #~ msgstr "새 클라우드 채팅 또는 대기 중인 클라우드 채팅의 첫 메시지 이전에 적용됩니다 — 이미 작업 영역이 있는 클라우드 채팅은 이를 유지합니다. 선택을 \"Devin의 현재 선택 유지\"로 두면 결정은 Devin에 맡겨지며, 이전 설정을 복원하지 않습니다."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
-msgstr "이 프로필의 설정 뷰(devin.org_id)에 적용됩니다. Poracode는 로그인이 속한 조직을 나열할 수 없으며, Devin이 시작 시 ID를 검증하여 권한 없는 조직은 눈에 띄게 실패합니다."
+#~ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+#~ msgstr "이 프로필의 설정 뷰(devin.org_id)에 적용됩니다. Poracode는 로그인이 속한 조직을 나열할 수 없으며, Devin이 시작 시 ID를 검증하여 권한 없는 조직은 눈에 띄게 실패합니다."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
@@ -3902,6 +3911,10 @@ msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세�
 #~ msgid "Choose when this machine stays awake."
 #~ msgstr "이 기기가 깨어 있는 상태를 유지할 시점을 선택하세요."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
+msgstr "새 세션을 시작할 위치를 선택하세요. 기존 세션을 옮기려면 채팅에서 /handoff를 사용하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
 msgstr "에이전트가 작업 중일 때 보낸 채팅 메시지를 현재 응답에 반영할지, 다음 응답을 위해 대기열에 넣을지 선택합니다. {followUpShortcut}는 반대 동작을 사용합니다."
@@ -4060,6 +4073,10 @@ msgstr "CLI"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "CLI hooks"
 msgstr "CLI 후크"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "CLI MCP setup"
+msgstr "CLI MCP 설정"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Click"
@@ -4892,8 +4909,8 @@ msgid "Config file (optional)"
 msgstr "설정 파일(선택 사항)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Config file path (optional)"
-msgstr "설정 파일 경로(선택 사항)"
+#~ msgid "Config file path (optional)"
+#~ msgstr "설정 파일 경로(선택 사항)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
@@ -6835,8 +6852,8 @@ msgstr "Devin이 수정된 명령어를 제안하며, 실행 전에 검토할 �
 #~ msgstr "Devin이 Poracode가 해석할 수 없는 설정 목록을 반환했습니다."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Devin's own login (default)"
-msgstr "Devin 자체 로그인(기본값)"
+#~ msgid "Devin's own login (default)"
+#~ msgstr "Devin 자체 로그인(기본값)"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Dictate prompts instead of typing them"
@@ -10793,6 +10810,10 @@ msgstr "기존 자격 증명을 유지하거나 환경 인증을 사용하려면
 msgid "Leave blank to use the installed model catalog."
 msgstr "설치된 모델 카탈로그를 사용하려면 비워 두세요."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Leave empty to use the organization selected by Devin. Set this only to choose a different organization for this account."
+msgstr "비워 두면 Devin이 선택한 조직을 사용합니다. 이 계정에서 다른 조직을 선택할 때만 설정하세요."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "비워 두면 저장소의 기본 브랜치를 사용합니다."
@@ -11260,8 +11281,8 @@ msgid "Login source"
 msgstr "로그인 소스"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
-msgstr "이 구성의 로그인 소스, 설정 파일, 조직, 런타임입니다. 모델과 승인 같은 스레드 설정은 컴포저에 남아 있습니다."
+#~ msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+#~ msgstr "이 구성의 로그인 소스, 설정 파일, 조직, 런타임입니다. 모델과 승인 같은 스레드 설정은 컴포저에 남아 있습니다."
 
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
@@ -11417,6 +11438,10 @@ msgstr "전역 및 프로젝트 범위의 공유 스킬을 관리합니다."
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Windows, WSL 및 프로젝트에서 공유 스킬을 관리합니다."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Manage the Devin account used by this profile."
+msgstr "이 프로필에서 사용하는 Devin 계정을 관리합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12411,8 +12436,8 @@ msgid "Multilingual speech recognition."
 msgstr "다국어 음성 인식."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
-msgstr "하나의 로그인 아래 여러 Devin 구성 — 서로 다른 설정 파일, 조직, 승인 기본값 — 또는 분리된 두 번째 로그인. 네이티브 자격 증명은 절대 복사되지 않습니다."
+#~ msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+#~ msgstr "하나의 로그인 아래 여러 Devin 구성 — 서로 다른 설정 파일, 조직, 승인 기본값 — 또는 분리된 두 번째 로그인. 네이티브 자격 증명은 절대 복사되지 않습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
@@ -12470,10 +12495,6 @@ msgstr "네이티브"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP configuration updated. Start a new CLI session to use it."
 msgstr "네이티브 MCP 구성이 업데이트되었습니다. 새 CLI 세션을 시작해 사용하세요."
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
-msgid "Native MCP setup"
-msgstr "네이티브 MCP 설정"
 
 #: src/renderer/components/providers/devin/sessionPersonas.tsx
 #~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
@@ -12614,8 +12635,8 @@ msgstr "새 Cursor 프로필 API 키"
 #~ msgstr "새 Cursor 프로필 이름"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "New Devin profile config file (optional)"
-msgstr "새 Devin 프로필 설정 파일(선택 사항)"
+#~ msgid "New Devin profile config file (optional)"
+#~ msgstr "새 Devin 프로필 설정 파일(선택 사항)"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
@@ -18705,8 +18726,8 @@ msgid "Share"
 msgstr "공유"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Share another profile's isolated login"
-msgstr "다른 프로필의 격리 로그인 공유"
+#~ msgid "Share another profile's isolated login"
+#~ msgstr "다른 프로필의 격리 로그인 공유"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
@@ -23291,6 +23312,10 @@ msgstr "시도 횟수는 2~6회, 대기 시간은 1~3600초로 설정하세요."
 msgid "Use a run limit between 1 and 100, or leave it empty."
 msgstr "실행 횟수 제한을 1~100회로 설정하거나 비워 두세요."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use a separate account"
+msgstr "별도 계정 사용"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "제한 시간을 1~1440분으로 설정하세요."
@@ -23306,6 +23331,10 @@ msgstr "계정 사용"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "프로젝트 폴더의 이미지 사용..."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use another profile's account"
+msgstr "다른 프로필의 계정 사용"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Use as default for new worktrees"
@@ -23330,6 +23359,10 @@ msgstr "기본 글꼴 사용"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "감지된 세션을 사용하시겠습니까?"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use Devin's main account"
+msgstr "Devin의 기본 계정 사용"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Use global (off)"

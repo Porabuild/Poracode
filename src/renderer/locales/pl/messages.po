@@ -422,7 +422,7 @@ msgstr "{0} uruchomień"
 msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
 msgstr "{0} korzystają z izolowanego loginu tego profilu i stracą dostęp do logowania, dopóki nie wybiorą innego właściciela."
 
-#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#. placeholder {0}: loginDependents .map((dependent) => dependent.displayName ?? dependent.id) .join(", ")
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 msgstr "{0} korzystają z izolowanego loginu tego profilu. Najpierw przenieś je do innego właściciela — host odrzuca zmiany, które pozostawiłyby je bez loginu."
@@ -1313,6 +1313,10 @@ msgstr "Etykieta konta dla {0}"
 msgid "Account options"
 msgstr "Opcje konta"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Account sharing and launch defaults."
+msgstr "Współdzielenie konta i domyślne ustawienia uruchamiania."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
@@ -1534,6 +1538,10 @@ msgstr "Dodaj akcję"
 msgid "Add an existing folder"
 msgstr "Dodaj istniejący folder"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Add another Devin account with its own sign-in."
+msgstr "Dodaj kolejne konto Devin z osobnym logowaniem."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "Dodaj załącznik lub możliwość"
@@ -1736,6 +1744,7 @@ msgstr "Przejmij starsze połączenie"
 msgid "Advanced"
 msgstr "Zaawansowane"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
 msgstr "Ustawienia zaawansowane"
@@ -2260,8 +2269,8 @@ msgstr "Tryb wyglądu"
 #~ msgstr "Stosowane do nowej lub oczekującej rozmowy w chmurze przed jej pierwszą wiadomością — rozmowa w chmurze, która ma już swój obszar roboczy, zachowuje go. Pozostawienie opcji „Zachowaj bieżący wybór Devin” pozostawia decyzję Devinowi; nie przywraca wcześniejszego ustawienia."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
-msgstr "Stosuje się do widoku konfiguracji tego profilu (devin.org_id). Poracode nie może wylistować organizacji należących do loginu; Devin sprawdza id przy uruchomieniu, a nieautoryzowana organizacja wywołuje widoczny błąd."
+#~ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+#~ msgstr "Stosuje się do widoku konfiguracji tego profilu (devin.org_id). Poracode nie może wylistować organizacji należących do loginu; Devin sprawdza id przy uruchomieniu, a nieautoryzowana organizacja wywołuje widoczny błąd."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
@@ -3902,6 +3911,10 @@ msgstr "Wybierz, co Poracode ma robić z nowymi pull requestami: nic, naprawiać
 #~ msgid "Choose when this machine stays awake."
 #~ msgstr "Wybierz, kiedy ten komputer pozostaje aktywny."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
+msgstr "Wybierz, gdzie mają się uruchamiać nowe sesje. Użyj /handoff na czacie, aby przenieść istniejącą sesję."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
 msgstr "Wybierz, czy wiadomości czatu wysłane podczas pracy agenta mają sterować bieżącą odpowiedzią, czy trafić do kolejki następnej odpowiedzi. {followUpShortcut} używa przeciwnego działania."
@@ -4060,6 +4073,10 @@ msgstr "interfejs wiersza polecenia"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "CLI hooks"
 msgstr "Haki CLI"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "CLI MCP setup"
+msgstr "Konfiguracja MCP w CLI"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Click"
@@ -4892,8 +4909,8 @@ msgid "Config file (optional)"
 msgstr "Plik konfiguracji (opcjonalnie)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Config file path (optional)"
-msgstr "Ścieżka pliku konfiguracji (opcjonalnie)"
+#~ msgid "Config file path (optional)"
+#~ msgstr "Ścieżka pliku konfiguracji (opcjonalnie)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
@@ -6835,8 +6852,8 @@ msgstr "Devin proponuje poprawione polecenie; przeglądasz je, zanim cokolwiek s
 #~ msgstr "Devin zwrócił listę ustawień, której Poracode nie potrafił zinterpretować."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Devin's own login (default)"
-msgstr "Własny login Devina (domyślny)"
+#~ msgid "Devin's own login (default)"
+#~ msgstr "Własny login Devina (domyślny)"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Dictate prompts instead of typing them"
@@ -10793,6 +10810,10 @@ msgstr "Pozostaw puste, aby zachować istniejące dane logowania lub użyć uwie
 msgid "Leave blank to use the installed model catalog."
 msgstr "Pozostaw puste, aby użyć zainstalowanego katalogu modeli."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Leave empty to use the organization selected by Devin. Set this only to choose a different organization for this account."
+msgstr "Pozostaw puste, aby używać organizacji wybranej przez Devin. Wypełnij tylko wtedy, gdy chcesz wybrać inną organizację dla tego konta."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Pozostaw puste, aby użyć domyślnej gałęzi repozytorium."
@@ -11260,8 +11281,8 @@ msgid "Login source"
 msgstr "Źródło logowania"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
-msgstr "Źródło logowania, plik konfiguracji, organizacja i środowisko uruchomieniowe dla tej konfiguracji. Ustawienia wątku, takie jak model i zatwierdzenia, pozostają w kompozytorze."
+#~ msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+#~ msgstr "Źródło logowania, plik konfiguracji, organizacja i środowisko uruchomieniowe dla tej konfiguracji. Ustawienia wątku, takie jak model i zatwierdzenia, pozostają w kompozytorze."
 
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
@@ -11417,6 +11438,10 @@ msgstr "Zarządzaj wspólnymi umiejętnościami w zakresach globalnym i projekto
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Zarządzaj wspólnymi umiejętnościami w Windows, WSL i projektach."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Manage the Devin account used by this profile."
+msgstr "Zarządzaj kontem Devin używanym przez ten profil."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12411,8 +12436,8 @@ msgid "Multilingual speech recognition."
 msgstr "Wielojęzyczne rozpoznawanie mowy."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
-msgstr "Wiele konfiguracji Devina pod jednym loginem — różne pliki konfiguracji, organizacje lub domyślne zatwierdzenia — albo izolowany drugi login. Natywne poświadczenia nigdy nie są kopiowane."
+#~ msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+#~ msgstr "Wiele konfiguracji Devina pod jednym loginem — różne pliki konfiguracji, organizacje lub domyślne zatwierdzenia — albo izolowany drugi login. Natywne poświadczenia nigdy nie są kopiowane."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
@@ -12470,10 +12495,6 @@ msgstr "Natywny"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP configuration updated. Start a new CLI session to use it."
 msgstr "Zaktualizowano natywną konfigurację MCP. Rozpocznij nową sesję CLI, aby z niej korzystać."
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
-msgid "Native MCP setup"
-msgstr "Natywna konfiguracja MCP"
 
 #: src/renderer/components/providers/devin/sessionPersonas.tsx
 #~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
@@ -12614,8 +12635,8 @@ msgstr "Klucz API nowego profilu Cursor"
 #~ msgstr "Nazwa nowego profilu Cursor"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "New Devin profile config file (optional)"
-msgstr "Nowy plik konfiguracji profilu Devina (opcjonalnie)"
+#~ msgid "New Devin profile config file (optional)"
+#~ msgstr "Nowy plik konfiguracji profilu Devina (opcjonalnie)"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
@@ -18705,8 +18726,8 @@ msgid "Share"
 msgstr "Udostępnij"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Share another profile's isolated login"
-msgstr "Udostępnij izolowany login innego profilu"
+#~ msgid "Share another profile's isolated login"
+#~ msgstr "Udostępnij izolowany login innego profilu"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
@@ -23291,6 +23312,10 @@ msgstr "Ustaw od 2 do 6 prób i opóźnienia od 1 do 3600 sekund."
 msgid "Use a run limit between 1 and 100, or leave it empty."
 msgstr "Ustaw limit od 1 do 100 uruchomień lub pozostaw pole puste."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use a separate account"
+msgstr "Użyj osobnego konta"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "Ustaw limit czasu od 1 do 1440 minut."
@@ -23306,6 +23331,10 @@ msgstr "Użyj konta"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Użyj obrazu z folderu projektu..."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use another profile's account"
+msgstr "Użyj konta innego profilu"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Use as default for new worktrees"
@@ -23330,6 +23359,10 @@ msgstr "Użyj domyślnej czcionki"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "Użyć wykrytej sesji?"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use Devin's main account"
+msgstr "Użyj głównego konta Devin"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Use global (off)"
