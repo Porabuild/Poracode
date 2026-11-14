@@ -157,6 +157,85 @@ describe("rankContinueProviders", () => {
 
     expect(ranked.map((entry) => entry.provider)).toEqual(["claude", "copilot", "codex"]);
   });
+
+  it("never proposes a hidden model, however much it was used", () => {
+    const ranked = rankContinueProviders(
+      [
+        agent("copilot", {
+          models: [
+            { id: "hidden-model", label: "Hidden" },
+            { id: "fast-model", label: "Fast" },
+            { id: "deep-model", label: "Deep" },
+          ],
+        }),
+      ],
+      {},
+      "gui",
+      crossagentRankingPreferences({
+        agentSelectionUsage: [
+          {
+            agentKind: "copilot",
+            modelId: "hidden-model",
+            effort: "high",
+            fast: false,
+            count: 9,
+            lastUsedAt: 30,
+          },
+          {
+            agentKind: "copilot",
+            modelId: "deep-model",
+            effort: "high",
+            fast: false,
+            count: 3,
+            lastUsedAt: 20,
+          },
+        ],
+      }),
+      () => ["hidden-model"],
+    );
+
+    // The dialog resolves the proposal against its visible surface, so a
+    // hidden preferred model would collapse to the first visible entry
+    // instead of the most-used visible one.
+    expect(ranked[0]?.preferredSelection.model).toBe("deep-model");
+  });
+
+  it("reads each agent's hidden models for the surface it will open on", () => {
+    const asked: Array<[string, string]> = [];
+
+    rankContinueProviders(
+      [agent("copilot"), agent("codex")],
+      { copilot: "terminal" },
+      "gui",
+      crossagentRankingPreferences({}),
+      (candidate, mode) => {
+        asked.push([candidate.kind, mode]);
+        return undefined;
+      },
+    );
+
+    expect(asked).toEqual([
+      ["copilot", "terminal"],
+      ["codex", "gui"],
+    ]);
+  });
+
+  it("defaults to the first visible model when the catalog head is hidden", () => {
+    const candidate = continueRankingCandidate(
+      agent("copilot", {
+        models: [
+          { id: "hidden-model", label: "Hidden" },
+          { id: "fast-model", label: "Fast" },
+          { id: "deep-model", label: "Deep" },
+        ],
+      }),
+      "gui",
+      ["hidden-model"],
+    );
+
+    expect(candidate.defaultModel).toBe("fast-model");
+    expect(candidate.models.map((model) => model.id)).toEqual(["fast-model", "deep-model"]);
+  });
 });
 
 describe("resolveInitialPresentationMode", () => {

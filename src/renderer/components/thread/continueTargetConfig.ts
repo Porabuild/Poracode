@@ -7,9 +7,9 @@ import type {
 } from "@/shared/contracts";
 import {
   capabilitiesForPresentation,
-  filterHiddenModels,
   resolveModelSelection,
   resolveReasoningSelection,
+  visibleModelCapabilities,
 } from "@/shared/agentSelection";
 import type { RankedCrossagentCandidate } from "@/shared/crossagentRanking";
 import { modelFamilyForModel } from "@/shared/modelFamilySelection";
@@ -23,7 +23,14 @@ import { launchSelectionFields, supportsUsableFastMode } from "./threadDraftView
  * resolved against it.
  */
 
-/** The model/reasoning/Fast values the ranked provider is normally launched with. */
+/**
+ * The model/reasoning/Fast values the ranked provider is normally launched
+ * with. `source` only names the provider-ranking bucket: a `built-in` source
+ * can still carry a learned selection (model-explicit crossagent usage
+ * resolves `preferredSelection` without promoting the provider), so the
+ * selection is taken as-is. Callers apply this only when no saved
+ * last-selected model takes precedence.
+ */
 export function preferredConfigPatch(
   ranked: RankedCrossagentCandidate | undefined,
 ): Partial<ThreadConfig> {
@@ -34,6 +41,27 @@ export function preferredConfigPatch(
     ...(selection.effort ? { effort: selection.effort } : {}),
     ...(selection.fast ? { fast: true } : {}),
   };
+}
+
+/**
+ * A saved config without the tuple that selects the launch model (the model,
+ * its effort, Fast, thinking and context size, and the selection binding that
+ * vouches for them). The rest of the saved posture, such as permissions, still
+ * carries over when a different model is chosen.
+ */
+export function withoutLaunchSelection(
+  config: Partial<ThreadConfig> | undefined,
+): Partial<ThreadConfig> {
+  const {
+    model: _model,
+    effort: _effort,
+    fast: _fast,
+    thinking: _thinking,
+    contextSize: _contextSize,
+    selectionBinding: _selectionBinding,
+    ...rest
+  } = config ?? {};
+  return rest;
 }
 
 function resolveContextSizeValue(
@@ -152,13 +180,8 @@ export function visibleCapabilities(
   presentationMode: ThreadPresentationMode,
   hiddenModelsByKey: Readonly<Record<string, readonly string[] | undefined>>,
 ): AgentCapability {
-  const presentationCapabilities = capabilitiesForPresentation(
-    agent.capabilities,
-    presentationMode,
-  );
-  const filtered = filterHiddenModels(
-    presentationCapabilities,
+  return visibleModelCapabilities(
+    capabilitiesForPresentation(agent.capabilities, presentationMode),
     hiddenModelsByKey[modelVisibilityKey(agent.kind, presentationMode)],
   );
-  return filtered.models.length > 0 ? filtered : presentationCapabilities;
 }
