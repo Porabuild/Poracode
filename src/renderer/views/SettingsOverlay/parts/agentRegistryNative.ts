@@ -83,7 +83,7 @@ export interface NativeAgentProfileSupport {
   driver: string;
   /** Copy under the shared "Profiles" heading. */
   description: ReactNode;
-  field: NativeAgentProfileField;
+  field?: NativeAgentProfileField;
   /**
    * Secondary line under a profile's name in the list. A component, not a
    * plain render function, so a provider can subscribe to its own settings

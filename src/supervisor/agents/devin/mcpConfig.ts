@@ -17,6 +17,7 @@ import { join } from "node:path";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import type { AcpSharedProcessPrepare } from "../acp";
 import { quotePosixShellArg, readAgentCommandOutput } from "../base";
+import { prepareDevinWindowsHome } from "./accountRoots";
 
 /**
  * Devin session MCP serialization for the disk-catalog overlay.
@@ -86,7 +87,7 @@ async function mirrorEntries(source: string, target: string, excluded: string) {
     throw error;
   });
   for (const name of entries) {
-    if (name === excluded || name.startsWith(".poracode-devin-config-")) continue;
+    if (name === excluded || name.startsWith(".poracode-devin-")) continue;
     const from = join(source, name),
       to = join(target, name);
     try {
@@ -190,7 +191,13 @@ export async function planDevinMcpConfigForRoots(
         await mkdir(join(root, "devin"));
         await mirrorEntries(join(original, "devin"), join(root, "devin"), "mcp_config.json");
         await writeFile(join(root, "devin", "mcp_config.json"), config, { mode: 0o600 });
-        return { env: { [variable]: root }, cleanup };
+        return {
+          env: {
+            [variable]: root,
+            ...(variable === "APPDATA" ? { USERPROFILE: await prepareDevinWindowsHome(root) } : {}),
+          },
+          cleanup,
+        };
       } catch (error) {
         await cleanup();
         throw error;

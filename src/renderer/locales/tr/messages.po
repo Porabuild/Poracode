@@ -422,7 +422,7 @@ msgstr "{0} çalıştırma"
 msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
 msgstr "{0} bu profilin yalıtılmış girişini paylaşıyor ve başka bir sahip seçene kadar oturumunu kaybedecek."
 
-#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#. placeholder {0}: loginDependents .map((dependent) => dependent.displayName ?? dependent.id) .join(", ")
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 msgstr "{0} bu profilin yalıtılmış girişini paylaşıyor. Önce onları başka bir sahipe taşıyın — ana makine, girişsiz bırakan değişiklikleri reddeder."
@@ -1313,6 +1313,10 @@ msgstr "{0} için hesap etiketi"
 msgid "Account options"
 msgstr "Hesap seçenekleri"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Account sharing and launch defaults."
+msgstr "Hesap paylaşımı ve başlangıç varsayılanları."
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
@@ -1534,6 +1538,10 @@ msgstr "İşlem ekle"
 msgid "Add an existing folder"
 msgstr "Mevcut klasör ekle"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Add another Devin account with its own sign-in."
+msgstr "Kendi oturum açma bilgilerine sahip başka bir Devin hesabı ekleyin."
+
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 msgid "Add attachment or capability"
 msgstr "Ek veya yetenek ekleyin"
@@ -1736,6 +1744,7 @@ msgstr "Eski bağlantıyı devral"
 msgid "Advanced"
 msgstr "Gelişmiş"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "Advanced settings"
 msgstr "Gelişmiş ayarlar"
@@ -2260,8 +2269,8 @@ msgstr "Görünüm modu"
 #~ msgstr "Yeni veya bekleyen bir bulut sohbetine ilk mesajından önce uygulanır — zaten bir çalışma alanı olan bulut sohbeti onu korur. Bir seçimi \"Devin'in mevcut seçimini koru\"da bırakmak kararı Devin'e bırakır; önceki bir ayarı geri getirmez."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
-msgstr "Bu profilin yapılandırma görünümüne (devin.org_id) uygulanır. Poracode bir girişin ait olduğu kuruluşları listeleyemez; Devin id'yi başlangıçta doğrular ve yetkisiz kuruluş görünür şekilde başarısız olur."
+#~ msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+#~ msgstr "Bu profilin yapılandırma görünümüne (devin.org_id) uygulanır. Poracode bir girişin ait olduğu kuruluşları listeleyemez; Devin id'yi başlangıçta doğrular ve yetkisiz kuruluş görünür şekilde başarısız olur."
 
 #: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Applies to both models"
@@ -3902,6 +3911,10 @@ msgstr "Poracode'un yeni pull request'lerde ne yapacağını seçin: hiçbir şe
 #~ msgid "Choose when this machine stays awake."
 #~ msgstr "Bu makinenin ne zaman uyanık kalacağını seçin."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Choose where new sessions start. Use /handoff in chat to transfer an existing session."
+msgstr "Yeni oturumların nerede başlayacağını seçin. Mevcut bir oturumu aktarmak için sohbette /handoff kullanın."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
 msgstr "Bir aracı çalışırken gönderilen sohbet mesajlarının mevcut yanıtı yönlendirmesini veya sonraki yanıt için kuyruğa alınmasını seçin. {followUpShortcut} ters eylemi kullanır."
@@ -4060,6 +4073,10 @@ msgstr "CLI"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "CLI hooks"
 msgstr "CLI kancaları"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "CLI MCP setup"
+msgstr "CLI MCP kurulumu"
 
 #: src/renderer/components/thread/ThreadAgentVisionDock.tsx
 msgid "Click"
@@ -4892,8 +4909,8 @@ msgid "Config file (optional)"
 msgstr "Yapılandırma dosyası (isteğe bağlı)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Config file path (optional)"
-msgstr "Yapılandırma dosyası yolu (isteğe bağlı)"
+#~ msgid "Config file path (optional)"
+#~ msgstr "Yapılandırma dosyası yolu (isteğe bağlı)"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Configuration from a newer Poracode"
@@ -6835,8 +6852,8 @@ msgstr "Devin revize edilmiş bir komut önerir; herhangi bir şey çalışmadan
 #~ msgstr "Devin, Poracode'un yorumlayamadığı bir ayar listesi döndürdü."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Devin's own login (default)"
-msgstr "Devin'in kendi girişi (varsayılan)"
+#~ msgid "Devin's own login (default)"
+#~ msgstr "Devin'in kendi girişi (varsayılan)"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Dictate prompts instead of typing them"
@@ -10793,6 +10810,10 @@ msgstr "Mevcut kimlik bilgilerini korumak veya ortam kimlik doğrulamasını kul
 msgid "Leave blank to use the installed model catalog."
 msgstr "Yüklü model kataloğunu kullanmak için boş bırakın."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Leave empty to use the organization selected by Devin. Set this only to choose a different organization for this account."
+msgstr "Devin tarafından seçilen kuruluşu kullanmak için boş bırakın. Yalnızca bu hesap için farklı bir kuruluş seçmek istiyorsanız doldurun."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Deponun varsayılan dalını kullanmak için boş bırakın."
@@ -11260,8 +11281,8 @@ msgid "Login source"
 msgstr "Giriş kaynağı"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
-msgstr "Bu yapılandırma için giriş kaynağı, yapılandırma dosyası, kuruluş ve çalışma zamanı. Model ve onaylar gibi konu ayarları bestecide kalır."
+#~ msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+#~ msgstr "Bu yapılandırma için giriş kaynağı, yapılandırma dosyası, kuruluş ve çalışma zamanı. Model ve onaylar gibi konu ayarları bestecide kalır."
 
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 #: src/renderer/components/providers/settings/ProviderCredentialAccounts.tsx
@@ -11417,6 +11438,10 @@ msgstr "Global ve proje kapsamlarındaki paylaşılan becerileri yönetin."
 #: src/renderer/views/SettingsOverlay/parts/SkillsSettings.tsx
 #~ msgid "Manage shared skills across Windows, WSL, and projects."
 #~ msgstr "Windows, WSL ve projeler genelindeki paylaşılan becerileri yönetin."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Manage the Devin account used by this profile."
+msgstr "Bu profilin kullandığı Devin hesabını yönetin."
 
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -12411,8 +12436,8 @@ msgid "Multilingual speech recognition."
 msgstr "Çok dilli konuşma tanıma."
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
-msgstr "Tek giriş altında birden çok Devin yapılandırması — farklı yapılandırma dosyaları, kuruluşlar veya onay varsayılanları — ya da yalıtılmış ikinci giriş. Yerel kimlik bilgileri asla kopyalanmaz."
+#~ msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+#~ msgstr "Tek giriş altında birden çok Devin yapılandırması — farklı yapılandırma dosyaları, kuruluşlar veya onay varsayılanları — ya da yalıtılmış ikinci giriş. Yerel kimlik bilgileri asla kopyalanmaz."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Multiple source remotes are configured. Set the branch upstream before reviewing."
@@ -12470,10 +12495,6 @@ msgstr "Yerel"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP configuration updated. Start a new CLI session to use it."
 msgstr "Yerel MCP yapılandırması güncellendi. Kullanmak için yeni bir CLI oturumu başlatın."
-
-#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
-msgid "Native MCP setup"
-msgstr "Yerel MCP kurulumu"
 
 #: src/renderer/components/providers/devin/sessionPersonas.tsx
 #~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
@@ -12614,8 +12635,8 @@ msgstr "Yeni Cursor profili API anahtarı"
 #~ msgstr "Yeni Cursor profili adı"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "New Devin profile config file (optional)"
-msgstr "Yeni Devin profil yapılandırma dosyası (isteğe bağlı)"
+#~ msgid "New Devin profile config file (optional)"
+#~ msgstr "Yeni Devin profil yapılandırma dosyası (isteğe bağlı)"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
@@ -18709,8 +18730,8 @@ msgid "Share"
 msgstr "Paylaş"
 
 #: src/renderer/components/providers/devin/profileSettings.tsx
-msgid "Share another profile's isolated login"
-msgstr "Başka bir profilin yalıtılmış girişini paylaş"
+#~ msgid "Share another profile's isolated login"
+#~ msgstr "Başka bir profilin yalıtılmış girişini paylaş"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
@@ -23295,6 +23316,10 @@ msgstr "2 ile 6 deneme ve 1 ile 3600 saniye arasında gecikmeler kullanın."
 msgid "Use a run limit between 1 and 100, or leave it empty."
 msgstr "1 ile 100 arasında bir çalıştırma sınırı girin veya boş bırakın."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use a separate account"
+msgstr "Ayrı bir hesap kullan"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Use a time limit between 1 and 1440 minutes."
 msgstr "1 ile 1440 dakika arasında bir süre sınırı kullanın."
@@ -23310,6 +23335,10 @@ msgstr "Hesabı kullan"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Use an image from the project folder..."
 msgstr "Proje klasöründen bir görsel kullan..."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use another profile's account"
+msgstr "Başka bir profilin hesabını kullan"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 msgid "Use as default for new worktrees"
@@ -23334,6 +23363,10 @@ msgstr "Varsayılan yazı tipini kullan"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "Algılanan oturum kullanılsın mı?"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Use Devin's main account"
+msgstr "Devin’in ana hesabını kullan"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 msgid "Use global (off)"

@@ -8,6 +8,7 @@ import {
   prepareDevinMcpConfig,
   prepareDevinMcpConfigForRoots,
 } from "./mcpConfig";
+import { prepareDevinWindowsHome } from "./accountRoots";
 const roots: string[] = [];
 afterEach(async () => {
   vi.unstubAllEnvs();
@@ -26,6 +27,35 @@ const servers = [
     },
   },
 ];
+
+it("uses the Windows Known Folder view of the overlay and preserves the account login", async () => {
+  const original = await mkdtemp(join(tmpdir(), "devin-windows-config-test-"));
+  roots.push(original);
+  await prepareDevinWindowsHome(original);
+  await writeFile(join(original, "devin", "credentials.toml"), "account-credential");
+  await writeFile(join(original, "devin", "mcp_config.json"), '{"mcpServers":{}}');
+  const overlay = await prepareDevinMcpConfigForRoots(
+    { kind: "windows", path: "C:\\project" },
+    { root: original, variable: "APPDATA", overlayParent: original },
+    servers,
+  );
+  try {
+    const effective = join(overlay.env!.USERPROFILE!, "AppData", "Roaming", "devin");
+    expect(await readFile(join(effective, "credentials.toml"), "utf8")).toBe("account-credential");
+    expect(JSON.parse(await readFile(join(effective, "mcp_config.json"), "utf8"))).toMatchObject({
+      mcpServers: { poracode: { command: "node" } },
+    });
+    await writeFile(join(effective, "credentials.toml"), "refreshed-credential");
+    expect(await readFile(join(original, "devin", "credentials.toml"), "utf8")).toBe(
+      "refreshed-credential",
+    );
+    expect(await readFile(join(original, "devin", "mcp_config.json"), "utf8")).toBe(
+      '{"mcpServers":{}}',
+    );
+  } finally {
+    await overlay.cleanup();
+  }
+});
 it("overlays the session catalog without modifying existing config or losing other apps", async () => {
   const original = await mkdtemp(join(tmpdir(), "devin-config-test-"));
   roots.push(original);

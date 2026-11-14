@@ -5,4 +5,6 @@
 // a level the live session has no select for, so it must be re-probed.
 // v75 rebuilds the GUI Fusion relation from the catalog so the live session
 // inventory can join pairs added after detection without another probe.
-export const devinStatusCachePolicy = { kind: "devin", minimumVersion: 75 };
+// v80 discards observations probed with APPDATA-only Windows isolation, which
+// could advertise the primary account's models and login methods for a profile.
+export const devinStatusCachePolicy = { kind: "devin", minimumVersion: 80 };

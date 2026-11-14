@@ -14,6 +14,7 @@ import {
   devinDefaultRoots,
   devinPosixJoin,
   devinProfileConfigViewDir,
+  devinWindowsHomePath,
   provisionDevinAccountRoot,
   validateDevinAccountRoot,
   type DevinAccountRoots,
@@ -263,6 +264,7 @@ export async function resolveDevinExecutionContext(
     }
     if (location.kind === "windows") {
       env.APPDATA = roots.configRoot;
+      env.USERPROFILE = devinWindowsHomePath(roots.configRoot);
     } else {
       env.XDG_CONFIG_HOME = roots.configRoot;
       env.XDG_DATA_HOME = roots.dataRoot;

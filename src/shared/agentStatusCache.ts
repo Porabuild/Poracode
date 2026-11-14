@@ -10,7 +10,7 @@ import {
 } from "./contracts/agent";
 
 // The supervisor, passive owner inventory, and renderer migration share this
-// codec. v67-v79 have compatible shapes; provider-owned policies invalidate only
+// codec. v67-v80 have compatible shapes; provider-owned policies invalidate only
 // changed derivations. Older/future generations still refuse in full. v71 adds
 // the optional workflow-mode capability fields; only Claude rows are re-probed.
 // v72 refreshes Pi models from the user's scoped settings.
@@ -24,9 +24,10 @@ import {
 // v78 re-probes Kimi capabilities so external models recover their optional
 // off/on thinking control instead of the legacy managed on-only workaround.
 // v79 refreshes Kimi's permission labels, defaults, and bypass selection.
+// v80 re-probes Devin accounts after correcting Windows Known Folder isolation.
 // Provider-only changes advance the producer and provider policy together;
 // incompatible shared changes also advance the minimum compatible generation.
-export const STATUS_CACHE_VERSION = 79;
+export const STATUS_CACHE_VERSION = 80;
 const MINIMUM_COMPATIBLE_STATUS_CACHE_VERSION = 67;
 
 export interface AgentStatusCacheSnapshot {
