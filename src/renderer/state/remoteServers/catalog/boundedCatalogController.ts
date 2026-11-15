@@ -92,7 +92,7 @@ export interface BoundedCatalogDeps {
     connectionKey: string,
     invoke: (client: RemoteDesktopClient) => Promise<Result>,
   ) => Promise<Result>;
-  readonly reportProtocolError: (connectionKey: string, error: unknown) => void;
+  readonly reportProtocolError: (connectionKey: string, error: unknown, kind?: CatalogKind) => void;
   readonly appliedThreadSeq: (connectionKey: string, threadId: string) => number | undefined;
   readonly connectionSeq: (connectionKey: string) => number;
   readonly bumpConnectionSeq: (connectionKey: string, seq: number) => void;
@@ -667,6 +667,7 @@ async function readPaintPage(
         active.reportProtocolError(
           connectionKey,
           new Error("A bounded paint response lost its reads echo."),
+          "threads",
         );
         return null;
       }
@@ -707,7 +708,7 @@ async function readPaintPage(
       proof: null,
     };
   } catch (error) {
-    reportIfProtocolError(active, connectionKey, error);
+    reportIfProtocolError(active, connectionKey, error, kind);
     return null;
   }
 }
@@ -915,6 +916,7 @@ async function runInventorySegment(connectionKey: string, kind: CatalogKind): Pr
             active.reportProtocolError(
               connectionKey,
               new Error("A bounded thread inventory response lost its reads echo."),
+              "threads",
             );
             return;
           }
@@ -944,7 +946,7 @@ async function runInventorySegment(connectionKey: string, kind: CatalogKind): Pr
           });
         }
       } catch (error) {
-        reportIfProtocolError(active, connectionKey, error);
+        reportIfProtocolError(active, connectionKey, error, kind);
         // A failed page leaves the walk in place; the connection's next
         // refresh/reconcile resumes or restarts it.
         if (kind === "threads") {
@@ -966,6 +968,7 @@ async function runInventorySegment(connectionKey: string, kind: CatalogKind): Pr
         active.reportProtocolError(
           connectionKey,
           new Error("The host repeated a bounded inventory cursor; restarting the pass."),
+          kind,
         );
         resetWalk(connectionKey, kind);
         return;
@@ -1074,7 +1077,7 @@ async function runDeletionGate(
         ),
       );
     } catch (error) {
-      reportIfProtocolError(active, connectionKey, error);
+      reportIfProtocolError(active, connectionKey, error, kind);
       return;
     }
     if (!attemptIsCurrent(connectionKey, state, attempt)) return;
@@ -1144,9 +1147,10 @@ function reportIfProtocolError(
   active: BoundedCatalogDeps,
   connectionKey: string,
   error: unknown,
+  kind?: CatalogKind,
 ): void {
   if (isRemoteBoundedReadProtocolError(error)) {
-    active.reportProtocolError(connectionKey, error);
+    active.reportProtocolError(connectionKey, error, kind);
   }
 }
 

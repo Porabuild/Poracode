@@ -2,6 +2,10 @@ import { useSyncExternalStore } from "react";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import {
+  isManagedLoopbackOffline,
+  subscribeManagedLoopbackOffline,
+} from "@/renderer/hostTransport/loopbackHttpWsTransport";
+import {
   getManagedRootCatalogStatus,
   subscribeManagedRootCatalogStatus,
 } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
@@ -29,6 +33,9 @@ export function useEntityHostReady(entity: {
 /**
  * Whether the host that owns a row has lost its connection (not merely still
  * connecting), whichever host that is: its view of the row may lag the host.
+ *
+ * A catalog read failure alone never marks the desktop's own host offline; the
+ * offline state follows the co-located loopback leg's real connection health.
  */
 export function useEntityHostOffline(entity: {
   readonly remoteServerId?: string | undefined;
@@ -40,9 +47,9 @@ export function useEntityHostOffline(entity: {
     const status = state.runtime[pairedKey]?.status;
     return status === "offline" || status === "error";
   });
-  const managedFailed = useSyncExternalStore(
-    subscribeManagedRootCatalogStatus,
-    () => getManagedRootCatalogStatus().status === "failed",
+  const managedOffline = useSyncExternalStore(
+    subscribeManagedLoopbackOffline,
+    isManagedLoopbackOffline,
   );
-  return pairedKey ? pairedOffline : managedFailed;
+  return pairedKey ? pairedOffline : managedOffline;
 }
