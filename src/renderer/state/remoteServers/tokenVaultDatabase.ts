@@ -1,4 +1,6 @@
-const DATABASE_NAME = "lightcode-mobile-vault";
+import { remotePairingStorage } from "./storageIdentity";
+
+const DATABASE_NAME = remotePairingStorage.vaultDatabase;
 const STORE_NAME = "entries";
 
 /** Runtime liveness policy only; the vault schema, key and ciphertext stay unchanged. */
