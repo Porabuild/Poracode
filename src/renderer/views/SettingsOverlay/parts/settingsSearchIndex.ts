@@ -665,8 +665,15 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "usage",
     anchor: "usage.showInSidebar",
     title: msg`Show circles in sidebar`,
-    description: msg`Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below.`,
+    description: msg`Show compact per-provider usage rings in the sidebar.`,
     keywords: "rings circle indicators usage gauge sidebar compact hide per provider",
+  },
+  {
+    section: "usage",
+    anchor: "usage.sidebarVisibility",
+    title: msg`Visible in sidebar`,
+    description: msg`Choose which providers show usage rings in the sidebar.`,
+    keywords: "rings circle indicators usage gauge sidebar compact hide show per provider",
   },
   {
     section: "usage",
