@@ -1,5 +1,11 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMisfirePolicy_bb479bc584: String, Codable, Sendable {
+  case `skip` = "skip"
+  case `coalesce` = "coalesce"
+  case `runU2DLatest` = "run-latest"
+}
+
 public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DModeU2DOptionU2D1U2DKind_046f6b1ae1: String, Codable, Sendable {
   case `newU2DThread` = "new-thread"
 }

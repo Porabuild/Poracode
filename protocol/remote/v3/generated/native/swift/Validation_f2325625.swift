@@ -29,6 +29,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_68b4b3341e5ced85 = RemoteSchema(type: "object", required: Set(["updatedAt", "windows", "wsl"]), properties: ["detecting": RemoteSchemas.schema_feeb8bb50144d96d, "updatedAt": RemoteSchemas.schema_36fea325bf1aca70, "windows": RemoteSchemas.schema_87cc7463d001a1f6, "wsl": RemoteSchemas.schema_87cc7463d001a1f6], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_6900ba2bd97d76fc = RemoteSchema(type: "object", required: Set(["branch", "projectLocation"]), properties: ["branch": RemoteSchemas.schema_36fea325bf1aca70, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27, "sourceBranchOverride": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
 }
 

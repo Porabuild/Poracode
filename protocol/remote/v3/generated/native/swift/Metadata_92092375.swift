@@ -8,14 +8,14 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:adc7e4695f2ae14b7ba2783c52d154a6a469c4c0bd96b55f1aac3bff37853ff8"
+  public static let sourceHash = "sha256:0094e6ced1dd80f7b16bb2f1d7503e12b004232afef1d5e97c568b94341b35ed"
   public static let manifestHash = "sha256:3e7df7fb4e1730e3551ebb8438ac97c73f845d8caa8170ab81dbd2bcc7efec9d"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
   public static let routes: [RemoteRouteDescriptor] = [
     .init(id: "agent-slash-commands", method: "GET", path: "/api/agents/{kind}/slash-commands", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteagentU2DSlashU2DCommandsResponse_d50d163800", queryCodecs: []),
-    .init(id: "agent-statuses", method: "GET", path: "/api/agent-statuses", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteagentU2DStatusesResponse_cade1cc704", queryCodecs: [.init(name: "slashCommands", kind: "0-or-1", optional: true, repeated: false)]),
+    .init(id: "agent-statuses", method: "GET", path: "/api/agent-statuses", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteagentU2DStatusesResponse_68b4b3341e", queryCodecs: [.init(name: "slashCommands", kind: "0-or-1", optional: true, repeated: false)]),
     .init(id: "attachment-upload", method: "POST", path: "/api/files/attachment", auth: "bearer", scopes: ["session:operate"], bodyKind: "raw-upload", responseKind: "json", status: 200, requestType: "Data", responseType: "ProcedurecloneRepoResult_6a0c18e639", queryCodecs: [.init(name: "threadId", kind: "string", optional: false, repeated: false), .init(name: "name", kind: "string", optional: false, repeated: false)]),
     .init(id: "automations-snapshot", method: "GET", path: "/api/automations", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteautomationsU2DSnapshotResponse_6d3a7935ec", queryCodecs: [.init(name: "filter", kind: "string", optional: false, repeated: false), .init(name: "limit", kind: "int", optional: true, repeated: false), .init(name: "cursor", kind: "string", optional: true, repeated: false), .init(name: "search", kind: "string", optional: true, repeated: false)]),
     .init(id: "browser-command", method: "POST", path: "/api/browser/command", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutebrowserU2DCommandRequest_80a9ff940d", responseType: "RoutebrowserU2DCommandResponse_1b7f16955d", queryCodecs: []),

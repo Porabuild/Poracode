@@ -3,14 +3,12 @@ import type { Thread, ThreadTurnInterruption } from "@/shared/contracts";
 // Metadata from thread states whose row write is still queued. Cut-off markers
 // also project into reads published before the write lands.
 type ThreadOwner = Pick<Thread, "id" | "agentKind">;
-const pendingInterruptedTurns = new Map<
-  string,
-  {
-    agentKind: Thread["agentKind"];
-    interruptedTurn: ThreadTurnInterruption | null;
-    turnStopRequested: boolean;
-  }
->();
+export interface PendingInterruptedTurnEntry {
+  agentKind: Thread["agentKind"];
+  interruptedTurn: ThreadTurnInterruption | null;
+  turnStopRequested: boolean;
+}
+const pendingInterruptedTurns = new Map<string, PendingInterruptedTurnEntry>();
 interface PendingThreadState {
   agentKind: Thread["agentKind"] | undefined;
   /** Null retires an earlier error even if its clearing state never reaches disk. */
@@ -66,12 +64,27 @@ export function settlePendingInterruptedTurn(threadId: string): void {
   pendingInterruptedTurns.delete(threadId);
 }
 
-export function withPendingInterruptedTurn(thread: Thread): Thread {
-  const pending = pendingInterruptedTurn(thread);
-  if (pending === undefined) return thread;
+export function snapshotPendingInterruptedTurns(): Record<string, PendingInterruptedTurnEntry> {
+  const snapshot: Record<string, PendingInterruptedTurnEntry> = {};
+  for (const [threadId, entry] of pendingInterruptedTurns) {
+    snapshot[threadId] = entry;
+  }
+  return snapshot;
+}
+
+export function applyPendingInterruptedTurn(
+  thread: Thread,
+  entry: PendingInterruptedTurnEntry | undefined,
+): Thread {
+  if (!entry || entry.agentKind !== thread.agentKind) return thread;
+  const pending = entry.interruptedTurn;
   if (pending !== null) return { ...thread, interruptedTurn: pending };
   const { interruptedTurn: _cleared, ...rest } = thread;
   return rest;
+}
+
+export function withPendingInterruptedTurn(thread: Thread): Thread {
+  return applyPendingInterruptedTurn(thread, pendingInterruptedTurns.get(thread.id));
 }
 
 export function resetPendingInterruptedTurnsForTests(): void {

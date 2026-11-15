@@ -3,7 +3,7 @@ import {
   seedThreadLiveReadState,
   ThreadLiveReadState,
 } from "@/host/remote/server/threadLiveReadState";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   Project,
   SessionConfigOptions,
@@ -11,8 +11,13 @@ import type {
   ThreadRuntimeSnapshot,
 } from "@/shared/contracts";
 import { agentStatusSchema } from "@/shared/contracts";
+import { remoteAgentStatusesSchema } from "@/shared/remote/protocol/resources";
 import type { RuntimeFenceToken } from "@/host/db/runtimePersistenceTypes";
 import type { RemoteServerContext } from "./context";
+import {
+  notePendingInterruptedTurn,
+  resetPendingInterruptedTurnsForTests,
+} from "./pendingInterruptedTurns";
 import { SessionConfigInventory } from "./sessionConfigInventory";
 import {
   buildAgentStatuses,
@@ -122,10 +127,15 @@ function context(
 }
 
 beforeEach(() => {
+  resetPendingInterruptedTurnsForTests();
   vi.mocked(dbGetProjects).mockReturnValue([]);
   vi.mocked(dbGetThread).mockReturnValue(dbRow());
   vi.mocked(dbGetThreads).mockReturnValue([dbRow()]);
   vi.mocked(dbGetThreadsPage).mockReturnValue({ threads: [dbRow()], nextCursor: null });
+});
+
+afterEach(() => {
+  resetPendingInterruptedTurnsForTests();
 });
 
 describe("agent snapshot WSL scope", () => {
@@ -165,6 +175,25 @@ describe("agent snapshot WSL scope", () => {
       ]);
     },
   );
+
+  it("publishes detecting: true only while agent detection cache is warming up", async () => {
+    const callSupervisor = vi
+      .fn<RemoteServerContext["options"]["callSupervisor"]>()
+      .mockResolvedValueOnce({ windows: [], wsl: [], fromCache: false } as never)
+      .mockResolvedValueOnce({ windows: [], wsl: [], fromCache: true } as never);
+    const ctx = context(new SessionConfigInventory(), callSupervisor);
+
+    const warming = await buildAgentStatuses(ctx);
+    expect(warming.detecting).toBe(true);
+
+    // Protocol 14 peers can omit or ignore the additive detection flag.
+    const previousResponse = remoteAgentStatusesSchema.omit({ detecting: true }).parse(warming);
+    expect(previousResponse).not.toHaveProperty("detecting");
+    expect(remoteAgentStatusesSchema.parse(previousResponse)).toEqual(previousResponse);
+
+    const warm = await buildAgentStatuses(ctx);
+    expect(warm.detecting).toBeUndefined();
+  });
 });
 
 describe("session-config pull enrichment", () => {
@@ -202,7 +231,7 @@ describe("session-config pull enrichment", () => {
     expect(snapshot.threads[0]).not.toHaveProperty("sessionConfigOptions");
   });
 
-  it("overlays the event inventory onto thread-list pages without pruning", () => {
+  it("overlays the event inventory and pending interrupted turn onto thread-list pages without pruning", () => {
     const inventory = new SessionConfigInventory();
     inventory.observeThreadState({
       threadId: "thread-1",
@@ -214,8 +243,10 @@ describe("session-config pull enrichment", () => {
       agentKind: "acp-agent",
       sessionConfigOptions: controls,
     });
+    notePendingInterruptedTurn({ id: "thread-1", agentKind: "acp-agent" }, "restart");
     const page = buildThreadListPage(context(inventory), { limit: 10 });
     expect(page.threads[0]?.sessionConfigOptions).toEqual(controls);
+    expect(page.threads[0]?.interruptedTurn).toBe("restart");
     // A bounded page cannot vouch for absence, so it never prunes.
     expect(inventory.entryFor("deleted-thread")).toBeDefined();
   });

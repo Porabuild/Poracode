@@ -315,18 +315,21 @@ public struct RouteagentU2DStatusesQuery_b09b259cd2: Codable, Sendable, RemoteMo
   }
 }
 
-public struct RouteagentU2DStatusesResponse_cade1cc704: Codable, Sendable, RemoteModelMetadata {
+public struct RouteagentU2DStatusesResponse_68b4b3341e: Codable, Sendable, RemoteModelMetadata {
+  public var detecting: RemoteField<Bool> = .missing
   public var updatedAt: String
   public var windows: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]
   public var wsl: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "detecting", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "updatedAt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "windows", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "wsl", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case detecting = "detecting"
     case updatedAt = "updatedAt"
     case windows = "windows"
     case wsl = "wsl"
@@ -441,9 +444,3 @@ public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapsh
 }
 
 public typealias RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMaxIterations_e82ae39cda = Int64?
-
-public enum RouteautomationsU2DSnapshotResponseU2DRunsU2DItemU2DAutomationSnapshotU2DMisfirePolicy_bb479bc584: String, Codable, Sendable {
-  case `skip` = "skip"
-  case `coalesce` = "coalesce"
-  case `runU2DLatest` = "run-latest"
-}

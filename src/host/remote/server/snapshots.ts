@@ -340,7 +340,9 @@ function projectThreadListPage(
   page: ReturnType<typeof readLegacyThreadCatalog>,
 ): RemoteThreadListPage {
   return remoteThreadListPageSchema.parse({
-    threads: page.threads.map((thread) => ctx.sessionConfigInventory.enrichThreadRow(thread)),
+    threads: page.threads.map((thread) =>
+      withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+    ),
     runtimeSummariesByThread: runtimeSummariesFor(page.threads, page.summaries),
     gitSummariesByThread: gitSummariesFor(ctx, page.threads),
     nextCursor: page.nextCursor,
@@ -379,6 +381,7 @@ export async function buildAgentStatuses(
     withStableUpdatedAt("agent-statuses", {
       windows,
       wsl,
+      ...(statuses.fromCache === false ? { detecting: true } : {}),
     }),
   );
 }

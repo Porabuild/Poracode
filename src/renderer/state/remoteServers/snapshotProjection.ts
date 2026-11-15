@@ -348,6 +348,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       if (current.agentStatuses === statuses) return state;
       if (
         current.agentStatuses &&
+        (current.agentStatuses.detecting ?? false) === (statuses.detecting ?? false) &&
         JSON.stringify(current.agentStatuses.windows) === JSON.stringify(statuses.windows) &&
         JSON.stringify(current.agentStatuses.wsl) === JSON.stringify(statuses.wsl)
       ) {
@@ -369,7 +370,9 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     if (page.gitSummariesByThread) {
       syncRemoteGitSummaries(connectionKey, page.gitSummariesByThread);
     }
-    if (page.gitState) syncRemoteGitStateSnapshot(connectionKey, page.gitState);
+    if (page.gitState) {
+      syncRemoteGitStateSnapshot(connectionKey, page.gitState, page.snapshotEpoch);
+    }
   };
 
   const loadAgentSlashCommands = async (desktopId: string, agentKind: string): Promise<void> => {
@@ -499,7 +502,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       const resumeFenceAtStart = remoteServerResumeFence(desktopId);
       const crossedEpochChange = (): boolean => {
         if (remoteServerResumeFence(desktopId) === resumeFenceAtStart) return false;
-        get().scheduleServerRefresh(desktopId);
+        get().scheduleServerRefresh(desktopId, { includeAgentStatuses: true });
         return true;
       };
       // Replace the whole runtime entry; snapshots are kept across a
@@ -604,6 +607,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           agentStatuses === undefined
             ? current?.agentStatuses
             : current?.agentStatuses &&
+                (current.agentStatuses.detecting ?? false) === (agentStatuses.detecting ?? false) &&
                 JSON.stringify(current.agentStatuses.windows) ===
                   JSON.stringify(agentStatuses.windows) &&
                 JSON.stringify(current.agentStatuses.wsl) === JSON.stringify(agentStatuses.wsl)
@@ -656,7 +660,9 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         if (snapshot.gitSummariesByThread) {
           syncRemoteGitSummaries(desktopId, snapshot.gitSummariesByThread);
         }
-        if (snapshot.gitState) syncRemoteGitStateSnapshot(desktopId, snapshot.gitState);
+        if (snapshot.gitState) {
+          syncRemoteGitStateSnapshot(desktopId, snapshot.gitState, snapshot.snapshotEpoch);
+        }
         const openThread = get().openThread;
         if (
           threadsChanged &&

@@ -364,15 +364,16 @@ describe("syncRemoteGitStateSnapshot", () => {
     expect(useGitStore.getState().prData[WORKTREE]).toBeNull();
   });
 
-  it("ignores a stale snapshot and a stale patch", () => {
+  it("ignores a stale snapshot and a stale patch on the same epoch, but accepts a lower revision after an epoch change", () => {
     const projectRef = { hostId: HOST, projectId: PROJECT };
     syncRemoteGitStateSnapshot(
       HOST,
       makeSnapshot({
-        revision: 2,
+        revision: 10,
         prTitle: "Latest",
         project: makeProjectState(projectRef, { status: makeStatus({ behind: 4 }) }),
       }),
+      "e1",
     );
 
     syncRemoteGitStateSnapshot(
@@ -382,6 +383,7 @@ describe("syncRemoteGitStateSnapshot", () => {
         prTitle: "Stale",
         project: makeProjectState(projectRef, { status: makeStatus({ behind: 9 }) }),
       }),
+      "e1",
     );
     syncRemoteGitStatePatch(HOST, {
       revision: 1,
@@ -392,9 +394,24 @@ describe("syncRemoteGitStateSnapshot", () => {
       },
     });
 
-    const store = useGitStore.getState();
+    let store = useGitStore.getState();
     expect(store.prData[WORKTREE]).toMatchObject({ title: "Latest" });
     expect(store.statuses[remoteProjectId(HOST, PROJECT)]?.behind).toBe(4);
+
+    // Host restarted with a new epoch and reset gitState revision to 2.
+    syncRemoteGitStateSnapshot(
+      HOST,
+      makeSnapshot({
+        revision: 2,
+        prTitle: "Restarted host",
+        project: makeProjectState(projectRef, { status: makeStatus({ behind: 1 }) }),
+      }),
+      "e2",
+    );
+
+    store = useGitStore.getState();
+    expect(store.prData[WORKTREE]).toMatchObject({ title: "Restarted host" });
+    expect(store.statuses[remoteProjectId(HOST, PROJECT)]?.behind).toBe(1);
   });
 });
 
