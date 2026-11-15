@@ -10,12 +10,14 @@ import {
 } from "@/renderer/state/rendererEventInterests";
 import { useRunningThreadRuntime } from "./useRunningThreadRuntime";
 
+const runtime = vi.hoisted(() => ({ managed: true }));
+
 vi.mock("@/renderer/state/dbStorage", () => ({
   createDbStorage: () => ({ getItem: () => null, setItem: () => {}, removeItem: () => {} }),
 }));
 
 vi.mock("@/renderer/state/managedRootCatalog/rootCatalogCommands", () => ({
-  isManagedRootDesktopRuntime: () => true,
+  isManagedRootDesktopRuntime: () => runtime.managed,
 }));
 vi.mock("@/renderer/state/chatRuntimePersister", async (original) => ({
   ...(await original<typeof import("@/renderer/state/chatRuntimePersister")>()),
@@ -52,7 +54,8 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("keeps both running threads covered across navigation and retires settled ownership", async () => {
+it.each([true, false])("retains running chats across navigation (%s)", async (managed) => {
+  runtime.managed = managed;
   const unsubscribe = subscribeRendererEventInterests((snapshot) =>
     noteRendererEventInterestWireCoverage(snapshot.runtimeThreadIds),
   );
@@ -83,12 +86,15 @@ it("keeps both running threads covered across navigation and retires settled own
   unsubscribe();
 });
 
-it("waits for readiness, covers running threads on every host, and leaves terminals to their stream", async () => {
+it.each([true, false])("retains chats after readiness (%s)", async (managed) => {
+  runtime.managed = managed;
   useAppStore.setState({
     threads: [
       thread("gui"),
       { ...thread("terminal"), presentationMode: "terminal" },
       { ...thread("remote"), remoteServerId: "other-host", remoteId: "remote" },
+      thread("idle", "idle"),
+      { ...thread("archived"), archived: true },
     ],
   });
   const { rerender, unmount } = renderHook(({ enabled }) => useRunningThreadRuntime(enabled), {
