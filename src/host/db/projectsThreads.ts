@@ -299,7 +299,7 @@ export function dbUpsertThread(
       // the desktop/backend-host database connections.
       const isNewRow =
         sqlite.prepare("SELECT 1 FROM threads WHERE id = ?").get(thread.id) === undefined;
-      const options = { writeThreadStatusSource: true } as const;
+      const options = { writeThreadStatusSource: true, writeErrorMessage: true } as const;
       runThreadUpsert(prepareThreadUpsertStatement(sqlite, options), thread, sortOrder, options);
       if (isNewRow) noteMainCreatedThread(thread.id);
       if (interruptedTurn !== undefined) {

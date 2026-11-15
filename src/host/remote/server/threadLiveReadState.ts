@@ -16,6 +16,7 @@ type RuntimeLevel = Pick<
   | "agentKind"
   | "status"
   | "attention"
+  | "errorMessage"
   | "activeTurnStartedAt"
   | "lastTurnStartedAt"
   | "lastTurnEndedAt"
@@ -41,7 +42,8 @@ export class ThreadLiveReadState {
       this.runtimeLevels.delete(thread.id);
       return undefined;
     }
-    return { ...thread, ...level };
+    const { errorMessage: _previousError, ...withoutError } = thread;
+    return { ...withoutError, ...level };
   }
 
   projectSnapshotRuntime(
@@ -84,11 +86,17 @@ export class ThreadLiveReadState {
       const thread = dbGetThread(event.threadId);
       if (!thread || event.agentKind === undefined || event.agentKind !== thread.agentKind) return;
       const previous = this.runtimeThreadFor(thread) ?? thread;
+      const errorMessage =
+        event.status === "error"
+          ? (event.errorMessage ??
+            (previous.status === "error" ? previous.errorMessage : undefined))
+          : undefined;
       this.touch(event.threadId, "runtime");
       this.runtimeLevels.set(event.threadId, {
         agentKind: thread.agentKind,
         status: event.status,
         attention: event.attention,
+        ...(errorMessage ? { errorMessage } : {}),
         ...deriveThreadTurnTiming(previous, event.status, new Date().toISOString()),
       });
     } else if (event.type === "thread-follow-up-queue") {
@@ -189,6 +197,7 @@ export async function seedThreadLiveReadState(
         canResumeWithConfig: thread.canResumeWithConfig,
         agentKind: thread.agentKind,
         sessionConfigOptions: entry.options,
+        ...(runtimeThread.errorMessage ? { errorMessage: runtimeThread.errorMessage } : {}),
       });
     }
   }

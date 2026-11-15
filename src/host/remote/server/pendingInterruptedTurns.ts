@@ -1,7 +1,7 @@
 import type { Thread, ThreadTurnInterruption } from "@/shared/contracts";
 
-// Cut-off markers from thread states whose row write is still queued. The
-// state is published before that write lands, so reads must show them too.
+// Metadata from thread states whose row write is still queued. Cut-off markers
+// also project into reads published before the write lands.
 type ThreadOwner = Pick<Thread, "id" | "agentKind">;
 const pendingInterruptedTurns = new Map<
   string,
@@ -11,11 +11,21 @@ const pendingInterruptedTurns = new Map<
     turnStopRequested: boolean;
   }
 >();
-const pendingThreadStates = new Map<string, object>();
+interface PendingThreadState {
+  agentKind: Thread["agentKind"] | undefined;
+  /** Null retires an earlier error even if its clearing state never reaches disk. */
+  errorMessage: string | null;
+}
+const pendingThreadStates = new Map<string, PendingThreadState>();
 
 /** Admission tokens fence callbacks retained by the control queue across rewind. */
-export function notePendingThreadState(threadId: string, token: object): void {
+export function notePendingThreadState(threadId: string, token: PendingThreadState): void {
   pendingThreadStates.set(threadId, token);
+}
+
+export function pendingThreadErrorMessage(thread: ThreadOwner): string | null | undefined {
+  const pending = pendingThreadStates.get(thread.id);
+  return pending?.agentKind === thread.agentKind ? pending.errorMessage : undefined;
 }
 
 export function isPendingThreadStateCurrent(threadId: string, token: object): boolean {

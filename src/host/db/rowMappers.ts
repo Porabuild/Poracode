@@ -54,6 +54,7 @@ export interface ThreadRow {
   config: string;
   status: string;
   attention: string;
+  error_message: string | null;
   thread_status_source: string | null;
   can_resume_with_config: number;
   session_ref: string | null;
@@ -174,6 +175,7 @@ export function rowToThread(row: ThreadRow): Thread {
     config: readPersistedThreadConfig(row.config),
     status: row.status as Thread["status"],
     attention: row.attention as Thread["attention"],
+    ...(row.status === "error" && row.error_message ? { errorMessage: row.error_message } : {}),
     ...(row.thread_status_source
       ? { threadStatusSource: row.thread_status_source as Thread["threadStatusSource"] }
       : {}),

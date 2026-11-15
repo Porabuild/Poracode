@@ -31,6 +31,7 @@ import {
   isPendingThreadStateCurrent,
   retirePendingThreadState,
   pendingInterruptedTurn,
+  pendingThreadErrorMessage,
   resetPendingInterruptedTurnsForTests,
 } from "./pendingInterruptedTurns";
 import { persistThreadStateEvent } from "./threadStatePersistence";
@@ -224,12 +225,32 @@ function dispatchPersist(
       if (thread && event.agentKind !== undefined && event.agentKind !== thread.agentKind) {
         return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
       }
+      // A newer state replaces a queued one. Keep the complete error level so
+      // rebroadcasts retain details, while a coalesced retry still clears them.
+      const owner =
+        thread ??
+        (event.agentKind !== undefined
+          ? { id: event.threadId, agentKind: event.agentKind }
+          : undefined);
+      const pendingError = owner ? pendingThreadErrorMessage(owner) : undefined;
+      const previousError =
+        pendingError !== undefined
+          ? pendingError
+          : thread?.status === "error"
+            ? thread.errorMessage
+            : undefined;
+      const admission = {
+        agentKind: thread?.agentKind ?? event.agentKind,
+        errorMessage:
+          event.status === "error" ? (event.errorMessage ?? previousError ?? null) : null,
+      };
+      const persistedEvent = { ...event, errorMessage: admission.errorMessage ?? "" };
       // Stop must reach disk before a reset can classify the active row as
-      // interrupted. Retire any older queued state after the write succeeds.
+      // interrupted. It also needs queued details when Stop follows a failure.
       if (
         thread &&
         event.turnStopRequested &&
-        runRuntimeControlWrite(() => persistThreadStateEvent(event), event.threadId).ok
+        runRuntimeControlWrite(() => persistThreadStateEvent(persistedEvent), event.threadId).ok
       ) {
         retirePendingThreadState(event.threadId);
         return { kind: "publish", event };
@@ -239,9 +260,6 @@ function dispatchPersist(
       // write was actually queued. A refused control reserve means the row
       // would never be rebuilt, so publishing the state would claim a durable
       // transition that does not exist.
-      // A newer state replaces a queued one, but the cut-off marker is only
-      // reported when it changes, so carry it into the write that replaced it.
-      const admission = {};
       const queued = enqueueRuntimeControlOperation({
         key: `thread-state:${event.threadId}`,
         describe: `thread-state ${event.threadId}`,
@@ -266,14 +284,14 @@ function dispatchPersist(
           if (thread) {
             const interruptedTurn = pendingInterruptedTurn(thread);
             persistThreadStateEvent({
-              ...event,
+              ...persistedEvent,
               // Legacy events without an owner are bound at admission, so a
               // provider switch while queued cannot adopt them either.
               agentKind: thread.agentKind,
               ...(interruptedTurn === undefined ? {} : { interruptedTurn }),
             });
           } else {
-            persistThreadStateEvent(event);
+            persistThreadStateEvent(persistedEvent);
           }
           retirePendingThreadState(event.threadId);
         },
