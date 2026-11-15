@@ -6,6 +6,7 @@ import {
   type IncomingHttpHeaders,
   type Server as HttpServer,
 } from "node:http";
+import { request as httpsRequestNode } from "node:https";
 import { connect, createServer as createNetServer, type AddressInfo, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -41,10 +42,16 @@ import { emptyGitStateSnapshot } from "@/shared/gitState";
 import {
   isCleartextLanUrl,
   normalizePairingEndpoint,
+  parsePairingCertFingerprint,
   parsePairingUrlParts,
 } from "@/shared/remote/pairingUrl";
 import type { BrowserPanelManager } from "@/host/browser/types";
 import { SettingsWriteRefusedError } from "@/backend/settings/settingsCompatWrites";
+import {
+  isUnauthorizedRemoteError,
+  RemoteClientError,
+  RemoteDesktopClient,
+} from "@/shared/remote/client";
 import {
   dbAppendThreadCompletedTurn,
   dbApplyThreadRuntimeEvents,
@@ -94,6 +101,7 @@ import * as remoteConfig from "./config";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
 import { PortProxy } from "./portForward/portProxy";
+import { generateSelfSignedTlsMaterial } from "./server/tlsMaterial";
 import { rawRequestWithAuthority } from "./portForward/testFixtures";
 import {
   RemoteAccessServer,
@@ -292,6 +300,46 @@ function getFreePort(): Promise<number> {
       const port = typeof address === "object" && address ? address.port : 0;
       probe.close(() => resolve(port));
     });
+  });
+}
+
+function httpsRequestWithAuthority(input: {
+  readonly port: number;
+  readonly path: string;
+  readonly authority: string;
+  readonly method?: string;
+  readonly headers?: Record<string, string>;
+  readonly body?: string;
+}): Promise<{
+  readonly status: number;
+  readonly headers: IncomingHttpHeaders;
+  text(): Promise<string>;
+}> {
+  return new Promise((resolve, reject) => {
+    const req = httpsRequestNode(
+      {
+        host: "127.0.0.1",
+        port: input.port,
+        path: input.path,
+        method: input.method ?? "GET",
+        rejectUnauthorized: false,
+        headers: { host: input.authority, ...input.headers },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            headers: res.headers,
+            text: async () => Buffer.concat(chunks).toString("utf8"),
+          }),
+        );
+      },
+    );
+    req.once("error", reject);
+    if (input.body !== undefined) req.write(input.body);
+    req.end();
   });
 }
 
@@ -831,6 +879,306 @@ describe("RemoteAccessServer", () => {
     } finally {
       tailnet.mockRestore();
     }
+  });
+
+  it("publishes a Tailnet endpoint without replacing loopback access or pairing credentials", async () => {
+    const pairingAppUrl = "https://pairing.poracode.test/app";
+    const onPairingChanged = vi.fn<() => void>();
+    const tls = generateSelfSignedTlsMaterial({
+      commonName: "desktop.tailnet.ts.net",
+      dnsNames: ["desktop.tailnet.ts.net"],
+    });
+    const server = createTestServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "advertised-endpoint-test", label: "Advertised endpoint test" },
+      host: "127.0.0.1",
+      port: 0,
+      pairingAppUrl,
+      tls,
+      onPairingChanged,
+      truncateThreadRuntime: () => {},
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const initial = await server.start();
+    const loopbackEndpoint = initial.localHttpBaseUrl;
+    const loopbackPort = Number(new URL(loopbackEndpoint).port);
+    const desktopPairing = parsePairingUrlParts(initial.pairingUrl);
+    expect(desktopPairing).not.toBeNull();
+    const rendererGrant = server.mintLoopbackRendererCredential();
+    expect(rendererGrant?.endpoint).toBe(loopbackEndpoint);
+    expect(rendererGrant).not.toBeNull();
+    const rendererPairing = parsePairingUrlParts(rendererGrant!.pairingUrl);
+    expect(rendererPairing).not.toBeNull();
+
+    const tokenResponse = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/oauth/token",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grantType: "pairing-token",
+        credential: rendererPairing!.token,
+        scopes: ["session:read"],
+      }),
+    });
+    expect(tokenResponse.status).toBe(200);
+    const rendererToken = JSON.parse(await tokenResponse.text()) as { accessToken: string };
+
+    const tailnetOrigin = "https://desktop.tailnet.ts.net";
+    const beforePublication = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/.well-known/poracode/environment",
+      authority: "desktop.tailnet.ts.net",
+      headers: { origin: tailnetOrigin },
+    });
+    expect(beforePublication.status).toBe(403);
+    await expect(beforePublication.text()).resolves.toContain("origin_not_allowed");
+
+    const tailnetHostBeforePublication = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "desktop.tailnet.ts.net",
+      headers: { origin: loopbackEndpoint, authorization: `Bearer ${rendererToken.accessToken}` },
+    });
+    expect(tailnetHostBeforePublication.status).toBe(403);
+    await expect(tailnetHostBeforePublication.text()).resolves.toContain("host_not_allowed");
+
+    onPairingChanged.mockClear();
+    const published = server.publishAdvertisedEndpoint({
+      advertisedBaseUrl: tailnetOrigin,
+      tailscaleHttpBaseUrl: tailnetOrigin,
+    });
+    expect(published).toMatchObject({
+      httpBaseUrl: `${tailnetOrigin}/`,
+      localHttpBaseUrl: loopbackEndpoint,
+      wsBaseUrl: "wss://desktop.tailnet.ts.net/",
+      tailscaleHttpBaseUrl: tailnetOrigin,
+      pairingExpiresAt: initial.pairingExpiresAt,
+    });
+    expect(onPairingChanged).toHaveBeenCalledOnce();
+    expect(server.getInfo()).toEqual(published);
+    expect(normalizePairingEndpoint(published.pairingUrl)).toBe(tailnetOrigin);
+    expect(new URL(published.pairingUrl).origin).toBe(new URL(pairingAppUrl).origin);
+    expect(parsePairingUrlParts(published.pairingUrl)?.token).toBe(desktopPairing!.token);
+    expect(parsePairingCertFingerprint(published.pairingUrl)).toBe(tls.fingerprint);
+
+    const tailnetPreflight = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `desktop.tailnet.ts.net`,
+      method: "OPTIONS",
+      headers: {
+        origin: tailnetOrigin,
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(tailnetPreflight.status).toBe(204);
+    expect(tailnetPreflight.headers["access-control-allow-origin"]).toBe(tailnetOrigin);
+
+    const tailnetRequest = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "desktop.tailnet.ts.net",
+      headers: {
+        origin: tailnetOrigin,
+        authorization: `Bearer ${rendererToken.accessToken}`,
+      },
+    });
+    expect(tailnetRequest.status).toBe(200);
+    expect(tailnetRequest.headers["access-control-allow-origin"]).toBe(tailnetOrigin);
+
+    const existingLoopbackRequest = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      headers: { authorization: `Bearer ${rendererToken.accessToken}` },
+    });
+    expect(existingLoopbackRequest.status).toBe(200);
+    expect(server.getInfo()?.localHttpBaseUrl).toBe(loopbackEndpoint);
+
+    const arbitraryHost = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "attacker.example",
+    });
+    expect(arbitraryHost.status).toBe(403);
+    await expect(arbitraryHost.text()).resolves.toContain("host_not_allowed");
+
+    const arbitraryOrigin = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "OPTIONS",
+      headers: {
+        origin: "https://attacker.example",
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(arbitraryOrigin.status).toBe(403);
+  });
+
+  it("returns retryable startup errors for unknown hosts and origins while Tailnet publication is pending", async () => {
+    let advertisedEndpointPending = true;
+    const tls = generateSelfSignedTlsMaterial({
+      commonName: "desktop.tailnet.ts.net",
+      dnsNames: ["desktop.tailnet.ts.net"],
+    });
+    const server = createTestServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "pending-endpoint-test", label: "Pending endpoint test" },
+      host: "127.0.0.1",
+      port: 0,
+      tls,
+      isAdvertisedEndpointPending: () => advertisedEndpointPending,
+      truncateThreadRuntime: () => {},
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const initial = await server.start();
+    const loopbackEndpoint = initial.localHttpBaseUrl;
+    const loopbackPort = Number(new URL(loopbackEndpoint).port);
+    const rendererGrant = server.mintLoopbackRendererCredential();
+    expect(rendererGrant?.endpoint).toBe(loopbackEndpoint);
+    const rendererCredential = parsePairingUrlParts(rendererGrant!.pairingUrl)!.token;
+    const tokenResponse = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/oauth/token",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grantType: "pairing-token",
+        credential: rendererCredential,
+        scopes: ["session:read"],
+      }),
+    });
+    expect(tokenResponse.status).toBe(200);
+    const rendererToken = JSON.parse(await tokenResponse.text()) as { accessToken: string };
+    const authorization = `Bearer ${rendererToken.accessToken}`;
+    const tailnetOrigin = "https://desktop.tailnet.ts.net";
+    const tailnetClient = new RemoteDesktopClient(
+      tailnetOrigin,
+      rendererToken.accessToken,
+      async (url, init) => {
+        const target = new URL(url);
+        const response = await httpsRequestWithAuthority({
+          port: loopbackPort,
+          path: `${target.pathname}${target.search}`,
+          authority: target.host,
+          ...(init?.method ? { method: init.method } : {}),
+          headers: { ...init?.headers, origin: tailnetOrigin },
+        });
+        return new Response(await response.text(), {
+          status: response.status,
+          headers: {
+            "content-type": String(response.headers["content-type"] ?? "application/json"),
+            ...(response.headers["retry-after"]
+              ? { "retry-after": String(response.headers["retry-after"]) }
+              : {}),
+          },
+        });
+      },
+    );
+
+    const localRequest = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      headers: { authorization, origin: loopbackEndpoint },
+    });
+    expect(localRequest.status).toBe(200);
+
+    const oldTailnetOrigin = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/.well-known/poracode/environment",
+      authority: `127.0.0.1:${loopbackPort}`,
+      headers: { origin: tailnetOrigin },
+    });
+    expect(oldTailnetOrigin.status).toBe(503);
+    expect(oldTailnetOrigin.headers["retry-after"]).toBe("1");
+    await expect(oldTailnetOrigin.text()).resolves.toContain("host_starting");
+
+    let hostStartingError: unknown;
+    try {
+      await tailnetClient.describeHost();
+    } catch (error) {
+      hostStartingError = error;
+    }
+    expect(hostStartingError).toBeInstanceOf(RemoteClientError);
+    expect(hostStartingError).toMatchObject({ status: 503, code: "host_starting" });
+    expect(isUnauthorizedRemoteError(hostStartingError)).toBe(false);
+
+    const oldTailnetHost = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "desktop.tailnet.ts.net",
+      headers: { authorization, origin: loopbackEndpoint },
+    });
+    expect(oldTailnetHost.status).toBe(503);
+    expect(oldTailnetHost.headers["retry-after"]).toBe("1");
+    await expect(oldTailnetHost.text()).resolves.toContain("host_starting");
+
+    const arbitraryHostWhilePending = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "attacker.example",
+      headers: { authorization, origin: loopbackEndpoint },
+    });
+    expect(arbitraryHostWhilePending.status).toBe(503);
+    expect(arbitraryHostWhilePending.headers["retry-after"]).toBe("1");
+    await expect(arbitraryHostWhilePending.text()).resolves.toContain("host_starting");
+
+    const arbitraryOriginWhilePending = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "OPTIONS",
+      headers: {
+        origin: "https://attacker.example",
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(arbitraryOriginWhilePending.status).toBe(503);
+    expect(arbitraryOriginWhilePending.headers["retry-after"]).toBe("1");
+
+    server.publishAdvertisedEndpoint({
+      advertisedBaseUrl: tailnetOrigin,
+      tailscaleHttpBaseUrl: tailnetOrigin,
+    });
+    advertisedEndpointPending = false;
+
+    const publishedTailnetRequest = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "desktop.tailnet.ts.net",
+      headers: { authorization, origin: tailnetOrigin },
+    });
+    expect(publishedTailnetRequest.status).toBe(200);
+    expect(publishedTailnetRequest.headers["access-control-allow-origin"]).toBe(tailnetOrigin);
+    await expect(tailnetClient.describeHost()).resolves.toBeTruthy();
+
+    const arbitraryHostAfterPublication = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "attacker.example",
+      headers: { authorization, origin: loopbackEndpoint },
+    });
+    expect(arbitraryHostAfterPublication.status).toBe(403);
+    await expect(arbitraryHostAfterPublication.text()).resolves.toContain("host_not_allowed");
+
+    const arbitraryOriginAfterPublication = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "OPTIONS",
+      headers: {
+        origin: "https://attacker.example",
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(arbitraryOriginAfterPublication.status).toBe(403);
   });
 
   it("holds its loopback port so a second local host cannot take its loopback traffic", async () => {

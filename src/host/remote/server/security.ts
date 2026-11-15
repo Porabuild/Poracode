@@ -296,8 +296,30 @@ export class RemoteServerSecurity {
     )
       return rawOrigin!;
     const origin = normalizeCorsOrigin(rawOrigin);
-    if (!origin || !this.isTrustedCorsOrigin(origin)) return false;
+    if (!origin || !this.isTrustedCorsOrigin(origin)) {
+      const pending = this.advertisedEndpointPendingError();
+      if (pending) throw pending;
+      return false;
+    }
     return origin;
+  }
+
+  private advertisedEndpointPendingError(): RemoteHttpError | null {
+    return this.ctx.options.isAdvertisedEndpointPending?.()
+      ? new RemoteHttpError(
+          "host_starting",
+          "The remote access endpoint is still starting. Retry shortly.",
+          503,
+          1_000,
+        )
+      : null;
+  }
+
+  private hostHeaderRejection(): RemoteHttpError {
+    return (
+      this.advertisedEndpointPendingError() ??
+      new RemoteHttpError("host_not_allowed", "Request host is not allowed for this server.", 403)
+    );
   }
 
   private isTrustedCorsOrigin(origin: string): boolean {
@@ -400,21 +422,13 @@ export class RemoteServerSecurity {
     const hostHeader = Array.isArray(req.headers.host) ? req.headers.host[0] : req.headers.host;
     const trimmed = hostHeader?.trim();
     if (!trimmed) {
-      throw new RemoteHttpError(
-        "host_not_allowed",
-        "Request host is not allowed for this server.",
-        403,
-      );
+      throw this.hostHeaderRejection();
     }
     let parsed: URL;
     try {
       parsed = new URL(`http://${trimmed}`);
     } catch {
-      throw new RemoteHttpError(
-        "host_not_allowed",
-        "Request host is not allowed for this server.",
-        403,
-      );
+      throw this.hostHeaderRejection();
     }
     let hostname = parsed.hostname.toLowerCase();
     if (hostname.startsWith("[") && hostname.endsWith("]")) {
@@ -425,11 +439,7 @@ export class RemoteServerSecurity {
     if (isIP(hostname) !== 0 || hostname === "localhost") {
       // Loopback and raw IP dials must target the bound port when they say one.
       if (headerPort !== null && headerPort !== forms.localPort) {
-        throw new RemoteHttpError(
-          "host_not_allowed",
-          "Request host is not allowed for this server.",
-          403,
-        );
+        throw this.hostHeaderRejection();
       }
       return;
     }
@@ -439,19 +449,11 @@ export class RemoteServerSecurity {
       // default-port requests); an explicit port must be one that origin is
       // actually advertised on (or the bound port).
       if (headerPort !== null && !allowedPorts?.includes(headerPort)) {
-        throw new RemoteHttpError(
-          "host_not_allowed",
-          "Request host is not allowed for this server.",
-          403,
-        );
+        throw this.hostHeaderRejection();
       }
       return;
     }
-    throw new RemoteHttpError(
-      "host_not_allowed",
-      "Request host is not allowed for this server.",
-      403,
-    );
+    throw this.hostHeaderRejection();
   }
 
   private resolveAllowedHostForms(): AllowedHostForms {
@@ -486,6 +488,11 @@ export class RemoteServerSecurity {
         this.ctx.options.advertisedHost ? `http://${this.ctx.options.advertisedHost}` : undefined,
         false,
       );
+      // The host-owned advertised endpoint may change after the listener is
+      // ready (for example when Tailscale Serve finishes). This URL is derived
+      // by the server itself, and the cache key above invalidates this form on
+      // publication; client input never adds a trusted host.
+      addHostnameForm(key, true);
       addHostnameForm(this.ctx.options.advertisedBaseUrl, true);
       addHostnameForm(this.ctx.options.tailscaleHttpBaseUrl, true);
       cache = { key, forms: { localPort, hostnames, hostnamePorts } };

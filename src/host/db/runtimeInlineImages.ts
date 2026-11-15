@@ -711,7 +711,7 @@ export function measureExternalizedImageSizesByItem(
             COUNT(*) AS ref_count,
             COALESCE(SUM(b.inline_utf8_bytes), 0) AS inline_bytes
      FROM json_each(?) AS ids
-     JOIN thread_runtime_item_image_refs r
+     CROSS JOIN thread_runtime_item_image_refs r
        ON r.thread_id = ? AND r.item_id = ids.value
      JOIN runtime_inline_image_blobs b
        ON b.blob_hash = r.blob_hash

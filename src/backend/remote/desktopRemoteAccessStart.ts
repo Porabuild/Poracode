@@ -101,6 +101,7 @@ export interface DesktopRemoteAccessStartContext {
   readonly resolveAdvertisedBaseUrl: (
     port: number,
   ) => Promise<{ advertisedBaseUrl?: string; tailscaleServeUrl?: string }>;
+  readonly resolveInitialAdvertisedBaseUrl: () => string | undefined;
   readonly teardownAttemptTailscaleServe: (attempt: RemoteAccessStartAttempt) => Promise<void>;
   readonly getPairingInfo: () => RemoteAccessPairingInfo;
   readonly prewarmGitStateOnce: () => void;
@@ -199,11 +200,13 @@ export async function performDesktopRemoteAccessStart(
       );
       refs.mdnsAdvertiser.start();
     };
-    // Loopback-only never advertises: no Tailscale serve, no custom URL.
-    const advertisedResolution = attempt.loopbackOnly ? {} : await resolveAdvertisedBaseUrl(port);
-    attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
-    if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
-    refs.remoteTailscaleServeActiveUrl = attempt.tailscaleServeUrl;
+    // Bind and publish the local endpoint before optional Tailscale discovery.
+    // A configured custom origin is immediately usable as the fallback while
+    // Tailscale is being checked in the background.
+    const initialAdvertisedBaseUrl = attempt.loopbackOnly
+      ? undefined
+      : context.resolveInitialAdvertisedBaseUrl();
+    attempt.advertisementPending = !attempt.loopbackOnly;
     const configuredPairingAppUrl = remoteAccessPairingAppUrl();
     const pairingAppUrl =
       configuredPairingAppUrl ??
@@ -257,12 +260,14 @@ export async function performDesktopRemoteAccessStart(
     setImagePreviewGenerator(options.imagePreviewGenerator ?? null);
     // Previews persist as a derived, disposable file cache so the first
     // thread open after a restart shows the blurred stand-in instead of an
-    // empty box. Only a composition with a generator can produce them.
-    await setImagePreviewStoreDir(
+    // empty box. Warming is optional and must not hold the listener open.
+    attempt.previewStorePromise = setImagePreviewStoreDir(
       options.imagePreviewGenerator
         ? join(resolvePoracodePaths(options.paths.baseDir).cacheDir, "image-previews-v1")
         : null,
-    );
+    ).catch((error: unknown) => {
+      options.reportError(error, { "poracode.feature_area": "remote-access" });
+    });
     setImageCardVariantGenerator(options.imageCardVariantGenerator ?? null);
     const server: RemoteAccessServer = new RemoteAccessServer({
       ...(options.deviceWorkspace ? { deviceWorkspace: options.deviceWorkspace } : {}),
@@ -294,12 +299,8 @@ export async function performDesktopRemoteAccessStart(
       ...(attempt.loopbackOnly ? {} : { plaintextLanAcknowledged: true }),
       port,
       advertisedHost,
-      ...(advertisedResolution.advertisedBaseUrl
-        ? { advertisedBaseUrl: advertisedResolution.advertisedBaseUrl }
-        : {}),
-      ...(advertisedResolution.tailscaleServeUrl
-        ? { tailscaleHttpBaseUrl: advertisedResolution.tailscaleServeUrl }
-        : {}),
+      ...(initialAdvertisedBaseUrl ? { advertisedBaseUrl: initialAdvertisedBaseUrl } : {}),
+      isAdvertisedEndpointPending: () => attempt.advertisementPending,
       ...(pairingAppUrl ? { pairingAppUrl } : {}),
       ...(trustedCorsOrigins ? { trustedCorsOrigins } : {}),
       ...(devWebAppUrl ? { devWebAppUrl } : {}),
@@ -388,11 +389,14 @@ export async function performDesktopRemoteAccessStart(
     const info = await serverStartPromise;
     if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
     refs.runningLoopbackOnly = attempt.loopbackOnly;
+    attempt.resolveServerReady(info);
     if (attempt.loopbackOnly) {
       // Reachable for the co-located renderer, never advertised: no QR line,
       // no pairing URL in the log, and no mDNS record either.
-      await stopMdnsAdvertiser();
+      void stopMdnsAdvertiser();
       console.log("[poracode] loopback remote server ready at %s", info.localHttpBaseUrl);
+      await attempt.previewStorePromise;
+      if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
       return info;
     }
     const listeningPort = remembersPort ? listeningPortOf(info.localHttpBaseUrl) : null;
@@ -400,24 +404,72 @@ export async function performDesktopRemoteAccessStart(
       rememberRemoteAccessPort(options.paths.baseDir, remoteHost, listeningPort);
     }
     maybeAdvertiseMdns(info);
-    console.log("[poracode] remote access enabled at %s", info.httpBaseUrl);
-    // The pairing URL carries its live one-time credential in the fragment;
-    // the headless CLI never prints raw tokens, and neither does the desktop.
-    console.log("[poracode] remote pairing URL: %s", redactPairingUrlForLog(info.pairingUrl));
-    return info;
+    console.log("[poracode] remote access listener ready at %s", info.localHttpBaseUrl);
+    try {
+      // Tailscale discovery and Serve setup can take seconds. The local
+      // listener already has its own trusted origin and managed-renderer
+      // credentials, so publish a Tailnet origin only after Serve succeeds.
+      const advertisedResolution = await resolveAdvertisedBaseUrl(port);
+      attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
+      if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
+      refs.remoteTailscaleServeActiveUrl = attempt.tailscaleServeUrl;
+      if (attempt.tailscaleServeUrl) {
+        attempt.server!.publishAdvertisedEndpoint({
+          advertisedBaseUrl: attempt.tailscaleServeUrl,
+          tailscaleHttpBaseUrl: attempt.tailscaleServeUrl,
+        });
+      } else if (
+        advertisedResolution.advertisedBaseUrl &&
+        new URL(advertisedResolution.advertisedBaseUrl).origin !== new URL(info.httpBaseUrl).origin
+      ) {
+        attempt.server!.publishAdvertisedEndpoint({
+          advertisedBaseUrl: advertisedResolution.advertisedBaseUrl,
+        });
+      }
+      attempt.advertisementPending = false;
+      const publishedInfo = attempt.server!.getInfo() ?? info;
+      console.log("[poracode] remote access enabled at %s", publishedInfo.httpBaseUrl);
+      // The pairing URL carries its live one-time credential in the fragment;
+      // the headless CLI never prints raw tokens, and neither does the desktop.
+      console.log(
+        "[poracode] remote pairing URL: %s",
+        redactPairingUrlForLog(publishedInfo.pairingUrl),
+      );
+      await attempt.previewStorePromise;
+      if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
+      return publishedInfo;
+    } catch (error) {
+      if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
+      options.reportError(error, { "poracode.feature_area": "remote-access" });
+      // The local/LAN endpoint remains available when optional advertisement
+      // setup fails. If Serve was created but publication failed, remove only
+      // the mapping owned by this attempt before completing readiness.
+      if (attempt.tailscaleServeUrl) {
+        await teardownAttemptTailscaleServe(attempt);
+        attempt.tailscaleServeUrl = null;
+      }
+      attempt.advertisementPending = false;
+      const publishedInfo = attempt.server!.getInfo() ?? info;
+      await attempt.previewStorePromise;
+      if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
+      return publishedInfo;
+    }
   } catch (error) {
+    attempt.rejectServerReady(error);
     let shutdownFailure: unknown;
     await retirements
       .run([() => disposeAttemptServer(attempt), () => attempt.coordinator?.dispose()])
       .catch((failure: unknown) => {
         shutdownFailure = failure;
       });
+    if (!attempt.server?.getInfo()) attempt.advertisementPending = false;
     // Final application shutdown intentionally leaves `tailscale serve`
     // configured, matching the historical before-quit behavior. An ordinary
     // disable or failed start still tears down a mapping owned by this attempt.
     if (!refs.disposed) {
       await teardownAttemptTailscaleServe(attempt);
     }
+    await attempt.previewStorePromise;
     if (refs.remoteAccessServer === attempt.server) {
       refs.remoteAccessServer = null;
       refs.runningLoopbackOnly = false;
@@ -450,6 +502,7 @@ export async function performDesktopRemoteAccessStart(
 export function startRemoteAccessServer(
   context: DesktopRemoteAccessStartContext,
   loopbackOnly: boolean,
+  waitForAdvertisement = false,
 ): Promise<RemoteAccessServerInfo> {
   const { refs, retirements, prewarmGitStateOnce, clearEventInterests } = context;
   if (refs.disposed) {
@@ -461,7 +514,12 @@ export function startRemoteAccessServer(
   // already matches: a loopback-only always-on instance must be REPLACED by
   // an enabling start (wide bind/advertised URL), and an enabled server
   // already covers the loopback role.
-  if (runningInfo && refs.runningLoopbackOnly === loopbackOnly) return Promise.resolve(runningInfo);
+  if (runningInfo && refs.runningLoopbackOnly === loopbackOnly) {
+    const attempt = refs.remoteAccessStartAttempt;
+    return waitForAdvertisement && attempt && !attempt.cancelled
+      ? attempt.promise
+      : Promise.resolve(runningInfo);
+  }
   if (runningInfo && refs.runningLoopbackOnly !== loopbackOnly) {
     // Mode switch (enable upgrade): retire the settled loopback-only
     // instance, then start its replacement in this generation.
@@ -473,7 +531,7 @@ export function startRemoteAccessServer(
       .catch(() => undefined)
       .then(() => {
         if (refs.disposed) throw new Error("Remote access controller is disposed.");
-        return startRemoteAccessServer(context, loopbackOnly);
+        return startRemoteAccessServer(context, loopbackOnly, waitForAdvertisement);
       });
   }
   if (refs.remoteAccessStartAttempt) {
@@ -481,7 +539,9 @@ export function startRemoteAccessServer(
       !refs.remoteAccessStartAttempt.cancelled &&
       refs.remoteAccessStartAttempt.loopbackOnly === loopbackOnly
     ) {
-      return refs.remoteAccessStartAttempt.promise;
+      return waitForAdvertisement
+        ? refs.remoteAccessStartAttempt.promise
+        : refs.remoteAccessStartAttempt.serverReadyPromise;
     }
     const queuedGeneration = refs.remoteAccessGeneration;
     return refs.remoteAccessStartAttempt.promise
@@ -490,28 +550,36 @@ export function startRemoteAccessServer(
         if (refs.disposed || queuedGeneration !== refs.remoteAccessGeneration) {
           throw new RemoteAccessStartSupersededError();
         }
-        return startRemoteAccessServer(context, loopbackOnly);
+        return startRemoteAccessServer(context, loopbackOnly, waitForAdvertisement);
       });
   }
 
   let attempt!: RemoteAccessStartAttempt;
+  const serverReady = Promise.withResolvers<RemoteAccessServerInfo>();
+  void serverReady.promise.catch(() => undefined);
   const startPromise = Promise.resolve().then(() =>
     performDesktopRemoteAccessStart(context, attempt),
   );
   attempt = {
     generation: refs.remoteAccessGeneration,
     promise: startPromise,
+    serverReadyPromise: serverReady.promise,
+    resolveServerReady: serverReady.resolve,
+    rejectServerReady: serverReady.reject,
     cancelled: false,
     server: null,
     serverStartPromise: null,
     serverDisposalPromise: null,
+    previewStorePromise: null,
     forwarding: null,
     coordinator: null,
     tailscaleServeUrl: null,
     tailscaleTeardownPromise: null,
+    advertisementPending: false,
     loopbackOnly,
   };
   refs.remoteAccessStartAttempt = attempt;
-  return startPromise;
+  void startPromise.catch(() => undefined);
+  return waitForAdvertisement ? startPromise : serverReady.promise;
 }
 import { environmentRemoteAccessOptions } from "@/host/remote/environments/environmentRemoteAccessOptions";

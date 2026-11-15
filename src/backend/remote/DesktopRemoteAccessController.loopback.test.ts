@@ -7,6 +7,7 @@ import {
   managedLoopbackBootstrapSchema,
   type ManagedLoopbackBootstrap,
 } from "@/shared/managedLoopback";
+import type { ImagePreviewEntry, ImagePreviewGenerator } from "@/host/remote/server/imagePreview";
 import type {
   RemoteAccessServerInfo,
   RemoteAccessServerOptions,
@@ -30,6 +31,7 @@ const h = vi.hoisted(() => {
     disposed = false;
     mintedCredentials: string[] = [];
     issuePairingUrlCalls = 0;
+    publishedOrigins: string[] = [];
 
     constructor(options: RemoteAccessServerOptions) {
       this.options = options;
@@ -39,11 +41,15 @@ const h = vi.hoisted(() => {
     async start(): Promise<RemoteAccessServerInfo> {
       this.started = true;
       const port = 43123 + this.id;
+      const localHttpBaseUrl = `http://127.0.0.1:${port}`;
+      const httpBaseUrl = this.options.advertisedBaseUrl
+        ? `${new URL(this.options.advertisedBaseUrl).origin}/`
+        : `${localHttpBaseUrl}/`;
       this.info = {
-        httpBaseUrl: `http://127.0.0.1:${port}/`,
-        localHttpBaseUrl: `http://127.0.0.1:${port}`,
-        wsBaseUrl: `ws://127.0.0.1:${port}/ws`,
-        pairingUrl: `http://127.0.0.1:${port}/pair#token=startup-${this.id}`,
+        httpBaseUrl,
+        localHttpBaseUrl,
+        wsBaseUrl: `${httpBaseUrl.replace(/^http/u, "ws")}ws`,
+        pairingUrl: `${httpBaseUrl}#token=startup-${this.id}`,
         pairingExpiresAt: "2026-09-13T00:10:00.000Z",
       };
       return this.info;
@@ -55,6 +61,27 @@ const h = vi.hoisted(() => {
     }
 
     getInfo() {
+      return this.info;
+    }
+
+    publishAdvertisedEndpoint(input: { advertisedBaseUrl: string; tailscaleHttpBaseUrl?: string }) {
+      if (!this.info) throw new Error("Fixture server is not ready.");
+      const advertised = new URL(input.advertisedBaseUrl);
+      const httpBaseUrl = `${advertised.origin}/`;
+      this.publishedOrigins.push(advertised.origin);
+      const pairing = new URL(this.info.pairingUrl);
+      const token = new URLSearchParams(pairing.hash.slice(1)).get("token");
+      if (!token) throw new Error("Fixture pairing token is missing.");
+      this.info = {
+        ...this.info,
+        httpBaseUrl,
+        wsBaseUrl: `${advertised.protocol === "https:" ? "wss:" : "ws:"}//${advertised.host}/ws`,
+        pairingUrl: `${httpBaseUrl}#token=${token}`,
+        ...(input.tailscaleHttpBaseUrl
+          ? { tailscaleHttpBaseUrl: new URL(input.tailscaleHttpBaseUrl).origin }
+          : {}),
+      };
+      this.options.onPairingChanged?.();
       return this.info;
     }
 
@@ -90,6 +117,15 @@ const h = vi.hoisted(() => {
   }
   return {
     settings: {} as SharedSettings,
+    tailscaleStatus: undefined as
+      | { readonly state: "running"; readonly dnsName: string; readonly httpsAvailable: boolean }
+      | undefined,
+    tailscaleServePromise: undefined as Promise<{ readonly ok: true }> | undefined,
+    tailscaleServeCalls: 0,
+    tailscaleProbeCalls: 0,
+    previewStorePromise: undefined as Promise<void> | undefined,
+    pairingUpdates: [] as unknown[],
+    tailscaleServeDisabled: 0,
     portForwardingBinds: [] as Array<{ bindHost: string; remoteAccessPort: number }>,
     servers: [] as Array<
       InstanceType<typeof RemoteAccessServerFixture> & { disposed: boolean; started: boolean }
@@ -143,10 +179,31 @@ vi.mock("@/host/remote/portForward/portForwarding", () => ({
 vi.mock("@/host/remote/RemoteBrowserGateway", () => ({ RemoteBrowserGateway: class {} }));
 vi.mock("@/host/remote/tailscale", () => ({
   buildTailscaleHttpsUrl: () => "https://fixture.test",
-  disableTailscaleServe: async () => {},
-  enableTailscaleServe: async () => ({ ok: true }),
+  disableTailscaleServe: async () => {
+    h.tailscaleServeDisabled += 1;
+  },
+  enableTailscaleServe: async () => {
+    h.tailscaleServeCalls += 1;
+    return (await h.tailscaleServePromise) ?? { ok: true };
+  },
   launchTailscaleApp: async () => ({ ok: true }),
-  probeTailscaleStatus: async () => ({ state: "not-running" }),
+  probeTailscaleStatus: async () => {
+    h.tailscaleProbeCalls += 1;
+    return h.tailscaleStatus ?? ({ state: "not-running" } as const);
+  },
+}));
+vi.mock("@/host/remote/server/imagePreview", () => ({
+  IMAGE_PREVIEW_MAX_ENTRIES: 512,
+  IMAGE_PREVIEW_MAX_BYTES: 1024 * 1024,
+  IMAGE_PREVIEW_MAX_ENTRY_BYTES: 4096,
+  setImagePreviewGenerator:
+    vi.fn<
+      (
+        generator: ImagePreviewGenerator | null,
+        onGenerated?: (entry: ImagePreviewEntry) => void,
+      ) => void
+    >(),
+  setImagePreviewStoreDir: async () => await h.previewStorePromise,
 }));
 
 import {
@@ -161,6 +218,13 @@ beforeEach(() => {
   vi.stubEnv("PORACODE_REMOTE_ACCESS_HOST", undefined);
   vi.stubEnv("PORACODE_REMOTE_BIND_MODE", undefined);
   h.settings = { ...defaultSharedSettings };
+  h.tailscaleStatus = undefined;
+  h.tailscaleServePromise = undefined;
+  h.tailscaleServeCalls = 0;
+  h.tailscaleProbeCalls = 0;
+  h.previewStorePromise = undefined;
+  h.pairingUpdates.length = 0;
+  h.tailscaleServeDisabled = 0;
   h.portForwardingBinds.length = 0;
   h.servers.length = 0;
   h.RemoteAccessServerFixture.nextId = 0;
@@ -215,7 +279,9 @@ async function fixture(
         };
       },
     },
-    notifyRemoteAccessPairingChanged() {},
+    notifyRemoteAccessPairingChanged(info) {
+      h.pairingUpdates.push(info);
+    },
     notifyProjectStateChanged() {},
     notifyEventInterestsChanged() {},
     reportError() {},
@@ -316,6 +382,184 @@ describe("managed always-on loopback server", () => {
     expect(controller.getPairingInfo().status).toBe("disabled");
     expect(controller.isUserEnabled()).toBe(false);
     expect(server.issuePairingUrlCalls).toBe(0);
+  });
+
+  it("publishes the local listener and managed bootstrap before Tailscale and preview warming finish", async () => {
+    h.settings.remoteAccessEnabled = true;
+    h.settings.remoteAccessTailscaleHttps = true;
+    h.tailscaleStatus = {
+      state: "running",
+      dnsName: "fixture.tailnet.ts.net",
+      httpsAvailable: true,
+    };
+    let finishServe!: (result: { readonly ok: true }) => void;
+    h.tailscaleServePromise = new Promise((resolve) => {
+      finishServe = resolve;
+    });
+    let finishPreviewStore!: () => void;
+    h.previewStorePromise = new Promise((resolve) => {
+      finishPreviewStore = resolve;
+    });
+    const controller = await fixture();
+
+    await controller.startIfEnabled();
+    const server = h.servers[0]!;
+    expect(server.started).toBe(true);
+    expect(server.options.advertisedBaseUrl).toBeUndefined();
+    expect(server.options.isAdvertisedEndpointPending?.()).toBe(true);
+    const bootstrap = await controller.getManagedLoopbackBootstrap();
+    expect(bootstrap?.endpoint).toMatch(/^http:\/\/127\.0\.0\.1:/u);
+    const beforePromotion = controller.getPairingInfo();
+    if (beforePromotion.status !== "ready") throw new Error("Remote listener is not ready.");
+    const beforePairing = new URL(beforePromotion.pairingUrl);
+    const beforeToken = new URLSearchParams(beforePairing.hash.slice(1)).get("token");
+
+    finishServe({ ok: true });
+    await vi.waitFor(() => {
+      const info = controller.getPairingInfo();
+      if (info.status !== "ready") throw new Error("Published listener is not ready.");
+      expect(info.tailscaleHttpBaseUrl).toBe("https://fixture.test");
+    });
+    const afterPromotion = controller.getPairingInfo();
+    if (afterPromotion.status !== "ready") throw new Error("Published listener is not ready.");
+    expect(server.publishedOrigins).toEqual(["https://fixture.test"]);
+    expect(new URL(afterPromotion.wsBaseUrl).protocol).toBe("wss:");
+    expect(new URLSearchParams(new URL(afterPromotion.pairingUrl).hash.slice(1)).get("token")).toBe(
+      beforeToken,
+    );
+    expect(afterPromotion.pairingExpiresAt).toBe(beforePromotion.pairingExpiresAt);
+    expect(h.pairingUpdates.at(-1)).toMatchObject({
+      status: "ready",
+      tailscaleHttpBaseUrl: "https://fixture.test",
+    });
+    expect(server.options.isAdvertisedEndpointPending?.()).toBe(false);
+
+    finishPreviewStore();
+  });
+
+  it("keeps the Tailscale settings operation pending until the promoted URL is published", async () => {
+    h.settings.remoteAccessEnabled = true;
+    const controller = await fixture();
+    await controller.startIfEnabled();
+    h.tailscaleStatus = {
+      state: "running",
+      dnsName: "fixture.tailnet.ts.net",
+      httpsAvailable: true,
+    };
+    let finishServe!: (result: { readonly ok: true }) => void;
+    h.tailscaleServePromise = new Promise((resolve) => {
+      finishServe = resolve;
+    });
+    let settled = false;
+    const update = controller.setTailscaleHttps(true).then((info) => {
+      settled = true;
+      return info;
+    });
+    await vi.waitFor(() => expect(h.servers.at(-1)?.started).toBe(true));
+    expect(settled).toBe(false);
+    expect(h.servers.at(-1)?.getInfo()?.tailscaleHttpBaseUrl).toBeUndefined();
+
+    finishServe({ ok: true });
+    const info = await update;
+    if (info.status !== "ready") throw new Error("Published listener is not ready.");
+    expect(settled).toBe(true);
+    expect(info.tailscaleHttpBaseUrl).toBe("https://fixture.test");
+  });
+
+  it("keeps the configured custom URL as the fallback and skips Tailscale when the environment host overrides advertisement", async () => {
+    h.settings.remoteAccessEnabled = true;
+    h.settings.remoteAccessTailscaleHttps = true;
+    h.settings.remoteAccessAdvertisedUrl = "https://custom.example";
+    const controller = await fixture();
+    await controller.startIfEnabled();
+    const info = controller.getPairingInfo();
+    if (info.status !== "ready") throw new Error("Custom listener is not ready.");
+    expect(info.httpBaseUrl).toBe("https://custom.example/");
+    expect(h.tailscaleServeCalls).toBe(0);
+    await vi.waitFor(() => expect(h.tailscaleProbeCalls).toBe(1));
+    await vi.waitFor(() =>
+      expect(h.servers[0]?.options.isAdvertisedEndpointPending?.()).toBe(false),
+    );
+    await controller.dispose();
+
+    vi.stubEnv("PORACODE_REMOTE_ACCESS_ADVERTISED_HOST", "env-custom.example");
+    h.servers.length = 0;
+    const environmentController = await fixture();
+    await environmentController.startIfEnabled();
+    await vi.waitFor(() =>
+      expect(h.servers[0]?.options.isAdvertisedEndpointPending?.()).toBe(false),
+    );
+    expect(h.tailscaleProbeCalls).toBe(1);
+    expect(h.tailscaleServeCalls).toBe(0);
+    expect(h.servers[0]?.publishedOrigins).toEqual([]);
+  });
+
+  it("closes an enabled listener immediately when disabled during held Tailscale setup, then restores loopback after owned Serve cleanup", async () => {
+    h.settings.remoteAccessEnabled = true;
+    h.settings.remoteAccessTailscaleHttps = true;
+    h.tailscaleStatus = {
+      state: "running",
+      dnsName: "fixture.tailnet.ts.net",
+      httpsAvailable: true,
+    };
+    let finishServe!: (result: { readonly ok: true }) => void;
+    h.tailscaleServePromise = new Promise((resolve) => {
+      finishServe = resolve;
+    });
+    const controller = await fixture();
+    await controller.startIfEnabled();
+    const enabledServer = h.servers[0]!;
+    expect(enabledServer.started).toBe(true);
+    expect(enabledServer.options.isAdvertisedEndpointPending?.()).toBe(true);
+
+    const pairing = await controller.setEnabled(false);
+    expect(pairing.status).toBe("disabled");
+    expect(enabledServer.options.isAdvertisedEndpointPending?.()).toBe(true);
+    await vi.waitFor(() => expect(enabledServer.disposed).toBe(true));
+    expect(h.servers).toHaveLength(1);
+
+    finishServe({ ok: true });
+    await vi.waitFor(() => expect(h.servers).toHaveLength(2));
+    const loopbackServer = h.servers[1]!;
+    expect(loopbackServer.options.host).toBe("127.0.0.1");
+    expect(loopbackServer.started).toBe(true);
+    expect(enabledServer.publishedOrigins).toEqual([]);
+    expect(h.tailscaleServeDisabled).toBe(1);
+    expect(controller.getPairingInfo().status).toBe("disabled");
+  });
+
+  it("joins held Tailscale and preview work on final disposal without changing final Serve behavior", async () => {
+    h.settings.remoteAccessEnabled = true;
+    h.settings.remoteAccessTailscaleHttps = true;
+    h.tailscaleStatus = {
+      state: "running",
+      dnsName: "fixture.tailnet.ts.net",
+      httpsAvailable: true,
+    };
+    let finishServe!: (result: { readonly ok: true }) => void;
+    h.tailscaleServePromise = new Promise((resolve) => {
+      finishServe = resolve;
+    });
+    let finishPreviewStore!: () => void;
+    h.previewStorePromise = new Promise((resolve) => {
+      finishPreviewStore = resolve;
+    });
+    const controller = await fixture();
+    await controller.startIfEnabled();
+    const server = h.servers[0]!;
+    let disposed = false;
+    const disposal = controller.dispose().then(() => {
+      disposed = true;
+    });
+    await vi.waitFor(() => expect(server.disposed).toBe(true));
+    expect(disposed).toBe(false);
+
+    finishServe({ ok: true });
+    finishPreviewStore();
+    await disposal;
+    expect(disposed).toBe(true);
+    expect(server.publishedOrigins).toEqual([]);
+    expect(h.tailscaleServeDisabled).toBe(0);
   });
 
   it("resolves the managed bootstrap behind readiness, with the credential minted before the renderer asks", async () => {
