@@ -10,14 +10,17 @@ const mocks = vi.hoisted(() => {
     starts.set(id, stop);
     return stop;
   });
-  return { starts, start };
+  return { starts, start, managed: true };
 });
 
 vi.mock("@/renderer/state/runningThreadImagePrefetch", () => ({
   startThreadImagePrefetch: mocks.start,
 }));
+vi.mock("@/renderer/state/dbStorage", () => ({
+  createDbStorage: () => ({ getItem: () => null, setItem: () => {}, removeItem: () => {} }),
+}));
 vi.mock("@/renderer/state/managedRootCatalog/rootCatalogCommands", () => ({
-  isManagedRootDesktopRuntime: () => true,
+  isManagedRootDesktopRuntime: () => mocks.managed,
 }));
 vi.mock("./useRunningThreadRuntime", () => ({
   runningThreadIds: (threads: readonly Thread[]) =>
@@ -58,13 +61,23 @@ beforeEach(() => {
   useAppStore.setState({ threads: [] });
 });
 
-it("starts prefetch for running threads and stops it when they leave the set", async () => {
-  useAppStore.setState({ threads: [thread("a"), thread("b"), thread("idle", "idle")] });
+it.each([true, false])("starts and stops running image prefetch (%s)", async (managed) => {
+  mocks.managed = managed;
+  useAppStore.setState({
+    threads: [
+      thread("a"),
+      { ...thread("b"), remoteServerId: "other-host", remoteId: "b" },
+      thread("idle", "idle"),
+      { ...thread("archived"), archived: true },
+      { ...thread("terminal"), presentationMode: "terminal" },
+    ],
+  });
   const { rerender, unmount } = renderHook(
     ({ enabled }) => useRunningThreadImagePrefetch(enabled),
-    { initialProps: { enabled: true } },
+    { initialProps: { enabled: false } },
   );
-  await act(async () => {});
+  expect(mocks.start).not.toHaveBeenCalled();
+  await act(async () => rerender({ enabled: true }));
   expect(mocks.start.mock.calls.map((call) => call[0])).toEqual(["a", "b"]);
 
   await act(async () => {
