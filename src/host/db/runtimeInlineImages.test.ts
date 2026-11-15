@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isRemoteImageRef } from "@/shared/remote";
 import { closeDatabase, getSqlite, initDatabase, reclaimDatabaseSpace } from "./connection";
 import { readConversationSearchBatch } from "./conversationSearchReads";
@@ -15,7 +15,11 @@ import {
 } from "./migrations";
 import { dbDeleteThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import { dbReadCommittedRuntimeItemImageBlob } from "./runtimeInlineImageReads";
-import { isPersistedInlineImageStub, reclaimOrphanInlineImageBlobs } from "./runtimeInlineImages";
+import {
+  isPersistedInlineImageStub,
+  measureExternalizedImageSizesByItem,
+  reclaimOrphanInlineImageBlobs,
+} from "./runtimeInlineImages";
 import {
   dbApplyThreadRuntimeEvents,
   dbFlushThreadRuntimeWrites,
@@ -216,6 +220,90 @@ describe.skipIf(!sqliteAvailable)(
         mime: "image/svg+xml",
         data: Buffer.from(rawSvg, "utf8"),
       });
+    });
+
+    it("sizes only requested image items through the composite thread-item index", async () => {
+      initDatabase(dbPath);
+      seedProjectAndThread("thread-1");
+      dbUpsertThread({ ...testThread(), id: "thread-2" }, 1);
+
+      const selectedA = makeLargeSvg(10_000, "selected-a");
+      const selectedB = makeLargeSvg(12_000, "selected-b");
+      const selectedC = makeLargeSvg(14_000, "selected-c");
+      const offPage = makeLargeSvg(16_000, "off-page");
+      const anotherThread = makeLargeSvg(18_000, "another-thread");
+      await dbReplaceThreadRuntimeItems("thread-1", [
+        {
+          id: "selected-with-two-images",
+          type: "assistant_message",
+          state: "completed",
+          payload: { images: [selectedA, selectedB] },
+          streams: {},
+        },
+        {
+          id: "selected-with-one-image",
+          type: "assistant_message",
+          state: "completed",
+          payload: { images: [selectedC] },
+          streams: {},
+        },
+        {
+          id: "off-page-image",
+          type: "assistant_message",
+          state: "completed",
+          payload: { images: [offPage] },
+          streams: {},
+        },
+      ]);
+      await dbReplaceThreadRuntimeItems("thread-2", [
+        {
+          id: "another-thread-image",
+          type: "assistant_message",
+          state: "completed",
+          payload: { images: [anotherThread] },
+          streams: {},
+        },
+      ]);
+
+      const sqlite = getSqlite();
+      const prepare = sqlite.prepare.bind(sqlite);
+      let sizeQuery: string | undefined;
+      const prepareSpy = vi.spyOn(sqlite, "prepare").mockImplementation((sql: string) => {
+        if (sql.includes("SUM(b.inline_utf8_bytes)")) sizeQuery = sql;
+        return prepare(sql);
+      });
+      try {
+        const itemIds = ["selected-with-two-images", "selected-with-one-image", "missing-image"];
+        expect(measureExternalizedImageSizesByItem(sqlite, "thread-1", itemIds)).toEqual(
+          new Map([
+            [
+              "selected-with-two-images",
+              {
+                refCount: 2,
+                inlineUtf8Bytes: Buffer.byteLength(selectedA) + Buffer.byteLength(selectedB),
+              },
+            ],
+            [
+              "selected-with-one-image",
+              {
+                refCount: 1,
+                inlineUtf8Bytes: Buffer.byteLength(selectedC),
+              },
+            ],
+          ]),
+        );
+
+        expect(sizeQuery).toBeDefined();
+        const plan = prepare(`EXPLAIN QUERY PLAN ${sizeQuery}`).all(
+          JSON.stringify(itemIds),
+          "thread-1",
+        ) as Array<{ detail: string }>;
+        const details = plan.map((row) => row.detail).join(" ");
+        expect(details).toContain("SEARCH r USING PRIMARY KEY (thread_id=? AND item_id=?)");
+        expect(details).not.toContain("SEARCH r USING PRIMARY KEY (thread_id=?)");
+      } finally {
+        prepareSpy.mockRestore();
+      }
     });
 
     it("deduplicates identical blobs across items/threads, preserves stubs across partial updates, and reclaims orphan blobs + SQLite pages on delete", async () => {

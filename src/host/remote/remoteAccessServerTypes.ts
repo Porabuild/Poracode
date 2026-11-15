@@ -327,6 +327,12 @@ export interface RemoteAccessServerOptions {
   readonly advertisedBaseUrl?: string;
   /** Tailscale HTTPS origin exposed alongside the LAN origin in pairing UI. */
   readonly tailscaleHttpBaseUrl?: string;
+  /**
+   * Host-owned signal for a pending public-origin update. Unknown Host/Origin
+   * requests get a retryable 503 while the listener is preparing that origin;
+   * this never adds a hostname or origin to the allowlist.
+   */
+  readonly isAdvertisedEndpointPending?: () => boolean;
   readonly pairingAppUrl?: string;
   readonly trustedCorsOrigins?: readonly string[];
   /**
@@ -692,7 +698,7 @@ export interface RemoteAccessServerOptions {
     upsert(registration: RemotePushRegistration): void;
     remove(deviceId: string, routing?: RemotePushRegistrationRouting): void;
   };
-  /** Notifies the desktop shell after the active pairing code rotates. */
+  /** Notifies the desktop shell after published pairing information changes. */
   readonly onPairingChanged?: () => void;
   /**
    * Optional host hook receiving the authoritative project rows after an HTTP

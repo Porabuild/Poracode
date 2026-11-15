@@ -51,6 +51,9 @@ describe("remote error classification", () => {
     expect(isUnauthorizedRemoteError(new RemoteClientError("conflict", 409, "conflict"))).toBe(
       false,
     );
+    expect(
+      isUnauthorizedRemoteError(new RemoteClientError("host still starting", 503, "host_starting")),
+    ).toBe(false);
   });
 });
 

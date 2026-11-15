@@ -558,7 +558,16 @@ export async function handleRemoteAccessUpgrade(
     await proxyForwardedWebSocketUpgrade(req, socket, head, lifetime, releaseIngress);
   } catch (error) {
     if (error instanceof RemoteHttpError) {
-      rejectUpgrade(socket, error.status, error.status === 401 ? "Unauthorized" : "Forbidden");
+      rejectUpgrade(
+        socket,
+        error.status,
+        error.status === 401
+          ? "Unauthorized"
+          : error.status === 503
+            ? "Service Unavailable"
+            : "Forbidden",
+        error.retryAfterMs,
+      );
       return;
     }
     socket.destroy();
