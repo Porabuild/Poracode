@@ -47,7 +47,7 @@ import {
   shouldRefreshRemoteServerAfterEvent,
   type ThreadIdMatcher,
 } from "./eventRouting";
-import { syncRemoteGitStatePatch } from "./gitState";
+import { clearRemoteGitState, syncRemoteGitStatePatch } from "./gitState";
 import { syncRemoteGitSummaries } from "./gitSummaries";
 import { cachedThreadIds } from "./rowReuse";
 import { remoteConnectionKey } from "./types";
@@ -96,6 +96,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
    */
   const applyResync = (seq: number, restart: boolean): void => {
     if (restart) {
+      clearRemoteGitState(connectionKey);
       const prefix = remoteThreadId(connectionKey, "");
       pruneLiveObservedCrossagentItems((threadId) => threadId.startsWith(prefix));
       const threadIds = new Set(currentRemoteServerThreadItemInterests(connectionKey));
@@ -122,7 +123,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
     resetBoundedCatalogForResync(connectionKey);
     // ...and every bounded history proof from the old epoch.
     forgetBoundedHistoryForServer(connectionKey);
-    get().scheduleServerRefresh(connectionKey);
+    get().scheduleServerRefresh(connectionKey, { includeAgentStatuses: true });
     void ctx.recoverInterestedThreads();
   };
 

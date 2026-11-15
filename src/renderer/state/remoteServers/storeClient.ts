@@ -341,8 +341,10 @@ export function createRemoteServerClientBindings(
           };
         });
         // Reactivation re-arms bounded reloads (offline cleared them, but
-        // an explicit success proves reachability again).
+        // an explicit success proves reachability again) and refreshes
+        // potentially missed state across the offline gap.
         syncDesktopBrowserBridgeClient(get());
+        get().scheduleServerRefresh?.(desktopId, { includeAgentStatuses: true });
       }
       return result;
     } catch (error) {

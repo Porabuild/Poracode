@@ -41343,6 +41343,9 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": true,
           "properties": {
+            "detecting": {
+              "type": "boolean"
+            },
             "updatedAt": {
               "minLength": 1,
               "type": "string"
@@ -84981,7 +84984,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:adc7e4695f2ae14b7ba2783c52d154a6a469c4c0bd96b55f1aac3bff37853ff8",
+  "sourceHash": "sha256:0094e6ced1dd80f7b16bb2f1d7503e12b004232afef1d5e97c568b94341b35ed",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

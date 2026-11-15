@@ -314,6 +314,7 @@ export async function startRemoteServerEventStream(
       bindEventSocketMessages(ctx);
       const activateSocket = () => {
         if (!isCurrent() || entry.socket !== socket) return;
+        const prevRuntime = get().runtime[connectionKey];
         clearRemoteServerEventSocketConnectTimeout(entry);
         entry.reconnectPolicy.reset();
         activateRemoteTerminalFeed(connectionKey, socket);
@@ -332,6 +333,13 @@ export async function startRemoteServerEventStream(
         notePairedItemInterestCoverage(connectionKey, true);
         startHealthProbe(socket);
         setSocketStatus("online");
+        if (
+          prevRuntime?.status === "offline" ||
+          prevRuntime?.status === "error" ||
+          prevRuntime?.agentStatuses?.detecting === true
+        ) {
+          get().scheduleServerRefresh?.(connectionKey, { includeAgentStatuses: true });
+        }
       };
       socket.onopen = activateSocket;
       if (socket.readyState === undefined || socket.readyState === 1) {

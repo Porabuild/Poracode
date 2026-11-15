@@ -48,7 +48,7 @@ const ubuntu: ProjectLocation = {
 const originalRuntime = useRemoteServersStore.getState().runtime;
 
 function seedPairedHost(
-  statuses: { windows: AgentStatus[]; wsl: AgentStatus[] } | undefined,
+  statuses: { windows: AgentStatus[]; wsl: AgentStatus[]; detecting?: boolean } | undefined,
   status: "online" | "connecting" = "online",
 ) {
   useRemoteServersStore.setState({
@@ -170,7 +170,7 @@ describe("useHostAgentsDetecting", () => {
     );
   });
 
-  it("follows a paired host's connection while it is establishing", () => {
+  it("follows a paired host's connection while establishing or warming detection", () => {
     seedPairedHost(undefined, "connecting");
     expect(renderHook(() => useHostAgentsDetecting("studio", nativeLocation)).result.current).toBe(
       true,
@@ -178,6 +178,10 @@ describe("useHostAgentsDetecting", () => {
     seedPairedHost(undefined, "online");
     expect(renderHook(() => useHostAgentsDetecting("studio", nativeLocation)).result.current).toBe(
       false,
+    );
+    seedPairedHost({ windows: [], wsl: [], detecting: true }, "online");
+    expect(renderHook(() => useHostAgentsDetecting("studio", nativeLocation)).result.current).toBe(
+      true,
     );
   });
 });

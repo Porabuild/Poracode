@@ -16,6 +16,7 @@ import {
 } from "@/renderer/state/gitStore";
 
 const snapshots = new Map<string, GitStateSnapshot>();
+const epochs = new Map<string, string>();
 
 /**
  * Project the host's Git read model into the legacy store.
@@ -90,11 +91,18 @@ function projectSnapshot(
   }
 }
 
-export function syncRemoteGitStateSnapshot(desktopId: string, snapshot: GitStateSnapshot): void {
+export function syncRemoteGitStateSnapshot(
+  desktopId: string,
+  snapshot: GitStateSnapshot,
+  epoch?: string,
+): void {
   const current = snapshots.get(desktopId);
-  if (current && snapshot.revision < current.revision) return;
+  const previousEpoch = epochs.get(desktopId);
+  const restarted = epoch !== undefined && previousEpoch !== undefined && previousEpoch !== epoch;
+  if (!restarted && current && snapshot.revision < current.revision) return;
+  if (epoch !== undefined) epochs.set(desktopId, epoch);
   snapshots.set(desktopId, snapshot);
-  projectSnapshot(desktopId, snapshot, current);
+  projectSnapshot(desktopId, snapshot, restarted ? undefined : current);
 }
 
 export function syncRemoteGitStatePatch(desktopId: string, patch: GitStatePatch): void {
@@ -106,6 +114,11 @@ export function syncRemoteGitStatePatch(desktopId: string, patch: GitStatePatch)
 }
 
 export function clearRemoteGitState(desktopId?: string): void {
-  if (desktopId) snapshots.delete(desktopId);
-  else snapshots.clear();
+  if (desktopId) {
+    snapshots.delete(desktopId);
+    epochs.delete(desktopId);
+  } else {
+    snapshots.clear();
+    epochs.clear();
+  }
 }

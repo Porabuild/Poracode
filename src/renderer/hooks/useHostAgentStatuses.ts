@@ -106,7 +106,8 @@ export function useHostAgentStatuses(
 /**
  * Whether the host's statuses for `location` are still being collected: the
  * managed host until its scan for that environment reports, a paired host
- * while its connection is establishing.
+ * while its connection is establishing or its host detection cache is still
+ * warming up.
  */
 export function useHostAgentsDetecting(
   connectionKey: string | undefined,
@@ -115,8 +116,10 @@ export function useHostAgentsDetecting(
   const managed = useAgentStatusesStore((state) =>
     connectionKey === undefined && location ? isDetectingAgentsForLocation(state, location) : false,
   );
-  const paired = useRemoteServersStore((state) =>
-    connectionKey === undefined ? false : state.runtime[connectionKey]?.status === "connecting",
-  );
+  const paired = useRemoteServersStore((state) => {
+    if (connectionKey === undefined) return false;
+    const runtime = state.runtime[connectionKey];
+    return runtime?.status === "connecting" || runtime?.agentStatuses?.detecting === true;
+  });
   return connectionKey === undefined ? managed : paired;
 }

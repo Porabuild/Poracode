@@ -636,6 +636,8 @@ export type RemoteThreadListPage = z.infer<typeof remoteThreadListPageSchema>;
 export const remoteAgentStatusesSchema = z.object({
   windows: z.array(agentStatusSchema),
   wsl: z.array(agentStatusSchema),
+  /** True while the host is still warming up provider detection (`fromCache === false`). */
+  detecting: z.boolean().optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteAgentStatuses = z.infer<typeof remoteAgentStatusesSchema>;
