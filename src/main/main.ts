@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import { app } from "electron";
 import { preparePoracodeDataRoot } from "@/host/poracodeData";
@@ -15,6 +14,7 @@ import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import { legacyProductNameFor } from "@/shared/legacyProductPaths";
 import { shouldUseMockKeychain } from "./mockKeychain";
+import { resolveElectronUserDataPath } from "./userDataPath";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { HostDataFence, HostDataFenceInUseError } from "@/backend/ownership/hostDataFence";
 import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
@@ -86,10 +86,19 @@ if (process.platform === "linux") {
 desktopApp.browserUserAgent = buildBrowserUserAgent(app.userAgentFallback);
 app.userAgentFallback = desktopApp.browserUserAgent;
 
-if (baseDirOverride) {
-  app.setPath("userData", join(baseDirOverride, "userData"));
-} else if (isDev) {
-  app.setPath("userData", join(app.getPath("userData"), "Dev"));
+const userDataOverride = resolveElectronUserDataPath({
+  isPackaged: app.isPackaged,
+  isDev,
+  baseDirOverride,
+  currentUserDataDir: app.getPath("userData"),
+  cdpUserDataDir: process.env.PORACODE_CDP_USER_DATA_DIR,
+  cliUserDataDir:
+    typeof app.commandLine.getSwitchValue === "function"
+      ? app.commandLine.getSwitchValue("user-data-dir")
+      : undefined,
+});
+if (userDataOverride) {
+  app.setPath("userData", userDataOverride);
 }
 
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();

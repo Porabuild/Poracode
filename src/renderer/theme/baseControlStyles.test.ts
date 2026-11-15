@@ -24,6 +24,15 @@ describe("base control styles", () => {
     }
   });
 
+  it("tracks child height tightly on tooltip and popover triggers", () => {
+    expect(styles).toMatch(
+      /^\.tooltip__trigger\s*\{\s*display:\s*inline-flex;\s*align-items:\s*center;\s*\}/m,
+    );
+    expect(styles).toMatch(
+      /@layer components\s*\{\s*\.popover__trigger\s*\{\s*display:\s*inline-flex;\s*align-items:\s*center;\s*\}\s*\}/,
+    );
+  });
+
   it("keeps small button icons and labels spaced and vertically centered", () => {
     expect(styles).toMatch(
       /@layer components\s*\{\s*\.button--sm\s*\{\s*line-height:\s*1rem;\s*\}\s*\.button--sm svg:not\(\[data-slot="spinner"\] svg, \[data-slot="link-icon"\] svg\)\s*\{\s*margin-inline:\s*0;/,
