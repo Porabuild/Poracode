@@ -2,6 +2,7 @@ import type { PersistStorage, StorageValue } from "zustand/middleware";
 import { filterKnownRemoteAccessScopes } from "@/shared/remote";
 import { sshConnectionConfigSchema } from "@/shared/ssh";
 import { remoteConnectionKey, type RemoteServerRecord } from "./types";
+import { remotePairingStorage } from "./storageIdentity";
 import {
   deleteDesktopToken,
   getDesktopToken,
@@ -495,7 +496,7 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
         storageName = name;
         const persistedRaw = localStorage.getItem(name);
         let stored = parseStoredValue<S>(persistedRaw);
-        if (!stored && createLegacyState) {
+        if (!stored && createLegacyState && remotePairingStorage.importLegacy) {
           const legacyServers = await readLegacyMobileServers();
           if (legacyServers.length > 0) {
             stored = { state: createLegacyState(legacyServers), version: 0 };

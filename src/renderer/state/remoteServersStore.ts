@@ -35,6 +35,7 @@ import {
   createSecureRemoteServersStorage,
   patchRemoteServersFields,
 } from "@/renderer/state/remoteServers/secureStorage";
+import { remotePairingStorage } from "@/renderer/state/remoteServers/storageIdentity";
 import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
 import { __resetBoundedCatalogForTest } from "@/renderer/state/remoteServers/catalog/boundedCatalogController";
 import { __resetCatalogOrderFencesForTest } from "@/renderer/state/remoteServers/catalog/catalogOrderFence";
@@ -135,7 +136,7 @@ export function migrateRemoteServersPersistedState(
 
 export { hydrateRefreshTokens, __peekRefreshTokenForTest };
 
-const REMOTE_SERVERS_STORE_NAME = "poracode-remote-servers";
+const REMOTE_SERVERS_STORE_NAME = remotePairingStorage.name;
 
 /** Shared by every renderer realm of this origin; see secureStorage. */
 const remoteServersStorage = createSecureRemoteServersStorage<
