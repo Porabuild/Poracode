@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
@@ -84,6 +84,48 @@ vi.mock("@dnd-kit/react", () => ({
 }));
 
 describe("usage panel host ownership", () => {
+  it("scrolls to sidebar selections after data arrives and handles repeated clicks without reordering", async () => {
+    const scroll = vi.fn<HTMLElement["scrollIntoView"]>();
+    const originalScroll = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      useUsageScopeStore.setState({ desktopId: "a", revealRequest: null });
+      const view = render(<UsagePanel />);
+      act(() => useUsageScopeStore.getState().revealProvider("second"));
+      expect(scroll).not.toHaveBeenCalled();
+      act(() => {
+        const store = useHostUsageStore.getState();
+        store.complete(
+          "a",
+          store.begin("a"),
+          ["first", "second"].map((providerId) => ({
+            providerId,
+            status: "ok",
+            windows: [],
+            fetchedAt: Date.now(),
+          })),
+        );
+      });
+      await waitFor(() => expect(scroll).toHaveBeenCalledOnce());
+      expect((scroll.mock.contexts[0] as HTMLElement).dataset.usageProviderId).toBe("second");
+      expect(scroll).toHaveBeenLastCalledWith({ block: "nearest" });
+      expect(
+        [...view.container.querySelectorAll<HTMLElement>("[data-usage-provider-id]")].map(
+          (element) => element.dataset.usageProviderId,
+        ),
+      ).toEqual(["first", "second"]);
+      act(() => useUsageScopeStore.getState().revealProvider("second"));
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(2));
+      expect(screen.queryByRole("region", { name: "Current" })).toBeNull();
+      act(() => useUsageScopeStore.getState().revealProvider("second"));
+      view.unmount();
+      expect(useUsageScopeStore.getState().revealRequest).toEqual({ providerId: "second" });
+      render(<UsagePanel />);
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(3));
+    } finally {
+      HTMLElement.prototype.scrollIntoView = originalScroll;
+    }
+  });
   it("keeps sidebar usage live while hidden cards pause, then reveals current data without refetching", async () => {
     vi.useFakeTimers();
     try {
@@ -165,7 +207,12 @@ describe("usage panel host ownership", () => {
       },
     });
     session.compact = false;
-    useUsageScopeStore.setState({ desktopId: null, refreshVersion: 0 });
+    useUsageScopeStore.setState({
+      desktopId: null,
+      refreshVersion: 0,
+      preferredProviderId: null,
+      revealRequest: null,
+    });
     useRemoteServersStore.setState({
       servers: ["a", "b"].map((connectionId) => ({
         connectionId,

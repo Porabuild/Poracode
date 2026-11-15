@@ -23263,8 +23263,8 @@ msgstr "Użycie jest zbierane na wybranym hoście. Konta i limity są wyświetla
 #~ msgstr "Dane użycia są nieaktualne. Odśwież, aby pobrać najnowsze wartości."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "Dane użycia są nieaktualne. Odśwież je."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "Dane użycia są nieaktualne. Odśwież je."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

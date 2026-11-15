@@ -23272,8 +23272,8 @@ msgstr "Usage is collected on the selected host. Accounts and quotas are shown s
 #~ msgstr "Usage is stale. Refresh to collect the latest values."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "Usage is stale. Refresh to update."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "Usage is stale. Refresh to update."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

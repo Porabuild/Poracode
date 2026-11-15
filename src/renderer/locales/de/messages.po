@@ -23263,8 +23263,8 @@ msgstr "Die Nutzung wird auf dem ausgewählten Host erfasst. Konten und Kontinge
 #~ msgstr "Die Nutzungsdaten sind veraltet. Aktualisiere sie, um die neuesten Werte abzurufen."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "Die Nutzungsdaten sind veraltet. Aktualisiere sie."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "Die Nutzungsdaten sind veraltet. Aktualisiere sie."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

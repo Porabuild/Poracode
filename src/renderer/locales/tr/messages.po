@@ -23263,8 +23263,8 @@ msgstr "Kullanım, seçilen ana makinede toplanır. Hesaplar ve kotalar her ana 
 #~ msgstr "Kullanım verileri eski. En güncel değerleri toplamak için yenileyin."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "Kullanım verileri eski. Yenileyerek güncelleyin."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "Kullanım verileri eski. Yenileyerek güncelleyin."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

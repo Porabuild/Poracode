@@ -23263,8 +23263,8 @@ msgstr "사용량은 선택한 호스트에서 수집됩니다. 계정과 할당
 #~ msgstr "사용량이 오래되었습니다. 새로고침하여 최신 값을 수집하세요."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "사용량이 오래되었습니다. 새로고침하세요."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "사용량이 오래되었습니다. 새로고침하세요."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

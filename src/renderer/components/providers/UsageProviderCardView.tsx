@@ -119,6 +119,7 @@ export function UsageProviderCardView(props: {
   return (
     <div
       ref={ref}
+      data-usage-provider-id={id}
       className={`rounded-2xl border border-[color:var(--separator)] bg-surface ${
         isDragging ? "opacity-40" : ""
       }`}

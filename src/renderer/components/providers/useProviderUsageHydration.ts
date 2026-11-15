@@ -8,7 +8,7 @@ import {
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 
 /** Hydrate the sidebar on host readiness and reconnect. The supervisor owns polling. */
-export function useProviderUsageHydration(): void {
+export function useProviderUsageHydration(enabled = true): void {
   const managed = readClientRuntime().transport === "electron-backend-host";
   const activation = useSyncExternalStore(
     subscribeManagedLoopbackActivation,
@@ -17,7 +17,7 @@ export function useProviderUsageHydration(): void {
 
   useEffect(() => {
     // Managed usage requests require the HTTP data plane; preload refuses them.
-    if (managed && !activation) return;
+    if (!enabled || (managed && !activation)) return;
     let cancelled = false;
     void readBridge()
       .getProviderUsage({})
@@ -34,5 +34,5 @@ export function useProviderUsageHydration(): void {
     return () => {
       cancelled = true;
     };
-  }, [managed, activation]);
+  }, [managed, activation, enabled]);
 }

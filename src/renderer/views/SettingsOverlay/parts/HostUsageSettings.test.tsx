@@ -117,11 +117,11 @@ describe("remote usage settings", () => {
     ]);
   }
 
-  it("shows the owning account, explicit staleness and credential guidance, and refreshes the requested provider", () => {
+  it("shows the owning account without a stale prompt and refreshes the requested provider", () => {
     seed();
     render(<HostUsageSettings connectionId="connection" selector={<span>Host selector</span>} />);
     expect(screen.getByText("host-account")).toBeTruthy();
-    expect(screen.getByText(/Usage is stale/)).toBeTruthy();
+    expect(screen.queryByText(/Usage is stale/)).toBeNull();
     expect(screen.queryByText(/Credentials stay on the host/)).toBeNull();
     expect(screen.getByRole("button", { name: "About usage" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Browser sign-in" })).toBeNull();
@@ -219,7 +219,7 @@ describe("remote usage settings", () => {
     expect(screen.queryByText(/Showing last known/)).toBeNull();
   });
 
-  it("keeps explicit refresh usable during cache reads and updates labels without polling", () => {
+  it("keeps explicit refresh usable during cache reads and automatically reads updated usage", () => {
     vi.useFakeTimers();
     seed();
     render(<HostUsageSettings connectionId="connection" selector={null} />);
@@ -238,7 +238,7 @@ describe("remote usage settings", () => {
     act(() => {
       vi.advanceTimersByTime(30_000);
     });
-    expect(fetchHostUsage).not.toHaveBeenCalled();
+    expect(fetchHostUsage).toHaveBeenCalledExactlyOnceWith("connection");
     act(() => {
       store.begin("connection", true);
     });

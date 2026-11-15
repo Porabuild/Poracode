@@ -23,8 +23,8 @@ import { floatingBubblePillClass } from "@/renderer/components/layout/floatingGl
 import { MobilePageHeaderActions } from "@/renderer/components/layout/MobilePageHeaderActions";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import {
-  usageProvidersForAgentInstances,
   resolveDisplayedProviders,
+  resolveHostUsageProviders,
   separateCurrentUsageProvider,
   usageProviderIdForAgent,
 } from "@/renderer/components/providers/usageProviders";
@@ -80,7 +80,8 @@ export function UsagePanel(props: {
   );
   useEffect(
     () => () => {
-      useUsageScopeStore.getState().setPreferredProviderId(null);
+      // Moving between docks must preserve the sidebar's pending reveal.
+      useUsageScopeStore.setState({ preferredProviderId: null });
     },
     [],
   );
@@ -143,6 +144,7 @@ function UsagePanelContent(props: {
   const requestedDesktopId = useUsageScopeStore((s) => s.desktopId);
   const setRequestedDesktopId = useUsageScopeStore((s) => s.setDesktopId);
   const preferredProviderId = useUsageScopeStore((s) => s.preferredProviderId);
+  const revealRequest = useUsageScopeStore((s) => s.revealRequest);
   const requestRefresh = useUsageScopeStore((s) => s.requestRefresh);
   const servers = useRemoteServersStore((s) => s.servers);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -157,22 +159,26 @@ function UsagePanelContent(props: {
     disabledProviders,
     agentInstances,
   );
-  const localLabels = new Map(
-    usageProvidersForAgentInstances(undefined).map((provider) => [provider.id, provider.label]),
-  );
-  for (const agent of hostView.agents?.windows ?? []) localLabels.set(agent.kind, agent.label);
   const orderedProviders = remoteView
-    ? (hostView.canRead ? hostView.usage.snapshots : [])
-        .map((snapshot) => ({
-          id: snapshot.providerId,
-          label: localLabels.get(snapshot.providerId) ?? snapshot.providerId,
-        }))
-        .sort((a, b) => {
-          const rank = (id: string) =>
-            providerOrder.indexOf(id) < 0 ? providerOrder.length : providerOrder.indexOf(id);
-          return rank(a.id) - rank(b.id);
-        })
+    ? resolveHostUsageProviders(
+        hostView.canRead ? hostView.usage.snapshots : [],
+        providerOrder,
+        hostView.agents,
+      )
     : localProviders;
+  const revealAvailable = orderedProviders.some(
+    (provider) => provider.id === revealRequest?.providerId,
+  );
+  useEffect(() => {
+    if (!revealRequest || !revealAvailable) return;
+    const frame = requestAnimationFrame(() => {
+      const card = [
+        ...(contentRef.current?.querySelectorAll<HTMLElement>("[data-usage-provider-id]") ?? []),
+      ].find((element) => element.dataset.usageProviderId === revealRequest.providerId);
+      card?.scrollIntoView({ block: "nearest" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [revealRequest, revealAvailable]);
   const { current: currentProvider, rest: sortableProviders } = separateCurrentUsageProvider(
     orderedProviders,
     preferredProviderId

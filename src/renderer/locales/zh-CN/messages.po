@@ -23262,8 +23262,8 @@ msgstr "用量在所选主机上收集。每台主机的账号和配额分别显
 #~ msgstr "用量已过期。请刷新以获取最新数据。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "用量已过期。请刷新更新。"
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "用量已过期。请刷新更新。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

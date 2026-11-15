@@ -7,6 +7,7 @@ import {
   needsBrowserSessionForUsage,
   pickUsageRings,
   resolveDisplayedProviders,
+  resolveHostUsageProviders,
   separateCurrentUsageProvider,
   supportsApiKeyLogin,
   supportsBrowserLogin,
@@ -44,6 +45,21 @@ const agentInstances: AgentInstanceConfigMap = {
 };
 
 describe("usageProviders", () => {
+  it("uses remote snapshot IDs and host labels without including configured local profiles", () => {
+    const snapshots: UsageSnapshot[] = ["codex", "claude:work", "remote-only"].map(
+      (providerId) => ({
+        providerId,
+        status: "ok",
+        windows: [],
+        fetchedAt: 1,
+      }),
+    );
+    expect(resolveHostUsageProviders(snapshots, ["claude:work", "codex"], undefined)).toEqual([
+      { id: "claude:work", label: "claude:work" },
+      { id: "codex", label: "Codex" },
+      { id: "remote-only", label: "remote-only" },
+    ]);
+  });
   it("separates the current provider without mutating the saved order", () => {
     const providers = [
       { id: "codex", label: "Codex" },
