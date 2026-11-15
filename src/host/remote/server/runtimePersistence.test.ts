@@ -255,6 +255,44 @@ describe.skipIf(!sqliteAvailable)("persistSupervisorEvent failure contract", () 
     },
   );
 
+  it.each([false, true])("keeps a specific error through a rebroadcast (Stop=%s)", async (stop) => {
+    vi.useFakeTimers();
+    const state = {
+      type: "thread-state",
+      threadId: THREAD_ID,
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: true,
+    } as const;
+    persistSupervisorEvent({ ...state, errorMessage: "Weekly quota exhausted." });
+    persistSupervisorEvent({ ...state, ...(stop ? { turnStopRequested: true } : {}) });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dbGetThread(THREAD_ID)?.errorMessage).toBe("Weekly quota exhausted.");
+  });
+
+  it.each([false, true])(
+    "does not revive an earlier error after a retry (Stop=%s)",
+    async (stop) => {
+      vi.useFakeTimers();
+      dbUpsertThread({ ...testThread(), status: "error", errorMessage: "Previous failure" }, 0);
+      const state = {
+        type: "thread-state",
+        threadId: THREAD_ID,
+        attention: "none",
+        canResumeWithConfig: true,
+      } as const;
+      persistSupervisorEvent({ ...state, status: "working" });
+      persistSupervisorEvent({
+        ...state,
+        status: "error",
+        ...(stop ? { turnStopRequested: true } : {}),
+      });
+      await vi.advanceTimersByTimeAsync(10);
+      expect(dbGetThread(THREAD_ID)).toMatchObject({ status: "error" });
+      expect(dbGetThread(THREAD_ID)).not.toHaveProperty("errorMessage");
+    },
+  );
+
   it("rejects a departed provider's failure before snapshot projection and coalescing", async () => {
     vi.useFakeTimers();
     dbUpsertThread({ ...testThread(), agentKind: "provider-b" }, 0);

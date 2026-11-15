@@ -39,7 +39,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
       DATABASE_MIGRATIONS.filter((migration) => migration.version > 68).map(
         (migration) => migration.version,
       ),
-    ).toEqual([69, 70, 71, 72, 73]);
+    ).toEqual([69, 70, 71, 72, 73, 74]);
     old.close();
     initDatabase(path);
     return before;
@@ -48,12 +48,12 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
   it("advances a schema 68 artifact without inventing a turn to resume", () => {
     const before = upgradeSchema68();
     expect(getSqlite().prepare("SELECT * FROM threads ORDER BY id").all()).toEqual(
-      before.map((row) => ({ ...(row as object), interrupted_turn: null })),
+      before.map((row) => ({ ...(row as object), interrupted_turn: null, error_message: null })),
     );
     expect(dbGetThread("thread-2")).not.toHaveProperty("interruptedTurn");
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "73" });
+    ).toEqual({ value: "74" });
   });
 
   it("marks only turns still running at boot as cut off by the restart", () => {
@@ -97,7 +97,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
     initDatabase(path);
     expect(getSqlite().prepare("SELECT * FROM projects ORDER BY id").all()).toEqual(projects);
     expect(getSqlite().prepare("SELECT * FROM threads ORDER BY id").all()).toEqual(
-      threads.map((row) => ({ ...(row as object), interrupted_turn: null })),
+      threads.map((row) => ({ ...(row as object), interrupted_turn: null, error_message: null })),
     );
   });
 
@@ -119,7 +119,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
     );
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "73" });
+    ).toEqual({ value: "74" });
   });
 
   it("keeps an earlier failure across a restart", () => {

@@ -1125,6 +1125,15 @@ export const DATABASE_MIGRATIONS = [
     rollback: "rollback-compatible",
     migrate: createHistoryCacheRevisionSchema,
   },
+  {
+    version: 74,
+    name: "retain thread failure explanations",
+    // Additive to schema73: old rows keep an unknown explanation (NULL).
+    // The existing optional errorMessage wire field needs no protocol/cache
+    // bump; catalog and history reads project the newly durable value.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "error_message", "TEXT"),
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 // Worktree link reconciliation refreshes existing path/branch columns from Git;
@@ -1298,6 +1307,9 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
     if (Number(schema?.value) >= 70) {
       addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
     }
+    if (Number(schema?.value) >= 74) {
+      addColumnIfMissing(sqlite, "threads", "error_message", "TEXT");
+    }
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );
@@ -1382,6 +1394,7 @@ const REQUIRED_COLUMNS = {
     "last_turn_started_at",
     "last_turn_ended_at",
     "interrupted_turn",
+    "error_message",
   ],
   thread_history_revisions: ["thread_id", "incarnation", "revision"],
   thread_runtime_items: [

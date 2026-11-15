@@ -30,7 +30,7 @@ import {
 } from "./upsertStatements";
 
 /** Renderer snapshots never own `thread_status_source`; see ThreadUpsertOptions. */
-const THREAD_SYNC_OPTIONS = { writeThreadStatusSource: false } as const;
+const THREAD_SYNC_OPTIONS = { writeThreadStatusSource: false, writeErrorMessage: false } as const;
 
 /**
  * Row-scoped sibling of [dbSyncAll]: the renderer diffs its store against the

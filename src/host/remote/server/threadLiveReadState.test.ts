@@ -136,6 +136,21 @@ const working = {
   canResumeWithConfig: true,
 };
 
+it("projects failure details before persistence, and clears them when work resumes", () => {
+  const state = new ThreadLiveReadState();
+  const errorMessage = "Weekly quota exhausted.";
+  state.observe({ ...working, status: "error", attention: "error", errorMessage });
+  expect(state.projectSnapshotRuntime(thread).thread.errorMessage).toBe(errorMessage);
+  state.observe({ ...working, status: "error", attention: "error" });
+  expect(state.projectSnapshotRuntime(thread).thread.errorMessage).toBe(errorMessage);
+  state.observe(working);
+  expect(
+    state.projectSnapshotRuntime({ ...thread, status: "error", errorMessage }).thread,
+  ).not.toHaveProperty("errorMessage");
+  state.observe({ ...working, status: "error", attention: "error" });
+  expect(state.projectSnapshotRuntime(thread).thread).not.toHaveProperty("errorMessage");
+});
+
 it("invalidates an old idle level when launch input arrives before working", () => {
   const state = new ThreadLiveReadState();
   state.observe({ ...working, status: "idle", attention: "none" });

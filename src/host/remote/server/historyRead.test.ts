@@ -199,6 +199,27 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
     vi.useRealTimers();
   });
 
+  it("returns the saved provider error after restart without a live supervisor session", async () => {
+    const errorMessage = "Your weekly usage quota has been exhausted.";
+    persistThreadStateEvent({
+      type: "thread-state",
+      threadId: "thread-1",
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: true,
+      errorMessage,
+    });
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+    const ctx = context();
+    const bounded = boundedThreadSnapshotSchema.parse(
+      JSON.parse(await buildBoundedThreadSnapshot(ctx, "thread-1", negotiation())),
+    );
+    expect(bounded.thread.errorMessage).toBe(errorMessage);
+    const legacy = await buildThreadSnapshot(ctx, "thread-1");
+    expect(legacy.thread.errorMessage).toBe(errorMessage);
+  });
+
   it("validates durable history after restart while refreshing live state and sequence proofs", async () => {
     dbUpsertThread({ ...testThread(), presentationMode: "gui" }, 0);
     await dbReplaceThreadRuntimeItems("thread-1", [item(1)]);
