@@ -127,7 +127,7 @@ export function openCrewsSettings(crewId?: string): void {
   usePanelStore.getState().openSettingsSection("crews", crewId ? `crews.${crewId}` : undefined);
 }
 
-function openUsagePanelSurface(): void {
+function openUsagePanelSurface(toggle = true): void {
   const panelStore = usePanelStore.getState();
   if (isCompactLayoutViewport()) {
     panelStore.openMobileUtilityPage("usage");
@@ -136,6 +136,7 @@ function openUsagePanelSurface(): void {
   // A docked Usage is not what the right panel is showing, so closing it here
   // would be a no-op the user can see; bring it back instead.
   if (
+    toggle &&
     panelStore.usagePanelOpen &&
     panelStore.rightPanelTab === "usage" &&
     !isTabBottomDocked("usage")
@@ -157,6 +158,12 @@ export function openUsagePanel(): void {
 export function openUsagePanelForProvider(providerId: string): void {
   useUsageScopeStore.getState().setPreferredProviderId(providerId);
   openUsagePanelSurface();
+}
+
+/** Reveal a sidebar provider in the saved order, including when Usage is already open. */
+export function openUsagePanelAtProvider(providerId: string): void {
+  useUsageScopeStore.getState().revealProvider(providerId);
+  openUsagePanelSurface(false);
 }
 
 /** Open the docked notes panel, or close all right-side panels if it is already active. */

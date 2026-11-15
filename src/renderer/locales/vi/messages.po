@@ -23263,8 +23263,8 @@ msgstr "Mức sử dụng được thu thập trên máy chủ đã chọn. Tài
 #~ msgstr "Dữ liệu sử dụng đã cũ. Hãy làm mới để thu thập các giá trị mới nhất."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "Dữ liệu sử dụng đã cũ. Hãy làm mới."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "Dữ liệu sử dụng đã cũ. Hãy làm mới."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

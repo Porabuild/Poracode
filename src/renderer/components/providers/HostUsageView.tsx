@@ -34,7 +34,6 @@ export function useHostUsageView(
   const canRead = server?.scopes.includes("session:read") === true;
   const canRefresh = canRead && server?.scopes.includes("session:operate") === true;
   const online = status === "online";
-  const now = useUsageClock(visible && !!server && canRead && online);
 
   useEffect(() => {
     if (canRefresh && (liveOnOpen || refreshVersion > 0))
@@ -69,21 +68,32 @@ export function useHostUsageView(
     )
       void fetchHostUsage(connectionId);
   }, [connectionId, canRead, online, usage.updateRequired, usage.pending, usage.lastReadRequest]);
-  useEffect(() => () => useHostUsageStore.getState().invalidate(connectionId), [connectionId]);
+  useEffect(() => {
+    if (!visible || !server || !canRead || !online || usage.pending) return;
+    const read = () => {
+      const current = useHostUsageStore.getState().hosts[connectionId];
+      if (!current?.pending && Date.now() - (current?.lastRequestedAt ?? 0) >= 30_000)
+        // Cache reads trigger the host's due-provider collection without bypassing
+        // its polling policy or rate-limit backoff. The next read picks up results.
+        void fetchHostUsage(connectionId);
+    };
+    const delay = Math.max(0, 30_000 - (Date.now() - usage.lastRequestedAt));
+    if (delay === 0) {
+      read();
+      return;
+    }
+    const timer = setTimeout(read, delay);
+    return () => clearTimeout(timer);
+  }, [connectionId, server, canRead, online, visible, usage.pending, usage.lastRequestedAt]);
 
-  const lastFetched = usage.snapshots.length
-    ? Math.min(...usage.snapshots.map((snapshot) => snapshot.fetchedAt))
-    : undefined;
-  const stale =
-    !online || usage.failed || (lastFetched !== undefined && now - lastFetched >= 120_000);
-  return { server, status, agents, usage, canRead, canRefresh, online, stale, lastFetched };
+  return { server, status, agents, usage, canRead, canRefresh, online };
 }
 
 export function HostUsageStatus(props: {
   view: ReturnType<typeof useHostUsageView>;
   className?: string;
 }) {
-  const { server, status, usage, canRead, canRefresh, online, stale } = props.view;
+  const { server, status, usage, canRead, canRefresh, online } = props.view;
   const message = !server ? (
     <Trans>This host is no longer configured.</Trans>
   ) : !canRead ? (
@@ -103,8 +113,6 @@ export function HostUsageStatus(props: {
   ) : (!usage.initialized && usage.snapshots.length === 0) ||
     (usage.pending && usage.snapshots.length === 0) ? (
     <Trans>Loading usage…</Trans>
-  ) : stale ? (
-    <Trans>Usage is stale. Refresh to update.</Trans>
   ) : null;
   const readOnly = server && canRead && !canRefresh;
   const empty =

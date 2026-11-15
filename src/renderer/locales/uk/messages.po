@@ -23263,8 +23263,8 @@ msgstr "Дані використання збираються на вибран
 #~ msgstr "Дані використання застаріли. Оновіть їх, щоб отримати актуальні значення."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "Дані використання застаріли. Оновіть їх."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "Дані використання застаріли. Оновіть їх."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

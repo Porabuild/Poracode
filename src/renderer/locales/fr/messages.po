@@ -23262,8 +23262,8 @@ msgstr "L’utilisation est collectée sur l’hôte sélectionné. Les comptes 
 #~ msgstr "Les données d’utilisation sont obsolètes. Actualisez pour obtenir les dernières valeurs."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "Les données d’utilisation sont obsolètes. Actualisez-les."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "Les données d’utilisation sont obsolètes. Actualisez-les."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

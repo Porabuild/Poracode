@@ -23263,8 +23263,8 @@ msgstr "O uso é coletado no host selecionado. As contas e cotas são exibidas s
 #~ msgstr "O uso está desatualizado. Atualize para coletar os valores mais recentes."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "O uso está desatualizado. Atualize os dados."
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "O uso está desatualizado. Atualize os dados."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

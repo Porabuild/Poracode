@@ -74,6 +74,7 @@ export function RemoteServerPicker(props: {
               `gap-2 ${compact ? "h-9 min-h-9 max-w-40 px-2" : "h-7 min-h-7 px-1.5"}`
             }
             aria-label={t`Connections`}
+            render={(buttonProps) => <button {...buttonProps} type="button" title={label} />}
             {...(props.detail ? { "aria-describedby": detailId } : {})}
             {...(mobile ? { onPress: () => setOpen(true) } : {})}
           >

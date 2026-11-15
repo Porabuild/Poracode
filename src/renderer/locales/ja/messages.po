@@ -23261,8 +23261,8 @@ msgstr "使用量は選択したホストで収集されます。アカウント
 #~ msgstr "使用量が古くなっています。更新して最新の値を取得してください。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to update."
-msgstr "使用量が古くなっています。更新してください。"
+#~ msgid "Usage is stale. Refresh to update."
+#~ msgstr "使用量が古くなっています。更新してください。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

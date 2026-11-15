@@ -10,9 +10,9 @@ import { pickUsageRings, usageRingGroups, type UsageProvider } from "./usageProv
 import { RAIL_CIRCLE_SIZE } from "./usageRailFit";
 
 /** One compact line per overflowed provider: mini rings, label, ring values. */
-function OverflowRow(props: { id: string; label: string }) {
-  const { id, label } = props;
-  const snapshot = useProviderUsage(id);
+function OverflowRow(props: { id: string; label: string; connectionId: string | null }) {
+  const { id, label, connectionId } = props;
+  const snapshot = useProviderUsage(id, connectionId);
   const selectedRingGroups = useSharedSettings((s) => s.usage.selectedRingGroups);
   const ringGroups = usageRingGroups(id, snapshot?.windows);
   const persistedRingGroup = selectedRingGroups[id];
@@ -51,8 +51,11 @@ function OverflowRow(props: { id: string; label: string }) {
  * compact line each, so a narrow sidebar hides circles but never information.
  * Clicking opens the docked usage panel, matching the circles it replaces.
  */
-export function UsageOverflowChip(props: { providers: readonly UsageProvider[] }) {
-  const { providers } = props;
+export function UsageOverflowChip(props: {
+  providers: readonly UsageProvider[];
+  connectionId: string | null;
+}) {
+  const { providers, connectionId } = props;
   const { t } = useLingui();
   if (providers.length === 0) return null;
   return (
@@ -75,7 +78,7 @@ export function UsageOverflowChip(props: { providers: readonly UsageProvider[] }
           </p>
           <div className="space-y-0.5">
             {providers.map((p) => (
-              <OverflowRow key={p.id} id={p.id} label={p.label} />
+              <OverflowRow key={p.id} id={p.id} label={p.label} connectionId={connectionId} />
             ))}
           </div>
         </div>

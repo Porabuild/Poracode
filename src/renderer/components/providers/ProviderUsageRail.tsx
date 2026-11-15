@@ -1,4 +1,4 @@
-import { startTransition, useLayoutEffect, useRef, useState } from "react";
+import { startTransition, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/shallow";
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, type DragEndEvent, KeyboardSensor, PointerSensor } from "@dnd-kit/react";
@@ -7,14 +7,19 @@ import { Tooltip } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageDescriptor } from "@lingui/core";
-import { Check } from "lucide-react";
+import { Check, Gauge } from "lucide-react";
 import { formatResetCountdown } from "@poracode/agents-usage/formatters";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
-import { openUsagePanel } from "@/renderer/actions/panelActions";
+import { openUsagePanel, openUsagePanelAtProvider } from "@/renderer/actions/panelActions";
 import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common/ContextMenu";
+import { RemoteServerPicker } from "@/renderer/components/common/RemoteServerPicker";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";
+import { useHostUsageView } from "./HostUsageView";
+import { useUsagePanelScope } from "./useUsagePanelScope";
 import { useProviderUsageHydration } from "./useProviderUsageHydration";
 import { UsageCostLine } from "./UsageCostLine";
 import { UsageOverflowChip } from "./UsageOverflowChip";
@@ -30,6 +35,7 @@ import {
   hasRailUsage,
   isClaudeUsageProvider,
   resolveDisplayedProviders,
+  resolveHostUsageProviders,
   usageRingGroups,
   usesSharedWindowReset,
   type UsageProvider,
@@ -153,10 +159,16 @@ function UsageTooltipBody(props: {
   );
 }
 
-function ProviderUsageRailItem(props: { id: string; label: string; index: number; group: string }) {
-  const { id, label, index, group } = props;
+function ProviderUsageRailItem(props: {
+  id: string;
+  label: string;
+  index: number;
+  group: string;
+  connectionId: string | null;
+}) {
+  const { id, label, index, group, connectionId } = props;
   const { t } = useLingui();
-  const snapshot = useProviderUsage(id);
+  const snapshot = useProviderUsage(id, connectionId);
   const selectedRingGroups = useSharedSettings((s) => s.usage.selectedRingGroups);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const { ref, isDragging } = useSortable({
@@ -184,7 +196,7 @@ function ProviderUsageRailItem(props: { id: string; label: string; index: number
           <button
             type="button"
             aria-label={t`${label} usage — open usage panel`}
-            onClick={openUsagePanel}
+            onClick={() => openUsagePanelAtProvider(id)}
             className="cursor-grab rounded-full outline-none focus-visible:focus-ring active:cursor-grabbing"
           >
             <ProviderUsageCircle
@@ -238,8 +250,9 @@ function UsageRailStrip(props: {
   shownCount: number;
   orientation: "row" | "column";
   onReorder: ReorderHandler;
+  connectionId: string | null;
 }) {
-  const { providers, shownCount, orientation, onReorder } = props;
+  const { providers, shownCount, orientation, onReorder, connectionId } = props;
   const shown = providers.slice(0, shownCount);
   // Namespace the sortable group per orientation so the row + column instances
   // (one of which may be mounted but hidden) never share registrations.
@@ -263,9 +276,16 @@ function UsageRailStrip(props: {
     <DragDropProvider sensors={RAIL_SENSORS} onDragEnd={handleDragEnd}>
       <div className={STRIP[orientation].className} style={{ gap: STRIP[orientation].gap }}>
         {shown.map((p, index) => (
-          <ProviderUsageRailItem key={p.id} id={p.id} label={p.label} index={index} group={group} />
+          <ProviderUsageRailItem
+            key={p.id}
+            id={p.id}
+            label={p.label}
+            index={index}
+            group={group}
+            connectionId={connectionId}
+          />
         ))}
-        <UsageOverflowChip providers={providers.slice(shownCount)} />
+        <UsageOverflowChip providers={providers.slice(shownCount)} connectionId={connectionId} />
       </div>
     </DragDropProvider>
   );
@@ -276,8 +296,12 @@ function UsageRailStrip(props: {
  * tooltip carries the rest. The row is measured rather than wrapped so the rail
  * keeps a fixed height as the sidebar is resized.
  */
-function UsageRailRow(props: { providers: readonly UsageProvider[]; onReorder: ReorderHandler }) {
-  const { providers, onReorder } = props;
+function UsageRailRow(
+  props: Omit<Parameters<typeof UsageRailStrip>[0], "shownCount" | "orientation"> & {
+    environmentSelector: ReactNode;
+  },
+) {
+  const { providers, environmentSelector } = props;
   const rowRef = useRef<HTMLDivElement | null>(null);
   const [slots, setSlots] = useState(0);
 
@@ -305,16 +329,23 @@ function UsageRailRow(props: { providers: readonly UsageProvider[]; onReorder: R
   // `px-2` aligns the circles with the footer button icons.
   return (
     <div className="px-2">
-      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
-        <Trans>Usage</Trans>
-      </p>
+      <div className="mb-1.5 flex items-center gap-2 text-[10px] text-muted/70">
+        <span className="font-semibold uppercase tracking-wider">
+          <Trans>Usage</Trans>
+        </span>
+        {environmentSelector}
+      </div>
       <div ref={rowRef}>
         <UsageRailStrip
-          providers={providers}
+          {...props}
           shownCount={fitUsageRail(slots, providers.length)}
           orientation="row"
-          onReorder={onReorder}
         />
+        {providers.length === 0 ? (
+          <p className="text-xs text-muted">
+            <Trans>No data yet</Trans>
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -328,6 +359,7 @@ function UsageRailRow(props: { providers: readonly UsageProvider[]; onReorder: R
  * the docked usage panel.
  */
 export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
+  const { t } = useLingui();
   const orientation = props.orientation ?? "row";
   const showInSidebar = useSharedSettings((s) => s.usage.showInSidebar);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
@@ -335,14 +367,25 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
   const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
+  const scope = useUsagePanelScope();
+  const connectionId = scope.remote ? (scope.effectiveId ?? "") : null;
+  const view = useHostUsageView(connectionId ?? "", 0, false, showInSidebar);
+  const servers = useRemoteServersStore((s) => s.servers);
+  const setDesktopId = useUsageScopeStore((s) => s.setDesktopId);
 
-  useProviderUsageHydration();
+  useProviderUsageHydration(showInSidebar && !scope.remote);
 
   // Full set drives the persisted order; the rail only offers the providers the
   // user hasn't individually hidden and that have usage worth a ring — a
   // signed-out provider belongs in Settings, not in the rail. Skipped providers
   // still hold their slot in `providerOrder` (the docked panel can reorder them).
-  const allProviders = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
+  const allProviders = scope.remote
+    ? resolveHostUsageProviders(
+        view.canRead ? view.usage.snapshots : [],
+        providerOrder,
+        view.agents,
+      )
+    : resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
   // Subscribe to rail *eligibility* only. The snapshot map gets a new identity on
   // every refresh tick, so selecting it whole would re-render the rail (and every
   // circle) whenever any provider's percentages moved; each circle already reads
@@ -351,10 +394,28 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
     useShallow((s) => allProviders.map((p) => hasRailUsage(s.snapshots[p.id]))),
   );
   const providers = allProviders.filter(
-    (p, i) => !sidebarHiddenProviders.includes(p.id) && eligible[i],
+    (p, i) =>
+      !sidebarHiddenProviders.includes(p.id) &&
+      (scope.remote
+        ? hasRailUsage(view.usage.snapshots.find((snapshot) => snapshot.providerId === p.id))
+        : eligible[i]),
   );
 
-  if (!showInSidebar || providers.length === 0) return null;
+  const showEnvironment = servers.length > 0;
+  if (!showInSidebar || (providers.length === 0 && !showEnvironment)) return null;
+  const environmentSelector = showEnvironment ? (
+    <RemoteServerPicker
+      value={scope.effectiveId}
+      includeLocal={!scope.remoteSession}
+      onChange={setDesktopId}
+      buttonClassName={
+        orientation === "column"
+          ? "size-7 min-h-7 min-w-7 gap-0 p-0 [&>span:not(:first-child)]:hidden [&>svg:last-child]:hidden"
+          : "h-4 min-h-4 min-w-0 max-w-full gap-1 px-0 text-muted/70 [&>span:first-child]:size-2.5 [&>span:first-child>span]:size-[3px] [&>span]:text-[10px] [&>svg]:size-3"
+      }
+      opensUpward
+    />
+  ) : null;
 
   function handleReorder(orderedRenderedIds: readonly string[]) {
     // Splice the strip's new order back into the full order so hidden and
@@ -367,15 +428,28 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
 
   // The collapsed rail is a fixed cap rather than a measured fit — it is one
   // narrow column sharing vertical space with the footer nav.
-  if (orientation === "column") {
-    return (
-      <UsageRailStrip
-        providers={providers}
-        shownCount={RAIL_COLUMN_MAX}
-        orientation="column"
-        onReorder={handleReorder}
-      />
-    );
-  }
-  return <UsageRailRow providers={providers} onReorder={handleReorder} />;
+  const stripProps = {
+    providers,
+    onReorder: handleReorder,
+    connectionId,
+  };
+  return orientation === "column" ? (
+    <div className="flex flex-col items-center gap-1">
+      {environmentSelector}
+      {providers.length ? (
+        <UsageRailStrip {...stripProps} shownCount={RAIL_COLUMN_MAX} orientation="column" />
+      ) : (
+        <button
+          type="button"
+          aria-label={t`Usage`}
+          onClick={openUsagePanel}
+          className="p-1.5 text-muted"
+        >
+          <Gauge className="size-4" />
+        </button>
+      )}
+    </div>
+  ) : (
+    <UsageRailRow {...stripProps} environmentSelector={environmentSelector} />
+  );
 }
