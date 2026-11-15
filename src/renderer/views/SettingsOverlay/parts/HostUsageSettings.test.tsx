@@ -254,18 +254,50 @@ describe("remote usage settings", () => {
   });
   it("keeps sidebar visibility choices available before any usage has been collected", () => {
     render(<HostUsageSettings connectionId="connection" selector={null} />);
-    expect(
-      screen.getByRole("button", { name: "Hide Claude Owner circle in sidebar" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Visible in sidebar" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /circle in sidebar/ })).toBeNull();
     expect(screen.getByText("Loading usage…")).toBeTruthy();
   });
   it("writes the current settings owner's custom-profile visibility with an empty cache and read-less grant", () => {
     const server = useRemoteServersStore.getState().servers[0]!;
     useRemoteServersStore.setState({ servers: [{ ...server, scopes: [] }] });
     render(<HostUsageSettings connectionId="connection" selector={null} />);
-    fireEvent.click(screen.getByRole("button", { name: "Hide Claude Owner circle in sidebar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Visible in sidebar" }));
+    fireEvent.click(screen.getByRole("option", { name: "Claude Owner" }));
     expect(useSharedSettings.getState().usage.sidebarHiddenProviders).toEqual(["claude:owner"]);
     expect(fetchHostUsage).not.toHaveBeenCalled();
+  });
+
+  it("orders host snapshots by providerOrder and toggles collapse all", () => {
+    useSharedSettings.setState((state) => ({
+      usage: { ...state.usage, providerOrder: ["codex", "claude"] },
+    }));
+    const store = useHostUsageStore.getState();
+    store.complete("connection", store.begin("connection"), [
+      {
+        providerId: "claude",
+        status: "ok",
+        windows: [{ id: "session-5h", label: "Session", usedPercent: 10 }],
+        fetchedAt: Date.now(),
+      },
+      {
+        providerId: "codex",
+        status: "ok",
+        windows: [{ id: "weekly", label: "Weekly", usedPercent: 25 }],
+        fetchedAt: Date.now(),
+      },
+    ]);
+    const { container } = render(<HostUsageSettings connectionId="connection" selector={null} />);
+    const cardIds = [...container.querySelectorAll("[data-usage-provider-id]")].map((el) =>
+      el.getAttribute("data-usage-provider-id"),
+    );
+    expect(cardIds).toEqual(["codex", "claude"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+    expect(useSharedSettings.getState().usage.collapsedProviders).toEqual(["codex", "claude"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+    expect(useSharedSettings.getState().usage.collapsedProviders).toEqual([]);
   });
 
   it("shows valid billed cost-only snapshots in settings and guards estimated cost by display preference", () => {

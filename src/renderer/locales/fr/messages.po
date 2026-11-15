@@ -927,6 +927,7 @@ msgstr "{visibleCount} sur {totalCount} utilisables"
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} sur {totalCount} visibles"
 
@@ -3925,6 +3926,11 @@ msgid "Choose whether links from Poracode and browser popups stay in Poracode or
 msgstr "Choisissez si les liens de Poracode et les fenêtres contextuelles du navigateur restent dans Poracode ou s'ouvrent en externe."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Choose which providers show usage rings in the sidebar."
+msgstr "Choisissez les fournisseurs qui affichent des anneaux d’utilisation dans la barre latérale."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose which shortcuts appear in the sidebar footer."
 msgstr "Choisissez les raccourcis à afficher en bas de la barre latérale."
 
@@ -4053,6 +4059,8 @@ msgstr "Effacer l'objectif"
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Clear search"
 msgstr "Effacer la recherche"
 
@@ -4474,6 +4482,7 @@ msgstr "Codex exécute ce profil avec CODEX_HOME pointant vers le répertoire ci
 msgid "Collapse"
 msgstr "Réduire"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Collapse {label}"
 msgstr "Réduire {label}"
@@ -4493,6 +4502,7 @@ msgstr "Réduire la vision de l’agent"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Collapse all"
 msgstr "Tout réduire"
 
@@ -6184,6 +6194,10 @@ msgstr "Le SDK Cursor a été mis à jour vers la v{nextVersion}."
 msgid "Custom"
 msgstr "Personnalisé"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
+msgid "Custom auto-refresh interval in minutes. Clear to use default."
+msgstr "Intervalle d’actualisation automatique personnalisé en minutes. Effacez pour utiliser la valeur par défaut."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Custom color"
 msgstr "Couleur personnalisée"
@@ -7081,6 +7095,10 @@ msgstr "Rejeté"
 msgid "dismissed review"
 msgstr "examen rejeté"
 
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Display"
+msgstr "Affichage"
+
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Display name"
@@ -7949,6 +7967,7 @@ msgstr "Quitté avec le code {0}. Fermez pour réessayer."
 msgid "Expand"
 msgstr "Développer"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
 msgid "Expand {label}"
 msgstr "Développer {label}"
@@ -7968,6 +7987,7 @@ msgstr "Développer la vision de l’agent"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsagePanelHeaderActions.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbarCompact.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Expand all"
 msgstr "Tout développer"
 
@@ -9422,12 +9442,13 @@ msgid "Hide {label}"
 msgstr "Masquer {label}"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Hide {label} circle in sidebar"
-msgstr "Masquer le cercle de {label} dans la barre latérale"
+#~ msgid "Hide {label} circle in sidebar"
+#~ msgstr "Masquer le cercle de {label} dans la barre latérale"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "Hide all"
 msgstr "Tout cacher"
 
@@ -10713,6 +10734,7 @@ msgstr "Dernière progression il y a {elapsed}"
 msgid "Last tool: <0>{0}</0>"
 msgstr "Dernier outil : <0>{0}</0>"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 msgid "Last updated: {fetchedAt}"
 msgstr "Dernière mise à jour : {fetchedAt}"
@@ -12237,6 +12259,7 @@ msgid "More PR options"
 msgstr "Plus d'options PR"
 
 #: src/renderer/components/providers/UsageOverflowChip.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "More providers"
 msgstr "Autres fournisseurs"
 
@@ -13324,10 +13347,19 @@ msgstr "Aucune invite"
 msgid "No providers are being tracked."
 msgstr "Aucun fournisseur n'est suivi."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "No providers are being tracked. Enable providers below to monitor quotas and cost."
+msgstr "Aucun fournisseur n’est suivi. Activez des fournisseurs ci-dessous pour suivre les quotas et les coûts."
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "Aucun fournisseur connecté pour le moment."
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "No providers found"
+msgstr "Aucun fournisseur trouvé"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #~ msgid "No providers ready yet"
@@ -15763,7 +15795,6 @@ msgstr "fournisseurs"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Providers"
 msgstr "Fournisseurs"
 
@@ -15986,6 +16017,10 @@ msgstr "Quitter"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Quota reached"
 msgstr "Quota atteint"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Quotas"
+msgstr "Quotas"
 
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
 #~ msgid "Qwen"
@@ -16260,6 +16295,7 @@ msgstr "Référence"
 
 #. Button: re-fetch provider usage now
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -16290,6 +16326,7 @@ msgstr "Actualiser {0}"
 msgid "Refresh {0} authentication"
 msgstr "Actualiser l'authentification {0}"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/components/providers/UsageProviderCardView.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Refresh {label}"
@@ -18202,6 +18239,10 @@ msgstr "Rechercher des modèles"
 msgid "Search models..."
 msgstr "Rechercher des modèles..."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Search more providers"
+msgstr "Rechercher d’autres fournisseurs"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserOmnibox.tsx
 msgid "Search or enter address"
 msgstr "Rechercher ou saisir une adresse"
@@ -18233,6 +18274,15 @@ msgstr "Rechercher des plugins"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins, skills, and servers..."
 msgstr "Rechercher des plugins, compétences et serveurs..."
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+msgid "Search providers"
+msgstr "Rechercher des fournisseurs"
+
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Search providers…"
+msgstr "Rechercher des fournisseurs…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #~ msgid "Search pull requests"
@@ -18787,8 +18837,8 @@ msgid "Show {label}"
 msgstr "Afficher {label}"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Show {label} circle in sidebar"
-msgstr "Afficher le cercle de {label} dans la barre latérale"
+#~ msgid "Show {label} circle in sidebar"
+#~ msgstr "Afficher le cercle de {label} dans la barre latérale"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectEnvironmentMenuItems.tsx
 msgid "Show {machine} as its own project"
@@ -18817,6 +18867,7 @@ msgstr "Afficher la recherche d’agents"
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
 msgid "Show all"
 msgstr "Afficher tout"
 
@@ -18843,8 +18894,13 @@ msgstr "Afficher les cercles dans la barre latérale"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
-msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
-msgstr "Afficher des anneaux d'utilisation compacts par fournisseur dans la barre latérale. Masquez les cercles de chaque fournisseur dans la liste ci-dessous."
+msgid "Show compact per-provider usage rings in the sidebar."
+msgstr "Afficher des anneaux d’utilisation compacts par fournisseur dans la barre latérale."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+#~ msgid "Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below."
+#~ msgstr "Afficher des anneaux d'utilisation compacts par fournisseur dans la barre latérale. Masquez les cercles de chaque fournisseur dans la liste ci-dessous."
 
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "Show composer"
@@ -19076,9 +19132,13 @@ msgstr "Conversation annexe : {0}"
 msgid "Sidebar background"
 msgstr "Arrière-plan de la barre latérale"
 
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+msgid "Sidebar circles are currently turned off."
+msgstr "Les cercles de la barre latérale sont actuellement désactivés."
+
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Sidebar circles are turned off globally above"
-msgstr "Les cercles de la barre latérale sont désactivés globalement ci-dessus"
+#~ msgid "Sidebar circles are turned off globally above"
+#~ msgstr "Les cercles de la barre latérale sont désactivés globalement ci-dessus"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -22148,6 +22208,7 @@ msgid "Total tokens"
 msgstr "Total des tokens"
 
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Track {label} usage"
 msgstr "Suivre l'utilisation de {label}"
 
@@ -22155,14 +22216,18 @@ msgstr "Suivre l'utilisation de {label}"
 msgid "Track per-provider session, weekly, and monthly usage. Windows are reported by each provider; estimated cost is reconstructed from local logs."
 msgstr "Suivez l'utilisation de session, hebdomadaire et mensuelle par fournisseur. Les fenêtres (de réinitialisation) sont indiquées par chaque fournisseur ; le coût estimé est reconstruit à partir des journaux locaux."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Tracked providers"
+msgstr "Fournisseurs suivis"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Tracking and display"
 msgstr "Suivi et affichage"
 
 #. Usage status when provider tracking is disabled
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
-msgid "Tracking off"
-msgstr "Suivi désactivé"
+#~ msgid "Tracking off"
+#~ msgstr "Suivi désactivé"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Transcribing voice"
@@ -22238,6 +22303,10 @@ msgstr "Activez ou désactivez les plugins installés pour les fils de ce projet
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Turn on remote access to show a pairing code."
 msgstr "Activez l’accès distant pour afficher un code d’association."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Turn on tracking to monitor quotas and cost."
+msgstr "Activez le suivi pour surveiller les quotas et les coûts."
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -23693,6 +23762,12 @@ msgstr "Violet"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 #~ msgid "Visible {0} models"
 #~ msgstr "Modèles {0} visibles"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/SidebarUsageVisibilityPopover.tsx
+#: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
+msgid "Visible in sidebar"
+msgstr "Visible dans la barre latérale"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

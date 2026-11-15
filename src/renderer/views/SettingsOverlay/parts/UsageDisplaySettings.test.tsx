@@ -55,12 +55,20 @@ beforeEach(() =>
 describe("usage display preferences", () => {
   it("restores searchable toggles and provider sidebar visibility without credential/collection controls", () => {
     const policy = useSharedSettings.getState().usage;
-    render(<UsageDisplaySettings showProviderVisibility />);
+    render(<UsageDisplaySettings showHostNote />);
     expect(document.querySelector('[data-settings-anchor="usage.showInSidebar"]')).toBeTruthy();
+    expect(document.querySelector('[data-settings-anchor="usage.sidebarVisibility"]')).toBeTruthy();
     expect(document.querySelector('[data-settings-anchor="usage.showEstimatedCost"]')).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /circle in sidebar/ })).toBeNull();
+
     fireEvent.click(screen.getByRole("checkbox", { name: "Show circles in sidebar" }));
     fireEvent.click(screen.getByRole("checkbox", { name: "Show estimated cost" }));
-    fireEvent.click(screen.getByRole("button", { name: "Hide Claude Owner circle in sidebar" }));
+
+    const visibilityButton = screen.getByRole("button", { name: "Visible in sidebar" });
+    expect(visibilityButton.textContent).toBe("18 / 18");
+    fireEvent.click(visibilityButton);
+    fireEvent.click(screen.getByRole("option", { name: "Claude Owner" }));
+
     expect(useSharedSettings.getState().usage).toMatchObject({
       showInSidebar: false,
       showEstimatedCost: true,
@@ -72,5 +80,25 @@ describe("usage display preferences", () => {
     expect(screen.queryByLabelText(/API key|auto-refresh|Track Fixture/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Sign (in|out)/ })).toBeNull();
     expect(screen.getByText(/independently of the selected usage host/)).toBeTruthy();
+  });
+
+  it("filters providers and supports Hide all / Show all inside Visible in sidebar", () => {
+    render(<UsageDisplaySettings />);
+    const visibilityButton = screen.getByRole("button", { name: "Visible in sidebar" });
+    fireEvent.click(visibilityButton);
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide all" }));
+    expect(useSharedSettings.getState().usage.sidebarHiddenProviders.length).toBe(18);
+    expect(visibilityButton.textContent).toBe("0 / 18");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+    expect(useSharedSettings.getState().usage.sidebarHiddenProviders).toEqual([]);
+    expect(visibilityButton.textContent).toBe("18 / 18");
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Search providers" }), {
+      target: { value: "Owner" },
+    });
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    expect(screen.getByRole("option", { name: "Claude Owner" })).toBeTruthy();
   });
 });
