@@ -29,6 +29,7 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 vi.mock("@/renderer/clientRuntime", () => ({
+  hasElectronHostBridge: () => false,
   hasClientCapability: (capability: string) =>
     capability === "localBackend" ? capabilityState.localBackend : false,
 }));
