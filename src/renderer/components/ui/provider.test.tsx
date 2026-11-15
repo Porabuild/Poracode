@@ -33,6 +33,7 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 vi.mock("@/renderer/clientRuntime", () => ({
+  hasElectronHostBridge: () => !runtime.browser,
   isBrowserClientRuntime: () => runtime.browser,
 }));
 
