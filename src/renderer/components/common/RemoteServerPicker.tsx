@@ -21,6 +21,7 @@ export function RemoteServerPicker(props: {
   /** Muted secondary text shown after the label in the default trigger. */
   readonly detail?: ReactNode;
   readonly buttonClassName?: string;
+  readonly triggerClassName?: string;
   readonly opensUpward?: boolean;
 }) {
   const { t } = useLingui();
@@ -64,6 +65,7 @@ export function RemoteServerPicker(props: {
       label={t`Connections`}
       placement={props.opensUpward ? "top end" : "bottom end"}
       contentClassName="w-64 p-0"
+      {...(props.triggerClassName ? { triggerClassName: props.triggerClassName } : {})}
       trigger={
         props.trigger ?? (
           <Button

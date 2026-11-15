@@ -330,7 +330,7 @@ function UsageRailRow(
   return (
     <div className="px-2">
       <div className="mb-1.5 flex items-center gap-2 text-[10px] text-muted/70">
-        <span className="font-semibold uppercase tracking-wider">
+        <span className="shrink-0 whitespace-nowrap leading-4 font-semibold uppercase tracking-wider">
           <Trans>Usage</Trans>
         </span>
         {environmentSelector}
@@ -411,8 +411,9 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
       buttonClassName={
         orientation === "column"
           ? "size-7 min-h-7 min-w-7 gap-0 p-0 [&>span:not(:first-child)]:hidden [&>svg:last-child]:hidden"
-          : "h-4 min-h-4 min-w-0 max-w-full gap-1 px-0 text-muted/70 [&>span:first-child]:size-2.5 [&>span:first-child>span]:size-[3px] [&>span]:text-[10px] [&>svg]:size-3"
+          : "h-4 min-h-4 min-w-0 max-w-full gap-1 px-0 text-muted/70 [&>span:first-child]:size-2.5 [&>span:first-child>span]:size-[3px] [&>span]:text-[10px] [&>span]:leading-4 [&>svg]:my-0 [&>svg]:size-3"
       }
+      {...(orientation === "row" ? { triggerClassName: "inline-flex min-w-0 items-center" } : {})}
       opensUpward
     />
   ) : null;

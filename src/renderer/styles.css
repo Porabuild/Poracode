@@ -1037,6 +1037,17 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   align-items: center;
 }
 
+/* HeroUI also sets `.popover__trigger { display: inline-block }`, which adds
+   the same inline line-box descender space beneath flex/button triggers. Keep
+   it in `@layer components` so per-instance utility classes (e.g. `flex`) on
+   specific triggers still win. */
+@layer components {
+  .popover__trigger {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
 .button--sm,
 .toggle-button--sm {
   font-size: 0.75rem;
