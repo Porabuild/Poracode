@@ -8,6 +8,14 @@ import type { McpAddInput } from "./clientTypes";
  */
 export type OpenCode2McpServerConfig = McpAddInput["config"];
 
+/** OpenCode 2 attaches this native identity to MCP calls, including Code Mode. */
+export function readOpenCode2McpSessionId(
+  metadata: Readonly<Record<string, unknown>>,
+): string | undefined {
+  const sessionId = metadata["ai.opencode/sessionID"];
+  return typeof sessionId === "string" && sessionId.length > 0 ? sessionId : undefined;
+}
+
 /**
  * Project Poracode's provider-neutral MCP descriptors into the OpenCode 2
  * dynamic `mcp.add` shape. Kept provider-owned (rather than an option on the

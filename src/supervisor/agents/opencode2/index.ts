@@ -19,6 +19,7 @@ import { runOpenCode2OneShot } from "./oneShot";
 import { OpenCode2Session } from "./session";
 import { detectOpenCode2TerminalStatus, opencode2OscHint, opencode2OscTitleHint } from "./terminal";
 import { buildOpenCode2TerminalLaunch } from "./terminalLaunch";
+import { readOpenCode2McpSessionId } from "./mcp";
 
 export function createOpenCode2Adapter(): AgentAdapter {
   let capabilities: AgentCapability = opencode2DefaultCapabilities;
@@ -116,6 +117,7 @@ export function createOpenCode2Adapter(): AgentAdapter {
     createInitialSessionRef() {
       return undefined;
     },
+    readMcpSessionId: readOpenCode2McpSessionId,
 
     // ── Structured session (V2 HTTP server for both modes) ──────────────
     //

@@ -912,6 +912,13 @@ export interface AgentSessionTracker {
   createStructuredSession?(
     input: CreateStructuredSessionInput,
   ): Promise<StructuredSessionHandle | undefined>;
+  /**
+   * Parse trusted MCP call metadata into a provider-native session id. The
+   * supervisor still verifies that this adapter owns the root or child session;
+   * returning an id never authorizes a call on its own. Legacy routing remains
+   * available to providers without this hook.
+   */
+  readMcpSessionId?(metadata: Readonly<Record<string, unknown>>): string | undefined;
   discoverSessionRef?(location: ProjectLocation): Promise<SessionRef | undefined>;
   initialSessionRefDiscoveryDelayMs?: number;
   watchSessionRef?(location: ProjectLocation, onChanged: () => void): (() => void) | undefined;
