@@ -166,7 +166,16 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         },
       };
     });
-    syncRemoteAppRows(connectionKey, undefined, rows, {
+    const residentRemoteIds = new Set<string>();
+    for (const thread of useAppStore.getState().threads) {
+      if (thread.remoteServerId === connectionKey && thread.remoteId !== undefined) {
+        residentRemoteIds.add(thread.remoteId);
+      }
+    }
+    const appSyncRows = rows.filter(
+      (thread) => servedThreadIds.has(thread.id) || !residentRemoteIds.has(thread.id),
+    );
+    syncRemoteAppRows(connectionKey, undefined, appSyncRows, {
       preserveThreadIds,
       servedThreadIds,
       partial: true,

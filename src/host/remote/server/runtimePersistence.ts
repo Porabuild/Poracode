@@ -27,10 +27,12 @@ import {
 import type { RemoteBroadcastEvent } from "./context";
 import {
   notePendingInterruptedTurn,
+  notePendingThreadActivity,
   notePendingThreadState,
   isPendingThreadStateCurrent,
   retirePendingThreadState,
   pendingInterruptedTurn,
+  pendingThreadActivity,
   pendingThreadErrorMessage,
   resetPendingInterruptedTurnsForTests,
 } from "./pendingInterruptedTurns";
@@ -244,7 +246,28 @@ function dispatchPersist(
         errorMessage:
           event.status === "error" ? (event.errorMessage ?? previousError ?? null) : null,
       };
-      const persistedEvent = { ...event, errorMessage: admission.errorMessage ?? "" };
+      const previousActivity = pendingThreadActivity(owner ?? { id: event.threadId });
+      const previousStatus = previousActivity?.status ?? thread?.status;
+      const previousUpdatedAt = previousActivity?.updatedAt ?? thread?.updatedAt;
+      const enteredWorking = event.status === "working" && previousStatus !== "working";
+      const candidateUpdatedAt = enteredWorking
+        ? (event.updatedAt ?? new Date().toISOString())
+        : event.updatedAt;
+      const nextUpdatedAt =
+        candidateUpdatedAt !== undefined
+          ? previousUpdatedAt !== undefined && previousUpdatedAt > candidateUpdatedAt
+            ? previousUpdatedAt
+            : candidateUpdatedAt
+          : previousActivity?.updatedAt;
+      const publishedEvent =
+        (enteredWorking || event.updatedAt !== undefined) && nextUpdatedAt !== undefined
+          ? { ...event, updatedAt: nextUpdatedAt }
+          : event;
+      const persistedEvent = {
+        ...event,
+        errorMessage: admission.errorMessage ?? "",
+        ...(nextUpdatedAt !== undefined ? { updatedAt: nextUpdatedAt } : {}),
+      };
       // Stop must reach disk before a reset can classify the active row as
       // interrupted. It also needs queued details when Stop follows a failure.
       if (
@@ -253,7 +276,7 @@ function dispatchPersist(
         runRuntimeControlWrite(() => persistThreadStateEvent(persistedEvent), event.threadId).ok
       ) {
         retirePendingThreadState(event.threadId);
-        return { kind: "publish", event };
+        return { kind: "publish", event: publishedEvent };
       }
       // Control write: queued for bounded retry (idempotent upsert). Row lag is
       // replay-covered, so publication stays immediate — but only once the
@@ -300,10 +323,16 @@ function dispatchPersist(
         return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
       }
       notePendingThreadState(event.threadId, admission);
+      notePendingThreadActivity(event.threadId, {
+        agentKind: owner?.agentKind,
+        status: event.status,
+        attention: event.attention,
+        ...(nextUpdatedAt !== undefined ? { updatedAt: nextUpdatedAt } : {}),
+      });
       if (thread && event.interruptedTurn !== undefined) {
         notePendingInterruptedTurn(thread, event.interruptedTurn, event.turnStopRequested === true);
       }
-      return { kind: "publish", event };
+      return { kind: "publish", event: publishedEvent };
     }
     case "thread-reset":
       enqueueDeferredReset(event, options.publishDeferredEvent);

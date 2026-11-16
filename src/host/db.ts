@@ -28,6 +28,7 @@ export {
   dbUpdateThreadMetadata,
   dbSetThreadGroup,
   dbSetThreadsDone,
+  dbTouchThreadUpdatedAt,
   dbMarkLiveThreadsInactive,
   dbDeleteThread,
   dbDeleteProject,

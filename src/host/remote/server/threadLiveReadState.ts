@@ -8,7 +8,7 @@ import {
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import type { RemoteBroadcastEvent, RemoteServerContext } from "./context";
 import { dbGetThread } from "@/host/db";
-import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
+import { withPendingInterruptedTurn, withPendingThreadActivity } from "./pendingInterruptedTurns";
 import { deriveThreadTurnTiming } from "./threadStatePersistence";
 
 type RuntimeLevel = Pick<
@@ -16,6 +16,7 @@ type RuntimeLevel = Pick<
   | "agentKind"
   | "status"
   | "attention"
+  | "updatedAt"
   | "errorMessage"
   | "activeTurnStartedAt"
   | "lastTurnStartedAt"
@@ -43,7 +44,8 @@ export class ThreadLiveReadState {
       return undefined;
     }
     const { errorMessage: _previousError, ...withoutError } = thread;
-    return { ...withoutError, ...level };
+    const updatedAt = level.updatedAt > thread.updatedAt ? level.updatedAt : thread.updatedAt;
+    return { ...withoutError, ...level, updatedAt };
   }
 
   projectSnapshotRuntime(
@@ -51,8 +53,11 @@ export class ThreadLiveReadState {
   ): Pick<RemoteThreadSnapshot, "thread" | "runtimeStateCurrent"> {
     const runtimeThread = this.runtimeThreadFor(thread);
     return runtimeThread
-      ? { thread: withPendingInterruptedTurn(runtimeThread), runtimeStateCurrent: true }
-      : { thread: withPendingInterruptedTurn(thread) };
+      ? {
+          thread: withPendingThreadActivity(withPendingInterruptedTurn(runtimeThread)),
+          runtimeStateCurrent: true,
+        }
+      : { thread: withPendingThreadActivity(withPendingInterruptedTurn(thread)) };
   }
 
   retainThreads(ids: ReadonlySet<string>): void {
@@ -91,11 +96,19 @@ export class ThreadLiveReadState {
           ? (event.errorMessage ??
             (previous.status === "error" ? previous.errorMessage : undefined))
           : undefined;
+      const enteredWorking = event.status === "working" && previous.status !== "working";
+      const candidateUpdatedAt =
+        event.updatedAt ?? (enteredWorking ? new Date().toISOString() : undefined);
+      const updatedAt =
+        candidateUpdatedAt && candidateUpdatedAt > previous.updatedAt
+          ? candidateUpdatedAt
+          : previous.updatedAt;
       this.touch(event.threadId, "runtime");
       this.runtimeLevels.set(event.threadId, {
         agentKind: thread.agentKind,
         status: event.status,
         attention: event.attention,
+        updatedAt,
         ...(errorMessage ? { errorMessage } : {}),
         ...deriveThreadTurnTiming(previous, event.status, new Date().toISOString()),
       });

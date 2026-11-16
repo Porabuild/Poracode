@@ -68,6 +68,7 @@ import {
   applyRemoteThreadSwitch,
   ensureRemoteThreadRunning,
 } from "./threadCommands";
+import { beginHostThreadActivityTouch } from "./touchThreadActivity";
 import { isPlainThreadStartPreEffectFailure, rethrowPlainThreadStartRefusal } from "./threadSwitch";
 
 /**
@@ -483,8 +484,10 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
         // uncertain), so the predicate is scoped to the absence refusal only.
         isPreEffectFailure: isThreadSessionAbsenceRefusal,
         operation: async (markDispatched) => {
+          const finishActivityTouch = beginHostThreadActivityTouch(ctx, threadId);
           markDispatched();
           await ctx.options.callSupervisor("sendThreadInput", payload);
+          finishActivityTouch();
           return { ok: true };
         },
       });
@@ -528,9 +531,15 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
   },
 
   "thread-steer-set": (call) =>
-    forwardThreadBodyPost(call, (callSupervisor, body) =>
-      callSupervisor("setPendingSteer", setPendingSteerPayloadSchema.parse(body)),
-    ),
+    forwardThreadBodyPost(call, async (callSupervisor, body) => {
+      const finishActivityTouch = beginHostThreadActivityTouch(
+        call.ctx,
+        requirePathParam(call.params, "threadId"),
+        { forceBroadcast: true },
+      );
+      await callSupervisor("setPendingSteer", setPendingSteerPayloadSchema.parse(body));
+      finishActivityTouch();
+    }),
 
   "thread-steer-clear": (call) =>
     forwardThreadBodyPost(call, (callSupervisor, body) =>
@@ -548,12 +557,18 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
     ),
 
   "request-resolve": (call) =>
-    forwardThreadBodyPost(call, (callSupervisor, body) =>
-      callSupervisor(
+    forwardThreadBodyPost(call, async (callSupervisor, body) => {
+      const finishActivityTouch = beginHostThreadActivityTouch(
+        call.ctx,
+        requirePathParam(call.params, "threadId"),
+        { forceBroadcast: true },
+      );
+      await callSupervisor(
         "resolveThreadServerRequest",
         resolveThreadServerRequestPayloadSchema.parse(body),
-      ),
-    ),
+      );
+      finishActivityTouch();
+    }),
 
   "terminal-close": (call) =>
     // Closes a terminal by id. `closeThread` is shell-aware on the supervisor,

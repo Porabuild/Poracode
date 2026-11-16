@@ -42,9 +42,13 @@ import { RemoteHttpError } from "../auth";
 import { projectGitStateSnapshotForRemote } from "./gitStateProjection";
 import {
   applyPendingInterruptedTurn,
+  applyPendingThreadActivity,
   snapshotPendingInterruptedTurns,
+  snapshotPendingThreadActivities,
   withPendingInterruptedTurn,
+  withPendingThreadActivity,
   type PendingInterruptedTurnEntry,
+  type PendingThreadActivityEntry,
 } from "./pendingInterruptedTurns";
 import {
   applySessionConfigInventoryEntry,
@@ -66,6 +70,7 @@ type CatalogReadContext = Pick<RemoteServerContext, "seq"> & {
     "enrichThreadRow" | "snapshotEntries"
   >;
   readonly pendingInterruptedTurns?: Record<string, PendingInterruptedTurnEntry>;
+  readonly pendingThreadActivities?: Record<string, PendingThreadActivityEntry>;
   readonly options: {
     readonly gitSummaries?: RemoteServerContext["options"]["gitSummaries"];
     readonly gitState?: Pick<
@@ -92,6 +97,7 @@ export function captureCatalogReadProjection(ctx: CatalogReadContext, includeGit
   const workspaces = includeGitState ? readCatalogHostWorkspaces(ctx) : undefined;
   const sessionConfigEntries = ctx.sessionConfigInventory?.snapshotEntries?.();
   const pendingInterruptedTurns = ctx.pendingInterruptedTurns ?? snapshotPendingInterruptedTurns();
+  const pendingThreadActivities = ctx.pendingThreadActivities ?? snapshotPendingThreadActivities();
   return {
     seq: ctx.seq,
     ...(includeGitState ? { snapshotEpoch: ctx.snapshotEpoch ?? eventStreamEpochOf(ctx) } : {}),
@@ -100,6 +106,7 @@ export function captureCatalogReadProjection(ctx: CatalogReadContext, includeGit
       ? { sessionConfigEntries }
       : {}),
     ...(Object.keys(pendingInterruptedTurns).length > 0 ? { pendingInterruptedTurns } : {}),
+    ...(Object.keys(pendingThreadActivities).length > 0 ? { pendingThreadActivities } : {}),
     ...(includeGitState && ctx.options.gitState
       ? { gitState: projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot()) }
       : {}),
@@ -119,6 +126,7 @@ export function restoreCatalogReadProjection(input: CatalogReadProjection): Cata
       snapshotEntries: () => input.sessionConfigEntries ?? {},
     },
     pendingInterruptedTurns: input.pendingInterruptedTurns ?? {},
+    pendingThreadActivities: input.pendingThreadActivities ?? {},
     options: {
       gitSummaries: () => input.gitSummaries,
     },
@@ -254,6 +262,19 @@ function threadContinuationCursor(input: {
   }
 }
 
+function overlayCatalogThread(thread: Thread, ctx: CatalogReadContext): Thread {
+  const enriched = ctx.sessionConfigInventory
+    ? ctx.sessionConfigInventory.enrichThreadRow(thread)
+    : thread;
+  const withInterrupted =
+    ctx.pendingInterruptedTurns !== undefined
+      ? applyPendingInterruptedTurn(enriched, ctx.pendingInterruptedTurns[thread.id])
+      : withPendingInterruptedTurn(enriched);
+  return ctx.pendingThreadActivities !== undefined
+    ? applyPendingThreadActivity(withInterrupted, ctx.pendingThreadActivities[thread.id])
+    : withPendingThreadActivity(withInterrupted);
+}
+
 export function buildCatalogThreadListPage(
   ctx: CatalogReadContext,
   negotiation: CatalogReadNegotiation,
@@ -275,15 +296,7 @@ export function buildCatalogThreadListPage(
   const first = pack.packed[0];
   if (first !== undefined) refuseOversizedBound("thread", first, caps);
   const rawThreads = dbReadCatalogThreadPhase2(pack.packed.map((row) => row.id));
-  const pendingMap = ctx.pendingInterruptedTurns;
-  const threads = rawThreads.map((thread) => {
-    const enriched = ctx.sessionConfigInventory
-      ? ctx.sessionConfigInventory.enrichThreadRow(thread)
-      : thread;
-    return pendingMap !== undefined
-      ? applyPendingInterruptedTurn(enriched, pendingMap[thread.id])
-      : withPendingInterruptedTurn(enriched);
-  });
+  const threads = rawThreads.map((thread) => overlayCatalogThread(thread, ctx));
   const last = pack.packed.at(-1);
   const nextCursor =
     hasMore && last !== undefined
@@ -425,13 +438,8 @@ export function readCatalogShellSnapshotPage(
   if (projectFirst !== undefined) refuseOversizedBound("project", projectFirst, caps);
 
   const rawThreads = dbReadCatalogThreadPhase2(threadPack.packed.map((row) => row.id));
-  const pendingInterruptedTurns = projection.pendingInterruptedTurns ?? {};
-  const threads = rawThreads.map((thread) =>
-    applyPendingInterruptedTurn(
-      applySessionConfigInventoryEntry(thread, projection.sessionConfigEntries?.[thread.id]),
-      pendingInterruptedTurns[thread.id],
-    ),
-  );
+  const restored = restoreCatalogReadProjection(projection);
+  const threads = rawThreads.map((thread) => overlayCatalogThread(thread, restored));
   const projects = dbReadCatalogProjectPhase2(projectPack.packed.map((row) => row.id));
   const threadsMore = threadPack.hasMore || threadPhase1.moreBeyondWindow;
   const projectsMore = projectPack.hasMore || projectPhase1.moreBeyondWindow;

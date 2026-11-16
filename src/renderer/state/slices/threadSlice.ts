@@ -197,6 +197,8 @@ export interface ThreadSlice {
       errorMessage?: string;
       /** Null clears a cut-off turn; undefined keeps it until a turn starts. */
       interruptedTurn?: Thread["interruptedTurn"] | null;
+      /** Host-authoritative last-activity timestamp when emitted/persisted. */
+      updatedAt?: string;
     },
   ) => void;
   /**
@@ -224,7 +226,7 @@ export interface ThreadSlice {
   purgeStaleArchivedThreads: (maxAgeDays: number) => void;
   archiveOldDoneThreads: (maxAgeDays: number) => void;
   markThreadExited: (threadId: string) => void;
-  touchThread: (threadId: string) => void;
+  touchThread: (threadId: string, updatedAt?: string) => void;
   markThreadViewed: (threadId: string) => void;
   markThreadsViewed: (threadIds: readonly string[]) => void;
   reconcileRuntimeSnapshots: (
@@ -833,6 +835,13 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
         // not on working rebroadcasts after the user marks done mid-turn.
         const turnStarted = input.status === "working" && thread.status !== "working";
         const activityClearsDone = turnStarted && thread.done;
+        const nextUpdatedAt =
+          input.updatedAt !== undefined && (turnStarted || input.status === "working")
+            ? input.updatedAt
+            : turnStarted && nowIso > thread.updatedAt
+              ? nowIso
+              : thread.updatedAt;
+        const updatedAtChanged = nextUpdatedAt !== thread.updatedAt;
         const nextInterruptedTurn =
           input.interruptedTurn !== undefined
             ? (input.interruptedTurn ?? undefined)
@@ -850,6 +859,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
           !slashCommandsChanged &&
           !sessionConfigOptionsChanged &&
           !sessionRefChanged &&
+          !updatedAtChanged &&
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
           thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
@@ -891,7 +901,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
           ...(effectiveStatus === "error" && nextErrorMessage !== undefined
             ? { errorMessage: nextErrorMessage }
             : {}),
-          ...(turnStarted ? { updatedAt: nowIso } : {}),
+          ...(updatedAtChanged ? { updatedAt: nextUpdatedAt } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,
         };
@@ -1182,12 +1192,19 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
         ...(backgroundTasksPatch ?? {}),
       };
     }),
-  touchThread: (threadId) =>
-    set((state) => ({
-      threads: state.threads.map((thread) =>
-        thread.id === threadId ? { ...thread, updatedAt: new Date().toISOString() } : thread,
-      ),
-    })),
+  touchThread: (threadId, updatedAt) =>
+    set((state) => {
+      const candidate = updatedAt ?? new Date().toISOString();
+      let changed = false;
+      const threads = state.threads.map((thread) => {
+        if (thread.id !== threadId) return thread;
+        const nextUpdatedAt = candidate > thread.updatedAt ? candidate : thread.updatedAt;
+        if (nextUpdatedAt === thread.updatedAt) return thread;
+        changed = true;
+        return { ...thread, updatedAt: nextUpdatedAt };
+      });
+      return changed ? { threads } : {};
+    }),
   markThreadViewed: (threadId) =>
     set((state) => {
       const now = Date.now();

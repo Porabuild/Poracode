@@ -329,6 +329,18 @@ export function dbSetThreadsDone(threadIds: readonly string[], doneAt: string): 
   notifyProjectThreadDataChanged();
 }
 
+/** Monotonically advance `updated_at` on host-side user activity without rewriting other columns. */
+export function dbTouchThreadUpdatedAt(threadId: string, updatedAt: string): boolean {
+  const result = getSqlite()
+    .prepare("UPDATE threads SET updated_at = ? WHERE id = ? AND updated_at < ?")
+    .run(updatedAt, threadId, updatedAt);
+  if (result.changes > 0) {
+    notifyProjectThreadDataChanged();
+    return true;
+  }
+  return false;
+}
+
 /** Compute against the current row; never replace runtime/configuration or catalog order. */
 export function dbUpdateThreadMetadata(
   threadId: string,

@@ -194,7 +194,13 @@ struct BoundedCatalogStore {
     // Host rule (`persistThreadStateEvent`): `updatedAt` advances exactly when
     // the transition enters `working` from a non-working status — including
     // `needs_approval`/`needs_reply`, which are live but not `working`.
-    if status == "working" && previousStatus != "working" { row.updatedAt = now }
+    let hostUpdatedAt = object["updatedAt"]?.stringValue.flatMap { $0.isEmpty ? nil : $0 }
+    if status == "working" && previousStatus != "working" {
+      let candidate = hostUpdatedAt ?? now
+      row.updatedAt = candidate > row.updatedAt ? candidate : row.updatedAt
+    } else if status == "working", let hostUpdatedAt, hostUpdatedAt > row.updatedAt {
+      row.updatedAt = hostUpdatedAt
+    }
     if !replaceThreadRow(row) { return false }
     catalog.recordThreadAppliedSeq(threadId, seq: seq)
     return true
