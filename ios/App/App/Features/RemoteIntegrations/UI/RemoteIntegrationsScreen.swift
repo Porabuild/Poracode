@@ -7,6 +7,7 @@ struct RemoteIntegrationsScreen: View {
   let selection: RemoteIntegrationsHostSelection?
   let projects: [RemoteIntegrationsProjectOption]
   let scheduleAgents: [AgentStatusRecord]
+  let onDismiss: (() -> Void)?
   let onCreateScheduleWithAgent: (() -> Void)?
 
   @State private var composition: RemoteIntegrationsComposition
@@ -20,12 +21,14 @@ struct RemoteIntegrationsScreen: View {
     scheduleAgents: [AgentStatusRecord] = [],
     gateway: any RemoteIntegrationsGateway,
     singleRoute: RemoteIntegrationsRoute? = nil,
+    onDismiss: (() -> Void)? = nil,
     onCreateScheduleWithAgent: (() -> Void)? = nil
   ) {
     self.session = session
     self.selection = selection
     self.projects = projects
     self.scheduleAgents = scheduleAgents
+    self.onDismiss = onDismiss
     self.onCreateScheduleWithAgent = onCreateScheduleWithAgent
     self.singleRoute = singleRoute
     _composition = State(initialValue: RemoteIntegrationsComposition(gateway: gateway))
@@ -37,6 +40,13 @@ struct RemoteIntegrationsScreen: View {
     Group {
       if let singleRoute {
         routeView(singleRoute)
+          .toolbar {
+            if let onDismiss {
+              ToolbarItem(placement: .cancellationAction) {
+                Button(RemoteIntegrationsStrings.dismiss, action: onDismiss)
+              }
+            }
+          }
       } else {
         NavigationSplitView {
           List(selection: $route) {
@@ -49,6 +59,13 @@ struct RemoteIntegrationsScreen: View {
           }
           .navigationTitle(RemoteIntegrationsStrings.title)
           .listStyle(.sidebar)
+          .toolbar {
+            if let onDismiss {
+              ToolbarItem(placement: .cancellationAction) {
+                Button(RemoteIntegrationsStrings.dismiss, action: onDismiss)
+              }
+            }
+          }
         } detail: {
           if let route {
             routeView(route)

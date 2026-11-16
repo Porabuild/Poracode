@@ -33,7 +33,11 @@ struct AgentStatusRecord: Sendable, Equatable {
   /// The exact merge identity used by the desktop agent-status slice:
   /// `kind`, `envKind`, `envDistro` joined with `|` (absent parts collapse to "").
   var identity: String {
-    [kind, envKind?.rawValue ?? "", envDistro ?? ""].joined(separator: "|")
+    Self.identity(kind: kind, environment: envKind?.rawValue, distro: envDistro)
+  }
+
+  static func identity(kind: String, environment: String?, distro: String?) -> String {
+    [kind, environment ?? "", distro ?? ""].joined(separator: "|")
   }
 
   init(wire value: JSONValue) throws {

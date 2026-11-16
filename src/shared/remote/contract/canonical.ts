@@ -16,8 +16,8 @@ export function sortKeys(value: unknown): unknown {
   return next;
 }
 
-export function canonicalize(value: unknown): string {
-  return `${JSON.stringify(sortKeys(value), null, 2)}\n`;
+export function canonicalize(value: unknown, indentation: 1 | 2 = 2): string {
+  return `${JSON.stringify(sortKeys(value), null, indentation)}\n`;
 }
 
 export function sha256Hex(text: string): string {

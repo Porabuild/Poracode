@@ -32,6 +32,7 @@ actor RemoteAPIClient: PushRemoteAPI {
     /// advertised flag gates it: an old or unprobed host keeps the complete
     /// legacy request and result.
     private(set) var projectCommandResultsAdvertised = false
+    private(set) var catalogMutationsAdvertised = false
 
     /// Effective per-request `x-poracode-project-command-result` declaration.
     var effectiveProjectCommandResultDeclaration: Bool {
@@ -63,6 +64,7 @@ actor RemoteAPIClient: PushRemoteAPI {
         noticesAdvertised = descriptor.advertisesRuntimeHistoryNotices
         catalogChangesAdvertised = descriptor.advertisesBoundedCatalogChanges
         projectCommandResultsAdvertised = descriptor.advertisesProjectCommandResults
+        catalogMutationsAdvertised = descriptor.advertisesCatalogMutations
     }
 
     /// Client intent for the B1 notice declaration. The effective value also

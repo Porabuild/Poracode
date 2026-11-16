@@ -6,12 +6,18 @@ import Observation
 @MainActor
 @Observable
 final class RichChatThreadDraftState {
+  let turnClock = RichChatLiveTurnClock()
   var text = ""
   var attachments: [RichChatUploadedAttachment] = []
   var skills: [RichChatSelectedSkill] = []
   var mcps: [RichChatSelectedMCP] = []
   var segments: [RichPromptSegment] = []
   var configuration: ThreadConfig?
+  var crews: SavedCrewsController?
+  var crewRoster: CrewRosterDraft?
+  var composerControlDestination: RichChatComposerControlsPresentation?
+  var providerHandoffRequest: ThreadProviderHandoffRequest?
+  var connectionID: ClientConnectionID? { activeKey?.connectionID }
 
   private let store: RichChatComposerDraftStore
   private var activeKey: RichChatComposerDraftKey?
@@ -24,7 +30,7 @@ final class RichChatThreadDraftState {
 
   func prepare(for key: RichChatComposerDraftKey, baseConfiguration: ThreadConfig?) {
     guard activeKey != key else {
-      if let saved = store.take(for: key) {
+      if let saved = store.take(for: key, consumingQueuedSegments: false) {
         restore(saved, baseConfiguration: baseConfiguration)
       }
       if configuration == nil { configuration = baseConfiguration }
@@ -32,9 +38,15 @@ final class RichChatThreadDraftState {
     }
 
     park()
+    crewRoster = nil
+    composerControlDestination = nil
+    providerHandoffRequest = nil
+    crews = nil
     activeKey = key
     discardsOnDisappear = false
-    if let saved = store.take(for: key) {
+    // The page explicitly consumes the inbox after preparation so it can
+    // expand and focus the editor for a newly inserted quote.
+    if let saved = store.take(for: key, consumingQueuedSegments: false) {
       restore(saved, baseConfiguration: baseConfiguration)
     } else {
       reset(configuration: baseConfiguration)
@@ -45,9 +57,13 @@ final class RichChatThreadDraftState {
     if configuration == nil || configuration == previous { configuration = current }
   }
 
-  func consumeQueuedSegments() {
-    guard let activeKey else { return }
-    segments.append(contentsOf: store.takeQueuedSegments(for: activeKey))
+  @discardableResult
+  func consumeQueuedSegments() -> Bool {
+    guard let activeKey else { return false }
+    let incoming = store.takeQueuedSegments(for: activeKey)
+    guard !incoming.isEmpty else { return false }
+    segments.append(contentsOf: incoming)
+    return true
   }
 
   func park() {
@@ -72,6 +88,7 @@ final class RichChatThreadDraftState {
   }
 
   func discard() {
+    providerHandoffRequest = nil
     discardsOnDisappear = true
     if let activeKey { store.clear(activeKey) }
     if let submittingKey { store.clear(submittingKey) }

@@ -31,7 +31,8 @@ struct RichChatTranscriptItemView: View {
           supplements: supplements,
           images: images,
           mediaController: mediaController,
-          duration: duration
+          duration: nil,
+          sentAtMilliseconds: actions.userMessageStarts[item.id]
         )
       case RichItemType.assistantMessage:
         VStack(alignment: .leading, spacing: 2) {
@@ -44,46 +45,30 @@ struct RichChatTranscriptItemView: View {
             isWorking: isWorking
           )
           assistantActionRow
-          // PWA order: action row, then the turn's "Worked for" footer.
-          if let duration {
-            Text(duration)
-              .poracodeChatText(.metadata)
-              .foregroundStyle(.secondary)
-              .padding(.top, 2)
-          }
         }
       case RichItemType.reasoning:
-        RichChatReasoningRow(text: bodyText, isWorking: isWorking)
+        RichChatReasoningRow(text: bodyText, isWorking: isWorking, disclosureID: "item:\(item.id)")
       case "question_answer":
         RichChatQuestionAnswerView(
           entries: RichQuestionAnswerPresentation.entries(for: item),
-          duration: duration
+          duration: nil
         )
       default:
-        RichChatActivityRow(
-          title: RichChatPresentation.typeLabel(for: item),
-          text: bodyText,
-          icon: activityIcon,
-          duration: duration,
-          isWorking: isWorking
-        )
+        RichToolActivityItemView(item: item, fallbackText: bodyText, mediaController: mediaController)
       }
       }
     }
+    .accessibilityElement(children: .contain)
     .contextMenu { messageActions }
     .accessibilityActions { messageActions }
   }
 
-  private var duration: String? {
-    actions.completedTurnLabel(itemID: item.id)
-  }
-
-  private var activityIcon: RichChatIcon.Kind {
-    RichChatIcon.Kind(category: RichChatActivityGroupSummary.category(for: item))
-  }
-
   @ViewBuilder
   private var messageActions: some View {
+    if let ask = actions.askInSideChat, !text.isEmpty,
+      item.type == RichItemType.userMessage || item.type == RichItemType.assistantMessage {
+      Button(SideChatStrings.ask, systemImage: "bubble.left.and.bubble.right") { ask(text) }
+    }
     if actions.canCopy(item: item, text: text) {
       Button {
         UIPasteboard.general.string = text
@@ -118,15 +103,15 @@ struct RichChatTranscriptItemView: View {
   @ViewBuilder
   private var assistantActionRow: some View {
     if !isWorking, hasInlineAction {
-      HStack(spacing: 14) {
+      HStack(spacing: 0) {
         if actions.canCopy(item: item, text: text) {
-          actionButton(RichChatMessageActionStrings.copy, icon: .copy) {
+          actionButton(RichChatMessageActionStrings.copy, systemImage: "doc.on.doc") {
             UIPasteboard.general.string = text
             UINotificationFeedbackGenerator().notificationOccurred(.success)
           }
         }
         if actions.canTruncate(itemID: item.id), let requestTruncate = actions.requestTruncate {
-          actionButton(RichChatStrings.truncateAction, icon: .truncate) {
+          actionButton(RichChatStrings.truncateAction, systemImage: "text.badge.minus") {
             requestTruncate(item.id)
           }
         }
@@ -134,15 +119,18 @@ struct RichChatTranscriptItemView: View {
           let anchor = actions.forkAnchorItemID(for: item.id),
           let requestFork = actions.requestFork
         {
-          actionButton(RichChatMessageActionStrings.forkAction, icon: .fork) {
+          actionButton(RichChatMessageActionStrings.forkAction, systemImage: "arrow.triangle.branch") {
             requestFork(anchor)
           }
         }
+        if actions.canCopy(item: item, text: text),
+          let turn = actions.completedTurns.first(where: { $0.anchorItemID == item.id }) {
+          RichChatMessageTimestamp(milliseconds: turn.endedAtMilliseconds,
+            identifier: "native-e2e.assistant-message-time")
+            .padding(.leading, 4)
+        }
       }
-      .font(.caption)
       .foregroundStyle(.secondary)
-      .padding(.leading, 4)
-      .padding(.top, 1)
     }
   }
 
@@ -153,12 +141,16 @@ struct RichChatTranscriptItemView: View {
   }
 
   private func actionButton(
-    _ label: String, icon: RichChatIcon.Kind, action: @escaping () -> Void
+    _ label: String, systemImage: String, action: @escaping () -> Void
   ) -> some View {
     Button(action: action) {
-      RichChatIcon(icon)
+      Image(systemName: systemImage)
+        .font(.callout)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(.borderless)
+    .tint(.secondary)
     .accessibilityLabel(label)
   }
 }
@@ -169,10 +161,12 @@ private struct RichChatPromptMessage: View {
   let images: [RichImagePresentation]
   let mediaController: RichChatMediaController
   let duration: String?
+  let sentAtMilliseconds: Int64?
 
   var body: some View {
     RichChatMessageSurface(kind: .prompt) {
-      RichChatMessageContent(
+      HStack(alignment: .top, spacing: 12) {
+        RichChatMessageContent(
         text: text,
         role: .body,
         collapses: true,
@@ -183,7 +177,13 @@ private struct RichChatPromptMessage: View {
         images: images,
         mediaController: mediaController,
         duration: duration
-      )
+        )
+        if let sentAtMilliseconds {
+          RichChatMessageTimestamp(milliseconds: sentAtMilliseconds,
+            identifier: "native-e2e.user-message-time")
+            .padding(.top, 2)
+        }
+      }
     }
   }
 }
@@ -239,11 +239,11 @@ struct RichChatMessageSurface<Content: View>: View {
       .padding(.horizontal, 12)
       .padding(.vertical, 9)
       .background {
-        RoundedRectangle(cornerRadius: 6, style: .continuous)
-          .fill(kind == .prompt ? palette.surface : .clear)
+        PoracodeShapes.content
+          .fill(kind == .prompt ? palette.tertiarySurface : .clear)
           .overlay {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-              .stroke(kind == .prompt ? palette.border.opacity(0.7) : .clear, lineWidth: 0.5)
+            PoracodeShapes.content
+              .stroke(kind == .prompt ? palette.foreground.opacity(0.09) : .clear, lineWidth: 0.5)
           }
       }
   }

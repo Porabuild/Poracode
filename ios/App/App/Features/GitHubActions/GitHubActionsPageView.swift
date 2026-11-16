@@ -82,6 +82,7 @@ struct GitHubActionsPageView: View {
           }
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
         .refreshable { await load() }
       }
     }
@@ -104,6 +105,7 @@ struct GitHubActionsPageView: View {
       ) { ref, inputs in
         await dispatch(selection, ref: ref, inputs: inputs)
       }
+      .poracodeFormSheetSizing()
     }
   }
 

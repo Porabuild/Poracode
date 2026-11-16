@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ProjectThreadsView: View {
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
   @Bindable var session: AppSession
   let project: RemoteProject
   @State private var lifecycle: ThreadLifecycleController
@@ -17,7 +19,9 @@ struct ProjectThreadsView: View {
   }
 
   private var threads: [RemoteThread] {
-    session.threads(for: project.id)
+    session.threads(for: project.id).filter { thread in
+      session.selectedConnectionId.map { !session.sideChats.isHidden(threadID: thread.id, connectionID: $0) } ?? false
+    }
   }
 
   private var entries: [HomeThreadListEntry] {
@@ -120,6 +124,7 @@ struct ProjectThreadsView: View {
         .listStyle(.insetGrouped)
       }
     }
+    .poracodeThemeBackground(theme.variant(for: colorScheme).background)
     .navigationTitle(project.name)
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
@@ -222,7 +227,8 @@ struct ProjectThreadsView: View {
             gitSummary: session.gitSummary(forThread: thread.id),
             hasDraft: hasDraft(thread),
             showsRelativeTime: true,
-            showsGitBranch: thread.worktreePath?.isEmpty == false
+            showsGitBranch: thread.worktreePath?.isEmpty == false,
+            hasBackgroundActivity: session.workflowActivity.isLive(connectionID: session.selectedConnectionId, threadID: thread.id)
           )
         }
         .accessibilityLabel(threadAccessibilityLabel(thread))

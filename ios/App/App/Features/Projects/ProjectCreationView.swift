@@ -73,6 +73,7 @@ struct ProjectCreationView: View {
         ProjectDirectoryBrowser(controller: directoryController, initialPath: draft.path) { path in
           draft.path = path
         }
+        .poracodeFormSheetSizing()
       }
       .onChange(of: controller.state.isExecuting) { wasExecuting, isExecuting in
         if wasExecuting, !isExecuting, controller.state.failure == nil {

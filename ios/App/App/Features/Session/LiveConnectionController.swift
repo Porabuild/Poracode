@@ -127,6 +127,7 @@ struct LiveConnectionController {
                 _ = host.state.liveLifecycle.decideSocketStart()
             }
             host.sessionPool.noteBackgroundGate()
+            host.workflowActivityStore?.pause()
             let cancelled = host.cancelBackgroundSensitiveTasks()
             host.state.pendingPairing = nil
             // Join every cancelled foreground network task, then stop every pooled socket.
@@ -139,6 +140,7 @@ struct LiveConnectionController {
             // Drop any pending background teardown; its generation gate is the backstop.
             host.backgroundSuspendTask.cancelCurrent()
             let actions = host.state.liveLifecycle.noteForeground()
+            host.workflowActivityStore?.resume()
             // Preserved-upgrade recovery: a precommit offline/cancel parks with
             // !bootstrapCompleted + connecting and no authority. Retry the
             // verified handshake through the existing bootstrap funnel; skip

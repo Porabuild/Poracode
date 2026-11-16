@@ -26,6 +26,7 @@ struct EnvironmentDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
         .navigationTitle(environment?.label ?? EnvironmentStrings.title)
         #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

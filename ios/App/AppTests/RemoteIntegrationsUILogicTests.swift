@@ -208,7 +208,7 @@ final class RemoteIntegrationsUILogicTests: XCTestCase {
       encoding: .utf8
     )
 
-    XCTAssertTrue(source.contains("HomeQuickComposeView("))
+    XCTAssertTrue(source.contains("HomeQuickComposeSessionView("))
     XCTAssertTrue(source.contains("RemoteIntegrationsStrings.createWithAgentPrompt"))
     XCTAssertTrue(source.contains("startedScheduleThreadID = threadID"))
     XCTAssertTrue(source.contains("RichChatThreadView("))

@@ -72,6 +72,10 @@ rule is about control flow and data shape.
 
 Existing extension points built on the same pattern:
 
+- `RuntimeToolPresentationAdapter` supplies pure display-only normalization from
+  a provider's `toolPresentation.ts` leaf. Build composition imports these leaves
+  into the PWA and host without loading session adapters. Tool identities,
+  routing, permissions and canonical stored payloads remain unchanged.
 - `CreateStructuredSessionInput.resolveMcpServersForTurn` lets a session with
   live MCP controls resolve built-in servers before admitting a turn. The
   supervisor owns thread and plugin enablement, launch-time disables and tool

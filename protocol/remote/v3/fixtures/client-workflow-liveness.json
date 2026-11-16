@@ -1,0 +1,287 @@
+{
+  "progressDeadlineMs": 10800000,
+  "references": [
+    {
+      "id": "posix",
+      "metadata": {
+        "runId": "wf-1",
+        "transcriptDir": "/project/session/subagents/workflows/wf-1"
+      },
+      "expected": {
+        "runId": "wf-1",
+        "transcriptDir": "/project/session/subagents/workflows/wf-1",
+        "manifestPath": "/project/session/workflows/wf-1.json"
+      }
+    },
+    {
+      "id": "windows",
+      "metadata": {
+        "runId": "wf-1",
+        "transcriptDir": "C:\\Users\\me\\session\\subagents\\workflows\\wf-1"
+      },
+      "expected": {
+        "runId": "wf-1",
+        "transcriptDir": "C:\\Users\\me\\session\\subagents\\workflows\\wf-1",
+        "manifestPath": "C:\\Users\\me\\session\\workflows\\wf-1.json"
+      }
+    },
+    {
+      "id": "trailing separator",
+      "metadata": {
+        "runId": " wf-1 ",
+        "transcriptDir": "/project/session/subagents/workflows/wf-1/"
+      },
+      "expected": {
+        "runId": "wf-1",
+        "transcriptDir": "/project/session/subagents/workflows/wf-1",
+        "manifestPath": "/project/session/workflows/wf-1.json"
+      }
+    },
+    {
+      "id": "unicode and spaces",
+      "metadata": {
+        "runId": "wf-🦊",
+        "transcriptDir": "/my project/сесія/subagents/workflows/wf-🦊"
+      },
+      "expected": {
+        "runId": "wf-🦊",
+        "transcriptDir": "/my project/сесія/subagents/workflows/wf-🦊",
+        "manifestPath": "/my project/сесія/workflows/wf-🦊.json"
+      }
+    },
+    {
+      "id": "missing metadata",
+      "metadata": {},
+      "expected": null
+    },
+    {
+      "id": "missing run identity",
+      "metadata": {
+        "transcriptDir": "/project/session/subagents/workflows/wf-1"
+      },
+      "expected": null
+    },
+    {
+      "id": "unrelated path",
+      "metadata": {
+        "runId": "wf-1",
+        "transcriptDir": "/project/wf-1"
+      },
+      "expected": null
+    },
+    {
+      "id": "another run directory",
+      "metadata": {
+        "runId": "wf-2",
+        "transcriptDir": "/project/session/subagents/workflows/wf-1"
+      },
+      "expected": null
+    },
+    {
+      "id": "traversal identity",
+      "metadata": {
+        "runId": "../wf-1",
+        "transcriptDir": "/project/session/subagents/workflows/wf-1"
+      },
+      "expected": null
+    },
+    {
+      "id": "backslash identity",
+      "metadata": {
+        "runId": "..\\wf-1",
+        "transcriptDir": "/project/session/subagents/workflows/wf-1"
+      },
+      "expected": null
+    },
+    {
+      "id": "nul path",
+      "metadata": {
+        "runId": "wf-1",
+        "transcriptDir": "/project/\u0000session/subagents/workflows/wf-1"
+      },
+      "expected": null
+    },
+    {
+      "id": "no session owner",
+      "metadata": {
+        "runId": "wf-1",
+        "transcriptDir": "/subagents/workflows/wf-1"
+      },
+      "expected": null
+    }
+  ],
+  "liveness": [
+    {
+      "id": "running without timestamps",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "running",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": []
+      },
+      "now": 12000000,
+      "expected": true
+    },
+    {
+      "id": "unknown before first manifest",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "unknown",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": []
+      },
+      "now": 12000000,
+      "expected": true
+    },
+    {
+      "id": "completed ends activity",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "completed",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": [],
+        "startTime": 12000000
+      },
+      "now": 12000001,
+      "expected": false
+    },
+    {
+      "id": "failed ends activity",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "failed",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": [],
+        "startTime": 12000000
+      },
+      "now": 12000001,
+      "expected": false
+    },
+    {
+      "id": "cancelled ends activity",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "cancelled",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": [],
+        "startTime": 12000000
+      },
+      "now": 12000001,
+      "expected": false
+    },
+    {
+      "id": "recent start",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "running",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": [],
+        "startTime": 1000
+      },
+      "now": 2000,
+      "expected": true
+    },
+    {
+      "id": "stale running",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "running",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": [],
+        "startTime": 0
+      },
+      "now": 10800001,
+      "expected": false
+    },
+    {
+      "id": "deadline inclusive",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "running",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": [],
+        "startTime": 0
+      },
+      "now": 10800000,
+      "expected": true
+    },
+    {
+      "id": "future activity",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "running",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": [],
+        "startTime": 12000000
+      },
+      "now": 1000,
+      "expected": true
+    },
+    {
+      "id": "agent progress outlives foreground",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "running",
+        "agentCount": 1,
+        "phases": [
+          {
+            "title": "Verify",
+            "agents": [
+              {
+                "agentId": "agent-1",
+                "label": "Verify",
+                "lastProgressAt": 12000000
+              }
+            ]
+          }
+        ],
+        "unphasedAgents": [],
+        "startTime": 0
+      },
+      "now": 12000001,
+      "expected": true
+    },
+    {
+      "id": "unphased progress",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "running",
+        "agentCount": 1,
+        "phases": [],
+        "unphasedAgents": [
+          {
+            "agentId": "agent-1",
+            "label": "Inspect",
+            "queuedAt": 12000000
+          }
+        ],
+        "startTime": 0
+      },
+      "now": 12000001,
+      "expected": true
+    },
+    {
+      "id": "computed end",
+      "run": {
+        "runId": "wf-fixture",
+        "status": "running",
+        "agentCount": 0,
+        "phases": [],
+        "unphasedAgents": [],
+        "startTime": 0,
+        "durationMs": 12000000
+      },
+      "now": 12000001,
+      "expected": true
+    }
+  ]
+}

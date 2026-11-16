@@ -13,6 +13,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_4f3ecdc243b0be72 = RemoteSchema(type: "string", literals: [.string("missing"), .string("changed"), .string("unsupported"), .string("too_large")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_4f84b56b06f60ea1 = RemoteSchema(type: "string", literals: [.string("http")], unknownPolicy: .strip)
 }
 
@@ -54,6 +58,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_50e8e4265cb34b55 = RemoteSchema(type: "object", required: Set(["branch", "projectLocation"]), properties: ["branch": RemoteSchemas.schema_36fea325bf1aca70, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_51379d96383df5ba = RemoteSchema(type: "array", maxItems: 8, items: RemoteSchemas.schema_9a15c840683620a4, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

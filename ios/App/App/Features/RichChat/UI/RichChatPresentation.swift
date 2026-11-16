@@ -4,6 +4,20 @@ struct RichGoalPresentation: Equatable, Sendable {
   let objective: String
   let status: String
   let availableActions: Set<String>
+  var timeUsedSeconds: Double? = nil
+  var updatedAt: Double? = nil
+  var tokenBudget: Int64? = nil
+  var tokensUsed: Int64? = nil
+  var iterations: Int64? = nil
+  var lastReason: String? = nil
+
+  func elapsedSeconds(at date: Date) -> Double? {
+    guard let base = timeUsedSeconds, base.isFinite, base >= 0 else { return nil }
+    guard status == "active", let updatedAt, updatedAt.isFinite else { return base }
+    let updatedSeconds = updatedAt > 1_000_000_000_000 ? updatedAt / 1_000 : updatedAt
+    let elapsed = base + max(0, date.timeIntervalSince1970 - updatedSeconds)
+    return elapsed.isFinite ? elapsed : base
+  }
 }
 
 enum RichImagePresentation: Equatable, Sendable, Identifiable {
@@ -16,8 +30,71 @@ enum RichImagePresentation: Equatable, Sendable, Identifiable {
     case .inline(let source, _): "inline:\(source.hashValue)"
     case .local(let path): "local:\(path)"
     case .remote(let reference):
-      "remote:\(reference.threadID):\(reference.itemID):\(reference.path.count)"
+      "remote:\(reference.threadID.utf8.count):\(reference.threadID)"
+        + "\(reference.itemID.utf8.count):\(reference.itemID)"
+        + reference.path.map { part in
+          switch part {
+          case .key(let key): "k\(key.utf8.count):\(key)"
+          case .index(let index): "i\(index);"
+          }
+        }.joined()
     }
+  }
+}
+
+struct RichChatMediaCollection: Equatable {
+  var images: [RichImagePresentation] = []
+  var videos: [RichVideoPresentation] = []
+}
+
+/// Page-owned cache for loaded history. Unrelated streaming updates reuse the
+/// completed items' parsed media; removed history releases its cached payloads.
+struct RichChatMediaIndex {
+  private struct CachedItem {
+    let type: String
+    let state: RichItemState
+    let payload: RichJSON?
+    let assistantText: String?
+    let images: [RichImagePresentation]
+    let videos: [RichVideoPresentation]
+  }
+  private var cache: [String: CachedItem] = [:]
+  private let extractVideos: (RichRuntimeItem) -> [RichVideoPresentation]
+
+  init(extractVideos: @escaping (RichRuntimeItem) -> [RichVideoPresentation] = RichChatVideoPresentation.videos(for:)) {
+    self.extractVideos = extractVideos
+  }
+
+  mutating func images(in items: [RichRuntimeItem]) -> [RichImagePresentation] { media(in: items).images }
+
+  mutating func media(in items: [RichRuntimeItem]) -> RichChatMediaCollection {
+    let eligibleTypes: Set<String> = [
+      RichItemType.userMessage, RichItemType.assistantMessage, "image_view",
+      "tool_call", "mcp_tool_call", "dynamic_tool_call", "command_execution", "file_change", "web_search",
+    ]
+    var currentIDs = Set<String>()
+    var seenImages = Set<String>()
+    var seenVideos = Set<String>()
+    var result = RichChatMediaCollection()
+    for item in items.reversed() where item.parentItemID == nil && eligibleTypes.contains(item.type) {
+      currentIDs.insert(item.id)
+      let value: CachedItem
+      if let cached = cache[item.id], cached.type == item.type, cached.state == item.state,
+        cached.payload == item.payload, cached.assistantText == item.streams["assistant_text"] {
+        value = cached
+      } else {
+        value = CachedItem(
+          type: item.type, state: item.state, payload: item.payload, assistantText: item.streams["assistant_text"],
+          images: item.payload?.objectValue?["status"]?.stringValue == "error" ? [] : RichChatPresentation.images(for: item),
+          videos: extractVideos(item)
+        )
+        cache[item.id] = value
+      }
+      result.images += value.images.reversed().filter { seenImages.insert($0.id).inserted }
+      result.videos += value.videos.filter { seenVideos.insert($0.id).inserted }
+    }
+    cache = cache.filter { currentIDs.contains($0.key) }
+    return result
   }
 }
 
@@ -74,6 +151,7 @@ enum RichMessageSupplementPresentation: Equatable, Sendable {
   case thread(threadID: String, title: String)
   case diffComment(target: String, body: String)
   case file(path: String, name: String?, isAttachment: Bool)
+  case video(RichVideoPresentation)
 
 }
 
@@ -84,6 +162,7 @@ enum RichChatPresentation {
   ]
 
   static func text(for item: RichRuntimeItem) -> String {
+    if item.type == RichItemType.assistantMessage { return RichAssistantDisplayText.text(for: item) }
     if let missingReport = backgroundTaskMissingReportText(for: item) {
       return missingReport
     }
@@ -131,6 +210,7 @@ enum RichChatPresentation {
   /// skills, files, and images. Those structured blocks render as native cards
   /// instead of being duplicated inside the prose.
   static func messageBody(for item: RichRuntimeItem) -> String {
+    if item.type == RichItemType.assistantMessage { return RichAssistantDisplayText.text(for: item) }
     if let missingReport = backgroundTaskMissingReportText(for: item) {
       return missingReport
     }
@@ -181,6 +261,9 @@ enum RichChatPresentation {
         )
       case .file(let path, let name, let mimeType, let source):
         guard mimeType?.lowercased().hasPrefix("image/") != true else { return nil }
+        if let video = RichVideoPresentation.resolve(path, name: name, mimeType: mimeType) {
+          return .video(video)
+        }
         return RichMessageSupplementPresentation.file(
           path: path,
           name: name,
@@ -216,8 +299,9 @@ enum RichChatPresentation {
 
   static func latestGoal(in items: [RichRuntimeItem]) -> RichGoalPresentation? {
     guard
-      let payload = items.reversed().first(where: { $0.type == RichItemType.goal })?.payload?
-        .objectValue,
+      let item = items.reversed().first(where: { $0.type == RichItemType.goal || $0.type == "provider_handoff" }),
+      item.type == RichItemType.goal,
+      let payload = item.payload?.objectValue,
       payload["action"]?.stringValue != "cleared",
       let objective = payload["objective"]?.stringValue?
         .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -231,7 +315,13 @@ enum RichChatPresentation {
     return RichGoalPresentation(
       objective: objective,
       status: payload["status"]?.stringValue ?? "active",
-      availableActions: actions
+      availableActions: actions,
+      timeUsedSeconds: payload["timeUsedSeconds"]?.decimalValue.map { NSDecimalNumber(decimal: $0).doubleValue },
+      updatedAt: payload["updatedAt"]?.decimalValue.map { NSDecimalNumber(decimal: $0).doubleValue },
+      tokenBudget: payload["tokenBudget"]?.exactInt64Value,
+      tokensUsed: payload["tokensUsed"]?.exactInt64Value,
+      iterations: payload["iterations"]?.exactInt64Value,
+      lastReason: payload["lastReason"]?.stringValue
     )
   }
 
@@ -653,17 +743,22 @@ enum RichBackgroundTaskElapsed {
   private static let maximumDisplayedSeconds: Double = 3_155_760_000
 
   static func text(startedAtMilliseconds: Double, now: Date = Date()) -> String {
+    Duration.seconds(clampedSeconds(startedAtMilliseconds: startedAtMilliseconds, now: now)).formatted(
+      .units(allowed: [.hours, .minutes, .seconds], width: .abbreviated, maximumUnitCount: 2)
+    )
+  }
+
+  static func compactText(startedAtMilliseconds: Double, now: Date = Date(), locale: Locale = .autoupdatingCurrent) -> String {
+    Duration.seconds(clampedSeconds(startedAtMilliseconds: startedAtMilliseconds, now: now)).formatted(
+      .units(allowed: [.hours, .minutes, .seconds], width: .narrow, maximumUnitCount: 2).locale(locale)
+    )
+  }
+
+  private static func clampedSeconds(startedAtMilliseconds: Double, now: Date) -> Int {
     let delta = now.timeIntervalSince1970 - startedAtMilliseconds / 1000
     // Clamp the Double BEFORE converting to Int: `Int(1e300)` traps. Future
     // timestamps (and NaN) are never displayed as a negative age.
     let clamped = delta.isFinite ? max(0, delta) : 0
-    let elapsed = Int(min(clamped, maximumDisplayedSeconds).rounded(.down))
-    return Duration.seconds(elapsed).formatted(
-      .units(
-        allowed: [.hours, .minutes, .seconds],
-        width: .abbreviated,
-        maximumUnitCount: 2
-      )
-    )
+    return Int(min(clamped, maximumDisplayedSeconds).rounded(.down))
   }
 }

@@ -2,36 +2,43 @@
   import SwiftUI
 
   /// Adaptive Browser Mirror surface. Compact widths stack the tab strip above the
-  /// viewport; regular widths (iPad, wide iPhone landscape) move tabs into a sidebar so
-  /// the mirrored page keeps the largest possible area.
+  /// viewport; wide widths (iPad, landscape iPhones, unfolded foldables) move
+  /// tabs into a sidebar so the mirrored page keeps the largest possible area.
   struct BrowserMirrorScreen: View {
     let controller: BrowserMirrorController
     let onRetry: () -> Void
+    var isMirroring: Bool = false
+    var onToggleMirroring: (() -> Void)? = nil
 
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
     @State private var address = ""
     @State private var isEditingAddress = false
     @State private var viewportMode = BrowserMirrorViewportMode.fit
 
     var body: some View {
       let projection = BrowserMirrorViewProjection(controller: controller)
-      Group {
-        if horizontalSizeClass == .regular {
+      GeometryReader { proxy in
+        if proxy.size.width >= 660 {
           HStack(alignment: .top, spacing: 12) {
             BrowserMirrorTabSidebar(controller: controller, projection: projection)
-              .frame(width: 260)
+              .frame(width: min(260, floor(proxy.size.width * 0.34)))
             content(projection)
           }
         } else {
           VStack(spacing: 10) {
             viewportContent(projection)
           }
+          .padding(.top, embeddedInInspector ? 8 : 0)
           .poracodeBottomBar {
             compactChrome(projection)
           }
         }
       }
-      .navigationTitle(BrowserMirrorStrings.title)
+      .poracodeNavigationTitle(
+        BrowserMirrorStrings.title,
+        inline: false,
+        suppressed: embeddedInInspector
+      )
       .onChange(of: projection.addressValue) { _, value in
         if !isEditingAddress { address = value }
       }
@@ -73,7 +80,9 @@
       BrowserMirrorViewportControls(
         projection: projection,
         mode: $viewportMode,
-        onRefresh: onRetry
+        onRefresh: onRetry,
+        isMirroring: isMirroring,
+        onToggleMirroring: embeddedInInspector ? onToggleMirroring : nil
       )
       if let notice = projection.noticeMessage {
         BrowserMirrorNoticeBanner(message: notice) {

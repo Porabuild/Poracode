@@ -13,6 +13,7 @@ struct SettingsActivityView: View {
           devices: [information.core.device],
           providers: information.core.providers
         )
+        .poracodeReadableWidth(740)
         List {
           Section(SettingsUIStrings.activityTitle) {
             SettingsMetricRow(
@@ -60,6 +61,7 @@ struct SettingsActivityView: View {
           }
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(740)
         .refreshable { refresh() }
       }
     }
@@ -79,6 +81,7 @@ struct SettingsTokensView: View {
           devices: [information.tokens.device],
           providers: information.core.providers
         )
+        .poracodeReadableWidth(740)
         if information.tokens.available {
           List {
             Section(SettingsUIStrings.tokensTitle) {
@@ -107,6 +110,7 @@ struct SettingsTokensView: View {
             }
           }
           .listStyle(.insetGrouped)
+          .poracodeReadableListMargins(740)
           .refreshable { refresh() }
         } else {
           ContentUnavailableView {
@@ -143,6 +147,7 @@ struct SettingsProfileView: View {
           composition: composition,
           query: query
         )
+        .poracodeFormSheetSizing()
       }
     }
   }

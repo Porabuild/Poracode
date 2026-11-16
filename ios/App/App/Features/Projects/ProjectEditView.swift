@@ -10,6 +10,8 @@ struct ProjectEditView: View {
   @Bindable var settingsController: ProjectControllerSettingsController
   @Bindable var directoryController: ProjectControllerDirectoryController
   @Bindable var notesController: ProjectControllerNotesController
+  var workspaceUsesCompactNavigation = false
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
   var body: some View {
     List {
@@ -93,6 +95,10 @@ struct ProjectEditView: View {
               identity: identity,
               location: currentProject.location
             )
+            .environment(
+              \.horizontalSizeClass,
+              workspaceUsesCompactNavigation ? .compact : horizontalSizeClass
+            )
           } label: {
             Label(ProjectWorkspaceStrings.title, systemImage: "doc.text.magnifyingglass")
           }
@@ -117,6 +123,7 @@ struct ProjectEditView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .navigationTitle(ProjectManagementStrings.edit)
     .navigationBarTitleDisplayMode(.inline)
     .overlay(alignment: .bottom) {

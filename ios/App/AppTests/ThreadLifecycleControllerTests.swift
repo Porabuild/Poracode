@@ -48,6 +48,32 @@ final class ThreadLifecycleControllerTests: XCTestCase {
     )
   }
 
+  func testClosingAnUnconfirmedLaunchSerializesDeleteAfterCreate() async throws {
+    let api = ThreadLifecycleRemoteAPIFake()
+    await api.blockNextCall()
+    let controller = makeController(api: api)
+    let target = ThreadLifecycleTestValues.target()
+    controller.activate(target)
+    let request = ThreadLifecycleTestValues.relaunch()
+    let launch = Task { await controller.relaunch(request, target: target, commandID: "original-launch") }
+    await api.waitUntilBlocked()
+    // Retiring a not-yet-adopted side chat reuses this owner while revoking
+    // its launch completion. Cleanup must still wait behind its accepted write.
+    controller.activate(target)
+    controller.delete()
+    let cleanup = Task { await controller.confirmDestructiveIntent() }
+    await Task.yield()
+    let pending = await api.commands()
+    XCTAssertEqual(pending, [.start(request)])
+    await api.releaseBlockedCall()
+    await launch.value
+    await cleanup.value
+    let completed = await api.commands()
+    XCTAssertEqual(completed, [.start(request), .delete])
+    XCTAssertEqual(controller.lastOutcome, .succeeded(.delete))
+    XCTAssertNil(controller.target)
+  }
+
   func testSuccessAndDeterministicFailureDoNotForceRefresh() async throws {
     let api = ThreadLifecycleRemoteAPIFake()
     let refresh = ThreadLifecycleRefreshSpy()

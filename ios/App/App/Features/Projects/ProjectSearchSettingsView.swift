@@ -123,6 +123,7 @@ struct ProjectSearchSettingsView: View {
         .disabled(normalizedNewPattern == nil)
       }
     }
+    .poracodeReadableListMargins(760)
     .navigationTitle(ProjectSettingsStrings.search)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {

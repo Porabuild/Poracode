@@ -5,6 +5,8 @@ import { LabHttpError } from "./labAuth.ts";
 import type { LabRuntime } from "./labRuntime.ts";
 import { validateRouteRequest, type ValidatedRouteRequest } from "./requestValidation.ts";
 import { FIXTURE_MEDIA_TICKET, schemaExample } from "./schemaExamples.ts";
+import { CREW_FIXTURE } from "./crewFixtures.ts";
+import type { AgentDiscoveryFixture } from "./agentDiscoveryFixture.ts";
 
 const PNG_1X1 = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -35,7 +37,9 @@ const MUTATION_FOLLOW_UPS: Readonly<Record<string, string>> = {
 };
 
 export class LabRouteWorkspace {
+  constructor(private readonly agentDiscovery?: AgentDiscoveryFixture) {}
   private settings: Record<string, unknown> | undefined;
+  private readonly agentStatusesByIdentity = new Map<string, Record<string, unknown>>();
   private browserState = {
     tabs: [] as Record<string, unknown>[],
     activeTabId: null as string | null,
@@ -46,8 +50,39 @@ export class LabRouteWorkspace {
   private pushRegistered = false;
   private readonly pendingFollowUps = new Set<string>();
 
+  noteAgentStatus(status: Record<string, unknown>): void {
+    if (typeof status.kind === "string")
+      this.agentStatusesByIdentity.set(
+        JSON.stringify([status.kind, status.envKind ?? "", status.envDistro ?? ""]),
+        structuredClone(status),
+      );
+  }
+
+  prepareComposerTools(): void {
+    const baseline = generatedJsonResponse("settings-read") as {
+      settings: Record<string, unknown>;
+    };
+    this.settings = {
+      settings: { ...baseline.settings, enabledMcpServers: { browser: false, chrome: true } },
+    };
+  }
+
+  prepareCrews(): void {
+    const baseline = generatedJsonResponse("settings-read") as {
+      settings: Record<string, unknown>;
+    };
+    this.settings = {
+      settings: {
+        ...baseline.settings,
+        providerOrder: ["codex", "fixture-reviewer"],
+        crews: [structuredClone(CREW_FIXTURE)],
+      },
+    };
+  }
+
   reset(): void {
     this.settings = undefined;
+    this.agentStatusesByIdentity.clear();
     this.browserState = { tabs: [], activeTabId: null };
     this.forwards.clear();
     this.enterTokens.clear();
@@ -70,28 +105,36 @@ export class LabRouteWorkspace {
         };
       case "settings-read":
         return this.settings ?? generatedJsonResponse(routeId);
-      case "agent-statuses":
+      case "agent-statuses": {
+        if (this.agentDiscovery?.enabled) return this.agentDiscovery.cachedStatuses();
         // Cached native (POSIX) record rides in the legacy `windows` array.
         // The foundation scenario emits no agent-status socket events, so a
         // native client can only hydrate its catalog through this HTTP base.
         // Capabilities match the fixture thread (gui-capable, gpt-5 model).
+        const foundation = [
+          {
+            kind: "codex",
+            label: "Codex",
+            installed: true,
+            authState: "authenticated",
+            envKind: "posix",
+            capabilities: {
+              presentationModes: ["gui", "terminal"],
+              models: [{ id: "gpt-5", label: "Fixture model" }],
+            },
+          },
+        ];
+        const recorded = [...this.agentStatusesByIdentity.values()];
+        const native = recorded.filter((status) => status.envKind !== "wsl");
+        const nativeKinds = new Set(native.map((status) => status.kind));
         return {
           updatedAt: "2026-08-12T10:03:00.000Z",
-          windows: [
-            {
-              kind: "codex",
-              label: "Codex",
-              installed: true,
-              authState: "authenticated",
-              envKind: "posix",
-              capabilities: {
-                presentationModes: ["gui", "terminal"],
-                models: [{ id: "gpt-5", label: "Fixture model" }],
-              },
-            },
-          ],
-          wsl: [],
+          // A reconnect must hydrate the same catalog that socket clients
+          // observed, including the composer's model/effort capabilities.
+          windows: [...foundation.filter((status) => !nativeKinds.has(status.kind)), ...native],
+          wsl: recorded.filter((status) => status.envKind === "wsl"),
         };
+      }
       case "settings-write": {
         const baseline = this.settings ?? (generatedJsonResponse("settings-read") as object);
         const previous = (baseline as { settings: Record<string, unknown> }).settings;

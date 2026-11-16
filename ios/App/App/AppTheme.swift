@@ -39,6 +39,7 @@ struct PoracodeThemeVariant: Sendable {
   let borderHex: String
   let sidebarHex: String
   let contentHex: String
+  var tertiarySurfaceHex: String? = nil
 
   var background: Color { Color(poracodeHex: backgroundHex) }
   var surface: Color { Color(poracodeHex: surfaceHex) }
@@ -47,6 +48,50 @@ struct PoracodeThemeVariant: Sendable {
   var border: Color { Color(poracodeHex: borderHex) }
   var sidebar: Color { Color(poracodeHex: sidebarHex) }
   var content: Color { Color(poracodeHex: contentHex) }
+  /// User-authored content uses the PWA tertiary surface, above the panel
+  /// surface. The base theme supplies its CSS values; other presets derive it.
+  var tertiarySurface: Color {
+    Color(poracodeHex: tertiarySurfaceHex ?? PoracodeThemeColorMix.mix(surfaceHex, foregroundHex, amount: 0.15))
+  }
+}
+
+/// CSS `color-mix(in oklab, ...)`, used by the PWA's derived theme surfaces.
+/// Keep the calculation at palette creation so every supported iOS version
+/// uses the same color space, including iOS 17 where Color.mix is unavailable.
+private enum PoracodeThemeColorMix {
+  static func mix(_ first: String, _ second: String, amount: Double) -> String {
+    guard let a = lab(first), let b = lab(second) else { return first }
+    let t = min(1, max(0, amount))
+    let L = a.0 + (b.0 - a.0) * t
+    let A = a.1 + (b.1 - a.1) * t
+    let B = a.2 + (b.2 - a.2) * t
+    let l = pow(L + 0.3963377774 * A + 0.2158037573 * B, 3)
+    let m = pow(L - 0.1055613458 * A - 0.0638541728 * B, 3)
+    let s = pow(L - 0.0894841775 * A - 1.291485548 * B, 3)
+    func channel(_ value: Double) -> Int {
+      let encoded = value <= 0.0031308 ? 12.92 * value : 1.055 * pow(value, 1 / 2.4) - 0.055
+      return Int((min(1, max(0, encoded)) * 255).rounded())
+    }
+    return String(format: "#%02x%02x%02x",
+      channel(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+      channel(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+      channel(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s))
+  }
+
+  private static func lab(_ hex: String) -> (Double, Double, Double)? {
+    guard let value = UInt32(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) else { return nil }
+    func linear(_ byte: UInt32) -> Double {
+      let value = Double(byte) / 255
+      return value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+    }
+    let r = linear((value >> 16) & 255), g = linear((value >> 8) & 255), b = linear(value & 255)
+    let l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+    let m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+    let s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+    return (0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+      1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s)
+  }
 }
 
 struct PoracodeThemePreset: Identifiable, Sendable {
@@ -72,7 +117,8 @@ struct PoracodeThemePreset: Identifiable, Sendable {
     preset(
       "default", "Poracode",
       light: ("#f1f1f4", "#fafafb", "#18181b", "#5f6cd9", "#cacace", "#ececef", "#f6f6f9"),
-      dark: ("#070709", "#0e0e14", "#fafafa", "#8892ef", "#24242e", "#0e0e14", "#0b0b11")
+      dark: ("#070709", "#0e0e14", "#fafafa", "#8892ef", "#24242e", "#0e0e14", "#0b0b11"),
+      lightTertiary: "#ebebed", darkTertiary: "#17171d"
     ),
     preset(
       "poracode-legacy", "Poracode Legacy",
@@ -145,12 +191,14 @@ struct PoracodeThemePreset: Identifiable, Sendable {
     _ id: String,
     _ name: String,
     light: Anchors,
-    dark: Anchors
+    dark: Anchors,
+    lightTertiary: String? = nil,
+    darkTertiary: String? = nil
   ) -> Self {
-    Self(id: id, name: name, light: variant(light), dark: variant(dark))
+    Self(id: id, name: name, light: variant(light, tertiary: lightTertiary), dark: variant(dark, tertiary: darkTertiary))
   }
 
-  private static func variant(_ anchors: Anchors) -> PoracodeThemeVariant {
+  private static func variant(_ anchors: Anchors, tertiary: String? = nil) -> PoracodeThemeVariant {
     PoracodeThemeVariant(
       backgroundHex: anchors.background,
       surfaceHex: anchors.surface,
@@ -158,7 +206,8 @@ struct PoracodeThemePreset: Identifiable, Sendable {
       accentHex: anchors.accent,
       borderHex: anchors.border,
       sidebarHex: anchors.sidebar,
-      contentHex: anchors.content
+      contentHex: anchors.content,
+      tertiarySurfaceHex: tertiary ?? PoracodeThemeColorMix.mix(anchors.surface, anchors.foreground, amount: 0.15)
     )
   }
 }
@@ -193,11 +242,27 @@ struct PoracodeThemeRoot<Content: View>: View {
         .ignoresSafeArea()
       content()
     }
-      .scrollContentBackground(.hidden)
-      .environment(\.poracodeTheme, theme)
-      .environment(\.poracodeAccent, theme.variant(for: resolvedColorScheme).accent)
-      .tint(Color.primary)
-      .preferredColorScheme(mode.preferredColorScheme)
+    .scrollContentBackground(.hidden)
+    .environment(\.poracodeTheme, theme)
+    .environment(\.poracodeAccent, theme.variant(for: resolvedColorScheme).accent)
+    .tint(Color.primary)
+    .preferredColorScheme(mode.preferredColorScheme)
+  }
+}
+
+extension View {
+  /// Paints the active Poracode theme background inside navigation destinations
+  /// so Light (`#f1f1f4`) and Dark (`#070709`) canvases match the split
+  /// sidebar without UIKit's default `.systemBackground` seam.
+  @ViewBuilder
+  func poracodeThemeBackground(_ color: Color) -> some View {
+    if #available(iOS 18.0, *) {
+      self
+        .background(color.ignoresSafeArea())
+        .containerBackground(color, for: .navigation)
+    } else {
+      self.background(color.ignoresSafeArea())
+    }
   }
 }
 

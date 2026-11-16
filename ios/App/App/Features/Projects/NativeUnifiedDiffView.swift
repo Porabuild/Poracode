@@ -48,8 +48,8 @@ struct NativeUnifiedDiffLine: Identifiable, Equatable {
           oldLineNumber: kind == .deletion || kind == .context ? oldLine : nil,
           newLineNumber: kind == .addition || kind == .context ? newLine : nil
         )
-        if kind == .deletion || kind == .context { oldLine? += 1 }
-        if kind == .addition || kind == .context { newLine? += 1 }
+        if kind == .deletion || kind == .context, let number = oldLine { oldLine = number == .max ? nil : number + 1 }
+        if kind == .addition || kind == .context, let number = newLine { newLine = number == .max ? nil : number + 1 }
         return line
       }
   }

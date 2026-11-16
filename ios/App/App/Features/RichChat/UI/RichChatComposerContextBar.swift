@@ -76,6 +76,7 @@ struct RichChatComposerContextBar: View {
 extension RichPromptSegment {
   var composerChipLabel: String? {
     switch self {
+    case .selectedText(let text): "“\(text.prefix(80))”"
     case .file(let path): path
     case .diffComment(let path, let lineNumber, _, _, _): "\(path):\(lineNumber)"
     case .thread(_, let title): title
@@ -84,12 +85,16 @@ extension RichPromptSegment {
   }
 
   var composerRemovalLabel: String {
+    if case .selectedText = self { return SideChatStrings.removeQuote }
     if case .file = self { return RichChatStrings.removeFile }
     return RichChatStrings.removeReviewComment
   }
 
   var promptText: String? {
     switch self {
+    case .text(let text), .selectedText(let text): text
+    case .skill(_, _, let invocation, _, _, _, _): invocation
+    case .mcp(_, let name): "@\(name)"
     case .file(let path): "@\(path)"
     case .diffComment(_, _, _, _, let body): body
     case .thread(_, let title): "@\(title)"

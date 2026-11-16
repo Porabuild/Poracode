@@ -3,6 +3,9 @@ import SwiftUI
 struct HomeThreadListView: View {
   let entries: [HomeThreadListEntry]
   let openingThreadID: String?
+  var selectedThreadID: String? = nil
+  var selectedConnectionID: ClientConnectionID? = nil
+  var listBackground: Color? = nil
   let gitSummary: (UnifiedThreadListItem) -> GitThreadSummary?
   let agentLabel: (UnifiedThreadListItem) -> String?
   let hostIsOnline: (ClientConnectionID) -> Bool
@@ -10,6 +13,7 @@ struct HomeThreadListView: View {
   let openProject: (UnifiedThreadListItem) -> Void
   let lifecycle: HomeThreadLifecycleCoordinator
   let drafts: RichChatComposerDraftStore
+  var hasBackgroundActivity: (UnifiedThreadListItem) -> Bool = { _ in false }
 
   @Environment(\.colorScheme) private var colorScheme
   @Environment(\.poracodeTheme) private var theme
@@ -33,7 +37,7 @@ struct HomeThreadListView: View {
       .padding(.top, 8)
       .padding(.bottom, 12)
     }
-    .background(palette.background)
+    .background(listBackground ?? palette.background)
   }
 
   private func conversationSection(_ group: HomeConversationThreadGroup) -> some View {
@@ -120,7 +124,8 @@ struct HomeThreadListView: View {
   }
 
   private func threadButton(_ item: UnifiedThreadListItem, grouped: Bool) -> some View {
-    Button {
+    let isSelected = selectedThreadID == item.id
+    return Button {
       open(item)
     } label: {
       PoracodeThreadRow(
@@ -133,11 +138,12 @@ struct HomeThreadListView: View {
         hasDraft: hasDraft(item),
         showsRelativeTime: true,
         isOpening: openingThreadID == item.id,
-        showsGitBranch: item.thread.worktreePath?.isEmpty == false
+        showsGitBranch: item.thread.worktreePath?.isEmpty == false,
+        hasBackgroundActivity: hasBackgroundActivity(item)
       )
       .padding(.horizontal, HomeThreadRowMetrics.horizontalInset)
     }
-    .buttonStyle(HomeThreadButtonStyle(surface: palette.surface))
+    .buttonStyle(HomeThreadButtonStyle(surface: palette.surface, isSelected: isSelected))
     .contextMenu {
       Button(RichChatStrings.closeThread, systemImage: "xmark.circle") {
         lifecycle.requestClose(item)
@@ -154,8 +160,14 @@ struct HomeThreadListView: View {
         openProject(item)
       }
     }
-    .accessibilityIdentifier("native-e2e.thread.\(item.thread.id)")
+    // Keep the selected host's legacy fixture marker; other hosts must use
+    // their full identity so colliding remote ids remain unambiguous.
+    .accessibilityIdentifier("native-e2e.thread.\(item.connectionID == selectedConnectionID ? item.thread.id : item.id)")
     .accessibilityLabel(threadAccessibility(item))
+    .accessibilityValue(ThreadLifecycleStrings.status(ThreadStatusPresentation.resolvedStatus(
+      status: item.thread.status, attention: item.thread.attention, hasBackgroundActivity: hasBackgroundActivity(item)),
+      hasSessionRef: item.thread.sessionRef != nil))
+    .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 
   private func threadAccessibility(_ item: UnifiedThreadListItem) -> String {
@@ -163,10 +175,15 @@ struct HomeThreadListView: View {
       item.thread.title,
       item.project.name,
       HomeDeviceName.display(item.hostName),
-      item.thread.status,
     ]
     if item.thread.isStarred { values.append(HomeStrings.starred) }
     if hasDraft(item) { values.append(HomeStrings.unsentDraft) }
+    let git = ThreadGitSummaryPresentation(summary: gitSummary(item))
+    if let changes = git.changes { values.append(changes) }
+    if let divergence = git.divergence { values.append(divergence) }
+    if let pullRequest = git.pullRequestLabel, let state = git.pullRequestState {
+      values.append("\(pullRequest), \(GitSummaryStrings.state(state))")
+    }
     return values.joined(separator: ", ")
   }
 
@@ -181,7 +198,7 @@ struct HomeThreadListView: View {
 
   private func worktreeIconColor(_ group: HomeWorktreeThreadGroup, collapsed: Bool) -> Color {
     guard collapsed else { return .primary }
-    switch group.collapsedStatusTone {
+    switch group.collapsedStatusTone(hasBackgroundActivity: hasBackgroundActivity) {
     case .finished: return .indigo
     case .working: return .green
     case nil: return .secondary

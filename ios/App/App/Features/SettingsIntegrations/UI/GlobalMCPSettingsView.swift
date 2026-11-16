@@ -70,9 +70,11 @@ struct GlobalMCPSettingsView: View {
           }
         }
       }
+      .poracodeFormSheetSizing()
     }
     .sheet(item: $toolSelection) { selection in
       toolSheet(selection.server)
+        .poracodeFormSheetSizing()
     }
     .task(id: refreshIdentity) {
       controller.activate(activeSelection)
@@ -128,6 +130,7 @@ struct GlobalMCPSettingsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(740)
     .refreshable {
       await controller.load()
       await controller.refreshOAuthStatus()
@@ -246,38 +249,8 @@ struct GlobalMCPSettingsView: View {
     }
   }
 
-  @ViewBuilder private var oauthStatus: some View {
-    switch controller.oauthLifecycle {
-    case .waiting, .openingBrowser, .starting:
-      Section {
-        HStack {
-          ProgressView()
-          Text(SettingsIntegrationsStrings.waitingForAuthorization)
-          Spacer()
-          Button(SettingsIntegrationsStrings.cancel) { controller.cancelOAuth() }
-        }
-      }
-    case .authorized:
-      Section {
-        Label(SettingsIntegrationsStrings.authorized, systemImage: "checkmark.shield")
-      }
-    case .paused:
-      Section {
-        Label(SettingsIntegrationsStrings.authorizationPaused, systemImage: "pause.circle")
-      }
-    case .timedOut:
-      Section {
-        Label(
-          SettingsIntegrationsStrings.authorizationTimedOut,
-          systemImage: "clock.badge.exclamationmark")
-      }
-    case .failed(let failure):
-      Section {
-        Label(SettingsIntegrationsStrings.failure(failure), systemImage: "exclamationmark.triangle")
-      }
-    default:
-      EmptyView()
-    }
+  private var oauthStatus: some View {
+    SettingsMCPOAuthStatusView(lifecycle: controller.oauthLifecycle, cancel: controller.cancelOAuth)
   }
 
   @ViewBuilder private func probeSummary(_ server: ProjectMCPServer) -> some View {
@@ -328,6 +301,7 @@ struct GlobalMCPSettingsView: View {
         .disabled(controller.isMutating)
         .poracodeSwitchStyle()
       }
+      .poracodeReadableListMargins(740)
       .navigationTitle(server.name)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {

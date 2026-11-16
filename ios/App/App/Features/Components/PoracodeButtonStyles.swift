@@ -11,6 +11,20 @@ extension EnvironmentValues {
     get { self[PoracodeAccentKey.self] }
     set { self[PoracodeAccentKey.self] = newValue }
   }
+
+}
+
+private struct PoracodeGlassButtonModifier: ViewModifier {
+  let tint: Color
+
+  @ViewBuilder
+  func body(content: Content) -> some View {
+    if #available(iOS 26.0, macOS 26.0, *) {
+      content.buttonStyle(.glass).tint(tint)
+    } else {
+      content.buttonStyle(.bordered).tint(tint)
+    }
+  }
 }
 
 private struct PoracodeProminentButtonModifier: ViewModifier {
@@ -34,13 +48,8 @@ private struct PoracodeProminentButtonModifier: ViewModifier {
 extension View {
   /// Neutral Liquid Glass button on iOS 26, bordered elsewhere. Labels stay
   /// neutral; accent is reserved for `poracodeProminentButtonStyle()`.
-  @ViewBuilder
   func poracodeGlassButtonStyle(tint: Color = .primary) -> some View {
-    if #available(iOS 26.0, macOS 26.0, *) {
-      buttonStyle(.glass).tint(tint)
-    } else {
-      buttonStyle(.bordered).tint(tint)
-    }
+    modifier(PoracodeGlassButtonModifier(tint: tint))
   }
 
   /// Neutral fill-only button for controls that already sit on a glass or

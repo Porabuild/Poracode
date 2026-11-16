@@ -83,6 +83,7 @@ struct ProjectGeneralSettingsView: View {
         }
       }
     }
+    .poracodeReadableListMargins(760)
     .navigationTitle(ProjectSettingsStrings.general)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
@@ -95,6 +96,7 @@ struct ProjectGeneralSettingsView: View {
       ProjectDirectoryBrowser(controller: directoryController, initialPath: draft.path) { path in
         draft.path = path
       }
+      .poracodeFormSheetSizing()
     }
     .confirmationDialog(
       ProjectManagementStrings.remove,

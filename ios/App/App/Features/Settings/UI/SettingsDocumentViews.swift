@@ -20,10 +20,11 @@ struct SettingsGenerationView: View {
 struct SettingsWorkspaceView: View {
   let composition: SettingsComposition
   let refresh: () -> Void
+  var showsWSL = true
 
   var body: some View {
     SettingsDocumentState(controller: composition.document, refresh: refresh) { document in
-      SettingsWorkspaceEditor(document: document, composition: composition)
+      SettingsWorkspaceEditor(document: document, composition: composition, showsWSL: showsWSL)
     }
   }
 }
@@ -62,7 +63,7 @@ private struct SettingsGenerationEditor: View {
 
   var body: some View {
     Form {
-      Section(SettingsUIStrings.windows) {
+      Section(composition.selection?.name ?? SettingsUIStrings.generationTitle) {
         SettingsGenerationGroup(
           title: SettingsUIStrings.titleGeneration,
           value: $draft.title,
@@ -101,6 +102,7 @@ private struct SettingsGenerationEditor: View {
         }
       }
     }
+    .poracodeReadableListMargins(740)
     .disabled(composition.gate(.sessionOperate) != nil || composition.isMutating)
     .refreshable { refresh() }
     .toolbar { saveButton }
@@ -223,12 +225,14 @@ private struct SettingsGenerationGroup: View {
 private struct SettingsWorkspaceEditor: View {
   let document: SettingsDocument
   let composition: SettingsComposition
+  let showsWSL: Bool
 
   @State private var draft: SettingsDocumentDraft
 
-  init(document: SettingsDocument, composition: SettingsComposition) {
+  init(document: SettingsDocument, composition: SettingsComposition, showsWSL: Bool) {
     self.document = document
     self.composition = composition
+    self.showsWSL = showsWSL
     _draft = State(initialValue: SettingsDocumentDraft(document))
   }
 
@@ -242,23 +246,15 @@ private struct SettingsWorkspaceEditor: View {
         TextField(SettingsUIStrings.basePath, text: $draft.worktreeBasePath)
           .textInputAutocapitalization(.never)
           .autocorrectionDisabled()
-        TextField(SettingsUIStrings.wslBasePath, text: $draft.wslWorktreeBasePath)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-      }
-      Section(SettingsUIStrings.automationSection) {
-        Picker(SettingsUIStrings.defaultAction, selection: $draft.prAutomationDefault) {
-          Text(SettingsUIStrings.off).tag(SettingsPRAutomationDefault.off)
-          Text(SettingsUIStrings.fix).tag(SettingsPRAutomationDefault.fix)
-          Text(SettingsUIStrings.merge).tag(SettingsPRAutomationDefault.merge)
-        }
-        Picker(SettingsUIStrings.mergeMethod, selection: $draft.prMergeMethod) {
-          Text(SettingsUIStrings.merge).tag(SettingsPRMergeMethod.merge)
-          Text(SettingsUIStrings.squash).tag(SettingsPRMergeMethod.squash)
-          Text(SettingsUIStrings.rebase).tag(SettingsPRMergeMethod.rebase)
+        if showsWSL {
+          TextField(SettingsUIStrings.wslBasePath, text: $draft.wslWorktreeBasePath)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
         }
       }
+
     }
+    .poracodeReadableListMargins(740)
     .disabled(composition.gate(.sessionOperate) != nil || composition.isMutating)
     .refreshable { await composition.document.load() }
     .toolbar { saveButton }
@@ -320,6 +316,7 @@ private struct SettingsGitEditor: View {
         }
       }
     }
+    .poracodeReadableListMargins(740)
     .disabled(composition.gate(.sessionOperate) != nil || composition.isMutating)
     .refreshable { await composition.document.load() }
     .toolbar { saveButton }

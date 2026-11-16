@@ -32,6 +32,7 @@ struct RichChatTimelineActions {
   let lastVisibleItemID: String?
   var rawItems: [RichRuntimeItem] = []
   var completedTurns: [RichCompletedTurn] = []
+  var userMessageStarts: [String: Int64] = [:]
   var checkpoints = RichChatCheckpointCollection(checkpoints: [], turns: [])
   var isTurnActive = false
   var inheritedItemIDs: Set<String> = []
@@ -41,6 +42,7 @@ struct RichChatTimelineActions {
   var requestRevert: ((RichChatMessageRevertPlan) -> Void)?
   let requestTruncate: ((String) -> Void)?
   var requestFork: ((String) -> Void)? = nil
+  var askInSideChat: ((String) -> Void)? = nil
 
   static let none = RichChatTimelineActions(
     lastVisibleItemID: nil,

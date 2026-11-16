@@ -38,6 +38,7 @@ struct RichChatSlashCommandOption: Identifiable, Equatable {
 
 struct RichChatComposerControlCatalog {
   let agentLabel: String?
+  let selectionOwner: ModelSelectionOwner?
   let capabilities: [String: JSONValue]
   /// The visible advertised choices before family projection — the
   /// visibility-filtered inventory retained as the exact-choice authority and
@@ -53,6 +54,7 @@ struct RichChatComposerControlCatalog {
   /// Negotiated live session controls. `nil` (absent, retired, or malformed
   /// inventory) leaves every control on the exact static capability path.
   private let negotiated: RichChatNegotiatedControls?
+  private let modelPreferences: [String: ComposerModelPreference]
 
   var contextSizeReloadStopsSubagents: Bool {
     capabilities["contextSizeReloadStopsSubagents"]?.boolValue == true
@@ -69,15 +71,20 @@ struct RichChatComposerControlCatalog {
     configuration: ThreadConfig,
     threadSlashCommands: [RemoteSlashCommand]? = nil,
     sessionConfigOptions: JSONValue? = nil,
-    hiddenModels: [String: [String]]? = nil
+    hiddenModels: [String: [String]]? = nil,
+    agentInstanceID: String? = nil,
+    modelPreferences: [String: ComposerModelPreference] = [:]
   ) {
     agentLabel = agentStatus?.label
+    selectionOwner = agentStatus.map { ModelSelectionOwner(agentKind: $0.kind,
+      agentInstanceID: agentInstanceID, presentationMode: presentationMode) }
     capabilities =
       agentStatus.map {
         HomeComposerCatalog.capabilities(for: $0, presentationMode: presentationMode)
       } ?? [:]
     self.threadSlashCommands = threadSlashCommands
     negotiated = RichChatNegotiatedControls(sessionConfigOptions)
+    self.modelPreferences = modelPreferences
     // Catalog pricing by exact UID: static rows carry it natively; live rows
     // inherit it from the same static inventory their ids come from.
     let descriptionByModelID = Dictionary(
@@ -123,7 +130,7 @@ struct RichChatComposerControlCatalog {
       capabilities: capabilities,
       userHiddenModels: hiddenModels,
       agentKind: agentStatus?.kind ?? "",
-      runtimeVariant: ModelVisibility.declaredGUIVariant(
+      runtimeVariant: ModelVisibility.guiRuntimeVariant(
         for: agentStatus, presentationMode: presentationMode)
     )
     let visibleIDs = ModelVisibility.visiblePickerIDs(
@@ -364,6 +371,25 @@ struct RichChatComposerControlCatalog {
     Self.options(capabilities["modes"])
   }
 
+  static func nonPlanMode(in options: [RichChatComposerOption]) -> String? {
+    options.first { $0.id == "agent" }?.id ?? options.first { $0.id != "plan" }?.id
+  }
+
+  static func modeAfterToggling(
+    _ id: String, current: String?, options: [RichChatComposerOption]
+  ) -> String? {
+    guard options.contains(where: { $0.id == id }) else { return current }
+    return current == id ? nonPlanMode(in: options) ?? current : id
+  }
+
+  /// Older preferences remain readable, but Plan belongs to the current draft.
+  /// Normalize only while restoring defaults, never while editing that draft.
+  static func restoredDraftMode(_ preferred: String?, capabilities: [String: JSONValue]) -> String? {
+    guard preferred == "plan" else { return preferred }
+    let modes = Self.options(capabilities["modes"])
+    return nonPlanMode(in: modes) ?? modes.first?.id ?? "agent"
+  }
+
   /// A live control is offered only while the picker's model is the one the
   /// session currently negotiated; every other model keeps the static
   /// capability projection. The observed select returns as-is — an empty
@@ -378,6 +404,66 @@ struct RichChatComposerControlCatalog {
 
   var permissionOptions: [RichChatComposerOption] {
     Self.options(capabilities["approvalPolicies"])
+  }
+
+  func effectivePermissionPolicy(_ configuration: ThreadConfig) -> String? {
+    configuration.approvalPolicy?.trimmedNonEmpty ?? capabilities["defaultApprovalPolicy"]?.stringValue
+  }
+
+  func permissionOptionLabel(_ option: RichChatComposerOption) -> String {
+    if bypassPermissionPreset?["approvalPolicy"]?.stringValue == option.id {
+      return RichChatStrings.fullAccess
+    }
+    return RichChatStrings.permissionOption(option.label)
+  }
+
+  func isPermissionOptionSelected(_ option: RichChatComposerOption, configuration: ThreadConfig) -> Bool {
+    guard effectivePermissionPolicy(configuration) == option.id else { return false }
+    let bypass = bypassPermissionPreset
+    if bypass?["approvalPolicy"]?.stringValue == option.id,
+      let sandbox = bypass?["sandboxMode"]?.stringValue {
+      return (configuration.sandboxMode?.trimmedNonEmpty ?? capabilities["defaultSandboxMode"]?.stringValue) == sandbox
+    }
+    return true
+  }
+
+  func permissionSelectionLabel(_ configuration: ThreadConfig) -> String {
+    let policy = effectivePermissionPolicy(configuration)
+    guard let option = permissionOptions.first(where: { $0.id == policy }) else { return policy ?? HomeStrings.permissions }
+    let selected = isPermissionOptionSelected(option, configuration: configuration)
+    let isBypass = selected && bypassPermissionPreset?["approvalPolicy"]?.stringValue == option.id
+    let label = selected
+      ? permissionOptionLabel(option) : RichChatStrings.permissionOption(option.label)
+    if !isBypass, let reviewer = configuration.approvalsReviewer?.trimmedNonEmpty {
+      return "\(label) · \(Self.humanized(reviewer))"
+    }
+    return label
+  }
+
+  /// The provider-declared bypass preset applies policy and sandbox together;
+  /// a policy-only change must never be presented as unrestricted file access.
+  func applyPermissionPolicy(_ policy: String, to configuration: inout ThreadConfig) {
+    guard permissionOptions.contains(where: { $0.id == policy }) else { return }
+    configuration.approvalPolicy = policy
+    let bypass = bypassPermissionPreset
+    if bypass?["approvalPolicy"]?.stringValue == policy {
+      if let sandbox = bypass?["sandboxMode"]?.stringValue { configuration.sandboxMode = sandbox }
+      if capabilities["defaultApprovalsReviewer"] != nil { configuration.approvalsReviewer = "" }
+    } else {
+      if let sandbox = capabilities["defaultSandboxMode"]?.stringValue, supportsSandboxValue(sandbox) { configuration.sandboxMode = sandbox }
+      if let reviewer = capabilities["defaultApprovalsReviewer"]?.stringValue { configuration.approvalsReviewer = reviewer }
+    }
+  }
+
+  private var bypassPermissionPreset: [String: JSONValue]? {
+    guard let preset = capabilities["bypassPermissions"]?.objectValue else { return nil }
+    if let sandbox = preset["sandboxMode"]?.stringValue, !supportsSandboxValue(sandbox) { return nil }
+    return preset
+  }
+
+  private func supportsSandboxValue(_ value: String) -> Bool {
+    let options = Self.options(capabilities["sandboxModes"])
+    return options.isEmpty || options.contains { $0.id == value }
   }
 
   var slashCommands: [RichChatSlashCommandOption] {
@@ -481,17 +567,21 @@ struct RichChatComposerControlCatalog {
         .model(modelID), to: configuration, capabilities: capabilities,
         accepted: familyAcceptedIDs)
       {
-        configuration.apply(patch)
-        clearUnsupportedWorkflows(in: &configuration)
+        applySelectionPatch(patch, exactPick: true, to: &configuration)
       }
       return
     }
 
+    let previous = configuration
+    if modelID == configuration.model {
+      configuration = ModelSelectionBindings.applying(.exactModel, previous: previous, next: previous,
+        owner: selectionOwner) ?? previous
+      return
+    }
     let efforts = effortOptions(for: modelID)
     let effortIDs = Set(efforts.map(\.id))
-    if let effort = configuration.effort, !effortIDs.contains(effort) {
-      configuration.effort = defaultEffort(for: modelID, available: effortIDs)
-    }
+    configuration.effort = modelPreferences[modelID]?.effort.flatMap { effortIDs.contains($0) ? $0 : nil }
+      ?? defaultEffort(for: modelID, available: effortIDs)
 
     let contexts = contextOptions(for: modelID)
     let contextIDs = Set(contexts.map(\.id))
@@ -502,9 +592,13 @@ struct RichChatComposerControlCatalog {
     }
 
     configuration.model = modelID
-    if !supportsFast(modelID) { configuration.fast = false }
+    let usableFast = supportsFast(modelID) && capabilities["fastDisabledReason"]?.stringValue?.isEmpty != false
+    configuration.fast = usableFast ? (modelPreferences[modelID]?.fast
+      ?? selectionOwner.flatMap { ProviderUIRegistry.bundled?.fast(for: $0.agentKind) } ?? false) : false
     configuration.thinking = supportsThinking(modelID)
     clearUnsupportedWorkflows(in: &configuration)
+    configuration = ModelSelectionBindings.applying(.exactModel, previous: previous, next: configuration,
+      owner: selectionOwner) ?? previous
   }
 
   private func defaultEffort(for modelID: String, available: Set<String>) -> String? {
@@ -645,6 +739,7 @@ struct RichChatComposerControlCatalog {
 
 struct RichChatComposerControlsSheet: View {
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.composerPreferences) private var preferences
   @Binding private var configuration: ThreadConfig
   let agentStatus: AgentStatusRecord?
   let presentationMode: ThreadPresentationMode
@@ -656,6 +751,8 @@ struct RichChatComposerControlsSheet: View {
   @State private var draft: ThreadConfig
   @State private var showsContextReloadConfirmation = false
   private let hasStartedSession: Bool
+  private let bindingsReadOnly: Bool
+  private let agentInstanceID: String?
 
   init(
     configuration: Binding<ThreadConfig>,
@@ -663,9 +760,13 @@ struct RichChatComposerControlsSheet: View {
     presentationMode: ThreadPresentationMode,
     sessionConfigOptions: JSONValue? = nil,
     hiddenModels: [String: [String]]? = nil,
-    hasStartedSession: Bool = false
+    hasStartedSession: Bool = false,
+    bindingsReadOnly: Bool = false,
+    agentInstanceID: String? = nil
   ) {
     self.hasStartedSession = hasStartedSession
+    self.bindingsReadOnly = bindingsReadOnly
+    self.agentInstanceID = agentInstanceID
     _configuration = configuration
     self.agentStatus = agentStatus
     self.presentationMode = presentationMode
@@ -680,18 +781,19 @@ struct RichChatComposerControlsSheet: View {
       presentationMode: presentationMode,
       configuration: draft,
       sessionConfigOptions: sessionConfigOptions,
-      hiddenModels: hiddenModels
+      hiddenModels: hiddenModels,
+      agentInstanceID: agentInstanceID,
+      modelPreferences: agentStatus.map { preferences?.modelPreferences(for: .init(agentKind: $0.kind,
+        agentInstanceID: agentInstanceID, presentationMode: presentationMode)) ?? [:] } ?? [:]
     )
   }
 
   var body: some View {
     NavigationStack {
       Form {
-        modelSection
-        reasoningSection
-        modeSection
-        permissionSection
-        mcpSection
+        RichChatComposerConfigurationFields(
+          draft: $draft, catalog: catalog, bindingsReadOnly: bindingsReadOnly
+        )
       }
       .navigationTitle(RichChatStrings.composerControls)
       .navigationBarTitleDisplayMode(.inline)
@@ -704,7 +806,7 @@ struct RichChatComposerControlsSheet: View {
             if catalog.confirmsContextChange(from: configuration, to: draft, hasStartedSession: hasStartedSession) {
               showsContextReloadConfirmation = true
             } else {
-              configuration = draft
+              configuration = ModelSelectionBindings.validated(draft, owner: catalog.selectionOwner)
               dismiss()
             }
           }
@@ -715,7 +817,7 @@ struct RichChatComposerControlsSheet: View {
     .alert(RichChatStrings.contextWindow, isPresented: $showsContextReloadConfirmation) {
       Button(RichChatStrings.cancel, role: .cancel) {}
       Button(RichChatStrings.save) {
-        configuration = draft
+        configuration = ModelSelectionBindings.validated(draft, owner: catalog.selectionOwner)
         dismiss()
       }
     } message: {
@@ -725,236 +827,7 @@ struct RichChatComposerControlsSheet: View {
     }
   }
 
-  private var modelSection: some View {
-    Section {
-      Picker(HomeStrings.model, selection: modelBinding) {
-        ForEach(catalog.modelSections()) { section in
-          if let heading = section.heading {
-            Section(header: Text(heading)) {
-              ForEach(section.options) { option in
-                modelOptionRow(option).tag(option.id)
-              }
-            }
-          } else {
-            Section {
-              ForEach(section.options) { option in
-                modelOptionRow(option).tag(option.id)
-              }
-            }
-          }
-        }
-      }
-    } header: {
-      Text(HomeStrings.model)
-    } footer: {
-      if let agentLabel = catalog.agentLabel { Text(agentLabel) }
-    }
-  }
 
-  /// Model row with the provider-content pricing hint muted beneath the label.
-  @ViewBuilder
-  private func modelOptionRow(_ option: RichChatComposerOption) -> some View {
-    if let modelDescription = option.modelDescription {
-      VStack(alignment: .leading, spacing: 2) {
-        Text(option.label)
-        Text(modelDescription)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
-    } else {
-      Text(option.label)
-    }
-  }
-
-  @ViewBuilder
-  private var reasoningSection: some View {
-    let selectors = catalog.familySelectors(for: draft).filter { $0.options.count > 1 }
-    let efforts = catalog.effortOptions(for: draft.model)
-    let contexts = catalog.contextOptions(for: draft.model)
-    let supportsFast = catalog.supportsFast(draft.model)
-    let supportsThinking = catalog.supportsThinking(draft.model)
-    let supportsWorkflows = catalog.supportsWorkflows(draft.model)
-    if !selectors.isEmpty || efforts.count > 1 || contexts.count > 1 || supportsFast
-      || supportsThinking || supportsWorkflows
-    {
-      Section(SettingsUIStrings.configurationSection) {
-        // Conditional family selectors: they change only the model coordinate
-        // they name, resolving to the exact member of the current tuple.
-        ForEach(selectors) { control in
-          Picker(control.label, selection: selectorBinding(control)) {
-            ForEach(control.options) { option in Text(option.label).tag(option.id) }
-          }
-        }
-        if efforts.count > 1 {
-          Picker(HomeStrings.effort, selection: effortBinding(efforts)) {
-            ForEach(efforts) { option in Text(option.label).tag(option.id) }
-          }
-        }
-        if contexts.count > 1 {
-          Picker(HomeStrings.context, selection: contextBinding(contexts)) {
-            ForEach(contexts) { option in Text(option.label).tag(option.id) }
-          }
-        }
-        if supportsFast {
-          Toggle(HomeStrings.fast, isOn: fastBinding)
-          .poracodeSwitchStyle()
-        }
-        if supportsThinking {
-          Toggle(RichChatStrings.thinking, isOn: optionalBooleanBinding(\.thinking))
-          .poracodeSwitchStyle()
-        }
-        if supportsWorkflows {
-          Toggle(catalog.workflowsLabel, isOn: optionalBooleanBinding(\.workflows))
-          .poracodeSwitchStyle()
-        }
-      }
-    }
-  }
-
-  @ViewBuilder
-  private var modeSection: some View {
-    let options = catalog.modeOptions(for: draft.model)
-    if options.count > 1 {
-      Section(HomeStrings.mode) {
-        choicePicker(
-          HomeStrings.mode, options: options,
-          selection: optionalStringBinding(\.mode, options: options)
-        )
-      }
-    }
-  }
-
-  @ViewBuilder
-  private var permissionSection: some View {
-    let options = catalog.permissionOptions.map {
-      RichChatComposerOption(
-        id: $0.id, label: RichChatStrings.permissionOption($0.label),
-        modelDescription: $0.modelDescription)
-    }
-    if options.count > 1 {
-      Section(HomeStrings.permissions) {
-        choicePicker(
-          HomeStrings.permissions, options: options,
-          selection: optionalStringBinding(\.approvalPolicy, options: options)
-        )
-      }
-    }
-  }
-
-  /// Mode and Permissions use a native segmented picker for the small,
-  /// mutually exclusive option sets (2–3), matching Android; larger sets keep
-  /// the menu picker.
-  @ViewBuilder
-  private func choicePicker(
-    _ title: String,
-    options: [RichChatComposerOption],
-    selection: Binding<String>
-  ) -> some View {
-    if (2...3).contains(options.count) {
-      Picker(title, selection: selection) {
-        ForEach(options) { option in Text(option.label).tag(option.id) }
-      }
-      .pickerStyle(.segmented)
-      .labelsHidden()
-    } else {
-      Picker(title, selection: selection) {
-        ForEach(options) { option in Text(option.label).tag(option.id) }
-      }
-    }
-  }
-
-  private var mcpSection: some View {
-    Section(HomeStrings.mcpServers) {
-      Toggle(isOn: optionalBooleanBinding(\.browserMcp)) {
-        Label(HomeStrings.browser, systemImage: "globe")
-      }
-      .poracodeSwitchStyle()
-      Toggle(isOn: optionalBooleanBinding(\.crossagentMcp)) {
-        Label(HomeStrings.crossagents, systemImage: "person.2")
-      }
-      .poracodeSwitchStyle()
-      Toggle(isOn: optionalBooleanBinding(\.chromeMcp)) {
-        Label(HomeStrings.chrome, systemImage: "rectangle")
-      }
-      .poracodeSwitchStyle()
-      Toggle(isOn: optionalBooleanBinding(\.computerUse)) {
-        Label(HomeStrings.computerUse, systemImage: "desktopcomputer")
-      }
-      .poracodeSwitchStyle()
-    }
-  }
-
-  private var modelBinding: Binding<String> {
-    Binding(
-      get: { draft.model },
-      set: { model in
-        // The row's own origin carries the intent: the projected family row
-        // retains/adopts through the relation; every exact row selects that
-        // exact UID.
-        if catalog.isProjectedFamilyRow(model) {
-          catalog.applyFamilyRowSelection(model, to: &draft)
-        } else {
-          catalog.applyExactModelSelection(model, to: &draft)
-        }
-      }
-    )
-  }
-
-  private func selectorBinding(_ control: RichChatComposerFamilySelectorControl) -> Binding<String> {
-    Binding(
-      get: { control.currentOptionID ?? control.options.first?.id ?? "" },
-      set: { catalog.applySelectorEdit(selectorID: control.id, value: $0, to: &draft) }
-    )
-  }
-
-  private func effortBinding(_ options: [RichChatComposerOption]) -> Binding<String> {
-    Binding(
-      // Display order: inside a model-bound family the member's encoded
-      // effort, then the negotiated current value of the session's model (a
-      // display fallback that never writes the configuration), then the saved
-      // carrier itself.
-      get: {
-        catalog.displayedEffort(for: draft) ?? catalog.effortDefault(for: draft.model)
-          ?? options.first?.id ?? ""
-      },
-      set: { catalog.applyEffortEdit($0, to: &draft) }
-    )
-  }
-
-  private var fastBinding: Binding<Bool> {
-    Binding(
-      // Display derives from the member UID inside a model-bound family; the
-      // persisted carrier only ever moves through the resolved edit.
-      get: { catalog.displayedFast(draft) },
-      set: { catalog.applyFastEdit($0, to: &draft) }
-    )
-  }
-
-  private func contextBinding(_ options: [RichChatComposerOption]) -> Binding<String> {
-    Binding(
-      get: { draft.contextSize ?? options.first?.id ?? "" },
-      set: { draft.contextSize = $0 }
-    )
-  }
-
-  private func optionalStringBinding(
-    _ keyPath: WritableKeyPath<ThreadConfig, String?>,
-    options: [RichChatComposerOption]
-  ) -> Binding<String> {
-    Binding(
-      get: { draft[keyPath: keyPath] ?? options.first?.id ?? "" },
-      set: { draft[keyPath: keyPath] = $0 }
-    )
-  }
-
-  private func optionalBooleanBinding(
-    _ keyPath: WritableKeyPath<ThreadConfig, Bool?>
-  ) -> Binding<Bool> {
-    Binding(
-      get: { draft[keyPath: keyPath] == true },
-      set: { draft[keyPath: keyPath] = $0 }
-    )
-  }
 }
 
 private extension String {

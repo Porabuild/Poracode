@@ -2,7 +2,7 @@ import XCTest
 @testable import App
 
 final class SessionPoolPolicyTests: XCTestCase {
-    func testEvictionKeepsSelectedAndSecondarySortedVictims() {
+    func testEvictionOnlyDropsUnpairedHosts() {
         let selected = ClientConnectionID()
         let secondary = ClientConnectionID()
         let extraA = ClientConnectionID()
@@ -12,22 +12,20 @@ final class SessionPoolPolicyTests: XCTestCase {
         ]
         let victims = SessionPoolEviction.victims(
             live: live,
-            selected: .host(selected),
-            secondary: .host(secondary)
+            allowed: [.host(selected), .host(secondary), .host(extraA)]
         )
-        XCTAssertEqual(victims.count, 2)
+        XCTAssertEqual(victims, [.host(extraB)])
         XCTAssertEqual(victims, victims.sorted(by: SessionPoolEviction.lessThan))
         XCTAssertFalse(victims.contains(.host(selected)))
         XCTAssertFalse(victims.contains(.host(secondary)))
     }
 
-    func testAllowedKeysSelectedPlusFirstOtherLRU() {
+    func testEveryPairedHostIsAllowedWithSelectedFirst() {
         let a = ClientConnectionID()
         let b = ClientConnectionID()
         let c = ClientConnectionID()
-        let allowed = SessionPoolEviction.allowedKeys(selected: b, lru: [b, a, c])
-        XCTAssertEqual(allowed.selected, .host(b))
-        XCTAssertEqual(allowed.secondary, .host(a))
+        let allowed = SessionPoolEviction.allowedKeys(selected: b, paired: [a, b, c, a])
+        XCTAssertEqual(allowed, [.host(b), .host(a), .host(c)])
     }
 
     func testLeaseInvalidAfterGenerationBump() {
@@ -91,7 +89,7 @@ final class SessionPoolTests: XCTestCase {
         return api
     }
 
-    func testMaxTwoSocketsAndLRUEviction() async throws {
+    func testAllPairedHostsStayLiveAndRemovedHostsLoseTheirLease() async throws {
         let keychain = InMemoryKeychainIO()
         let catalog = HostCatalog.ephemeralForTests(vaultIO: keychain, sourceKeychain: keychain)
         defer { Task { await catalog.wipeForTests() } }
@@ -152,10 +150,25 @@ final class SessionPoolTests: XCTestCase {
             lastSeenSeq: 0
         )
         await session.sessionPool.evictToPolicy()
-        XCTAssertLessThanOrEqual(session.sessionPool.liveSocketCount(), 2)
-        XCTAssertNotNil(session.sessionPool.socket(for: .host(ids[2])))
-        XCTAssertNotNil(session.sessionPool.socket(for: .host(ids[1])))
+        XCTAssertEqual(session.sessionPool.liveSocketCount(), 3)
+        for id in ids { XCTAssertNotNil(session.sessionPool.socket(for: .host(id))) }
+        let unpaired = await session.sessionPool.startSocket(
+            key: .host(ClientConnectionID()), api: api0, workGeneration: gen, lastSeenSeq: 0
+        )
+        XCTAssertNil(unpaired)
+
+        session.sessionPool.noteBackgroundGate()
+        await session.sessionPool.stopAll()
+        XCTAssertEqual(session.sessionPool.liveSocketCount(), 0)
+        session.state.liveLifecycle = LiveSessionLifecycle()
+        await session.sessionPool.handleForeground(startLiveSession: true, workGeneration: gen)
+        XCTAssertEqual(session.sessionPool.liveSocketCount(), 3)
+        let removedLease = try XCTUnwrap(session.sessionPool.lease(for: .host(ids[0])))
+        session.state.hosts.removeAll { $0.connectionId == ids[0] }
+        await session.sessionPool.evictToPolicy()
         XCTAssertNil(session.sessionPool.socket(for: .host(ids[0])))
+        XCTAssertFalse(session.sessionPool.isValid(removedLease))
+        XCTAssertEqual(session.sessionPool.liveSocketCount(), 2)
     }
 
     func testStaleLeaseIgnoredAfterRestart() async throws {
@@ -191,7 +204,7 @@ final class SessionPoolTests: XCTestCase {
         XCTAssertTrue(session.sessionPool.isValid(second!))
     }
 
-    func testBackgroundStopsAllForegroundResumesSelectedAndLRU() async throws {
+    func testBackgroundStopsAllForegroundResumesPairedHosts() async throws {
         let keychain = InMemoryKeychainIO()
         let catalog = HostCatalog.ephemeralForTests(vaultIO: keychain, sourceKeychain: keychain)
         defer { Task { await catalog.wipeForTests() } }
@@ -253,7 +266,7 @@ final class SessionPoolTests: XCTestCase {
 
         session.state.liveLifecycle = LiveSessionLifecycle()
         await session.sessionPool.handleForeground(startLiveSession: true, workGeneration: gen)
-        XCTAssertLessThanOrEqual(session.sessionPool.liveSocketCount(), 2)
+        XCTAssertEqual(session.sessionPool.liveSocketCount(), 2)
         XCTAssertNotNil(session.sessionPool.socket(for: .host(b)))
     }
 

@@ -1,6 +1,7 @@
 import Foundation
 
-/// Sole socket-start authority. Selected host plus one LRU secondary; max two live sockets.
+/// Sole socket-start authority. Every paired host can stay live in foreground;
+/// only the selected host supplies the command surface. Background gates all sockets.
 @MainActor
 final class SessionPool {
     unowned let host: AppSession
@@ -146,7 +147,7 @@ final class SessionPool {
                 await socket.setThreadItemInterests(cache.interests)
                 guard isCurrent(socket, for: lease) else { return }
                 await evictToPolicy()
-                await startSecondaryIfPossible(workGeneration: workGeneration)
+                await startOtherHostsIfPossible(workGeneration: workGeneration)
                 return
             }
         } else {
@@ -165,7 +166,7 @@ final class SessionPool {
             lastSeenEpoch: epoch
         )
         await evictToPolicy()
-        await startSecondaryIfPossible(workGeneration: workGeneration)
+        await startOtherHostsIfPossible(workGeneration: workGeneration)
     }
 
     /// Synchronous gate: bump every lease generation and close the start gate.
@@ -217,22 +218,24 @@ final class SessionPool {
         isBackgroundGated = false
         await evictToPolicy()
         guard workGeneration == host.state.workGeneration, !isBackgroundGated else { return }
-        let allowed = allowedKeys()
         if startLiveSession {
             if let api = host.state.api {
                 await startForCurrentHost(api: api, workGeneration: workGeneration)
             }
-            await startSecondaryIfPossible(workGeneration: workGeneration)
+            await startOtherHostsIfPossible(workGeneration: workGeneration)
             return
         }
-        if let selected = allowed.selected, let socket = slots[selected]?.socket {
+        let selected = currentKey()
+        if let socket = slots[selected]?.socket {
             await socket.resumeFromForeground()
-        } else if let api = host.state.api, allowed.selected != nil || host.state.api != nil {
+        } else if let api = host.state.api {
             await startForCurrentHost(api: api, workGeneration: workGeneration)
         }
-        if let secondary = allowed.secondary, let socket = slots[secondary]?.socket {
-            await socket.resumeFromForeground()
+        for key in allowedKeys() where key != selected {
+            guard workGeneration == host.state.workGeneration, !isBackgroundGated else { return }
+            if let socket = slots[key]?.socket { await socket.resumeFromForeground() }
         }
+        await startOtherHostsIfPossible(workGeneration: workGeneration)
     }
 
     /// Keeps the selected host's cached reconnect cursor at the highest seq the
@@ -351,42 +354,19 @@ final class SessionPool {
     }
 
     func evictToPolicy() async {
-        let allowed = allowedKeys()
-        let live = liveKeys()
-        let victims = SessionPoolEviction.victims(
-            live: live,
-            selected: allowed.selected,
-            secondary: allowed.secondary
-        )
-        for key in victims {
-            let socket = slots[key]?.socket
-            slots[key]?.socket = nil
-            slots[key]?.generation &+= 1
-            clearConnectionState(for: key)
-            await socket?.stop()
-        }
-        while liveSocketCount() > SessionPoolEviction.maxLiveSockets {
-            let extras = liveKeys().filter { $0 != allowed.selected && $0 != allowed.secondary }
-            guard let victim = extras.first else { break }
-            let socket = slots[victim]?.socket
-            slots[victim]?.socket = nil
-            slots[victim]?.generation &+= 1
-            clearConnectionState(for: victim)
-            await socket?.stop()
-        }
+        let victims = SessionPoolEviction.victims(live: liveKeys(), allowed: allowedKeys())
+        for key in victims { await stop(key) }
     }
 
-    private func allowedKeys() -> (selected: SessionPoolKey?, secondary: SessionPoolKey?) {
-        let lru = host.state.hostsLRU
-        return SessionPoolEviction.allowedKeys(
+    private func allowedKeys() -> [SessionPoolKey] {
+        SessionPoolEviction.allowedKeys(
             selected: host.state.selectedConnectionId,
-            lru: lru
+            paired: host.state.hosts.map(\.connectionId)
         )
     }
 
     private func isAllowed(_ key: SessionPoolKey) -> Bool {
-        let allowed = allowedKeys()
-        return key == allowed.selected || key == allowed.secondary
+        allowedKeys().contains(key)
     }
 
     private func clearConnectionState(for key: SessionPoolKey) {
@@ -418,26 +398,21 @@ final class SessionPool {
         await socket?.stop()
     }
 
-    private func startSecondaryIfPossible(workGeneration: Int) async {
-        let allowed = allowedKeys()
-        guard let secondary = allowed.secondary,
-              case .host(let id) = secondary,
-              slots[secondary]?.socket == nil
-        else { return }
-        guard let record = host.state.hosts.first(where: { $0.connectionId == id }) else {
-            return
+    private func startOtherHostsIfPossible(workGeneration: Int) async {
+        for key in allowedKeys() where key != currentKey() {
+            guard workGeneration == host.state.workGeneration, !isBackgroundGated else { return }
+            guard case .host(let id) = key, slots[key]?.socket == nil,
+                  let record = host.state.hosts.first(where: { $0.connectionId == id }),
+                  let token = try? await host.deps.hostCatalog.token(for: id), !token.isEmpty
+            else { continue }
+            guard workGeneration == host.state.workGeneration, !isBackgroundGated,
+                  slots[key]?.socket == nil else { continue }
+            let api = host.deps.makeAPI(record.httpBaseURL, token)
+            let cached = cache(for: key)
+            _ = await startSocket(
+                key: key, api: api, workGeneration: workGeneration,
+                lastSeenSeq: cached.lastSeenSeq, lastSeenEpoch: cached.lastSeenEpoch
+            )
         }
-        guard let token = try? await host.deps.hostCatalog.token(for: id), !token.isEmpty else {
-            return
-        }
-        let api = host.deps.makeAPI(record.httpBaseURL, token)
-        let cached = cache(for: secondary)
-        _ = await startSocket(
-            key: secondary,
-            api: api,
-            workGeneration: workGeneration,
-            lastSeenSeq: cached.lastSeenSeq,
-            lastSeenEpoch: cached.lastSeenEpoch
-        )
     }
 }

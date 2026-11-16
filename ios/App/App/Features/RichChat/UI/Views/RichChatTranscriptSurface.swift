@@ -16,6 +16,8 @@ struct RichChatTranscriptSurface: View {
   let retry: () -> Void
   var requestFork: ((String) -> Void)? = nil
   var forkBoundaryItemID: String? = nil
+  var fallbackCompletedTurn: RichCompletedTurn? = nil
+  var askInSideChat: ((String) -> Void)? = nil
 
   var body: some View {
     VStack(spacing: 0) {
@@ -63,7 +65,9 @@ struct RichChatTranscriptSurface: View {
         canOperate: canOperate,
         isRefreshing: false,
         requestFork: requestFork,
-        forkBoundaryItemID: forkBoundaryItemID
+        forkBoundaryItemID: forkBoundaryItemID,
+        fallbackCompletedTurn: fallbackCompletedTurn,
+        askInSideChat: askInSideChat
       )
     }
   }

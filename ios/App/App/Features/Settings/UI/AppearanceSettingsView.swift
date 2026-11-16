@@ -66,6 +66,7 @@ struct AppearanceSettingsView: View {
       }
       .listRowBackground(activeTheme.variant(for: colorScheme).surface)
     }
+    .poracodeReadableListMargins(740)
     .scrollContentBackground(.hidden)
     .background(activeTheme.variant(for: colorScheme).background)
     .navigationTitle(SettingsUIStrings.appearanceTitle)

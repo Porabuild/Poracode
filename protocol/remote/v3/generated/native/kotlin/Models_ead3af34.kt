@@ -53,62 +53,209 @@ data class RoutethreadU2DHistoryU2DPromptsResponse_3264c4f1e6(
 }
 
 @Serializable
-data class RoutethreadU2DListQuery_64900cfb16(
-    @SerialName("cursor") val cursor: RemoteField<String> = RemoteField.Missing,
-    @SerialName("limit") val limit: RemoteField<Long> = RemoteField.Missing,
-    @SerialName("maxBytes") val maxBytes: RemoteField<Long> = RemoteField.Missing,
-    @SerialName("maxDecodeBytes") val maxDecodeBytes: RemoteField<Long> = RemoteField.Missing,
-    @SerialName("mode") val mode: RemoteField<RouteprojectU2DListQueryU2DMode_902ee7904a> = RemoteField.Missing,
-    @SerialName("order") val order: RemoteField<RouteprojectU2DListQueryU2DOrder_42146530bc> = RemoteField.Missing,
-    @SerialName("reads") val reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = RemoteField.Missing,
-    @SerialName("summaries") val summaries: RemoteField<Boolean> = RemoteField.Missing,
+data class RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a(
+    @SerialName("inputDigest") val inputDigest: String,
+    @SerialName("itemId") val itemId: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("cursor", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("limit", "Long", false, false, 1.0, 200.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("maxBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("maxDecodeBytes", "Long", false, false, 1.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("mode", "RouteprojectU2DListQueryU2DMode_902ee7904a", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("order", "RouteprojectU2DListQueryU2DOrder_42146530bc", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("summaries", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("inputDigest", "String", true, false, null, null, null, null, null, null, "^[a-f0-9]{64}$", null, listOf()),
+            RemoteFieldDescriptor("itemId", "String", true, false, null, null, 1, 512, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
 @Serializable
-data class RoutethreadU2DListResponse_dfb0d1c562(
-    @SerialName("gitSummariesByThread") val gitSummariesByThread: RemoteField<RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78> = RemoteField.Missing,
-    @SerialName("inventoryFrontier") val inventoryFrontier: RemoteField<String> = RemoteField.Missing,
-    @SerialName("nextCursor") val nextCursor: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
-    @SerialName("reads") val reads: RemoteField<RouteprojectU2DListQueryU2DReads_4659e6d395> = RemoteField.Missing,
-    @SerialName("runtimeSummariesByThread") val runtimeSummariesByThread: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26,
-    @SerialName("threads") val threads: List<RouteshellU2DSnapshotResponseU2DThreadsU2DItem_b37f60804a>,
+data class RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1_1e2e59a6d1(
+    @SerialName("items") val items: List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>,
+    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("gitSummariesByThread", "RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("inventoryFrontier", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("nextCursor", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("reads", "RouteprojectU2DListQueryU2DReads_4659e6d395", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("runtimeSummariesByThread", "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threads", "List<RouteshellU2DSnapshotResponseU2DThreadsU2DItem_b37f60804a>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("items", "List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>", true, false, null, null, null, null, 1, 32, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }
 
-typealias RoutethreadU2DRuntimeU2DGapResponseU2DNotice_214ae58e6e = RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2?
-
 @Serializable
-data class RoutethreadU2DRuntimeU2DGapResponse_6da82c72b2(
-    @SerialName("gap") val gap: RemoteField<RoutethreadU2DRuntimeU2DGapU2DAcknowledgeResponseU2DOptionU2D1U2DDescriptor_c66f09c621>,
-    @SerialName("notice") val notice: RemoteField<RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2>,
+data class RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D2_0de685fcf4(
+    @SerialName("items") val items: List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>,
+    @SerialName("version") val version: ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D2U2DVersion_f8ba039a2f,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("gap", "RoutethreadU2DRuntimeU2DGapU2DAcknowledgeResponseU2DOptionU2D1U2DDescriptor_c66f09c621", true, true, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("notice", "RoutethreadU2DHistoryU2DChangesResponseU2DOptionU2D1U2DSnapshotU2DRuntimeNotice_1468dfe9a2", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("items", "List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>", true, false, null, null, null, null, 1, 32, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D2U2DVersion_f8ba039a2f", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D3_57cb887824(
+    @SerialName("items") val items: List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>,
+    @SerialName("version") val version: RouteenvironmentU2DLegacyResponseU2DToolPresentationU2DOptionU2D1U2DItemTypesU2DItemU2DPresentationU2DWorkflowProjectionU2DVersion_135f7ef79d,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("items", "List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>", true, false, null, null, null, null, 1, 32, null, null, listOf()),
+            RemoteFieldDescriptor("version", "RouteenvironmentU2DLegacyResponseU2DToolPresentationU2DOptionU2D1U2DItemTypesU2DItemU2DPresentationU2DWorkflowProjectionU2DVersion_135f7ef79d", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D4_dc890acec2(
+    @SerialName("items") val items: List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>,
+    @SerialName("version") val version: RouteenvironmentU2DLegacyResponseU2DToolPresentationU2DOptionU2D1U2DItemTypesU2DItemU2DPresentationU2DWorkflowViewProjectionU2DVersion_e6cfd13a74,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("items", "List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>", true, false, null, null, null, null, 1, 32, null, null, listOf()),
+            RemoteFieldDescriptor("version", "RouteenvironmentU2DLegacyResponseU2DToolPresentationU2DOptionU2D1U2DItemTypesU2DItemU2DPresentationU2DWorkflowViewProjectionU2DVersion_e6cfd13a74", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D5_eaec87ff9d(
+    @SerialName("items") val items: List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>,
+    @SerialName("version") val version: ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D3U2DVersion_cf69e7793f,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("items", "List<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1U2DItemsU2DItem_9b9783ff6a>", true, false, null, null, null, null, 1, 32, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D3U2DVersion_cf69e7793f", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable(with = RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3.Serializer::class)
+sealed interface RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3 {
+    data class Option1(val value: RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1_1e2e59a6d1) : RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3
+    data class Option2(val value: RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D2_0de685fcf4) : RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3
+    data class Option3(val value: RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D3_57cb887824) : RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3
+    data class Option4(val value: RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D4_dc890acec2) : RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3
+    data class Option5(val value: RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D5_eaec87ff9d) : RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3
+    object Serializer : KSerializer<RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3")
+        override fun deserialize(decoder: Decoder): RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3 supports JSON only")
+            val element = jsonDecoder.decodeJsonElement()
+            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "version", listOf(JsonPrimitive(1.0)))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1_1e2e59a6d1>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "version", listOf(JsonPrimitive(2.0)))) { Option2(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D2_0de685fcf4>(element)) }
+            RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "version", listOf(JsonPrimitive(3.0)))) { Option3(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D3_57cb887824>(element)) }
+            RemoteUnionCodec.tryOption(matches, 4, RemoteUnionCodec.matchesProperty(element, "version", listOf(JsonPrimitive(4.0)))) { Option4(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D4_dc890acec2>(element)) }
+            RemoteUnionCodec.tryOption(matches, 5, RemoteUnionCodec.matchesProperty(element, "version", listOf(JsonPrimitive(5.0)))) { Option5(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D5_eaec87ff9d>(element)) }
+            return RemoteUnionCodec.single("RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3", matches)
+        }
+        override fun serialize(encoder: Encoder, value: RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DItemU2DPresentationsRequest_d7cd89eba3 supports JSON only")
+            val element = when (value) {
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D1_1e2e59a6d1>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D2_0de685fcf4>(value.value)
+                is Option3 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D3_57cb887824>(value.value)
+                is Option4 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D4_dc890acec2>(value.value)
+                is Option5 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DItemU2DPresentationsRequestU2DOptionU2D5_eaec87ff9d>(value.value)
+            }
+            jsonEncoder.encodeJsonElement(element)
+        }
+    }
+}
+
+@Serializable
+data class RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D1_d59ce91ef6(
+    @SerialName("items") val items: List<ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D1U2DEntry_cc236ef91a>,
+    @SerialName("version") val version: ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("items", "List<ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D1U2DEntry_cc236ef91a>", true, false, null, null, null, null, null, 32, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DVersion_7f9f5a0d72", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D2_f6e7e7b61d(
+    @SerialName("items") val items: List<ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D2U2DEntry_74fc41a249>,
+    @SerialName("version") val version: ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D2U2DVersion_f8ba039a2f,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("items", "List<ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D2U2DEntry_74fc41a249>", true, false, null, null, null, null, null, 32, null, null, listOf()),
+            RemoteFieldDescriptor("version", "ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D2U2DVersion_f8ba039a2f", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1U2DHeaderU2DWorkflow_decb92bc1a(
+    @SerialName("name") val name: RemoteField<String> = RemoteField.Missing,
+    @SerialName("runId") val runId: String,
+    @SerialName("summary") val summary: RemoteField<String> = RemoteField.Missing,
+    @SerialName("transcriptDir") val transcriptDir: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("name", "String", false, false, null, null, null, 512, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runId", "String", true, false, null, null, 1, 512, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("summary", "String", false, false, null, null, null, 4096, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("transcriptDir", "String", true, false, null, null, 1, 4096, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1U2DHeader_e07628c606(
+    @SerialName("workflow") val workflow: RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1U2DHeaderU2DWorkflow_decb92bc1a,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("workflow", "RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1U2DHeaderU2DWorkflow_decb92bc1a", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1_2168d80c99(
+    @SerialName("header") val header: RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1U2DHeader_e07628c606,
+    @SerialName("inputDigest") val inputDigest: String,
+    @SerialName("itemId") val itemId: String,
+    @SerialName("status") val status: ProcedureghPollPullRequestsResultU2DOptionU2D1U2DStatus_0200f968d2,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("header", "RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1U2DHeader_e07628c606", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("inputDigest", "String", true, false, null, null, null, null, null, null, "^[a-f0-9]{64}$", null, listOf()),
+            RemoteFieldDescriptor("itemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("status", "ProcedureghPollPullRequestsResultU2DOptionU2D1U2DStatus_0200f968d2", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable(with = RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3.Serializer::class)
+sealed interface RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3 {
+    data class Option1(val value: RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1_2168d80c99) : RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3
+    data class Option2(val value: ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D1U2DEntryU2DOptionU2D2_2504426b50) : RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3
+    object Serializer : KSerializer<RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3")
+        override fun deserialize(decoder: Decoder): RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3 supports JSON only")
+            val element = jsonDecoder.decodeJsonElement()
+            val matches = mutableListOf<RemoteUnionMatch<RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3>>()
+            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "status", listOf(JsonPrimitive("ready")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1_2168d80c99>(element)) }
+            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "status", listOf(JsonPrimitive("unavailable")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D1U2DEntryU2DOptionU2D2_2504426b50>(element)) }
+            return RemoteUnionCodec.single("RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3", matches)
+        }
+        override fun serialize(encoder: Encoder, value: RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItem_bd72dfdbe3 supports JSON only")
+            val element = when (value) {
+                is Option1 -> jsonEncoder.json.encodeToJsonElement<RoutethreadU2DItemU2DPresentationsResponseU2DOptionU2D3U2DItemsU2DItemU2DOptionU2D1_2168d80c99>(value.value)
+                is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedureworkflowAgentChatResultU2DItemPresentationsU2DOptionU2D1U2DItemsU2DItemU2DOptionU2D1U2DEntryU2DOptionU2D2_2504426b50>(value.value)
+            }
+            jsonEncoder.encodeJsonElement(element)
+        }
     }
 }

@@ -705,6 +705,18 @@ final class UnifiedThreadPresentationTests: XCTestCase {
     XCTAssertTrue(options.contains { $0.connectionID == first && $0.online })
     XCTAssertTrue(options.contains { $0.connectionID == second && !$0.online })
     XCTAssertFalse(options.contains { $0.project.id == "excluded" })
+
+    let withoutAuxiliary = HomeProjectOptionsPresentation.options(
+      hosts: [host(first, label: "MacBook"), host(second, label: "Studio")],
+      selectedConnectionID: first, selectedSnapshot: firstSnapshot,
+      hostSnapshots: [first: firstSnapshot, second: secondSnapshot],
+      isSynced: { _, projectID in projectID != "excluded" },
+      isThreadVisible: { connection, _ in connection != first },
+      isOnline: { $0 == first })
+    XCTAssertEqual(try XCTUnwrap(options.first { $0.connectionID == first && $0.project.id == "project" }).threadCount, 1)
+    XCTAssertEqual(try XCTUnwrap(withoutAuxiliary.first { $0.connectionID == first && $0.project.id == "project" }).threadCount, 0)
+    XCTAssertEqual(withoutAuxiliary.count, options.count, "Hiding an auxiliary row must not hide its workspace")
+    XCTAssertEqual(firstSnapshot.threads.count, 1, "Visibility must not alter the authoritative host catalog")
   }
 
   func testProjectActionMetadataUsesTheOwningHostWhenProjectIDsCollide() {

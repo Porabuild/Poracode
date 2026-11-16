@@ -340,6 +340,7 @@ enum RemoteBoundedPageDecoder {
     var gitSummariesByThread: JSONValue?
     var gitState: JSONValue?
     var updatedAt: String
+    var workspaces: [RemoteHostWorkspace]?
   }
 
   private struct ThreadPageWire: Decodable {
@@ -390,7 +391,8 @@ enum RemoteBoundedPageDecoder {
       gitSummariesByThread: wire.gitSummariesByThread,
       gitState: wire.gitState,
       updatedAt: wire.updatedAt,
-      snapshotEpoch: wire.snapshotEpoch
+      snapshotEpoch: wire.snapshotEpoch,
+      workspaces: wire.workspaces
     )
   }
 

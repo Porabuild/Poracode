@@ -54,7 +54,7 @@ struct RichChatImageView: View {
           .frame(maxWidth: .infinity, minHeight: 80)
       }
     }
-    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    .clipShape(PoracodeShapes.content)
     .task(id: source.id) { await load() }
     .fullScreenCover(item: $preview) { preview in
       RichChatImagePreview(image: preview.image)

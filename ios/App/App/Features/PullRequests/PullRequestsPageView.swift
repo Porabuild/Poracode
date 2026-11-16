@@ -7,6 +7,7 @@ import UIKit
 /// pull-to-refresh. Rows push into the native review hierarchy; Safari remains
 /// available as a secondary context-menu action.
 struct PullRequestsPageView: View {
+  @Environment(\.homeWorkspace) private var workspace
   @Bindable var session: AppSession
   @State private var controller: PullRequestsController
   @State private var category: PullRequestsCategory = .all
@@ -22,11 +23,14 @@ struct PullRequestsPageView: View {
   private var filtered: [PullRequestsEntry] {
     PullRequestsPresentation.sorted(
       PullRequestsPresentation.deduplicated(
-        controller.entries.filter {
-          PullRequestsPresentation.matches($0, category: category)
-            && !hiddenProjectIDs.contains($0.project.id)
-            && !($0.viewerLogin.map(hiddenAccounts.contains) ?? false)
-            && PullRequestsPresentation.matches($0, query: query)
+        controller.entries.filter { entry in
+          (workspace.activeID == nil || session.selectedConnectionId.map { connection in
+            workspace.preferences.includes(projectID: entry.project.identity(on: connection).id.rawValue, activeID: workspace.activeID)
+          } == true)
+            && PullRequestsPresentation.matches(entry, category: category)
+            && !hiddenProjectIDs.contains(entry.project.id)
+            && !(entry.viewerLogin.map(hiddenAccounts.contains) ?? false)
+            && PullRequestsPresentation.matches(entry, query: query)
         }
       )
     )
@@ -81,6 +85,7 @@ struct PullRequestsPageView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .navigationTitle(PullRequestsStrings.title)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
@@ -116,6 +121,7 @@ struct PullRequestsPageView: View {
       .pickerStyle(.segmented)
       .padding(.horizontal)
       .padding(.vertical, 8)
+      .poracodeReadableWidth(760)
       .poracodeBarBackground()
     }
     .task(id: session.currentProjectControllerLease) {

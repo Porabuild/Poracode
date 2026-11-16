@@ -68,6 +68,7 @@ struct AddHostSheet: View {
           .accessibilityLabel(HostStrings.addHostAccessibility)
         }
         .padding(20)
+        .poracodeReadableWidth(560)
       }
       .navigationTitle(HostStrings.addHost)
       #if os(iOS)
@@ -78,7 +79,7 @@ struct AddHostSheet: View {
           Button(HostStrings.cancel) { dismiss() }
         }
       }
-      .modifier(HostFormChrome())
+      .poracodeFormSheetSizing()
     }
     .fullScreenCover(isPresented: $isShowingScanner) {
       PairingScannerView(
@@ -247,16 +248,6 @@ struct AddHostSheet: View {
     )
     if session.phase == .ready || session.phase == .connecting {
       dismiss()
-    }
-  }
-}
-
-private struct HostFormChrome: ViewModifier {
-  func body(content: Content) -> some View {
-    if #available(iOS 18.0, *) {
-      content.presentationSizing(.form)
-    } else {
-      content
     }
   }
 }

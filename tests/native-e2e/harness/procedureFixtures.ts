@@ -4,6 +4,9 @@ import type { BackgroundTaskLab } from "./backgroundTaskLab.ts";
 import { loadGeneratedContract } from "./generatedContract.ts";
 import { FIXTURE_PROJECT_ID, FIXTURE_THREAD_ID } from "./labFixtures.ts";
 import { schemaExample } from "./schemaExamples.ts";
+import { VoiceFixture } from "./voiceFixtures.ts";
+import { WorkflowFixture } from "./workflowFixtures.ts";
+import { AgentDiscoveryFixture } from "./agentDiscoveryFixture.ts";
 
 export const FIXTURE_PROJECT_LOCATION = {
   kind: "posix",
@@ -111,6 +114,10 @@ function ownerFixture(owner: string): Record<string, unknown> {
 }
 
 export class LabProcedureWorkspace {
+  readonly agentDiscovery = new AgentDiscoveryFixture();
+  readonly voice = new VoiceFixture();
+  readonly workflows = new WorkflowFixture();
+  private importModelAvailable = false;
   private fileContent = "# hi";
   private readonly projectEntries = new Set<string>();
   private readonly staged = new Set<string>();
@@ -122,6 +129,10 @@ export class LabProcedureWorkspace {
   constructor(private readonly backgroundTasks?: BackgroundTaskLab) {}
 
   reset(): void {
+    this.agentDiscovery.reset();
+    this.voice.reset();
+    this.workflows.reset();
+    this.importModelAvailable = false;
     this.fileContent = "# hi";
     this.projectEntries.clear();
     this.staged.clear();
@@ -130,9 +141,50 @@ export class LabProcedureWorkspace {
     this.pendingFollowUps.clear();
   }
 
+  prepareSessionImport(): void {
+    this.importModelAvailable = true;
+  }
+
   invoke(name: ConfiguredProcedureName, payload: unknown): unknown {
     const body = payload as Record<string, unknown>;
     switch (name) {
+      case "refreshAgentStatuses":
+        return this.agentDiscovery.enabled
+          ? this.agentDiscovery.discover(body)
+          : REMOTE_PROCEDURE_RESULT_FIXTURES.refreshAgentStatuses;
+      case "workflowGetRun":
+        return this.workflows.enabled
+          ? this.workflows.read(body)
+          : REMOTE_PROCEDURE_RESULT_FIXTURES.workflowGetRun;
+      case "workflowAgentChat":
+        return this.workflows.enabled
+          ? this.workflows.readAgent(body)
+          : REMOTE_PROCEDURE_RESULT_FIXTURES.workflowAgentChat;
+      case "hexVoice":
+        return this.voice.enabled
+          ? this.voice.call(body)
+          : REMOTE_PROCEDURE_RESULT_FIXTURES.hexVoice;
+      case "listImportableSessions": {
+        const fixture = REMOTE_PROCEDURE_RESULT_FIXTURES.listImportableSessions;
+        return {
+          ...fixture,
+          sessions: fixture.sessions
+            .map((session) =>
+              this.importModelAvailable
+                ? { ...session, model: "gpt-5", title: "CLI layout review" }
+                : session,
+            )
+            .filter(
+              (session) =>
+                (!body.agentKind || session.agentKind === body.agentKind) &&
+                (!body.cwd || session.cwd === body.cwd) &&
+                (!body.query ||
+                  [session.preview, session.cwd].some((text) =>
+                    text.toLowerCase().includes(String(body.query).trim().toLowerCase()),
+                  )),
+            ),
+        };
+      }
       case "listThreadSessionActions":
         return this.backgroundTasks
           ? { actions: this.backgroundTasks.actions() }

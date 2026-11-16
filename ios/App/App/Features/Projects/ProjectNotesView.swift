@@ -7,6 +7,7 @@ struct ProjectNotesView: View {
   let identity: ProjectIdentity
   @Bindable var controller: ProjectControllerNotesController
 
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
   @State private var noteDocument: JSONValue?
   @State private var selectedNoteText = ""
   @State private var noteEditorIsActive = false
@@ -34,8 +35,7 @@ struct ProjectNotesView: View {
         noteList
       }
     }
-    .navigationTitle(ProjectManagementStrings.notes)
-    .navigationBarTitleDisplayMode(.inline)
+    .poracodeNavigationTitle(ProjectManagementStrings.notes, suppressed: embeddedInInspector)
     .toolbar {
       ToolbarItemGroup(placement: .keyboard) {
         Button {
@@ -112,6 +112,7 @@ struct ProjectNotesView: View {
       ProjectNotesThreadComposeSheet(session: session, intent: intent) { target in
         startedThread = target
       }
+      .poracodeFormSheetSizing()
     }
     .navigationDestination(item: $startedThread) { target in
       ProjectNotesThreadDestination(session: session, target: target)
@@ -120,7 +121,10 @@ struct ProjectNotesView: View {
 
   private var noteList: some View {
     GeometryReader { geometry in
-      noteList(editorHeight: max(220, geometry.size.height * 0.42))
+      let editorHeight = embeddedInInspector
+        ? min(220, max(140, geometry.size.height * 0.25))
+        : max(220, geometry.size.height * 0.42)
+      noteList(editorHeight: editorHeight)
     }
   }
 
@@ -205,6 +209,7 @@ struct ProjectNotesView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .scrollDismissesKeyboard(.interactively)
   }
 

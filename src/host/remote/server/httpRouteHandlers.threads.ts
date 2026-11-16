@@ -63,6 +63,7 @@ import { handleLegacyAdmittedThreadHistory } from "./legacyAdmittedReads";
 import { handleHistoryItemDetails } from "./historyItemDetails";
 import { handleHistoryPromptIndex } from "./historyPromptIndex";
 import { handleThreadHistoryResume } from "./historyResumeReads";
+import { handleRuntimeItemPresentations } from "./runtimeItemPresentation";
 import {
   applyRemoteThreadCommand,
   applyRemoteThreadSwitch,
@@ -94,6 +95,7 @@ async function forwardThreadBodyPost(
 }
 
 type ThreadRouteId =
+  | "thread-item-presentations"
   | "thread-agent-vision"
   | "thread-history-changes"
   | "thread-history-item"
@@ -122,6 +124,7 @@ type ThreadRouteId =
 
 /** Thread-group HTTP route handlers (contract `threadRoutes`). */
 export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> = {
+  "thread-item-presentations": handleRuntimeItemPresentations,
   "thread-agent-vision": async ({ ctx, res, params, url }) => {
     const threadId = requirePathParam(params, "threadId");
     const thread = dbGetThread(threadId);

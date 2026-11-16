@@ -117,6 +117,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_44564cf7f2b953f7 = RemoteSchema(type: "object", required: Set(["header", "inputDigest", "itemId", "status"]), properties: ["header": RemoteSchemas.schema_547dd82d60a1e7f9, "inputDigest": RemoteSchemas.schema_ec221fdc1494d0b1, "itemId": RemoteSchemas.schema_36fea325bf1aca70, "status": RemoteSchemas.schema_0200f968d21b338b], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_4492692f82322049 = RemoteSchema(type: "object", required: Set(["projectLocation", "runId"]), properties: ["failedOnly": RemoteSchemas.schema_f8b6dd8128e8bfe0, "ghAccount": RemoteSchemas.schema_5646cf57ff3aebe0, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27, "runId": RemoteSchemas.schema_f58a8b771657d037], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -186,6 +190,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_46a8742e5750f74f = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_1e3c3dda8e348c4b, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_46a9830765f014a1 = RemoteSchema(type: "array", maxItems: 16, items: RemoteSchemas.schema_7bf37fd7696952c8, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -318,6 +326,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_4b47ae3fc75a3ec0 = RemoteSchema(type: "object", properties: ["innerWindowId": RemoteSchemas.schema_36fea325bf1aca70, "outerWindowId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_4b51a86edb3e38b1 = RemoteSchema(type: "object", required: Set(["labels", "source"]), properties: ["labels": RemoteSchemas.schema_202f40856ac8b683, "source": RemoteSchemas.schema_0f2003aeafbcbd0b], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

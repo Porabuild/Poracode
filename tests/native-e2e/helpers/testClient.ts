@@ -11,6 +11,7 @@ export function randomCapability(): string {
 }
 
 export async function startLab(options?: {
+  readonly browserOrigins?: readonly string[];
   readonly basePath?: string;
   readonly replayLimit?: number;
   readonly secretsDir?: string;
@@ -21,6 +22,7 @@ export async function startLab(options?: {
   const started = await startMockHarness({
     capability,
     lab: {
+      ...(options?.browserOrigins ? { browserOrigins: options.browserOrigins } : {}),
       port: options?.port ?? 0,
       ...(options?.basePath ? { basePath: options.basePath } : {}),
       ...(options?.replayLimit !== undefined ? { replayLimit: options.replayLimit } : {}),

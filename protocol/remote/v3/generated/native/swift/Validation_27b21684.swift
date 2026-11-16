@@ -17,6 +17,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_7bf37fd7696952c8 = RemoteSchema(type: "object", required: Set(["itemType", "presentation"]), properties: ["itemType": RemoteSchemas.schema_7d62681c6488867d, "presentation": RemoteSchemas.schema_924966fa567a66ae], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_7c8fd050dd5e98a8 = RemoteSchema(type: "string", literals: [.string("Bearer")], unknownPolicy: .strip)
 }
 
@@ -30,6 +34,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_7d62681c6488867d = RemoteSchema(type: "string", minLength: 1, maxLength: 64, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_7d8b97db21aa7eb7 = RemoteSchema(type: "array", maxItems: 32, items: RemoteSchemas.schema_cc236ef91a35818c, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -102,6 +110,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_7f9f5a0d72de0d9a = RemoteSchema(type: "number", literals: [.int(1)], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_7fb397f96ba542ca = RemoteSchema(type: "object", required: Set(["path", "root", "values"]), properties: ["path": RemoteSchemas.schema_66c1d4f45e673970, "root": RemoteSchemas.schema_8307883c8b15a39d, "values": RemoteSchemas.schema_285bccb254d08f83], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

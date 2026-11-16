@@ -6,6 +6,7 @@ struct ProjectWorkspaceSplitView<Sidebar: View, Detail: View>: View {
   private let detail: Detail
 
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
 
   init(
     preferredCompactColumn: Binding<NavigationSplitViewColumn>,
@@ -18,7 +19,23 @@ struct ProjectWorkspaceSplitView<Sidebar: View, Detail: View>: View {
   }
 
   var body: some View {
-    if horizontalSizeClass == .compact {
+    if embeddedInInspector {
+      sidebar
+        .sheet(isPresented: showsDetail) {
+          NavigationStack {
+            detail
+              .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                  Button(AdvancedOperationsStrings.close, systemImage: "xmark") {
+                    preferredCompactColumn = .sidebar
+                  }
+                  .accessibilityIdentifier("native-e2e.project-workspace.close-detail")
+                }
+              }
+          }
+          .poracodePageSheetSizing()
+        }
+    } else if horizontalSizeClass == .compact {
       compactStack
     } else {
       splitView

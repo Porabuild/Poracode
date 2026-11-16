@@ -36,6 +36,7 @@ struct HomeThreadSearchView: View {
   let open: (UnifiedThreadListItem) -> Void
   let drafts: RichChatComposerDraftStore
   let lifecycle: HomeThreadLifecycleCoordinator
+  var hasBackgroundActivity: (UnifiedThreadListItem) -> Bool = { _ in false }
 
   @State private var query = ""
 
@@ -57,6 +58,7 @@ struct HomeThreadSearchView: View {
             resultButton(item)
           }
           .listStyle(.plain)
+          .poracodeReadableListMargins(700)
         }
       }
       .navigationTitle(HomeStrings.searchThreads)
@@ -74,6 +76,7 @@ struct HomeThreadSearchView: View {
         }
       }
     }
+    .poracodeFormSheetSizing()
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
     .presentationCornerRadius(28)
@@ -85,8 +88,8 @@ struct HomeThreadSearchView: View {
 
   private func resultButton(_ item: UnifiedThreadListItem) -> some View {
     Button {
+      open(item)
       dismiss()
-      DispatchQueue.main.async { open(item) }
     } label: {
       PoracodeThreadRow(
         thread: item.thread,
@@ -94,7 +97,8 @@ struct HomeThreadSearchView: View {
         hostName: item.hostName,
         hasDraft: hasDraft(item),
         showsRelativeTime: true,
-        showsGitBranch: item.thread.worktreePath?.isEmpty == false
+        showsGitBranch: item.thread.worktreePath?.isEmpty == false,
+        hasBackgroundActivity: hasBackgroundActivity(item)
       )
     }
     .buttonStyle(.plain)

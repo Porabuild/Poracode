@@ -259,7 +259,7 @@ final class RichChatComposerModelGroupTests: XCTestCase {
   }
 
   func testControlsSheetRendersProjectedSectionsWithProviderHeadings() throws {
-    let source = try Self.source("App/Features/RichChat/UI/RichChatComposerConfiguration.swift")
+    let source = try Self.source("App/Features/RichChat/UI/RichChatComposerConfigurationFields.swift")
     XCTAssertTrue(source.contains("catalog.modelSections()"))
     XCTAssertTrue(source.contains("Section(header: Text(heading))"))
   }

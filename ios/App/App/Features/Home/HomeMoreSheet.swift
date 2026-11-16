@@ -7,6 +7,8 @@ import SwiftUI
 /// Disconnect action because the app keeps multiple desktops connected.
 struct HomeMoreSheet: View {
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.homeWorkspace) private var workspace
+  @Environment(\.homeWorkspaceSelection) private var workspaceSelection
   @AppStorage(HomeShortcutPreferences.storageKey) private var shortcutStorageValue =
     HomeShortcutPreferences.defaultStorageValue
   @Bindable var session: AppSession
@@ -16,6 +18,16 @@ struct HomeMoreSheet: View {
     NavigationStack {
       List {
         Section {
+          if let workspaceSelection {
+            Picker(HomeStrings.workspace, selection: Binding(
+              get: { workspace.preferences.activeID(stored: workspaceSelection.wrappedValue) ?? "" },
+              set: { workspaceSelection.wrappedValue = $0 }
+            )) {
+              ForEach(workspace.preferences.workspaces) { item in Text(item.name).tag(item.id) }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier("native-e2e.more.workspace")
+          }
           NavigationLink {
             SettingsMoreRouteView(session: session, route: .profile)
           } label: {
@@ -33,11 +45,11 @@ struct HomeMoreSheet: View {
           }
           .accessibilityIdentifier("native-e2e.more.connections")
           NavigationLink {
-            ProjectManagementView(session: session, embeddedInNavigationStack: true)
+            HomeProjectsView(session: session)
           } label: {
             HomeMoreLabel(ProjectManagementStrings.title, systemImage: "folder")
           }
-          .disabled(session.currentProjectControllerSession == nil)
+          .disabled(session.homeProjectOptions.isEmpty)
           .accessibilityIdentifier("native-e2e.more.projects")
           if let lease = session.currentPortForwardingAccess?.lease {
             NavigationLink {
@@ -94,8 +106,15 @@ struct HomeMoreSheet: View {
         }
       }
       .poracodeDrawerListStyle()
+      .poracodeReadableListMargins(680)
       .navigationTitle(HomeStrings.more)
       .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .confirmationAction) {
+          Button(SettingsUIStrings.done) { dismiss() }
+            .accessibilityIdentifier("native-e2e.more.close")
+        }
+      }
     }
     .presentationDetents([.large])
     .presentationDragIndicator(.visible)
@@ -135,7 +154,8 @@ struct HomeMoreSheet: View {
   }
 }
 
-private struct HomeTerminalProjectsView: View {
+struct HomeTerminalProjectsView: View {
+  @Environment(\.homeWorkspace) private var workspace
   @Bindable var session: AppSession
 
   var body: some View {
@@ -162,6 +182,7 @@ private struct HomeTerminalProjectsView: View {
           .accessibilityIdentifier("native-e2e.terminal.project.\(option.project.id)")
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
       }
     }
     .navigationTitle(TerminalStrings.title)
@@ -169,22 +190,7 @@ private struct HomeTerminalProjectsView: View {
   }
 
   private var options: [HomeProjectFilterOption] {
-    HomeProjectOptionsPresentation.options(
-      hosts: session.state.hosts,
-      selectedConnectionID: session.state.selectedConnectionId,
-      selectedSnapshot: session.state.snapshot,
-      hostSnapshots: session.state.hostSnapshots,
-      isSynced: { connectionID, projectID in
-        session.projectSyncPreferences.isSynced(
-          connectionID: connectionID,
-          projectID: projectID
-        )
-      },
-      isOnline: { connectionID in
-        session.state.hostSocketStates[connectionID] == .online
-          || (connectionID == session.selectedConnectionId && session.socketState == .online)
-      }
-    )
+    session.homeProjectOptions.filter(workspace.includes)
   }
 }
 

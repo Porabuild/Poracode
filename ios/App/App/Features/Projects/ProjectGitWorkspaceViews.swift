@@ -17,72 +17,113 @@ struct ProjectGitSidebarView: View {
     @MainActor (_ branch: String, _ baseBranch: String) async throws
       -> AdvancedGeneratedPrSummary
 
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
   @State private var createPullRequestPresented = false
   @State private var isGeneratingPullRequest = false
   @State private var creationFailure: GitHubOperationsFailure?
+  @State private var embeddedDestination: ProjectGitSheetDestination?
   @AppStorage(GitHubPullRequestCreationMode.storageKey) private var creationMode =
     GitHubPullRequestCreationMode.dialog.rawValue
 
   var body: some View {
-    List {
-      statusContent
-    }
-    .listStyle(.sidebar)
-    .contentMargins(.top, 0, for: .scrollContent)
-    .defaultScrollAnchor(.top)
-    .navigationTitle(ProjectWorkspaceStrings.git)
-    .navigationBarTitleDisplayMode(.inline)
-    .refreshable { await onRefresh() }
-    .task(id: GitHubOperationsActivationID(gitHubContext)) {
-      await loadPullRequestContext()
-    }
-    .poracodeBottomBar {
-      createPullRequestBar
-    }
-    .sheet(isPresented: $createPullRequestPresented) {
-      GitHubOperationFormView(
-        procedure: .ghCreatePr,
-        location: gitHubContext?.lease.location ?? .posix(path: "", remoteServerId: nil),
-        accounts: gitHubControllers.availability.accounts,
-        pullRequests: gitHubControllers.pullRequests.pullRequests,
-        workflows: [],
-        initialBranch: controller.status.value?.branch ?? "",
-        initialBaseBranch:
-          operationsController.state.authoritative.sourceBranch?.sourceBranch ?? "main",
-        submit: submitPullRequest
-      )
-    }
-    .toolbar {
-      ToolbarItemGroup(placement: .topBarTrailing) {
-        Menu {
-          NavigationLink {
-            GitOperationsPanel(context: context, controller: operationsController)
-          } label: {
-            Label(GitOperationsStrings.title, systemImage: "arrow.triangle.branch")
-          }
-          NavigationLink {
-            GitHubOperationsPanel(
-              context: gitHubContext,
-              controllers: gitHubControllers
-            )
-          } label: {
-            Label(
-              GitHubOperationsStrings.title, systemImage: "point.3.connected.trianglepath.dotted")
-          }
-          if let reviewDestination {
-            NavigationLink {
-              reviewDestination
-            } label: {
-              Label(ProjectReviewStrings.open, systemImage: "checklist")
+    navigationWrappedList
+      .refreshable { await onRefresh() }
+      .task(id: GitHubOperationsActivationID(gitHubContext)) { await loadPullRequestContext() }
+      .poracodeBottomBar { createPullRequestBar }
+      .sheet(isPresented: $createPullRequestPresented) {
+        GitHubOperationFormView(
+          procedure: .ghCreatePr,
+          location: gitHubContext?.lease.location ?? .posix(path: "", remoteServerId: nil),
+          accounts: gitHubControllers.availability.accounts,
+          pullRequests: gitHubControllers.pullRequests.pullRequests,
+          workflows: [],
+          initialBranch: controller.status.value?.branch ?? "",
+          initialBaseBranch:
+            operationsController.state.authoritative.sourceBranch?.sourceBranch ?? "main",
+          submit: submitPullRequest
+        )
+      }
+      .sheet(item: $embeddedDestination) { destination in
+        ProjectGitEmbeddedSheet(
+          destination: destination,
+          context: context,
+          operationsController: operationsController,
+          gitHubContext: gitHubContext,
+          gitHubControllers: gitHubControllers,
+          reviewDestination: reviewDestination
+        )
+      }
+  }
+
+  @ViewBuilder
+  private var navigationWrappedList: some View {
+    let list = List { statusContent }
+      .listStyle(.sidebar)
+      .contentMargins(.top, 0, for: .scrollContent)
+      .defaultScrollAnchor(.top)
+    if embeddedInInspector {
+      list
+    } else {
+      list
+        .navigationTitle(ProjectWorkspaceStrings.git)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+          ToolbarItemGroup(placement: .topBarTrailing) {
+            gitMenu(usesSheetLinks: false) {
+              Label(ProjectWorkspaceStrings.git, systemImage: "ellipsis")
             }
           }
-        } label: {
-          Label(ProjectWorkspaceStrings.git, systemImage: "ellipsis")
         }
-        .accessibilityLabel(ProjectWorkspaceStrings.git)
-        .accessibilityIdentifier("native-e2e.git.panel-menu")
-      }
     }
+  }
+
+  private func gitMenu<MenuLabel: View>(
+    usesSheetLinks: Bool,
+    @ViewBuilder label: @escaping () -> MenuLabel
+  ) -> some View {
+    Menu {
+      if usesSheetLinks {
+        Button(GitOperationsStrings.title, systemImage: "arrow.triangle.branch") {
+          embeddedDestination = .gitOperations
+        }
+        Button(
+          GitHubOperationsStrings.title,
+          systemImage: "point.3.connected.trianglepath.dotted"
+        ) {
+          embeddedDestination = .gitHubOperations
+        }
+        if reviewDestination != nil {
+          Button(ProjectReviewStrings.open, systemImage: "checklist") {
+            embeddedDestination = .review
+          }
+        }
+      } else {
+        NavigationLink {
+          GitOperationsPanel(context: context, controller: operationsController)
+        } label: {
+          Label(GitOperationsStrings.title, systemImage: "arrow.triangle.branch")
+        }
+        NavigationLink {
+          GitHubOperationsPanel(context: gitHubContext, controllers: gitHubControllers)
+        } label: {
+          Label(
+            GitHubOperationsStrings.title,
+            systemImage: "point.3.connected.trianglepath.dotted"
+          )
+        }
+        if let reviewDestination {
+          NavigationLink {
+            reviewDestination
+          } label: {
+            Label(ProjectReviewStrings.open, systemImage: "checklist")
+          }
+        }
+      }
+    } label: {
+      label()
+    }
+    .accessibilityLabel(ProjectWorkspaceStrings.git)
+    .accessibilityIdentifier("native-e2e.git.panel-menu")
   }
 
   @ViewBuilder
@@ -277,7 +318,7 @@ struct ProjectGitSidebarView: View {
       if let status = controller.status.value {
         loadedStatus(status)
       } else {
-        emptyStatus
+        ProjectGitEmptyStatusSection()
       }
     }
   }
@@ -293,7 +334,16 @@ struct ProjectGitSidebarView: View {
       }
     } else {
       Section {
-        Text(ProjectWorkspaceStrings.branchName(status.branch))
+        HStack(spacing: 8) {
+          Text(ProjectWorkspaceStrings.branchName(status.branch))
+          Spacer(minLength: 8)
+          if embeddedInInspector {
+            gitMenu(usesSheetLinks: true) {
+              Image(systemName: "ellipsis.circle")
+                .foregroundStyle(.secondary)
+            }
+          }
+        }
         Text(ProjectWorkspaceStrings.branchSummary(ahead: status.ahead, behind: status.behind))
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -322,7 +372,7 @@ struct ProjectGitSidebarView: View {
         }
       }
       if status.staged.isEmpty && status.unstaged.isEmpty {
-        emptyStatus
+        ProjectGitEmptyStatusSection()
       }
     }
   }
@@ -397,7 +447,13 @@ struct ProjectGitSidebarView: View {
       systemImage: descriptor.symbol,
       role: descriptor.role == .destructive ? .destructive : nil
     ) {
-      submitFileAction(procedure, change: change)
+      guard !isMutationUnavailable else { return }
+      ProjectGitOperationDispatcher.submitFileAction(
+        procedure,
+        change: change,
+        context: context,
+        operationsController: operationsController
+      )
     }
     .accessibilityIdentifier("native-e2e.git.\(procedure.rawValue)")
     .disabled(isMutationUnavailable)
@@ -410,7 +466,12 @@ struct ProjectGitSidebarView: View {
       systemImage: descriptor.symbol,
       role: descriptor.role == .destructive ? .destructive : nil
     ) {
-      submitGroupAction(procedure)
+      guard !isMutationUnavailable else { return }
+      ProjectGitOperationDispatcher.submitGroupAction(
+        procedure,
+        context: context,
+        operationsController: operationsController
+      )
     }
     .accessibilityIdentifier("native-e2e.git.\(procedure.rawValue)")
   }
@@ -420,50 +481,5 @@ struct ProjectGitSidebarView: View {
     return operationsController.state.isBusy
       || !context.isConsistent
       || context.session.gate(.sessionOperate) != nil
-  }
-
-  private func submitFileAction(
-    _ procedure: GitOperationProcedure,
-    change: ProjectGitFileChange
-  ) {
-    guard let context, !isMutationUnavailable else { return }
-    let request: GitOperationRequest
-    switch procedure {
-    case .gitStage:
-      request = .gitStage(.init(projectLocation: context.lease.location, filePath: change.path))
-    case .gitUnstage:
-      request = .gitUnstage(.init(projectLocation: context.lease.location, filePath: change.path))
-    case .gitRevert:
-      request = .gitRevert(.init(projectLocation: context.lease.location, filePath: change.path))
-    default:
-      return
-    }
-    Task { await operationsController.submit(request) }
-  }
-
-  private func submitGroupAction(_ procedure: GitOperationProcedure) {
-    guard let context, !isMutationUnavailable else { return }
-    let request: GitOperationRequest
-    switch procedure {
-    case .gitStageAll:
-      request = .gitStageAll(.init(projectLocation: context.lease.location))
-    case .gitUnstageAll:
-      request = .gitUnstageAll(.init(projectLocation: context.lease.location))
-    case .gitRevertAll:
-      request = .gitRevertAll(.init(projectLocation: context.lease.location))
-    default:
-      return
-    }
-    Task { await operationsController.submit(request) }
-  }
-
-  private var emptyStatus: some View {
-    Section {
-      Label(ProjectWorkspaceStrings.noChanges, systemImage: "checkmark.circle")
-        .foregroundStyle(.secondary)
-      Text(ProjectWorkspaceStrings.noChangesDescription)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-    }
   }
 }

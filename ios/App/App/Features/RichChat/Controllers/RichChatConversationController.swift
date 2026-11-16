@@ -5,6 +5,7 @@ enum RichChatConversationOperation: Equatable, Sendable {
   case send
   case interrupt
   case close
+  case unload
   case truncate
   case command
   case goal
@@ -114,7 +115,7 @@ final class RichChatConversationController {
       state.failure = .invalidRequest
       return false
     }
-    guard !state.isSending else {
+    guard !state.isSending, state.activeMutation != .unload else {
       state.failure = .busy
       return false
     }
@@ -182,6 +183,16 @@ final class RichChatConversationController {
     }
   }
 
+  /// Retires the current runtime while keeping the conversation and draft
+  /// visible. The next send resumes it with its updated Crew configuration.
+  @discardableResult
+  func unloadForRelaunch() async -> Bool {
+    guard !state.isSending else { return false }
+    return await runMutation(.unload, refreshOnSuccess: true) { gateway, target in
+      try await gateway.closeRichThread(target: target)
+    }
+  }
+
   func truncate(after itemID: String) async {
     guard !itemID.isEmpty else {
       state.failure = .invalidRequest
@@ -199,14 +210,15 @@ final class RichChatConversationController {
     }
   }
 
-  func updateGoal(_ update: RichChatGoalUpdate) async {
+  @discardableResult
+  func updateGoal(_ update: RichChatGoalUpdate) async -> Bool {
     if case .edit(let objective) = update,
       objective.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     {
       state.failure = .invalidRequest
-      return
+      return false
     }
-    await runMutation(.goal, refreshOnSuccess: false) { gateway, target in
+    return await runMutation(.goal, refreshOnSuccess: false) { gateway, target in
       try await gateway.updateRichGoal(target: target, update: update)
     }
   }
@@ -217,10 +229,9 @@ final class RichChatConversationController {
       state.failure = .invalidRequest
       return false
     }
-    await runMutation(.setSteer, refreshOnSuccess: false) { gateway, target in
+    return await runMutation(.setSteer, refreshOnSuccess: false) { gateway, target in
       try await gateway.setRichSteer(target: target, input: input)
     }
-    return state.lastCompletedOperation == .setSteer && state.failure == nil
   }
 
   func clearPendingSteer() async {

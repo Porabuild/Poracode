@@ -7,50 +7,71 @@ struct RichChatThreadView: View {
 
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.colorScheme) private var inheritedColorScheme
+  @Environment(\.poracodeTheme) private var theme
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.poracodeCloseThreadDetail) private var closeThreadDetail
   @State private var pageState: RichChatThreadPageState
   @State private var isConfirmingClose = false
-  @State private var composerExpanded = false
+  @State private var showsCompactThreadInfo = false
+  @State private var compactControlDestination: RichChatCompactControlDestination?
+  @State var composerExpanded = false
+  @State var inspectorCapability = RichChatInspectorCapability()
+  @State var isInspectorVisible: Bool?
+  @State var rightPanelTab: RichChatRightPanelTab = .info
+  @State var showsSideChatSheet = false
+  @State var sideChatFailure: String?
+  @State private var actionDestination: ThreadDetailDestination?
   @State var fork = RichChatForkState()
   @State var resumeState = RichChatThreadResumeState()
 
-  init(session: AppSession, threadID: String, title: String) {
+  init(session: AppSession, threadID: String, title: String, auxiliary: Bool = false, retainedSuite: RichChatControllerSuite? = nil) {
     self.session = session
     self.threadID = threadID
     self.title = title
-    _pageState = State(initialValue: RichChatThreadPageState(session: session, threadID: threadID))
+    _pageState = State(initialValue: RichChatThreadPageState(session: session, threadID: threadID, auxiliary: auxiliary, retainedSuite: retainedSuite))
   }
 
   var body: some View {
     Group {
       if isTerminal {
-        RichTerminalView(
-          controller: suite.terminal,
-          terminalID: threadID,
-          canOperate: canOperateTerminal
-        )
+        terminalContent
       } else {
         guiContent
       }
     }
-    .navigationTitle(thread?.title ?? title)
-    .navigationBarTitleDisplayMode(.inline)
-    .poracodeNavigationBarChrome()
+    .poracodeThemeBackground(isTerminal ? .black : theme.variant(for: inheritedColorScheme).background)
+    .trackWorkflowActivity(session: session, controller: suite.transcript, headings: suite.runtimeItemHeadings, location: pageState.projectLocation)
+    .modifier(RichChatNavigationChrome(title: thread?.title ?? title, auxiliary: pageState.isAuxiliary))
     .toolbar {
-      if let thread, let project {
-        ToolbarItem(placement: .principal) {
-          PoracodeToolbarInfoBubble {
-            ThreadDetailTitleView(
-              session: session,
-              thread: thread,
-              project: project,
-              hasBackgroundActivity: suite.transcript.state.transcript?.openTurn == true,
-              showsProviderBadge: false
-            )
+      if !pageState.isAuxiliary {
+      if let thread, let project = pageState.project {
+        PoracodeToolbarTitle {
+          ThreadDetailTitleView(
+            session: session, thread: thread, project: project,
+            hasBackgroundActivity: suite.transcript.state.transcript?.openTurn == true || session.workflowActivity.isLive(for: suite.transcript.state.target),
+            foregroundIsOpen: suite.transcript.state.transcript?.openTurn,
+            showsProviderBadge: false
+          )
+        }
+      }
+      if inspectorCapability.supportsInspector {
+        ToolbarItem(placement: .topBarTrailing) {
+          PoracodeToolbarIconButton(
+            title: HomeStrings.toggleInspector,
+            systemImage: "sidebar.right",
+            color: isInspectorCurrentlyOpen ? .primary : .secondary
+          ) { toggleInspector() }
+          .accessibilityIdentifier("native-e2e.inspector-toggle")
+        }
+      }
+      if isTerminal && !inspectorCapability.supportsInspector {
+        ToolbarItem(placement: .topBarTrailing) {
+          PoracodeToolbarIconButton(title: HomeStrings.threadInfo, systemImage: "info.circle") {
+            showsCompactThreadInfo = true
           }
         }
       }
-      if let thread, let project, let projectLocation {
+      if !pageState.isAuxiliary, let thread, let project = pageState.project, let projectLocation = pageState.projectLocation {
         ToolbarItem(placement: .topBarTrailing) {
           ThreadDetailActionMenu(
             session: session,
@@ -62,18 +83,40 @@ struct RichChatThreadView: View {
               ? suite.terminal.state.cursor?.transcript
               : suite.transcript.state.terminalScrollback,
             canRefresh: !isTerminal && suite.transcript.state.loadState != .loading,
-            canClose: canCloseThread,
+            canClose: pageState.canCloseThread,
+            externalDestination: $actionDestination,
+            externalHandoffRequest: crewHandoffBinding,
             refresh: { Task { await suite.refreshAuthoritativeHistory() } },
             requestClose: { isConfirmingClose = true },
-            onThreadRemoved: {
-              draftState.discard()
-              dismiss()
-            }
-          )
+            onThreadRemoved: closeAndDismiss
+          ) {
+            RichChatThreadInformationMenu(
+              showsResourceDetails: !isTerminal,
+              hasContext: suite.transcript.state.contextUsage != nil,
+              showInfo: { showsCompactThreadInfo = true },
+              select: { compactControlDestination = $0 }
+            )
+          }
         }
+      }
       }
     }
     .environment(\.colorScheme, isTerminal ? .dark : inheritedColorScheme)
+    .modifier(RichChatSideChatPresentation(page: self))
+    .modifier(ComposerVoiceHost(session: session))
+    .environment(\.composerPreferences, session.composerPreferences)
+    .modifier(ToolPresentationEnvironment(session: session, connectionID: pageState.owningConnectionID, threadID: threadID, headings: suite.runtimeItemHeadings))
+    .modifier(CrewSessionRelaunchPresentation(state: pageState))
+    .sheet(isPresented: $showsCompactThreadInfo) {
+      RichChatInfoSheet(title: HomeStrings.threadInfo) {
+        RichChatThreadInfoCard(
+          thread: thread,
+          project: pageState.project,
+          projectLocation: pageState.projectLocation,
+          gitSummary: session.gitSummary(forThread: threadID)
+        )
+      }
+    }
     .modifier(RichChatForkPresentation(page: self))
     .confirmationDialog(
       RichChatStrings.closeThreadConfirmationTitle,
@@ -85,23 +128,17 @@ struct RichChatThreadView: View {
     } message: {
       Text(RichChatStrings.closeThreadConfirmationMessage)
     }
-    // `lastCompletedOperation` is only ever written under the still-current
-    // lease and activation revision, so a close that outran a host switch or a
-    // thread change can never navigate this destination away.
+    // `lastCompletedOperation` stays scoped to the current lease & revision.
     .onChange(of: suite.conversation.state.lastCompletedOperation) { _, operation in
       guard operation == .close else { return }
-      draftState.discard()
-      dismiss()
+      closeAndDismiss()
     }
-    .task(id: activationID) { await pageState.activate() }
-    .task(id: session.currentSettingsHostSelection?.lease) {
+    .task(id: pageState.activationID) { await pageState.activate() }
+    .task(id: pageState.settingsRefreshKey) {
       await pageState.refreshProviderUsage()
       await pageState.loadVisibilityOverrides()
     }
-    // Session-action inventory: one live read per selected thread, status
-    // change, and owner-axis change (presentation, provider instance, live
-    // SessionRef). Only the typed old-host answer collapses the inventory
-    // quietly — every other failure stays visible with a retry.
+    // Session-action inventory tracks live owner changes; ambiguous refreshes below.
     .task(id: pageState.sessionActionRefreshKey) {
       suite.sessionActions.updateOwner(pageState.sessionActionOwner)
       await suite.sessionActions.refreshInventory()
@@ -109,12 +146,11 @@ struct RichChatThreadView: View {
     .onChange(of: session.phase) { pageState.updateAccess() }
     .onChange(of: session.socketState) { pageState.updateAccess() }
     .onChange(of: thread?.config) { previous, current in
-      draftState.synchronizeConfiguration(previous: previous, current: current)
+      pageState.draft.synchronizeConfiguration(previous: previous, current: current)
     }
-    .onChange(of: session.richChatComposerDrafts.revision) { draftState.consumeQueuedSegments() }
-    // An ambiguous session-action invoke may have committed; the host
-    // reconciles through one authoritative refresh, then the flag clears and
-    // the inventory is read fresh — the session may have been replaced.
+    .onChange(of: suite.transcript.state.transcript?.itemsInOrder, initial: true) { _, items in
+      pageState.updateGallery(items ?? [])
+    }
     .onChange(of: suite.sessionActions.state.requiresAuthoritativeRefresh) { _, needs in
       guard needs else { return }
       Task {
@@ -123,53 +159,70 @@ struct RichChatThreadView: View {
         await suite.sessionActions.refreshInventory()
       }
     }
-    .onAppear { draftState.consumeQueuedSegments() }
+    .onAppear { if pageState.draft.consumeQueuedSegments() { composerExpanded = true } }
+    .onChange(of: session.richChatComposerDrafts.revision) { _, _ in
+      if pageState.draft.consumeQueuedSegments() { composerExpanded = true }
+    }
+    .onChange(of: pageState.composerFocusRevision) { _, _ in composerExpanded = true }
     .onChange(of: scenePhase) { _, phase in pageState.handleScenePhase(phase) }
     .onDisappear { pageState.detach() }
   }
 
   var suite: RichChatControllerSuite { pageState.suite }
-  private var providerUsageController: SettingsHostInformationController {
-    pageState.providerUsageController
+  var thread: RemoteThread? { pageState.thread }
+  var isAuxiliaryConversation: Bool { pageState.isAuxiliary }
+  var currentComposerDraft: RichChatThreadDraftState { pageState.draft }
+  var conversationConnectionID: ClientConnectionID? { pageState.owningConnectionID }
+  var conversationOwner: RichChatSessionActionOwner? { pageState.sessionActionOwner }
+  var threadStatusIsWorking: Bool { thread?.status == "working" }
+  var activationID: String { pageState.activationID }
+  var canOperate: Bool { pageState.canOperate }
+  private var isTerminal: Bool { pageState.isTerminal }
+
+  private func updateInspectorCapability(_ updated: RichChatInspectorCapability) {
+    inspectorCapability = updated
   }
-  private var fileMentionController: RichChatFileMentionController {
-    pageState.fileMentionController
-  }
-  private var draftState: RichChatThreadDraftState { pageState.draft }
 
   private var guiContent: some View {
     VStack(spacing: 0) {
+      if thread?.config.importedFrom != nil {
+        Text(SessionImportStrings.textOnly)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.horizontal, 16)
+          .padding(.vertical, 8)
+      }
       RichChatStatusView(suite: suite)
-      RichChatResponsiveLayout {
+      RichChatResponsiveLayout(
+        breakpoint: pageState.isAuxiliary ? .infinity : 960,
+        isInspectorVisible: isInspectorVisible,
+        onCapabilityChange: updateInspectorCapability
+      ) {
         EmptyView()
       } transcript: {
         transcriptSurface
       } sidebar: {
-        RichChatControlPanel(
-          suite: suite,
-          projectLocation: projectLocation,
-          agentStatus: agentStatus,
-          config: config,
-          canOperate: canOperate,
-          canResolveRequests: canResolveRequests,
-          refreshAuthentication: { await session.refreshSnapshot() }
-        )
+        inspector
       } compactDock: {
         RichChatCompactControlDock(
-          session: session,
-          suite: suite,
-          thread: thread,
-          project: project,
-          projectLocation: projectLocation,
+          session: session, suite: suite, turnClock: pageState.draft.turnClock, destination: $compactControlDestination,
+          thread: thread, project: pageState.project,
+          projectLocation: pageState.projectLocation,
           gitSummary: session.gitSummary(forThread: threadID),
-          agentStatus: agentStatus,
-          config: config,
-          canOperate: canOperate,
-          canResolveRequests: canResolveRequests,
+          agentStatus: pageState.agentStatus, config: pageState.config,
+          canOperate: canOperate, canResolveRequests: pageState.canResolveRequests,
           refreshAuthentication: { await session.refreshSnapshot() },
-          providerUsage: providerUsagePresentation,
-          providerUsageState: providerUsageController.usageState,
-          refreshProviderUsage: pageState.refreshProviderUsage
+          providerUsage: pageState.providerUsagePresentation,
+          providerUsageState: pageState.providerUsageController.usageState,
+          refreshProviderUsage: pageState.refreshProviderUsage,
+          galleryImages: pageState.galleryImages,
+          galleryVideos: pageState.galleryVideos,
+          galleryIdentity: pageState.activationID,
+          openWideGit: {
+            rightPanelTab = .git
+            isInspectorVisible = true
+          }
         )
       } composer: {
         composerSurface
@@ -177,135 +230,83 @@ struct RichChatThreadView: View {
     }
   }
 
+  private var terminalContent: some View {
+    RichChatResponsiveLayout(
+      showsComposer: false,
+      isInspectorVisible: isInspectorVisible,
+      onCapabilityChange: updateInspectorCapability
+    ) {
+      EmptyView()
+    } transcript: {
+      RichTerminalView(
+        controller: suite.terminal,
+        terminalID: threadID,
+        canOperate: pageState.canOperateTerminal
+      )
+    } sidebar: {
+      inspector
+    } compactDock: {
+      EmptyView()
+    } composer: {
+      EmptyView()
+    }
+  }
+
+  private var inspector: some View {
+    RichChatThreadInspector(
+      session: session, pageState: pageState, threadID: threadID,
+      activeTab: $rightPanelTab, actionDestination: $actionDestination,
+      sideChatEntry: retainedSideChat, openSideChat: offersSideChat ? { openSideChat() } : nil,
+      hideSideChat: { hideSideChat() }, newSideChat: { openSideChat(fresh: true) }
+    )
+  }
+
   private var composerSurface: some View {
     RichChatThreadComposerSurface(
-      state: draftState,
-      isExpanded: $composerExpanded,
-      baseConfiguration: thread?.config ?? .empty,
-      canOperate: canOperate,
-      isTurnActive: isComposerTurnActive,
-      controller: suite.conversation,
+      state: pageState.draft, isExpanded: $composerExpanded,
+      baseConfiguration: thread?.config ?? .empty, canOperate: canOperate,
+      isTurnActive: isComposerTurnActive, controller: suite.conversation,
       requestController: suite.requests,
       activeRequest: suite.transcript.state.transcript?.openRequests.first,
-      canResolveRequests: canResolveRequests,
-      mediaController: suite.media,
-      agentKind: thread?.agentKind ?? "",
-      agentStatus: agentStatus,
+      canResolveRequests: pageState.canResolveRequests, mediaController: suite.media,
+      agentKind: thread?.agentKind ?? "", agentInstanceID: thread?.agentInstanceId,
+      agentStatus: pageState.agentStatus,
       threadSlashCommands: thread?.slashCommands,
       sessionConfigOptions: thread?.sessionConfigOptions,
-      canConfigure: canConfigureComposer,
-      hasStartedSession: thread?.sessionRef != nil,
+      canConfigure: pageState.canConfigureComposer, hasStartedSession: thread?.sessionRef != nil,
       hiddenModels: pageState.hiddenModels,
-      fileMentionController: fileMentionController,
-      skillPickerContext: skillPickerContext,
-      sessionActions: suite.sessionActions,
-      onInsertIntoComposer: pageState.insertIntoComposerDraft,
-      resumeContext: composerResume
+      fileMentionController: pageState.fileMentionController,
+      skillPickerContext: pageState.skillPickerContext, sessionActions: suite.sessionActions,
+      onInsertIntoComposer: pageState.insertIntoComposerDraft, resumeContext: composerResume,
+      openSideChat: offersSideChat ? { openSideChat() } : nil,
+      sideQuestion: offersSideChat ? { await openSideQuestion($0) } : nil,
+      crewContext: richCrewContext
     )
   }
 
   private var transcriptSurface: some View {
     RichChatTranscriptSurface(
-      controller: suite.transcript,
-      notice: suite.notice,
-      mediaController: suite.media,
-      conversation: suite.conversation,
-      checkpointController: suite.checkpoints,
-      projectLocation: projectLocation,
-      config: config,
-      sharedTreeThreadCount: sharedTreeThreadCount,
+      controller: suite.transcript, notice: suite.notice, mediaController: suite.media,
+      conversation: suite.conversation, checkpointController: suite.checkpoints,
+      projectLocation: pageState.projectLocation, config: pageState.config,
+      sharedTreeThreadCount: pageState.sharedTreeThreadCount,
       allowsCheckpointRevert: thread?.projectId != RemoteProject.homeScopeID,
-      canOperate: canOperate,
-      retry: { Task { await suite.refreshAuthoritativeHistory() } },
-      requestFork: forkRequest, forkBoundaryItemID: forkBoundaryID
+      canOperate: canOperate, retry: { Task { await suite.refreshAuthoritativeHistory() } },
+      requestFork: forkRequest, forkBoundaryItemID: forkBoundaryID,
+      fallbackCompletedTurn: RichChatTurnTiming.completedFallback(thread: thread),
+      askInSideChat: offersSideChat ? { addMessageToSideChat($0) } : nil
     )
-  }
-
-  var thread: RemoteThread? { session.richChatThread(id: threadID) }
-  private var project: RemoteProject? {
-    guard let projectID = thread?.projectId else { return nil }
-    return session.projects.first { $0.id == projectID }
-  }
-  private var isTerminal: Bool {
-    guard let thread else { return false }
-    return ThreadPresentationFilter.isTerminalPresentation(thread.presentationMode)
-  }
-  var threadStatusIsWorking: Bool { thread?.status == "working" }
-  private var activeConfiguration: ThreadConfig {
-    draftState.configuration ?? thread?.config ?? .empty
-  }
-  private var config: [String: RichJSON] { activeConfiguration.richChatObject }
-  private var agentStatus: AgentStatusRecord? {
-    guard let agentKind = thread?.agentKind else { return nil }
-    return session.state.replay.agentStatuses.ordered.first {
-      $0.kind == agentKind && $0.installed
-    }
-  }
-  private var providerUsagePresentation: RichChatProviderUsagePresentation {
-    RichChatProviderUsagePresentation.resolve(
-      agentKind: thread?.agentKind ?? "",
-      agentInstanceID: thread?.agentInstanceId,
-      label: agentStatus?.label,
-      usage: providerUsageController.providerUsage
-    )
-  }
-  private var skillPickerContext: RichChatSkillPickerContext? {
-    guard let project, let connectionID = session.selectedConnectionId else { return nil }
-    return RichChatSkillPickerContext(
-      session: session,
-      projectIdentity: project.identity(on: connectionID),
-      agentKind: thread?.agentKind ?? ""
-    )
-  }
-  private var canConfigureComposer: Bool {
-    guard let thread else { return false }
-    return thread.canResumeWithConfig == true || thread.status == "launching"
-  }
-  private var projectLocation: ProjectLocation? {
-    session.richChatProjectLocation(threadID: threadID)
-  }
-  private var sharedTreeThreadCount: Int {
-    guard let thread else { return 0 }
-    return (session.snapshot?.threads ?? []).count { candidate in
-      candidate.id != thread.id
-        && !candidate.isArchived
-        && candidate.projectId == thread.projectId
-        && (candidate.worktreePath ?? "") == (thread.worktreePath ?? "")
-    }
-  }
-  var canOperate: Bool {
-    hasOperateAccess && !suite.requiresAuthoritativeRefresh
-  }
-  private var canOperateTerminal: Bool {
-    session.currentRichChatAccess?.controllerGate(.terminalOperate) == nil
-  }
-  private var hasOperateAccess: Bool {
-    session.currentRichChatAccess?.controllerGate(.sessionOperate) == nil
-  }
-  /// `thread-close` is a `session:operate` mutation on the open thread. It is
-  /// offered only while the host is operable and nothing else is already
-  /// mutating or replacing the transcript.
-  private var canCloseThread: Bool {
-    canOperate
-      && thread != nil
-      && suite.conversation.state.activeMutation == nil
-      && !suite.conversation.state.isSending
-      && suite.transcript.state.loadState != .loading
   }
 
   private func confirmClose() {
     isConfirmingClose = false
-    guard canCloseThread else { return }
+    guard pageState.canCloseThread else { return }
     Task { await suite.conversation.close() }
   }
 
-  private var canResolveRequests: Bool {
-    session.currentRichChatAccess?.controllerGate(.requestsResolve) == nil
-      && !suite.requiresAuthoritativeRefresh
+  private func closeAndDismiss() {
+    pageState.draft.discard()
+    closeThreadDetail?()
+    dismiss()
   }
-  var activationID: String {
-    let lease = session.currentRichChatAccess?.lease
-    return "\(lease?.connectionID.rawValue ?? "none"):\(lease?.generation ?? 0):\(threadID)"
-  }
-
 }

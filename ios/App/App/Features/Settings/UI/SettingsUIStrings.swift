@@ -3,6 +3,9 @@ import Foundation
 enum SettingsUIStrings {
   private static let table = "Settings"
 
+  static var personalSection: String { text("settings.section.personal", "Personal") }
+  static var models: String { text("settings.route.models", "Models") }
+  static var aiHelpers: String { text("settings.route.aiHelpers", "AI Helpers") }
   static var title: String { text("settings.title", "Settings") }
   static var selectSection: String { text("settings.routes.section", "Host Information") }
   static var configurationSection: String { text("settings.routes.configuration", "Configuration") }
@@ -36,7 +39,7 @@ enum SettingsUIStrings {
   static var homeShortcutsDescription: String {
     text(
       "settings.general.homeShortcuts.description",
-      "Choose which shortcuts appear in More. Tap Edit to reorder them."
+      "Choose which shortcuts appear in the sidebar footer."
     )
   }
 
@@ -207,6 +210,8 @@ enum SettingsUIStrings {
   static var noAgentsDetected: String {
     text("settings.agent.noneDetected", "No agents detected")
   }
+  static var refreshDetectedAgents: String { text("settings.agent.refreshDetected", "Refresh detected agents") }
+  static var discoveringAgents: String { text("settings.agent.discovering", "Discovering agents…") }
   static var installed: String { text("settings.agent.installed", "Installed") }
   static var notInstalled: String { text("settings.agent.notInstalled", "Not installed") }
   static var authenticated: String { text("settings.agent.authenticated", "Signed in") }

@@ -2,17 +2,10 @@ import SwiftUI
 
 struct HomeComposerSurface<Content: View>: View {
   let isExpanded: Bool
-  var glassNamespace: Namespace.ID? = nil
   @ViewBuilder let content: () -> Content
 
   var body: some View {
-    Group {
-      if let glassNamespace {
-        surface.poracodeGlassID("home.compose", in: glassNamespace)
-      } else {
-        surface
-      }
-    }
+    surface
   }
 
   private var surface: some View {
@@ -55,26 +48,32 @@ struct HomeComposerCompactSurface<Trailing: View>: View {
   }
 }
 
-struct HomeComposerExpandedSurface<Content: View>: View {
+struct HomeComposerExpandedSurface<Header: View, Content: View, Controls: View>: View {
+  let isCompactHeight: Bool
+  let showsHeader: Bool
+  @State private var contentHeight: CGFloat?
+  @ViewBuilder let header: () -> Header
   @ViewBuilder let content: () -> Content
+  @ViewBuilder let controls: () -> Controls
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      content()
+    VStack(alignment: .leading, spacing: isCompactHeight ? 4 : 8) {
+      if showsHeader {
+        header()
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      ScrollView {
+        VStack(alignment: .leading, spacing: isCompactHeight ? 4 : 8) {
+          content()
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+      }
+      .scrollBounceBehavior(.basedOnSize)
+      .frame(height: min(max(44, contentHeight ?? 44), isCompactHeight ? 96 : 180))
+      controls()
+        .fixedSize(horizontal: false, vertical: true)
     }
-    .padding(14)
-    .frame(minHeight: 218, alignment: .top)
-  }
-}
-
-struct HomeComposerActionBar<Content: View>: View {
-  @ViewBuilder let content: () -> Content
-
-  var body: some View {
-    HStack(spacing: 9) {
-      content()
-    }
-    .frame(minHeight: 38)
+    .padding(isCompactHeight ? 8 : 14)
   }
 }
 
@@ -98,6 +97,8 @@ struct HomeComposerStartButton: View {
         }
       }
       .frame(width: 38, height: 38)
+      .frame(width: 44, height: 44)
+      .contentShape(Circle())
     }
     .buttonStyle(.plain)
     .disabled(!canStart)
@@ -124,9 +125,11 @@ struct HomeServerStatusIcon: View {
 
 extension View {
   func homeComposerCircleButton() -> some View {
-    buttonStyle(.plain)
-      .frame(width: 34, height: 34)
+    font(.subheadline.weight(.semibold))
+      .frame(width: 38, height: 38)
       .background(Color.primary.opacity(0.08), in: Circle())
+      .frame(width: 44, height: 44)
+      .contentShape(Circle())
       .foregroundStyle(.secondary)
       .tint(.secondary)
   }

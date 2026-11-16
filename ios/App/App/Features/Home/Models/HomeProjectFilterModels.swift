@@ -5,6 +5,8 @@ struct HomeProjectFilterOption: Identifiable, Sendable, Hashable {
   let host: String
   let online: Bool
   let threadCount: Int
+
+  var identity: ProjectIdentity { project.identity(on: connectionID) }
 }
 
 /// Resolves project metadata from the snapshot owned by the project's desktop.
@@ -37,6 +39,7 @@ enum HomeProjectOptionsPresentation {
     selectedSnapshot: RemoteShellSnapshot?,
     hostSnapshots: [ClientConnectionID: RemoteShellSnapshot],
     isSynced: (ClientConnectionID, String) -> Bool,
+    isThreadVisible: (ClientConnectionID, RemoteThread) -> Bool = { _, _ in true },
     isOnline: (ClientConnectionID) -> Bool
   ) -> [HomeProjectFilterOption] {
     hosts.flatMap { host -> [HomeProjectFilterOption] in
@@ -49,6 +52,7 @@ enum HomeProjectOptionsPresentation {
       let counts = Dictionary(
         grouping: snapshot.threads.filter { thread in
           !thread.isArchived && ThreadPresentationFilter.isVisibleInNativeList(thread)
+            && isThreadVisible(host.connectionId, thread)
         },
         by: \.projectId
       ).mapValues(\.count)

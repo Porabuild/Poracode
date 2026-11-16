@@ -69,6 +69,40 @@ function seedPromotionSource(): string {
 }
 
 describe("inventoryImportFiles excludeChromiumCaches", () => {
+  it("copies a promotion while the root Graphite GPU cache changes, preserving same-named user data", async () => {
+    const source = seedPromotionSource();
+    const liveCache = join(source, "userData", "GraphiteDawnCache", "data_0");
+    mkdirSync(join(source, "userData", "GraphiteDawnCache"), { recursive: true });
+    writeFileSync(liveCache, "old cache");
+    const userData = join(source, "projects", "demo", "GraphiteDawnCache", "keep-me");
+    mkdirSync(join(source, "projects", "demo", "GraphiteDawnCache"), { recursive: true });
+    writeFileSync(userData, "real user data");
+    const options = { excludeChromiumCaches: true };
+    const before = await inventoryImportFiles(source, options);
+    const destination = join(scratch(), "staged");
+    mkdirSync(destination);
+    let changed = false;
+    await expect(
+      copyImportFiles(source, destination, before, {
+        ...options,
+        onCopyProgress() {
+          if (!changed) {
+            changed = true;
+            writeFileSync(liveCache, "new GPU cache generation");
+          }
+        },
+      }),
+    ).resolves.toBeUndefined();
+    expect(changed).toBe(true);
+    expect(existsSync(join(destination, "userData", "GraphiteDawnCache"))).toBe(false);
+    expect(
+      readFileSync(join(destination, "projects", "demo", "GraphiteDawnCache", "keep-me"), "utf8"),
+    ).toBe("real user data");
+    const offline = await inventoryImportFiles(source);
+    expect(
+      offline.entries.some((entry) => entry.path === "userData/GraphiteDawnCache/data_0"),
+    ).toBe(true);
+  });
   it("excludes caches at the userData root and Partitions/*/Cache, and copies everything else", async () => {
     const source = seedPromotionSource();
     const full = await inventoryImportFiles(source);

@@ -16,6 +16,7 @@ extension GeneratedRemoteV3Contract {
       body["segments"] = .array(segments.map(\.richChatWireValue))
     }
     if let itemID = input.userMessageItemID { body["userMessageItemId"] = .string(itemID) }
+    if let context = input.clientContext { body["clientContext"] = context.richChatWireValue }
     return try richThreadRoute(
       threadID: threadID,
       body: .object(body),
@@ -117,6 +118,7 @@ extension GeneratedRemoteV3Contract {
     if let segments = input.segments {
       body["segments"] = .array(segments.map(\.richChatWireValue))
     }
+    if let context = input.clientContext { body["clientContext"] = context.richChatWireValue }
     return try richThreadRoute(
       threadID: threadID,
       body: .object(body),

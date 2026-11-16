@@ -48,6 +48,7 @@ struct RemoteIntegrationsPRWatchesView: View {
         agents: agents,
         controller: composition.prWatch
       )
+      .poracodeFormSheetSizing()
     }
     .alert(item: $confirmation) { confirmation in
       alert(confirmation)
@@ -119,6 +120,7 @@ struct RemoteIntegrationsPRWatchesView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .refreshable {
       if let targetKey { await composition.prWatch.load(targetKey) }
     }

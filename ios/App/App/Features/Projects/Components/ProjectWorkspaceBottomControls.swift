@@ -6,6 +6,7 @@ struct ProjectWorkspaceBottomControls: View {
   @Binding var isSearchPresented: Bool
   @Binding var query: String
   @Binding var requestedCreationType: AdvancedProjectEntryType?
+  var showsModePicker = true
   @Namespace private var glassNamespace
 
   var body: some View {
@@ -49,7 +50,7 @@ struct ProjectWorkspaceBottomControls: View {
       )
       .frame(maxWidth: 220)
       .poracodeGlassID("workspace.center", in: glassNamespace)
-    } else {
+    } else if showsModePicker {
       ProjectWorkspaceModePicker(
         selection: $mode,
         glassID: "workspace.center",

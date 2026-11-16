@@ -97,6 +97,7 @@ struct GitHubWorkflowRunDetailView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .navigationTitle(run.title.isEmpty ? run.workflowName : run.title)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {

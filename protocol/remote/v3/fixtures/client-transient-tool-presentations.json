@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "threadId": "workflow-agent-fixture",
+  "events": [
+    {
+      "type": "item.started",
+      "threadId": "workflow-agent-fixture",
+      "itemId": "read",
+      "itemType": "command_execution",
+      "payload": {
+        "command": "sed -n '5,12p' src/App.tsx",
+        "cwd": "/workspace",
+        "status": "running"
+      }
+    },
+    {
+      "type": "content.delta",
+      "threadId": "workflow-agent-fixture",
+      "itemId": "read",
+      "stream": "command_output",
+      "delta": "Complete output\n"
+    },
+    {
+      "type": "item.completed",
+      "threadId": "workflow-agent-fixture",
+      "itemId": "read",
+      "payload": {
+        "status": "success",
+        "exitCode": 0,
+        "durationMs": 1200
+      }
+    },
+    {
+      "type": "item.started",
+      "threadId": "workflow-agent-fixture",
+      "itemId": "mcp",
+      "itemType": "mcp_tool_call",
+      "payload": {
+        "name": "search",
+        "serverId": "workspace_docs",
+        "status": "success",
+        "args": false,
+        "result": "Full result"
+      }
+    },
+    {
+      "type": "item.completed",
+      "threadId": "workflow-agent-fixture",
+      "itemId": "mcp"
+    }
+  ],
+  "itemPresentations": {
+    "version": 1,
+    "items": [
+      {
+        "version": 1,
+        "entry": {
+          "status": "ready",
+          "itemId": "read",
+          "inputDigest": "5c85a76916856d0556a5d37f21b871b8f3b34f6f51524d98ef06460b54af306f",
+          "header": {
+            "command": {
+              "kind": "view",
+              "title": {
+                "kind": "view",
+                "text": "src/App.tsx",
+                "lines": "5-12"
+              },
+              "path": {
+                "path": "src/App.tsx"
+              }
+            },
+            "failed": false,
+            "durationMs": 1200
+          }
+        }
+      },
+      {
+        "version": 2,
+        "entry": {
+          "status": "ready",
+          "itemId": "mcp",
+          "inputDigest": "d6a9d32383cb2a4fb3ad743a119a75145c931a17acb16df4bbaf185b881ba4e4",
+          "header": {
+            "tool": {
+              "kind": "mcp",
+              "title": "workspace docs: search"
+            },
+            "failed": false
+          }
+        }
+      }
+    ]
+  }
+}

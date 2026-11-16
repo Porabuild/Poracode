@@ -87,17 +87,18 @@ struct PoracodeStatusBubble<Content: View>: View {
   }
 }
 
-/// A native glass capsule for compact navigation title metadata. The
-/// navigation bar stays transparent while this bubble keeps the centered title
-/// legible over transcript content scrolling underneath.
-struct PoracodeToolbarInfoBubble<Content: View>: View {
+/// Titles orient the content hierarchy rather than sharing the glass treatment
+/// of toolbar actions. iPad can place this after its leading navigation items.
+struct PoracodeToolbarTitle<Content: View>: ToolbarContent {
   @ViewBuilder let content: () -> Content
 
-  var body: some View {
-    content()
-      .padding(.horizontal, 10)
-      .padding(.vertical, 5)
-      .poracodeNativeBubbleSurface(in: Capsule(), interactive: true)
+  var body: some ToolbarContent {
+    if #available(iOS 26.0, *) {
+      ToolbarItem(placement: .title) { content() }
+        .sharedBackgroundVisibility(.hidden)
+    } else {
+      ToolbarItem(placement: .principal) { content() }
+    }
   }
 }
 
@@ -125,6 +126,27 @@ struct PoracodeComposerBar<Leading: View, Content: View, Trailing: View>: View {
   }
 }
 
+/// One persistent composer surface morphs between its collapsed and editing
+/// geometries. Its 50pt resting height matches the floating panel control strips.
+struct PoracodeAdaptiveComposerSurface<Content: View>: View {
+  let isExpanded: Bool
+  var leadingPadding: CGFloat = 16
+  var trailingPadding: CGFloat = 8
+  @ViewBuilder let content: () -> Content
+
+  var body: some View {
+    content()
+      .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+      .padding(.leading, leadingPadding)
+      .padding(.trailing, trailingPadding)
+      .padding(.vertical, isExpanded ? 10 : 3)
+      .poracodeNativeComposerSurface(
+        in: RoundedRectangle(cornerRadius: isExpanded ? 20 : 25, style: .continuous),
+        interactive: !isExpanded
+      )
+  }
+}
+
 /// Two-row native composer surface used while editing. Its compact counterpart
 /// is `PoracodeComposerBar`; keeping both geometries shared prevents each
 /// feature from inventing its own bubble radius, border, and toolbar spacing.
@@ -149,11 +171,9 @@ struct PoracodeExpandedComposerSurface<Editor: View, Toolbar: View>: View {
 }
 
 extension View {
-  /// One native surface for composer bubbles. On iOS 26 it is Liquid Glass —
-  /// `interactive` opts collapsed bars into the system's touch response while
-  /// expanded editors stay non-interactive because a UIKit text view sits
-  /// inside. The material fallback keeps its stroke and owns the drop shadow.
-  /// Composer controls must not add Liquid Glass on top of this surface.
+  /// Collapsed controls use Liquid Glass. Expanded text editors use standard
+  /// material, keeping UIKit text and controls in the foreground instead of
+  /// sending an empty background shape to a glass container above them.
   @ViewBuilder
   func poracodeNativeComposerSurface<S: InsettableShape>(
     in shape: S,
@@ -161,8 +181,8 @@ extension View {
     borderWidth: CGFloat = 0.5,
     interactive: Bool = false
   ) -> some View {
-    if #available(iOS 26.0, *) {
-      glassEffect(.regular.interactive(interactive), in: shape)
+    if #available(iOS 26.0, *), interactive {
+      glassEffect(.regular.interactive(), in: shape)
     } else {
       background(.regularMaterial, in: shape)
         .overlay(shape.stroke(Color.primary.opacity(borderOpacity), lineWidth: borderWidth))
@@ -196,12 +216,15 @@ extension View {
 /// of presenting a detached glass circle for every secondary destination.
 struct PoracodeCompactControlGroup<Content: View>: View {
   @ViewBuilder let content: () -> Content
+  @ScaledMetric(relativeTo: .caption2) private var surfaceHeight: CGFloat = 28
 
   var body: some View {
     HStack(spacing: 2) {
       content()
     }
-    .padding(2)
+    .padding(.horizontal, 2)
+    .frame(height: surfaceHeight)
     .poracodeNativeBubbleSurface(in: Capsule(), interactive: true)
+    .frame(minHeight: 44)
   }
 }

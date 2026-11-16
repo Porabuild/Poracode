@@ -4,6 +4,9 @@ import SwiftUI
 /// the controls idiomatic to iOS: menus for scope filters, a segmented range picker,
 /// and a vertically scrolling usage dashboard.
 struct SettingsProfileDashboard: View {
+  @Environment(\.colorScheme) private var colorScheme
+  @Environment(\.poracodeTheme) private var theme
+
   let information: SettingsProfileInformation
   @Binding var query: SettingsProfileQuery
   let canEdit: Bool
@@ -27,8 +30,9 @@ struct SettingsProfileDashboard: View {
       .padding(.horizontal, 12)
       .padding(.top, 24)
       .padding(.bottom, 32)
+      .poracodeReadableWidth(760)
     }
-    .background(Color(uiColor: .systemBackground))
+    .background(theme.variant(for: colorScheme).background)
     .refreshable { refresh() }
   }
 

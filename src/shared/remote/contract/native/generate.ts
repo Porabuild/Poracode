@@ -225,7 +225,10 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
       },
     },
   };
-  const manifestContents = canonicalize(nativeManifest);
+  // V5's JSON shape and readers stay valid; a smaller indentation removes
+  // redundant metadata bytes without relaxing its existing 64 KB/line bounds.
+  // All wire/hash canonicalization retains the default two-space encoding.
+  const manifestContents = canonicalize(nativeManifest, 1);
   assertContentBounds(
     "native-bindings.json",
     manifestContents,

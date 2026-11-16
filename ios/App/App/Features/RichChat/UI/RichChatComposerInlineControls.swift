@@ -1,118 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// Compact PWA-aligned configuration summary shown inside an empty native
-/// composer. It keeps the current provider/model/effort visible while the
-/// complete editable controls remain in the native configuration sheet.
-struct RichChatComposerInlineConfiguration: View {
-  let agentKind: String
-  let configuration: ThreadConfig
-  let catalog: RichChatComposerControlCatalog
-  let canOpen: Bool
-  var crew: RichChatCrewPresentation? = nil
-  var openCrew: (() -> Void)? = nil
-  var showsStatusIcons = true
-  let glassNamespace: Namespace.ID
-  let open: () -> Void
-
-  var body: some View {
-    HStack(spacing: 5) {
-      Button(action: open) {
-        HStack(spacing: 5) {
-          HomeProviderIcon(kind: agentKind, agentLabel: catalog.agentLabel)
-            .foregroundStyle(.primary.opacity(0.92))
-            .frame(width: 13, height: 13)
-          Text(catalog.modelLabel(configuration.model))
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.primary)
-            .lineLimit(1)
-          if let effortLabel {
-            Text(effortLabel)
-              .font(.caption)
-              .foregroundStyle(.secondary)
-              .lineLimit(1)
-          }
-          if showsStatusIcons {
-            RichChatComposerModeIcon(configuration: configuration)
-            RichChatComposerStatusIcon(systemImage: "checkmark.shield")
-          }
-        }
-      }
-      .buttonStyle(.plain)
-      .tint(.secondary)
-      .allowsHitTesting(canOpen)
-      .accessibilityLabel(RichChatStrings.composerControls)
-      .poracodeZoomSource(id: "richchat.composer-controls", in: glassNamespace)
-      if let crew, let openCrew {
-        let name = crew.name.isEmpty ? RichChatStrings.crew : crew.name
-        Button(action: openCrew) {
-          HStack(spacing: 4) {
-            Image(systemName: "person.2")
-              .foregroundStyle(.secondary)
-            Text(name).lineLimit(1)
-            Text(RichChatStrings.crewHelpers(crew.helperCount))
-              .foregroundStyle(.secondary)
-              .lineLimit(1)
-          }
-          .font(.caption.weight(.semibold))
-        }
-        .buttonStyle(.plain)
-        .tint(.secondary)
-        .accessibilityLabel("\(name), \(RichChatStrings.crewHelpers(crew.helperCount))")
-      }
-    }
-  }
-
-  private var effortLabel: String? {
-    // Inside a model-bound family the displayed effort derives from the
-    // member UID; elsewhere the saved carrier itself.
-    guard let effort = catalog.displayedEffort(for: configuration) else { return nil }
-    return catalog.effortOptions(for: configuration.model).first { $0.id == effort }?.label
-      ?? effort.capitalized
-  }
-}
-
-struct RichChatComposerModeIcon: View {
-  let configuration: ThreadConfig
-
-  var body: some View {
-    RichChatComposerStatusIcon(
-      systemImage: configuration.mode == "plan" ? "list.bullet.clipboard" : "hammer"
-    )
-  }
-}
-
-struct RichChatComposerStatusIcon: View {
-  let systemImage: String
-
-  var body: some View {
-    Image(systemName: systemImage)
-      .resizable()
-      .scaledToFit()
-      .foregroundStyle(.secondary)
-      .frame(width: 12, height: 12)
-      .frame(width: 14, height: 14)
-  }
-}
-
-struct RichChatComposerConfigurationIcon: View {
-  let systemImage: String
-  let canOpen: Bool
-  let open: () -> Void
-
-  var body: some View {
-    Button(action: open) {
-      RichChatComposerStatusIcon(systemImage: systemImage)
-        .frame(width: 28, height: 28)
-        .contentShape(Circle())
-    }
-    .buttonStyle(.plain)
-    .tint(.secondary)
-    .allowsHitTesting(canOpen)
-    .accessibilityLabel(RichChatStrings.composerControls)
-  }
-}
-
 /// The empty composer's resume for a cut-off turn: its spoken label and action.
 struct RichChatComposerResumeAction {
   let label: String
@@ -143,6 +31,8 @@ struct RichChatComposerTrailingAction: View {
           .foregroundStyle(.primary)
           .frame(width: 32, height: 32)
           .background(Color.secondary.opacity(0.16), in: Circle())
+          .frame(width: 44, height: 44)
+          .contentShape(Circle())
       }
       .buttonStyle(.plain)
       .accessibilityLabel(RichChatStrings.stop)
@@ -156,6 +46,8 @@ struct RichChatComposerTrailingAction: View {
           .foregroundStyle(Color.primary)
           .frame(width: 32, height: 32)
           .background(accent.opacity(0.2), in: Circle())
+          .frame(width: 44, height: 44)
+          .contentShape(Circle())
       }
       .buttonStyle(.plain)
       .disabled(importing || isResolvingRequest)
@@ -191,6 +83,8 @@ struct RichChatComposerTrailingAction: View {
           hasPrompt ? accent.opacity(0.2) : Color.secondary.opacity(0.12),
           in: Circle()
         )
+        .frame(width: 44, height: 44)
+        .contentShape(Circle())
     }
     .buttonStyle(.plain)
     .disabled(!hasPrompt || importing || isSending || isResolvingRequest)
@@ -202,80 +96,99 @@ struct RichChatComposerTrailingAction: View {
 /// Owns the compact/expanded composer transition and keyboard focus. Compact
 /// empty, compact populated, and expanded editing remain distinct states just
 /// like the mobile PWA instead of sharing one permanently crowded pill.
-struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: View {
+struct RichChatAdaptiveComposer<Summary: View, Leading: View, Configuration: View, Voice: View, Trailing: View>: View {
   @Binding var text: String
   @Binding var selection: NSRange?
   @Binding var isExpanded: Bool
+  var controlsVisible = false
   let hasPrompt: Bool
   let hasTrailingAction: Bool
   var placeholder: String = RichChatStrings.message
   let submit: () -> Void
   @ViewBuilder let summary: () -> Summary
-  @ViewBuilder let toolbar: () -> Toolbar
+  @ViewBuilder let leading: () -> Leading
+  @ViewBuilder let configuration: () -> Configuration
+  @ViewBuilder let voice: () -> Voice
   @ViewBuilder let trailing: () -> Trailing
 
   /// Plain state, not `@FocusState`: the editor is a UIKit text view, so no
   /// SwiftUI view is bound to a focus state. The text view owns first responder.
   @State private var focused = false
-  @State private var expandedHasFocused = false
   @AppStorage(PoracodeChatTextSize.storageKey) private var storedTextSize = PoracodeChatTextSize.defaultValue
 
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  @Environment(\.poracodeComposerAvailableHeight) private var keyboardAvailableHeight
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
   var body: some View {
-    Group {
+    PoracodeAdaptiveComposerSurface(
+      isExpanded: isExpanded, leadingPadding: horizontalSizeClass == .regular ? 16 : 12
+    ) {
       if isExpanded {
-        PoracodeExpandedComposerSurface {
-          editor(lineLimit: 1...6)
-            .frame(minHeight: 34, alignment: .topLeading)
-        } toolbar: {
-          HStack(spacing: 7) {
-            toolbar()
-            Spacer(minLength: 0)
-            trailing()
-              .frame(width: 36, height: 36)
+        VStack(alignment: .leading, spacing: 8) {
+          HStack(alignment: .top, spacing: 4) {
+            editor(lineLimit: 1...(keyboardAvailableHeight > 0 && keyboardAvailableHeight < 380 ? 2 : 6))
+              .frame(maxWidth: .infinity, minHeight: 34, alignment: .topLeading)
+            collapseButton
           }
+          expandedControls
         }
+        .transition(.opacity)
       } else {
-        PoracodeComposerBar(leadingWidth: 0, trailingWidth: hasTrailingAction ? 36 : 0) {
-          EmptyView()
-        } content: {
-          HStack(spacing: 6) {
-            Button {
-              isExpanded = true
-            } label: {
-              Text(hasPrompt ? text : placeholder)
+        HStack(spacing: 8) {
+          if hasPrompt {
+            Button { isExpanded = true } label: {
+              Text(text)
                 .poracodeChatText(.body)
-                .foregroundStyle(hasPrompt ? .primary : .secondary)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 7)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .padding(.leading, 4)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(placeholder)
+            .accessibilityValue(text)
             .accessibilityIdentifier("native-e2e.composer-collapsed")
-            if !hasPrompt { summary() }
+          } else {
+            summary().frame(maxWidth: .infinity)
           }
-        } trailing: {
-          trailing()
+          if hasTrailingAction { trailing().frame(width: 44, height: 44) }
         }
+        .transition(.opacity)
       }
     }
-    .animation(.snappy(duration: 0.22), value: isExpanded)
-    .onChange(of: focused) { _, next in
-      if next {
-        expandedHasFocused = true
-      } else if isExpanded, expandedHasFocused {
-        isExpanded = false
-      }
-    }
-    .onChange(of: isExpanded) { _, next in
-      if next {
-        DispatchQueue.main.async { focused = true }
+    .preference(key: PoracodeComposerFocusPreferenceKey.self, value: isExpanded && focused && !controlsVisible)
+    .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: isExpanded)
+    .onChange(of: controlsVisible) { _, visible in if visible { focused = false } }
+    .task(id: isExpanded) {
+      if isExpanded && !controlsVisible {
+        await Task.yield()
+        if !Task.isCancelled { focused = true }
       } else {
         focused = false
-        expandedHasFocused = false
       }
     }
+  }
+
+  private var expandedControls: some View {
+    PoracodeComposerControls(leading: leading, configuration: configuration, voice: voice, trailing: trailing)
+  }
+
+  private var collapseButton: some View {
+    Button {
+      focused = false
+      isExpanded = false
+    } label: {
+      Image(systemName: "chevron.down")
+        .font(.subheadline)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .foregroundStyle(.secondary)
+    .accessibilityLabel(RichChatStrings.hideDetails)
+    .accessibilityIdentifier("native-e2e.composer-collapse")
   }
 
   private func editor(lineLimit: ClosedRange<Int>) -> some View {
@@ -304,19 +217,30 @@ struct RichChatComposerTextInput: UIViewRepresentable {
   var pointSize: CGFloat = 17
   var submit: (() -> Void)?
 
-  func makeUIView(context: Context) -> RichChatComposerTextView {
+  static func makeEditor(pointSize: CGFloat) -> RichChatComposerTextView {
     let view = RichChatComposerTextView()
-    view.delegate = context.coordinator
     view.backgroundColor = .clear
     view.font = UIFontMetrics(forTextStyle: .body).scaledFont(for: .systemFont(ofSize: pointSize))
     view.adjustsFontForContentSizeCategory = true
     view.textContainerInset = .zero
     view.textContainer.lineFragmentPadding = 0
-    view.isScrollEnabled = false
+    // SwiftUI owns the measured height; UIKit keeps the caret visible once
+    // that viewport reaches its line limit. Disabling scrolling clips edits.
+    view.isScrollEnabled = true
     view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    return view
+  }
+
+  func makeUIView(context: Context) -> RichChatComposerTextView {
+    context.coordinator.updating = true
+    defer { context.coordinator.updating = false }
+    let view = Self.makeEditor(pointSize: pointSize)
+    view.delegate = context.coordinator
     view.accessibilityLabel = placeholder
+    view.text = text
     let label = UILabel()
     label.text = placeholder
+    label.isHidden = !text.isEmpty
     label.font = view.font
     label.textColor = .placeholderText
     label.isAccessibilityElement = false
@@ -332,6 +256,8 @@ struct RichChatComposerTextInput: UIViewRepresentable {
   }
 
   func updateUIView(_ view: RichChatComposerTextView, context: Context) {
+    // Observe render dependencies here; apply their live values after the graph update.
+    _ = (text, selection, focused)
     context.coordinator.owner = self
     context.coordinator.updating = true
     defer { context.coordinator.updating = false }
@@ -340,17 +266,14 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     if view.font != font { view.font = font }
     context.coordinator.placeholder?.font = font
     context.coordinator.placeholder?.text = placeholder
-    if view.text != text { view.text = text }
-    context.coordinator.placeholder?.isHidden = !text.isEmpty
-    if let selection, NSMaxRange(selection) <= view.text.utf16.count,
-      view.selectedRange != selection
-    {
-      view.selectedRange = selection
-    }
-    if focused && !view.isFirstResponder {
-      DispatchQueue.main.async { view.becomeFirstResponder() }
-    } else if !focused && view.isFirstResponder {
-      view.resignFirstResponder()
+    context.coordinator.scheduleViewUpdate(view)
+  }
+
+  static func dismantleUIView(_ view: RichChatComposerTextView, coordinator: Coordinator) {
+    coordinator.isMounted = false
+    view.delegate = nil
+    DispatchQueue.main.async { [weak view] in
+      if let view, view.isFirstResponder { view.resignFirstResponder() }
     }
   }
 
@@ -359,7 +282,6 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     let lineHeight = uiView.font?.lineHeight ?? 22
     let height = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
     let maxHeight = lineHeight * CGFloat(lineLimit.upperBound)
-    uiView.isScrollEnabled = height > maxHeight
     return CGSize(width: width, height: min(max(height, lineHeight * CGFloat(lineLimit.lowerBound)), maxHeight))
   }
 
@@ -369,23 +291,63 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     var owner: RichChatComposerTextInput
     weak var placeholder: UILabel?
     var updating = false
+    var isMounted = true
+    private var viewUpdateScheduled = false
     init(owner: RichChatComposerTextInput) { self.owner = owner }
 
+    func scheduleViewUpdate(_ view: RichChatComposerTextView) {
+      guard !viewUpdateScheduled else { return }
+      viewUpdateScheduled = true
+      // Bindings read during updateUIView can be an older graph snapshot.
+      // Read the latest values after the transaction, before changing UIKit.
+      // Focus lookup must also stay outside that graph transaction.
+      DispatchQueue.main.async { [weak self, weak view] in
+        guard let self else { return }
+        self.viewUpdateScheduled = false
+        guard self.isMounted, let view else { return }
+        let text = self.owner.text
+        let selection = self.owner.selection
+        self.updating = true
+        if view.text != text {
+          view.text = text
+          view.invalidateIntrinsicContentSize()
+        }
+        self.placeholder?.isHidden = !text.isEmpty
+        if let selection, NSMaxRange(selection) <= view.text.utf16.count,
+          view.selectedRange != selection {
+          view.selectedRange = selection
+        }
+        self.updating = false
+        if self.owner.focused {
+          if view.window != nil && !view.isFirstResponder { view.becomeFirstResponder() }
+        } else if view.isFirstResponder {
+          view.resignFirstResponder()
+        }
+      }
+    }
+
     func textViewDidChange(_ textView: UITextView) {
-      owner.text = textView.text
-      owner.selection = textView.selectedRange
-      placeholder?.isHidden = !textView.text.isEmpty
+      guard isMounted, !updating else { return }
+      let text = textView.text ?? ""
+      let selection = textView.selectedRange
+      if owner.text != text { owner.text = text }
+      if owner.selection != selection { owner.selection = selection }
+      placeholder?.isHidden = !text.isEmpty
     }
 
     func textViewDidChangeSelection(_ textView: UITextView) {
       guard !updating else { return }
-      owner.selection = textView.selectedRange
+      // UIKit may report the new caret before textViewDidChange. Publishing
+      // only that caret can render the previous model text back over the edit.
+      textViewDidChange(textView)
     }
 
     func textViewDidBeginEditing(_ textView: UITextView) {
+      guard isMounted else { return }
       if !owner.focused { owner.focused = true }
     }
     func textViewDidEndEditing(_ textView: UITextView) {
+      guard isMounted else { return }
       if owner.focused { owner.focused = false }
     }
   }

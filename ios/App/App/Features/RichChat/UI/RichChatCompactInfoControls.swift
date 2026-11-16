@@ -9,6 +9,7 @@ enum RichChatCompactControlDestination: Identifiable {
   case plan
   case errors
   case goal
+  case media
   case followUpQueue
   case git(ProjectLocation)
   case checkpoints(ProjectLocation)
@@ -23,6 +24,7 @@ enum RichChatCompactControlDestination: Identifiable {
     case .plan: "plan"
     case .errors: "errors"
     case .goal: "goal"
+    case .media: "media"
     case .followUpQueue: "follow-up-queue"
     case .git(let location): "git:\(location.displayPath)"
     case .checkpoints(let location): "checkpoints:\(location.displayPath)"
@@ -50,8 +52,7 @@ struct RichChatCompactInfoControl: Identifiable {
   let accessibilityLabel: String
   var badge: String?
   var gitChanges: RichChatGitChanges?
-  var progressPercent: Double?
-  var usageRings: RichChatUsageRings?
+  var goal: RichGoalPresentation?
   var tone = RichChatCompactInfoControlTone.neutral
   var isActive = false
 
@@ -61,97 +62,63 @@ struct RichChatCompactInfoControl: Identifiable {
 struct RichChatGitChanges: Equatable {
   let insertions: Int
   let deletions: Int
+  var pullRequestNumber: Int? = nil
+  var branch: String? = nil
 }
 
-/// Native counterpart to the compact PWA's icon-only info chips. Labels stay
-/// available to VoiceOver while compact visual badges carry only changing
-/// counts or percentages.
+/// Secondary information stays available from the thread's More menu without
+/// occupying a persistent bubble above the composer.
+struct RichChatThreadInformationMenu: View {
+  let showsResourceDetails: Bool
+  let hasContext: Bool
+  let showInfo: () -> Void
+  let select: (RichChatCompactControlDestination) -> Void
+
+  var body: some View {
+    Section {
+      Button(HomeStrings.threadInfo, systemImage: "info.circle", action: showInfo)
+      if showsResourceDetails {
+        if hasContext {
+          Button(RichChatStrings.contextWindow, systemImage: "circle.dashed.inset.filled") {
+            select(.context)
+          }
+        }
+        Button(SettingsUIStrings.usageTitle, systemImage: "gauge.with.dots.needle.67percent") {
+          select(.usage)
+        }
+      }
+    }
+  }
+}
+
+/// Summary controls keep their values visible at narrow widths. Secondary
+/// destinations such as context, quota usage and thread info live in the header.
 struct RichChatCompactInfoControls: View {
   let controls: [RichChatCompactInfoControl]
+  let liveStartedAt: Int64?
+  let isPaused: Bool
+  let turnClock: RichChatLiveTurnClock
   let glassNamespace: Namespace.ID
   let select: (RichChatCompactControlDestination) -> Void
 
   var body: some View {
-    HStack(spacing: 6) {
-      if !groupedControls.isEmpty {
-        ScrollView(.horizontal, showsIndicators: false) {
-          PoracodeCompactControlGroup {
-            HStack(spacing: 2) {
-              ForEach(groupedControls) { control in
-                controlButton(control)
-              }
-            }
+    ScrollView(.horizontal, showsIndicators: false) {
+      PoracodeCompactControlGroup {
+        HStack(spacing: 2) {
+          if let liveStartedAt {
+            RichChatLiveTurnIndicator(startedAt: liveStartedAt, paused: isPaused, clock: turnClock, sharesSurface: true)
           }
-        }
-        .scrollClipDisabled()
-      }
-      Spacer(minLength: 0)
-      if let contextControl {
-        PoracodeCompactControlGroup {
-          contextButton(contextControl)
-        }
-      }
-      if let usageControl {
-        PoracodeCompactControlGroup {
-          Button {
-            select(usageControl.destination)
-          } label: {
-            RichChatUsageProgressCircle(rings: usageControl.usageRings ?? .empty)
-              .frame(width: 28, height: 28)
-              .contentShape(Circle())
+          ForEach(controls) { control in
+            controlButton(control)
           }
-          .buttonStyle(.plain)
-          .foregroundStyle(.secondary)
-          .tint(.secondary)
-          .accessibilityLabel(usageControl.accessibilityLabel)
-          .poracodeZoomSource(id: usageControl.destination.id, in: glassNamespace)
         }
       }
     }
+    .scrollClipDisabled()
+    .fixedSize(horizontal: false, vertical: true)
     .padding(.horizontal, 12)
-  }
-
-  private var groupedControls: [RichChatCompactInfoControl] {
-    controls.filter { !isContext($0.destination) && !isUsage($0.destination) }
-  }
-
-  private var contextControl: RichChatCompactInfoControl? {
-    controls.first { isContext($0.destination) }
-  }
-
-  private var usageControl: RichChatCompactInfoControl? {
-    controls.first { isUsage($0.destination) }
-  }
-
-  private func isUsage(_ destination: RichChatCompactControlDestination) -> Bool {
-    if case .usage = destination { return true }
-    return false
-  }
-
-  private func isContext(_ destination: RichChatCompactControlDestination) -> Bool {
-    if case .context = destination { return true }
-    return false
-  }
-
-  private func contextButton(_ control: RichChatCompactInfoControl) -> some View {
-    Button {
-      select(control.destination)
-    } label: {
-      Text(control.progressPercent.map { ($0 / 100).formatted(.percent.precision(.fractionLength(0))) } ?? "—")
-      .font(.system(size: 11, weight: .medium, design: .monospaced))
-      .foregroundStyle(.primary)
-      .lineLimit(1)
-      .frame(minWidth: 28, minHeight: 28)
-      .fixedSize(horizontal: true, vertical: false)
-      .padding(.horizontal, 4)
-      .contentShape(Circle())
-    }
-    .buttonStyle(.plain)
-    .foregroundStyle(.secondary)
-    .tint(.secondary)
-    .accessibilityLabel(control.accessibilityLabel)
-    .accessibilityValue(accessibilityValue(control))
-    .poracodeZoomSource(id: control.destination.id, in: glassNamespace)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("native-e2e.info-controls.compact")
   }
 
   private func controlButton(_ control: RichChatCompactInfoControl) -> some View {
@@ -164,6 +131,7 @@ struct RichChatCompactInfoControls: View {
     .tint(control.tone.color)
     .accessibilityLabel(control.accessibilityLabel)
     .accessibilityValue(accessibilityValue(control))
+    .accessibilityIdentifier("native-e2e.info-control.\(control.destination.id)")
     .poracodeZoomSource(id: control.destination.id, in: glassNamespace)
   }
 
@@ -172,6 +140,8 @@ struct RichChatCompactInfoControls: View {
       if control.gitChanges != nil {
         RichChatIcon(.gitBranch)
           .foregroundStyle(control.tone.color)
+      } else if let goal = control.goal {
+        RichChatGoalStatusIcon(status: goal.status, diameter: 18)
       } else {
         Image(systemName: control.systemImage)
           .resizable()
@@ -180,86 +150,139 @@ struct RichChatCompactInfoControls: View {
           .foregroundStyle(control.tone.color)
       }
       if let changes = control.gitChanges {
+        if let number = changes.pullRequestNumber { Text("#\(number)") }
         if changes.insertions > 0 {
           Text("+\(changes.insertions)").foregroundStyle(.green)
         }
         if changes.deletions > 0 {
           Text("−\(changes.deletions)").foregroundStyle(.red)
         }
+      } else if let goal = control.goal {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+          if let elapsed = goal.elapsedSeconds(at: context.date) {
+            Text(RichBackgroundTaskElapsed.compactText(
+              startedAtMilliseconds: (context.date.timeIntervalSince1970 - elapsed) * 1_000,
+              now: context.date
+            ))
+          }
+        }
+      } else if let badge = control.badge {
+        Text(badge).foregroundStyle(.primary)
       }
     }
       .font(.caption2.monospacedDigit().weight(.medium))
-      .frame(minWidth: 36, minHeight: 28)
+      .frame(minWidth: 44, minHeight: 44)
       .padding(.horizontal, control.gitChanges == nil ? 0 : 7)
-      .contentShape(Circle())
+      .contentShape(Rectangle())
       .symbolEffect(.pulse, options: .repeating, isActive: control.isActive)
-      .overlay(alignment: .topTrailing) {
-        if let badge = control.badge {
-          Text(badge)
-            .font(.system(size: 8, weight: .semibold, design: .rounded))
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .foregroundStyle(control.tone.color)
-            .padding(.horizontal, 3)
-            .frame(minWidth: 13, minHeight: 13)
-            .background(.regularMaterial, in: Capsule())
-            .offset(x: 7, y: -7)
-        }
-      }
   }
 
   private func accessibilityValue(_ control: RichChatCompactInfoControl) -> String {
     if let badge = control.badge { return badge }
     if let changes = control.gitChanges {
-      return GitSummaryStrings.changes(
+      let changesLabel = GitSummaryStrings.changes(
         insertions: changes.insertions,
         deletions: changes.deletions
+      )
+      return [changes.pullRequestNumber.map(ProjectReviewStrings.pullRequest), changesLabel]
+        .compactMap { $0 }.joined(separator: ", ")
+    }
+    if let goal = control.goal, let elapsed = goal.elapsedSeconds(at: .now) {
+      return RichBackgroundTaskElapsed.text(
+        startedAtMilliseconds: (Date.now.timeIntervalSince1970 - elapsed) * 1_000
       )
     }
     return ""
   }
 }
 
-private struct RichChatUsageProgressCircle: View {
-  let rings: RichChatUsageRings
+/// Wider composer indicators show the useful value beside each icon, matching
+/// the desktop's thread-status bubbles while retaining touch-sized targets.
+struct RichChatWideInfoControls: View {
+  let controls: [RichChatCompactInfoControl]
+  let thread: RemoteThread?
+  let liveStartedAt: Int64?
+  let isPaused: Bool
+  let turnClock: RichChatLiveTurnClock
+  let glassNamespace: Namespace.ID
+  let select: (RichChatCompactControlDestination) -> Void
 
   var body: some View {
-    ZStack {
-      RichChatProgressRing(percent: rings.outerPercent, diameter: 22, lineWidth: 2)
-      if rings.innerPercent != nil {
-        RichChatProgressRing(percent: rings.innerPercent, diameter: 14, lineWidth: 2)
+    HStack(spacing: 8) {
+      if let liveStartedAt {
+        RichChatLiveTurnIndicator(startedAt: liveStartedAt, paused: isPaused, clock: turnClock)
       }
+      Spacer(minLength: 0)
+      HStack(spacing: 6) {
+        ForEach(controls) { control in
+          button(control)
+        }
+      }
+      .fixedSize(horizontal: true, vertical: false)
     }
-    .accessibilityHidden(true)
+    .padding(.horizontal, 12)
+    .accessibilityElement(children: .contain)
+    .accessibilityIdentifier("native-e2e.info-controls.expanded")
   }
-}
 
-private struct RichChatProgressRing: View {
-  let percent: Double?
-  let diameter: CGFloat
-  let lineWidth: CGFloat
-
-  @Environment(\.colorScheme) private var colorScheme
-
-  var body: some View {
-    let progress = min(max((percent ?? 0) / 100, 0), 1)
-    let tone = SettingsUsagePresentation.tone(for: percent)
-    ZStack {
-      Circle()
-        .stroke(Color.primary.opacity(0.18), lineWidth: lineWidth)
-      Circle()
-        .trim(from: 0, to: progress)
-        .stroke(
-          tone.color(in: colorScheme),
-          style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-        )
-        .rotationEffect(.degrees(-90))
+  private func button(_ control: RichChatCompactInfoControl) -> some View {
+    Button {
+      select(control.destination)
+    } label: {
+      HStack(spacing: 5) {
+        if let goal = control.goal {
+          RichChatGoalStatusIcon(status: goal.status, diameter: 18)
+        } else {
+          Image(systemName: control.systemImage)
+            .foregroundStyle(control.tone.color)
+        }
+        if let goal = control.goal {
+          TimelineView(.periodic(from: .now, by: 1)) { context in
+            if let elapsed = goal.elapsedSeconds(at: context.date) {
+              Text(RichBackgroundTaskElapsed.compactText(
+                startedAtMilliseconds: (context.date.timeIntervalSince1970 - elapsed) * 1_000,
+                now: context.date
+              ))
+            }
+          }
+        } else if let changes = control.gitChanges {
+          if let number = changes.pullRequestNumber {
+            Text("#\(number)")
+          } else if let branch = changes.branch, !branch.isEmpty {
+            Text(branch).lineLimit(1).truncationMode(.middle)
+          }
+          if changes.insertions > 0 { Text("+\(changes.insertions)").foregroundStyle(.green) }
+          if changes.deletions > 0 { Text("−\(changes.deletions)").foregroundStyle(.red) }
+        } else if let badge = control.badge {
+          Text(badge)
+        }
+      }
+      .font(.caption2.monospacedDigit().weight(.medium))
+      .foregroundStyle(.primary)
+      .padding(.horizontal, 10)
+      .frame(minHeight: 28)
+      .poracodeGlassBackground(in: Capsule(), interactive: true)
+      .frame(minWidth: 44, minHeight: 44)
+      .contentShape(Rectangle())
     }
-    .frame(width: diameter, height: diameter)
+    .buttonStyle(.plain)
+    .accessibilityLabel(control.accessibilityLabel)
+    .accessibilityValue(accessibilityValue(control))
+    .accessibilityIdentifier("native-e2e.info-control.\(control.destination.id)")
+    .poracodeZoomSource(id: control.destination.id, in: glassNamespace)
   }
-}
 
-extension RichChatUsageRings {
-  fileprivate static let empty = RichChatUsageRings(outerPercent: nil, innerPercent: nil)
+  private func accessibilityValue(_ control: RichChatCompactInfoControl) -> String {
+    if let changes = control.gitChanges {
+      var values = [GitSummaryStrings.changes(insertions: changes.insertions, deletions: changes.deletions)]
+      if let number = changes.pullRequestNumber { values.insert(ProjectReviewStrings.pullRequest(number), at: 0) }
+      return values.joined(separator: ", ")
+    }
+    if let goal = control.goal, let elapsed = goal.elapsedSeconds(at: .now) {
+      return RichBackgroundTaskElapsed.text(
+        startedAtMilliseconds: (Date.now.timeIntervalSince1970 - elapsed) * 1_000
+      )
+    }
+    return control.badge ?? ""
+  }
 }

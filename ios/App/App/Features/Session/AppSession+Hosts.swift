@@ -259,6 +259,9 @@ extension AppSession {
         state.hostsLRU = snapshot.lru
         state.selectedConnectionId = snapshot.selectedConnectionId
         let retained = Set(snapshot.hosts.map(\.connectionId))
+        settingsDocumentChanges.retainConnections(retained)
+        transcriptDisclosures.retainConnections(retained)
+        workflowActivityStore?.retainConnections(retained)
         state.hostSnapshots = state.hostSnapshots.filter { retained.contains($0.key) }
         state.hostSocketStates = state.hostSocketStates.filter { retained.contains($0.key) }
         for record in snapshot.hosts {

@@ -3,6 +3,10 @@ import XCTest
 @MainActor
 final class NativeJourneyUITests: XCTestCase {
   private let app = XCUIApplication()
+  private var homeMoreButton: XCUIElement {
+    app.buttons.matching(NSPredicate(format: "identifier IN %@", ["native-e2e.session-menu", "native-e2e.sidebar.more-tools"])).firstMatch
+  }
+
   private var controlURL: URL!
   private var capability = ""
 
@@ -147,7 +151,7 @@ final class NativeJourneyUITests: XCTestCase {
     attachScreenshot("04-authoritative-resync")
 
     navigateHome()
-    app.buttons["native-e2e.session-menu"].tap()
+    homeMoreButton.tap()
     let connections = app.buttons["native-e2e.more.connections"]
     XCTAssertTrue(connections.waitForExistence(timeout: 5))
     connections.tap()

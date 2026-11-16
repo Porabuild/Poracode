@@ -19,6 +19,20 @@ struct RichChatTimelineEntryView: View {
   let actions: RichChatTimelineActions
 
   var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      entryContent
+      if let label = RichChatTurnTiming.completedLabel(for: entry, turns: actions.completedTurns) {
+        Text(label)
+          .poracodeChatText(.metadata)
+          .foregroundStyle(.secondary)
+          .padding(.horizontal, 12)
+          .accessibilityIdentifier("native-e2e.turn-completed-time")
+      }
+    }
+  }
+
+  @ViewBuilder
+  private var entryContent: some View {
     switch entry {
     case .item(let node):
       RichChatTimelineNodeView(
@@ -43,11 +57,23 @@ private struct RichChatTimelineGroupView: View {
   let members: [RichVisibleTimelineNode]
   let mediaController: RichChatMediaController
   let actions: RichChatTimelineActions
+  @Environment(\.runtimeItemHeadings) private var headings
+  @Environment(\.runtimeItemHeadingSnapshot) private var snapshot
+  @Environment(\.toolPresentationCatalog) private var catalog
 
-  @State private var expanded = false
+  @State private var localExpanded = false
+  @Environment(\.transcriptDisclosures) private var disclosures
+  private var expansion: Binding<Bool> {
+    TranscriptDisclosureContext.binding(disclosures, id: "group:\(members.first?.item.id ?? stableID)", fallback: $localExpanded)
+  }
+  private var expanded: Bool { expansion.wrappedValue }
 
   private var summary: RichChatActivityGroupSummary {
-    RichChatActivityGroupSummary(members: members)
+    RichChatActivityGroupSummary(members: members) { item in
+      (snapshot[item.id]?.displayHeading(for: item, projection: catalog?.itemTypes[item.type]?.headerProjection)
+        ?? headings?.heading(item, projection: catalog?.itemTypes[item.type]?.headerProjection))?.category
+        ?? RichChatActivityGroupSummary.category(for: item)
+    }
   }
 
   var body: some View {
@@ -60,15 +86,17 @@ private struct RichChatTimelineGroupView: View {
             .foregroundStyle(.tertiary)
             .rotationEffect(.degrees(expanded ? 180 : 0))
         }
-        .contentShape(Rectangle())
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .richChatActivityHeaderLayout()
       }
       .buttonStyle(.plain)
+      .accessibilityIdentifier("native-e2e.activity-group.\(members.first?.item.id ?? stableID)")
       .accessibilityLabel(
-        "\(expanded ? RichChatStrings.collapseActivity : RichChatStrings.expandActivity), \(RichChatStrings.activityCount(members.count))"
+        "\(expanded ? RichChatStrings.collapseActivity : RichChatStrings.expandActivity), \(summary.segments.map { RichChatStrings.activityCategoryCount($0.category, $0.count) }.joined(separator: ", "))"
       )
 
       if expanded {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 2) {
           ForEach(members, id: \.item.id) { member in
             RichChatTimelineNodeView(
               node: member,
@@ -88,11 +116,12 @@ private struct RichChatTimelineGroupView: View {
       }
     }
     .padding(.leading, 10)
-    .padding(.bottom, 8)
+    .padding(.bottom, 2)
+    .modifier(RuntimeItemHeadingRequests(items: members.map(\.item)))
   }
 
   private func toggleExpanded() {
-    withAnimation(.snappy(duration: 0.22)) { expanded.toggle() }
+    withAnimation(.snappy(duration: 0.22)) { expansion.wrappedValue = !expanded }
   }
 }
 
@@ -127,14 +156,14 @@ struct RichChatActivityGroupSummary: Equatable {
   /// (view, search, edit, command, tool, thought).
   let segments: [RichChatActivitySegment]
 
-  init(members: [RichVisibleTimelineNode]) {
+  init(members: [RichVisibleTimelineNode], category: ((RichRuntimeItem) -> RichChatStrings.RichChatActivityCategory)? = nil) {
     var counts: [RichChatStrings.RichChatActivityCategory: Int] = [:]
     var editAdded = 0
     var editRemoved = 0
     var editSeen = false
     var editMissingDiff = false
     for member in members {
-      let category = Self.category(for: member.item)
+      let category = category?(member.item) ?? Self.category(for: member.item)
       counts[category, default: 0] += 1
       guard category == .edit else { continue }
       editSeen = true

@@ -1,7 +1,20 @@
 import { readFileSync } from "node:fs";
 import { protocolFixturePath } from "./paths.ts";
-import { FIXTURE_PROJECT_ID } from "./labFixtures.ts";
+import { FIXTURE_PROJECT_ID, FIXTURE_THREAD_ID } from "./labFixtures.ts";
 import { initialBackgroundTasks, type BackgroundTaskFixtureTask } from "./backgroundTaskLab.ts";
+import { LabHttpError } from "./labAuth.ts";
+import { LabComposerToolsState } from "./composerToolsFixtures.ts";
+import { LabSideChatState } from "./sideChatFixtures.ts";
+import { CREW_FIXTURE } from "./crewFixtures.ts";
+import {
+  workflowLaunchItems,
+  markWorkflowAwaitingReference,
+  completeWorkflowLaunchReference,
+} from "./workflowFixtures.ts";
+import { toolPresentationItems, updateToolPresentationItems } from "./toolPresentationFixtures.ts";
+import { REMOTE_PROCEDURE_RESULT_FIXTURES } from "../../../src/shared/remote/contract/goldens/procedureFixtures.ts";
+
+import { buildTurnTimingStory } from "./timingFixtures.ts";
 
 const FIXTURE_TIME = "2026-08-12T10:03:00.000Z";
 
@@ -12,6 +25,8 @@ function readFixture(name: string): Record<string, unknown> {
 export class LabLifecycleState {
   private projects: Array<Record<string, unknown>> = [];
   private thread: Record<string, unknown> = {};
+  private readonly importedThreads = new Map<string, Record<string, unknown>>();
+  private readonly importedPrompts = new Map<string, string>();
   private runtimeItems: Array<Record<string, unknown>> = [];
   private completedTurns: unknown[] = [];
   private contextUsage: unknown = null;
@@ -25,15 +40,24 @@ export class LabLifecycleState {
   private readonly attachments = new Map<string, Buffer>();
   private readonly pendingFollowUps = new Set<string>();
   private readonly projectMcpServers = new Map<string, unknown[]>();
+  readonly composerTools = new LabComposerToolsState(this.projectMcpServers);
+  readonly sideChats = new LabSideChatState();
+  composerPreferencesEnabled = false;
+  toolPresentationEnabled = false;
 
   constructor() {
     this.reset();
   }
 
   reset(): void {
+    this.composerPreferencesEnabled = false;
+    this.toolPresentationEnabled = false;
     const shell = readFixture("shell-snapshot.json");
     const history = readFixture("thread-history.json");
     this.projects = structuredClone(shell.projects as Array<Record<string, unknown>>);
+    this.importedThreads.clear();
+    this.sideChats.reset();
+    this.importedPrompts.clear();
     this.thread = structuredClone(history.thread as Record<string, unknown>);
     this.runtimeItems = structuredClone(history.runtimeItems as Array<Record<string, unknown>>);
     this.completedTurns = structuredClone(history.completedTurns as unknown[]);
@@ -48,6 +72,7 @@ export class LabLifecycleState {
     this.attachments.clear();
     this.pendingFollowUps.clear();
     this.projectMcpServers.clear();
+    this.composerTools.reset();
     for (const project of this.projects) this.projectMcpServers.set(String(project.id), []);
   }
 
@@ -56,13 +81,144 @@ export class LabLifecycleState {
       snapshotSeq,
       snapshotEpoch,
       projects: structuredClone(this.projects),
-      threads: [structuredClone(this.thread)],
+      threads: [
+        structuredClone(this.thread),
+        ...this.sideChats.rows(),
+        ...structuredClone([...this.importedThreads.values()]),
+      ],
       runtimeSummariesByThread: structuredClone(this.runtimeSummariesByThread),
       updatedAt: FIXTURE_TIME,
     };
   }
 
-  history(snapshotSeq: number): Record<string, unknown> {
+  prepareTurnTiming(live = false): void {
+    const story = buildTurnTimingStory(live, {
+      thread: this.thread,
+      runtimeItems: this.runtimeItems,
+      completedTurns: this.completedTurns,
+    });
+    this.thread = story.thread;
+    this.runtimeItems = story.runtimeItems;
+    this.completedTurns = story.completedTurns;
+    this.backgroundTasks = [];
+  }
+
+  prepareWorkflow(): void {
+    this.runtimeItems = workflowLaunchItems(this.thread, this.runtimeItems);
+  }
+
+  prepareWorkflowViewer(stressResults = false): void {
+    this.runtimeItems = workflowLaunchItems(this.thread, this.runtimeItems, stressResults);
+    this.toolPresentationEnabled = true;
+  }
+
+  prepareWorkflowAwaitingReference(): void {
+    this.prepareWorkflowViewer();
+    markWorkflowAwaitingReference(this.runtimeItems);
+  }
+
+  publishWorkflowReference(): Record<string, unknown> {
+    return completeWorkflowLaunchReference(this.runtimeItems);
+  }
+
+  prepareToolPresentation(): void {
+    this.toolPresentationEnabled = true;
+    this.thread.status = "finished";
+    this.thread.attention = "none";
+    delete this.thread.activeTurnStartedAt;
+    this.runtimeItems = toolPresentationItems();
+  }
+
+  updateToolPresentation(): Record<string, unknown> {
+    return updateToolPresentationItems(this.runtimeItems, FIXTURE_THREAD_ID);
+  }
+
+  prepareSideChat(): void {
+    this.sideChats.enabled = true;
+    this.thread = {
+      ...this.thread,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      worktreePath: "/Users/fixture/project/.worktrees/review",
+      worktreeBranch: "feature/native-review",
+    };
+    this.runtimeItems.push({
+      id: "side-parent-tool",
+      type: "tool_call",
+      state: "completed",
+      payload: {
+        name: "inspect",
+        title: "Inspect the source context",
+        args: {},
+        result: { content: [{ type: "text", text: "Private parent tool result" }] },
+      },
+      streams: {},
+    });
+  }
+
+  prepareCrews(): void {
+    this.thread = {
+      ...this.thread,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      config: {
+        model: "gpt-5",
+        effort: "high",
+        fast: false,
+        contextSize: "128k",
+        approvalPolicy: "review",
+        sandboxMode: "project",
+        crew: {
+          version: 1,
+          crewId: CREW_FIXTURE.id,
+          name: CREW_FIXTURE.name,
+          policy: CREW_FIXTURE.policy,
+          roles: structuredClone(CREW_FIXTURE.roles),
+        },
+      },
+    };
+  }
+
+  appendSideChatParentUpdate(): Record<string, unknown> {
+    const item = {
+      id: "side-parent-update",
+      type: "assistant_message",
+      state: "completed",
+      payload: { content: [] },
+      streams: { assistant_text: "Parent context changed" },
+    };
+    this.runtimeItems.push(item);
+    return item;
+  }
+
+  startSideChat(threadId: string, body: Record<string, unknown>, commandId: string): void {
+    this.sideChats.start(threadId, body, commandId, this.thread);
+  }
+
+  history(snapshotSeq: number, threadId?: string): Record<string, unknown> {
+    const side = threadId ? this.sideChats.history(threadId, snapshotSeq) : undefined;
+    if (side) return side;
+    const imported = threadId ? this.importedThreads.get(threadId) : undefined;
+    if (imported) {
+      return {
+        snapshotSeq,
+        thread: structuredClone(imported),
+        runtimeItems: [
+          {
+            id: `import-${threadId}`,
+            type: "user_message",
+            state: "completed",
+            payload: { prompt: this.importedPrompts.get(String(imported.id)) ?? "" },
+            streams: {},
+          },
+        ],
+        completedTurns: [],
+        contextUsage: null,
+        updatedAt: FIXTURE_TIME,
+      };
+    }
     return {
       snapshotSeq,
       thread: structuredClone(this.thread),
@@ -81,7 +237,39 @@ export class LabLifecycleState {
   }
 
   hasThread(threadId: string): boolean {
-    return this.thread.id === threadId;
+    return (
+      this.thread.id === threadId ||
+      this.importedThreads.has(threadId) ||
+      this.sideChats.has(threadId)
+    );
+  }
+
+  importSession(threadId: string, body: Record<string, unknown>): void {
+    if (this.hasThread(threadId))
+      throw new LabHttpError("thread_already_exists", "Thread already exists.", 409);
+    const source = REMOTE_PROCEDURE_RESULT_FIXTURES.listImportableSessions.sessions.find(
+      (session) =>
+        session.path === body.path &&
+        session.agentKind === body.agentKind &&
+        session.providerSessionId === body.providerSessionId,
+    );
+    if (!source) {
+      throw new LabHttpError("not_found", "Session not found.", 404);
+    }
+    if (!this.projects.some((project) => project.id === body.projectId))
+      throw new LabHttpError("not_found", "Project not found.", 404);
+    this.importedPrompts.set(threadId, source.preview);
+    this.importedThreads.set(threadId, {
+      ...structuredClone(this.thread),
+      id: threadId,
+      projectId: body.projectId,
+      agentKind: body.agentKind,
+      title: body.title,
+      status: "inactive",
+      attention: "none",
+      config: { model: body.model, importedFrom: { path: body.path, importedAt: FIXTURE_TIME } },
+      sessionRef: { providerSessionId: body.providerSessionId, discoveredAt: FIXTURE_TIME },
+    });
   }
 
   historyItems(beforePosition?: number, limit = 100): Record<string, unknown> {
@@ -95,11 +283,30 @@ export class LabLifecycleState {
 
   projectCommand(command: Record<string, unknown>): Record<string, unknown> | null {
     const kind = command.kind;
+    if (kind === "set-draft-config") {
+      if (!this.composerPreferencesEnabled) return null;
+      const index = this.projects.findIndex((project) => project.id === command.projectId);
+      if (index < 0) return { ok: true };
+      const project = {
+        ...this.projects[index]!,
+        lastDraftConfig: structuredClone(command.lastDraftConfig),
+      };
+      this.projects[index] = project;
+      return { ok: true, project: structuredClone(project) };
+    }
     if (kind === "create" || kind === "clone") return null;
     let project: Record<string, unknown> | undefined;
     if (kind === "add-existing") {
+      const existing = this.projects.find(
+        (candidate) =>
+          (candidate.location as Record<string, unknown> | undefined)?.path === command.path,
+      );
+      if (existing)
+        return { projects: structuredClone(this.projects), project: structuredClone(existing) };
       project = {
-        id: "project-fixture-added",
+        id: this.projects.some((candidate) => candidate.id === "project-fixture-added")
+          ? `project-fixture-added-${this.projects.length}`
+          : "project-fixture-added",
         name: command.name ?? "added-fixture",
         location: { kind: "posix", path: command.path },
         createdAt: FIXTURE_TIME,

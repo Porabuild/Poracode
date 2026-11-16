@@ -41,6 +41,8 @@ enum RichChatGatewayError: Error, Equatable, Sendable {
 }
 
 protocol RichChatHistoryGateway: Sendable {
+  func loadRichRuntimeToolBodies(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord]
+  func loadRichRuntimeItemHeadings(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord]
   func loadRichHistory(
     target: RichChatThreadTarget,
     targetEntryCount: Int?
@@ -88,6 +90,12 @@ protocol RichChatHistoryGateway: Sendable {
 }
 
 extension RichChatHistoryGateway {
+  func loadRichRuntimeToolBodies(target _: RichChatThreadTarget, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
+    throw RichChatGatewayError.unavailable
+  }
+  func loadRichRuntimeItemHeadings(target _: RichChatThreadTarget, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord] {
+    throw RichChatGatewayError.unavailable
+  }
   /// Default for test fakes: fail closed, never fabricate a file.
   func downloadRichFile(
     target _: RichChatThreadTarget,

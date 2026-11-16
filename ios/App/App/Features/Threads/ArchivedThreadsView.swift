@@ -29,6 +29,7 @@ struct ArchivedThreadsView: View {
           row(thread)
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
         .refreshable { await session.refreshSnapshot() }
       }
     }
@@ -104,7 +105,8 @@ struct ArchivedThreadsView: View {
           thread: thread,
           projectName: projectsByID[thread.projectId]?.name,
           showsRelativeTime: true,
-          isOpening: lifecycle.isBusy && mutatingThreadID == thread.id
+          isOpening: lifecycle.isBusy && mutatingThreadID == thread.id,
+          hasBackgroundActivity: session.workflowActivity.isLive(connectionID: session.selectedConnectionId, threadID: thread.id)
         )
       }
       .buttonStyle(.plain)

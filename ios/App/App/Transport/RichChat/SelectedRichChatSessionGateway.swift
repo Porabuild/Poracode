@@ -18,12 +18,25 @@ struct RichChatTransportSelection: Sendable {
 
 /// Owns selected-host and work-generation checks around every rich-chat operation.
 actor SelectedRichChatSessionGateway {
-  typealias SelectionProvider = @MainActor @Sendable () -> RichChatTransportSelection?
+  typealias SelectionProvider = @MainActor @Sendable () async -> RichChatTransportSelection?
+  typealias TurnContextProvider = @Sendable (RichChatThreadTarget) async throws -> TurnClientContext?
 
   private let selectionProvider: SelectionProvider
+  private let turnContextProvider: TurnContextProvider
 
-  init(selectionProvider: @escaping SelectionProvider) {
+  init(turnContextProvider: @escaping TurnContextProvider = { _ in nil }, selectionProvider: @escaping SelectionProvider) {
     self.selectionProvider = selectionProvider
+    self.turnContextProvider = turnContextProvider
+  }
+
+  /// Optional client-owned context belongs to exactly one accepted input. The
+  /// same host/operate gate surrounds capture and the eventual write.
+  func prepareTurnContext(target: RichChatThreadTarget) async throws -> TurnClientContext? {
+    _ = try await currentSelection(target: target, capability: .sessionOperate)
+    let context = try await turnContextProvider(target)
+    try Task.checkCancellation()
+    try await requireCurrent(target.lease)
+    return context
   }
 
   func executeRead<Value: Sendable>(

@@ -10874,7 +10874,6 @@ msgstr "已链接"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18077,7 +18076,6 @@ msgstr "SDK 未安装"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18255,7 +18253,6 @@ msgstr "搜索会话、命令、设置和文件…"
 msgid "Search titles, messages and folders"
 msgstr "搜索标题、消息和文件夹"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "搜索: \"{query}\" ({scope} 中)"

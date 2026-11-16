@@ -15,6 +15,7 @@ struct ProjectShellTerminalView: View {
   let title: String?
 
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
   @State private var shell: ProjectShellTerminalSession
   @State private var sentInitialCommand = false
 
@@ -38,17 +39,7 @@ struct ProjectShellTerminalView: View {
   }
 
   var body: some View {
-    content
-      .navigationTitle(title ?? TerminalStrings.shellTitle)
-      .navigationBarTitleDisplayMode(.inline)
-      .toolbar {
-        ToolbarItem(placement: .principal) {
-          Text(title ?? TerminalStrings.shellTitle)
-            .font(.headline)
-            .foregroundStyle(shell.phase == .live ? .white : .primary)
-            .accessibilityAddTraits(.isHeader)
-        }
-      }
+    navigationWrappedContent
       .task(id: activationID) { startIfPossible() }
       .onChange(of: session.phase) { updateAccess() }
       .onChange(of: session.socketState) { updateAccess() }
@@ -65,6 +56,25 @@ struct ProjectShellTerminalView: View {
         }
       }
       .onDisappear { shell.end() }
+  }
+
+  @ViewBuilder
+  private var navigationWrappedContent: some View {
+    if embeddedInInspector {
+      content
+    } else {
+      content
+        .navigationTitle(title ?? TerminalStrings.shellTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+          ToolbarItem(placement: .principal) {
+            Text(title ?? TerminalStrings.shellTitle)
+              .font(.headline)
+              .foregroundStyle(shell.phase == .live ? .white : .primary)
+              .accessibilityAddTraits(.isHeader)
+          }
+        }
+    }
   }
 
   @ViewBuilder

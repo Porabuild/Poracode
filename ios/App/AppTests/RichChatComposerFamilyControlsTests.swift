@@ -9,6 +9,45 @@ import XCTest
 /// and restored drafts keep their exact canonical UIDs and carriers through
 /// save/reload. Toy relations only — no provider payload.
 final class RichChatComposerFamilyControlsTests: XCTestCase {
+  func testPermissionSelectionAppliesTheDeclaredCompoundPreset() throws {
+    let capabilities: [String: JSONValue] = [
+      "models": .array([.object(["id": .string("model"), "label": .string("Model")])]),
+      "approvalPolicies": .array([
+        .object(["id": .string("confirm"), "label": .string("Confirm")]),
+        .object(["id": .string("unrestricted"), "label": .string("No prompts")]),
+      ]),
+      "defaultApprovalPolicy": .string("confirm"),
+      "defaultSandboxMode": .string("project"),
+      "defaultApprovalsReviewer": .string("review_team"),
+      "bypassPermissions": .object([
+        "approvalPolicy": .string("unrestricted"), "sandboxMode": .string("all-files"),
+      ]),
+    ]
+    var configuration = config(model: "model")
+    configuration.approvalPolicy = "unrestricted"
+    configuration.sandboxMode = "project"
+    let catalog = try makeCatalog(capabilities, configuration: configuration)
+    let bypass = try XCTUnwrap(catalog.permissionOptions.last)
+    XCTAssertFalse(catalog.isPermissionOptionSelected(bypass, configuration: configuration))
+    XCTAssertNotEqual(catalog.permissionSelectionLabel(configuration), RichChatStrings.fullAccess)
+    catalog.applyPermissionPolicy("unrestricted", to: &configuration)
+    XCTAssertEqual(configuration.sandboxMode, "all-files")
+    XCTAssertEqual(configuration.approvalsReviewer, "")
+    XCTAssertEqual(catalog.permissionSelectionLabel(configuration), RichChatStrings.fullAccess)
+    catalog.applyPermissionPolicy("confirm", to: &configuration)
+    XCTAssertEqual(configuration.sandboxMode, "project")
+    XCTAssertEqual(configuration.approvalsReviewer, "review_team")
+    let previous = configuration
+    catalog.applyPermissionPolicy("unadvertised", to: &configuration)
+    XCTAssertEqual(configuration, previous)
+    var restrictedCapabilities = capabilities
+    restrictedCapabilities["sandboxModes"] = .array([.object(["id": .string("project"), "label": .string("Project")])])
+    let restricted = try makeCatalog(restrictedCapabilities, configuration: configuration)
+    XCTAssertNotEqual(restricted.permissionOptionLabel(bypass), RichChatStrings.fullAccess)
+    restricted.applyPermissionPolicy("unrestricted", to: &configuration)
+    XCTAssertEqual(configuration.sandboxMode, "project", "Never apply a sandbox excluded by the advertised policy")
+  }
+
   // MARK: - Fixtures
 
   /// Encoded relation (both common controls bound to the member UID): the
@@ -331,7 +370,7 @@ final class RichChatComposerFamilyControlsTests: XCTestCase {
     catalog.applyExactModelSelection("solo", to: &outsideDraft)
     XCTAssertEqual(outsideDraft.model, "solo")
     XCTAssertNil(outsideDraft.effort, "the ordinary defaulting applies, not an encoded seed")
-    XCTAssertEqual(outsideDraft.fast, false)
+    XCTAssertEqual(outsideDraft.fast, true, "An ordinary Fast-capable target uses the shared provider default")
     XCTAssertEqual(outsideDraft.thinking, false)
   }
 
@@ -756,7 +795,7 @@ final class RichChatComposerFamilyControlsTests: XCTestCase {
   // MARK: - Wiring and localization gates
 
   func testComposerSourcesWireTheFamilyEditCallbacks() throws {
-    let configuration = try Self.source("App/Features/RichChat/UI/RichChatComposerConfiguration.swift")
+    let configuration = try Self.source("App/Features/RichChat/UI/RichChatComposerConfigurationFields.swift")
     XCTAssertTrue(
       configuration.contains("catalog.isProjectedFamilyRow(model)")
         && configuration.contains("catalog.applyFamilyRowSelection(model, to: &draft)")
@@ -771,19 +810,17 @@ final class RichChatComposerFamilyControlsTests: XCTestCase {
     XCTAssertTrue(
       configuration.contains("get: { catalog.displayedFast(draft) }"),
       "the Fast toggle displays the member-derived state")
-    let inline = try Self.source("App/Features/RichChat/UI/RichChatComposerInlineControls.swift")
+    let inline = try Self.source("App/Features/RichChat/UI/RichChatComposerSelectors.swift")
     XCTAssertTrue(
       inline.contains("catalog.displayedEffort(for: configuration)"),
       "the compact summary shows the member-derived effort")
 
     let homeContent = try Self.source("App/Features/Home/Views/HomeQuickComposeContent.swift")
-    XCTAssertTrue(
-      homeContent.contains("applyComposerEffort(effort)")
-        && homeContent.contains("applyComposerFastToggle()"),
-      "the Home common controls resolve explicit edits at the boundary")
-    XCTAssertTrue(
-      homeContent.contains("composerDisplayedFast"), "the Home Fast button displays the relation state"
-    )
+    let homeCrewControls = try Self.source("App/Features/Crews/HomeCrewComposer.swift")
+    XCTAssertTrue(homeContent.contains("homeCrewAwareSelectors") && homeCrewControls.contains("RichChatComposerSelectors("),
+      "Home uses the same family-aware explicit edit controls as a thread")
+    XCTAssertTrue(inline.contains("catalog.applyEffortEdit(option.id, to: &next)"))
+    XCTAssertTrue(inline.contains("catalog.applyFastEdit(!fast, to: &next)"))
     let homeSheets = try Self.source("App/Features/Home/HomeComposerSelectorSheets.swift")
     XCTAssertTrue(
       homeSheets.contains("effectiveModelIsRepresentedByRow(model)"),

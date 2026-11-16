@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { collectSecretViolations } from "./harness/secrets.ts";
 import { controlRequest, startLab } from "./helpers/testClient.ts";
+import { resolveRouteSchemas } from "./harness/schemaValidation.ts";
 
 const CONTROL_PATHS = [
   "/healthz",
@@ -20,6 +21,33 @@ describe("secret-free versioned control plane", () => {
     harness = undefined;
   });
 
+  it("publishes composer capabilities only through its explicit checkpoint", async () => {
+    harness = await startLab();
+    expect(harness.lab.ring.seq).toBe(0);
+    const prepared = await controlRequest(harness, "/v1/checkpoints/composer-controls-ready", {
+      method: "POST",
+    });
+    expect(prepared.status).toBe(200);
+    expect(harness.lab.ring.seq).toBe(2);
+    expect(collectSecretViolations(await prepared.json())).toEqual([]);
+    const reset = await controlRequest(harness, "/v1/reset", { method: "POST" });
+    expect(reset.status).toBe(200);
+    expect(harness.lab.ring.seq).toBe(0);
+  });
+
+  it("keeps the family-selector inventory opt-in and resets it with the lab", async () => {
+    harness = await startLab();
+    expect(harness.lab.ring.seq).toBe(0);
+    const prepared = await controlRequest(harness, "/v1/checkpoints/composer-family-ready", {
+      method: "POST",
+    });
+    expect(prepared.status).toBe(200);
+    expect(harness.lab.ring.seq).toBe(1);
+    expect(collectSecretViolations(await prepared.json())).toEqual([]);
+    await controlRequest(harness, "/v1/reset", { method: "POST" });
+    expect(harness.lab.ring.seq).toBe(0);
+  });
+
   it("denies every authenticated control route without a Harness capability", async () => {
     harness = await startLab();
     for (const path of CONTROL_PATHS) {
@@ -30,6 +58,62 @@ describe("secret-free versioned control plane", () => {
       const body = (await response.json()) as unknown;
       expect(collectSecretViolations(body)).toEqual([]);
     }
+  });
+
+  it("keeps timed conversations opt-in and restores the default history on reset", async () => {
+    harness = await startLab();
+    const before = harness.lab.lifecycle.history(0);
+    await controlRequest(harness, "/v1/checkpoints/thread-timing-ready", { method: "POST" });
+    const history = harness.lab.lifecycle.history(harness.lab.ring.seq);
+    expect(history.completedTurns).toHaveLength(2);
+    expect(history.runtimeItems).toHaveLength(5);
+    expect(resolveRouteSchemas("thread-history").responseSchema?.safeParse(history).success).toBe(
+      true,
+    );
+    const snapshot = harness.lab.lifecycle.shellSnapshot(
+      harness.lab.ring.seq,
+      harness.lab.ring.epoch,
+    );
+    expect(resolveRouteSchemas("shell-snapshot").responseSchema?.safeParse(snapshot).success).toBe(
+      true,
+    );
+    await controlRequest(harness, "/v1/reset", { method: "POST" });
+    expect(harness.lab.lifecycle.history(0)).toEqual(before);
+  });
+
+  it("keeps composer tool edits scoped and restores the ordinary catalog on reset", async () => {
+    harness = await startLab();
+    await controlRequest(harness, "/v1/checkpoints/composer-tools-ready", { method: "POST" });
+    const tools = harness.lab.lifecycle.composerTools;
+    const globals = tools.response("mcp-settings-read", {}) as {
+      servers: Array<Record<string, unknown>>;
+    };
+    expect(
+      resolveRouteSchemas("mcp-settings-read").responseSchema?.safeParse(globals).success,
+    ).toBe(true);
+    const projectId = "project-fixture-001";
+    const workspace = harness.lab.lifecycle.projectSettings(projectId)?.mcpServers as Array<
+      Record<string, unknown>
+    >;
+    const command = {
+      kind: "upsert",
+      scope: { kind: "project", projectId },
+      server: { ...workspace[0], enabled: true },
+    };
+    expect(
+      resolveRouteSchemas("mcp-settings-command").requestSchema?.safeParse(command).success,
+    ).toBe(true);
+    const response = tools.response("mcp-settings-command", command);
+    expect(
+      resolveRouteSchemas("mcp-settings-command").responseSchema?.safeParse(response).success,
+    ).toBe(true);
+    expect(harness.lab.lifecycle.projectSettings(projectId)?.mcpServers).toEqual([
+      { ...workspace[0], enabled: true },
+    ]);
+    expect(tools.response("mcp-settings-read", {})).toEqual(globals);
+    await controlRequest(harness, "/v1/reset", { method: "POST" });
+    expect(tools.enabled).toBe(false);
+    expect(harness.lab.lifecycle.projectSettings(projectId)?.mcpServers).toEqual([]);
   });
 
   it("secret-scans every successful control response and never exposes pairing or tokens", async () => {

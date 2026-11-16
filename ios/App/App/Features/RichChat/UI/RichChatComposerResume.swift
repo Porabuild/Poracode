@@ -5,7 +5,7 @@ import Foundation
 /// the thread's session, and the hook every send reports to.
 struct RichChatComposerResumeContext {
   var plan: RichChatResumePlan?
-  var relaunchRefused: @MainActor (_ prompt: String, _ configuration: ThreadConfig) async -> Bool =
+  var relaunchRefused: @MainActor (_ input: RichChatSendInput, _ configuration: ThreadConfig) async -> Bool =
     { _, _ in false }
   var sendSettled: @MainActor (_ succeeded: Bool) -> Void = { _ in }
 }
@@ -38,7 +38,7 @@ extension RichChatComposerView {
       // A host that lost the thread's session refuses the send before any
       // effect; the page then relaunches the thread with the same prompt.
       if !succeeded {
-        succeeded = await context.relaunchRefused(input.prompt, sentConfiguration)
+        succeeded = await context.relaunchRefused(input, sentConfiguration)
       }
       context.sendSettled(succeeded)
     }

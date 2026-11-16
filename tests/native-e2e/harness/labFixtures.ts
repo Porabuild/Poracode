@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { canonicalToolPresentationCatalog } from "../../../src/shared/canonicalToolPresentation.ts";
 import type { RemoteScope } from "./constants.ts";
 import { initialBackgroundTasks } from "./backgroundTaskLab.ts";
 import { loadProtocolManifest } from "./manifest.ts";
@@ -19,12 +20,16 @@ export function buildEnvironmentDescriptor(input: {
   readonly label: string;
   readonly appVersion: string;
   readonly scopes: readonly string[];
+  readonly conversationSnapshots?: boolean;
+  readonly catalogMutations?: boolean;
+  readonly toolPresentation?: boolean;
 }): Record<string, unknown> {
   const platform =
     process.platform === "darwin" || process.platform === "linux" ? process.platform : undefined;
   const manifest = loadProtocolManifest();
   return {
     protocolVersion: manifest.protocolVersion,
+    ...(input.toolPresentation ? { toolPresentation: canonicalToolPresentationCatalog() } : {}),
     hostMode: "helper",
     desktopId: input.desktopId,
     label: input.label,
@@ -41,6 +46,9 @@ export function buildEnvironmentDescriptor(input: {
       wsBaseUrl: input.wsBaseUrl,
     },
     capabilities: {
+      ...(input.conversationSnapshots ? { conversationSnapshots: { versions: [1] } } : {}),
+      ...(input.catalogMutations ? { catalogMutations: { versions: [1] } } : {}),
+      sessionImport: { versions: [1] },
       terminalCursorSync: {
         versions: [1],
       },

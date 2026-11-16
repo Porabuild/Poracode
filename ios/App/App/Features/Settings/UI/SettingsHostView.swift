@@ -73,6 +73,7 @@ struct SettingsHostView: View {
     }
     .navigationTitle(SettingsUIStrings.desktopSettingsTitle)
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(740)
   }
 
   @ViewBuilder
@@ -102,6 +103,9 @@ struct SettingsHostView: View {
       }
       routeLink(.generation, systemImage: "sparkles", stackNavigation: stackNavigation)
       routeLink(.agents, systemImage: "cpu", stackNavigation: stackNavigation)
+      NavigationLink { CrewsSettingsView(session: session) } label: {
+        Label(CrewStrings.title, systemImage: "person.2")
+      }
     }
     Section(SettingsUIStrings.configurationSection) {
       NavigationLink {
@@ -235,6 +239,7 @@ struct SettingsRouteView: View {
   let selection: SettingsHostSelection?
   let composition: SettingsComposition
   @Binding var query: SettingsProfileQuery
+  var title: String? = nil
 
   var body: some View {
     Group {
@@ -244,7 +249,7 @@ struct SettingsRouteView: View {
         content
       }
     }
-    .navigationTitle(SettingsUIStrings.routeTitle(route))
+    .navigationTitle(title ?? SettingsUIStrings.routeTitle(route))
     #if os(iOS)
       .navigationBarTitleDisplayMode(.inline)
     #endif
@@ -286,7 +291,8 @@ struct SettingsRouteView: View {
         refresh: refresh
       )
     case .workspace:
-      SettingsWorkspaceView(composition: composition, refresh: refresh)
+      SettingsWorkspaceView(composition: composition, refresh: refresh,
+        showsWSL: session.profile?.platform.map { ["windows", "win32"].contains($0.lowercased()) } ?? true)
     }
   }
 

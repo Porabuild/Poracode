@@ -18,6 +18,9 @@ export interface ProviderMarkdownImageRootsInput {
 }
 
 export interface RendererProviderManifest {
+  /** Preserve surface labels and persisted visibility keys from before named runtimes. */
+  legacyTerminalRuntimeLabel?: string;
+  legacyGuiRuntimeVariant?: string;
   /** Default Fast preference when the user has not saved one. */
   defaultFastEnabled?: boolean;
   /** Interpret a saved provider model selection using the current catalog. */

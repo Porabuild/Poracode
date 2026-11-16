@@ -75,6 +75,8 @@ const DECLARED_WRITER_ROUTES = [
 /** Bearer non-GET routes that must stay old-client-usable: read-class POSTs. */
 const READ_CLASS_POST_ROUTES = [
   "catalog-membership",
+  // Advisory headings only read fenced canonical items; they never write them.
+  "thread-item-presentations",
   // Media POSTs only mint, renew or release bounded, volatile read grants.
   // They do not modify project files or start processes; environment grants
   // still require both parent environment authority and child file authority.
@@ -126,8 +128,8 @@ describe("route writer-generation admission declarations", () => {
     expect(procedureCall?.requiresCurrentProtocol).toBeUndefined();
   });
 
-  it("keeps exactly the 12 read-class POST exemptions bearer-authenticated", () => {
-    expect(READ_CLASS_POST_ROUTES).toHaveLength(12);
+  it("keeps exactly the 13 read-class POST exemptions bearer-authenticated", () => {
+    expect(READ_CLASS_POST_ROUTES).toHaveLength(13);
     for (const id of READ_CLASS_POST_ROUTES) {
       const route = REMOTE_HTTP_ROUTES.find((candidate) => candidate.id === id);
       expect({ id, method: route?.method, auth: route?.auth }).toEqual({

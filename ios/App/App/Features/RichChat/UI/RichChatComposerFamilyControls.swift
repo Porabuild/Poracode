@@ -72,8 +72,7 @@ extension RichChatComposerControlCatalog {
         .family(representativeID), to: configuration, capabilities: capabilities,
         accepted: familyAcceptedIDs)
     else { return }
-    configuration.apply(patch)
-    clearUnsupportedWorkflows(in: &configuration)
+    applySelectionPatch(patch, to: &configuration)
   }
 
   /// Exact model pick: a member id — the representative included, e.g. an
@@ -86,8 +85,7 @@ extension RichChatComposerControlCatalog {
         .model(modelID), to: configuration, capabilities: capabilities,
         accepted: familyAcceptedIDs)
       {
-        configuration.apply(patch)
-        clearUnsupportedWorkflows(in: &configuration)
+        applySelectionPatch(patch, exactPick: true, to: &configuration)
       }
       return
     }
@@ -109,8 +107,7 @@ extension RichChatComposerControlCatalog {
         accepted: familyAcceptedIDs
       )
     else { return }
-    configuration.apply(patch)
-    clearUnsupportedWorkflows(in: &configuration)
+    applySelectionPatch(patch, to: &configuration)
   }
 
   /// Explicit Effort pick: inside a model-bound family the one-axis tuple
@@ -122,8 +119,7 @@ extension RichChatComposerControlCatalog {
         .effort(value), to: configuration, capabilities: capabilities,
         accepted: familyAcceptedIDs)
     else { return }
-    configuration.apply(patch)
-    clearUnsupportedWorkflows(in: &configuration)
+    applySelectionPatch(patch, to: &configuration)
   }
 
   /// Explicit Fast toggle: same resolution rule as the Effort pick.
@@ -133,7 +129,44 @@ extension RichChatComposerControlCatalog {
         .fast(value), to: configuration, capabilities: capabilities,
         accepted: familyAcceptedIDs)
     else { return }
-    configuration.apply(patch)
-    clearUnsupportedWorkflows(in: &configuration)
+    applySelectionPatch(patch, to: &configuration)
+  }
+
+  func applyContextSizeEdit(_ value: String, to configuration: inout ThreadConfig) {
+    var next = configuration
+    next.contextSize = value
+    configuration = ModelSelectionBindings.applying(.independentCarriers([.contextSize]),
+      previous: configuration, next: next, owner: selectionOwner) ?? configuration
+  }
+
+  func applyThinkingEdit(_ value: Bool, to configuration: inout ThreadConfig) {
+    var next = configuration
+    next.thinking = value
+    configuration = ModelSelectionBindings.applying(.independentCarriers([.thinking]),
+      previous: configuration, next: next, owner: selectionOwner) ?? configuration
+  }
+
+  /// Classify the actual leaf operation, rather than inferring user intent
+  /// from a retained model UID. A family-row no-op never upgrades old config.
+  func applySelectionPatch(_ patch: ModelSelectionPatch, exactPick: Bool = false,
+    to configuration: inout ThreadConfig
+  ) {
+    var next = configuration
+    next.apply(patch)
+    clearUnsupportedWorkflows(in: &next)
+    let event: ModelSelectionMutation
+    if exactPick { event = .exactModel }
+    else if patch.model != nil,
+      let relation = ModelFamilies.family(for: next.model, in: capabilities, accepted: familyAcceptedIDs) {
+      event = .familyMember(relation)
+    } else {
+      var touched = Set<ModelSelectionAxis>()
+      if patch.effort != nil { touched.insert(.effort) }
+      if patch.fast != nil { touched.insert(.fast) }
+      event = touched.isEmpty ? .unrelated : .independentCarriers(touched)
+    }
+    if let result = ModelSelectionBindings.applying(event, previous: configuration, next: next, owner: selectionOwner) {
+      configuration = result
+    }
   }
 }

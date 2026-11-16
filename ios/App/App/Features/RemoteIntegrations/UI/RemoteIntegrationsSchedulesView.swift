@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RemoteIntegrationsSchedulesView: View {
+  @Environment(\.homeWorkspace) private var workspace
   @Bindable var session: AppSession
   let selection: RemoteIntegrationsHostSelection?
   let projects: [RemoteIntegrationsProjectOption]
@@ -75,6 +76,7 @@ struct RemoteIntegrationsSchedulesView: View {
       .pickerStyle(.segmented)
       .padding(.horizontal)
       .padding(.vertical, 8)
+      .poracodeReadableWidth(760)
       .poracodeBarBackground()
     }
     .poracodeBottomBar {
@@ -108,6 +110,7 @@ struct RemoteIntegrationsSchedulesView: View {
     }
     .sheet(isPresented: $showResults) {
       RemoteIntegrationsResultsView(session: session, controller: composition.automations, canOperate: composition.gate(.sessionOperate) == nil)
+        .poracodePageSheetSizing()
     }
     .sheet(item: $editor) { target in
       RemoteIntegrationsScheduleEditor(
@@ -117,6 +120,7 @@ struct RemoteIntegrationsSchedulesView: View {
         controller: composition.schedules,
         threads: session.snapshot?.threads ?? []
       )
+      .poracodeFormSheetSizing()
     }
     .sheet(item: $runsSchedule) { schedule in
       RemoteIntegrationsScheduleRunsView(
@@ -124,6 +128,7 @@ struct RemoteIntegrationsSchedulesView: View {
         schedule: schedule,
         controller: composition.scheduleRuns
       )
+      .poracodePageSheetSizing()
     }
     .alert(item: $confirmation) { confirmation in
       alert(confirmation)
@@ -163,7 +168,8 @@ struct RemoteIntegrationsSchedulesView: View {
   private var scheduleList: some View {
     List {
       let filtered = composition.schedules.schedules.filter {
-        RemoteIntegrationsScheduleListFilter.matches(
+        workspace.includes(projectID: $0.projectId, connectionID: selection?.lease.connectionID)
+        && RemoteIntegrationsScheduleListFilter.matches(
           $0,
           status: statusFilter,
           query: query
@@ -255,6 +261,7 @@ struct RemoteIntegrationsSchedulesView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
   }
 
   private var mutationDisabled: Bool {

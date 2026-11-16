@@ -23,7 +23,7 @@ struct ThreadWorktreeComposeSheet: View {
     NavigationStack {
       VStack {
         Spacer(minLength: 16)
-        HomeQuickComposeView(
+        HomeQuickComposeSessionView(
           session: session,
           isExpanded: $isExpanded,
           initialProjectID: projectID,

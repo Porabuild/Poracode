@@ -292,6 +292,21 @@ final class SettingsUICompositionTests: XCTestCase {
     )
   }
 
+  func testWorktreeDraftDoesNotWriteGitAutomationOrModelPreferences() {
+    let document = settingsDocument()
+    var draft = SettingsDocumentDraft(document)
+    draft.worktreeBasePath = "/workspace/checkouts"
+    draft.wslWorktreeBasePath = "/home/user/checkouts"
+    draft.prAutomationDefault = .merge
+    draft.prMergeMethod = .squash
+    draft.title.model = "must-not-write-from-worktrees"
+
+    XCTAssertEqual(draft.workspacePatch(comparedTo: document).values, [
+      .worktreeBasePath: .string("/workspace/checkouts"),
+      .wslWorktreeBasePath: .string("/home/user/checkouts"),
+    ])
+  }
+
   func testFailurePresentationDoesNotRenderAssociatedRemoteValues() {
     let secret = "Bearer host-token plaintext-secret"
     let values: [SettingsOperationFailure] = [
@@ -358,28 +373,6 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertEqual(status.fastModels, ["model-b"])
   }
 
-  func testAgentModelVisibilitySeedsFirstEditFromDefaultsAndHonorsExplicitShowAll() throws {
-    let status = try SettingsAgentStatus(
-      payload: .object([
-        "kind": .string("provider"),
-        "label": .string("Provider"),
-        "installed": .bool(true),
-        "authState": .string("authenticated"),
-        "capabilities": .object([
-          "defaultHiddenModels": .array([.string("old-a"), .string("old-b")])
-        ]),
-      ])
-    )
-    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: [:]), ["old-a", "old-b"])
-    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: ["provider": []]), [])
-    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: ["provider": ["custom"]]), ["custom"])
-
-    var firstEdit = status.effectiveHiddenModelIDs(overrides: [:])
-    firstEdit.remove("old-a")
-    XCTAssertEqual(
-      status.effectiveHiddenModelIDs(overrides: ["provider": firstEdit.sorted()]), ["old-b"]
-    )
-  }
 
   func testReplayReducerProjectsInitialWindowsAndWSLDistroLists() throws {
     let host = selection().lease.connectionID
@@ -442,8 +435,12 @@ final class SettingsUICompositionTests: XCTestCase {
     )
     ReplayEventApplier.apply(
       .agentStatusUpdated(
-        try replayStatus(kind: "ignored", label: "POSIX", environment: .posix)
+        try replayStatus(kind: "posix-agent", label: "POSIX", environment: .posix)
       ),
+      to: &replay
+    )
+    ReplayEventApplier.apply(
+      .agentStatusUpdated(try replayStatus(kind: "legacy", label: "Legacy native", environment: nil)),
       to: &replay
     )
 
@@ -451,11 +448,11 @@ final class SettingsUICompositionTests: XCTestCase {
       requestedConnectionID: host, selectedConnectionID: host, replay: replay
     )
 
-    XCTAssertEqual(policy.windows.agents.map(\.label), ["Windows patched", "Gemini"])
+    XCTAssertEqual(policy.windows.agents.map(\.label), ["Windows patched", "Gemini", "POSIX", "Legacy native"])
     XCTAssertEqual(policy.windows.agents.first?.installed, false)
     XCTAssertEqual(policy.wsl.agents.map(\.label), ["Ubuntu patched", "Debian"])
-    XCTAssertFalse(policy.windows.agents.contains { $0.kind == "ignored" })
-    XCTAssertFalse(policy.wsl.agents.contains { $0.kind == "ignored" })
+    XCTAssertFalse(policy.wsl.agents.contains { $0.kind == "posix-agent" })
+    XCTAssertFalse(policy.wsl.agents.contains { $0.kind == "legacy" })
 
     ReplayEventApplier.apply(
       .windowsAgentStatuses([
@@ -577,14 +574,14 @@ final class SettingsUICompositionTests: XCTestCase {
     kind: String,
     label: String,
     installed: Bool = true,
-    environment: AgentStatusRecord.EnvironmentKind,
+    environment: AgentStatusRecord.EnvironmentKind?,
     distro: String? = nil
   ) throws -> AgentStatusRecord {
     var wire: [String: JSONValue] = [
       "kind": .string(kind), "label": .string(label), "installed": .bool(installed),
       "authState": .string("authenticated"), "capabilities": .object([:]),
-      "envKind": .string(environment.rawValue),
     ]
+    if let environment { wire["envKind"] = .string(environment.rawValue) }
     if let distro { wire["envDistro"] = .string(distro) }
     return try AgentStatusRecord(wire: .object(wire))
   }

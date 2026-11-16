@@ -131,6 +131,12 @@ export const remoteSettingsSchema = sharedSettingsSchema
     agentSettings: remoteAgentSettingsSchema,
     // Optional for older hosts; remote edits must keep the field sparse.
     crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
+    crossagentPausedProviders: sharedSettingsSchema.shape.crossagentPausedProviders
+      .removeDefault()
+      .optional(),
+    crossagentHiddenModels: sharedSettingsSchema.shape.crossagentHiddenModels
+      .removeDefault()
+      .optional(),
     // Optional for backward-compatible reads from remote-v3 hosts released
     // before native clients could edit usage card ordering and collapse state.
     usage: sharedSettingsSchema.shape.usage.optional(),

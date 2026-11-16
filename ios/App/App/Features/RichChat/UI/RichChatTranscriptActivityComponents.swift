@@ -1,10 +1,29 @@
 import SwiftUI
 
+private struct RichChatActivityHeaderLayout: ViewModifier {
+  @Environment(\.horizontalSizeClass) private var sizeClass
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+  func body(content: Content) -> some View {
+    content
+      .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 44 : (sizeClass == .regular ? 28 : 32))
+      .contentShape(Rectangle())
+  }
+}
+
+extension View {
+  func richChatActivityHeaderLayout() -> some View { modifier(RichChatActivityHeaderLayout()) }
+}
+
 struct RichChatReasoningRow: View {
   let text: String
   let isWorking: Bool
+  var disclosureID: String? = nil
 
-  @State private var expanded = false
+  @State private var localExpanded = false
+  @Environment(\.transcriptDisclosures) private var disclosures
+  private var expansion: Binding<Bool> { TranscriptDisclosureContext.binding(disclosures, id: disclosureID, fallback: $localExpanded) }
+  private var expanded: Bool { expansion.wrappedValue }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 7) {
@@ -27,7 +46,7 @@ struct RichChatReasoningRow: View {
         }
         .poracodeChatText(.metadata)
         .foregroundStyle(.secondary)
-        .contentShape(Rectangle())
+        .richChatActivityHeaderLayout()
       }
       .buttonStyle(.plain)
 
@@ -48,7 +67,6 @@ struct RichChatReasoningRow: View {
       }
     }
     .padding(.horizontal, 12)
-    .padding(.vertical, 6)
   }
 
   private static let previewMaxLength = 500
@@ -64,7 +82,7 @@ struct RichChatReasoningRow: View {
 
   private func toggleExpanded() {
     guard !text.isEmpty else { return }
-    withAnimation(.snappy(duration: 0.22)) { expanded.toggle() }
+    withAnimation(.snappy(duration: 0.22)) { expansion.wrappedValue = !expanded }
   }
 }
 
@@ -74,11 +92,15 @@ struct RichChatActivityRow: View {
   let icon: RichChatIcon.Kind
   let duration: String?
   let isWorking: Bool
+  var disclosureID: String? = nil
 
-  @State private var expanded = false
+  @State private var localExpanded = false
+  @Environment(\.transcriptDisclosures) private var disclosures
+  private var expansion: Binding<Bool> { TranscriptDisclosureContext.binding(disclosures, id: disclosureID, fallback: $localExpanded) }
+  private var expanded: Bool { expansion.wrappedValue }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
+    VStack(alignment: .leading, spacing: 4) {
       Button(action: toggleExpanded) {
         HStack(spacing: 6) {
           RichChatIcon(icon)
@@ -108,7 +130,7 @@ struct RichChatActivityRow: View {
           }
         }
         .poracodeChatText(.metadata)
-        .contentShape(Rectangle())
+        .richChatActivityHeaderLayout()
       }
       .buttonStyle(.plain)
 
@@ -125,12 +147,11 @@ struct RichChatActivityRow: View {
       }
     }
     .padding(.leading, 16)
-    .padding(.vertical, 4)
   }
 
   private func toggleExpanded() {
     guard !text.isEmpty else { return }
-    withAnimation(.snappy(duration: 0.22)) { expanded.toggle() }
+    withAnimation(.snappy(duration: 0.22)) { expansion.wrappedValue = !expanded }
   }
 }
 
@@ -145,6 +166,9 @@ struct RichChatIcon: View {
     case search = "ChatSearch"
     case edit = "ChatEdit"
     case command = "ChatCommand"
+    case check = "ChatCheck"
+    case package = "ChatPackage"
+    case list = "ChatList"
     case mcp = "ChatMcp"
     case tool = "ChatTool"
     case thought = "ChatThought"

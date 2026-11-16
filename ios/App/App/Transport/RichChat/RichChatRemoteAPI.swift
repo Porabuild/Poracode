@@ -1,6 +1,12 @@
 import Foundation
 
 extension RichChatRemoteAPI {
+  func richRuntimeToolBodies(threadID _: String, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
+  func richRuntimeItemHeadings(threadID _: String, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord] {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
   func richControlMcpApp(payload _: [String: RichJSON]) async throws -> RichJSON {
     throw RichChatTransportFailure.rawTransportUnavailable
   }
@@ -15,6 +21,8 @@ extension RichChatRemoteAPI {
 }
 
 protocol RichChatRemoteAPI: Sendable {
+  func richRuntimeToolBodies(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord]
+  func richRuntimeItemHeadings(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord]
   func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON
   func richHistory(threadID: String, targetEntryCount: Int?) async throws -> RemoteThreadSnapshot
   func richHistoryPage(
@@ -114,6 +122,26 @@ protocol RichChatRemoteAPI: Sendable {
 struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
   private let json: RemoteAPIClient
   private let raw: (any RichChatRawHTTPExecuting)?
+
+  func richRuntimeItemHeadings(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord] {
+    let data = try await runtimeItemPresentationData(threadID: threadID, requests: requests)
+    return try GeneratedRemoteV3Contract.runtimeItemHeadingResponse(data, expectedVersion: requests.first?.version ?? 1)
+  }
+
+  func richRuntimeToolBodies(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
+    guard requests.allSatisfy({ $0.version == 5 }) else { throw RichChatTransportFailure.invalidResponse }
+    let data = try await runtimeItemPresentationData(threadID: threadID, requests: requests)
+    return try GeneratedRemoteV3Contract.runtimeToolBodyResponse(data)
+  }
+
+  private func runtimeItemPresentationData(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> Data {
+    let route = try prepare { try GeneratedRemoteV3Contract.runtimeItemHeadingRequest(threadID: threadID, requests: requests) }
+    let query = try prepare { try GeneratedRemoteV3Contract.runtimeItemHeadingQuery() }
+    let id = try Self.pathValue("threadId", in: route.pathValues)
+    let data = try await json.requestData(path: "/api/threads/\(RemoteAPIClient.encodePathSegment(id))/item-presentations",
+      method: "POST", queryItems: query, jsonBody: route.body)
+    return data
+  }
 
   func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON {
     let body = try prepare { try GeneratedRemoteV3Contract.mcpAppRequest(payload) }

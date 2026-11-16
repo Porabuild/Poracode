@@ -114,6 +114,7 @@ struct ProjectWorktreeSettingsView: View {
         Text(ProjectSettingsStrings.copyIgnoredFilesDescription)
       }
     }
+    .poracodeReadableListMargins(760)
     .navigationTitle(ProjectSettingsStrings.worktrees)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {

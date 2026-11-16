@@ -122,9 +122,9 @@ struct RichChatHtmlVisualView: View {
       }
     }
     .background(palette.surface)
-    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    .clipShape(PoracodeShapes.content)
     .overlay {
-      RoundedRectangle(cornerRadius: 10, style: .continuous)
+      PoracodeShapes.content
         .stroke(palette.border.opacity(0.7), lineWidth: 0.5)
     }
     .confirmationDialog(

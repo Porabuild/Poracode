@@ -1,7 +1,13 @@
 export const RUNTIME_PAYLOAD_PROJECTION_MODULE: string;
 export const RUNTIME_PAYLOAD_PROJECTION_FILE: string;
+export const TOOL_PRESENTATION_ADAPTER_MODULE: string;
+export const TOOL_PRESENTATION_ADAPTER_FILE: string;
 export function runtimePayloadProjectionDirectory(root: string): string;
 export function createRuntimePayloadProjectionSource(
+  root: string,
+  options?: { fileUrlImports?: boolean },
+): { directory: string; files: string[]; source: string };
+export function createToolPresentationAdapterSource(
   root: string,
   options?: { fileUrlImports?: boolean },
 ): { directory: string; files: string[]; source: string };

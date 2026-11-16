@@ -12,6 +12,7 @@ import { readCommittedRuntimeSnapshot } from "@/host/db/runtimeSnapshotRead";
 import { HISTORY_DETAILS_VERSION } from "@/shared/remote/historyPresentation";
 import { THREAD_HISTORY_RESUME_VERSION } from "@/shared/remote/historyResume";
 import { THREAD_TRANSFER_VERSION } from "@/shared/threadTransfer";
+import { canonicalToolPresentationCatalog } from "@/shared/canonicalToolPresentation";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_CATALOG_MUTATIONS_VERSION,
@@ -117,6 +118,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       ? process.platform
       : undefined;
   return remoteEnvironmentDescriptorSchema.parse({
+    toolPresentation: canonicalToolPresentationCatalog(),
     protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
     hostMode: ctx.options.hostMode ?? "desktop",
     desktopId: ctx.options.identity.desktopId,

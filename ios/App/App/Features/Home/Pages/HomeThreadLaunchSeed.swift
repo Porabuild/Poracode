@@ -14,6 +14,12 @@ struct HomeThreadLaunchSeed {
   let groupName: String?
   let title: String?
   let excludedAgentKind: String?
+  let initialConfiguration: ThreadLaunchConfiguration?
+  let initialAgentInstanceID: String?
+  let parentThreadID: String?
+  let locksPresentationMode: Bool
+  let autoStart: Bool
+  let failureMessage: (@MainActor (ThreadLifecycleFailure) -> String)?
 
   init(
     fixedProjectID: String,
@@ -30,7 +36,13 @@ struct HomeThreadLaunchSeed {
     groupID: String? = nil,
     groupName: String? = nil,
     title: String? = nil,
-    excludedAgentKind: String? = nil
+    excludedAgentKind: String? = nil,
+    initialConfiguration: ThreadLaunchConfiguration? = nil,
+    initialAgentInstanceID: String? = nil,
+    parentThreadID: String? = nil,
+    locksPresentationMode: Bool = false,
+    autoStart: Bool = false,
+    failureMessage: (@MainActor (ThreadLifecycleFailure) -> String)? = nil
   ) {
     self.fixedProjectID = fixedProjectID
     self.initialWorktree = initialWorktree
@@ -47,5 +59,11 @@ struct HomeThreadLaunchSeed {
     self.groupName = groupName
     self.title = title
     self.excludedAgentKind = excludedAgentKind
+    self.initialConfiguration = initialConfiguration
+    self.initialAgentInstanceID = initialAgentInstanceID
+    self.parentThreadID = parentThreadID
+    self.locksPresentationMode = locksPresentationMode
+    self.autoStart = autoStart
+    self.failureMessage = failureMessage
   }
 }

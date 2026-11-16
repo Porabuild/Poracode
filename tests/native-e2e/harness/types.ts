@@ -150,6 +150,8 @@ export interface EmitRequest {
 }
 
 export interface WireLabOptions {
+  /** Explicit browser origins for controlled PWA/native comparison only. */
+  readonly browserOrigins?: readonly string[];
   readonly host?: string;
   readonly port?: number;
   readonly basePath?: string;

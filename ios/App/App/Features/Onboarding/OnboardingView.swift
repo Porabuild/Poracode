@@ -23,13 +23,15 @@ struct OnboardingView: View {
   var body: some View {
     NavigationStack {
       GeometryReader { geometry in
+        let isCompactHeight = geometry.size.height <= HomeAdaptiveLayoutPolicy.compactHeightThreshold
         ScrollView {
-          VStack(spacing: 12) {
+          VStack(spacing: isCompactHeight ? 8 : 12) {
             Spacer(minLength: 0)
             OnboardingHeroView(
               title: heroTitle,
               subtitle: headerSubtitle,
-              pairedLabel: pairedLabel
+              pairedLabel: pairedLabel,
+              isCompactHeight: isCompactHeight
             )
             Spacer(minLength: 0)
             if session.phase == .sessionExpired {
@@ -42,10 +44,10 @@ struct OnboardingView: View {
               localStoreInconsistentBanner
             }
             if let pending = session.pendingPairing {
-              pendingPairingCard(pending)
+              pendingPairingCard(pending, isCompactHeight: isCompactHeight)
             }
-            OnboardingScanCard { isShowingScanner = true }
-            OnboardingOtherWaysButton { isShowingOtherWays = true }
+            OnboardingScanCard(isCompactHeight: isCompactHeight) { isShowingScanner = true }
+            OnboardingOtherWaysButton(isCompactHeight: isCompactHeight) { isShowingOtherWays = true }
             if let error = session.globalError {
               pairingError(error)
             }
@@ -57,14 +59,13 @@ struct OnboardingView: View {
             {
               disconnectButton
             }
-            // The compact web surface reserves roughly one control-row below
-            // its actions. Mirror that breathing room on first launch so the
-            // scan routes sit at the same visual height without affecting the
-            // taller repair flows.
+            // Reserve breathing room below actions on tall portrait screens while
+            // keeping landscape phones and compact foldables centered without extra scroll.
             Spacer()
-              .frame(height: showsMinimalChrome ? 112 : 0)
+              .frame(height: geometry.size.height >= 640 && showsMinimalChrome ? 112 : 0)
           }
-          .padding(20)
+          .padding(.horizontal, 20)
+          .padding(.vertical, isCompactHeight ? 10 : 20)
           .frame(maxWidth: 560)
           .frame(maxWidth: .infinity)
           // Equal flexible space around the hero keeps it visually centered in
@@ -121,27 +122,59 @@ struct OnboardingView: View {
       }
       .sheet(isPresented: $isShowingOtherWays) {
         NavigationStack {
-          ScrollView {
-            OnboardingOtherWaysForm(
-              pairingLink: $pairingLink,
-              baseURL: $baseURL,
-              token: $token,
-              focusedField: $focusedField,
-              showsCleartextHint: looksLikeCleartextLan
-            )
-            .padding(20)
-          }
-          .scrollDismissesKeyboard(.interactively)
-          .poracodeBottomBar {
-            otherWaysActionBar
+          GeometryReader { viewport in
+            // A short keyboard viewport cannot fit a separate action bar plus
+            // the focused field and validation. Keep Pair in the form's flow.
+            let actionIsInline = viewport.size.height < 260
+            ScrollViewReader { scroll in
+              ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                  OnboardingOtherWaysForm(
+                    pairingLink: $pairingLink,
+                    baseURL: $baseURL,
+                    token: $token,
+                    focusedField: $focusedField,
+                    showsCleartextHint: looksLikeCleartextLan
+                  )
+                  if let error = session.globalError {
+                    pairingError(error)
+                      .id("pairing-error")
+                      .accessibilityIdentifier("native-e2e.pair.error")
+                  }
+                  if actionIsInline {
+                    connectButton.id("pairing-submit")
+                  }
+                }
+                .padding(20)
+              }
+              .scrollDismissesKeyboard(.interactively)
+              .poracodeBottomBar {
+                if !actionIsInline { otherWaysActionBar }
+              }
+              .onChange(of: session.globalError, initial: true) { _, error in
+                if error != nil {
+                  withAnimation(.snappy) {
+                    scroll.scrollTo(actionIsInline ? "pairing-submit" : "pairing-error", anchor: .bottom)
+                  }
+                }
+              }
+              .onChange(of: viewport.size) {
+                if session.globalError != nil {
+                  scroll.scrollTo(actionIsInline ? "pairing-submit" : "pairing-error", anchor: .bottom)
+                }
+              }
+            }
           }
           .navigationTitle(OnboardingStrings.otherWays)
           .navigationBarTitleDisplayMode(.inline)
         }
+        .poracodeFormSheetSizing()
+        .preferredColorScheme(.dark)
         .presentationDetents([.fraction(0.7), .large])
         .presentationDragIndicator(.visible)
       }
     }
+    .environment(\.colorScheme, .dark)
     .preferredColorScheme(.dark)
   }
 
@@ -216,9 +249,13 @@ struct OnboardingView: View {
     )
   }
 
-  private func pendingPairingCard(_ pending: RemotePairingPending) -> some View {
+  private func pendingPairingCard(
+    _ pending: RemotePairingPending,
+    isCompactHeight: Bool
+  ) -> some View {
     OnboardingPendingPairingCard(
       pending: pending,
+      isCompactHeight: isCompactHeight,
       onCancel: { session.cancelPendingPairing() },
       onConfirm: { Task { await session.confirmPendingPairing() } }
     )
@@ -266,14 +303,10 @@ struct OnboardingView: View {
   /// Keeps the primary action reachable while long pairing links, validation
   /// hints, and the software keyboard reduce the sheet's available height.
   private var otherWaysActionBar: some View {
-    VStack(spacing: 12) {
-      if let error = session.globalError {
-        pairingError(error)
-      }
-      connectButton
-    }
+    connectButton
     .padding(.horizontal, 20)
-    .padding(.vertical, 12)
+    .padding(.top, 20)
+    .padding(.bottom, 12)
     .poracodeBarBackground(divider: .top)
   }
 

@@ -1,6 +1,9 @@
 import SwiftUI
 
 struct ProjectManagementView: View {
+  @Environment(\.homeWorkspace) private var workspace
+  @Environment(\.dismiss) private var dismiss
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Bindable var session: AppSession
 
   @State private var commandController: ProjectControllerCommandController
@@ -10,6 +13,7 @@ struct ProjectManagementView: View {
   @State private var showingCreation = false
   @State private var actionProject: RemoteProject?
   @State private var removalProject: RemoteProject?
+  @State private var selectedProjectID: String?
   private let embeddedInNavigationStack: Bool
   private let initialProjectID: String?
 
@@ -48,10 +52,16 @@ struct ProjectManagementView: View {
         NavigationSplitView {
           projectList
         } detail: {
-          ContentUnavailableView(
-            ProjectManagementStrings.selectProject,
-            systemImage: "folder"
-          )
+          if let selectedProjectID {
+            NavigationStack {
+              projectDetail(selectedProjectID, insideProjectSplit: true)
+            }
+          } else {
+            ContentUnavailableView(
+              ProjectManagementStrings.selectProject,
+              systemImage: "folder"
+            )
+          }
         }
         .navigationSplitViewStyle(.balanced)
       }
@@ -71,7 +81,7 @@ struct ProjectManagementView: View {
   }
 
   @ViewBuilder
-  private func projectDetail(_ projectID: String) -> some View {
+  private func projectDetail(_ projectID: String, insideProjectSplit: Bool = false) -> some View {
     if let project = commandController.state.projects.first(where: { $0.id == projectID })
       ?? managedProjects.first(where: { $0.id == projectID })
     {
@@ -81,16 +91,25 @@ struct ProjectManagementView: View {
         commandController: commandController,
         settingsController: settingsController,
         directoryController: directoryController,
-        notesController: notesController
+        notesController: notesController,
+        workspaceUsesCompactNavigation: insideProjectSplit
       )
     } else {
       LoadingStateView(message: ProjectManagementStrings.loading)
     }
   }
 
+  private var visibleProjects: [RemoteProject] {
+    commandController.state.projects.filter { project in
+      workspace.activeID == nil || session.selectedConnectionId.map {
+        workspace.preferences.includes(projectID: project.identity(on: $0).id.rawValue, activeID: workspace.activeID)
+      } == true
+    }
+  }
+
   private var projectList: some View {
     Group {
-      if commandController.state.projects.isEmpty {
+      if visibleProjects.isEmpty {
         ContentUnavailableView {
           Label(ProjectManagementStrings.noProjects, systemImage: "folder.badge.plus")
         } description: {
@@ -99,7 +118,7 @@ struct ProjectManagementView: View {
           }
         }
       } else {
-        List(commandController.state.projects) { project in
+        List(visibleProjects) { project in
           Button {
             actionProject = project
           } label: {
@@ -112,11 +131,17 @@ struct ProjectManagementView: View {
           .accessibilityLabel(project.name)
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
       }
     }
     .navigationTitle(ProjectManagementStrings.title)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
+      if !embeddedInNavigationStack, initialProjectID == nil {
+        ToolbarItem(placement: .cancellationAction) {
+          Button(SettingsUIStrings.done) { dismiss() }
+        }
+      }
       ToolbarItem(placement: .topBarTrailing) {
         HostSelectionMenu(session: session)
       }
@@ -140,6 +165,7 @@ struct ProjectManagementView: View {
         controller: commandController,
         directoryController: directoryController
       )
+      .poracodeFormSheetSizing()
     }
     .confirmationDialog(
       actionProject?.name ?? ProjectManagementStrings.title,
@@ -165,7 +191,11 @@ struct ProjectManagementView: View {
         }
         if hasManageCapability {
           Button(ProjectManagementStrings.edit) {
-            editorProject = project
+            if !embeddedInNavigationStack, initialProjectID == nil, horizontalSizeClass == .regular {
+              selectedProjectID = project.id
+            } else {
+              editorProject = project
+            }
           }
           .disabled(!canManageProjects)
           Button(ProjectManagementStrings.remove, role: .destructive) {
@@ -187,6 +217,9 @@ struct ProjectManagementView: View {
     ) {
       Button(ProjectManagementStrings.remove, role: .destructive) {
         if let project = removalProject {
+          if selectedProjectID == project.id {
+            selectedProjectID = nil
+          }
           Task {
             await commandController.perform(.remove(projectId: project.id), detectSetup: false)
           }
@@ -286,6 +319,7 @@ struct ProjectManagementView: View {
     actionProject = nil
     removalProject = nil
     editorProject = nil
+    selectedProjectID = nil
   }
 
   private func receiveSnapshot() {

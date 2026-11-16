@@ -10874,7 +10874,6 @@ msgstr "연결됨"
 msgid "Linux"
 msgstr "Linux"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "List"
@@ -18078,7 +18077,6 @@ msgstr "SDK 설치되지 않음"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/commands/registry.ts
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
@@ -18256,7 +18254,6 @@ msgstr "스레드, 명령, 설정 및 파일 검색…"
 msgid "Search titles, messages and folders"
 msgstr "제목, 메시지, 폴더 검색"
 
-#: src/renderer/components/thread/ChatPane/parts/items/commandActionsDisplay.ts
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Search: \"{query}\" in {scope}"
 msgstr "검색: \"{query}\" ({scope} 내)"

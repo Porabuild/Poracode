@@ -21,7 +21,7 @@ import { FaultEngine } from "./faultEngine.ts";
 import { assertEventFixtures, validateReplayableEvent } from "./eventValidation.ts";
 import { joinBasePath } from "./httpIo.ts";
 import { LabAuthStore, LabHttpError, type AuthenticatedSession } from "./labAuth.ts";
-import { buildReplayableEvent, FIXTURE_THREAD_ID } from "./labFixtures.ts";
+import { FIXTURE_THREAD_ID } from "./labFixtures.ts";
 import { bearerToken, handleLabHttp } from "./labHttpDispatch.ts";
 import { handleLabUpgrade } from "./labWsRouter.ts";
 import { loadProtocolManifest, type ProtocolManifest } from "./manifest.ts";
@@ -43,6 +43,7 @@ import { assertWebSocketFixtures, parseServerMessage } from "./wsFixtures.ts";
 import { createWireLabRuntime } from "./wireLabRuntime.ts";
 import { publishWireEvent, type WirePublishOptions } from "./wireLabPublish.ts";
 import { emitLabRequest } from "./frameEmit.ts";
+import { applyLabCheckpoint } from "./wireLabCheckpoints.ts";
 
 export class WireLab {
   readonly auth = new LabAuthStore();
@@ -54,7 +55,7 @@ export class WireLab {
   readonly backgroundTasks = new BackgroundTaskLab();
   readonly workspace = new LabProcedureWorkspace(this.backgroundTasks);
   readonly lifecycle = new LabLifecycleState();
-  readonly routes = new LabRouteWorkspace();
+  readonly routes = new LabRouteWorkspace(this.workspace.agentDiscovery);
   readonly basePath: string;
 
   private readonly desktopId: string;
@@ -88,6 +89,8 @@ export class WireLab {
     this.ledger = ledger ?? new CoverageLedger(() => this.manifest);
     this.ring = new ReplayRing(options.replayLimit);
     this.backgroundTasks.onChanged = (tasks) => this.installBackgroundTaskRoster(tasks);
+    this.workspace.agentDiscovery.onStatus = (status) =>
+      this.publishEvent({ type: "agent-status-updated", status });
     this.basePath = normalizeLabBasePath(options.basePath);
     this.desktopId = options.desktopId ?? "native-e2e-lab";
     this.hostId = options.hostId ?? "primary";
@@ -174,6 +177,22 @@ export class WireLab {
     }
     const wss = new WebSocketServer({ noServer: true, maxPayload: MAX_JSON_BODY_BYTES });
     const server = createServer((req, res) => {
+      const origin = req.headers.origin;
+      if (origin && this.options.browserOrigins?.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Vary", "Origin");
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        if (req.method === "OPTIONS") {
+          res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+          res.setHeader(
+            "Access-Control-Allow-Headers",
+            req.headers["access-control-request-headers"] ?? "authorization,content-type",
+          );
+          res.writeHead(204);
+          res.end();
+          return;
+        }
+      }
       void handleLabHttp(this.runtime(), req, res);
     });
     server.on("upgrade", (req, socket, head) => {
@@ -226,6 +245,8 @@ export class WireLab {
   }
 
   async stop(): Promise<void> {
+    // Abort a checkpoint-held request before waiting for HTTP sockets to drain.
+    this.workspace.agentDiscovery.reset();
     for (const connection of this.connections) {
       connection.ws.close(1001, "wire lab stopping");
     }
@@ -324,22 +345,7 @@ export class WireLab {
 
   applyCheckpoint(id: CheckpointFixtureId, options?: { readonly persist?: boolean }): void {
     if (options?.persist !== false) this.persistScript({ kind: "checkpoint", id });
-    if (id === "seed-replay-two-events") {
-      this.publishEvent(buildReplayableEvent("thread-state"));
-      this.publishEvent(buildReplayableEvent("thread-state"));
-      return;
-    }
-    if (id === "seed-pairing") {
-      this.issuePairingCredential();
-      return;
-    }
-    if (id === "expire-pairing") {
-      this.auth.expireAllPairing();
-      this.activePairing = null;
-      if (this.secretsDir) consumePairingSecretIfPresent(this.secretsDir);
-      return;
-    }
-    this.auth.expireAllTickets();
+    applyLabCheckpoint(this, id);
   }
 
   emit(request: EmitRequest): void {
@@ -348,6 +354,14 @@ export class WireLab {
 
   publishEvent(event: Record<string, unknown>, options?: WirePublishOptions): number {
     validateReplayableEvent(event);
+    if (
+      event.type === "agent-status-updated" &&
+      event.status &&
+      typeof event.status === "object" &&
+      !Array.isArray(event.status)
+    ) {
+      this.routes.noteAgentStatus(event.status as Record<string, unknown>);
+    }
     return publishWireEvent(this, event, options);
   }
 

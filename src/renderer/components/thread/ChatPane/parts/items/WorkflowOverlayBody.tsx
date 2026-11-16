@@ -16,6 +16,7 @@ import { formatTokenCount } from "@/renderer/components/thread/formatTokenCount"
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
 import { WorkflowAgentChat } from "./WorkflowAgentChat";
 import type { WorkflowInfo } from "./workflowDisplay";
+import { applyWorkflowPlan, workflowPhasesFromInfo as phasesFromInfo } from "@/shared/workflowView";
 
 /**
  * 3-pane workflow viewer:
@@ -462,53 +463,6 @@ function StatusBadge({ status }: { status: WorkflowRunStatus }) {
         ? "text-foreground"
         : "text-foreground-muted";
   return <span className={`pl-1 ${className}`}>· {label}</span>;
-}
-
-function phasesFromInfo(info: WorkflowInfo): WorkflowPhase[] {
-  return info.phases.map((phase) => {
-    const out: WorkflowPhase = { title: phase.title, agents: [] };
-    if (phase.detail) out.detail = phase.detail;
-    return out;
-  });
-}
-
-function applyWorkflowPlan(run: WorkflowRun, workflow: WorkflowInfo): WorkflowRun {
-  // Statically planned agents (parsed from the script) win; otherwise fall
-  // back to live observations from the run's progress descriptions. Both are
-  // in agent-start order, matching the journal order of `unphasedAgents`.
-  const plan = workflow.plannedAgents.length > 0 ? workflow.plannedAgents : workflow.liveAgents;
-  if (run.phases.length > 0 || plan.length === 0) return run;
-
-  const phases = phasesFromInfo(workflow);
-  const phaseByTitle = new Map(phases.map((phase) => [phase.title, phase]));
-  const unphasedAgents: WorkflowAgent[] = [];
-  for (const [index, agent] of run.unphasedAgents.entries()) {
-    const planned = plan[index];
-    if (!planned) {
-      unphasedAgents.push(agent);
-      continue;
-    }
-    const merged: WorkflowAgent = {
-      ...agent,
-      // A synthesized in-flight agent is labeled with its raw id; only then is
-      // the positional pairing an improvement. A real label (from the manifest
-      // or transcript inference) is more trustworthy than order-based pairing.
-      label: agent.label === agent.agentId ? planned.label : agent.label,
-      ...(planned.phaseTitle && !agent.phaseTitle ? { phaseTitle: planned.phaseTitle } : {}),
-      ...(planned.model && !agent.model ? { model: planned.model } : {}),
-    };
-    const targetTitle = merged.phaseTitle;
-    if (targetTitle) {
-      const target = phaseByTitle.get(targetTitle);
-      if (target) {
-        target.agents.push(merged);
-        continue;
-      }
-    }
-    unphasedAgents.push(merged);
-  }
-
-  return { ...run, phases, unphasedAgents };
 }
 
 function emptyPhase(): WorkflowPhase {

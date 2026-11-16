@@ -135,6 +135,8 @@ struct RichChatMessageSupplementView: View {
 
   var body: some View {
     switch supplement {
+    case .video(let video):
+      RichChatInlineVideo(video: video)
     case .skill(let name, let pluginName):
       compactRow(systemImage: "sparkles", title: pluginName ?? name, subtitle: "/\(name)")
     case .mcp(let name):
@@ -156,7 +158,9 @@ struct RichChatMessageSupplementView: View {
         Rectangle().fill(.quaternary).frame(width: 1)
       }
     case .file(let path, let name, let isAttachment):
-      if isAssistant, let ref = RichChatFilePolicy.typedFileRef(path: path, name: name) {
+      if let video = RichVideoPresentation.resolve(path, name: name) {
+        RichChatInlineVideo(video: video)
+      } else if isAssistant, let ref = RichChatFilePolicy.typedFileRef(path: path, name: name) {
         RichChatFileCard(ref: ref)
       } else {
         compactRow(

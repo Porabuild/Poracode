@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0DECF000000000000000013 /* ProviderOrderPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DECF000000000000000012 /* ProviderOrderPreferencesTests.swift */; };
 		F0A100000000000000000001 /* GeneratedMcpAppContract.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A200000000000000000001 /* GeneratedMcpAppContract.swift */; };
 		F0A100000000000000000002 /* RichMcpAppPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A200000000000000000002 /* RichMcpAppPresentation.swift */; };
 		F0A100000000000000000003 /* RichChatMcpAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A200000000000000000003 /* RichChatMcpAppView.swift */; };
@@ -199,6 +200,7 @@
 		PG2000000000000000000003 /* PoracodeButtonStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = PG1000000000000000000003 /* PoracodeButtonStyles.swift */; };
 		TR2000000000000000000001 /* ThreadRowComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = TR1000000000000000000001 /* ThreadRowComponents.swift */; };
 		AC2000000000000000000001 /* ActionComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC1000000000000000000001 /* ActionComponents.swift */; };
+		CC5F00000000000000000002 /* PoracodeComposerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5F00000000000000000001 /* PoracodeComposerControls.swift */; };
 		A10000000000000000000BA1 /* BrandWordmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000BA1 /* BrandWordmark.swift */; };
 		A1000000000000000000000F /* OnboardingView.swift in Sources */;
 			A10000000000000000000117 /* OnboardingStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* OnboardingStrings.swift */; };
@@ -238,6 +240,9 @@
 		HF1000000000000000000003 /* HomeProjectFilterDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = HF2000000000000000000003 /* HomeProjectFilterDrawer.swift */; };
 		HF1000000000000000000004 /* HomeProjectActionsDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = HF2000000000000000000004 /* HomeProjectActionsDrawer.swift */; };
 		HF1000000000000000000005 /* HomeProjectMenuDestinationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HF2000000000000000000005 /* HomeProjectMenuDestinationView.swift */; };
+		HA1000000000000000000001 /* HomeAdaptiveLayoutPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = HA2000000000000000000001 /* HomeAdaptiveLayoutPolicy.swift */; };
+		HA1000000000000000000002 /* HomeSplitSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HA2000000000000000000002 /* HomeSplitSidebarView.swift */; };
+		HA1000000000000000000003 /* HomeSplitDetailEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HA2000000000000000000003 /* HomeSplitDetailEmptyView.swift */; };
 		A10000000000000000000128 /* ProjectSyncPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000128 /* ProjectSyncPreferences.swift */; };
 		A10000000000000000000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		A10000000000000000000015 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
@@ -462,6 +467,7 @@
 		CC1100000000000000000001 /* RichChatComposerContextBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2100000000000000000001 /* RichChatComposerContextBar.swift */; };
 		C4E0C4E0C4E0C4E0C4E0C4E0 /* RichChatCrewPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */; };
 		D71000000000000000000003 /* RichChatComposerConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72000000000000000000003 /* RichChatComposerConfiguration.swift */; };
+		AE917D0E87B4EEDC23ACCA88 /* RichChatComposerConfigurationFields.swift in Sources */ = {isa = PBXBuildFile; fileRef = E27D86A61AF2C63C8D8FA835 /* RichChatComposerConfigurationFields.swift */; };
 		D71000000000000000000004 /* RichChatComposerAttachments.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72000000000000000000004 /* RichChatComposerAttachments.swift */; };
 		D71000000000000000000005 /* RichChatCompactControlDock.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72000000000000000000005 /* RichChatCompactControlDock.swift */; };
 		CI1100000000000000000001 /* RichChatCompactInfoControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = CI2100000000000000000001 /* RichChatCompactInfoControls.swift */; };
@@ -488,6 +494,13 @@
 		DA1000000000000000000004 /* ArchivedThreadsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB1000000000000000000004 /* ArchivedThreadsParityTests.swift */; };
 		DC1000000000000000000004 /* RichChatMessageActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD1000000000000000000004 /* RichChatMessageActionsTests.swift */; };
 		A100000000000000000000BC /* RichChatControlPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BC /* RichChatControlPanel.swift */; };
+		9BDD354658EB7B916A19DF97 /* RichChatComposerCapabilitiesMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA9585603C6571E5E500894 /* RichChatComposerCapabilitiesMenu.swift */; };
+		2433C5714AD7370BC2E72940 /* RichChatComposerSelectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C231C02A4B8766307041E9F /* RichChatComposerSelectors.swift */; };
+		B3228F1495699A8724DE7EA6 /* RichChatVideoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 540A335218E7B9B7A6E93595 /* RichChatVideoView.swift */; };
+		9F056F7BB005A8430D5126C7 /* RichChatVideoPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16DA7ADD25D87E849F191EF8 /* RichChatVideoPresentation.swift */; };
+		46C970110FCD2312AA90A119 /* RichChatInspectorCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CF38D861F6A669FEBD674E5 /* RichChatInspectorCards.swift */; };
+		BDF279232ACA2793E35DB751 /* RichChatInspectorSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A32216709D37AD575FD5FCA /* RichChatInspectorSection.swift */; };
+		RP1100000000000000000001 /* RichChatRightPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = RP2100000000000000000001 /* RichChatRightPanelView.swift */; };
 		BA1100000000000000000001 /* RichChatBackgroundTaskControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */; };
 		A100000000000000000000BD /* RichChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BD /* RichChatThreadView.swift */; };
 		PC1100000000000000000001 /* RichChatResponsiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = PC2100000000000000000001 /* RichChatResponsiveLayout.swift */; };
@@ -565,6 +578,7 @@
 		DE1000000000000000000002 /* ThreadWorktreeMoveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF1000000000000000000002 /* ThreadWorktreeMoveTests.swift */; };
 		RS1000000000000000000003 /* RichChatResumePlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000003 /* RichChatResumePlanTests.swift */; };
 		RS1000000000000000000005 /* RichChatResumeRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */; };
+		HA1000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HA2000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift */; };
 		DG1000000000000000000001 /* ThreadDetailTitleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DH1000000000000000000001 /* ThreadDetailTitleView.swift */; };
 		DK1000000000000000000001 /* ThreadWorkspaceBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DL1000000000000000000001 /* ThreadWorkspaceBar.swift */; };
 		A100000000000000000000F1 /* ThreadLifecycle.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000F1 /* ThreadLifecycle.xcstrings */; };
@@ -834,6 +848,61 @@
 		4E35F63E9415525CB5F63ABB /* RemoteIntegrationsAutomationControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 047381CABB1D5C6D850AF88D /* RemoteIntegrationsAutomationControls.swift */; };
 		F59C59B966415536907BB351 /* RemoteIntegrationsResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36CFB191224C513AB141FE45 /* RemoteIntegrationsResultsView.swift */; };
 		753A20BBFFD6539792EC1503 /* RemoteAutomationsStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5470EF50475F5C1B87C156EC /* RemoteAutomationsStrings.swift */; };
+		05E23729B56C07EC946ECF11 /* HomeWorkspacePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845045BCA7E8844F13A13453 /* HomeWorkspacePreferences.swift */; };
+		E063361931BD8EC7971F0A7A /* HomeWorkspacePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2FED7E3F144F915F2FA5A2C /* HomeWorkspacePicker.swift */; };
+		936E8E1312BBBDCBBC49C4E6 /* HomeWorkspaceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A748514A4A859964401C667B /* HomeWorkspaceSettingsView.swift */; };
+		8ACBA9CEA1C74BB392A7F60C /* HomeWorkspacePreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 467EA1F48F6E909C75C48FEE /* HomeWorkspacePreferencesTests.swift */; };
+		ECA001000000000000000001 /* HomeProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA002000000000000000001 /* HomeProjectsView.swift */; };
+		43267F7087DA5C9751D205DF /* SessionImportTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC719154E11344CC633A0531 /* SessionImportTestSupport.swift */; };
+		271F18C2DCF1369FD4B00129 /* SessionImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BC9D7928422BC6E046926F1 /* SessionImportTests.swift */; };
+		7C25A596BD73F156B596DEEE /* HomeQuickComposeStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4BA3E5202415222CF21AE1 /* HomeQuickComposeStateTests.swift */; };
+		D262F8F45F4FD817FD5AE5E8 /* PoracodeKeyboardAvoidance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81BDB4A61CD7748F079AAD0A /* PoracodeKeyboardAvoidance.swift */; };
+		D24582F22E291AF3B4C30B84 /* ModelSelectionBinding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC69DBFD519CF666F7366B1 /* ModelSelectionBinding.swift */; };
+		4E1F4985E898F80454650AC6 /* ModelSelectionMutation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9ACF6A0F55113A12A555E8 /* ModelSelectionMutation.swift */; };
+		15C199BC0AE2D5ECA0C54742 /* ThreadConfigurationConversions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71CA340A1A8E5DF185F6E795 /* ThreadConfigurationConversions.swift */; };
+		D67BE006ACEC6B5064F298B6 /* ModelSelectionBindingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B84A8F478B421A36EE7EDAE1 /* ModelSelectionBindingTests.swift */; };
+		4C9068BF4BAD36BB831F4166 /* RichChatTurnTiming.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8AA28457CB42FF666F843C8 /* RichChatTurnTiming.swift */; };
+		3DF731F4B1EDC0D6D19DB9F7 /* RichChatTurnTimingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A82591B1F4376D2A555F0FF /* RichChatTurnTimingTests.swift */; };
+		83F1ED1F0DD7D913E34D89B7 /* RichChatTimelineInteractions.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C64ACDA6FE0E639F09B117 /* RichChatTimelineInteractions.swift */; };
+		A0289A7A5B19D23AECE9E41C /* ComposerToolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 257C853825C0906F2CEFA936 /* ComposerToolsTests.swift */; };
+		5F8DDB92CB5A4764A36BBED7 /* TurnClientContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97E20FED97F94354A96A052C /* TurnClientContext.swift */; };
+		AD975CE71F18453D94C4908C /* SideChatContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C80D60943A46D386916494 /* SideChatContextTests.swift */; };
+		46FDA40C72A04508979A0C09 /* SideChatAuxiliarySessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F320B00DACE4CE8A457F61A /* SideChatAuxiliarySessionTests.swift */; };
+		8513CA2E2CDC41D6B022C59E /* SideChatStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B92E74AD43467081E63729 /* SideChatStoreTests.swift */; };
+		FA5AD5F0D18345338A9EAF90 /* SideChatDraftTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B21E98AC0494A2384EB9F20 /* SideChatDraftTransferTests.swift */; };
+		A0DE581FD0F9419C84CAA94E /* CrewModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8ED16052D13411DAFBC322B /* CrewModelsTests.swift */; };
+		0B74C8C1B82548B0A008D6D0 /* SavedCrewsControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D24398C73F64177BD5A5F71 /* SavedCrewsControllerTests.swift */; };
+		8776E400A4194CF69E582DAB /* CrewRuntimeLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A35A04C63A44E7A5F7A8DB /* CrewRuntimeLaunchTests.swift */; };
+		9DDD66DD74BC433C9DAFCD4E /* CrewRosterDraftTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2747D0297086470C977DE795 /* CrewRosterDraftTests.swift */; };
+		D398B9236C7D48EF805B93F8 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 149B472DCF014530B477C0D2 /* WhisperKit */; };
+		65F7AEDB3DBC4DE2AC91AE8C /* VoiceInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71FCB427B0B8471D8C531B90 /* VoiceInputTests.swift */; };
+		C0DECF000000000000000003 /* ComposerPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DECF000000000000000002 /* ComposerPreferencesTests.swift */; };
+		C0DEAF000000000000000003 /* WorkflowLivenessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEAF000000000000000002 /* WorkflowLivenessTests.swift */; };
+		C0DEAF000000000000000007 /* WorkflowActivityGatewayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEAF000000000000000006 /* WorkflowActivityGatewayTests.swift */; };
+		C0DEAF000000000000000005 /* NativeWorkflowJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEAF000000000000000004 /* NativeWorkflowJourneyUITests.swift */; };
+		6DFFA55A5533429C8758ADD3 /* NativeVoiceJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A002212089A4629BBA4B423 /* NativeVoiceJourneyUITests.swift */; };
+		F55AB209DF144FA3AFDFCF27 /* NativeSideChatVoiceJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27D311A014AE4ACEBFDD8FA3 /* NativeSideChatVoiceJourneyUITests.swift */; };
+		C0DECF000000000000000005 /* NativeComposerPreferencesJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DECF000000000000000004 /* NativeComposerPreferencesJourneyUITests.swift */; };
+		C0DECF000000000000000007 /* NativeOnboardingJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DECF000000000000000006 /* NativeOnboardingJourneyUITests.swift */; };
+		C0DEB1000000000000000003 /* ToolPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEB1000000000000000002 /* ToolPresentationTests.swift */; };
+		C0DEB1000000000000000005 /* NativeToolPresentationJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEB1000000000000000004 /* NativeToolPresentationJourneyUITests.swift */; };
+		C0DEAF000000000000000009 /* WorkflowViewerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEAF000000000000000008 /* WorkflowViewerTests.swift */; };
+		C0DED2000000000000000003 /* TransientToolPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DED2000000000000000002 /* TransientToolPresentationTests.swift */; };
+		C0DEE3000000000000000003 /* ResolvedToolBodyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEE3000000000000000002 /* ResolvedToolBodyTests.swift */; };
+		C0DEE3000000000000000005 /* NativeWorkflowResultJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEE3000000000000000004 /* NativeWorkflowResultJourneyUITests.swift */; };
+		C0DEE4000000000000000003 /* NativeCompactStatusJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEE4000000000000000002 /* NativeCompactStatusJourneyUITests.swift */; };
+		9B6A6A6AD4439EC869A0E29E /* ModelVisibilityCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E74CD5E1C4D41727AA3020 /* ModelVisibilityCatalog.swift */; };
+		8D55858C4BE324EB84A4B63F /* ModelVisibilitySurfaceBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB593DB9392503DCD93556EA /* ModelVisibilitySurfaceBuilder.swift */; };
+		3ED3143CF2B51DBDE2A738DF /* ModelVisibilityRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7FD867C4055C6CA6E168022 /* ModelVisibilityRows.swift */; };
+		5B6407B623B793460A1058C9 /* SettingsAgentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8157C2802C1FBAE76EEBC1C6 /* SettingsAgentsView.swift */; };
+		48003F5BD07DCE4F054C3AB8 /* SettingsModelVisibilityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3262F71573805C0C88B00DF /* SettingsModelVisibilityController.swift */; };
+		E6941B40607ACA3B58BFB311 /* SettingsModelVisibilityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CF10F4CFBB506473A4C70B3 /* SettingsModelVisibilityView.swift */; };
+		341A0F05D200E9944E6654F4 /* ModelVisibilityStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6493061354442A9ADB6EED15 /* ModelVisibilityStrings.swift */; };
+		88CA874F04950D1D84E94F8A /* ModelVisibilityCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29E3BA40EA037EA3778A0C9 /* ModelVisibilityCatalogTests.swift */; };
+		B6E9C7D424D3BE1BA4466377 /* NativeModelVisibilityJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6C3F082F304A12618C79213 /* NativeModelVisibilityJourneyUITests.swift */; };
+		3B6221E1105DF7DC44C49D44 /* SettingsAgentDiscoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D9272B784C79FCE5EF7E7FF /* SettingsAgentDiscoveryTests.swift */; };
+		900219A9BAFA6614694824A4 /* NativeSettingsJourneyNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D88575CB59C93BEFD8B78AA2 /* NativeSettingsJourneyNavigation.swift */; };
+		5B8320AB250508D8A6F31340 /* NativeAgentDiscoveryJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E5CA1B92C444B034B2D419 /* NativeAgentDiscoveryJourneyUITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -875,6 +944,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C0DECF000000000000000012 /* ProviderOrderPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderOrderPreferencesTests.swift; sourceTree = "<group>"; };
 		F0A200000000000000000001 /* GeneratedMcpAppContract.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedMcpAppContract.swift; sourceTree = "<group>"; };
 		F0A200000000000000000002 /* RichMcpAppPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichMcpAppPresentation.swift; sourceTree = "<group>"; };
 		F0A200000000000000000003 /* RichChatMcpAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatMcpAppView.swift; sourceTree = "<group>"; };
@@ -1072,6 +1142,7 @@
 		PG1000000000000000000003 /* PoracodeButtonStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeButtonStyles.swift; sourceTree = "<group>"; };
 		TR1000000000000000000001 /* ThreadRowComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRowComponents.swift; sourceTree = "<group>"; };
 		AC1000000000000000000001 /* ActionComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionComponents.swift; sourceTree = "<group>"; };
+		CC5F00000000000000000001 /* PoracodeComposerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeComposerControls.swift; sourceTree = "<group>"; };
 		B10000000000000000000BA1 /* BrandWordmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandWordmark.swift; sourceTree = "<group>"; };
 		B1000000000000000000000F /* OnboardingView.swift */;
 			B10000000000000000000014 /* OnboardingStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStrings.swift; sourceTree = "<group>"; };
@@ -1111,6 +1182,9 @@
 		HF2000000000000000000003 /* HomeProjectFilterDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeProjectFilterDrawer.swift; sourceTree = "<group>"; };
 		HF2000000000000000000004 /* HomeProjectActionsDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeProjectActionsDrawer.swift; sourceTree = "<group>"; };
 		HF2000000000000000000005 /* HomeProjectMenuDestinationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/HomeProjectMenuDestinationView.swift; sourceTree = "<group>"; };
+		HA2000000000000000000001 /* HomeAdaptiveLayoutPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HomeAdaptiveLayoutPolicy.swift; sourceTree = "<group>"; };
+		HA2000000000000000000002 /* HomeSplitSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeSplitSidebarView.swift; sourceTree = "<group>"; };
+		HA2000000000000000000003 /* HomeSplitDetailEmptyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeSplitDetailEmptyView.swift; sourceTree = "<group>"; };
 		B10000000000000000000128 /* ProjectSyncPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSyncPreferences.swift; sourceTree = "<group>"; };
 		B10000000000000000000016 /* PairingURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingURLTests.swift; sourceTree = "<group>"; };
 		TP1000000000000000000001 /* TlsPinPairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TlsPinPairingTests.swift; sourceTree = "<group>"; };
@@ -1333,6 +1407,7 @@
 		CC2100000000000000000001 /* RichChatComposerContextBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerContextBar.swift; sourceTree = "<group>"; };
 		C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatCrewPresentation.swift; sourceTree = "<group>"; };
 		D72000000000000000000003 /* RichChatComposerConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerConfiguration.swift; sourceTree = "<group>"; };
+		E27D86A61AF2C63C8D8FA835 /* RichChatComposerConfigurationFields.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerConfigurationFields.swift; sourceTree = "<group>"; };
 		MF20000000000000000000001 /* ModelFamilySelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelFamilySelection.swift; sourceTree = "<group>"; };
 		MF20000000000000000000002 /* RichChatComposerFamilyControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerFamilyControls.swift; sourceTree = "<group>"; };
 		MF20000000000000000000003 /* ModelFamilySelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelFamilySelectionTests.swift; sourceTree = "<group>"; };
@@ -1359,6 +1434,13 @@
 		DB1000000000000000000004 /* ArchivedThreadsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedThreadsParityTests.swift; sourceTree = "<group>"; };
 		DD1000000000000000000004 /* RichChatMessageActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatMessageActionsTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000BC /* RichChatControlPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatControlPanel.swift; sourceTree = "<group>"; };
+		9AA9585603C6571E5E500894 /* RichChatComposerCapabilitiesMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerCapabilitiesMenu.swift; sourceTree = "<group>"; };
+		8C231C02A4B8766307041E9F /* RichChatComposerSelectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerSelectors.swift; sourceTree = "<group>"; };
+		540A335218E7B9B7A6E93595 /* RichChatVideoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatVideoView.swift; sourceTree = "<group>"; };
+		16DA7ADD25D87E849F191EF8 /* RichChatVideoPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatVideoPresentation.swift; sourceTree = "<group>"; };
+		0CF38D861F6A669FEBD674E5 /* RichChatInspectorCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatInspectorCards.swift; sourceTree = "<group>"; };
+		0A32216709D37AD575FD5FCA /* RichChatInspectorSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatInspectorSection.swift; sourceTree = "<group>"; };
+		RP2100000000000000000001 /* RichChatRightPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatRightPanelView.swift; sourceTree = "<group>"; };
 		BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatBackgroundTaskControls.swift; sourceTree = "<group>"; };
 		B100000000000000000000BD /* RichChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadView.swift; sourceTree = "<group>"; };
 		PC2100000000000000000001 /* RichChatResponsiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/RichChatResponsiveLayout.swift; sourceTree = "<group>"; };
@@ -1436,6 +1518,7 @@
 		DF1000000000000000000002 /* ThreadWorktreeMoveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadWorktreeMoveTests.swift; sourceTree = "<group>"; };
 		RS2000000000000000000003 /* RichChatResumePlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatResumePlanTests.swift; sourceTree = "<group>"; };
 		RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatResumeRecoveryTests.swift; sourceTree = "<group>"; };
+		HA2000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeAdaptiveLayoutPolicyTests.swift; sourceTree = "<group>"; };
 		DH1000000000000000000001 /* ThreadDetailTitleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadDetailTitleView.swift; sourceTree = "<group>"; };
 		DL1000000000000000000001 /* ThreadWorkspaceBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadWorkspaceBar.swift; sourceTree = "<group>"; };
 		B100000000000000000000F1 /* ThreadLifecycle.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ThreadLifecycle.xcstrings; sourceTree = "<group>"; };
@@ -1705,6 +1788,60 @@
 		047381CABB1D5C6D850AF88D /* RemoteIntegrationsAutomationControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteIntegrationsAutomationControls.swift; sourceTree = "<group>"; };
 		36CFB191224C513AB141FE45 /* RemoteIntegrationsResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteIntegrationsResultsView.swift; sourceTree = "<group>"; };
 		5470EF50475F5C1B87C156EC /* RemoteAutomationsStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteAutomationsStrings.swift; sourceTree = "<group>"; };
+		845045BCA7E8844F13A13453 /* HomeWorkspacePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/HomeWorkspacePreferences.swift; sourceTree = "<group>"; };
+		D2FED7E3F144F915F2FA5A2C /* HomeWorkspacePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeWorkspacePicker.swift; sourceTree = "<group>"; };
+		A748514A4A859964401C667B /* HomeWorkspaceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/HomeWorkspaceSettingsView.swift; sourceTree = "<group>"; };
+		467EA1F48F6E909C75C48FEE /* HomeWorkspacePreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeWorkspacePreferencesTests.swift; sourceTree = "<group>"; };
+		ECA002000000000000000001 /* HomeProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/HomeProjectsView.swift; sourceTree = "<group>"; };
+		BC719154E11344CC633A0531 /* SessionImportTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionImportTestSupport.swift; sourceTree = "<group>"; };
+		7BC9D7928422BC6E046926F1 /* SessionImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionImportTests.swift; sourceTree = "<group>"; };
+		4C4BA3E5202415222CF21AE1 /* HomeQuickComposeStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeQuickComposeStateTests.swift; sourceTree = "<group>"; };
+		81BDB4A61CD7748F079AAD0A /* PoracodeKeyboardAvoidance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeKeyboardAvoidance.swift; sourceTree = "<group>"; };
+		7FC69DBFD519CF666F7366B1 /* ModelSelectionBinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelectionBinding.swift; sourceTree = "<group>"; };
+		5F9ACF6A0F55113A12A555E8 /* ModelSelectionMutation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelectionMutation.swift; sourceTree = "<group>"; };
+		71CA340A1A8E5DF185F6E795 /* ThreadConfigurationConversions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadConfigurationConversions.swift; sourceTree = "<group>"; };
+		B84A8F478B421A36EE7EDAE1 /* ModelSelectionBindingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelectionBindingTests.swift; sourceTree = "<group>"; };
+		B8AA28457CB42FF666F843C8 /* RichChatTurnTiming.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTurnTiming.swift; sourceTree = "<group>"; };
+		2A82591B1F4376D2A555F0FF /* RichChatTurnTimingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTurnTimingTests.swift; sourceTree = "<group>"; };
+		E4C64ACDA6FE0E639F09B117 /* RichChatTimelineInteractions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTimelineInteractions.swift; sourceTree = "<group>"; };
+		257C853825C0906F2CEFA936 /* ComposerToolsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerToolsTests.swift; sourceTree = "<group>"; };
+		97E20FED97F94354A96A052C /* TurnClientContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnClientContext.swift; sourceTree = "<group>"; };
+		C9C80D60943A46D386916494 /* SideChatContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatContextTests.swift; sourceTree = "<group>"; };
+		1F320B00DACE4CE8A457F61A /* SideChatAuxiliarySessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatAuxiliarySessionTests.swift; sourceTree = "<group>"; };
+		62B92E74AD43467081E63729 /* SideChatStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatStoreTests.swift; sourceTree = "<group>"; };
+		5B21E98AC0494A2384EB9F20 /* SideChatDraftTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideChatDraftTransferTests.swift; sourceTree = "<group>"; };
+		E8ED16052D13411DAFBC322B /* CrewModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewModelsTests.swift; sourceTree = "<group>"; };
+		8D24398C73F64177BD5A5F71 /* SavedCrewsControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedCrewsControllerTests.swift; sourceTree = "<group>"; };
+		D1A35A04C63A44E7A5F7A8DB /* CrewRuntimeLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewRuntimeLaunchTests.swift; sourceTree = "<group>"; };
+		2747D0297086470C977DE795 /* CrewRosterDraftTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewRosterDraftTests.swift; sourceTree = "<group>"; };
+		71FCB427B0B8471D8C531B90 /* VoiceInputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputTests.swift; sourceTree = "<group>"; };
+		C0DECF000000000000000002 /* ComposerPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerPreferencesTests.swift; sourceTree = "<group>"; };
+		C0DEAF000000000000000002 /* WorkflowLivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowLivenessTests.swift; sourceTree = "<group>"; };
+		C0DEAF000000000000000006 /* WorkflowActivityGatewayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowActivityGatewayTests.swift; sourceTree = "<group>"; };
+		C0DEAF000000000000000004 /* NativeWorkflowJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWorkflowJourneyUITests.swift; sourceTree = "<group>"; };
+		2A002212089A4629BBA4B423 /* NativeVoiceJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeVoiceJourneyUITests.swift; sourceTree = "<group>"; };
+		27D311A014AE4ACEBFDD8FA3 /* NativeSideChatVoiceJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSideChatVoiceJourneyUITests.swift; sourceTree = "<group>"; };
+		C0DECF000000000000000004 /* NativeComposerPreferencesJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerPreferencesJourneyUITests.swift; sourceTree = "<group>"; };
+		C0DECF000000000000000006 /* NativeOnboardingJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeOnboardingJourneyUITests.swift; sourceTree = "<group>"; };
+		C0DEB1000000000000000002 /* ToolPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolPresentationTests.swift; sourceTree = "<group>"; };
+		C0DEB1000000000000000004 /* NativeToolPresentationJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeToolPresentationJourneyUITests.swift; sourceTree = "<group>"; };
+		C0DEAF000000000000000008 /* WorkflowViewerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowViewerTests.swift; sourceTree = "<group>"; };
+		C0DED2000000000000000002 /* TransientToolPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransientToolPresentationTests.swift; sourceTree = "<group>"; };
+		C0DEE3000000000000000002 /* ResolvedToolBodyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolvedToolBodyTests.swift; sourceTree = "<group>"; };
+		C0DEE3000000000000000004 /* NativeWorkflowResultJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWorkflowResultJourneyUITests.swift; sourceTree = "<group>"; };
+		C0DEE4000000000000000002 /* NativeCompactStatusJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCompactStatusJourneyUITests.swift; sourceTree = "<group>"; };
+		19E74CD5E1C4D41727AA3020 /* ModelVisibilityCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelVisibilityCatalog.swift; sourceTree = "<group>"; };
+		FB593DB9392503DCD93556EA /* ModelVisibilitySurfaceBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelVisibilitySurfaceBuilder.swift; sourceTree = "<group>"; };
+		D7FD867C4055C6CA6E168022 /* ModelVisibilityRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelVisibilityRows.swift; sourceTree = "<group>"; };
+		8157C2802C1FBAE76EEBC1C6 /* SettingsAgentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAgentsView.swift; sourceTree = "<group>"; };
+		C3262F71573805C0C88B00DF /* SettingsModelVisibilityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModelVisibilityController.swift; sourceTree = "<group>"; };
+		6CF10F4CFBB506473A4C70B3 /* SettingsModelVisibilityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsModelVisibilityView.swift; sourceTree = "<group>"; };
+		6493061354442A9ADB6EED15 /* ModelVisibilityStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelVisibilityStrings.swift; sourceTree = "<group>"; };
+		A29E3BA40EA037EA3778A0C9 /* ModelVisibilityCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelVisibilityCatalogTests.swift; sourceTree = "<group>"; };
+		F6C3F082F304A12618C79213 /* NativeModelVisibilityJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeModelVisibilityJourneyUITests.swift; sourceTree = "<group>"; };
+		4D9272B784C79FCE5EF7E7FF /* SettingsAgentDiscoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAgentDiscoveryTests.swift; sourceTree = "<group>"; };
+		D88575CB59C93BEFD8B78AA2 /* NativeSettingsJourneyNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSettingsJourneyNavigation.swift; sourceTree = "<group>"; };
+		A7E5CA1B92C444B034B2D419 /* NativeAgentDiscoveryJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAgentDiscoveryJourneyUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -1723,6 +1860,61 @@
 			path = App/Features/RichChat/Notices;
 			sourceTree = SOURCE_ROOT;
 		};
+		F06FF8279A40988D991ABF9D /* SessionImport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/SessionImport;
+			sourceTree = SOURCE_ROOT;
+		};
+		CB8370CC21E24A8348B5554B /* SessionImportTransport */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Transport/SessionImport;
+			sourceTree = SOURCE_ROOT;
+		};
+		4AF1CA859D08B294D5DFC79E /* HomeQuickCompose */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/Home/QuickCompose;
+			sourceTree = SOURCE_ROOT;
+		};
+		ECA730E6F013BAA74771D029 /* ComposerTools */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/ComposerTools;
+			sourceTree = SOURCE_ROOT;
+		};
+		0B53CCA31FA94E24B4270A5A /* SideChat */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/SideChat;
+			sourceTree = SOURCE_ROOT;
+		};
+		1A0E31C6BEE94B008BE1DBA3 /* Crews */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/Crews;
+			sourceTree = SOURCE_ROOT;
+		};
+		A45C617BEB804A93AB8CCBC0 /* ProviderUI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/ProviderUI;
+			sourceTree = SOURCE_ROOT;
+		};
+		DDFC412C25214D0ABFE89A6B /* VoiceInput */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/VoiceInput;
+			sourceTree = SOURCE_ROOT;
+		};
+		C0DECF000000000000000001 /* ComposerPreferences */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/ComposerPreferences;
+			sourceTree = SOURCE_ROOT;
+		};
+		C0DEAF000000000000000001 /* WorkflowLiveness */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/WorkflowLiveness;
+			sourceTree = SOURCE_ROOT;
+		};
+		C0DEB1000000000000000001 /* ToolPresentation */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/ToolPresentation;
+			sourceTree = SOURCE_ROOT;
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1737,6 +1929,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D398B9236C7D48EF805B93F8 /* WhisperKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1926,6 +2119,17 @@
 				504EC3061FED79650016851F /* App */,
 				F10000000000000000000001 /* Generated Remote v3 */,
 				F20000000000000000000001 /* BoundedCatalog */,
+				4AF1CA859D08B294D5DFC79E /* HomeQuickCompose */,
+				ECA730E6F013BAA74771D029 /* ComposerTools */,
+				0B53CCA31FA94E24B4270A5A /* SideChat */,
+				A45C617BEB804A93AB8CCBC0 /* ProviderUI */,
+				DDFC412C25214D0ABFE89A6B /* VoiceInput */,
+				C0DECF000000000000000001 /* ComposerPreferences */,
+				C0DEAF000000000000000001 /* WorkflowLiveness */,
+				C0DEB1000000000000000001 /* ToolPresentation */,
+				1A0E31C6BEE94B008BE1DBA3 /* Crews */,
+				CB8370CC21E24A8348B5554B /* SessionImportTransport */,
+				F06FF8279A40988D991ABF9D /* SessionImport */,
 				B10000000000000000000072 /* native-bindings.json */,
 				D40000000000000000000001 /* PoracodeActivities */,
 				E40000000000000000000001 /* AppTests */,
@@ -2105,6 +2309,7 @@
 			children = (
 				B100000000000000000000DD /* ThreadLifecycleAccess.swift */,
 				B100000000000000000000DE /* ThreadLifecycleModels.swift */,
+				71CA340A1A8E5DF185F6E795 /* ThreadConfigurationConversions.swift */,
 				FE2010000001 /* ThreadProjectLocationAdapter.swift */,
 			);
 			path = Threads;
@@ -2386,6 +2591,8 @@
 				RCI200000000000000000001 /* RichChatComposerInlineControls.swift */,
 				MP2100000000000000000001 /* RichChatMarkdownParsing.swift */,
 				FE2000000001 /* RichChatTimelineActions.swift */,
+				E4C64ACDA6FE0E639F09B117 /* RichChatTimelineInteractions.swift */,
+				B8AA28457CB42FF666F843C8 /* RichChatTurnTiming.swift */,
 				DD1000000000000000000002 /* RichChatMessageActionStrings.swift */,
 				DJ1000000000000000000001 /* RichChatComposerSkills.swift */,
 				B100000000000000000000B7 /* RichChatImageView.swift */,
@@ -2404,6 +2611,7 @@
 				CC2100000000000000000001 /* RichChatComposerContextBar.swift */,
 				C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */,
 				D72000000000000000000003 /* RichChatComposerConfiguration.swift */,
+				E27D86A61AF2C63C8D8FA835 /* RichChatComposerConfigurationFields.swift */,
 				MF20000000000000000000002 /* RichChatComposerFamilyControls.swift */,
 				D72000000000000000000004 /* RichChatComposerAttachments.swift */,
 				D72000000000000000000005 /* RichChatCompactControlDock.swift */,
@@ -2415,6 +2623,13 @@
 				QA2000000000000000000001 /* RichChatQuestionAnswerPresentation.swift */,
 				QA2000000000000000000002 /* RichChatQuestionAnswerView.swift */,
 				B100000000000000000000BC /* RichChatControlPanel.swift */,
+				9AA9585603C6571E5E500894 /* RichChatComposerCapabilitiesMenu.swift */,
+				8C231C02A4B8766307041E9F /* RichChatComposerSelectors.swift */,
+				540A335218E7B9B7A6E93595 /* RichChatVideoView.swift */,
+				16DA7ADD25D87E849F191EF8 /* RichChatVideoPresentation.swift */,
+				0CF38D861F6A669FEBD674E5 /* RichChatInspectorCards.swift */,
+				0A32216709D37AD575FD5FCA /* RichChatInspectorSection.swift */,
+				RP2100000000000000000001 /* RichChatRightPanelView.swift */,
 				BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */,
 				B100000000000000000000BD /* RichChatThreadView.swift */,
 				PC2100000000000000000001 /* RichChatResponsiveLayout.swift */,
@@ -2490,6 +2705,10 @@
 				B100000000000000000000F3 /* SettingsDocumentDraft.swift */,
 				B100000000000000000000F4 /* SettingsDocumentViews.swift */,
 				B100000000000000000000F5 /* SettingsHostInformationViews.swift */,
+				6493061354442A9ADB6EED15 /* ModelVisibilityStrings.swift */,
+				6CF10F4CFBB506473A4C70B3 /* SettingsModelVisibilityView.swift */,
+				C3262F71573805C0C88B00DF /* SettingsModelVisibilityController.swift */,
+				8157C2802C1FBAE76EEBC1C6 /* SettingsAgentsView.swift */,
 				SU2000000000000000000001 /* SettingsUsagePresentation.swift */,
 				UM2000000000000000000001 /* SettingsUsageWindowMeter.swift */,
 				B100000000000000000000F6 /* SettingsHostView.swift */,
@@ -2564,10 +2783,12 @@
 				B1000000000000000000000D /* StateViews.swift */,
 				B1000000000000000000000E /* GlassHelpers.swift */,
 				PG1000000000000000000001 /* PoracodeGlass.swift */,
+				81BDB4A61CD7748F079AAD0A /* PoracodeKeyboardAvoidance.swift */,
 				PG1000000000000000000002 /* PoracodeGlassTabs.swift */,
 				PG1000000000000000000003 /* PoracodeButtonStyles.swift */,
 				TR1000000000000000000001 /* ThreadRowComponents.swift */,
 				AC1000000000000000000001 /* ActionComponents.swift */,
+				CC5F00000000000000000001 /* PoracodeComposerControls.swift */,
 				B10000000000000000000BA1 /* BrandWordmark.swift */,
 			);
 			path = Components;
@@ -2621,6 +2842,13 @@
 				HF2000000000000000000005 /* HomeProjectMenuDestinationView.swift */,
 				B10000000000000000000010 /* HomeView.swift */,
 				B10000000000000000000011 /* ProjectThreadsView.swift */,
+				HA2000000000000000000001 /* HomeAdaptiveLayoutPolicy.swift */,
+				ECA002000000000000000001 /* HomeProjectsView.swift */,
+				A748514A4A859964401C667B /* HomeWorkspaceSettingsView.swift */,
+				D2FED7E3F144F915F2FA5A2C /* HomeWorkspacePicker.swift */,
+				845045BCA7E8844F13A13453 /* HomeWorkspacePreferences.swift */,
+				HA2000000000000000000002 /* HomeSplitSidebarView.swift */,
+				HA2000000000000000000003 /* HomeSplitDetailEmptyView.swift */,
 			);
 			path = Home;
 			sourceTree = "<group>";
@@ -2689,6 +2917,12 @@
 			children = (
 				D20000000000000000000006 /* DesktopSessionAttributes.swift */,
 				MF20000000000000000000001 /* ModelFamilySelection.swift */,
+				D7FD867C4055C6CA6E168022 /* ModelVisibilityRows.swift */,
+				FB593DB9392503DCD93556EA /* ModelVisibilitySurfaceBuilder.swift */,
+				19E74CD5E1C4D41727AA3020 /* ModelVisibilityCatalog.swift */,
+				5F9ACF6A0F55113A12A555E8 /* ModelSelectionMutation.swift */,
+				97E20FED97F94354A96A052C /* TurnClientContext.swift */,
+				7FC69DBFD519CF666F7366B1 /* ModelSelectionBinding.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -2715,6 +2949,8 @@
 		E40000000000000000000001 /* AppTests */ = {
 			isa = PBXGroup;
 			children = (
+				4C4BA3E5202415222CF21AE1 /* HomeQuickComposeStateTests.swift */,
+				08E126F536FA5DD84C9C98D6 /* SessionImportTests */,
 				BF0000000000000000000010 /* BoundedCatalogTests */,
 				E80000000000000000000040 /* EnvironmentTestURLProtocol.swift */,
 				E80000000000000000000041 /* EnvironmentRegistryMigrationTests.swift */,
@@ -2862,11 +3098,35 @@
 				LC2000000000000000000002 /* RichChatSessionConfigControlsTests.swift */,
 				MF20000000000000000000003 /* ModelFamilySelectionTests.swift */,
 				MF20000000000000000000004 /* RichChatComposerFamilyControlsTests.swift */,
+				257C853825C0906F2CEFA936 /* ComposerToolsTests.swift */,
+				8D24398C73F64177BD5A5F71 /* SavedCrewsControllerTests.swift */,
+				D1A35A04C63A44E7A5F7A8DB /* CrewRuntimeLaunchTests.swift */,
+				71FCB427B0B8471D8C531B90 /* VoiceInputTests.swift */,
+				C0DECF000000000000000002 /* ComposerPreferencesTests.swift */,
+				C0DECF000000000000000012 /* ProviderOrderPreferencesTests.swift */,
+				C0DEAF000000000000000002 /* WorkflowLivenessTests.swift */,
+				C0DEB1000000000000000002 /* ToolPresentationTests.swift */,
+				C0DEAF000000000000000006 /* WorkflowActivityGatewayTests.swift */,
+				C0DEAF000000000000000008 /* WorkflowViewerTests.swift */,
+				C0DED2000000000000000002 /* TransientToolPresentationTests.swift */,
+				C0DEE3000000000000000002 /* ResolvedToolBodyTests.swift */,
+				2747D0297086470C977DE795 /* CrewRosterDraftTests.swift */,
+				E8ED16052D13411DAFBC322B /* CrewModelsTests.swift */,
+				4D9272B784C79FCE5EF7E7FF /* SettingsAgentDiscoveryTests.swift */,
+				A29E3BA40EA037EA3778A0C9 /* ModelVisibilityCatalogTests.swift */,
+				5B21E98AC0494A2384EB9F20 /* SideChatDraftTransferTests.swift */,
+				62B92E74AD43467081E63729 /* SideChatStoreTests.swift */,
+				1F320B00DACE4CE8A457F61A /* SideChatAuxiliarySessionTests.swift */,
+				C9C80D60943A46D386916494 /* SideChatContextTests.swift */,
+				2A82591B1F4376D2A555F0FF /* RichChatTurnTimingTests.swift */,
+				B84A8F478B421A36EE7EDAE1 /* ModelSelectionBindingTests.swift */,
 				DB1000000000000000000004 /* ArchivedThreadsParityTests.swift */,
 				DD1000000000000000000004 /* RichChatMessageActionsTests.swift */,
 				DF1000000000000000000002 /* ThreadWorktreeMoveTests.swift */,
 				RS2000000000000000000003 /* RichChatResumePlanTests.swift */,
 				RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */,
+				HA2000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift */,
+				467EA1F48F6E909C75C48FEE /* HomeWorkspacePreferencesTests.swift */,
 			);
 			path = AppTests;
 			sourceTree = "<group>";
@@ -2875,6 +3135,17 @@
 			isa = PBXGroup;
 			children = (
 				C71000000000000000000001 /* NativeJourneyUITests.swift */,
+				2A002212089A4629BBA4B423 /* NativeVoiceJourneyUITests.swift */,
+				27D311A014AE4ACEBFDD8FA3 /* NativeSideChatVoiceJourneyUITests.swift */,
+				C0DECF000000000000000004 /* NativeComposerPreferencesJourneyUITests.swift */,
+				C0DECF000000000000000006 /* NativeOnboardingJourneyUITests.swift */,
+				C0DEAF000000000000000004 /* NativeWorkflowJourneyUITests.swift */,
+				C0DEB1000000000000000004 /* NativeToolPresentationJourneyUITests.swift */,
+				C0DEE3000000000000000004 /* NativeWorkflowResultJourneyUITests.swift */,
+				C0DEE4000000000000000002 /* NativeCompactStatusJourneyUITests.swift */,
+				A7E5CA1B92C444B034B2D419 /* NativeAgentDiscoveryJourneyUITests.swift */,
+				D88575CB59C93BEFD8B78AA2 /* NativeSettingsJourneyNavigation.swift */,
+				F6C3F082F304A12618C79213 /* NativeModelVisibilityJourneyUITests.swift */,
 				C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */,
 				C71000000000000000000004 /* NativeCapableHistoryJourneyUITests.swift */,
 				C71000000000000000000005 /* NativeE2EPairingLink.swift */,
@@ -3146,6 +3417,15 @@
 			path = Devin;
 			sourceTree = "<group>";
 		};
+		08E126F536FA5DD84C9C98D6 /* SessionImportTests */ = {
+			isa = PBXGroup;
+			children = (
+				BC719154E11344CC633A0531 /* SessionImportTestSupport.swift */,
+				7BC9D7928422BC6E046926F1 /* SessionImportTests.swift */,
+			);
+			path = SessionImport;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -3186,10 +3466,22 @@
 			fileSystemSynchronizedGroups = (
 				F10000000000000000000001 /* Generated Remote v3 */,
 				F20000000000000000000001 /* BoundedCatalog */,
+				4AF1CA859D08B294D5DFC79E /* HomeQuickCompose */,
+				ECA730E6F013BAA74771D029 /* ComposerTools */,
+				0B53CCA31FA94E24B4270A5A /* SideChat */,
+				A45C617BEB804A93AB8CCBC0 /* ProviderUI */,
+				DDFC412C25214D0ABFE89A6B /* VoiceInput */,
+				C0DECF000000000000000001 /* ComposerPreferences */,
+				C0DEAF000000000000000001 /* WorkflowLiveness */,
+				C0DEB1000000000000000001 /* ToolPresentation */,
+				1A0E31C6BEE94B008BE1DBA3 /* Crews */,
 				F30000000000000000000001 /* RichChatNotices */,
+				CB8370CC21E24A8348B5554B /* SessionImportTransport */,
+				F06FF8279A40988D991ABF9D /* SessionImport */,
 			);
 			name = App;
 			packageProductDependencies = (
+				149B472DCF014530B477C0D2 /* WhisperKit */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
@@ -3287,6 +3579,7 @@
 			);
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
+				B7670578C1534F78B07DE856 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -3363,6 +3656,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				C72000000000000000000001 /* NativeJourneyUITests.swift in Sources */,
+				6DFFA55A5533429C8758ADD3 /* NativeVoiceJourneyUITests.swift in Sources */,
+				F55AB209DF144FA3AFDFCF27 /* NativeSideChatVoiceJourneyUITests.swift in Sources */,
+				C0DECF000000000000000005 /* NativeComposerPreferencesJourneyUITests.swift in Sources */,
+				C0DECF000000000000000007 /* NativeOnboardingJourneyUITests.swift in Sources */,
+				C0DEAF000000000000000005 /* NativeWorkflowJourneyUITests.swift in Sources */,
+				C0DEB1000000000000000005 /* NativeToolPresentationJourneyUITests.swift in Sources */,
+				C0DEE3000000000000000005 /* NativeWorkflowResultJourneyUITests.swift in Sources */,
+				C0DEE4000000000000000003 /* NativeCompactStatusJourneyUITests.swift in Sources */,
+				5B8320AB250508D8A6F31340 /* NativeAgentDiscoveryJourneyUITests.swift in Sources */,
+				900219A9BAFA6614694824A4 /* NativeSettingsJourneyNavigation.swift in Sources */,
+				B6E9C7D424D3BE1BA4466377 /* NativeModelVisibilityJourneyUITests.swift in Sources */,
 				C72000000000000000000002 /* NativeFamilyJourneyUITests.swift in Sources */,
 				C72000000000000000000003 /* NativeCapableHistoryJourneyUITests.swift in Sources */,
 				C72000000000000000000004 /* NativeE2EPairingLink.swift in Sources */,
@@ -3612,10 +3916,12 @@
 				A1000000000000000000000D /* StateViews.swift in Sources */,
 				A1000000000000000000000E /* GlassHelpers.swift in Sources */,
 				PG2000000000000000000001 /* PoracodeGlass.swift in Sources */,
+				D262F8F45F4FD817FD5AE5E8 /* PoracodeKeyboardAvoidance.swift in Sources */,
 				PG2000000000000000000002 /* PoracodeGlassTabs.swift in Sources */,
 				PG2000000000000000000003 /* PoracodeButtonStyles.swift in Sources */,
 				TR2000000000000000000001 /* ThreadRowComponents.swift in Sources */,
 				AC2000000000000000000001 /* ActionComponents.swift in Sources */,
+				CC5F00000000000000000002 /* PoracodeComposerControls.swift in Sources */,
 				A10000000000000000000BA1 /* BrandWordmark.swift in Sources */,
 				A1000000000000000000000F /* OnboardingView.swift in Sources */,
 				A10000000000000000000117 /* OnboardingStrings.swift in Sources */,
@@ -3656,6 +3962,13 @@
 				HF1000000000000000000003 /* HomeProjectFilterDrawer.swift in Sources */,
 				HF1000000000000000000004 /* HomeProjectActionsDrawer.swift in Sources */,
 				HF1000000000000000000005 /* HomeProjectMenuDestinationView.swift in Sources */,
+				HA1000000000000000000001 /* HomeAdaptiveLayoutPolicy.swift in Sources */,
+				ECA001000000000000000001 /* HomeProjectsView.swift in Sources */,
+				936E8E1312BBBDCBBC49C4E6 /* HomeWorkspaceSettingsView.swift in Sources */,
+				E063361931BD8EC7971F0A7A /* HomeWorkspacePicker.swift in Sources */,
+				05E23729B56C07EC946ECF11 /* HomeWorkspacePreferences.swift in Sources */,
+				HA1000000000000000000002 /* HomeSplitSidebarView.swift in Sources */,
+				HA1000000000000000000003 /* HomeSplitDetailEmptyView.swift in Sources */,
 				A1000000000000000000003E /* ClientConnectionID.swift in Sources */,
 				A1000000000000000000003F /* HostRecord.swift in Sources */,
 				A10000000000000000000040 /* AtomicFileStore.swift in Sources */,
@@ -3812,6 +4125,8 @@
 				RCI100000000000000000001 /* RichChatComposerInlineControls.swift in Sources */,
 				MP1100000000000000000001 /* RichChatMarkdownParsing.swift in Sources */,
 				FE1000000001 /* RichChatTimelineActions.swift in Sources */,
+				83F1ED1F0DD7D913E34D89B7 /* RichChatTimelineInteractions.swift in Sources */,
+				4C9068BF4BAD36BB831F4166 /* RichChatTurnTiming.swift in Sources */,
 				DC1000000000000000000001 /* RichChatMessageRevert.swift in Sources */,
 				DC1000000000000000000002 /* RichChatMessageActionStrings.swift in Sources */,
 				DI1000000000000000000001 /* RichChatComposerSkills.swift in Sources */,
@@ -3823,7 +4138,11 @@
 				CC1100000000000000000001 /* RichChatComposerContextBar.swift in Sources */,
 				C4E0C4E0C4E0C4E0C4E0C4E0 /* RichChatCrewPresentation.swift in Sources */,
 				D71000000000000000000003 /* RichChatComposerConfiguration.swift in Sources */,
+				AE917D0E87B4EEDC23ACCA88 /* RichChatComposerConfigurationFields.swift in Sources */,
 				MF10000000000000000000001 /* ModelFamilySelection.swift in Sources */,
+				4E1F4985E898F80454650AC6 /* ModelSelectionMutation.swift in Sources */,
+				5F8DDB92CB5A4764A36BBED7 /* TurnClientContext.swift in Sources */,
+				D24582F22E291AF3B4C30B84 /* ModelSelectionBinding.swift in Sources */,
 				MF10000000000000000000002 /* RichChatComposerFamilyControls.swift in Sources */,
 				D71000000000000000000004 /* RichChatComposerAttachments.swift in Sources */,
 				D71000000000000000000005 /* RichChatCompactControlDock.swift in Sources */,
@@ -3838,6 +4157,13 @@
 				D71000000000000000000006 /* RichChatComposerDraftStore.swift in Sources */,
 				LC1000000000000000000001 /* RichChatSessionConfigOptions.swift in Sources */,
 				A100000000000000000000BC /* RichChatControlPanel.swift in Sources */,
+				9BDD354658EB7B916A19DF97 /* RichChatComposerCapabilitiesMenu.swift in Sources */,
+				2433C5714AD7370BC2E72940 /* RichChatComposerSelectors.swift in Sources */,
+				B3228F1495699A8724DE7EA6 /* RichChatVideoView.swift in Sources */,
+				9F056F7BB005A8430D5126C7 /* RichChatVideoPresentation.swift in Sources */,
+				46C970110FCD2312AA90A119 /* RichChatInspectorCards.swift in Sources */,
+				BDF279232ACA2793E35DB751 /* RichChatInspectorSection.swift in Sources */,
+				RP1100000000000000000001 /* RichChatRightPanelView.swift in Sources */,
 				BA1100000000000000000001 /* RichChatBackgroundTaskControls.swift in Sources */,
 				A100000000000000000000BD /* RichChatThreadView.swift in Sources */,
 				PC1100000000000000000001 /* RichChatResponsiveLayout.swift in Sources */,
@@ -3886,6 +4212,7 @@
 				A100000000000000000000DC /* SettingsProfileController.swift in Sources */,
 				A100000000000000000000DD /* ThreadLifecycleAccess.swift in Sources */,
 				A100000000000000000000DE /* ThreadLifecycleModels.swift in Sources */,
+				15C199BC0AE2D5ECA0C54742 /* ThreadConfigurationConversions.swift in Sources */,
 				FE1010000001 /* ThreadProjectLocationAdapter.swift in Sources */,
 				A100000000000000000000DF /* GeneratedThreadLifecycleContract.swift in Sources */,
 				A100000000000000000000E0 /* ThreadLifecycleRemoteAPI.swift in Sources */,
@@ -3912,6 +4239,13 @@
 				A100000000000000000000F3 /* SettingsDocumentDraft.swift in Sources */,
 				A100000000000000000000F4 /* SettingsDocumentViews.swift in Sources */,
 				A100000000000000000000F5 /* SettingsHostInformationViews.swift in Sources */,
+				341A0F05D200E9944E6654F4 /* ModelVisibilityStrings.swift in Sources */,
+				E6941B40607ACA3B58BFB311 /* SettingsModelVisibilityView.swift in Sources */,
+				48003F5BD07DCE4F054C3AB8 /* SettingsModelVisibilityController.swift in Sources */,
+				5B6407B623B793460A1058C9 /* SettingsAgentsView.swift in Sources */,
+				3ED3143CF2B51DBDE2A738DF /* ModelVisibilityRows.swift in Sources */,
+				8D55858C4BE324EB84A4B63F /* ModelVisibilitySurfaceBuilder.swift in Sources */,
+				9B6A6A6AD4439EC869A0E29E /* ModelVisibilityCatalog.swift in Sources */,
 				SU1000000000000000000001 /* SettingsUsagePresentation.swift in Sources */,
 				UM1000000000000000000001 /* SettingsUsageWindowMeter.swift in Sources */,
 				A100000000000000000000F6 /* SettingsHostView.swift in Sources */,
@@ -3985,6 +4319,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7C25A596BD73F156B596DEEE /* HomeQuickComposeStateTests.swift in Sources */,
+				43267F7087DA5C9751D205DF /* SessionImportTestSupport.swift in Sources */,
+				271F18C2DCF1369FD4B00129 /* SessionImportTests.swift in Sources */,
 				BF0100000000000000000005 /* RichChatOlderTurnsTests.swift in Sources */,
 				BF0100000000000000000006 /* BoundedCatalogCorrectionTests.swift in Sources */,
 				BF0100000000000000000007 /* RichChatHistoryNoticeTests.swift in Sources */,
@@ -4076,11 +4413,35 @@
 				LC1000000000000000000002 /* RichChatSessionConfigControlsTests.swift in Sources */,
 				MF10000000000000000000003 /* ModelFamilySelectionTests.swift in Sources */,
 				MF10000000000000000000004 /* RichChatComposerFamilyControlsTests.swift in Sources */,
+				A0289A7A5B19D23AECE9E41C /* ComposerToolsTests.swift in Sources */,
+				0B74C8C1B82548B0A008D6D0 /* SavedCrewsControllerTests.swift in Sources */,
+				8776E400A4194CF69E582DAB /* CrewRuntimeLaunchTests.swift in Sources */,
+				65F7AEDB3DBC4DE2AC91AE8C /* VoiceInputTests.swift in Sources */,
+				C0DECF000000000000000003 /* ComposerPreferencesTests.swift in Sources */,
+				C0DECF000000000000000013 /* ProviderOrderPreferencesTests.swift in Sources */,
+				C0DEAF000000000000000003 /* WorkflowLivenessTests.swift in Sources */,
+				C0DEB1000000000000000003 /* ToolPresentationTests.swift in Sources */,
+				C0DEAF000000000000000007 /* WorkflowActivityGatewayTests.swift in Sources */,
+				C0DEAF000000000000000009 /* WorkflowViewerTests.swift in Sources */,
+				C0DED2000000000000000003 /* TransientToolPresentationTests.swift in Sources */,
+				C0DEE3000000000000000003 /* ResolvedToolBodyTests.swift in Sources */,
+				9DDD66DD74BC433C9DAFCD4E /* CrewRosterDraftTests.swift in Sources */,
+				A0DE581FD0F9419C84CAA94E /* CrewModelsTests.swift in Sources */,
+				3B6221E1105DF7DC44C49D44 /* SettingsAgentDiscoveryTests.swift in Sources */,
+				88CA874F04950D1D84E94F8A /* ModelVisibilityCatalogTests.swift in Sources */,
+				FA5AD5F0D18345338A9EAF90 /* SideChatDraftTransferTests.swift in Sources */,
+				8513CA2E2CDC41D6B022C59E /* SideChatStoreTests.swift in Sources */,
+				46FDA40C72A04508979A0C09 /* SideChatAuxiliarySessionTests.swift in Sources */,
+				AD975CE71F18453D94C4908C /* SideChatContextTests.swift in Sources */,
+				3DF731F4B1EDC0D6D19DB9F7 /* RichChatTurnTimingTests.swift in Sources */,
+				D67BE006ACEC6B5064F298B6 /* ModelSelectionBindingTests.swift in Sources */,
 				DA1000000000000000000004 /* ArchivedThreadsParityTests.swift in Sources */,
 				DC1000000000000000000004 /* RichChatMessageActionsTests.swift in Sources */,
 				DE1000000000000000000002 /* ThreadWorktreeMoveTests.swift in Sources */,
 				RS1000000000000000000003 /* RichChatResumePlanTests.swift in Sources */,
 				RS1000000000000000000005 /* RichChatResumeRecoveryTests.swift in Sources */,
+				HA1000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift in Sources */,
+				8ACBA9CEA1C74BB392A7F60C /* HomeWorkspacePreferencesTests.swift in Sources */,
 				7D77E6248CF346589B5B6BB3 /* RemoteIntegrationsContractTests.swift in Sources */,
 				73A5C647171A44118C1AB358 /* RemoteIntegrationsControllerTests.swift in Sources */,
 				379009BE498848CDBD279EFA /* RemoteIntegrationsGatewayTests.swift in Sources */,
@@ -4214,6 +4575,17 @@
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		B7670578C1534F78B07DE856 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/argmax-oss-swift.git";
+			requirement = { kind = exactVersion; version = 1.1.1; };
+		};
+/* End XCRemoteSwiftPackageReference section */
+/* Begin XCSwiftPackageProductDependency section */
+		149B472DCF014530B477C0D2 /* WhisperKit */ = { isa = XCSwiftPackageProductDependency; package = B7670578C1534F78B07DE856; productName = WhisperKit; };
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		C77000000000000000000001 /* Debug */ = {

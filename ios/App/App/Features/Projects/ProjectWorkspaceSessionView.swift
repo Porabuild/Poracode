@@ -179,6 +179,8 @@ struct ProjectWorkspaceSessionView: View {
   let workspaceLocation: ProjectLocation
   let originThreadID: String?
   let entryPoint: ProjectWorkspaceEntryPoint
+  let showsModePicker: Bool
+  let externalMode: Binding<ProjectWorkspaceMode>?
 
   @State private var source: ProjectWorkspaceSelectionSource
   @State private var fileController: ProjectFileWorkspaceController
@@ -198,7 +200,9 @@ struct ProjectWorkspaceSessionView: View {
     location: ProjectLocation,
     workspaceLocation: ProjectLocation? = nil,
     originThreadID: String? = nil,
-    entryPoint: ProjectWorkspaceEntryPoint = .workspace(.files)
+    entryPoint: ProjectWorkspaceEntryPoint = .workspace(.files),
+    showsModePicker: Bool = true,
+    externalMode: Binding<ProjectWorkspaceMode>? = nil
   ) {
     self.session = session
     self.identity = identity
@@ -206,6 +210,8 @@ struct ProjectWorkspaceSessionView: View {
     self.workspaceLocation = workspaceLocation ?? location
     self.originThreadID = originThreadID
     self.entryPoint = entryPoint
+    self.showsModePicker = showsModePicker
+    self.externalMode = externalMode
 
     let source = ProjectWorkspaceSelectionSource(
       session: session,
@@ -213,23 +219,17 @@ struct ProjectWorkspaceSessionView: View {
       location: location,
       workspaceLocation: workspaceLocation
     )
-    let gateway = SelectedProjectWorkspaceGateway { @MainActor [weak source] in
-      source?.selection
-    }
+    let gateway = SelectedProjectWorkspaceGateway { @MainActor [weak source] in source?.selection }
     let gitOperationsGateway = SelectedGitOperationsGateway { @MainActor [weak source] in
       source?.gitOperationsSelection
     }
     let gitHubTransport = GitHubOperationsExactHostTransportSource(
       credentials: session.deps.hostCatalog,
-      contextProvider: { @MainActor [weak source] in
-        source?.gitHubOperationsContext
-      }
+      contextProvider: { @MainActor [weak source] in source?.gitHubOperationsContext }
     )
-    let gitHubGateway = SelectedGitHubOperationsGateway(
-      selectionResolver: { lease in
-        try await gitHubTransport.selection(for: lease)
-      }
-    )
+    let gitHubGateway = SelectedGitHubOperationsGateway { lease in
+      try await gitHubTransport.selection(for: lease)
+    }
     let prGenerationSource = session.makeAdvancedOperationsSelectionSource(
       surface: .project(identity, expectedLocation: location)
     )
@@ -347,7 +347,9 @@ struct ProjectWorkspaceSessionView: View {
         reviewDestination: reviewDestination,
         enqueueReviewComment: enqueueReviewComment,
         generatePullRequestSummary: generatePullRequestSummary,
-        initialMode: initialMode
+        initialMode: initialMode,
+        showsModePicker: showsModePicker,
+        externalMode: externalMode
       )
     case .gitHubActions:
       GitHubActionsPageView(
@@ -463,8 +465,10 @@ struct ProjectWorkspaceSessionView: View {
       : usable.first?.kind
     guard let agentKind else { throw AdvancedOperationFailure.invalidRequest }
 
-    let model = settings.commitGenModel.nilIfEmpty
-    let effort = settings.commitGenEffort.nilIfEmpty
+    let rawModel = settings.commitGenModel.trimmingCharacters(in: .whitespacesAndNewlines)
+    let rawEffort = settings.commitGenEffort.trimmingCharacters(in: .whitespacesAndNewlines)
+    let model = rawModel.isEmpty ? nil : rawModel
+    let effort = rawEffort.isEmpty ? nil : rawEffort
     let selection =
       model != nil || effort != nil
       ? AdvancedModelSelection(model: model ?? "", effort: effort)
@@ -484,12 +488,5 @@ struct ProjectWorkspaceSessionView: View {
       !summary.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     else { throw AdvancedOperationFailure.invalidResponse }
     return summary
-  }
-}
-
-extension String {
-  fileprivate var nilIfEmpty: String? {
-    let value = trimmingCharacters(in: .whitespacesAndNewlines)
-    return value.isEmpty ? nil : value
   }
 }

@@ -57,6 +57,7 @@ struct HomeProjectFilterDrawer: View {
         )
       }
     }
+    .poracodeFormSheetSizing()
     .presentationDetents([.height(compactHeight), .large], selection: $selectedDetent)
     .presentationDragIndicator(.visible)
     .presentationCornerRadius(28)

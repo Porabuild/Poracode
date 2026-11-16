@@ -10,6 +10,13 @@ type ExecFileAsyncFn = (
 const execGitMock = vi.hoisted(() => vi.fn<ExecGitFn>());
 const execFileAsyncMock = vi.hoisted(() => vi.fn<ExecFileAsyncFn>());
 
+// This case counts CLI batches. A locally built native helper must not bypass
+// that path; native status and its fallback are exercised in gitNativeHelper.test.ts.
+vi.mock("../git/gitNativeHelperClient", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../git/gitNativeHelperClient")>()),
+  isNativeGitHelperActive: () => false,
+}));
+
 vi.mock("../git/exec", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../git/exec")>();
   return {
@@ -167,7 +174,7 @@ describe("forge and git poller coalescing", () => {
     expect(d.repository).toBe("acme/widget");
   });
 
-  it("coalesces concurrent GitStatusService.getStatus and getStatusSummary calls into single git batches", async () => {
+  it("coalesces concurrent GitStatusService status and summary calls into single CLI fallback batches", async () => {
     let statusCalls = 0;
     let summaryCalls = 0;
     execGitMock.mockImplementation(async (_loc: ProjectLocation, args: readonly string[]) => {

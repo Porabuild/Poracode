@@ -1,0 +1,334 @@
+{
+  "version": 1,
+  "agents": [
+    {
+      "kind": "acme",
+      "label": "Acme",
+      "installed": true,
+      "authState": "authenticated",
+      "capabilities": {
+        "models": [
+          {
+            "id": "vendor/shared-pro",
+            "label": "Shared Pro"
+          },
+          {
+            "id": "vendor/cli-only",
+            "label": "CLI Exclusive"
+          }
+        ],
+        "efforts": [],
+        "modelEfforts": {},
+        "modes": ["agent"],
+        "approvalPolicies": [],
+        "sandboxModes": [],
+        "supportsResume": true,
+        "supportsDirectInput": true,
+        "liveInputMode": "server",
+        "presentationMode": "terminal",
+        "settingDefs": [],
+        "presentationModes": ["terminal", "gui"],
+        "defaultHiddenModels": ["vendor/cli-only"],
+        "presentationCapabilities": {
+          "gui": {
+            "models": [
+              {
+                "id": "Vendor/Shared-Pro",
+                "label": "Shared Pro"
+              },
+              {
+                "id": "Vendor/Chat-Only",
+                "label": "Chat Exclusive"
+              }
+            ],
+            "efforts": [],
+            "modelEfforts": {},
+            "modes": ["agent"],
+            "approvalPolicies": [],
+            "sandboxModes": [],
+            "supportsResume": true,
+            "supportsDirectInput": true,
+            "liveInputMode": "server",
+            "presentationMode": "gui",
+            "settingDefs": [],
+            "defaultHiddenModels": []
+          }
+        }
+      },
+      "envKind": "posix"
+    },
+    {
+      "kind": "family-fixture",
+      "label": "Family Fixture",
+      "installed": true,
+      "authState": "authenticated",
+      "capabilities": {
+        "models": [
+          {
+            "id": "pro",
+            "label": "Pro"
+          },
+          {
+            "id": "pro-fast",
+            "label": "Pro Fast"
+          },
+          {
+            "id": "small",
+            "label": "Small"
+          },
+          {
+            "id": "auto",
+            "label": "Auto"
+          }
+        ],
+        "efforts": [],
+        "modelEfforts": {},
+        "modes": ["agent"],
+        "approvalPolicies": [],
+        "sandboxModes": [],
+        "supportsResume": true,
+        "supportsDirectInput": true,
+        "liveInputMode": "server",
+        "presentationMode": "gui",
+        "settingDefs": [],
+        "fastModels": ["pro-fast"],
+        "defaultHiddenModels": ["pro-fast"],
+        "modelFamilies": [
+          {
+            "model": "pro",
+            "label": "Pro Family",
+            "selectors": [],
+            "bindings": {
+              "effort": "config",
+              "fast": "model"
+            },
+            "members": [
+              {
+                "model": "pro",
+                "selections": {},
+                "fast": false
+              },
+              {
+                "model": "pro-fast",
+                "selections": {},
+                "fast": true
+              }
+            ]
+          }
+        ]
+      },
+      "envKind": "posix"
+    },
+    {
+      "kind": "named-fixture",
+      "label": "Named Fixture",
+      "installed": true,
+      "authState": "authenticated",
+      "capabilities": {
+        "models": [
+          {
+            "id": "remote/shared",
+            "label": "Shared"
+          },
+          {
+            "id": "remote/terminal",
+            "label": "Terminal Only"
+          }
+        ],
+        "efforts": [],
+        "modelEfforts": {},
+        "modes": ["agent"],
+        "approvalPolicies": [],
+        "sandboxModes": [],
+        "supportsResume": true,
+        "supportsDirectInput": true,
+        "liveInputMode": "server",
+        "presentationMode": "terminal",
+        "settingDefs": [],
+        "presentationModes": ["terminal", "gui"]
+      },
+      "envKind": "posix",
+      "runtimeVariants": {
+        "cli": {
+          "installed": true,
+          "authState": "authenticated",
+          "presentationMode": "terminal",
+          "capabilities": {
+            "models": [
+              {
+                "id": "remote/shared",
+                "label": "Shared"
+              },
+              {
+                "id": "remote/terminal",
+                "label": "Terminal Only"
+              }
+            ],
+            "efforts": [],
+            "modelEfforts": {},
+            "modes": ["agent"],
+            "approvalPolicies": [],
+            "sandboxModes": [],
+            "supportsResume": true,
+            "supportsDirectInput": true,
+            "liveInputMode": "server",
+            "presentationMode": "terminal",
+            "settingDefs": [],
+            "runtimeLabel": "CLI",
+            "defaultHiddenModels": ["remote/terminal"]
+          },
+          "authUsesProviderLogin": true
+        },
+        "bridge": {
+          "installed": true,
+          "authState": "authenticated",
+          "presentationMode": "gui",
+          "capabilities": {
+            "models": [
+              {
+                "id": "remote/shared",
+                "label": "Shared"
+              },
+              {
+                "id": "remote/chat",
+                "label": "Chat Only"
+              }
+            ],
+            "efforts": [],
+            "modelEfforts": {},
+            "modes": ["agent"],
+            "approvalPolicies": [],
+            "sandboxModes": [],
+            "supportsResume": true,
+            "supportsDirectInput": true,
+            "liveInputMode": "server",
+            "presentationMode": "gui",
+            "settingDefs": [],
+            "runtimeLabel": "Bridge",
+            "defaultHiddenModels": ["remote/chat"]
+          },
+          "authUsesProviderLogin": true
+        },
+        "unavailable": {
+          "installed": false,
+          "authState": "missing",
+          "presentationMode": "gui",
+          "capabilities": {
+            "models": [
+              {
+                "id": "bad",
+                "label": "Never shown"
+              }
+            ],
+            "efforts": [],
+            "modelEfforts": {},
+            "modes": ["agent"],
+            "approvalPolicies": [],
+            "sandboxModes": [],
+            "supportsResume": true,
+            "supportsDirectInput": true,
+            "liveInputMode": "server",
+            "presentationMode": "gui",
+            "settingDefs": []
+          },
+          "authUsesProviderLogin": true
+        }
+      }
+    },
+    {
+      "kind": "same-label-fixture",
+      "label": "Same Label Fixture",
+      "installed": true,
+      "authState": "authenticated",
+      "envKind": "posix",
+      "capabilities": {
+        "models": [
+          {
+            "id": "one/model",
+            "label": "Equal"
+          }
+        ],
+        "efforts": [],
+        "modelEfforts": {},
+        "modes": ["agent"],
+        "approvalPolicies": [],
+        "sandboxModes": [],
+        "supportsResume": true,
+        "supportsDirectInput": true,
+        "liveInputMode": "server",
+        "presentationMode": "terminal",
+        "settingDefs": [],
+        "defaultHiddenModels": [],
+        "subProviders": [
+          {
+            "id": "one",
+            "label": "Vendor"
+          }
+        ],
+        "presentationModes": ["terminal", "gui"],
+        "presentationCapabilities": {
+          "gui": {
+            "models": [
+              {
+                "id": "two/model",
+                "label": "Equal"
+              }
+            ],
+            "efforts": [],
+            "modelEfforts": {},
+            "modes": ["agent"],
+            "approvalPolicies": [],
+            "sandboxModes": [],
+            "supportsResume": true,
+            "supportsDirectInput": true,
+            "liveInputMode": "server",
+            "presentationMode": "gui",
+            "settingDefs": [],
+            "defaultHiddenModels": [],
+            "subProviders": [
+              {
+                "id": "two",
+                "label": "Vendor"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "providerOrder": ["family-fixture", "named-fixture", "acme", "same-label-fixture"],
+  "savedHidden": {
+    "named-fixture": ["remote/terminal", "retired-model"],
+    "named-fixture-bridge": ["remote/shared"],
+    "unrelated": ["keep-me"]
+  },
+  "expectedGroups": [
+    {
+      "kind": "family-fixture",
+      "labels": ["Pro Family", "Small"],
+      "keys": ["family-fixture"]
+    },
+    {
+      "kind": "named-fixture",
+      "labels": ["Shared", "Chat Only", "Terminal Only"],
+      "keys": ["named-fixture", "named-fixture-bridge"]
+    },
+    {
+      "kind": "acme",
+      "labels": ["Shared Pro", "Chat Exclusive", "CLI Exclusive"],
+      "keys": ["acme", "acme"]
+    },
+    {
+      "kind": "same-label-fixture",
+      "labels": ["Equal", "Equal"],
+      "keys": ["same-label-fixture", "same-label-fixture"]
+    }
+  ],
+  "expectedEffectiveHidden": {
+    "family-fixture": ["pro-fast"],
+    "named-fixture": ["remote/terminal", "retired-model"],
+    "named-fixture-bridge": ["remote/shared"],
+    "acme": ["vendor/cli-only"],
+    "same-label-fixture": []
+  }
+}

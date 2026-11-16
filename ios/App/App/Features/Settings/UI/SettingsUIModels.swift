@@ -152,7 +152,7 @@ struct SettingsReplayAgentPresentation: Equatable, Sendable {
 
 /// Exact-host projection from the replay reducer into the Settings SwiftUI policy.
 /// Full environment lists establish loaded/empty state. Incremental patches overlay
-/// only the matching Windows kind or WSL kind+distro and cannot erase siblings.
+/// only the matching native kind or WSL kind+distro and cannot erase siblings.
 enum SettingsReplayAgentController {
   static func presentation(
     requestedConnectionID: ClientConnectionID?,
@@ -170,7 +170,7 @@ enum SettingsReplayAgentController {
         loaded: replay.windowsStatusesLoaded,
         base: replay.windowsAgentStatuses,
         patches: replay.agentStatuses.ordered.filter {
-          $0.envKind == .windows
+          $0.envKind != .wsl
             && replay.agentStatusRevisionByIdentity[$0.identity, default: 0]
               > replay.windowsStatusesRevision
         },

@@ -18,6 +18,7 @@ enum RichChatStrings {
   }
 
   static let refreshTranscript = value("rich_chat_refresh_transcript", "Refresh transcript")
+  static let usageStale = value("rich_chat_usage_stale", "Usage is stale. Refresh to update.")
   static let refreshRequired = value(
     "rich_chat_refresh_required",
     "The last change may have reached the desktop. Refresh before trying it again."
@@ -73,6 +74,22 @@ enum RichChatStrings {
   static let fileChanges = value("rich_chat_file_changes", "File changes")
   static let webSearch = value("rich_chat_web_search", "Web search")
   static let image = value("rich_chat_image", "Image")
+  static let media = value("rich_chat_media", "Media")
+  static let plugins = value("rich_chat_plugins", "Plugins")
+  static let fullAccess = value("rich_chat_full_access", "Full access")
+  static let addAttachmentOrCapability = value("rich_chat_add_attachment_or_capability", "Add attachment or capability")
+  static let noPluginsReported = value("rich_chat_no_plugins_reported", "No enabled plugins reported")
+  static let noMCPServersReported = value("rich_chat_no_mcp_servers_reported", "No enabled custom MCP servers reported")
+  static let sessionBindingsReadOnly = value("rich_chat_session_bindings_read_only", "Bindings reported for this thread. Start a new thread to change them.")
+  static let playVideo = value("rich_chat_play_video", "Play video")
+  static let delegatedAgents = value("rich_chat_agents", "Agents")
+  static let moveSectionUp = value("rich_chat_section_move_up", "Move up")
+  static let moveSectionDown = value("rich_chat_section_move_down", "Move down")
+  static let sectionCollapsed = value("rich_chat_section_collapsed", "Collapsed")
+  static let sectionExpanded = value("rich_chat_section_expanded", "Expanded")
+  static func reorderSection(_ title: String) -> String {
+    String(format: value("rich_chat_section_reorder_format", "Reorder %1$@"), locale: .current, title)
+  }
   static let activity = value("rich_chat_activity", "Activity")
   static let tool = value("rich_chat_tool", "Tool")
   static let conversationImage = value("rich_chat_image_description", "Conversation image")

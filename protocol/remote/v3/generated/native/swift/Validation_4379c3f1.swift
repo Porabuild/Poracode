@@ -9,7 +9,15 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_f6cdfe506c1e5468 = RemoteSchema(type: "object", required: Set(["kind", "label"]), properties: ["kind": RemoteSchemas.schema_32519102603d95d6, "label": RemoteSchemas.schema_2963caa14efb9573, "text": RemoteSchemas.schema_dfc3f3726c991dbe], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_f6dd22a2a9de3244 = RemoteSchema(type: "string", literals: [.string("camera"), .string("microphone"), .string("photos"), .string("contacts"), .string("calendar"), .string("location"), .string("notifications"), .string("motion")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_f6e7e7b61d75b459 = RemoteSchema(type: "object", required: Set(["items", "version"]), properties: ["items": RemoteSchemas.schema_f3e06411e2a7b1ac, "version": RemoteSchemas.schema_f8ba039a2f32fad1], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -53,10 +61,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_f87159e7882b195f = RemoteSchema(type: "object", required: Set(["settings"]), properties: ["settings": RemoteSchemas.schema_5a8607ab9974cf4e], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_f8afe6df005d2978 = RemoteSchema(type: "string", literals: [.string("history-incomplete")], unknownPolicy: .strip)
 }
 
@@ -78,10 +82,6 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_f958c6e1fa6d616c = RemoteSchema(type: "object", required: Set(["canLinkToGlobal", "effectiveSkillIds", "invocation", "issues", "skills"]), properties: ["canLinkToGlobal": RemoteSchemas.schema_feeb8bb50144d96d, "effectiveSkillIds": RemoteSchemas.schema_0f732b9fceb2c6ac, "invocation": RemoteSchemas.schema_7a20e2f82d6f16d6, "issues": RemoteSchemas.schema_ee5346688873f70f, "skills": RemoteSchemas.schema_4df989d5459165c8], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_f975b14607ae3f63 = RemoteSchema(type: "object", required: Set(["events"]), properties: ["events": RemoteSchemas.schema_23b45e35f743c6ce], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

@@ -155,15 +155,6 @@ struct PairingCoordinator {
                 ownerEpoch: ownerEpoch,
                 generation: gen
             )
-        } catch let error as RemoteClientError where error.isCompatibilityFailure {
-            guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return }
-            if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
-            host.state.globalError = error.localizedDescription
-            await SessionDurableReconcile.reconcileFromCatalog(
-                host: host,
-                ownerEpoch: ownerEpoch,
-                generation: gen
-            )
         } catch {
             guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else { return }
             if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
@@ -173,6 +164,13 @@ struct PairingCoordinator {
                 ownerEpoch: ownerEpoch,
                 generation: gen
             )
+            // Empty-catalog recovery resets the onboarding state, including
+            // globalError. Keep this attempt's validation/network failure
+            // visible, without replacing a more specific storage repair error
+            // or the result of a newer operation.
+            if isCurrent(ownerEpoch: ownerEpoch, generation: gen), host.state.globalError == nil {
+                host.state.globalError = error.localizedDescription
+            }
         }
     }
 
@@ -303,7 +301,7 @@ struct PairingCoordinator {
             return .durableAppliedNotInstalled
         }
 
-        // Preserve the prior selected socket as the one allowed LRU secondary.
+        // Preserve the prior selected socket alongside the other paired hosts.
         host.sessionPool.captureSelectedCache()
         await host.cancelStaleSessionWork(
             invalidateSocket: false,

@@ -878,6 +878,20 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-item-presentations",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/item-presentations",
+      "queryParameters": [
+        "notices",
+        "maxBytes",
+        "maxDecodeBytes"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "thread-history-item",
       "method": "GET",
       "path": "/api/threads/{threadId}/history/items/{itemId}",

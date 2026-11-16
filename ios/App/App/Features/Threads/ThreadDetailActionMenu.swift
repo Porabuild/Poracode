@@ -3,7 +3,7 @@ import SwiftUI
 /// Native thread-page counterpart to the compact PWA action drawer and
 /// workspace bar. One toolbar menu keeps secondary project destinations and
 /// thread lifecycle mutations reachable without crowding the navigation bar.
-struct ThreadDetailActionMenu: View {
+struct ThreadDetailActionMenu<InformationControls: View>: View {
   @Bindable var session: AppSession
   let thread: RemoteThread
   let project: RemoteProject
@@ -12,13 +12,16 @@ struct ThreadDetailActionMenu: View {
   let terminalScrollback: String?
   let canRefresh: Bool
   let canClose: Bool
+  let externalDestination: Binding<ThreadDetailDestination?>?
+  let externalHandoffRequest: Binding<ThreadProviderHandoffRequest?>?
   let refresh: () -> Void
   let requestClose: () -> Void
   let onThreadRemoved: () -> Void
+  let informationControls: InformationControls
 
   @State private var lifecycle: ThreadLifecycleController
   @State private var worktreeMover = ThreadWorktreeMoveController()
-  @State private var destination: ThreadDetailDestination?
+  @State private var internalDestination: ThreadDetailDestination?
   @State private var renameIntent: ThreadRenameIntent?
   @State private var relaunchIntent: ThreadRelaunchIntent?
   @State private var worktreeComposeIntent: ThreadWorktreeComposeIntent?
@@ -37,9 +40,12 @@ struct ThreadDetailActionMenu: View {
     terminalScrollback: String?,
     canRefresh: Bool,
     canClose: Bool,
+    externalDestination: Binding<ThreadDetailDestination?>? = nil,
+    externalHandoffRequest: Binding<ThreadProviderHandoffRequest?>? = nil,
     refresh: @escaping () -> Void,
     requestClose: @escaping () -> Void,
-    onThreadRemoved: @escaping () -> Void
+    onThreadRemoved: @escaping () -> Void,
+    @ViewBuilder informationControls: () -> InformationControls
   ) {
     self.session = session
     self.thread = thread
@@ -49,10 +55,17 @@ struct ThreadDetailActionMenu: View {
     self.terminalScrollback = terminalScrollback
     self.canRefresh = canRefresh
     self.canClose = canClose
+    self.externalDestination = externalDestination
+    self.externalHandoffRequest = externalHandoffRequest
     self.refresh = refresh
     self.requestClose = requestClose
     self.onThreadRemoved = onThreadRemoved
+    self.informationControls = informationControls()
     _lifecycle = State(initialValue: session.makeThreadLifecycleController())
+  }
+
+  private var destinationBinding: Binding<ThreadDetailDestination?> {
+    externalDestination ?? $internalDestination
   }
 
   var body: some View {
@@ -65,7 +78,7 @@ struct ThreadDetailActionMenu: View {
       canRefresh: canRefresh,
       canClose: canClose,
       isBusy: lifecycle.isBusy || worktreeMover.isMoving,
-      selectDestination: { destination = $0 },
+      selectDestination: { destinationBinding.wrappedValue = $0 },
       composeInWorktree: { worktree in
         worktreeComposeIntent = ThreadWorktreeComposeIntent(
           projectID: project.id,
@@ -78,11 +91,13 @@ struct ThreadDetailActionMenu: View {
       refresh: refresh,
       perform: perform,
       requestClose: requestClose,
+      informationControls: { informationControls },
       lifecycleButtons: { lifecycleButtons }
     )
     .disabled(!canUseMenu || worktreeMover.isMoving)
     .accessibilityLabel(ThreadLifecycleStrings.actions)
-    .navigationDestination(item: $destination) { destination in
+    .accessibilityIdentifier("native-e2e.thread.actions")
+    .navigationDestination(item: destinationBinding) { destination in
       ThreadDetailDestinationView(
         session: session,
         thread: thread,
@@ -151,7 +166,9 @@ struct ThreadDetailActionMenu: View {
       titleVisibility: .visible
     ) {
       Button(RichChatStrings.handoffFork) { prepareHandoff(.fork) }
+        .accessibilityIdentifier("native-e2e.thread.handoff-fork")
       Button(ThreadLifecycleStrings.moveToWorktreeConfirm) { prepareHandoff(.move) }
+        .accessibilityIdentifier("native-e2e.thread.handoff-move")
       Button(RichChatStrings.cancel, role: .cancel) {}
     }
     .confirmationDialog(
@@ -181,6 +198,14 @@ struct ThreadDetailActionMenu: View {
     }
     .onChange(of: lifecycle.lastOutcome) { _, outcome in
       consume(outcome)
+    }
+    .onChange(of: externalHandoffRequest?.wrappedValue, initial: true) { _, request in
+      guard let request else { return }
+      externalHandoffRequest?.wrappedValue = nil
+      guard request.target == session.threadLifecycleTarget(threadID: thread.id),
+        request.owner == RichChatSessionActionOwner(thread: thread), canOperateLifecycle,
+        handoffTarget != nil, !lifecycle.isBusy, !worktreeMover.isMoving else { return }
+      isChoosingHandoffMode = true
     }
     .onDisappear { lifecycle.deactivate() }
   }

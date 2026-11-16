@@ -6,6 +6,7 @@ import UIKit
 /// manual "Forward a port" entry for ports the desktop has not detected.
 struct PortForwardingView: View {
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
   @State private var controller: PortForwardingController
   private let access: PortForwardingHostAccess?
   private let copyAddress: ((String) async -> URL?)?
@@ -109,8 +110,8 @@ struct PortForwardingView: View {
         }
       }
     }
-    .navigationTitle(PortForwardingStrings.title)
-    .navigationBarTitleDisplayMode(.inline)
+    .poracodeReadableListMargins(760)
+    .poracodeNavigationTitle(PortForwardingStrings.title, suppressed: embeddedInInspector)
     .poracodeBottomBar {
       PoracodeBottomActionBar {
         PoracodeCircleButton {

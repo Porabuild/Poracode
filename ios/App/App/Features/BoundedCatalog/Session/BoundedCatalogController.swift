@@ -166,7 +166,10 @@ struct BoundedCatalogController {
   /// was updated; unknown rows fall back to a coalesced pass.
   @discardableResult
   func applyThreadStateEvent(_ object: [String: JSONValue], seq: Int) -> Bool {
-    guard isNegotiated else { return false }
+    guard isNegotiated else {
+      host.live.scheduleShellRefresh()
+      return false
+    }
     if store.applyThreadState(object, seq: seq) { return true }
     // Unknown row: the accompanying membership event (or this coalesced row
     // refresh) schedules the pass that loads it.

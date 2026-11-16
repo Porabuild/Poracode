@@ -69,7 +69,7 @@ struct RichChatMcpAppView: View {
         ).frame(height: height)
       }
     }
-    .clipShape(RoundedRectangle(cornerRadius: 12))
+    .clipShape(PoracodeShapes.content)
   }
 }
 

@@ -29,8 +29,19 @@ struct RichChatMarkdownView: View {
         .poracodeChatText(headingRole(level), weight: .semibold)
         .foregroundStyle(.primary)
     case .paragraph(let text):
-      inlineText(text)
-        .poracodeChatText(.body)
+      let videos = RichChatVideoPresentation.markdownVideos(text)
+      if !videos.isEmpty {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let linkText = trimmed.hasPrefix("!") ? String(trimmed.dropFirst()) : trimmed
+        if RichChatFilePolicy.markdownLink(in: linkText) == nil && !trimmed.lowercased().hasPrefix("<video") {
+          inlineText(text).poracodeChatText(.body)
+        }
+        ForEach(Array(videos.enumerated()), id: \.offset) { _, video in
+          RichChatInlineVideo(video: video)
+        }
+      } else {
+        inlineText(text).poracodeChatText(.body)
+      }
     case .fileCard(let ref):
       RichChatFileCard(ref: ref)
     case .fileCardList(let refs):
@@ -136,7 +147,7 @@ struct RichChatMarkdownCodeBlock: View {
     .padding(.horizontal, 8)
     .padding(.vertical, 5)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+    .background(Color.secondary.opacity(0.10), in: PoracodeShapes.content)
   }
 }
 
@@ -157,9 +168,9 @@ private struct RichChatMarkdownTable: View {
     }
     .frame(maxWidth: .infinity)
     .background(Color.secondary.opacity(0.04))
-    .clipShape(RoundedRectangle(cornerRadius: 10))
+    .clipShape(PoracodeShapes.content)
     .overlay {
-      RoundedRectangle(cornerRadius: 10)
+      PoracodeShapes.content
         .stroke(Color.secondary.opacity(0.18), lineWidth: 0.5)
     }
   }

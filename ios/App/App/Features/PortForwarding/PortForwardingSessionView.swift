@@ -13,18 +13,22 @@ import UIKit
 struct PortForwardingSessionView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.poracodeEmbeddedInInspector) private var embeddedInInspector
 
   @Bindable var session: AppSession
   @State private var composition: PortForwardingComposition
   private let embeddedInNavigationStack: Bool
+  private let showsHostSelection: Bool
 
   init(
     session: AppSession,
     lease: PortForwardingHostLease,
-    embeddedInNavigationStack: Bool = false
+    embeddedInNavigationStack: Bool = false,
+    showsHostSelection: Bool = true
   ) {
     self.session = session
     self.embeddedInNavigationStack = embeddedInNavigationStack
+    self.showsHostSelection = showsHostSelection
     _composition = State(
       initialValue: session.makePortForwardingComposition(
         lease: lease,
@@ -60,23 +64,31 @@ struct PortForwardingSessionView: View {
     .onDisappear { composition.suspend() }
   }
 
+  @ViewBuilder
   private var content: some View {
-    PortForwardingView(
+    let view = PortForwardingView(
       controller: composition.controller,
       access: session.currentPortForwardingAccess,
       copyAddress: { forwardID in
         await composition.entryAddress(forForwardID: forwardID)
       }
     )
-    .toolbar {
-      if !embeddedInNavigationStack {
-        ToolbarItem(placement: .cancellationAction) {
-          Button(PortForwardingStrings.close) { dismiss() }
+    if embeddedInInspector {
+      view
+    } else {
+      view
+        .toolbar {
+          if !embeddedInNavigationStack {
+            ToolbarItem(placement: .cancellationAction) {
+              Button(PortForwardingStrings.close) { dismiss() }
+            }
+          }
+          if showsHostSelection {
+            ToolbarItem(placement: .primaryAction) {
+              HostSelectionMenu(session: session)
+            }
+          }
         }
-      }
-      ToolbarItem(placement: .primaryAction) {
-        HostSelectionMenu(session: session)
-      }
     }
   }
 }

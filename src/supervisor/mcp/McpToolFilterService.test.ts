@@ -61,7 +61,7 @@ const server: McpServer = {
     command: "node",
     args: ["relative.mjs"],
     cwd: "/plugin",
-    env: { FIXTURE: "private" },
+    env: { FIXTURE: "fixture-mcp-secret" },
   },
 };
 
@@ -99,7 +99,7 @@ describe("MCP launch transport compatibility", () => {
       server,
       disabledTools: [],
     });
-    expect(wrapped!.transport.args.join(" ")).not.toContain("private");
+    expect(wrapped!.transport.args.join(" ")).not.toContain("fixture-mcp-secret");
   });
 
   it("preserves native transports unless filtering or cwd emulation is needed", async () => {
@@ -128,7 +128,7 @@ describe("MCP launch transport compatibility", () => {
       Buffer.from(wrapped!.transport.env.PORACODE_MCP_STDIO_CONFIG!, "base64url").toString("utf8"),
     );
     expect(config).toEqual({ version: 1, server });
-    expect(wrapped!.transport.args.join(" ")).not.toContain("private");
+    expect(wrapped!.transport.args.join(" ")).not.toContain("fixture-mcp-secret");
   });
 });
 
@@ -415,7 +415,7 @@ describe("host endpoint relays", () => {
       });
       if (schemaOnly!.transport.type !== "stdio") throw new Error("expected stdio");
       expect(schemaOnly!.transport.command).toBe(binary);
-      expect(schemaOnly!.transport.env.FIXTURE).toBe("private");
+      expect(schemaOnly!.transport.env.FIXTURE).toBe("fixture-mcp-secret");
       expect(readMcpToolFilterConfig(schemaOnly!.transport.env).schemaOnly).toBe(true);
 
       const [depthLimited] = await prepareMcpToolFilters([server], location, {
@@ -423,7 +423,7 @@ describe("host endpoint relays", () => {
       });
       if (depthLimited!.transport.type !== "stdio") throw new Error("expected stdio");
       expect(depthLimited!.transport.command).toBe(binary);
-      expect(depthLimited!.transport.env.FIXTURE).toBe("private");
+      expect(depthLimited!.transport.env.FIXTURE).toBe("fixture-mcp-secret");
       expect(depthLimited!.transport.env[MCP_FILTER_CONFIG_V3_ENV]).toEqual(expect.any(String));
       expect(readMcpToolFilterConfig(depthLimited!.transport.env)).toMatchObject({
         version: 3,

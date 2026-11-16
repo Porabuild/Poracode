@@ -347,6 +347,12 @@ const remoteSettingsWireBaseSchema = sharedSettingsSchema.pick(
 export const remoteSettingsWireSchema = remoteSettingsWireBaseSchema.extend({
   usage: sharedSettingsSchema.shape.usage.optional(),
   crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
+  crossagentPausedProviders: sharedSettingsSchema.shape.crossagentPausedProviders
+    .removeDefault()
+    .optional(),
+  crossagentHiddenModels: sharedSettingsSchema.shape.crossagentHiddenModels
+    .removeDefault()
+    .optional(),
   followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
   searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
   searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),

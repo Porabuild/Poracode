@@ -513,6 +513,27 @@ private final class MutationCheckpointProbe: @unchecked Sendable {
 
 @MainActor
 final class AppSessionCompositionTests: XCTestCase {
+  func testFirstPairValidationSurvivesEmptyCatalogRecoveryWithoutNetwork() async throws {
+    let suite = "pair-validation-\(UUID().uuidString)"
+    addTeardownBlock {
+      UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: FileManager.default.temporaryDirectory
+        .appendingPathComponent("poracode-composition-hosts-\(suite)"))
+    }
+    var apiCreations = 0
+    let (session, _, _) = try await makeSession(suite: suite) { endpoint, _ in
+      apiCreations += 1
+      return FakeRemoteAPI(endpoint: endpoint)
+    }
+    await session.pair(with: .init(pairingURLOrEmpty: "", manualBaseURL: "", manualToken: ""))
+    XCTAssertEqual(session.state.phase, .needsPairing)
+    XCTAssertEqual(session.globalError, PairingError.invalidURL.localizedDescription)
+    XCTAssertNil(session.selectedConnectionId)
+    await session.pair(with: .init(pairingURLOrEmpty: "", manualBaseURL: "https://example.com", manualToken: ""))
+    XCTAssertEqual(session.globalError, PairingError.missingToken.localizedDescription)
+    XCTAssertEqual(apiCreations, 0)
+  }
+
   func testRootPresentationKeepsStoredSessionOnHomeWhileConnecting() {
     XCTAssertEqual(
       RootPresentation.resolve(phase: .connecting, hasProfile: true),
@@ -803,7 +824,7 @@ final class AppSessionCompositionTests: XCTestCase {
       try await session.deps.hostCatalog.token(for: durable.selected!.connectionId),
       "token-desk-b")
 
-    XCTAssertEqual(socketA.stopCount, 0, "A remains warm as the single LRU secondary")
+    XCTAssertEqual(socketA.stopCount, 0, "A remains connected alongside the selected host")
     XCTAssertEqual(sockets.count, 2, "exactly one B socket after pair B")
     let socketB = try XCTUnwrap(sockets.last)
     XCTAssertTrue(socketA !== socketB)

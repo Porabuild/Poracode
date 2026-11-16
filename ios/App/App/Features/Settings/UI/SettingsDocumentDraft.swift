@@ -126,9 +126,6 @@ struct SettingsDocumentDraft: Equatable, Sendable {
     )
     patch.setString(.worktreeBasePath, worktreeBasePath, document.worktreeBasePath)
     patch.setString(.wslWorktreeBasePath, wslWorktreeBasePath, document.wslWorktreeBasePath)
-    for (key, value) in gitPatch(comparedTo: document).values {
-      patch[key] = value
-    }
     return patch
   }
 

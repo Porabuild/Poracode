@@ -375,6 +375,9 @@ struct SessionDependencies: Sendable {
     var hostCatalog: HostCatalog
     var makeAPI: @Sendable @MainActor (String, String?) -> any SessionRemoteAPI
     var makeSocket: @Sendable @MainActor (any SessionRemoteAPI) -> any SessionLiveSocket
+    var makeComposerPreferences: @Sendable @MainActor () -> ComposerPreferencesStore = { .shared }
+    var makeWorkflowAPI: AdvancedOperationsExactHostTransportSource.APIFactory =
+        AdvancedOperationsExactHostTransportSource.productionAPIFactory()
 
     /// Production composition: unified Keychain credentials + real HTTP/WS clients.
     @MainActor
@@ -410,13 +413,21 @@ struct SessionDependencies: Sendable {
         credentialStore: any SessionCredentialStore,
         hostCatalog: HostCatalog = HostCatalog.ephemeralForTests(),
         makeAPI: @escaping @Sendable @MainActor (String, String?) -> any SessionRemoteAPI,
-        makeSocket: @escaping @Sendable @MainActor (any SessionRemoteAPI) -> any SessionLiveSocket
+        makeSocket: @escaping @Sendable @MainActor (any SessionRemoteAPI) -> any SessionLiveSocket,
+        makeComposerPreferences: @escaping @Sendable @MainActor () -> ComposerPreferencesStore = {
+            ComposerPreferencesStore(defaults: nil)
+        },
+        makeWorkflowAPI: @escaping AdvancedOperationsExactHostTransportSource.APIFactory = {
+            _, _, _ in UnavailableWorkflowRemoteAPI()
+        }
     ) -> SessionDependencies {
         SessionDependencies(
             credentialStore: credentialStore,
             hostCatalog: hostCatalog,
             makeAPI: makeAPI,
-            makeSocket: makeSocket
+            makeSocket: makeSocket,
+            makeComposerPreferences: makeComposerPreferences,
+            makeWorkflowAPI: makeWorkflowAPI
         )
     }
 }

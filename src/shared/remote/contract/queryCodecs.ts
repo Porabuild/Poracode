@@ -196,6 +196,11 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
     param("maxBytes", "int", true),
     param("maxDecodeBytes", "int", true),
   ],
+  "thread-item-presentations": [
+    param("notices", "string", false),
+    param("maxBytes", "int", true),
+    param("maxDecodeBytes", "int", true),
+  ],
   "thread-history-changes": [
     param("reads", "string", false),
     param("notices", "string", false),

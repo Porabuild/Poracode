@@ -74,6 +74,11 @@ struct SettingsDocument: Codable, Equatable, Sendable {
   let hiddenModels: [String: [String]]
   let disabledAgents: [String]
   let providerOrder: [String]
+  // Existing remote-v3 optional field. Older hosts omit it; retain raw entries
+  // so edits to one saved crew never reconstruct unrelated records.
+  var crews: [JSONValue]? = nil
+  var crossagentPausedProviders: [String]? = nil
+  var crossagentHiddenModels: [String: [String]]? = nil
   var usage: SettingsUsagePreferences? = nil
   let enabledMcpServers: [String: Bool]
   let disabledBuiltInMcpServers: [String: Bool]
@@ -118,6 +123,7 @@ struct SettingsReadResponse: Codable, Equatable, Sendable {
 
 enum SettingsPatchKey: String, Codable, CaseIterable, Sendable {
   case agentSettings, hiddenModels, disabledAgents, providerOrder, usage
+  case crews
   case enabledMcpServers, disabledBuiltInMcpServers
   case titleGenProvider, titleGenModel, titleGenEffort, titleGenFast
   case commitGenProvider, commitGenModel, commitGenEffort, commitGenFast

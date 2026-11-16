@@ -80,6 +80,8 @@ describe("remote v3 native binding generator", () => {
         // the optional review-thread diff side adds one field; optional async reply source IDs
         // preserve wire versions; the optional `deferBodies` history query parameter adds one
         // structural type (its literal).
+        // Optional Crossagents visibility preferences extend settings reads
+        // and sparse patches without invalidating older v14 payloads.
         // Optional response-only quota ring IDs add two structural types.
         // Optional sessionId on the token-exchange result moves the source hash only.
         // Optional crew favorites/usage and model recency move only the source hash.
@@ -100,23 +102,29 @@ describe("remote v3 native binding generator", () => {
         // Link metadata adds one read procedure, two roots and structural types.
         // Thread transfer adds two operate-scoped routes (command and raw upload)
         // with their request, query and result roots and structural types.
-        sourceHash: "sha256:adc7e4695f2ae14b7ba2783c52d154a6a469c4c0bd96b55f1aac3bff37853ff8",
-        manifestHash: "sha256:3e7df7fb4e1730e3551ebb8438ac97c73f845d8caa8170ab81dbd2bcc7efec9d",
+        // The optional v1 host tool-presentation catalog extends environment
+        // bindings only. Canonical rows, history budgets and wire v14 stay valid.
+        // Opt-in V2 MCP headings extend the generated schema; V1 reads and wire V14 remain compatible.
+        // Opt-in V3 workflow registration hints extend schemas; V1/V2 reads and wire V14 remain compatible.
+        // Opt-in V4 workflow viewer metadata extends schemas; V1/V2/V3 and wire V14 stay compatible.
+        // Optional V5 resolved bodies extend advisory reads; V1–V4 and canonical events remain compatible.
+        sourceHash: "sha256:627747ed06cf53a610a031f52ebe40e1a99deb73ab91799a92b1fb9a1d99899f",
+        manifestHash: "sha256:15b2a0f001c6f7b6b83efb5184813418a2fb7536e65907b24382383f51ab9916",
         counts: {
-          routes: 121,
+          routes: 122,
           procedures: 173,
           voidProcedureResults: 64,
           jsonProcedureResults: 109,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 569,
-          structuralTypes: 1353,
+          schemaRoots: 573,
+          structuralTypes: 1449,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 149,
-          kotlinFiles: 126,
+          swiftFiles: 160,
+          kotlinFiles: 137,
           stateMachines: 5,
         },
       });
@@ -390,7 +398,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(569);
+        expect(adapters).toHaveLength(573);
         expect(
           adapters
             .map((adapter) => adapter.id)

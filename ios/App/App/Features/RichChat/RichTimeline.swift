@@ -220,48 +220,26 @@ enum RichTimeline {
     return entries
   }
 
-  /// WS7 P1-19: per-item visibility memo. Projections run per transcript
-  /// change; completed assistant payloads were JSON-decoded on every pass.
-  /// Keyed by item identity + stream length — streaming appends change the
-  /// key, a completed item's key is stable. Lock-guarded because projections
-  /// are Sendable-reachable; production callers are Main-serialized.
-  private static let visibilityLock = NSLock()
-  nonisolated(unsafe) private static var visibilityMemo: [String: Bool] = [:]
-
   static func isVisible(_ item: RichRuntimeItem) -> Bool {
-    let memoKey =
-      "\(item.id)|\(item.state)|\(item.streams["assistant_text"]?.count ?? -1)"
-    visibilityLock.lock()
-    let memoed = visibilityMemo[memoKey]
-    visibilityLock.unlock()
-    if let memoed { return memoed }
-    let visible = computeVisibility(item)
-    visibilityLock.lock()
-    if visibilityMemo.count > 4_096 { visibilityMemo.removeAll(keepingCapacity: true) }
-    visibilityMemo[memoKey] = visible
-    visibilityLock.unlock()
-    return visible
-  }
-
-  private static func computeVisibility(_ item: RichRuntimeItem) -> Bool {
+    // Payload updates can change visibility without changing a stream length.
+    // Read the current immutable item, avoiding stale cross-thread memo entries.
     if [RichItemType.plan, RichItemType.goal, RichItemType.pendingRequest, RichItemType.error]
       .contains(item.type)
     {
       return false
     }
     if item.type == RichItemType.assistantMessage, item.state == .completed {
-      let stream = item.streams["assistant_text", default: ""]
+      let text = RichAssistantDisplayText.text(for: item)
+      if text.contains(where: { !$0.isWhitespace }) { return true }
       let hasBlock =
         RichContentDecoder.decodeMessageContent(item.payload)?.contains {
           switch $0 {
           case .image: true
-          case .text(let text): !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+          case .file(let path, _, let mimeType, _): RichVideoPresentation.resolve(path, mimeType: mimeType) != nil
           default: false
           }
         } == true
-      if stream.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hasBlock {
-        return false
-      }
+      return hasBlock
     }
     if RichItemType.toolLike.contains(item.type) {
       let name = item.payload?.objectValue?["name"]?.stringValue
@@ -273,6 +251,7 @@ enum RichTimeline {
   private static func isGroupable(_ node: RichVisibleTimelineNode) -> Bool {
     node.children.isEmpty && RichItemType.groupable.contains(node.item.type)
       && RichMcpAppPresentation(item: node.item) == nil
+      && RichChatVideoPresentation.videos(for: node.item).isEmpty
   }
 
   static func epochMilliseconds(_ text: String) -> Int64? {

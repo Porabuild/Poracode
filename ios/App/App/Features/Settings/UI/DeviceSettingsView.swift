@@ -13,7 +13,17 @@ struct DeviceSettingsView: View {
 
   var body: some View {
     List {
-      Section {
+      Section(SettingsUIStrings.personalSection) {
+        NavigationLink {
+          SettingsMoreRouteView(session: session, route: .profile)
+        } label: {
+          Label(SettingsUIStrings.profileTitle, systemImage: "person.crop.circle")
+        }
+        NavigationLink {
+          HomeWorkspaceSettingsView(session: session)
+        } label: {
+          Label(HomeStrings.workspaces, systemImage: "square.stack.3d.up")
+        }
         NavigationLink {
           GeneralSettingsView()
         } label: {
@@ -35,6 +45,13 @@ struct DeviceSettingsView: View {
         }
 
         NavigationLink {
+          AudioSettingsView(session: session)
+        } label: {
+          settingsLabel(VoiceStrings.audio, description: VoiceStrings.description, systemImage: "mic")
+        }
+        .accessibilityIdentifier("native-e2e.settings.audio")
+
+        NavigationLink {
           NotificationSettingsView()
         } label: {
           settingsLabel(
@@ -44,6 +61,9 @@ struct DeviceSettingsView: View {
           )
         }
 
+      }
+
+      Section {
         NavigationLink {
           TerminalSettingsView()
         } label: {
@@ -63,11 +83,54 @@ struct DeviceSettingsView: View {
             systemImage: "arrow.triangle.branch"
           )
         }
+        NavigationLink {
+          SettingsMoreRouteView(session: session, route: .workspace, title: SettingsUIStrings.worktreeSection)
+        } label: {
+          Label(SettingsUIStrings.worktreeSection, systemImage: "folder.badge.gearshape")
+        }
+        .disabled(selection == nil)
+      } header: {
+        Text(SettingsUIStrings.workspaceTitle)
       } footer: {
         Text(SettingsUIStrings.deviceSettingsSummary)
       }
 
+      Section(SettingsUIStrings.agentsTitle) {
+        NavigationLink {
+          CrewsSettingsView(session: session)
+        } label: {
+          Label(CrewStrings.title, systemImage: "person.2")
+        }
+        .accessibilityIdentifier("native-e2e.settings.crews")
+        NavigationLink {
+          SettingsMoreRouteView(session: session, route: .agents, title: SettingsUIStrings.models)
+        } label: {
+          Label(SettingsUIStrings.models, systemImage: "cpu")
+        }
+        NavigationLink {
+          SettingsMoreRouteView(session: session, route: .generation, title: SettingsUIStrings.aiHelpers)
+        } label: {
+          Label(SettingsUIStrings.aiHelpers, systemImage: "sparkles")
+        }
+        NavigationLink {
+          SettingsMoreRouteView(session: session, route: .usage)
+        } label: {
+          Label(SettingsUIStrings.usageTitle, systemImage: "chart.bar")
+        }
+        NavigationLink {
+          SessionImportView(session: session)
+        } label: {
+          Label(SessionImportStrings.title, systemImage: "tray.and.arrow.down")
+        }
+      }
+      .disabled(selection == nil)
+
       Section {
+        NavigationLink {
+          HostSwitcherView(session: session)
+        } label: {
+          Label(HomeStrings.connections, systemImage: "server.rack")
+        }
         NavigationLink {
           SettingsHostView(
             session: session,
@@ -83,6 +146,8 @@ struct DeviceSettingsView: View {
           )
         }
         .disabled(selection == nil)
+      } header: {
+        Text(HomeStrings.connections)
       } footer: {
         Text(SettingsUIStrings.desktopSettingsSummary)
       }
@@ -101,6 +166,7 @@ struct DeviceSettingsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(740)
     .navigationTitle(SettingsUIStrings.title)
     .navigationBarTitleDisplayMode(.inline)
   }
@@ -188,6 +254,7 @@ private struct GeneralSettingsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(740)
     .navigationTitle(SettingsUIStrings.generalTitle)
     .navigationBarTitleDisplayMode(.inline)
   }
@@ -270,6 +337,7 @@ private struct NotificationSettingsView: View {
       .disabled(!delivery.isEnabled)
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(740)
     .navigationTitle(SettingsUIStrings.notificationsTitle)
     .navigationBarTitleDisplayMode(.inline)
     .task {
@@ -317,6 +385,7 @@ private struct TerminalSettingsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(740)
     .navigationTitle(SettingsUIStrings.terminalTitle)
     .navigationBarTitleDisplayMode(.inline)
   }

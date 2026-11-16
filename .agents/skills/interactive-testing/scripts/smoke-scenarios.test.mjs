@@ -4,6 +4,19 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { areasForFile, isProductionFile } from "./smoke-scenarios.mjs";
 
+await test("tool heading paths select the real-renderer display gate", () => {
+  for (const file of [
+    "src/shared/toolPresentationAdapters.ts",
+    "src/host/remote/server/runtimeItemPresentation.ts",
+    "src/supervisor/agents/fixture/toolPresentation.ts",
+  ]) {
+    assert.ok(
+      areasForFile(file).some((area) => area.automated.includes("tool-headings")),
+      file,
+    );
+  }
+});
+
 await test("native visuals and inert source fallback retain the dedicated changed-surface gate", () => {
   for (const file of [
     "src/shared/inlineVisuals.ts",

@@ -5,7 +5,7 @@ struct ThreadDetailWorktreeContext {
   let branch: String
 }
 
-struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
+struct ThreadDetailActionMenuContent<InformationControls: View, LifecycleButtons: View>: View {
   let thread: RemoteThread
   let worktree: ThreadDetailWorktreeContext?
   let canMoveToWorktree: Bool
@@ -21,10 +21,13 @@ struct ThreadDetailActionMenuContent<LifecycleButtons: View>: View {
   let refresh: () -> Void
   let perform: (ThreadLifecycleMenuAction) -> Void
   let requestClose: () -> Void
+  @ViewBuilder let informationControls: () -> InformationControls
   @ViewBuilder let lifecycleButtons: () -> LifecycleButtons
 
   var body: some View {
     Menu {
+      informationControls()
+
       // Shared PWA/Android order: Rename · Notes & to-dos · Open terminal ·
       // worktree moves · Mark Done · Pin to top.
       Section {

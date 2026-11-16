@@ -254,7 +254,7 @@ extension ProjectCommand {
   fileprivate var needsSetupDetection: Bool {
     switch self {
     case .addExisting, .create, .clone: true
-    case .update, .relocate, .remove: false
+    case .update, .relocate, .remove, .setDraftConfig: false
     }
   }
 }

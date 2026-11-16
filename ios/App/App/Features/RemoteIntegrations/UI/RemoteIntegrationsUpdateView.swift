@@ -102,5 +102,6 @@ struct RemoteIntegrationsUpdateView: View {
         }
       }
     }
+    .poracodeReadableListMargins(760)
   }
 }

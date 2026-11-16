@@ -3,6 +3,216 @@ import XCTest
 @testable import App
 
 final class RichChatPresentationTests: XCTestCase {
+  func testCompletedVideoToolLeavesTheCollapsedActivityGroup() {
+    let first = RichRuntimeItem(id: "first", type: "tool_call", state: .completed,
+      payload: .object(["name": .string("inspect"), "status": .string("success")]), streams: [:], parentItemID: nil)
+    var video = RichRuntimeItem(id: "video", type: "tool_call", state: .updated,
+      payload: .object(["name": .string("record"), "status": .string("success"), "result": .object([
+        "content": .array([.object(["type": .string("resource_link"), "uri": .string("/project/demo.mp4"), "mimeType": .string("video/mp4")])]),
+      ])]), streams: [:], parentItemID: nil)
+    XCTAssertEqual(RichTimeline.project([first, video]).visibleEntries.count, 1)
+    video.state = .completed
+    let entries = RichTimeline.project([first, video]).visibleEntries
+    XCTAssertEqual(entries.count, 2)
+    guard case .item(let standalone) = entries.last else { return XCTFail("Video must render directly") }
+    XCTAssertEqual(standalone.item.id, "video")
+  }
+
+  func testVideoMarkupIncludesImagesAndVisibleHTMLInDocumentOrder() {
+    let text = """
+      ![First](/project/first.mp4)
+
+      <video title="Second" src="https://example.test/second.mp4?a=1&amp;b=2"></video>
+
+      <template>
+
+      <video src="/project/hidden.mp4"></video>
+
+      </template>
+
+      ```html
+      <video src="/project/example.mp4"></video>
+      ```
+
+      <video>
+
+      <source src="/project/third" type="video/mp4">
+
+      </video>
+      """
+    XCTAssertEqual(RichChatVideoPresentation.markdownVideos(text).map(\.target), [
+      "/project/first.mp4", "https://example.test/second.mp4?a=1&b=2", "/project/third",
+    ])
+  }
+
+  func testMediaIndexReusesCompletedItemsDuringUnrelatedStreaming() {
+    var parsed: [String] = []
+    var index = RichChatMediaIndex { item in
+      parsed.append(item.id)
+      return RichChatVideoPresentation.videos(for: item)
+    }
+    let settled = RichRuntimeItem(id: "settled", type: RichItemType.assistantMessage, state: .completed,
+      payload: nil, streams: ["assistant_text": "[Watch](/project/demo.mp4)"], parentItemID: nil)
+    var active = RichRuntimeItem(id: "active", type: RichItemType.assistantMessage, state: .updated,
+      payload: nil, streams: ["assistant_text": "A"], parentItemID: nil)
+    XCTAssertEqual(index.media(in: [settled, active]).videos.count, 1)
+    active.streams["assistant_text"] = "Another streaming update"
+    _ = index.media(in: [settled, active])
+    XCTAssertEqual(parsed.filter { $0 == "settled" }.count, 1)
+    _ = index.media(in: [])
+    _ = index.media(in: [settled])
+    XCTAssertEqual(parsed.filter { $0 == "settled" }.count, 2, "Removed history is released")
+  }
+
+  func testExtensionlessVideoRetainsItsMIMEInTranscriptSupplements() throws {
+    let item = RichRuntimeItem(id: "video", type: RichItemType.assistantMessage, state: .completed,
+      payload: .object(["content": .array([.object([
+        "kind": .string("file"), "path": .string("/project/recording"), "mimeType": .string("video/mp4"),
+      ])])]), streams: [:], parentItemID: nil)
+    guard case .video(let video) = try XCTUnwrap(RichChatPresentation.messageSupplements(for: item).first)
+    else { return XCTFail("MIME-identified video must remain a playable transcript item") }
+    XCTAssertEqual(video.target, "/project/recording")
+  }
+
+  func testAssistantFinalDisplayMatchesDesktopWithoutResurrectingSuppressedStreams() {
+    var item = RichRuntimeItem(id: "final", type: RichItemType.assistantMessage, state: .updated,
+      payload: .object(["displayAuthoritative": .bool(true), "content": .array([
+        .object(["kind": .string("text"), "text": .string("Final answer")]),
+      ])]), streams: ["assistant_text": "Draft answer"], parentItemID: nil)
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "Draft answer")
+    item.state = .completed
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "Final answer")
+    XCTAssertEqual(RichChatPresentation.text(for: item), "Final answer")
+    XCTAssertTrue(RichTimeline.isVisible(item))
+    item.payload = .object(["displayAuthoritative": .bool(true), "content": .array([
+      .object(["kind": .string("text"), "text": .string("")]),
+    ])])
+    XCTAssertFalse(RichTimeline.isVisible(item), "Payload-only updates must invalidate visibility")
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "")
+    item.payload = .object(["content": .array([
+      .object(["kind": .string("text"), "text": .string("Legacy payload")]),
+    ])])
+    XCTAssertEqual(RichChatPresentation.messageBody(for: item), "Draft answer", "Pre-flag history remains stream-first")
+    XCTAssertTrue(RichTimeline.isVisible(item))
+  }
+
+  func testVideoGalleryMatchesTypedFilesAndSuccessfulToolResources() throws {
+    let file = RichRuntimeItem(id: "file", type: RichItemType.assistantMessage, state: .completed,
+      payload: .object(["content": .array([
+        .object(["kind": .string("file"), "path": .string("/project/demo.mp4"), "mimeType": .string("video/mp4")]),
+      ])]), streams: [:], parentItemID: nil)
+    var tool = RichRuntimeItem(id: "tool", type: "tool_call", state: .completed,
+      payload: .object(["name": .string("record"), "status": .string("success"), "result": .object([
+        "content": .array([.object(["type": .string("resource_link"), "uri": .string("https://example.test/demo.mov"), "mimeType": .string("video/quicktime")])]),
+      ])]), streams: [:], parentItemID: nil)
+    XCTAssertTrue(RichTimeline.isVisible(file), "A video-only assistant message is visible on desktop")
+    XCTAssertEqual(RichChatVideoPresentation.videos(in: [file, file, tool]).map(\.target), ["https://example.test/demo.mov", "/project/demo.mp4"])
+    tool.state = .updated
+    XCTAssertTrue(RichChatVideoPresentation.videos(for: tool).isEmpty)
+    XCTAssertNil(RichVideoPresentation.resolve("javascript:demo.mp4"))
+    XCTAssertNil(RichVideoPresentation.resolve("data:video/mp4;base64,AAAA"))
+    XCTAssertNil(RichVideoPresentation.resolve("https://example.test/\nsecret.mp4"))
+  }
+
+  func testVideoMarkdownSkipsCodeAndHandlesReferenceLinks() {
+    let source = "[Watch](</project/demo clip.mp4>)\n\n`[Fake](/secret/fake.mp4)`\n\n[Recording][clip]\n\n[clip]: https://example.test/recording.mp4"
+    XCTAssertEqual(RichChatVideoPresentation.markdownVideos(source).map(\.target), ["/project/demo clip.mp4", "https://example.test/recording.mp4"])
+  }
+
+  func testInspectorPreferencesPreserveCollapseAndOrderAcrossLaunches() {
+    var preferences = RichChatInspectorPreferences(stored: "")
+    XCTAssertTrue(preferences.collapsed.contains(.context))
+    preferences.collapsed.insert(.goal)
+    preferences.move(.media, to: .goal)
+    let restored = RichChatInspectorPreferences(stored: preferences.encoded)
+    XCTAssertEqual(restored, preferences)
+    XCTAssertEqual(restored.order.first, .media)
+    XCTAssertEqual(Set(restored.order), Set(RichChatInspectorSectionID.allCases))
+    let older = RichChatInspectorPreferences(stored: #"{"order":["info","info"],"collapsed":["info"]}"#)
+    XCTAssertEqual(older.order.first, .info)
+    XCTAssertEqual(older.order.count, RichChatInspectorSectionID.allCases.count)
+  }
+
+  func testGoalMetadataAndActionsBelongToTheCurrentProviderEra() throws {
+    let goal = RichRuntimeItem(id: "goal", type: RichItemType.goal, state: .completed,
+      payload: .object(["objective": .string("Ship"), "status": .string("active"),
+        "availableActions": .array(["edit", "pause", "clear"].map(RichJSON.string)),
+        "tokenBudget": .number(1000), "tokensUsed": .number(250), "iterations": .number(3),
+        "lastReason": .string("Still testing")]), streams: [:], parentItemID: nil)
+    let value = try XCTUnwrap(RichChatPresentation.latestGoal(in: [goal]))
+    XCTAssertEqual(value.availableActions, ["edit", "pause", "clear"])
+    XCTAssertEqual(value.tokensUsed, 250)
+    XCTAssertEqual(value.tokenBudget, 1000)
+    XCTAssertEqual(value.iterations, 3)
+    XCTAssertEqual(value.lastReason, "Still testing")
+    let handoff = RichRuntimeItem(id: "handoff", type: "provider_handoff", state: .completed, payload: nil, streams: [:], parentItemID: nil)
+    XCTAssertNil(RichChatPresentation.latestGoal(in: [goal, handoff]))
+  }
+
+  func testMediaIndexKeepsLoadedImagesNewestFirstAndTracksHistoryChanges() {
+    func item(_ id: String, _ path: String, parent: String? = nil) -> RichRuntimeItem {
+      RichRuntimeItem(
+        id: id,
+        type: RichItemType.userMessage,
+        state: .completed,
+        payload: .object([
+          "content": .array([.object([
+            "kind": .string("file"), "path": .string(path), "mimeType": .string("image/png"),
+          ])]),
+        ]),
+        streams: [:],
+        parentItemID: parent
+      )
+    }
+
+    var index = RichChatMediaIndex()
+    let first = item("first", "/project/first.png")
+    let second = item("second", "/project/second.png")
+    let nested = item("nested", "/project/nested.png", parent: "first")
+    XCTAssertEqual(index.images(in: [first, second, nested]), [
+      .local(path: "/project/second.png"), .local(path: "/project/first.png"),
+    ])
+    XCTAssertEqual(index.images(in: [first, item("second", "/project/updated.png")]), [
+      .local(path: "/project/updated.png"), .local(path: "/project/first.png"),
+    ])
+    XCTAssertEqual(index.images(in: [first]), [.local(path: "/project/first.png")])
+    XCTAssertTrue(index.images(in: []).isEmpty)
+  }
+
+  func testRemoteMediaIDsDistinguishPathsWithTheSameDepth() {
+    func image(_ path: [RichImagePathPart]) -> RichImagePresentation {
+      .remote(RichRemoteImageReference(
+        threadID: "thread", itemID: "item", path: path, mimeType: "image/png",
+        bytes: 10, width: nil, height: nil, preview: nil
+      ))
+    }
+    XCTAssertNotEqual(image([.key("first")]).id, image([.key("second")]).id)
+    XCTAssertNotEqual(image([.index(0)]).id, image([.index(1)]).id)
+  }
+
+  func testGoalElapsedUsesTheReportedTimeAndTimestamp() {
+    let now = Date(timeIntervalSince1970: 2_000)
+    let active = RichGoalPresentation(
+      objective: "Ship", status: "active", availableActions: [],
+      timeUsedSeconds: 120, updatedAt: 1_990_000
+    )
+    // Values below the milliseconds threshold are seconds.
+    XCTAssertEqual(active.elapsedSeconds(at: now), 120)
+    var seconds = active
+    seconds.updatedAt = 1_990
+    XCTAssertEqual(seconds.elapsedSeconds(at: now), 130)
+    var milliseconds = active
+    milliseconds.updatedAt = 1_700_000_000_000
+    XCTAssertEqual(milliseconds.elapsedSeconds(at: Date(timeIntervalSince1970: 1_700_000_010)), 130)
+    var paused = RichGoalPresentation(
+      objective: "Ship", status: "paused", availableActions: [],
+      timeUsedSeconds: 120, updatedAt: 1_700_000_000_000
+    )
+    XCTAssertEqual(paused.elapsedSeconds(at: now), 120)
+    paused.timeUsedSeconds = -.infinity
+    XCTAssertNil(paused.elapsedSeconds(at: now))
+  }
+
   func testTimelineScrollPolicyReleasesHistoryButFollowsTheUsersOwnSend() {
     XCTAssertTrue(
       RichChatTimelineScrollPolicy.shouldFollowBottom(
@@ -631,6 +841,17 @@ final class RichChatPresentationTests: XCTestCase {
     XCTAssertEqual(presentation.snapshot?.windows.first?.usedPercent, 75)
   }
 
+  func testUsageStalenessPreservesQuotaDataAndUsesTheDesktopThreshold() {
+    let presentation = RichChatProviderUsagePresentation(
+      providerID: "agent", label: "Agent",
+      snapshot: providerUsageSnapshot("agent", percent: 12, fetchedAt: 1_000_000)
+    )
+    XCTAssertFalse(presentation.isStale(at: Date(timeIntervalSince1970: 1_119.999)))
+    XCTAssertTrue(presentation.isStale(at: Date(timeIntervalSince1970: 1_120)))
+    XCTAssertEqual(presentation.snapshot?.windows.first?.usedPercent, 12)
+    XCTAssertFalse(RichChatProviderUsagePresentation(providerID: "missing", label: "Missing", snapshot: nil).isStale())
+  }
+
   func testCanonicalActivityCategoriesMatchTheSharedPwaFixture() throws {
     let fixture = try loadRichChatFixture("rich-activity-categories.json")
     XCTAssertEqual(fixture["version"]?.exactInt64Value, 1)
@@ -830,9 +1051,18 @@ final class RichChatPresentationTests: XCTestCase {
     )
   }
 
+  func testCompactElapsedUsesLocalizedNarrowUnitsAndSafeTimestampClamping() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    let locale = Locale(identifier: "en_US")
+    XCTAssertEqual(RichBackgroundTaskElapsed.compactText(startedAtMilliseconds: 710_000, now: now, locale: locale), "4m 50s")
+    XCTAssertEqual(RichBackgroundTaskElapsed.compactText(startedAtMilliseconds: 1e300, now: now, locale: locale), "0s")
+    XCTAssertFalse(RichBackgroundTaskElapsed.compactText(startedAtMilliseconds: -1e300, now: now, locale: locale).isEmpty)
+  }
+
   private func providerUsageSnapshot(
     _ providerID: String,
-    percent: Double
+    percent: Double,
+    fetchedAt: Int64 = 0
   ) -> SettingsUsageSnapshot {
     SettingsUsageSnapshot(
       providerId: providerID,
@@ -849,7 +1079,7 @@ final class RichChatPresentationTests: XCTestCase {
           resetsAt: nil
         )
       ],
-      fetchedAt: 0,
+      fetchedAt: fetchedAt,
       authenticatedAs: nil,
       plan: nil,
       error: nil,

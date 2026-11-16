@@ -95,6 +95,7 @@ struct ProjectActionsSettingsView: View {
       }
     }
     .contentMargins(.top, 0, for: .scrollContent)
+    .poracodeReadableListMargins(760)
     .navigationTitle(ProjectSettingsStrings.actions)
     .navigationBarTitleDisplayMode(.inline)
     .poracodeBottomBar {
@@ -187,6 +188,7 @@ private struct ProjectActionEditor: View {
         )
       )
     }
+    .poracodeReadableListMargins(760)
     .navigationTitle(action.name.isEmpty ? ProjectSettingsStrings.actions : action.name)
     .navigationBarTitleDisplayMode(.inline)
   }

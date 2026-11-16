@@ -2,6 +2,7 @@ import Foundation
 
 enum RichPromptSegment: Sendable, Equatable {
   case text(content: String)
+  case selectedText(content: String)
   case file(path: String)
   case attachment(path: String, mimeType: String?)
   case diffComment(path: String, lineNumber: Int64, side: RichDiffSide, staged: Bool, body: String)
@@ -45,6 +46,7 @@ struct RichSetPendingSteerInput: Sendable, Equatable {
   let prompt: String
   let segments: [RichPromptSegment]?
   let config: [String: RichJSON]
+  var clientContext: TurnClientContext? = nil
 }
 
 struct RichPendingSteerState: Sendable, Equatable {
@@ -71,7 +73,10 @@ enum RichPendingSteerDecoder {
     return RichSetPendingSteerInput(
       prompt: prompt,
       segments: try decodeOptionalSegments(object),
-      config: config
+      config: config,
+      clientContext: try object["clientContext"].map {
+        try JSONDecoding.decode(TurnClientContext.self, from: JSONDecoding.encoder.encode($0))
+      }
     )
   }
 
@@ -96,7 +101,8 @@ enum RichPendingSteerDecoder {
     switch kind {
     case "text":
       guard let content = RichDecoding.requiredString(object, "content") else { break }
-      return .text(content: content)
+      if let selection = object["selection"], selection != .bool(true), selection != .bool(false) { break }
+      return object["selection"] == .bool(true) ? .selectedText(content: content) : .text(content: content)
     case "file":
       guard let path = RichDecoding.requiredString(object, "path") else { break }
       return .file(path: path)

@@ -3,15 +3,31 @@ import { writeValidatedRoute, recordRouteFollowUps } from "./contractResponse.ts
 import { LabHttpError } from "./labAuth.ts";
 import type { LabRuntime } from "./labRuntime.ts";
 import { validateRouteRequest } from "./requestValidation.ts";
+import { REMOTE_COMMAND_ID_HEADER } from "../../../src/shared/remote/protocol.ts";
+import { headerValue } from "./httpIo.ts";
+import {
+  presentRuntimeCommand,
+  presentRuntimeMcpTool,
+  presentRuntimeWorkflow,
+  presentRuntimeWorkflowView,
+  presentRuntimeToolBody,
+} from "../../../src/host/remote/server/runtimeItemPresentationProjection.ts";
+import { runtimeItemPresentationRequestSchema } from "../../../src/shared/contracts/runtimeItemPresentation.ts";
+import { historyRuntimeItemSchema } from "../../../src/shared/remote/historyPresentation.ts";
 
 const LIFECYCLE_ROUTE_IDS = new Set([
   "shell-snapshot",
   "project-command",
   "project-settings",
+  "catalog-membership",
+  "mcp-settings-read",
+  "mcp-settings-command",
+  "mcp-settings-operation",
   "project-notes-read",
   "project-notes-write",
   "attachment-upload",
   "thread-history",
+  "thread-item-presentations",
   "thread-history-items",
   "thread-start-existing",
   "thread-runtime-truncate",
@@ -34,17 +50,72 @@ export async function handleLifecycleHttp(
   params: Readonly<Record<string, string>>,
 ): Promise<boolean> {
   if (!LIFECYCLE_ROUTE_IDS.has(routeId)) return false;
+  if (routeId.startsWith("mcp-settings-") && !runtime.lifecycle.composerTools.enabled) return false;
+  if (routeId === "catalog-membership" && !runtime.lifecycle.sideChats.enabled) return false;
   const input = await validateRouteRequest(req, url, routeId, params);
   const body = input.body as Record<string, unknown>;
   const threadId = String(input.params.threadId ?? "");
   if (
     routeId.startsWith("thread-") &&
     routeId !== "thread-start-existing" &&
+    !(routeId === "thread-command" && body.kind === "import-session") &&
+    !(
+      routeId === "thread-command" &&
+      body.kind === "start" &&
+      runtime.lifecycle.sideChats.enabled
+    ) &&
     !runtime.lifecycle.hasThread(threadId)
   ) {
     throw new LabHttpError("not_found", "Thread not found.", 404);
   }
   switch (routeId) {
+    case "thread-item-presentations": {
+      const request = runtimeItemPresentationRequestSchema.parse(body);
+      const history = runtime.lifecycle.history(runtime.ring.seq, threadId);
+      const sources = historyRuntimeItemSchema.array().parse(history.runtimeItems);
+      const items = request.items.map(({ itemId, inputDigest }) => {
+        const item = sources.find((row) => row.id === itemId);
+        return item
+          ? (request.version === 1
+              ? presentRuntimeCommand
+              : request.version === 2
+                ? presentRuntimeMcpTool
+                : request.version === 3
+                  ? presentRuntimeWorkflow
+                  : request.version === 4
+                    ? presentRuntimeWorkflowView
+                    : presentRuntimeToolBody)(
+              itemId,
+              item.type,
+              item.state,
+              item.payload,
+              inputDigest,
+            )
+          : { status: "unavailable" as const, itemId, reason: "missing" as const };
+      });
+      writeValidatedRoute(runtime, res, routeId, { version: request.version, items });
+      return true;
+    }
+    case "catalog-membership":
+      writeValidatedRoute(runtime, res, routeId, {
+        existingThreadIds: (body.threadIds as string[]).filter((id) =>
+          runtime.lifecycle.hasThread(id),
+        ),
+        existingProjectIds: (body.projectIds as string[]).filter(
+          (id) => runtime.lifecycle.projectSettings(id) !== null,
+        ),
+      });
+      return true;
+    case "mcp-settings-read":
+    case "mcp-settings-command":
+    case "mcp-settings-operation":
+      writeValidatedRoute(
+        runtime,
+        res,
+        routeId,
+        runtime.lifecycle.composerTools.response(routeId, body),
+      );
+      return true;
     case "shell-snapshot":
       // Like the host, the snapshot names the epoch its seq belongs to, so a
       // declaring client's first connect resumes verified instead of earning a
@@ -58,6 +129,13 @@ export async function handleLifecycleHttp(
       recordRouteFollowUps(runtime, routeId);
       return true;
     case "project-command": {
+      if (body.kind === "set-draft-config" && !headerValue(req, REMOTE_COMMAND_ID_HEADER)) {
+        throw new LabHttpError(
+          "command_id_required",
+          "A project preference operation needs an id.",
+          400,
+        );
+      }
       const result = runtime.lifecycle.projectCommand(body);
       if (!result) {
         runtime.ledger.observeHttpRoute(routeId, { statusCode: 501, source: "negative" });
@@ -101,22 +179,46 @@ export async function handleLifecycleHttp(
       writeValidatedRoute(runtime, res, routeId, { path });
       return true;
     }
-    case "thread-history":
-      writeValidatedRoute(runtime, res, routeId, runtime.lifecycle.history(runtime.ring.seq));
-      recordRouteFollowUps(runtime, routeId);
-      return true;
-    case "thread-history-items":
+    case "thread-history": {
+      const history = runtime.lifecycle.history(runtime.ring.seq, threadId);
       writeValidatedRoute(
         runtime,
         res,
         routeId,
-        runtime.lifecycle.historyItems(
-          input.query.beforePosition as number | undefined,
-          input.query.limit as number,
-        ),
+        runtime.lifecycle.sideChats.enabled && input.query.reads === "bounded-v1"
+          ? {
+              ...history,
+              reads: "bounded-v1",
+              runtimeNextCursor: null,
+              completedTurnsNextCursor: null,
+            }
+          : history,
       );
       recordRouteFollowUps(runtime, routeId);
       return true;
+    }
+    case "thread-history-items": {
+      const page = runtime.lifecycle.sideChats.has(threadId)
+        ? runtime.lifecycle.sideChats.historyItems(
+            threadId,
+            input.query.beforePosition as number | undefined,
+            input.query.limit as number,
+          )
+        : runtime.lifecycle.historyItems(
+            input.query.beforePosition as number | undefined,
+            input.query.limit as number,
+          );
+      writeValidatedRoute(
+        runtime,
+        res,
+        routeId,
+        runtime.lifecycle.sideChats.enabled && input.query.reads === "bounded-v1"
+          ? { ...page, reads: "bounded-v1" }
+          : page,
+      );
+      recordRouteFollowUps(runtime, routeId);
+      return true;
+    }
     case "thread-start-existing":
       markMutation(runtime, routeId);
       writeValidatedRoute(runtime, res, routeId, runtime.lifecycle.start(body));
@@ -134,10 +236,24 @@ export async function handleLifecycleHttp(
       );
       return true;
     case "thread-command":
-      runtime.lifecycle.command(body);
+      if (body.kind === "start" && runtime.lifecycle.sideChats.enabled) {
+        runtime.lifecycle.startSideChat(
+          threadId,
+          body,
+          headerValue(req, REMOTE_COMMAND_ID_HEADER) ?? "",
+        );
+        runtime.publishEvent({ type: "remote-threads-changed", threadIds: [threadId] });
+      } else if (body.kind === "delete" && runtime.lifecycle.sideChats.has(threadId)) {
+        runtime.lifecycle.sideChats.remove(threadId);
+        runtime.publishEvent({ type: "remote-threads-changed", threadIds: [threadId] });
+      } else if (body.kind === "import-session") runtime.lifecycle.importSession(threadId, body);
+      else runtime.lifecycle.command(body);
       return writeOkMutation(runtime, res, routeId);
     case "thread-send":
-      runtime.lifecycle.send(body);
+      if (runtime.lifecycle.sideChats.has(threadId)) {
+        const events = runtime.lifecycle.sideChats.send(threadId, body);
+        runtime.publishEvent({ type: "thread-runtime-events", threadId, events });
+      } else runtime.lifecycle.send(body);
       return writeOkMutation(runtime, res, routeId);
     case "thread-interrupt":
       runtime.lifecycle.interrupt();

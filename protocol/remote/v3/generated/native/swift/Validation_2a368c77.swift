@@ -61,6 +61,14 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_547dd82d60a1e7f9 = RemoteSchema(type: "object", required: Set(["workflowView"]), properties: ["workflowView": RemoteSchemas.schema_885827b9aadf94b6], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_54be2f48901b300b = RemoteSchema(type: "array", maxItems: 4096, items: RemoteSchemas.schema_e6e7f052c94d0214, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_54c83506378cf7c8 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_f3c2d2c49187a75b, RemoteSchemas.schema_43d29f1d5a2e1f23], unknownPolicy: .strip, semanticIds: ["thread.goal.objective.trim"])
 }
 
@@ -74,6 +82,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_5513eb6f6fbb46a0 = RemoteSchema(type: "object", required: Set(["projectLocation"]), properties: ["filePath": RemoteSchemas.schema_bf0b727f7b1c6d07, "projectLocation": RemoteSchemas.schema_080f9cc154af9e27, "staged": RemoteSchemas.schema_f8b6dd8128e8bfe0], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_551ce3acbcef8dec = RemoteSchema(type: "array", maxItems: 256, items: RemoteSchemas.schema_2b6a5e7f6fb2fbaa, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

@@ -103,7 +103,6 @@ final class RichChatMessageActionsTests: XCTestCase {
   }
 
   func testNativeTimelineOffersCopyAndCoordinatedRevertFromLongPress() throws {
-    let timeline = try Self.source("App/Features/RichChat/UI/RichChatTimelineView.swift")
     let components = try Self.source(
       "App/Features/RichChat/UI/RichChatTranscriptComponents.swift"
     )
@@ -117,7 +116,8 @@ final class RichChatMessageActionsTests: XCTestCase {
     XCTAssertTrue(components.contains(".contextMenu { messageActions }"))
     XCTAssertTrue(components.contains("UIPasteboard.general.string = text"))
     XCTAssertTrue(components.contains("actions.revertPlan(itemID: item.id)"))
-    XCTAssertTrue(timeline.contains("conversation.revertToCheckpoint("))
+    let interactions = try Self.source("App/Features/RichChat/UI/RichChatTimelineInteractions.swift")
+    XCTAssertTrue(interactions.contains("conversation.revertToCheckpoint("))
     // WS2 stage 4: the REVERT path is one compound call and the legacy
     // three-call flow is gone from it. The standalone truncate action
     // legitimately still calls `truncateRichRuntime`, so the absence is

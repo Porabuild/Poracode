@@ -14,6 +14,7 @@ import Foundation
 
     static func applyIfRequested() {
       guard ProcessInfo.processInfo.arguments.contains(launchArgument) else { return }
+      UserDefaults.standard.removeObject(forKey: ComposerPreferencesStore.key)
       try? HostRegistryStore(directory: HostRegistryStore.productionDirectory()).remove()
       try? SystemKeychainIO(service: HostVault.service).deleteAll()
       try? SystemKeychainIO(service: SystemKeychainIO.service).deleteAll()

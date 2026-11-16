@@ -25,14 +25,18 @@ struct RichChatTimelineView: View {
   let isRefreshing: Bool
   var requestFork: ((String) -> Void)? = nil
   var forkBoundaryItemID: String? = nil
+  var fallbackCompletedTurn: RichCompletedTurn? = nil
+  var askInSideChat: ((String) -> Void)? = nil
 
   @Environment(\.richChatCompactOverlayClearance) private var compactOverlayClearance
+  @Environment(\.transcriptDisclosures) private var disclosures
 
-  @State private var truncateIntent: RichChatTruncateIntent?
-  @State private var revertIntent: RichChatMessageRevertPlan?
+  @State var truncateIntent: RichChatTruncateIntent?
+  @State var revertIntent: RichChatMessageRevertPlan?
   @State private var followsBottom = true
   @State private var bottomIsVisible = false
   @State private var completedInitialScroll = false
+  @ScaledMetric(relativeTo: .body) private var newUserMessageSpacing = 16
 
   var body: some View {
     let projection = controller.timeline
@@ -41,8 +45,8 @@ struct RichChatTimelineView: View {
     let boundaryIndex = controller.state.completedTurns.firstIndex { $0.anchorItemID == forkBoundaryItemID }
     let displayedBoundary = boundaryIndex.flatMap { displayedTurns.indices.contains($0) ? displayedTurns[$0].anchorItemID : nil } ?? forkBoundaryItemID
     ScrollViewReader { proxy in
-      ScrollView {
-        LazyVStack(alignment: .leading, spacing: 6) {
+      List {
+        Group {
           if controller.state.olderCursor != nil || controller.state.olderTurnsCursor != nil
             || controller.state.isLoadingOlder
           {
@@ -65,6 +69,8 @@ struct RichChatTimelineView: View {
                 mediaController: mediaController,
                 actions: actions
               )
+              .padding(.top, entry.stableID != entries.first?.stableID
+                && entry.runtimeItems.first?.type == RichItemType.userMessage ? newUserMessageSpacing : 0)
               .id(entry.stableID)
               // The inline assistant action row already offers fork for a
               // completed reply; keep this per-entry button only for entries
@@ -95,6 +101,16 @@ struct RichChatTimelineView: View {
                 .padding(.vertical, 8)
               }
             }
+            if displayedBoundary.map({ entries.last?.rootItemIDs.contains($0) != true }) ?? true,
+              let tail = RichChatTurnTiming.tailCompletedLabel(entries: entries,
+              turns: displayedTurns, isLive: controller.state.transcript?.openTurn == true,
+              fallback: fallbackCompletedTurn) {
+              Text(tail)
+                .poracodeChatText(.metadata)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .accessibilityIdentifier("native-e2e.turn-completed-time")
+            }
           }
           Color.clear
             .frame(height: compactOverlayClearance)
@@ -104,26 +120,35 @@ struct RichChatTimelineView: View {
             .id(RichChatTimelineScrollAnchor.bottom)
             .onAppear {
               bottomIsVisible = true
-              followsBottom = true
             }
             .onDisappear { bottomIsVisible = false }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
       }
+      .listStyle(.plain)
+      .environment(\.defaultMinListRowHeight, 0)
+      .listRowSpacing(6)
+      .contentMargins(.vertical, 8, for: .scrollContent)
+      .scrollContentBackground(.hidden)
+      .frame(maxWidth: 900)
+      .frame(maxWidth: .infinity)
       .scrollDismissesKeyboard(.interactively)
       .simultaneousGesture(
         DragGesture(minimumDistance: 8)
           .onChanged { value in
             if value.translation.height > 8 { followsBottom = false }
           }
+          .onEnded { _ in
+            if bottomIsVisible { followsBottom = true }
+          }
       )
       .accessibilityLabel(RichChatStrings.timeline)
       .accessibilityIdentifier("native-e2e.timeline")
       .onAppear {
         DispatchQueue.main.async {
-          proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
-          completedInitialScroll = true
+          restoreInitialScroll(proxy)
         }
       }
       .onChange(of: compactOverlayClearance) { _, _ in
@@ -131,6 +156,11 @@ struct RichChatTimelineView: View {
         proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
       }
       .onChange(of: projection?.rawItems.last) { _, item in
+        if !completedInitialScroll {
+          DispatchQueue.main.async { restoreInitialScroll(proxy) }
+          return
+        }
+        if item?.type == RichItemType.userMessage { disclosures?.clearFocus() }
         guard
           RichChatTimelineScrollPolicy.shouldFollowBottom(
             isFollowingBottom: followsBottom,
@@ -143,22 +173,25 @@ struct RichChatTimelineView: View {
         }
       }
       .overlay(alignment: .bottom) {
-        if completedInitialScroll && !bottomIsVisible {
-          PoracodeCircleButton {
-            followsBottom = true
-            withAnimation(.easeOut(duration: 0.2)) {
-              proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
+        Group {
+          if completedInitialScroll && !bottomIsVisible {
+            PoracodeCircleButton {
+              disclosures?.clearFocus()
+              followsBottom = true
+              withAnimation(.easeOut(duration: 0.2)) {
+                proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
+              }
+            } label: {
+              RichChatIcon(.arrowDown)
+                .font(.subheadline.weight(.semibold))
             }
-          } label: {
-            RichChatIcon(.arrowDown)
-              .font(.subheadline.weight(.semibold))
+            .accessibilityLabel(RichChatStrings.scrollToBottom)
+            .padding(.bottom, compactOverlayClearance + 12)
+            .transition(.scale.combined(with: .opacity))
           }
-          .accessibilityLabel(RichChatStrings.scrollToBottom)
-          .padding(.bottom, compactOverlayClearance + 12)
-          .transition(.scale.combined(with: .opacity))
         }
+        .animation(.snappy(duration: 0.2), value: bottomIsVisible)
       }
-      .animation(.snappy(duration: 0.2), value: bottomIsVisible)
       .confirmationDialog(
         RichChatStrings.truncateConfirmationTitle,
         isPresented: Binding(
@@ -192,89 +225,18 @@ struct RichChatTimelineView: View {
     }
   }
 
-  private func timelineActions(for projection: RichTimelineProjection?) -> RichChatTimelineActions {
-    let allowsActions = canOperate && !isRefreshing && !isBusy
-    let rawItems = projection?.rawItems ?? []
-    let boundaryIndex = rawItems.firstIndex { $0.id == forkBoundaryItemID }
-    var inheritedIDs = forkBoundaryItemID == nil ? Set<String>() : Set(rawItems.prefix((boundaryIndex ?? (rawItems.count - 1)) + 1).map(\.id))
-    for item in rawItems {
-      if let parent = item.parentItemID, inheritedIDs.contains(parent) { inheritedIDs.insert(item.id) }
+  private func restoreInitialScroll(_ proxy: ScrollViewProxy) {
+    guard !completedInitialScroll, let projection = controller.timeline, !projection.rawItems.isEmpty else { return }
+    // A rebuilt adaptive column already has expanded rows from the window
+    // store. Let the scroll view place them before the next user gesture;
+    // forcing a large lazy group to its top while it is being measured can
+    // leave the lazy layout in a placement loop after rotation.
+    if disclosures?.focusID != nil {
+      followsBottom = false
+    } else {
+      proxy.scrollTo(RichChatTimelineScrollAnchor.bottom, anchor: .bottom)
     }
-    var actions = RichChatTimelineActions(
-      lastVisibleItemID: projection?.visibleEntries.last?.lastItemID,
-      rawItems: projection?.rawItems ?? [],
-      completedTurns: controller.state.displayedCompletedTurns(in: projection),
-      checkpoints: checkpointController.state.collection,
-      isTurnActive: controller.state.transcript?.openTurn == true,
-      inheritedItemIDs: inheritedIDs,
-      requestRevert: allowsActions && allowsCheckpointRevert
-        ? { plan in revertIntent = plan } : nil,
-      requestTruncate: allowsActions
-        ? { itemID in
-          let eligible = RichChatTruncateEligibility.isEligible(
-            itemID: itemID,
-            lastVisibleItemID: lastItemID
-          )
-          guard eligible else { return }
-          truncateIntent = RichChatTruncateIntent(id: itemID)
-        } : nil,
-      requestFork: allowsActions ? requestFork : nil
-    )
-    actions.bindMcpAppActions(conversation: conversation, config: config, canOperate: canOperate)
-    return actions
-  }
-
-  private var isBusy: Bool {
-    conversation.state.activeMutation != nil
-      || conversation.state.isSending
-      || checkpointController.state.activeMutation != nil
-  }
-
-  /// The last *item* id, which is not always the last entry id: a trailing
-  /// activity group's stable id is not addressable on the wire.
-  private var lastItemID: String? {
-    controller.timeline?.visibleEntries.last?.lastItemID
-  }
-
-  /// Re-checks eligibility and availability at confirmation time, because the
-  /// transcript can have moved on while the dialog was up.
-  private func confirmTruncate(_ intent: RichChatTruncateIntent) {
-    truncateIntent = nil
-    guard canOperate, !isRefreshing, !isBusy,
-      RichChatTruncateEligibility.isEligible(
-        itemID: intent.id,
-        lastVisibleItemID: lastItemID
-      )
-    else { return }
-    Task { await conversation.truncate(after: intent.id) }
-  }
-
-  private func confirmRevert(_ selectedPlan: RichChatMessageRevertPlan) {
-    revertIntent = nil
-    guard canOperate, !isRefreshing, !isBusy,
-      let currentPlan = timelineActions(for: controller.timeline).revertPlan(
-        itemID: selectedPlan.userItemID),
-      currentPlan == selectedPlan
-    else { return }
-    Task {
-      let succeeded = await conversation.revertToCheckpoint(
-        RichChatCheckpointRevertInput(checkpointItemID: currentPlan.checkpointItemID)
-      )
-      if succeeded, let projectLocation {
-        await checkpointController.load(projectLocation: projectLocation)
-      }
-    }
-  }
-
-  private func revertMessage(_ plan: RichChatMessageRevertPlan) -> String {
-    var parts = [RichChatMessageActionStrings.revertMessage]
-    if !plan.hasFileCheckpoint || projectLocation == nil {
-      parts.append(RichChatMessageActionStrings.noFileCheckpoint)
-    }
-    if sharedTreeThreadCount > 0 {
-      parts.append(RichChatMessageActionStrings.sharedTreeWarning(sharedTreeThreadCount))
-    }
-    return parts.joined(separator: "\n\n")
+    completedInitialScroll = true
   }
 }
 
@@ -294,7 +256,7 @@ extension RichTimelineEntry {
 
   /// Last addressable runtime item inside this entry, or `nil` when the entry
   /// carries none. Group stable ids are presentation-only and never sent.
-  fileprivate var lastItemID: String? {
+  var lastItemID: String? {
     switch self {
     case .item(let node): node.lastItemID
     case .group(_, let members): members.last?.lastItemID
@@ -303,7 +265,7 @@ extension RichTimelineEntry {
 }
 
 extension RichVisibleTimelineNode {
-  fileprivate var lastItemID: String? {
+  var lastItemID: String? {
     children.last?.lastItemID ?? item.id
   }
 }

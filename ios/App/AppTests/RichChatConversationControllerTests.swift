@@ -4,6 +4,41 @@ import XCTest
 
 @MainActor
 final class RichChatConversationControllerTests: XCTestCase {
+  func testCrewUnloadKeepsThePageOperationDistinctAndSerializesTheNextSend() async {
+    let gateway = RichChatControllerGatewayFake(), barrier = RichChatControllerTestBarrier()
+    await gateway.configureMutation(.value(()), barrier: barrier)
+    let controller = RichChatConversationController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+    let unload = Task { await controller.unloadForRelaunch() }
+    await barrier.waitUntilReached()
+    XCTAssertEqual(controller.state.activeMutation, .unload)
+    let sent = await controller.send(.init(prompt: "Do not send into a closing runtime", config: [:]))
+    XCTAssertFalse(sent)
+    await barrier.release()
+    let unloaded = await unload.value
+    XCTAssertTrue(unloaded)
+    XCTAssertEqual(controller.state.lastCompletedOperation, .unload, "the page dismisses only for explicit close")
+    let calls = await gateway.calls
+    XCTAssertEqual(calls, ["close-thread"])
+  }
+
+  func testSteerDoesNotReuseAPreviousSuccessAfterCancellation() async {
+    let gateway = RichChatControllerGatewayFake()
+    let controller = RichChatConversationController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+    let input = RichSetPendingSteerInput(prompt: "Change direction", segments: nil, config: [:])
+    let first = await controller.setPendingSteer(input)
+    XCTAssertTrue(first)
+    let barrier = RichChatControllerTestBarrier()
+    await gateway.configureMutation(.value(()), barrier: barrier)
+    let cancelled = Task { await controller.setPendingSteer(input) }
+    await barrier.waitUntilReached()
+    cancelled.cancel()
+    await barrier.release()
+    let result = await cancelled.value
+    XCTAssertFalse(result)
+  }
+
   func testCommandDoesNotReuseAPreviousSuccessAfterCancellation() async {
     let gateway = RichChatControllerGatewayFake()
     let controller = RichChatConversationController(gateway: gateway)

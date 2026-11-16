@@ -12,6 +12,17 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "tool-headings",
+    title: "Shared tool headings and provider-owned display namespaces",
+    patterns: [
+      /toolPresentation/i,
+      /workflow(Presentation|Registration)/i,
+      /runtime(ItemPresentation|PresentationReads|HeaderInput)/i,
+    ],
+    automated: ["baseline", "tool-headings"],
+    manual: [],
+  },
+  {
     id: "local-ports",
     title: "Local listening ports and desktop port action menus",
     patterns: [/localPorts/i, /PortsPanel/],
@@ -174,6 +185,8 @@ export const functionalAreas = [
       /ChatPane/,
       /composer/i,
       /runtimeEvent/i,
+      /toolPresentation/i,
+      /runtime(ItemPresentation|PresentationReads|HeaderInput)/i,
       /session/i,
       /agents\/acp\/canonicalMapping\//,
     ],

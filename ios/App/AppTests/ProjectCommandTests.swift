@@ -40,6 +40,7 @@ final class ProjectCommandTests: XCTestCase {
             case .update: "update"
             case .relocate: "relocate"
             case .remove: "remove"
+            case .setDraftConfig: "set-draft-config"
             }
         }
         XCTAssertEqual(

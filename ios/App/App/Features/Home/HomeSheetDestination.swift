@@ -9,7 +9,14 @@ import Foundation
 enum HomeSheetDestination: Identifiable, Hashable, Sendable {
   case search
   case more
+  case connections
+  case workspaces
+  case pullRequests
+  case githubActions
+  case schedules
   case projectManagement
+  case terminal
+  case usage
   case settings
   case remoteIntegrations
   case browserMirror
@@ -21,7 +28,14 @@ enum HomeSheetDestination: Identifiable, Hashable, Sendable {
     switch self {
     case .search: "search"
     case .more: "more"
+    case .connections: "connections"
+    case .workspaces: "workspaces"
+    case .pullRequests: "pullRequests"
+    case .githubActions: "githubActions"
+    case .schedules: "schedules"
     case .projectManagement: "projectManagement"
+    case .terminal: "terminal"
+    case .usage: "usage"
     case .settings: "settings"
     case .remoteIntegrations: "remoteIntegrations"
     case .browserMirror: "browserMirror"

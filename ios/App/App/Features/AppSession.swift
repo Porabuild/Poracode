@@ -95,6 +95,12 @@ final class AppSession {
     let projectSyncPreferences: ProjectSyncPreferences
     let remoteNotificationPresentations: RemoteUserNotificationPresentationCenter
     let richChatComposerDrafts = RichChatComposerDraftStore()
+    let composerPreferences: ComposerPreferencesStore
+    let settingsDocumentChanges = SettingsDocumentChanges()
+    let transcriptDisclosures = TranscriptDisclosureStore()
+    @ObservationIgnored var composerProjectPreferenceWriter: ComposerProjectPreferenceWriter?
+    @ObservationIgnored var workflowActivityStore: WorkflowActivityStore?
+    let sessionImportClaims = SessionImportClaims()
 
     private(set) var pairing: PairingCoordinator!
     private(set) var live: LiveConnectionController!
@@ -107,6 +113,9 @@ final class AppSession {
     /// The one rich GUI conversation currently subscribed to live runtime events.
     /// The owning screen explicitly attaches and detaches this suite.
     var activeRichChatSuite: RichChatControllerSuite?
+    var auxiliaryRichChatSuites: [ObjectIdentifier: RichChatControllerSuite] = [:]
+    var auxiliaryRichChatOwners: [ObjectIdentifier: Set<UUID>] = [:]
+    let sideChats = SideChatStore()
 
     // Tracked foreground tasks — cancelled on background / unpair / host swap.
     // Explicit unpair durable clear is NOT cancelled (runs as direct await).
@@ -150,6 +159,7 @@ final class AppSession {
           NativeE2EStateReset.applyIfRequested()
         #endif
         self.deps = dependencies
+        self.composerPreferences = dependencies.makeComposerPreferences()
         self.projectSyncPreferences = projectSyncPreferences
         self.remoteNotificationPresentations = remoteNotificationPresentations
         self.pairing = PairingCoordinator(host: self)
@@ -203,6 +213,8 @@ final class AppSession {
 
     func refreshSnapshot() async {
         await live.refreshSnapshot()
+        sideChats.synchronizeOwners(session: self)
+        await sideChats.retryDisposals(session: self)
     }
 
     func threads(for projectId: String) -> [RemoteThread] {
@@ -251,6 +263,9 @@ final class AppSession {
         state.catalog.resetForHostChange()
         state.runtimeHistoryNoticesDeclared = false
         state.threadForksSupported = false
+        state.conversationSnapshotsSupported = false
+        state.catalogMutationsSupported = false
+        state.toolPresentationCatalog = nil
         reconcileAttemptedSocketID = nil
         // Invalidate any in-flight authoritative install so it cannot commit.
         state.replayInstallBuffer.discard()
@@ -478,11 +493,18 @@ final class AppSession {
     /// is never inferred from a network error.
     func noteEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) async {
         guard let api = state.api else { return }
+        let presentationOwner = state.selectedConnectionId
+        let presentationGeneration = state.workGeneration
         let notices = descriptor.advertisesRuntimeHistoryNotices
         await api.observeEnvironmentCapabilities(descriptor)
         await api.declareRuntimeHistoryNotices(notices)
         state.runtimeHistoryNoticesDeclared = notices
         state.threadForksSupported = descriptor.capabilities?.threadForks?.versions.contains(1) == true
+        state.conversationSnapshotsSupported = descriptor.advertisesConversationSnapshots
+        state.catalogMutationsSupported = descriptor.capabilities?.catalogMutations?.versions.contains(1) == true
+        if state.selectedConnectionId == presentationOwner && state.workGeneration == presentationGeneration {
+            state.toolPresentationCatalog = RichToolPresentationCatalog(descriptor.toolPresentation)
+        }
     }
 
     /// Declares the bounded catalog-change signal intent from the current

@@ -23,6 +23,27 @@ import {
 } from "./protocol";
 
 describe("device-local terminal settings", () => {
+  it("carries helper visibility preferences without adding defaults to older hosts or sparse patches", () => {
+    const settings = pickRemoteSettings({
+      ...defaultSharedSettings,
+      crossagentPausedProviders: ["example"],
+      crossagentHiddenModels: { other: ["mini"] },
+    });
+    expect(remoteSettingsSchema.parse(settings)).toMatchObject({
+      crossagentPausedProviders: ["example"],
+      crossagentHiddenModels: { other: ["mini"] },
+    });
+    const legacy = { ...settings };
+    delete legacy.crossagentPausedProviders;
+    delete legacy.crossagentHiddenModels;
+    const parsed = remoteSettingsSchema.parse(legacy);
+    expect(parsed).not.toHaveProperty("crossagentPausedProviders");
+    expect(parsed).not.toHaveProperty("crossagentHiddenModels");
+    const patch = remoteSettingsPatchSchema.parse({ titleGenProvider: "example" });
+    expect(patch).not.toHaveProperty("crossagentPausedProviders");
+    expect(patch).not.toHaveProperty("crossagentHiddenModels");
+  });
+
   it("round-trips crew picker preferences without adding them to runtime bindings", () => {
     const crew = {
       id: "ship",

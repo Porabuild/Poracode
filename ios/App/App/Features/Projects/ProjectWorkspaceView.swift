@@ -13,6 +13,8 @@ struct ProjectWorkspaceView: View {
   let generatePullRequestSummary:
     @MainActor (_ branch: String, _ baseBranch: String) async throws
       -> AdvancedGeneratedPrSummary
+  let showsModePicker: Bool
+  let externalMode: Binding<ProjectWorkspaceMode>?
 
   @State private var mode: ProjectWorkspaceMode
   @State private var selectedFile: ProjectWorkspaceEntry?
@@ -41,7 +43,9 @@ struct ProjectWorkspaceView: View {
       @escaping @MainActor (
         _ branch: String, _ baseBranch: String
       ) async throws -> AdvancedGeneratedPrSummary,
-    initialMode: ProjectWorkspaceMode = .files
+    initialMode: ProjectWorkspaceMode = .files,
+    showsModePicker: Bool = true,
+    externalMode: Binding<ProjectWorkspaceMode>? = nil
   ) {
     self.context = context
     self.fileController = fileController
@@ -53,13 +57,16 @@ struct ProjectWorkspaceView: View {
     self.reviewDestination = reviewDestination
     self.enqueueReviewComment = enqueueReviewComment
     self.generatePullRequestSummary = generatePullRequestSummary
-    _mode = State(initialValue: initialMode)
+    self.showsModePicker = showsModePicker
+    self.externalMode = externalMode
+    _mode = State(initialValue: externalMode?.wrappedValue ?? initialMode)
   }
 
   var body: some View {
     ProjectWorkspacePage(
       mode: $mode,
-      preferredCompactColumn: $preferredCompactColumn
+      preferredCompactColumn: $preferredCompactColumn,
+      hasBottomControls: showsModePicker || mode == .files
     ) {
       sidebar(mode: .files)
     } filesDetail: {
@@ -73,6 +80,11 @@ struct ProjectWorkspaceView: View {
     }
     .task(id: ProjectWorkspaceActivationID(context)) {
       await activateAndLoad()
+    }
+    .onChange(of: externalMode?.wrappedValue) { _, updated in
+      if let updated, updated != mode {
+        request(.mode(updated))
+      }
     }
     .onChange(of: gitOperationsController.state.completedMutationCount) { _, completed in
       guard completed > 0 else { return }
@@ -108,7 +120,8 @@ struct ProjectWorkspaceView: View {
         ),
         isSearchPresented: $isFileSearchPresented,
         query: $fileQuery,
-        requestedCreationType: $requestedCreationType
+        requestedCreationType: $requestedCreationType,
+        showsModePicker: showsModePicker
       )
     }
   }
@@ -128,6 +141,7 @@ struct ProjectWorkspaceView: View {
         },
         secondaryButton: .cancel {
           pendingAction = nil
+          externalMode?.wrappedValue = mode
         }
       )
     case .reloadAfterSave:
@@ -248,7 +262,10 @@ struct ProjectWorkspaceView: View {
   }
 
   private func requestEntry(_ entry: ProjectWorkspaceEntry) {
-    if entry.type == .directory {
+    if entry.path == selectedFile?.path && editor.isDirty {
+      // Reopen the existing draft after dismissing the embedded editor sheet.
+      preferredCompactColumn = .detail
+    } else if entry.type == .directory {
       request(.directory(entry.path))
     } else {
       request(.file(entry))
@@ -279,6 +296,7 @@ struct ProjectWorkspaceView: View {
     switch action {
     case .mode(let nextMode):
       mode = nextMode
+      externalMode?.wrappedValue = nextMode
       preferredCompactColumn = .sidebar
       if nextMode == .git {
         await gitController.loadStatus(detail: .full)
@@ -303,6 +321,7 @@ struct ProjectWorkspaceView: View {
         type: .file
       )
       mode = .files
+      externalMode?.wrappedValue = .files
       selectedFile = entry
       editor.beginLoading(path: path)
       await fileController.readFile(path: path)

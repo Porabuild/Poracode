@@ -70,6 +70,7 @@ struct ProjectMCPSettingsView: View {
           editor = nil
         }
       }
+      .poracodeFormSheetSizing()
     }
     .task(id: identity) { await load() }
     .onChange(of: settingsController.cachedSettings(for: identity)) { _, settings in
@@ -119,6 +120,7 @@ struct ProjectMCPSettingsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .refreshable { await load() }
   }
 

@@ -10,6 +10,7 @@ struct ProjectWorkspacePage<
   @Environment(\.horizontalSizeClass) private var horizontalSizeClass
   @Binding private var mode: ProjectWorkspaceMode
   @Binding private var preferredCompactColumn: NavigationSplitViewColumn
+  private let hasBottomControls: Bool
   private let filesSidebar: FilesSidebar
   private let filesDetail: FilesDetail
   private let gitSidebar: GitSidebar
@@ -19,6 +20,7 @@ struct ProjectWorkspacePage<
   init(
     mode: Binding<ProjectWorkspaceMode>,
     preferredCompactColumn: Binding<NavigationSplitViewColumn>,
+    hasBottomControls: Bool = true,
     @ViewBuilder filesSidebar: () -> FilesSidebar,
     @ViewBuilder filesDetail: () -> FilesDetail,
     @ViewBuilder gitSidebar: () -> GitSidebar,
@@ -27,6 +29,7 @@ struct ProjectWorkspacePage<
   ) {
     _mode = mode
     _preferredCompactColumn = preferredCompactColumn
+    self.hasBottomControls = hasBottomControls
     self.filesSidebar = filesSidebar()
     self.filesDetail = filesDetail()
     self.gitSidebar = gitSidebar()
@@ -55,7 +58,7 @@ struct ProjectWorkspacePage<
   }
 
   private var showsWorkspaceControls: Bool {
-    horizontalSizeClass != .compact || preferredCompactColumn != .detail
+    hasBottomControls && (horizontalSizeClass != .compact || preferredCompactColumn != .detail)
   }
 
   private var filesSplit: some View {

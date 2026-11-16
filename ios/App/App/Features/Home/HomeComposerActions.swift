@@ -6,29 +6,26 @@ import UniformTypeIdentifiers
 
 extension HomeQuickComposeView {
   func normalizePresentationMode() {
-    guard launchSeed == nil, !supportsPresentationMode(presentationMode) else { return }
-    presentationMode = HomeComposerCatalog.preferredPresentationMode(
+    guard ownsCurrentConnection, launchSeed == nil, !supportsPresentationMode(draft.presentationMode) else { return }
+    draft.presentationMode = HomeComposerCatalog.preferredPresentationMode(
       from: session.state.replay.agentStatuses.ordered
     )
   }
 
   func normalizeProject() {
-    if !projects.contains(where: { $0.id == projectID }) { projectID = projects.first?.id ?? "" }
+    guard ownsCurrentConnection else { return }
+    if !projects.contains(where: { $0.id == draft.projectID }) { draft.projectID = projects.first?.id ?? "" }
   }
 
   func activateMedia() {
-    guard let access = session.currentRichChatAccess else {
-      mediaSuite.deselect()
-      return
-    }
-    mediaSuite.select(access: access, threadID: threadID)
+    draft.synchronizeMedia(access: session.currentRichChatAccess, presentation: presentationID)
   }
 
   /// Resign the expanded editor before removing it from the hierarchy. If the
   /// conditional surface disappears in the same update, UIKit can retain the
   /// removed text field as first responder and block the next composer.
   func resignPromptFocus() {
-    promptFocused = false
+    draft.promptFocused = false
     for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
       for window in scene.windows {
         window.endEditing(true)
@@ -52,62 +49,75 @@ extension HomeQuickComposeView {
     DispatchQueue.main.async {
       // SwiftUI can retain the outgoing text field for the navigation animation.
       // Repeat dismissal after the hierarchy has committed the collapsed state.
-      resignPromptFocus()
+      if !isExpanded { resignPromptFocus() }
     }
   }
 
   func start() {
-    let typedText = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+    let typedText = draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
     let mentionPrompt =
-      (fileMentions.map { "@\($0)" } + mentionedMCPs.map { "@\($0.name)" } + skills.map(\.invocation))
+      (draft.fileMentions.map { "@\($0)" } + draft.mentionedMCPs.map { "@\($0.name)" } + draft.skills.map(\.invocation)
+        + draft.additionalSegments.compactMap(\.promptText))
       .joined(separator: " ")
     let text = typedText.isEmpty ? launchSeed?.defaultPrompt ?? mentionPrompt : typedText
-    guard !text.isEmpty || !attachments.isEmpty, let project = selectedProject, let defaults,
+    guard ownsCurrentConnection, RichPromptSegment.isSendable(prompt: text, segments: draft.additionalSegments) || !draft.attachments.isEmpty,
+      let project = selectedProject, let defaults,
       let configuration = effectiveConfiguration,
-      let target = session.threadLifecycleTarget(threadID: threadID)
+      let settings = draft.tools.document.document,
+      let target = session.threadLifecycleTarget(threadID: draft.threadID)
     else { return }
-    failureMessage = nil
-    let attachmentSegments = attachments.map {
+    let launchConfiguration = ComposerPluginCatalog.launchConfiguration(configuration, document: settings,
+      capabilities: selectedAgent.map { HomeComposerCatalog.capabilities(for: $0, presentationMode: draft.presentationMode) } ?? [:],
+      presentation: draft.presentationMode, location: project.location,
+      mentionedIDs: Set(draft.mentionedMCPs.map(\.id)))
+    draft.failureMessage = nil
+    let attachmentSegments = draft.attachments.map {
       ThreadPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
     }
-    let textSegments: [ThreadPromptSegment] = typedText.isEmpty ? [] : [.text(content: prompt)]
+    let textSegments: [ThreadPromptSegment] = typedText.isEmpty ? [] : [.text(content: draft.prompt)]
+    let additional: [ThreadPromptSegment]
+    do { additional = try draft.additionalSegments.map { try $0.lifecyclePromptSegment() } }
+    catch { draft.failureMessage = ThreadLifecycleStrings.failureMessage(.invalidRequest); return }
     let contextSegments =
-      fileMentions.map(ThreadPromptSegment.file(path:))
-      + mentionedMCPs.map { .mcp(id: $0.id, name: $0.name) }
-      + skills.map(\.threadSegment)
+      draft.fileMentions.map(ThreadPromptSegment.file(path:))
+      + draft.mentionedMCPs.map { .mcp(id: $0.id, name: $0.name) }
+      + draft.skills.map(\.threadSegment)
+      + additional
     let separatedContext = contextSegments.flatMap { [$0, ThreadPromptSegment.text(content: " ")] }
     let segments = separatedContext + textSegments + attachmentSegments
     let launchAgentKind = selectedAgent?.kind ?? defaults.agentKind
+    let launchAgentInstanceID = composerAgentInstanceID
     Task {
       let worktree: (path: String, branch: String, isNew: Bool)?
-      if let selection = branchSelection, let path = selection.worktreePath {
+      if let selection = draft.branchSelection, let path = selection.worktreePath {
         worktree = (path, selection.branch, false)
-      } else if worktreeSelection == .branch {
+      } else if draft.worktreeSelection == .branch {
         worktree = nil
       } else {
-        preparingWorktree = true
+        draft.preparingWorktree = true
         let prepared = await prepareWorktree(
           project: project,
-          transferChanges: worktreeSelection == .worktreeWithChanges
+          transferChanges: draft.worktreeSelection == .worktreeWithChanges
         )
-        preparingWorktree = false
+        draft.preparingWorktree = false
         guard let prepared else { return }
         worktree = (prepared.path, prepared.branch, true)
       }
-      lifecycle.activate(target)
+      draft.lifecycle.activate(target)
       let launchPrompt = (launchSeed?.promptPrefix ?? "") + text
-      await lifecycle.relaunch(
+      await draft.lifecycle.relaunch(
         ThreadRelaunchRequest(
           projectID: project.id,
           agentKind: launchAgentKind,
-          config: configuration,
+          config: launchConfiguration,
           prompt: launchPrompt,
-          agentInstanceID: launchAgentKind == defaults.agentKind ? defaults.agentInstanceID : nil,
-          focus: true,
+          agentInstanceID: launchAgentInstanceID,
+          focus: launchSeed?.parentThreadID == nil,
           groupID: launchSeed?.groupID,
           groupName: launchSeed?.groupName,
           isNewWorktree: worktree?.isNew == true ? true : nil,
-          presentationMode: presentationMode,
+          parentThreadID: launchSeed?.parentThreadID,
+          presentationMode: draft.presentationMode,
           segments: launchSeed?.promptPrefix.map {
             [.text(content: $0), .text(content: text), .text(content: " ")]
               + separatedContext + attachmentSegments
@@ -118,20 +128,16 @@ extension HomeQuickComposeView {
         ),
         target: target
       )
-      switch lifecycle.lastOutcome {
+      switch draft.lifecycle.lastOutcome {
       case .succeeded:
         await session.refreshSnapshot()
-        prompt = ""
-        attachments = []
-        skills = []
-        fileMentions = []
-        mentionedMCPs = []
-        collapseComposer(animated: false)
+        draft.clearSubmittedContent()
+        if isCurrentPresentation && ownsCurrentConnection { collapseComposer(animated: false) }
         onStarted(target.threadID)
-        threadID = UUID().uuidString.lowercased()
+        draft.threadID = UUID().uuidString.lowercased()
         activateMedia()
       case .failed(_, let failure):
-        failureMessage = ThreadLifecycleStrings.failureMessage(failure)
+        draft.failureMessage = launchSeed?.failureMessage?(failure) ?? ThreadLifecycleStrings.failureMessage(failure)
       case nil:
         break
       }
@@ -142,15 +148,15 @@ extension HomeQuickComposeView {
     project: RemoteProject,
     transferChanges: Bool
   ) async -> (path: String, branch: String)? {
-    let branch = worktreeBranchName.trimmingCharacters(in: .whitespacesAndNewlines)
+    let branch = draft.worktreeBranchName.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !branch.isEmpty else {
-      failureMessage = GitOperationsStrings.unavailable
+      draft.failureMessage = GitOperationsStrings.unavailable
       return nil
     }
     guard let operation = gitController(for: project),
       let context = operation.source.gitOperationsContext
     else {
-      failureMessage = GitOperationsStrings.unavailable
+      draft.failureMessage = GitOperationsStrings.unavailable
       return nil
     }
     let controller = operation.controller
@@ -162,7 +168,7 @@ extension HomeQuickComposeView {
           branch: branch,
           createBranch: true,
           keepChangesInSource: transferChanges ? true : nil,
-          startPoint: branchSelection?.branch,
+          startPoint: draft.branchSelection?.branch,
           transferUncommitted: transferChanges ? true : nil
         )
       )
@@ -170,20 +176,20 @@ extension HomeQuickComposeView {
     if case .addWorktree(let result) = controller.state.lastResult {
       return (result.path, branch)
     }
-    failureMessage =
+    draft.failureMessage =
       controller.state.failure.map(GitOperationsStrings.failure)
       ?? GitOperationsStrings.unavailable
     return nil
   }
 
   func loadBranches() async {
-    guard branchProjectID != projectID, !loadingBranches, let project = selectedProject,
+    guard draft.branchProjectID != draft.projectID, !draft.loadingBranches, let project = selectedProject,
       let operation = gitController(for: project),
       let context = operation.source.gitOperationsContext
     else { return }
-    loadingBranches = true
-    failureMessage = nil
-    defer { loadingBranches = false }
+    draft.loadingBranches = true
+    draft.failureMessage = nil
+    defer { draft.loadingBranches = false }
 
     let controller = operation.controller
     controller.activate(context)
@@ -193,15 +199,15 @@ extension HomeQuickComposeView {
     let branches = controller.state.authoritative.branches?.branches ?? []
     await controller.read(.gitListWorktrees(.init(projectLocation: project.location)))
     if let failure = controller.state.failure {
-      failureMessage = GitOperationsStrings.failure(failure)
+      draft.failureMessage = GitOperationsStrings.failure(failure)
       return
     }
     var seenBranches = Set<String>()
-    branchOptions = (branches.filter { !$0.isRemote } + branches.filter(\.isRemote)).filter {
+    draft.branchOptions = (branches.filter { !$0.isRemote } + branches.filter(\.isRemote)).filter {
       seenBranches.insert($0.name).inserted
     }
-    worktreeOptions = controller.state.authoritative.worktrees ?? []
-    branchProjectID = project.id
+    draft.worktreeOptions = controller.state.authoritative.worktrees ?? []
+    draft.branchProjectID = project.id
   }
 
   func selectBranch(
@@ -213,9 +219,9 @@ extension HomeQuickComposeView {
       return
     }
 
-    if worktreeSelection != .branch {
-      branchSelection = HomeComposerBranchSelection(branch: branch.name)
-      selector = nil
+    if draft.worktreeSelection != .branch {
+      draft.branchSelection = HomeComposerBranchSelection(branch: branch.name)
+      draft.selector = nil
       return
     }
 
@@ -223,14 +229,14 @@ extension HomeQuickComposeView {
       let operation = gitController(for: project),
       let context = operation.source.gitOperationsContext
     else {
-      branchSelection = HomeComposerBranchSelection(branch: branch.name)
-      selector = nil
+      draft.branchSelection = HomeComposerBranchSelection(branch: branch.name)
+      draft.selector = nil
       return
     }
 
-    switchingBranch = branch.name
-    failureMessage = nil
-    defer { switchingBranch = nil }
+    draft.switchingBranch = branch.name
+    draft.failureMessage = nil
+    defer { draft.switchingBranch = nil }
     let controller = operation.controller
     controller.activate(context)
     await controller.submit(
@@ -239,11 +245,11 @@ extension HomeQuickComposeView {
       )
     )
     if let failure = controller.state.failure {
-      failureMessage = GitOperationsStrings.failure(failure)
+      draft.failureMessage = GitOperationsStrings.failure(failure)
       return
     }
-    branchSelection = HomeComposerBranchSelection(branch: branch.name)
-    branchOptions = branchOptions.map {
+    draft.branchSelection = HomeComposerBranchSelection(branch: branch.name)
+    draft.branchOptions = draft.branchOptions.map {
       ProjectGitBranchInfo(
         name: $0.name,
         current: $0.name == branch.name,
@@ -252,51 +258,51 @@ extension HomeQuickComposeView {
         remote: $0.remote
       )
     }
-    selector = nil
+    draft.selector = nil
   }
 
   func selectWorktree(_ worktree: ProjectGitWorktreeInfo) {
     if worktree.isMain {
-      branchSelection = HomeComposerBranchSelection(branch: worktree.branch)
-      worktreeSelection = .branch
+      draft.branchSelection = HomeComposerBranchSelection(branch: worktree.branch)
+      draft.worktreeSelection = .branch
     } else {
-      branchSelection = HomeComposerBranchSelection(
+      draft.branchSelection = HomeComposerBranchSelection(
         branch: worktree.branch,
         worktreePath: worktree.path
       )
-      worktreeSelection = .worktree
+      draft.worktreeSelection = .worktree
     }
-    selector = nil
+    draft.selector = nil
   }
 
   func createBranch() async {
-    let name = newBranchName.trimmingCharacters(in: .whitespacesAndNewlines)
+    let name = draft.newBranchName.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !name.isEmpty, let project = selectedProject,
       let operation = gitController(for: project),
       let context = operation.source.gitOperationsContext
     else { return }
-    switchingBranch = name
-    failureMessage = nil
-    defer { switchingBranch = nil }
+    draft.switchingBranch = name
+    draft.failureMessage = nil
+    defer { draft.switchingBranch = nil }
     let controller = operation.controller
     controller.activate(context)
     await controller.submit(
       .gitSwitchBranch(.init(projectLocation: project.location, branch: name, createNew: true))
     )
     if let failure = controller.state.failure {
-      failureMessage = GitOperationsStrings.failure(failure)
+      draft.failureMessage = GitOperationsStrings.failure(failure)
       return
     }
-    branchSelection = HomeComposerBranchSelection(branch: name)
-    newBranchName = ""
-    creatingBranch = false
-    selector = nil
+    draft.branchSelection = HomeComposerBranchSelection(branch: name)
+    draft.newBranchName = ""
+    draft.creatingBranch = false
+    draft.selector = nil
   }
 
   private func gitController(
     for project: RemoteProject
   ) -> (controller: GitOperationsController, source: ProjectWorkspaceSelectionSource)? {
-    guard let connectionID = session.state.selectedConnectionId else { return nil }
+    guard ownsCurrentConnection, let connectionID = draft.connectionID else { return nil }
     let source = ProjectWorkspaceSelectionSource(
       session: session,
       identity: project.identity(on: connectionID),
@@ -309,9 +315,9 @@ extension HomeQuickComposeView {
   }
 
   func upload(_ url: URL) async {
-    importing = true
-    failureMessage = nil
-    defer { importing = false }
+    draft.importing = true
+    draft.failureMessage = nil
+    defer { draft.importing = false }
     let scoped = url.startAccessingSecurityScopedResource()
     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
     do {
@@ -322,7 +328,7 @@ extension HomeQuickComposeView {
           byteCount: Int64(size)
         ).accepted
       else {
-        failureMessage = RichChatStrings.invalidAttachment
+        draft.failureMessage = RichChatStrings.invalidAttachment
         return
       }
       let data = try Data(contentsOf: url, options: [.mappedIfSafe])
@@ -330,17 +336,17 @@ extension HomeQuickComposeView {
       let mime = values.contentType?.preferredMIMEType ?? "application/octet-stream"
       await uploadAttachment(data: data, name: name, mimeType: mime)
     } catch {
-      failureMessage = RichChatStrings.uploadFailed
+      draft.failureMessage = RichChatStrings.uploadFailed
     }
   }
 
   func upload(_ item: PhotosPickerItem, kind: HomeComposerPhotoKind) async {
-    importing = true
-    failureMessage = nil
-    defer { importing = false }
+    draft.importing = true
+    draft.failureMessage = nil
+    defer { draft.importing = false }
     do {
       guard let data = try await item.loadTransferable(type: Data.self) else {
-        failureMessage = RichChatStrings.uploadFailed
+        draft.failureMessage = RichChatStrings.uploadFailed
         return
       }
       let type = item.supportedContentTypes.first ?? .jpeg
@@ -350,16 +356,16 @@ extension HomeQuickComposeView {
         name: "\(kind.filenamePrefix)-\(UUID().uuidString.lowercased()).\(suffix)",
         mimeType: type.preferredMIMEType ?? "image/jpeg"
       )
-      if failureMessage == nil { selector = nil }
+      if draft.failureMessage == nil { draft.selector = nil }
     } catch {
-      failureMessage = RichChatStrings.uploadFailed
+      draft.failureMessage = RichChatStrings.uploadFailed
     }
   }
 
   func uploadCapturedPhoto(_ data: Data) async {
-    importing = true
-    failureMessage = nil
-    defer { importing = false }
+    draft.importing = true
+    draft.failureMessage = nil
+    defer { draft.importing = false }
     await uploadAttachment(
       data: data,
       name: "photo-\(UUID().uuidString.lowercased()).jpg",
@@ -369,21 +375,21 @@ extension HomeQuickComposeView {
 
   private func uploadAttachment(data: Data, name: String, mimeType: String) async {
     guard RichAttachmentPolicy.evaluate(name: name, byteCount: Int64(data.count)).accepted else {
-      failureMessage = RichChatStrings.invalidAttachment
+      draft.failureMessage = RichChatStrings.invalidAttachment
       return
     }
-    await mediaSuite.media.upload(
+    await draft.mediaSuite.media.upload(
       RichChatMediaController.attachmentPlan(name: name, contentType: mimeType, data: data)
     )
-    guard mediaSuite.media.state.failure == nil,
-      let path = mediaSuite.media.state.uploadedAttachmentPath
+    guard draft.mediaSuite.media.state.failure == nil,
+      let path = draft.mediaSuite.media.state.uploadedAttachmentPath
     else {
-      failureMessage =
-        mediaSuite.media.state.failure.map(RichChatStrings.failure)
+      draft.failureMessage =
+        draft.mediaSuite.media.state.failure.map(RichChatStrings.failure)
         ?? RichChatStrings.uploadFailed
       return
     }
-    attachments.append(
+    draft.attachments.append(
       RichChatUploadedAttachment(name: name, mimeType: mimeType, remotePath: path)
     )
   }

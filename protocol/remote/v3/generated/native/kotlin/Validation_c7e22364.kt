@@ -117,6 +117,10 @@ internal val schema_3df8195e9076bb2b: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("method", "requestId", "response"), properties = mapOf("method" to schema_36fea325bf1aca70, "requestId" to schema_a44865d83be28e9f, "response" to schema_ca3d163bab055381), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_3e321589391fc1f4: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("entry", "version"), properties = mapOf("entry" to schema_cc236ef91a35818c, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_3e412d7b328b3f5a: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_3ccadafaab48b090, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

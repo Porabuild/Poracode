@@ -136,6 +136,9 @@ struct SessionRuntimeState {
     /// authority. Connection-scoped (never persisted); reset with the host.
     var runtimeHistoryNoticesDeclared = false
     var threadForksSupported = false
+    var conversationSnapshotsSupported = false
+    var catalogMutationsSupported = false
+    var toolPresentationCatalog: RichToolPresentationCatalog?
 
     var snapshot: RemoteShellSnapshot?
     /// Latest authoritative shell snapshot for each paired host. The selected
@@ -270,6 +273,9 @@ struct SessionRuntimeState {
         browserForwardRefresh = nil
         runtimeHistoryNoticesDeclared = false
         threadForksSupported = false
+        conversationSnapshotsSupported = false
+        catalogMutationsSupported = false
+        toolPresentationCatalog = nil
         snapshot = nil
         hostSnapshots = [:]
         catalog.resetForHostChange()

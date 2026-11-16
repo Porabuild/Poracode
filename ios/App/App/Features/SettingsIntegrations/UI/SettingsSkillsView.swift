@@ -23,6 +23,7 @@ struct SettingsSkillsView: View {
       }
       .pickerStyle(.segmented)
       .padding()
+      .poracodeReadableWidth(740)
 
       if mode == .installed { installedList } else { marketplaceList }
     }
@@ -64,6 +65,7 @@ struct SettingsSkillsView: View {
       )
       .listRowBackground(Color.clear)
     }
+    .poracodeReadableListMargins(740)
   }
 
   private var marketplaceList: some View {
@@ -94,6 +96,7 @@ struct SettingsSkillsView: View {
       )
       .listRowBackground(Color.clear)
     }
+    .poracodeReadableListMargins(740)
     .searchable(text: $query, prompt: SettingsIntegrationsStrings.searchMarketplace)
   }
 

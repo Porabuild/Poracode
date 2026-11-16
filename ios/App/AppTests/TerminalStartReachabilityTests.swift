@@ -243,14 +243,14 @@ final class TerminalStartReachabilityTests: XCTestCase {
     )
     XCTAssertTrue(thread.contains("RichTerminalView("))
     XCTAssertTrue(
-      thread.contains("ThreadPresentationFilter.isTerminalPresentation(thread.presentationMode)")
+      pageState.contains("ThreadPresentationFilter.isTerminalPresentation(thread.presentationMode)")
     )
     XCTAssertTrue(thread.contains("suite.terminal.state.cursor?.transcript"))
     XCTAssertTrue(pageState.contains("await suite.terminal.watch(terminalID: threadID)"))
 
     let defaults = try Self.source("App/Features/Home/HomeComposerSupport.swift")
     XCTAssertTrue(defaults.contains("ThreadPresentationFilter.matches("))
-    XCTAssertTrue(defaults.contains("mode: presentationMode.rawValue"))
+    XCTAssertTrue(defaults.contains("mode: draft.presentationMode.rawValue"))
   }
 
   func testConfiguredProjectActionsReachARealContextualShell() throws {

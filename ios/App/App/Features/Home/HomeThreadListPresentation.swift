@@ -14,10 +14,15 @@ struct HomeWorktreeThreadGroup: Identifiable, Sendable, Equatable {
   }
 
   var collapsedStatusTone: HomeWorktreeStatusTone? {
-    if threads.contains(where: { !$0.thread.isDone && $0.thread.status == "finished" }) {
+    collapsedStatusTone(hasBackgroundActivity: { _ in false })
+  }
+
+  func collapsedStatusTone(hasBackgroundActivity: (UnifiedThreadListItem) -> Bool) -> HomeWorktreeStatusTone? {
+    if threads.contains(where: { !$0.thread.isDone && $0.thread.status == "finished" && !hasBackgroundActivity($0) }) {
       return .finished
     }
-    if threads.contains(where: { !$0.thread.isDone && $0.thread.status == "working" }) {
+    if threads.contains(where: { !$0.thread.isDone && ["working", "idle", "finished"].contains($0.thread.status)
+      && ($0.thread.status == "working" || hasBackgroundActivity($0)) }) {
       return .working
     }
     return nil

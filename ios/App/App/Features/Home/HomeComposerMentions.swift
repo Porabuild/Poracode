@@ -2,17 +2,17 @@ import SwiftUI
 
 extension HomeQuickComposeView {
   var mcpMentionSuggestions: [RichChatMCPMentionOption] {
-    RichChatMCPMentionCatalog.suggestions(for: prompt)
+    RichChatMCPMentionCatalog.suggestions(for: draft.prompt)
   }
 
   var hasMentionSuggestions: Bool {
-    !mcpMentionSuggestions.isEmpty || !fileMentionController.suggestions.isEmpty
+    !mcpMentionSuggestions.isEmpty || !draft.fileMentionController.suggestions.isEmpty
   }
 
   var mentionSuggestions: some View {
     RichChatMentionSuggestionsView(
       mcps: mcpMentionSuggestions,
-      files: fileMentionController.suggestions,
+      files: draft.fileMentionController.suggestions,
       selectMCP: selectMCPMention,
       selectFile: selectFileMention
     )
@@ -21,9 +21,18 @@ extension HomeQuickComposeView {
   var contextChips: some View {
     ScrollView(.horizontal, showsIndicators: false) {
       HStack(spacing: 6) {
-        ForEach(skills) { skill in
+        ForEach(Array(draft.additionalSegments.enumerated()), id: \.offset) { index, segment in
+          if let label = segment.composerChipLabel {
+            Button { draft.additionalSegments.remove(at: index) } label: {
+              Label(label, systemImage: "xmark.circle.fill").font(.caption2)
+            }
+            .poracodeSurfaceButtonStyle()
+            .controlSize(.small)
+          }
+        }
+        ForEach(draft.skills) { skill in
           Button {
-            skills.removeAll { $0.id == skill.id }
+            draft.skills.removeAll { $0.id == skill.id }
           } label: {
             Label(skill.name, systemImage: "xmark.circle.fill")
               .font(.caption2)
@@ -33,9 +42,9 @@ extension HomeQuickComposeView {
           .accessibilityLabel("\(RichChatStrings.removeSkill): \(skill.name)")
         }
 
-        ForEach(attachments) { attachment in
+        ForEach(draft.attachments) { attachment in
           Button {
-            attachments.removeAll { $0.id == attachment.id }
+            draft.attachments.removeAll { $0.id == attachment.id }
           } label: {
             Label(attachment.name, systemImage: "xmark.circle.fill")
               .font(.caption2)
@@ -45,9 +54,9 @@ extension HomeQuickComposeView {
           .accessibilityLabel("\(RichChatStrings.removeAttachment): \(attachment.name)")
         }
 
-        ForEach(Array(fileMentions.enumerated()), id: \.offset) { index, path in
+        ForEach(Array(draft.fileMentions.enumerated()), id: \.offset) { index, path in
           Button {
-            fileMentions.remove(at: index)
+            draft.fileMentions.remove(at: index)
           } label: {
             Label(path, systemImage: "xmark.circle.fill")
               .font(.caption2)
@@ -57,9 +66,9 @@ extension HomeQuickComposeView {
           .accessibilityLabel("\(RichChatStrings.removeFile): \(path)")
         }
 
-        ForEach(mentionedMCPs) { mcp in
+        ForEach(draft.mentionedMCPs) { mcp in
           Button {
-            mentionedMCPs.removeAll { $0.id == mcp.id }
+            draft.mentionedMCPs.removeAll { $0.id == mcp.id }
             disableMCPMention(mcp.id)
           } label: {
             Label("@\(mcp.name)", systemImage: "xmark.circle.fill")
@@ -74,38 +83,38 @@ extension HomeQuickComposeView {
   }
 
   func synchronizeFileMentions() {
-    fileMentionController.selectProject(selectedProject)
-    fileMentionController.update(draft: prompt)
+    draft.fileMentionController.selectProject(selectedProject)
+    draft.fileMentionController.update(draft: draft.prompt)
   }
 
   func selectFileMention(_ entry: ProjectWorkspaceEntry) {
-    fileMentions.append(entry.path)
-    prompt = fileMentionController.consumeTrigger(from: prompt)
-    promptFocused = true
+    draft.fileMentions.append(entry.path)
+    draft.prompt = draft.fileMentionController.consumeTrigger(from: draft.prompt)
+    draft.promptFocused = true
   }
 
   func selectMCPMention(_ option: RichChatMCPMentionOption) {
     switch option.configKey {
-    case .browser: browserMcp = true
-    case .crossagents: crossagentMcp = true
-    case .chrome: chromeMcp = true
-    case .computerUse: computerUse = true
+    case .browser: setMCP(.browser, enabled: true)
+    case .crossagents: setMCP(.crossagents, enabled: true)
+    case .chrome: setMCP(.chrome, enabled: true)
+    case .computerUse: setMCP(.computerUse, enabled: true)
     case nil: break
     }
     let selection = option.selection
-    if !mentionedMCPs.contains(where: { $0.id == selection.id }) {
-      mentionedMCPs.append(selection)
+    if !draft.mentionedMCPs.contains(where: { $0.id == selection.id }) {
+      draft.mentionedMCPs.append(selection)
     }
-    prompt = fileMentionController.consumeTrigger(from: prompt)
-    promptFocused = true
+    draft.prompt = draft.fileMentionController.consumeTrigger(from: draft.prompt)
+    draft.promptFocused = true
   }
 
   func disableMCPMention(_ id: String) {
     switch id {
-    case "browser": browserMcp = false
-    case "crossagents": crossagentMcp = false
-    case "chrome": chromeMcp = false
-    case "computer-use": computerUse = false
+    case "browser": setMCP(.browser, enabled: false)
+    case "crossagents": setMCP(.crossagents, enabled: false)
+    case "chrome": setMCP(.chrome, enabled: false)
+    case "computer-use": setMCP(.computerUse, enabled: false)
     default: break
     }
   }

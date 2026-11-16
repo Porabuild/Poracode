@@ -31,6 +31,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
   var pluginOverrides: [String: Bool]?
   var executionEnvironment: RemoteExecutionEnvironment?
   var crew: JSONValue?
+  var selectionBinding: ModelSelectionBinding?
 
   init(
     model: String,
@@ -50,7 +51,8 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     executionEnvironment: RemoteExecutionEnvironment? = nil,
     mcpServerOverrides: [String: Bool]? = nil,
     pluginOverrides: [String: Bool]? = nil,
-    crew: JSONValue? = nil
+    crew: JSONValue? = nil,
+    selectionBinding: ModelSelectionBinding? = nil
   ) {
     self.model = model
     self.effort = effort
@@ -70,6 +72,11 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     self.mcpServerOverrides = mcpServerOverrides
     self.pluginOverrides = pluginOverrides
     self.crew = crew
+    self.selectionBinding = selectionBinding
+  }
+
+  init(from decoder: Decoder) throws {
+    self.init(try ThreadConfig(from: decoder))
   }
 }
 
@@ -232,6 +239,7 @@ struct ThreadSessionReference: Codable, Hashable, Sendable {
 
 enum ThreadPromptSegment: Encodable, Hashable, Sendable {
   case text(content: String)
+  case selectedText(content: String)
   case file(path: String)
   case attachment(path: String, mimeType: String? = nil)
   case diffComment(path: String, lineNumber: Int, side: Side, staged: Bool, body: String)
@@ -260,6 +268,7 @@ enum ThreadPromptSegment: Encodable, Hashable, Sendable {
   private enum CodingKeys: String, CodingKey {
     case kind
     case content
+    case selection
     case path
     case mimeType
     case lineNumber
@@ -283,6 +292,10 @@ enum ThreadPromptSegment: Encodable, Hashable, Sendable {
     case .text(let content):
       try values.encode("text", forKey: .kind)
       try values.encode(content, forKey: .content)
+    case .selectedText(let content):
+      try values.encode("text", forKey: .kind)
+      try values.encode(content, forKey: .content)
+      try values.encode(true, forKey: .selection)
     case .file(let path):
       try values.encode("file", forKey: .kind)
       try values.encode(path, forKey: .path)
@@ -335,6 +348,7 @@ struct ThreadStartExistingRequest: Encodable, Hashable, Sendable {
   var disabledBuiltInMCPServerIDs: [ThreadBuiltInMCPServerID]?
   var invariantDisabledBuiltInMCPServerIDs: [ThreadBuiltInMCPServerID]?
   var disabledBuiltInMCPTools: [String: [String]]?
+  var clientContext: TurnClientContext? = nil
 
   private enum CodingKeys: String, CodingKey {
     case threadID = "threadId"
@@ -352,6 +366,7 @@ struct ThreadStartExistingRequest: Encodable, Hashable, Sendable {
     case disabledBuiltInMCPServerIDs = "disabledBuiltInMcpServerIds"
     case invariantDisabledBuiltInMCPServerIDs = "invariantDisabledBuiltInMcpServerIds"
     case disabledBuiltInMCPTools = "disabledBuiltInMcpTools"
+    case clientContext
   }
 }
 
@@ -374,6 +389,7 @@ struct ThreadRelaunchRequest: Encodable, Hashable, Sendable {
   var userMessageItemID: String?
   var worktreeBranch: String?
   var worktreePath: String?
+  var clientContext: TurnClientContext? = nil
 
   private enum CodingKeys: String, CodingKey {
     case projectID = "projectId"
@@ -394,6 +410,7 @@ struct ThreadRelaunchRequest: Encodable, Hashable, Sendable {
     case userMessageItemID = "userMessageItemId"
     case worktreeBranch
     case worktreePath
+    case clientContext
   }
 }
 

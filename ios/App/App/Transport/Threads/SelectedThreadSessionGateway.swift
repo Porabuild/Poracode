@@ -7,12 +7,20 @@ struct ThreadLifecycleTransportSelection: Sendable {
 
 actor SelectedThreadSessionGateway: ThreadLifecycleGateway {
   typealias SelectionProvider = @MainActor @Sendable () -> ThreadLifecycleTransportSelection?
+  typealias StartPreparation = @Sendable (ThreadLifecycleTarget, ThreadStartExistingRequest, String) async throws -> ThreadStartExistingRequest
+  typealias RelaunchPreparation = @Sendable (ThreadLifecycleTarget, ThreadRelaunchRequest, String) async throws -> ThreadRelaunchRequest
 
   private static let requiredScope = "session:operate"
   private let selectionProvider: SelectionProvider
+  private let prepareStart: StartPreparation
+  private let prepareRelaunch: RelaunchPreparation
 
-  init(selectionProvider: @escaping SelectionProvider) {
+  init(prepareStart: @escaping StartPreparation = { _, request, _ in request },
+    prepareRelaunch: @escaping RelaunchPreparation = { _, request, _ in request },
+    selectionProvider: @escaping SelectionProvider) {
     self.selectionProvider = selectionProvider
+    self.prepareStart = prepareStart
+    self.prepareRelaunch = prepareRelaunch
   }
 
   func startExistingThread(
@@ -23,6 +31,9 @@ actor SelectedThreadSessionGateway: ThreadLifecycleGateway {
     guard request.threadID == target.threadID, !commandID.isEmpty else {
       throw ThreadLifecycleGatewayError.invalidRequest
     }
+    _ = try await currentSelection(target)
+    let request = try await prepareStart(target, request, commandID)
+    guard request.threadID == target.threadID else { throw ThreadLifecycleGatewayError.invalidRequest }
     return try await execute(target: target) { api in
       try await api.remoteStartExistingThread(request, commandID: commandID)
     }
@@ -36,10 +47,15 @@ actor SelectedThreadSessionGateway: ThreadLifecycleGateway {
     guard command.permitsCommandID == (commandID != nil), commandID?.isEmpty != true else {
       throw ThreadLifecycleGatewayError.invalidRequest
     }
+    _ = try await currentSelection(target)
+    let prepared: ThreadRemoteCommand
+    if case .start(let request) = command, let commandID {
+      prepared = .start(try await prepareRelaunch(target, request, commandID))
+    } else { prepared = command }
     try await execute(target: target) { api in
       try await api.remoteRunThreadCommand(
         threadID: target.threadID,
-        command: command,
+        command: prepared,
         commandID: commandID
       )
     }

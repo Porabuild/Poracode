@@ -4,6 +4,27 @@ import XCTest
 
 @MainActor
 final class SelectedRichChatSessionGatewayTests: XCTestCase {
+  func testPerTurnContextIsCapturedBeforeTransportAndCannotCrossALeaseChange() async throws {
+    let api = RichChatRemoteAPIFake()
+    let box = SelectionBox(selection: selection(api: api, capabilities: [.sessionOperate]))
+    let expected = TurnClientContext(conversationSnapshot: .init(text: "Parent context"))
+    let gateway = SelectedRichChatSessionGateway(turnContextProvider: { _ in expected }, selectionProvider: { box.selection })
+    try await gateway.sendRichInput(target: Self.target(), input: .init(prompt: "Question", config: [:]))
+    let sent = await api.sentInputs()
+    XCTAssertEqual(sent.first?.prompt, "Question")
+    XCTAssertEqual(sent.first?.clientContext, expected)
+    let replacement = selection(api: api, generation: 2, capabilities: [.sessionOperate])
+    let fenced = SelectedRichChatSessionGateway(turnContextProvider: { _ in
+      await MainActor.run { box.selection = replacement }
+      return expected
+    }, selectionProvider: { box.selection })
+    await assertCancellation {
+      try await fenced.sendRichInput(target: Self.target(), input: .init(prompt: "Do not send", config: [:]))
+    }
+    let count = await api.sendCallCount()
+    XCTAssertEqual(count, 1)
+  }
+
   func testEveryOperationFamilyRequiresItsExactManifestScope() async throws {
     let api = RichChatRemoteAPIFake()
     let socket = RichChatTerminalSocketFake()
@@ -15,6 +36,10 @@ final class SelectedRichChatSessionGatewayTests: XCTestCase {
 
     await assertMissingScope("session:read") {
       _ = try await gateway.loadRichHistory(target: target, targetEntryCount: nil)
+    }
+    await assertMissingScope("session:read") {
+      _ = try await gateway.loadRichRuntimeItemHeadings(target: target,
+        requests: [.init(itemID: "item", inputDigest: String(repeating: "0", count: 64))])
     }
     await assertMissingScope("session:operate") {
       try await gateway.sendRichInput(
@@ -282,7 +307,10 @@ private actor RichChatRemoteAPIFake: RichChatRemoteAPI {
     throw RichChatTransportFailure.invalidRequest
   }
 
-  func richSend(threadID _: String, input _: RichChatSendInput) async throws {
+  private var inputs: [RichChatSendInput] = []
+  func sentInputs() -> [RichChatSendInput] { inputs }
+  func richSend(threadID _: String, input: RichChatSendInput) async throws {
+    inputs.append(input)
     calls += 1
     let waiters = startWaiters
     startWaiters.removeAll()

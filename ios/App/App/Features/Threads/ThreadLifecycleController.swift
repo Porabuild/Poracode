@@ -68,12 +68,13 @@ final class ThreadLifecycleController {
 
   func relaunch(
     _ request: ThreadRelaunchRequest,
-    target: ThreadLifecycleTarget? = nil
+    target: ThreadLifecycleTarget? = nil,
+    commandID: String? = nil
   ) async {
     await run(
       .start(request),
       action: .relaunch,
-      commandID: commandIDProvider(),
+      commandID: commandID ?? commandIDProvider(),
       capturedTarget: target
     )
   }

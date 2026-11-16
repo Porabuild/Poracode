@@ -59,6 +59,7 @@ struct EnvironmentsView: View {
         }
         .sheet(isPresented: $showAdd) {
             AddEnvironmentSheet(controller: controller)
+                .poracodeFormSheetSizing()
         }
         .confirmationDialog(
             EnvironmentStrings.deleteConfirmTitle,
@@ -151,6 +152,7 @@ struct EnvironmentsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .poracodeReadableListMargins(760)
         .refreshable {
             await controller.refresh()
         }

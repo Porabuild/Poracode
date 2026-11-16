@@ -1,5 +1,92 @@
 import SwiftUI
 
+enum ProjectGitSheetDestination: String, Identifiable {
+  case gitOperations
+  case gitHubOperations
+  case review
+  var id: String { rawValue }
+}
+
+struct ProjectGitEmbeddedSheet: View {
+  let destination: ProjectGitSheetDestination
+  let context: ProjectWorkspaceContext?
+  @Bindable var operationsController: GitOperationsController
+  let gitHubContext: GitHubControllerContext?
+  let gitHubControllers: GitHubOperationsControllerSuite
+  let reviewDestination: ProjectReviewDetailsView?
+
+  var body: some View {
+    NavigationStack {
+      switch destination {
+      case .gitOperations:
+        GitOperationsPanel(context: context, controller: operationsController)
+      case .gitHubOperations:
+        GitHubOperationsPanel(context: gitHubContext, controllers: gitHubControllers)
+      case .review:
+        if let reviewDestination { reviewDestination }
+      }
+    }
+    .poracodePageSheetSizing()
+  }
+}
+
+struct ProjectGitEmptyStatusSection: View {
+  var body: some View {
+    Section {
+      Label(ProjectWorkspaceStrings.noChanges, systemImage: "checkmark.circle")
+        .foregroundStyle(.secondary)
+      Text(ProjectWorkspaceStrings.noChangesDescription)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+    }
+  }
+}
+
+enum ProjectGitOperationDispatcher {
+  @MainActor
+  static func submitFileAction(
+    _ procedure: GitOperationProcedure,
+    change: ProjectGitFileChange,
+    context: ProjectWorkspaceContext?,
+    operationsController: GitOperationsController
+  ) {
+    guard let context else { return }
+    let request: GitOperationRequest
+    switch procedure {
+    case .gitStage:
+      request = .gitStage(.init(projectLocation: context.lease.location, filePath: change.path))
+    case .gitUnstage:
+      request = .gitUnstage(.init(projectLocation: context.lease.location, filePath: change.path))
+    case .gitRevert:
+      request = .gitRevert(.init(projectLocation: context.lease.location, filePath: change.path))
+    default:
+      return
+    }
+    Task { await operationsController.submit(request) }
+  }
+
+  @MainActor
+  static func submitGroupAction(
+    _ procedure: GitOperationProcedure,
+    context: ProjectWorkspaceContext?,
+    operationsController: GitOperationsController
+  ) {
+    guard let context else { return }
+    let request: GitOperationRequest
+    switch procedure {
+    case .gitStageAll:
+      request = .gitStageAll(.init(projectLocation: context.lease.location))
+    case .gitUnstageAll:
+      request = .gitUnstageAll(.init(projectLocation: context.lease.location))
+    case .gitRevertAll:
+      request = .gitRevertAll(.init(projectLocation: context.lease.location))
+    default:
+      return
+    }
+    Task { await operationsController.submit(request) }
+  }
+}
+
 struct ProjectGitDetailView: View {
   @Bindable var controller: ProjectGitReadController
   let context: ProjectWorkspaceContext?

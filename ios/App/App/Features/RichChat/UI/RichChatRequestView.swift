@@ -18,6 +18,7 @@ struct RichChatRequestsView: View {
           )
         }
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
     }
   }
 }
@@ -72,7 +73,8 @@ private struct RichChatRequestCard: View {
       }
     }
     .padding(12)
-    .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .poracodeContentCardBackground()
     .accessibilityElement(children: .contain)
   }
 

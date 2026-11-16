@@ -24,11 +24,11 @@ import {
   extractAcpDiffResultPart,
   extractAcpDiffSummary,
   extractReadFileResultPart,
-  readAcpStringField,
   type DiffSummary,
 } from "./acpToolPayload";
 import { commandPayloadDisplay } from "./commandActionsDisplay";
 import { summarizeShellCommand, type CommandIntentDisplay } from "./commandSummary";
+import { readCommandInvocation } from "@/shared/commandPresentation/invocation";
 import { deriveToolDisplay, type ToolDisplay } from "./toolDisplay";
 
 type CacheEntry<T> = {
@@ -165,12 +165,7 @@ function computeFileChangeHeader(payload: FileChangePayload): FileChangeCollapse
 }
 
 function computeCommandHeader(payload: CommandExecutionPayload): CommandExecutionCollapsedHeader {
-  const command =
-    payload.command && payload.command.length > 0
-      ? payload.command
-      : (readAcpStringField(payload, "command") ?? "");
-  const cwd = payload.cwd?.trim() ?? readAcpStringField(payload, "cwd")?.trim() ?? undefined;
-  const fullCommandLine = formatShellInvocation(cwd, command);
+  const fullCommandLine = readCommandInvocation(payload);
   const displayCommandLine = fullCommandLine ? summarizeShellCommand(fullCommandLine) : "";
   return {
     display: commandPayloadDisplay(payload, fullCommandLine),
@@ -246,22 +241,6 @@ function formatKindVerb(kind: FileChangePayload["changeKind"]): string {
     default:
       return "Edit";
   }
-}
-
-function formatShellInvocation(cwd: string | undefined, command: string): string {
-  const cmd = command.trim();
-  if (!cmd) return "";
-  if (cwd && cwd.length > 0) {
-    const needsCd =
-      !cmd.toLowerCase().startsWith("cd ") &&
-      !/^(['"]).*\1\s+&&\s+/.test(cmd) &&
-      !/^\(\s*cd\s/.test(cmd);
-    if (needsCd) {
-      const escaped = cwd.includes(" ") ? JSON.stringify(cwd) : cwd;
-      return `cd ${escaped} && ${cmd}`;
-    }
-  }
-  return cmd;
 }
 
 /** Test helper — peek whether an item is currently cached for the active locale. */

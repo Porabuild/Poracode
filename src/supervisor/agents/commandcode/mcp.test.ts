@@ -36,7 +36,7 @@ const server: ResolvedMcpServer = {
     type: "stdio",
     command: "node",
     args: ["server.mjs"],
-    env: { KEY: "private" },
+    env: { KEY: "fixture-commandcode-secret" },
     cwd: "/plugin",
   },
 };
@@ -62,13 +62,15 @@ describe("Command Code launch integrations", () => {
     expect(adapter.capabilities.mcpScope?.terminal).toBe("launch");
     for (const launch of [fresh, resumed]) {
       expect(launch.args.slice(0, 2)).toEqual(["--mod", join(root, "commandcode-mcp-mod.mjs")]);
-      expect(launch.args.join(" ")).not.toContain("private");
+      expect(launch.args.join(" ")).not.toContain("fixture-commandcode-secret");
     }
     expect(resumed.args).toContain("--resume");
     const decode = (value: string) => JSON.parse(Buffer.from(value, "base64url").toString());
     expect(decode(fresh.env!.PORACODE_COMMANDCODE_MCP!)).toEqual({ version: 1, servers: [server] });
     expect(decode(resumed.env!.PORACODE_COMMANDCODE_MCP!).servers[0].name).toBe("other");
-    expect(readFileSync(join(root, "commandcode-mcp-mod.mjs"), "utf8")).not.toContain("private");
+    expect(readFileSync(join(root, "commandcode-mcp-mod.mjs"), "utf8")).not.toContain(
+      "fixture-commandcode-secret",
+    );
     await expect(commandCodeMcpLaunch(location)).resolves.toEqual({ args: [] });
   });
 

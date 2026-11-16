@@ -105,6 +105,7 @@ struct GitHubWorkflowRunsView: View {
       }
     }
     .listStyle(.insetGrouped)
+    .poracodeReadableListMargins(760)
     .navigationTitle(workflow.name)
     .navigationBarTitleDisplayMode(.inline)
     .poracodeBottomBar {
@@ -142,6 +143,7 @@ struct GitHubWorkflowRunsView: View {
       GitHubWorkflowDispatchView(workflow: workflow, definition: definition) {
         await dispatch(ref: $0, inputs: $1)
       }
+      .poracodeFormSheetSizing()
     }
     .confirmationDialog(
       confirmationTitle,
