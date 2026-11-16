@@ -7,7 +7,7 @@ import { resolveCommandCodeToken } from "./commandCodeCredentials";
 import { resolveCopilotToken } from "./copilotCredentials";
 import { resolveCursorToken } from "../agents/cursor/usageCredentials";
 import { resolveFactoryCliToken } from "./factoryCredentials";
-import { resolveGeminiToken } from "./geminiCredentials";
+import { refreshRejectedGeminiToken, resolveGeminiToken } from "./geminiCredentials";
 import { refreshRejectedGrokToken, resolveFreshGrokToken } from "./grokTokenRefresh";
 import { refreshRejectedKimiToken, resolveKimiToken } from "../agents/kimi/usageCredentials";
 import { resolveMuseToken } from "../agents/muse/usageCredentials";
@@ -58,6 +58,7 @@ function tokenResolvers(
 /** Per-provider refreshers, called after the provider rejected a token. */
 const tokenRefreshers: Record<string, (token: OAuthToken) => Promise<OAuthToken | undefined>> = {
   claude: refreshRejectedClaudeToken,
+  gemini: refreshRejectedGeminiToken,
   grok: refreshRejectedGrokToken,
   kimi: refreshRejectedKimiToken,
 };

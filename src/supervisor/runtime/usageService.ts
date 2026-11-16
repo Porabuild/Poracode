@@ -52,7 +52,8 @@ import { providerUsageResponse } from "./usageRingPresentation";
 // snapshots that may report a missing login or quota from the legacy account.
 // v15 replaces legacy monthly allowance bars on unified accounts with shared weekly quota.
 // v16 refreshes Devin snapshots that omitted exhausted quota windows.
-const USAGE_CACHE_VERSION = 16;
+// v17 refreshes Gemini snapshots that now include paidTier/credits and token refresh.
+const USAGE_CACHE_VERSION = 17;
 // Ring layouts are response-only and recomputed from current descriptors and
 // settings; they do not require cache invalidation.
 /** The full default provider set, from the package catalog (single source of truth). */

@@ -20,6 +20,10 @@ import {
   CodexAgentSettingsPanel,
   codexProfileSupport,
 } from "@/renderer/components/providers/codex/profileSettings";
+import {
+  GeminiAgentSettingsPanel,
+  geminiProfileSupport,
+} from "@/renderer/components/providers/gemini/profileSettings";
 import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorProviderSettings } from "../../../components/providers/settings/CursorProviderSettings";
 import { OPENCODE2_INSTALL_COMMANDS } from "@/renderer/components/providers/opencode2/installCommands";
@@ -168,6 +172,8 @@ const POSIX_MISSING_CURL_NPM_MESSAGE =
   "printf 'No supported installer found. Install curl or Node.js/npm first, then refresh detected agents.\\n'";
 const MAC_MISSING_CURL_BREW_NPM_MESSAGE =
   "printf 'No supported installer found. Install curl, Homebrew, or Node.js/npm first, then refresh detected agents.\\n'";
+const MAC_MISSING_BREW_NPM_MESSAGE =
+  "printf 'No supported installer found. Install Homebrew or Node.js/npm first, then refresh detected agents.\\n'";
 const MAC_MISSING_CURL_BREW_MESSAGE =
   "printf 'No supported installer found. Install curl or Homebrew first, then refresh detected agents.\\n'";
 const POSIX_MISSING_CURL_MESSAGE =
@@ -418,13 +424,21 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     description: msg`First-class Gemini CLI integration using Poracode's native runtime.`,
     docsUrl: "https://github.com/google-gemini/gemini-cli",
     installCommand: (project) =>
-      posixOrWindows(
-        project,
-        "if command -v npm >/dev/null 2>&1; then npm install -g @google/gemini-cli; else " +
+      nativeInstallCommand(project, {
+        mac:
+          "if command -v npm >/dev/null 2>&1; then npm install -g @google/gemini-cli; " +
+          "elif command -v brew >/dev/null 2>&1; then brew install gemini-cli; else " +
+          MAC_MISSING_BREW_NPM_MESSAGE +
+          "; fi",
+        posix:
+          "if command -v npm >/dev/null 2>&1; then npm install -g @google/gemini-cli; else " +
           POSIX_MISSING_NPM_MESSAGE +
           "; fi",
-        "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @google/gemini-cli } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
-      ),
+        windows:
+          "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @google/gemini-cli } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
+      }),
+    settingsPanel: GeminiAgentSettingsPanel,
+    profiles: geminiProfileSupport,
   },
   {
     id: "qwen",

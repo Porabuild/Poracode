@@ -3,6 +3,7 @@ import type { SharedSettings } from "@/shared/settings";
 import { createClaudeUsageProfileSource } from "../agents/claude/claudeUsageProfiles";
 import { createCodexUsageProfileSource } from "../agents/codex/codexUsageProfiles";
 import { createCursorUsageProfileSource } from "../agents/cursor/cursorUsageProfiles";
+import { createGeminiUsageProfileSource } from "../agents/gemini/geminiUsageProfiles";
 import { createMuseUsageProfileSource } from "../agents/muse/usageProfiles";
 import type { UsageProfileSource } from "./usageProfileTypes";
 
@@ -12,6 +13,7 @@ const profileSources: readonly ((settings: SharedSettings) => UsageProfileSource
   createCodexUsageProfileSource,
   createCursorUsageProfileSource,
   createDevinUsageProfileSource,
+  createGeminiUsageProfileSource,
   createMuseUsageProfileSource,
 ];
 

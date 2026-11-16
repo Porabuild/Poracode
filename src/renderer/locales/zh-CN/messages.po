@@ -3463,6 +3463,7 @@ msgid "Change context size to {contextLabel}?"
 msgstr "将上下文大小更改为 {contextLabel}？"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "更改主目录"
 
@@ -3471,6 +3472,7 @@ msgid "Change order"
 msgstr "更改排序"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change profile home?"
 msgstr "更改配置文件主目录？"
 
@@ -8975,6 +8977,43 @@ msgstr "游戏与娱乐"
 msgid "Gemini"
 msgstr "Gemini"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini {0} profile saved."
+msgstr "Gemini {0} 配置文件已保存。"
+
+#: src/renderer/components/providers/gemini/manifest.ts
+msgid "Gemini {profile}"
+msgstr "Gemini {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini authentication failed. Sign in again or verify your API key in settings."
+msgstr "Gemini 身份验证失败。请重新登录或在设置中检查您的 API 密钥。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini did not return a response because the output was filtered or blocked."
+msgstr "Gemini 未返回响应，因为输出已被过滤或阻止。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini ended the turn without returning a response. Check authentication or quota and try again."
+msgstr "Gemini 在未返回响应的情况下结束了本轮。请检查身份验证或配额后重试。"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile home directory"
+msgstr "Gemini 配置文件主目录"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile name"
+msgstr "Gemini 配置文件名称"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini quota or rate limit was exceeded. Wait and try again, or switch models."
+msgstr "已超出 Gemini 配额或速率限制。请稍候重试或切换模型。"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini runs this profile with GEMINI_CLI_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Gemini 会将 GEMINI_CLI_HOME 设为下方目录来运行此配置文件。使用上方的“登录”让此配置文件登录其独立账户。"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -9555,6 +9594,7 @@ msgid "Home"
 msgstr "首页"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Home directory"
 msgstr "主目录"
 
@@ -12499,6 +12539,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -12702,6 +12743,10 @@ msgstr "新建文件夹"
 #: src/mobile/views/useFileTree.ts
 #~ msgid "New folder name"
 #~ msgstr "新文件夹名称"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "New Gemini profile home directory"
+msgstr "新 Gemini 配置文件主目录"
 
 #: src/renderer/components/newsLine/useDiscoveryItems.tsx
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
@@ -15575,6 +15620,7 @@ msgstr "已添加配置文件 {displayName}。"
 #~ msgstr "配置文件 API 密钥"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "配置文件主目录"
 
@@ -16770,6 +16816,10 @@ msgstr "移除 {profileName} 会删除其保存的 API 密钥。使用该配置�
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
 msgstr "移除 {profileName} 会将其从 Poracode 中删除。其主目录及其中的 Codex 凭据仍保留在磁盘上。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
+msgstr "移除 {profileName} 会将其从 Poracode 中删除。其主目录及其中的 Gemini 凭据仍保留在磁盘上。"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "移除 {profileName} 会丢弃其 Poracode 设置——环境变量、模型和 effort。其配置目录以及目录中的 Claude 凭据仍保留在磁盘上。"
@@ -17664,6 +17714,10 @@ msgstr "运行计划任务后即可在此查看结果。"
 msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
 msgstr "使用独立的 CODEX_HOME 运行第二个 Codex 账户。每个配置文件单独登录并保留自己的会话。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Run a second Gemini account from its own GEMINI_CLI_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "使用独立的 GEMINI_CLI_HOME 运行第二个 Gemini 账户。每个配置文件单独登录并保留自己的会话。"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -17861,6 +17915,7 @@ msgstr "饱和度与亮度"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
@@ -17941,6 +17996,10 @@ msgstr "保存 Devin 配置文件"
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "保存文件"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Save Gemini profile"
+msgstr "保存 Gemini 配置文件"
 
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
@@ -21215,6 +21274,10 @@ msgstr "源托管平台返回了无效响应。请更新集成，或在源托管
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "The stored configuration is invalid. Saving below replaces it with what this form holds."
+msgstr "已存储的配置无效。在下方保存将以表单中的内容替换它。"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "已存储的配置无效。已存储的值会被保留；在下方保存将以表单中的内容替换它们。"
@@ -21653,6 +21716,7 @@ msgid "This plugin's skills could not be read."
 msgstr "无法读取此插件的技能。"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
 msgstr "此配置文件已有线程。它们的会话保留在当前主目录中，因此更改后将无法恢复。"
 
@@ -22610,6 +22674,10 @@ msgstr "无法刷新 Claude 配置文件。"
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Unable to refresh Codex profiles."
 msgstr "无法刷新 Codex 配置文件。"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+#~ msgid "Unable to refresh Gemini profiles."
+#~ msgstr "无法刷新 Gemini 配置文件。"
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

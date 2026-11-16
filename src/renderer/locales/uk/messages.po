@@ -3463,6 +3463,7 @@ msgid "Change context size to {contextLabel}?"
 msgstr "Змінити розмір контексту на {contextLabel}?"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "Змінити каталог"
 
@@ -3471,6 +3472,7 @@ msgid "Change order"
 msgstr "Змінити порядок"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change profile home?"
 msgstr "Змінити каталог профілю?"
 
@@ -8975,6 +8977,43 @@ msgstr "Ігри та розваги"
 msgid "Gemini"
 msgstr "Gemini"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini {0} profile saved."
+msgstr "Профіль Gemini {0} збережено."
+
+#: src/renderer/components/providers/gemini/manifest.ts
+msgid "Gemini {profile}"
+msgstr "Gemini {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini authentication failed. Sign in again or verify your API key in settings."
+msgstr "Помилка автентифікації Gemini. Увійдіть знову або перевірте ключ API у налаштуваннях."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini did not return a response because the output was filtered or blocked."
+msgstr "Gemini не повернув відповідь, оскільки вивід було відфільтровано або заблоковано."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini ended the turn without returning a response. Check authentication or quota and try again."
+msgstr "Gemini завершив хід без відповіді. Перевірте автентифікацію або квоту й спробуйте ще раз."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile home directory"
+msgstr "Домашній каталог профілю Gemini"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile name"
+msgstr "Назва профілю Gemini"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini quota or rate limit was exceeded. Wait and try again, or switch models."
+msgstr "Перевищено квоту або обмеження частоти запитів Gemini. Зачекайте й спробуйте знову або змініть модель."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini runs this profile with GEMINI_CLI_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Gemini запускає цей профіль із GEMINI_CLI_HOME, що вказує на каталог нижче. Натисніть «Увійти» вище, щоб увійти в окремий обліковий запис цього профілю."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -9555,6 +9594,7 @@ msgid "Home"
 msgstr "Головна"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Home directory"
 msgstr "Домашній каталог"
 
@@ -12500,6 +12540,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -12703,6 +12744,10 @@ msgstr "Нова папка"
 #: src/mobile/views/useFileTree.ts
 #~ msgid "New folder name"
 #~ msgstr "Назва нової папки"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "New Gemini profile home directory"
+msgstr "Домашній каталог нового профілю Gemini"
 
 #: src/renderer/components/newsLine/useDiscoveryItems.tsx
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
@@ -15576,6 +15621,7 @@ msgstr "Профіль {displayName} додано."
 #~ msgstr "Ключ API профілю"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "Каталог профілю"
 
@@ -16771,6 +16817,10 @@ msgstr "Під час видалення {profileName} збережений API-
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
 msgstr "Видалення {profileName} прибере профіль із Poracode. Його домашній каталог і облікові дані Codex у ньому залишаться на диску."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
+msgstr "Видалення {profileName} прибере профіль із Poracode. Його домашній каталог і облікові дані Gemini у ньому залишаться на диску."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Видалення {profileName} скидає його налаштування Poracode — змінні середовища, моделі та effort. Каталог конфігурації та дані Claude у ньому залишаться на диску."
@@ -17665,6 +17715,10 @@ msgstr "Запустіть завдання за розкладом, щоб по
 msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
 msgstr "Запускайте другий обліковий запис Codex із власного CODEX_HOME. Кожен профіль входить окремо та зберігає власні сесії."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Run a second Gemini account from its own GEMINI_CLI_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "Запускайте другий обліковий запис Gemini із власного GEMINI_CLI_HOME. Кожен профіль входить окремо та зберігає власні сесії."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -17862,6 +17916,7 @@ msgstr "Насиченість та яскравість"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
@@ -17942,6 +17997,10 @@ msgstr "Зберегти профіль Devin"
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "Зберегти файл"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Save Gemini profile"
+msgstr "Зберегти профіль Gemini"
 
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
@@ -21216,6 +21275,10 @@ msgstr "Вихідний сервер повернув некоректну ві
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH-тунель підключився до несумісного сервера Poracode."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "The stored configuration is invalid. Saving below replaces it with what this form holds."
+msgstr "Збережена конфігурація недійсна. Збереження нижче замінить її тим, що містить ця форма."
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Збережена конфігурація недійсна. Збережені значення залишаються; збереження нижче замінить їх тим, що містить ця форма."
@@ -21654,6 +21717,7 @@ msgid "This plugin's skills could not be read."
 msgstr "Не вдалося прочитати навички цього плагіна."
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
 msgstr "Цей профіль уже має треди. Їхні сесії залишаються в поточному домашньому каталозі, тож після його зміни їх не вдасться відновити."
 
@@ -22611,6 +22675,10 @@ msgstr "Не вдалося оновити профілі Claude."
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Unable to refresh Codex profiles."
 msgstr "Не вдалося оновити профілі Codex."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+#~ msgid "Unable to refresh Gemini profiles."
+#~ msgstr "Не вдалося оновити профілі Gemini."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

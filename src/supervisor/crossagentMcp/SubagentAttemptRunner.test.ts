@@ -1,11 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/base";
 import { SubagentAttemptRunner, type AttemptExecutionState } from "./SubagentAttemptRunner";
 import type { ResolvedSpawnAttempt } from "./spawnPlan";
 
+const primeProjectShellEnvMock = vi.hoisted(() =>
+  vi.fn<() => Promise<Record<string, string> | undefined>>(async () => undefined),
+);
+const resolveAgentProjectLocationMock = vi.hoisted(() =>
+  vi.fn<(location: unknown) => Promise<unknown>>(async (location) => location),
+);
+
 vi.mock("@/supervisor/agents/base", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/supervisor/agents/base")>()),
-  resolveAgentProjectLocation: async (location: unknown) => location,
+  resolveAgentProjectLocation: resolveAgentProjectLocationMock,
+  primeProjectShellEnv: primeProjectShellEnvMock,
 }));
 
 function setup() {
@@ -56,6 +64,36 @@ function setup() {
   };
   return { runner, state, handle, start };
 }
+
+beforeEach(() => {
+  primeProjectShellEnvMock.mockClear();
+  resolveAgentProjectLocationMock
+    .mockReset()
+    .mockImplementation(async (location: unknown) => location);
+});
+
+describe("SubagentAttemptRunner shell env priming", () => {
+  it("primes shell env before spawning a non-WSL child agent", async () => {
+    const { state, handle, start } = setup();
+    state.plan.projectLocation = { kind: "windows", path: "C:\\workspace\\demo" };
+    start(async () => handle);
+    await vi.waitFor(() => expect(handle.startTurn).toHaveBeenCalledOnce());
+    expect(primeProjectShellEnvMock).toHaveBeenCalledWith("C:\\workspace\\demo");
+  });
+
+  it("skips host shell env priming for WSL child locations", async () => {
+    const { state, handle, start } = setup();
+    state.plan.projectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/home/demo/project",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+    };
+    start(async () => handle);
+    await vi.waitFor(() => expect(handle.startTurn).toHaveBeenCalledOnce());
+    expect(primeProjectShellEnvMock).not.toHaveBeenCalled();
+  });
+});
 
 describe("SubagentAttemptRunner teardown", () => {
   it("shares concurrent and synchronous reentrant teardown until disposal completes", async () => {

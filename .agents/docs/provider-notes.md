@@ -123,6 +123,70 @@ stays off the SDK stream and out of the session import.
   windows report unsupported; overage shows as a remaining credit balance.
   Account metadata is not parsed from undocumented CLI output.
 
+## Gemini
+
+Targets `@google/gemini-cli` `v0.68.0` across Terminal, ACP Chat, Crossagents
+delegation, session import, usage, and isolated `gemini:<id>` profiles (protocol
+and adapter contracts are unit-tested; live CLI/ACP verification requires a
+host with `gemini` installed).
+
+- **ACP stream & silent failures (`acpTransform.ts`, `acpErrors.ts`):**
+  Gemini CLI's ACP handler emits `agent_message_chunk` messages starting with
+  `[MODE_UPDATE]` when acknowledging `session/set_mode` (such as switching into
+  `yolo` mode on turn start), and can catch model/auth/safety stream errors
+  while still resolving `session/prompt` with `stopReason: "end_turn"` and no
+  assistant prose. `createGeminiAcpSessionTransform` normalizes `[MODE_UPDATE]`
+  chunks to `session_info_update` before shared activity tracking runs, so
+  `resolveGeminiEmptyResponseError` (`acpEmptyResponseErrorResolver`) fails
+  loudly instead of completing with `output: ""`. It also normalizes Gemini's
+  `LocalSubagentInvocation` / `DelegateInvocation` calls to canonical `task`
+  subagents, `enter_plan_mode` / `exit_plan_mode` to `EnterPlanMode` /
+  `ExitPlanMode`, and `write_todos` calls with `rawInput.todos` to `todo_write`.
+  `resolveGeminiPromptErrorReason`
+  (`promptErrorReason`) maps HTTP 401/403 and rejected API-key/OAuth RPC errors
+  to `"auth_required"`. Non-WSL Crossagents launches also prime the project's
+  POSIX shell environment (`primeProjectShellEnv`) so login-shell API keys reach
+  delegated child processes.
+- **Usage metrics & model catalog (`detection.ts`, `index.ts`):** ACP prompt
+  responses carry per-call token counters rather than cumulative totals or
+  context occupancy (`promptUsageCounterKind: "per-call"`,
+  `promptUsageReportsContext: false`). Because ACP model discovery omits context
+  window sizes, `GEMINI_MODEL_CONTEXT_TOKENS` maps documented Gemini (`1M` /
+  1.5 Pro `2M`) and Gemma 4 (`256K`) models explicitly without inventing sizes for
+  unknown aliases. `capabilitiesProbe` forwards ACP `modelEfforts`,
+  `modelDefaultEfforts`, `fastModels`, `subProviders`, and `modelSubProvider`,
+  and honors `ctx.probeEnv`.
+- **Auth & config custody (`detection.ts`, `session.ts`, `sessionImport.ts`):**
+  `evaluateGeminiAuthEvidence` requires real credential evidence (API key env var,
+  service account, Vertex ADC/project, `oauth_creds.json`, `FileKeychain`
+  `gemini-credentials.json`, or macOS Keychain `gemini-cli-oauth` /
+  `gemini-cli-api-key`), never `.gemini` directory existence or `settings.json`
+  `selectedType` alone. Config resolves in precedence `GEMINI_CLI_HOME`
+  (`<dir>/.gemini`) → legacy `GEMINI_HOME` → `~/.gemini`. Conversation files
+  live under `<configDir>/tmp/<projectDir>/chats/session-*-<shortId>.{json,jsonl}`
+  (both `.json` and `v0.68.0` `.jsonl` incremental logs with `$set`/`$patch`/`$rewindTo`);
+  `waitForGeminiResumeArtifact` checks both extensions across native and WSL
+  hosts, and `createGeminiSessionImport` skips `kind === "subagent"` transcripts
+  and falls back to `.project_root` for `cwd`.
+- **Profiles, install/update, and provider usage (`profiles.ts`, `geminiUsageProfiles.ts`, `geminiCredentials.ts`):**
+  Profiles (`gemini:<id>`) isolate `GEMINI_CLI_HOME` with
+  `GEMINI_BLANKED_HOST_CREDENTIALS` blanking host API-key, ADC, and custom
+  base-URL vars plus `GEMINI_FORCE_FILE_STORAGE=true` (so `KeychainService`
+  uses per-home `gemini-credentials.json` instead of the shared OS Keychain)
+  across detection, launch, resume, terminal login (`authMethods`), auth,
+  one-shots (`--skip-trust`, `gemini-3.8-flash`), extraction, and usage
+  (`skipWsl: true`, `skipKeychain: true`). Hook/MCP staging
+  (`plugin/install.ts`) writes to Poracode-owned directories and injects per
+  launch via `GEMINI_CLI_SYSTEM_SETTINGS_PATH`, so plugins stay isolated across
+  profiles too. Install prefers `npm install -g @google/gemini-cli` with
+  `brew install gemini-cli` fallback on macOS and
+  `npm install -g @google/gemini-cli` on POSIX/WSL/Windows; updates check both
+  `npm` (`@google/gemini-cli`) and `brew` (`gemini-cli`). Usage tracking reads
+  `oauth_creds.json`, AES-256-GCM + `scryptSync` `FileKeychain`
+  (`gemini-credentials.json`), macOS Keychain, and WSL `$GEMINI_CLI_HOME/.gemini`,
+  extracts the unbundled `v0.68.0` `oauth2.js` client credentials at runtime for
+  401/403 token refresh+retry, and parses `paidTier` + `availableCredits`.
+
 ## Kimi Code
 
 Kimi Code 2.5.3 is qualified on native Windows with an isolated

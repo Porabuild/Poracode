@@ -308,7 +308,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v32 snapshots so connected accounts and credentials are re-probed", async () => {
@@ -330,7 +330,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -394,7 +394,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v11 caches produced before successful ACP sessions established auth", async () => {
@@ -749,7 +749,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -800,7 +800,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -840,7 +840,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -881,7 +881,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -919,7 +919,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -962,7 +962,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -1001,7 +1001,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -1062,7 +1062,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -1102,7 +1102,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses([]);
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -1133,7 +1133,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses([]);
-    expect(STATUS_CACHE_VERSION).toBe(80);
+    expect(STATUS_CACHE_VERSION).toBe(81);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -1171,6 +1171,87 @@ describe("agent status cache", () => {
     ).readCachedStatuses([]);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
+
+  it.each(["gemini", "gemini:work"])(
+    "invalidates v80 %s observations across native and WSL while retaining unaffected providers",
+    async (kind) => {
+      const dataDir = makeTempDir();
+      process.env.PORACODE_DATA_DIR = dataDir;
+      const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+      mkdirSync(cacheDir, { recursive: true });
+      const baseCaps = {
+        models: [],
+        efforts: [],
+        modelEfforts: {},
+        modes: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "terminal",
+        presentationMode: "terminal",
+        settingDefs: [],
+      };
+      const staleNative = {
+        kind,
+        label: "Gemini",
+        installed: true,
+        authState: "missing",
+        capabilities: baseCaps,
+        envKind: "windows",
+      };
+      const retainedNative = {
+        kind: "claude",
+        label: "Claude Code",
+        installed: true,
+        authState: "authenticated",
+        capabilities: baseCaps,
+        envKind: "windows",
+      };
+      const staleWsl = {
+        kind,
+        label: "Gemini",
+        installed: true,
+        authState: "missing",
+        capabilities: baseCaps,
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      };
+      const retainedWsl = {
+        kind: "claude",
+        label: "Claude Code",
+        installed: true,
+        authState: "authenticated",
+        capabilities: baseCaps,
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      };
+      writeFileSync(
+        statusCachePath,
+        JSON.stringify({
+          version: 80,
+          windows: [staleNative, retainedNative],
+          wsl: [staleWsl, retainedWsl],
+        }),
+      );
+
+      const runtime = await makeRuntime(() => {});
+      const cached = (
+        runtime.agentStatusService as unknown as {
+          readCachedStatuses: (wslDistros: readonly string[]) => {
+            windows: AgentStatus[];
+            wsl: AgentStatus[];
+            fromCache: boolean;
+          };
+        }
+      ).readCachedStatuses(["Ubuntu"]);
+
+      expect(STATUS_CACHE_VERSION).toBe(81);
+      expect(cached.fromCache).toBe(false);
+      expect(cached.windows.map((status) => status.kind)).toEqual(["claude"]);
+      expect(cached.wsl.map((status) => status.kind)).toEqual(["claude"]);
+    },
+  );
 
   it("migrates stale cached settingDefs to current schema", async () => {
     const dataDir = makeTempDir();

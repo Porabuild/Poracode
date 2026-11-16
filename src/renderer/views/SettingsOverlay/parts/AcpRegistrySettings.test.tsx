@@ -1223,7 +1223,12 @@ describe("AcpRegistrySettings", () => {
       expect(entries.get("opencode")?.installCommand(macProject)).toContain(
         "brew install anomalyco/tap/opencode",
       );
-      expect(entries.get("gemini")?.installCommand(macProject)).not.toContain("brew install");
+      const geminiMacInstall = entries.get("gemini")?.installCommand(macProject);
+      expect(geminiMacInstall).toContain("npm install -g @google/gemini-cli");
+      expect(geminiMacInstall).toContain("brew install gemini-cli");
+      expect(geminiMacInstall!.indexOf("npm install -g @google/gemini-cli")).toBeLessThan(
+        geminiMacInstall!.indexOf("brew install gemini-cli"),
+      );
       expect(entries.get("qwen")?.installCommand(macProject)).toContain("brew install qwen-code");
       expect(entries.get("copilot")?.installCommand(macProject)).toContain(
         "brew install --cask copilot-cli",
