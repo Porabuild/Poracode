@@ -1,7 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { spawnAndAwaitExit } from "./spawn";
 
 const sleeper = "setTimeout(() => process.exit(0), 30_000);";
+
+function childReadiness() {
+  let resolveReady!: (pid: number) => void;
+  const ready = new Promise<number>((resolve) => {
+    resolveReady = resolve;
+  });
+  return { ready, onStdout: (chunk: Buffer) => resolveReady(Number(chunk.toString())) };
+}
 
 describe("spawnAndAwaitExit", () => {
   it("resolves when the child exits 0", async () => {
@@ -11,21 +19,35 @@ describe("spawnAndAwaitExit", () => {
   });
 
   it("kills and joins the child on timeout instead of leaving it running", async () => {
-    const pidFile = `${process.env.TMPDIR ?? "/tmp"}/poracode-spawn-timeout-${process.pid}.txt`;
-    const script = `require("node:fs").writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); ${sleeper}`;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const controller = new AbortController();
+    const readiness = childReadiness();
+    const script = `process.stdout.write(String(process.pid)); ${sleeper}`;
     const started = Date.now();
     const pending = spawnAndAwaitExit(process.execPath, ["-e", script], {
       timeoutMs: 300,
       label: "test sleeper",
+      signal: controller.signal,
+      onStdout: readiness.onStdout,
     });
-
-    await expect(pending).rejects.toThrow(/test sleeper timed out after 300ms/);
-    expect(Date.now() - started).toBeLessThan(5_000);
-
-    const { readFileSync, rmSync } = await import("node:fs");
-    const pid = Number(readFileSync(pidFile, "utf8"));
-    rmSync(pidFile, { force: true });
-    expect(() => process.kill(pid, 0)).toThrow(/ESRCH|no such process/u);
+    const prematureExit = pending.then(
+      () => {
+        throw new Error("Child exited before reporting readiness");
+      },
+      (error: unknown) => {
+        throw error;
+      },
+    );
+    try {
+      const pid = await Promise.race([readiness.ready, prematureExit]);
+      await vi.advanceTimersByTimeAsync(300);
+      await expect(pending).rejects.toThrow(/test sleeper timed out after 300ms/);
+      expect(Date.now() - started).toBeLessThan(5_000);
+      expect(() => process.kill(pid, 0)).toThrow(/ESRCH|no such process/u);
+    } finally {
+      controller.abort();
+      vi.useRealTimers();
+    }
   });
 
   it("kills and joins the child when the caller aborts", async () => {
@@ -39,10 +61,12 @@ describe("spawnAndAwaitExit", () => {
   });
 
   it("escalates to SIGKILL and joins when the child ignores SIGTERM", async () => {
-    const pidFile = `${process.env.TMPDIR ?? "/tmp"}/poracode-spawn-stubborn-${process.pid}.txt`;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const controller = new AbortController();
+    const readiness = childReadiness();
     const script = [
-      `require("node:fs").writeFileSync(${JSON.stringify(pidFile)}, String(process.pid))`,
       'process.on("SIGTERM", () => {})',
+      "process.stdout.write(String(process.pid))",
       "setInterval(() => {}, 1000)",
     ].join("; ");
     const started = Date.now();
@@ -51,15 +75,28 @@ describe("spawnAndAwaitExit", () => {
       label: "stubborn extraction",
       terminateGraceMs: 150,
       reapTimeoutMs: 3_000,
+      signal: controller.signal,
+      onStdout: readiness.onStdout,
     });
-
-    await expect(pending).rejects.toThrow(/stubborn extraction timed out after 200ms/);
-    expect(Date.now() - started).toBeLessThan(5_000);
-
-    const { readFileSync, rmSync } = await import("node:fs");
-    const pid = Number(readFileSync(pidFile, "utf8"));
-    rmSync(pidFile, { force: true });
-    expect(() => process.kill(pid, 0)).toThrow(/ESRCH|no such process/u);
+    const prematureExit = pending.then(
+      () => {
+        throw new Error("Child exited before reporting readiness");
+      },
+      (error: unknown) => {
+        throw error;
+      },
+    );
+    try {
+      const pid = await Promise.race([readiness.ready, prematureExit]);
+      await vi.advanceTimersByTimeAsync(200);
+      await vi.advanceTimersByTimeAsync(150);
+      await expect(pending).rejects.toThrow(/stubborn extraction timed out after 200ms/);
+      expect(Date.now() - started).toBeLessThan(5_000);
+      expect(() => process.kill(pid, 0)).toThrow(/ESRCH|no such process/u);
+    } finally {
+      controller.abort();
+      vi.useRealTimers();
+    }
   });
 
   it("escalates to SIGKILL when an aborted child ignores SIGTERM", async () => {
