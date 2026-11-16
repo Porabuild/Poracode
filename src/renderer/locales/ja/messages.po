@@ -89,6 +89,11 @@ msgstr "{0, plural, one {#個のファイルを内容なしで一覧表示} othe
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {#ファイル} other {#ファイル}}"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0, plural, one {# highlight} other {# highlights}}"
+msgstr "{0, plural, one {# 件のハイライト} other {# 件のハイライト}}"
+
 #. placeholder {0}: groupRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
@@ -518,6 +523,12 @@ msgstr "{0}、実行中"
 msgid "{0}: {stateLabel}"
 msgstr "{0}: {stateLabel}"
 
+#. placeholder {0}: currentPeriod.activeDays
+#. placeholder {1}: currentPeriod.days
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}/{1} active days"
+msgstr "{0}/{1} 稼働日"
+
 #. placeholder {0}: selectedRows.length
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
@@ -526,6 +537,11 @@ msgstr "{0}: {stateLabel}"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1} 件を選択済み"
+
+#. placeholder {0}: insights.fastModePercent
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}% fast"
+msgstr "{0}% 高速"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -561,6 +577,10 @@ msgstr "{agentLead}が続行するには入力が必要です。"
 msgid "{commentCount, plural, one {# comment} other {# comments}}"
 msgstr "{commentCount, plural, other {# 件のコメント}}"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{commits} commits"
+msgstr "{commits} 件のコミット"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 #~ msgstr "{commitsCount, plural, one {# 件のコミット} other {# 件のコミット}}"
@@ -570,6 +590,10 @@ msgstr "{commentCount, plural, other {# 件のコメント}}"
 #~ msgid "{completedSteps} of {0} steps"
 #~ msgstr "{completedSteps}/{0} ステップ完了"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{conflicts} conflicts"
+msgstr "{conflicts} 件の競合"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# 件のコメントまたはレビュー} other {# 件のコメントとレビュー}}"
@@ -578,11 +602,27 @@ msgstr "{commentCount, plural, other {# 件のコメント}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {#エージェントが見つかりました} other {#エージェントが見つかりました}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week"
+msgstr "今週のサブエージェント実行 {count, plural, one {# 回} other {# 回}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (-{deltaPercent}%)"
+msgstr "今週のサブエージェント実行 {count, plural, one {# 回} other {# 回}} (-{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (+{deltaPercent}%)"
+msgstr "今週のサブエージェント実行 {count, plural, one {# 回} other {# 回}} (+{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
+msgstr "今週のワークフロー実行 {count, plural, one {# 回} other {# 回}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
 msgstr "{current, plural, other {#日}}連続 · 最長記録は{longest}日"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
 msgstr "{current, plural, other {#日}}連続 · これまでの最長記録"
 
@@ -775,6 +815,10 @@ msgstr "{0} 件中 {passed} 件が成功"
 msgid "{percent}% full"
 msgstr "{percent}% 使用"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{percent}% of your threads this week used {modeLabel} mode"
+msgstr "今週のスレッドの {percent}% が {modeLabel} モードでした"
+
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "{percent}% used"
 msgstr "{percent}% 使用済み"
@@ -800,13 +844,17 @@ msgstr "{targetLabel} 上の {projectName} は Git リポジトリではない�
 msgid "{projectName} Settings"
 msgstr "{projectName}設定"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
 msgstr "今週のプロンプト {prompts, plural, other {#件}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
 msgstr "今週のプロンプト {prompts, plural, other {#件}} · 最も多いのは{weekday}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{promptsText} total prompts across {threadsText} threads"
+msgstr "{threadsText} スレッドで合計 {promptsText} プロンプト"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -824,6 +872,10 @@ msgstr "{provider} はワンショット生成をサポートしていません"
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{provider} does not support text-only one-shot generation"
 #~ msgstr "{provider} はテキストのみのワンショット生成をサポートしていません"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{prs} PRs"
+msgstr "{prs} 件の PR"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -934,6 +986,10 @@ msgstr "{visibleCount}/{totalCount}が表示されます"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "{visibleSidebarShortcutCount}/{0} selected"
 #~ msgstr "{visibleSidebarShortcutCount}/{0} 件を選択"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{weekdayPct}% Mon–Fri"
+msgstr "{weekdayPct}% 月–金"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -1070,7 +1126,15 @@ msgstr "<0/> がレビュースレッドを開始しました"
 msgid "<0/>% Full"
 msgstr "<0/>% 使用"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envA}</0> leaned {providerA} while <1>{envB}</1> leaned {providerB} this week"
+msgstr "今週は <0>{envA}</0> が {providerA}、<1>{envB}</1> が {providerB} 中心でした"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envLabel}</0> ran {percent}% of your prompts this week"
+msgstr "今週のプロンプトの {percent}% が <0>{envLabel}</0> で実行されました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "<0>{label}</0> handles {percent}% of your prompts"
 msgstr "プロンプトの {percent}% を <0>{label}</0> が処理"
 
@@ -1411,6 +1475,10 @@ msgstr "ポート {0} の操作"
 msgid "Active"
 msgstr "アクティブ"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Active {activeDays} of the last {totalDays} days"
+msgstr "過去 {totalDays} 日間で {activeDays} 日稼働"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "アクティブな転送"
@@ -1418,6 +1486,10 @@ msgstr "アクティブな転送"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Active today"
 msgstr "今日アクティブ"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Active yesterday"
+msgstr "昨日アクティブ"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
@@ -1434,9 +1506,23 @@ msgstr "アクティビティのハイライト"
 msgid "Activity insights"
 msgstr "アクティビティの分析"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is down {percent}% this week · {current} vs {previous} prompts"
+msgstr "今週のアクティビティは {percent}% 減 · {current} 対 {previous} プロンプト"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is up {percent}% this week · {current} vs {previous} prompts"
+msgstr "今週のアクティビティは {percent}% 増 · {current} 対 {previous} プロンプト"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity metric"
 msgstr "アクティビティ指標"
+
+#. placeholder {0}: f.envLabel
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity on <0>{0}</0> jumped {1}% this week"
+msgstr "<0>{0}</0> でのアクティビティが今週 {1}% 増加しました"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
@@ -1885,6 +1971,10 @@ msgstr "エージェントはタスクタグで委任された作業を分類し
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "エージェントは委任された作業をタスクタグで分類します。一致する学習済みルートが最優先され、その後に Crossagents 全体の使用状況、お気に入り、通常のエージェント使用状況、組み込み順序が続きます。"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Agents shipped {summary} this week"
+msgstr "今週エージェントは {summary} を完了しました"
 
 #: src/renderer/components/providers/antigravity/index.tsx
 msgid "agy CLI"
@@ -2745,6 +2835,15 @@ msgstr "アバターの色"
 msgid "Avatar color {color}"
 msgstr "アバターの色：{color}"
 
+#. placeholder {0}: formatDuration(avgTurnMs)
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "avg {0}"
+msgstr "平均 {0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Avg task duration"
+msgstr "平均タスク時間"
+
 #: src/renderer/views/PullRequestsOverlay/summary/RailMergeStatus.tsx
 msgid "Awaiting a required review."
 msgstr "必須のレビューを待っています。"
@@ -3221,6 +3320,10 @@ msgstr "ビジネスと金融"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Business and operations"
 msgstr "ビジネスと運用"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Busy day yesterday · {prompts} prompts ({multiplier}x your daily average)"
+msgstr "昨日は好調 · {prompts} プロンプト（日平均の {multiplier} 倍）"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #~ msgid "by <0>{author}</0>"
@@ -6680,22 +6783,23 @@ msgstr "このマシンでエージェントを検出"
 #~ msgstr "プロジェクトファイルから検出"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "検出済み"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "<0>({0})</0> を検出しました"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "<0>({0})</0> を検出しました"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "<0>(ローカル)</0>が検出されました"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "<0>(ローカル)</0>が検出されました"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "<0>{0}</0> を検出しました"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "<0>{0}</0> を検出しました"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -7396,6 +7500,10 @@ msgstr "各リポジトリエントリは 1〜512 文字で、制御文字を含
 msgid "Earlier text"
 msgstr "前のテキスト"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
+msgstr "朝型: 最近の {percent}% のプロンプトは午前10時前でした"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7876,6 +7984,10 @@ msgstr "推定には、正確なモデルIDに対応する標準API速度の保�
 msgid "Evaluate the result after every iteration."
 msgstr "各反復の後に結果を評価します。"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Evening builder: {percent}% of your recent prompts ran 6–10 PM"
+msgstr "夕方〜夜型: 最近の {percent}% のプロンプトは18〜22時でした"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
 msgstr "イベント"
@@ -8335,6 +8447,14 @@ msgstr "この組み合わせでは高速モードを利用できません"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "高速モード"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode powered {percent}% of your turns this week"
+msgstr "今週のターンの {percent}% で高速モードを使用しました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode ran on {percent}% of turns this week (was {prevPercent}%)"
+msgstr "今週の高速モード使用率は {percent}%（先週 {prevPercent}%）"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
@@ -10183,8 +10303,8 @@ msgid "Install and restart"
 msgstr "インストールして再起動"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "リモートマシンでのインストールとサインインはまだ利用できません。"
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "リモートマシンでのインストールとサインインはまだ利用できません。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10278,8 +10398,8 @@ msgstr "{executionHost} に GitHub CLI (gh) をインストールしてから再
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "{0} にインストール"
+#~ msgid "Install in {0}"
+#~ msgstr "{0} にインストール"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10303,8 +10423,8 @@ msgstr "最初にネイティブプロバイダーをインストールします
 #~ msgstr "{env} にインストール"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Windows にインストールする"
+#~ msgid "Install on Windows"
+#~ msgstr "Windows にインストールする"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -10715,6 +10835,14 @@ msgstr "大"
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Largest"
 msgstr "サイズが大きい順"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 30 days"
+msgstr "過去 30 日間"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 7 days"
+msgstr "過去 7 日間"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11198,8 +11326,8 @@ msgid "Loading…"
 msgstr "読み込み中…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "ローカル"
+#~ msgid "local"
+#~ msgstr "ローカル"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11296,8 +11424,8 @@ msgstr "ログイン"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "ログイン{0}"
+#~ msgid "Login {0}"
+#~ msgstr "ログイン{0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -12325,6 +12453,10 @@ msgstr "よく使うプロバイダー"
 msgid "Most used reasoning"
 msgstr "よく使う推論レベル"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Most-used MCP this week: <0>{name}</0> ({count, plural, one {# call} other {# calls}})"
+msgstr "今週最も使われた MCP: <0>{name}</0>（{count, plural, one {# 回} other {# 回}}）"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Motion"
 msgstr "モーション"
@@ -12876,6 +13008,10 @@ msgstr "次の送信済みメッセージ"
 msgid "Next tab"
 msgstr "次のタブ"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Night owl: {percent}% of your recent prompts ran after 10 PM"
+msgstr "夜型: 最近の {percent}% のプロンプトは22時以降でした"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
 msgstr "アクティブなブラウザタブがありません"
@@ -13348,6 +13484,10 @@ msgstr "プロジェクトはまだありません。"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "プロンプトはありません"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "No prompts yesterday"
+msgstr "昨日はプロンプトなし"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
@@ -14454,6 +14594,18 @@ msgstr "このタスクの出力は利用できません。"
 msgid "Over pace — runs out early"
 msgstr "オーバーペース — 早めに力尽きてしまう"
 
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% less"
+msgstr "過去30日間で <0>{0}</0> の利用が {1}% 減りました"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% more"
+msgstr "過去30日間で <0>{0}</0> の利用が {1}% 増えました"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Overall feedback"
 msgstr "全体へのフィードバック"
@@ -14823,6 +14975,11 @@ msgstr "この Mac を手動でロック解除するまで一時停止中"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "PDFプレビューはブラウザで開きます。"
+
+#. placeholder {0}: insights.mostActiveHour.label
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Peak {0}"
+msgstr "ピーク {0}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
@@ -15716,20 +15873,44 @@ msgstr "{0} のプロジェクトは {1} に移動します。プロジェクト
 msgid "Promoting this profile into the owned data root…"
 msgstr "このプロフィールを専用データルートへ移行しています…"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompt"
+msgstr "件のプロンプト"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Prompt"
 msgstr "プロンプト"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Prompt cache hit"
+msgstr "プロンプトキャッシュ率"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompt caching covered {percent}% of your input tokens this week"
+msgstr "今週の入力トークンの {percent}% がキャッシュから提供されました"
+
 #: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 msgid "Prompt navigation"
 msgstr "プロンプトナビゲーション"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompts"
+msgstr "件のプロンプト"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "プロンプト"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts dipped {percent}% over the last 30 days"
+msgstr "過去30日間でプロンプトが {percent}% 減少しました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts rose {percent}% over the last 30 days"
+msgstr "過去30日間でプロンプトが {percent}% 増加しました"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -18884,6 +19065,11 @@ msgstr "エージェントの検出を表示"
 msgid "Show all"
 msgstr "すべて表示"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show all {0} insights"
+msgstr "{0} 件のインサイトをすべて表示"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "ブックマークバーを表示"
@@ -18949,6 +19135,10 @@ msgstr "推定コストを表示"
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "表示を減らす"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show fewer insights"
+msgstr "インサイトを折りたたむ"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19407,6 +19597,14 @@ msgstr "サイズが小さい順"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Snapshots"
 msgstr "スナップショット"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "今日のこれまで: {prompts, plural, one {# プロンプト} other {# プロンプト}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}} · mostly {topProvider}"
+msgstr "今日のこれまで: {prompts, plural, one {# プロンプト} other {# プロンプト}} · 主に {topProvider}"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -20352,6 +20550,18 @@ msgstr "タスクの出力"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Task tags"
 msgstr "タスクタグ"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week"
+msgstr "今週のタスク平均時間は {duration} でした"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% faster than last week"
+msgstr "今週のタスク平均 {duration} · 先週より {deltaPercent}% 高速"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% longer than last week"
+msgstr "今週のタスク平均 {duration} · 先週より {deltaPercent}% 長め"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Teach your agents reusable procedures with skills"
@@ -21883,6 +22093,42 @@ msgstr "このバージョンの Muse Code はセッション目標をサポー�
 msgid "This visual is too large. Showing source only."
 msgstr "このビジュアルは大きすぎます。ソースのみ表示しています。"
 
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% less"
+msgstr "今週は <0>{0}</0> の利用が {1}% 減りました"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% more"
+msgstr "今週は <0>{0}</0> の利用が {1}% 増えました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1>"
+msgstr "今週 <0>{fromLabel}</0> から <1>{toLabel}</1> に切り替えました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1> ({toPercent}%)"
+msgstr "今週 <0>{fromLabel}</0> から <1>{toLabel}</1> に切り替え（{toPercent}%）"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% less"
+msgstr "今週は <0>{0}</0> の利用が {1}% 減りました"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% more"
+msgstr "今週は <0>{0}</0> の利用が {1}% 増えました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week's usage equals ~{cost} at API rates"
+msgstr "今週の使用量は API 換算で約 {cost} です"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
 #~ msgstr "スレッドとそのワークツリーを完全に削除します。"
@@ -22153,9 +22399,21 @@ msgstr "ファイルツリーパネルを切り替えます"
 msgid "Toggle Work or Plan"
 msgstr "作業と計画を切り替え"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is down {percent}% this week ({compact})"
+msgstr "今週のトークン使用量は {percent}% 減（{compact}）"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is up {percent}% this week ({compact})"
+msgstr "今週のトークン使用量は {percent}% 増（{compact}）"
+
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "トークン使用量を取得できません: {unavailableLabels}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "tokens"
+msgstr "トークン"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -22203,6 +22461,10 @@ msgstr "ツール検索"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #~ msgid "Tools"
 #~ msgstr "ツール"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
+msgstr "今週のトップスキル: <0>{name}</0>（{count, plural, one {# 回} other {# 回}}）"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
@@ -24013,6 +24275,10 @@ msgstr "ウェブサイト"
 msgid "Website origin"
 msgstr "ウェブサイトのオリジン"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekday steady: {percent}% of your recent prompts ran Mon–Fri"
+msgstr "平日中心: 最近の {percent}% のプロンプトは月〜金でした"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
 msgstr "平日"
@@ -24024,6 +24290,10 @@ msgstr "平日の{time}"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekdays at 8:00 AM"
 msgstr "平日午前8:00"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
+msgstr "週末ビルダー: 最近の {percent}% のプロンプトは週末でした"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekly"
@@ -24145,7 +24415,6 @@ msgstr "この環境で実行されます:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24180,6 +24449,10 @@ msgstr "作業"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "現在のチェックアウトでの作業"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Work rhythm"
+msgstr "作業リズム"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Work with the pages and signed-in sessions already open in Chrome."
@@ -24408,7 +24681,6 @@ msgstr "変更のテストを書いて実行し、報告されたバグを再現
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "ガイドを作成しています。このレビューを離れ、準備ができてから戻ることができます。"
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24421,8 +24693,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24444,22 +24716,72 @@ msgstr "ソース管理用の WSL ブリッジを利用できません。"
 #~ msgstr "WSL ユーザー"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL：{distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL：{distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"
 msgstr "はい"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Yesterday"
+msgstr "昨日"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday <0>{model}</0> handled {percent}% of your prompts"
+msgstr "昨日は <0>{model}</0> がプロンプトの {percent}% を担当しました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens"
+msgstr "昨日のトークン使用量は {compact} です"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens (~{cost})"
+msgstr "昨日のトークン使用量は {compact}（約 {cost}）です"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "昨日: {prompts, plural, one {# プロンプト} other {# プロンプト}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · {compactTokens} tokens"
+msgstr "昨日: {prompts, plural, one {# プロンプト} other {# プロンプト}} · {compactTokens} トークン"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
+msgstr "昨日: {prompts, plural, one {# プロンプト} other {# プロンプト}} · {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments this week"
+msgstr "今週は {count} 個の接続環境で開発しました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments yesterday"
+msgstr "昨日は {count} 個の接続環境で開発しました"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."
 msgstr "ソースホストに未完了のレビューがあります。このレビューを送信する前に、そちらで送信または破棄してください。"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You leaned into {modeLabel} mode this week ({percent}% vs {prevPercent}%)"
+msgstr "今週は {modeLabel} モードの比率が増加（{percent}% 対 {prevPercent}%）"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You ran {percent}% of turns with {effort} reasoning this week"
+msgstr "今週のターンの {percent}% で推論レベル {effort} を使用しました"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.prompts
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You started using <0>{0}</0> this week · {1, plural, one {# prompt} other {# prompts}}"
+msgstr "今週から <0>{0}</0> を使い始めました · {1, plural, one {# プロンプト} other {# プロンプト}}"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "すべて確認済みです。"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "You're most active around {hourLabel}"
 msgstr "最もアクティブなのは {hourLabel} ごろです"
 
@@ -24495,9 +24817,13 @@ msgstr "ローカルでの変更はスタッシュに保存されており、こ
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "ローカルでの変更はスタッシュに保存され、マージが解決されると再適用されます。"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "Your longest task ran {duration}"
 msgstr "最長のタスクは {duration} 実行されました"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your longest task yesterday ran {duration}"
+msgstr "昨日の最長タスクは {duration} でした"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
@@ -24506,6 +24832,10 @@ msgstr "メッセージは送信されませんでした。チャットスレッ
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "あなたの名前"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your peak coding hour shifted from {fromLabel} to {toLabel} this week"
+msgstr "今週のピーク時間帯が {fromLabel} から {toLabel} に移りました"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"

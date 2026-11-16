@@ -26,11 +26,11 @@ import {
   type ChangelogHighlight,
 } from "@/shared/changelogHighlights";
 import { pickUsageFact } from "./newsFacts";
-import { buildNewsPlaylist, seededRandom, shuffled } from "./newsPlaylist";
+import { seededRandom, shuffled, type NewsPlaylistSources } from "./newsPlaylist";
 import { NEWS_ICON_CLASS, type NewsItem } from "./newsTypes";
 import { NEWS_TIPS } from "./newsTips";
 import { openNewsUrl, runAppCommand } from "./newsActions";
-import { useProfileStats } from "./useProfileStats";
+import { useCrossEnvProfileStats } from "./useProfileStats";
 import { useFeatureContext } from "./useFeatureContext";
 import { useDiscoveryItems } from "./useDiscoveryItems";
 import { useAnnouncementItems } from "./useAnnouncementItems";
@@ -38,9 +38,6 @@ import { useInsightItems } from "./useInsightItems";
 import type { NewsVisit } from "./newsVisit";
 import { NewsUsageMeter } from "./NewsVisuals";
 
-/** Changelog points and keyboard tips featured per visit. */
-const HIGHLIGHTS_PER_VISIT = 3;
-const TIPS_PER_VISIT = 2;
 /** Promotions whose call to action needs the longer read: star and subscribe. */
 const LONG_DWELL_PROMOTIONS: ReadonlySet<CommunityPromotionId> = new Set([
   "github-star",
@@ -61,25 +58,19 @@ function isPromotionId(id: string): id is CommunityPromotionId {
 
 const ICON_CLASS = NEWS_ICON_CLASS;
 
-/** One visit's rotation plus the changelog points the expanded card can step through. */
-export interface NewsLineModel {
-  items: NewsItem[];
+export interface NewsLineSourcesModel {
+  sources: NewsPlaylistSources<NewsItem>;
   /** Every changelog point in rotation, for stepping through them in the expanded card. */
   highlights: ChangelogHighlight[];
 }
 
 /**
- * Builds the news line's rotation for one visit to the new-thread page:
- * activity insights, changelog highlights, remote announcements, features the
- * user has not tried, a usage limit, keyboard tips, and community promotions.
- * Choices come from the visit's seed and history snapshots, so a remount within
- * the visit rebuilds the same rotation; dismissals and settings apply live.
- * Each draft visit starts a new record, so reopening the draft re-rolls the
- * rotation instead of repeating the last one.
+ * Builds the full eligible pools for every news-line source during a visit.
+ * The infinite 5-by-5 stream planner draws from these pools without artificial
+ * per-source truncation, while reacting live to dismissals and async stats.
  */
-export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
+export function useNewsLineSources(visit: NewsVisit): NewsLineSourcesModel {
   const { t } = useLingui();
-  // Reset countdowns are read once per visit, like the rest of the visit's choices.
   const { seed, highlightHistory: historyAtVisit, startedAt: visitStartedAt } = visit;
 
   const activity = useSharedSettings((state) => state.newsLineActivity);
@@ -91,10 +82,10 @@ export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
   const keybindings = useKeybindingStore((state) => state.keybindings);
   const hiddenIds = useNewsLineStore((state) => state.hiddenIds);
   const sessionHiddenIds = useNewsLineStore((state) => state.sessionHiddenIds);
-  // Stats are read even with activity highlights off: discovery uses them to
-  // tell which features were already used. They are only displayed when on.
-  const stats = useProfileStats();
-  const featureContext = useFeatureContext(stats);
+  // Stats are read across all connected environments even when activity highlights
+  // are off so feature discovery knows which features were already used.
+  const crossEnv = useCrossEnvProfileStats();
+  const featureContext = useFeatureContext(crossEnv.core);
 
   const hidden = new Set([...hiddenIds, ...sessionHiddenIds]);
   const store = useNewsLineStore.getState;
@@ -115,7 +106,13 @@ export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
     visitStartedAt,
   });
 
-  const insights = useInsightItems({ seed, stats: activity ? stats : null, hidden });
+  const insights = useInsightItems({
+    seed,
+    stats: activity ? crossEnv.core : null,
+    tokens: activity ? crossEnv.tokens : null,
+    envs: activity ? crossEnv.envs : [],
+    hidden,
+  });
 
   // ── Changelog highlights ────────────────────────────────────────────────
   const pool = changelogHighlightPool(releases, appVersion);
@@ -134,7 +131,7 @@ export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
   const changelog: NewsItem[] = pickChangelogHighlights(
     pool,
     historyAtVisit,
-    HIGHLIGHTS_PER_VISIT,
+    pool.length,
     seededRandom(seed ^ 0x9e3779b9),
   )
     .filter((highlight) => !hidden.has(`changelog:${highlight.id}`))
@@ -143,6 +140,8 @@ export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
       return {
         id: `changelog:${highlight.id}`,
         kind: "changelog",
+        category: highlight.change.kind,
+        subject: highlight.version,
         icon: (
           <KindIcon className={`${ICON_CLASS} ${KIND_ICON[highlight.change.kind].className}`} />
         ),
@@ -183,6 +182,8 @@ export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
     usage.push({
       id: usageFact.id,
       kind: "usage",
+      category: "usage",
+      subject: usageFact.providerId,
       urgent: usageFact.urgent,
       icon: <Gauge className={`${ICON_CLASS} text-muted`} />,
       content: (
@@ -212,10 +213,11 @@ export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
   const tips: NewsItem[] = shuffled(NEWS_TIPS, seededRandom(seed ^ 0x85ebca6b))
     .map((tip) => ({ tip, keys: formatCommandShortcut(tip.commandId, keybindings, platform) }))
     .filter(({ tip, keys }) => keys !== "" && !hidden.has(`tip:${tip.commandId}`))
-    .slice(0, TIPS_PER_VISIT)
     .map(({ tip, keys }) => ({
       id: `tip:${tip.commandId}`,
       kind: "tip",
+      category: "tip",
+      subject: tip.commandId,
       icon: <Keyboard className={`${ICON_CLASS} text-success`} />,
       content: (
         <>
@@ -255,6 +257,8 @@ export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
     (id) => ({
       id: `promotion:${id}`,
       kind: "promotion",
+      category: "promotion",
+      subject: id,
       longDwell: LONG_DWELL_PROMOTIONS.has(id),
       icon: promotionCopy[id].icon,
       content: <span>{promotionCopy[id].text}</span>,
@@ -273,18 +277,15 @@ export function useNewsLineItems(visit: NewsVisit): NewsLineModel {
   );
 
   return {
-    items: buildNewsPlaylist(
-      {
-        insights,
-        changelog,
-        announcements,
-        discovery,
-        usage,
-        tips,
-        promotions,
-      },
-      seededRandom(seed ^ 0x7f4a7c15),
-    ),
+    sources: {
+      insights,
+      changelog,
+      announcements,
+      discovery,
+      usage,
+      tips,
+      promotions,
+    },
     highlights: pool,
   };
 }

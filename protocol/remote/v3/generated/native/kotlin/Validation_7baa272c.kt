@@ -29,6 +29,10 @@ internal val schema_f26d9689fe341b94: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_515482d2104d1efa, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_f27f5fbb460b4424: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("activeDays", "aiActions", "days", "effortTurns", "efforts", "fastTurns", "goals", "hours", "longestTaskMs", "mcpToolCalls", "mcps", "messages", "models", "modes", "prompts", "providers", "skills", "skillsUsed", "subagentRuns", "threads", "totalTurnMs", "weekdayPrompts", "weekendPrompts", "workflowRuns"), properties = mapOf("activeDays" to schema_56aa0e45cbdce0d0, "aiActions" to schema_62392c6d6ccb4368, "days" to schema_56aa0e45cbdce0d0, "effortTurns" to schema_56aa0e45cbdce0d0, "efforts" to schema_195974ed118a4217, "fastTurns" to schema_56aa0e45cbdce0d0, "goals" to schema_56aa0e45cbdce0d0, "hours" to schema_8d9ba30ef23e1585, "longestTaskMs" to schema_56aa0e45cbdce0d0, "mcpToolCalls" to schema_56aa0e45cbdce0d0, "mcps" to schema_8c71be0e7fdf9e1a, "messages" to schema_56aa0e45cbdce0d0, "models" to schema_195974ed118a4217, "modes" to schema_195974ed118a4217, "prompts" to schema_56aa0e45cbdce0d0, "providers" to schema_195974ed118a4217, "skills" to schema_8c71be0e7fdf9e1a, "skillsUsed" to schema_56aa0e45cbdce0d0, "subagentRuns" to schema_56aa0e45cbdce0d0, "threads" to schema_56aa0e45cbdce0d0, "totalTurnMs" to schema_56aa0e45cbdce0d0, "weekdayPrompts" to schema_56aa0e45cbdce0d0, "weekendPrompts" to schema_56aa0e45cbdce0d0, "workflowRuns" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_f2b9759b60404656: RemoteSchema by lazy {
     RemoteSchema(type = "object", properties = mapOf("force" to schema_feeb8bb50144d96d, "providerIds" to schema_0f732b9fceb2c6ac), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

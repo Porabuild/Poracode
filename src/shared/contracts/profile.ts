@@ -117,6 +117,12 @@ export interface ProfileActiveHour {
   count: number;
 }
 
+export interface ProfileHourBucket {
+  /** 0-23 local hour. */
+  hour: number;
+  count: number;
+}
+
 export interface ProfileInsights {
   topProvider?: ProfileBreakdownEntry;
   topModel?: ProfileBreakdownEntry;
@@ -181,6 +187,65 @@ export const appendUsageEventsSchema = z.object({
 });
 export type AppendUsageEventsPayload = z.infer<typeof appendUsageEventsSchema>;
 
+export interface ProfilePeriodSnapshot {
+  days: number;
+  activeDays: number;
+  threads: number;
+  prompts: number;
+  messages: number;
+  goals: number;
+  longestTaskMs: number;
+  totalTurnMs: number;
+  fastTurns: number;
+  effortTurns: number;
+  skillsUsed: number;
+  workflowRuns: number;
+  subagentRuns: number;
+  mcpToolCalls: number;
+  weekdayPrompts: number;
+  weekendPrompts: number;
+  providers: ProfileBreakdownEntry[];
+  models: ProfileBreakdownEntry[];
+  modes: ProfileBreakdownEntry[];
+  efforts: ProfileBreakdownEntry[];
+  hours: ProfileHourBucket[];
+  skills: ProfileSkillUsage[];
+  mcps: ProfileSkillUsage[];
+  aiActions: ProfileAiAction[];
+}
+
+export interface ProfileRecentActivity {
+  today: ProfilePeriodSnapshot;
+  yesterday: ProfilePeriodSnapshot;
+  last7d: ProfilePeriodSnapshot;
+  prev7d: ProfilePeriodSnapshot;
+  last30d: ProfilePeriodSnapshot;
+  prev30d: ProfilePeriodSnapshot;
+  /** Non-zero hour counts for the requested window, additive across devices. */
+  windowHours?: ProfileHourBucket[];
+}
+
+export interface ProfileTokenPeriodSnapshot {
+  tokens: number;
+  estimatedUsd: number;
+  observed: Array<{ amount: number; currency: string }>;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  providers: ProfileTokenProvider[];
+  models: ProfileBreakdownEntry[];
+}
+
+export interface ProfileRecentTokenActivity {
+  today: ProfileTokenPeriodSnapshot;
+  yesterday: ProfileTokenPeriodSnapshot;
+  last7d: ProfileTokenPeriodSnapshot;
+  prev7d: ProfileTokenPeriodSnapshot;
+  last30d: ProfileTokenPeriodSnapshot;
+  prev30d: ProfileTokenPeriodSnapshot;
+}
+
 // -- Core stats (fast: from the local SQLite store) -------------------
 
 export interface ProfileCoreStats {
@@ -213,6 +278,8 @@ export interface ProfileCoreStats {
    * the picker stays stable while a single account is selected.
    */
   availableAccounts: ProfileAccountRef[];
+  /** Additive within protocol 14; older hosts omit period comparisons. */
+  recent?: ProfileRecentActivity;
 }
 
 // -- Token stats (durable local usage log) ----------------------------
@@ -230,6 +297,8 @@ export interface ProfileTokenProvider {
 export interface ProfileTokenStats {
   /** Additive within protocol 14; older hosts omit cost history. */
   costs?: ProfileCostStats;
+  /** Additive within protocol 14; older hosts omit period token/cost rollups. */
+  recent?: ProfileRecentTokenActivity;
   /** False when no durable token events have been recorded on this device yet. */
   available: boolean;
   scope: ProfileStatScope;

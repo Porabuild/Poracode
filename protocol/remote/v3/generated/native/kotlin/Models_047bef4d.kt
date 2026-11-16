@@ -27,7 +27,55 @@ data class RouteprofileU2DTokenU2DStatsResponseU2DCosts_70dc157e54(
 }
 
 @Serializable
-data class RouteprofileU2DTokenU2DStatsResponse_8951a961f8(
+data class RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6(
+    @SerialName("cacheReadTokens") val cacheReadTokens: Long,
+    @SerialName("cacheWriteTokens") val cacheWriteTokens: Long,
+    @SerialName("estimatedUsd") val estimatedUsd: Double,
+    @SerialName("inputTokens") val inputTokens: Long,
+    @SerialName("models") val models: List<RouteprofileU2DCoreU2DStatsResponseU2DAccountsU2DItem_9fe1fe9bbc>,
+    @SerialName("observed") val observed: List<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsageU2DCost_ad6bb2de51>,
+    @SerialName("outputTokens") val outputTokens: Long,
+    @SerialName("providers") val providers: List<RouteprofileU2DTokenU2DStatsResponseU2DAccountsU2DItem_c30da54b85>,
+    @SerialName("tokens") val tokens: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("cacheReadTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("cacheWriteTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("estimatedUsd", "Double", true, false, 0.0, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("inputTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("models", "List<RouteprofileU2DCoreU2DStatsResponseU2DAccountsU2DItem_9fe1fe9bbc>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("observed", "List<ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10U2DUsageU2DCost_ad6bb2de51>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("outputTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("providers", "List<RouteprofileU2DTokenU2DStatsResponseU2DAccountsU2DItem_c30da54b85>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("tokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteprofileU2DTokenU2DStatsResponseU2DRecent_2cc17d220c(
+    @SerialName("last30d") val last30d: RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6,
+    @SerialName("last7d") val last7d: RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6,
+    @SerialName("prev30d") val prev30d: RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6,
+    @SerialName("prev7d") val prev7d: RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6,
+    @SerialName("today") val today: RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6,
+    @SerialName("yesterday") val yesterday: RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("last30d", "RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("last7d", "RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("prev30d", "RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("prev7d", "RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("today", "RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("yesterday", "RouteprofileU2DTokenU2DStatsResponseU2DRecentU2DLast30d_745f2435a6", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteprofileU2DTokenU2DStatsResponse_06c478cc50(
     @SerialName("accounts") val accounts: List<RouteprofileU2DTokenU2DStatsResponseU2DAccountsU2DItem_c30da54b85>,
     @SerialName("available") val available: Boolean,
     @SerialName("costs") val costs: RemoteField<RouteprofileU2DTokenU2DStatsResponseU2DCosts_70dc157e54> = RemoteField.Missing,
@@ -38,6 +86,7 @@ data class RouteprofileU2DTokenU2DStatsResponse_8951a961f8(
     @SerialName("peakDay") val peakDay: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
     @SerialName("peakDayTokens") val peakDayTokens: Long,
     @SerialName("providers") val providers: List<RouteprofileU2DTokenU2DStatsResponseU2DAccountsU2DItem_c30da54b85>,
+    @SerialName("recent") val recent: RemoteField<RouteprofileU2DTokenU2DStatsResponseU2DRecent_2cc17d220c> = RemoteField.Missing,
     @SerialName("scope") val scope: RouteprofileU2DCoreU2DStatsRequestU2DScope_b99ee3af30,
     @SerialName("timezoneOffsetMinutes") val timezoneOffsetMinutes: Long,
     @SerialName("tokenHeatmap") val tokenHeatmap: RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmap_c1094a243b,
@@ -56,6 +105,7 @@ data class RouteprofileU2DTokenU2DStatsResponse_8951a961f8(
             RemoteFieldDescriptor("peakDay", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("peakDayTokens", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("providers", "List<RouteprofileU2DTokenU2DStatsResponseU2DAccountsU2DItem_c30da54b85>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("recent", "RouteprofileU2DTokenU2DStatsResponseU2DRecent_2cc17d220c", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("scope", "RouteprofileU2DCoreU2DStatsRequestU2DScope_b99ee3af30", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("timezoneOffsetMinutes", "Long", true, false, -9007199254740991.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("tokenHeatmap", "RouteprofileU2DCoreU2DStatsResponseU2DPromptHeatmap_c1094a243b", true, false, null, null, null, null, null, null, null, null, listOf()),
