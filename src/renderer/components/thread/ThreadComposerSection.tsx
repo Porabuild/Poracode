@@ -70,6 +70,7 @@ import { useAttachmentImageAuthority } from "@/renderer/components/thread/thread
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
+import { peekPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { useBrowserAttachInboxDrain } from "./useBrowserAttachInboxDrain";
@@ -580,9 +581,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !usesTerminalPresentation &&
     thread.sessionRef !== undefined &&
     thread.status === "working";
+  const hasPendingInitialLaunch =
+    !usesTerminalPresentation &&
+    thread.sessionRef === undefined &&
+    peekPendingThreadLaunch(thread.id) !== undefined;
   const canRecoverGuiInput =
     !usesTerminalPresentation &&
-    (thread.sessionRef !== undefined || thread.canResumeWithConfig) &&
+    (thread.sessionRef !== undefined || thread.canResumeWithConfig || hasPendingInitialLaunch) &&
     (thread.status === "inactive" || thread.status === "error");
   const canSubmitServerInput =
     isServerControlled &&
@@ -834,7 +839,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // A turn cut off by an error or a restart is picked back up from an empty
   // composer, so nobody has to type "continue".
   const resumePlan = useAppStore((s) =>
-    thread.interruptedTurn && !usesTerminalPresentation
+    (thread.interruptedTurn || (thread.status === "error" && hasPendingInitialLaunch)) &&
+    !usesTerminalPresentation
       ? selectThreadResumePlan(s, thread.id)
       : null,
   );

@@ -1,31 +1,41 @@
+import { useEffect, useMemo, type MutableRefObject } from "react";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { Trans, useLingui } from "@lingui/react/macro";
+import { useLingui } from "@lingui/react/macro";
 import { Button, toast, Tooltip } from "@heroui/react";
 import { PictureInPicture2, PanelRightOpen, Trash2, X } from "lucide-react";
 import {
   AgentPanelTitleRow,
   agentPanelTitleTextClass,
 } from "@/renderer/components/layout/AgentPanelTitleRow";
+import { PanelActivity } from "@/renderer/components/layout/panelMotion";
 import { SideChatModelText } from "./SideChatModelText";
 import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
 import { readBridge } from "@/renderer/bridge";
 import { friendlyError } from "@/shared/messages";
 import type { SideChatBootstrap } from "@/shared/ipc/sideChat";
-import { ThreadComposer } from "../ThreadComposer";
-import { ComposerAddMenu } from "@/renderer/components/composer/ComposerAddMenu";
-import { isPlanModeControl } from "@/renderer/components/providers/composerControlBuilders";
+import { resolveProjectLocation } from "@/shared/worktree";
+import { CompactDndProvider } from "@/renderer/dnd";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import {
   panelHeaderRowClass,
   panelHeaderIconButtonClass,
   overlayHeaderStyle,
   macosTrafficLightGutterClass,
 } from "@/renderer/components/layout/sidebarChrome";
-import { AttachmentBar } from "@/renderer/components/composer/AttachmentBar";
-import { SelectionPreview } from "@/renderer/components/composer/MentionInput";
-import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
+import { ThreadDraftView } from "../ThreadDraftView";
 import { SideChatThreadView } from "./SideChatThreadView";
-import { useSideChatDraftControls } from "./useSideChatDraftControls";
-import { useSideChatSession } from "./useSideChatSession";
+import { sideChatBootstrapFromDraft, useSideChatSession } from "./useSideChatSession";
+
+function DraftMountBridge({ mountedRef }: { mountedRef: MutableRefObject<boolean> }) {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [mountedRef]);
+  return null;
+}
 
 export function SideChatBody({
   entry,
@@ -38,47 +48,27 @@ export function SideChatBody({
 }) {
   const { t } = useLingui();
   const {
-    prompt,
-    setPrompt,
-    draftSegments,
-    setDraftSegments,
+    composerId,
+    draftContent,
+    setDraftContent,
+    draftEditorMountedRef,
     selection,
     setSelection,
     project,
     threadId,
     busy,
-    launchError,
-    uncertain,
-    hasProject,
     start,
   } = useSideChatSession(entry, surface);
-  const controls = useSideChatDraftControls(
-    entry.source,
-    project,
-    selection,
-    setSelection,
-    busy || uncertain,
+  const worktreePath = entry.source.worktreePath;
+  const scopedProject = useMemo(
+    () =>
+      project && worktreePath
+        ? { ...project, location: resolveProjectLocation(project.location, worktreePath) }
+        : project,
+    [project, worktreePath],
   );
+  const environment = useDraftEnvironment(scopedProject);
   const transferLabel = surface === "panel" ? t`Detach side chat` : t`Attach side chat`;
-  const selections = draftSegments.flatMap((segment, index) =>
-    segment.kind === "text" && segment.selection ? [{ segment, index }] : [],
-  );
-  const question = [...selections.map(({ segment }) => segment.content), prompt]
-    .filter(Boolean)
-    .join("\n\n");
-  const submit = () => {
-    const segments = [
-      ...draftSegments.filter((segment) => segment.kind !== "text"),
-      ...selections.flatMap(({ segment }, index) => [
-        ...(index > 0 ? [{ kind: "text" as const, content: "\n\n" }] : []),
-        segment,
-      ]),
-      ...(prompt
-        ? [{ kind: "text" as const, content: `${selections.length > 0 ? "\n\n" : ""}${prompt}` }]
-        : []),
-    ];
-    void start(question, segments);
-  };
   return (
     <div
       className={`${surface === "window" ? "h-screen" : "h-full"} flex min-h-0 flex-col bg-[var(--content-background)] text-foreground`}
@@ -108,19 +98,20 @@ export function SideChatBody({
                   isDisabled={busy}
                   aria-label={transferLabel}
                   onPress={() => {
+                    const serialized = sideChatBootstrapFromDraft(draftContent);
                     const action =
                       surface === "panel"
                         ? readBridge().openSideChatWindow?.({
                             ...entry,
-                            prompt: question,
-                            segments: draftSegments,
+                            prompt: serialized.prompt,
+                            segments: serialized.segments,
                             selection,
                             autoStart: false,
                             ...(threadId ? { existingThreadId: threadId } : {}),
                           })
                         : readBridge().attachSideChatWindow?.({
-                            prompt: question,
-                            segments: draftSegments,
+                            prompt: serialized.prompt,
+                            segments: serialized.segments,
                             selection,
                           });
                     void action?.catch((error: unknown) => toast.danger(friendlyError(error)));
@@ -174,94 +165,49 @@ export function SideChatBody({
       />
       {threadId ? (
         <SideChatThreadView threadId={threadId} source={entry.source} visible={visible} />
+      ) : scopedProject ? (
+        <PanelActivity visible={visible}>
+          <DraftMountBridge mountedRef={draftEditorMountedRef} />
+          <CompactDndProvider>
+            <ThreadDraftView
+              project={scopedProject}
+              agentStatuses={environment.agentStatuses}
+              isDetectingAgents={environment.isDetectingAgents}
+              compact
+              chatOnly
+              hideHero
+              submitOnEnter
+              autoFocusComposer
+              composerVariant="active"
+              composerPlaceholder={t`Ask a side question`}
+              submitLabel={t`Send`}
+              draftSelection={{
+                initial: selection,
+                onChange: setSelection,
+              }}
+              isolatedDraft={{
+                composerId,
+                initialContent: draftContent,
+                onChange: setDraftContent,
+              }}
+              {...(environment.pickFiles ? { pickFiles: environment.pickFiles } : {})}
+              {...(environment.importFiles ? { importFiles: environment.importFiles } : {})}
+              onStart={async (input) => {
+                await start(input.prompt, input.segments, {
+                  agentKind: input.agentKind,
+                  ...(input.agentKind === selection.agentKind && selection.agentInstanceId
+                    ? { agentInstanceId: selection.agentInstanceId }
+                    : {}),
+                  config: input.config,
+                });
+                return "accepted" as const;
+              }}
+            />
+          </CompactDndProvider>
+        </PanelActivity>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col justify-end px-3 pb-2">
-          {launchError ? (
-            <div className="mb-2">
-              <p role="alert" className="text-sm text-danger">
-                {launchError}
-              </p>
-              {uncertain ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  isDisabled={busy}
-                  onPress={() => {
-                    submit();
-                  }}
-                >
-                  <Trans>Retry</Trans>
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-          <ThreadComposer
-            autoFocus // eslint-disable-line jsx-a11y/no-autofocus -- explicitly opened desktop side composer is the expected focus target
-            variant="active"
-            prompt={prompt}
-            placeholder={t`Ask a side question`}
-            promptDisabled={busy || uncertain}
-            attachmentBar={
-              <AttachmentBar
-                leading={
-                  selections.length > 0
-                    ? selections.map(({ segment, index }) => (
-                        <span key={index} className="poracode-slash-chip poracode-selection-chip">
-                          <SelectionPreview text={segment.content} />
-                          <button
-                            type="button"
-                            className="poracode-diff-comment-chip__delete"
-                            aria-label={t`Remove`}
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={(event) => {
-                              if (
-                                event.detail === 0 &&
-                                document.activeElement === event.currentTarget
-                              ) {
-                                event.currentTarget
-                                  .closest("[data-poracode-composer]")
-                                  ?.querySelector<HTMLTextAreaElement>("textarea")
-                                  ?.focus();
-                              }
-                              setDraftSegments(draftSegments.filter((_, i) => i !== index));
-                            }}
-                          >
-                            <X aria-hidden="true" />
-                          </button>
-                        </span>
-                      ))
-                    : null
-                }
-                attachments={draftSegments.flatMap((segment, index) =>
-                  segment.kind === "attachment"
-                    ? [
-                        {
-                          id: String(index),
-                          path: segment.path,
-                          name: fileNameFromPath(segment.path),
-                          isImage: isImagePath(segment.path),
-                          ...(segment.mimeType ? { mimeType: segment.mimeType } : {}),
-                        },
-                      ]
-                    : [],
-                )}
-              />
-            }
-            submitLabel={launchError ? t`Retry` : t`Send`}
-            submitDisabled={busy || !hasProject || !question.trim()}
-            submitPending={busy}
-            onPromptChange={setPrompt}
-            onSubmit={submit}
-            controls={controls}
-            afterControls={
-              <ComposerAddMenu
-                mcpServers={[]}
-                showFileOption={false}
-                onPickFiles={() => {}}
-                planControl={controls.find(isPlanModeControl)}
-              />
-            }
-          />
+        <div className="flex min-h-0 flex-1 items-center justify-center">
+          <PixelLoader size="sm" />
         </div>
       )}
     </div>

@@ -328,6 +328,14 @@ function DraftComposerAfterControls(props: {
 export function ThreadDraftComposerArea(props: {
   project: Project;
   paneId?: string;
+  /** Ephemeral surface-owned draft storage (e.g. Side Chat) that never touches the project's shared draft. */
+  isolatedDraft?: {
+    composerId: string;
+    initialContent?: DraftContent;
+    onChange?: (content: DraftContent) => void;
+  };
+  composerVariant?: "draft" | "active";
+  submitLabel?: string;
   selectedAgent: AgentStatus;
   controls: ComposerControl[];
   config: ThreadConfig;
@@ -412,8 +420,8 @@ export function ThreadDraftComposerArea(props: {
   );
   const { imageUrlForPath: attachmentImageUrlForPath, readiness: remoteImageReadiness } =
     useAttachmentImageAuthority(remoteDesktopId);
-  const inboxKey = props.paneId ?? `draft:${props.project.id}`;
-  const fallbackInboxKey = `draft:${props.project.id}`;
+  const inboxKey = props.isolatedDraft?.composerId ?? props.paneId ?? `draft:${props.project.id}`;
+  const fallbackInboxKey = props.isolatedDraft ? inboxKey : `draft:${props.project.id}`;
   const projectId = props.project.id;
 
   const pendingComposerInputs = useComposerInputInbox((s) => s.itemsByComposer[inboxKey]);
@@ -427,8 +435,9 @@ export function ThreadDraftComposerArea(props: {
     cancelDraftVoice();
     attachments.addPicked(input);
   });
-  const initialPendingWorktreeSelection =
-    useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null;
+  const initialPendingWorktreeSelection = props.isolatedDraft
+    ? null
+    : (useAppStore.getState().pendingDraftWorktreeSelections[props.project.id] ?? null);
   const [branchSelection, setBranchSelection] = useState<BranchSelection | null>(
     initialPendingWorktreeSelection,
   );
@@ -465,7 +474,11 @@ export function ThreadDraftComposerArea(props: {
     restoreAttachments: attachments.restore,
     saveDraftContent,
   };
-  const initialDraftRef = useRef(useAppStore.getState().draftContents[props.project.id]);
+  const initialDraftRef = useRef(
+    props.isolatedDraft
+      ? props.isolatedDraft.initialContent
+      : useAppStore.getState().draftContents[props.project.id],
+  );
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     props.project.location,
     props.selectedAgent.kind,
@@ -1018,6 +1031,15 @@ export function ThreadDraftComposerArea(props: {
     submissionInFlightRef.current = true;
     let submission: DraftSubmission | undefined;
     try {
+      if (props.isolatedDraft) {
+        submittedRef.current = true;
+        const outcome = await props.onStart(launchInput);
+        if (outcome === "cancelled") {
+          submittedRef.current = false;
+          setIsSubmitting(false);
+        }
+        return;
+      }
       if (!voiceThreadId) {
         submission = await preserveDraftSubmission({
           kind: "project",
@@ -1059,6 +1081,14 @@ export function ThreadDraftComposerArea(props: {
         }
       } else await launch();
     } catch (error) {
+      if (props.isolatedDraft) {
+        submittedRef.current = false;
+        setIsSubmitting(false);
+        if (!wasDraftLaunchErrorNotified(error)) {
+          toast.danger(friendlyError(error));
+        }
+        return;
+      }
       if (error instanceof RemoteClientError && error.code === "client_draft_retirement_failed") {
         setIsSubmitting(false);
         toast.danger(friendlyError(error));
@@ -1202,9 +1232,10 @@ export function ThreadDraftComposerArea(props: {
   // (rather than relying on the mount-time lazy init above) covers the case
   // where this composer is already mounted for the project, so openDraft does
   // not remount it and the lazy init never re-runs.
+  const isIsolatedDraft = props.isolatedDraft !== undefined;
   const onWorktreeModeChange = props.onWorktreeModeChange;
   useEffect(() => {
-    if (!pendingWorktreeSelection) return;
+    if (isIsolatedDraft || !pendingWorktreeSelection) return;
     worktreeSelectionRestoreRef.current ??= {
       branchSelection,
       worktreeMode: props.worktreeMode,
@@ -1213,6 +1244,7 @@ export function ThreadDraftComposerArea(props: {
     onWorktreeModeChange(!pendingWorktreeSelection.worktreePath);
     useAppStore.getState().clearPendingDraftWorktreeSelection(projectId);
   }, [
+    isIsolatedDraft,
     pendingWorktreeSelection,
     projectId,
     onWorktreeModeChange,
@@ -1244,7 +1276,7 @@ export function ThreadDraftComposerArea(props: {
   // typed. Subscribing to the store covers both a fresh mount and an
   // already-open draft (where openDraft does not remount this component).
   useEffect(() => {
-    if (!pendingComposerSeed) return;
+    if (isIsolatedDraft || !pendingComposerSeed) return;
     const seeds = composerSeedQueue(pendingComposerSeed);
     if (seeds.some((seed) => seed.bindLeadingSkill) && !skillCommandsResolved) return;
     const composer = mentionRef.current;
@@ -1274,7 +1306,14 @@ export function ThreadDraftComposerArea(props: {
       seed.enableMcpServerIds?.forEach((id) => onMcpMentionSelectRef.current(id));
     }
     useAppStore.getState().clearComposerSeed(projectId);
-  }, [pendingComposerSeed, projectId, pluginMentions, skillCommands, skillCommandsResolved]);
+  }, [
+    isIsolatedDraft,
+    pendingComposerSeed,
+    projectId,
+    pluginMentions,
+    skillCommands,
+    skillCommandsResolved,
+  ]);
 
   useEffect(() => {
     const composer = mentionRef.current;
@@ -1305,6 +1344,10 @@ export function ThreadDraftComposerArea(props: {
       segments: latestSegmentsRef.current,
       attachments: attachments.getDraftAttachments(),
     };
+    if (props.isolatedDraft) {
+      if (!submittedRef.current) props.isolatedDraft.onChange?.(content);
+      return;
+    }
     if (isDraftContentNonEmpty(content)) saveDraftContent(props.project.id, content);
     else if (!submittedRef.current) clearDraftContent(props.project.id);
   }
@@ -1334,6 +1377,7 @@ export function ThreadDraftComposerArea(props: {
   }
 
   useEffect(() => {
+    if (isIsolatedDraft) return;
     const pid = props.project.id;
     let transferred = false;
     const unregister = registerMountedProjectDraft(pid, {
@@ -1368,7 +1412,7 @@ export function ThreadDraftComposerArea(props: {
         mountedDraftActionsRef.current.saveDraftContent(pid, content);
       }
     };
-  }, [props.project.id]);
+  }, [isIsolatedDraft, props.project.id]);
 
   useEffect(() => {
     setSlashActiveIndex(0);
@@ -1393,31 +1437,33 @@ export function ThreadDraftComposerArea(props: {
 
   return (
     <>
-      <DraftRecoveryNotice
-        kind="project"
-        ownerId={props.project.id}
-        pending={isSubmitting}
-        onRestore={(saved, replace) => {
-          const restored = replace
-            ? saved
-            : mergeDraftContent(
-                {
-                  segments: mentionRef.current?.serializeSegments() ?? latestSegmentsRef.current,
-                  attachments: attachments.getDraftAttachments(),
-                },
-                saved,
-              );
-          mentionRef.current?.restoreFromSegments(restored.segments);
-          latestSegmentsRef.current = restored.segments;
-          attachments.restore(restored.attachments);
-          saveDraftContent(props.project.id, restored);
-        }}
-      />
+      {props.isolatedDraft ? null : (
+        <DraftRecoveryNotice
+          kind="project"
+          ownerId={props.project.id}
+          pending={isSubmitting}
+          onRestore={(saved, replace) => {
+            const restored = replace
+              ? saved
+              : mergeDraftContent(
+                  {
+                    segments: mentionRef.current?.serializeSegments() ?? latestSegmentsRef.current,
+                    attachments: attachments.getDraftAttachments(),
+                  },
+                  saved,
+                );
+            mentionRef.current?.restoreFromSegments(restored.segments);
+            latestSegmentsRef.current = restored.segments;
+            attachments.restore(restored.attachments);
+            saveDraftContent(props.project.id, restored);
+          }}
+        />
+      )}
       <ThreadComposer
         attachmentDropScope={props.presentationMode === "gui" ? "panel" : "composer"}
         autoFocus={autoFocus} // eslint-disable-line jsx-a11y/no-autofocus -- caller controls whether this surface should take focus on mount
         compact={props.compact ?? false}
-        variant="draft"
+        variant={props.composerVariant ?? "draft"}
         controls={controls}
         toolbarLayoutKey={toolbarLayoutKey}
         fixedContent={
@@ -1645,7 +1691,7 @@ export function ThreadDraftComposerArea(props: {
               ),
             }
           : {})}
-        submitLabel={experimentMode ? t`Run experiment` : t`Launch thread`}
+        submitLabel={props.submitLabel ?? (experimentMode ? t`Run experiment` : t`Launch thread`)}
         onPromptChange={handleFallbackPromptChange}
         // Dropped files are paths on this machine; only a host that runs here
         // can read them.
