@@ -901,8 +901,13 @@
 		88CA874F04950D1D84E94F8A /* ModelVisibilityCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29E3BA40EA037EA3778A0C9 /* ModelVisibilityCatalogTests.swift */; };
 		B6E9C7D424D3BE1BA4466377 /* NativeModelVisibilityJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6C3F082F304A12618C79213 /* NativeModelVisibilityJourneyUITests.swift */; };
 		3B6221E1105DF7DC44C49D44 /* SettingsAgentDiscoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D9272B784C79FCE5EF7E7FF /* SettingsAgentDiscoveryTests.swift */; };
+		1E9B879ED639FC5BA9F142CB /* ChangelogHTTPTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97D59A65625AD4B42BE09388 /* ChangelogHTTPTests.swift */; };
+		BC4F386D4E0BAF4F494FA356 /* ChangelogModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CDEFB7E72C041115877E926 /* ChangelogModelsTests.swift */; };
+		3F34CDA281F7C31743325149 /* ChangelogCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34BE0944808D21CFCBE37B90 /* ChangelogCacheTests.swift */; };
+		5C99D4CBC3E33B3FC75A71C9 /* ChangelogStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D73E82C49514A39A09EEED /* ChangelogStoreTests.swift */; };
 		900219A9BAFA6614694824A4 /* NativeSettingsJourneyNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D88575CB59C93BEFD8B78AA2 /* NativeSettingsJourneyNavigation.swift */; };
 		5B8320AB250508D8A6F31340 /* NativeAgentDiscoveryJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7E5CA1B92C444B034B2D419 /* NativeAgentDiscoveryJourneyUITests.swift */; };
+		A6654A7B895925C292A1349B /* NativeChangelogJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10C17BD2983640AC8C09A97E /* NativeChangelogJourneyUITests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1840,8 +1845,13 @@
 		A29E3BA40EA037EA3778A0C9 /* ModelVisibilityCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelVisibilityCatalogTests.swift; sourceTree = "<group>"; };
 		F6C3F082F304A12618C79213 /* NativeModelVisibilityJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeModelVisibilityJourneyUITests.swift; sourceTree = "<group>"; };
 		4D9272B784C79FCE5EF7E7FF /* SettingsAgentDiscoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsAgentDiscoveryTests.swift; sourceTree = "<group>"; };
+		97D59A65625AD4B42BE09388 /* ChangelogHTTPTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogHTTPTests.swift; sourceTree = "<group>"; };
+		8CDEFB7E72C041115877E926 /* ChangelogModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogModelsTests.swift; sourceTree = "<group>"; };
+		34BE0944808D21CFCBE37B90 /* ChangelogCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogCacheTests.swift; sourceTree = "<group>"; };
+		93D73E82C49514A39A09EEED /* ChangelogStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangelogStoreTests.swift; sourceTree = "<group>"; };
 		D88575CB59C93BEFD8B78AA2 /* NativeSettingsJourneyNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSettingsJourneyNavigation.swift; sourceTree = "<group>"; };
 		A7E5CA1B92C444B034B2D419 /* NativeAgentDiscoveryJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAgentDiscoveryJourneyUITests.swift; sourceTree = "<group>"; };
+		10C17BD2983640AC8C09A97E /* NativeChangelogJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeChangelogJourneyUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -1883,6 +1893,11 @@
 		0B53CCA31FA94E24B4270A5A /* SideChat */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = App/Features/SideChat;
+			sourceTree = SOURCE_ROOT;
+		};
+		4F7C84434FFDC92ADDDE1E4F /* Changelog */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/Changelog;
 			sourceTree = SOURCE_ROOT;
 		};
 		1A0E31C6BEE94B008BE1DBA3 /* Crews */ = {
@@ -2128,6 +2143,7 @@
 				C0DEAF000000000000000001 /* WorkflowLiveness */,
 				C0DEB1000000000000000001 /* ToolPresentation */,
 				1A0E31C6BEE94B008BE1DBA3 /* Crews */,
+				4F7C84434FFDC92ADDDE1E4F /* Changelog */,
 				CB8370CC21E24A8348B5554B /* SessionImportTransport */,
 				F06FF8279A40988D991ABF9D /* SessionImport */,
 				B10000000000000000000072 /* native-bindings.json */,
@@ -3113,6 +3129,10 @@
 				2747D0297086470C977DE795 /* CrewRosterDraftTests.swift */,
 				E8ED16052D13411DAFBC322B /* CrewModelsTests.swift */,
 				4D9272B784C79FCE5EF7E7FF /* SettingsAgentDiscoveryTests.swift */,
+				97D59A65625AD4B42BE09388 /* ChangelogHTTPTests.swift */,
+				8CDEFB7E72C041115877E926 /* ChangelogModelsTests.swift */,
+				34BE0944808D21CFCBE37B90 /* ChangelogCacheTests.swift */,
+				93D73E82C49514A39A09EEED /* ChangelogStoreTests.swift */,
 				A29E3BA40EA037EA3778A0C9 /* ModelVisibilityCatalogTests.swift */,
 				5B21E98AC0494A2384EB9F20 /* SideChatDraftTransferTests.swift */,
 				62B92E74AD43467081E63729 /* SideChatStoreTests.swift */,
@@ -3144,6 +3164,7 @@
 				C0DEE3000000000000000004 /* NativeWorkflowResultJourneyUITests.swift */,
 				C0DEE4000000000000000002 /* NativeCompactStatusJourneyUITests.swift */,
 				A7E5CA1B92C444B034B2D419 /* NativeAgentDiscoveryJourneyUITests.swift */,
+				10C17BD2983640AC8C09A97E /* NativeChangelogJourneyUITests.swift */,
 				D88575CB59C93BEFD8B78AA2 /* NativeSettingsJourneyNavigation.swift */,
 				F6C3F082F304A12618C79213 /* NativeModelVisibilityJourneyUITests.swift */,
 				C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */,
@@ -3475,6 +3496,7 @@
 				C0DEAF000000000000000001 /* WorkflowLiveness */,
 				C0DEB1000000000000000001 /* ToolPresentation */,
 				1A0E31C6BEE94B008BE1DBA3 /* Crews */,
+				4F7C84434FFDC92ADDDE1E4F /* Changelog */,
 				F30000000000000000000001 /* RichChatNotices */,
 				CB8370CC21E24A8348B5554B /* SessionImportTransport */,
 				F06FF8279A40988D991ABF9D /* SessionImport */,
@@ -3665,6 +3687,7 @@
 				C0DEE3000000000000000005 /* NativeWorkflowResultJourneyUITests.swift in Sources */,
 				C0DEE4000000000000000003 /* NativeCompactStatusJourneyUITests.swift in Sources */,
 				5B8320AB250508D8A6F31340 /* NativeAgentDiscoveryJourneyUITests.swift in Sources */,
+				A6654A7B895925C292A1349B /* NativeChangelogJourneyUITests.swift in Sources */,
 				900219A9BAFA6614694824A4 /* NativeSettingsJourneyNavigation.swift in Sources */,
 				B6E9C7D424D3BE1BA4466377 /* NativeModelVisibilityJourneyUITests.swift in Sources */,
 				C72000000000000000000002 /* NativeFamilyJourneyUITests.swift in Sources */,
@@ -4428,6 +4451,10 @@
 				9DDD66DD74BC433C9DAFCD4E /* CrewRosterDraftTests.swift in Sources */,
 				A0DE581FD0F9419C84CAA94E /* CrewModelsTests.swift in Sources */,
 				3B6221E1105DF7DC44C49D44 /* SettingsAgentDiscoveryTests.swift in Sources */,
+				1E9B879ED639FC5BA9F142CB /* ChangelogHTTPTests.swift in Sources */,
+				BC4F386D4E0BAF4F494FA356 /* ChangelogModelsTests.swift in Sources */,
+				3F34CDA281F7C31743325149 /* ChangelogCacheTests.swift in Sources */,
+				5C99D4CBC3E33B3FC75A71C9 /* ChangelogStoreTests.swift in Sources */,
 				88CA874F04950D1D84E94F8A /* ModelVisibilityCatalogTests.swift in Sources */,
 				FA5AD5F0D18345338A9EAF90 /* SideChatDraftTransferTests.swift in Sources */,
 				8513CA2E2CDC41D6B022C59E /* SideChatStoreTests.swift in Sources */,

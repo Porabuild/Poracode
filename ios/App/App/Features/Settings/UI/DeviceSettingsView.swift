@@ -153,6 +153,12 @@ struct DeviceSettingsView: View {
       }
 
       Section {
+        NavigationLink {
+          ChangelogView()
+        } label: {
+          Label(ChangelogStrings.title, systemImage: "megaphone")
+        }
+        .accessibilityIdentifier("native-e2e.settings.changelog")
         externalLink(
           SettingsUIStrings.privacyPolicy,
           systemImage: "hand.raised",

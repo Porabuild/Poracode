@@ -32,6 +32,13 @@ extension NativeFamilyJourneyUITests {
   }
 
   func openNativeModelsSettings() throws {
+    try openNativeSettings()
+    let models = app.buttons["Models"].firstMatch
+    for _ in 0..<4 { if models.isHittable { break }; app.swipeUp() }
+    XCTAssertTrue(models.isHittable); models.tap()
+  }
+
+  func openNativeSettings() throws {
     let more = app.buttons.matching(NSPredicate(format: "identifier IN %@", [
       "native-e2e.session-menu", "native-e2e.sidebar.more-tools",
     ])).firstMatch
@@ -46,9 +53,6 @@ extension NativeFamilyJourneyUITests {
       for _ in 0..<4 where !settings.isHittable { list.swipeUp() }
     }
     XCTAssertTrue(settings.isHittable); settings.tap()
-    let models = app.buttons["Models"].firstMatch
-    for _ in 0..<4 { if models.isHittable { break }; app.swipeUp() }
-    XCTAssertTrue(models.isHittable); models.tap()
   }
 
   func closeNativeModelsSettings() throws {

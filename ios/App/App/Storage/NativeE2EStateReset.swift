@@ -14,6 +14,9 @@ import Foundation
 
     static func applyIfRequested() {
       guard ProcessInfo.processInfo.arguments.contains(launchArgument) else { return }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-changelog-fresh-cache") {
+        try? FileManager.default.removeItem(at: ChangelogDiskCache.defaultDirectory)
+      }
       UserDefaults.standard.removeObject(forKey: ComposerPreferencesStore.key)
       try? HostRegistryStore(directory: HostRegistryStore.productionDirectory()).remove()
       try? SystemKeychainIO(service: HostVault.service).deleteAll()

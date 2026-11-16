@@ -14,6 +14,36 @@ import { isDiscoverableFeatureId } from "./featureDiscovery";
 const rawDocument = JSON.parse(readFileSync("website/public/changelog.json", "utf8")) as unknown;
 const releases = parseChangelogDocument(rawDocument) ?? [];
 
+describe("native client changelog parity fixture", () => {
+  const fixture = JSON.parse(
+    readFileSync("protocol/remote/v3/fixtures/client-changelog.json", "utf8"),
+  ) as {
+    formatVersion: number;
+    document: unknown;
+    legacyDocument: unknown;
+    expectedVersions: string[];
+    expectedGroupKinds: string[];
+    compareCases: [string, string, number][];
+  };
+
+  it("pins the same release ordering, content and legacy shape for native clients", () => {
+    expect(fixture.formatVersion).toBe(1);
+    const parsed = parseChangelogDocument(fixture.document);
+    expect(parsed?.map((release) => release.version)).toEqual(fixture.expectedVersions);
+    const kinds = new Set(parsed?.[0]?.changes.map((change) => change.kind));
+    const kindOrder = ["added", "improved", "fixed"] as const;
+    expect(kindOrder.filter((kind) => kinds.has(kind))).toEqual(fixture.expectedGroupKinds);
+    expect(parseChangelogDocument(fixture.legacyDocument)).not.toBeNull();
+    expect(parsed?.[0]?.changes[0]?.text).toContain("東京 / notes.md");
+  });
+
+  it("pins numeric version comparison without inventing native ordering", () => {
+    for (const [first, second, expected] of fixture.compareCases) {
+      expect(compareVersions(first, second)).toBe(expected);
+    }
+  });
+});
+
 describe("compareVersions", () => {
   it("orders by major, minor, then patch", () => {
     expect(compareVersions("1.3.0", "1.2.9")).toBe(1);

@@ -36,6 +36,7 @@ import {
   type NativeScenarioControl,
 } from "./nativeScenario.ts";
 import { parseScenarioAction } from "./nativeScenarioValidation.ts";
+import { PublicChangelogFixture } from "./publicChangelogFixture.ts";
 import {
   type NativeParityControl,
   parseAndValidateParityAction,
@@ -70,11 +71,14 @@ export interface ControlPlane {
 export class ControlServer {
   private server: Server | null = null;
   private portValue = 0;
+  private readonly changelog: PublicChangelogFixture | null;
 
   constructor(
     private readonly plane: ControlPlane,
     private readonly options: ControlServerOptions,
-  ) {}
+  ) {
+    this.changelog = plane.mode === "mock" ? new PublicChangelogFixture() : null;
+  }
 
   get port(): number {
     return this.portValue;
@@ -99,6 +103,7 @@ export class ControlServer {
   }
 
   async stop(): Promise<void> {
+    this.changelog?.reset();
     await new Promise<void>((resolve, reject) => {
       if (!this.server) {
         resolve();
@@ -118,7 +123,24 @@ export class ControlServer {
         writeJson(res, 200, body);
         return;
       }
+      // Model the publisher's unauthenticated GET without weakening any control route.
+      if (
+        req.method === "GET" &&
+        url.pathname === "/v1/fixtures/changelog.json" &&
+        this.changelog
+      ) {
+        this.changelog.respond(res);
+        return;
+      }
       this.assertCapability(req);
+      if (
+        req.method === "GET" &&
+        url.pathname === "/v1/fixtures/changelog/state" &&
+        this.changelog
+      ) {
+        writeJson(res, 200, this.changelog.state());
+        return;
+      }
       if (req.method === "GET" && url.pathname === "/v1/state") {
         const state = { ...this.plane.state(), controlPort: this.portValue };
         assertSecretFree(state, "/v1/state");
@@ -187,6 +209,7 @@ export class ControlServer {
         return;
       }
       if (req.method === "POST" && url.pathname === "/v1/reset") {
+        this.changelog?.reset();
         this.plane.reset();
         const body = { ok: true };
         assertSecretFree(body, "/v1/reset");
@@ -228,7 +251,9 @@ export class ControlServer {
         if (!isCheckpointFixtureId(checkpointId)) {
           throw new LabHttpError("unknown_fixture", "Unknown checkpoint fixture.", 404);
         }
-        const result = this.plane.applyCheckpoint(checkpointId);
+        const result = this.changelog?.applyCheckpoint(checkpointId)
+          ? undefined
+          : this.plane.applyCheckpoint(checkpointId);
         if (isBlocker(result)) {
           writeJson(res, 409, { blocker: { code: result.code } });
           return;

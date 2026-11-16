@@ -206,6 +206,15 @@ beside the file named earlier in the same row.
 
 Android paths above are relative to `android/app/src/main/kotlin/com/poracode/app/`. iOS preference types: `ProjectSyncPreferences`, `AIContentLanguagePreference`, `PoracodeChatTextSize` (`AppTheme.swift`), `PoracodeTerminalTextSize` (`TerminalTextSurface.swift`), `NotificationDeliveryPreference` and `NotificationAlertPreference` (`NotificationPermissionController.swift`), `GitHubPullRequestCreationMode`, and `GitHubWorkflowPinPreferences`.
 
+### Native public release-feed cache
+
+`ios/App/App/Features/Changelog/ChangelogDiskCache.swift` owns the first native
+`formatVersion` 1 cache of the unchanged public changelog document. It stores
+validated publisher content under the app's cache directory, independently of
+paired hosts and credentials. Older documents without optional release taglines
+remain valid; unknown future cache envelopes are preserved and not rewritten.
+The PWA's separate localStorage cache and the publisher's feed shape are unchanged.
+
 ### Manifests and generated artifacts
 
 | Boundary                            | Version constant                                                                                                                                                                                                     | Mirrored copies / consumers                                                                                                                                                                                                    | Old artifacts                                                                                                                                                                                                                                                                                                                                                                                                                      |
