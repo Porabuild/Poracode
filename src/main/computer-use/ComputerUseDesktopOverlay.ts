@@ -51,7 +51,6 @@ function badgeDisplayId(
 interface OverlayWindow {
   contentKey: string;
   loaded: boolean;
-  nativeBadge: boolean;
   window: BrowserWindow;
 }
 
@@ -119,7 +118,7 @@ export class ComputerUseDesktopOverlay {
           ),
     );
     for (const display of displays) {
-      let existing = this.windows.get(display.id);
+      const existing = this.windows.get(display.id);
       if (!visibleDisplayIds.has(display.id)) {
         if (existing && !existing.window.isDestroyed()) {
           existing.contentKey = "";
@@ -128,41 +127,29 @@ export class ComputerUseDesktopOverlay {
         }
         continue;
       }
-      // macOS only draws a native shadow for opaque windows. Recreate when
-      // switching between the native badge and the transparent takeover.
-      const nativeBadge = process.platform === "darwin" && this.state.level === "badge";
-      if (existing && existing.nativeBadge !== nativeBadge) {
-        existing.contentKey = "";
-        existing.window.destroy();
-        existing = undefined;
-      }
       const overlay = existing ?? this.createWindow(display);
-      // The takeover border frames the whole display. The badge is a chip
-      // anchored to the top of the work area, so it stays clear of the macOS
-      // menu bar and the focused app's title bar — and it is clickable, so the
-      // window hugs the chip rather than spanning the display.
-      overlay.window.setBounds(
-        this.state.level === "takeover" ? display.bounds : badgeBounds(display.workArea),
-      );
-      // The takeover border has nothing to click (Escape exits); the badge
-      // carries an exit button and must receive clicks.
-      overlay.window.setIgnoreMouseEvents(this.state.level !== "badge");
+      // Both background and takeover use the same chip anchored to the top of
+      // the work area, so it stays clear of the macOS menu bar and the focused
+      // app's title bar — and it carries an exit button, so the window hugs
+      // the chip and takes mouse events rather than spanning the display.
+      overlay.window.setBounds(badgeBounds(display.workArea));
       this.updateContent(overlay);
       if (overlay.loaded && !overlay.window.isVisible()) overlay.window.showInactive();
     }
   }
 
   private createWindow(display: Display): OverlayWindow {
-    const nativeBadge = process.platform === "darwin" && this.state.level === "badge";
+    // macOS only draws a native shadow for opaque windows.
+    const nativeChip = process.platform === "darwin";
     const window = new BrowserWindow({
-      ...display.bounds,
-      transparent: !nativeBadge,
-      backgroundColor: nativeBadge ? COMPUTER_USE_BADGE_BACKGROUND : "#00000000",
+      ...badgeBounds(display.workArea),
+      transparent: !nativeChip,
+      backgroundColor: nativeChip ? COMPUTER_USE_BADGE_BACKGROUND : "#00000000",
       frame: false,
       focusable: false,
       fullscreenable: false,
-      hasShadow: nativeBadge,
-      ...(nativeBadge ? { roundedCorners: true } : {}),
+      hasShadow: nativeChip,
+      ...(nativeChip ? { roundedCorners: true } : {}),
       maximizable: false,
       minimizable: false,
       movable: false,
@@ -176,11 +163,11 @@ export class ComputerUseDesktopOverlay {
         sandbox: true,
       },
     });
-    const overlay: OverlayWindow = { contentKey: "", loaded: false, nativeBadge, window };
+    const overlay: OverlayWindow = { contentKey: "", loaded: false, window };
     this.windows.set(display.id, overlay);
     window.setAlwaysOnTop(true, "screen-saver");
     window.setContentProtection(true);
-    window.setIgnoreMouseEvents(true);
+    window.setIgnoreMouseEvents(false);
     window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     // The badge's exit link opens this URL with target="_blank" purely to
     // reach this handler; nothing may actually open.
@@ -195,7 +182,8 @@ export class ComputerUseDesktopOverlay {
   }
 
   private updateContent(overlay: OverlayWindow): void {
-    const contentKey = `${this.state.level}:${this.state.badgeTarget ?? ""}`;
+    const contentKey =
+      this.state.level === "takeover" ? "takeover" : `badge:${this.state.badgeTarget ?? ""}`;
     if (overlay.contentKey === contentKey) return;
     overlay.contentKey = contentKey;
     overlay.loaded = false;

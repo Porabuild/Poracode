@@ -151,14 +151,15 @@ same, unambiguous title; pass the window's `title` to `get_window` to allow it.
 ## Overlay levels
 
 - `hidden`: no enabled session or active action.
-- `badge`: a session or background action is active. The overlay is
-  click-through and does not take keyboard focus.
-- `takeover`: a foreground action is active. Every display gets the takeover
-  border and Escape cancels computer-use calls while the agent turn keeps running;
-  Escape is suppressed while a requested key chord is being sent.
+- `badge`: a session or background action is active. The top-center chip on the
+  target display does not take keyboard focus and exposes an exit button.
+- `takeover`: a foreground action is active. Every display gets the same
+  top-center chip with `"Poracode using your computer | Esc to Exit"` and the
+  exit button, and Escape cancels computer-use calls while the agent turn keeps
+  running; Escape is suppressed while a requested key chord is being sent.
 
 Activity resolves delivery from the requested mode before dispatch. Explicit
-foreground operations keep the border and Escape shortcut for the whole
+foreground operations keep the takeover overlay and Escape shortcut for the whole
 operation. A result that unexpectedly escalates from background to foreground
 still emits a foreground safety notification.
 
