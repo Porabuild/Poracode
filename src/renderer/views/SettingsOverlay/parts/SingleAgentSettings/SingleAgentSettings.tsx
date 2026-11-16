@@ -18,17 +18,18 @@ import {
 import { friendlyError, localizeCatalogMessage } from "@/shared/messages";
 import { runAgentInstallCommand, runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useMachines, useSelectedMachine } from "@/renderer/state/machines";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
+import { isWindows } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { readBridge } from "@/renderer/bridge";
 import {
   agentAuthTarget,
   envLabelForStatus,
   findAgentAuthMethodInStatuses,
-  findProjectForStatus,
+  findProjectForMachine,
   findTerminalAuthMethodForStatus,
   findTerminalAuthMethodInStatuses,
   isAgentAuthMethod,
@@ -43,6 +44,7 @@ import {
 } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import {
   agentManagementHostForMachine,
+  distrosForAgentHost,
   useHostRegistryInstalledAgents,
 } from "@/renderer/components/providers/settings/agentManagementHost";
 import { SettingsPage } from "../SettingsForm";
@@ -137,7 +139,7 @@ export function SingleAgentSettings(props: {
   const providerUsage = useProviderUsage(props.agentKind);
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = buildWslProjectDistrosKey(projects);
-  const platform = navigator.platform.toLowerCase().includes("win") ? "win32" : "posix";
+  const platform = isWindows() ? "win32" : "posix";
   // Instance-scoped kind of any multi-profile provider (`claude:work`).
   const profileKindParts = parseAgentProfileKind(props.agentKind);
   const profileInstance = useSharedSettings((s) =>
@@ -148,14 +150,21 @@ export function SingleAgentSettings(props: {
   const selectedMachine = useSelectedMachine();
   const machines = useMachines();
   const isRemoteMachine = selectedMachine.ref.host === "remote";
+  const isMachineOnline = selectedMachine.status === "online";
   const agentHost = agentManagementHostForMachine(selectedMachine);
   const { scoped: machineStatuses, othersNeedingAttention } = useMachineScopedStatuses(
     props.agentKind,
     selectedMachine,
   );
-  const installedAnywhere = [...agentStatuses, ...wslAgentStatuses].filter(
-    (a) => a.kind === props.agentKind && a.installed,
+  const hostPools = useHostAgentStatusPools(
+    selectedMachine.ref.host === "remote" ? selectedMachine.ref.desktopId : undefined,
   );
+  const installedAnywhere = [
+    ...agentStatuses,
+    ...wslAgentStatuses,
+    ...hostPools.windows,
+    ...hostPools.wsl,
+  ].filter((a) => a.kind === props.agentKind && a.installed);
   // Everything actionable on this page — env rows, auth, versions, provider
   // panel — is scoped to the selected machine.
   const installedStatuses = machineStatuses.filter((a) => a.installed);
@@ -177,18 +186,18 @@ export function SingleAgentSettings(props: {
   const providerEntry = NATIVE_AGENT_REGISTRY_ENTRIES.find(
     (entry) => entry.id === baseAgentKind(props.agentKind),
   );
-  const installableStatuses =
-    nativeRegistryEntry && !isRemoteMachine ? machineStatuses.filter((a) => !a.installed) : [];
+  const installableStatuses = nativeRegistryEntry
+    ? machineStatuses.filter((a) => !a.installed)
+    : [];
   // Header and capabilities fall back to any machine's install so the page
   // stays usable while the selected machine has nothing detected yet.
-  const agent = installedStatuses[0] ?? installedAnywhere[0];
+  const agent = installedStatuses[0] ?? installedAnywhere[0] ?? machineStatuses[0];
   const isDisabled =
     useSharedSettings((s) => s.disabledAgents.includes(props.agentKind)) ||
     (!isRemoteMachine && profileInstance?.enabled === false);
   const setAgentDisabled = useSharedSettings((s) => s.setAgentDisabled);
   const installedRegistryRecord =
     useHostRegistryInstalledAgents(agentHost)[extractAcpGenericInstanceId(props.agentKind) ?? ""];
-  const syncInstalledAgents = useSharedSettings((s) => s.syncAcpRegistryInstalledAgents);
   const projectWslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   // Include the selected machine's distro even when no project lives in it, so
   // scoped refreshes keep its statuses inside the supervisor's cache filter.
@@ -198,6 +207,13 @@ export function SingleAgentSettings(props: {
     !projectWslDistros.includes(selectedMachine.wslDistro)
       ? [...projectWslDistros, selectedMachine.wslDistro]
       : projectWslDistros;
+  const distrosForHost = (envKind: AgentStatus["envKind"], envDistro?: string) =>
+    distrosForAgentHost(
+      agentHost,
+      envKind === "wsl" && envDistro ? { kind: "wsl", distro: envDistro } : { kind: "native" },
+      wslDistros,
+    );
+  const distrosForMachine = distrosForAgentHost(agentHost, selectedMachine.ref.env, wslDistros);
 
   const registryAgentId = extractAcpGenericInstanceId(props.agentKind);
   // Read-side guards: any stored "latest version" only counts when its owner
@@ -276,12 +292,12 @@ export function SingleAgentSettings(props: {
   // take a moment; it stays undefined (no account line) when unavailable.
   const accountResolver = providerEntry?.accountResolver;
   useEffect(() => {
-    if (!accountResolver) {
+    if (!accountResolver || !isMachineOnline) {
       setProviderAccount(undefined);
       return;
     }
     let cancelled = false;
-    accountResolver(wslDistros)
+    accountResolver(distrosForMachine, agentHost)
       .then((account) => {
         if (!cancelled) setProviderAccount(account);
       })
@@ -290,7 +306,7 @@ export function SingleAgentSettings(props: {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountResolver, wslProjectDistrosKey]);
+  }, [accountResolver, agentHost, isMachineOnline, wslProjectDistrosKey]);
 
   const refreshKey = `${selectedMachine.id}\0${props.agentKind}`;
   const isRefreshing = refreshingAgents.includes(refreshKey);
@@ -438,18 +454,28 @@ export function SingleAgentSettings(props: {
   const canSaveEnvAuth =
     acpInstanceId !== undefined &&
     requiredAuthVars?.every((variable) => authValues[variable.name]?.trim()) === true;
+  const machineProject = findProjectForMachine(
+    selectedMachine,
+    projects,
+    platform === "win32",
+    machineStatuses,
+  );
   const saveEnvAuth = () => {
-    if (!envVarAuthMethod || !acpInstanceId || !canSaveEnvAuth) return;
+    if (!envVarAuthMethod || !acpInstanceId || !canSaveEnvAuth || !isMachineOnline) return;
     const environment = Object.fromEntries(
       envVarAuthMethod.vars.flatMap((variable) => {
         const value = authValues[variable.name]?.trim();
         return value ? [[variable.name, value]] : [];
       }),
     );
+    const targetHost = agentHost;
     setAuthPending(true);
-    readBridge()
+    targetHost
       .setAcpRegistryAgentAuth({ agentId: acpInstanceId, environment })
-      .then(() => readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [props.agentKind] }))
+      .then((result) => {
+        targetHost.recordRegistryInstalls(result.installed);
+        return targetHost.rediscoverAgents(distrosForMachine, { agentKinds: [props.agentKind] });
+      })
       .then(() => {
         setAuthValues({});
         toast.success(t`${agent.label} credentials saved.`);
@@ -462,7 +488,8 @@ export function SingleAgentSettings(props: {
       .finally(() => setAuthPending(false));
   };
   const authenticateAgent = (auth = agentAuth) => {
-    if (!auth || !supportsAcpAgentAuth) return;
+    if (!auth || !supportsAcpAgentAuth || !isMachineOnline) return;
+    const targetHost = agentHost;
     setAuthPending(true);
     setAuthPendingEnvKey(authRowKey(auth.status));
     const authEnv = envLabelForStatus(auth.status);
@@ -472,15 +499,15 @@ export function SingleAgentSettings(props: {
         ? t`Waiting for ${authEnv} ${authMethodName} authentication. Detected agents will refresh when it finishes.`
         : t`Waiting for ${authMethodName} authentication. Detected agents will refresh when it finishes.`,
     );
-    readBridge()
+    targetHost
       .authenticateAcpAgent({
         agentKind: props.agentKind,
         methodId: auth.method.id,
         ...agentAuthTarget(auth.status),
       })
-      .then(() => readBridge().focusWindow())
+      .then(() => targetHost.focusAfterAuth())
       .then(() =>
-        readBridge().refreshAgentStatuses(wslDistros, {
+        targetHost.rediscoverAgents(distrosForHost(auth.status.envKind, auth.status.envDistro), {
           agentKinds: [props.agentKind],
           envs: [scopeEnvForStatus(auth.status)],
         }),
@@ -498,8 +525,9 @@ export function SingleAgentSettings(props: {
       });
   };
   const runTerminalLogin = (status: AgentStatus, method: AgentTerminalAuthMethod | undefined) => {
-    if (!status.loginCommand) return;
-    const project = findProjectForStatus(status, projects);
+    if (!status.loginCommand || !isMachineOnline) return;
+    const targetHost = agentHost;
+    const project = machineProject;
     const env = envLabelForStatus(status);
     setAuthPending(true);
     setAuthPendingEnvKey(authRowKey(status));
@@ -521,8 +549,8 @@ export function SingleAgentSettings(props: {
             ? t`Refreshing ${env} ${status.label} authentication status.`
             : t`Refreshing ${status.label} authentication status.`,
         );
-        void readBridge()
-          .refreshAgentStatuses(wslDistros, {
+        void targetHost
+          .rediscoverAgents(distrosForHost(status.envKind, status.envDistro), {
             agentKinds: [props.agentKind],
             envs: [scopeEnvForStatus(status)],
           })
@@ -548,7 +576,8 @@ export function SingleAgentSettings(props: {
     // Native ACP adapters only support sign-out when the agent itself
     // advertised logout support in its capability bag. acp-generic instances
     // always allow it because the local ack clear is what drives the UI state.
-    if (!supportsAcpLogoutStatus(status, acpInstanceId)) return;
+    if (!supportsAcpLogoutStatus(status, acpInstanceId) || !isMachineOnline) return;
+    const targetHost = agentHost;
     const env = envLabelForStatus(status);
     setAuthPending(true);
     setAuthPendingEnvKey(authRowKey(status));
@@ -557,13 +586,13 @@ export function SingleAgentSettings(props: {
         ? t`Signing out ${env}. Detected agents will refresh when it finishes.`
         : t`Signing out. Detected agents will refresh when it finishes.`,
     );
-    readBridge()
+    targetHost
       .logoutAcpAgent({
         agentKind: props.agentKind,
         ...agentAuthTarget(status),
       })
       .then(() =>
-        readBridge().refreshAgentStatuses(wslDistros, {
+        targetHost.rediscoverAgents(distrosForHost(status.envKind, status.envDistro), {
           agentKinds: [props.agentKind],
           envs: [scopeEnvForStatus(status)],
         }),
@@ -608,14 +637,18 @@ export function SingleAgentSettings(props: {
     installedStatuses.every((status) => status.authState === "authenticated");
   const usePerEnvAuthRows = hasInteractiveAuth && !envVarFullySatisfied;
   const clearEnvVarCredentials = () => {
-    if (!envVarAuthMethod || !acpInstanceId) return;
+    if (!envVarAuthMethod || !acpInstanceId || !isMachineOnline) return;
     const environment = Object.fromEntries(
       envVarAuthMethod.vars.map((variable) => [variable.name, ""]),
     );
+    const targetHost = agentHost;
     setAuthPending(true);
-    readBridge()
+    targetHost
       .setAcpRegistryAgentAuth({ agentId: acpInstanceId, environment })
-      .then(() => readBridge().refreshAgentStatuses(wslDistros, { agentKinds: [props.agentKind] }))
+      .then((result) => {
+        targetHost.recordRegistryInstalls(result.installed);
+        return targetHost.rediscoverAgents(distrosForMachine, { agentKinds: [props.agentKind] });
+      })
       .then(() => {
         setAuthValues({});
         toast.success(t`${agent.label} credentials removed.`);
@@ -630,19 +663,22 @@ export function SingleAgentSettings(props: {
 
   const installedVersion = installedRegistryRecord?.version ?? agent.version;
   const updateAvailable =
+    isMachineOnline &&
     acpInstanceId !== undefined &&
     latestRegistryVersion !== undefined &&
     installedVersion !== undefined &&
     isNewerVersion(latestRegistryVersion, installedVersion);
   const performUpdate = () => {
-    if (!acpInstanceId || !updateAvailable) return;
+    if (!acpInstanceId || !updateAvailable || !isMachineOnline) return;
     setUpdatePending(true);
     agentHost
       .updateAcpRegistryAgent({ agentId: acpInstanceId })
       .then((result) => {
         agentHost.recordRegistryInstalls(result.installed);
       })
-      .then(() => agentHost.refreshAgentStatuses(wslDistros, { agentKinds: [props.agentKind] }))
+      .then(() =>
+        agentHost.refreshAgentStatuses(distrosForMachine, { agentKinds: [props.agentKind] }),
+      )
       .then(() => toast.success(t`${agent.label} updated to v${latestRegistryVersion}.`))
       .catch((error) =>
         toast.danger(error instanceof Error ? error.message : t`Unable to update ${agent.label}.`),
@@ -651,6 +687,7 @@ export function SingleAgentSettings(props: {
   };
 
   const performBinaryUpdate = (status: AgentStatus) => {
+    if (!isMachineOnline) return;
     const scope = statusUpdateScope(status);
     const envKey = statusEnvKey(status);
     const envName = isRemoteMachine ? "" : envLabelForStatus(status);
@@ -734,9 +771,10 @@ export function SingleAgentSettings(props: {
   };
 
   const installAgentInEnvironment = (status: AgentStatus) => {
-    if (!nativeRegistryEntry) return;
+    if (!nativeRegistryEntry || !isMachineOnline) return;
     const envKey = statusEnvKey(status);
-    const project = findProjectForStatus(status, projects);
+    const project = machineProject;
+    const targetHost = agentHost;
     setInstallPendingEnvKey(envKey);
     const opened = runAgentInstallCommand({
       label: agent.label,
@@ -749,8 +787,8 @@ export function SingleAgentSettings(props: {
           clearPending();
           return;
         }
-        void readBridge()
-          .refreshAgentStatuses(wslDistros, {
+        void targetHost
+          .rediscoverAgents(distrosForHost(status.envKind, status.envDistro), {
             agentKinds: [props.agentKind],
             envs: [scopeEnvForStatus(status)],
           })
@@ -770,7 +808,9 @@ export function SingleAgentSettings(props: {
   // belong to, so leaving them above the panel would strand one runtime's setup
   // outside the grouping.
   const panelOwnsInstallRows =
-    providerEntry?.settingsPanel !== undefined && providerEntry.ownsInstallRows === true;
+    !isRemoteMachine &&
+    providerEntry?.settingsPanel !== undefined &&
+    providerEntry.ownsInstallRows === true;
   // A panel that owns the install rows already presents its provider's runtimes
   // (Cursor groups its CLI-backed ACP runtime itself), so only providers
   // without one fold their slots into the row.
@@ -780,8 +820,12 @@ export function SingleAgentSettings(props: {
     status: AgentStatus,
     option: NativeAgentRuntimeInstallOption,
   ) => {
+    if (!isMachineOnline) return;
     const envKey = statusEnvKey(status);
     const target = scopeEnvForStatus(status);
+    const targetHost = agentHost;
+    const targetProject = machineProject;
+    const targetDistros = distrosForHost(status.envKind, status.envDistro);
     const markPending = (pending: boolean) =>
       setRuntimeInstallPendingEnvKeys((current) => {
         const next = new Set(current);
@@ -789,22 +833,23 @@ export function SingleAgentSettings(props: {
         else next.delete(envKey);
         return next;
       });
-    const refresh = () =>
-      readBridge().refreshAgentStatuses(wslDistros, {
-        agentKinds: [props.agentKind],
-        envs: [target],
-      });
+    const refresh = () => {
+      const scope = { agentKinds: [props.agentKind], envs: [target] };
+      return option.installCommand
+        ? targetHost.rediscoverAgents(targetDistros, scope)
+        : targetHost.refreshAgentStatuses(targetDistros, scope);
+    };
 
     markPending(true);
     const finish = () => {
       void (async () => {
         const runtimeRegistryAgentId = option.registryAgentId;
         if (runtimeRegistryAgentId) {
-          const result = await readBridge().installAcpRegistryAgent({
+          const result = await targetHost.installAcpRegistryAgent({
             agentId: runtimeRegistryAgentId,
             target,
           });
-          syncInstalledAgents(result.installed);
+          targetHost.recordRegistryInstalls(result.installed);
         }
         await refresh();
       })()
@@ -823,9 +868,7 @@ export function SingleAgentSettings(props: {
     const opened = runAgentInstallCommand({
       label: agent.label,
       command: option.installCommand,
-      ...(findProjectForStatus(status, projects)
-        ? { project: findProjectForStatus(status, projects)! }
-        : {}),
+      ...(targetProject ? { project: targetProject } : {}),
       // Keep the loader on through detection so the row does not flash back to
       // "Install" before the freshly-written binary is confirmed.
       onCommandComplete: (exitCode) => {
@@ -840,7 +883,7 @@ export function SingleAgentSettings(props: {
   };
 
   const runtimesForStatus = (status: AgentStatus): AgentEnvironmentRuntimes | undefined => {
-    if (!runtimeSlots || isRemoteMachine) return undefined;
+    if (!runtimeSlots) return undefined;
     const entry = combinedRuntimeUpdates.entryFor(status);
     const [installOption] = availableRuntimeInstallOptions(runtimeSlots, status);
     const badge = runtimeSlots.runtimes.find((slot) => slot.id === installOption?.id)?.badge;
@@ -874,7 +917,7 @@ export function SingleAgentSettings(props: {
   };
 
   const collectRowAuthMethods = (rowStatus: AgentStatus) => {
-    if (!(usePerEnvAuthRows && !isRemoteMachine)) return [];
+    if (!usePerEnvAuthRows) return [];
     const agentMethods =
       rowStatus.authMethods?.filter(isAgentAuthMethod) ??
       (sharedAgentAuthMethod ? [sharedAgentAuthMethod] : []);
@@ -955,7 +998,8 @@ export function SingleAgentSettings(props: {
         authMethods={methods}
         authPending={authPendingEnvKey === rowKey}
         binaryUpdatePending={binaryUpdatePendingEnvKeys.has(envKey)}
-        canLogout={!isRemoteMachine && statusHasAuthenticatedLogout(rowStatus, acpInstanceId)}
+        canLogout={statusHasAuthenticatedLogout(rowStatus, acpInstanceId)}
+        isDisabled={!isMachineOnline}
         includeAuthFallback={includeAuthFallbackMetadata}
         isRedetecting={redetectingEnvKeys.has(envKey)}
         latestNpmVersion={hasCombinedRuntimeUpdates ? undefined : latestNpmVersion}
@@ -983,6 +1027,7 @@ export function SingleAgentSettings(props: {
         key={`${status.kind}-${envKey}-install`}
         agentLabel={agent.label}
         installPending={installPendingEnvKey === envKey}
+        isDisabled={!isMachineOnline}
         status={status}
         onInstall={installAgentInEnvironment}
       />
@@ -1002,6 +1047,7 @@ export function SingleAgentSettings(props: {
           machine={selectedMachine}
           agentKind={props.agentKind}
           wslDistros={wslDistros}
+          agentHost={agentHost}
         />
       ) : null}
       {isRemoteMachine ? <RemoteMachineNotice machine={selectedMachine} /> : null}
@@ -1028,7 +1074,7 @@ export function SingleAgentSettings(props: {
           refreshButton={refreshButton}
         />
 
-        {panelOwnsInstallRows && !isRemoteMachine ? null : (
+        {panelOwnsInstallRows ? null : (
           <div className="space-y-0.5 border-t border-border/10 pt-3">{environmentRows}</div>
         )}
       </div>
@@ -1045,8 +1091,9 @@ export function SingleAgentSettings(props: {
         ) : null}
 
         {/* Panels that own auth UI (e.g. OpenCode's per-AI-provider sign-in)
-            make the generic single sign-in row redundant. */}
-        {hasAuthSettings && !isRemoteMachine && providerEntry?.ownsAuthUi !== true && (
+            make the generic single sign-in row redundant. On remote machines the
+            settingsPanel itself isn't rendered, so keep generic auth available. */}
+        {hasAuthSettings && (isRemoteMachine || providerEntry?.ownsAuthUi !== true) && (
           <div className="space-y-2">
             {envVarAuthMethod && acpInstanceId ? (
               <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-secondary px-3 py-2 text-foreground">
@@ -1125,7 +1172,7 @@ export function SingleAgentSettings(props: {
                     variant="tertiary"
                     isIconOnly
                     aria-label={t`Save`}
-                    isDisabled={!canSaveEnvAuth}
+                    isDisabled={!canSaveEnvAuth || !isMachineOnline}
                     isPending={authPending}
                     data-acp-auth-save=""
                     onPress={saveEnvAuth}
@@ -1138,6 +1185,7 @@ export function SingleAgentSettings(props: {
                       variant="tertiary"
                       isIconOnly
                       aria-label={t`Logout`}
+                      isDisabled={!isMachineOnline}
                       isPending={authPending}
                       onPress={clearEnvVarCredentials}
                     >
@@ -1187,6 +1235,7 @@ export function SingleAgentSettings(props: {
                           size="sm"
                           variant="tertiary"
                           className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                          isDisabled={!isMachineOnline}
                           isPending={authPending}
                           onPress={() => authenticateAgent(entry)}
                         >
@@ -1200,6 +1249,7 @@ export function SingleAgentSettings(props: {
                       size="sm"
                       variant="tertiary"
                       className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                      isDisabled={!isMachineOnline}
                       onPress={() => runTerminalLogin(loginStatus, terminalLoginMethod)}
                     >
                       <LogIn className="size-3" />
@@ -1212,6 +1262,7 @@ export function SingleAgentSettings(props: {
                       size="sm"
                       variant="tertiary"
                       className="h-7 min-h-7 gap-1 px-2 text-[11px]"
+                      isDisabled={!isMachineOnline}
                       isPending={authPending}
                       onPress={() => logoutAgent(status)}
                     >

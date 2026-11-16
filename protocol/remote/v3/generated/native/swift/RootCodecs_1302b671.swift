@@ -1,6 +1,22 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EMoveProjectEntryU2ERequest: RemoteRootCodec<ProceduremoveProjectEntryRequest_47c3f1ae81> = .init(id: "procedure.moveProjectEntry.request", schema: RemoteSchemas.schema_47c3f1ae81cfac00)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EPauseThreadFollowUpsU2ERequest: RemoteRootCodec<ProcedurepauseThreadFollowUpsRequest_d42717fff2> = .init(id: "procedure.pauseThreadFollowUps.request", schema: RemoteSchemas.schema_d42717fff211bd92)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EProbeMcpServerU2ERequest: RemoteRootCodec<ProcedurebeginMcpServerOauthRequest_338293a42e> = .init(id: "procedure.probeMcpServer.request", schema: RemoteSchemas.schema_338293a42e7115a2)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EProbeMcpServerU2EResult: RemoteRootCodec<ProcedureprobeMcpServerResult_bea1bdef18> = .init(id: "procedure.probeMcpServer.result", schema: RemoteSchemas.schema_bea1bdef18933d97)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_b6f2d95e2b> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_b6f2d95e2bc1e84c)
 }
 
@@ -85,6 +101,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2ERemoveAcpRegistryAgentU2ERequest: RemoteRootCodec<ProcedureremoveAcpRegistryAgentRequest_4f4b6a906e> = .init(id: "procedure.removeAcpRegistryAgent.request", schema: RemoteSchemas.schema_4f4b6a906ef42788)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2ERemoveAcpRegistryAgentU2EResult: RemoteRootCodec<ProcedureinstallAcpRegistryAgentResult_4e9b40f602> = .init(id: "procedure.removeAcpRegistryAgent.result", schema: RemoteSchemas.schema_4e9b40f6024250fb)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2ERemoveQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurepauseThreadFollowUpsRequest_d42717fff2> = .init(id: "procedure.removeQueuedThreadFollowUp.request", schema: RemoteSchemas.schema_d42717fff211bd92)
 }
 
@@ -94,6 +118,14 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EReorderQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurereorderQueuedThreadFollowUpRequest_59599d21a2> = .init(id: "procedure.reorderQueuedThreadFollowUp.request", schema: RemoteSchemas.schema_59599d21a24ed95c)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EResolveAgentAccountU2ERequest: RemoteRootCodec<ProcedureresolveAgentAccountRequest_770f1d9c53> = .init(id: "procedure.resolveAgentAccount.request", schema: RemoteSchemas.schema_770f1d9c539094c0)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EResolveAgentAccountU2EResult: RemoteRootCodec<ProcedureresolveAgentAccountResult_501fb90179> = .init(id: "procedure.resolveAgentAccount.result", schema: RemoteSchemas.schema_501fb9017953ee89)
 }
 
 public extension RemoteRootCodecs {
@@ -145,6 +177,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2ESetAcpRegistryAgentAuthU2ERequest: RemoteRootCodec<ProceduresetAcpRegistryAgentAuthRequest_abad7b87a3> = .init(id: "procedure.setAcpRegistryAgentAuth.request", schema: RemoteSchemas.schema_abad7b87a3edad5d)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2ESetAcpRegistryAgentAuthU2EResult: RemoteRootCodec<ProcedureinstallAcpRegistryAgentResult_4e9b40f602> = .init(id: "procedure.setAcpRegistryAgentAuth.result", schema: RemoteSchemas.schema_4e9b40f6024250fb)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2ESetSkillEnabledU2ERequest: RemoteRootCodec<ProceduresetSkillEnabledRequest_38462ff398> = .init(id: "procedure.setSkillEnabled.request", schema: RemoteSchemas.schema_38462ff398fbe205)
 }
 
@@ -177,11 +217,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EUpdateAcpRegistryAgentU2ERequest: RemoteRootCodec<ProcedureupdateAcpRegistryAgentRequest_e484765a09> = .init(id: "procedure.updateAcpRegistryAgent.request", schema: RemoteSchemas.schema_e484765a09e242ad)
+  static let procedureU2EUpdateAcpRegistryAgentU2ERequest: RemoteRootCodec<ProcedureinstallAcpRegistryAgentRequest_e484765a09> = .init(id: "procedure.updateAcpRegistryAgent.request", schema: RemoteSchemas.schema_e484765a09e242ad)
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EUpdateAcpRegistryAgentU2EResult: RemoteRootCodec<ProcedureupdateAcpRegistryAgentResult_4e9b40f602> = .init(id: "procedure.updateAcpRegistryAgent.result", schema: RemoteSchemas.schema_4e9b40f6024250fb)
+  static let procedureU2EUpdateAcpRegistryAgentU2EResult: RemoteRootCodec<ProcedureinstallAcpRegistryAgentResult_4e9b40f602> = .init(id: "procedure.updateAcpRegistryAgent.result", schema: RemoteSchemas.schema_4e9b40f6024250fb)
 }
 
 public extension RemoteRootCodecs {

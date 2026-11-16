@@ -2361,8 +2361,10 @@ describe("SingleAgentSettings", () => {
     expect(within(cliRow).getByText("v1.2.0")).toBeInTheDocument();
     const update = await within(cliRow).findByRole("button", { name: /Update to v1\.3\.0/i });
     expect(
-      screen.getByText("Install and sign-in are not yet available on remote machines."),
-    ).toBeInTheDocument();
+      screen.queryByText("Install and sign-in are not yet available on remote machines."),
+    ).toBeNull();
+    const acpRow = envRow("ACP");
+    expect(within(acpRow).getByRole("button", { name: "Logout" })).toBeInTheDocument();
 
     fireEvent.click(update);
 
@@ -2449,6 +2451,305 @@ describe("SingleAgentSettings", () => {
             ],
           ]
         : [],
+    );
+    expect(refreshAgentStatusesMock).not.toHaveBeenCalled();
+  });
+
+  it("installs, detects, authenticates, and logs out agents on an online remote machine", async () => {
+    const installedCodex = makeStatus("codex", {
+      label: "Codex",
+      installed: true,
+      version: "0.140.0",
+      envKind: "posix",
+      authState: "missing",
+      loginCommand: "codex login",
+    });
+    const uninstalledCodex = makeStatus("codex", {
+      label: "Codex",
+      installed: false,
+      envKind: "posix",
+    });
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "conn-1",
+          desktopId: "conn-1",
+          label: "Studio",
+          endpoint: "https://conn-1.test",
+          accessToken: "token",
+          platform: "linux",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "conn-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [uninstalledCodex],
+            wsl: [],
+            updatedAt: new Date(0).toISOString(),
+          },
+        },
+      },
+    });
+    remoteClientMock.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "getLatestAgentVersion") return {};
+      if (procedure === "refreshAgentStatuses") {
+        return { windows: [installedCodex], wsl: [], fromCache: false };
+      }
+      throw new Error(`Unexpected procedure ${procedure}`);
+    });
+    remoteClientMock.agentStatuses.mockResolvedValue({
+      windows: [installedCodex],
+      wsl: [],
+      updatedAt: new Date(1).toISOString(),
+    });
+    runAgentInstallCommandMock.mockReturnValue(true);
+    runAgentLoginCommandMock.mockReturnValue(true);
+
+    render(<SingleAgentSettings agentKind="codex" />);
+    selectMachine("remote:conn-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    const installCall = runAgentInstallCommandMock.mock.calls.at(-1)?.[0];
+    expect(installCall?.project?.remoteServerId).toBe("conn-1");
+    expect(installCall?.project?.location).toEqual({
+      kind: "posix",
+      path: "~",
+      remoteServerId: "conn-1",
+    });
+    await act(async () => installCall?.onCommandComplete?.(0));
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("refreshAgentStatuses", {
+        wslDistros: [],
+        scope: { agentKinds: ["codex"], envs: [{ kind: "native" }] },
+      }),
+    );
+
+    // Once installed with missing auth, Login targets the remote machine's host.
+    const loginButton = await screen.findByRole("button", { name: "Login" });
+    fireEvent.click(loginButton);
+    const loginCall = runAgentLoginCommandMock.mock.calls.at(-1)?.[0];
+    expect(loginCall?.project?.remoteServerId).toBe("conn-1");
+    expect(loginCall?.command).toBe("codex login");
+  });
+
+  it("supports remote ACP auth, env-var credentials, logout, and Detect on remote machines", async () => {
+    const kind = "acp-generic:custom";
+    const remoteAgent = makeStatus(kind, {
+      label: "Custom ACP",
+      installed: true,
+      version: "1.0.0",
+      envKind: "posix",
+      authState: "missing",
+      authMethods: [
+        { id: "sso", name: "SSO" },
+        {
+          id: "api-key",
+          name: "API Key",
+          type: "env_var",
+          vars: [{ name: "CUSTOM_KEY", label: "Custom Key" }],
+        },
+      ],
+    });
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "conn-1",
+          desktopId: "conn-1",
+          label: "Studio",
+          endpoint: "https://conn-1.test",
+          accessToken: "token",
+          platform: "linux",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "conn-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [remoteAgent],
+            wsl: [],
+            updatedAt: new Date(0).toISOString(),
+          },
+        },
+      },
+    });
+    let envSaved = false;
+    remoteClientMock.callRemoteProcedure.mockImplementation(async (procedure, payload) => {
+      if (procedure === "listAcpRegistry") return { version: "1.0.0", agents: [] };
+      if (procedure === "authenticateAcpAgent") return undefined;
+      if (procedure === "setAcpRegistryAgentAuth") {
+        const env = (payload as { environment?: Record<string, string> }).environment ?? {};
+        envSaved = Boolean(env.CUSTOM_KEY);
+        return { installed: [] };
+      }
+      if (procedure === "refreshAgentStatuses") {
+        return {
+          windows: [
+            envSaved ? { ...remoteAgent, authState: "authenticated" as const } : remoteAgent,
+          ],
+          wsl: [],
+          fromCache: false,
+        };
+      }
+      throw new Error(`Unexpected procedure ${procedure}`);
+    });
+    remoteClientMock.agentStatuses.mockImplementation(async () => ({
+      windows: [envSaved ? { ...remoteAgent, authState: "authenticated" as const } : remoteAgent],
+      wsl: [],
+      updatedAt: new Date(envSaved ? 2 : 1).toISOString(),
+    }));
+
+    render(<SingleAgentSettings agentKind={kind} />);
+    selectMachine("remote:conn-1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Login" }));
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("authenticateAcpAgent", {
+        agentKind: kind,
+        methodId: "sso",
+        envKind: "posix",
+      }),
+    );
+    expect(authenticateAcpAgentMock).not.toHaveBeenCalled();
+    expect(focusWindowMock).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Custom Key"), { target: { value: "secret-123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("setAcpRegistryAgentAuth", {
+        agentId: "custom",
+        environment: { CUSTOM_KEY: "secret-123" },
+      }),
+    );
+    expect(setAcpRegistryAgentAuthMock).not.toHaveBeenCalled();
+
+    // Logout in the env-var credentials card clears the saved env vars on the remote host,
+    // while Logout on the environment row invokes logoutAcpAgent.
+    const logoutButtons = await screen.findAllByRole("button", { name: "Logout" });
+    expect(logoutButtons).toHaveLength(2);
+    fireEvent.click(logoutButtons[1]!);
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("setAcpRegistryAgentAuth", {
+        agentId: "custom",
+        environment: { CUSTOM_KEY: "" },
+      }),
+    );
+    expect(setAcpRegistryAgentAuthMock).not.toHaveBeenCalled();
+
+    remoteClientMock.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "listAcpRegistry") return { version: "1.0.0", agents: [] };
+      if (procedure === "logoutAcpAgent") return undefined;
+      if (procedure === "refreshAgentStatuses") {
+        return {
+          windows: [{ ...remoteAgent, authState: "authenticated" as const }],
+          wsl: [],
+          fromCache: false,
+        };
+      }
+      throw new Error(`Unexpected procedure ${procedure}`);
+    });
+    fireEvent.click((await screen.findAllByRole("button", { name: "Logout" }))[0]!);
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("logoutAcpAgent", {
+        agentKind: kind,
+        envKind: "posix",
+      }),
+    );
+    expect(logoutAcpAgentMock).not.toHaveBeenCalled();
+  });
+
+  it("installs missing Antigravity ACP runtime and runs Detect on an online remote machine", async () => {
+    const baseAntigravity = makeAntigravityStatus("1.2.0", "1.0.0");
+    const cliOnlyStatus: AgentStatus = {
+      ...baseAntigravity,
+      runtimeVariants: {
+        ...baseAntigravity.runtimeVariants,
+        acp: {
+          ...baseAntigravity.runtimeVariants!.acp!,
+          installed: false,
+        },
+      },
+    };
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "conn-1",
+          desktopId: "conn-1",
+          label: "Studio",
+          endpoint: "https://conn-1.test",
+          accessToken: "token",
+          platform: "linux",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "conn-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [cliOnlyStatus],
+            wsl: [],
+            updatedAt: new Date(0).toISOString(),
+          },
+        },
+      },
+    });
+    remoteClientMock.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "listAcpRegistry") return { version: "1.0.0", agents: [] };
+      if (procedure === "installAcpRegistryAgent") return { installed: [] };
+      if (procedure === "refreshAgentStatuses") {
+        return { windows: [cliOnlyStatus], wsl: [], fromCache: false };
+      }
+      throw new Error(`Unexpected procedure ${procedure}`);
+    });
+    remoteClientMock.agentStatuses.mockResolvedValue({
+      windows: [makeAntigravityStatus("1.2.0", "1.0.0")],
+      wsl: [],
+      updatedAt: new Date(1).toISOString(),
+    });
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+    selectMachine("remote:conn-1");
+
+    const acpRow = envRow("ACP");
+    fireEvent.click(within(acpRow).getByRole("button", { name: "Install ACP" }));
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("installAcpRegistryAgent", {
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      }),
+    );
+    expect(installAcpRegistryAgentMock).not.toHaveBeenCalled();
+
+    // Switching to an online remote WSL machine with no status yet enables Detect.
+    useRemoteServersStore.setState({
+      runtime: {
+        "conn-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [cliOnlyStatus],
+            wsl: [makeStatus("codex", { envKind: "wsl", envDistro: "Ubuntu" })],
+            updatedAt: new Date(1).toISOString(),
+          },
+        },
+      },
+    });
+    selectMachine("remote:conn-1/wsl:Ubuntu");
+    fireEvent.click(await screen.findByRole("button", { name: "Detect agents on this machine" }));
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("refreshAgentStatuses", {
+        wslDistros: ["Ubuntu"],
+        scope: { agentKinds: ["antigravity"], envs: [{ kind: "wsl", distro: "Ubuntu" }] },
+      }),
     );
     expect(refreshAgentStatusesMock).not.toHaveBeenCalled();
   });

@@ -26,6 +26,8 @@ export interface MachineDescriptor {
   status: "online" | "offline" | "connecting";
   desktopId?: string;
   wslDistro?: string;
+  /** Target OS for remote machines when known (`RemoteServerRecord.platform`). */
+  platform?: "win32" | "darwin" | "linux";
 }
 
 /**
@@ -82,14 +84,23 @@ export function deriveMachines(inputs: {
   projectDistros: readonly string[];
   /** Distros already present in detected WSL agent statuses. */
   statusDistros?: readonly string[];
-  remoteServers: readonly { desktopId: string; connectionId?: string; label: string }[];
+  remoteServers: readonly {
+    desktopId: string;
+    connectionId?: string;
+    label: string;
+    platform?: "win32" | "darwin" | "linux";
+  }[];
   remoteRuntime: Readonly<
     Record<
       string,
       { status: string; agentStatuses?: { wsl: readonly { envDistro?: string | undefined }[] } }
     >
   >;
-  localHost?: { connectionKey: string; label: string };
+  localHost?: {
+    connectionKey: string;
+    label: string;
+    platform?: "win32" | "darwin" | "linux";
+  };
 }): MachineDescriptor[] {
   const localHost = inputs.localHost;
   const localLabel = (env: MachineRef["env"]): string =>
@@ -107,6 +118,7 @@ export function deriveMachines(inputs: {
       label: localLabel({ kind: "native" }),
       status: "online",
       ...(localHost ? { desktopId: localHost.connectionKey } : {}),
+      ...(localHost?.platform ? { platform: localHost.platform } : {}),
     },
   ];
   const localDistros = [
@@ -126,6 +138,7 @@ export function deriveMachines(inputs: {
       status: "online",
       wslDistro: distro,
       ...(localHost ? { desktopId: localHost.connectionKey } : {}),
+      ...(localHost ? { platform: "linux" as const } : {}),
     });
   }
   const remoteName = (connectionKey: string) =>
@@ -149,6 +162,7 @@ export function deriveMachines(inputs: {
       label: machineLabel(nativeRef, { remoteName }),
       status,
       desktopId: connectionKey,
+      ...(server.platform ? { platform: server.platform } : {}),
     });
     const remoteDistros = [
       ...new Set(
@@ -171,6 +185,7 @@ export function deriveMachines(inputs: {
         status,
         desktopId: connectionKey,
         wslDistro: distro,
+        platform: "linux",
       });
     }
   }
@@ -206,6 +221,7 @@ export function useMachines(): MachineDescriptor[] {
           localHost: {
             connectionKey: remoteConnectionKey(settingsHost),
             label: settingsHost.label,
+            ...(settingsHost.platform ? { platform: settingsHost.platform } : {}),
           },
         }
       : {}),

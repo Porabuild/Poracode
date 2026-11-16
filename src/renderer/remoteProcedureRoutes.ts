@@ -250,17 +250,11 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   getAgentHookPluginStatuses: "local-shell: this machine's agent hook plugin inventory",
   installAgentHookPlugin: "local-shell: installs into this machine's CLI hook plugins",
   uninstallAgentHookPlugin: "local-shell: uninstalls from this machine's CLI hook plugins",
-  installAcpRegistryAgent: "local-shell: installs a CLI agent on this machine",
-  removeAcpRegistryAgent: "local-shell: removes a CLI agent install from this machine",
-  setAcpRegistryAgentAuth: "local-shell: stores agent auth on this machine",
   confirmSupervisorSettingsEdits: "local-shell: this device's settings owner acknowledgement",
-  authenticateAcpAgent: "local-shell: runs this machine's agent OAuth window and secret store",
   controlAcpAuthentication:
     "local-shell: supervisor-owned authentication operation IDs and cancellation stay on this host",
   controlMcpAuthentication:
     "local-shell: supervisor-owned integration OAuth operations and cancellation stay on this host",
-  logoutAcpAgent: "local-shell: clears agent auth on this machine",
-  resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",
   getAgentConfigDefaults: "local-shell: reads this machine's agent config file, read-only",
   manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
   manageAgentCredentials: "local-shell: this machine's keychain-stored agent credentials",

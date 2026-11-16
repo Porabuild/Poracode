@@ -200,12 +200,6 @@ public struct ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DCapabilitie
   }
 }
 
-public enum ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DEnvKind_9eed5c4959: String, Codable, Sendable {
-  case `windows` = "windows"
-  case `wsl` = "wsl"
-  case `posix` = "posix"
-}
-
 public struct ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DPresentationAuthStates_678d084ee2: Codable, Sendable, RemoteModelMetadata {
   public var gui: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthState_2363c4dd0a> = .missing
   public var terminal: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthState_2363c4dd0a> = .missing

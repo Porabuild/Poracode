@@ -352,6 +352,7 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   resolveLinkMetadata: { title: "Example page", description: "A useful page summary" },
   refreshAgentStatuses: { windows: [], wsl: [], fromCache: false },
   getLatestAgentVersion: { version: "1.2.3", source: "npm" },
+  resolveAgentAccount: { account: { authenticatedAs: "demo@example.com", plan: "Pro" } },
   listAcpRegistry: {
     version: "1.0.0",
     agents: [
@@ -364,6 +365,19 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
       },
     ],
   },
+  installAcpRegistryAgent: {
+    installed: [
+      {
+        id: "demo-acp",
+        name: "Demo Agent",
+        version: "2.1.0",
+        installedAt: "2026-08-12T00:00:00.000Z",
+        adapterKind: "acp-generic:demo-acp",
+        installKind: "generic",
+      },
+    ],
+  },
+  removeAcpRegistryAgent: { installed: [] },
   updateAgentBinary: { ok: true, strategy: "npm-global" },
   updateAcpRegistryAgent: {
     installed: [
@@ -377,6 +391,20 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
       },
     ],
   },
+  setAcpRegistryAgentAuth: {
+    installed: [
+      {
+        id: "demo-acp",
+        name: "Demo Agent",
+        version: "2.1.0",
+        installedAt: "2026-08-12T00:00:00.000Z",
+        adapterKind: "acp-generic:demo-acp",
+        installKind: "generic",
+      },
+    ],
+  },
+  authenticateAcpAgent: undefined,
+  logoutAcpAgent: undefined,
   listImportableSessions: {
     sessions: [
       {

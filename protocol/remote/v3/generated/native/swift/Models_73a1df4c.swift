@@ -1,5 +1,32 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public enum ProcedureauthenticateAcpAgentRequestU2DEnvKind_9eed5c4959: String, Codable, Sendable {
+  case `windows` = "windows"
+  case `wsl` = "wsl"
+  case `posix` = "posix"
+}
+
+public struct ProcedureauthenticateAcpAgentRequest_4245351a83: Codable, Sendable, RemoteModelMetadata {
+  public var agentKind: String
+  public var envKind: RemoteField<ProcedureauthenticateAcpAgentRequestU2DEnvKind_9eed5c4959> = .missing
+  public var methodId: String
+  public var wslDistro: RemoteField<String> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "agentKind", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "envKind", typeName: "ProcedureauthenticateAcpAgentRequestU2DEnvKind_9eed5c4959", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "methodId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "wslDistro", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case agentKind = "agentKind"
+    case envKind = "envKind"
+    case methodId = "methodId"
+    case wslDistro = "wslDistro"
+  }
+}
+
 public enum ProcedurebeginMcpServerOauthRequestU2DProjectLocationU2DOptionU2D1U2DKind_5465dd986b: String, Codable, Sendable {
   case `windows` = "windows"
 }

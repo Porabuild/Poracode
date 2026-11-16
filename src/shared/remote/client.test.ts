@@ -1698,6 +1698,9 @@ describe("RemoteDesktopClient", () => {
       "updateAgentBinary",
       "listAcpRegistry",
       "refreshAgentStatuses",
+      "installAcpRegistryAgent",
+      "removeAcpRegistryAgent",
+      "authenticateAcpAgent",
     ] as const) {
       await expect(client.callRemoteProcedure(procedure, {})).rejects.toBe(sentinel);
     }
@@ -1709,7 +1712,10 @@ describe("RemoteDesktopClient", () => {
     expect(timeoutFor(0)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
     expect(timeoutFor(1)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
     expect(timeoutFor(2)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
-    expect(timeoutFor(3)).toBe(LONG_REMOTE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(3)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(4)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(5)).toBe(AGENT_UPDATE_REQUEST_TIMEOUT_MS);
+    expect(timeoutFor(6)).toBe(LONG_REMOTE_REQUEST_TIMEOUT_MS);
   });
 
   it("gives repository clones the long-running request timeout", async () => {

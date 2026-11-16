@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:836d0849ffb2cd14c4b69c90ff627b49e168b0e88b7a72463bb8a9586bb47324"
-  public static let manifestHash = "sha256:7c0092870265fb91d29e0ddeb13a062f93158483255e0ddf10c05575720488b1"
+  public static let sourceHash = "sha256:13cae1048b7cf63e263b89eb92880ef35fa35ca081bc00f356c16149c2650bdb"
+  public static let manifestHash = "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -137,6 +137,7 @@ public enum RemoteContractMetadata {
     .init(id: "websocket-ticket", method: "POST", path: "/api/auth/websocket-ticket", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053", queryCodecs: []),
   ]
   public static let procedures: [RemoteProcedureDescriptor] = [
+    .init(name: "authenticateAcpAgent", scope: "session:operate", owner: "desktop", resultKind: "omitted", requestType: "ProcedureauthenticateAcpAgentRequest_4245351a83", resultType: "RemoteUnit"),
     .init(name: "beginMcpServerOauth", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedurebeginMcpServerOauthRequest_338293a42e", resultType: "ProcedurebeginMcpServerOauthResult_6a2d40d38c"),
     .init(name: "browseHostDirectory", scope: "projects:manage", owner: "none", resultKind: "json", requestType: "ProcedurebrowseHostDirectoryRequest_d2ec5bf10f", resultType: "ProcedurebrowseHostDirectoryResult_94eb65eaca"),
     .init(name: "cancelExtractContext", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "RemoteUnit"),
@@ -263,6 +264,7 @@ public enum RemoteContractMetadata {
     .init(name: "gitWorktreeStatusBatch", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduregitWorktreeStatusBatchRequest_a6f98c7f48", resultType: "ProceduregitWorktreeStatusBatchResult_1b23732705"),
     .init(name: "hexVoice", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurehexVoiceRequest_2ae8d538fe", resultType: "ProcedurehexVoiceResult_46060d35e2"),
     .init(name: "importSkills", scope: "session:operate", owner: "skillLocations", resultKind: "json", requestType: "ProcedureimportSkillsRequest_8a62b43ffe", resultType: "ProcedureimportSkillsResult_82088d0ad1"),
+    .init(name: "installAcpRegistryAgent", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedureinstallAcpRegistryAgentRequest_e484765a09", resultType: "ProcedureinstallAcpRegistryAgentResult_4e9b40f602"),
     .init(name: "installMarketplaceSkill", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedureinstallMarketplaceSkillRequest_0093611cbb", resultType: "ProcedureinstallMarketplaceSkillResult_d6e0ba68c8"),
     .init(name: "invokeThreadSessionAction", scope: "session:operate", owner: "thread", resultKind: "json", requestType: "ProcedureinvokeThreadSessionActionRequest_f614b14ae0", resultType: "ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D3U2DArguments_e6958017da"),
     .init(name: "listAcpRegistry", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurelistAcpRegistryRequest_81055c9199", resultType: "ProcedurelistAcpRegistryResult_9e8cac9740"),
@@ -271,6 +273,7 @@ public enum RemoteContractMetadata {
     .init(name: "listProjectTree", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProcedurelistProjectTreeRequest_26cfea8cde", resultType: "ProcedurelistProjectTreeResult_ccd3eb53d3"),
     .init(name: "listSkillMarketplace", scope: "session:read", owner: "desktop", resultKind: "json", requestType: "ProcedurelistSkillMarketplaceRequest_828172bf17", resultType: "ProcedurelistSkillMarketplaceResult_89033d459d"),
     .init(name: "listThreadSessionActions", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProcedurecancelExtractContextRequest_09b78d9c1d", resultType: "ProcedurelistThreadSessionActionsResult_825afc62b8"),
+    .init(name: "logoutAcpAgent", scope: "session:operate", owner: "desktop", resultKind: "omitted", requestType: "ProcedurelogoutAcpAgentRequest_afbd186700", resultType: "RemoteUnit"),
     .init(name: "lspStart", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedurelspStartRequest_0fbb6754fb", resultType: "RemoteUnit"),
     .init(name: "moveProjectEntry", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProceduremoveProjectEntryRequest_47c3f1ae81", resultType: "RemoteUnit"),
     .init(name: "pauseThreadFollowUps", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),
@@ -286,9 +289,11 @@ public enum RemoteContractMetadata {
     .init(name: "refreshAgentStatuses", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurerefreshAgentStatusesRequest_0cf7156720", resultType: "ProcedurerefreshAgentStatusesResult_ced7436778"),
     .init(name: "refreshProviderUsage", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduregetProviderUsageRequest_f2b9759b60", resultType: "ProceduregetProviderUsageResult_4c22b67e11"),
     .init(name: "relocateProject", scope: "projects:manage", owner: "project", resultKind: "json", requestType: "ProcedurerelocateProjectRequest_51fc061b3e", resultType: "ProcedurerelocateProjectResult_c6ca4f58c0"),
+    .init(name: "removeAcpRegistryAgent", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedureremoveAcpRegistryAgentRequest_4f4b6a906e", resultType: "ProcedureinstallAcpRegistryAgentResult_4e9b40f602"),
     .init(name: "removeQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),
     .init(name: "renameProjectEntry", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProcedurerenameProjectEntryRequest_4a22ffc9b4", resultType: "RemoteUnit"),
     .init(name: "reorderQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurereorderQueuedThreadFollowUpRequest_59599d21a2", resultType: "RemoteUnit"),
+    .init(name: "resolveAgentAccount", scope: "session:read", owner: "desktop", resultKind: "json", requestType: "ProcedureresolveAgentAccountRequest_770f1d9c53", resultType: "ProcedureresolveAgentAccountResult_501fb90179"),
     .init(name: "resolveLinkMetadata", scope: "session:read", owner: "desktop", resultKind: "json", requestType: "ProcedureresolveLinkMetadataRequest_3732eed893", resultType: "ProcedureresolveLinkMetadataResult_4563be6a1e"),
     .init(name: "restoreFileCheckpoint", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurecreateFileCheckpointRequest_412fb1bbf4", resultType: "RemoteUnit"),
     .init(name: "restoreToRevertAnchor", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurerestoreToRevertAnchorRequest_46790b9541", resultType: "RemoteUnit"),
@@ -297,13 +302,14 @@ public enum RemoteContractMetadata {
     .init(name: "scanSkills", scope: "session:read", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedurescanSkillsRequest_ccd4545c11", resultType: "ProcedurescanSkillsResult_f958c6e1fa"),
     .init(name: "searchProjectFiles", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduresearchProjectFilesRequest_c4ad1400e2", resultType: "ProceduresearchProjectFilesResult_2465ffaaf2"),
     .init(name: "searchProjectTree", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduresearchProjectTreeRequest_956459f749", resultType: "ProceduresearchProjectTreeResult_ed3d977334"),
+    .init(name: "setAcpRegistryAgentAuth", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProceduresetAcpRegistryAgentAuthRequest_abad7b87a3", resultType: "ProcedureinstallAcpRegistryAgentResult_4e9b40f602"),
     .init(name: "setSkillEnabled", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "omitted", requestType: "ProceduresetSkillEnabledRequest_38462ff398", resultType: "RemoteUnit"),
     .init(name: "stageThreadInput", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurestageThreadInputRequest_d4db039cba", resultType: "RemoteUnit"),
     .init(name: "startThread", scope: "session:operate", owner: "projectLocation", resultKind: "json", requestType: "ProcedureensureThreadRunningRequest_6e1a462e69", resultType: "ProcedurecancelExtractContextRequest_09b78d9c1d"),
     .init(name: "steerQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),
     .init(name: "subagentSubscribe", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "ProceduresubagentSubscribeResult_d4ae5f8c2b"),
     .init(name: "subagentUnsubscribe", scope: "session:read", owner: "thread", resultKind: "omitted", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "RemoteUnit"),
-    .init(name: "updateAcpRegistryAgent", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedureupdateAcpRegistryAgentRequest_e484765a09", resultType: "ProcedureupdateAcpRegistryAgentResult_4e9b40f602"),
+    .init(name: "updateAcpRegistryAgent", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedureinstallAcpRegistryAgentRequest_e484765a09", resultType: "ProcedureinstallAcpRegistryAgentResult_4e9b40f602"),
     .init(name: "updateAgentBinary", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedureupdateAgentBinaryRequest_580654e207", resultType: "ProcedureupdateAgentBinaryResult_0d863fe350"),
     .init(name: "waitMcpServerOauth", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedurewaitMcpServerOauthRequest_e9df8b4f3d", resultType: "ProcedurewaitMcpServerOauthResult_51cc694dc5"),
     .init(name: "workflowAgentChat", scope: "session:read", owner: "location", resultKind: "json", requestType: "ProcedureworkflowAgentChatRequest_014d2dfae8", resultType: "ProcedureworkflowAgentChatResult_f975b14607"),

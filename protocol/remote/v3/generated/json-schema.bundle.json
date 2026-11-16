@@ -1,6 +1,45 @@
 {
   "$comment": "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
   "$defs": {
+    "procedure.authenticateAcpAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "envKind": {
+          "enum": [
+            "windows",
+            "wsl",
+            "posix"
+          ],
+          "type": "string"
+        },
+        "methodId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "wslDistro": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentKind",
+        "methodId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.authenticateAcpAgent.result": {
+      "$comment": "Void result omitted from /api/git/call JSON; never null.",
+      "x-poracode-semanticValidators": [
+        "void-result.omit-field"
+      ],
+      "x-poracode-wire": "omitted"
+    },
     "procedure.beginMcpServerOauth.request": {
       "$defs": {
         "__schema0": {
@@ -27108,6 +27147,167 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "procedure.installAcpRegistryAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "target": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "native",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "required": [
+        "agentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.installAcpRegistryAgent.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "installedAt": {
+              "type": "string"
+            },
+            "layoutVersion": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "target": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "target",
+            "installedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "installed": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "adapterKind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "installKind": {
+                "enum": [
+                  "first-class",
+                  "generic"
+                ],
+                "type": "string"
+              },
+              "installations": {
+                "additionalProperties": true,
+                "properties": {
+                  "native": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "wsl": {
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "installedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "version",
+              "installedAt",
+              "adapterKind",
+              "installKind"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "installed"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.installMarketplaceSkill.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -28165,6 +28365,40 @@
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
+    },
+    "procedure.logoutAcpAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "envKind": {
+          "enum": [
+            "windows",
+            "wsl",
+            "posix"
+          ],
+          "type": "string"
+        },
+        "wslDistro": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentKind"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.logoutAcpAgent.result": {
+      "$comment": "Void result omitted from /api/git/call JSON; never null.",
+      "x-poracode-semanticValidators": [
+        "void-result.omit-field"
+      ],
+      "x-poracode-wire": "omitted"
     },
     "procedure.lspStart.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -32234,6 +32468,130 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "procedure.removeAcpRegistryAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.removeAcpRegistryAgent.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "installedAt": {
+              "type": "string"
+            },
+            "layoutVersion": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "target": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "target",
+            "installedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "installed": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "adapterKind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "installKind": {
+                "enum": [
+                  "first-class",
+                  "generic"
+                ],
+                "type": "string"
+              },
+              "installations": {
+                "additionalProperties": true,
+                "properties": {
+                  "native": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "wsl": {
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "installedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "version",
+              "installedAt",
+              "adapterKind",
+              "installKind"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "installed"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.removeQueuedThreadFollowUp.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -32410,6 +32768,83 @@
         "void-result.omit-field"
       ],
       "x-poracode-wire": "omitted"
+    },
+    "procedure.resolveAgentAccount.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "wslDistros": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "agentKind"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.resolveAgentAccount.result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "account": {
+          "additionalProperties": true,
+          "properties": {
+            "authMethod": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "authenticatedAs": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "connectedProviders": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "detail": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "label"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "organization": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "plan": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
     },
     "procedure.resolveLinkMetadata.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -34178,6 +34613,141 @@
       },
       "required": [
         "entries"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.setAcpRegistryAgentAuth.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "environment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "agentId",
+        "environment"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.setAcpRegistryAgentAuth.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "installedAt": {
+              "type": "string"
+            },
+            "layoutVersion": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "target": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "target",
+            "installedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "installed": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "adapterKind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "installKind": {
+                "enum": [
+                  "first-class",
+                  "generic"
+                ],
+                "type": "string"
+              },
+              "installations": {
+                "additionalProperties": true,
+                "properties": {
+                  "native": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "wsl": {
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "installedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "version",
+              "installedAt",
+              "adapterKind",
+              "installKind"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "installed"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -80677,16 +81247,16 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 109,
-    "procedures": 173,
+    "jsonProcedureResults": 113,
+    "procedures": 179,
     "replayableEventTypes": 17,
     "routes": 121,
     "runtimeEventTypes": 16,
-    "voidProcedureResults": 64,
+    "voidProcedureResults": 66,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:7c0092870265fb91d29e0ddeb13a062f93158483255e0ddf10c05575720488b1",
+  "manifestHash": "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3",
   "protocolVersion": 14,
-  "sourceHash": "sha256:836d0849ffb2cd14c4b69c90ff627b49e168b0e88b7a72463bb8a9586bb47324"
+  "sourceHash": "sha256:13cae1048b7cf63e263b89eb92880ef35fa35ca081bc00f356c16149c2650bdb"
 }
