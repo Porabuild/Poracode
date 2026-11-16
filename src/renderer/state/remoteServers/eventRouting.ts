@@ -65,7 +65,8 @@ export function filterRemoteThreadEvents(value: unknown, threadIds: ThreadIdMatc
   if (
     type === "remote-git-summaries" ||
     type === "remote-git-state" ||
-    type === "remote-forge-activity"
+    type === "remote-forge-activity" ||
+    type === "remote-user-notification"
   )
     return value;
 

@@ -219,6 +219,8 @@ function showNativeNotification(
 /** Display a host-owned notification. Does not re-classify thread state. */
 export function showUserNotification(notification: UserNotification): void {
   const settings = useSharedSettings.getState();
+  if (!settings.notificationsEnabled) return;
+  if (settings.notificationStatuses?.[notification.category] === false) return;
 
   if (!document.hasFocus()) {
     showNativeNotification(
