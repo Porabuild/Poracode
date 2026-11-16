@@ -1,9 +1,21 @@
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { resolveCardVariant, setImageCardVariantGenerator } from "./imageCardVariant";
+import {
+  readCachedOrStoredCardVariant,
+  resolveCardVariant,
+  scheduleImageCardVariant,
+  setImageCardVariantGenerator,
+  setImageCardVariantStoreDir,
+} from "./imageCardVariant";
 
 const big = (fill = 1) => ({ mime: "image/png", data: Buffer.alloc(200 * 1024, fill) });
 
-afterEach(() => setImageCardVariantGenerator(null));
+afterEach(async () => {
+  setImageCardVariantGenerator(null);
+  await setImageCardVariantStoreDir(null);
+});
 
 describe("resolveCardVariant", () => {
   it("serves full bytes without a generator, and for passthrough formats and small images", async () => {
@@ -104,5 +116,89 @@ describe("resolveCardVariant", () => {
     expect(await currentWork).toBe(variant);
     expect(await joined).toBe(variant);
     expect(await resolveCardVariant(full)).toBe(variant);
+  });
+
+  it("persists variants to disk and serves cold restarts without regenerating or reading source bytes", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-card-variants-"));
+    try {
+      const variant = { mime: "image/webp", data: Buffer.from("webp-card-bytes") };
+      const firstGen = vi.fn<() => typeof variant>(() => variant);
+      setImageCardVariantGenerator(firstGen);
+      await setImageCardVariantStoreDir(dir);
+
+      const full = big(11);
+      expect(await resolveCardVariant(full, "blob:hash-11")).toEqual(variant);
+      expect(firstGen).toHaveBeenCalledTimes(1);
+      // Tear down store to flush pending writes, then simulate a full process cold start.
+      await setImageCardVariantStoreDir(null);
+      expect(readdirSync(dir).filter((f) => f.endsWith(".bin"))).toHaveLength(1);
+
+      const coldStartGen = vi.fn<() => typeof variant>(() => variant);
+      setImageCardVariantGenerator(coldStartGen);
+      await setImageCardVariantStoreDir(dir);
+
+      // Direct key hit skips SQLite raw_bytes read AND skips generator completely.
+      expect(await readCachedOrStoredCardVariant("blob:hash-11")).toEqual(variant);
+      expect(coldStartGen).not.toHaveBeenCalled();
+
+      // Clear in-memory cache via fresh generator and verify resolveCardVariant also hits disk.
+      setImageCardVariantGenerator(coldStartGen);
+      await setImageCardVariantStoreDir(dir);
+      expect(await resolveCardVariant(full, "blob:hash-11")).toEqual(variant);
+      expect(coldStartGen).not.toHaveBeenCalled();
+    } finally {
+      await setImageCardVariantStoreDir(null);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("discards corrupt or unknown-version stored envelopes and regenerates cleanly", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-card-variants-corrupt-"));
+    try {
+      const variant = { mime: "image/webp", data: Buffer.from("fresh-webp") };
+      const gen = vi.fn<() => typeof variant>(() => variant);
+      setImageCardVariantGenerator(gen);
+      await setImageCardVariantStoreDir(dir);
+      const full = big(21);
+      await resolveCardVariant(full, "blob:corrupt-target");
+      await setImageCardVariantStoreDir(null);
+
+      const storedFile = readdirSync(dir).find((f) => f.endsWith(".bin"))!;
+      // Overwrite with an unknown future magic header ("PCV9").
+      writeFileSync(join(dir, storedFile), Buffer.from("PCV9\x0aimage/webpbad"));
+
+      gen.mockClear();
+      setImageCardVariantGenerator(gen);
+      await setImageCardVariantStoreDir(dir);
+      expect(await readCachedOrStoredCardVariant("blob:corrupt-target")).toBeNull();
+      expect(await resolveCardVariant(full, "blob:corrupt-target")).toEqual(variant);
+      expect(gen).toHaveBeenCalledTimes(1);
+    } finally {
+      await setImageCardVariantStoreDir(null);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("warms card variants in the background off the critical path once per key", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "poracode-card-variants-bg-"));
+    try {
+      const variant = { mime: "image/webp", data: Buffer.from("warmed-webp") };
+      const gen = vi.fn<() => typeof variant>(() => variant);
+      const decode = vi.fn<() => ReturnType<typeof big>>(() => big(31));
+      setImageCardVariantGenerator(gen);
+      await setImageCardVariantStoreDir(dir);
+
+      expect(scheduleImageCardVariant("blob:bg-31", 200 * 1024, decode)).toBe(true);
+      expect(scheduleImageCardVariant("blob:bg-31", 200 * 1024, decode)).toBe(false);
+      await vi.waitFor(async () => {
+        expect(await readCachedOrStoredCardVariant("blob:bg-31")).toEqual(variant);
+      });
+      expect(decode).toHaveBeenCalledTimes(1);
+      expect(gen).toHaveBeenCalledTimes(1);
+      expect(scheduleImageCardVariant("blob:bg-31", 200 * 1024, decode)).toBe(false);
+    } finally {
+      await setImageCardVariantStoreDir(null);
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

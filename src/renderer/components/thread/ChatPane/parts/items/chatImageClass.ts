@@ -43,3 +43,84 @@ export function reserveInlineImageSlot(
     height: "auto",
   };
 }
+
+const MAX_CACHED_IMAGE_DIMENSIONS = 256;
+const ASPECT_RATIO_TOLERANCE = 0.02;
+const inlineImageDimensionsCache = new Map<
+  string,
+  { readonly width: number; readonly height: number }
+>();
+
+function isValidDimension(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function aspectRatiosMatch(firstRatio: number, secondRatio: number): boolean {
+  return (
+    Math.abs(firstRatio - secondRatio) / Math.max(firstRatio, secondRatio) <= ASPECT_RATIO_TOLERANCE
+  );
+}
+
+export function resolveInlineImageDimensions(
+  sourceWidth: number | undefined,
+  sourceHeight: number | undefined,
+  naturalWidth?: number | undefined,
+  naturalHeight?: number | undefined,
+): { readonly width: number; readonly height: number } | undefined {
+  const hasSource = isValidDimension(sourceWidth) && isValidDimension(sourceHeight);
+  const hasNatural = isValidDimension(naturalWidth) && isValidDimension(naturalHeight);
+  if (!hasNatural) {
+    return hasSource ? { width: sourceWidth, height: sourceHeight } : undefined;
+  }
+  if (!hasSource) {
+    return { width: naturalWidth, height: naturalHeight };
+  }
+  const naturalRatio = naturalWidth / naturalHeight;
+  if (aspectRatiosMatch(sourceWidth / sourceHeight, naturalRatio)) {
+    return { width: sourceWidth, height: sourceHeight };
+  }
+  if (aspectRatiosMatch(sourceHeight / sourceWidth, naturalRatio)) {
+    return { width: sourceHeight, height: sourceWidth };
+  }
+  return { width: naturalWidth, height: naturalHeight };
+}
+
+export function inlineImageDimensionCacheKey(source: {
+  readonly src: string;
+  readonly dimensionKey?: string;
+  readonly remoteRef?: {
+    readonly threadId: string;
+    readonly itemId: string;
+    readonly path: readonly (string | number)[];
+  };
+}): string | undefined {
+  if (source.remoteRef) {
+    const { threadId, itemId, path } = source.remoteRef;
+    return `ref:${threadId}/${itemId}/${JSON.stringify(path)}`;
+  }
+  const key = source.dimensionKey ?? source.src;
+  if (key.length === 0 || key.startsWith("data:")) return undefined;
+  return `src:${key}`;
+}
+
+export function getCachedInlineImageDimensions(
+  key: string,
+): { readonly width: number; readonly height: number } | undefined {
+  return inlineImageDimensionsCache.get(key);
+}
+
+export function rememberInlineImageDimensions(key: string, width: number, height: number): void {
+  if (!isValidDimension(width) || !isValidDimension(height)) return;
+  const existing = inlineImageDimensionsCache.get(key);
+  if (existing?.width === width && existing.height === height) return;
+  inlineImageDimensionsCache.delete(key);
+  inlineImageDimensionsCache.set(key, { width, height });
+  if (inlineImageDimensionsCache.size > MAX_CACHED_IMAGE_DIMENSIONS) {
+    const oldest = inlineImageDimensionsCache.keys().next();
+    if (!oldest.done) inlineImageDimensionsCache.delete(oldest.value);
+  }
+}
+
+export function clearInlineImageDimensionsCache(): void {
+  inlineImageDimensionsCache.clear();
+}

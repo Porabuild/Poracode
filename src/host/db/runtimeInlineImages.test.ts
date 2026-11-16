@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { join } from "node:path";
 import Database from "better-sqlite3";
+import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isRemoteImageRef } from "@/shared/remote";
 import { closeDatabase, getSqlite, initDatabase, reclaimDatabaseSpace } from "./connection";
@@ -639,6 +640,114 @@ describe.skipIf(!sqliteAvailable)(
         status: "completed",
         result: { content: [{ type: "image", data: dataUrl }] },
       });
+    });
+
+    it("resolves EXIF-oriented dimensions lazily only for pre-upgrade blobs on the loaded page", async () => {
+      const sqlite = initDatabase(dbPath);
+      seedProjectAndThread("thread-1");
+
+      const makePreUpgradeExifPng = async (bg: string) => {
+        const rawBytes = await sharp({
+          create: { width: 164, height: 236, channels: 3, background: bg },
+        })
+          .png({ compressionLevel: 0 })
+          .withMetadata({ orientation: 6 })
+          .toBuffer();
+        const dataUrl = `data:image/png;base64,${rawBytes.toString("base64")}`;
+        const hash = createHash("sha256").update(dataUrl, "utf8").digest("hex");
+        const bytes = Buffer.byteLength(dataUrl, "utf8");
+        sqlite
+          .prepare(
+            `INSERT INTO runtime_inline_image_blobs
+               (blob_hash, encoding, header, mime, raw_bytes, inline_utf8_bytes, width, height)
+             VALUES (?, 'data_url', 'data:image/png;base64,', 'image/png', ?, ?, 164, 236)`,
+          )
+          .run(hash, rawBytes, bytes);
+        return { hash, bytes };
+      };
+
+      const olderBlob = await makePreUpgradeExifPng("red");
+      const latestBlob = await makePreUpgradeExifPng("blue");
+
+      for (const [position, itemId, blob] of [
+        [1, "older-page-img", olderBlob],
+        [2, "latest-page-img", latestBlob],
+      ] as const) {
+        const stub = {
+          $poracodeInlineImageBlob: 1,
+          hash: blob.hash,
+          mime: "image/png",
+          bytes: blob.bytes,
+          width: 164,
+          height: 236,
+        };
+        sqlite
+          .prepare(
+            `INSERT INTO thread_runtime_items
+               (thread_id, item_id, position, type, state, payload, streams)
+             VALUES ('thread-1', ?, ?, 'image_view', 'completed', ?, '{}')`,
+          )
+          .run(itemId, position, JSON.stringify({ status: "success", images: [stub] }));
+        sqlite
+          .prepare(
+            `INSERT INTO thread_runtime_item_image_refs (thread_id, item_id, path_json, blob_hash)
+             VALUES ('thread-1', ?, '["images",0]', ?)`,
+          )
+          .run(itemId, blob.hash);
+      }
+
+      const prepareSpy = vi.spyOn(sqlite, "prepare");
+      try {
+        // Cold load of ONLY the latest page (limit 1) reads only latest-page-img's header prefix.
+        const latestPage = dbReadThreadHistoryPhase2("thread-1", ["latest-page-img"], {
+          compactDetails: true,
+          preserveExternalizedImageStubs: true,
+        });
+        const projectedLatest = projectPayloadImageRefs(
+          "thread-1",
+          "latest-page-img",
+          latestPage[0]?.payload,
+        );
+        expect(projectedLatest.payload).toMatchObject({
+          images: [
+            {
+              __poracodeImageRef: {
+                width: 236,
+                height: 164,
+              },
+            },
+          ],
+        });
+
+        // Warm load of the same page makes zero runtime_inline_image_blobs SQL queries.
+        prepareSpy.mockClear();
+        const warmLatestPage = dbReadThreadHistoryPhase2("thread-1", ["latest-page-img"], {
+          compactDetails: true,
+          preserveExternalizedImageStubs: true,
+        });
+        expect(
+          prepareSpy.mock.calls.some(([sql]) => String(sql).includes("runtime_inline_image_blobs")),
+        ).toBe(false);
+        expect(
+          projectPayloadImageRefs("thread-1", "latest-page-img", warmLatestPage[0]?.payload)
+            .payload,
+        ).toMatchObject({
+          images: [{ __poracodeImageRef: { width: 236, height: 164 } }],
+        });
+
+        // Next page load resolves older-page-img on demand.
+        const olderPage = dbReadThreadHistoryPhase2("thread-1", ["older-page-img"], {
+          compactDetails: true,
+          preserveExternalizedImageStubs: true,
+        });
+        expect(
+          projectPayloadImageRefs("thread-1", "older-page-img", olderPage[0]?.payload).payload,
+        ).toMatchObject({
+          images: [{ __poracodeImageRef: { width: 236, height: 164 } }],
+        });
+      } finally {
+        prepareSpy.mockRestore();
+      }
     });
   },
 );

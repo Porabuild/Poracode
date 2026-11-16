@@ -41,8 +41,11 @@ import {
   imageTicketRequestBodySchema,
   imageTickets,
 } from "./imageTickets";
-import { parseImageRefPath, resolveImageRefAfterFence } from "./imageRefProjection";
-import { resolveCardVariant } from "./imageCardVariant";
+import {
+  parseImageRefPath,
+  resolveImageRefAfterFence,
+  resolveImageRefCardVariantAfterFence,
+} from "./imageRefProjection";
 import { mapPersistenceRefusal } from "./persistenceRefusals";
 import { writeLocalImageFile } from "./localImageFile";
 import { readAttachmentBody, readJsonBody } from "./requestBody";
@@ -267,16 +270,19 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     if (!path) {
       throw new RemoteHttpError("invalid_path", "An image reference path is required.", 400);
     }
-    const resolved = await resolveImageRefAfterFence(threadId, itemId, path).catch((error) => {
-      throw mapPersistenceRefusal(error);
-    });
-    if (!resolved) {
-      throw new RemoteHttpError("image_not_found", "No inline image at that reference.", 404);
-    }
     // `?variant=card` serves the downscaled display variant when this host
     // has a variant generator; otherwise (and on older hosts) full bytes.
-    const served =
-      url.searchParams.get("variant") === "card" ? await resolveCardVariant(resolved) : resolved;
+    const wantsCardVariant = url.searchParams.get("variant") === "card";
+    const served = await (
+      wantsCardVariant
+        ? resolveImageRefCardVariantAfterFence(threadId, itemId, path)
+        : resolveImageRefAfterFence(threadId, itemId, path)
+    ).catch((error) => {
+      throw mapPersistenceRefusal(error);
+    });
+    if (!served) {
+      throw new RemoteHttpError("image_not_found", "No inline image at that reference.", 404);
+    }
     // Gate 6 item 4.4 (S4): client-origin image bytes get the hardened header
     // set; SVG is forced to attachment.
     writeHardenedImageResponse(res, {
