@@ -395,5 +395,8 @@ export type RemoteServerClientBindings = ReturnType<typeof createRemoteServerCli
 export type StartRemoteServerEventStream = (
   server: RemoteServerRecord,
   initialCapabilities?: TerminalConnectionCapabilities,
-  options?: { readonly resyncInterestedThreads?: boolean },
+  options?: {
+    readonly resyncInterestedThreads?: boolean;
+    readonly deferInitialConnect?: boolean;
+  },
 ) => Promise<void>;

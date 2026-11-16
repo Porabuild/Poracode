@@ -43,7 +43,7 @@ describe("useWorkspaceThreadFilter", () => {
   beforeEach(() => {
     localStorage.clear();
     useSharedSettings.setState({ workspaces });
-    useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
+    useWorkspaceStore.setState({ activeWorkspaceId: "w1", compactWorkspaceFilter: null });
   });
 
   it("passes real-project threads regardless of their tag", () => {
@@ -97,5 +97,47 @@ describe("useWorkspaceThreadFilter", () => {
     });
     expect(result.current.project(project)).toBe(false);
     expect(result.current.thread(homeThread)).toBe(false);
+  });
+
+  it("filters projects and Home threads in compact layout when a workspace is selected", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("max-width"),
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    resetAdaptiveLayoutForTest();
+    const projectInW2: Project = {
+      id: "project-2",
+      name: "Side project",
+      workspaceId: "w2",
+      location: { kind: "posix", path: "/side-project" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const homeThreadInW2 = makeThread({ projectId: HOME_PROJECT_ID, workspaceId: "w2" });
+    const { result } = renderHook(() => ({
+      project: useWorkspaceProjectFilter(),
+      thread: useWorkspaceThreadFilter(),
+    }));
+
+    expect(result.current.project(projectInW2)).toBe(true);
+    expect(result.current.thread(homeThreadInW2)).toBe(true);
+
+    act(() => {
+      useWorkspaceStore.getState().setCompactWorkspaceFilter("w1");
+    });
+    expect(result.current.project(projectInW2)).toBe(false);
+    expect(result.current.thread(homeThreadInW2)).toBe(false);
+
+    act(() => {
+      useWorkspaceStore.getState().setCompactWorkspaceFilter("w2");
+    });
+    expect(result.current.project(projectInW2)).toBe(true);
+    expect(result.current.thread(homeThreadInW2)).toBe(true);
+
+    act(() => {
+      useWorkspaceStore.getState().setCompactWorkspaceFilter(null);
+    });
+    expect(result.current.project(projectInW2)).toBe(true);
+    expect(result.current.thread(homeThreadInW2)).toBe(true);
   });
 });

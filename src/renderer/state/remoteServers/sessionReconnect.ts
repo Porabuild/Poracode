@@ -157,15 +157,20 @@ export function closeAllRemoteServerEventSockets(): void {
   }
 }
 
-/** In-flight connectAll(), so concurrent callers coalesce onto one pass. */
-let connectAllInFlight: Promise<void> | null = null;
-let connectAllInFlightForce = false;
-let connectAllForceRequested = false;
+/** Coalesced per-connection reconnect passes so one offline host never stalls others. */
+interface InFlightConnectionAttempt {
+  promise: Promise<void>;
+  force: boolean;
+  forceRequested: boolean;
+}
+let hydrationInFlight: Promise<void> | null = null;
+const connectInFlightByKey = new Map<string, InFlightConnectionAttempt>();
+const connectSeqByKey = new Map<string, number>();
 
 export function __resetConnectAllForTest(): void {
-  connectAllInFlight = null;
-  connectAllInFlightForce = false;
-  connectAllForceRequested = false;
+  hydrationInFlight = null;
+  connectInFlightByKey.clear();
+  connectSeqByKey.clear();
 }
 
 export interface SessionReconnectActionDeps extends RemoteServersStoreApi {
@@ -421,8 +426,14 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     );
     if (!current) return;
     server = current;
-    await startRemoteServerEventStream(server, initialTerminalCapabilities, options);
-    checkHostUpdateInBackground(server);
+    const statusAfterRefresh = get().runtime[connectionKey]?.status;
+    await startRemoteServerEventStream(server, initialTerminalCapabilities, {
+      ...options,
+      ...(statusAfterRefresh === "offline" ? { deferInitialConnect: true } : {}),
+    });
+    if (statusAfterRefresh === "online") {
+      checkHostUpdateInBackground(server);
+    }
   };
 
   const reconnectAfterHostUpdate = async (
@@ -489,59 +500,79 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     });
   };
 
+  const connectServerEntry = (
+    connectionKey: string,
+    forceTransportReconnect: boolean,
+  ): Promise<void> => {
+    const existing = connectInFlightByKey.get(connectionKey);
+    if (existing) {
+      if (forceTransportReconnect && !existing.force) {
+        existing.forceRequested = true;
+      }
+      return existing.promise;
+    }
+    const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+    if (!server || get().hostUpdateRestarts[connectionKey] !== undefined) {
+      return Promise.resolve();
+    }
+    if (!forceTransportReconnect && isLiveConnection(server)) {
+      return Promise.resolve();
+    }
+    const attempt: InFlightConnectionAttempt = {
+      promise: Promise.resolve(),
+      force: forceTransportReconnect,
+      forceRequested: false,
+    };
+    const run = (async () => {
+      while (true) {
+        const currentForce = attempt.force;
+        const current = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+        if (!current || get().hostUpdateRestarts[connectionKey] !== undefined) break;
+        if (!currentForce && isLiveConnection(current)) break;
+        const seq = (connectSeqByKey.get(connectionKey) ?? 0) + 1;
+        connectSeqByKey.set(connectionKey, seq);
+        if (currentForce) {
+          closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
+        }
+        setServersConnecting([current]);
+        await connectServer(
+          current,
+          () => connectSeqByKey.get(connectionKey) === seq,
+          currentForce ? { resyncInterestedThreads: true } : undefined,
+        );
+        if (!attempt.forceRequested) break;
+        attempt.forceRequested = false;
+        attempt.force = true;
+      }
+    })().finally(() => {
+      if (connectInFlightByKey.get(connectionKey) === attempt) {
+        connectInFlightByKey.delete(connectionKey);
+      }
+    });
+    attempt.promise = run;
+    connectInFlightByKey.set(connectionKey, attempt);
+    return run;
+  };
+
   return {
     connectAll: async (options: { readonly forceTransportReconnect?: boolean } = {}) => {
-      // Coalesce concurrent callers (the sidebar and the settings panel both
-      // connect on mount) so servers aren't snapshotted twice on startup.
-      if (connectAllInFlight) {
-        if (options.forceTransportReconnect && !connectAllInFlightForce) {
-          connectAllForceRequested = true;
+      // The secure browser vault hydrates asynchronously. Sidebar mount
+      // can otherwise observe the empty initial state, finish a no-op
+      // connection pass, and never reconnect the restored servers.
+      if (!persistHasHydrated()) {
+        if (!hydrationInFlight) {
+          hydrationInFlight = persistRehydrate().finally(() => {
+            hydrationInFlight = null;
+          });
         }
-        return connectAllInFlight;
+        await hydrationInFlight;
       }
-      connectAllInFlight = (async () => {
-        // The secure browser vault hydrates asynchronously. Sidebar mount
-        // can otherwise observe the empty initial state, finish a no-op
-        // connection pass, and never reconnect the restored servers.
-        if (!persistHasHydrated()) {
-          await persistRehydrate();
-        }
-        const connectPass = async (forceTransportReconnect: boolean): Promise<void> => {
-          connectAllInFlightForce = forceTransportReconnect;
-          const servers = get().servers.filter(
-            (server) =>
-              get().hostUpdateRestarts[remoteConnectionKey(server)] === undefined &&
-              (forceTransportReconnect || !isLiveConnection(server)),
-          );
-          if (forceTransportReconnect) {
-            for (const server of servers) {
-              closeRemoteServerEventSocket(remoteConnectionKey(server), {
-                preserveReplayState: true,
-              });
-            }
-          }
-          setServersConnecting(servers);
-          await Promise.all(
-            servers.map((server) =>
-              connectServer(
-                server,
-                () => true,
-                forceTransportReconnect ? { resyncInterestedThreads: true } : undefined,
-              ),
-            ),
-          );
-        };
-        await connectPass(options.forceTransportReconnect === true);
-        if (connectAllForceRequested) {
-          connectAllForceRequested = false;
-          await connectPass(true);
-        }
-      })().finally(() => {
-        connectAllInFlight = null;
-        connectAllInFlightForce = false;
-        connectAllForceRequested = false;
-      });
-      return connectAllInFlight;
+      const forceTransportReconnect = options.forceTransportReconnect === true;
+      await Promise.all(
+        get().servers.map((server) =>
+          connectServerEntry(remoteConnectionKey(server), forceTransportReconnect),
+        ),
+      );
     },
 
     verifyConnections: async () => {
@@ -558,9 +589,9 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       if (get().hostUpdateRestarts[connectionKey] !== undefined) return;
       const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
       if (!server) return;
-      closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
-      setServersConnecting([server]);
-      await connectServer(server, undefined, { resyncInterestedThreads: true });
+      connectSeqByKey.set(connectionKey, (connectSeqByKey.get(connectionKey) ?? 0) + 1);
+      connectInFlightByKey.delete(connectionKey);
+      await connectServerEntry(connectionKey, true);
     },
 
     removeServer: (
@@ -587,6 +618,8 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       }
 
       const removeRecord = (server: RemoteServerRecord | undefined, key: string) => {
+        connectSeqByKey.set(key, (connectSeqByKey.get(key) ?? 0) + 1);
+        connectInFlightByKey.delete(key);
         disposeDirectImageSession(key);
         setRemoteHostUpdateReconnectSeq(key, nextRemoteHostUpdateSequence());
         deleteRemoteHostUpdateRequestSeq(key);

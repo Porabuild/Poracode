@@ -60,7 +60,10 @@ import type {
 export interface StartRemoteServerEventStreamDeps {
   readonly server: RemoteServerRecord;
   readonly initialCapabilities?: TerminalConnectionCapabilities;
-  readonly options?: { readonly resyncInterestedThreads?: boolean };
+  readonly options?: {
+    readonly resyncInterestedThreads?: boolean;
+    readonly deferInitialConnect?: boolean;
+  };
   readonly set: (
     partial:
       | RemoteServersState
@@ -118,7 +121,38 @@ export async function startRemoteServerEventStream(
   // cannot reject this session's in-flight decodes.
   const engine = getRemoteSocketEngine();
   const existing = getRemoteServerEventSocketEntry(connectionKey);
-  if (existing?.serverKey === serverKey && !options.resyncInterestedThreads) return;
+  const existingHasOpenSocket =
+    existing?.socket !== null &&
+    existing?.socket !== undefined &&
+    (existing.socket.readyState === undefined || existing.socket.readyState === 1);
+  const existingHasActiveConnection =
+    existing !== undefined &&
+    (existing.connecting || existingHasOpenSocket || existing.socket?.readyState === 0);
+  if (
+    existing?.serverKey === serverKey &&
+    existingHasActiveConnection &&
+    !options.resyncInterestedThreads
+  ) {
+    if (existingHasOpenSocket && get().runtime[connectionKey]?.status === "connecting") {
+      set((state) => {
+        const current = state.runtime[connectionKey];
+        if (!current || current.status !== "connecting") return {};
+        return {
+          runtime: {
+            ...state.runtime,
+            [connectionKey]: {
+              status: "online",
+              projects: current.projects,
+              threads: current.threads,
+              ...(current.agentStatuses ? { agentStatuses: current.agentStatuses } : {}),
+            },
+          },
+        };
+      });
+      syncDesktopBrowserBridgeClient(get());
+    }
+    return;
+  }
   // Creating the lane supersedes a previous session's lane for this desktop:
   // its pending callbacks reject typed and its late results are fenced.
   const decodeLane = engine.createLane({ key: `event-socket:${connectionKey}` });
@@ -447,5 +481,9 @@ export async function startRemoteServerEventStream(
     }
   };
 
+  if (options.deferInitialConnect) {
+    scheduleReconnect(REMOTE_SOCKET_POLICY.reconnectBaseMs);
+    return;
+  }
   await connect();
 }

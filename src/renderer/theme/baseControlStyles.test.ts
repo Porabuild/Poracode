@@ -294,4 +294,19 @@ describe("base control styles", () => {
       "var(--sidebar-background, var(--background)) 78%",
     );
   });
+
+  it("defers bottom-sheet enter keyframes until the backdrop is revealed", () => {
+    expect(ruleFor(".m-sheet-backdrop:not([data-entered]):not([data-closing])")).toContain(
+      "opacity: 0",
+    );
+    expect(ruleFor(".m-sheet-backdrop[data-entered]")).toContain(
+      "animation: poracode-sheet-backdrop-in",
+    );
+    expect(ruleFor(".m-sheet-backdrop:not([data-entered]):not([data-closing]) .m-sheet")).toContain(
+      "transform: translateY(100%)",
+    );
+    expect(ruleFor(".m-sheet-backdrop[data-entered] .m-sheet")).toContain(
+      "animation: poracode-sheet-in",
+    );
+  });
 });

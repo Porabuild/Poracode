@@ -99,6 +99,7 @@ extension AppSession {
             return
         }
         ForgeReviewDiskCache.purgeAll()
+        hostSnapshotTasks.removeValue(forKey: connectionId)?.task.cancel()
         await cancelStaleSessionWork(invalidateSocket: false)
         await sessionPool.forget(.host(connectionId))
         EnvironmentConnectionRegistry.shared.remove(connectionId: connectionId)
@@ -287,25 +288,67 @@ extension AppSession {
     }
 
     /// Refreshes the selected live host and fetches lightweight shell snapshots
-    /// for every other paired host. Failures retain the last successful entry,
-    /// so an offline machine's threads remain visible instead of disappearing.
+    /// for every other paired host concurrently. Per-connection coalescing keeps
+    /// an offline host from duplicating or blocking online peers, and failures
+    /// retain the last successful entry so cached threads stay visible.
     func refreshUnifiedThreadList() async {
-        await refreshSnapshot()
-        for record in state.hosts where record.connectionId != state.selectedConnectionId {
-            guard record.scopes.contains("session:read"),
-                  let token = try? await deps.hostCatalog.token(for: record.connectionId),
-                  !token.isEmpty
-            else { continue }
-            let api = deps.makeAPI(record.httpBaseURL, token)
+        let peerIds = state.hosts
+            .map(\.connectionId)
+            .filter { $0 != state.selectedConnectionId }
+        let selectedTask = Task { @MainActor in
+            await self.refreshSnapshot()
+        }
+        let peerTasks = peerIds.map { connectionId in
+            Task { @MainActor in
+                await self.refreshPeerHostSnapshot(connectionId: connectionId)
+            }
+        }
+        await withTaskCancellationHandler {
+            await selectedTask.value
+            for task in peerTasks {
+                await task.value
+            }
+        } onCancel: {
+            selectedTask.cancel()
+            for task in peerTasks {
+                task.cancel()
+            }
+        }
+    }
+
+    private func refreshPeerHostSnapshot(connectionId: ClientConnectionID) async {
+        if let existing = hostSnapshotTasks[connectionId] {
+            await existing.task.value
+            return
+        }
+        guard let record = state.hosts.first(where: { $0.connectionId == connectionId }),
+              record.scopes.contains("session:read")
+        else { return }
+        let expectedBaseURL = record.httpBaseURL
+        let token = UUID()
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard let accessToken = try? await self.deps.hostCatalog.token(for: connectionId),
+                  !accessToken.isEmpty
+            else { return }
+            let api = self.deps.makeAPI(expectedBaseURL, accessToken)
             guard let snapshot = try? await api.snapshot(),
-                  state.hosts.contains(where: { $0.connectionId == record.connectionId })
-            else { continue }
-            state.hostSnapshots[record.connectionId] = snapshot
-            var cache = sessionPool.cache(for: .host(record.connectionId))
+                  !Task.isCancelled,
+                  self.state.hosts.contains(where: {
+                      $0.connectionId == connectionId && $0.httpBaseURL == expectedBaseURL
+                  })
+            else { return }
+            self.state.hostSnapshots[connectionId] = snapshot
+            var cache = self.sessionPool.cache(for: .host(connectionId))
             cache.snapshot = snapshot
             cache.projectsLoadState = snapshot.projects.isEmpty && snapshot.threads.isEmpty
                 ? .empty : .loaded
-            sessionPool.updateCache(cache, for: .host(record.connectionId))
+            self.sessionPool.updateCache(cache, for: .host(connectionId))
+        }
+        hostSnapshotTasks[connectionId] = (token: token, task: task)
+        await task.value
+        if hostSnapshotTasks[connectionId]?.token == token {
+            hostSnapshotTasks.removeValue(forKey: connectionId)
         }
     }
 
