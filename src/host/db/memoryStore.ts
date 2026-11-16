@@ -114,6 +114,10 @@ export function dbUpsertMemoryEntry(entry: MemoryEntry): void {
     });
 }
 
+export function dbDeleteMemorySuggestion(id: string): void {
+  getSqlite().prepare("DELETE FROM memory_skill_suggestions WHERE id = ?").run(id);
+}
+
 export function dbDeleteMemoryEntry(id: string): void {
   getSqlite().prepare("DELETE FROM memory_entries WHERE id = ?").run(id);
 }

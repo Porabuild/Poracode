@@ -44,13 +44,26 @@ describe("memory logic", () => {
   });
 
   it("scores an explicit preference high enough to fast-track", () => {
-    const [observation] = observationsFromUserLines("Always use bun");
+    const [observation] = observationsFromUserLines("User: Always use bun");
     expect(observation?.explicit).toBe(true);
     expect(statementKey(observation!.statement)).toBe("always use bun");
   });
 
+  it("does not learn an assistant line as a user preference", () => {
+    expect(observationsFromUserLines("Assistant: Always use bun")).toEqual([]);
+  });
+
+  it("redacts hyphenated keys and assigned secrets", () => {
+    const [observation] = observationsFromUserLines(
+      "User: Always keep sk-ant-api03-abcdefghijklmnopqrstuvwxyz and github_pat_abcdefghijklmnopqrstuvwxyz out, password: hunter2",
+    );
+    expect(observation?.statement).not.toContain("sk-ant-");
+    expect(observation?.statement).not.toContain("github_pat_");
+    expect(observation?.statement).not.toContain("hunter2");
+  });
+
   it("flags a contradiction against a strong existing note", () => {
-    const [observation] = observationsFromUserLines("Never use bun");
+    const [observation] = observationsFromUserLines("User: Never use bun");
     expect(
       conflictsWith(observation!, entry({ summary: "Never use bun", polarity: "positive" })),
     ).toBe(true);

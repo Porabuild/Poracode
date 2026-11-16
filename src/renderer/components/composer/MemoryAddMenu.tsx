@@ -8,6 +8,24 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { MemoryStatus, MemoryThreadMode } from "@/shared/memory";
 import { MenuSwitch, submenuCaptionClassName } from "./ComposerAddMenuParts";
 
+function threadLearns(mode: MemoryThreadMode | null | undefined): boolean {
+  return mode !== "recall" && mode !== "incognito";
+}
+
+function withThreadMode(current: MemoryStatus | undefined, mode: MemoryThreadMode): MemoryStatus {
+  return {
+    enabled: current?.enabled ?? true,
+    learning: current?.learning ?? true,
+    captureTiming: current?.captureTiming ?? "settle-2m",
+    pendingCandidates: current?.pendingCandidates ?? 0,
+    entryCount: current?.entryCount ?? 0,
+    suggestionCount: current?.suggestionCount ?? 0,
+    lastDreamAt: current?.lastDreamAt ?? null,
+    lastDreamSummary: current?.lastDreamSummary ?? null,
+    threadMode: mode,
+  };
+}
+
 function loadMemoryStatus(threadId: string | undefined): Promise<MemoryStatus | undefined> {
   try {
     return readBridge()
@@ -117,22 +135,18 @@ export function MemoryMenuPanel(props: {
         <button
           type="button"
           className="m-sheet-action"
-          aria-pressed={status?.threadMode !== "incognito" && status?.threadMode !== "recall"}
+          aria-pressed={threadLearns(status?.threadMode)}
           onClick={() => {
-            const mode: MemoryThreadMode = status?.threadMode === "learn" ? "recall" : "learn";
+            const mode: MemoryThreadMode = threadLearns(status?.threadMode) ? "recall" : "learn";
             void readBridge()
               .memoryCommand({ action: "thread-mode", threadId: props.threadId!, mode })
-              .then(() =>
-                setStatus((current) => (current ? { ...current, threadMode: mode } : current)),
-              );
+              .then(() => setStatus((current) => withThreadMode(current, mode)));
           }}
         >
           <span className="flex-1 truncate">
             <Trans>Learn from this thread</Trans>
           </span>
-          <MenuSwitch
-            checked={status?.threadMode !== "recall" && status?.threadMode !== "incognito"}
-          />
+          <MenuSwitch checked={threadLearns(status?.threadMode)} />
         </button>
       ) : null}
       <p className="px-3 py-2 text-xs text-muted">{statusText}</p>
@@ -166,7 +180,7 @@ export function MemoryDesktopSubmenu(props: {
   const selected = new Set<string>([
     ...(memory.enabled ? ["memory-enabled"] : []),
     ...(memory.learning ? ["memory-learning"] : []),
-    ...(status?.threadMode === "learn" ? ["memory-thread"] : []),
+    ...(threadLearns(status?.threadMode) ? ["memory-thread"] : []),
   ]);
 
   useEffect(() => {
@@ -205,14 +219,12 @@ export function MemoryDesktopSubmenu(props: {
               if (
                 props.threadId &&
                 !remote &&
-                keys.has("memory-thread") !== (status?.threadMode === "learn")
+                keys.has("memory-thread") !== threadLearns(status?.threadMode)
               ) {
                 const mode: MemoryThreadMode = keys.has("memory-thread") ? "learn" : "recall";
                 void readBridge()
                   .memoryCommand({ action: "thread-mode", threadId: props.threadId, mode })
-                  .then(() =>
-                    setStatus((current) => (current ? { ...current, threadMode: mode } : current)),
-                  );
+                  .then(() => setStatus((current) => withThreadMode(current, mode)));
               }
             }}
             className="poracode-menu min-w-56"
@@ -234,9 +246,7 @@ export function MemoryDesktopSubmenu(props: {
                 <Label className="flex-1 truncate">
                   <Trans>Learn from this thread</Trans>
                 </Label>
-                <MenuSwitch
-                  checked={status?.threadMode !== "recall" && status?.threadMode !== "incognito"}
-                />
+                <MenuSwitch checked={threadLearns(status?.threadMode)} />
               </Dropdown.Item>
             ) : null}
           </Dropdown.Menu>

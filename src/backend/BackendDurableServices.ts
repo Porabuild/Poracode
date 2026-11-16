@@ -150,6 +150,7 @@ export class BackendDurableServices {
   /** Settled-or-in-flight boot sweep, joined by {@link dispose}. */
   private housekeepingRun: Promise<void> | null = null;
   private memoryTimer: ReturnType<typeof setInterval> | null = null;
+  private memoryPass: Promise<void> | null = null;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
     this.deviceWorkspace = new DeviceWorkspaceService(
@@ -422,13 +423,8 @@ export class BackendDurableServices {
     const agents = statuses.windows.filter(
       (agent) => agent.installed !== false && agent.capabilities.supportsOneShot === true,
     );
-    const preferred = ["claude", "codex", "gemini", "cursor"];
     const agentKind =
-      provider !== "auto"
-        ? agents.find((agent) => agent.kind === provider)?.kind
-        : (preferred
-            .map((kind) => agents.find((agent) => agent.kind === kind)?.kind)
-            .find((kind) => kind !== undefined) ?? agents[0]?.kind);
+      provider !== "auto" ? agents.find((agent) => agent.kind === provider)?.kind : agents[0]?.kind;
     if (!agentKind) throw new Error("No one-shot agent is available for memory.");
     const result = await this.options.supervisor.call("generateMemoryText", {
       projectLocation: project.location,
@@ -449,9 +445,15 @@ export class BackendDurableServices {
 
   private startMemory(): void {
     const tick = () => {
-      if (this.disposed) return;
-      void runMemoryCapturePass().catch((error: unknown) => this.options.reportError?.(error));
-      void this.maybeDream().catch((error: unknown) => this.options.reportError?.(error));
+      if (this.disposed || this.memoryPass) return;
+      this.memoryPass = (async () => {
+        await runMemoryCapturePass();
+        await this.maybeDream();
+      })()
+        .catch((error: unknown) => this.options.reportError?.(error))
+        .finally(() => {
+          this.memoryPass = null;
+        });
     };
     this.memoryTimer = setInterval(tick, 20_000);
     this.memoryTimer.unref?.();

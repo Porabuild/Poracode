@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { dbGetProject, dbGetThread, dbGetThreads } from "@/host/db/projectsThreads";
@@ -9,8 +9,10 @@ import {
   dbCountOpenSuggestions,
   dbCountPendingCandidates,
   dbDeleteMemoryEntry,
+  dbDeleteMemorySuggestion,
   dbDeleteMemorySpool,
   dbGetMemoryDreamRun,
+  dbGetMemoryEntry,
   dbGetMemorySuggestion,
   dbSetMemoryMeta,
   dbGetMemoryThreadState,
@@ -21,6 +23,7 @@ import {
   dbListMemorySuggestions,
   dbMarkMemoryDreamUndone,
   dbReadMemoryTranscript,
+  dbSetCandidateStatus,
   dbSetMemoryThreadState,
   dbSpoolMemoryCapture,
   dbTouchMemoryUsage,
@@ -42,6 +45,7 @@ import {
   MEMORY_EXTRACT_PROMPT,
   observationsFromUserLines,
   parseModelObservations,
+  redactSecrets,
   renderMemoryPrompt,
   transcriptFromItems,
 } from "./logic";
@@ -63,10 +67,11 @@ export function setMemoryModelCaller(caller: MemoryModelCaller | undefined): voi
 
 export function spoolThreadBeforeDelete(threadId: string): void {
   const settings = readMemorySettings();
-  if (!settings.learning || settings.deletePolicy === "never") return;
+  if (!settings.learning || settings.deletePolicy !== "spool") return;
+  const thread = dbGetThread(threadId);
+  if (thread?.parentThreadId) return;
   const state = dbGetMemoryThreadState(threadId);
   if (state.mode === "incognito" || state.mode === "recall") return;
-  const thread = dbGetThread(threadId);
   const text = transcriptFromItems(dbReadMemoryTranscript(threadId, state.cursor));
   if (text.length < 8) return;
   dbSpoolMemoryCapture({
@@ -165,7 +170,12 @@ async function runDream(now: string): Promise<{ report: string; runId: string }>
     startedAt: now,
     finishedAt: now,
     report: outcome.report,
-    undo: JSON.stringify({ restore: outcome.restore, createdIds: outcome.createdIds }),
+    undo: JSON.stringify({
+      restore: outcome.restore,
+      createdIds: outcome.createdIds,
+      suggestionIds: outcome.suggestionIds,
+      candidateIds: outcome.candidateIds,
+    }),
     undone: false,
   });
   dbSetMemoryMeta("lastDreamAt", now);
@@ -175,9 +185,26 @@ async function runDream(now: string): Promise<{ report: string; runId: string }>
 function undoDream(runId: string): { ok: boolean } {
   const run = dbGetMemoryDreamRun(runId);
   if (!run || run.undone || !run.undo) return { ok: false };
-  const snapshot = JSON.parse(run.undo) as { restore?: MemoryEntry[]; createdIds?: string[] };
-  for (const id of snapshot.createdIds ?? []) dbDeleteMemoryEntry(id);
-  for (const entry of snapshot.restore ?? []) dbUpsertMemoryEntry(entry);
+  const snapshot = JSON.parse(run.undo) as {
+    restore?: MemoryEntry[];
+    createdIds?: string[];
+    suggestionIds?: string[];
+    candidateIds?: string[];
+  };
+  const changedAfterDream = (updatedAt: string | undefined, locked: boolean | undefined) =>
+    locked === true && updatedAt !== undefined && updatedAt > run.startedAt;
+  for (const id of snapshot.createdIds ?? []) {
+    const current = dbGetMemoryEntry(id);
+    if (changedAfterDream(current?.updatedAt, current?.lockedByUser)) continue;
+    dbDeleteMemoryEntry(id);
+  }
+  for (const entry of snapshot.restore ?? []) {
+    const current = dbGetMemoryEntry(entry.id);
+    if (changedAfterDream(current?.updatedAt, current?.lockedByUser)) continue;
+    dbUpsertMemoryEntry(entry);
+  }
+  for (const id of snapshot.suggestionIds ?? []) dbDeleteMemorySuggestion(id);
+  for (const id of snapshot.candidateIds ?? []) dbSetCandidateStatus(id, "pending");
   dbMarkMemoryDreamUndone(runId);
   return { ok: true };
 }
@@ -235,27 +262,48 @@ function writeSkillFile(input: {
   }
   mkdirSync(root, { recursive: true });
   const file = join(root, "SKILL.md");
-  writeFileSync(file, input.body.endsWith("\n") ? input.body : `${input.body}\n`, "utf8");
+  if (existsSync(file)) throw new Error("A skill with this name already exists.");
+  const body = alignSkillFrontmatter(input.body, input.name);
+  writeFileSync(file, body.endsWith("\n") ? body : `${body}\n`, "utf8");
   return file;
 }
+
+function alignSkillFrontmatter(body: string, name: string): string {
+  return body.replace(/^(---\r?\n)([\s\S]*?)(\r?\n---)/, (_match, open, matter, close) => {
+    const next = /^name:.*$/m.test(matter)
+      ? matter.replace(/^name:.*$/m, `name: ${name}`)
+      : `name: ${name}\n${matter}`;
+    return `${open}${next}${close}`;
+  });
+}
+
+let captureFlight: Promise<{ captured: number; spooled: number }> | null = null;
 
 export async function runMemoryCapturePass(
   nowMs = Date.now(),
 ): Promise<{ captured: number; spooled: number }> {
+  if (captureFlight) return captureFlight;
+  captureFlight = captureOnce(nowMs).finally(() => {
+    captureFlight = null;
+  });
+  return captureFlight;
+}
+
+async function captureOnce(nowMs: number): Promise<{ captured: number; spooled: number }> {
   const settings = readMemorySettings();
   let captured = 0;
   let spooled = 0;
-  if (settings.learning) {
-    for (const spool of dbListMemorySpool()) {
+  for (const spool of dbListMemorySpool()) {
+    if (settings.learning && settings.deletePolicy === "spool") {
       await ingestText({
         text: spool.text,
         threadId: spool.threadId,
         projectId: spool.projectId,
         nowMs,
       });
-      dbDeleteMemorySpool(spool.id);
       spooled += 1;
     }
+    dbDeleteMemorySpool(spool.id);
   }
   const settle = memorySettleMs(settings);
   for (const thread of dbGetThreads()) {
@@ -330,7 +378,11 @@ async function ingestText(input: {
     }
   }
   rememberObservations({
-    observations: [...deterministic, ...modelObservations],
+    observations: [...deterministic, ...modelObservations].map((observation) => ({
+      ...observation,
+      statement: redactSecrets(observation.statement),
+      quote: observation.quote ? redactSecrets(observation.quote) : null,
+    })),
     threadId: input.threadId,
     projectId: input.projectId,
     now: new Date(input.nowMs).toISOString(),
@@ -338,9 +390,13 @@ async function ingestText(input: {
 }
 
 export function memorySearch(query: string, projectId?: string): MemoryEntry[] {
+  if (!readMemorySettings().enabled) return [];
   const needle = query.trim().toLowerCase();
   if (!needle) return [];
-  const matches = dbListMemoryEntries(projectId).filter((entry) =>
+  const rows = projectId
+    ? dbListMemoryEntries(projectId)
+    : dbListMemoryEntries().filter((entry) => entry.scope === "global");
+  const matches = rows.filter((entry) =>
     `${entry.summary}\n${entry.body}\n${entry.quote ?? ""}`.toLowerCase().includes(needle),
   );
   const at = new Date().toISOString();

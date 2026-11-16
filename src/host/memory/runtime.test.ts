@@ -15,7 +15,7 @@ import {
 import { defaultMemorySettings } from "@/shared/memory";
 import type { Thread } from "@/shared/contracts";
 
-const thread = (id: string): Thread =>
+const thread = (id: string, patch: Partial<Thread> = {}): Thread =>
   ({
     id,
     projectId: "project-1",
@@ -32,6 +32,7 @@ const thread = (id: string): Thread =>
     createdAt: "2026-11-16T00:00:00.000Z",
     updatedAt: "2026-11-16T00:00:00.000Z",
     lastTurnEndedAt: "2026-11-16T00:00:00.000Z",
+    ...patch,
   }) as Thread;
 
 describe("memory store", () => {
@@ -58,6 +59,20 @@ describe("memory store", () => {
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("waits for an idle turn to settle before capturing", async () => {
+    dbUpsertThread(thread("thread-settle", { done: false, status: "idle" }), 0);
+    getSqlite()
+      .prepare(
+        `INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state, payload)
+         VALUES ('thread-settle', 'item-1', 0, 'user_message', 'completed', ?)`,
+      )
+      .run(JSON.stringify({ text: "Always use bun" }));
+    const tooSoon = await runMemoryCapturePass(Date.parse("2026-11-16T00:01:00.000Z"));
+    expect(tooSoon.captured).toBe(0);
+    const settled = await runMemoryCapturePass(Date.parse("2026-11-16T00:03:00.000Z"));
+    expect(settled.captured).toBe(1);
   });
 
   it("fast-tracks an explicit preference and injects it", async () => {

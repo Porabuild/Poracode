@@ -37,6 +37,7 @@ export function SkillViewModal(props: {
   projectLocation?: ProjectLocation;
   wslDistro?: string;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
   const { t } = useLingui();
   const [content, setContent] = useState<string>();
@@ -45,6 +46,7 @@ export function SkillViewModal(props: {
   const [saveError, setSaveError] = useState(false);
   const [raw, setRaw] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState("");
 
   // Reload when the viewed skill (or its source location) changes; the
@@ -102,7 +104,8 @@ export function SkillViewModal(props: {
   }, [props.projectLocation, props.skill.absolutePath, props.skill.skillFilePath, props.wslDistro]);
 
   async function save() {
-    if (content === undefined || modifiedAtMs === undefined) return;
+    if (saving || content === undefined || modifiedAtMs === undefined) return;
+    setSaving(true);
     const bridge = readBridge();
     try {
       const result = await bridge.writeExternalFile({
@@ -120,8 +123,11 @@ export function SkillViewModal(props: {
       setModifiedAtMs(result.modifiedAtMs);
       setEditing(false);
       setSaveError(false);
+      props.onSaved?.();
     } catch {
       setSaveError(true);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -174,7 +180,7 @@ export function SkillViewModal(props: {
                 </Button>
                 <Button
                   variant="tertiary"
-                  isDisabled={modifiedAtMs === undefined}
+                  isDisabled={saving || modifiedAtMs === undefined}
                   onPress={() => void save()}
                 >
                   <Trans>Save</Trans>

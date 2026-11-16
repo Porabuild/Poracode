@@ -251,6 +251,7 @@ export function SkillsManager(props: {
           {...(target.project ? { projectLocation: target.project.location } : {})}
           {...(target.wslDistro ? { wslDistro: target.wslDistro } : {})}
           onClose={() => setViewingSkill(undefined)}
+          onSaved={() => void reload()}
         />
       ) : null}
       <ConfirmDialog
@@ -402,7 +403,7 @@ export function SkillsManager(props: {
           provider copies. Its files are preserved so you can enable it again.
         </Trans>
       </p>
-      <MemorySkillSuggestions />
+      <MemorySkillSuggestions {...(target.project ? { projectId: target.project.id } : {})} />
 
       {error ? (
         <div

@@ -45,19 +45,23 @@ export function MemorySkillSuggestions(props: { projectId?: string }) {
     const editing = editingId === suggestion.id;
     const name = editing ? draft.name.trim() : suggestion.name;
     if (decision === "approve" && !isValidSkillName(name)) return;
-    await readBridge().memoryCommand({
-      action: "suggestion",
-      id: suggestion.id,
-      decision,
-      name,
-      description: editing ? draft.description : suggestion.description,
-      body: editing ? draft.body : suggestion.body,
-      scope: suggestion.scope,
-      availability: suggestion.availability,
-      ...(suggestion.projectId ? { projectId: suggestion.projectId } : {}),
-    });
-    setEditingId((current) => (current === suggestion.id ? null : current));
-    setSuggestions((current) => current.filter((item) => item.id !== suggestion.id));
+    try {
+      await readBridge().memoryCommand({
+        action: "suggestion",
+        id: suggestion.id,
+        decision,
+        name,
+        description: editing ? draft.description : suggestion.description,
+        body: editing ? draft.body : suggestion.body,
+        scope: suggestion.scope,
+        availability: suggestion.availability,
+        ...(suggestion.projectId ? { projectId: suggestion.projectId } : {}),
+      });
+      setEditingId((current) => (current === suggestion.id ? null : current));
+      setSuggestions((current) => current.filter((item) => item.id !== suggestion.id));
+    } catch {
+      return;
+    }
   }
 
   return (

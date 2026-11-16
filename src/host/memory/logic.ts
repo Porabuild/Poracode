@@ -16,7 +16,7 @@ export interface MemoryObservation {
 }
 
 const SECRET =
-  /(sk-[A-Za-z0-9]{10,}|ghp_[A-Za-z0-9]{10,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|Bearer\s+[A-Za-z0-9\-._~+/]+=*|api[_-]?key\s*[:=]\s*\S+|-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----)/gi;
+  /(sk-[A-Za-z0-9_-]{10,}|github_pat_[A-Za-z0-9_]{10,}|ghp_[A-Za-z0-9]{10,}|xox[baprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9\-._~+/]+=*|(?:password|passwd|token|secret|api[_-]?key|aws_secret_access_key)\s*[:=]\s*\S+|-----BEGIN [A-Z ]+PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+PRIVATE KEY-----)/gi;
 
 const EXPLICIT =
   /\b(always|never|do not|don't|do not|i prefer|we use|we don't|stop using|instead of)\b/i;
@@ -37,12 +37,22 @@ export function statementKey(statement: string): string {
     .trim();
 }
 
+/** Preference text with the cue words removed, so "always" and "never" can oppose. */
+export function topicKey(statement: string): string {
+  return statementKey(statement)
+    .replace(/\b(always|never|do not|don t|stop using|i prefer|we use|we don t|instead of)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function observationsFromUserLines(text: string): MemoryObservation[] {
   const clean = stripInjectedMemory(redactSecrets(text));
   const seen = new Set<string>();
   const observations: MemoryObservation[] = [];
   for (const rawLine of clean.split(/\n+/)) {
-    const line = rawLine.replace(/^user:\s*/i, "").trim();
+    const labelled = /^user:\s*(.*)$/i.exec(rawLine.trim());
+    if (!labelled) continue;
+    const line = labelled[1]!.trim();
     if (line.length < 8 || line.length > 400 || !EXPLICIT.test(line)) continue;
     const key = statementKey(line);
     if (seen.has(key)) continue;
@@ -74,7 +84,11 @@ export function conflictsWith(
   observation: MemoryObservation,
   existing: Pick<MemoryEntry, "summary" | "polarity" | "confidence" | "lockedByUser">,
 ): boolean {
-  if (statementKey(existing.summary) !== statementKey(observation.statement)) return false;
+  const sameStatement = statementKey(existing.summary) === statementKey(observation.statement);
+  const sameTopic =
+    topicKey(existing.summary).length > 0 &&
+    topicKey(existing.summary) === topicKey(observation.statement);
+  if (!sameStatement && !sameTopic) return false;
   if (existing.polarity === observation.polarity) return false;
   return existing.lockedByUser || existing.confidence >= 0.75;
 }

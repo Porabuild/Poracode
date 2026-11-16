@@ -18,6 +18,7 @@ import type { ProjectSettingsSection } from "./parts/types";
 import { useProjectEnvironmentMachines } from "@/renderer/components/common/ProjectEnvironment";
 import {
   PROJECT_SETTINGS_SCOPE_BAR_SPACE,
+  PROJECT_SETTINGS_SCROLL_CLASS,
   ProjectEnvironmentScopeBar,
 } from "./parts/ProjectEnvironmentScope";
 
@@ -89,7 +90,7 @@ export function ProjectSettingsOverlay(props: {
     ) : activeSection === "skills" ? (
       <SkillsSection projectId={projectId} />
     ) : activeSection === "memory" ? (
-      <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
+      <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
         <MemorySettings projectId={projectId} />
       </div>
     ) : activeSection === "mcp" ? (

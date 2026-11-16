@@ -31,6 +31,7 @@ export function rememberObservations(input: {
   let candidates = 0;
   let conflicts = 0;
   const existing = dbListMemoryEntries(input.projectId ?? undefined);
+  const handled = new Set(existing.map((entry) => `${entry.scope}:${statementKey(entry.summary)}`));
   for (const observation of input.observations) {
     const scope =
       observation.scope === "project" && input.projectId && !isHomeProjectId(input.projectId)
@@ -39,6 +40,9 @@ export function rememberObservations(input: {
           ? "global"
           : observation.scope;
     const projectId = scope === "project" ? input.projectId : null;
+    const key = `${scope}:${statementKey(observation.statement)}`;
+    if (handled.has(key)) continue;
+    handled.add(key);
     const prior = existing.filter(
       (entry) => statementKey(entry.summary) === statementKey(observation.statement),
     ).length;
@@ -66,6 +70,7 @@ export function rememberObservations(input: {
       );
       if (!current?.lockedByUser) {
         dbUpsertMemoryEntry(entry);
+        if (!current) existing.push(entry);
         saved += 1;
       }
       continue;
@@ -138,6 +143,10 @@ export interface DreamOutcome {
   restore: MemoryEntry[];
   /** Entries this dream created, deleted on undo. */
   createdIds: string[];
+  /** Suggestions this dream created, removed on undo while still suggested. */
+  suggestionIds: string[];
+  /** Candidates this dream promoted, returned to pending on undo. */
+  candidateIds: string[];
 }
 
 /** Rule-based consolidation. Locked entries are left unchanged. */
@@ -145,6 +154,8 @@ export function dreamMemories(settings: MemorySettings, now: string): DreamOutco
   const pending = dbListPendingCandidates();
   const restore: MemoryEntry[] = [];
   const createdIds: string[] = [];
+  const suggestionIds: string[] = [];
+  const candidateIds: string[] = [];
   let promoted = 0;
   const groups = new Map<string, MemoryCandidateRow[]>();
   for (const candidate of pending) {
@@ -187,7 +198,10 @@ export function dreamMemories(settings: MemorySettings, now: string): DreamOutco
     entry.source = "dream";
     if (!existing) createdIds.push(entry.id);
     dbUpsertMemoryEntry(entry);
-    for (const item of group) dbSetCandidateStatus(item.id, "promoted");
+    for (const item of group) {
+      dbSetCandidateStatus(item.id, "promoted");
+      candidateIds.push(item.id);
+    }
     promoted += 1;
   }
   let suggested = 0;
@@ -198,8 +212,10 @@ export function dreamMemories(settings: MemorySettings, now: string): DreamOutco
       const draft = skillDraft(sample.statement, `Seen in ${group.length} captured notes.`);
       const projectId = sample.scope === "project" ? sample.projectId : null;
       if (dbFindMemorySuggestionByName(draft.name, projectId)) continue;
+      const suggestionId = randomUUID();
+      suggestionIds.push(suggestionId);
       dbUpsertMemorySuggestion({
-        id: randomUUID(),
+        id: suggestionId,
         projectId,
         name: draft.name,
         description: draft.description,
@@ -220,6 +236,8 @@ export function dreamMemories(settings: MemorySettings, now: string): DreamOutco
     report: `Promoted ${promoted}. Suggested ${suggested} skill${suggested === 1 ? "" : "s"}.`,
     restore,
     createdIds,
+    suggestionIds,
+    candidateIds,
   };
 }
 

@@ -254,6 +254,7 @@ export const NOT_PROMOTED: Readonly<Partial<Record<CoverageKey, string>>> = {
   "settings:threads": "Preferences, not a feature",
   "settings:notifications": "Preferences, not a feature",
   "settings:ai": "AI helper preferences, not a feature",
+  "settings:memory": "Memory controls live in Settings and the composer menu",
   "settings:acpRegistry": "Reached while adding agents",
   "settings:agentsGeneral": "Agent preferences, not a feature",
   "settings:agents": "Every user sets up agents during onboarding",
