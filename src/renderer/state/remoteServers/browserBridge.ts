@@ -155,7 +155,7 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
     useAgentStatusesStore.getState().setAgentStatuses(agentStatuses.windows);
     useAgentStatusesStore.getState().setWslAgentStatuses(agentStatuses.wsl);
   }
-  const clientKey = `${connectionKey}\0${server.endpoint}\0${server.accessToken}\0${server.platform ?? ""}`;
+  const clientKey = `${connectionKey}\0${server.endpoint}\0${server.accessToken}\0${server.platform ?? ""}\0${server.appVersion ?? ""}`;
   if (desktopBrowserBridgeClientKey === clientKey) return;
   desktopBrowserBridgeServerId = connectionKey;
   try {
@@ -180,7 +180,12 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
   }
   const client =
     environmentSession?.client ?? state.clientFactory(server.endpoint, server.accessToken);
-  setRemoteBridgeClient(client, server.platform ?? null, browserBridgeOwnerKey(server));
+  setRemoteBridgeClient(
+    client,
+    server.platform ?? null,
+    browserBridgeOwnerKey(server),
+    server.appVersion ?? null,
+  );
   resetDesktopSettings();
   void client
     .settings()
