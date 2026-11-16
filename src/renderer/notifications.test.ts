@@ -199,6 +199,24 @@ describe("showUserNotification", () => {
     expect(openThreadWindowMock).toHaveBeenCalledWith(thread);
     expect(openThreadMock).not.toHaveBeenCalled();
   });
+
+  it("respects client notificationsEnabled and notificationStatuses preferences", () => {
+    sharedSettingsState.current.notificationsEnabled = false;
+    showUserNotification(notification({ category: "done" }));
+    expect(toastMock.success).not.toHaveBeenCalled();
+
+    sharedSettingsState.current.notificationsEnabled = true;
+    sharedSettingsState.current.notificationStatuses = {
+      done: false,
+      needsAttention: true,
+      error: true,
+    };
+    showUserNotification(notification({ category: "done" }));
+    expect(toastMock.success).not.toHaveBeenCalled();
+
+    showUserNotification(notification({ category: "error", status: "error" }));
+    expect(toastMock.danger).toHaveBeenCalledOnce();
+  });
 });
 
 describe("showUserNotification native path", () => {

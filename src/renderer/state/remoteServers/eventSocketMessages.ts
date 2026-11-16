@@ -1,3 +1,5 @@
+import { readBridge } from "@/renderer/bridge";
+import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 import { rememberHistoryContentOmissions } from "../historyDelivery";
 import { handleAgentVisionServerMessage } from "@/renderer/browser/agentVisionStream";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
@@ -49,17 +51,41 @@ import {
 } from "./eventRouting";
 import { clearRemoteGitState, syncRemoteGitStatePatch } from "./gitState";
 import { syncRemoteGitSummaries } from "./gitSummaries";
+import { isRemoteProjectSynced } from "./projectSync";
 import { cachedThreadIds } from "./rowReuse";
 import { remoteConnectionKey } from "./types";
+
+function isMainWindowSurface(): boolean {
+  if (!hasAnyClientBridge()) return true;
+  const kind = readBridge()?.windowKind;
+  return kind === undefined || kind === "main";
+}
 
 export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void {
   const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss } = ctx;
   const connectionKey = remoteConnectionKey(server);
   let socketSequenceFloor = ctx.resumeCursor;
+  let readyReplayCeiling = -1;
   /** Epoch this socket's `ready` reported; undefined from hosts without one. */
   let socketEpoch: string | undefined;
   /** This socket's `ready` proved a restart under a bound cursor. */
   let socketEpochChanged = false;
+
+  const shouldForwardRemoteUserNotification = (seq: number, event: unknown): boolean => {
+    if (seq <= readyReplayCeiling) return false;
+    if (!isMainWindowSurface()) return false;
+    const threadId = (event as { threadId?: unknown }).threadId;
+    const excluded = get().excludedProjectIds?.[connectionKey];
+    if (typeof threadId === "string" && excluded && excluded.length > 0) {
+      const knownThread = get().runtime[connectionKey]?.threads.find(
+        (thread) => thread.id === threadId,
+      );
+      if (knownThread && !isRemoteProjectSynced(knownThread.projectId, excluded)) {
+        return false;
+      }
+    }
+    return true;
+  };
 
   ctx.dispatchForwardEvent = (forward, sequence, omittedRuntimeThreadIds): void => {
     for (const threadId of supervisorEventThreadIds(forward)) {
@@ -160,6 +186,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
         return;
       }
       if (message.type === "ready") {
+        readyReplayCeiling = message.seq;
         noteReady(message.seq, message.epoch);
         return;
       }
@@ -243,6 +270,14 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
           releaseRemoteTerminal(terminalId);
         }
         let forward = filterRemoteThreadEvents(message.event, remoteThreadIds);
+        if (
+          forward !== null &&
+          typeof forward === "object" &&
+          (forward as { type?: unknown }).type === "remote-user-notification" &&
+          !shouldForwardRemoteUserNotification(message.seq, forward)
+        ) {
+          forward = null;
+        }
         if (forward !== null) {
           ctx.dispatchForwardEvent(forward, message.seq, message.omittedRuntimeThreadIds);
         } else if (

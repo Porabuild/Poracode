@@ -3,6 +3,14 @@ import type { SessionConfigOptions } from "@/shared/contracts/sessionConfigOptio
 import type { SessionRef, Thread, ThreadFollowUpQueueState } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
+import type { UserNotification } from "@/shared/threadNotification";
+
+const notificationMocks = vi.hoisted(() => ({
+  showUserNotification: vi.fn<(notification: UserNotification) => void>(),
+}));
+vi.mock("@/renderer/notifications", () => ({
+  showUserNotification: notificationMocks.showUserNotification,
+}));
 import { useAppStore } from "@/renderer/state/appStore";
 import type {
   OpenRuntimeRequest,
@@ -657,5 +665,43 @@ describe("remote forge activity events", () => {
     );
 
     expect(onForgeActivity).not.toHaveBeenCalled();
+  });
+});
+
+describe("remote user notification events", () => {
+  afterEach(() => {
+    notificationMocks.showUserNotification.mockReset();
+  });
+
+  it("forwards a parsed remote-user-notification event to showUserNotification", () => {
+    dispatchRemoteSupervisorEvent({
+      type: "remote-user-notification",
+      threadId: "remote:desk-1:thread:t1",
+      category: "done",
+      projectName: "Repo",
+      threadTitle: "Thread",
+      status: "finished",
+    });
+
+    expect(notificationMocks.showUserNotification).toHaveBeenCalledExactlyOnceWith({
+      threadId: "remote:desk-1:thread:t1",
+      category: "done",
+      projectName: "Repo",
+      threadTitle: "Thread",
+      status: "finished",
+    });
+  });
+
+  it("ignores a malformed remote-user-notification event", () => {
+    dispatchRemoteSupervisorEvent({
+      type: "remote-user-notification",
+      threadId: "",
+      category: "done",
+      projectName: "Repo",
+      threadTitle: "Thread",
+      status: "finished",
+    });
+
+    expect(notificationMocks.showUserNotification).not.toHaveBeenCalled();
   });
 });
