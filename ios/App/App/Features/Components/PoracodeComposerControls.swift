@@ -13,7 +13,7 @@ struct PoracodeComposerControls<Leading: View, Configuration: View, Voice: View,
   var body: some View {
     ComposerControlsLayout(minimumConfigurationWidth: minimumConfigurationWidth) {
       leading().frame(width: 44, height: 44)
-      configuration().frame(maxWidth: .infinity)
+      configuration().frame(maxWidth: .infinity, alignment: .leading)
       VStack(spacing: 0) { voice() }
       trailing().frame(width: 44, height: 44)
     }

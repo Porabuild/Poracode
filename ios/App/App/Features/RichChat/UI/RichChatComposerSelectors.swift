@@ -277,13 +277,17 @@ struct RichChatComposerSelectors: View {
       catalog.applyFastEdit(!fast, to: &next)
       propose(next)
     } label: {
-      controlLabel(HomeStrings.fast, systemImage: fast ? "bolt.fill" : "bolt", chevron: false)
-        .foregroundStyle(fast ? Color.yellow : .secondary)
+      Image(systemName: fast ? "bolt.fill" : "bolt")
+        .font(.caption.weight(.medium))
+        .foregroundStyle(fast ? Color.primary : Color.secondary)
+        .frame(width: 44, height: 44)
+        .contentShape(Rectangle())
     }
     .accessibilityLabel(HomeStrings.fast)
     .accessibilityValue(fast ? ProjectSettingsStrings.enabled : ProjectSettingsStrings.disabled)
     .accessibilityAddTraits(fast ? .isSelected : [])
     .accessibilityIdentifier("native-e2e.composer.fast")
+    .help(HomeStrings.fast)
   }
 
   private var permissionMenu: some View {
