@@ -427,10 +427,9 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     if (!current) return;
     server = current;
     const statusAfterRefresh = get().runtime[connectionKey]?.status;
-    if (statusAfterRefresh === "error") return;
     await startRemoteServerEventStream(server, initialTerminalCapabilities, {
       ...options,
-      ...(statusAfterRefresh !== "online" ? { deferInitialConnect: true } : {}),
+      ...(statusAfterRefresh === "offline" ? { deferInitialConnect: true } : {}),
     });
     if (statusAfterRefresh === "online") {
       checkHostUpdateInBackground(server);
