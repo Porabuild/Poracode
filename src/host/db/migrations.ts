@@ -8,7 +8,11 @@ import { migrateScheduleAutomation } from "./scheduleAutomationMigration";
 import { createConversationSearchSchema } from "./conversationSearchSchema";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
-import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
+import {
+  isAntigravityAgentKind,
+  normalizePersistedAntigravityModelSelection,
+  sanitizePersistedAntigravityContextUsage,
+} from "@/shared/agents/antigravity";
 import { repairDuplicateProjects } from "./projectDeduplication";
 import { HEAD_CHARS } from "./runtimeStreamCap";
 import { createRuntimeStreamHeadSchema } from "./runtimeStreamHeadSchema";
@@ -105,6 +109,27 @@ function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string
       config.contextSize = match[1]!.toLowerCase();
     }
     update.run(JSON.stringify(config), row.rowid);
+  }
+}
+
+function clearAntigravityPromptConsumptionContextUsage(sqlite: SqliteDatabase): void {
+  const rows = sqlite
+    .prepare(
+      `SELECT u.thread_id, u.usage, t.agent_kind
+       FROM thread_context_usage AS u
+       JOIN threads AS t ON t.id = u.thread_id`,
+    )
+    .all() as { thread_id: string; usage: string; agent_kind: string }[];
+  const update = sqlite.prepare("UPDATE thread_context_usage SET usage = ? WHERE thread_id = ?");
+  const remove = sqlite.prepare("DELETE FROM thread_context_usage WHERE thread_id = ?");
+  for (const row of rows) {
+    if (!isAntigravityAgentKind(row.agent_kind)) continue;
+    const sanitized = sanitizePersistedAntigravityContextUsage(row.usage);
+    if (sanitized.action === "update") {
+      update.run(sanitized.usage, row.thread_id);
+    } else if (sanitized.action === "delete") {
+      remove.run(row.thread_id);
+    }
   }
 }
 
@@ -1133,6 +1158,15 @@ export const DATABASE_MIGRATIONS = [
     // bump; catalog and history reads project the newly durable value.
     rollback: "rollback-compatible",
     migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "error_message", "TEXT"),
+  },
+  {
+    version: 75,
+    name: "clear Antigravity prompt-consumption context snapshots",
+    // Drops per-turn PromptResponse consumption that previously overwrote
+    // Antigravity thread_context_usage while retaining any valid window limit;
+    // remaining rows keep threadContextUsageSchema and bump history revisions.
+    rollback: "rollback-compatible",
+    migrate: clearAntigravityPromptConsumptionContextUsage,
   },
 ] as const satisfies readonly DatabaseMigration[];
 

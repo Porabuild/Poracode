@@ -17,6 +17,8 @@ const ANTIGRAVITY_ACP_PROBE_TIMEOUT_MS = 60_000;
 /** Personal Google OAuth is the default Chat sign-in; keep it first in the picker. */
 export const ANTIGRAVITY_DEFAULT_ACP_AUTH_METHOD_ID = "oauth-personal";
 export const ANTIGRAVITY_ACP_SESSION_BEHAVIOR = {
+  promptUsageCounterKind: "per-call",
+  promptUsageReportsContext: false,
   suppressOutputAfterInterrupt: true,
   suppressStderrLogging: true,
 } as const;

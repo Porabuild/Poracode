@@ -82,8 +82,9 @@ describe("database migration registry", () => {
       [72, "externalize inline runtime images"],
       [73, "durable thread history cache revisions"],
       [74, "retain thread failure explanations"],
+      [75, "clear Antigravity prompt-consumption context snapshots"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(74);
+    expect(LATEST_SCHEMA_VERSION).toBe(75);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -121,8 +122,8 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 74,
-      name: "retain thread failure explanations",
+      version: 75,
+      name: "clear Antigravity prompt-consumption context snapshots",
       rollback: "rollback-compatible",
     });
     // Migrations below the floor keep their reviewed defaults.
