@@ -44,6 +44,7 @@ import { createWireLabRuntime } from "./wireLabRuntime.ts";
 import { publishWireEvent, type WirePublishOptions } from "./wireLabPublish.ts";
 import { emitLabRequest } from "./frameEmit.ts";
 import { applyLabCheckpoint } from "./wireLabCheckpoints.ts";
+import { NewsFixture } from "./newsFixture.ts";
 
 export class WireLab {
   readonly auth = new LabAuthStore();
@@ -55,7 +56,8 @@ export class WireLab {
   readonly backgroundTasks = new BackgroundTaskLab();
   readonly workspace = new LabProcedureWorkspace(this.backgroundTasks);
   readonly lifecycle = new LabLifecycleState();
-  readonly routes = new LabRouteWorkspace(this.workspace.agentDiscovery);
+  readonly news = new NewsFixture();
+  readonly routes = new LabRouteWorkspace(this.workspace.agentDiscovery, this.news);
   readonly basePath: string;
 
   private readonly desktopId: string;
@@ -141,7 +143,7 @@ export class WireLab {
   }
 
   get wireAppVersion(): string {
-    return this.appVersion;
+    return this.news.enabled ? "1.10.0" : this.appVersion;
   }
 
   get connectionSet(): Set<LabConnection> {

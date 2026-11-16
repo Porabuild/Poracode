@@ -11,39 +11,26 @@ actor ChangelogDiskCache: ChangelogCaching {
   nonisolated static let formatVersion = 1
   nonisolated static let defaultDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
     .appendingPathComponent("PoracodeChangelog")
-  private struct Header: Decodable { let formatVersion: Int }
   private struct Envelope: Codable {
     let formatVersion: Int
     let document: ChangelogDocument
   }
-  private let directory: URL
-  private var file: URL { directory.appendingPathComponent("feed.json") }
+  private let storage: VersionedJSONCacheFile
 
-  init(directory: URL = ChangelogDiskCache.defaultDirectory) { self.directory = directory }
+  init(directory: URL = ChangelogDiskCache.defaultDirectory) {
+    storage = VersionedJSONCacheFile(file: directory.appendingPathComponent("feed.json"),
+      maximumBytes: ChangelogDocument.maximumBytes, formatVersion: Self.formatVersion)
+  }
 
   func read() -> ChangelogDocument? {
-    guard let data = boundedData(),
+    guard let data = storage.read(),
       let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
       envelope.formatVersion == Self.formatVersion else { return nil }
     return envelope.document
   }
 
   func write(_ document: ChangelogDocument) {
-    if FileManager.default.fileExists(atPath: file.path) {
-      guard let data = boundedData(), let header = try? JSONDecoder().decode(Header.self, from: data),
-        header.formatVersion == Self.formatVersion else { return }
-    }
-    guard let data = try? JSONEncoder().encode(Envelope(formatVersion: Self.formatVersion, document: document)),
-      data.count <= ChangelogDocument.maximumBytes else { return }
-    do {
-      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-      try data.write(to: file, options: .atomic)
-    } catch { /* A disposable public cache must not fail a successful refresh. */ }
-  }
-
-  private func boundedData() -> Data? {
-    guard let size = try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? NSNumber,
-      size.intValue <= ChangelogDocument.maximumBytes else { return nil }
-    return try? Data(contentsOf: file)
+    guard let data = try? JSONEncoder().encode(Envelope(formatVersion: Self.formatVersion, document: document)) else { return }
+    storage.write(data)
   }
 }

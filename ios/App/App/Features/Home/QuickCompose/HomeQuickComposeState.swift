@@ -62,6 +62,8 @@ final class HomeQuickComposeState {
   var hiddenModels: [String: [String]] = [:]
   let visibilityDocument: SettingsDocumentController
   let tools: ComposerToolsController
+  let newsHostData: HomeNewsHostData
+  let newsVisit = HomeNewsVisit()
   let crews: SavedCrewsController
   var crewRoster: CrewRosterDraft?
   var showingImporter = false
@@ -82,6 +84,7 @@ final class HomeQuickComposeState {
     lifecycle = session.makeThreadLifecycleController()
     mediaSuite = session.makeRichChatControllerSuite()
     fileMentionController = RichChatFileMentionController(session: session)
+    newsHostData = HomeNewsHostData(session: session)
     tools = ComposerToolsController(session: session)
     visibilityDocument = tools.document
     crews = SavedCrewsController(gateway: session.makeSettingsSessionGateway())

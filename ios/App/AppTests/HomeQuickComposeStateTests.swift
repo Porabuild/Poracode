@@ -131,7 +131,7 @@ final class HomeQuickComposeStateTests: XCTestCase {
     state.configuredConfiguration = ThreadLaunchConfiguration(model: "saved-model")
     state.presentationMode = .terminal
     state.fileMentions = ["src/saved.swift"]
-    let editor = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: state) { _ in }
+    let editor = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: state, onNewsAction: nil) { _ in }
     session.state.selectedConnectionId = ClientConnectionID()
     editor.normalizeProject()
     editor.normalizePresentationMode()
@@ -167,7 +167,7 @@ final class HomeQuickComposeStateTests: XCTestCase {
     let seed = HomeThreadLaunchSeed(fixedProjectID: "p1", initialAgentKind: "fixture",
       initialModelID: "pro", initialPrompt: "Use another provider", excludedAgentKind: "fixture")
     let draft = HomeQuickComposeState(session: session, launchSeed: seed)
-    let editor = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: draft) { _ in }
+    let editor = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: draft, onNewsAction: nil) { _ in }
     XCTAssertTrue(editor.availableAgents.isEmpty)
     XCTAssertNil(editor.selectedAgent)
   }
@@ -203,7 +203,7 @@ final class HomeQuickComposeStateTests: XCTestCase {
     ])))
     let draft = HomeQuickComposeState(session: session, initialProjectID: "p1")
     XCTAssertEqual(session.projects.map(\.id), ["p1"])
-    let editor = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: draft) { _ in }
+    let editor = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: draft, onNewsAction: nil) { _ in }
     return (session, draft, editor)
   }
 
@@ -568,7 +568,7 @@ final class HomeQuickComposeStateTests: XCTestCase {
     XCTAssertEqual(editor.effectiveConfiguration?.approvalPolicy, "never")
     XCTAssertEqual(editor.effectiveConfiguration?.contextSize, "256k")
     let fresh = HomeQuickComposeState(session: session, initialProjectID: "p1")
-    let next = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: fresh) { _ in }
+    let next = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: fresh, onNewsAction: nil) { _ in }
     XCTAssertNotEqual(next.effectiveConfiguration?.mode, "plan")
   }
 
@@ -615,7 +615,7 @@ final class HomeQuickComposeStateTests: XCTestCase {
     editor.composerControlsBinding.wrappedValue = selected
 
     let fresh = HomeQuickComposeState(session: session, initialProjectID: "p1")
-    let restored = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: fresh) { _ in }
+    let restored = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: fresh, onNewsAction: nil) { _ in }
     var expected = selected
     expected.mode = "agent"
     XCTAssertEqual(restored.effectiveConfiguration, ThreadLaunchConfiguration(expected))
@@ -646,7 +646,7 @@ final class HomeQuickComposeStateTests: XCTestCase {
     editor.composerControlsBinding.wrappedValue = old
     let fresh = HomeQuickComposeState(session: session, initialProjectID: "p1")
     XCTAssertNotNil(fresh.restoredSelection)
-    let restored = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: fresh) { _ in }
+    let restored = HomeQuickComposeView(session: session, isExpanded: .constant(true), draft: fresh, onNewsAction: nil) { _ in }
     var snapshot = try XCTUnwrap(session.state.snapshot)
     let serverChoice = try savedDraft(ThreadConfig(model: "pro-light", approvalPolicy: "review", sandboxMode: "project"))
     snapshot.projects[0].lastDraftConfig = serverChoice

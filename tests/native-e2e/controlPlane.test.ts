@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { collectSecretViolations } from "./harness/secrets.ts";
 import { controlRequest, startLab } from "./helpers/testClient.ts";
 import { resolveRouteSchemas } from "./harness/schemaValidation.ts";
+import { parseNewsFeed } from "../../src/shared/newsFeed.ts";
 
 const CONTROL_PATHS = [
   "/healthz",
@@ -10,6 +11,7 @@ const CONTROL_PATHS = [
   "/v1/faults/delay-token",
   "/v1/frames/event-thread-state",
   "/v1/checkpoints/seed-pairing",
+  "/v1/checkpoints/news-ready",
   "/v1/real/restart",
 ] as const;
 
@@ -19,6 +21,38 @@ describe("secret-free versioned control plane", () => {
   afterEach(async () => {
     await harness?.stop();
     harness = undefined;
+  });
+
+  it("serves anonymous public news while host facts stay opt-in and authenticated", async () => {
+    harness = await startLab();
+    const response = await fetch(new URL("/v1/fixtures/news.json", harness.controlUrl));
+    expect(response.status).toBe(200);
+    const document: unknown = await response.json();
+    expect(collectSecretViolations(document)).toEqual([]);
+    expect(parseNewsFeed(document)?.items.map((item) => item.id)).toEqual([
+      "native-public-update",
+      "native-crossagents",
+    ]);
+    expect(harness.lab.news.response("profile-core-stats")).toBeUndefined();
+    expect(harness.lab.wireAppVersion).toBe("native-e2e");
+    const prepared = await controlRequest(harness, "/v1/checkpoints/news-ready", {
+      method: "POST",
+    });
+    expect(prepared.status).toBe(200);
+    expect(harness.lab.wireAppVersion).toBe("1.10.0");
+    for (const route of ["profile-core-stats", "provider-usage"]) {
+      expect(
+        resolveRouteSchemas(route).responseSchema?.safeParse(harness.lab.news.response(route))
+          .success,
+      ).toBe(true);
+    }
+    expect(harness.lab.news.response("provider-usage")).toMatchObject({
+      snapshots: [{ status: "ok", windows: [{ id: "weekly", usedPercent: 93 }] }],
+      fromCache: false,
+    });
+    await controlRequest(harness, "/v1/reset", { method: "POST" });
+    expect(harness.lab.news.response("profile-core-stats")).toBeUndefined();
+    expect(harness.lab.wireAppVersion).toBe("native-e2e");
   });
 
   it("publishes composer capabilities only through its explicit checkpoint", async () => {

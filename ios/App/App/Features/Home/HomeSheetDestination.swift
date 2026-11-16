@@ -19,6 +19,7 @@ enum HomeSheetDestination: Identifiable, Hashable, Sendable {
   case usage
   case settings
   case settingsDestination(DeviceSettingsDestination)
+  case newsProjectGit(HomeProjectFilterOption)
   case remoteIntegrations
   case browserMirror
   /// Carries the lease that was current when the entry was tapped, so the
@@ -39,6 +40,7 @@ enum HomeSheetDestination: Identifiable, Hashable, Sendable {
     case .usage: "usage"
     case .settings: "settings"
     case .settingsDestination(let destination): "settings:\(destination.rawValue)"
+    case .newsProjectGit(let project): "news-git:\(project.id)"
     case .remoteIntegrations: "remoteIntegrations"
     case .browserMirror: "browserMirror"
     case .portForwarding(let lease):

@@ -20,6 +20,8 @@ struct HomeQuickComposeSessionView: View {
   }
 
   var body: some View {
-    HomeQuickComposeView(session: session, isExpanded: $isExpanded, draft: draft, onStarted: onStarted)
+    // Independent worktree and side-chat forms have no Home navigation owner.
+    HomeQuickComposeView(session: session, isExpanded: $isExpanded, draft: draft,
+      onNewsAction: nil, onStarted: onStarted)
   }
 }

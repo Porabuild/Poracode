@@ -107,7 +107,8 @@ struct SideChatContentView: View {
               .accessibilityIdentifier("native-e2e.side-chat.retry-original")
           }
         }
-        HomeQuickComposeView(session: session, isExpanded: $entry.composing, draft: entry.draft, showsContextHeader: false) {
+        HomeQuickComposeView(session: session, isExpanded: $entry.composing, draft: entry.draft,
+          showsContextHeader: false, onNewsAction: nil) {
           session.sideChats.started(entry, threadID: $0, session: session)
         }
           .disabled(entry.uncertain || entry.retrying)

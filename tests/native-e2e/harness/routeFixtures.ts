@@ -7,6 +7,7 @@ import { validateRouteRequest, type ValidatedRouteRequest } from "./requestValid
 import { FIXTURE_MEDIA_TICKET, schemaExample } from "./schemaExamples.ts";
 import { CREW_FIXTURE } from "./crewFixtures.ts";
 import type { AgentDiscoveryFixture } from "./agentDiscoveryFixture.ts";
+import type { NewsFixture } from "./newsFixture.ts";
 
 const PNG_1X1 = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -37,7 +38,10 @@ const MUTATION_FOLLOW_UPS: Readonly<Record<string, string>> = {
 };
 
 export class LabRouteWorkspace {
-  constructor(private readonly agentDiscovery?: AgentDiscoveryFixture) {}
+  constructor(
+    private readonly agentDiscovery?: AgentDiscoveryFixture,
+    private readonly news?: NewsFixture,
+  ) {}
   private settings: Record<string, unknown> | undefined;
   private readonly agentStatusesByIdentity = new Map<string, Record<string, unknown>>();
   private browserState = {
@@ -81,6 +85,7 @@ export class LabRouteWorkspace {
   }
 
   reset(): void {
+    this.news?.reset();
     this.settings = undefined;
     this.agentStatusesByIdentity.clear();
     this.browserState = { tabs: [], activeTabId: null };
@@ -92,6 +97,8 @@ export class LabRouteWorkspace {
   }
 
   response(routeId: string, input: ValidatedRouteRequest): unknown {
+    const news = this.news?.response(routeId);
+    if (news !== undefined) return news;
     const body = input.body as Record<string, unknown>;
     switch (routeId) {
       case "file-media-ticket":

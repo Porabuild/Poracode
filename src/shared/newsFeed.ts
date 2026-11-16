@@ -27,7 +27,8 @@ export const NEWS_FEED_MAX_ITEMS = 50;
 
 const NEWS_ITEM_KINDS = ["announcement", "community"] as const;
 export type NewsItemKindRemote = (typeof NEWS_ITEM_KINDS)[number];
-const NEWS_PLATFORMS = ["darwin", "win32", "linux", "web"] as const;
+// Additive v1 platform: older readers skip iOS-only items before any action.
+const NEWS_PLATFORMS = ["darwin", "win32", "linux", "web", "ios"] as const;
 export type NewsPlatform = (typeof NEWS_PLATFORMS)[number];
 
 const localizedText = (max: number) =>

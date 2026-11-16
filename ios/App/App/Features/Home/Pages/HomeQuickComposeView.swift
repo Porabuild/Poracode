@@ -10,6 +10,12 @@ struct HomeQuickComposeView: View {
   @Binding var isExpanded: Bool
   let showsContextHeader: Bool
   let onStarted: (String) -> Void
+  let onNewsAction: ((HomeNewsCardAction) -> Void)?
+  @Environment(\.locale) var newsLocale
+  @AppStorage(HomeNewsPreferences.enabledKey) var newsEnabled = true
+  @AppStorage(HomeNewsPreferences.activityKey) var newsActivity = true
+  var newsHostData: HomeNewsHostData { draft.newsHostData }
+  var newsVisit: HomeNewsVisit { draft.newsVisit }
   var launchSeed: HomeThreadLaunchSeed? { draft.launchSeed }
 
   @Bindable var draft: HomeQuickComposeState
@@ -17,13 +23,14 @@ struct HomeQuickComposeView: View {
   @State private var composerAvailableHeight: CGFloat = 0
 
   init(session: AppSession, isExpanded: Binding<Bool>, draft: HomeQuickComposeState, showsContextHeader: Bool = true,
-    onStarted: @escaping (String) -> Void
+    onNewsAction: ((HomeNewsCardAction) -> Void)?, onStarted: @escaping (String) -> Void
   ) {
     self.session = session
     _isExpanded = isExpanded
     _draft = Bindable(wrappedValue: draft)
     self.showsContextHeader = showsContextHeader
     self.onStarted = onStarted
+    self.onNewsAction = onNewsAction
   }
 
   var selectedProject: RemoteProject? {
@@ -89,6 +96,8 @@ struct HomeQuickComposeView: View {
         synchronizeFileMentions()
       }
       .task(id: settingsRefreshKey) { await reloadComposerSettings() }
+      .task(id: newsRefreshKey) { await refreshNews() }
+      .onChange(of: draft.prompt) { _, _ in newsVisit.noteTyping() }
       .onChange(of: canStart) { _, ready in
         if ready, launchSeed?.autoStart == true, !draft.didAutoStart {
           draft.didAutoStart = true

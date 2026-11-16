@@ -8,38 +8,21 @@ struct ChangelogHTTPClient: ChangelogLoading {
   static let feedURL = URL(string: "https://poracode.com/changelog.json")!
   static let releasesURL = URL(string: "https://github.com/Porabuild/Poracode/releases")!
   let url: URL
-  private let session: URLSession
+  private let client: PublicJSONClient
 
   init(url: URL = Self.feedURL, session: URLSession? = nil) {
     self.url = url
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.httpShouldSetCookies = false
-    configuration.httpCookieAcceptPolicy = .never
-    configuration.urlCredentialStorage = nil
-    configuration.urlCache = nil
-    // Request timeouts are idle timers; cap the entire public read as well.
-    configuration.timeoutIntervalForResource = 20
-    self.session = session ?? URLSession(configuration: configuration)
+    client = PublicJSONClient(url: url, maximumBytes: ChangelogDocument.maximumBytes, session: session)
   }
 
   func load() async throws -> ChangelogDocument {
-    var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
-    request.httpMethod = "GET"
-    request.setValue("application/json", forHTTPHeaderField: "Accept")
-    let (bytes, response) = try await session.bytes(for: request)
-    defer { bytes.task.cancel() }
-    guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode)
-    else { throw ChangelogFailure.response }
-    guard response.expectedContentLength <= ChangelogDocument.maximumBytes else {
+    do {
+      return try ChangelogDocument.parse(await client.load())
+    } catch PublicJSONFailure.response {
+      throw ChangelogFailure.response
+    } catch PublicJSONFailure.tooLarge {
       throw ChangelogFailure.invalidDocument
     }
-    var data = Data()
-    if response.expectedContentLength > 0 { data.reserveCapacity(Int(response.expectedContentLength)) }
-    for try await byte in bytes {
-      guard data.count < ChangelogDocument.maximumBytes else { throw ChangelogFailure.invalidDocument }
-      data.append(byte)
-    }
-    return try ChangelogDocument.parse(data)
   }
 
   static func makeDefault() -> Self {

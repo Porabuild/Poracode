@@ -37,6 +37,7 @@ import {
 } from "./nativeScenario.ts";
 import { parseScenarioAction } from "./nativeScenarioValidation.ts";
 import { PublicChangelogFixture } from "./publicChangelogFixture.ts";
+import type { NewsFixture } from "./newsFixture.ts";
 import {
   type NativeParityControl,
   parseAndValidateParityAction,
@@ -44,6 +45,7 @@ import {
 } from "./parityController.ts";
 
 export interface ControlPlane {
+  readonly news?: NewsFixture;
   readonly mode: HarnessMode;
   state(): LabState;
   activateFault(id: FaultFixtureId): void | HarnessBlocker;
@@ -121,6 +123,10 @@ export class ControlServer {
         const body = { ok: true };
         assertSecretFree(body, "/healthz");
         writeJson(res, 200, body);
+        return;
+      }
+      if (req.method === "GET" && url.pathname === "/v1/fixtures/news.json" && this.plane.news) {
+        writeJson(res, 200, this.plane.news.document);
         return;
       }
       // Model the publisher's unauthenticated GET without weakening any control route.
@@ -347,6 +353,7 @@ export function createMockControlPlane(
 ): ControlPlane {
   return {
     mode: "mock",
+    news: lab.news,
     state: () => ({
       mode: "mock",
       protocolVersion: lab.manifest.protocolVersion,

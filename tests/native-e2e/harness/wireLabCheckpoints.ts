@@ -11,6 +11,10 @@ import { modelVisibilityAgentEvents } from "./modelVisibilityFixtures.ts";
 
 /** Controlled stories stay separate from peer ownership and transport lifecycle. */
 export function applyLabCheckpoint(lab: WireLab, id: CheckpointFixtureId): void {
+  if (id === "news-ready") {
+    lab.news.prepare();
+    return;
+  }
   if (id === "agent-discovery-ready") {
     lab.workspace.agentDiscovery.prepare();
     return;

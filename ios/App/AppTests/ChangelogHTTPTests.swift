@@ -12,6 +12,7 @@ final class ChangelogHTTPTests: XCTestCase {
     XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "application/json")
     XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
     XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"))
+    XCTAssertNil(request.value(forHTTPHeaderField: "X-Host-Token"))
     XCTAssertEqual(request.timeoutInterval, 20)
     XCTAssertEqual(ChangelogHTTPClient.feedURL.absoluteString, "https://poracode.com/changelog.json")
   }
@@ -45,6 +46,7 @@ final class ChangelogHTTPTests: XCTestCase {
   private func client() -> ChangelogHTTPClient {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [ChangelogURLProtocol.self]
+    configuration.httpAdditionalHeaders = ["Authorization": "Bearer synthetic-fixture", "Cookie": "fixture=true", "X-Host-Token": "synthetic-fixture"]
     return ChangelogHTTPClient(url: URL(string: "https://changelog-fixture.invalid/feed")!,
       session: URLSession(configuration: configuration))
   }

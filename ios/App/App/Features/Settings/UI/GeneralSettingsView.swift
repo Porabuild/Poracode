@@ -29,6 +29,8 @@ struct GeneralSettingsView: View {
         .accessibilityIdentifier("native-e2e.settings.shortcuts")
       }
 
+      HomeNewsSettingsSection()
+
       Section {
         Button {
           guard let url = URL(string: UIApplication.openSettingsURLString) else { return }

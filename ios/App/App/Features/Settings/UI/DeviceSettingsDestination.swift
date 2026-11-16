@@ -81,7 +81,8 @@ struct DeviceSettingsDestinationView: View {
   @Bindable var session: AppSession
   let destination: DeviceSettingsDestination
 
-  @ViewBuilder var body: some View {
+  var body: some View {
+    Group {
     switch destination {
     case .profile: SettingsMoreRouteView(session: session, route: .profile)
     case .workspaces: HomeWorkspaceSettingsView(session: session)
@@ -100,6 +101,8 @@ struct DeviceSettingsDestinationView: View {
     case .connections: HostSwitcherView(session: session)
     case .changelog: ChangelogView()
     }
+    }
+    .onAppear { HomeNewsMemoryStore.shared.recordSignal("settings:\(destination.rawValue)") }
   }
 }
 

@@ -78,7 +78,7 @@ function readPoField(block, field) {
   return collecting ? value : undefined;
 }
 
-function parsePoMessages(poSource, description) {
+export function parsePoMessages(poSource, description) {
   const messages = new Map();
   for (const block of poSource.split(/\n{2,}/u)) {
     const id = readPoField(block, "msgid");

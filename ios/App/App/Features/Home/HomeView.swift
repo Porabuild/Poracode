@@ -472,7 +472,7 @@ struct HomeView: View {
     case .search, .connections, .workspaces:
       sheetContent(for: destination)
         .poracodeFormSheetSizing()
-    case .more, .projectManagement, .terminal, .usage, .settings, .settingsDestination, .pullRequests, .githubActions, .schedules,
+    case .more, .projectManagement, .terminal, .usage, .settings, .settingsDestination, .newsProjectGit, .pullRequests, .githubActions, .schedules,
       .remoteIntegrations, .browserMirror, .portForwarding:
       sheetContent(for: destination)
         .poracodePageSheetSizing()
@@ -540,6 +540,11 @@ struct HomeView: View {
       SettingsSessionView(session: session)
     case .settingsDestination(let destination):
       SettingsSessionView(session: session, destination: destination)
+    case .newsProjectGit(let option):
+      NavigationStack {
+        HomeProjectMenuDestinationView(session: session, destination: .gitChanges(option))
+          .toolbar { ToolbarItem(placement: .cancellationAction) { Button(SettingsUIStrings.done) { sheetDestination = nil } } }
+      }
     case .remoteIntegrations:
       RemoteIntegrationsSessionView(session: session)
     case .browserMirror:
@@ -685,7 +690,14 @@ struct HomeView: View {
       }
     })
     return HomeQuickComposeView(session: session, isExpanded: expansion,
-      draft: draft) { threadID in
+      draft: draft, onNewsAction: { action in
+        guard context == homeComposeContext else { return }
+        let project = projectFilterOptions.first { $0.connectionID == context.connectionID && $0.project.id == draft.projectID }
+        guard let destination = HomeNewsNavigation.destination(action, project: project) else { return }
+        draft.promptFocused = false
+        composerExpanded = false
+        openSidebarSheet(destination)
+      }) { threadID in
       quickComposeStore.discard(context, matching: draft)
       guard context == homeComposeContext, let connectionID = context.connectionID else { return }
       presentThread(ThreadRoute(id: CompositeRemoteID(connectionId: connectionID, remoteId: threadID),

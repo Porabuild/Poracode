@@ -2,8 +2,13 @@ import SwiftUI
 
 extension HomeQuickComposeView {
   var composerSurface: some View {
+    VStack(spacing: 6) {
     HomeComposerSurface(isExpanded: isExpanded) {
       if isExpanded { expandedSurface } else { compactSurface }
+    }
+      if showsNews {
+        newsLine
+      }
     }
   }
 

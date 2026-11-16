@@ -59,6 +59,7 @@ export const FRAME_FIXTURE_IDS = [
 export type FrameFixtureId = (typeof FRAME_FIXTURE_IDS)[number];
 
 export const CHECKPOINT_FIXTURE_IDS = [
+  "news-ready",
   "changelog-good",
   "changelog-updated",
   "changelog-error",
