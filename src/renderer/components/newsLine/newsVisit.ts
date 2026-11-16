@@ -1,10 +1,12 @@
 import { useState } from "react";
 import type { HighlightHistory } from "@/shared/changelogHighlights";
 import { useNewsLineStore, type DiscoveryHistory } from "@/renderer/state/newsLineStore";
+import { createInitialNewsStream, type NewsStreamState } from "./newsPlaylist";
 
 /** The item on screen, and its index for when that item leaves the rotation. */
 export interface NewsCursor {
   id: string | null;
+  slotKey: string | null;
   index: number;
 }
 
@@ -22,9 +24,13 @@ export interface NewsVisit {
   readonly discoveryHistory: DiscoveryHistory;
   /** The item last on screen. */
   onScreen: NewsCursor;
+  /** Highest index viewed during this visit (locks viewed history against tail updates). */
+  highestViewedIndex: number;
   paused: boolean;
   /** Items whose showing already counted this visit. */
   readonly counted: Set<string>;
+  /** Prepared stream state so a remount resumes the same infinite sequence. */
+  stream: NewsStreamState;
 }
 
 // Only the full-page draft shows the line and `draftVisit` only grows, so one
@@ -34,14 +40,17 @@ let remembered: { key: number; visit: NewsVisit } | null = null;
 
 function startVisit(): NewsVisit {
   const { highlightHistory, discoveryHistory } = useNewsLineStore.getState();
+  const seed = Math.floor(Math.random() * 2 ** 32);
   return {
-    seed: Math.floor(Math.random() * 2 ** 32),
+    seed,
     startedAt: Date.now(),
     highlightHistory,
     discoveryHistory,
-    onScreen: { id: null, index: 0 },
+    onScreen: { id: null, slotKey: null, index: 0 },
+    highestViewedIndex: 0,
     paused: false,
     counted: new Set(),
+    stream: createInitialNewsStream(seed),
   };
 }
 
@@ -65,10 +74,24 @@ export function useNewsVisit(key: number | undefined): NewsVisit {
  * Records the item on screen; false when it already was, as after a remount,
  * so it needs no entrance.
  */
-export function recordOnScreen(visit: NewsVisit, id: string, index: number): boolean {
-  const entering = visit.onScreen.id !== id;
-  visit.onScreen = { id, index };
+export function recordOnScreen(
+  visit: NewsVisit,
+  id: string,
+  index: number,
+  slotKey?: string | null,
+): boolean {
+  const nextSlotKey = slotKey ?? id;
+  const entering =
+    visit.onScreen.slotKey !== null
+      ? visit.onScreen.slotKey !== nextSlotKey
+      : visit.onScreen.id !== id;
+  visit.onScreen = { id, slotKey: nextSlotKey, index };
+  if (index > visit.highestViewedIndex) visit.highestViewedIndex = index;
   return entering;
+}
+
+export function rememberStream(visit: NewsVisit, stream: NewsStreamState): void {
+  visit.stream = stream;
 }
 
 /** True only the first time the visit shows an item, so each showing counts once. */

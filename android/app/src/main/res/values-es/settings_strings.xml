@@ -134,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">Tokens por proveedor</string>
     <string name="settings_profile_tokens_by_provider_empty">No hay datos de uso de tokens por proveedor disponibles.</string>
     <string name="settings_profile_provider_cost">Costo estimado</string>
+    <string name="settings_profile_trends">Reciente y tendencias</string>
+    <string name="settings_profile_yesterday">Ayer</string>
+    <string name="settings_profile_last_7d">Últimos 7 días</string>
+    <string name="settings_profile_avg_task_duration">Duración media de tarea</string>
+    <string name="settings_profile_prompt_cache_hit">Acierto de caché de prompts</string>
+    <string name="settings_profile_weekend_share">Cuota de fin de semana</string>
+    <string name="settings_profile_switched_provider">Cambio de proveedor</string>
+    <string name="settings_profile_switched_model">Cambio de modelo</string>
+    <string name="settings_profile_provider_less">%1$s bajó %2$d%% esta semana</string>
+    <string name="settings_profile_provider_more">%1$s subió %2$d%% esta semana</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s prompts</string>
 </resources>

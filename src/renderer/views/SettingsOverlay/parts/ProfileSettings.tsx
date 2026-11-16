@@ -245,6 +245,9 @@ export function ProfileSettings() {
                 <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
                   <ActivityInsights
                     core={core}
+                    tokens={tokens}
+                    envs={data.envSummaries ?? []}
+                    window={data.selection.window}
                     loading={corePending}
                     className="sm:col-span-2"
                     skillsAvailable={!core?.incompleteDetails?.skills}

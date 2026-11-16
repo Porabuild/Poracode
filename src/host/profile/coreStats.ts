@@ -6,7 +6,10 @@ import {
   type ProfileBreakdownEntry,
   type ProfileCoreStats,
   type ProfileDevice,
+  type ProfileHourBucket,
   type ProfileInsights,
+  type ProfilePeriodSnapshot,
+  type ProfileRecentActivity,
   type ProfileSkillUsage,
   type ProfileStatsRequest,
   type ProfileTotals,
@@ -181,6 +184,7 @@ interface CoreDailyProviderBucket {
   goalsSet: number;
   totalTurns: number;
   longestTaskMs: number;
+  totalTurnMs: number;
   hourCounts: Map<number, number>;
   modelCounts: Map<string, number>;
   fastTurns: number;
@@ -205,6 +209,7 @@ function emptyDailyBucket(dayIndex: number, provider: string | null): CoreDailyP
     goalsSet: 0,
     totalTurns: 0,
     longestTaskMs: 0,
+    totalTurnMs: 0,
     hourCounts: new Map(),
     modelCounts: new Map(),
     fastTurns: 0,
@@ -290,7 +295,9 @@ function applyCoreEventRows(
       }
       case "turn": {
         bucket.totalTurns++;
-        if (row.value > bucket.longestTaskMs) bucket.longestTaskMs = row.value;
+        const turnMs = Math.max(0, row.value);
+        if (turnMs > bucket.longestTaskMs) bucket.longestTaskMs = turnMs;
+        bucket.totalTurnMs += turnMs;
         addCount(bucket.hourCounts, localHour(row.ts, offset), 1);
         if (row.model) {
           addCount(bucket.modelCounts, modelKey(row.provider, row.model), 1);
@@ -487,6 +494,140 @@ interface CoreCacheEntry {
 let coreCacheGeneration = -1;
 const coreCache = new Map<string, CoreCacheEntry>();
 
+function isWeekendDayIndex(dayIndex: number): boolean {
+  const dayOfWeek = new Date(dayIndex * 86_400_000).getUTCDay();
+  return dayOfWeek === 0 || dayOfWeek === 6;
+}
+
+function sparseHours(hourCounts: Map<number, number>): ProfileHourBucket[] {
+  return [...hourCounts.entries()]
+    .filter(([, count]) => count > 0)
+    .sort((a, b) => a[0] - b[0])
+    .map(([hour, count]) => ({ hour, count }));
+}
+
+interface CorePeriodAccumulator {
+  days: number;
+  startIndex: number;
+  endIndex: number;
+  activeDays: Set<number>;
+  threads: number;
+  prompts: number;
+  messages: number;
+  goals: number;
+  longestTaskMs: number;
+  totalTurnMs: number;
+  fastTurns: number;
+  effortTurns: number;
+  skillsUsed: number;
+  workflowRuns: number;
+  subagentRuns: number;
+  mcpToolCalls: number;
+  weekdayPrompts: number;
+  weekendPrompts: number;
+  providerCounts: Map<string, number>;
+  modelCounts: Map<string, number>;
+  modeCounts: Map<string, number>;
+  effortCounts: Map<string, number>;
+  hourCounts: Map<number, number>;
+  skillCounts: Map<string, number>;
+  mcpCounts: Map<string, number>;
+  aiActions: AiActionAccumulator;
+}
+
+function createPeriodAccumulator(startIndex: number, endIndex: number): CorePeriodAccumulator {
+  return {
+    days: endIndex - startIndex + 1,
+    startIndex,
+    endIndex,
+    activeDays: new Set(),
+    threads: 0,
+    prompts: 0,
+    messages: 0,
+    goals: 0,
+    longestTaskMs: 0,
+    totalTurnMs: 0,
+    fastTurns: 0,
+    effortTurns: 0,
+    skillsUsed: 0,
+    workflowRuns: 0,
+    subagentRuns: 0,
+    mcpToolCalls: 0,
+    weekdayPrompts: 0,
+    weekendPrompts: 0,
+    providerCounts: new Map(),
+    modelCounts: new Map(),
+    modeCounts: new Map(),
+    effortCounts: new Map(),
+    hourCounts: new Map(),
+    skillCounts: new Map(),
+    mcpCounts: new Map(),
+    aiActions: new Map(),
+  };
+}
+
+function addBucketToPeriod(acc: CorePeriodAccumulator, bucket: CoreDailyProviderBucket): void {
+  if (bucket.dayIndex < acc.startIndex || bucket.dayIndex > acc.endIndex) return;
+  acc.threads += bucket.totalThreads;
+  mergeCountMap(acc.modeCounts, bucket.modeCounts);
+  acc.messages += bucket.messagesSent;
+  acc.goals += bucket.goalsSet;
+  if (bucket.totalTurns > 0) {
+    acc.prompts += bucket.totalTurns;
+    if (bucket.longestTaskMs > acc.longestTaskMs) acc.longestTaskMs = bucket.longestTaskMs;
+    acc.totalTurnMs += bucket.totalTurnMs;
+    acc.activeDays.add(bucket.dayIndex);
+    if (isWeekendDayIndex(bucket.dayIndex)) acc.weekendPrompts += bucket.totalTurns;
+    else acc.weekdayPrompts += bucket.totalTurns;
+    for (const [hour, count] of bucket.hourCounts) {
+      acc.hourCounts.set(hour, (acc.hourCounts.get(hour) ?? 0) + count);
+    }
+    if (bucket.provider) {
+      addCount(acc.providerCounts, baseAgentKind(bucket.provider), bucket.totalTurns);
+    }
+    mergeCountMap(acc.modelCounts, bucket.modelCounts);
+    acc.fastTurns += bucket.fastTurns;
+    acc.effortTurns += bucket.effortTurns;
+    mergeCountMap(acc.effortCounts, bucket.effortCounts);
+  }
+  mergeCountMap(acc.skillCounts, bucket.skillCounts);
+  acc.skillsUsed += bucket.totalSkillsUsed;
+  acc.workflowRuns += bucket.workflowRuns;
+  acc.subagentRuns += bucket.subagentRuns;
+  acc.mcpToolCalls += bucket.mcpToolCalls;
+  mergeCountMap(acc.mcpCounts, bucket.mcpCounts);
+  mergeAiActions(acc.aiActions, bucket.aiActions);
+}
+
+function finalizePeriodSnapshot(acc: CorePeriodAccumulator): ProfilePeriodSnapshot {
+  return {
+    days: acc.days,
+    activeDays: acc.activeDays.size,
+    threads: acc.threads,
+    prompts: acc.prompts,
+    messages: acc.messages,
+    goals: acc.goals,
+    longestTaskMs: acc.longestTaskMs,
+    totalTurnMs: acc.totalTurnMs,
+    fastTurns: acc.fastTurns,
+    effortTurns: acc.effortTurns,
+    skillsUsed: acc.skillsUsed,
+    workflowRuns: acc.workflowRuns,
+    subagentRuns: acc.subagentRuns,
+    mcpToolCalls: acc.mcpToolCalls,
+    weekdayPrompts: acc.weekdayPrompts,
+    weekendPrompts: acc.weekendPrompts,
+    providers: rank(acc.providerCounts, providerLabel, acc.prompts),
+    models: rank(acc.modelCounts, modelLabel, acc.prompts),
+    modes: rank(acc.modeCounts, (m) => (m === "chat" ? "Chat" : "CLI"), acc.threads),
+    efforts: rank(acc.effortCounts, (e) => titleCase(e), acc.effortTurns),
+    hours: sparseHours(acc.hourCounts),
+    skills: topSkillsByCount(acc.skillCounts, "skill", (n) => n),
+    mcps: topSkillsByCount(acc.mcpCounts, "mcp", mcpServerLabel),
+    aiActions: finalizeAiActions(acc.aiActions),
+  };
+}
+
 function assembleCoreStatsFromRollup(
   rollup: CoreRollupCache,
   currentDevice: ProfileDevice,
@@ -507,6 +648,13 @@ function assembleCoreStatsFromRollup(
 
   const windowDays = statsWindowDays(req.window);
   const startIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;
+  const recentCutoff = todayIndex - 59;
+  const periodToday = createPeriodAccumulator(todayIndex, todayIndex);
+  const periodYesterday = createPeriodAccumulator(todayIndex - 1, todayIndex - 1);
+  const periodLast7d = createPeriodAccumulator(todayIndex - 6, todayIndex);
+  const periodPrev7d = createPeriodAccumulator(todayIndex - 13, todayIndex - 7);
+  const periodLast30d = createPeriodAccumulator(todayIndex - 29, todayIndex);
+  const periodPrev30d = createPeriodAccumulator(todayIndex - 59, todayIndex - 30);
 
   const modeCounts = new Map<string, number>();
   let totalThreads = 0;
@@ -536,6 +684,14 @@ function assembleCoreStatsFromRollup(
 
   for (const bucket of rollup.buckets.values()) {
     if (req.provider && bucket.provider !== req.provider) continue;
+    if (bucket.dayIndex >= recentCutoff && bucket.dayIndex <= todayIndex) {
+      addBucketToPeriod(periodToday, bucket);
+      addBucketToPeriod(periodYesterday, bucket);
+      addBucketToPeriod(periodLast7d, bucket);
+      addBucketToPeriod(periodPrev7d, bucket);
+      addBucketToPeriod(periodLast30d, bucket);
+      addBucketToPeriod(periodPrev30d, bucket);
+    }
     if (
       startIndex !== undefined &&
       (bucket.dayIndex < startIndex || bucket.dayIndex > todayIndex)
@@ -627,6 +783,16 @@ function assembleCoreStatsFromRollup(
     mcpToolCalls,
   };
 
+  const recent: ProfileRecentActivity = {
+    today: finalizePeriodSnapshot(periodToday),
+    yesterday: finalizePeriodSnapshot(periodYesterday),
+    last7d: finalizePeriodSnapshot(periodLast7d),
+    prev7d: finalizePeriodSnapshot(periodPrev7d),
+    last30d: finalizePeriodSnapshot(periodLast30d),
+    prev30d: finalizePeriodSnapshot(periodPrev30d),
+    windowHours: sparseHours(hourCounts),
+  };
+
   return {
     scope: req.scope ?? "device",
     device: currentDevice,
@@ -644,6 +810,7 @@ function assembleCoreStatsFromRollup(
     mcps,
     aiActions: finalizeAiActions(aiActionsByType),
     availableAccounts,
+    recent,
   };
 }
 

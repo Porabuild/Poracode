@@ -89,6 +89,11 @@ msgstr "{0, plural, one {İçeriği olmadan listelenen # dosya} other {İçeriğ
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# dosya} other {# dosya}}"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0, plural, one {# highlight} other {# highlights}}"
+msgstr "{0, plural, one {# öne çıkan} other {# öne çıkan}}"
+
 #. placeholder {0}: groupRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
@@ -518,6 +523,12 @@ msgstr "{0}, Çalışıyor"
 msgid "{0}: {stateLabel}"
 msgstr "{0}: {stateLabel}"
 
+#. placeholder {0}: currentPeriod.activeDays
+#. placeholder {1}: currentPeriod.days
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}/{1} active days"
+msgstr "{0}/{1} aktif gün"
+
 #. placeholder {0}: selectedRows.length
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
@@ -526,6 +537,11 @@ msgstr "{0}: {stateLabel}"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1} seçildi"
+
+#. placeholder {0}: insights.fastModePercent
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}% fast"
+msgstr "{0}% hızlı"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -561,6 +577,10 @@ msgstr "{agentLead} devam etmek için girişinizi bekliyor."
 msgid "{commentCount, plural, one {# comment} other {# comments}}"
 msgstr "{commentCount, plural, one {# yorum} other {# yorum}}"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{commits} commits"
+msgstr "{commits} commit"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 #~ msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
@@ -570,6 +590,10 @@ msgstr "{commentCount, plural, one {# yorum} other {# yorum}}"
 #~ msgid "{completedSteps} of {0} steps"
 #~ msgstr "{completedSteps}/{0} adım tamamlandı"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{conflicts} conflicts"
+msgstr "{conflicts} çakışma"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# yorum veya inceleme} other {# yorum ve inceleme}}"
@@ -578,11 +602,27 @@ msgstr "{commentCount, plural, one {# yorum} other {# yorum}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# aracı bulundu} other {# aracı bulundu}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week"
+msgstr "Bu hafta {count, plural, one {# alt ajan çalıştırması} other {# alt ajan çalıştırması}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (-{deltaPercent}%)"
+msgstr "Bu hafta {count, plural, one {# alt ajan çalıştırması} other {# alt ajan çalıştırması}} (-%{deltaPercent})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (+{deltaPercent}%)"
+msgstr "Bu hafta {count, plural, one {# alt ajan çalıştırması} other {# alt ajan çalıştırması}} (+%{deltaPercent})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
+msgstr "Bu hafta {count, plural, one {# workflow çalıştırması} other {# workflow çalıştırması}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
 msgstr "{current, plural, one {# gün} other {# gün}} üst üste · rekorunuz {longest}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
 msgstr "{current, plural, one {# gün} other {# gün}} üst üste · şimdiye kadarki en iyi seriniz"
 
@@ -776,6 +816,10 @@ msgstr "{0} kontrolün {passed} tanesi başarılı"
 msgid "{percent}% full"
 msgstr "%{percent} dolu"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{percent}% of your threads this week used {modeLabel} mode"
+msgstr "Bu hafta konuşmalarınızın %{percent} kadarı {modeLabel} modundaydı"
+
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "{percent}% used"
 msgstr "%{percent} kullanıldı"
@@ -801,13 +845,17 @@ msgstr "{targetLabel} üzerindeki {projectName} bir Git deposu değil, bu nedenl
 msgid "{projectName} Settings"
 msgstr "{projectName} Ayarları"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
 msgstr "Bu hafta {prompts, plural, one {# istem} other {# istem}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
 msgstr "Bu hafta {prompts, plural, one {# istem} other {# istem}} · en yoğun gün: {weekday}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{promptsText} total prompts across {threadsText} threads"
+msgstr "{threadsText} konuşmada toplam {promptsText} istem"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -825,6 +873,10 @@ msgstr "{provider} tek seferlik üretimi desteklemiyor"
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{provider} does not support text-only one-shot generation"
 #~ msgstr "{provider} yalnızca metin içeren tek seferlik üretimi desteklemiyor"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{prs} PRs"
+msgstr "{prs} PR"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -935,6 +987,10 @@ msgstr "{totalCount} öğeden {visibleCount} tanesi görünür"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "{visibleSidebarShortcutCount}/{0} selected"
 #~ msgstr "{visibleSidebarShortcutCount}/{0} seçildi"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{weekdayPct}% Mon–Fri"
+msgstr "%{weekdayPct} Pzt–Cum"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -1071,7 +1127,15 @@ msgstr "<0/> bir inceleme konusu başlattı"
 msgid "<0/>% Full"
 msgstr "%<0/> Dolu"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envA}</0> leaned {providerA} while <1>{envB}</1> leaned {providerB} this week"
+msgstr "Bu hafta <0>{envA}</0> daha çok {providerA}, <1>{envB}</1> ise {providerB} kullandı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envLabel}</0> ran {percent}% of your prompts this week"
+msgstr "Bu hafta istemlerinizin %{percent} kadarı <0>{envLabel}</0> üzerinde çalıştı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "<0>{label}</0> handles {percent}% of your prompts"
 msgstr "İstemlerinizin %{percent} kadarını <0>{label}</0> karşılıyor"
 
@@ -1412,6 +1476,10 @@ msgstr "{0} bağlantı noktası için eylemler"
 msgid "Active"
 msgstr "Aktif"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Active {activeDays} of the last {totalDays} days"
+msgstr "Son {totalDays} günün {activeDays} günü aktif"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "Etkin yönlendirmeler"
@@ -1419,6 +1487,10 @@ msgstr "Etkin yönlendirmeler"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Active today"
 msgstr "Bugün etkin"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Active yesterday"
+msgstr "Dün aktifti"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
@@ -1435,9 +1507,23 @@ msgstr "Etkinlik öne çıkanları"
 msgid "Activity insights"
 msgstr "Etkinlik içgörüleri"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is down {percent}% this week · {current} vs {previous} prompts"
+msgstr "Bu hafta etkinlik %{percent} azaldı · {current} / {previous} istem"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is up {percent}% this week · {current} vs {previous} prompts"
+msgstr "Bu hafta etkinlik %{percent} arttı · {current} / {previous} istem"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity metric"
 msgstr "Etkinlik metriği"
+
+#. placeholder {0}: f.envLabel
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity on <0>{0}</0> jumped {1}% this week"
+msgstr "Bu hafta <0>{0}</0> üzerindeki etkinlik %{1} arttı"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
@@ -1886,6 +1972,10 @@ msgstr "Agentlar devredilen işi görev etiketleriyle sınıflandırır. Manuel 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "Aracılar devredilen işleri görev etiketleriyle sınıflandırır. Eşleşen öğrenilmiş rotalar ilk sırada yer alır; ardından genel Crossagents kullanımı, favoriler, normal aracı kullanımı ve yerleşik sıra gelir."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Agents shipped {summary} this week"
+msgstr "Ajanlar bu hafta {summary} tamamladı"
 
 #: src/renderer/components/providers/antigravity/index.tsx
 msgid "agy CLI"
@@ -2746,6 +2836,15 @@ msgstr "Avatar rengi"
 msgid "Avatar color {color}"
 msgstr "Avatar rengi {color}"
 
+#. placeholder {0}: formatDuration(avgTurnMs)
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "avg {0}"
+msgstr "ort. {0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Avg task duration"
+msgstr "Ort. görev süresi"
+
 #: src/renderer/views/PullRequestsOverlay/summary/RailMergeStatus.tsx
 msgid "Awaiting a required review."
 msgstr "Zorunlu bir inceleme bekleniyor."
@@ -3222,6 +3321,10 @@ msgstr "İş ve finans"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Business and operations"
 msgstr "İş ve operasyonlar"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Busy day yesterday · {prompts} prompts ({multiplier}x your daily average)"
+msgstr "Dün yoğun geçti · {prompts} istem (günlük ortalamanızın {multiplier} katı)"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #~ msgid "by <0>{author}</0>"
@@ -6681,22 +6784,23 @@ msgstr "Bu makinedeki ajanları algıla"
 #~ msgstr "Proje dosyalarından algıla"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "Algılanan"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "Algılandı <0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "Algılandı <0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "<0>(yerel)</0> algılandı"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "<0>(yerel)</0> algılandı"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "Algılandı <0>{0}</0>"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "Algılandı <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -7397,6 +7501,10 @@ msgstr "Her depo girdisi 1–512 karakter olmalı ve kontrol karakteri içermeme
 msgid "Earlier text"
 msgstr "Önceki metin"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
+msgstr "Erken kalkan: Son istemlerinizin %{percent} kadarı 10:00 öncesiydi"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7877,6 +7985,10 @@ msgstr "Tahminler, tam model kimlikleri için standart API hızındaki tarihli v
 msgid "Evaluate the result after every iteration."
 msgstr "Her yinelemeden sonra sonucu değerlendirin."
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Evening builder: {percent}% of your recent prompts ran 6–10 PM"
+msgstr "Akşam geliştiricisi: Son istemlerin %{percent} kadarı 18–22 arasındaydı"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
 msgstr "Olay"
@@ -8336,6 +8448,14 @@ msgstr "Bu eşleştirme için hızlı mod kullanılamıyor"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "Hızlı mod"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode powered {percent}% of your turns this week"
+msgstr "Bu hafta turlarınızın %{percent} kadarında hızlı mod kullanıldı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode ran on {percent}% of turns this week (was {prevPercent}%)"
+msgstr "Bu hafta hızlı mod oranı %{percent} (önceki %{prevPercent})"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
@@ -10184,8 +10304,8 @@ msgid "Install and restart"
 msgstr "Yükle ve yeniden başlat"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "Uzak makinelerde kurulum ve oturum açma henüz kullanılamıyor."
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "Uzak makinelerde kurulum ve oturum açma henüz kullanılamıyor."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10279,8 +10399,8 @@ msgstr "{executionHost} üzerine GitHub CLI (gh) yükleyip yeniden deneyin."
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "{0} ortamına yükle"
+#~ msgid "Install in {0}"
+#~ msgstr "{0} ortamına yükle"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10304,8 +10424,8 @@ msgstr "Önce yerel sağlayıcıları yükleyin; ek protokol aracıları için A
 #~ msgstr "{env} üzerine kur"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Windows'a yükleyin"
+#~ msgid "Install on Windows"
+#~ msgstr "Windows'a yükleyin"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -10716,6 +10836,14 @@ msgstr "Büyük"
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Largest"
 msgstr "En büyük"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 30 days"
+msgstr "Son 30 gün"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 7 days"
+msgstr "Son 7 gün"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11199,8 +11327,8 @@ msgid "Loading…"
 msgstr "Yükleniyor…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "yerel"
+#~ msgid "local"
+#~ msgstr "yerel"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11297,8 +11425,8 @@ msgstr "Giriş yapmak"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "Giriş {0}"
+#~ msgid "Login {0}"
+#~ msgstr "Giriş {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -12327,6 +12455,10 @@ msgstr "En çok kullanılan sağlayıcı"
 msgid "Most used reasoning"
 msgstr "En çok kullanılan akıl yürütme"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Most-used MCP this week: <0>{name}</0> ({count, plural, one {# call} other {# calls}})"
+msgstr "Bu hafta en çok kullanılan MCP: <0>{name}</0> ({count, plural, one {# çağrı} other {# çağrı}})"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Motion"
 msgstr "Hareket"
@@ -12878,6 +13010,10 @@ msgstr "Sonraki gönderilen mesaj"
 msgid "Next tab"
 msgstr "Sonraki sekme"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Night owl: {percent}% of your recent prompts ran after 10 PM"
+msgstr "Gece kuşu: Son istemlerinizin %{percent} kadarı 22:00 sonrasıydı"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
 msgstr "Etkin tarayıcı sekmesi yok"
@@ -13350,6 +13486,10 @@ msgstr "Henüz proje yok."
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "İstem yok"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "No prompts yesterday"
+msgstr "Dün istem yok"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
@@ -14456,6 +14596,18 @@ msgstr "Bu görev için çıktı kullanılamıyor."
 msgid "Over pace — runs out early"
 msgstr "Aşırı tempo — erken biter"
 
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% less"
+msgstr "Son 30 günde <0>{0}</0> kullanımınız %{1} azaldı"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% more"
+msgstr "Son 30 günde <0>{0}</0> kullanımınız %{1} arttı"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Overall feedback"
 msgstr "Genel geri bildirim"
@@ -14825,6 +14977,11 @@ msgstr "Bu Mac'in kilidini elle açana kadar duraklatıldı"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "PDF önizlemesi tarayıcıda açılır."
+
+#. placeholder {0}: insights.mostActiveHour.label
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Peak {0}"
+msgstr "Zirve {0}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
@@ -15718,20 +15875,44 @@ msgstr "{0} içindeki projeler {1} alanına taşınır. Hiçbir proje silinmez."
 msgid "Promoting this profile into the owned data root…"
 msgstr "Bu profil, kendi veri köküne taşınıyor…"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompt"
+msgstr "istem"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Prompt"
 msgstr "İstem"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Prompt cache hit"
+msgstr "İstem önbellek isabeti"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompt caching covered {percent}% of your input tokens this week"
+msgstr "Bu hafta girdi tokenlarının %{percent} kadarı önbellekten karşılandı"
+
 #: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 msgid "Prompt navigation"
 msgstr "İstem gezintisi"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompts"
+msgstr "istem"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "İstemler"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts dipped {percent}% over the last 30 days"
+msgstr "Son 30 günde istemler %{percent} azaldı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts rose {percent}% over the last 30 days"
+msgstr "Son 30 günde istemler %{percent} arttı"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -18886,6 +19067,11 @@ msgstr "Ajan keşfini göster"
 msgid "Show all"
 msgstr "Tümünü göster"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show all {0} insights"
+msgstr "Tüm {0} analizi göster"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "Yer imi çubuğunu göster"
@@ -18951,6 +19137,10 @@ msgstr "Tahmini maliyeti göster"
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Daha az göster"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show fewer insights"
+msgstr "Daha az analiz göster"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19409,6 +19599,14 @@ msgstr "En küçük"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Snapshots"
 msgstr "Anlık görüntüler"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "Bugün şimdiye kadar: {prompts, plural, one {# istem} other {# istem}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}} · mostly {topProvider}"
+msgstr "Bugün şimdiye kadar: {prompts, plural, one {# istem} other {# istem}} · çoğunlukla {topProvider}"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -20354,6 +20552,18 @@ msgstr "Görev çıkışı"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Task tags"
 msgstr "Görev etiketleri"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week"
+msgstr "Bu hafta görevler ortalama {duration} sürdü"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% faster than last week"
+msgstr "Görevler ortalama {duration} · geçen haftadan %{deltaPercent} daha hızlı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% longer than last week"
+msgstr "Görevler ortalama {duration} · geçen haftadan %{deltaPercent} daha uzun"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Teach your agents reusable procedures with skills"
@@ -21885,6 +22095,42 @@ msgstr "Bu Muse Code sürümü oturum hedeflerini desteklemiyor. Muse Code'u gü
 msgid "This visual is too large. Showing source only."
 msgstr "Bu görsel çok büyük. Yalnızca kaynak gösteriliyor."
 
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% less"
+msgstr "Bu hafta <0>{0}</0> çalıştırmanız %{1} azaldı"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% more"
+msgstr "Bu hafta <0>{0}</0> çalıştırmanız %{1} arttı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1>"
+msgstr "Bu hafta <0>{fromLabel}</0> yerine <1>{toLabel}</1> modeline geçtiniz"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1> ({toPercent}%)"
+msgstr "Bu hafta <0>{fromLabel}</0> yerine <1>{toLabel}</1> kullanmaya başladınız (%{toPercent})"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% less"
+msgstr "Bu hafta <0>{0}</0> kullanımınız %{1} azaldı"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% more"
+msgstr "Bu hafta <0>{0}</0> kullanımınız %{1} arttı"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week's usage equals ~{cost} at API rates"
+msgstr "Bu haftaki kullanım API fiyatlarıyla ~{cost} değerinde"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
 #~ msgstr "Bu işlem iş parçacığını ve çalışma ağacını kalıcı olarak silecek."
@@ -22155,9 +22401,21 @@ msgstr "Dosya ağacı panelini aç/kapat"
 msgid "Toggle Work or Plan"
 msgstr "İş veya Plan modunu aç/kapat"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is down {percent}% this week ({compact})"
+msgstr "Bu hafta token kullanımı %{percent} azaldı ({compact})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is up {percent}% this week ({compact})"
+msgstr "Bu hafta token kullanımı %{percent} arttı ({compact})"
+
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "Token kullanımı şunlar için kullanılamıyor: {unavailableLabels}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "tokens"
+msgstr "token"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -22205,6 +22463,10 @@ msgstr "Araç arama"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #~ msgid "Tools"
 #~ msgstr "Araçlar"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
+msgstr "Bu haftanın öne çıkan becerisi: <0>{name}</0> ({count, plural, one {# çalıştırma} other {# çalıştırma}})"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
@@ -24015,6 +24277,10 @@ msgstr "Web sitesi"
 msgid "Website origin"
 msgstr "Web sitesi adresi"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekday steady: {percent}% of your recent prompts ran Mon–Fri"
+msgstr "Hafta içi odaklı: Son istemlerin %{percent} kadarı Pzt–Cum günleriydi"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
 msgstr "Hafta içi"
@@ -24026,6 +24292,10 @@ msgstr "Hafta içi saat {time}"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekdays at 8:00 AM"
 msgstr "Hafta içi 08:00"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
+msgstr "Hafta sonu geliştiricisi: Son istemlerin %{percent} kadarı hafta sonuydu"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekly"
@@ -24147,7 +24417,6 @@ msgstr "Bu ortam içinde çalışacak:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24182,6 +24451,10 @@ msgstr "İş"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "Mevcut çalışma kopyasında çalışın"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Work rhythm"
+msgstr "Çalışma ritmi"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Work with the pages and signed-in sessions already open in Chrome."
@@ -24410,7 +24683,6 @@ msgstr "Değişikliğin testlerini yazıp çalıştırır, bildirilen hataları 
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "Rehber yazılıyor. Bu incelemeden ayrılıp hazır olduğunda geri dönebilirsiniz."
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24423,8 +24695,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24446,22 +24718,72 @@ msgstr "Kaynak denetimi için WSL köprüsü kullanılamıyor."
 #~ msgstr "WSL kullanıcısı"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL: {distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL: {distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"
 msgstr "Evet"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Yesterday"
+msgstr "Dün"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday <0>{model}</0> handled {percent}% of your prompts"
+msgstr "Dün istemlerinizin %{percent} kadarını <0>{model}</0> işledi"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens"
+msgstr "Dün {compact} token kullandınız"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens (~{cost})"
+msgstr "Dün {compact} token kullandınız (~{cost})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "Dün: {prompts, plural, one {# istem} other {# istem}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · {compactTokens} tokens"
+msgstr "Dün: {prompts, plural, one {# istem} other {# istem}} · {compactTokens} token"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
+msgstr "Dün: {prompts, plural, one {# istem} other {# istem}} · {topProvider} (%{topProviderPercent})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments this week"
+msgstr "Bu hafta {count} bağlı ortamda kod yazdınız"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments yesterday"
+msgstr "Dün {count} bağlı ortamda kod yazdınız"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."
 msgstr "Kaynak ana makinede tamamlanmamış bir incelemeniz var. Bunu göndermeden önce orada gönderin veya silin."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You leaned into {modeLabel} mode this week ({percent}% vs {prevPercent}%)"
+msgstr "Bu hafta {modeLabel} moduna yöneldiniz (%{percent} vs %{prevPercent})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You ran {percent}% of turns with {effort} reasoning this week"
+msgstr "Bu hafta turların %{percent} kadarı {effort} akıl yürütmeyle çalıştı"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.prompts
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You started using <0>{0}</0> this week · {1, plural, one {# prompt} other {# prompts}}"
+msgstr "Bu hafta <0>{0}</0> kullanmaya başladınız · {1, plural, one {# istem} other {# istem}}"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "Her şey tamam."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "You're most active around {hourLabel}"
 msgstr "En çok {hourLabel} civarında etkinsiniz"
 
@@ -24497,9 +24819,13 @@ msgstr "Yerel değişiklikleriniz zulada (stash) ve bu birleştirmeyi işlediği
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "Yerel değişiklikleriniz zulaya (stash) alındı ve birleştirme çözüldüğünde yeniden uygulanacaktır."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "Your longest task ran {duration}"
 msgstr "En uzun göreviniz {duration} sürdü"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your longest task yesterday ran {duration}"
+msgstr "Dün en uzun göreviniz {duration} sürdü"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
@@ -24508,6 +24834,10 @@ msgstr "Mesajınız gönderilmedi: sohbet konusu artık kullanılamıyor."
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Adınız"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your peak coding hour shifted from {fromLabel} to {toLabel} this week"
+msgstr "Bu hafta en aktif saatiniz {fromLabel} yerine {toLabel} oldu"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"

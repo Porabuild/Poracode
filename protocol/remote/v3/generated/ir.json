@@ -57070,6 +57070,186 @@
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
+            },
+            "__schema4": {
+              "additionalProperties": true,
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "topModel": {
+                  "type": "string"
+                },
+                "topProvider": {
+                  "type": "string"
+                },
+                "type": {
+                  "enum": [
+                    "commit",
+                    "pr",
+                    "conflict"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "label",
+                "count"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema5": {
+              "additionalProperties": true,
+              "properties": {
+                "activeDays": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "aiActions": {
+                  "items": {
+                    "$ref": "#/$defs/__schema4"
+                  },
+                  "type": "array"
+                },
+                "days": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "effortTurns": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "efforts": {
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "type": "array"
+                },
+                "fastTurns": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "goals": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "hours": {
+                  "items": {
+                    "$ref": "#/$defs/__schema6"
+                  },
+                  "type": "array"
+                },
+                "longestTaskMs": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "mcpToolCalls": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "mcps": {
+                  "items": {
+                    "$ref": "#/$defs/__schema3"
+                  },
+                  "type": "array"
+                },
+                "messages": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "models": {
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "type": "array"
+                },
+                "modes": {
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "type": "array"
+                },
+                "prompts": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "providers": {
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "type": "array"
+                },
+                "skills": {
+                  "items": {
+                    "$ref": "#/$defs/__schema3"
+                  },
+                  "type": "array"
+                },
+                "skillsUsed": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "subagentRuns": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "threads": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "totalTurnMs": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "weekdayPrompts": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "weekendPrompts": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "workflowRuns": {
+                  "$ref": "#/$defs/__schema1"
+                }
+              },
+              "required": [
+                "days",
+                "activeDays",
+                "threads",
+                "prompts",
+                "messages",
+                "goals",
+                "longestTaskMs",
+                "totalTurnMs",
+                "fastTurns",
+                "effortTurns",
+                "skillsUsed",
+                "workflowRuns",
+                "subagentRuns",
+                "mcpToolCalls",
+                "weekdayPrompts",
+                "weekendPrompts",
+                "providers",
+                "models",
+                "modes",
+                "efforts",
+                "hours",
+                "skills",
+                "mcps",
+                "aiActions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema6": {
+              "additionalProperties": true,
+              "properties": {
+                "count": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "hour": {
+                  "maximum": 23,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "hour",
+                "count"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -57083,36 +57263,7 @@
             },
             "aiActions": {
               "items": {
-                "additionalProperties": true,
-                "properties": {
-                  "count": {
-                    "$ref": "#/$defs/__schema1"
-                  },
-                  "label": {
-                    "type": "string"
-                  },
-                  "topModel": {
-                    "type": "string"
-                  },
-                  "topProvider": {
-                    "type": "string"
-                  },
-                  "type": {
-                    "enum": [
-                      "commit",
-                      "pr",
-                      "conflict"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "label",
-                  "count"
-                ],
-                "type": "object",
-                "x-poracode-unknownFields": "strip"
+                "$ref": "#/$defs/__schema4"
               },
               "type": "array"
             },
@@ -57353,6 +57504,45 @@
                 "$ref": "#/$defs/__schema2"
               },
               "type": "array"
+            },
+            "recent": {
+              "additionalProperties": true,
+              "properties": {
+                "last30d": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "last7d": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "prev30d": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "prev7d": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "today": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "windowHours": {
+                  "items": {
+                    "$ref": "#/$defs/__schema6"
+                  },
+                  "type": "array"
+                },
+                "yesterday": {
+                  "$ref": "#/$defs/__schema5"
+                }
+              },
+              "required": [
+                "today",
+                "yesterday",
+                "last7d",
+                "prev7d",
+                "last30d",
+                "prev30d"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "scope": {
               "enum": [
@@ -57709,23 +57899,7 @@
                 },
                 "observed": {
                   "items": {
-                    "additionalProperties": true,
-                    "properties": {
-                      "amount": {
-                        "minimum": 0,
-                        "type": "number"
-                      },
-                      "currency": {
-                        "pattern": "^[A-Z]{3}$",
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "amount",
-                      "currency"
-                    ],
-                    "type": "object",
-                    "x-poracode-unknownFields": "strip"
+                    "$ref": "#/$defs/__schema2"
                   },
                   "type": "array"
                 },
@@ -57765,6 +57939,25 @@
             "__schema2": {
               "additionalProperties": true,
               "properties": {
+                "amount": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "currency": {
+                  "pattern": "^[A-Z]{3}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "amount",
+                "currency"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema3": {
+              "additionalProperties": true,
+              "properties": {
                 "key": {
                   "type": "string"
                 },
@@ -57783,17 +57976,67 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
-            "__schema3": {
-              "maximum": 9007199254740991,
-              "minimum": -9007199254740991,
-              "type": "integer"
-            },
             "__schema4": {
+              "additionalProperties": true,
+              "properties": {
+                "cacheReadTokens": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "cacheWriteTokens": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "estimatedUsd": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "inputTokens": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "models": {
+                  "items": {
+                    "$ref": "#/$defs/__schema7"
+                  },
+                  "type": "array"
+                },
+                "observed": {
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "type": "array"
+                },
+                "outputTokens": {
+                  "$ref": "#/$defs/__schema5"
+                },
+                "providers": {
+                  "items": {
+                    "$ref": "#/$defs/__schema6"
+                  },
+                  "type": "array"
+                },
+                "tokens": {
+                  "$ref": "#/$defs/__schema5"
+                }
+              },
+              "required": [
+                "tokens",
+                "estimatedUsd",
+                "observed",
+                "inputTokens",
+                "outputTokens",
+                "cacheReadTokens",
+                "cacheWriteTokens",
+                "providers",
+                "models"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema5": {
               "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
             },
-            "__schema5": {
+            "__schema6": {
               "additionalProperties": true,
               "properties": {
                 "estimatedCostUsd": {
@@ -57809,7 +58052,7 @@
                   "type": "string"
                 },
                 "tokens": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 }
               },
               "required": [
@@ -57820,6 +58063,36 @@
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
+            },
+            "__schema7": {
+              "additionalProperties": true,
+              "properties": {
+                "count": {
+                  "type": "number"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "percent": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "count",
+                "percent"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "__schema8": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
             }
           },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -57827,7 +58100,7 @@
           "properties": {
             "accounts": {
               "items": {
-                "$ref": "#/$defs/__schema5"
+                "$ref": "#/$defs/__schema6"
               },
               "type": "array"
             },
@@ -57839,7 +58112,7 @@
               "properties": {
                 "accounts": {
                   "items": {
-                    "$ref": "#/$defs/__schema2"
+                    "$ref": "#/$defs/__schema3"
                   },
                   "type": "array"
                 },
@@ -57865,7 +58138,7 @@
                 },
                 "models": {
                   "items": {
-                    "$ref": "#/$defs/__schema2"
+                    "$ref": "#/$defs/__schema3"
                   },
                   "type": "array"
                 },
@@ -57929,7 +58202,7 @@
                 },
                 "providers": {
                   "items": {
-                    "$ref": "#/$defs/__schema2"
+                    "$ref": "#/$defs/__schema3"
                   },
                   "type": "array"
                 },
@@ -57961,7 +58234,7 @@
                   "type": "string"
                 },
                 "lastActiveAt": {
-                  "$ref": "#/$defs/__schema3"
+                  "$ref": "#/$defs/__schema8"
                 },
                 "platform": {
                   "type": "string"
@@ -57976,36 +58249,14 @@
               "x-poracode-unknownFields": "strip"
             },
             "generatedAt": {
-              "$ref": "#/$defs/__schema3"
+              "$ref": "#/$defs/__schema8"
             },
             "lifetimeTokens": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "models": {
               "items": {
-                "additionalProperties": true,
-                "properties": {
-                  "count": {
-                    "type": "number"
-                  },
-                  "key": {
-                    "type": "string"
-                  },
-                  "label": {
-                    "type": "string"
-                  },
-                  "percent": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "key",
-                  "label",
-                  "count",
-                  "percent"
-                ],
-                "type": "object",
-                "x-poracode-unknownFields": "strip"
+                "$ref": "#/$defs/__schema7"
               },
               "type": "array"
             },
@@ -58013,13 +58264,46 @@
               "type": "string"
             },
             "peakDayTokens": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "providers": {
               "items": {
-                "$ref": "#/$defs/__schema5"
+                "$ref": "#/$defs/__schema6"
               },
               "type": "array"
+            },
+            "recent": {
+              "additionalProperties": true,
+              "properties": {
+                "last30d": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "last7d": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "prev30d": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "prev7d": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "today": {
+                  "$ref": "#/$defs/__schema4"
+                },
+                "yesterday": {
+                  "$ref": "#/$defs/__schema4"
+                }
+              },
+              "required": [
+                "today",
+                "yesterday",
+                "last7d",
+                "prev7d",
+                "last30d",
+                "prev30d"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "scope": {
               "enum": [
@@ -58029,7 +58313,7 @@
               "type": "string"
             },
             "timezoneOffsetMinutes": {
-              "$ref": "#/$defs/__schema3"
+              "$ref": "#/$defs/__schema8"
             },
             "tokenHeatmap": {
               "additionalProperties": true,
@@ -58039,7 +58323,7 @@
                     "additionalProperties": true,
                     "properties": {
                       "count": {
-                        "$ref": "#/$defs/__schema4"
+                        "$ref": "#/$defs/__schema5"
                       },
                       "day": {
                         "type": "string"
@@ -58080,7 +58364,7 @@
                   "type": "array"
                 },
                 "max": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 },
                 "metric": {
                   "enum": [
@@ -58090,7 +58374,7 @@
                   "type": "string"
                 },
                 "windowDays": {
-                  "$ref": "#/$defs/__schema4"
+                  "$ref": "#/$defs/__schema5"
                 }
               },
               "required": [
@@ -58109,7 +58393,7 @@
               "type": "array"
             },
             "windowDays": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             }
           },
           "required": [
@@ -85605,7 +85889,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:13cae1048b7cf63e263b89eb92880ef35fa35ca081bc00f356c16149c2650bdb",
+  "sourceHash": "sha256:95c61030df1c62beff0f434e61059ec710d6533b4e1b688499e0c2164a0921a4",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

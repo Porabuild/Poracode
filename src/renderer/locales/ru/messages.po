@@ -89,6 +89,11 @@ msgstr "{0, plural, one {# файл указан без содержимого} 
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0, plural, one {# highlight} other {# highlights}}"
+msgstr "{0, plural, one {# факт} few {# факта} many {# фактов} other {# факта}}"
+
 #. placeholder {0}: groupRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
@@ -518,6 +523,12 @@ msgstr "{0}, Выполняется"
 msgid "{0}: {stateLabel}"
 msgstr "{0}: {stateLabel}"
 
+#. placeholder {0}: currentPeriod.activeDays
+#. placeholder {1}: currentPeriod.days
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}/{1} active days"
+msgstr "{0}/{1} активн. дн."
+
 #. placeholder {0}: selectedRows.length
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
@@ -526,6 +537,11 @@ msgstr "{0}: {stateLabel}"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "Выбрано: {0}/{1}"
+
+#. placeholder {0}: insights.fastModePercent
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}% fast"
+msgstr "{0}% быстр."
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -561,6 +577,10 @@ msgstr "{agentLead} требуется ваш ввод, чтобы продол�
 msgid "{commentCount, plural, one {# comment} other {# comments}}"
 msgstr "{commentCount, plural, one {# комментарий} few {# комментария} many {# комментариев} other {# комментария}}"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{commits} commits"
+msgstr "{commits} коммит."
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 #~ msgstr "{commitsCount, plural, one {# коммит} few {# коммита} many {# коммитов} other {# коммита}}"
@@ -570,6 +590,10 @@ msgstr "{commentCount, plural, one {# комментарий} few {# комме�
 #~ msgid "{completedSteps} of {0} steps"
 #~ msgstr "Выполнено {completedSteps} из {0} шагов"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{conflicts} conflicts"
+msgstr "{conflicts} конфликт."
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# комментарий или ревью} few {# комментария и ревью} many {# комментариев и ревью} other {# комментария и ревью}}"
@@ -578,11 +602,27 @@ msgstr "{commentCount, plural, one {# комментарий} few {# комме�
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {Найден # агент} few {Найдено # агента} many {Найдено # агентов} other {Найдено # агентов}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week"
+msgstr "{count, plural, one {# запуск субагента} few {# запуска субагентов} many {# запусков субагентов} other {# запуска субагентов}} за неделю"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (-{deltaPercent}%)"
+msgstr "{count, plural, one {# запуск субагента} few {# запуска субагентов} many {# запусков субагентов} other {# запуска субагентов}} за неделю (-{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (+{deltaPercent}%)"
+msgstr "{count, plural, one {# запуск субагента} few {# запуска субагентов} many {# запусков субагентов} other {# запуска субагентов}} за неделю (+{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
+msgstr "{count, plural, one {# запуск workflow} few {# запуска workflow} many {# запусков workflow} other {# запуска workflow}} за неделю"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
 msgstr "{current, plural, one {# день} few {# дня} many {# дней} other {# дня}} подряд · ваш рекорд: {longest}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
 msgstr "{current, plural, one {# день} few {# дня} many {# дней} other {# дня}} подряд · ваша лучшая серия"
 
@@ -776,6 +816,10 @@ msgstr "Пройдено {passed} из {0}"
 msgid "{percent}% full"
 msgstr "{percent}% заполнено"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{percent}% of your threads this week used {modeLabel} mode"
+msgstr "{percent}% ваших тредов на этой неделе были в режиме {modeLabel}"
+
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "{percent}% used"
 msgstr "Использовано {percent}%"
@@ -801,13 +845,17 @@ msgstr "{projectName} на {targetLabel} не является Git-репози�
 msgid "{projectName} Settings"
 msgstr "Настройки {projectName}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
 msgstr "{prompts, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}} за неделю"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
 msgstr "{prompts, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}} за неделю · больше всего: {weekday}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{promptsText} total prompts across {threadsText} threads"
+msgstr "{promptsText} запросов в {threadsText} тредах"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -825,6 +873,10 @@ msgstr "{provider} не поддерживает одноразовую гене
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{provider} does not support text-only one-shot generation"
 #~ msgstr "{provider} не поддерживает однократную генерацию только текста"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{prs} PRs"
+msgstr "{prs} PR"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -935,6 +987,10 @@ msgstr "{visibleCount} из {totalCount} видимых"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "{visibleSidebarShortcutCount}/{0} selected"
 #~ msgstr "Выбрано {visibleSidebarShortcutCount}/{0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{weekdayPct}% Mon–Fri"
+msgstr "{weekdayPct}% пн–пт"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -1071,7 +1127,15 @@ msgstr "<0/> начал(а) тред ревью"
 msgid "<0/>% Full"
 msgstr "<0/>% заполнено"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envA}</0> leaned {providerA} while <1>{envB}</1> leaned {providerB} this week"
+msgstr "На <0>{envA}</0> чаще выбирали {providerA}, а на <1>{envB}</1> — {providerB}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envLabel}</0> ran {percent}% of your prompts this week"
+msgstr "<0>{envLabel}</0> обработал {percent}% ваших запросов за неделю"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "<0>{label}</0> handles {percent}% of your prompts"
 msgstr "<0>{label}</0> обрабатывает {percent}% ваших запросов"
 
@@ -1412,6 +1476,10 @@ msgstr "Действия для порта {0}"
 msgid "Active"
 msgstr "Активно"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Active {activeDays} of the last {totalDays} days"
+msgstr "Активность {activeDays} из последних {totalDays} дн."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "Активные перенаправления"
@@ -1419,6 +1487,10 @@ msgstr "Активные перенаправления"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Active today"
 msgstr "Активно сегодня"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Active yesterday"
+msgstr "Активность вчера"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
@@ -1435,9 +1507,23 @@ msgstr "Сводка активности"
 msgid "Activity insights"
 msgstr "Статистика активности"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is down {percent}% this week · {current} vs {previous} prompts"
+msgstr "Активность за неделю снизилась на {percent}% · {current} против {previous}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is up {percent}% this week · {current} vs {previous} prompts"
+msgstr "Активность за неделю выросла на {percent}% · {current} против {previous}"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity metric"
 msgstr "Метрика активности"
+
+#. placeholder {0}: f.envLabel
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity on <0>{0}</0> jumped {1}% this week"
+msgstr "Активность на <0>{0}</0> выросла на {1}% за неделю"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
@@ -1886,6 +1972,10 @@ msgstr "Агенты классифицируют делегированную �
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "Агенты классифицируют делегированную работу с помощью тегов задач. Сначала ранжируются подходящие изученные маршруты, затем глобальная статистика Crossagents, избранное, обычная статистика агентов и встроенный порядок."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Agents shipped {summary} this week"
+msgstr "За неделю агенты выполнили: {summary}"
 
 #: src/renderer/components/providers/antigravity/index.tsx
 msgid "agy CLI"
@@ -2746,6 +2836,15 @@ msgstr "Цвет аватара"
 msgid "Avatar color {color}"
 msgstr "Цвет аватара {color}"
 
+#. placeholder {0}: formatDuration(avgTurnMs)
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "avg {0}"
+msgstr "ср. {0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Avg task duration"
+msgstr "Средняя длительность задачи"
+
 #: src/renderer/views/PullRequestsOverlay/summary/RailMergeStatus.tsx
 msgid "Awaiting a required review."
 msgstr "Ожидается обязательное ревью."
@@ -3222,6 +3321,10 @@ msgstr "Бизнес и финансы"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Business and operations"
 msgstr "Бизнес и операции"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Busy day yesterday · {prompts} prompts ({multiplier}x your daily average)"
+msgstr "Продуктивный день вчера · {prompts} запросов ({multiplier}x от среднего)"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #~ msgid "by <0>{author}</0>"
@@ -6681,22 +6784,23 @@ msgstr "Найти агентов на этом компьютере"
 #~ msgstr "Определить по файлам проекта"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "Обнаружено"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "Обнаружено <0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "Обнаружено <0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "Обнаружено <0>(local)</0>"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "Обнаружено <0>(local)</0>"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "Обнаружено <0>{0}</0>"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "Обнаружено <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -7397,6 +7501,10 @@ msgstr "Каждая запись репозитория должна содер
 msgid "Earlier text"
 msgstr "Предыдущий текст"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
+msgstr "Ранняя пташка: {percent}% недавних запросов были до 10:00"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7877,6 +7985,10 @@ msgstr "Оценки используют сохранённые прейску�
 msgid "Evaluate the result after every iteration."
 msgstr "Оценивать результат после каждой итерации."
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Evening builder: {percent}% of your recent prompts ran 6–10 PM"
+msgstr "Вечерний ритм: {percent}% недавних запросов с 18:00 до 22:00"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
 msgstr "Событие"
@@ -8336,6 +8448,14 @@ msgstr "Быстрый режим недоступен для этой пары"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "Быстрый режим"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode powered {percent}% of your turns this week"
+msgstr "Быстрый режим использовался в {percent}% ходов за неделю"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode ran on {percent}% of turns this week (was {prevPercent}%)"
+msgstr "Быстрый режим — {percent}% ходов за неделю (было {prevPercent}%)"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
@@ -10184,8 +10304,8 @@ msgid "Install and restart"
 msgstr "Установить и перезапустить"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "Установка и вход пока недоступны на удалённых компьютерах."
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "Установка и вход пока недоступны на удалённых компьютерах."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10279,8 +10399,8 @@ msgstr "Установите GitHub CLI (gh) на {executionHost}, затем п
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "Установить в {0}"
+#~ msgid "Install in {0}"
+#~ msgstr "Установить в {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10304,8 +10424,8 @@ msgstr "Сначала установите нативные провайдер�
 #~ msgstr "Установить: {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Установить в Windows"
+#~ msgid "Install on Windows"
+#~ msgstr "Установить в Windows"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -10716,6 +10836,14 @@ msgstr "Большой"
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Largest"
 msgstr "Наибольшие"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 30 days"
+msgstr "Последние 30 дней"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 7 days"
+msgstr "Последние 7 дней"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11199,8 +11327,8 @@ msgid "Loading…"
 msgstr "Загрузка…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "локальный"
+#~ msgid "local"
+#~ msgstr "локальный"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11297,8 +11425,8 @@ msgstr "Войти"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "Войти {0}"
+#~ msgid "Login {0}"
+#~ msgstr "Войти {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -12327,6 +12455,10 @@ msgstr "Самый используемый провайдер"
 msgid "Most used reasoning"
 msgstr "Самый используемый уровень рассуждений"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Most-used MCP this week: <0>{name}</0> ({count, plural, one {# call} other {# calls}})"
+msgstr "Частый MCP за неделю: <0>{name}</0> ({count, plural, one {# вызов} few {# вызова} many {# вызовов} other {# вызова}})"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Motion"
 msgstr "Движение"
@@ -12878,6 +13010,10 @@ msgstr "Следующее отправленное сообщение"
 msgid "Next tab"
 msgstr "Следующая вкладка"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Night owl: {percent}% of your recent prompts ran after 10 PM"
+msgstr "Сова: {percent}% недавних запросов были после 22:00"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
 msgstr "Нет активной вкладки браузера"
@@ -13350,6 +13486,10 @@ msgstr "Проектов пока нет."
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "Нет промптов"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "No prompts yesterday"
+msgstr "Вчера запросов не было"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
@@ -14456,6 +14596,18 @@ msgstr "Вывод недоступен для этой задачи."
 msgid "Over pace — runs out early"
 msgstr "Темп превышен — закончится раньше"
 
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% less"
+msgstr "За 30 дней вы использовали <0>{0}</0> на {1}% меньше"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% more"
+msgstr "За 30 дней вы использовали <0>{0}</0> на {1}% больше"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Overall feedback"
 msgstr "Общий отзыв"
@@ -14825,6 +14977,11 @@ msgstr "Приостановлено, пока вы не разблокируе�
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "Предпросмотр PDF открывается в браузере."
+
+#. placeholder {0}: insights.mostActiveHour.label
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Peak {0}"
+msgstr "Пик {0}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
@@ -15718,20 +15875,44 @@ msgstr "Проекты из {0} перейдут в {1}. Ни один прое�
 msgid "Promoting this profile into the owned data root…"
 msgstr "Перенос этого профиля в собственный корневой каталог данных…"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompt"
+msgstr "запрос"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Prompt"
 msgstr "Промпт"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Prompt cache hit"
+msgstr "Попадания в кэш"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompt caching covered {percent}% of your input tokens this week"
+msgstr "Кэш промптов покрыл {percent}% входных токенов за неделю"
+
 #: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 msgid "Prompt navigation"
 msgstr "Навигация по промптам"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompts"
+msgstr "запросов"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Запросы"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts dipped {percent}% over the last 30 days"
+msgstr "За 30 дней количество запросов снизилось на {percent}%"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts rose {percent}% over the last 30 days"
+msgstr "За 30 дней количество запросов выросло на {percent}%"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -18886,6 +19067,11 @@ msgstr "Показать поиск агентов"
 msgid "Show all"
 msgstr "Показать всё"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show all {0} insights"
+msgstr "Показать все {0} фактов"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "Показать панель закладок"
@@ -18951,6 +19137,10 @@ msgstr "Показывать оценочную стоимость"
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Показать меньше"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show fewer insights"
+msgstr "Скрыть лишние факты"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19409,6 +19599,14 @@ msgstr "Наименьшие"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Snapshots"
 msgstr "Снимки"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "Сегодня уже {prompts, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}} · mostly {topProvider}"
+msgstr "Сегодня уже {prompts, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}} · в основном {topProvider}"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -20354,6 +20552,18 @@ msgstr "Вывод задачи"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Task tags"
 msgstr "Теги задач"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week"
+msgstr "Задачи на этой неделе занимали в среднем {duration}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% faster than last week"
+msgstr "Задачи занимали {duration} · на {deltaPercent}% быстрее прошлой недели"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% longer than last week"
+msgstr "Задачи занимали {duration} · на {deltaPercent}% дольше прошлой недели"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Teach your agents reusable procedures with skills"
@@ -21885,6 +22095,42 @@ msgstr "Эта версия Muse Code не поддерживает цели с�
 msgid "This visual is too large. Showing source only."
 msgstr "Эта визуализация слишком велика. Показан только исходный код."
 
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% less"
+msgstr "На этой неделе вы запускали <0>{0}</0> на {1}% реже"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% more"
+msgstr "На этой неделе вы запускали <0>{0}</0> на {1}% чаще"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1>"
+msgstr "На этой неделе вы перешли с <0>{fromLabel}</0> на <1>{toLabel}</1>"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1> ({toPercent}%)"
+msgstr "На этой неделе вы переключились с <0>{fromLabel}</0> на <1>{toLabel}</1> ({toPercent}%)"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% less"
+msgstr "На этой неделе вы использовали <0>{0}</0> на {1}% меньше"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% more"
+msgstr "На этой неделе вы использовали <0>{0}</0> на {1}% больше"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week's usage equals ~{cost} at API rates"
+msgstr "Расход за неделю эквивалентен ~{cost} по API-тарифам"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
 #~ msgstr "Поток и его рабочее дерево будут удалены без возможности восстановления."
@@ -22155,9 +22401,21 @@ msgstr "Переключить панель дерева файлов"
 msgid "Toggle Work or Plan"
 msgstr "Переключить Работа или План"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is down {percent}% this week ({compact})"
+msgstr "Расход токенов за неделю снизился на {percent}% ({compact})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is up {percent}% this week ({compact})"
+msgstr "Расход токенов за неделю вырос на {percent}% ({compact})"
+
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "Данные об использовании токенов недоступны для: {unavailableLabels}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "tokens"
+msgstr "ток."
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -22205,6 +22463,10 @@ msgstr "Поиск инструментов"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #~ msgid "Tools"
 #~ msgstr "Инструменты"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
+msgstr "Топ-навык недели: <0>{name}</0> ({count, plural, one {# запуск} few {# запуска} many {# запусков} other {# запуска}})"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
@@ -24015,6 +24277,10 @@ msgstr "Веб-сайт"
 msgid "Website origin"
 msgstr "Адрес сайта"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekday steady: {percent}% of your recent prompts ran Mon–Fri"
+msgstr "Рабочие будни: {percent}% недавних запросов с пн по пт"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
 msgstr "По будням"
@@ -24026,6 +24292,10 @@ msgstr "По будням в {time}"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekdays at 8:00 AM"
 msgstr "По будням в 8:00"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
+msgstr "Выходные в деле: {percent}% недавних запросов были в выходные"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekly"
@@ -24147,7 +24417,6 @@ msgstr "Будет выполнено в этом окружении:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24182,6 +24451,10 @@ msgstr "Работа"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "Работать в текущем checkout"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Work rhythm"
+msgstr "Ритм работы"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Work with the pages and signed-in sessions already open in Chrome."
@@ -24410,7 +24683,6 @@ msgstr "Пишет и запускает тесты для изменения, �
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "Создаётся руководство. Можно выйти из этого ревью и вернуться, когда оно будет готово."
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24423,8 +24695,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24446,22 +24718,72 @@ msgstr "Мост WSL недоступен для управления исход
 #~ msgstr "Пользователь WSL"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL: {distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL: {distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"
 msgstr "Да"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Yesterday"
+msgstr "Вчера"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday <0>{model}</0> handled {percent}% of your prompts"
+msgstr "Вчера <0>{model}</0> обработала {percent}% ваших запросов"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens"
+msgstr "Вчера вы потратили {compact} токенов"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens (~{cost})"
+msgstr "Вчера вы потратили {compact} токенов (~{cost})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "Вчера: {prompts, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · {compactTokens} tokens"
+msgstr "Вчера: {prompts, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}} · {compactTokens} ток."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
+msgstr "Вчера: {prompts, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}} · лидер {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments this week"
+msgstr "На этой неделе вы работали в {count} подключённых средах"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments yesterday"
+msgstr "Вчера вы работали в {count} подключённых средах"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."
 msgstr "У вас есть незавершённое ревью на исходном хосте. Отправьте или удалите его там, прежде чем отправлять это."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You leaned into {modeLabel} mode this week ({percent}% vs {prevPercent}%)"
+msgstr "На этой неделе чаще был режим {modeLabel} ({percent}% против {prevPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You ran {percent}% of turns with {effort} reasoning this week"
+msgstr "{percent}% ходов за неделю выполнялись с глубиной {effort}"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.prompts
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You started using <0>{0}</0> this week · {1, plural, one {# prompt} other {# prompts}}"
+msgstr "На этой неделе вы начали использовать <0>{0}</0> · {1, plural, one {# запрос} few {# запроса} many {# запросов} other {# запроса}}"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "Всё просмотрено."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "You're most active around {hourLabel}"
 msgstr "Вы активнее всего около {hourLabel}"
 
@@ -24497,9 +24819,13 @@ msgstr "Ваши локальные изменения сохранены в sta
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "Ваши локальные изменения были сохранены в stash и будут применены повторно после разрешения слияния."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "Your longest task ran {duration}"
 msgstr "Ваша самая долгая задача длилась {duration}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your longest task yesterday ran {duration}"
+msgstr "Самая долгая задача вчера длилась {duration}"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
@@ -24508,6 +24834,10 @@ msgstr "Ваше сообщение не отправлено: тред чата
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Ваше имя"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your peak coding hour shifted from {fromLabel} to {toLabel} this week"
+msgstr "Ваш пиковый час сместился с {fromLabel} на {toLabel} на этой неделе"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"

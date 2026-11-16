@@ -103,7 +103,9 @@ describe("remote v3 native binding generator", () => {
         // Optional agent-statuses `detecting` moves only the source hash.
         // Worktree creation adds an optional checkout-pool diagnostic and a longer client deadline.
         // Remote agent management exposes ACP install/remove/auth/logout/account resolution.
-        sourceHash: "sha256:13cae1048b7cf63e263b89eb92880ef35fa35ca081bc00f356c16149c2650bdb",
+        // Optional period activity snapshots (`recent`) on ProfileCoreStats and ProfileTokenStats
+        // add five structural types and move only the source hash while keeping older hosts valid.
+        sourceHash: "sha256:95c61030df1c62beff0f434e61059ec710d6533b4e1b688499e0c2164a0921a4",
         manifestHash: "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3",
         counts: {
           routes: 121,
@@ -114,12 +116,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 579,
-          structuralTypes: 1360,
+          structuralTypes: 1365,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 148,
-          kotlinFiles: 126,
+          swiftFiles: 149,
+          kotlinFiles: 127,
           stateMachines: 5,
         },
       });

@@ -84,6 +84,9 @@ internal fun SettingsProfilePane(
                 )
             }
             item { SettingsActivityCard(projection) }
+            projection.trends?.let { trends ->
+                item { SettingsTrendsCard(trends) }
+            }
             item { SettingsAutomationCard(projection) }
             if (projection.tokenStatsAvailable) item { SettingsTokensCard(projection) }
             item { SettingsDevicesCard(projection.devices) }
@@ -206,6 +209,60 @@ private fun SettingsActivityCard(profile: SettingsProfileProjection) {
                 stringResource(R.string.settings_profile_tokens_unavailable)
             },
         )
+    }
+}
+
+@Composable
+private fun SettingsTrendsCard(trends: SettingsProfileTrendsProjection) {
+    val format = NumberFormat.getIntegerInstance()
+    SettingsSection(stringResource(R.string.settings_profile_trends)) {
+        val yesterdayText = buildString {
+            append(stringResource(R.string.settings_profile_prompts_count, format.format(trends.yesterdayPrompts)))
+            if (trends.yesterdayTopProvider != null && trends.yesterdayTopProviderPercent != null && trends.yesterdayPrompts > 0) {
+                append(" · ${trends.yesterdayTopProvider} (${trends.yesterdayTopProviderPercent}%)")
+            }
+        }
+        SettingsValueRow(stringResource(R.string.settings_profile_yesterday), yesterdayText)
+
+        val weekText = buildString {
+            append(stringResource(R.string.settings_profile_prompts_count, format.format(trends.last7dPrompts)))
+            trends.last7dDeltaPercent?.let { delta ->
+                val sign = if (delta >= 0) "+" else ""
+                append(" ($sign$delta%)")
+            }
+        }
+        SettingsValueRow(stringResource(R.string.settings_profile_last_7d), weekText)
+
+        trends.providerSwitch?.let { (from, to) ->
+            SettingsValueRow(
+                stringResource(R.string.settings_profile_switched_provider),
+                stringResource(R.string.settings_profile_switched_from_to, from, to),
+            )
+        }
+        trends.modelSwitch?.let { (from, to) ->
+            SettingsValueRow(
+                stringResource(R.string.settings_profile_switched_model),
+                stringResource(R.string.settings_profile_switched_from_to, from, to),
+            )
+        }
+        trends.providerDeltas.forEach { mover ->
+            val summary = if (mover.deltaPercent < 0) {
+                stringResource(R.string.settings_profile_provider_less, mover.provider, kotlin.math.abs(mover.deltaPercent))
+            } else {
+                stringResource(R.string.settings_profile_provider_more, mover.provider, mover.deltaPercent)
+            }
+            SettingsValueRow(mover.provider, summary)
+        }
+        trends.avgTaskSeconds?.let { sec ->
+            val formattedDuration = if (sec >= 60) "${sec / 60}m ${sec % 60}s" else "${sec}s"
+            SettingsValueRow(stringResource(R.string.settings_profile_avg_task_duration), formattedDuration)
+        }
+        trends.weekendPercent?.let { pct ->
+            SettingsValueRow(stringResource(R.string.settings_profile_weekend_share), "$pct%")
+        }
+        trends.cacheHitPercent?.let { pct ->
+            SettingsValueRow(stringResource(R.string.settings_profile_prompt_cache_hit), "$pct%")
+        }
     }
 }
 

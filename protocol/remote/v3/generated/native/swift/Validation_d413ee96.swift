@@ -109,6 +109,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_745f2435a66ae299 = RemoteSchema(type: "object", required: Set(["cacheReadTokens", "cacheWriteTokens", "estimatedUsd", "inputTokens", "models", "observed", "outputTokens", "providers", "tokens"]), properties: ["cacheReadTokens": RemoteSchemas.schema_56aa0e45cbdce0d0, "cacheWriteTokens": RemoteSchemas.schema_56aa0e45cbdce0d0, "estimatedUsd": RemoteSchemas.schema_f696f11685898ba7, "inputTokens": RemoteSchemas.schema_56aa0e45cbdce0d0, "models": RemoteSchemas.schema_195974ed118a4217, "observed": RemoteSchemas.schema_c8ef822f0af9edc7, "outputTokens": RemoteSchemas.schema_56aa0e45cbdce0d0, "providers": RemoteSchemas.schema_d0fa817300598095, "tokens": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_74659b54c1ae64b8 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_f9da03570b6c69fa, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
 }
 

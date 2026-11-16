@@ -89,6 +89,11 @@ msgstr "{0, plural, one {# tập tin được liệt kê không kèm nội dung}
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# tập tin} other {# tập tin}}"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0, plural, one {# highlight} other {# highlights}}"
+msgstr "{0, plural, one {# điểm nổi bật} other {# điểm nổi bật}}"
+
 #. placeholder {0}: groupRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
@@ -518,6 +523,12 @@ msgstr "{0}, Đang chạy"
 msgid "{0}: {stateLabel}"
 msgstr "{0}: {stateLabel}"
 
+#. placeholder {0}: currentPeriod.activeDays
+#. placeholder {1}: currentPeriod.days
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}/{1} active days"
+msgstr "{0}/{1} ngày hoạt động"
+
 #. placeholder {0}: selectedRows.length
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
@@ -526,6 +537,11 @@ msgstr "{0}: {stateLabel}"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "Đã chọn {0}/{1}"
+
+#. placeholder {0}: insights.fastModePercent
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}% fast"
+msgstr "{0}% nhanh"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -561,6 +577,10 @@ msgstr "{agentLead} cần bạn nhập thông tin để tiếp tục."
 msgid "{commentCount, plural, one {# comment} other {# comments}}"
 msgstr "{commentCount, plural, other {# bình luận}}"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{commits} commits"
+msgstr "{commits} commit"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 #~ msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
@@ -570,6 +590,10 @@ msgstr "{commentCount, plural, other {# bình luận}}"
 #~ msgid "{completedSteps} of {0} steps"
 #~ msgstr "Đã hoàn tất {completedSteps}/{0} bước"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{conflicts} conflicts"
+msgstr "{conflicts} xung đột"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {# bình luận hoặc đánh giá} other {# bình luận và đánh giá}}"
@@ -578,11 +602,27 @@ msgstr "{commentCount, plural, other {# bình luận}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# tác nhân đã tìm thấy} other {# tác nhân đã tìm thấy}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week"
+msgstr "{count, plural, one {# lượt chạy subagent} other {# lượt chạy subagent}} tuần này"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (-{deltaPercent}%)"
+msgstr "{count, plural, one {# lượt chạy subagent} other {# lượt chạy subagent}} tuần này (-{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (+{deltaPercent}%)"
+msgstr "{count, plural, one {# lượt chạy subagent} other {# lượt chạy subagent}} tuần này (+{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
+msgstr "{count, plural, one {# lượt chạy workflow} other {# lượt chạy workflow}} tuần này"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
 msgstr "{current, plural, other {# ngày}} liên tiếp · kỷ lục của bạn là {longest}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
 msgstr "{current, plural, other {# ngày}} liên tiếp · chuỗi dài nhất của bạn"
 
@@ -776,6 +816,10 @@ msgstr "Đã đạt {passed} trên {0} kiểm tra"
 msgid "{percent}% full"
 msgstr "{percent}% đầy"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{percent}% of your threads this week used {modeLabel} mode"
+msgstr "{percent}% luồng tuần này dùng chế độ {modeLabel}"
+
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "{percent}% used"
 msgstr "Đã dùng {percent}%"
@@ -801,13 +845,17 @@ msgstr "{projectName} trên {targetLabel} không phải là kho Git, nên không
 msgid "{projectName} Settings"
 msgstr "Cài đặt {projectName}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
 msgstr "{prompts, plural, other {# prompt}} tuần này"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
 msgstr "{prompts, plural, other {# prompt}} tuần này · hoạt động nhiều nhất vào {weekday}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{promptsText} total prompts across {threadsText} threads"
+msgstr "Tổng {promptsText} prompt trên {threadsText} luồng"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -825,6 +873,10 @@ msgstr "{provider} không hỗ trợ tạo một lượt"
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{provider} does not support text-only one-shot generation"
 #~ msgstr "{provider} không hỗ trợ tạo nội dung một lần ở chế độ chỉ văn bản"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{prs} PRs"
+msgstr "{prs} PR"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -935,6 +987,10 @@ msgstr "{visibleCount} trong số {totalCount} hiển thị"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "{visibleSidebarShortcutCount}/{0} selected"
 #~ msgstr "Đã chọn {visibleSidebarShortcutCount}/{0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{weekdayPct}% Mon–Fri"
+msgstr "{weekdayPct}% T2–T6"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -1071,7 +1127,15 @@ msgstr "<0/> đã bắt đầu một luồng đánh giá"
 msgid "<0/>% Full"
 msgstr "<0/>% Đầy"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envA}</0> leaned {providerA} while <1>{envB}</1> leaned {providerB} this week"
+msgstr "Tuần này <0>{envA}</0> thiên về {providerA} còn <1>{envB}</1> thiên về {providerB}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envLabel}</0> ran {percent}% of your prompts this week"
+msgstr "<0>{envLabel}</0> chạy {percent}% số prompt tuần này"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "<0>{label}</0> handles {percent}% of your prompts"
 msgstr "<0>{label}</0> xử lý {percent}% prompt của bạn"
 
@@ -1412,6 +1476,10 @@ msgstr "Thao tác cho cổng {0}"
 msgid "Active"
 msgstr "Đang hoạt động"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Active {activeDays} of the last {totalDays} days"
+msgstr "Hoạt động {activeDays} trong {totalDays} ngày qua"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "Chuyển tiếp đang hoạt động"
@@ -1419,6 +1487,10 @@ msgstr "Chuyển tiếp đang hoạt động"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Active today"
 msgstr "Hoạt động hôm nay"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Active yesterday"
+msgstr "Hoạt động hôm qua"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
@@ -1435,9 +1507,23 @@ msgstr "Điểm nổi bật về hoạt động"
 msgid "Activity insights"
 msgstr "Phân tích hoạt động"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is down {percent}% this week · {current} vs {previous} prompts"
+msgstr "Hoạt động giảm {percent}% tuần này · {current} so với {previous} prompt"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is up {percent}% this week · {current} vs {previous} prompts"
+msgstr "Hoạt động tăng {percent}% tuần này · {current} so với {previous} prompt"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity metric"
 msgstr "Chỉ số hoạt động"
+
+#. placeholder {0}: f.envLabel
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity on <0>{0}</0> jumped {1}% this week"
+msgstr "Hoạt động trên <0>{0}</0> tăng {1}% tuần này"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
@@ -1886,6 +1972,10 @@ msgstr "Các agent phân loại công việc được ủy quyền bằng thẻ 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "Các tác nhân phân loại công việc được ủy quyền bằng thẻ tác vụ. Các tuyến đã học phù hợp được xếp hạng đầu tiên, tiếp theo là mức sử dụng Crossagents toàn cục, mục yêu thích, mức sử dụng tác nhân thông thường và thứ tự tích hợp."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Agents shipped {summary} this week"
+msgstr "Tuần này agent đã tạo {summary}"
 
 #: src/renderer/components/providers/antigravity/index.tsx
 msgid "agy CLI"
@@ -2746,6 +2836,15 @@ msgstr "Màu ảnh đại diện"
 msgid "Avatar color {color}"
 msgstr "Màu ảnh đại diện {color}"
 
+#. placeholder {0}: formatDuration(avgTurnMs)
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "avg {0}"
+msgstr "TB {0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Avg task duration"
+msgstr "Thời lượng tác vụ TB"
+
 #: src/renderer/views/PullRequestsOverlay/summary/RailMergeStatus.tsx
 msgid "Awaiting a required review."
 msgstr "Đang chờ một đánh giá bắt buộc."
@@ -3222,6 +3321,10 @@ msgstr "Kinh doanh và tài chính"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Business and operations"
 msgstr "Kinh doanh và vận hành"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Busy day yesterday · {prompts} prompts ({multiplier}x your daily average)"
+msgstr "Hôm qua bận rộn · {prompts} prompt (gấp {multiplier}x trung bình ngày)"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #~ msgid "by <0>{author}</0>"
@@ -6681,22 +6784,23 @@ msgstr "Phát hiện agent trên máy này"
 #~ msgstr "Phát hiện từ tệp dự án"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "Đã phát hiện"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "Đã phát hiện <0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "Đã phát hiện <0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "Đã phát hiện <0>(cục bộ)</0>"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "Đã phát hiện <0>(cục bộ)</0>"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "Đã phát hiện <0>{0}</0>"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "Đã phát hiện <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -7397,6 +7501,10 @@ msgstr "Mỗi mục kho lưu trữ phải dài 1–512 ký tự và không chứ
 msgid "Earlier text"
 msgstr "Văn bản trước đó"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
+msgstr "Dậy sớm: {percent}% prompt gần đây bắt đầu trước 10 giờ sáng"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7877,6 +7985,10 @@ msgstr "Ước tính dùng giá niêm yết USD đã lưu kèm ngày cho ID mô 
 msgid "Evaluate the result after every iteration."
 msgstr "Đánh giá kết quả sau mỗi lần lặp."
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Evening builder: {percent}% of your recent prompts ran 6–10 PM"
+msgstr "Làm tối: {percent}% prompt gần đây chạy từ 18–22 giờ"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
 msgstr "Sự kiện"
@@ -8336,6 +8448,14 @@ msgstr "Chế độ nhanh không khả dụng cho tổ hợp này"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "Chế độ nhanh"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode powered {percent}% of your turns this week"
+msgstr "Chế độ nhanh chiếm {percent}% lượt tuần này"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode ran on {percent}% of turns this week (was {prevPercent}%)"
+msgstr "Chế độ nhanh đạt {percent}% lượt tuần này (trước đó {prevPercent}%)"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
@@ -10184,8 +10304,8 @@ msgid "Install and restart"
 msgstr "Cài đặt và khởi động lại"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "Cài đặt và đăng nhập chưa khả dụng trên máy từ xa."
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "Cài đặt và đăng nhập chưa khả dụng trên máy từ xa."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10279,8 +10399,8 @@ msgstr "Cài đặt GitHub CLI (gh) trên {executionHost}, rồi thử lại."
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "Cài đặt trong {0}"
+#~ msgid "Install in {0}"
+#~ msgstr "Cài đặt trong {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10304,8 +10424,8 @@ msgstr "Cài đặt nhà cung cấp gốc trước; sử dụng ACP cho các tá
 #~ msgstr "Cài đặt trên {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Cài đặt trên Windows"
+#~ msgid "Install on Windows"
+#~ msgstr "Cài đặt trên Windows"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -10716,6 +10836,14 @@ msgstr "Lớn"
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Largest"
 msgstr "Lớn nhất"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 30 days"
+msgstr "30 ngày qua"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 7 days"
+msgstr "7 ngày qua"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11199,8 +11327,8 @@ msgid "Loading…"
 msgstr "Đang tải…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "cục bộ"
+#~ msgid "local"
+#~ msgstr "cục bộ"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11297,8 +11425,8 @@ msgstr "Đăng nhập"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "Đăng nhập {0}"
+#~ msgid "Login {0}"
+#~ msgstr "Đăng nhập {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -12327,6 +12455,10 @@ msgstr "Nhà cung cấp dùng nhiều nhất"
 msgid "Most used reasoning"
 msgstr "Mức suy luận dùng nhiều nhất"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Most-used MCP this week: <0>{name}</0> ({count, plural, one {# call} other {# calls}})"
+msgstr "MCP dùng nhiều nhất tuần này: <0>{name}</0> ({count, plural, one {# lượt gọi} other {# lượt gọi}})"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Motion"
 msgstr "Chuyển động"
@@ -12878,6 +13010,10 @@ msgstr "Tin nhắn đã gửi tiếp theo"
 msgid "Next tab"
 msgstr "Tab tiếp theo"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Night owl: {percent}% of your recent prompts ran after 10 PM"
+msgstr "Cú đêm: {percent}% prompt gần đây chạy sau 22 giờ"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
 msgstr "Không có tab trình duyệt đang hoạt động"
@@ -13350,6 +13486,10 @@ msgstr "Chưa có dự án nào."
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "Không có lời nhắc"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "No prompts yesterday"
+msgstr "Hôm qua không có prompt"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
@@ -14456,6 +14596,18 @@ msgstr "Đầu ra không khả dụng cho tác vụ này."
 msgid "Over pace — runs out early"
 msgstr "Vượt nhịp độ — hết sớm"
 
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% less"
+msgstr "30 ngày qua bạn dùng <0>{0}</0> ít hơn {1}%"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% more"
+msgstr "30 ngày qua bạn dùng <0>{0}</0> nhiều hơn {1}%"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Overall feedback"
 msgstr "Phản hồi chung"
@@ -14825,6 +14977,11 @@ msgstr "Tạm dừng cho đến khi bạn tự mở khóa máy Mac này"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "Xem trước PDF mở trong trình duyệt."
+
+#. placeholder {0}: insights.mostActiveHour.label
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Peak {0}"
+msgstr "Cao điểm {0}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
@@ -15718,20 +15875,44 @@ msgstr "Các dự án trong {0} sẽ chuyển sang {1}. Không dự án nào b�
 msgid "Promoting this profile into the owned data root…"
 msgstr "Đang chuyển hồ sơ này vào thư mục gốc dữ liệu riêng…"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompt"
+msgstr "prompt"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Prompt"
 msgstr "Lời nhắc"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Prompt cache hit"
+msgstr "Tỷ lệ trúng cache"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompt caching covered {percent}% of your input tokens this week"
+msgstr "Bộ nhớ đệm đáp ứng {percent}% token đầu vào tuần này"
+
 #: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 msgid "Prompt navigation"
 msgstr "Điều hướng prompt"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompts"
+msgstr "prompt"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "Prompt"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts dipped {percent}% over the last 30 days"
+msgstr "Số prompt giảm {percent}% trong 30 ngày qua"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts rose {percent}% over the last 30 days"
+msgstr "Số prompt tăng {percent}% trong 30 ngày qua"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -18886,6 +19067,11 @@ msgstr "Hiện quá trình tìm tác nhân"
 msgid "Show all"
 msgstr "Hiển thị tất cả"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show all {0} insights"
+msgstr "Hiện tất cả {0} phân tích"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "Hiển thị thanh dấu trang"
@@ -18951,6 +19137,10 @@ msgstr "Hiển thị chi phí ước tính"
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "Hiện ít hơn"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show fewer insights"
+msgstr "Thu gọn phân tích"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19409,6 +19599,14 @@ msgstr "Nhỏ nhất"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Snapshots"
 msgstr "Ảnh chụp nhanh"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "Hôm nay đến giờ: {prompts, plural, one {# prompt} other {# prompt}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}} · mostly {topProvider}"
+msgstr "Hôm nay: {prompts, plural, one {# prompt} other {# prompt}} · chủ yếu {topProvider}"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -20354,6 +20552,18 @@ msgstr "Đầu ra nhiệm vụ"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Task tags"
 msgstr "Thẻ tác vụ"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week"
+msgstr "Tác vụ tuần này trung bình mất {duration}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% faster than last week"
+msgstr "Tác vụ trung bình {duration} · nhanh hơn tuần trước {deltaPercent}%"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% longer than last week"
+msgstr "Tác vụ trung bình {duration} · lâu hơn tuần trước {deltaPercent}%"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Teach your agents reusable procedures with skills"
@@ -21885,6 +22095,42 @@ msgstr "Phiên bản Muse Code này không hỗ trợ mục tiêu phiên. Hãy c
 msgid "This visual is too large. Showing source only."
 msgstr "Nội dung trực quan này quá lớn. Chỉ hiển thị mã nguồn."
 
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% less"
+msgstr "Tuần này bạn chạy <0>{0}</0> ít hơn {1}%"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% more"
+msgstr "Tuần này bạn chạy <0>{0}</0> nhiều hơn {1}%"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1>"
+msgstr "Tuần này bạn chuyển từ <0>{fromLabel}</0> sang <1>{toLabel}</1>"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1> ({toPercent}%)"
+msgstr "Tuần này bạn chuyển từ <0>{fromLabel}</0> sang <1>{toLabel}</1> ({toPercent}%)"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% less"
+msgstr "Tuần này bạn dùng <0>{0}</0> ít hơn {1}%"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% more"
+msgstr "Tuần này bạn dùng <0>{0}</0> nhiều hơn {1}%"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week's usage equals ~{cost} at API rates"
+msgstr "Mức dùng tuần này tương đương ~{cost} theo giá API"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
 #~ msgstr "Thao tác này sẽ xóa vĩnh viễn luồng và cây làm việc của luồng đó."
@@ -22155,9 +22401,21 @@ msgstr "Bật/tắt bảng điều khiển cây tập tin"
 msgid "Toggle Work or Plan"
 msgstr "Chuyển đổi công việc hoặc kế hoạch"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is down {percent}% this week ({compact})"
+msgstr "Lượng token giảm {percent}% tuần này ({compact})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is up {percent}% this week ({compact})"
+msgstr "Lượng token tăng {percent}% tuần này ({compact})"
+
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "Không có dữ liệu sử dụng token cho: {unavailableLabels}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "tokens"
+msgstr "token"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -22205,6 +22463,10 @@ msgstr "Tìm kiếm công cụ"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #~ msgid "Tools"
 #~ msgstr "Công cụ"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
+msgstr "Kỹ năng nổi bật tuần này: <0>{name}</0> ({count, plural, one {# lượt chạy} other {# lượt chạy}})"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
@@ -24015,6 +24277,10 @@ msgstr "Trang web"
 msgid "Website origin"
 msgstr "Nguồn trang web"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekday steady: {percent}% of your recent prompts ran Mon–Fri"
+msgstr "Đều đặn ngày thường: {percent}% prompt gần đây chạy T2–T6"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
 msgstr "Ngày trong tuần"
@@ -24026,6 +24292,10 @@ msgstr "Các ngày trong tuần lúc {time}"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekdays at 8:00 AM"
 msgstr "Ngày trong tuần lúc 8:00 SA"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
+msgstr "Làm cuối tuần: {percent}% prompt gần đây chạy vào cuối tuần"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekly"
@@ -24147,7 +24417,6 @@ msgstr "Sẽ chạy trong môi trường này:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24182,6 +24451,10 @@ msgstr "công việc"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "Làm việc trong checkout hiện tại"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Work rhythm"
+msgstr "Nhịp làm việc"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Work with the pages and signed-in sessions already open in Chrome."
@@ -24410,7 +24683,6 @@ msgstr "Viết và chạy kiểm thử cho thay đổi, tái hiện lỗi đư�
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "Đang viết hướng dẫn. Bạn có thể rời phần đánh giá này và quay lại khi hướng dẫn sẵn sàng."
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24423,8 +24695,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24446,22 +24718,72 @@ msgstr "Cầu nối WSL không khả dụng cho quản lý mã nguồn."
 #~ msgstr "Người dùng WSL"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL: {distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL: {distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"
 msgstr "Có"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Yesterday"
+msgstr "Hôm qua"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday <0>{model}</0> handled {percent}% of your prompts"
+msgstr "Hôm qua <0>{model}</0> xử lý {percent}% số prompt"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens"
+msgstr "Hôm qua bạn đã dùng {compact} token"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens (~{cost})"
+msgstr "Hôm qua bạn đã dùng {compact} token (~{cost})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "Hôm qua: {prompts, plural, one {# prompt} other {# prompt}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · {compactTokens} tokens"
+msgstr "Hôm qua: {prompts, plural, one {# prompt} other {# prompt}} · {compactTokens} token"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
+msgstr "Hôm qua: {prompts, plural, one {# prompt} other {# prompt}} · {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments this week"
+msgstr "Tuần này bạn đã làm việc trên {count} môi trường đã kết nối"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments yesterday"
+msgstr "Hôm qua bạn đã làm việc trên {count} môi trường đã kết nối"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."
 msgstr "Bạn có một đánh giá chưa hoàn tất trên máy chủ nguồn. Hãy gửi hoặc hủy nó ở đó trước khi gửi đánh giá này."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You leaned into {modeLabel} mode this week ({percent}% vs {prevPercent}%)"
+msgstr "Tuần này bạn ưu tiên chế độ {modeLabel} ({percent}% so với {prevPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You ran {percent}% of turns with {effort} reasoning this week"
+msgstr "{percent}% lượt tuần này chạy với mức suy luận {effort}"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.prompts
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You started using <0>{0}</0> this week · {1, plural, one {# prompt} other {# prompts}}"
+msgstr "Tuần này bạn bắt đầu dùng <0>{0}</0> · {1, plural, one {# prompt} other {# prompt}}"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "Bạn đã xem hết."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "You're most active around {hourLabel}"
 msgstr "Bạn hoạt động nhiều nhất vào khoảng {hourLabel}"
 
@@ -24497,9 +24819,13 @@ msgstr "Các thay đổi cục bộ của bạn đang được lưu trong stash 
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "Các thay đổi cục bộ của bạn đã được lưu vào stash và sẽ được áp dụng lại sau khi hợp nhất được giải quyết."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "Your longest task ran {duration}"
 msgstr "Tác vụ dài nhất của bạn chạy {duration}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your longest task yesterday ran {duration}"
+msgstr "Tác vụ dài nhất hôm qua chạy {duration}"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
@@ -24508,6 +24834,10 @@ msgstr "Tin nhắn của bạn chưa được gửi: luồng trò chuyện khôn
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "Tên của bạn"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your peak coding hour shifted from {fromLabel} to {toLabel} this week"
+msgstr "Giờ hoạt động cao điểm tuần này chuyển từ {fromLabel} sang {toLabel}"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"

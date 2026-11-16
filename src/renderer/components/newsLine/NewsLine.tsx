@@ -4,11 +4,13 @@ import { useLingui } from "@lingui/react/macro";
 import { useNewsLineStore } from "@/renderer/state/newsLineStore";
 import type { ChangelogHighlight } from "@/shared/changelogHighlights";
 import { NewsHighlightCard } from "./NewsHighlightCard";
-import { useNewsLineItems } from "./useNewsLineItems";
+import { syncNewsStream, targetNewsCountForIndex, type NewsStreamState } from "./newsPlaylist";
+import { useNewsLineSources } from "./useNewsLineItems";
 import {
   countShowing,
   recordOnScreen,
   rememberPaused,
+  rememberStream,
   useNewsVisit,
   type NewsCursor,
 } from "./newsVisit";
@@ -23,14 +25,14 @@ export const NEWS_TYPING_PAUSE_MS = 15_000;
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 const controlButtonClass =
-  "flex size-[22px] shrink-0 cursor-default items-center justify-center rounded-full text-muted/80 outline-none transition hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:focus-ring";
+  "flex size-[22px] shrink-0 cursor-default items-center justify-center rounded-full text-muted/80 outline-none transition hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:focus-ring disabled:opacity-35";
 
 /**
  * One quiet, rotating line below the new-thread composer: activity
- * highlights, changelog points, a usage limit, keyboard tips, and community
- * promotions. Rotation pauses on hover or focus, while the user types in the
- * composer, while a changelog point is expanded, while the window is hidden,
- * and through the pause button (WCAG 2.2.2).
+ * highlights, trends, behavioral insights, changelog points, a usage limit,
+ * keyboard tips, and community promotions. Starts with a 5-item batch and
+ * prepares 5 fresh items whenever reaching item 4 of a batch, keeping
+ * promotions repeating periodically.
  */
 export function NewsLine(props: {
   className?: string;
@@ -44,11 +46,19 @@ export function NewsLine(props: {
 }) {
   const { t } = useLingui();
   const visit = useNewsVisit(props.visitKey);
-  const { items, highlights } = useNewsLineItems(visit);
+  const { sources, highlights } = useNewsLineSources(visit);
   const rootRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const [cursor, setCursor] = useState<NewsCursor>(() => visit.onScreen);
+  const [highestViewed, setHighestViewed] = useState(() => visit.highestViewedIndex);
+  const [stream, setStream] = useState<NewsStreamState>(
+    () =>
+      syncNewsStream(visit.stream, sources, {
+        targetCount: targetNewsCountForIndex(visit.onScreen.index),
+        viewedThroughIndex: visit.highestViewedIndex,
+      }).stream,
+  );
   const [userPaused, setUserPaused] = useState(() => visit.paused);
   const [interacting, setInteracting] = useState(false);
   const [typing, setTyping] = useState(false);
@@ -56,27 +66,80 @@ export function NewsLine(props: {
   const [openHighlight, setOpenHighlight] = useState<ChangelogHighlight | null>(null);
   const actionRef = useRef<HTMLButtonElement>(null);
 
-  const foundIndex = cursor.id === null ? -1 : items.findIndex((item) => item.id === cursor.id);
+  // Sync the stream cleanly on every source/cursor change; reaching item 4 of a
+  // 5-item batch (index 3, 8, 13, ...) immediately plans 5 more distinct items.
+  const preliminaryIndex = (() => {
+    if (cursor.slotKey !== null) {
+      const idx = stream.slots.findIndex((s) => s.slotKey === cursor.slotKey);
+      if (idx >= 0) return idx;
+    }
+    return cursor.index;
+  })();
+  const targetCount = targetNewsCountForIndex(preliminaryIndex);
+  const synced = syncNewsStream(stream, sources, {
+    targetCount,
+    viewedThroughIndex: highestViewed,
+  });
+  const entries = synced.entries;
+
+  const foundIndex = (() => {
+    if (cursor.slotKey !== null) {
+      const bySlot = entries.findIndex((entry) => entry.slotKey === cursor.slotKey);
+      if (bySlot >= 0) return bySlot;
+    }
+    if (cursor.id !== null) {
+      const byId = entries.findIndex((entry) => entry.item.id === cursor.id);
+      if (byId >= 0) return byId;
+    }
+    return -1;
+  })();
   const index =
-    foundIndex >= 0 ? foundIndex : Math.min(cursor.index, Math.max(0, items.length - 1));
-  const current: NewsItem | undefined = items[index];
+    foundIndex >= 0 ? foundIndex : Math.min(cursor.index, Math.max(0, entries.length - 1));
+  const currentEntry = entries[index];
+  const current: NewsItem | undefined = currentEntry?.item;
   const currentId = current?.id ?? null;
+  const currentSlotKey = currentEntry?.slotKey ?? null;
   const rotateMs = current?.longDwell ? NEWS_LONG_DWELL_MS : NEWS_ROTATE_MS;
   const paused = userPaused || interacting || typing || pageHidden || openHighlight !== null;
 
+  useEffect(() => {
+    rememberStream(visit, synced.stream);
+  }, [visit, synced.stream]);
+
   const step = (delta: number) => {
-    if (items.length === 0) return;
-    const nextIndex = (index + delta + items.length) % items.length;
-    setCursor({ id: items[nextIndex]?.id ?? null, index: nextIndex });
+    if (entries.length === 0) return;
+    const nextIndex = delta < 0 ? Math.max(0, index + delta) : index + delta;
+    if (nextIndex === index) return;
+    const nextHighest = Math.max(highestViewed, nextIndex);
+    setHighestViewed(nextHighest);
+    const extended = syncNewsStream(synced.stream, sources, {
+      targetCount: targetNewsCountForIndex(nextIndex),
+      viewedThroughIndex: nextHighest,
+    });
+    setStream(extended.stream);
+    rememberStream(visit, extended.stream);
+    const clampedIndex = Math.min(nextIndex, Math.max(0, extended.entries.length - 1));
+    const target = extended.entries[clampedIndex];
+    setCursor({
+      id: target?.item.id ?? null,
+      slotKey: target?.slotKey ?? null,
+      index: clampedIndex,
+    });
   };
 
   // Auto-advance. Items are rebuilt on every store change, so the timer keys on
-  // the visible item and reads the latest list when it fires.
-  const itemsRef = useRef(items);
+  // the visible slot and reads the latest list when it fires.
+  const entriesRef = useRef(entries);
+  const sourcesRef = useRef(sources);
+  const streamRef = useRef(synced.stream);
+  const highestRef = useRef(highestViewed);
   useEffect(() => {
-    itemsRef.current = items;
+    entriesRef.current = entries;
+    sourcesRef.current = sources;
+    streamRef.current = synced.stream;
+    highestRef.current = highestViewed;
   });
-  const itemCount = items.length;
+  const itemCount = entries.length;
   const rotateTimerRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (paused || itemCount < 2) return;
@@ -87,14 +150,28 @@ export function NewsLine(props: {
         rotateTimerRef.current = window.setTimeout(tick, rotateMs);
         return;
       }
-      const list = itemsRef.current;
-      const from = list.findIndex((item) => item.id === currentId);
-      const nextIndex = (from + 1) % list.length;
-      setCursor({ id: list[nextIndex]?.id ?? null, index: nextIndex });
+      const list = entriesRef.current;
+      const from = list.findIndex((entry) => entry.slotKey === currentSlotKey);
+      const rawNext = from >= 0 ? from + 1 : 0;
+      const nextHighest = Math.max(highestRef.current, rawNext);
+      const extended = syncNewsStream(streamRef.current, sourcesRef.current, {
+        targetCount: targetNewsCountForIndex(rawNext),
+        viewedThroughIndex: nextHighest,
+      });
+      setStream(extended.stream);
+      rememberStream(visit, extended.stream);
+      const nextIndex = rawNext < extended.entries.length ? rawNext : 0;
+      const target = extended.entries[nextIndex];
+      setHighestViewed(nextHighest);
+      setCursor({
+        id: target?.item.id ?? null,
+        slotKey: target?.slotKey ?? null,
+        index: nextIndex,
+      });
     };
     rotateTimerRef.current = window.setTimeout(tick, rotateMs);
     return () => window.clearTimeout(rotateTimerRef.current);
-  }, [paused, itemCount, currentId, rotateMs]);
+  }, [paused, itemCount, currentSlotKey, rotateMs, visit]);
 
   // Count a showing once per visit, and slide a newly shown item in. A remount
   // within the visit finds its item already on screen: it neither counts again
@@ -103,7 +180,7 @@ export function NewsLine(props: {
     if (current && countShowing(visit, current.id)) current.onShown?.();
   }, [current, visit]);
   useEffect(() => {
-    if (currentId === null || !recordOnScreen(visit, currentId, index)) return;
+    if (currentId === null || !recordOnScreen(visit, currentId, index, currentSlotKey)) return;
     const element = contentRef.current;
     if (!element || typeof element.animate !== "function") return;
     if (window.matchMedia?.(REDUCED_MOTION_QUERY).matches) return;
@@ -114,7 +191,7 @@ export function NewsLine(props: {
       ],
       { duration: 260, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" },
     );
-  }, [currentId, index, visit]);
+  }, [currentId, currentSlotKey, index, visit]);
 
   // Pause while the user types in this draft's composer.
   const typingTimerRef = useRef<number | undefined>(undefined);
@@ -197,7 +274,7 @@ export function NewsLine(props: {
     }
     action?.onPress();
   };
-  const dotCount = Math.min(5, items.length);
+  const dotCount = Math.min(5, entries.length);
   const position = index % dotCount;
 
   return (
@@ -216,6 +293,7 @@ export function NewsLine(props: {
           className="flex h-8 w-full min-w-0 items-center gap-2 rounded-full px-3 transition-colors group-hover:bg-[var(--row-hover)] group-focus-within:bg-[var(--row-hover)]"
           data-news-item={current.id}
           data-news-kind={current.kind}
+          {...(currentSlotKey ? { "data-news-slot": currentSlotKey } : {})}
         >
           {current.icon}
           <span className="min-w-0 truncate" data-news-text="">
@@ -248,7 +326,7 @@ export function NewsLine(props: {
           className="flex h-[22px] shrink-0 items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
           data-news-controls=""
         >
-          {items.length > 1 ? (
+          {entries.length > 1 ? (
             <>
               <span aria-hidden="true" className="mx-1.5 flex gap-1">
                 {Array.from({ length: dotCount }, (_, dot) => (
@@ -261,6 +339,7 @@ export function NewsLine(props: {
               <button
                 type="button"
                 aria-label={t`Previous`}
+                disabled={index === 0}
                 className={controlButtonClass}
                 onClick={() => step(-1)}
               >

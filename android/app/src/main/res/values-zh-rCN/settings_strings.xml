@@ -134,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">按提供方划分的 Token</string>
     <string name="settings_profile_tokens_by_provider_empty">暂无按提供方划分的 Token 使用数据。</string>
     <string name="settings_profile_provider_cost">预估费用</string>
+    <string name="settings_profile_trends">近期与趋势</string>
+    <string name="settings_profile_yesterday">昨天</string>
+    <string name="settings_profile_last_7d">过去 7 天</string>
+    <string name="settings_profile_avg_task_duration">平均任务耗时</string>
+    <string name="settings_profile_prompt_cache_hit">提示缓存命中率</string>
+    <string name="settings_profile_weekend_share">周末占比</string>
+    <string name="settings_profile_switched_provider">提供商切换</string>
+    <string name="settings_profile_switched_model">模型切换</string>
+    <string name="settings_profile_provider_less">本周 %1$s 减少 %2$d%%</string>
+    <string name="settings_profile_provider_more">本周 %1$s 增加 %2$d%%</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s 条提示</string>
 </resources>

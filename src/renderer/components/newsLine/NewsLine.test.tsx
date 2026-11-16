@@ -520,4 +520,76 @@ describe("NewsLine", () => {
     act(() => useNewsLineStore.setState({ sessionHiddenIds: ["unrelated"] }));
     expect(animate).toHaveBeenCalledTimes(1);
   });
+
+  it("extends infinitely in 5-item batches while repeating promotions and surfacing trend insights", async () => {
+    const emptySnapshot = {
+      days: 7,
+      activeDays: 4,
+      threads: 8,
+      prompts: 20,
+      messages: 20,
+      goals: 1,
+      longestTaskMs: 60_000,
+      totalTurnMs: 240_000,
+      fastTurns: 4,
+      effortTurns: 8,
+      skillsUsed: 0,
+      workflowRuns: 0,
+      subagentRuns: 0,
+      mcpToolCalls: 0,
+      weekdayPrompts: 18,
+      weekendPrompts: 2,
+      providers: [{ key: "alpha", label: "Alpha", count: 20, percent: 100 }],
+      models: [{ key: "alpha\x1fmodel-a", label: "model-a (Alpha)", count: 20, percent: 100 }],
+      modes: [{ key: "chat", label: "Chat", count: 8, percent: 100 }],
+      efforts: [{ key: "high", label: "High", count: 8, percent: 100 }],
+      hours: [{ hour: 23, count: 14 }],
+      skills: [],
+      mcps: [],
+      aiActions: [],
+    };
+    mocks.stats = {
+      ...streakStats(),
+      device: { id: "local-1", label: "Workstation", platform: "darwin", isCurrent: true },
+      recent: {
+        today: { ...emptySnapshot, days: 1, prompts: 4 },
+        yesterday: { ...emptySnapshot, days: 1, prompts: 9 },
+        last7d: {
+          ...emptySnapshot,
+          providers: [
+            { key: "beta", label: "Beta", count: 20, percent: 74 },
+            { key: "alpha", label: "Alpha", count: 7, percent: 26 },
+          ],
+          models: [{ key: "beta\x1fmodel-b", label: "model-b (Beta)", count: 20, percent: 74 }],
+          prompts: 27,
+        },
+        prev7d: {
+          ...emptySnapshot,
+          providers: [{ key: "alpha", label: "Alpha", count: 20, percent: 100 }],
+          prompts: 20,
+        },
+        last30d: { ...emptySnapshot, days: 30, prompts: 47 },
+        prev30d: { ...emptySnapshot, days: 30, prompts: 15 },
+      },
+    } as unknown as ProfileCoreStats;
+
+    render(<NewsLine />);
+    await act(async () => {});
+
+    const seenSlots = new Set<string>();
+    const seenKinds: string[] = [];
+    for (let step = 0; step < 14; step++) {
+      const el = document.querySelector("[data-news-item]")!;
+      const slot = el.getAttribute("data-news-slot")!;
+      expect(seenSlots.has(slot)).toBe(false);
+      seenSlots.add(slot);
+      seenKinds.push(el.getAttribute("data-news-kind")!);
+      fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    }
+
+    // Reached past 12 items seamlessly without wrapping back to slot 0, and repeated promotions.
+    expect(seenSlots.size).toBe(14);
+    expect(seenKinds.filter((k) => k === "promotion").length).toBeGreaterThanOrEqual(3);
+    expect(seenKinds).toContain("insight");
+  });
 });

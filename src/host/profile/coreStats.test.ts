@@ -257,4 +257,80 @@ describe("computeProfileCoreStats (real sqlite)", () => {
     ).toBe(true);
     expect(prepare.mock.calls.some(([sql]) => String(sql).includes("WHERE id <= ?"))).toBe(false);
   });
+
+  it("populates yesterday, last7d, prev7d, last30d, prev30d and windowHours in recent", () => {
+    // 2026-10-17 is a Saturday (weekend).
+    const now = Date.parse("2026-10-17T15:00:00Z");
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const day = 86_400_000;
+
+    dbAppendUsageEvents([
+      // 35 days ago -> prev30d
+      { ts: now - 35 * day, kind: "turn", provider: "codex", model: "model-old", value: 10_000 },
+      // 10 days ago (Wednesday) -> prev7d and last30d
+      { ts: now - 10 * day, kind: "thread_started", provider: "codex", mode: "cli" },
+      { ts: now - 10 * day, kind: "turn", provider: "codex", model: "model-a", value: 20_000 },
+      { ts: now - 10 * day, kind: "turn", provider: "codex", model: "model-a", value: 40_000 },
+      // Yesterday (Friday, weekday) -> yesterday, last7d, last30d
+      { ts: now - day, kind: "thread_started", provider: "claude", mode: "chat" },
+      {
+        ts: now - day,
+        kind: "turn",
+        provider: "claude",
+        model: "model-b",
+        fast: true,
+        effort: "high",
+        value: 30_000,
+      },
+      // Today (Saturday, weekend) -> today, last7d, last30d
+      { ts: now, kind: "turn", provider: "claude", model: "model-b", value: 15_000 },
+      { ts: now, kind: "ai_commit", provider: "claude", model: "model-b" },
+    ]);
+
+    const stats = computeProfileCoreStats({ utcOffsetMinutes: 0, window: "all" });
+    expect(stats.recent?.today).toMatchObject({
+      prompts: 1,
+      weekendPrompts: 1,
+      weekdayPrompts: 0,
+      totalTurnMs: 15_000,
+      aiActions: [{ type: "commit", count: 1 }],
+    });
+    expect(stats.recent?.yesterday).toMatchObject({
+      prompts: 1,
+      threads: 1,
+      fastTurns: 1,
+      weekdayPrompts: 1,
+      weekendPrompts: 0,
+      providers: [{ key: "claude", count: 1, percent: 100 }],
+      modes: [{ key: "chat", count: 1, percent: 100 }],
+      hours: [{ hour: 15, count: 1 }],
+    });
+    expect(stats.recent?.last7d).toMatchObject({
+      prompts: 2,
+      activeDays: 2,
+      totalTurnMs: 45_000,
+      weekdayPrompts: 1,
+      weekendPrompts: 1,
+      providers: [{ key: "claude", count: 2, percent: 100 }],
+    });
+    expect(stats.recent?.prev7d).toMatchObject({
+      prompts: 2,
+      activeDays: 1,
+      totalTurnMs: 60_000,
+      longestTaskMs: 40_000,
+      providers: [{ key: "codex", count: 2, percent: 100 }],
+    });
+    expect(stats.recent?.last30d.prompts).toBe(4);
+    expect(stats.recent?.prev30d.prompts).toBe(1);
+    expect(stats.recent?.windowHours).toEqual([{ hour: 15, count: 5 }]);
+
+    // Provider filter narrows recent snapshots as well.
+    const filtered = computeProfileCoreStats({
+      utcOffsetMinutes: 0,
+      provider: "codex",
+      window: "7d",
+    });
+    expect(filtered.recent?.last7d.prompts).toBe(0);
+    expect(filtered.recent?.prev7d.prompts).toBe(2);
+  });
 });

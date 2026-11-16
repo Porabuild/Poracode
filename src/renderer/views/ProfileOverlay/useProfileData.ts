@@ -11,6 +11,7 @@ import type {
   ProfileStatsWindow,
   ProfileTokenStats,
 } from "@/shared/contracts";
+import type { ProfileEnvSummary } from "@/shared/profile/insights";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { selectBrowserBridgeClientServer } from "@/renderer/state/remoteServers/browserBridge";
@@ -61,6 +62,7 @@ export interface ProfileData {
   coreLoading: boolean;
   tokens: ProfileTokenViewStats | null;
   tokensLoading: boolean;
+  envSummaries?: ProfileEnvSummary[];
   error: string | null;
   /** Optimistically apply an identity edit and persist it. */
   saveIdentity: (identity: ProfileIdentity) => Promise<void>;
@@ -73,6 +75,7 @@ interface HostProfileCache {
   identity?: ProfileIdentity;
   coreByKey: Map<string, ProfileCoreViewStats>;
   tokensByKey: Map<string, ProfileTokenViewStats>;
+  envsByKey: Map<string, ProfileEnvSummary[]>;
 }
 
 const hostProfileCaches = new Map<string, HostProfileCache>();
@@ -80,7 +83,12 @@ const hostProfileCaches = new Map<string, HostProfileCache>();
 function getHostProfileCache(scopeKey: string): HostProfileCache {
   let cache = hostProfileCaches.get(scopeKey);
   if (!cache) {
-    cache = { identityRevision: 0, coreByKey: new Map(), tokensByKey: new Map() };
+    cache = {
+      identityRevision: 0,
+      coreByKey: new Map(),
+      tokensByKey: new Map(),
+      envsByKey: new Map(),
+    };
     hostProfileCaches.set(scopeKey, cache);
   }
   return cache;
@@ -241,12 +249,19 @@ export function useProfileData(): ProfileData {
 
   const cachedCore = hostCache.coreByKey.get(statsRequestKey) ?? null;
   const cachedTokens = hostCache.tokensByKey.get(statsRequestKey) ?? null;
+  const cachedEnvs = hostCache.envsByKey.get(statsRequestKey) ?? [];
 
   const [coreState, setCoreState] = useState<{
     key: string;
     data: ProfileCoreViewStats | null;
+    envs: ProfileEnvSummary[];
     loading: boolean;
-  }>(() => ({ key: attemptKey, data: cachedCore, loading: cachedCore === null }));
+  }>(() => ({
+    key: attemptKey,
+    data: cachedCore,
+    envs: cachedEnvs,
+    loading: cachedCore === null,
+  }));
   const [tokensState, setTokensState] = useState<{
     key: string;
     data: ProfileTokenViewStats | null;
@@ -258,6 +273,7 @@ export function useProfileData(): ProfileData {
   });
 
   const core = coreState.key === attemptKey ? coreState.data : cachedCore;
+  const envSummaries = coreState.key === attemptKey ? coreState.envs : cachedEnvs;
   const coreLoading = coreState.key === attemptKey ? coreState.loading : cachedCore === null;
   const tokens = tokensState.key === attemptKey ? tokensState.data : cachedTokens;
   const tokensLoading =
@@ -346,13 +362,19 @@ export function useProfileData(): ProfileData {
             if (saved) data = { ...result, identity: saved };
           }
           cache.coreByKey.set(statsRequestKey, data);
-          setCoreState({ key: capturedAttemptKey, data, loading: false });
+          cache.envsByKey.set(statsRequestKey, []);
+          setCoreState({ key: capturedAttemptKey, data, envs: [], loading: false });
           setErrorState({ key: capturedAttemptKey, message: null });
         })
         .catch((err: unknown) => {
           if (!active) return;
           const cached = cache.coreByKey.get(statsRequestKey) ?? null;
-          setCoreState({ key: capturedAttemptKey, data: cached, loading: false });
+          setCoreState({
+            key: capturedAttemptKey,
+            data: cached,
+            envs: cache.envsByKey.get(statsRequestKey) ?? [],
+            loading: false,
+          });
           if (!cached) {
             setErrorState({
               key: capturedAttemptKey,
@@ -402,12 +424,20 @@ export function useProfileData(): ProfileData {
 
     const publishMergedCore = () => {
       const blobs: ProfileCoreStats[] = [];
+      const envs: ProfileEnvSummary[] = [];
       const seenDeviceIds = new Set<string>();
       const primaryBlob = coreResults.get("__primary__");
       if (primaryBlob) {
         primaryDeviceId = primaryBlob.device.id;
         seenDeviceIds.add(primaryBlob.device.id);
         blobs.push(primaryBlob);
+        envs.push({
+          id: primaryBlob.device.id,
+          label: primaryBlob.device.label,
+          platform: primaryBlob.device.platform,
+          isCurrent: true,
+          core: primaryBlob,
+        });
       }
       for (const targetKey of activeRemoteTargets) {
         const blob = coreResults.get(targetKey);
@@ -415,6 +445,16 @@ export function useProfileData(): ProfileData {
         if (seenDeviceIds.has(blob.device.id)) continue;
         seenDeviceIds.add(blob.device.id);
         blobs.push(blob);
+        const serverRecord = store.servers.find(
+          (candidate) => remoteConnectionKey(candidate) === targetKey,
+        );
+        envs.push({
+          id: blob.device.id,
+          label: serverRecord ? desktopTitle(serverRecord.label) : blob.device.label,
+          platform: blob.device.platform,
+          isCurrent: false,
+          core: blob,
+        });
       }
       if (blobs.length === 0) return;
       const merged = mergeProfileCoreStats(
@@ -423,7 +463,8 @@ export function useProfileData(): ProfileData {
         primaryBlob?.device,
       );
       cache.coreByKey.set(statsRequestKey, merged);
-      setCoreState({ key: capturedAttemptKey, data: merged, loading: false });
+      cache.envsByKey.set(statsRequestKey, envs);
+      setCoreState({ key: capturedAttemptKey, data: merged, envs, loading: false });
       setErrorState({ key: capturedAttemptKey, message: null });
     };
 
@@ -457,7 +498,12 @@ export function useProfileData(): ProfileData {
       if (settledCore < totalTargets) return;
       if (coreResults.size === 0) {
         const cached = cache.coreByKey.get(statsRequestKey) ?? null;
-        setCoreState({ key: capturedAttemptKey, data: cached, loading: false });
+        setCoreState({
+          key: capturedAttemptKey,
+          data: cached,
+          envs: cache.envsByKey.get(statsRequestKey) ?? [],
+          loading: false,
+        });
         if (!cached) {
           setErrorState({
             key: capturedAttemptKey,
@@ -604,6 +650,7 @@ export function useProfileData(): ProfileData {
     coreLoading,
     tokens,
     tokensLoading,
+    envSummaries,
     error,
     saveIdentity,
     retry: () => setRetryToken((n) => n + 1),
