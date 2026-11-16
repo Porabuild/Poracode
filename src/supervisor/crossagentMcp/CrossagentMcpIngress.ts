@@ -23,6 +23,8 @@ export interface CrossagentMcpIngressDeps {
   getThreadCrew?: (threadId: string) => ThreadCrewBinding | undefined;
   /** Resolve a trusted provider-native session id to its live Poracode parent. */
   resolveProviderSessionThreadId?: (sessionId: string) => string | undefined;
+  /** Parse provider-owned MCP metadata and verify its live session owner. */
+  resolveProviderMcpThreadId?: (metadata: Readonly<Record<string, unknown>>) => string | undefined;
   /** Optional user-provided routing guide appended to the MCP instructions (phase 3). */
   getRoutingGuide?: () => string | undefined;
   /** Report only caller-explicit selections; auto-ranked choices must not reinforce themselves. */
@@ -34,6 +36,7 @@ export interface CrossagentMcpIngressDeps {
 }
 
 const MAX_BODY = 1024 * 1024;
+// Metadata normalization is additive; legacy calls retain this MCP wire version.
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 export const CROSSAGENT_PROVIDER_SESSION_ID_ARG = "__poracode_provider_session_id";
 const TOOL_PERMISSION_ALIASES = new Map([
@@ -208,10 +211,16 @@ export class CrossagentMcpIngress {
     args: Record<string, unknown>,
     meta?: Record<string, unknown>,
   ): string | undefined {
-    const sessionId = args[CROSSAGENT_PROVIDER_SESSION_ID_ARG] ?? meta?.threadId;
+    const metadata = meta && typeof meta === "object" && !Array.isArray(meta) ? meta : undefined;
+    const sessionId = args[CROSSAGENT_PROVIDER_SESSION_ID_ARG] ?? metadata?.threadId;
     delete args[CROSSAGENT_PROVIDER_SESSION_ID_ARG];
-    if (typeof sessionId !== "string" || sessionId.length === 0) return undefined;
-    const threadId = this.deps.resolveProviderSessionThreadId?.(sessionId);
+    if (sessionId !== undefined && (typeof sessionId !== "string" || sessionId.length === 0)) {
+      return undefined;
+    }
+    const threadId =
+      sessionId !== undefined
+        ? this.deps.resolveProviderSessionThreadId?.(sessionId)
+        : metadata && this.deps.resolveProviderMcpThreadId?.(metadata);
     if (!threadId || !this.providerSessionThreads.has(threadId)) return undefined;
     return threadId;
   }

@@ -301,6 +301,76 @@ describe("accepted structured turn interruption", () => {
 });
 
 describe("ThreadSessionManager provider-session routing", () => {
+  it("routes parsed metadata only to its adapter's current root or child owner", () => {
+    const firstSession = createStructuredSession(Promise.resolve());
+    firstSession.ownsProviderSession = (sessionId) => sessionId === "ses_child";
+    const adapter = createAdapter("opencode", firstSession);
+    adapter.capabilities.crossagentMcpRouting = "provider-session";
+    adapter.readMcpSessionId = (metadata) =>
+      typeof metadata.nativeSessionId === "string" ? metadata.nativeSessionId : undefined;
+    const manager = createManager("opencode", adapter);
+    const first = createInactiveRuntime("opencode", adapter, firstSession);
+    const second = {
+      ...createInactiveRuntime("opencode", adapter, createStructuredSession(Promise.resolve())),
+      threadId: "thread-second",
+      sessionRef: { providerSessionId: "ses_second", discoveredAt: "2026-09-08T00:00:00.000Z" },
+    };
+    manager.sessions.set(first.threadId, first);
+    manager.sessions.set(second.threadId, second);
+
+    expect(manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_existing" })).toBe(
+      first.threadId,
+    );
+    expect(manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_second" })).toBe(
+      second.threadId,
+    );
+    expect(manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_child" })).toBe(
+      first.threadId,
+    );
+    expect(
+      manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_unknown" }),
+    ).toBeUndefined();
+
+    const foreignAdapter = createAdapter("codex", createStructuredSession(Promise.resolve()));
+    foreignAdapter.capabilities.crossagentMcpRouting = "provider-session";
+    second.adapter = foreignAdapter;
+    expect(
+      manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_second" }),
+    ).toBeUndefined();
+
+    first.sessionRef = {
+      providerSessionId: "ses_resumed",
+      discoveredAt: "2026-09-09T00:00:00.000Z",
+    };
+    expect(
+      manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_existing" }),
+    ).toBeUndefined();
+    expect(manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_resumed" })).toBe(
+      first.threadId,
+    );
+    manager.sessions.delete(first.threadId);
+    expect(
+      manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_child" }),
+    ).toBeUndefined();
+  });
+
+  it("rejects ambiguous metadata rather than choosing a parent by registration order", () => {
+    const session = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("opencode", session);
+    adapter.capabilities.crossagentMcpRouting = "provider-session";
+    adapter.readMcpSessionId = () => "ses_existing";
+    const manager = createManager("opencode", adapter);
+    const first = createInactiveRuntime("opencode", adapter, session);
+    const second = { ...first, threadId: "thread-second" };
+    manager.sessions.set(first.threadId, first);
+    manager.sessions.set(second.threadId, second);
+    expect(manager.getThreadIdByProviderMcpMetadata({})).toBeUndefined();
+    manager.sessions.delete(second.threadId);
+    expect(manager.getThreadIdByProviderMcpMetadata({})).toBe(first.threadId);
+    delete adapter.capabilities.crossagentMcpRouting;
+    expect(manager.getThreadIdByProviderMcpMetadata({})).toBeUndefined();
+  });
+
   it("resolves both root and provider-owned child sessions to the live thread", () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     structuredSession.ownsProviderSession = (sessionId) => sessionId === "ses_child";
