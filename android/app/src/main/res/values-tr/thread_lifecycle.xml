@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">Arşivlenmiş başlık yok</string>
     <string name="thread_status_starting_agent">Ajan başlatılıyor…</string>
     <string name="thread_status_resuming">Oturum sürdürülüyor…</string>
+    <string name="thread_lifecycle_pin_top">En üste sabitle</string>
+    <string name="thread_lifecycle_archive_thread">İleti Dizisini Arşivle</string>
+    <string name="thread_lifecycle_delete_thread">Konuyu Sil</string>
+    <string name="thread_lifecycle_notes">Notlar ve yapılacaklar</string>
+    <string name="thread_lifecycle_open_terminal">Terminali aç</string>
+    <string name="thread_lifecycle_fork_thread">Konuşmayı dallandır</string>
+    <string name="thread_lifecycle_continue_in">Başka bir sağlayıcıda devam et</string>
+    <string name="thread_lifecycle_move_worktree_changes">Değişikliklerle çalışma ağacına taşı</string>
+    <string name="thread_lifecycle_move_worktree_clean">Temiz çalışma ağacına taşı</string>
+    <string name="thread_lifecycle_move_worktree_title">İleti dizisi çalışma ağacına taşınsın mı?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">Geçerli çalışma durdurulacak. Yeni bir çalışma ağacı ve dal oluşturulacak, kaydedilmemiş değişiklikler ileti dizisi sürdürülmeden önce buraya taşınacak.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">Geçerli çalışma durdurulacak. İleti dizisi sürdürülmeden önce temiz bir çalışma ağacı ve dal oluşturulacak.</string>
+    <string name="thread_lifecycle_move_confirm">Taşı</string>
 </resources>

@@ -1,4 +1,6 @@
 import { app } from "electron";
+import { join } from "node:path";
+import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEventLedger";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeDiagnosticTags, SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
 import {
@@ -7,6 +9,7 @@ import {
   shouldEnableSentryReporting,
 } from "@/shared/diagnostics/sentryBuildConfig";
 import { prepareMainSentryEvent } from "./mainEvent";
+import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 
 const DISABLED_INTEGRATIONS = new Set([
   "ChildProcess",
@@ -95,6 +98,9 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     return false;
   }
 
+  const shouldSendMainSentryEvent = createPersistentSentryEventLimiter(
+    join(app.getPath("userData"), "sentry", "event-budget.json"),
+  );
   Sentry.init({
     dsn,
     release: `poracode@${options.appVersion}`,
@@ -113,10 +119,13 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
       return null;
     },
     beforeSend(event) {
-      return prepareMainSentryEvent(
+      const prepared = prepareMainSentryEvent(
         event as unknown as SentryEventLike,
         process.platform,
-      ) as unknown as typeof event | null;
+      );
+      return prepared && shouldSendMainSentryEvent(prepared)
+        ? (prepared as unknown as typeof event)
+        : null;
     },
     integrations(defaultIntegrations) {
       return defaultIntegrations.filter(
@@ -147,9 +156,7 @@ export function captureMainException(
   if (!Sentry) return;
   if (!Sentry.isEnabled()) return;
   Sentry.withScope((scope) => {
-    if (tags) {
-      scope.setTags(tags);
-    }
+    scope.setTags({ ...tags, ...buildErrorCauseTags(error) });
     if (fingerprint) {
       scope.setFingerprint(fingerprint);
     }

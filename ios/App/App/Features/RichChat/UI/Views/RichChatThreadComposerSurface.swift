@@ -28,6 +28,8 @@ struct RichChatThreadComposerSurface: View {
   let skillPickerContext: RichChatSkillPickerContext?
   var sessionActions: RichChatSessionActionsController?
   var onInsertIntoComposer: (String) -> Void = { _ in }
+  /// Resume for a cut-off turn, gated on the thread and transcript by the page.
+  var resumeContext = RichChatComposerResumeContext()
 
   var body: some View {
     RichChatComposerView(
@@ -57,7 +59,8 @@ struct RichChatThreadComposerSurface: View {
       onSubmissionFinished: { state.finishSubmission(succeeded: $0) },
       skillPickerContext: skillPickerContext,
       sessionActions: sessionActions,
-      onInsertIntoComposer: onInsertIntoComposer
+      onInsertIntoComposer: onInsertIntoComposer,
+      resumeContext: resumeContext
     )
   }
 

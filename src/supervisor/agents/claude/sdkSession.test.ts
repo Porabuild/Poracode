@@ -17,6 +17,7 @@ import type {
 } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
 import { ClaudeSdkSession } from "./sdkSession";
+import { msg } from "@/shared/messages";
 
 const mockSdk = vi.hoisted(() => ({
   query: vi.fn<(input: unknown) => Query>(),
@@ -245,7 +246,12 @@ function sdkErrorResult(sessionId: string): SDKMessage {
   } as unknown as SDKMessage;
 }
 
-function sdkTaskStarted(sessionId: string, taskId: string, toolUseId: string): SDKMessage {
+function sdkTaskStarted(
+  sessionId: string,
+  taskId: string,
+  toolUseId: string,
+  extra: Record<string, unknown> = {},
+): SDKMessage {
   return {
     type: "system",
     subtype: "task_started",
@@ -254,6 +260,7 @@ function sdkTaskStarted(sessionId: string, taskId: string, toolUseId: string): S
     task_id: taskId,
     tool_use_id: toolUseId,
     subagent_type: "general-purpose",
+    ...extra,
   } as unknown as SDKMessage;
 }
 
@@ -270,10 +277,53 @@ function sdkBackgroundTasksChanged(
   } as unknown as SDKMessage;
 }
 
+function sdkToolStarted(sessionId: string, toolUseId: string, toolName = "Agent"): SDKMessage {
+  return {
+    type: "stream_event",
+    session_id: sessionId,
+    event: {
+      type: "content_block_start",
+      index: 0,
+      content_block: {
+        type: "tool_use",
+        id: toolUseId,
+        name: toolName,
+        input: { description: "Investigate" },
+      },
+    },
+  } as unknown as SDKMessage;
+}
+
+function sdkSubAgentChildTool(
+  sessionId: string,
+  parentToolUseId: string,
+  toolUseId: string,
+): SDKMessage {
+  return {
+    type: "assistant",
+    session_id: sessionId,
+    uuid: `uuid-child-${toolUseId}`,
+    parent_tool_use_id: parentToolUseId,
+    message: {
+      id: `msg-child-${toolUseId}`,
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          id: toolUseId,
+          name: "Read",
+          input: { file_path: "a" },
+        },
+      ],
+    },
+  } as unknown as SDKMessage;
+}
+
 function sdkTaskNotification(
   sessionId: string,
   taskId: string,
-  status: "completed" | "failed" = "completed",
+  status: "completed" | "failed" | "stopped" = "completed",
+  extra: Record<string, unknown> = {},
 ): SDKMessage {
   return {
     type: "system",
@@ -282,6 +332,7 @@ function sdkTaskNotification(
     session_id: sessionId,
     task_id: taskId,
     status,
+    ...extra,
   } as unknown as SDKMessage;
 }
 
@@ -1829,6 +1880,716 @@ describe("ClaudeSdkSession", () => {
           payload: expect.objectContaining({ status: "complete" }),
         }),
       );
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports a missing background-task report and cleans orphaned children at grace", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-missing",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+
+      fake.emitMessage(sdkToolStarted(openedSessionId, "toolu_bg"));
+      fake.emitMessage(sdkSubAgentChildTool(openedSessionId, "toolu_bg", "toolu_child"));
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg"));
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(updates.at(-1)).toMatchObject({
+        status: "working",
+        attention: "working",
+      });
+      expect(
+        runtimeEvents.some(
+          (event) => event.type === "item.completed" && event.itemId === "toolu_bg",
+        ),
+      ).toBe(false);
+
+      // The roster drops the task with no terminal notification. Nothing is
+      // settled on the roster frame itself; the held completion's grace runs.
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(
+        runtimeEvents.some(
+          (event) => event.type === "item.completed" && event.itemId === "toolu_bg",
+        ),
+      ).toBe(false);
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(
+        runtimeEvents.some(
+          (event) => event.type === "item.completed" && event.itemId === "toolu_bg",
+        ),
+      ).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(runtimeEvents).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-claude-bg-missing",
+        itemId: "toolu_bg",
+        payload: expect.objectContaining({
+          status: "error",
+          result: { error: msg("thread.backgroundTaskReportMissing") },
+        }),
+      });
+      // The orphaned forwarded child is flushed as an error, not left running.
+      expect(runtimeEvents).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-claude-bg-missing",
+        itemId: "toolu_child",
+        payload: expect.objectContaining({ status: "error" }),
+      });
+      expect(updates.at(-1)).toMatchObject({
+        status: "idle",
+        attention: "none",
+      });
+
+      const mapperState = (
+        session as unknown as {
+          mapperState: { subAgentChildToolItemIds?: Set<string> };
+        }
+      ).mapperState;
+      expect(mapperState.subAgentChildToolItemIds?.size ?? 0).toBe(0);
+      // The next user turn cannot resurrect the flushed child row.
+      await session.startTurn("next task please", config);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runtimeEvents.at(-1)).not.toMatchObject({ itemId: "toolu_child" });
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a nested Agent's missing-report error and late report at grace", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-nested-missing",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("launch a nested background agent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkToolStarted(openedSessionId, "toolu_bg"));
+      fake.emitMessage({
+        type: "assistant",
+        session_id: openedSessionId,
+        uuid: "uuid-child-nested",
+        parent_tool_use_id: "toolu_bg",
+        message: {
+          id: "msg-child-nested",
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              id: "toolu_nested",
+              name: "Agent",
+              input: {
+                description: "Nested",
+                subagent_type: "general-purpose",
+              },
+            },
+          ],
+        },
+      } as unknown as SDKMessage);
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg"));
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-2", "toolu_nested"));
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+          {
+            task_id: "task-2",
+            task_type: "local_agent",
+            description: "Nested",
+          },
+        ]),
+      );
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+
+      // Both owners leave the roster with no terminal report. Grace settles the
+      // roots once each; the nested Agent row is retained, never re-completed
+      // by the orphaned-child sweep (which would erase its result error).
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(5_000);
+      const completionsFor = (itemId: string) =>
+        runtimeEvents.filter((event) => event.type === "item.completed" && event.itemId === itemId);
+      expect(completionsFor("toolu_bg")).toHaveLength(1);
+      expect(completionsFor("toolu_nested")).toHaveLength(1);
+      expect(completionsFor("toolu_bg")[0]).toMatchObject({
+        payload: {
+          status: "error",
+          result: { error: msg("thread.backgroundTaskReportMissing") },
+        },
+      });
+      expect(completionsFor("toolu_nested")[0]).toMatchObject({
+        payload: {
+          status: "error",
+          result: { error: msg("thread.backgroundTaskReportMissing") },
+        },
+      });
+      const mapperState = (
+        session as unknown as {
+          mapperState: {
+            toolItemsById: Map<string, { awaitingTaskReport?: boolean }>;
+            subAgentChildToolItemIds?: Set<string>;
+          };
+        }
+      ).mapperState;
+      expect(mapperState.toolItemsById.get("toolu_nested")?.awaitingTaskReport).toBe(true);
+      const nestedStart = runtimeEvents.length;
+
+      // A late report still finds the retained nested row (no tool_use_id) and
+      // replaces its error in place; the parent's error is untouched.
+      fake.emitMessage(
+        sdkTaskNotification(openedSessionId, "task-2", "completed", {
+          summary: "Nested done",
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      const nestedTail = runtimeEvents.slice(nestedStart);
+      expect(nestedTail).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-claude-bg-nested-missing",
+        itemId: "toolu_nested",
+        payload: expect.objectContaining({
+          status: "success",
+          result: "Nested done",
+        }),
+      });
+      expect(nestedTail.some((event) => "itemId" in event && event.itemId === "toolu_bg")).toBe(
+        false,
+      );
+      expect(mapperState.toolItemsById.has("toolu_nested")).toBe(false);
+      expect(mapperState.toolItemsById.get("toolu_bg")?.awaitingTaskReport).toBe(true);
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never emits a provisional missing-report error when the notification lands in the grace", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-grace-terminal",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkToolStarted(openedSessionId, "toolu_bg"));
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg"));
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      // A terminal report inside the grace wins; no provisional error is ever
+      // emitted and the normal terminal payload closes the row.
+      fake.emitMessage(
+        sdkTaskNotification(openedSessionId, "task-1", "completed", {
+          summary: "Finished normally",
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runtimeEvents).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-claude-bg-grace-terminal",
+        itemId: "toolu_bg",
+        payload: expect.objectContaining({
+          status: "success",
+          result: "Finished normally",
+        }),
+      });
+      expect(
+        runtimeEvents.some(
+          (event) =>
+            event.type === "item.completed" &&
+            (event.payload as { result?: { error?: string } } | undefined)?.result?.error ===
+              msg("thread.backgroundTaskReportMissing"),
+        ),
+      ).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(updates.at(-1)).toMatchObject({
+        status: "idle",
+        attention: "none",
+      });
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not settle when the roster rejoins the task inside the grace", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-grace-join",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkToolStarted(openedSessionId, "toolu_bg"));
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg"));
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(1_000);
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(
+        runtimeEvents.some(
+          (event) =>
+            event.type === "item.completed" &&
+            event.itemId === "toolu_bg" &&
+            (event.payload as { status?: string } | undefined)?.status === "error",
+        ),
+      ).toBe(false);
+
+      fake.emitMessage(sdkTaskNotification(openedSessionId, "task-1"));
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(updates.at(-1)).toMatchObject({
+        status: "idle",
+        attention: "none",
+      });
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("replaces a missing-report error with a late notification after the next user turn", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-late",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkToolStarted(openedSessionId, "toolu_bg"));
+      fake.emitMessage(sdkTaskStarted(openedSessionId, "task-1", "toolu_bg"));
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(updates.at(-1)).toMatchObject({ status: "idle" });
+      expect(runtimeEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.completed",
+          itemId: "toolu_bg",
+          payload: expect.objectContaining({
+            status: "error",
+            result: { error: msg("thread.backgroundTaskReportMissing") },
+          }),
+        }),
+      );
+
+      // A new user turn resets the mapper; the awaiting-report row must survive
+      // that reset so the late terminal notification still lands on it.
+      await session.startTurn("next task please", config);
+      await vi.advanceTimersByTimeAsync(0);
+      const tailStart = runtimeEvents.length;
+      // No tool_use_id on purpose: the launch/alias maps must locate the row.
+      fake.emitMessage(
+        sdkTaskNotification(openedSessionId, "task-1", "completed", {
+          summary: "Actually finished",
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+
+      const tail = runtimeEvents.slice(tailStart);
+      const updated = tail.find(
+        (event) => event.type === "item.updated" && event.itemId === "toolu_bg",
+      );
+      const completed = tail.find(
+        (event) => event.type === "item.completed" && event.itemId === "toolu_bg",
+      );
+      expect(updated).toBeDefined();
+      expect(completed).toBeDefined();
+      expect((updated as { payload: unknown }).payload).toEqual(
+        (completed as { payload: unknown }).payload,
+      );
+      expect(completed).toMatchObject({
+        payload: { status: "success", result: "Actually finished" },
+      });
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores a stale run's late notification and keeps the live run's row", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-stale",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkToolStarted(openedSessionId, "toolu_bg"));
+      fake.emitMessage(
+        sdkTaskStarted(openedSessionId, "task-1", "toolu_bg", {
+          run_id: "run-1",
+        }),
+      );
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      // A newer live run of the same task and a positive level arrive inside
+      // the grace: the older run is fenced and nothing may be settled.
+      fake.emitMessage(
+        sdkTaskStarted(openedSessionId, "task-1", "toolu_bg", {
+          run_id: "run-2",
+        }),
+      );
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(
+        runtimeEvents.some(
+          (event) =>
+            event.type === "item.completed" &&
+            event.itemId === "toolu_bg" &&
+            (event.payload as { status?: string } | undefined)?.status === "error",
+        ),
+      ).toBe(false);
+
+      const staleStart = runtimeEvents.length;
+      fake.emitMessage(
+        sdkTaskNotification(openedSessionId, "task-1", "completed", {
+          run_id: "run-1",
+          summary: "Old run",
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(
+        runtimeEvents
+          .slice(staleStart)
+          .some((event) => event.type === "item.completed" && event.itemId === "toolu_bg"),
+      ).toBe(false);
+
+      fake.emitMessage(
+        sdkTaskNotification(openedSessionId, "task-1", "completed", {
+          run_id: "run-2",
+          summary: "New run",
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(runtimeEvents).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-claude-bg-stale",
+        itemId: "toolu_bg",
+        payload: expect.objectContaining({
+          status: "success",
+          result: "New run",
+        }),
+      });
+
+      await session.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("settles a grace-time resume on a NEW tool_use id before binding the new owner", async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = createFakeQuery();
+      mockSdk.query.mockReturnValue(fake.runtime);
+      const updates: StructuredSessionUpdate[] = [];
+      const runtimeEvents: RuntimeEvent[] = [];
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-bg-newtool",
+        projectLocation,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: (event) => runtimeEvents.push(event),
+        onUpdate: (update) => updates.push(update),
+        onError: () => {},
+        onClose: () => {},
+      });
+
+      const openedSessionId = await session.openThread(config);
+      await session.startTurn("launch a background subagent", config);
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkToolStarted(openedSessionId, "toolu_old"));
+      fake.emitMessage(
+        sdkTaskStarted(openedSessionId, "task-1", "toolu_old", {
+          run_id: "run-1",
+        }),
+      );
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      fake.emitMessage(sdkSuccessResult(openedSessionId));
+      await vi.advanceTimersByTimeAsync(0);
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      // A new native run under a fresh tool_use id supersedes the old binding
+      // while the completion is still inside its grace.
+      fake.emitMessage(sdkToolStarted(openedSessionId, "toolu_send", "SendMessage"));
+      fake.emitMessage(
+        sdkTaskStarted(openedSessionId, "task-1", "toolu_send", {
+          run_id: "run-2",
+        }),
+      );
+      fake.emitMessage(
+        sdkBackgroundTasksChanged(openedSessionId, [
+          {
+            task_id: "task-1",
+            task_type: "local_agent",
+            description: "Investigate",
+          },
+        ]),
+      );
+      await vi.advanceTimersByTimeAsync(5_000);
+
+      expect(updates.at(-1)).toMatchObject({ status: "working" });
+      expect(runtimeEvents).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-claude-bg-newtool",
+        itemId: "toolu_old",
+        payload: expect.objectContaining({
+          status: "error",
+          result: { error: msg("thread.backgroundTaskReportMissing") },
+        }),
+      });
+      expect(
+        runtimeEvents.some(
+          (event) => event.type === "item.completed" && event.itemId === "toolu_send",
+        ),
+      ).toBe(false);
+
+      const mapperState = (
+        session as unknown as {
+          mapperState: {
+            activeSubAgentTaskToTool?: Map<string, string>;
+            activeSubAgentToolToTask?: Map<string, string>;
+            toolItemsById: Map<string, unknown>;
+          };
+        }
+      ).mapperState;
+      expect(mapperState.activeSubAgentToolToTask?.has("toolu_old") ?? false).toBe(false);
+      expect(mapperState.activeSubAgentToolToTask?.get("toolu_send")).toBe("task-1");
+      expect(mapperState.toolItemsById.has("toolu_old")).toBe(false);
+
+      // Forwarded children still name the original launch id; they must land
+      // under the new owner and never update the settled old row.
+      const childStart = runtimeEvents.length;
+      fake.emitMessage(sdkSubAgentChildTool(openedSessionId, "toolu_old", "toolu_child"));
+      await vi.advanceTimersByTimeAsync(0);
+      const childEvents = runtimeEvents.slice(childStart);
+      expect(childEvents).toContainEqual(
+        expect.objectContaining({
+          type: "item.started",
+          itemId: "toolu_child",
+          parentItemId: "toolu_send",
+        }),
+      );
+      expect(childEvents.some((event) => "itemId" in event && event.itemId === "toolu_old")).toBe(
+        false,
+      );
+
+      fake.emitMessage(
+        sdkTaskNotification(openedSessionId, "task-1", "completed", {
+          run_id: "run-2",
+          summary: "New run",
+        }),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(runtimeEvents).toContainEqual({
+        type: "item.completed",
+        threadId: "thread-claude-bg-newtool",
+        itemId: "toolu_send",
+        payload: expect.objectContaining({
+          status: "success",
+          result: "New run",
+        }),
+      });
+
+      // No stale root row survives to idle.
+      fake.emitMessage(sdkBackgroundTasksChanged(openedSessionId, []));
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(updates.at(-1)).toMatchObject({
+        status: "idle",
+        attention: "none",
+      });
+      expect(mapperState.toolItemsById.has("toolu_send")).toBe(false);
+      expect(mapperState.toolItemsById.has("toolu_old")).toBe(false);
 
       await session.dispose();
     } finally {

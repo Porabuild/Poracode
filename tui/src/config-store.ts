@@ -4,9 +4,19 @@ import { Schema } from "effect";
 import type { Config } from "@opencode/tui/config";
 
 /**
+ * Poracode reads transcripts compactly, as the desktop chat does: each run of
+ * tools and thoughts collapses into one activity summary. Users can still pick
+ * another verbosity in Settings.
+ */
+export const DEFAULT_TRANSCRIPT_VERBOSITY = "low";
+
+/**
  * `defaults` fill settings the user has not chosen, without being written to
  * the config file: a launch outside any project lists every project's
- * sessions (`tabs.scope: "global"`) instead of the Home project's alone.
+ * sessions (`tabs.scope: "global"`) instead of the Home project's alone. The
+ * transcript verbosity always defaults to compact, and the right sidebar
+ * stays hidden until the user toggles it — matching the desktop chat, which
+ * has no persistent side panel.
  */
 export function createTuiConfigStore(
   home: string,
@@ -22,10 +32,21 @@ export function createTuiConfigStore(
     if (!(await file.exists())) return decodeConfig({});
     return decodeConfig(await file.json());
   };
-  const withDefaults = (config: Awaited<ReturnType<typeof read>>) =>
-    defaults.tabsScope && config.tabs?.scope === undefined
-      ? { ...config, tabs: { ...config.tabs, scope: defaults.tabsScope } }
-      : config;
+  const withDefaults = (config: Awaited<ReturnType<typeof read>>) => {
+    const scoped =
+      defaults.tabsScope && config.tabs?.scope === undefined
+        ? { ...config, tabs: { ...config.tabs, scope: defaults.tabsScope } }
+        : config;
+    if (scoped.session?.verbosity !== undefined && scoped.session?.sidebar !== undefined)
+      return scoped;
+    type SessionConfig = NonNullable<typeof scoped.session>;
+    const session = { ...(scoped.session ?? {}) } as {
+      -readonly [K in keyof SessionConfig]: SessionConfig[K];
+    };
+    if (session.verbosity === undefined) session.verbosity = DEFAULT_TRANSCRIPT_VERBOSITY;
+    if (session.sidebar === undefined) session.sidebar = "hide";
+    return { ...scoped, session };
+  };
   return {
     path: configPath,
     get: async () => withDefaults(await read()),

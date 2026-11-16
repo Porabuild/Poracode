@@ -19,6 +19,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
 /** Projects canonical generated snapshots into the app's stable transport domain. */
@@ -47,21 +48,21 @@ internal object RemoteV3TransportAdapters {
             RemoteThreadSnapshot.serializer(),
             "thread history",
         )
+        val wire = try {
+            Json.parseToJsonElement(raw).jsonObject
+        } catch (_: Exception) {
+            null
+        }
+        var result = snapshot
         // kotlinx maps both an absent field and an explicit JSON null to the
         // nullable element's default. The queue contract needs the split:
         // absent means the supervisor read failed (keep the prior queue);
         // explicit null means no queue. Mark explicit nulls with the JsonNull
         // sentinel so the mapper can tell them apart from absence.
-        if (snapshot.followUpQueue == null && containsFollowUpQueueKey(raw)) {
-            return snapshot.copy(followUpQueue = JsonNull)
+        if (result.followUpQueue == null && wire?.containsKey("followUpQueue") == true) {
+            result = result.copy(followUpQueue = JsonNull)
         }
-        return snapshot
-    }
-
-    private fun containsFollowUpQueueKey(raw: String): Boolean = try {
-        Json.parseToJsonElement(raw).jsonObject.containsKey("followUpQueue")
-    } catch (_: Exception) {
-        false
+        return result.withBackgroundTaskPresence(wire) ?: invalid("background tasks")
     }
 
     fun historyItems(raw: String): RemoteRuntimeItemsPage = project(
@@ -129,4 +130,10 @@ internal object RemoteV3TransportAdapters {
             "Remote contract projection failed at $boundary.",
         )
     }
+}
+
+internal fun RemoteThreadSnapshot.withBackgroundTaskPresence(wire: JsonObject?): RemoteThreadSnapshot? {
+    if (wire?.containsKey("backgroundTasks") != true) return this
+    if (backgroundTasks == null) return null
+    return copy(backgroundTasksPresent = true)
 }

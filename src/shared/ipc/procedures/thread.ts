@@ -27,6 +27,7 @@ import {
   agentHookPluginPayloadSchema,
   getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
+  agentStatusesResponseSchema,
   selectedAgentProbePayloadSchema,
   selectedAgentProbeResultSchema,
   getThreadFollowUpQueuePayloadSchema,
@@ -56,8 +57,13 @@ import {
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
   getLatestAgentVersionPayloadSchema,
+  acpRegistryListResultSchema,
+  acpRegistryMutationResultSchema,
+  updateAgentBinaryResultSchema,
+  getLatestAgentVersionResultSchema,
   getAgentConfigDefaultsPayloadSchema,
   resolveAgentAccountPayloadSchema,
+  resolveAgentAccountResultSchema,
   writeTerminalPayloadSchema,
 } from "../../contracts";
 import type {
@@ -212,11 +218,16 @@ export const threadProcedures = {
     GetAgentStatusesPayload,
     AgentStatusesResponse,
     "supervisor"
-  >("refreshAgentStatuses", "supervisor", getAgentStatusesPayloadSchema, (wslDistros, scope) =>
-    getAgentStatusesPayloadSchema.parse({
-      wslDistros: wslDistros ?? [],
-      ...(scope ? { scope } : {}),
-    }),
+  >(
+    "refreshAgentStatuses",
+    "supervisor",
+    getAgentStatusesPayloadSchema,
+    (wslDistros, scope) =>
+      getAgentStatusesPayloadSchema.parse({
+        wslDistros: wslDistros ?? [],
+        ...(scope ? { scope } : {}),
+      }),
+    agentStatusesResponseSchema,
   ),
   getAgentHookPluginStatuses: definePayloadProcedure<
     GetAgentHookPluginStatusesPayload,
@@ -236,32 +247,58 @@ export const threadProcedures = {
   listAcpRegistry: defineNoArgProcedure<AcpRegistryListResult, "supervisor">(
     "listAcpRegistry",
     "supervisor",
+    acpRegistryListResultSchema,
   ),
   installAcpRegistryAgent: definePayloadProcedure<
     InstallAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
     "supervisor"
-  >("installAcpRegistryAgent", "supervisor", installAcpRegistryAgentPayloadSchema),
+  >(
+    "installAcpRegistryAgent",
+    "supervisor",
+    installAcpRegistryAgentPayloadSchema,
+    acpRegistryMutationResultSchema,
+  ),
   updateAcpRegistryAgent: definePayloadProcedure<
     UpdateAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
     "supervisor"
-  >("updateAcpRegistryAgent", "supervisor", updateAcpRegistryAgentPayloadSchema),
+  >(
+    "updateAcpRegistryAgent",
+    "supervisor",
+    updateAcpRegistryAgentPayloadSchema,
+    acpRegistryMutationResultSchema,
+  ),
   updateAgentBinary: definePayloadProcedure<
     UpdateAgentBinaryPayload,
     UpdateAgentBinaryResult,
     "supervisor"
-  >("updateAgentBinary", "supervisor", updateAgentBinaryPayloadSchema),
+  >(
+    "updateAgentBinary",
+    "supervisor",
+    updateAgentBinaryPayloadSchema,
+    updateAgentBinaryResultSchema,
+  ),
   getLatestAgentVersion: definePayloadProcedure<
     GetLatestAgentVersionPayload,
     GetLatestAgentVersionResult,
     "supervisor"
-  >("getLatestAgentVersion", "supervisor", getLatestAgentVersionPayloadSchema),
+  >(
+    "getLatestAgentVersion",
+    "supervisor",
+    getLatestAgentVersionPayloadSchema,
+    getLatestAgentVersionResultSchema,
+  ),
   resolveAgentAccount: definePayloadProcedure<
     ResolveAgentAccountPayload,
     ResolveAgentAccountResult,
     "supervisor"
-  >("resolveAgentAccount", "supervisor", resolveAgentAccountPayloadSchema),
+  >(
+    "resolveAgentAccount",
+    "supervisor",
+    resolveAgentAccountPayloadSchema,
+    resolveAgentAccountResultSchema,
+  ),
   getAgentConfigDefaults: definePayloadProcedure<
     GetAgentConfigDefaultsPayload,
     GetAgentConfigDefaultsResult,
@@ -271,16 +308,27 @@ export const threadProcedures = {
     RemoveAcpRegistryAgentPayload,
     AcpRegistryMutationResult,
     "supervisor"
-  >("removeAcpRegistryAgent", "supervisor", removeAcpRegistryAgentPayloadSchema),
+  >(
+    "removeAcpRegistryAgent",
+    "supervisor",
+    removeAcpRegistryAgentPayloadSchema,
+    acpRegistryMutationResultSchema,
+  ),
   setAcpRegistryAgentAuth: definePayloadProcedure<
     SetAcpRegistryAgentAuthPayload,
     AcpRegistryMutationResult,
     "supervisor"
-  >("setAcpRegistryAgentAuth", "supervisor", setAcpRegistryAgentAuthPayloadSchema),
+  >(
+    "setAcpRegistryAgentAuth",
+    "supervisor",
+    setAcpRegistryAgentAuthPayloadSchema,
+    acpRegistryMutationResultSchema,
+  ),
   authenticateAcpAgent: definePayloadProcedure<AuthenticateAcpAgentPayload, void, "supervisor">(
     "authenticateAcpAgent",
     "supervisor",
     authenticateAcpAgentPayloadSchema,
+    omittedResultSchema,
   ),
   controlAcpAuthentication: definePayloadProcedure<
     ControlAcpAuthenticationPayload,
@@ -291,6 +339,7 @@ export const threadProcedures = {
     "logoutAcpAgent",
     "supervisor",
     logoutAcpAgentPayloadSchema,
+    omittedResultSchema,
   ),
   getThreadSnapshots: defineNoArgProcedure<ThreadRuntimeSnapshot[], "supervisor">(
     "getThreadSnapshots",

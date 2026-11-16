@@ -1,4 +1,3 @@
-import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   assistantTranscriptContent,
   textFromRuntimeContentBlocks,
@@ -50,9 +49,18 @@ function row(tier: HandoffRowTier, text: string, isUserMessage = false): Handoff
   return { tier, text, isUserMessage };
 }
 
+export interface TranscriptItemLike {
+  readonly id: string;
+  readonly type: string;
+  readonly state: "started" | "updated" | "completed";
+  readonly parentItemId?: string | undefined;
+  readonly payload?: unknown;
+  readonly streams: Record<string, string>;
+}
+
 /** Render one top-level thread item for the handoff file, or null to drop it. */
 export function formatHandoffRow(
-  item: RuntimeChatItem,
+  item: TranscriptItemLike,
   maxMessageChars = MAX_HANDOFF_MESSAGE_CHARS,
 ): HandoffRow | null {
   const payload = asRecord(item.payload);

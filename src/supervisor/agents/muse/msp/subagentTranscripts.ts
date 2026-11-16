@@ -1,4 +1,5 @@
 import type { ProjectLocation, RuntimeEvent } from "@/shared/contracts";
+import { isDeepStrictEqual } from "node:util";
 import { readSessionFileText, statSessionPaths } from "../../base";
 import { resolveMuseSessionLogPath } from "../sessionFiles";
 import {
@@ -21,6 +22,7 @@ import {
   type MuseChildState,
 } from "./subagentDiscovery";
 import { museSubagentId, museSubagentResultStatus } from "./subagentMapping";
+import { isMspRpcError } from "./protocol";
 
 type ItemPhase = "started" | "updated" | "completed";
 
@@ -45,8 +47,10 @@ interface Child extends MuseChildState {
   items: Map<string, Record<string, unknown>>;
   deltaFields: Map<string, string>;
   nativeState: boolean;
+  nativeBinding: boolean;
   ready: boolean;
   subscribed: boolean;
+  polling: boolean;
   finalRead: boolean;
   cursor: string | undefined;
   readFailures: number;
@@ -122,7 +126,10 @@ export class MuseSubagentTranscripts {
     if (native) {
       child.nativeState = true;
       const sessionId = museString(item["childSessionId"]);
-      if (sessionId) this.setChildSession(child, sessionId);
+      if (sessionId) {
+        child.nativeBinding = true;
+        this.setChildSession(child, sessionId);
+      }
       const result = museRecord(item["result"]);
       // 1.4.6 leaves the generic task open after ResultReady until owner close.
       // The child has finished producing its transcript at that point.
@@ -234,10 +241,17 @@ export class MuseSubagentTranscripts {
       }
     }
     for (const [id, child] of this.children) {
-      const discovered = child.nativeState ? undefined : this.discovery.children.get(id);
-      if (discovered?.sessionId) this.setChildSession(child, discovered.sessionId);
-      if (discovered?.status) this.setChildStatus(child, discovered.status);
-      if (discovered) {
+      const discovered = this.discovery.children.get(id);
+      // A native row may precede its childSessionId. The owned parent log can
+      // fill that missing link, but cannot replace an explicit native binding,
+      // status or result with older durable control records.
+      if (discovered?.sessionId && !child.nativeBinding) {
+        const nativeResult = child.nativeState ? child.result : undefined;
+        this.setChildSession(child, discovered.sessionId);
+        if (nativeResult) child.result = nativeResult;
+      }
+      if (!child.nativeState && discovered) {
+        if (discovered.status) this.setChildStatus(child, discovered.status);
         if (discovered.result) child.result = discovered.result;
         else delete child.result;
       }
@@ -318,8 +332,10 @@ export class MuseSubagentTranscripts {
         items: new Map(),
         deltaFields: new Map(),
         nativeState: false,
+        nativeBinding: false,
         ready: false,
         subscribed: false,
+        polling: false,
         finalRead: false,
         cursor: undefined,
         readFailures: 0,
@@ -432,25 +448,42 @@ export class MuseSubagentTranscripts {
     const sessionId = child.sessionId!;
     const generation = child.generation;
     const status = child.status;
-    if (!child.ready || (status !== "inProgress" && !child.finalRead)) {
+    if (!child.ready || child.polling || (status !== "inProgress" && !child.finalRead)) {
       const result = await this.client.request("session/read", { sessionId, excludeItems: false });
       if (this.disposed || child.sessionId !== sessionId || child.generation !== generation) return;
       for (const item of museHistoryItems(result)) {
         const id = museString(item["itemId"]);
+        const unchanged =
+          child.polling &&
+          status === "inProgress" &&
+          id &&
+          isDeepStrictEqual(child.items.get(id), item);
         if (id) child.items.set(id, item);
-        for (const [parentId, invocation] of child.invocations)
+        for (const [parentId, invocation] of child.invocations) {
+          if (unchanged && invocation.mapper.itemAliases.has(id)) continue;
           this.emit(this.mapChildItem(child, invocation, parentId, item, true));
+        }
       }
       child.ready = true;
       child.cursor = museString(result["viewCursor"]);
       // A snapshot requested before ResultReady can lag its arriving notification.
       if (status && status !== "inProgress" && child.status === status) child.finalRead = true;
     }
-    if (!child.subscribed && child.status === "inProgress") {
+    if (!child.subscribed && !child.polling && child.status === "inProgress") {
       const after = child.cursor;
-      await this.client.request("view/subscribe", { sessionId, ...(after ? { after } : {}) });
+      try {
+        await this.client.request("view/subscribe", { sessionId, ...(after ? { after } : {}) });
+      } catch (error) {
+        if (this.disposed || child.sessionId !== sessionId || child.generation !== generation)
+          return;
+        // 1.4.14 can read an owned running child but cannot resolve that same
+        // child for subscriptions. Poll only this anchored child's bounded MSP
+        // snapshots; unrelated read/transport failures retain the retry budget.
+        if (!isMspRpcError(error) || error.kind !== "sessionNotFound") throw error;
+        child.polling = true;
+      }
       if (this.disposed || child.sessionId !== sessionId || child.generation !== generation) return;
-      child.subscribed = true;
+      child.subscribed = !child.polling;
     }
     child.readFailures = 0;
     child.retryAt = 0;
@@ -462,6 +495,7 @@ export class MuseSubagentTranscripts {
     child.sessionId = sessionId;
     child.ready = false;
     child.subscribed = false;
+    child.polling = false;
     child.finalRead = false;
     child.cursor = undefined;
     child.readFailures = 0;

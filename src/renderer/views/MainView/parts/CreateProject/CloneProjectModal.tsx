@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, FolderOpen, Link2, Lock, Monitor, Search } from "lucide-react";
+import { ChevronDown, FolderOpen, Link2, Lock, Search } from "lucide-react";
 import { Button, Dropdown, Label, Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { GitHubAccount, GitHubRepoSummary } from "@/shared/contracts";
+import type { GitHubAccount, GitHubRepoSummary, ProjectLocation } from "@/shared/contracts";
 import {
   cloneFolderNameFromRepo,
   cloneFolderNameFromUrl,
@@ -17,12 +17,17 @@ import { readBridge } from "@/renderer/bridge";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import {
   commitCloneProject,
+  commitRemoteCloneProject,
+  resolveMachineHomeLocation,
   resolveRuntimeContextLocation,
 } from "@/renderer/actions/createProjectActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { Input, PixelLoader, TuxIcon } from "@/renderer/components/common";
+import { Input, PixelLoader } from "@/renderer/components/common";
 import { formatRelativeTime } from "@/renderer/utils/formatTime";
+import { MachineFolderPicker } from "./MachineFolderPicker";
+import { machineConnectionKey, useProjectMachines } from "./projectMachines";
+import { ProjectRuntimePicker } from "./ProjectRuntimePicker";
 
 type CloneMode = "github" | "url";
 
@@ -39,6 +44,26 @@ function choiceForRuntime(runtimeKey: string): RuntimeChoice {
   return runtimeKey === "native" ? { kind: "native" } : { kind: "wsl", distro: runtimeKey };
 }
 
+/**
+ * Where the GitHub CLI listing runs and browsing starts: this computer's (or a
+ * WSL distro's) home, or a paired machine's home. A machine's home costs a
+ * round trip, so the dialog resolves it once per machine.
+ */
+function contextLocationFor(
+  runtimeKey: string,
+  machineHomes: Map<string, Promise<ProjectLocation>>,
+): Promise<ProjectLocation> {
+  const connectionKey = machineConnectionKey(runtimeKey);
+  if (!connectionKey) return resolveRuntimeContextLocation(choiceForRuntime(runtimeKey));
+  let home = machineHomes.get(connectionKey);
+  if (!home) {
+    home = resolveMachineHomeLocation(connectionKey);
+    machineHomes.set(connectionKey, home);
+    void home.catch(() => machineHomes.delete(connectionKey));
+  }
+  return home;
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
@@ -47,7 +72,9 @@ function errorMessage(error: unknown, fallback: string): string {
  * Modal for the "Clone a repository" flow. Two modes: browse a signed-in
  * GitHub CLI account's repositories, or paste any git clone URL. Either way the
  * clone lands in a chosen parent folder (defaulting to the last-used one, like
- * "Start from scratch") and is opened as a new project.
+ * "New project") and is opened as a new project. The runtime can also be
+ * a reachable paired machine, which lists its own GitHub accounts, browses its
+ * own folders, and clones and registers the project itself.
  */
 export function CloneProjectModal() {
   const open = usePanelStore((s) => s.cloneProjectModalOpen);
@@ -95,8 +122,11 @@ function CloneProjectForm() {
   const [busy, setBusy] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const choice = choiceForRuntime(runtimeKey);
-  const showRuntime = distros.length > 0;
+  const machines = useProjectMachines();
+  const machineHomes = useRef(new Map<string, Promise<ProjectLocation>>());
+  const [machinePickerOpen, setMachinePickerOpen] = useState(false);
+  const machineKey = machineConnectionKey(runtimeKey);
+  const showRuntime = distros.length > 0 || machines.length > 0 || machineKey !== undefined;
 
   // Available WSL distros gate the runtime picker (Windows only in practice).
   useEffect(() => {
@@ -120,12 +150,15 @@ function CloneProjectForm() {
       setDefaultDir(lastForRuntime);
       return;
     }
-    if (runtimeKey !== "native") {
+    const onMachine = machineConnectionKey(runtimeKey) !== undefined;
+    if (runtimeKey !== "native" && !onMachine) {
       setDefaultDir(wslHomeDir(runtimeKey));
       return;
     }
     setDefaultDir("");
-    void loadHomeScopeLocation()
+    void (
+      onMachine ? contextLocationFor(runtimeKey, machineHomes.current) : loadHomeScopeLocation()
+    )
       .then((location) => {
         if (active) setDefaultDir(getProjectFsPath(location));
       })
@@ -150,7 +183,7 @@ function CloneProjectForm() {
     setSelectedAccount(null);
     setRepos(null);
     setReposError(null);
-    void resolveRuntimeContextLocation(choiceForRuntime(runtimeKey))
+    void contextLocationFor(runtimeKey, machineHomes.current)
       .then((runtime) => readBridge().ghListAccounts({ runtime }))
       .then((result) => {
         if (!active) return;
@@ -178,7 +211,7 @@ function CloneProjectForm() {
     setSelectedRepo(null);
     setRepoSearch("");
     const account = { host: selectedAccount.host, login: selectedAccount.login };
-    void resolveRuntimeContextLocation(choiceForRuntime(runtimeKey))
+    void contextLocationFor(runtimeKey, machineHomes.current)
       .then((runtime) => readBridge().ghListRepos({ runtime, account }))
       .then((result) => {
         if (active) setRepos(result.repos);
@@ -214,7 +247,13 @@ function CloneProjectForm() {
         ? null
         : t`Enter a repository URL.`;
   const nameError = validateProjectName(name);
-  const parentError = validateScratchParent(scratchParent, choice);
+  // A machine's folder browser only returns folders that exist on it, so any
+  // chosen folder works; this computer also checks the native/WSL match.
+  const parentError = machineKey
+    ? scratchParent
+      ? null
+      : t`Choose a folder…`
+    : validateScratchParent(scratchParent, choiceForRuntime(runtimeKey));
   const validationError = targetError ?? nameError ?? parentError;
   const parentMismatch = scratchParent ? parentError : null;
   const inlineError = submitError ?? parentMismatch;
@@ -238,6 +277,10 @@ function CloneProjectForm() {
   }
 
   async function handleBrowse() {
+    if (machineKey) {
+      setMachinePickerOpen(true);
+      return;
+    }
     const picked = await readBridge().pickFolder(scratchParent || undefined);
     if (!picked) return;
     setDir(picked);
@@ -257,7 +300,10 @@ function CloneProjectForm() {
               account: { host: selectedAccount!.host, login: selectedAccount!.login },
             } as const)
           : ({ kind: "url", url: url.trim() } as const);
-      await commitCloneProject({ choice, parentDir: scratchParent, name, source });
+      const target = { parentDir: scratchParent, name, source };
+      await (machineKey
+        ? commitRemoteCloneProject({ connectionKey: machineKey, ...target })
+        : commitCloneProject({ choice: choiceForRuntime(runtimeKey), ...target }));
       usePanelStore.getState().closeCloneProjectModal();
     } catch (error) {
       setSubmitError(errorMessage(error, t`Couldn't clone the repository.`));
@@ -300,8 +346,6 @@ function CloneProjectForm() {
       </>
     );
   }
-
-  const runtimeLabel = runtimeKey === "native" ? t`Native` : runtimeKey;
 
   return (
     <>
@@ -355,47 +399,14 @@ function CloneProjectForm() {
           </div>
         )}
 
-        {/* Runtime (WSL only) */}
+        {/* Runtime (WSL distros and paired machines) */}
         {showRuntime ? (
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted">
-              <Trans>Runtime</Trans>
-            </Label>
-            <Dropdown>
-              <Button aria-label={t`Runtime`} variant="tertiary" className="justify-between">
-                <span className="flex items-center gap-2">
-                  {runtimeKey === "native" ? (
-                    <Monitor className="size-4 text-muted" />
-                  ) : (
-                    <TuxIcon className="size-4 text-muted" />
-                  )}
-                  {runtimeLabel}
-                </span>
-                <ChevronDown className="size-3.5 text-muted/60" />
-              </Button>
-              <Dropdown.Popover className="min-w-[--trigger-width]">
-                <Dropdown.Menu
-                  aria-label={t`Runtime options`}
-                  selectionMode="single"
-                  selectedKeys={[runtimeKey]}
-                  onAction={(key) => setRuntimeKey(String(key))}
-                >
-                  <Dropdown.Item id="native" textValue={t`Native`}>
-                    <Monitor className="size-4 shrink-0 text-muted" />
-                    <Label>
-                      <Trans>Native</Trans>
-                    </Label>
-                  </Dropdown.Item>
-                  {distros.map((distro) => (
-                    <Dropdown.Item key={distro} id={distro} textValue={distro}>
-                      <TuxIcon className="size-4 shrink-0 text-muted" />
-                      <Label>{distro}</Label>
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown.Popover>
-            </Dropdown>
-          </div>
+          <ProjectRuntimePicker
+            runtimeKey={runtimeKey}
+            distros={distros}
+            machines={machines}
+            onChange={setRuntimeKey}
+          />
         ) : null}
 
         {/* Folder name */}
@@ -453,6 +464,17 @@ function CloneProjectForm() {
           <Trans>Clone</Trans>
         </Button>
       </Modal.Footer>
+      {machinePickerOpen && machineKey ? (
+        <MachineFolderPicker
+          connectionKey={machineKey}
+          initialPath={scratchParent}
+          onClose={() => setMachinePickerOpen(false)}
+          onSelect={(path) => {
+            setDir(path);
+            setSubmitError(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

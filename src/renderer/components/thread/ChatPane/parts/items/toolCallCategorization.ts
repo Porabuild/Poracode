@@ -13,16 +13,17 @@ import type {
   FileChangePayload,
   ToolCallPayload,
 } from "@/shared/contracts";
+import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   getRuntimeItemPayload,
-  type RuntimeChatItem,
-} from "@/renderer/state/slices/runtimeEventSlice";
-import { getToolLikePayload, isToolLikeItem } from "@/shared/runtimeItemVisibility";
+  getToolLikePayload,
+  isToolLikeItem,
+} from "@/shared/runtimeItemVisibility";
 import { parseMcpName } from "@/shared/toolCallClassification";
 import { extractAcpDiffSummary, readAcpStringField } from "./acpToolPayload";
-import { commandIntentDisplay } from "./commandSummary";
-import { isContextCompactionToolCall } from "./ContextCompaction";
-import { isPlanProposalToolCall } from "./PlanProposal";
+import { commandPayloadDisplay } from "./commandActionsDisplay";
+import { isContextCompactionToolCall } from "./contextCompactionToolCall";
+import { isPlanProposalToolCall } from "./planProposalToolCall";
 import { deriveToolDisplay, isDelegatedAgentTool } from "./toolDisplay";
 
 export type GroupCategory =
@@ -349,6 +350,7 @@ export function categorizeItem(item: RuntimeChatItem): GroupCategory {
 
 function deriveItemCategory(item: RuntimeChatItem): GroupCategory {
   if (item.type === "reasoning") return "thought";
+  if (item.type === "image_view") return "viewed";
   if (item.type === "command_execution") return categorizeCommandExecution(item);
   if (item.type === "file_change") return "edited";
   if (item.type === "web_search") return "searched";
@@ -384,8 +386,8 @@ export { isToolLikeItem, getToolLikePayload };
 export function categorizeCommandExecution(item: RuntimeChatItem): GroupCategory {
   const payload = getRuntimeItemPayload<CommandExecutionPayload>(item, "command_execution");
   const command = readCommandPayloadCommand(payload);
-  if (!command) return "executed";
-  switch (commandIntentDisplay(command).kind) {
+  if (!command && !payload?.actions?.length) return "executed";
+  switch (commandPayloadDisplay(payload, command).kind) {
     case "view":
     case "list":
       return "viewed";

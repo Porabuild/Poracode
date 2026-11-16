@@ -1,6 +1,5 @@
 package com.poracode.app.ui.advancedops
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,9 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -25,7 +21,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +34,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.model.RemoteProject
 import com.poracode.app.session.advancedops.AdvancedOpsProductionComposition
+import com.poracode.app.ui.components.PoracodeTopAppBar
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
+import com.poracode.app.ui.theme.PoracodeIcons
+import androidx.compose.material3.FilledTonalButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,15 +65,16 @@ fun AdvancedOperationsScreen(
         val navigateBack = {
             if (!expanded && showDetail) showDetail = false else onBack()
         }
-        BackHandler(onBack = navigateBack)
+        val backModifier = rememberPredictiveBackModifier(onBack = navigateBack)
         Scaffold(
+            modifier = backModifier,
             topBar = {
-                TopAppBar(
+                PoracodeTopAppBar(
                     title = { Text(stringResource(R.string.advanced_ops_title)) },
                     navigationIcon = {
                         IconButton(onClick = navigateBack) {
                             Icon(
-                                Icons.AutoMirrored.Outlined.ArrowBack,
+                                PoracodeIcons.ArrowBack,
                                 stringResource(R.string.advanced_ops_back),
                             )
                         }
@@ -144,7 +144,7 @@ private fun AdvancedActionList(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(
+            FilledTonalButton(
                 onClick = { onSelect(action) },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             ) {
@@ -168,9 +168,9 @@ internal fun AdvancedProjectPicker(
             stringResource(R.string.advanced_ops_project),
             style = MaterialTheme.typography.labelLarge,
         )
-        Button(onClick = { expanded = true }, enabled = projects.isNotEmpty()) {
+        FilledTonalButton(onClick = { expanded = true }, enabled = projects.isNotEmpty()) {
             Text(selected?.name ?: stringResource(R.string.advanced_ops_no_project))
-            Icon(Icons.Outlined.ArrowDropDown, contentDescription = null)
+            Icon(PoracodeIcons.ArrowDropDown, contentDescription = null)
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             projects.forEach { project ->

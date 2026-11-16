@@ -8,12 +8,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -34,6 +28,7 @@ import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.ProjectFileEntry
 import com.poracode.app.model.ProjectFileEntryType
 import com.poracode.app.model.RemoteThread
+import com.poracode.app.ui.theme.PoracodeIcons
 
 internal data class RichChatMentionOption(
     val id: String,
@@ -127,7 +122,7 @@ internal object RichChatMentionCatalog {
             id = "mcp:$id",
             title = "@$title",
             detail = null,
-            icon = if (id == "app-controls") Icons.Outlined.Terminal else Icons.Outlined.Extension,
+            icon = if (id == "app-controls") PoracodeIcons.Terminal else PoracodeIcons.Extension,
             segment = RichPromptSegment.Mcp(id, title),
             mcpConfigKey = configKey,
         )
@@ -138,7 +133,7 @@ internal object RichChatMentionCatalog {
             id = "thread:${thread.id}",
             title = title,
             detail = thread.projectId,
-            icon = Icons.Outlined.AccountTree,
+            icon = PoracodeIcons.AccountTree,
             segment = RichPromptSegment.Thread(thread.id, title),
         )
     }
@@ -148,9 +143,9 @@ internal object RichChatMentionCatalog {
         title = entry.name.ifBlank { entry.path.substringAfterLast('/') },
         detail = entry.path,
         icon = if (entry.type == ProjectFileEntryType.Directory) {
-            Icons.Outlined.Folder
+            PoracodeIcons.Folder
         } else {
-            Icons.Outlined.Description
+            PoracodeIcons.Description
         },
         segment = RichPromptSegment.File(entry.path),
     )
@@ -163,7 +158,7 @@ internal object RichChatMentionCatalog {
                         id = "file:${block.path}",
                         title = block.name ?: block.path.substringAfterLast('/'),
                         detail = block.path,
-                        icon = if (block.name == null) Icons.Outlined.Folder else Icons.Outlined.Description,
+                        icon = if (block.name == null) PoracodeIcons.Folder else PoracodeIcons.Description,
                         segment = RichPromptSegment.File(block.path),
                     ),
                 )
@@ -172,7 +167,7 @@ internal object RichChatMentionCatalog {
                         id = "thread:${block.threadId}",
                         title = block.title.ifBlank { block.threadId },
                         detail = block.threadId,
-                        icon = Icons.Outlined.AccountTree,
+                        icon = PoracodeIcons.AccountTree,
                         segment = RichPromptSegment.Thread(
                             block.threadId,
                             block.title.ifBlank { block.threadId },
@@ -253,7 +248,7 @@ internal fun RichChatSlashSuggestions(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Icon(
-                            if (option.skill == null) Icons.Outlined.Terminal else Icons.Outlined.Extension,
+                            if (option.skill == null) PoracodeIcons.Terminal else PoracodeIcons.Extension,
                             contentDescription = null,
                         )
                         Column(Modifier.weight(1f)) {

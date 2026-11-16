@@ -25,6 +25,7 @@ data class ProviderUsageSnapshot internal constructor(
 ) : CanonicalSettingsPayload {
     val fromCache: Boolean get() = canonical.requiredBoolean("fromCache")
     val snapshots: List<JsonObject> get() = canonical.requiredObjects("snapshots")
+    val ringLayouts: JsonObject? get() = canonical["ringLayouts"] as? JsonObject
 }
 
 @ConsistentCopyVisibility

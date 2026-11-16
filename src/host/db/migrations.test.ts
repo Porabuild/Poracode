@@ -77,9 +77,15 @@ describe("database migration registry", () => {
       [67, "record per-thread token usage by crew member"],
       [68, "count streamed per-call usage growth"],
       [69, "project branch pins"],
-      [70, "poracode memory"],
+      [70, "remember turns cut off before they finished"],
+      [71, "project plugin overrides"],
+      [72, "externalize inline runtime images"],
+      [73, "durable thread history cache revisions"],
+      [74, "retain thread failure explanations"],
+      [75, "clear Antigravity prompt-consumption context snapshots"],
+      [76, "poracode memory"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(70);
+    expect(LATEST_SCHEMA_VERSION).toBe(76);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -117,7 +123,7 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 70,
+      version: 76,
       name: "poracode memory",
       rollback: "rollback-compatible",
     });

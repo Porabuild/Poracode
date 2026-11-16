@@ -15,16 +15,26 @@ data class SettingsAgentRow(
 )
 
 data class SettingsUsageMeter(
+    val id: String,
     val label: String,
     val usedPercent: Double,
+    val resetsAt: Long?,
+    val used: Double?,
+    val limit: Double?,
+    val unit: String?,
+    val currency: String?,
 )
 
 data class SettingsProviderUsageRow(
     val providerId: String,
+    val displayName: String,
     val status: String,
     val plan: String?,
     val meters: List<SettingsUsageMeter>,
+    val ringLayout: SettingsUsageRingLayout? = null,
 )
+
+data class SettingsUsageRingLayout(val outerWindowId: String?, val innerWindowId: String?)
 
 data class SettingsAgentsProjection(
     val agents: List<SettingsAgentRow>,
@@ -70,12 +80,26 @@ internal fun projectAgents(
         val providerId = value.string("providerId") ?: return@mapNotNull null
         SettingsProviderUsageRow(
             providerId = providerId,
+            displayName = SettingsUsagePresentation.providerLabel(providerId),
             status = value.string("status") ?: "unknown",
             plan = value.string("plan"),
+            ringLayout = (usage?.ringLayouts?.get(providerId) as? JsonObject)?.let {
+                SettingsUsageRingLayout(it.string("outerWindowId"), it.string("innerWindowId"))
+            },
             meters = value.objects("windows").mapNotNull { window ->
+                val id = window.string("id") ?: return@mapNotNull null
                 val label = window.string("label") ?: return@mapNotNull null
                 val percent = window.double("usedPercent") ?: return@mapNotNull null
-                SettingsUsageMeter(label, percent.coerceIn(0.0, 100.0))
+                SettingsUsageMeter(
+                    id = id,
+                    label = label,
+                    usedPercent = percent.coerceIn(0.0, 100.0),
+                    resetsAt = window.long("resetsAt") ?: window.double("resetsAt")?.toLong(),
+                    used = window.double("used"),
+                    limit = window.double("limit"),
+                    unit = window.string("unit"),
+                    currency = window.string("currency"),
+                )
             },
         )
     }.sortedBy { it.providerId.lowercase() }

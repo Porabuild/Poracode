@@ -173,7 +173,8 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleep: "while-remote-access",
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -188,8 +189,13 @@ describe("sharedSettingsFile", () => {
       sidebarHiddenShortcuts: ["githubActions"],
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       sidebarTranslucency: false,
+      newsLineEnabled: true,
+      newsLineActivity: true,
+      dismissedPromotions: [],
       sidebarGlassTint: { light: null, dark: null },
       autoShowTerminalPanel: true,
+      computerUseLockedUse: false,
+      computerUseLockedUseDimDisplay: false,
       worktreeStorageMode: "global",
       worktreeBasePath: "",
       wslWorktreeBasePath: "",
@@ -328,6 +334,7 @@ describe("sharedSettingsFile", () => {
         "agents",
         "backgroundTasks",
         "images",
+        "artifacts",
         "vision",
         "info",
         "context",
@@ -340,7 +347,8 @@ describe("sharedSettingsFile", () => {
       agentTerminalFontSize: 12,
       guiChatFontSize: 13,
       terminalPanelFontSize: 12,
-      preventSleep: "while-remote-access",
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
       launchAtStartup: true,
       startMinimized: true,
       closeToTray: true,
@@ -355,8 +363,13 @@ describe("sharedSettingsFile", () => {
       sidebarHiddenShortcuts: ["githubActions"],
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       sidebarTranslucency: false,
+      newsLineEnabled: true,
+      newsLineActivity: true,
+      dismissedPromotions: [],
       sidebarGlassTint: { light: null, dark: null },
       autoShowTerminalPanel: true,
+      computerUseLockedUse: false,
+      computerUseLockedUseDimDisplay: false,
       worktreeStorageMode: "global",
       worktreeBasePath: "",
       wslWorktreeBasePath: "",
@@ -453,9 +466,19 @@ describe("sharedSettingsFile", () => {
     );
 
     const settings = readSharedSettingsFile(settingsPath);
-    expect(settings.preventSleep).toBe("while-working");
+    expect(settings.preventSleepWhen).toEqual(["working"]);
     expect(settings).not.toHaveProperty("preventSleepWhileWorking");
     expect(settings).not.toHaveProperty("remoteAccessPreventSleep");
+  });
+
+  it("migrates the released preventSleep enum from a previous settings file", () => {
+    const settingsPath = join(makeTempDir(), "settings.json");
+    writeFileSync(settingsPath, JSON.stringify({ preventSleep: "always" }), "utf8");
+
+    const settings = readSharedSettingsFile(settingsPath);
+    expect(settings.preventSleepWhen).toEqual(["always"]);
+    expect(settings.preventScreenLockWhen).toEqual([]);
+    expect(settings).not.toHaveProperty("preventSleep");
   });
 
   it("defaults usage tracking to Claude and Codex only", () => {
@@ -609,6 +632,7 @@ describe("sharedSettingsFile", () => {
         "agents",
         "backgroundTasks",
         "images",
+        "artifacts",
         "info",
         "context",
         "usage",

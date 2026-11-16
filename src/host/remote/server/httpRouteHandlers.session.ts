@@ -274,12 +274,12 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
 
   "profile-core-stats": async ({ req, res }) => {
     const payload = profileStatsRequestSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, getProfileCoreStats(payload));
+    writeJson(res, 200, await getProfileCoreStats(payload));
   },
 
   "profile-token-stats": async ({ req, res }) => {
     const payload = profileStatsRequestSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, getProfileTokenStats(payload));
+    writeJson(res, 200, await getProfileTokenStats(payload));
   },
 
   "profile-identity": async ({ req, res }) => {

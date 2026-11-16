@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { commandActionsDisplay, commandPayloadDisplay } from "./commandActionsDisplay";
 import { commandIntentDisplay, humanIntentTitle, summarizeShellCommand } from "./commandSummary";
 
 describe("summarizeShellCommand", () => {
@@ -156,7 +157,7 @@ describe("humanIntentTitle", () => {
 
   it("describes plain grep commands as searches", () => {
     const full = `grep -n "toastId" src/renderer/notifications.ts`;
-    expect(humanIntentTitle(full)).toBe('Search: "toastId"');
+    expect(humanIntentTitle(full)).toBe('Search: "toastId" in src/renderer/notifications.ts');
     expect(commandIntentDisplay(full).kind).toBe("search");
   });
 
@@ -175,7 +176,7 @@ describe("humanIntentTitle", () => {
 
   it("handles grep -e PATTERN form", () => {
     const full = `grep -rn -e "needle" src`;
-    expect(humanIntentTitle(full)).toBe('Search: "needle"');
+    expect(humanIntentTitle(full)).toBe('Search: "needle" in src');
   });
 
   it("describes cat piped through sed as viewed lines", () => {
@@ -284,6 +285,179 @@ describe("humanIntentTitle", () => {
 
   it("marks git commands with git intent", () => {
     expect(commandIntentDisplay("git diff -- src/foo.ts").kind).toBe("git");
+  });
+});
+
+describe("commandActionsDisplay", () => {
+  it("returns null without actions or with unknown kinds", () => {
+    expect(commandActionsDisplay(undefined)).toBeNull();
+    expect(commandActionsDisplay([])).toBeNull();
+    expect(commandActionsDisplay([{ kind: "write", path: "/a" }])).toBeNull();
+    expect(commandActionsDisplay([{ kind: "read", path: "/a" }, { kind: "other" }])).toBeNull();
+  });
+
+  it("describes a single read action as a view with file parts", () => {
+    const display = commandActionsDisplay([
+      { kind: "read", path: "E:\\repo\\notes.txt", name: "notes.txt" },
+    ]);
+    expect(display?.kind).toBe("view");
+    expect(display?.title).toBe("View: notes.txt");
+    expect(display?.parts).toEqual({
+      prefix: "View: ",
+      path: "E:\\repo\\notes.txt",
+      filePath: true,
+    });
+  });
+
+  it("marks read paths containing variables as non-file paths", () => {
+    const display = commandActionsDisplay([{ kind: "read", path: "$env:X\\notes.txt" }]);
+    expect(display?.parts?.filePath).toBe(false);
+  });
+
+  it("describes a single list action", () => {
+    expect(commandActionsDisplay([{ kind: "list", path: "/repo/src" }])).toEqual({
+      title: "List: /repo/src",
+      kind: "list",
+    });
+    expect(commandActionsDisplay([{ kind: "list" }])).toEqual({
+      title: "List: .",
+      kind: "list",
+    });
+  });
+
+  it("describes search actions with basename scope for absolute paths", () => {
+    expect(
+      commandActionsDisplay([{ kind: "search", query: "foo", path: "E:\\repo\\src" }]),
+    ).toEqual({ title: 'Search: "foo" in src', kind: "search" });
+    expect(commandActionsDisplay([{ kind: "search", query: "foo" }])).toEqual({
+      title: 'Search: "foo"',
+      kind: "search",
+    });
+    expect(commandActionsDisplay([{ kind: "search", path: "src" }])).toEqual({
+      title: "Search: src",
+      kind: "search",
+    });
+  });
+
+  it("joins multiple read actions into one view title", () => {
+    const display = commandActionsDisplay([
+      { kind: "read", path: "/repo/a.ts", name: "a.ts" },
+      { kind: "read", path: "/repo/b.ts", name: "b.ts" },
+    ]);
+    expect(display).toEqual({ title: "View: a.ts, b.ts", kind: "view" });
+  });
+
+  it("summarizes mixed actions as first title plus a count", () => {
+    const display = commandActionsDisplay([
+      { kind: "read", path: "/repo/a.ts", name: "a.ts" },
+      { kind: "search", query: "foo" },
+    ]);
+    expect(display?.title).toBe("View: a.ts +1");
+    expect(display?.kind).toBe("search");
+    expect(display?.parts).toBeUndefined();
+  });
+});
+
+describe("commandPayloadDisplay", () => {
+  it("prefers provider actions over command-line heuristics", () => {
+    const payload = {
+      command: "pwsh -Command \"rg -n -i -C 2 'alpha|beta' MEMORY.md\"",
+      actions: [{ kind: "read" as const, path: "E:\\repo\\notes.txt", name: "notes.txt" }],
+    };
+    const display = commandPayloadDisplay(payload, payload.command);
+    expect(display.kind).toBe("view");
+    expect(display.title).toBe("View: notes.txt");
+    expect(display.parts?.path).toBe("E:\\repo\\notes.txt");
+  });
+
+  it("falls back to heuristics without actions", () => {
+    const display = commandPayloadDisplay({ command: "git status" }, "git status");
+    expect(display.kind).toBe("git");
+  });
+});
+
+describe("grep-like search titles", () => {
+  it("does not treat ripgrep context-count options as the pattern", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n -i -C 2 'alpha|beta' MEMORY.md"`;
+    const display = commandIntentDisplay(full);
+    expect(display.title).toBe('Search: "alpha|beta" in MEMORY.md');
+    expect(display.kind).toBe("search");
+  });
+
+  it("collects repeated -e patterns into a +n suffix", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n -e 'answer' -e 'hello' -e 'guide' ."`;
+    expect(commandIntentDisplay(full).title).toBe('Search: "answer" +2');
+  });
+
+  it("uses the full scoped message plus count for repeated patterns with one scope", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "rg -n -e 'answer' -e 'hello' -e 'guide' MEMORY.md"`;
+    expect(commandIntentDisplay(full).title).toBe('Search: "answer" in MEMORY.md +2');
+  });
+
+  it("keeps grep option values out of the pattern", () => {
+    expect(commandIntentDisplay("grep -C 3 -e foo src/").title).toBe('Search: "foo" in src/');
+    expect(commandIntentDisplay("rg --max-count 5 --glob '*.ts' needle src").title).toBe(
+      'Search: "needle" in src',
+    );
+  });
+});
+
+describe("PowerShell Get-Content script views", () => {
+  it("unescapes double-quoted -Command without mangling backslash paths", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -LiteralPath 'docs\\guide.md'"`;
+    const display = commandIntentDisplay(full);
+    expect(display.kind).toBe("view");
+    expect(display.parts?.path).toBe("docs\\guide.md");
+    expect(display.title).toBe("View: guide.md");
+  });
+
+  it("preserves Windows paths containing \\n inside double-quoted -Command", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -LiteralPath 'C:\\Users\\me\\node\\notes.md'"`;
+    const display = commandIntentDisplay(full);
+    expect(display.parts?.path).toBe("C:\\Users\\me\\node\\notes.md");
+  });
+
+  it("resolves Join-Path variable assignments into a ranged view", () => {
+    const full =
+      "\"C:\\\\Program Files\\\\PowerShell\\\\7\\\\pwsh.exe\" -Command '$repo = Join-Path (Get-Location) '\"'src'; Get-Content -LiteralPath (Join-Path \"'$repo '\"'app.ts') | Select-Object -First 5\"";
+    const display = commandIntentDisplay(full);
+    expect(display.kind).toBe("view");
+    expect(display.title).toBe("View 1:5: src/app.ts");
+    expect(display.parts?.path).toBe("src/app.ts");
+    expect(display.parts?.path).not.toMatch(/[($]/);
+  });
+
+  it("rejects scripts containing non-view cmdlets", () => {
+    const full =
+      "\"C:\\\\Program Files\\\\PowerShell\\\\7\\\\pwsh.exe\" -Command '$p = Join-Path (Get-Location) '\"'notes.txt'; Get-Content -LiteralPath \"'$p; Get-ChildItem -Force src | Select-Object Name'";
+    const display = commandIntentDisplay(full);
+    expect(display.kind).toBe("command");
+    expect(display.title.startsWith("Run:")).toBe(true);
+  });
+
+  it("aggregates multiple Get-Content statements into one view", () => {
+    const full = String.raw`"C:\\Program Files\\PowerShell\\7\\pwsh.exe" -Command "Get-Content -LiteralPath 'notes.txt'; Get-Content -LiteralPath 'docs\\guide.md'"`;
+    const display = commandIntentDisplay(full);
+    expect(display.kind).toBe("view");
+    expect(display.title).toBe("View: notes.txt, guide.md");
+    expect(display.parts).toBeUndefined();
+  });
+
+  it("resolves $env: paths literally with filePath disabled", () => {
+    const full = String.raw`pwsh -Command "$repo=Join-Path $env:LOCALAPPDATA 'X'; Get-Content -LiteralPath (Join-Path $repo 'cli.cpp') | Select-Object -Skip 410 -First 160"`;
+    const display = commandIntentDisplay(full);
+    expect(display.kind).toBe("view");
+    expect(display.title).toContain("411:570");
+    expect(display.parts?.path).toContain("cli.cpp");
+    expect(display.parts?.filePath).toBe(false);
+  });
+
+  it("does not invent a view path from named-parameter Join-Path", () => {
+    const full =
+      "pwsh -Command \"$p = Join-Path -Path (Get-Location) -ChildPath 'notes.txt'; Get-Content -LiteralPath $p\"";
+    const display = commandIntentDisplay(full);
+    expect(display.kind).toBe("command");
+    expect(display.title.startsWith("Run:")).toBe(true);
   });
 });
 // @vitest-environment node

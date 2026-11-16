@@ -343,6 +343,24 @@ describe("PushCoordinator", () => {
     expect(calls[0]![0].payload).not.toMatchObject({ silent: true });
   });
 
+  it("alerts for async attention once while settling the actual running activity", async () => {
+    store.upsert({ deviceId: "device-0001", platform: "ios", activityTokens: { a: "activity-1" } });
+    store.upsert({ deviceId: "device-0002", platform: "android", deviceToken: "fcm-1" });
+    const coordinator = makeCoordinator();
+    coordinator.handleSupervisorEvent(threadState("thread-1", "working", "working"));
+    await tick();
+    sendPush.mockClear();
+    coordinator.handleSupervisorEvent(threadState("thread-1", "working", "needs_reply"));
+    await tick();
+    expect(androidCalls()).toHaveLength(1);
+    expect(androidCalls()[0]![0].payload).toMatchObject({ body: "Needs your input" });
+    sendPush.mockClear();
+    coordinator.handleSupervisorEvent(threadState("thread-1", "idle", "needs_reply"));
+    await tick();
+    expect(androidCalls()).toHaveLength(0);
+    expect(liveActivityCalls().some((payload) => payload.aps.event === "end")).toBe(true);
+  });
+
   it("android: honors optional native status and sound preferences", async () => {
     store.upsert({
       deviceId: "device-0001",

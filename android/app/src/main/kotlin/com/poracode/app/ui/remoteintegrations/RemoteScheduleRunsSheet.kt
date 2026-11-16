@@ -8,12 +8,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Error
-import androidx.compose.material.icons.outlined.HourglassTop
-import androidx.compose.material.icons.outlined.PauseCircle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +32,7 @@ import com.poracode.app.model.remoteintegrations.ScheduleHistoryStatus
 import com.poracode.app.model.remoteintegrations.ScheduleRun
 import com.poracode.app.model.remoteintegrations.ScheduledTask
 import com.poracode.app.session.remoteintegrations.ScheduleRunsController
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -146,7 +141,7 @@ private fun ScheduleRunRow(
         }
         if (thread != null) {
             Icon(
-                Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                PoracodeIcons.KeyboardArrowRight,
                 stringResource(R.string.remote_integrations_open_thread),
             )
         }
@@ -167,10 +162,10 @@ internal fun historyStatusLabel(status: ScheduleHistoryStatus): String = stringR
 )
 
 private fun ScheduleHistoryStatus.icon(): ImageVector = when (this) {
-    ScheduleHistoryStatus.Running, ScheduleHistoryStatus.Waiting -> Icons.Outlined.HourglassTop
-    ScheduleHistoryStatus.Succeeded -> Icons.Outlined.CheckCircle
-    ScheduleHistoryStatus.Failed -> Icons.Outlined.Error
-    ScheduleHistoryStatus.Interrupted, ScheduleHistoryStatus.Cancelled, ScheduleHistoryStatus.Skipped -> Icons.Outlined.PauseCircle
+    ScheduleHistoryStatus.Running, ScheduleHistoryStatus.Waiting -> PoracodeIcons.HourglassTop
+    ScheduleHistoryStatus.Succeeded -> PoracodeIcons.CheckCircle
+    ScheduleHistoryStatus.Failed -> PoracodeIcons.Error
+    ScheduleHistoryStatus.Interrupted, ScheduleHistoryStatus.Cancelled, ScheduleHistoryStatus.Skipped -> PoracodeIcons.PauseCircle
 }
 
 @Composable

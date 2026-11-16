@@ -59,7 +59,12 @@ export class PersistentJsonLineHost {
 
   constructor(private readonly options: PersistentJsonLineHostOptions) {}
 
-  request<T>(action: string, input?: unknown): Promise<T> {
+  /**
+   * `options.timeoutMs` overrides the host-wide request timeout for actions
+   * the peer documents as slower (Locked Computer Use begin/end take up to
+   * 30 s on the helper side). A timeout still tears the child down.
+   */
+  request<T>(action: string, input?: unknown, options: { timeoutMs?: number } = {}): Promise<T> {
     let child: ChildProcessWithoutNullStreams;
     try {
       child = this.ensureChild();
@@ -68,7 +73,8 @@ export class PersistentJsonLineHost {
     }
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
-      const timeoutMs = this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+      const timeoutMs =
+        options.timeoutMs ?? this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
       const timer = setTimeout(() => {
         const pending = this.pending.get(id);
         if (!pending) return;

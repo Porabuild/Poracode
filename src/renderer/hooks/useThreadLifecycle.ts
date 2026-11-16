@@ -7,11 +7,13 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { reopenPaneThreadsIfInactive, sweepStaleThreads } from "@/renderer/actions/threadActions";
 import { STALE_THREAD_SWEEP_INTERVAL_MS } from "@/renderer/utils/gitHelpers";
 import { useRunningThreadRuntime } from "./useRunningThreadRuntime";
+import { useRunningThreadImagePrefetch } from "./useRunningThreadImagePrefetch";
 
 const NO_RESIDENT_PANE_IDS: readonly string[] = [];
 
 export function useThreadLifecycle(storeHydrated: boolean) {
   useRunningThreadRuntime(storeHydrated);
+  useRunningThreadImagePrefetch(storeHydrated);
   const staleThreadUnloadMinutes = useSharedSettings((s) => s.staleThreadUnloadMinutes);
   // The host catalog can arrive after the persisted panes and snapshot
   // readiness. Subscribe to row presence, not runtime status: status churn

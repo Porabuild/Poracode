@@ -1,4 +1,12 @@
 import {
+  isClientDraftAsset,
+  listClientSubmissions,
+} from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import { importClientDraftFiles } from "@/renderer/utils/browserFilePicker";
+import * as draftSubmission from "@/renderer/actions/clientDraftSubmission";
+import type { LaunchExperimentInput } from "@/renderer/actions/experimentActions";
+import "@/renderer/testUtils/clientDraftDatabase";
+import {
   Children,
   isValidElement,
   type ComponentProps,
@@ -10,6 +18,7 @@ import { toast } from "@heroui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, Project, ThreadConfig } from "@/shared/contracts";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import type { SavedCrew, ThreadCrewBinding } from "@/shared/crew";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { selectionBindingMatches } from "@/shared/selectionBinding";
@@ -18,12 +27,30 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
+
 import { liveVoice } from "@/renderer/speech/liveVoice";
 
-const { composerSpy, launchExperimentMock } = vi.hoisted(() => ({
+const { composerSpy, launchExperimentMock, newsLineMounts } = vi.hoisted(() => ({
   composerSpy: vi.fn<(props: unknown) => void>(),
   launchExperimentMock: vi.fn<(input: unknown) => Promise<string | null>>(),
+  newsLineMounts: { count: 0 },
 }));
+
+vi.mock("@/renderer/components/newsLine/NewsLine", async () => {
+  const React = await import("react");
+  return {
+    NewsLine: (props: { visitKey?: number }) => {
+      // Stable for the lifetime of one mount, so a re-render keeps the id while
+      // a key change (a new draft visit) produces a new one.
+      const [mountId] = React.useState(() => {
+        newsLineMounts.count += 1;
+        return newsLineMounts.count;
+      });
+      return <div data-testid="news-line" data-mount={mountId} data-visit={props.visitKey} />;
+    },
+  };
+});
 
 vi.mock("./ThreadComposer", () => ({
   ThreadComposer: (props: {
@@ -509,6 +536,7 @@ describe("ThreadDraftView", () => {
     composerSpy.mockClear();
     launchExperimentMock.mockReset();
     launchExperimentMock.mockResolvedValue("experiment-1");
+    newsLineMounts.count = 0;
     delete (window as unknown as { poracode?: unknown }).poracode;
     useAgentStatusesStore.setState({
       agentStatuses: [],
@@ -529,15 +557,176 @@ describe("ThreadDraftView", () => {
       lastPresentationModeByAgent: {},
       enabledMcpServers: {},
       disabledBuiltInMcpServers: {},
+      newsLineEnabled: true,
       sharedSettingsHydrated: true,
     });
-    useAppStore.setState({ pendingDraftWorktreeSelections: {} });
+    useAppStore.setState({
+      pendingDraftWorktreeSelections: {},
+      draftVisit: 0,
+      draftContents: {},
+      draftContentDiscardRequests: {},
+    });
     useRemoteServersStore.setState({
       servers: [],
       runtime: {},
       hostUpdates: {},
       hostUpdateRestarts: {},
     });
+  });
+
+  it("does not advance a client checkpoint during passive configuration reconciliation", async () => {
+    const storage = composerDraftStorage()!;
+    const checkpoint = await storage.checkpoint("project", project.id, {
+      segments: [{ kind: "text", content: "Foreground draft" }],
+      attachments: [],
+    });
+    const save = vi.spyOn(storage, "saveSelection");
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    await storage.flushRequired();
+    expect(save).not.toHaveBeenCalled();
+    expect(storage.currentIdentity("project", project.id)).toEqual({
+      draftId: checkpoint.draftId,
+      revision: checkpoint.revision,
+    });
+    save.mockRestore();
+  });
+
+  it("persists an explicit selection without turning a later catalog correction into another edit", async () => {
+    const storage = composerDraftStorage()!;
+    const save = vi.spyOn(storage, "saveSelection");
+    const view = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() =>
+      expect(controls().some((control) => control.kind === "provider-model")).toBe(true),
+    );
+    const picker = controls().find((control) => control.kind === "provider-model");
+    if (picker?.kind !== "provider-model") throw new Error("Missing model picker");
+    act(() => picker.onChange({ agentKind: "codex", model: "gpt-5.4" }));
+    expect(storage.selection("project", project.id)?.model).toBe("gpt-5.4");
+    save.mockClear();
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[
+          {
+            ...dualModeCodexStatus,
+            capabilities: {
+              ...dualModeCodexStatus.capabilities,
+              models: [{ id: "new-model", label: "New model" }],
+            },
+          },
+        ]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(controls().find((control) => control.kind === "provider-model")?.currentModel).toBe(
+        "new-model",
+      ),
+    );
+    expect(save).not.toHaveBeenCalled();
+    expect(storage.selection("project", project.id)?.model).toBe("gpt-5.4");
+    save.mockRestore();
+  });
+
+  it("does not revive a superseded deferred edit during passive provider fallback", async () => {
+    const storage = composerDraftStorage()!;
+    const save = vi.spyOn(storage, "saveSelection");
+    const empty = {
+      ...dualModeCodexStatus,
+      capabilities: { ...dualModeCodexStatus.capabilities, models: [] },
+    };
+    const view = render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus, claudeStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const controls = () =>
+      (composerSpy.mock.lastCall?.[0] as { controls: ComposerControl[] } | undefined)?.controls ??
+      [];
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("codex"),
+    );
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[empty, claudeStatus]}
+        onStart={() => {}}
+      />,
+    );
+    const plan = controls().find(
+      (control) => control.kind === "toggle" && control.label === "Work",
+    );
+    if (plan?.kind !== "toggle") throw new Error("Missing Plan control");
+    act(() => plan.onChange?.(true));
+    const picker = controls().find((control) => control.kind === "provider-model");
+    if (picker?.kind !== "provider-model") throw new Error("Missing model picker");
+    act(() =>
+      picker.onChange({ agentKind: "claude", model: claudeStatus.capabilities.models[0]!.id }),
+    );
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("claude"),
+    );
+    save.mockClear();
+    view.rerender(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() =>
+      expect(
+        controls().find((control) => control.kind === "provider-model")?.currentAgentKind,
+      ).toBe("codex"),
+    );
+    expect(save).not.toHaveBeenCalled();
+    save.mockRestore();
+  });
+
+  it("remounts the news line when a draft is opened again", async () => {
+    const previousProjects = useAppStore.getState().projects;
+    useAppStore.setState({ projects: [project] });
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId("news-line")).toBeInTheDocument());
+    const newsLine = () => screen.getByTestId("news-line");
+    const firstMount = newsLine().getAttribute("data-mount");
+    expect(newsLine().getAttribute("data-visit")).toBe(String(useAppStore.getState().draftVisit));
+
+    act(() => {
+      useAppStore.getState().openDraft(project.id);
+    });
+
+    await waitFor(() => expect(newsLine().getAttribute("data-mount")).not.toBe(firstMount));
+    expect(newsLine().getAttribute("data-visit")).toBe(String(useAppStore.getState().draftVisit));
+    useAppStore.setState({ projects: previousProjects });
   });
 
   it("launches an explicitly selected Plan without remembering it for the next thread", async () => {
@@ -882,15 +1071,17 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "origin/main",
-        worktreeIsNewBranch: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "origin/main",
+          worktreeIsNewBranch: true,
+        }),
+      );
+    });
   });
 
-  it("defaults a new worktree to the tracking branch when the local branch is behind", () => {
+  it("defaults a new worktree to the tracking branch when the local branch is behind", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({
       statuses: {
@@ -918,15 +1109,17 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "origin/main",
-        worktreeIsNewBranch: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "origin/main",
+          worktreeIsNewBranch: true,
+        }),
+      );
+    });
   });
 
-  it("defaults a new worktree to the project default branch, not the current checkout", () => {
+  it("defaults a new worktree to the project default branch, not the current checkout", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
     useGitStore.setState({
       statuses: {
@@ -971,12 +1164,14 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "origin/main",
-        worktreeIsNewBranch: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "origin/main",
+          worktreeIsNewBranch: true,
+        }),
+      );
+    });
   });
 
   it("keeps the uncommitted-changes worktree option after selecting a tracking branch", async () => {
@@ -1014,65 +1209,74 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "main",
-        worktreeIsNewBranch: true,
-        worktreeTransferUncommitted: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "main",
+          worktreeIsNewBranch: true,
+          worktreeTransferUncommitted: true,
+        }),
+      );
+    });
   });
 
   it.each([
     { pin: "develop", expected: "origin/develop" },
     { pin: "gone-branch", expected: "origin/main" },
-  ])("defaults a new worktree to the pinned base $pin when it exists", ({ pin, expected }) => {
-    const onStart = vi.fn<(input: unknown) => void>();
-    useGitStore.setState({
-      statuses: {
-        [project.id]: {
-          isRepo: true,
-          branch: "feature",
-          tracking: "origin/feature",
-          hasRemote: true,
-          remoteInfo: null,
-          ahead: 0,
-          behind: 0,
-          staged: [],
-          unstaged: [],
-          totalInsertions: 0,
-          totalDeletions: 0,
+  ])(
+    "defaults a new worktree to the pinned base $pin when it exists",
+    async ({ pin, expected }) => {
+      const onStart = vi.fn<(input: unknown) => void>();
+      useGitStore.setState({
+        statuses: {
+          [project.id]: {
+            isRepo: true,
+            branch: "feature",
+            tracking: "origin/feature",
+            hasRemote: true,
+            remoteInfo: null,
+            ahead: 0,
+            behind: 0,
+            staged: [],
+            unstaged: [],
+            totalInsertions: 0,
+            totalDeletions: 0,
+          },
         },
-      },
-      branches: {
-        [project.id]: {
-          current: "feature",
-          defaultBranch: "origin/main",
-          branches: [
-            { name: "feature", current: true, commit: "a", isRemote: false },
-            { name: "develop", current: false, commit: "b", isRemote: false },
-            { name: "develop", current: false, commit: "b", isRemote: true, remote: "origin" },
-            { name: "main", current: false, commit: "c", isRemote: true, remote: "origin" },
-          ],
+        branches: {
+          [project.id]: {
+            current: "feature",
+            defaultBranch: "origin/main",
+            branches: [
+              { name: "feature", current: true, commit: "a", isRemote: false },
+              { name: "develop", current: false, commit: "b", isRemote: false },
+              { name: "develop", current: false, commit: "b", isRemote: true, remote: "origin" },
+              { name: "main", current: false, commit: "c", isRemote: true, remote: "origin" },
+            ],
+          },
         },
-      },
-    });
+      });
 
-    render(
-      <ThreadDraftView
-        project={{ ...project, worktreeBaseBranch: pin }}
-        agentStatuses={[codexStatus]}
-        onStart={onStart}
-      />,
-    );
+      render(
+        <ThreadDraftView
+          project={{ ...project, worktreeBaseBranch: pin }}
+          agentStatuses={[codexStatus]}
+          onStart={onStart}
+        />,
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
-    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(expected);
+      fireEvent.click(screen.getByRole("button", { name: "Worktree mode" }));
+      expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(expected);
 
-    fireEvent.click(screen.getByText("set-prompt"));
-    fireEvent.click(screen.getByText("submit"));
-    expect(onStart).toHaveBeenCalledWith(expect.objectContaining({ worktreeBaseBranch: expected }));
-  });
+      fireEvent.click(screen.getByText("set-prompt"));
+      fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => {
+        expect(onStart).toHaveBeenCalledWith(
+          expect.objectContaining({ worktreeBaseBranch: expected }),
+        );
+      });
+    },
+  );
 
   it("sets a branch from the picker as the project's default worktree base and selects it", async () => {
     const previousProjects = useAppStore.getState().projects;
@@ -1177,12 +1381,14 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "perf/dev-server",
-        worktreeTransferUncommitted: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "perf/dev-server",
+          worktreeTransferUncommitted: true,
+        }),
+      );
+    });
   });
 
   it("keeps the local checkout after selecting the branch in worktree + changes", async () => {
@@ -1232,13 +1438,15 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        worktreeBaseBranch: "main",
-        worktreeIsNewBranch: true,
-        worktreeTransferUncommitted: true,
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          worktreeBaseBranch: "main",
+          worktreeIsNewBranch: true,
+          worktreeTransferUncommitted: true,
+        }),
+      );
+    });
   });
 
   it("keeps experiments on the local checkout instead of the project default branch", () => {
@@ -1356,6 +1564,76 @@ describe("ThreadDraftView", () => {
             ]),
           }),
         ),
+      );
+    },
+  );
+
+  it.each(["accepted", "partial", "cancelled", "newer"] as const)(
+    "preserves experiment draft lifecycle through client hooks (%s)",
+    async (outcome) => {
+      useGitStore.setState({
+        statuses: {
+          [project.id]: {
+            isRepo: true,
+            branch: "main",
+            tracking: "origin/main",
+            hasRemote: true,
+            remoteInfo: null,
+            ahead: 0,
+            behind: 0,
+            staged: [],
+            unstaged: [],
+            totalInsertions: 0,
+            totalDeletions: 0,
+          },
+        },
+      });
+      launchExperimentMock.mockImplementation(async (value) => {
+        const input = value as LaunchExperimentInput;
+        if (outcome === "cancelled") return null;
+        await input.prepareSegments!();
+        if (outcome === "newer")
+          useAppStore.getState().saveDraftContent(project.id, {
+            segments: [{ kind: "text", content: "Newer draft" }],
+            attachments: [],
+          });
+        if (outcome === "accepted" || outcome === "newer") await input.onAccepted!("experiment-1");
+        return "experiment-1";
+      });
+      render(
+        <ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />,
+      );
+      const initial = composerSpy.mock.lastCall?.[0] as {
+        afterControls: ReactElement<{ experiment?: { onToggle(enabled: boolean): void } }>;
+      };
+      act(() => initial.afterControls.props.experiment?.onToggle(true));
+      for (let index = 0; index < 2; index++) {
+        const composer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+        const targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+        if (!targets) throw new Error("Expected experiment targets");
+        act(targets.props.onAdd as () => void);
+      }
+      const composer = composerSpy.mock.lastCall?.[0] as { inputContent: ReactElement };
+      const editorView = render(composer.inputContent);
+      const editor = editorView.container.querySelector<HTMLElement>('[contenteditable="true"]')!;
+      act(() => {
+        editor.textContent = "Submitted experiment";
+        fireEvent.input(editor);
+      });
+      fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => expect(launchExperimentMock).toHaveBeenCalledOnce());
+      await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+      expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
+      expect(useAppStore.getState().draftContents[project.id]?.segments).toEqual(
+        outcome === "accepted"
+          ? undefined
+          : [
+              {
+                kind: "text",
+                content: outcome === "newer" ? "Newer draft" : "Submitted experiment",
+              },
+            ],
       );
     },
   );
@@ -1564,6 +1842,54 @@ describe("ThreadDraftView", () => {
     expect(screen.queryByRole("button", { name: "Worktree mode" })).not.toBeInTheDocument();
   });
 
+  it("imports dropped files as client draft assets and launches with them", async () => {
+    const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+    const importFiles =
+      vi.fn<(files: readonly File[]) => Promise<string[]>>(importClientDraftFiles);
+    const materialize = vi
+      .spyOn(draftSubmission, "materializeDraftSegments")
+      .mockImplementationOnce(async (_target, segments) =>
+        segments.map((segment) =>
+          segment.kind === "attachment" && isClientDraftAsset(segment.path)
+            ? { ...segment, path: "/host/attachments/notes.txt" }
+            : segment,
+        ),
+      );
+    const onStart = vi.fn<(input: unknown) => void>();
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[codexStatus]}
+        importFiles={importFiles}
+        onStart={onStart}
+      />,
+    );
+
+    const props = composerSpy.mock.lastCall?.[0] as { onImportFiles?: (files: File[]) => void };
+    expect(props.onImportFiles).toBeDefined();
+    act(() => props.onImportFiles?.([file]));
+    expect(importFiles).toHaveBeenCalledExactlyOnceWith([file]);
+    const [assetPath] = await importFiles.mock.results[0]!.value;
+    expect(isClientDraftAsset(assetPath!)).toBe(true);
+    await waitFor(() => {
+      const nextProps = composerSpy.mock.lastCall?.[0] as { submitDisabled: boolean };
+      expect(nextProps.submitDisabled).toBe(false);
+    });
+    const submitProps = composerSpy.mock.lastCall?.[0] as { onSubmit: () => void };
+    act(() => submitProps.onSubmit());
+
+    await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+    expect(onStart.mock.calls[0]?.[0]).toMatchObject({
+      segments: [
+        { kind: "attachment", path: "/host/attachments/notes.txt", mimeType: "text/plain" },
+      ],
+    });
+    expect(materialize.mock.calls[0]?.[1]).toEqual([
+      { kind: "attachment", path: assetPath, mimeType: "text/plain" },
+    ]);
+    materialize.mockRestore();
+  });
+
   it("restores the selection replaced by a targeted worktree when the inline composer collapses", async () => {
     useGitStore.setState({
       statuses: {
@@ -1679,7 +2005,9 @@ describe("ThreadDraftView", () => {
     const nextProps = composerSpy.mock.lastCall?.[0] as { onSubmit: () => void };
     act(() => nextProps.onSubmit());
 
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({
       segments: [
         { kind: "attachment", path: "C:\\draft-note.txt", mimeType: "text/plain" },
@@ -1690,7 +2018,9 @@ describe("ThreadDraftView", () => {
 
     permission.resolve(stream);
     await waitFor(() => expect(track.stop).toHaveBeenCalledOnce());
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
   });
 
   it("cancels deferred draft voice when an attachment is added", async () => {
@@ -1806,11 +2136,12 @@ describe("ThreadDraftView", () => {
 
   it("switches to the first installed agent when statuses resolve after mount", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
-    const { rerender } = render(
+    const { container, rerender } = render(
       <ThreadDraftView project={project} agentStatuses={[]} onStart={onStart} />,
     );
 
     expect(screen.getByText("No supported agents detected")).toBeInTheDocument();
+    expect(container.querySelector("[data-draft-composer]")).toBeNull();
 
     rerender(
       <ThreadDraftView project={project} agentStatuses={[geminiStatus]} onStart={onStart} />,
@@ -1830,6 +2161,7 @@ describe("ThreadDraftView", () => {
       expect(providerModel?.currentModel).toBe("auto");
       expect(props.controls.some((control) => control.value === "never")).toBe(true);
     });
+    expect(container.querySelector("[data-draft-composer]")).not.toBeNull();
   });
 
   it("anchors the full draft composer after agents resolve on the initial mount", async () => {
@@ -1867,6 +2199,140 @@ describe("ThreadDraftView", () => {
     // events hydrate the store.
     expect(screen.getByText(/detecting agents/i)).toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+  });
+
+  it.each(["terminal", "gui"] as const)(
+    "shows fetched commands in a remote %s draft before a thread exists",
+    async (presentationMode) => {
+      const commands = [{ id: "goal", label: "goal", description: "Set a goal" }];
+      const catalog = deferred<{ kind: string; commands: typeof commands }>();
+      const agentSlashCommands = vi.fn<RemoteDesktopClient["agentSlashCommands"]>(
+        () => catalog.promise,
+      );
+      const client = {
+        setTokenLifecycle: () => {},
+        agentSlashCommands,
+      } as unknown as RemoteDesktopClient;
+      const previousFactory = useRemoteServersStore.getState().clientFactory;
+      useRemoteServersStore.setState({
+        clientFactory: () => client,
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote",
+            endpoint: `http://draft-command-ui-${presentationMode}.test/`,
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "desktop-1": {
+            status: "online",
+            projects: [],
+            threads: [],
+            agentStatuses: {
+              windows: [
+                {
+                  ...claudeStatus,
+                  capabilities: {
+                    ...claudeStatus.capabilities,
+                    presentationModes: ["terminal", "gui"],
+                  },
+                },
+              ],
+              wsl: [],
+              updatedAt: "now",
+            },
+          },
+        },
+      });
+      useSharedSettings.setState({ lastPresentationModeByAgent: { claude: presentationMode } });
+      function RemoteDraft() {
+        const statuses = useRemoteServersStore(
+          (state) => state.runtime["desktop-1"]!.agentStatuses!.windows,
+        );
+        return (
+          <ThreadDraftView project={remoteProject} agentStatuses={statuses} onStart={() => {}} />
+        );
+      }
+      const view = render(<RemoteDraft />);
+      let panel: ReturnType<typeof render> | undefined;
+      try {
+        await waitFor(() => expect(agentSlashCommands).toHaveBeenCalledWith("claude"));
+        act(() => {
+          const props = composerSpy.mock.lastCall![0] as {
+            inputContent: ReactElement<{ onSlashCommandChange: (query: string) => void }>;
+          };
+          props.inputContent.props.onSlashCommandChange("g");
+        });
+        expect(
+          useRemoteServersStore.getState().runtime["desktop-1"]?.agentStatuses?.windows[0]
+            ?.capabilities.slashCommands,
+        ).toBeUndefined();
+        await act(async () => catalog.resolve({ kind: "claude", commands }));
+        await waitFor(() => {
+          const props = composerSpy.mock.lastCall![0] as {
+            inputContent: ReactElement<{ commandListId?: string }>;
+          };
+          expect(props.inputContent.props.commandListId).toBeDefined();
+        });
+        // This suite stubs the composer shell; render its real command-panel slot.
+        panel = render(
+          (composerSpy.mock.lastCall![0] as { fixedContent: ReactElement }).fixedContent,
+        );
+        expect(screen.getByRole("option", { name: /goal/ })).toBeInTheDocument();
+        expect(useRemoteServersStore.getState().openThread).toBeNull();
+      } finally {
+        panel?.unmount();
+        view.unmount();
+        useRemoteServersStore.setState({ clientFactory: previousFactory });
+      }
+    },
+  );
+
+  it("loads commands for the selected remote provider and retries after reconnect", async () => {
+    const load = vi
+      .spyOn(useRemoteServersStore.getState(), "loadAgentSlashCommands")
+      .mockResolvedValue(undefined);
+    const view = render(
+      <ThreadDraftView project={project} agentStatuses={[claudeStatus]} onStart={() => {}} />,
+    );
+    expect(load).not.toHaveBeenCalled();
+    act(() => {
+      useRemoteServersStore.setState({
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote",
+            endpoint: "http://remote/",
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+      });
+    });
+    view.rerender(
+      <ThreadDraftView project={remoteProject} agentStatuses={[claudeStatus]} onStart={() => {}} />,
+    );
+    await waitFor(() => expect(load).toHaveBeenCalledWith("desktop-1", "claude"));
+    view.rerender(
+      <ThreadDraftView project={remoteProject} agentStatuses={[geminiStatus]} onStart={() => {}} />,
+    );
+    await waitFor(() => expect(load).toHaveBeenLastCalledWith("desktop-1", "gemini"));
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "offline", projects: [], threads: [] } },
+      });
+    });
+    expect(load).toHaveBeenCalledTimes(2);
+    act(() => {
+      useRemoteServersStore.setState({
+        runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+      });
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+    load.mockRestore();
   });
 
   it("shows the remote connection error instead of the missing-agent message", () => {
@@ -1983,6 +2449,69 @@ describe("ThreadDraftView", () => {
     expect(screen.getByText("Connecting to host…")).toBeInTheDocument();
     expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
     expect(screen.queryByText("No supported agents detected")).not.toBeInTheDocument();
+    expect(composerSpy).not.toHaveBeenCalled();
+  });
+
+  it.each(["offline", "error", "connecting"] as const)(
+    "keeps a pending submission's composer mounted while the remote host is %s",
+    (status) => {
+      useRemoteServersStore.setState({
+        servers: [
+          {
+            desktopId: "desktop-1",
+            label: "Remote Mac",
+            endpoint: "http://remote/",
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "desktop-1": { status, projects: [], threads: [] },
+        },
+      });
+
+      render(
+        <ThreadDraftView
+          project={remoteProject}
+          agentStatuses={[codexStatus]}
+          submissionPending
+          onStart={() => {}}
+        />,
+      );
+
+      expect(composerSpy).toHaveBeenCalled();
+      expect(screen.queryByText("Connecting to host…")).not.toBeInTheDocument();
+      expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
+    },
+  );
+
+  it("still blocks a draft on an offline host when no submission is pending", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Remote Mac",
+          endpoint: "http://remote/",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "offline", projects: [], threads: [] },
+      },
+    });
+
+    render(
+      <ThreadDraftView
+        project={remoteProject}
+        agentStatuses={[codexStatus]}
+        submissionPending={false}
+        onStart={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Connection error")).toBeInTheDocument();
+    expect(composerSpy).not.toHaveBeenCalled();
   });
 
   it("keeps the remote composer visible and disables submit during a host update restart", () => {
@@ -2162,6 +2691,119 @@ describe("ThreadDraftView", () => {
     expect(collectElementTypeNames(composer.fixedContent)).toContain("RemoteHostUpdateDock");
   });
 
+  it("preserves saved Codex Full access while permission capabilities load", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const saved = {
+      agentKind: "codex",
+      model: "gpt-5.4",
+      contextSize: "400k",
+      approvalPolicy: "never",
+      approvalsReviewer: "auto_review",
+      sandboxMode: "danger-full-access",
+    };
+    const pending = {
+      ...dualModeCodexStatus,
+      capabilities: {
+        ...dualModeCodexStatus.capabilities,
+        approvalPolicies: [],
+        sandboxModes: [],
+        bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+      },
+    };
+    const { rerender } = render(
+      <ThreadDraftView
+        project={project}
+        lastDraftConfig={saved}
+        agentStatuses={[pending]}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(useSharedSettings.getState().providerConfigs.codex).toMatchObject({
+        approvalPolicy: "never",
+        approvalsReviewer: "auto_review",
+        sandboxMode: "danger-full-access",
+      });
+    });
+    rerender(
+      <ThreadDraftView
+        project={project}
+        lastDraftConfig={saved}
+        agentStatuses={[dualModeCodexStatus]}
+        onStart={onStart}
+      />,
+    );
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ value?: string }> };
+      expect(props.controls.some((control) => control.value === "full-access")).toBe(true);
+    });
+
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            approvalPolicy: "never",
+            approvalsReviewer: "auto_review",
+            sandboxMode: "danger-full-access",
+          }),
+        }),
+      );
+    });
+  });
+
+  it("launches with the displayed permission when the policy catalog changes after a local edit", async () => {
+    const onStart = vi.fn<(input: unknown) => void>();
+    const initial = {
+      ...claudeStatus,
+      capabilities: {
+        ...claudeStatus.capabilities,
+        approvalPolicies: [{ id: "old", label: "Old" }],
+        defaultApprovalPolicy: "old",
+      },
+    };
+    const refreshed = {
+      ...initial,
+      capabilities: {
+        ...initial.capabilities,
+        approvalPolicies: [{ id: "auto", label: "Auto mode" }],
+        defaultApprovalPolicy: "auto",
+      },
+    };
+    const { rerender } = render(
+      <ThreadDraftView project={project} agentStatuses={[initial]} onStart={onStart} />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as { controls: Array<{ kind?: string }> };
+      expect(props.controls.some((control) => control.kind === "provider-model")).toBe(true);
+    });
+    const props = composerSpy.mock.lastCall?.[0] as {
+      controls: Array<{
+        kind?: string;
+        onChange?: (next: { agentKind: string; model: string }) => void;
+      }>;
+    };
+    act(() => {
+      props.controls
+        .find((control) => control.kind === "provider-model")
+        ?.onChange?.({
+          agentKind: "claude",
+          model: "claude-opus-4-7",
+        });
+    });
+    rerender(<ThreadDraftView project={project} agentStatuses={[refreshed]} onStart={onStart} />);
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({ config: expect.objectContaining({ approvalPolicy: "auto" }) }),
+      );
+    });
+  });
+
   it("submits codex defaults on first launch", async () => {
     const onStart = vi.fn<(input: unknown) => void>();
 
@@ -2194,18 +2836,22 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith({
-      agentKind: "codex",
-      config: {
-        model: "gpt-5.4",
-        effort: "high",
-        mode: "agent",
-        approvalPolicy: "on-request",
-        approvalsReviewer: "auto_review",
-        sandboxMode: "workspace-write",
-      },
-      presentationMode: "gui",
-      prompt: "hello world",
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith({
+        threadId: expect.any(String),
+        clientSubmissionId: expect.any(String),
+        agentKind: "codex",
+        config: {
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "auto_review",
+          sandboxMode: "workspace-write",
+        },
+        presentationMode: "gui",
+        prompt: "hello world",
+      });
     });
   });
 
@@ -2261,11 +2907,13 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ contextSize: "400k", effort: "xhigh" }),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({ contextSize: "400k", effort: "xhigh" }),
+        }),
+      );
+    });
   });
 
   it("keeps an explicit Codex context choice made before settings hydrate", async () => {
@@ -2319,11 +2967,13 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ contextSize: "1m" }),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({ contextSize: "1m" }),
+        }),
+      );
+    });
   });
 
   it("launches with a per-draft workflow mode without saving it as a default", async () => {
@@ -2367,11 +3017,13 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ model: "composer-2", workflows: true }),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({ model: "composer-2", workflows: true }),
+        }),
+      );
+    });
   });
 
   it("turns the draft workflow mode off when the model changes", async () => {
@@ -2456,11 +3108,13 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        config: expect.objectContaining({ fast: false }),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({ fast: false }),
+        }),
+      );
+    });
   });
 
   it("keeps a globally disabled built-in out of the composer and launch config", async () => {
@@ -2487,7 +3141,9 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledTimes(1);
+    });
     expect((onStart.mock.lastCall![0] as { config: object }).config).not.toHaveProperty(
       "browserMcp",
     );
@@ -2527,18 +3183,22 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith({
-      agentKind: "codex",
-      config: {
-        model: "gpt-5.4",
-        effort: "high",
-        mode: "agent",
-        approvalPolicy: "on-request",
-        approvalsReviewer: "user",
-        sandboxMode: "workspace-write",
-      },
-      presentationMode: "gui",
-      prompt: "hello world",
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith({
+        threadId: expect.any(String),
+        clientSubmissionId: expect.any(String),
+        agentKind: "codex",
+        config: {
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "user",
+          sandboxMode: "workspace-write",
+        },
+        presentationMode: "gui",
+        prompt: "hello world",
+      });
     });
   });
 
@@ -2561,7 +3221,9 @@ describe("ThreadDraftView", () => {
       fireEvent.click(screen.getByText("submit"));
     });
 
-    expect(onStart).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledTimes(1);
+    });
 
     // Once the rejection settles the composer is interactive again rather than
     // frozen on the launch spinner with the prompt trapped behind it.
@@ -2611,18 +3273,22 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith({
-      agentKind: "codex",
-      config: {
-        model: "gpt-5.4",
-        effort: "high",
-        mode: "agent",
-        approvalPolicy: "on-request",
-        approvalsReviewer: "auto_review",
-        sandboxMode: "workspace-write",
-      },
-      presentationMode: "gui",
-      prompt: "hello world",
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith({
+        threadId: expect.any(String),
+        clientSubmissionId: expect.any(String),
+        agentKind: "codex",
+        config: {
+          model: "gpt-5.4",
+          effort: "high",
+          mode: "agent",
+          approvalPolicy: "on-request",
+          approvalsReviewer: "auto_review",
+          sandboxMode: "workspace-write",
+        },
+        presentationMode: "gui",
+        prompt: "hello world",
+      });
     });
   });
 
@@ -2651,15 +3317,19 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("set-prompt"));
     fireEvent.click(screen.getByText("submit"));
 
-    expect(onStart).toHaveBeenCalledWith({
-      agentKind: "acp-generic:example-agent",
-      config: {
-        model: "model-a",
-        mode: "agent",
-        approvalPolicy: "never",
-      },
-      presentationMode: "gui",
-      prompt: "hello world",
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith({
+        threadId: expect.any(String),
+        clientSubmissionId: expect.any(String),
+        agentKind: "acp-generic:example-agent",
+        config: {
+          model: "model-a",
+          mode: "agent",
+          approvalPolicy: "never",
+        },
+        presentationMode: "gui",
+        prompt: "hello world",
+      });
     });
   });
 
@@ -3312,7 +3982,9 @@ describe("ThreadDraftView", () => {
     fireEvent.click(screen.getByText("submit"));
     await waitFor(() =>
       expect(onStart).toHaveBeenCalledWith(
-        expect.objectContaining({ config: expect.objectContaining({ mode: "agent" }) }),
+        expect.objectContaining({
+          config: expect.objectContaining({ mode: "agent", approvalPolicy: "auto" }),
+        }),
       ),
     );
   });
@@ -3673,6 +4345,7 @@ describe("ThreadDraftView model family drafts", () => {
 
       fireEvent.click(screen.getByText("set-prompt"));
       fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => expect(onStart).toHaveBeenCalled());
       const launched = (
         onStart.mock.lastCall?.[0] as { config: Record<string, unknown> } | undefined
       )?.config;
@@ -3749,6 +4422,7 @@ describe("ThreadDraftView model family drafts", () => {
 
       fireEvent.click(screen.getByText("set-prompt"));
       fireEvent.click(screen.getByText("submit"));
+      await waitFor(() => expect(onStart).toHaveBeenCalled());
       const [launch] = onStart.mock.lastCall ?? [];
       const launched = (launch as { config: ThreadConfig }).config;
       expect(launched).toMatchObject({ ...tuple, selectionBinding: binding });

@@ -24,6 +24,15 @@ describe("base control styles", () => {
     }
   });
 
+  it("tracks child height tightly on tooltip and popover triggers", () => {
+    expect(styles).toMatch(
+      /^\.tooltip__trigger\s*\{\s*display:\s*inline-flex;\s*align-items:\s*center;\s*\}/m,
+    );
+    expect(styles).toMatch(
+      /@layer components\s*\{\s*\.popover__trigger\s*\{\s*display:\s*inline-flex;\s*align-items:\s*center;\s*\}\s*\}/,
+    );
+  });
+
   it("keeps small button icons and labels spaced and vertically centered", () => {
     expect(styles).toMatch(
       /@layer components\s*\{\s*\.button--sm\s*\{\s*line-height:\s*1rem;\s*\}\s*\.button--sm svg:not\(\[data-slot="spinner"\] svg, \[data-slot="link-icon"\] svg\)\s*\{\s*margin-inline:\s*0;/,
@@ -108,6 +117,43 @@ describe("base control styles", () => {
     expect(styles).not.toContain("[contenteditable]:not(:empty)");
   });
 
+  it("keeps direct and tooltip-wrapped send controls in the collapsed composer", () => {
+    const selector = styles.match(
+      /(html\[data-compact-layout\]\s+\.m-thread-compose-dock[^{}]+?\.poracode-composer-toolbar\s+> \.poracode-composer-actions\s+> [^{}]+)\s*\{\s*display:\s*none;/,
+    )?.[1];
+    if (!selector) throw new Error("Missing collapsed composer control rule");
+    const fixture = document.createElement("div");
+    fixture.innerHTML = `
+      <div class="m-thread-compose-dock" data-input-has-content>
+        <div class="poracode-composer-shell"><div class="poracode-composer-toolbar">
+          <div class="poracode-composer-actions">
+            <button id="unrelated">Attach</button>
+            <button id="direct" class="poracode-composer-send">Send</button>
+            <div id="wrapped" class="tooltip__trigger" data-composer-send>
+              <button class="poracode-composer-send">Resume</button>
+            </div>
+          </div>
+        </div></div>
+      </div>`;
+    const wasCompact = document.documentElement.hasAttribute("data-compact-layout");
+    document.documentElement.setAttribute("data-compact-layout", "");
+    document.body.append(fixture);
+    try {
+      expect([...document.querySelectorAll(selector)].map((element) => element.id)).toEqual([
+        "unrelated",
+      ]);
+    } finally {
+      fixture.remove();
+      document.documentElement.toggleAttribute("data-compact-layout", wasCompact);
+    }
+  });
+
+  it("avoids whole-app invalidation from compact descendant exclusions", () => {
+    expect(styles).not.toContain(":not(:has(.poracode-composer-shell))");
+    expect(styles).not.toContain(":not(:has(.poracode-composer-send))");
+    expect(styles).not.toContain('.settings-row:has([role="switch"])');
+  });
+
   it("uses one safe-zone token for compact headers and under-header page scrolling", () => {
     expect(styles).toContain("--m-header-height: 48px");
     expect(styles).toContain("--m-header-content-gap: 12px");
@@ -133,11 +179,48 @@ describe("base control styles", () => {
     expect(mobileHeader).not.toContain("transform:");
     expect(mobileHeader).not.toContain("padding-bottom:");
     expect(styles).toMatch(
-      /\.poracode-shell\[data-mobile-navigation\]\[data-mobile-home\][^{]*\.poracode-overlay-header\s*\{[^}]*margin-bottom:\s*var\(--m-header-content-gap\);/s,
+      /\.poracode-shell\[data-mobile-navigation\]:not\(\[data-mobile-home\]\)[^{]*\.poracode-overlay-header\s*\{[^}]*margin-bottom:\s*var\(--m-header-content-gap\);/s,
     );
     expect(styles).toMatch(
       /html\[data-compact-layout\]\[data-theme="dark"\][^{]*\.poracode-shell\[data-mobile-navigation\]:not\(\[data-mobile-home\]\)[^{]*\.poracode-overlay-header\s*\{[^}]*background:\s*color-mix\(in oklab, var\(--background\) 78%, transparent\) !important;/s,
     );
+  });
+
+  it("scrolls the compact home list under a transparent header and dock", () => {
+    // One full-bleed scroller that reserves the header safe zone and the dock
+    // clearance at rest, so the rows can move behind both overlays.
+    const scroller = ruleFor("html[data-compact-layout] .m-home-scroll");
+    expect(scroller).toContain("overflow-y: auto");
+    expect(scroller).toContain("margin-inline: calc(-1 * var(--m-page-inline))");
+    expect(scroller).toContain("var(--m-page-header-safe-zone) + var(--m-header-content-gap)");
+    expect(scroller).toContain("var(--m-floating-dock-clearance)");
+    expect(styles).toContain(
+      "--m-floating-dock-clearance: calc(\n    var(--m-floating-control-height) + 1.5rem + env(safe-area-inset-bottom)\n  )",
+    );
+    // The home header leaves layout and has no fill of its own; only a masked
+    // blur fade sits behind it.
+    expect(styles).toMatch(
+      /\.poracode-shell\[data-mobile-navigation\]\[data-mobile-home\]\s*\.poracode-overlay-header\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0 0 auto;[^}]*background:\s*transparent !important;/s,
+    );
+    expect(styles).toMatch(
+      /\[data-mobile-home\]\s*\.poracode-overlay-header::before\s*\{[^}]*backdrop-filter:\s*blur\(8px\);[^}]*mask-image:/s,
+    );
+    // The dock side gets the matching bottom-edge fade, below the dock itself.
+    expect(styles).toMatch(
+      /\[data-mobile-home\] \.poracode-main-sidebar::after\s*\{[^}]*z-index:\s*4;[^}]*pointer-events:\s*none;/s,
+    );
+    // The header box keeps receiving touches: rows hidden under its fade must
+    // not be tappable through it.
+    const homeHeader = styles.match(
+      /\[data-mobile-home\]\s*\.poracode-overlay-header\s*\{([^}]*)\}/,
+    )?.[1];
+    expect(homeHeader).toContain("position: absolute");
+    expect(homeHeader).not.toContain("pointer-events");
+    // The filter trigger's state colours must not recolour other circle buttons.
+    expect(styles).not.toMatch(/\.m-home-compose-action\.text-(muted|accent)\s*\{/);
+    // The retired inner-panel layout must not return for compact.
+    expect(styles).not.toContain("poracode-flat-thread-scroll");
+    expect(styles).not.toContain("poracode-flat-done-section");
   });
 
   it("gives compact PWA menu rows a touch-friendly minimum height", () => {
@@ -167,6 +250,39 @@ describe("base control styles", () => {
     );
   });
 
+  it("keeps anchored HeroUI overlays geometrically stable while entering and exiting", () => {
+    for (const selector of [
+      ".popover",
+      ".dropdown__popover",
+      ".select__popover",
+      ".autocomplete__popover",
+      ".combo-box__popover",
+      ".color-picker__popover",
+      ".tooltip",
+    ]) {
+      expect(styles).toContain(selector);
+    }
+    // Opacity only: a transform in the enter/exit animation would move the
+    // surface and poison React Aria's rect-based positioning.
+    expect(styles).toMatch(/\[data-entering="true"\] \{\s*animation: heroui-overlay-fade-in 120ms/);
+    expect(styles).toMatch(/\[data-exiting="true"\] \{\s*animation: heroui-overlay-fade-out 80ms/);
+    // Overlay triggers stay unscaled while pressed/open so the anchor rect
+    // React Aria positions against cannot alternate between two sizes.
+    expect(styles).toMatch(
+      /:is\(\.button, \.dropdown__trigger, \.menu-item\)\[aria-haspopup\]:is\(\s*:active,\s*\[data-pressed="true"\],\s*\[aria-expanded="true"\]\s*\),\s*\.popover__trigger \.button:is\(:active, \[data-pressed="true"\]\) \{\s*transform: none;/,
+    );
+  });
+
+  it("composes toast swipe dismissal with HeroUI's stack transform", () => {
+    const toast = ruleFor(".lc-toast");
+    expect(toast).toContain("display: flex");
+    expect(toast).toContain("var(--toast-y, 0px)");
+    expect(toast).toContain("var(--toast-enter, 0%)");
+    expect(toast).toContain("scale(var(--toast-scale, 1))");
+    expect(toast).toContain("translate3d(var(--lc-toast-swipe-x), var(--lc-toast-swipe-y), 0)");
+    expect(toast).toContain("height var(--toast-height-duration, 350ms)");
+  });
+
   it("uses shared translucent chrome for bottom-sheet headers", () => {
     const header = ruleFor(".m-sheet-head");
     expect(header).toContain("var(--sidebar-background, var(--background)) 78%");
@@ -176,6 +292,21 @@ describe("base control styles", () => {
     expect(ruleFor(".m-sheet-scroll > .m-sheet-list")).toContain("overflow-y: visible");
     expect(ruleFor(".m-sheet-grabber")).toContain(
       "var(--sidebar-background, var(--background)) 78%",
+    );
+  });
+
+  it("defers bottom-sheet enter keyframes until the backdrop is revealed", () => {
+    expect(ruleFor(".m-sheet-backdrop:not([data-entered]):not([data-closing])")).toContain(
+      "opacity: 0",
+    );
+    expect(ruleFor(".m-sheet-backdrop[data-entered]")).toContain(
+      "animation: poracode-sheet-backdrop-in",
+    );
+    expect(ruleFor(".m-sheet-backdrop:not([data-entered]):not([data-closing]) .m-sheet")).toContain(
+      "transform: translateY(100%)",
+    );
+    expect(ruleFor(".m-sheet-backdrop[data-entered] .m-sheet")).toContain(
+      "animation: poracode-sheet-in",
     );
   });
 });

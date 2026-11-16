@@ -252,6 +252,20 @@ export function filterHiddenModels(
 }
 
 /**
+ * The surface a model picker offers: hidden models removed, unless hiding
+ * leaves nothing selectable, in which case the unfiltered surface stands in so
+ * a launch still has a model. Anything that ranks or resolves a model for such
+ * a picker reads this, so both always agree on what is offered.
+ */
+export function visibleModelCapabilities(
+  capabilities: AgentCapability,
+  hiddenIds: readonly string[] | undefined,
+): AgentCapability {
+  const filtered = filterHiddenModels(capabilities, hiddenIds);
+  return filtered.models.length > 0 ? filtered : capabilities;
+}
+
+/**
  * Re-admit one model into a hidden-filtered surface when that surface has to
  * represent a selection that already exists.
  *

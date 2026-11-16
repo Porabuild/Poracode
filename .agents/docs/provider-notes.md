@@ -65,6 +65,16 @@ stays off the SDK stream and out of the session import.
 - Tool-call normalization turns read line summaries into lazy file reads,
   supplies image paths, suppresses the question-call duplicate, and appends
   web-search URLs from metadata.
+- Background `run_subagent` input streams after the call opens, and the call is
+  re-sent with its full input before it runs. Devin rebuilds the call title from
+  the partial input, so the card uses the subagent's own `title` argument
+  instead; otherwise every streamed key adds a status line to the card. In a
+  parallel batch, a launch can be acknowledged before its
+  `cognition.ai/subagent_started` (3000.12.28). A session source holds that
+  acknowledgement until the start binds the call; the next lead output or the
+  turn end releases it unchanged. Child completions omit the shared
+  detached-reply marker, since Devin sends no parent reply, so they do not split
+  the lead's live message or reasoning.
 - Fusion sidekick activity arrives without a handoff tool call: its tool calls
   carry `cognition.ai/sidekick: true`, and its unmarked todo `plan` update renders
   inline in the lead transcript and replaces the lead's plan.
@@ -81,16 +91,153 @@ stays off the SDK stream and out of the session import.
   native session. Terminal launches use native SQLite ID discovery without
   reading transcript content; overlapping discoveries in the same cwd stay
   unresolved on purpose.
-- Devin advertises only stdio MCP (verified on 3000.10.21), so remote MCP
-  servers are relayed through the existing tool-filter stdio worker. A
-  per-session configuration overlay makes injected servers visible to its
-  native MCP discovery tools while preserving existing config and durable
-  session storage.
+- Devin advertises HTTP and SSE MCP since 3000.12. Its disk overlay remote
+  shape (`{url, transport:"http", headers?: map}`) is turn-proven on
+  3000.12.28 (2026-11-08): Poracode-hosted endpoints therefore connect over
+  HTTP directly in both the overlay and `session/new` — the host applies
+  their tool policy, so no relay process spawns and `disabledTools`
+  filtering still holds. Non-hosted remote servers and filtered stdio
+  servers keep the stdio relays, and cloud launches still omit stdio
+  servers entirely. Devin routed a loopback MCP endpoint through an
+  unreachable `HTTP_PROXY` until `NO_PROXY` listed the host; the shared ACP
+  launch extends `NO_PROXY`/`no_proxy` for direct MCP endpoints whenever a
+  proxy variable reaches the agent (exported inside WSL via `command.env`).
+  The overlay preserves existing config and durable session storage.
+- Local native GUI threads share one pooled `devin acp` process per launch
+  identity (qualified on 3000.12.28: concurrent sessions keep isolated
+  cwd/config, per-session `session/cancel`/`close`, and `session/load`
+  replay routed to the addressed id only). The process spawns in a private
+  empty directory, so its stdio MCP servers start there rather than in any
+  project root. A process serves at most 8 sessions; unaddressed
+  diagnostics pulls are answered while exactly one session has agent work
+  in flight — or while several working sessions share the same project
+  (equal route keys answer identically). A member whose close fails after
+  its turn settled is quarantined instead of killing the process, and an
+  idle session closes quietly when the process dies. Agent shell
+  commands inherit the process env, so the pool keys on the normalized
+  project env: per-project exports (for example direnv's `GH_*`) never
+  cross projects, and only per-shell bookkeeping noise is ignored.
 - Terminal MCP injection is not supported: the CLI has no verified per-thread
   MCP override, and shared user/project config is left untouched.
 - Usage comes from the private CLI quota endpoint. Accounts without quota
   windows report unsupported; overage shows as a remaining credit balance.
   Account metadata is not parsed from undocumented CLI output.
+
+## Gemini
+
+Targets `@google/gemini-cli` `v0.68.0` across Terminal, ACP Chat, Crossagents
+delegation, session import, usage, and isolated `gemini:<id>` profiles (protocol
+and adapter contracts are unit-tested; live CLI/ACP verification requires a
+host with `gemini` installed).
+
+- **ACP stream & silent failures (`acpTransform.ts`, `acpErrors.ts`):**
+  Gemini CLI's ACP handler emits `agent_message_chunk` messages starting with
+  `[MODE_UPDATE]` when acknowledging `session/set_mode` (such as switching into
+  `yolo` mode on turn start), and can catch model/auth/safety stream errors
+  while still resolving `session/prompt` with `stopReason: "end_turn"` and no
+  assistant prose. `createGeminiAcpSessionTransform` normalizes `[MODE_UPDATE]`
+  chunks to `session_info_update` before shared activity tracking runs, so
+  `resolveGeminiEmptyResponseError` (`acpEmptyResponseErrorResolver`) fails
+  loudly instead of completing with `output: ""`. It also normalizes Gemini's
+  `LocalSubagentInvocation` / `DelegateInvocation` calls to canonical `task`
+  subagents, `enter_plan_mode` / `exit_plan_mode` to `EnterPlanMode` /
+  `ExitPlanMode`, and `write_todos` calls with `rawInput.todos` to `todo_write`.
+  `resolveGeminiPromptErrorReason`
+  (`promptErrorReason`) maps HTTP 401/403 and rejected API-key/OAuth RPC errors
+  to `"auth_required"`. Non-WSL Crossagents launches also prime the project's
+  POSIX shell environment (`primeProjectShellEnv`) so login-shell API keys reach
+  delegated child processes.
+- **Usage metrics & model catalog (`detection.ts`, `index.ts`):** ACP prompt
+  responses carry per-call token counters rather than cumulative totals or
+  context occupancy (`promptUsageCounterKind: "per-call"`,
+  `promptUsageReportsContext: false`). Because ACP model discovery omits context
+  window sizes, `GEMINI_MODEL_CONTEXT_TOKENS` maps documented Gemini (`1M` /
+  1.5 Pro `2M`) and Gemma 4 (`256K`) models explicitly without inventing sizes for
+  unknown aliases. `capabilitiesProbe` forwards ACP `modelEfforts`,
+  `modelDefaultEfforts`, `fastModels`, `subProviders`, and `modelSubProvider`,
+  and honors `ctx.probeEnv`.
+- **Auth & config custody (`detection.ts`, `session.ts`, `sessionImport.ts`):**
+  `evaluateGeminiAuthEvidence` requires real credential evidence (API key env var,
+  service account, Vertex ADC/project, `oauth_creds.json`, `FileKeychain`
+  `gemini-credentials.json`, or macOS Keychain `gemini-cli-oauth` /
+  `gemini-cli-api-key`), never `.gemini` directory existence or `settings.json`
+  `selectedType` alone. Config resolves in precedence `GEMINI_CLI_HOME`
+  (`<dir>/.gemini`) → legacy `GEMINI_HOME` → `~/.gemini`. Conversation files
+  live under `<configDir>/tmp/<projectDir>/chats/session-*-<shortId>.{json,jsonl}`
+  (both `.json` and `v0.68.0` `.jsonl` incremental logs with `$set`/`$patch`/`$rewindTo`);
+  `waitForGeminiResumeArtifact` checks both extensions across native and WSL
+  hosts, and `createGeminiSessionImport` skips `kind === "subagent"` transcripts
+  and falls back to `.project_root` for `cwd`.
+- **Profiles, install/update, and provider usage (`profiles.ts`, `geminiUsageProfiles.ts`, `geminiCredentials.ts`):**
+  Profiles (`gemini:<id>`) isolate `GEMINI_CLI_HOME` with
+  `GEMINI_BLANKED_HOST_CREDENTIALS` blanking host API-key, ADC, and custom
+  base-URL vars plus `GEMINI_FORCE_FILE_STORAGE=true` (so `KeychainService`
+  uses per-home `gemini-credentials.json` instead of the shared OS Keychain)
+  across detection, launch, resume, terminal login (`authMethods`), auth,
+  one-shots (`--skip-trust`, `gemini-3.8-flash`), extraction, and usage
+  (`skipWsl: true`, `skipKeychain: true`). Hook/MCP staging
+  (`plugin/install.ts`) writes to Poracode-owned directories and injects per
+  launch via `GEMINI_CLI_SYSTEM_SETTINGS_PATH`, so plugins stay isolated across
+  profiles too. Install prefers `npm install -g @google/gemini-cli` with
+  `brew install gemini-cli` fallback on macOS and
+  `npm install -g @google/gemini-cli` on POSIX/WSL/Windows; updates check both
+  `npm` (`@google/gemini-cli`) and `brew` (`gemini-cli`). Usage tracking reads
+  `oauth_creds.json`, AES-256-GCM + `scryptSync` `FileKeychain`
+  (`gemini-credentials.json`), macOS Keychain, and WSL `$GEMINI_CLI_HOME/.gemini`,
+  extracts the unbundled `v0.68.0` `oauth2.js` client credentials at runtime for
+  401/403 token refresh+retry, and parses `paidTier` + `availableCredits`.
+
+## Kimi Code
+
+Kimi Code 2.5.3 is qualified on native Windows with an isolated
+OpenAI-compatible provider and no managed Kimi login: ACP initialization,
+external model discovery, a streaming prompt, close/resume, another prompt, and
+explicit `session/cancel` all passed. The model catalog is dynamic (including
+K2.8 and K3.1); do not pin its display names, context sizes, or default efforts.
+External models with optional thinking keep the real `off` / `on` choice.
+`kimi-code/kimi-for-coding` (K2.8 Preview on 2.5.3) keeps its `low` / `high` /
+`max` ladder. Only the highspeed aliases still collapse to `on`.
+
+The 2.5.3 ACP adapter is unchanged from 2.5.2 and advertises no native steering
+capability. Its same-turn steering improvements are on the TUI/web/server path,
+not ACP, so GUI follow-ups keep interrupt-and-drain rather than guessing an RPC.
+The client-filesystem capability also stays disabled: the 2.5.3 client-read path
+still forwards non-ENOENT errors to native plan-file handling. The stdio MCP
+relay remains provider-declared and retries only the exact legacy rejection;
+2.5.3's Windows stdio-script fix does not change that compatibility contract.
+
+## Shared ACP agent processes
+
+GUI threads of these providers share one pooled ACP process per launch
+identity (pool mechanics live in `provider-runtime.md` "Shared agent
+processes"; each adapter scopes the pool to its own kind and keeps WSL on
+the dedicated per-thread path). Qualified live with two concurrent sessions
+in different project directories — isolated cwd/config/MCP, per-session
+cancel/close, `session/load` replay to the addressed id only:
+
+- Factory Droid 1.5.0 (`droid exec --output-format acp`)
+- Kimi Code 2.5.2 (`kimi acp`; qualified with the fs capability off, matching
+  Poracode's launch)
+- GitHub Copilot 1.0.107 (`copilot --acp --stdio`)
+- Grok 1.0.77 (`grok --no-auto-update agent stdio`)
+- DeepSeek Harness 0.2.2-rc.1 (`dsh acp --patch …`; reopens with
+  `session/resume`, which replays nothing)
+
+DeepSeek's Poracode permission policy is per session: native threads share
+one private policy directory, each thread writes `session-<id>.json` for its
+own session before every turn, and the plugin fails a step closed when that
+file is missing.
+
+Cursor is deliberately not pooled: it loads project rules and skills from
+the agent process's cwd and its model configuration is process-global, so
+pooled threads would lose their project rules and skills, and one thread's
+model change would switch every other thread on the process. Antigravity
+1.4.1 is not pooled because it does not advertise `session/close` and an
+unadvertised close leaves the session's helper process running. Command
+Code 1.88.5 is not pooled because one `cmd acp` process serves a single
+folder. Qoder and Qwen remain unqualified — the test account could not run
+any model; Qwen additionally does not advertise
+`sessionCapabilities.close`.
 
 ## OpenCode 2 (`opencode2`)
 
@@ -170,7 +317,7 @@ pipeline, including WSL and SSH deployments. It shares the SDK connection
 implementation with Pi extensions (see
 [Provider Runtime](provider-runtime.md#terminal-mcp-launch-integration)).
 
-Qualified newer Command Code versions also support structured Chat through `command-code acp`; older installations remain terminal-only. Detection qualifies these presentation capabilities separately. The ACP harness retains its own filesystem/terminal ownership, and native usage updates, not prompt consumption, report context occupancy. See `detection.acp.test.ts` and `acp.test.ts` in the provider folder for the compatibility contracts.
+Qualified newer Command Code versions also support structured Chat through `command-code acp`; older installations remain terminal-only. Detection qualifies these presentation capabilities separately. The ACP harness retains its own filesystem/terminal ownership, and native usage updates, not prompt consumption, report context occupancy. See `detection.acp.test.ts` and `acp.test.ts` in the provider folder for the compatibility contracts. Native `subagent_progress` carries only `toolName(displayInput)` lines on the parent `agent` call, with no child tool calls or child session; `CommandCodeSubagentSteps` in `acpUpdates.ts` turns each line into a completed child tool row under the subagent and keeps it as progress metadata, so the subagent transcript and step count fill in.
 
 ## fx
 

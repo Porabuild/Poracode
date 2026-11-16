@@ -37,12 +37,18 @@ internal fun DeviceNotificationsPane(
                     stringResource(R.string.settings_notifications_enabled),
                     local.notificationsEnabled,
                     preferences::setNotificationsEnabled,
+                    description = stringResource(
+                        R.string.settings_notifications_enabled_description,
+                    ),
                 )
                 SettingsSwitchRow(
                     stringResource(R.string.settings_notification_sound),
                     local.notificationSoundEnabled,
                     preferences::setNotificationSoundEnabled,
                     enabled = local.notificationsEnabled,
+                    description = stringResource(
+                        R.string.settings_notification_sound_description,
+                    ),
                 )
                 SettingsSwitchRow(
                     stringResource(R.string.settings_notification_foreground),
@@ -69,18 +75,23 @@ internal fun DeviceNotificationsPane(
                     local.notifyDone,
                     preferences::setNotifyDone,
                     enabled = local.notificationsEnabled,
+                    description = stringResource(R.string.remote_notification_done_description),
                 )
                 SettingsSwitchRow(
                     stringResource(R.string.remote_notification_needs_attention),
                     local.notifyNeedsAttention,
                     preferences::setNotifyNeedsAttention,
                     enabled = local.notificationsEnabled,
+                    description = stringResource(
+                        R.string.remote_notification_needs_attention_description,
+                    ),
                 )
                 SettingsSwitchRow(
                     stringResource(R.string.remote_notification_error),
                     local.notifyError,
                     preferences::setNotifyError,
                     enabled = local.notificationsEnabled,
+                    description = stringResource(R.string.remote_notification_error_description),
                 )
             }
         }

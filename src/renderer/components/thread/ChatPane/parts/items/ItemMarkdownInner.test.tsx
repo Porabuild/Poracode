@@ -360,6 +360,41 @@ describe("ItemMarkdownInner", () => {
     );
   });
 
+  it("leaves slash prose as text when no project can verify folders", () => {
+    const homeActions: ChatPaneActions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
+    };
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={homeActions}>
+          <ItemMarkdownInner text="Subscribe to the GOAT plan ($10/month) and open src/main.ts now" />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    const chips = [...container.querySelectorAll(".poracode-inline-path-chip")];
+    expect(chips.some((chip) => chip.textContent?.includes("10/month"))).toBe(false);
+    expect(container.textContent).toContain("$10/month");
+    expect(screen.getByRole("button", { name: /main.ts/ })).not.toBeNull();
+  });
+
+  it("shows a relative folder link label as text when no project can open it", () => {
+    const homeActions: ChatPaneActions = {
+      openProjectRelativePath: vi.fn<(path: string, lineNumber?: number) => Promise<void>>(),
+    };
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={homeActions}>
+          <ItemMarkdownInner text="See [the guide](docs/guide) for details" />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector(".poracode-inline-path-chip")).toBeNull();
+    expect(container.textContent).toContain("See the guide for details");
+  });
+
   it.each([
     { refreshRate: 60, initial: "Hello" },
     { refreshRate: 120, initial: "Hello" },
@@ -923,8 +958,10 @@ describe("ItemMarkdownInner", () => {
     const chip = screen.getByRole("button", { name: /MissingFile\.ts.*12/ });
     fireEvent.click(chip);
 
-    await waitFor(() => expect(chip).toBeDisabled());
+    await waitFor(() => expect(chip).toHaveAttribute("aria-disabled", "true"));
     expect(chip).toHaveClass("poracode-inline-path-chip--inert");
+    fireEvent.click(chip);
+    expect(actions.openProjectRelativePath).toHaveBeenCalledOnce();
   });
 
   it("normalizes a stored Windows path chip without project context", () => {
@@ -1052,12 +1089,12 @@ describe("ItemMarkdownInner", () => {
       </AppProvider>,
     );
     await waitFor(() =>
-      expect(container.querySelectorAll("[data-testid=chat-file]").length).toBe(4),
+      expect(container.querySelectorAll(".poracode-inline-path-chip").length).toBe(4),
     );
     const lists = [...container.querySelectorAll("ul")];
     const fileList = container.querySelector("ul.poracode-chat-file-list");
     expect(fileList).not.toBeNull();
-    expect(fileList!.querySelectorAll("[data-testid=chat-file]")).toHaveLength(2);
+    expect(fileList!.querySelectorAll(".poracode-inline-path-chip")).toHaveLength(2);
     const others = lists.filter((ul) => ul !== fileList);
     expect(others.length).toBeGreaterThan(0);
     for (const ul of others) expect(ul.className).not.toContain("poracode-chat-file-list");
@@ -1081,6 +1118,35 @@ describe("ItemMarkdownInner", () => {
       </AppProvider>,
     );
     expect(container.querySelector("ul.poracode-chat-file-list")).toBeNull();
+  });
+
+  it("shows a destination favicon before external markdown links without a hostname suffix", () => {
+    render(
+      <AppProvider>
+        <ItemMarkdownInner text={"Open [docs](https://example.test/docs)."} />
+      </AppProvider>,
+    );
+
+    const link = screen.getByRole("link", { name: /docs/ });
+    const favicon = link.querySelector("img");
+    expect(link.firstElementChild).toContainElement(favicon);
+    expect(favicon).toHaveAttribute("src", "https://example.test/favicon.ico");
+    expect(link).toHaveTextContent("docs");
+    expect(link).not.toHaveTextContent("example.test");
+    expect(link.querySelector(".lucide-external-link")).not.toBeInTheDocument();
+  });
+
+  it("resolves titles for links labeled only with their GitHub reference", async () => {
+    const pr = "https://github.com/acme/repo/pull/42";
+    render(
+      <AppProvider>
+        <ItemMarkdownInner text={`PR [#42](${pr}) landed; see [the fix](${pr}).`} />
+      </AppProvider>,
+    );
+    await act(async () => {});
+
+    expect(screen.getByRole("link", { name: "#42 · acme/repo" })).toHaveAttribute("href", pr);
+    expect(screen.getByRole("link", { name: "the fix" })).toHaveAttribute("href", pr);
   });
 
   it("reports failed markdown link opens", async () => {

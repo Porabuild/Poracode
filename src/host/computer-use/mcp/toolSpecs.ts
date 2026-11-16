@@ -222,7 +222,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "activate_window",
     description:
-      "Explicitly bring a returned window to the foreground. Takeover: it interrupts the user, takes focus, and shows the takeover border. Element actions reach a window without it, so never call it to make a background action land; ask the user first.",
+      "Explicitly bring a returned window to the foreground. Takeover: it interrupts the user, takes focus, and shows the takeover overlay. Element actions reach a window without it, so never call it to make a background action land; ask the user first.",
     inputSchema: {
       type: "object",
       additionalProperties: false,

@@ -132,6 +132,8 @@ type CodexTurnSettingsOverrides = Pick<
 
 export function buildCodexTurnSettingsOverrides(config: ThreadConfig): CodexTurnSettingsOverrides {
   const sandboxPolicy = toCodexSandboxPolicy(config.sandboxMode);
+  // An omitted reviewer leaves a previous Auto-review override active on resumed threads.
+  const approvalsReviewer = config.approvalPolicy === "never" ? "user" : config.approvalsReviewer;
   return {
     model: config.model,
     ...(config.effort ? { effort: config.effort } : {}),
@@ -139,11 +141,9 @@ export function buildCodexTurnSettingsOverrides(config: ThreadConfig): CodexTurn
     ...(config.approvalPolicy
       ? { approvalPolicy: config.approvalPolicy as NonNullable<TurnStartParams["approvalPolicy"]> }
       : {}),
-    ...(config.approvalsReviewer
+    ...(approvalsReviewer
       ? {
-          approvalsReviewer: config.approvalsReviewer as NonNullable<
-            TurnStartParams["approvalsReviewer"]
-          >,
+          approvalsReviewer: approvalsReviewer as NonNullable<TurnStartParams["approvalsReviewer"]>,
         }
       : {}),
     ...(sandboxPolicy

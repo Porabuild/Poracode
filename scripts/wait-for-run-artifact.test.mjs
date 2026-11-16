@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { waitForRunArtifact } from "./wait-for-run-artifact.mjs";
 
-const RUNNING = [{ name: "tui_binaries / manifest", conclusion: null }];
+const RUNNING = [{ name: "tui_binaries / binaries", conclusion: null }];
 
 function fakeGh({ artifactsAfter = 0, jobs = RUNNING, failFirst = 0 } = {}) {
   const calls = [];
@@ -17,7 +17,9 @@ function fakeGh({ artifactsAfter = 0, jobs = RUNNING, failFirst = 0 } = {}) {
     if (args[0] === "run") return "";
     if (args[1].includes("/artifacts")) {
       polls++;
-      return polls > artifactsAfter ? "poracode-tui-linux\ntui-manifest\n" : "poracode-tui-linux\n";
+      return polls > artifactsAfter
+        ? "poracode-tui-binaries\ntui-manifest\n"
+        : "poracode-tui-binaries\n";
     }
     // The real query's jq selects jobs named after the producer prefix.
     return JSON.stringify(jobs.filter((job) => job.name.startsWith("tui_binaries /")));
@@ -59,11 +61,11 @@ await test("downloads the artifact once the producer has uploaded it", async () 
 await test("fails fast when a producer job fails instead of waiting out the timeout", async () => {
   const { gh, calls } = fakeGh({
     artifactsAfter: Infinity,
-    jobs: [{ name: "tui_binaries / manifest", conclusion: "failure" }],
+    jobs: [{ name: "tui_binaries / binaries", conclusion: "failure" }],
   });
   await assert.rejects(
     waitForRunArtifact({ ...base, gh }),
-    /tui-manifest will not arrive: tui_binaries \/ manifest did not succeed/,
+    /tui-manifest will not arrive: tui_binaries \/ binaries did not succeed/,
   );
   assert.equal(calls.filter((args) => args[0] === "run").length, 0);
 });

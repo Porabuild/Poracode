@@ -317,7 +317,7 @@ export async function createAppThread(
       ...(segments.length > 0 ? { segments } : {}),
       initialSize: DEFAULT_TERMINAL_SIZE,
       presentationMode: "gui",
-      ...resolveMcpLaunchSnapshot(settings, project.mcpServers ?? [], config.mcpServerOverrides),
+      ...resolveMcpLaunchSnapshot(settings, project, config.mcpServerOverrides),
     };
 
     await deps.startThread(startPayload);

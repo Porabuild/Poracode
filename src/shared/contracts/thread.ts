@@ -15,7 +15,7 @@ import {
   threadPresentationModeSchema,
   threadStatusSchema,
 } from "./common";
-import { threadConfigSchema } from "./config";
+import { pluginOverridesSchema, threadConfigSchema } from "./config";
 import {
   BUILT_IN_MCP_SERVER_IDS,
   builtInMcpDisabledToolsSchema,
@@ -28,6 +28,35 @@ import { turnClientContextSchema } from "./turnClientContext";
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
 export type ThreadStatusSource = z.infer<typeof threadStatusSourceSchema>;
 
+/**
+ * Why the last turn ended unfinished without the user pressing Stop: the agent
+ * failed (`error`), or the app or agent process restarted mid-turn (`restart`).
+ * Host-owned; drives the composer's resume button and clears when a turn starts.
+ */
+export const threadTurnInterruptionSchema = z.enum(["error", "restart"]);
+export type ThreadTurnInterruption = z.infer<typeof threadTurnInterruptionSchema>;
+
+/**
+ * Set when the inherited conversation was moved here from another host
+ * (thread transfer v1). The fork source's `threadId` then names the
+ * conversation on that other host, so it never resolves on this one. Additive:
+ * older readers strip it and show the row as an ordinary fork.
+ */
+export const threadTransferLineageSchema = z.object({
+  version: z.literal(1),
+  transferId: z.string().min(1),
+  sourceHostLabel: z.string().min(1),
+  sourceHostId: z.string().min(1).optional(),
+  /** The conversation's working directory on the source host, for path mapping. */
+  sourceWorkingDirectory: z.string().min(1).optional(),
+  /** The machine name of the host that saved the moved thread. */
+  targetHostLabel: z.string().min(1).optional(),
+  /** Set when the move also switched the thread to another provider. */
+  fromAgentKind: z.string().min(1).optional(),
+  transferredAt: z.string().min(1),
+});
+export type ThreadTransferLineage = z.infer<typeof threadTransferLineageSchema>;
+
 export const threadForkSourceSchema = z.object({
   version: z.literal(1),
   threadId: z.string().min(1),
@@ -35,6 +64,7 @@ export const threadForkSourceSchema = z.object({
   throughItemId: z.string().min(1),
   inheritedTurnCount: z.number().int().positive(),
   contextStrategy: z.literal("transcript"),
+  transfer: threadTransferLineageSchema.optional(),
 });
 export type ThreadForkSource = z.infer<typeof threadForkSourceSchema>;
 
@@ -89,6 +119,8 @@ export const threadSchema = z.object({
   threadStatusSource: threadStatusSourceSchema.optional(),
   /** Latest error reason from the runtime, present when `status === "error"`. */
   errorMessage: z.string().optional(),
+  /** Set while the last turn was cut off and can be resumed; absent from older hosts. */
+  interruptedTurn: threadTurnInterruptionSchema.optional(),
   slashCommands: z.array(agentSlashCommandSchema).optional(),
   /** Live session inventory; null clears a retired inventory, absence supports older hosts. */
   sessionConfigOptions: sessionConfigOptionsSchema.nullable().optional(),
@@ -204,7 +236,15 @@ export const promptSegmentSchema = z.discriminatedUnion("kind", [
     title: z.string(),
   }),
 ]);
-export type PromptSegment = z.infer<typeof promptSegmentSchema>;
+// Selection metadata belongs to local drafts; the wire still carries ordinary text.
+export const draftPromptSegmentSchema = z.union([
+  z.object({ kind: z.literal("text"), content: z.string(), selection: z.literal(true) }),
+  promptSegmentSchema,
+]);
+type WirePromptSegment = z.infer<typeof promptSegmentSchema>;
+export type PromptSegment =
+  | Exclude<WirePromptSegment, { kind: "text" }>
+  | (Extract<WirePromptSegment, { kind: "text" }> & { selection?: true });
 
 /**
  * How a handoff transfers the prior conversation to the incoming provider:
@@ -269,6 +309,8 @@ export const startThreadPayloadSchema = z
     /** Supervisor-owned restrictions that must survive every restart of this thread. */
     invariantDisabledBuiltInMcpServerIds: z.array(z.enum(BUILT_IN_MCP_SERVER_IDS)).optional(),
     disabledBuiltInMcpTools: builtInMcpDisabledToolsSchema.optional(),
+    /** The project's Agent Plugin switches, applied beneath `config.pluginOverrides`. */
+    projectPluginOverrides: pluginOverridesSchema.optional(),
     /**
      * Renderer-allocated id for the user_message item the chat pane has already
      * painted optimistically. The supervisor reuses this id when emitting its

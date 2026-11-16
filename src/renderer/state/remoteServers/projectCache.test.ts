@@ -56,6 +56,7 @@ describe("remote project cache", () => {
       servers: [],
       excludedProjectIds: {},
       projectWorkspaceIds: {},
+      homeThreadWorkspaceIds: {},
       projectNameOverrides: {},
       lastKnownProjects: { "desktop-1": [project] },
       runtime: { "desktop-1": { status: "online", projects: [project], threads: [] } },
@@ -66,6 +67,7 @@ describe("remote project cache", () => {
       servers: [],
       excludedProjectIds: {},
       projectWorkspaceIds: {},
+      homeThreadWorkspaceIds: {},
       projectNameOverrides: {},
       lastKnownProjects: { "desktop-1": [project] },
     });

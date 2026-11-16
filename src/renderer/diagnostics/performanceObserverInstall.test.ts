@@ -42,6 +42,17 @@ class RecordingSink implements PerformanceObserverSink {
   }
 }
 
+class FrameSink extends RecordingSink {
+  readonly frameBatches: unknown[][] = [];
+  readonly frameMarks: Array<"supported" | "unsupported"> = [];
+  recordLongAnimationFrameEntries(entries: readonly unknown[]): void {
+    this.frameBatches.push([...entries]);
+  }
+  markLongAnimationFrameObserver(status: "supported" | "unsupported"): void {
+    this.frameMarks.push(status);
+  }
+}
+
 function stubPerformanceObserver(
   options: {
     readonly supportedEntryTypes?: readonly string[];
@@ -137,6 +148,39 @@ describe("installPerformanceObservers", () => {
     expect(longTaskObserver?.disconnectCount).toBe(1);
   });
 
+  it("adds a Long Animation Frames observer only for a capable sink on a listing platform", () => {
+    const Listing = stubPerformanceObserver({
+      supportedEntryTypes: ["event", "longtask", "long-animation-frame"],
+    });
+    const capable = new FrameSink();
+    const dispose = installPerformanceObservers(capable, resolveEventTimingDurationThresholdMs(40));
+    const frameObserver = Listing.instances.find(
+      (observer) => observer.observed[0]?.type === "long-animation-frame",
+    );
+    expect(frameObserver?.observed).toEqual([{ type: "long-animation-frame", buffered: false }]);
+    expect(capable.frameMarks).toEqual(["supported"]);
+    frameObserver?.deliver([{ startTime: 1, duration: 80, scripts: [] }]);
+    expect(capable.frameBatches).toEqual([[{ startTime: 1, duration: 80, scripts: [] }]]);
+    dispose();
+    expect(frameObserver?.disconnectCount).toBe(1);
+
+    // A sink without frame support keeps exactly the two original observers.
+    const Plain = stubPerformanceObserver({
+      supportedEntryTypes: ["event", "longtask", "long-animation-frame"],
+    });
+    installPerformanceObservers(new RecordingSink(), resolveEventTimingDurationThresholdMs(40));
+    expect(Plain.instances).toHaveLength(2);
+
+    // Without an explicit listing the frame observer is reported unsupported.
+    const Unlisted = stubPerformanceObserver({});
+    const unlisted = new FrameSink();
+    installPerformanceObservers(unlisted, resolveEventTimingDurationThresholdMs(40));
+    expect(unlisted.frameMarks).toEqual(["unsupported"]);
+    expect(
+      Unlisted.instances.some((observer) => observer.observed[0]?.type === "long-animation-frame"),
+    ).toBe(false);
+  });
+
   it("marks unsupported without observing when supportedEntryTypes omits the type", () => {
     const Fake = stubPerformanceObserver({ supportedEntryTypes: ["resource", "navigation"] });
     const sink = new RecordingSink();
@@ -167,15 +211,16 @@ describe("installPerformanceObservers", () => {
     dispose();
   });
 
-  it("marks both unsupported when the PerformanceObserver API is missing", () => {
+  it("marks every observer unsupported when the PerformanceObserver API is missing", () => {
     vi.stubGlobal("PerformanceObserver", undefined);
-    const sink = new RecordingSink();
+    const sink = new FrameSink();
     const dispose = installPerformanceObservers(
       sink,
       resolveEventTimingDurationThresholdMs(undefined),
     );
     expect(sink.eventTimingMarks).toEqual([{ status: "unsupported", thresholds: null }]);
     expect(sink.longTaskMarks).toEqual(["unsupported"]);
+    expect(sink.frameMarks).toEqual(["unsupported"]);
     dispose();
   });
 });

@@ -4,6 +4,7 @@ import {
   friendlyError,
   friendlyErrorWithDetail,
   isPullDirtyWorktreeError,
+  msg,
   setMessageResolver,
 } from "./messages";
 import { RemoteClientError } from "./remote/clientErrors";
@@ -184,6 +185,32 @@ describe("friendlyErrorWithDetail", () => {
     expect(friendlyError(error)).toBe(
       "The threads linked to this worktree changed. Refresh and try again.",
     );
+  });
+
+  it.each([
+    ["thread_transfer_too_large", "thread.transferTooLarge", { size: "600 MB" }],
+    ["thread_transfer_failed", "thread.transferBranchUnavailable", { branch: "feat" }],
+  ] as const)("re-localizes %s from the English the host sent", (code, key, params) => {
+    // Built from the catalog source, so a reworded message cannot drift from its pattern.
+    const error = Object.assign(new Error(msg(key, params)), { code });
+    setMessageResolver((resolved, values) =>
+      resolved === key ? `localized ${JSON.stringify(values)}` : undefined,
+    );
+    try {
+      expect(friendlyError(error)).toBe(`localized ${JSON.stringify(params)}`);
+    } finally {
+      setMessageResolver(undefined);
+    }
+  });
+
+  it.each([
+    "thread_transfer_mismatch",
+    "thread_transfer_out_of_order",
+    "thread_transfer_incomplete",
+    "thread_transfer_chunk_too_large",
+  ])("maps %s to the package-invalid message", (code) => {
+    const error = Object.assign(new Error("wire detail"), { code });
+    expect(friendlyError(error)).toBe("The moved thread could not be read. Start the move again.");
   });
 
   it("maps helper bootstrap failures to shared messages", () => {

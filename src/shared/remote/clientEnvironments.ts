@@ -283,6 +283,20 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
   private readonly parentTickets = new Map<string, ParentTicketEntry>();
   private disposed = false;
 
+  /** Direct image actions share the cache's parent/child authorization and recovery. */
+  override async fetchTicketedImageBytes(requestPath: string, signal: AbortSignal) {
+    if (this.disposed) throw new RemoteClientError("Image client is disposed.", 499, "cancelled");
+    const request = new URL(requestPath, "http://poracode.invalid");
+    if (
+      request.origin !== "http://poracode.invalid" ||
+      request.pathname !== "/api/files/image" ||
+      !request.searchParams.get("path") ||
+      request.hash
+    )
+      throw new RemoteClientError("An owned image path is required.", 400, "invalid_path");
+    return this.fetchImageBytes(`${request.pathname}${request.search}`, signal);
+  }
+
   constructor(
     endpoint: string,
     accessToken: string | undefined,

@@ -1,8 +1,1 @@
-export type ProjectSettingsSection =
-  | "general"
-  | "worktrees"
-  | "actions"
-  | "skills"
-  | "memory"
-  | "mcp"
-  | "search";
+export type { ProjectSettingsSection } from "@/renderer/state/projectSettings/sections";

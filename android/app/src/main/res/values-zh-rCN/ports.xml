@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">端口转发</string>
+    <string name="ports_title">端口</string>
     <string name="ports_back">返回</string>
     <string name="ports_refresh">刷新端口</string>
     <string name="ports_target_port">目标端口</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">此桌面设备尚未设置浏览器转发。</string>
     <string name="ports_failure_ambiguous">请求可能已完成。列表已刷新。</string>
     <string name="ports_failure_unavailable">端口转发当前不可用。</string>
+    <string name="ports_intro">监听桌面端 localhost 的开发服务器。</string>
+    <string name="ports_forward_a_port">转发端口</string>
 </resources>

@@ -301,6 +301,7 @@ describe("sharedSettingsStore", () => {
       "goal",
       "agents",
       "images",
+      "artifacts",
       "info",
       "context",
       "usage",
@@ -742,6 +743,48 @@ describe("sharedSettingsStore", () => {
         expect.objectContaining({
           hostResourceAdmission: expect.objectContaining({ maxActiveTerminalShells: 6 }),
         }),
+      );
+    });
+  });
+
+  describe("news line settings", () => {
+    beforeEach(() => {
+      useSharedSettings.setState({
+        newsLineEnabled: true,
+        newsLineActivity: true,
+        dismissedPromotions: [],
+      });
+    });
+
+    it("persists a promotion dismissal once and ignores repeats", async () => {
+      const setSharedSettings = vi.fn<(settings: SharedSettings) => Promise<void>>(() =>
+        Promise.resolve(),
+      );
+      window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+
+      useSharedSettings.getState().dismissPromotion("github-star");
+      await waitForPendingSharedSettings();
+      useSharedSettings.getState().dismissPromotion("github-star");
+      await waitForPendingSharedSettings();
+
+      expect(useSharedSettings.getState().dismissedPromotions).toEqual(["github-star"]);
+      expect(setSharedSettings).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ dismissedPromotions: ["github-star"] }),
+      );
+    });
+
+    it("persists the news line toggles", async () => {
+      const setSharedSettings = vi.fn<(settings: SharedSettings) => Promise<void>>(() =>
+        Promise.resolve(),
+      );
+      window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+
+      useSharedSettings.getState().setNewsLineActivity(false);
+      useSharedSettings.getState().setNewsLineEnabled(false);
+      await waitForPendingSharedSettings();
+
+      expect(setSharedSettings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ newsLineEnabled: false, newsLineActivity: false }),
       );
     });
   });

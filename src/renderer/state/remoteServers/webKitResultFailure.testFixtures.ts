@@ -41,13 +41,18 @@ export function throwFromResult(request: IDBRequest, error: unknown, escaped: un
 
 /** Fails every read of the vault's stored CryptoKey record like WebKit does. */
 export function failVaultKeyReads(error: unknown, escaped: unknown[]) {
+  return failVaultReads("cryptoKey", error, escaped);
+}
+
+/** Fails one vault slot without making unrelated credentials unreadable. */
+export function failVaultReads(vaultKey: string, error: unknown, escaped: unknown[]) {
   const originalGet = IDBObjectStore.prototype.get;
   return vi.spyOn(IDBObjectStore.prototype, "get").mockImplementation(function (
     this: IDBObjectStore,
     key,
   ) {
     const request = originalGet.call(this, key);
-    if (key === "cryptoKey") throwFromResult(request, error, escaped);
+    if (key === vaultKey) throwFromResult(request, error, escaped);
     return request;
   });
 }

@@ -80,6 +80,8 @@ try {
   await run("scripts/ensure-native-deps.mjs", ["--electron-native"]);
   await run("scripts/prepare-pty-job-owner.mjs", ["--if-supported", "--host-only"]);
   await run("scripts/prepare-computer-use-helper.mjs", ["--host-only", "--dev"]);
+  await run("scripts/prepare-mcp-relay.mjs", ["--host-only"]);
+  await run("scripts/prepare-git-helper.mjs", ["--host-only"]);
   if (!closed) {
     runtime = await watchRuntime({
       root,

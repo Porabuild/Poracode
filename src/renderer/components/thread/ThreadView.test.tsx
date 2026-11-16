@@ -1,3 +1,4 @@
+import "@/renderer/testUtils/clientDraftDatabase";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
@@ -442,6 +443,7 @@ describe("ThreadView", () => {
         mcpServers: [],
         disabledBuiltInMcpServerIds: [],
         disabledBuiltInMcpTools: {},
+        projectPluginOverrides: {},
         initialSize: {
           cols: 120,
           rows: 40,

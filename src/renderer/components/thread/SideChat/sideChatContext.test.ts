@@ -6,12 +6,15 @@ const harness = vi.hoisted(() => ({
   read: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   activation: {} as unknown,
 }));
-vi.mock("@/renderer/state/managedRootCatalog/rootHistory", () => ({
-  managedRootHistoryActivation: () => harness.activation,
-}));
-vi.mock("@/renderer/state/remoteProjection", () => ({ remoteOwner: () => null }));
-vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: { getState: () => ({}) },
+vi.mock("@/renderer/state/entityHost", () => ({
+  entityHost: (entity: { id: string }) => {
+    const activation = harness.activation as { client: unknown } | null;
+    return {
+      hostId: entity.id,
+      isCurrent: () => harness.activation === activation,
+      withClient: (run: (client: unknown) => Promise<unknown>) => run(activation?.client),
+    };
+  },
 }));
 import { formatSideChatContextItem, readSideChatContext } from "./sideChatContext";
 

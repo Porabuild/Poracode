@@ -483,5 +483,9 @@ describe("composeResolvedMcpServers", () => {
 
     expect(servers.map((server) => server.name)).toEqual(["custom", "browser", "crossagents"]);
     expect(servers[2]).toMatchObject({ timeoutMs: 600_000, approvalMode: "approve" });
+    // Built-in ingresses enforce tool policy, so relays to them only convert transport.
+    expect(servers[0]!.directTransport).toBeUndefined();
+    for (const builtIn of servers.slice(1))
+      expect(builtIn.directTransport).toEqual(builtIn.transport);
   });
 });

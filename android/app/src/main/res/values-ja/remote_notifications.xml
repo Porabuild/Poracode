@@ -4,4 +4,7 @@
     <string name="remote_notification_needs_attention">確認が必要</string>
     <string name="remote_notification_error">エラー</string>
     <string name="remote_notification_dismiss">通知を閉じる</string>
+    <string name="remote_notification_done_description">スレッドが終了したか、入力を待っています。</string>
+    <string name="remote_notification_needs_attention_description">あなたからの承認または返信が必要です。</string>
+    <string name="remote_notification_error_description">エージェントでエラーが発生しました。</string>
 </resources>

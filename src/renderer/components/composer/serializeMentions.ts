@@ -9,7 +9,7 @@ function pushTextSegment(segments: PromptSegment[], content: string): void {
     return;
   }
   const last = segments.at(-1);
-  if (last?.kind === "text") {
+  if (last?.kind === "text" && !last.selection) {
     last.content += content;
     return;
   }
@@ -79,6 +79,12 @@ export function serializeToSegments(container: HTMLDivElement): PromptSegment[] 
 
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as HTMLElement;
+
+    if (el.dataset.selectionText !== undefined) {
+      flushText();
+      segments.push({ kind: "text", content: el.dataset.selectionText, selection: true });
+      return;
+    }
 
     // contentEditable creates <div> or <p> for new lines
     const isBlock = (el.tagName === "DIV" || el.tagName === "P") && el !== container;

@@ -45,7 +45,7 @@ struct GlobalMCPSettingsView: View {
     }
     .navigationTitle(ProjectSettingsStrings.mcpServers)
     .navigationBarTitleDisplayMode(.inline)
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       PoracodeBottomActionDock(placement: .trailing) {
         PoracodeCircleButton {
           editor = GlobalMCPEditorSelection()
@@ -170,6 +170,7 @@ struct GlobalMCPSettingsView: View {
           }
         }
       }
+      .poracodeSwitchStyle()
       HStack {
         Button(
           controller.probingServerID == server.id
@@ -183,6 +184,7 @@ struct GlobalMCPSettingsView: View {
             Button(SettingsIntegrationsStrings.clearSignIn, role: .destructive) {
               Task { await controller.clearOAuth(server) }
             }
+            .tint(.red)
           } else {
             Button(SettingsIntegrationsStrings.signIn) {
               Task { await controller.startOAuth(server) }
@@ -191,7 +193,7 @@ struct GlobalMCPSettingsView: View {
         }
         Spacer()
       }
-      .buttonStyle(.bordered)
+      .poracodeGlassButtonStyle()
       .disabled(controller.probingServerID != nil || oauthIsBusy)
       probeSummary(server)
     }
@@ -202,7 +204,7 @@ struct GlobalMCPSettingsView: View {
       } label: {
         Label(ProjectManagementStrings.edit, systemImage: "pencil")
       }
-      .tint(.accentColor)
+      .tint(.gray)
     }
     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
       Button(role: .destructive) {
@@ -324,6 +326,7 @@ struct GlobalMCPSettingsView: View {
           )
         )
         .disabled(controller.isMutating)
+        .poracodeSwitchStyle()
       }
       .navigationTitle(server.name)
       .navigationBarTitleDisplayMode(.inline)

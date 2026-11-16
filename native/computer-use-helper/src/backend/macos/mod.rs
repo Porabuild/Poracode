@@ -7,8 +7,8 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::backend::{
-    Backend, CancelToken, HelloInfo, InputOptions, InstalledAppCache, KeyboardAction,
-    PointerAction, SnapshotOutcome,
+    Backend, BackendOptions, CancelToken, HelloInfo, InputOptions, InstalledAppCache,
+    KeyboardAction, PointerAction, SnapshotOutcome,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
@@ -17,6 +17,10 @@ use crate::protocol::actions::{
     Capabilities, Delivered, ElementAction, FindElementsInput, FindElementsResult, InputMode,
     InteractiveResult, LaunchResult, PermissionState, Permissions,
 };
+use crate::protocol::locked_use::{
+    LockedUseBeginRequest, LockedUseBeginResult, LockedUseEndReason, LockedUseEndResult,
+    LockedUseFlags, LockedUseStatus,
+};
 use crate::protocol::window::{WindowInfo, WindowRef};
 
 mod apps;
@@ -24,7 +28,10 @@ mod ax;
 mod capture;
 mod chromium;
 mod input;
+mod locked_use;
 mod session;
+
+pub use locked_use::run_guard as run_locked_use_guard;
 mod window_list;
 
 /// A launched window is first seen mid open-animation, so its frame is still
@@ -164,16 +171,30 @@ fn has_url_scheme(value: &str) -> bool {
 pub struct MacOsBackend {
     elements: SnapshotCache<ax::AxElement>,
     installed_apps: Arc<InstalledAppCache>,
+    locked_use: locked_use::LockedUse,
 }
 
 impl MacOsBackend {
+    /// A backend without a state directory: a locked-use pause is then kept in
+    /// memory only.
     pub fn new() -> Self {
+        Self::with_options(&BackendOptions { state_dir: None })
+    }
+
+    pub fn with_options(options: &BackendOptions) -> Self {
         let installed_apps = Arc::new(InstalledAppCache::default());
         installed_apps.prewarm(apps::list);
         Self {
             elements: SnapshotCache::default(),
             installed_apps,
+            locked_use: locked_use::LockedUse::new(options.state_dir.as_deref()),
         }
+    }
+
+    /// Whether foreground input must be refused: the screen is locked, or a
+    /// locked-use session holds the (unlocked) desktop under the guard.
+    fn foreground_blocked(&self, locked: bool) -> bool {
+        locked || self.locked_use.is_active()
     }
 
     /// Wait for a freshly launched window's frame to stop moving.
@@ -249,6 +270,30 @@ impl Backend for MacOsBackend {
         session::notes(session::screen_locked())
     }
 
+    fn locked_use_flags(&self) -> LockedUseFlags {
+        self.locked_use.flags()
+    }
+
+    fn locked_use_begin(
+        &self,
+        request: &LockedUseBeginRequest,
+        cancel: &CancelToken,
+    ) -> Result<LockedUseBeginResult> {
+        self.locked_use.begin(request, cancel)
+    }
+
+    fn locked_use_end(&self, reason: LockedUseEndReason) -> Result<LockedUseEndResult> {
+        self.locked_use.end(reason)
+    }
+
+    fn locked_use_status(&self) -> LockedUseStatus {
+        self.locked_use.status()
+    }
+
+    fn shutdown(&self) {
+        self.locked_use.shutdown();
+    }
+
     fn list_windows(&self) -> Result<Vec<WindowInfo>> {
         Ok(window_list::list_windows())
     }
@@ -290,7 +335,9 @@ impl Backend for MacOsBackend {
     }
 
     fn activate(&self, window: &WindowInfo) -> Result<InteractiveResult> {
-        if let Some(refusal) = session::activation_refusal(session::screen_locked()) {
+        if let Some(refusal) =
+            session::activation_refusal(self.foreground_blocked(session::screen_locked()))
+        {
             return Ok(InteractiveResult::refused(window.clone(), refusal));
         }
         input::activate(window)
@@ -304,7 +351,9 @@ impl Backend for MacOsBackend {
         cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         let locked = session::screen_locked();
-        if let Some(refusal) = session::foreground_refusal(locked, options.mode) {
+        if let Some(refusal) =
+            session::foreground_refusal(self.foreground_blocked(locked), options.mode)
+        {
             return Ok(InteractiveResult::refused(window.clone(), refusal));
         }
         // Effect verification lives in the event path itself: the baseline has
@@ -323,7 +372,9 @@ impl Backend for MacOsBackend {
         cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         let locked = session::screen_locked();
-        if let Some(refusal) = session::foreground_refusal(locked, options.mode) {
+        if let Some(refusal) =
+            session::foreground_refusal(self.foreground_blocked(locked), options.mode)
+        {
             return Ok(InteractiveResult::refused(window.clone(), refusal));
         }
         Ok(annotate_session(
@@ -355,7 +406,7 @@ impl Backend for MacOsBackend {
     fn launch_app(&self, app: &str, mode: InputMode, cancel: &CancelToken) -> Result<LaunchResult> {
         let target = LaunchTarget::parse(app)?;
         let locked = session::screen_locked();
-        if let Some(refusal) = session::foreground_refusal(locked, mode) {
+        if let Some(refusal) = session::foreground_refusal(self.foreground_blocked(locked), mode) {
             return Ok(LaunchResult::refused(refusal));
         }
         let before = self.list_windows()?;

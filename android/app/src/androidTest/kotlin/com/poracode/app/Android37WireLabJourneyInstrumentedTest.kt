@@ -9,6 +9,9 @@ import android.os.Build
 import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -300,17 +303,18 @@ class Android37WireLabJourneyInstrumentedTest {
         // no-ops while a history op is active), so a click swallowed by the
         // disabled state can never be waited out downstream — the observed
         // flake signature was route:thread-history minimum=4 actual=3 with the
-        // app silent for the full window.
+        // app silent for the full window. Refresh transcript lives in the
+        // thread-actions drawer opened from the header's overflow button.
+        val refreshLabel = context.getString(R.string.rich_chat_refresh_transcript)
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.thread_lifecycle_actions),
+        ).performClick()
         compose.waitUntil(15_000) {
             runCatching {
-                compose.onNodeWithContentDescription(
-                    context.getString(R.string.rich_chat_refresh_transcript),
-                ).assertIsEnabled()
+                compose.onNode(sheetActionRow(refreshLabel)).assertIsEnabled()
             }.isSuccess
         }
-        compose.onNodeWithContentDescription(
-            context.getString(R.string.rich_chat_refresh_transcript),
-        ).performClick()
+        compose.onNode(sheetActionRow(refreshLabel)).performClick()
         control.waitUntilOperationCount(
             "primary",
             "route:thread-history",
@@ -405,7 +409,7 @@ class Android37WireLabJourneyInstrumentedTest {
         // The pairing heading is the Pora·code wordmark now, so the landing assertion
         // anchors on the hero subtitle instead of a translated title string.
         compose.onNodeWithContentDescription(context.getString(R.string.home_more)).performClick()
-        compose.onNodeWithText(context.getString(R.string.disconnect))
+        compose.onNode(sheetActionRow(context.getString(R.string.disconnect)))
             .performScrollTo()
             .performClick()
         waitForText(context.getString(R.string.pair_instructions), 20_000L)
@@ -443,7 +447,7 @@ class Android37WireLabJourneyInstrumentedTest {
     }
 
     private fun waitForText(text: String, timeoutMs: Long = 30_000) {
-        compose.waitUntil(timeoutMs) { hasText(text) }
+        compose.waitUntil(timeoutMs) { hasMatchingText(text) }
     }
 
     /**
@@ -457,7 +461,15 @@ class Android37WireLabJourneyInstrumentedTest {
      * on its first poll — so treat it as "not yet" and let the timeout wait the
      * transition out.
      */
-    private fun hasText(text: String): Boolean = runCatching {
+    /**
+     * Matches a clickable sheet/drawer row by its label whether the row's
+     * semantics merged its children (label on the row) or not (label on a
+     * descendant Text).
+     */
+    private fun sheetActionRow(label: String) = hasClickAction() and
+        (hasText(label) or hasAnyDescendant(hasText(label)))
+
+    private fun hasMatchingText(text: String): Boolean = runCatching {
         compose.onAllNodesWithText(text).fetchSemanticsNodes()
     }.getOrDefault(emptyList()).isNotEmpty()
 }

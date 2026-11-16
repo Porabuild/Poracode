@@ -6,12 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
@@ -22,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,6 +35,7 @@ import com.poracode.app.model.remoteintegrations.ScheduleRunStatus
 import com.poracode.app.model.remoteintegrations.ScheduledTask
 import com.poracode.app.session.remoteintegrations.IntegrationSlot
 import com.poracode.app.session.remoteintegrations.RemoteIntegrationsState
+import androidx.compose.material3.FilledTonalButton
 
 private sealed interface ScheduleConfirmation {
     data class Run(val task: ScheduledTask) : ScheduleConfirmation
@@ -87,7 +83,7 @@ internal fun RemoteSchedulesPane(
                         onClick = { editor = ScheduleEditorDraft() },
                         modifier = Modifier.semantics(mergeDescendants = true) {},
                     ) {
-                        Icon(Icons.Outlined.Add, stringResource(R.string.remote_integrations_create_schedule))
+                        Icon(PoracodeIcons.Add, stringResource(R.string.remote_integrations_create_schedule))
                     }
                 }
             }
@@ -156,7 +152,7 @@ internal fun RemoteSchedulesPane(
                 task.draft.name,
             )) },
             confirmButton = {
-                Button(onClick = {
+                FilledTonalButton(onClick = {
                     confirmation = null
                     if (delete) composition.deleteSchedule(task.id) else composition.runSchedule(task.id)
                 }) { Text(stringResource(
@@ -207,16 +203,16 @@ private fun ScheduleCard(
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             IconButton(onClick = onHistory, enabled = historyEnabled) {
-                Icon(Icons.Outlined.History, stringResource(R.string.remote_integrations_run_history))
+                Icon(PoracodeIcons.History, stringResource(R.string.remote_integrations_run_history))
             }
             IconButton(onClick = onEdit, enabled = actionsEnabled) {
-                Icon(Icons.Outlined.Edit, stringResource(R.string.remote_integrations_edit_schedule))
+                Icon(PoracodeIcons.Edit, stringResource(R.string.remote_integrations_edit_schedule))
             }
             IconButton(onClick = onRun, enabled = actionsEnabled) {
-                Icon(Icons.Outlined.PlayArrow, stringResource(R.string.remote_integrations_run_now))
+                Icon(PoracodeIcons.PlayArrow, stringResource(R.string.remote_integrations_run_now))
             }
             IconButton(onClick = onDelete, enabled = actionsEnabled) {
-                Icon(Icons.Outlined.Delete, stringResource(R.string.remote_integrations_delete_schedule))
+                Icon(PoracodeIcons.Delete, stringResource(R.string.remote_integrations_delete_schedule))
             }
         }
     }

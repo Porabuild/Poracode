@@ -71,10 +71,6 @@ vi.mock("@/host/remote/identity", () => ({
   readOrCreateRemoteAccessIdentity: mocks.readOrCreateRemoteAccessIdentity,
 }));
 
-vi.mock("@/host/legacyDataMigration", () => ({
-  requestLegacyDataMigration: vi.fn<() => null>(() => null),
-}));
-
 vi.mock("./BackendDurableServices", () => ({
   BackendDurableServices: class {
     deviceWorkspace = { preparePreview: vi.fn<() => Promise<void>>(async () => {}) };
@@ -320,6 +316,25 @@ describe("BackendDesktopServices supervisor reset", () => {
 });
 
 describe("BackendDesktopServices project watch leases", () => {
+  it("forwards compound worktree removal to the owning supervisor mutation lock", async () => {
+    const config = options(true);
+    const locked: string[] = [];
+    config.host.supervisorClient.runThreadMutation = async (threadId, operation) => {
+      locked.push(threadId);
+      return operation();
+    };
+    mocks.createDesktopRemoteAccessController.mockClear();
+    const services = new BackendDesktopServices(config);
+    const controllerOptions = mocks.createDesktopRemoteAccessController.mock.calls.at(-1)?.[0] as {
+      runThreadMutation: typeof config.host.supervisorClient.runThreadMutation;
+    };
+    await expect(
+      controllerOptions.runThreadMutation("thread", async () => "removed"),
+    ).resolves.toBe("removed");
+    expect(locked).toEqual(["thread"]);
+    await services.dispose();
+  });
+
   it("hands the durable lease registry to the desktop remote controller", () => {
     mocks.createDesktopRemoteAccessController.mockClear();
     const services = new BackendDesktopServices(options(true));

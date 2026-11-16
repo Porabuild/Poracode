@@ -1,5 +1,4 @@
 import type { GitStatusResult } from "@/shared/contracts";
-import type { DiffFile } from "@git-diff-view/react";
 import { extractDiffNames, getLang } from "../../diffBuildClient";
 
 /** Skip rendering diffs larger than this many lines changed */
@@ -12,7 +11,7 @@ export interface DiffEntry {
   oldName: string;
   newName: string;
   fileLang: string;
-  diffFile: DiffFile | null;
+  estimatedHeight: number;
   loading: boolean;
   tooLarge: boolean;
   insertions: number;
@@ -75,7 +74,7 @@ export function buildEntry(
     oldName,
     newName,
     fileLang: getLang(newName || filePath),
-    diffFile: null,
+    estimatedHeight: Math.max(64, diff.split("\n").length * 20),
     loading: false,
     tooLarge,
     insertions,
@@ -96,7 +95,7 @@ export function skeletonEntry(
     oldName: "",
     newName: "",
     fileLang: "",
-    diffFile: null,
+    estimatedHeight: 64,
     loading: true,
     tooLarge: false,
     insertions,

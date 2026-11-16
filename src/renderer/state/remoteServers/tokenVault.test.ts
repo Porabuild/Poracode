@@ -75,6 +75,25 @@ afterEach(() => {
 });
 
 describe("token vault liveness and credential preservation", () => {
+  it("rejects an uncloneable vault key without escaping the IndexedDB callback", async () => {
+    const put = IDBObjectStore.prototype.put;
+    const fail = vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (
+      this: IDBObjectStore,
+      value,
+      key,
+    ) {
+      if ((value as { key: string }).key === "cryptoKey") {
+        throw new DOMException("Unable to clone the vault key", "DataCloneError");
+      }
+      return put.call(this, value, key);
+    });
+    expect(await setDesktopToken("desktop", "secret")).toBe(false);
+    fail.mockRestore();
+    expect(await setDesktopToken("desktop", "secret")).toBe(true);
+    __resetTokenVaultForTest();
+    expect(await getDesktopToken("desktop")).toBe("secret");
+  });
+
   it("round-trips the retired native-v10 vault without schema change or key rotation", async () => {
     await seedLegacyVault();
     const generateKey = vi.spyOn(crypto.subtle, "generateKey");

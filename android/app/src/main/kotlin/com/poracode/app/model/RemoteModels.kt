@@ -2,6 +2,8 @@ package com.poracode.app.model
 
 import com.poracode.app.protocol.GeneratedRemoteV3Contract
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import com.poracode.app.push.RemoteUserNotificationEvent
 import kotlinx.serialization.json.JsonObject
@@ -305,6 +307,19 @@ data class RemoteThreadSnapshot(
     /** Bounded history tail: `ct1.` cursor of the oldest returned turn, or null. */
     val completedTurnsNextCursor: String? = null,
     val contextUsage: JsonElement? = null,
+    /**
+     * Authoritative live background work; absent on hosts that predate the
+     * field. Decoded through the strict protocol decoder in the history mapper
+     * so no app-owned wire DTO duplicates `backgroundTaskSchema`.
+     */
+    val backgroundTasks: JsonArray? = null,
+    /**
+     * Wire presence marker, set by the history adapters; never serialized. The
+     * shared schema is optional-nonnullable, so absent means an old host (keep
+     * retained knowledge) while an explicit valid array — including [] — is
+     * authoritative.
+     */
+    @Transient val backgroundTasksPresent: Boolean = false,
     val terminalScrollback: String? = null,
     /** Authoritative follow-up queue for GUI threads; absent on old hosts. */
     val followUpQueue: JsonElement? = null,

@@ -53,7 +53,7 @@ class BrowserMirrorHttpClient private constructor(
     override suspend fun state(): BrowserState {
         val route = GeneratedBrowserMirrorContract.stateRoute()
         return GeneratedBrowserMirrorContract.stateResponse(
-            http.requestText(route.path, method = route.method),
+            http.requestText(route.path, method = route.method, retryableRead = true),
         )
     }
 

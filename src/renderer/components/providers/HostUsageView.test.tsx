@@ -7,6 +7,7 @@ import { useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { HostUsageStatus, useHostUsageView } from "./HostUsageView";
 import { UsageProviderCardView } from "./UsageProviderCardView";
+import { fetchHostUsage } from "./hostUsage";
 
 // Only the connection inventory is a fixture. The lifecycle hook, fetchHostUsage,
 // scoped store, RemoteDesktopClient and response codecs all run unmocked.
@@ -27,8 +28,13 @@ vi.mock("@dnd-kit/react/sortable", () => ({
   useSortable: () => ({ ref: () => {}, handleRef: () => {}, isDragging: false }),
 }));
 
-function View(props: { liveOnOpen?: boolean; refreshVersion?: number }) {
-  const view = useHostUsageView("connection", props.refreshVersion, props.liveOnOpen);
+function View(props: { liveOnOpen?: boolean; refreshVersion?: number; visible?: boolean }) {
+  const view = useHostUsageView(
+    "connection",
+    props.refreshVersion,
+    props.liveOnOpen,
+    props.visible,
+  );
   return (
     <>
       <HostUsageStatus view={view} />
@@ -114,6 +120,105 @@ function fixture(
 }
 
 describe("host usage lifecycle with the real owning-host client", () => {
+  it("pauses background reads while hidden and refreshes automatically on reveal", async () => {
+    let account = "initial-account";
+    const requests = fixture(403, "git_procedure_not_allowed", false, () => account);
+    const view = render(<View visible />);
+    await screen.findByText("initial-account");
+    const before = useHostUsageStore.getState().hosts.connection;
+    const reads = requests.length;
+    vi.useFakeTimers();
+    try {
+      view.rerender(<View visible={false} />);
+      await act(() => vi.advanceTimersByTime(150_000));
+      expect(useHostUsageStore.getState().hosts.connection).toBe(before);
+      expect(requests).toHaveLength(reads);
+      account = "updated-account";
+      await act(async () => view.rerender(<View visible />));
+      expect(screen.queryByText(/Usage is stale/)).toBeNull();
+      expect(screen.getByText("updated-account")).toBeVisible();
+      expect(requests).toHaveLength(reads + 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shares automatic cache reads between views and keeps polling after one unmounts", async () => {
+    vi.useFakeTimers();
+    let account = "first-account";
+    const requests = fixture(403, "git_procedure_not_allowed", false, () => account);
+    let first!: ReturnType<typeof render>;
+    let second!: ReturnType<typeof render>;
+    await act(async () => {
+      first = render(<View />);
+    });
+    await act(async () => {
+      second = render(<View />);
+    });
+    expect(screen.getAllByText("first-account")).toHaveLength(2);
+    const reads = requests.length;
+    try {
+      account = "second-account";
+      await act(async () => vi.advanceTimersByTime(30_000));
+      expect(requests).toHaveLength(reads + 2);
+      expect(screen.getAllByText("second-account")).toHaveLength(2);
+      first.unmount();
+      account = "third-account";
+      await act(async () => vi.advanceTimersByTime(30_000));
+      expect(screen.getByText("third-account")).toBeVisible();
+      expect(requests).toHaveLength(reads + 4);
+      second.unmount();
+      await act(async () => vi.advanceTimersByTime(60_000));
+      expect(requests).toHaveLength(reads + 4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not poll an offline host and reads again on reconnect", async () => {
+    const requests = fixture();
+    render(<View />);
+    await screen.findByText("legacy-fixture-account");
+    const reads = requests.length;
+    vi.useFakeTimers();
+    try {
+      await act(() =>
+        useRemoteServersStore.setState({
+          runtime: { connection: { status: "offline", projects: [], threads: [] } },
+        }),
+      );
+      await act(async () => vi.advanceTimersByTime(90_000));
+      expect(requests).toHaveLength(reads);
+      await act(async () =>
+        useRemoteServersStore.setState({
+          runtime: { connection: { status: "online", projects: [], threads: [] } },
+        }),
+      );
+      expect(requests).toHaveLength(reads + 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("schedules the next read from the latest refresh attempt without skipping an interval", async () => {
+    vi.useFakeTimers();
+    try {
+      const requests = fixture();
+      await act(async () => {
+        render(<View />);
+      });
+      await act(async () => vi.advanceTimersByTime(1_000));
+      await act(async () => fetchHostUsage("connection", true, { force: true }));
+      const reads = requests.length;
+      await act(async () => vi.advanceTimersByTime(29_000));
+      expect(requests).toHaveLength(reads);
+      await act(async () => vi.advanceTimersByTime(1_000));
+      expect(requests).toHaveLength(reads + 2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it.each([{ liveOnOpen: true }, { refreshVersion: 3 }])(
     "loads legacy cache after unsupported refresh on open (%j)",
     async (trigger) => {

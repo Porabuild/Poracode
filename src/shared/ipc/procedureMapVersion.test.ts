@@ -119,12 +119,53 @@ import { isRemoteProcedure } from "../remote/procedures";
 // hop 18 stays compatible.
 // Hex voice is another additive supervisor-owned name. Old peers reject the
 // unknown name before dispatch; existing payloads and the hop remain unchanged.
+// Background PR polling adds a read name; old remote-14 hosts reject it by name,
+// and the renderer falls back only on that typed refusal. Hop 18 remains compatible.
+// Lightcode import retirement removes its main-local name; hop 19 rejects old callers.
+// Locked Computer Use adds three main-local names (status, install,
+// uninstall). Older peers reject unknown names before any effect, existing
+// names and payloads are unchanged, and none enters the remote allowlist, so
+// hop 19 stays compatible.
+// Client draft imports/PDF previews add two same-bundle main-local names.
+// Older dispatchers reject those names before I/O; public remote contracts and
+// all existing payloads remain valid, so the hop stays unchanged.
+// Link metadata adds a read-only supervisor name. Older peers reject the unknown
+// name and clients keep their local labels, so hop 19 stays compatible.
+// Thread transfer adds five supervisor-only Git names (`threadTransfer*`) that
+// only the owning backend calls. Older supervisors reject unknown names before
+// any effect, none enters the remote allowlist, and existing names and payloads
+// are unchanged, so hop 19 stays compatible.
+// Local port management adds two same-bundle main-local names. Older peers
+// reject unknown names; no existing payload or remote allowlist changes.
 // Poracode memory adds `memoryCommand` (main-local, not on the remote
 // allowlist) and `generateMemoryText` (supervisor-local). Older peers reject
-// both names before any effect. Existing payloads and hop 18 stay valid.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:e408b068ab771167446f18534580eaa79f47d9dd7de8c5dd68f278c2fbd8bbeb`;
+// both names before any effect. Existing payloads stay valid, so hop 19 stays.
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:33c7cbfa7f7f3db692bbce4db2377b5a50f1beec400f2d4a93d12cada6eb5f23`;
 
 describe("IPC procedure map versioning", () => {
+  it("preserves the previous map while keeping port termination off remote transports", () => {
+    const previous = ipcProcedureMapFingerprint()
+      .split("\n")
+      .filter((line) => !/^(listLocalPorts|closeLocalPort):/.test(line))
+      .join("\n");
+    expect(createHash("sha256").update(previous).digest("hex")).toBe(
+      "a2c572172f6f5209bc32f7c23b592344d918e5f198e389f23e0ca53044ef0aac",
+    );
+    for (const name of ["listLocalPorts", "closeLocalPort"] as const) {
+      expect(ipcProcedureMap[name].transport).toBe("main-local");
+      expect(isRemoteProcedure(name)).toBe(false);
+    }
+    const schema = ipcProcedureMap.closeLocalPort.payloadSchema;
+    expect(schema.safeParse({ port: 3000 }).success).toBe(false);
+    expect(
+      schema.safeParse({ port: 3000, address: "127.0.0.1", pid: 4, processStartedAt: "old" })
+        .success,
+    ).toBe(false);
+    expect(
+      schema.safeParse({ port: 3000, address: "127.0.0.1", pid: 1234, processStartedAt: "old" })
+        .success,
+    ).toBe(true);
+  });
   it("routes Hex voice through the supervisor as an additive procedure", () => {
     expect(ipcProcedureMap.hexVoice.transport).toBe("supervisor");
     expect(
@@ -308,6 +349,13 @@ describe("IPC procedure map versioning", () => {
         prNumber: 12,
       }).success,
     ).toBe(false);
+  });
+
+  it("keeps device-local draft reads and PDF staging out of the public remote allowlist", () => {
+    for (const name of ["readClientDraftFile", "browserPreviewClientPdf"] as const) {
+      expect(isRemoteProcedure(name)).toBe(false);
+      expect(ipcProcedureMap[name].transport).toBe("main-local");
+    }
   });
 
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

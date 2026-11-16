@@ -1,14 +1,15 @@
 import type { ReactNode } from "react";
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
-import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
+import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
 import { UsagePanelHeaderActions } from "./parts/UsagePanelHeaderActions";
+import { floatingBubblePillClass } from "@/renderer/components/layout/floatingGlass";
 import { UsagePanel } from "./UsagePanel";
 
 const session = vi.hoisted(() => ({ remote: false, compact: false }));
@@ -30,9 +31,18 @@ vi.mock("@/renderer/state/remoteServersStore", async () => {
   };
 });
 vi.mock("@/renderer/components/common/RemoteServerPicker", () => ({
-  RemoteServerPicker: (props: { onChange: (id: string | null) => void; detail?: ReactNode }) => (
+  RemoteServerPicker: (props: {
+    onChange: (id: string | null) => void;
+    detail?: ReactNode;
+    buttonClassName?: string;
+  }) => (
     <>
-      <button type="button" onClick={() => props.onChange(null)}>
+      <button
+        type="button"
+        data-testid="picker-trigger"
+        className={props.buttonClassName}
+        onClick={() => props.onChange(null)}
+      >
         Current host
       </button>
       {props.detail ? <span data-testid="picker-detail">{props.detail}</span> : null}
@@ -48,7 +58,14 @@ vi.mock("@/renderer/components/layout/MobilePageHeaderActions", () => ({
 vi.mock("@/renderer/components/mobileComposer/MobileCircleButton", () => ({
   MobileCircleButton: () => <span />,
 }));
-vi.mock("./parts/UsageProviderCard", () => ({ UsageProviderCard: () => <span /> }));
+const cardRendered = vi.hoisted(() => vi.fn<(id: string) => void>());
+vi.mock("./parts/UsageProviderCard", () => ({
+  UsageProviderCard: ({ id }: { id: string }) => {
+    const usage = useProviderUsage(id);
+    cardRendered(id);
+    return <span data-testid={`usage-card-${id}`}>{usage?.windows[0]?.usedPercent}</span>;
+  },
+}));
 vi.mock("@/renderer/components/providers/hostUsage", () => ({
   fetchHostUsage: vi.fn<typeof fetchHostUsage>(),
 }));
@@ -67,6 +84,110 @@ vi.mock("@dnd-kit/react", () => ({
 }));
 
 describe("usage panel host ownership", () => {
+  it("scrolls to sidebar selections after data arrives and handles repeated clicks without reordering", async () => {
+    const scroll = vi.fn<HTMLElement["scrollIntoView"]>();
+    const originalScroll = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      useUsageScopeStore.setState({ desktopId: "a", revealRequest: null });
+      const view = render(<UsagePanel />);
+      act(() => useUsageScopeStore.getState().revealProvider("second"));
+      expect(scroll).not.toHaveBeenCalled();
+      act(() => {
+        const store = useHostUsageStore.getState();
+        store.complete(
+          "a",
+          store.begin("a"),
+          ["first", "second"].map((providerId) => ({
+            providerId,
+            status: "ok",
+            windows: [],
+            fetchedAt: Date.now(),
+          })),
+        );
+      });
+      await waitFor(() => expect(scroll).toHaveBeenCalledOnce());
+      expect((scroll.mock.contexts[0] as HTMLElement).dataset.usageProviderId).toBe("second");
+      expect(scroll).toHaveBeenLastCalledWith({ block: "nearest" });
+      expect(
+        [...view.container.querySelectorAll<HTMLElement>("[data-usage-provider-id]")].map(
+          (element) => element.dataset.usageProviderId,
+        ),
+      ).toEqual(["first", "second"]);
+      act(() => useUsageScopeStore.getState().revealProvider("second"));
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(2));
+      expect(screen.queryByRole("region", { name: "Current" })).toBeNull();
+      act(() => useUsageScopeStore.getState().revealProvider("second"));
+      view.unmount();
+      expect(useUsageScopeStore.getState().revealRequest).toEqual({ providerId: "second" });
+      render(<UsagePanel />);
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(3));
+    } finally {
+      HTMLElement.prototype.scrollIntoView = originalScroll;
+    }
+  });
+  it("keeps sidebar usage live while hidden cards pause, then reveals current data without refetching", async () => {
+    vi.useFakeTimers();
+    try {
+      const snapshot = {
+        providerId: "codex",
+        status: "ok" as const,
+        fetchedAt: Date.now(),
+        windows: [{ id: "session", label: "Session", usedPercent: 20 }],
+      };
+      bridge.getProviderUsage.mockResolvedValue({ snapshots: [], fromCache: true });
+      function SidebarUsage() {
+        const usage = useProviderUsage("codex");
+        return <span data-testid="sidebar-usage">{usage?.windows[0]?.usedPercent}</span>;
+      }
+      const view = render(
+        <>
+          <SidebarUsage />
+          <UsagePanel visible />
+        </>,
+      );
+      await act(async () => {});
+      act(() => {
+        useProviderUsageStore.getState().mergeSnapshot(snapshot);
+        useUsageScopeStore.setState({ preferredProviderId: "codex" });
+      });
+      expect(screen.getByTestId("usage-card-codex")).toHaveTextContent("20");
+      const card = screen.getByTestId("usage-card-codex");
+      view.rerender(
+        <>
+          <SidebarUsage />
+          <UsagePanel visible={false} />
+        </>,
+      );
+      await act(() => vi.advanceTimersByTime(120));
+      cardRendered.mockClear();
+      const reads = bridge.getProviderUsage.mock.calls.length;
+      act(() =>
+        useProviderUsageStore.getState().mergeSnapshot({
+          ...snapshot,
+          fetchedAt: Date.now(),
+          windows: [{ ...snapshot.windows[0]!, usedPercent: 80 }],
+        }),
+      );
+      expect(screen.getByTestId("sidebar-usage")).toHaveTextContent("80");
+      expect(card).toHaveTextContent("20");
+      expect(cardRendered).not.toHaveBeenCalled();
+      expect(useUsageScopeStore.getState().preferredProviderId).toBe("codex");
+      view.rerender(
+        <>
+          <SidebarUsage />
+          <UsagePanel visible />
+        </>,
+      );
+      expect(screen.getByTestId("usage-card-codex")).toBe(card);
+      expect(card).toHaveTextContent("80");
+      expect(bridge.getProviderUsage).toHaveBeenCalledTimes(reads);
+      expect(useUsageScopeStore.getState().preferredProviderId).toBe("codex");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   beforeEach(() => {
     session.remote = false;
     useHostUsageStore.setState({ hosts: {} });
@@ -86,7 +207,12 @@ describe("usage panel host ownership", () => {
       },
     });
     session.compact = false;
-    useUsageScopeStore.setState({ desktopId: null, refreshVersion: 0 });
+    useUsageScopeStore.setState({
+      desktopId: null,
+      refreshVersion: 0,
+      preferredProviderId: null,
+      revealRequest: null,
+    });
     useRemoteServersStore.setState({
       servers: ["a", "b"].map((connectionId) => ({
         connectionId,
@@ -170,6 +296,15 @@ describe("usage panel host ownership", () => {
     expect(screen.queryByText(/^Updated /)).toBeNull();
   });
 
+  it("styles the desktop connection picker as a composer bubble", () => {
+    useUsageScopeStore.setState({ desktopId: "a" });
+    const store = useHostUsageStore.getState();
+    store.complete("a", store.begin("a"), [
+      { providerId: "provider", status: "ok", windows: [], fetchedAt: Date.now() },
+    ]);
+    render(<UsagePanel />);
+    expect(screen.getByTestId("picker-trigger").className).toContain(floatingBubblePillClass);
+  });
   it("shows only the refresh time when no connection picker is available", () => {
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useProviderUsageStore.setState({

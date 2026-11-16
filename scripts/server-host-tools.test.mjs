@@ -6,6 +6,7 @@ import { after, test } from "node:test";
 import {
   defaultServerPrefix,
   npmInvocation,
+  releaseScratchRoot,
   removeDirectoryLink,
   renameWithRetry,
   resolveTar,
@@ -22,6 +23,11 @@ after(() => {
 
 const fsError = (code) => Object.assign(new Error(code), { code });
 const noSleep = () => {};
+
+void test("release scratch uses the excluded runner temp when available", () => {
+  assert.equal(releaseScratchRoot({ RUNNER_TEMP: "D:\\a\\_temp" }), "D:\\a\\_temp");
+  assert.equal(releaseScratchRoot({}), tmpdir());
+});
 
 void test("resolveTar leaves POSIX PATH tar untouched and never probes", () => {
   const probe = () => assert.fail("must not probe on POSIX");

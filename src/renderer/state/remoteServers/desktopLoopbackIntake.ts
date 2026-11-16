@@ -13,22 +13,38 @@ import {
   type LoopbackRequestContext,
 } from "./desktopLoopbackAuth";
 import {
-  DesktopLoopbackFrameDrain,
-  type DesktopLoopbackDecodePort,
-  type DesktopLoopbackDrainUnavailableReason,
-} from "./desktopLoopbackFrameDrain";
-import { routeDesktopLoopbackFrame, type DesktopLoopbackFramePorts } from "./desktopLoopbackFrames";
-import { createManagedItemInterestTracker, sameItemInterests } from "./desktopLoopbackInterests";
+  HostEventDrain,
+  type HostEventDrainUnavailableReason,
+} from "@/renderer/hostTransport/hostEventDrain";
+import type { DesktopFrameDecodeResult } from "@/renderer/state/remote/engine/decode";
+import {
+  routeDesktopLoopbackFrame,
+  type DesktopLoopbackFramePorts,
+  type DesktopLoopbackFrame,
+} from "./desktopLoopbackFrames";
+import { createItemInterestTracker, sameItemInterests } from "./desktopLoopbackInterests";
 import { DesktopLoopbackLiveness } from "./desktopLoopbackLiveness";
+import { SessionRenewal } from "./sessionRenewal";
 import {
   createDomDesktopLoopbackSocket,
   type DesktopLoopbackSocket,
 } from "./desktopLoopbackSocket";
-import { getManagedLoopbackEngine } from "@/renderer/state/remote/engine";
-import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
-import { withBoundedCatalogChangesDeclaration } from "@/renderer/state/remote/boundedCatalogChangesCapability";
+import { WorkerDesktopLoopbackTransport } from "./desktopLoopbackWorkerTransport";
+import {
+  getManagedLoopbackEngine,
+  type ClientEngineWorkerMode,
+} from "@/renderer/state/remote/engine";
+import { remoteWebSocketUrl } from "@/shared/remote/clientApiWorkspace";
+import { declareEventSocketCapabilities } from "./eventSocketUpgrade";
 
 export type { DesktopLoopbackSocket } from "./desktopLoopbackSocket";
+
+export interface DesktopLoopbackDecodePort {
+  decodeDesktopFrame(raw: string): Promise<DesktopFrameDecodeResult>;
+  renew(): void;
+  dispose(): void;
+  readonly workerMode: ClientEngineWorkerMode;
+}
 
 /**
  * Desktop loopback event intake (V5 plan 2.5): the managed desktop renderer's
@@ -205,17 +221,9 @@ const LOCAL_RECOVERY_MAX_ATTEMPTS = 5;
 const DECODE_RETRY_BASE_MS = 5_000;
 const DECODE_RETRY_MAX_MS = 30_000;
 
-/** Proactive renewal fires this long before the access deadline (capped at
- * half of a shorter window), so a live socket never meets the deadline. */
-const RENEWAL_LEAD_MS = 5 * 60_000;
-/** A transport-class renewal failure retries this long before the deadline; a
- * refused grant does not retry (the close path re-pairs). */
-const RENEWAL_RETRY_MS = 60_000;
 /** Minimum spacing between bearer-refused escalations (see
  * {@link DesktopLoopbackIntake.noteBearerRefused}). */
 const BEARER_REFUSED_ESCALATION_INTERVAL_MS = 10_000;
-/** setTimeout's maximum representable delay; longer waits are re-armed. */
-const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
 
 /** Lane keys are unique per intake: one managed leg per window in the real app,
  * but tests (and any future multi-leg composition) may run two intakes against
@@ -252,6 +260,11 @@ export function isLoopbackEndpoint(endpoint: string): boolean {
 export class DesktopLoopbackIntake {
   private readonly fetchImpl: typeof fetch;
   private readonly socketFactory: (url: string) => DesktopLoopbackSocket;
+  private readonly usesDefaultSocketFactory: boolean;
+  private readonly workerSocketTransport: WorkerDesktopLoopbackTransport | null;
+  private pendingWorkerFrames: Array<DesktopLoopbackFrame | (() => void) | undefined> = [];
+  private pendingWorkerReadIndex = 0;
+  private workerBatchContinuationTimer: ReturnType<typeof setTimeout> | null = null;
   /** A4: one counter fenced over every socket callback; dispose advances it so
    * a late `onopen`/`onmessage`/`onclose` is inert. */
   private generation = 0;
@@ -274,11 +287,11 @@ export class DesktopLoopbackIntake {
   private lastReportedItemInterestOverflow = 0;
   /** A1: remembers the previous declared/admitted sets so a thread re-admitted
    * after the wire cap dropped it is rebuilt, not silently resumed. */
-  private readonly interestTracker = createManagedItemInterestTracker();
+  private readonly interestTracker = createItemInterestTracker();
   /** A3: the private loopback decode seam (off-thread when the platform has a
    * Worker) plus its ordered bounded drain. */
   private readonly decodePort: DesktopLoopbackDecodePort;
-  private readonly drain: DesktopLoopbackFrameDrain;
+  private readonly drain: HostEventDrain<DesktopLoopbackFrame>;
   private readonly decodeRetryBaseMs: number;
   /** Bounded reduced-state reconnect cadence (no transport escalation). */
   private decodeRetryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -287,12 +300,11 @@ export class DesktopLoopbackIntake {
    * exchange so managed `call-*` requests can ride the same leg. */
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
-  /** When the proactive renewal for the retained bearer is due (null = none). */
-  private renewalDueAtMs: number | null = null;
-  /** The retained bearer's access deadline; bounds retries after a failed
-   * proactive renewal (null = no armed window). */
-  private renewalExpiresAtMs: number | null = null;
-  private renewalTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Proactive renewal of the retained bearer (the same scheduler every host session uses). */
+  private readonly renewal = new SessionRenewal(
+    () => this.deps.renewSession?.() ?? Promise.resolve(false),
+    "loopback",
+  );
   /** Last bearer-refused escalation time; bounds the force-reconnect cadence. */
   private lastBearerRefusedEscalationAtMs = 0;
   /** Whether the CURRENT socket's upgrade carried the bounded-catalog-changes
@@ -303,6 +315,11 @@ export class DesktopLoopbackIntake {
     this.requestTimeoutMs = deps.requestTimeoutMs ?? REMOTE_LOCAL_SOCKET_POLICY.requestTimeoutMs;
     this.fetchImpl = deps.fetchImpl ?? ((url, init) => fetch(url, init));
     this.socketFactory = deps.socketFactory ?? createDomDesktopLoopbackSocket;
+    this.usesDefaultSocketFactory =
+      deps.socketFactory === undefined && deps.frameDecodePort === undefined;
+    this.workerSocketTransport = this.usesDefaultSocketFactory
+      ? new WorkerDesktopLoopbackTransport()
+      : null;
     this.liveness = new DesktopLoopbackLiveness({
       ...(deps.retryDelayMs !== undefined ? { retryDelayMs: deps.retryDelayMs } : {}),
       ...(deps.connectTimeoutMs !== undefined ? { connectTimeoutMs: deps.connectTimeoutMs } : {}),
@@ -326,8 +343,15 @@ export class DesktopLoopbackIntake {
         key: `managed-loopback:${nextManagedLoopbackLaneId++}`,
       });
     this.decodeRetryBaseMs = deps.decodeRetryDelayMs ?? DECODE_RETRY_BASE_MS;
-    this.drain = new DesktopLoopbackFrameDrain({
-      decode: this.decodePort,
+    this.drain = new HostEventDrain({
+      decode: {
+        decodeFrame: (raw) =>
+          this.decodePort
+            .decodeDesktopFrame(raw)
+            .then((result) => (result.ok ? result.frame : null)),
+        renew: () => this.decodePort.renew(),
+        dispose: () => this.decodePort.dispose(),
+      },
       onFrame: (frame) => {
         // A routed frame proves the decode lane works: the reduced-state
         // backoff starts over only then, never merely because a socket opened.
@@ -416,91 +440,7 @@ export class DesktopLoopbackIntake {
   }): void {
     this.accessToken = tokens.accessToken;
     if (tokens.refreshToken !== undefined) this.refreshToken = tokens.refreshToken;
-    this.scheduleRenewal(tokens.accessTokenExpiresAt);
-  }
-
-  /** Arm the proactive renewal one lead before the deadline, never more than
-   * half of a short remaining window. An already-expired bearer arms nothing:
-   * the request-401 refresh and the expiry-close reconnect renew it instead. */
-  private scheduleRenewal(expiresAt: string | undefined): void {
-    this.clearRenewalTimer();
-    const expiresAtMs = expiresAt ? Date.parse(expiresAt) : Number.NaN;
-    if (
-      !Number.isFinite(expiresAtMs) ||
-      expiresAtMs <= Date.now() ||
-      this.disposed ||
-      !this.deps.renewSession
-    ) {
-      this.renewalDueAtMs = null;
-      this.renewalExpiresAtMs = null;
-      return;
-    }
-    const remaining = expiresAtMs - Date.now();
-    this.renewalExpiresAtMs = expiresAtMs;
-    this.renewalDueAtMs = expiresAtMs - Math.min(RENEWAL_LEAD_MS, remaining / 2);
-    this.armRenewal();
-  }
-
-  /** Chunked like the host's session-expiry timer: a delay above the setTimeout
-   * cap re-arms instead of firing early. */
-  private armRenewal(): void {
-    this.clearRenewalTimer();
-    const dueAtMs = this.renewalDueAtMs;
-    if (dueAtMs === null || this.disposed || !this.deps.renewSession) return;
-    this.renewalTimer = setTimeout(
-      () => {
-        this.renewalTimer = null;
-        if (this.disposed) return;
-        if ((this.renewalDueAtMs ?? 0) > Date.now()) {
-          this.armRenewal();
-          return;
-        }
-        this.renewalDueAtMs = null;
-        void this.renewNow();
-      },
-      Math.min(Math.max(0, dueAtMs - Date.now()), MAX_TIMEOUT_DELAY_MS),
-    );
-    this.renewalTimer.unref?.();
-  }
-
-  private async renewNow(): Promise<void> {
-    try {
-      // A successful rotation re-arms through `applyTokens`; a refused grant
-      // returns false and is the expiry-close/re-pair path's to handle.
-      const renewed = await this.deps.renewSession?.();
-      if (renewed === false) {
-        console.warn(
-          "[loopback] proactive renewal refused (grant dead); the expiry close will re-pair",
-        );
-      }
-    } catch {
-      // Transport-class (429, network): retry shortly while the retained
-      // bearer is still live. The request-401 refresh and the expiry-close
-      // reconnect remain the fallback at the deadline itself.
-      console.warn("[loopback] proactive renewal failed (transport); retrying before the deadline");
-      this.scheduleRenewalRetry();
-    }
-  }
-
-  /** One bounded retry a minute after a transport-class renewal failure, and
-   * only while nothing else has re-armed the timer and the deadline is still
-   * ahead. A refusal is not retried. */
-  private scheduleRenewalRetry(): void {
-    const expiresAtMs = this.renewalExpiresAtMs;
-    if (this.disposed || !this.deps.renewSession) return;
-    if (this.renewalDueAtMs !== null || expiresAtMs === null) return;
-    const retryAtMs = Date.now() + RENEWAL_RETRY_MS;
-    // Past the deadline the 401/expiry-close path renews; a proactive retry
-    // could only race the close.
-    if (retryAtMs >= expiresAtMs) return;
-    this.renewalDueAtMs = retryAtMs;
-    this.armRenewal();
-  }
-
-  private clearRenewalTimer(): void {
-    if (!this.renewalTimer) return;
-    clearTimeout(this.renewalTimer);
-    this.renewalTimer = null;
+    if (this.deps.renewSession) this.renewal.schedule(tokens.accessTokenExpiresAt);
   }
 
   /** Tears down the leg: aborts in-flight credential work, stops every timer,
@@ -513,10 +453,10 @@ export class DesktopLoopbackIntake {
     this.requestAbort = null;
     this.unsubscribeItemInterests?.();
     this.unsubscribeItemInterests = null;
-    this.clearRenewalTimer();
-    this.renewalDueAtMs = null;
-    this.renewalExpiresAtMs = null;
+    this.renewal.dispose();
     this.clearDecodeRetry();
+    this.clearPendingWorkerFrames();
+    this.workerSocketTransport?.dispose();
     this.drain.dispose();
     this.liveness.dispose();
     const socket = this.socket;
@@ -676,40 +616,64 @@ export class DesktopLoopbackIntake {
     // Live-only join: no replay cursors. Recovery rebuilds subscribed threads
     // through the transport (the proven relay semantics) instead of replaying
     // into the desktop reducer.
-    const wsUrl = new URL("/ws", base.replace(/^http/, "ws"));
-    wsUrl.searchParams.set("ticket", ticket);
-    wsUrl.searchParams.set("desktopInternal", "1");
-    // B1: the managed root's transcript reads now ride the bounded HTTP
-    // history/items/turns routes and can carry/render the durable notice
-    // (B4 F6), so this leg declares `notices=v1` on the FIRST upgrade. The
-    // declaration is asserted at socket open, before any read: a capable
-    // connection is what keeps live post-gap content flowing instead of being
-    // emptied by the host's notice gate.
-    // boundedCatalogChanges follows its authenticated descriptor preflight:
-    // the declaration is asserted only for an endpoint whose descriptor was
-    // read on this leg before the ticket mint (the preflight above), so a host
-    // that predates the signal form never receives it and the FIRST upgrade of
-    // a capable host already carries it.
+    // The leg declares its capabilities on the FIRST upgrade, as every host's
+    // connection does. boundedCatalogChanges follows its authenticated
+    // descriptor preflight: it is asserted only for an endpoint whose
+    // descriptor was read on this leg before the ticket mint, so a host that
+    // predates the signal form never receives it. `desktopInternal=1` opts into
+    // the desktop-only event families; A1: an explicit (possibly empty)
+    // interest array on the initial upgrade (absence means "older client, send
+    // everything"; the bound is enforced before writing).
+    const initialItemInterests = this.snapshotItemInterests();
     const declaredUrl = new URL(
-      withBoundedCatalogChangesDeclaration(
-        withRuntimeHistoryNoticesDeclaration(wsUrl.toString()),
-        this.deps.declaresBoundedCatalogChanges?.(this.deps.endpoint) === true,
+      declareEventSocketCapabilities(
+        remoteWebSocketUrl(base, ticket, undefined, { threadItemInterests: initialItemInterests }),
+        {
+          boundedCatalogChanges:
+            this.deps.declaresBoundedCatalogChanges?.(this.deps.endpoint) === true,
+        },
       ),
     );
+    declaredUrl.searchParams.set("desktopInternal", "1");
     this.declaredBoundedCatalogChanges = declaredUrl.searchParams.has("catalogChanges");
     this.open = false;
-    // A1: an explicit (possibly empty) interest array on the initial upgrade.
-    // Absence means "older client, send everything"; a malformed array also
-    // parses as absent server-side, so the bound is enforced before writing.
-    const initialItemInterests = this.snapshotItemInterests();
-    declaredUrl.searchParams.set("threadItemInterests", JSON.stringify(initialItemInterests));
-    const socket = this.socketFactory(declaredUrl.toString());
-    this.socket = socket;
-    this.sentItemInterests = initialItemInterests;
+    this.clearPendingWorkerFrames();
     // A3: a fresh socket generation; the old socket's queued/in-flight decodes
     // are fenced and the reduced state clears as soon as frames decode again.
     this.drain.reset();
     this.clearDecodeRetryTimer();
+    const urlString = declaredUrl.toString();
+    let workerHostedSocket: DesktopLoopbackSocket | null = null;
+    if (this.workerSocketTransport) {
+      const openedWorkerSocket = this.workerSocketTransport.open(urlString, {
+        onDecodedBatch: (frames, acknowledge) => {
+          if (
+            !openedWorkerSocket ||
+            this.socket !== openedWorkerSocket ||
+            this.generation !== generation
+          ) {
+            acknowledge();
+            return;
+          }
+          this.liveness.noteActivity();
+          this.enqueueDecodedWorkerBatch(frames, acknowledge, generation, openedWorkerSocket);
+        },
+        onOverflow: () => {
+          if (
+            !openedWorkerSocket ||
+            this.socket !== openedWorkerSocket ||
+            this.generation !== generation
+          ) {
+            return;
+          }
+          this.noteDecodeUnavailable("overflow");
+        },
+      });
+      workerHostedSocket = openedWorkerSocket;
+    }
+    const socket = workerHostedSocket ?? this.socketFactory(urlString);
+    this.socket = socket;
+    this.sentItemInterests = initialItemInterests;
     let settleOpen: ((opened: boolean) => void) | null = null;
     const opened = new Promise<boolean>((resolve) => {
       settleOpen = resolve;
@@ -790,6 +754,7 @@ export class DesktopLoopbackIntake {
     if (this.socket !== socket) return;
     this.socket = null;
     this.open = false;
+    this.clearPendingWorkerFrames();
     // A1: the wire carries nothing while the leg is down; coverage and the
     // previous admitted sets are re-established on the next open (which runs a
     // full activation rebuild), so no restoration is inferred across the gap.
@@ -813,7 +778,7 @@ export class DesktopLoopbackIntake {
    * an immediate close/reconnect loop, and never a bootstrap escalation that
    * cannot repair a worker outage.
    */
-  private noteDecodeUnavailable(_reason: DesktopLoopbackDrainUnavailableReason): void {
+  private noteDecodeUnavailable(_reason: HostEventDrainUnavailableReason): void {
     if (this.disposed) return;
     const socket = this.socket;
     if (socket) {
@@ -858,6 +823,83 @@ export class DesktopLoopbackIntake {
   private clearDecodeRetry(): void {
     this.clearDecodeRetryTimer();
     this.decodeRetryAttempts = 0;
+  }
+
+  private clearPendingWorkerFrames(): void {
+    const discarded = this.pendingWorkerFrames;
+    this.pendingWorkerFrames = [];
+    this.pendingWorkerReadIndex = 0;
+    if (this.workerBatchContinuationTimer !== null) {
+      clearTimeout(this.workerBatchContinuationTimer);
+      this.workerBatchContinuationTimer = null;
+    }
+    // A teardown can run inside a frame handler. Release discarded batches
+    // after that handler returns, once their remaining UI work is gone.
+    for (const entry of discarded) if (typeof entry === "function") queueMicrotask(entry);
+  }
+
+  /**
+   * Routes pre-decoded worker batches on the UI thread with an 8ms cooperative
+   * frame budget (OpenCode `STREAM_YIELD_MS` pattern) so clicks, typing, and
+   * 60/120fps animations never starve during multi-agent event bursts.
+   */
+  private enqueueDecodedWorkerBatch(
+    frames: readonly DesktopLoopbackFrame[],
+    acknowledge: () => void,
+    generation: number,
+    socket: DesktopLoopbackSocket,
+  ): void {
+    this.noteDecodeHealthy();
+    for (const frame of frames) {
+      // Correlated health pongs settle immediately regardless of yield slices.
+      if (frame.kind === "pong") {
+        routeDesktopLoopbackFrame(frame, this.framePorts);
+        continue;
+      }
+      this.pendingWorkerFrames.push(frame);
+    }
+    // The worker bounds raw + posted work until this marker drains, rather
+    // than releasing its reservation merely when the batch reaches the UI.
+    this.pendingWorkerFrames.push(acknowledge);
+    if (this.workerBatchContinuationTimer === null) {
+      this.drainPendingWorkerFrames(generation, socket);
+    }
+  }
+
+  private drainPendingWorkerFrames(generation: number, socket: DesktopLoopbackSocket): void {
+    const STREAM_YIELD_MS = 8;
+    const startedAt = performance.now();
+    while (this.pendingWorkerReadIndex < this.pendingWorkerFrames.length) {
+      if (this.disposed || this.socket !== socket || this.generation !== generation) {
+        this.clearPendingWorkerFrames();
+        return;
+      }
+      const idx = this.pendingWorkerReadIndex++;
+      const frame = this.pendingWorkerFrames[idx]!;
+      this.pendingWorkerFrames[idx] = undefined;
+      try {
+        if (typeof frame === "function") frame();
+        else routeDesktopLoopbackFrame(frame, this.framePorts);
+      } catch {
+        // HTTP snapshots stay authoritative; isolate individual listener faults.
+      }
+      if (
+        this.pendingWorkerReadIndex < this.pendingWorkerFrames.length &&
+        performance.now() - startedAt >= STREAM_YIELD_MS
+      ) {
+        if (this.pendingWorkerReadIndex >= 512) {
+          this.pendingWorkerFrames = this.pendingWorkerFrames.slice(this.pendingWorkerReadIndex);
+          this.pendingWorkerReadIndex = 0;
+        }
+        this.workerBatchContinuationTimer = setTimeout(() => {
+          this.workerBatchContinuationTimer = null;
+          this.drainPendingWorkerFrames(generation, socket);
+        }, 0);
+        return;
+      }
+    }
+    this.pendingWorkerFrames = [];
+    this.pendingWorkerReadIndex = 0;
   }
 
   private forceReconnect(socket: DesktopLoopbackSocket): void {

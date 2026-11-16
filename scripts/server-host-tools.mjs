@@ -26,7 +26,7 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { existsSync, renameSync, rmSync, rmdirSync, symlinkSync } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, relative, win32 } from "node:path";
 
 // --- shared:begin (must stay identical to packages/poracode-cli/lib/hostTools.mjs)
@@ -186,3 +186,7 @@ export function removeDirectoryLink(linkPath, options = {}) {
 }
 
 // --- shared:end
+
+export function releaseScratchRoot(env = process.env) {
+  return env.RUNNER_TEMP || tmpdir();
+}

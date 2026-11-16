@@ -18,6 +18,7 @@ import type {
   BackgroundTask,
   ProjectLocation,
   PromptSegment,
+  QuestionAnswerItemPayload,
   ProviderRevertAnchor,
   RuntimeEvent,
   SessionConfigOptions,
@@ -115,6 +116,8 @@ export interface StructuredSessionListener {
 
 export interface StartTurnOptions {
   userMessageItemId?: string;
+  /** Canonical reply metadata to preserve when echoing the user's message. */
+  questionAnswer?: QuestionAnswerItemPayload;
   /** Called only after the provider accepts the outgoing prompt. */
   onPromptSubmitted?: () => void;
   /**
@@ -909,6 +912,13 @@ export interface AgentSessionTracker {
   createStructuredSession?(
     input: CreateStructuredSessionInput,
   ): Promise<StructuredSessionHandle | undefined>;
+  /**
+   * Parse trusted MCP call metadata into a provider-native session id. The
+   * supervisor still verifies that this adapter owns the root or child session;
+   * returning an id never authorizes a call on its own. Legacy routing remains
+   * available to providers without this hook.
+   */
+  readMcpSessionId?(metadata: Readonly<Record<string, unknown>>): string | undefined;
   discoverSessionRef?(location: ProjectLocation): Promise<SessionRef | undefined>;
   initialSessionRefDiscoveryDelayMs?: number;
   watchSessionRef?(location: ProjectLocation, onChanged: () => void): (() => void) | undefined;
@@ -1190,6 +1200,12 @@ export interface AgentAdapter
 
   /** Isolate user/plugin MCP connection failures instead of aborting GUI turns. */
   readonly mcpRequiresConnectionFailureIsolation?: boolean;
+
+  /** Omit malformed Unicode regex constraints when a model gateway rejects the entire tool catalog. */
+  readonly mcpRequiresPortableSchemaPatterns?: boolean;
+
+  /** Maximum object/array nesting accepted in advertised tool input schemas. */
+  readonly mcpMaxSchemaDepth?: number;
 
   /**
    * Refresh shared OAuth on MCP connection instead of before launch. Requires a

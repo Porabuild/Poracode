@@ -1,4 +1,4 @@
-import { RemoteClientHistoryApi } from "./clientApiHistory";
+import { RemoteClientThreadTransferApi } from "./clientApiThreadTransfer";
 
 export {
   REMOTE_COMMAND_OUTCOME_UNCERTAIN_CODE,
@@ -52,4 +52,4 @@ export type {
   RemoteCertFingerprintProbe,
 } from "./clientTypes";
 
-export class RemoteDesktopClient extends RemoteClientHistoryApi {}
+export class RemoteDesktopClient extends RemoteClientThreadTransferApi {}

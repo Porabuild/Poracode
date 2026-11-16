@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="rich_chat_activity_view">
+        <item quantity="other">%1$d lượt xem</item>
+    </plurals>
+    <plurals name="rich_chat_activity_search">
+        <item quantity="other">%1$d lượt tìm kiếm</item>
+    </plurals>
+    <plurals name="rich_chat_activity_edit">
+        <item quantity="other">%1$d chỉnh sửa</item>
+    </plurals>
+    <plurals name="rich_chat_activity_command">
+        <item quantity="other">%1$d lệnh</item>
+    </plurals>
+    <plurals name="rich_chat_activity_tool">
+        <item quantity="other">%1$d công cụ</item>
+    </plurals>
+    <plurals name="rich_chat_activity_thought">
+        <item quantity="other">%1$d suy nghĩ</item>
+    </plurals>
+    <plurals name="rich_chat_activity_mcp">
+        <item quantity="other">%d MCP</item>
+    </plurals>
+</resources>

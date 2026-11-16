@@ -165,6 +165,10 @@ export function createPluginContext(input: {
     get themeMode() {
       return host.themes.mode()
     },
+    // poracode: plugins render code and diffs with the host's syntax colors.
+    get syntax() {
+      return host.themes.currentSyntax()
+    },
     markdown: {
       registerCodeBlockRenderer(language, render) {
         const name = infoStringToFiletype(language)

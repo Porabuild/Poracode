@@ -160,6 +160,11 @@ const SUBAGENT_TASK_PROPERTIES = {
     description:
       "Crew role id from list_agents (for example `sidekick`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
   },
+  user_requested: {
+    type: "boolean",
+    description:
+      "Set true only when the user explicitly requests agents or models outside the crew. Allows that request without a role even in Crew only mode. Choosing a crew or granting general delegation permission does not qualify. Omit for automatic delegation; never use this to bypass crew routing on your own.",
+  },
   fresh_session: {
     type: "boolean",
     description:
@@ -176,7 +181,7 @@ const SUBAGENT_TASK_PROPERTIES = {
   name: {
     type: "string",
     description:
-      "Short specific label describing what this run does (its task or goal), shown to the user in the thread. Always provide one; provider/model details are appended automatically.",
+      "Short action + target describing what this run does (its task or goal), summarizing the actual work (for example `Fix crew model labels`), shown to the user in the thread. Always provide one. Do not copy permission or `New task` instruction boilerplate into it; provider/model details are appended automatically.",
   },
   fallbacks: {
     type: "array",
@@ -233,6 +238,7 @@ const RAW_TOOLS: ToolSpec[] = [
         },
         ...SUBAGENT_SELECTION_PROPERTIES,
         role: SUBAGENT_TASK_PROPERTIES.role,
+        user_requested: SUBAGENT_TASK_PROPERTIES.user_requested,
         tasks: {
           type: "array",
           minItems: 1,
@@ -295,7 +301,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "spawn_agent",
     description:
-      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention or by giving the thread a crew); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
+      "Call only after the user has explicitly asked to delegate work to another agent in this thread (for example via an @Crossagents mention or by giving the thread a crew); that ask covers the rest of the thread, but never spawn before it. Spawn one task-tagged agent and wait for its result by default. Omitted selection fields resolve from contextual rank. With tasks=[...], root provider/model/reasoning/fast/permissions/role/user_requested are batch defaults and each task may override them. Set background=true to return a run_id immediately, or pass tasks=[...] to launch several agents in parallel.",
     inputSchema: {
       type: "object",
       properties: {
@@ -430,13 +436,18 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "steer_agent",
     description:
-      "Send a follow-up after the complete result, or rarely correct active work. A completed structured worker resumes the same provider session ID and conversation; returns a new run_id with continued_from. Use the new ID for waiting/cancel/steering; old reports and workflows stay unchanged. Only the latest completed run of a resumable worker can continue. Coordinate its write ownership first. Active steering is only for a material requirement, verified invalid assumption or ownership conflict that cannot wait; never for status or reminders. It may interrupt/restart a turn. Waits for the result by default; background=true returns after acceptance. If still running, wait_for_agent on the returned run_id; do not resend.",
+      "Send a follow-up after the complete result, or rarely correct active work. A completed structured worker resumes the same provider session ID and conversation; returns a new run_id with continued_from. Use the new ID for waiting/cancel/steering; old reports and workflows stay unchanged. Only the latest completed run of a resumable worker can continue. Crew model/provider/context changes require spawn_agent with the current role and a self-contained task brief; compatible follow-ups use current effort, Fast and role instructions. Coordinate its write ownership first. Active steering is only for a material requirement, verified invalid assumption or ownership conflict that cannot wait; never for status or reminders. It may interrupt/restart a turn. Waits for the result by default; background=true returns after acceptance. If still running, wait_for_agent on the returned run_id; do not resend.",
     inputSchema: {
       type: "object",
       required: ["run_id", "prompt"],
       properties: {
         run_id: { type: "string" },
         prompt: { type: "string", minLength: 1 },
+        name: {
+          ...SUBAGENT_TASK_PROPERTIES.name,
+          description:
+            "For a completed worker's next task: a short action + target summarizing the new work (for example `Fix crew model labels`). Always provide one for a new task; do not copy permission or `New task` boilerplate. Provider/model details are appended automatically. Omit for a live correction, which keeps the current task label.",
+        },
         background: {
           type: "boolean",
           description:

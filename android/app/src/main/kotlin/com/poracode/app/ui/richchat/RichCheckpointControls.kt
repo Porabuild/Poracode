@@ -10,9 +10,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.chat.RichCheckpoint
 import com.poracode.app.session.richchat.RichCheckpointState
+import com.poracode.app.ui.theme.PoracodeIcons
+import androidx.compose.material3.FilledTonalButton
 
 private sealed interface PendingCheckpointAction {
     data class Restore(val checkpoint: RichCheckpoint) : PendingCheckpointAction
@@ -69,7 +68,7 @@ fun RichCheckpointControls(
             enabled = !busy,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Icon(Icons.Outlined.History, contentDescription = null)
+            Icon(PoracodeIcons.History, contentDescription = null)
             Text(
                 stringResource(R.string.rich_chat_checkpoints),
                 modifier = Modifier.padding(start = 8.dp),
@@ -91,7 +90,7 @@ fun RichCheckpointControls(
                     )
                     IconButton(onClick = onRefresh, enabled = !busy) {
                         Icon(
-                            Icons.Outlined.Refresh,
+                            PoracodeIcons.Refresh,
                             contentDescription = stringResource(R.string.rich_chat_refresh_checkpoints),
                         )
                     }
@@ -133,7 +132,7 @@ fun RichCheckpointControls(
                         }
                     }
                 }
-                Button(
+                FilledTonalButton(
                     onClick = { pending = PendingCheckpointAction.Rollback },
                     enabled = canOperate && !busy && !interactionBusy,
                     modifier = Modifier
@@ -172,7 +171,7 @@ fun RichCheckpointControls(
                 )
             },
             confirmButton = {
-                Button(
+                FilledTonalButton(
                     onClick = {
                         pending = null
                         when (action) {
@@ -233,7 +232,7 @@ private fun CheckpointRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(
-                    Icons.Outlined.History,
+                    PoracodeIcons.History,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
                 )

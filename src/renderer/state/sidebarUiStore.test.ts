@@ -10,6 +10,7 @@ beforeEach(() => {
     collapsedWorktrees: {},
     threadListLimits: {},
     flatListProjectFilter: null,
+    flatListShowDone: false,
     footerCollapsed: false,
     editingThreadId: null,
   });
@@ -26,6 +27,13 @@ describe("sidebarUiStore persistence", () => {
       useSidebarUiStore.persist.getOptions().partialize ?? ((state: State) => state);
     const partialized = partialize(useSidebarUiStore.getState());
     expect(partialized).toHaveProperty("flatListProjectFilter", ["a", "b"]);
+  });
+
+  it("keeps the compact Done view session-only, so a relaunch opens on Active", () => {
+    useSidebarUiStore.getState().setFlatListShowDone(true);
+    const partialize =
+      useSidebarUiStore.persist.getOptions().partialize ?? ((state: State) => state);
+    expect(partialize(useSidebarUiStore.getState())).not.toHaveProperty("flatListShowDone");
   });
 
   it("rehydrates a v1 payload without flatListProjectFilter to the default null", () => {

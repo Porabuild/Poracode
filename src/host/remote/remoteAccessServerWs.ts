@@ -6,6 +6,7 @@ import { outboundFrameBytes } from "./server/outboundBudget";
 import type { PrincipalAdmissionController } from "./server/principalAdmission";
 import type { TerminalCursorSyncRegistry } from "./server/terminalCursorSync";
 import type { RemoteAccessServerOptions } from "./remoteAccessServerTypes";
+import { reportEventInterestFailures } from "./server/eventInterestFailures";
 
 /**
  * Default cap on the framed bytes the transport may retain per socket. It is
@@ -192,7 +193,7 @@ export function dropWebSocketClient(host: OutboundFrameHost, ws: WebSocket): voi
   host.itemInterests.delete(ws);
   host.noticeCapableClients.delete(ws);
   host.boundedCatalogChangeClients.delete(ws);
-  void Promise.resolve(host.notifyEventInterestsChanged()).catch(() => {});
+  reportEventInterestFailures(host.notifyEventInterestsChanged());
   try {
     ws.terminate();
   } catch {

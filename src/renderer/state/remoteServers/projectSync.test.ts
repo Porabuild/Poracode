@@ -20,23 +20,31 @@ describe("isRemoteProjectSynced", () => {
     expect(isRemoteProjectSynced("p1", ["p1"])).toBe(false);
   });
 
-  it("never syncs the remote's built-in Home scope row", () => {
-    expect(isRemoteProjectSynced(HOME_PROJECT_ID, undefined)).toBe(false);
+  it("always syncs the remote's built-in Home scope row", () => {
+    expect(isRemoteProjectSynced(HOME_PROJECT_ID, undefined)).toBe(true);
+  });
+
+  it("ignores a legacy exclusion that names the Home scope row", () => {
+    expect(isRemoteProjectSynced(HOME_PROJECT_ID, [HOME_PROJECT_ID])).toBe(true);
   });
 });
 
 describe("filterSyncedRemoteProjects", () => {
-  it("lets a projectless chat client use the built-in host scope on an empty profile", () => {
-    expect(
-      filterSyncedRemoteProjects([{ id: HOME_PROJECT_ID }], undefined, { includeHomeScope: true }),
-    ).toEqual([{ id: HOME_PROJECT_ID }]);
-    expect(
-      filterSyncedRemoteProjects(projects, ["p2", HOME_PROJECT_ID], { includeHomeScope: true }),
-    ).toEqual([{ id: HOME_PROJECT_ID }, { id: "p1" }]);
-    expect(filterSyncedRemoteProjects(projects, ["p2"])).toEqual([{ id: "p1" }]);
+  it("keeps the built-in host scope on every client profile", () => {
+    expect(filterSyncedRemoteProjects([{ id: HOME_PROJECT_ID }], undefined)).toEqual([
+      { id: HOME_PROJECT_ID },
+    ]);
+    expect(filterSyncedRemoteProjects(projects, ["p2"])).toEqual([
+      { id: HOME_PROJECT_ID },
+      { id: "p1" },
+    ]);
   });
-  it("drops the Home scope row and excluded projects", () => {
-    expect(filterSyncedRemoteProjects(projects, ["p2"])).toEqual([{ id: "p1" }]);
+
+  it("still applies regular exclusions and legacy Home exclusions never drop Home", () => {
+    expect(filterSyncedRemoteProjects(projects, ["p2", HOME_PROJECT_ID])).toEqual([
+      { id: HOME_PROJECT_ID },
+      { id: "p1" },
+    ]);
   });
 });
 

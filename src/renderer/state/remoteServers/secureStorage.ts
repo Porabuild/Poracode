@@ -2,6 +2,7 @@ import type { PersistStorage, StorageValue } from "zustand/middleware";
 import { filterKnownRemoteAccessScopes } from "@/shared/remote";
 import { sshConnectionConfigSchema } from "@/shared/ssh";
 import { remoteConnectionKey, type RemoteServerRecord } from "./types";
+import { remotePairingStorage } from "./storageIdentity";
 import {
   deleteDesktopToken,
   getDesktopToken,
@@ -203,7 +204,8 @@ type ServerOperation =
       /** A record this realm asserts in full (new here); others only patch. */
       readonly whole: boolean;
     }
-  | { readonly kind: "remove"; readonly key: string; readonly desktopId: string };
+  | { readonly kind: "remove"; readonly key: string; readonly desktopId: string }
+  | { readonly kind: "pair"; readonly key: string; readonly server: RemoteServerRecord };
 
 export interface RemoteServersFieldChange {
   readonly field: string;
@@ -236,6 +238,9 @@ export interface RemoteServersDurableChanges {
 }
 
 export interface SecureRemoteServersStorage<S> extends PersistStorage<S> {
+  /** Explicit authorization may insert a host even after an earlier save
+   * failed. Ordinary patches still cannot revive another realm's removal. */
+  commitPairing(server: RemoteServerRecord): Promise<void>;
   /** Records a bearer that credential custody already committed for this
    * realm, so persisting the store does not write it to the vault again. */
   acknowledgeBearer(connectionKey: string, accessToken: string): void;
@@ -396,6 +401,7 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
   /** This realm's last persisted view: what its next diff is taken against. */
   let previous: PersistedFields | undefined;
   let storageName: string | undefined;
+  let storageVersion: number | undefined;
   /** Keys with queued writes; reconciliation leaves them to those writes. */
   const pending = new Map<string, number>();
 
@@ -414,6 +420,14 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
       if (operation.kind === "remove") {
         if (index >= 0) servers.splice(index, 1);
         removed.push(operation);
+        continue;
+      }
+      if (operation.kind === "pair") {
+        // New authorization replaces this record, including any retired
+        // plaintext bearer or optional metadata from the previous pairing.
+        const record = { ...operation.server, accessToken: "" };
+        if (index >= 0) servers[index] = record;
+        else servers.push(record);
         continue;
       }
       // Removed by another realm: a patch from an older view never revives it.
@@ -458,13 +472,31 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
   };
 
   return {
+    commitPairing(server): Promise<void> {
+      const name = storageName;
+      if (name === undefined)
+        return Promise.reject(new Error("Remote server storage is not initialized."));
+      const paired = { ...clone(server), accessToken: "" };
+      const key = remoteConnectionKey(server);
+      const version = storageVersion;
+      // The vault transaction already committed the bearer. Only this freshly
+      // authorized record is asserted in full; every other realm's rows stay
+      // under the ordinary patch/removal rules.
+      return enqueueWrite(name, () =>
+        applyChanges(name, version, {
+          servers: [{ kind: "pair", key, server: paired }],
+          fields: [],
+          touched: [],
+        }),
+      );
+    },
     async getItem(name): Promise<StorageValue<S> | null> {
       await writeQueue;
       return withSharedStorageLock(name, async () => {
         storageName = name;
         const persistedRaw = localStorage.getItem(name);
         let stored = parseStoredValue<S>(persistedRaw);
-        if (!stored && createLegacyState) {
+        if (!stored && createLegacyState && remotePairingStorage.importLegacy) {
           const legacyServers = await readLegacyMobileServers();
           if (legacyServers.length > 0) {
             stored = { state: createLegacyState(legacyServers), version: 0 };
@@ -489,6 +521,7 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
 
     setItem(name, value): Promise<void> {
       storageName = name;
+      storageVersion = value.version;
       const captured = clone(value);
       const next = captured.state as unknown as PersistedFields;
       const changes = diffPersisted(previous, next);

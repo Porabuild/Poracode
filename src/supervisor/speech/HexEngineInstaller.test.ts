@@ -3,7 +3,12 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HEX_ENGINE_ASSETS, HexEngineInstaller, type HexEngineAsset } from "./HexEngineInstaller";
+import {
+  HEX_ENGINE_ASSETS,
+  HexEngineInstaller,
+  type HexEngineAsset,
+  type HexEngineInstallerOptions,
+} from "./HexEngineInstaller";
 import { HexVoiceService } from "./HexVoiceService";
 
 function elfPayload(machine = 62): Uint8Array {
@@ -57,6 +62,45 @@ describe("HexEngineInstaller", () => {
       ...overrides,
     });
   }
+
+  it("verifies Windows engines with the inbox Authenticode module before promoting", async () => {
+    const root = await createDirectory();
+    const pe = new Uint8Array(80);
+    pe.set([0x4d, 0x5a]);
+    pe[0x3c] = 0x40;
+    pe.set([0x50, 0x45, 0, 0, 0x64, 0x86], 0x40);
+    const runCommand = vi.fn<NonNullable<HexEngineInstallerOptions["runCommand"]>>(async () => {});
+    const manager = installer(
+      root,
+      {
+        platform: "win32",
+        assets: [
+          {
+            platform: "win32",
+            arch: "x64",
+            filename: "hex-3.1.1-windows-x64.exe",
+            downloadBytes: pe.length,
+            sha256: createHash("sha256").update(pe).digest("hex"),
+            archive: false,
+          },
+        ],
+        runCommand,
+      },
+      pe,
+    );
+
+    manager.startInstall();
+    await vi.waitFor(() => expect(manager.isInstalling).toBe(false));
+
+    expect(manager.snapshot()).toMatchObject({ state: "installed", version: "3.1.1" });
+    expect(runCommand).toHaveBeenCalledOnce();
+    const [command, args, options] = runCommand.mock.calls[0]!;
+    expect(command).toBe("powershell.exe");
+    expect(args.at(-1)).toMatch(
+      /^Import-Module \(Join-Path \$PSHOME 'Modules\\Microsoft\.PowerShell\.Security'\); \$s = Get-AuthenticodeSignature /,
+    );
+    expect(options.env?.PORACODE_HEX_VERIFY_PATH).toMatch(/hex\.exe$/);
+  });
 
   it("pins five valid SHA-256 digests", () => {
     expect(HEX_ENGINE_ASSETS).toHaveLength(5);

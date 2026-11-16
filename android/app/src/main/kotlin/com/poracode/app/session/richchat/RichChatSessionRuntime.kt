@@ -12,7 +12,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -34,6 +36,20 @@ class RichChatSessionRuntime(
     val checkpoints = RichCheckpointController(session, chat.selection, gateway, lifecycle)
     val media = RichChatMediaController(session, chat.selection, gateway, lifecycle)
     val sessionActions = RichChatSessionActionsController(session, chat.selection, gateway, lifecycle)
+    /**
+     * Selected-detail output polling and Stop. Reads go through the existing
+     * session-action seam (nonexclusive), so dynamic descriptor ids respect
+     * the live inventory; Stop is exclusive and owns its own state slot.
+     */
+    val backgroundTasks = RichChatBackgroundTasksController(
+        session,
+        chat.selection,
+        lifecycle,
+        sessionActions::invoke,
+    )
+    private val mutableForeground = MutableStateFlow(true)
+    /** App foreground state for poll loops; true only while rich-chat operations may run. */
+    val foreground: StateFlow<Boolean> = mutableForeground.asStateFlow()
     val terminal = RichTerminalController(session, gateway, lifecycle, watchIdFactory)
     val terminalObserver: TerminalTransportObserver = object : TerminalTransportObserver {
         override fun onConnectionReset(
@@ -70,6 +86,7 @@ class RichChatSessionRuntime(
         cancelRefresh()
         checkpoints.reset()
         sessionActions.reset()
+        backgroundTasks.reset()
         return chat.selectThread(threadId)
     }
 
@@ -78,6 +95,7 @@ class RichChatSessionRuntime(
         dismissTerminal()
         checkpoints.reset()
         sessionActions.reset()
+        backgroundTasks.reset()
         chat.closeThread()
     }
 
@@ -90,6 +108,7 @@ class RichChatSessionRuntime(
         cancelRefresh()
         checkpoints.reset()
         sessionActions.reset()
+        backgroundTasks.reset()
         if (chat.selection.value != null) chat.closeThread()
     }
 
@@ -105,6 +124,7 @@ class RichChatSessionRuntime(
         cancelRefresh()
         checkpoints.reset()
         sessionActions.reset()
+        backgroundTasks.reset()
         if (chat.selection.value != null) chat.closeThread()
         val state = terminal.state.value
         if (state.lease?.terminalId == terminalId &&
@@ -126,6 +146,7 @@ class RichChatSessionRuntime(
         if (input.shellId.isEmpty()) return
         cancelRefresh()
         checkpoints.reset()
+        backgroundTasks.reset()
         if (chat.selection.value != null) chat.closeThread()
         terminalJob?.cancel()
         terminalJob = scope.launch {
@@ -144,30 +165,46 @@ class RichChatSessionRuntime(
     }
 
     /**
-     * Handle a sequenced-replay side effect from the host session. Two signals are
-     * actionable for the live terminal surface, both under one exact-host /
-     * current-lease / foreground gate (mirrors the iOS `TerminalReplayBridgePolicy`
-     * eligibility rule):
-     *  - `thread-exited` (threadExitedId): mark the watched PTY exited, preserve the
-     *    exit code, and never re-open it. A pending rebaseline is cancelled so the
-     *    exited PTY cannot be revived; the lease/cursor/transcript are retained and
-     *    no second socket is opened.
+     * Handle a sequenced-replay side effect from the host session under one
+     * exact-host / current-lease / foreground gate (mirrors the iOS
+     * `TerminalReplayBridgePolicy` eligibility rule):
+     *  - `thread-exited` (threadExitedId): an accepted exit for the selected
+     *    rich-chat thread drains the live background-task roster and fences any
+     *    selected-detail output read, even when no terminal lease exists; the
+     *    outcome sequence advances the background-task watermark so an older
+     *    snapshot cannot resurrect the roster. It also marks the watched PTY
+     *    exited, preserving the exit code, and never re-opens it. A pending
+     *    rebaseline is cancelled so the exited PTY cannot be revived; the
+     *    lease/cursor/transcript are retained and no second socket is opened.
      *  - `thread-reset` (freshBaselineThreadIds): discard the stale cursor/baseline
      *    for that exact host+thread and request exactly one fresh watch.
      *
      * Other-thread, stale-host/generation, background, and dismissed terminal
-     * outcomes are suppressed and never launch a watch.
+     * outcomes are suppressed and never drain metadata or launch a watch.
      */
     @Synchronized
-    fun handleReplaySideEffect(outcome: com.poracode.app.session.replay.ReplayOutcome) {
-        val lease = terminal.state.value.lease ?: return
+    fun handleReplaySideEffect(
+        outcome: com.poracode.app.session.replay.ReplayOutcome,
+        sequence: Int? = null,
+    ) {
         val host = session.value ?: return
-        // Exact-host / current-lease / foreground gate: a replacement host, a
-        // backgrounded surface, or a dismissed terminal never reacts.
-        if (host.key != lease.host.key || !host.online || !host.ready) return
+        // Exact-current-host / foreground gate: a replacement or unprepared
+        // host and a backgrounded surface never react.
+        if (!host.online || !host.ready) return
         if (!lifecycle.isForeground) return
 
         val exitedId = outcome.threadExitedId
+        if (!exitedId.isNullOrEmpty() &&
+            chat.drainBackgroundTasksForThreadExit(exitedId, sequence)
+        ) {
+            // Exact selected thread only; reset fences in-flight output reads
+            // and clears the selected-detail controller slots.
+            backgroundTasks.reset()
+        }
+
+        val lease = terminal.state.value.lease ?: return
+        if (host.key != lease.host.key) return
+
         if (!exitedId.isNullOrEmpty() && exitedId == lease.terminalId) {
             val transition = outcome.transition
                 as? com.poracode.app.session.replay.SequencedEventApplier.Transition.ThreadExited
@@ -231,11 +268,13 @@ class RichChatSessionRuntime(
     fun applyServerEvent(sequence: Int?, value: JsonElement): Boolean {
         val selected = chat.selection.value ?: return false
         val decodedEvents = mutableListOf<com.poracode.app.chat.RichRuntimeEvent>()
+        val backgroundTaskChanges = mutableListOf<RichChatBackgroundTaskChange>()
         val batches = RuntimeEventReducer.collectRuntimeEvents(value)
         for (batch in batches) {
             if (batch.threadId != selected.threadId) continue
             for (event in batch.events) {
                 if (event.threadId != batch.threadId) continue
+                event.asBackgroundTaskChange()?.let(backgroundTaskChanges::add)
                 val withThread = JsonObject(
                     event.raw + ("threadId" to JsonPrimitive(batch.threadId)),
                 )
@@ -245,6 +284,13 @@ class RichChatSessionRuntime(
             }
         }
         if (batches.isEmpty()) {
+            // A bare event object (no envelope) still has to feed the metadata
+            // level: background_tasks.changed is not a transcript event.
+            (value as? JsonObject)
+                ?.let { RuntimeEventReducer.parseRuntimeEvent(it) }
+                ?.takeIf { it.threadId == selected.threadId }
+                ?.asBackgroundTaskChange()
+                ?.let(backgroundTaskChanges::add)
             RichEventDecoder.decode(selected.host.connectionId, value)?.let {
                 if (it.threadKey == selected.key) decodedEvents += it
             }
@@ -261,12 +307,15 @@ class RichChatSessionRuntime(
             decodedEvents,
             pendingSteer,
             followUpQueue,
+            backgroundTaskChanges,
         )
     }
 
     fun enterBackground() {
         terminalJob?.cancel()
         terminalJob = null
+        mutableForeground.value = false
+        backgroundTasks.reset()
         terminal.enterBackground()
         chat.enterBackground()
         checkpoints.reset()
@@ -275,11 +324,21 @@ class RichChatSessionRuntime(
 
     fun enterForeground() {
         lifecycle.enterForeground()
+        mutableForeground.value = true
         chat.enterForeground()
     }
 
     fun reconcileSession() {
+        val selectedBefore = chat.selection.value
         chat.reconcileSession()
+        if (selectedBefore != null && chat.selection.value == null) {
+            // The controller closed the selection on a host/lease replacement;
+            // reset every selection-scoped slot, including the selected-detail
+            // output/Stop identity, so nothing from the old lease survives.
+            checkpoints.reset()
+            sessionActions.reset()
+            backgroundTasks.reset()
+        }
         val terminalLease = terminal.state.value.lease ?: return
         val current = session.value
         if (current == null ||

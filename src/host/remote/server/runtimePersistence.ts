@@ -8,16 +8,34 @@ import {
 import {
   enqueueRuntimeControlOperation,
   applyAdmittedRuntimePayloadBatch,
+  commitRuntimeThreadPrefixAsync,
   markRuntimeRebaseDropped,
   runThreadRuntimeMutation,
+  runRuntimeControlWrite,
+  waitForAsyncRuntimeWrites,
 } from "@/host/db/runtimePersistenceRuntime";
+import { isAsyncDatabaseWritesReady } from "@/host/db/asyncWrites";
 import type { RuntimeAdmission } from "@/host/db/runtimePersistenceTypes";
+// The admission fence reads the row through the barrel, like the write it fences.
+import { dbGetThread } from "@/host/db";
+import { isThreadTurnActive } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import {
   stripRuntimePayloadOriginMetadata,
   type TrustedRuntimePayloadAdmission,
 } from "@/shared/runtimePayloadOriginProtocol";
 import type { RemoteBroadcastEvent } from "./context";
+import {
+  notePendingInterruptedTurn,
+  notePendingThreadActivity,
+  notePendingThreadState,
+  isPendingThreadStateCurrent,
+  retirePendingThreadState,
+  pendingInterruptedTurn,
+  pendingThreadActivity,
+  pendingThreadErrorMessage,
+  resetPendingInterruptedTurnsForTests,
+} from "./pendingInterruptedTurns";
 import { persistThreadStateEvent } from "./threadStatePersistence";
 
 /**
@@ -201,6 +219,65 @@ function dispatchPersist(
       };
     }
     case "thread-state": {
+      // Fence before admission as well as at the eventual row write: a departed
+      // provider must not publish a marker or replace its successor's queued state.
+      // A thread whose row is not visible yet has no successor to protect: its
+      // state still publishes, and the write re-reads the row when it runs.
+      const thread = dbGetThread(event.threadId);
+      if (thread && event.agentKind !== undefined && event.agentKind !== thread.agentKind) {
+        return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
+      }
+      // A newer state replaces a queued one. Keep the complete error level so
+      // rebroadcasts retain details, while a coalesced retry still clears them.
+      const owner =
+        thread ??
+        (event.agentKind !== undefined
+          ? { id: event.threadId, agentKind: event.agentKind }
+          : undefined);
+      const pendingError = owner ? pendingThreadErrorMessage(owner) : undefined;
+      const previousError =
+        pendingError !== undefined
+          ? pendingError
+          : thread?.status === "error"
+            ? thread.errorMessage
+            : undefined;
+      const admission = {
+        agentKind: thread?.agentKind ?? event.agentKind,
+        errorMessage:
+          event.status === "error" ? (event.errorMessage ?? previousError ?? null) : null,
+      };
+      const previousActivity = pendingThreadActivity(owner ?? { id: event.threadId });
+      const previousStatus = previousActivity?.status ?? thread?.status;
+      const previousUpdatedAt = previousActivity?.updatedAt ?? thread?.updatedAt;
+      const enteredWorking = event.status === "working" && previousStatus !== "working";
+      const candidateUpdatedAt = enteredWorking
+        ? (event.updatedAt ?? new Date().toISOString())
+        : event.updatedAt;
+      const nextUpdatedAt =
+        candidateUpdatedAt !== undefined
+          ? previousUpdatedAt !== undefined && previousUpdatedAt > candidateUpdatedAt
+            ? previousUpdatedAt
+            : candidateUpdatedAt
+          : previousActivity?.updatedAt;
+      const publishedEvent =
+        (enteredWorking || event.updatedAt !== undefined) && nextUpdatedAt !== undefined
+          ? { ...event, updatedAt: nextUpdatedAt }
+          : event;
+      const persistedEvent = {
+        ...event,
+        errorMessage: admission.errorMessage ?? "",
+        ...(nextUpdatedAt !== undefined ? { updatedAt: nextUpdatedAt } : {}),
+      };
+      // Stop must reach disk before a reset can classify the active row as
+      // interrupted. It also needs queued details when Stop follows a failure.
+      if (
+        thread &&
+        event.turnStopRequested &&
+        runRuntimeControlWrite(() => persistThreadStateEvent(persistedEvent), event.threadId).ok
+      ) {
+        retirePendingThreadState(event.threadId);
+        return { kind: "publish", event: publishedEvent };
+      }
       // Control write: queued for bounded retry (idempotent upsert). Row lag is
       // replay-covered, so publication stays immediate — but only once the
       // write was actually queued. A refused control reserve means the row
@@ -209,12 +286,53 @@ function dispatchPersist(
       const queued = enqueueRuntimeControlOperation({
         key: `thread-state:${event.threadId}`,
         describe: `thread-state ${event.threadId}`,
-        run: () => persistThreadStateEvent(event),
+        run: async () => {
+          // Rewind may retire this admitted state before its delayed write.
+          // The captured event itself can contain a marker, so clearing the
+          // projection map alone cannot prevent resurrection.
+          if (!isPendingThreadStateCurrent(event.threadId, admission)) return;
+          const currentThread = dbGetThread(event.threadId);
+          if (
+            currentThread &&
+            isThreadTurnActive(currentThread.status) &&
+            !isThreadTurnActive(event.status)
+          ) {
+            if (isAsyncDatabaseWritesReady()) {
+              await commitRuntimeThreadPrefixAsync(event.threadId);
+            } else {
+              await waitForAsyncRuntimeWrites(event.threadId);
+            }
+          }
+          if (!isPendingThreadStateCurrent(event.threadId, admission)) return;
+          if (thread) {
+            const interruptedTurn = pendingInterruptedTurn(thread);
+            persistThreadStateEvent({
+              ...persistedEvent,
+              // Legacy events without an owner are bound at admission, so a
+              // provider switch while queued cannot adopt them either.
+              agentKind: thread.agentKind,
+              ...(interruptedTurn === undefined ? {} : { interruptedTurn }),
+            });
+          } else {
+            persistThreadStateEvent(persistedEvent);
+          }
+          retirePendingThreadState(event.threadId);
+        },
       });
       if (queued === "refused") {
         return { kind: "withhold", reason: "refused", threadIds: [event.threadId] };
       }
-      return { kind: "publish", event };
+      notePendingThreadState(event.threadId, admission);
+      notePendingThreadActivity(event.threadId, {
+        agentKind: owner?.agentKind,
+        status: event.status,
+        attention: event.attention,
+        ...(nextUpdatedAt !== undefined ? { updatedAt: nextUpdatedAt } : {}),
+      });
+      if (thread && event.interruptedTurn !== undefined) {
+        notePendingInterruptedTurn(thread, event.interruptedTurn, event.turnStopRequested === true);
+      }
+      return { kind: "publish", event: publishedEvent };
     }
     case "thread-reset":
       enqueueDeferredReset(event, options.publishDeferredEvent);
@@ -314,4 +432,5 @@ const pendingResetThreadIds = new Set<string>();
 /** Test helper: clears the diagnostics-only pending-reset marker set. */
 export function resetDeferredThreadResetsForTests(): void {
   pendingResetThreadIds.clear();
+  resetPendingInterruptedTurnsForTests();
 }

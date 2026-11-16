@@ -162,6 +162,8 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     scopes: ["session:read"],
     audit: noAudit("read"),
     queryParameters: [
+      "historyCache",
+      "historyRevision",
       "projection",
       "deferBodies",
       "reads",

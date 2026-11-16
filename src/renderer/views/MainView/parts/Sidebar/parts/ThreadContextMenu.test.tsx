@@ -16,12 +16,30 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
 }));
 
+const windowActions = vi.hoisted(() => ({
+  available: false,
+  open: vi.fn<(thread: Thread) => void>(),
+}));
+vi.mock("@/renderer/actions/threadWindowActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadWindowActions")>()),
+  canOpenThreadWindow: () => windowActions.available,
+  openThreadWindow: windowActions.open,
+}));
+
 const groupIntentsMock = vi.hoisted(() => vi.fn<(assignments: unknown) => void>());
 vi.mock("@/renderer/state/managedRootCatalog/rootCatalogIntents", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/renderer/state/managedRootCatalog/rootCatalogIntents")
   >()),
-  dispatchManagedRootThreadGroupIntents: groupIntentsMock,
+  dispatchThreadGroupIntents: groupIntentsMock,
+}));
+
+const transferCandidatesMock = vi.hoisted(() =>
+  vi.fn<(thread: Thread, members: readonly Project[]) => Project[]>(),
+);
+vi.mock("@/renderer/actions/threadTransferActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadTransferActions")>()),
+  transferCandidateMembers: transferCandidatesMock,
 }));
 
 const project: Project = {
@@ -58,7 +76,7 @@ function thread(overrides: Partial<Thread> = {}): Thread {
 function renderMenu(
   target: Thread,
   owner: Project = project,
-  options: { showProjectActions?: boolean } = {},
+  options: { showProjectActions?: boolean; onRename?: () => void } = {},
 ) {
   render(
     <ThreadContextMenu thread={target} project={owner} {...options}>
@@ -88,12 +106,29 @@ function status(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
 
 describe("ThreadContextMenu project actions", () => {
   beforeEach(() => {
+    windowActions.available = false;
     resetDevTerminalStore();
     useExperimentStore.setState({ experiments: {} });
     useAppStore.setState({ threads: [], view: { kind: "home" } });
     usePanelStore.setState({ githubActionsContext: null });
     useSharedSettings.setState({ workspaces: [] } as never);
     useGitStore.setState({ statuses: {}, worktreeStatuses: {} });
+    transferCandidatesMock.mockReturnValue([]);
+  });
+
+  it("opens the desktop thread window from the item between Rename and Unload", async () => {
+    windowActions.available = true;
+    const target = thread();
+    await renderMenu(target, project, { onRename: () => {} });
+    const labels = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    const renameIndex = labels.indexOf("Rename");
+    expect(labels.slice(renameIndex, renameIndex + 3)).toEqual([
+      "Rename",
+      "Open in New Window",
+      "Unload Thread",
+    ]);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Open in New Window" }));
+    expect(windowActions.open).toHaveBeenCalledExactlyOnceWith(target);
   });
 
   it.each([undefined, status()])(
@@ -285,6 +320,25 @@ describe("ThreadContextMenu project actions", () => {
     expect(screen.queryByRole("menuitem", { name: "Move to Workspace" })).not.toBeInTheDocument();
   });
 
+  it("hides Move to Workspace for a paired host's thread, which has its own workspaces", async () => {
+    useSharedSettings.setState({
+      workspaces: [
+        { id: "w1", name: "Work", createdAt: "2026-01-01T00:00:00.000Z", icon: "briefcase" },
+        { id: "w2", name: "Side Hustle", createdAt: "2026-01-01T00:00:00.000Z", icon: "rocket" },
+      ],
+    } as never);
+    const pairedThread = thread({
+      id: "remote:d1:thread:h1",
+      projectId: HOME_PROJECT_ID,
+      remoteServerId: "d1",
+      remoteId: "h1",
+    });
+
+    await renderMenu(pairedThread, homeProject);
+
+    expect(screen.queryByRole("menuitem", { name: "Move to Workspace" })).not.toBeInTheDocument();
+  });
+
   it("hides Move to Workspace when only one workspace exists", async () => {
     useSharedSettings.setState({
       workspaces: [
@@ -341,5 +395,29 @@ describe("ThreadContextMenu project actions", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Group open threads" }));
     expect(useAppStore.getState().threads).toBe(before.threads);
     expect(useAppStore.getState().view).toBe(before.view);
+  });
+
+  it("offers Move to another machine once the project reaches another host", async () => {
+    const guiThread = thread({ presentationMode: "gui" });
+    useAppStore.setState({ projects: [project], threads: [guiThread] });
+    await renderMenu(guiThread);
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to another machine…" }),
+    ).not.toBeInTheDocument();
+
+    // A member joining the group re-derives the candidates on the open menu.
+    const remoteMember = {
+      ...project,
+      id: "remote:d1:project:p1",
+      remoteServerId: "d1",
+      remoteId: "p1",
+    } as Project;
+    transferCandidatesMock.mockReturnValue([remoteMember]);
+    act(() => {
+      useAppStore.setState({ projects: [project, remoteMember] });
+    });
+    expect(
+      await screen.findByRole("menuitem", { name: "Move to another machine…" }),
+    ).toBeInTheDocument();
   });
 });

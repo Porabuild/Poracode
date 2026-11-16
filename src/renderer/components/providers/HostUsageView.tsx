@@ -1,19 +1,35 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { Trans } from "@lingui/react/macro";
 import { fetchHostUsage } from "./hostUsage";
 import { useHostUsage, useHostUsageStore } from "@/renderer/state/hostUsageStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 
+function subscribeUsageClock(onChange: () => void) {
+  const timer = setInterval(onChange, 30_000);
+  return () => clearInterval(timer);
+}
+const subscribeHiddenClock = () => () => {};
+const readUsageClock = () => Math.floor(Date.now() / 1000) * 1000;
+
+/** Read the current second on reveal; hidden views have no presentation timer. */
+export function useUsageClock(visible = true) {
+  return useSyncExternalStore(visible ? subscribeUsageClock : subscribeHiddenClock, readUsageClock);
+}
+
 /** Shared connection lifecycle for settings and panel; never touches device usage or credentials. */
-export function useHostUsageView(connectionId: string, refreshVersion = 0, liveOnOpen = false) {
+export function useHostUsageView(
+  connectionId: string,
+  refreshVersion = 0,
+  liveOnOpen = false,
+  visible = true,
+) {
   const server = useRemoteServersStore((state) =>
     state.servers.find((candidate) => remoteConnectionKey(candidate) === connectionId),
   );
   const status = useRemoteServersStore((state) => state.runtime[connectionId]?.status);
   const agents = useRemoteServersStore((state) => state.runtime[connectionId]?.agentStatuses);
   const usage = useHostUsage(connectionId);
-  const [now, setNow] = useState(() => Date.now());
   const initialReadAfter = useRef(0);
   const canRead = server?.scopes.includes("session:read") === true;
   const canRefresh = canRead && server?.scopes.includes("session:operate") === true;
@@ -34,13 +50,8 @@ export function useHostUsageView(connectionId: string, refreshVersion = 0, liveO
         void fetchHostUsage(connectionId);
     };
     read();
-    // Read on mount/reconnect. The clock updates labels only: repeatedly
-    // reading a legacy host can otherwise trigger its old collection policy.
-    const timer = setInterval(() => {
-      setNow(Date.now());
-    }, 30_000);
-    return () => clearInterval(timer);
   }, [connectionId, server, canRead, online]);
+
   useEffect(() => {
     // A compact/live-open refresh can occupy the initial read slot. If the
     // host cannot collect remotely, load its cache once after that refusal.
@@ -57,21 +68,32 @@ export function useHostUsageView(connectionId: string, refreshVersion = 0, liveO
     )
       void fetchHostUsage(connectionId);
   }, [connectionId, canRead, online, usage.updateRequired, usage.pending, usage.lastReadRequest]);
-  useEffect(() => () => useHostUsageStore.getState().invalidate(connectionId), [connectionId]);
+  useEffect(() => {
+    if (!visible || !server || !canRead || !online || usage.pending) return;
+    const read = () => {
+      const current = useHostUsageStore.getState().hosts[connectionId];
+      if (!current?.pending && Date.now() - (current?.lastRequestedAt ?? 0) >= 30_000)
+        // Cache reads trigger the host's due-provider collection without bypassing
+        // its polling policy or rate-limit backoff. The next read picks up results.
+        void fetchHostUsage(connectionId);
+    };
+    const delay = Math.max(0, 30_000 - (Date.now() - usage.lastRequestedAt));
+    if (delay === 0) {
+      read();
+      return;
+    }
+    const timer = setTimeout(read, delay);
+    return () => clearTimeout(timer);
+  }, [connectionId, server, canRead, online, visible, usage.pending, usage.lastRequestedAt]);
 
-  const lastFetched = usage.snapshots.length
-    ? Math.min(...usage.snapshots.map((snapshot) => snapshot.fetchedAt))
-    : undefined;
-  const stale =
-    !online || usage.failed || (lastFetched !== undefined && now - lastFetched >= 120_000);
-  return { server, status, agents, usage, canRead, canRefresh, online, stale, lastFetched };
+  return { server, status, agents, usage, canRead, canRefresh, online };
 }
 
 export function HostUsageStatus(props: {
   view: ReturnType<typeof useHostUsageView>;
   className?: string;
 }) {
-  const { server, status, usage, canRead, canRefresh, online, stale } = props.view;
+  const { server, status, usage, canRead, canRefresh, online } = props.view;
   const message = !server ? (
     <Trans>This host is no longer configured.</Trans>
   ) : !canRead ? (
@@ -91,8 +113,6 @@ export function HostUsageStatus(props: {
   ) : (!usage.initialized && usage.snapshots.length === 0) ||
     (usage.pending && usage.snapshots.length === 0) ? (
     <Trans>Loading usage…</Trans>
-  ) : stale ? (
-    <Trans>Usage is stale. Refresh to update.</Trans>
   ) : null;
   const readOnly = server && canRead && !canRefresh;
   const empty =

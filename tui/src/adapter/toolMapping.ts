@@ -30,7 +30,60 @@ const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
 );
 const jsonRecordSchema = z.record(z.string(), jsonValueSchema);
 
+/**
+ * Tool metadata key holding the runtime item a tool part was mapped from. The
+ * transcript plugin renders it through the desktop's presentation modules,
+ * which need the canonical item rather than its OpenCode projection.
+ */
+export const PORACODE_ITEM_KEY = "poracode";
+export type PoracodeItemMetadata = { type: string; payload: JsonValue };
+
+const PAYLOAD_STRING_LIMIT = 64 * 1024;
+const PAYLOAD_ARRAY_LIMIT = 500;
+const PAYLOAD_DEPTH_LIMIT = 16;
+
 export function mapToolItem(
+  itemType: string,
+  payload: unknown,
+  context?: { threadId: string; itemId: string },
+): ToolDefinition | undefined {
+  const definition = mapToolDefinition(itemType, payload, context);
+  if (!definition) return;
+  const item: PoracodeItemMetadata = {
+    type: itemType,
+    payload: boundedPayload(payload, 0) ?? null,
+  };
+  return { ...definition, metadata: { ...definition.metadata, [PORACODE_ITEM_KEY]: item } };
+}
+
+/** Shallow merge matching the desktop reducer's handling of item updates. */
+export function mergePayload(previous: unknown, next: unknown) {
+  if (next === undefined) return previous;
+  if (!previous || typeof previous !== "object" || !next || typeof next !== "object") return next;
+  return { ...(previous as Record<string, unknown>), ...(next as Record<string, unknown>) };
+}
+
+// Inline image data URLs stay out: the transcript renders tool rows, not their images.
+function boundedPayload(value: unknown, depth: number): JsonValue | undefined {
+  if (value === null || typeof value === "boolean") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string")
+    return value.length > PAYLOAD_STRING_LIMIT ? value.slice(0, PAYLOAD_STRING_LIMIT) : value;
+  if (depth >= PAYLOAD_DEPTH_LIMIT || typeof value !== "object") return undefined;
+  if (Array.isArray(value))
+    return value
+      .slice(0, PAYLOAD_ARRAY_LIMIT)
+      .map((entry) => boundedPayload(entry, depth + 1) ?? null);
+  const result: Record<string, JsonValue> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (depth === 0 && key === "images") continue;
+    const next = boundedPayload(entry, depth + 1);
+    if (next !== undefined) result[key] = next;
+  }
+  return result;
+}
+
+function mapToolDefinition(
   itemType: string,
   payload: unknown,
   context?: { threadId: string; itemId: string },
@@ -165,6 +218,16 @@ export function mapToolItem(
       input: jsonRecord({
         todos: parsed.data.steps.map((step) => ({ content: step.step, status: step.status })),
       }),
+      metadata: jsonRecord({}),
+      output: "",
+    };
+  }
+  if (itemType === "question_answer") {
+    // Keeps transcript order: the plugin renders the Poracode item metadata,
+    // never this generic tool row.
+    return {
+      name: "poracode_question_answer",
+      input: jsonRecord(value),
       metadata: jsonRecord({}),
       output: "",
     };

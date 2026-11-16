@@ -1,10 +1,13 @@
 import { PerfRingBuffer } from "./perfRingBuffer";
 import {
   adaptEventTimingEntry,
+  adaptLongAnimationFrameEntry,
   adaptLongTaskEntry,
   type EventTimingEntryLike,
+  type LongAnimationFrameEntryLike,
   type LongTaskEntryLike,
   type RendererPerfEventTimingRecord,
+  type RendererPerfLongAnimationFrameRecord,
   type RendererPerfLongTaskRecord,
 } from "./performanceEntryAdapters";
 import {
@@ -12,19 +15,24 @@ import {
   resolveEventTimingDurationThresholdMs,
   type EventTimingDurationThreshold,
   type RendererPerfEventTimingObserverState,
+  type RendererPerfLongAnimationFrameObserverState,
   type RendererPerfLongTaskObserverState,
 } from "./performanceObserverInstall";
 
 export type {
   EventTimingEntryLike,
+  LongAnimationFrameEntryLike,
   LongTaskEntryLike,
   RendererPerfEventTimingRecord,
+  RendererPerfFrameScriptRecord,
+  RendererPerfLongAnimationFrameRecord,
   RendererPerfLongTaskRecord,
 } from "./performanceEntryAdapters";
 export type {
   EventTimingDurationThreshold,
   PerformanceObserverSink,
   RendererPerfEventTimingObserverState,
+  RendererPerfLongAnimationFrameObserverState,
   RendererPerfLongTaskObserverState,
   RendererPerfObserverStatus,
 } from "./performanceObserverInstall";
@@ -47,7 +55,8 @@ export type {
  * persisted from it, but the CDP qualification harness reads the live
  * snapshot and may save it as run evidence, so readers must treat unknown
  * fields as optional. `formatVersion` stays 2: the A0 observer-state and
- * event-duration fields are additions within that format.
+ * event-duration fields, and the Long Animation Frames attribution
+ * (`recentLongAnimationFrames`), are additions within that format.
  *
  * Sampling semantics (must travel with every report):
  * - Event Timing samples are event-level and censored. The platform delivers
@@ -76,6 +85,7 @@ export const RENDERER_FRAME_BUDGET_MS = 1000 / 120;
 const DEFAULT_SPAN_CAPACITY = 512;
 const DEFAULT_EVENT_TIMING_CAPACITY = 256;
 const DEFAULT_LONG_TASK_CAPACITY = 64;
+const DEFAULT_LONG_ANIMATION_FRAME_CAPACITY = 32;
 const DEFAULT_SLOW_FRAME_CAPACITY = 128;
 const MAX_TRACKED_PHASES = 8;
 const MAX_SPAN_NAMES_PER_PHASE = 32;
@@ -124,6 +134,8 @@ export interface RendererPerfSnapshot {
   readonly observers: {
     readonly eventTiming: RendererPerfEventTimingObserverState;
     readonly longTask: RendererPerfLongTaskObserverState;
+    /** Absent in snapshots from builds that predate frame attribution. */
+    readonly longAnimationFrame?: RendererPerfLongAnimationFrameObserverState;
   };
   readonly recentSpans: RendererPerfSpanRecord[];
   readonly droppedSpans: number;
@@ -131,6 +143,9 @@ export interface RendererPerfSnapshot {
   readonly droppedEventTimings: number;
   readonly recentLongTasks: RendererPerfLongTaskRecord[];
   readonly droppedLongTasks: number;
+  /** Absent in snapshots from builds that predate frame attribution. */
+  readonly recentLongAnimationFrames?: RendererPerfLongAnimationFrameRecord[];
+  readonly droppedLongAnimationFrames?: number;
   readonly recentSlowFrames: RendererPerfSlowFrameRecord[];
   readonly droppedSlowFrames: number;
 }
@@ -144,6 +159,7 @@ export interface RendererPerfDiagnosticsOptions {
   readonly spanCapacity?: number;
   readonly eventTimingCapacity?: number;
   readonly longTaskCapacity?: number;
+  readonly longAnimationFrameCapacity?: number;
   readonly slowFrameCapacity?: number;
   /**
    * Event Timing `durationThreshold` request. Non-finite values fall back to
@@ -181,6 +197,7 @@ export class RendererPerfDiagnostics {
   private readonly spanRing: PerfRingBuffer<RendererPerfSpanRecord>;
   private readonly eventTimingRing: PerfRingBuffer<RendererPerfEventTimingRecord>;
   private readonly longTaskRing: PerfRingBuffer<RendererPerfLongTaskRecord>;
+  private readonly longAnimationFrameRing: PerfRingBuffer<RendererPerfLongAnimationFrameRecord>;
   private readonly slowFrameRing: PerfRingBuffer<RendererPerfSlowFrameRecord>;
   private readonly phases = new Map<string, RendererPerfPhaseAggregate>();
   private readonly frameState = new Map<string, PhaseFrameState>();
@@ -196,6 +213,8 @@ export class RendererPerfDiagnostics {
     sampleCount: 0,
     skippedEntryCount: 0,
   };
+  private readonly longAnimationFrameObserver: Mutable<RendererPerfLongAnimationFrameObserverState> =
+    { status: "not-installed", sampleCount: 0, skippedEntryCount: 0 };
   private phase = DEFAULT_PHASE;
   private readonly startedAtMs: number;
   private lastFrameAtMs: number | null = null;
@@ -215,6 +234,9 @@ export class RendererPerfDiagnostics {
       options.eventTimingCapacity ?? DEFAULT_EVENT_TIMING_CAPACITY,
     );
     this.longTaskRing = new PerfRingBuffer(options.longTaskCapacity ?? DEFAULT_LONG_TASK_CAPACITY);
+    this.longAnimationFrameRing = new PerfRingBuffer(
+      options.longAnimationFrameCapacity ?? DEFAULT_LONG_ANIMATION_FRAME_CAPACITY,
+    );
     this.slowFrameRing = new PerfRingBuffer(
       options.slowFrameCapacity ?? DEFAULT_SLOW_FRAME_CAPACITY,
     );
@@ -416,6 +438,25 @@ export class RendererPerfDiagnostics {
     this.longTaskObserver.status = status;
   }
 
+  /** Feeds `long-animation-frame` entries; malformed ones are counted, never coerced. */
+  recordLongAnimationFrameEntries(entries: readonly LongAnimationFrameEntryLike[]): void {
+    if (this.disposed) return;
+    for (const entry of entries) {
+      const record = adaptLongAnimationFrameEntry(entry);
+      if (!record) {
+        this.longAnimationFrameObserver.skippedEntryCount += 1;
+        continue;
+      }
+      this.longAnimationFrameRing.push(record);
+      this.longAnimationFrameObserver.sampleCount += 1;
+    }
+  }
+
+  /** Installation result wiring for {@link installPerformanceObservers}. */
+  markLongAnimationFrameObserver(status: "supported" | "unsupported"): void {
+    this.longAnimationFrameObserver.status = status;
+  }
+
   /** Zero-duration point event (e.g. large-reply completion) at the current time. */
   recordPoint(name: string, detail: Readonly<Record<string, number | string | boolean>>): void {
     this.recordSpan(name, this.nowFn(), 0, detail);
@@ -451,6 +492,7 @@ export class RendererPerfDiagnostics {
       observers: {
         eventTiming: { ...this.eventTimingObserver },
         longTask: { ...this.longTaskObserver },
+        longAnimationFrame: { ...this.longAnimationFrameObserver },
       },
       recentSpans: this.spanRing.toArray(),
       droppedSpans: this.spanRing.droppedCount,
@@ -458,6 +500,8 @@ export class RendererPerfDiagnostics {
       droppedEventTimings: this.eventTimingRing.droppedCount,
       recentLongTasks: this.longTaskRing.toArray(),
       droppedLongTasks: this.longTaskRing.droppedCount,
+      recentLongAnimationFrames: this.longAnimationFrameRing.toArray(),
+      droppedLongAnimationFrames: this.longAnimationFrameRing.droppedCount,
       recentSlowFrames: this.slowFrameRing.toArray(),
       droppedSlowFrames: this.slowFrameRing.droppedCount,
     };

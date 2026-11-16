@@ -1126,6 +1126,7 @@ describe("SubagentRunManager", () => {
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
     await flush();
 
+    h.handles[0]!.emit({ type: "turn.started", threadId: "child", turnId: "initial" });
     h.handles[0]!.update("idle");
 
     await expect(h.manager.waitFor(runId, 1000)).resolves.toEqual({

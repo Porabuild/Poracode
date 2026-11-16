@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="projects_manage_title">Керування проєктами</string>
+    <string name="projects_manage_title">Проєкти</string>
     <string name="projects_add_title">Додати проєкт</string>
     <string name="projects_add_existing">Додати наявний</string>
     <string name="projects_create_new">Створити новий</string>

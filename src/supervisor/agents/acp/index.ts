@@ -1,6 +1,24 @@
-export { AcpStructuredSession, type AcpSessionBehavior } from "./session";
+export {
+  AcpStructuredSession,
+  buildAcpInitializeRequest,
+  type AcpSessionBehavior,
+} from "./session";
 export type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
-export { createAcpStructuredSession, shouldSpawnAcpSession } from "./sessionFactory";
+export {
+  createAcpStructuredSession,
+  createSharedAcpStructuredSession,
+  shouldSpawnAcpSession,
+  type AcpSessionOverrides,
+} from "./sessionFactory";
+export {
+  acquireSharedAcpProcess,
+  shutdownSharedAcpProcesses,
+  type AcpSharedProcessLease,
+  type AcpSharedProcessMember,
+  type AcpSharedProcessOptions,
+  type AcpSharedProcessPrepare,
+  type AcpSharedProcessSpec,
+} from "./sharedProcess";
 export {
   authenticateAcpAgent,
   humanizeModelId,

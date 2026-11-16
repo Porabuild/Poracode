@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { UsageCredits, UsageSnapshot } from "@/shared/contracts";
+import { useHostUsageStore } from "./hostUsageStore";
 
 /**
  * Per-provider usage snapshots streamed from the supervisor (`provider-usage` /
@@ -74,6 +75,17 @@ export const useProviderUsageStore = create<ProviderUsageStore>()((set) => ({
 }));
 
 /** Narrow per-provider selector — re-renders only when this provider changes. */
-export function useProviderUsage(providerId: string): UsageSnapshot | undefined {
-  return useProviderUsageStore((s) => s.snapshots[providerId]);
+export function useProviderUsage(
+  providerId: string,
+  connectionId: string | null = null,
+): UsageSnapshot | undefined {
+  const managed = useProviderUsageStore((s) =>
+    connectionId === null ? s.snapshots[providerId] : undefined,
+  );
+  const remote = useHostUsageStore((s) =>
+    connectionId !== null
+      ? s.hosts[connectionId]?.snapshots.find((snapshot) => snapshot.providerId === providerId)
+      : undefined,
+  );
+  return connectionId === null ? managed : remote;
 }

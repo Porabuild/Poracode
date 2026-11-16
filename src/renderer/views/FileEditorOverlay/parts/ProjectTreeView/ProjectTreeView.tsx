@@ -31,6 +31,7 @@ import { ProjectTreeCreateMenu } from "./parts/ProjectTreeCreateMenu";
 import { TreeEntryRow } from "./parts/TreeEntryRow";
 import { useProjectTree } from "./parts/useProjectTree";
 import type { TreeDraftState } from "./parts/useProjectTree";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 
 type ProjectTreeRow =
   | { kind: "entry"; entry: ProjectTreeEntry; depth: number }
@@ -43,6 +44,7 @@ export function ProjectTreeView(props: {
   onPinFile?: (path: string) => void;
   compact?: boolean;
   compactActionsVisible?: boolean;
+  visible?: boolean;
 }) {
   const { t } = useLingui();
   const tree = useProjectTree(props);
@@ -116,7 +118,8 @@ export function ProjectTreeView(props: {
   return (
     <ContextMenu
       items={[
-        ...(props.rootContext.remoteServerId
+        // Only this machine's files can be revealed in its file explorer.
+        ...(!hostRunsOnThisMachine(props.rootContext)
           ? []
           : [
               {
@@ -313,7 +316,7 @@ export function ProjectTreeView(props: {
                       >
                         <ProjectTreeVirtualRow
                           row={row}
-                          canReveal={!props.rootContext.remoteServerId}
+                          canReveal={hostRunsOnThisMachine(props.rootContext)}
                           draft={tree.draft}
                           setDraft={tree.setDraft}
                           onSelectFile={(path) => void tree.handleSelectFile(path)}

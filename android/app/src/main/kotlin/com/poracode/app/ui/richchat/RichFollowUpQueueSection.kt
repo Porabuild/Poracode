@@ -5,19 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,9 +36,12 @@ import com.poracode.app.session.richchat.removeQueuedFollowUp
 import com.poracode.app.session.richchat.reorderQueuedFollowUp
 import com.poracode.app.session.richchat.resumeFollowUps
 import com.poracode.app.session.richchat.steerQueuedFollowUp
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * Follow-up queue section docked above the composer. All mutations go through
@@ -99,7 +95,7 @@ internal fun RichFollowUpQueueSection(
                         onClick = { reorder(scope, runtime, queue, index, up = true) },
                     ) {
                         Icon(
-                            Icons.Outlined.KeyboardArrowUp,
+                            PoracodeIcons.KeyboardArrowUp,
                             contentDescription = stringResource(R.string.rich_chat_queue_move_up),
                         )
                     }
@@ -108,7 +104,7 @@ internal fun RichFollowUpQueueSection(
                         onClick = { reorder(scope, runtime, queue, index, up = false) },
                     ) {
                         Icon(
-                            Icons.Outlined.KeyboardArrowDown,
+                            PoracodeIcons.KeyboardArrowDown,
                             contentDescription = stringResource(R.string.rich_chat_queue_move_down),
                         )
                     }
@@ -131,7 +127,7 @@ internal fun RichFollowUpQueueSection(
                         },
                     ) {
                         Icon(
-                            Icons.Outlined.Edit,
+                            PoracodeIcons.Edit,
                             contentDescription = stringResource(R.string.rich_chat_queue_edit),
                         )
                     }
@@ -142,7 +138,7 @@ internal fun RichFollowUpQueueSection(
                         },
                     ) {
                         Icon(
-                            Icons.Outlined.Close,
+                            PoracodeIcons.Close,
                             contentDescription = stringResource(R.string.rich_chat_queue_remove),
                         )
                     }
@@ -153,7 +149,7 @@ internal fun RichFollowUpQueueSection(
                         },
                     ) {
                         Icon(
-                            Icons.Outlined.PlayArrow,
+                            PoracodeIcons.PlayArrow,
                             contentDescription = stringResource(R.string.rich_chat_queue_steer_now),
                         )
                     }
@@ -176,7 +172,7 @@ internal fun RichFollowUpQueueSection(
             onDismissRequest = { editing = null },
             title = { Text(stringResource(R.string.rich_chat_queue_edit_title)) },
             text = {
-                OutlinedTextField(
+                PoracodeTextField(
                     value = draft,
                     onValueChange = { draft = it },
                     modifier = Modifier.fillMaxWidth(),
@@ -189,7 +185,7 @@ internal fun RichFollowUpQueueSection(
                 }
             },
             confirmButton = {
-                Button(
+                FilledTonalButton(
                     enabled = enabled && draft.isNotBlank(),
                     onClick = {
                         val captured = item

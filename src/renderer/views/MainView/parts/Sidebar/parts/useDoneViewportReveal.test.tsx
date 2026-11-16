@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { useDoneViewportReveal } from "./useDoneViewportReveal";
 
 const COLUMN_HEIGHT = 800;
@@ -90,6 +91,15 @@ describe("useDoneViewportReveal", () => {
 
   it("respects reduced motion", () => {
     const { rerender, animate } = renderCollapsed({ viewportHeight: 0, reducedMotion: true });
+
+    rerender(<Section collapsed={false} />);
+
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it("does not animate a section that mounts open while switching workspaces", () => {
+    const { rerender, animate } = renderCollapsed({ viewportHeight: 0 });
+    useWorkspaceStore.setState({ activeWorkspaceId: "switched-workspace" });
 
     rerender(<Section collapsed={false} />);
 

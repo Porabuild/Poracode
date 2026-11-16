@@ -1,4 +1,8 @@
-import { type EventTimingEntryLike, type LongTaskEntryLike } from "./performanceEntryAdapters";
+import {
+  type EventTimingEntryLike,
+  type LongAnimationFrameEntryLike,
+  type LongTaskEntryLike,
+} from "./performanceEntryAdapters";
 
 /** Event Timing `durationThreshold` floor (W3C Event Timing §3.3 step 5). */
 export const EVENT_TIMING_DURATION_THRESHOLD_MS = 16;
@@ -70,6 +74,8 @@ export interface RendererPerfLongTaskObserverState {
   readonly skippedEntryCount: number;
 }
 
+export type RendererPerfLongAnimationFrameObserverState = RendererPerfLongTaskObserverState;
+
 /** Recording and state-reporting surface an observer installation drives. */
 export interface PerformanceObserverSink {
   recordEventTimingEntries(entries: readonly EventTimingEntryLike[]): void;
@@ -79,6 +85,9 @@ export interface PerformanceObserverSink {
     thresholds: EventTimingDurationThreshold | null,
   ): void;
   markLongTaskObserver(status: "supported" | "unsupported"): void;
+  /** Optional: a sink without it gets no Long Animation Frames observer. */
+  recordLongAnimationFrameEntries?(entries: readonly LongAnimationFrameEntryLike[]): void;
+  markLongAnimationFrameObserver?(status: "supported" | "unsupported"): void;
 }
 
 /** Event Timing extension the DOM lib does not declare (W3C Event Timing §3.3). */
@@ -103,6 +112,7 @@ export function installPerformanceObservers(
   if (typeof PerformanceObserver !== "function") {
     sink.markEventTimingObserver("unsupported", null);
     sink.markLongTaskObserver("unsupported");
+    if (sink.recordLongAnimationFrameEntries) sink.markLongAnimationFrameObserver?.("unsupported");
     return () => undefined;
   }
   const supported = supportedEntryTypes();
@@ -130,6 +140,21 @@ export function installPerformanceObservers(
     { type: "longtask", buffered: false },
   );
   sink.markLongTaskObserver(longTaskInstalled ? "supported" : "unsupported");
+  const recordFrames = sink.recordLongAnimationFrameEntries?.bind(sink);
+  if (recordFrames && sink.markLongAnimationFrameObserver) {
+    // Chromium-only and attribution-heavy: require an explicit platform
+    // listing instead of the guarded-observe fallback the other types use.
+    const frameInstalled =
+      supported?.includes("long-animation-frame") === true &&
+      installObserver(
+        supported,
+        "long-animation-frame",
+        observers,
+        (list) => recordFrames(list.getEntries() as readonly LongAnimationFrameEntryLike[]),
+        { type: "long-animation-frame", buffered: false },
+      );
+    sink.markLongAnimationFrameObserver(frameInstalled ? "supported" : "unsupported");
+  }
   return () => {
     for (const observer of observers.splice(0)) disconnectQuietly(observer);
   };

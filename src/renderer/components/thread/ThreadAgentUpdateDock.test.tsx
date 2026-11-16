@@ -194,7 +194,7 @@ describe("ThreadAgentUpdateDock", () => {
     render(<ThreadAgentUpdateDock agentStatus={sdkStatus} project={project} />);
 
     expect(
-      await screen.findByText(/Cursor SDK: This computer · v1\.0\.38 → v1\.0\.40/u),
+      await screen.findByText(/Cursor SDK: Local · v1\.0\.38 → v1\.0\.40/u),
     ).toBeInTheDocument();
     expect(screen.queryByText(/2026\.07\.09/u)).toBeNull();
     expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalledWith({
@@ -262,9 +262,7 @@ describe("ThreadAgentUpdateDock", () => {
     );
 
     expect(
-      await screen.findByText(
-        /Cursor: This computer · v2026\.07\.09-a3815c0 → v2026\.07\.23-e383d2b/u,
-      ),
+      await screen.findByText(/Cursor: Local · v2026\.07\.09-a3815c0 → v2026\.07\.23-e383d2b/u),
     ).toBeInTheDocument();
     expect(bridgeMock.getLatestAgentVersion).toHaveBeenCalledWith({ agentKind: "cursor" });
 
@@ -311,6 +309,128 @@ describe("ThreadAgentUpdateDock", () => {
       agentKinds: ["antigravity"],
       envs: [{ kind: "native" }],
     });
+  });
+
+  it("keeps Updating visible until combined runtime probing finishes after a streamed version update", async () => {
+    const installed = antigravityStatus("1.2.0", "1.0.0");
+    delete installed.envKind;
+    const refreshed = antigravityStatus("1.3.0", "1.1.0");
+    const onUpdatingChange = vi.fn<(updating: boolean) => void>();
+    let finishProbe!: (result: AgentStatusesResponse) => void;
+    bridgeMock.getLatestAgentVersion.mockResolvedValue({ version: "1.3.0", source: "npm" });
+    bridgeMock.refreshAgentStatuses.mockReturnValue(
+      new Promise((resolve) => {
+        finishProbe = resolve;
+      }),
+    );
+    const view = render(
+      <ThreadAgentUpdateDock
+        agentStatus={installed}
+        project={project}
+        onUpdatingChange={onUpdatingChange}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+    await vi.waitFor(() => expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledOnce());
+    view.rerender(
+      <ThreadAgentUpdateDock
+        agentStatus={refreshed}
+        project={project}
+        onUpdatingChange={onUpdatingChange}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Updating/u })).toBeDisabled();
+    expect(onUpdatingChange).toHaveBeenLastCalledWith(true);
+    expect(toastMock.success).not.toHaveBeenCalled();
+    await act(async () => {
+      view.rerender(
+        <ThreadAgentUpdateDock
+          agentStatus={{ ...refreshed, envKind: "wsl", envDistro: "OtherDistro" }}
+          project={project}
+          onUpdatingChange={onUpdatingChange}
+        />,
+      );
+    });
+    expect(screen.queryByRole("button", { name: /Updating/u })).not.toBeInTheDocument();
+    view.rerender(
+      <ThreadAgentUpdateDock
+        agentStatus={refreshed}
+        project={project}
+        onUpdatingChange={onUpdatingChange}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Updating/u })).toBeDisabled();
+    await act(async () => finishProbe({ windows: [refreshed], wsl: [], fromCache: false }));
+    expect(screen.queryByRole("button", { name: /Updating/u })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
+    expect(onUpdatingChange).toHaveBeenLastCalledWith(false);
+    expect(toastMock.success).toHaveBeenCalledWith("Antigravity updated.");
+  });
+
+  it("keeps Updating visible until single runtime probing finishes after a streamed version update", async () => {
+    const installed = { ...sdkStatus };
+    delete installed.envKind;
+    const refreshed = {
+      ...sdkStatus,
+      runtimeVariants: {
+        ...sdkStatus.runtimeVariants,
+        sdk: { ...sdkStatus.runtimeVariants!.sdk!, version: "1.0.40" },
+      },
+    };
+    const onUpdatingChange = vi.fn<(updating: boolean) => void>();
+    let finishProbe!: (result: AgentStatusesResponse) => void;
+    bridgeMock.refreshAgentStatuses.mockReturnValue(
+      new Promise((resolve) => {
+        finishProbe = resolve;
+      }),
+    );
+    const view = render(
+      <ThreadAgentUpdateDock
+        agentStatus={installed}
+        project={project}
+        onUpdatingChange={onUpdatingChange}
+      />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Update" }));
+    await act(async () => runAgentInstallCommandMock.mock.calls[0]?.[0].onCommandComplete?.(0));
+    expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledOnce();
+    view.rerender(
+      <ThreadAgentUpdateDock
+        agentStatus={refreshed}
+        project={project}
+        onUpdatingChange={onUpdatingChange}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Updating/u })).toBeDisabled();
+    expect(onUpdatingChange).toHaveBeenLastCalledWith(true);
+    expect(toastMock.success).not.toHaveBeenCalled();
+    await act(async () => {
+      view.rerender(
+        <ThreadAgentUpdateDock
+          agentStatus={{ ...refreshed, envKind: "wsl", envDistro: "OtherDistro" }}
+          project={project}
+          onUpdatingChange={onUpdatingChange}
+        />,
+      );
+    });
+    expect(screen.queryByRole("button", { name: /Updating/u })).not.toBeInTheDocument();
+    view.rerender(
+      <ThreadAgentUpdateDock
+        agentStatus={refreshed}
+        project={project}
+        onUpdatingChange={onUpdatingChange}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /Updating/u })).toBeDisabled();
+    await act(async () => finishProbe({ windows: [refreshed], wsl: [], fromCache: false }));
+    expect(screen.queryByRole("button", { name: /Updating/u })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Update" })).not.toBeInTheDocument();
+    expect(onUpdatingChange).toHaveBeenLastCalledWith(false);
+    expect(toastMock.success).toHaveBeenCalledWith("Cursor SDK updated to v1.0.40.");
   });
 
   it("shows only the Antigravity runtime that needs an update", async () => {

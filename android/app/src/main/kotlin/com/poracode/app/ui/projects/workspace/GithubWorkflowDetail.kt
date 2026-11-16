@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +32,7 @@ import com.poracode.app.model.ProjectWorkspaceTarget
 import com.poracode.app.protocol.github.GithubProcedure
 import com.poracode.app.session.projects.GithubOperationsController
 import com.poracode.app.session.projects.GithubOperationsEntry
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -81,7 +81,7 @@ internal fun GithubWorkflowDetail(
                 }
             }
             item("ref") {
-                OutlinedTextField(
+                PoracodeTextField(
                     value = ref,
                     onValueChange = { ref = it },
                     label = { Text(stringResource(R.string.github_ref)) },
@@ -92,7 +92,7 @@ internal fun GithubWorkflowDetail(
         }
         items(inputs.size, key = { inputs[it].name }) { index ->
             val input = inputs[index]
-            OutlinedTextField(
+            PoracodeTextField(
                 value = inputValues[input.name].orEmpty(),
                 onValueChange = { inputValues[input.name] = it },
                 label = { Text(input.name) },

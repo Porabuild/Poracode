@@ -136,7 +136,11 @@ export function useKeyboardGeometry(): KeyboardGeometry {
         );
       }
       keyboardDebug("keyboard-geometry", { ...next });
-      setGeometry({ liftOffset: next.liftOffset, visibilityOffset: next.visibilityOffset });
+      setGeometry((current) =>
+        current.liftOffset === next.liftOffset && current.visibilityOffset === next.visibilityOffset
+          ? current
+          : { liftOffset: next.liftOffset, visibilityOffset: next.visibilityOffset },
+      );
     };
     update();
     viewport.addEventListener("resize", update);

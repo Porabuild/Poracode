@@ -10,7 +10,16 @@ const mocks = vi.hoisted(() => ({
   launch: vi.fn<(...args: unknown[]) => Promise<void>>(),
   create: vi.fn<() => unknown>(),
   bind: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  settle: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  applyRuntimeEvent: vi.fn<(...args: unknown[]) => void>(),
+  updateThreadRuntime: vi.fn<(...args: unknown[]) => void>(),
+  captureContext: vi.fn<() => Promise<{ conversationSnapshot: { text: string } }>>(),
+  owned: ["child"] as string[],
   threads: [] as Array<Record<string, unknown>>,
+}));
+vi.mock("@/renderer/actions/clientDraftSubmission", () => ({
+  settleClientSubmission: mocks.settle,
+  materializeDraftSegments: async (_target: unknown, segments: unknown) => segments,
 }));
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
@@ -19,6 +28,9 @@ vi.mock("@/renderer/state/appStore", () => ({
       createThread: mocks.create,
       deleteThread: vi.fn<() => void>(),
       openThread: vi.fn<() => void>(),
+      applyRuntimeEvent: mocks.applyRuntimeEvent,
+      updateThreadRuntime: mocks.updateThreadRuntime,
+      requestChatScrollToPrompt: vi.fn<() => void>(),
     }),
   },
 }));
@@ -29,14 +41,15 @@ vi.mock("@/renderer/state/useThread", () => ({
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({
     bindSideChatThread: mocks.bind,
-    getSideChatThreadIds: async () => ["child"],
+    getSideChatThreadIds: async () => mocks.owned,
   }),
 }));
 vi.mock("@/renderer/state/remoteServersStore", () => ({
-  useRemoteServersStore: { getState: () => ({ launchRemoteThread: mocks.launch }) },
+  useRemoteServersStore: { getState: () => ({}) },
 }));
+// Side chats launch through the same action as every thread, on any host.
 vi.mock("@/renderer/actions/threadLaunchActions", () => ({
-  performInitialThreadLaunch: vi.fn<() => void>(),
+  performInitialThreadLaunch: mocks.launch,
   markThreadLaunchFailed: vi.fn<() => void>(),
 }));
 vi.mock("@/renderer/actions/threadActions", () => ({
@@ -49,7 +62,7 @@ vi.mock("@/renderer/state/chatRuntimePersister", () => ({
 }));
 vi.mock("./sideChatPanelStore", () => ({ updateSideChatPanelDraft: vi.fn<() => void>() }));
 vi.mock("./sideChatTurnContext", () => ({
-  captureSideChatTurnContext: async () => ({ conversationSnapshot: { text: "latest parent" } }),
+  captureSideChatTurnContext: () => mocks.captureContext(),
 }));
 import { useSideChatSession } from "./useSideChatSession";
 import { useSideChatLaunchState } from "./sideChatLaunchState";
@@ -77,7 +90,13 @@ beforeEach(() => {
   setAuxiliaryThreadIds([]);
   useSideChatLaunchState.setState({ threadIds: new Set() });
   mocks.threads = [];
+  mocks.owned = ["child"];
+  mocks.launch.mockReset().mockResolvedValue();
+  mocks.settle.mockResolvedValue();
   mocks.bind.mockResolvedValue();
+  mocks.captureContext
+    .mockReset()
+    .mockResolvedValue({ conversationSnapshot: { text: "latest parent" } });
   mocks.create.mockImplementation(() => {
     const row = {
       id: "child",
@@ -85,6 +104,7 @@ beforeEach(() => {
       agentKind: "neutral-gui",
       config: {},
       title: "Side chat",
+      presentationMode: "gui",
       remoteServerId: "host",
       remoteId: "host-child",
     };
@@ -119,7 +139,7 @@ it("keeps an explicitly selected Plan mode on the same side-chat draft", () => {
   hook.unmount();
 });
 
-it("keeps a hidden panel's pending remote launch owned and prevents remount from duplicating it", async () => {
+it("keeps a hidden panel's pending launch in flight and prevents remount from duplicating it", async () => {
   let finish!: () => void;
   mocks.launch.mockImplementation(
     () =>
@@ -134,10 +154,12 @@ it("keeps a hidden panel's pending remote launch owned and prevents remount from
     await Promise.resolve();
   });
   expect(mocks.launch).toHaveBeenCalledTimes(1);
-  const options = mocks.launch.mock.calls[0]?.[1] as { isPendingLaunchOwned: () => boolean };
+  // The launch carries the paired host's thread identity.
+  expect(mocks.launch).toHaveBeenCalledWith(
+    expect.objectContaining({ thread: expect.objectContaining({ id: "child" }) }),
+  );
   setAuxiliaryThreadIds(["child"]);
   first.unmount();
-  expect(options.isPendingLaunchOwned()).toBe(true);
   const restored = renderHook(
     () => useSideChatSession({ ...entry, existingThreadId: "child", prompt: "question" }, "panel"),
     { wrapper },
@@ -149,7 +171,6 @@ it("keeps a hidden panel's pending remote launch owned and prevents remount from
   expect(mocks.launch).toHaveBeenCalledTimes(1);
   expect(mocks.create).toHaveBeenCalledTimes(1);
   setAuxiliaryThreadIds([]);
-  expect(options.isPendingLaunchOwned()).toBe(false);
   await act(async () => {
     finish();
     await pending;
@@ -178,7 +199,7 @@ it("never submits typed draft updates or restored unsent text automatically", ()
 });
 
 it.each(["panel", "window"] as const)(
-  "appends selected text to a live %s draft without submitting",
+  "adds selection chips to a live %s draft without replacing or submitting text",
   (surface) => {
     const hook = renderHook(() => useSideChatSession({ ...entry, autoStart: false }, surface), {
       wrapper,
@@ -187,14 +208,46 @@ it.each(["panel", "window"] as const)(
     act(() =>
       useComposerInputInbox
         .getState()
-        .enqueue("side-chat:entry", [{ kind: "text", content: "quote" }]),
+        .enqueue("side-chat:entry", [{ kind: "text", content: "quote", selection: true }]),
     );
-    expect(hook.result.current.prompt).toBe("unsent draft\n\nquote");
+    expect(hook.result.current.prompt).toBe("unsent draft");
+    expect(hook.result.current.draftSegments).toEqual([
+      { kind: "text", content: "quote", selection: true },
+    ]);
     expect(useComposerInputInbox.getState().itemsByComposer["side-chat:entry"]).toBeUndefined();
     expect(mocks.launch).not.toHaveBeenCalled();
     hook.unmount();
+    expect(mocks.bind).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "quote\n\nunsent draft",
+        segments: [{ kind: "text", content: "quote", selection: true }],
+      }),
+    );
   },
 );
+
+it("restores a side draft with its selected text separate from the typed question", () => {
+  const hook = renderHook(
+    () =>
+      useSideChatSession(
+        {
+          ...entry,
+          autoStart: false,
+          prompt: "first\n\nsecond\n\nquestion",
+          segments: [
+            { kind: "text", content: "first", selection: true },
+            { kind: "text", content: "second", selection: true },
+          ],
+        },
+        "panel",
+      ),
+    { wrapper },
+  );
+  expect(hook.result.current.prompt).toBe("question");
+  expect(hook.result.current.draftSegments).toHaveLength(2);
+  expect(mocks.launch).not.toHaveBeenCalled();
+  hook.unmount();
+});
 
 it("never creates a new thread over a retained child that is outside the resident catalog", async () => {
   const hook = renderHook(
@@ -208,5 +261,82 @@ it("never creates a new thread over a retained child that is outside the residen
   });
   expect(mocks.create).not.toHaveBeenCalled();
   expect(mocks.launch).not.toHaveBeenCalled();
+  hook.unmount();
+});
+
+it("settles a child closed during binding as a definite pre-launch cancellation", async () => {
+  let finish!: () => void;
+  mocks.bind.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const hook = renderHook(() => useSideChatSession({ ...entry, autoStart: false }, "panel"), {
+    wrapper,
+  });
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = hook.result.current.start("retained question");
+    await Promise.resolve();
+  });
+  expect(mocks.bind).toHaveBeenCalledOnce();
+  mocks.owned = [];
+  hook.unmount();
+  await act(async () => {
+    finish();
+    await pending;
+  });
+  expect(mocks.launch).not.toHaveBeenCalled();
+  expect(mocks.settle).toHaveBeenCalledWith(entry.id, "failed");
+});
+
+it("transitions to the thread view and paints the optimistic message before context or launch settles", async () => {
+  let resolveContext!: (value: { conversationSnapshot: { text: string } }) => void;
+  let resolveLaunch!: () => void;
+  mocks.captureContext.mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveContext = resolve;
+    }),
+  );
+  mocks.launch.mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      resolveLaunch = resolve;
+    }),
+  );
+  const hook = renderHook(() => useSideChatSession({ ...entry, autoStart: false }, "panel"), {
+    wrapper,
+  });
+  let pending!: Promise<void>;
+  act(() => {
+    pending = hook.result.current.start("instant question");
+  });
+  // Before context capture or provider launch resolves, threadId is set and the
+  // optimistic user_message + working status are already painted!
+  expect(hook.result.current.threadId).toBe("child");
+  expect(mocks.applyRuntimeEvent).toHaveBeenCalledWith(
+    "child",
+    expect.objectContaining({ type: "item.started", itemType: "user_message" }),
+  );
+  expect(mocks.updateThreadRuntime).toHaveBeenCalledWith(
+    "child",
+    expect.objectContaining({ status: "working", attention: "working" }),
+  );
+  expect(mocks.launch).not.toHaveBeenCalled();
+
+  await act(async () => {
+    resolveContext({ conversationSnapshot: { text: "parent context" } });
+    await Promise.resolve();
+  });
+  expect(mocks.launch).toHaveBeenCalledWith(
+    expect.objectContaining({
+      prompt: "instant question",
+      userMessageItemId: expect.stringMatching(/^user-/),
+      clientContext: { conversationSnapshot: { text: "parent context" } },
+    }),
+  );
+  await act(async () => {
+    resolveLaunch();
+    await pending;
+  });
   hook.unmount();
 });

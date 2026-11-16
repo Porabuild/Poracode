@@ -191,23 +191,33 @@ export function mapMuseMspItem(
 
   const events: RuntimeEvent[] = [];
 
-  if (kind === "agentMessage" || kind === "assistantMessage" || kind === "message") {
-    const text = stringValue(item["text"]) ?? "";
+  if (
+    kind === "agentMessage" ||
+    kind === "assistantMessage" ||
+    kind === "message" ||
+    kind === "reasoning"
+  ) {
+    const reasoning = kind === "reasoning";
+    const text = reasoning ? museItemText(item) : (stringValue(item["text"]) ?? "");
     const lifecycle = emitItemLifecycle(
       state,
       itemId,
-      "assistant_message",
-      { content: [{ kind: "text", text }] },
+      reasoning ? "reasoning" : "assistant_message",
+      reasoning ? {} : { content: [{ kind: "text", text }] },
       phase,
     );
-    if (phase !== "completed" && text && !state.streamedItemIds.has(itemId)) {
-      lifecycle.push({
+    // MSP v1 permits a completion without an observed open/delta. Preserve
+    // its reply for stream consumers before closing the canonical item.
+    if (text && !state.streamedItemIds.has(itemId)) {
+      const delta: RuntimeEvent = {
         type: "content.delta",
         threadId: state.threadId,
         itemId,
-        stream: "assistant_text",
+        stream: reasoning ? "reasoning_text" : "assistant_text",
         delta: text,
-      });
+      };
+      const completedIndex = lifecycle.findIndex((event) => event.type === "item.completed");
+      lifecycle.splice(completedIndex < 0 ? lifecycle.length : completedIndex, 0, delta);
       state.streamedItemIds.add(itemId);
     }
     return lifecycle;
@@ -237,24 +247,6 @@ export function mapMuseMspItem(
       });
     }
     return events;
-  }
-
-  if (kind === "reasoning") {
-    const text = museItemText(item);
-    const lifecycle = emitItemLifecycle(state, itemId, "reasoning", {}, phase);
-    if (text && !state.streamedItemIds.has(itemId)) {
-      const delta: RuntimeEvent = {
-        type: "content.delta",
-        threadId: state.threadId,
-        itemId,
-        stream: "reasoning_text",
-        delta: text,
-      };
-      const completedIndex = lifecycle.findIndex((event) => event.type === "item.completed");
-      lifecycle.splice(completedIndex < 0 ? lifecycle.length : completedIndex, 0, delta);
-      state.streamedItemIds.add(itemId);
-    }
-    return lifecycle;
   }
 
   if (kind === "toolCall") {

@@ -31,6 +31,7 @@ import {
   BUILT_IN_MCP_SERVER_NAMES,
   DEFAULT_MCP_SERVER_TIMEOUT_MS,
   resolveEnabledMcpServers,
+  resolveLaunchPluginOverrides,
 } from "@/shared/contracts";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import { msg } from "@/shared/messages";
@@ -118,6 +119,7 @@ import {
 import {
   publishUnpublishedStartInterruption,
   retainUnpublishedStartSessionRef,
+  type StartThreadAttemptOutcome,
 } from "./unpublishedStartFailure";
 import { describeSpawnFailure, sanitizeEnv, sanitizedProcessEnv } from "./spawnDiagnostics";
 import type { SessionRuntimeLifecycle } from "./sessionRuntimeLifecycle";
@@ -309,12 +311,17 @@ export function composeResolvedMcpServers(
     approvalMode?: "approve",
   ): ResolvedMcpServer | undefined => {
     const disabledTools = config?.disabledTools ?? snapshot.disabledBuiltInMcpTools?.[id];
-    return config
+    const transport = config
+      ? { type: "http" as const, url: config.url, headers: config.headers }
+      : undefined;
+    return transport
       ? {
           id,
           name: BUILT_IN_MCP_SERVER_NAMES[id],
           timeoutMs,
-          transport: { type: "http", url: config.url, headers: config.headers },
+          transport,
+          // Built-in ingresses enforce the launch's tool restrictions themselves.
+          directTransport: transport,
           ...(disabledTools && disabledTools.length > 0
             ? { disabledTools: [...disabledTools] }
             : {}),
@@ -422,6 +429,7 @@ export class SpawnPipeline {
       resourceLease?: HostResourceLease;
       /** Live generation being replaced; successor starts only after its release. */
       predecessorLease?: HostResourceLease;
+      attemptOutcome?: StartThreadAttemptOutcome;
     },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
@@ -469,14 +477,17 @@ export class SpawnPipeline {
     const requestedPresentation = payload.presentationMode ?? adapter.capabilities.presentationMode;
     const usesTerminalPresentation = requestedPresentation === "terminal";
     const useStructuredFlow = isServerControlled || !usesTerminalPresentation;
+    // Project switches sit beneath the thread's own choices; both are re-read per launch.
+    const launchPluginOverrides = resolveLaunchPluginOverrides(
+      payload.projectPluginOverrides,
+      runtimeConfig.pluginOverrides,
+    );
     const pluginContributions = (await ctx.options.resolvePluginLaunchContributions?.(
       executionLocation,
       payload.agentKind,
       {
         includeExternalServers: true,
-        ...(runtimeConfig.pluginOverrides
-          ? { pluginOverrides: runtimeConfig.pluginOverrides }
-          : {}),
+        ...(launchPluginOverrides ? { pluginOverrides: launchPluginOverrides } : {}),
         ...(payload.segments?.some((segment) => segment.kind === "skill" && segment.pluginId)
           ? { nativePluginAdapter: adapter }
           : {}),
@@ -504,9 +515,7 @@ export class SpawnPipeline {
           presentationMode: requestedPresentation,
           nativePlugins,
           segments: wslSegments,
-          ...(runtimeConfig.pluginOverrides
-            ? { pluginOverrides: runtimeConfig.pluginOverrides }
-            : {}),
+          ...(launchPluginOverrides ? { pluginOverrides: launchPluginOverrides } : {}),
         })) ?? wslSegments)
       : wslSegments;
     let effectiveSegments =
@@ -577,6 +586,9 @@ export class SpawnPipeline {
       disabledBuiltInMcpServerIds: payload.disabledBuiltInMcpServerIds ?? [],
       disabledBuiltInMcpTools: payload.disabledBuiltInMcpTools ?? {},
       pluginBuiltInMcpServerIds: pluginContributions.builtInMcpServerIds,
+      ...(payload.projectPluginOverrides
+        ? { projectPluginOverrides: payload.projectPluginOverrides }
+        : {}),
     };
     const optimisticMcpLaunchSnapshot: McpLaunchSnapshot = {
       mcpServers: [],
@@ -635,9 +647,23 @@ export class SpawnPipeline {
         { defer: adapter.supportsDeferredMcpAuthorization === true },
       );
     }
+    if (requestedPresentation === "gui" && this.ctx.options.mcpApps) {
+      mcpServers = await this.ctx.options.mcpApps.prepare(
+        payload.threadId,
+        mcpServers,
+        executionLocation,
+      );
+    }
     if (this.ctx.options.prepareMcpToolFilters) {
       mcpServers = await this.ctx.options.prepareMcpToolFilters(mcpServers, executionLocation, {
+        ...(requestedPresentation === "gui" && this.ctx.options.mcpApps
+          ? { remoteViaStdio: true }
+          : {}),
         ...(adapter.mcpRequiresStdioCwdProxy ? { proxyStdioCwd: true } : {}),
+        ...(adapter.mcpRequiresPortableSchemaPatterns ? { omitInvalidSchemaPatterns: true } : {}),
+        ...(adapter.mcpMaxSchemaDepth !== undefined
+          ? { maxSchemaDepth: adapter.mcpMaxSchemaDepth }
+          : {}),
         ...(requestedPresentation === "gui" && adapter.mcpRequiresConnectionFailureIsolation
           ? { isolateConnectionFailures: true }
           : {}),
@@ -790,6 +816,7 @@ export class SpawnPipeline {
               structuredSession.openThread!(launchConfig, payload.sessionRef),
             )
           : await structuredSession.openThread(launchConfig, payload.sessionRef);
+        if (payload.attemptOutcome) payload.attemptOutcome.providerSessionTouched = true;
       } catch (error) {
         // Capture before dispose: some handles retire their getter with their
         // transport. Failed configuration must not lose an allocated identity.
@@ -798,6 +825,9 @@ export class SpawnPipeline {
           allocatedRef = structuredSession.getSessionRef?.();
         } catch {
           // A broken optional getter must not bypass owned-handle retirement.
+        }
+        if (allocatedRef && payload.attemptOutcome) {
+          payload.attemptOutcome.providerSessionTouched = true;
         }
         // Custody follows the presentation this pipeline actually opened, not
         // the base terminal capability: a GUI runtime's declared resume support
@@ -930,6 +960,7 @@ export class SpawnPipeline {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
+          ...(payload.questionAnswer ? { questionAnswer: payload.questionAnswer } : {}),
           ...structuredTurnTextOptions(session, { ...initialTurnText, config: launchConfig }),
         };
         void structuredSession
@@ -982,6 +1013,7 @@ export class SpawnPipeline {
         },
         { ...initialTurnText, config: launchConfig },
       );
+      if (payload.attemptOutcome) payload.attemptOutcome.launchTurnDispatched = true;
       void structuredSession
         .startTurn(
           initialPrompt,
@@ -1380,6 +1412,7 @@ export class SpawnPipeline {
             : undefined;
         const startOptions = {
           userMessageItemId: optimisticItemId,
+          ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
           ...textOptions,
           ...(onPromptSubmitted ? { onPromptSubmitted } : {}),
         };
@@ -1578,12 +1611,10 @@ export class SpawnPipeline {
     // GUI threads have no terminal scrollback, and clearing the slice would
     // wipe the optimistic user_message we may have already painted ahead of
     // structured-session setup. Skip the reset for any GUI-presentation
-    // thread (initial launch, resume, restart all run through here).
+    // thread, and emit for terminal threads only once `createPty` succeeds so
+    // a pre-spawn failure never wipes persisted scrollback.
     const isGuiPresentation =
       input.presentationMode !== undefined && input.presentationMode !== "terminal";
-    if (!isGuiPresentation) {
-      ctx.options.emit({ type: "thread-reset", threadId: input.threadId });
-    }
 
     const agentEnv = this.resolveAgentProcessEnv(input.adapter, input.projectLocation);
     const cliHookEnvInjected = Boolean(input.extraEnv?.PORACODE_HOOK_URL);
@@ -1669,6 +1700,9 @@ export class SpawnPipeline {
     const session: SessionRuntime = {
       instanceId: randomUUID(),
       threadId: input.threadId,
+      ...(ctx.options.mcpApps
+        ? { mcpAppContext: () => ctx.options.mcpApps!.modelContext(input.threadId) }
+        : {}),
       agentKind: input.agentKind,
       adapter: input.adapter,
       ...(pty ? { pty } : {}),
@@ -1713,6 +1747,7 @@ export class SpawnPipeline {
         : {}),
       ...(input.sessionRef ? { sessionRef: input.sessionRef } : {}),
       status: input.initialStatus ?? "launching",
+      ...(input.initialStatus === "working" ? { interruptedTurn: null } : {}),
       attention: input.initialAttention ?? "none",
       canResumeWithConfig: input.sessionRef !== undefined,
       outputLength: 0,
@@ -1734,6 +1769,9 @@ export class SpawnPipeline {
       session.initialInstructionsApplied = true;
       ctx.outputPipeline.emitState(session);
     };
+    if (!isGuiPresentation) {
+      ctx.options.emit({ type: "thread-reset", threadId: input.threadId });
+    }
     ctx.sessionRuntimeLifecycle.attach(session);
     // The process effect exists once the runtime is published: a PTY spawn
     // succeeded and/or a structured handle is attached. Idempotent.
@@ -2035,14 +2073,16 @@ export class SpawnPipeline {
           : {}),
         resolveMcpServersForTurn: async (turnConfig, isCurrent) => {
           if (!isCurrent()) return [];
+          const turnPluginOverrides = resolveLaunchPluginOverrides(
+            mcpLaunchSnapshot.projectPluginOverrides,
+            turnConfig.pluginOverrides,
+          );
           const contributions = await this.ctx.options.resolvePluginLaunchContributions?.(
             projectLocation,
             agentKind,
             {
               includeExternalServers: false,
-              ...(turnConfig.pluginOverrides
-                ? { pluginOverrides: turnConfig.pluginOverrides }
-                : {}),
+              ...(turnPluginOverrides ? { pluginOverrides: turnPluginOverrides } : {}),
             },
           );
           if (!isCurrent()) return [];
@@ -2105,7 +2145,11 @@ export class SpawnPipeline {
       if (error instanceof MockAgentLaunchBlockedError) {
         throw error;
       }
-      const diagnosticError = new StructuredRuntimeDiagnosticError("session-creation", agentKind);
+      const diagnosticError = new StructuredRuntimeDiagnosticError(
+        "session-creation",
+        agentKind,
+        error,
+      );
       if (workspaceScope?.additionalDirectories.length || presentationMode === "gui") {
         // The startThread IPC boundary owns GUI startup failures. Throw one
         // privacy-safe classified error instead of capturing here and then
@@ -2138,6 +2182,8 @@ export class SpawnPipeline {
       launchConfig,
       canResumeWithConfig: false,
       threadStatusSource: "server",
+      // A prompt is starting a turn: any earlier cut-off turn is now handled.
+      interruptedTurn: null,
     });
   }
 }

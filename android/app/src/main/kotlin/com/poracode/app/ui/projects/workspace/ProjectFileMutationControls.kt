@@ -3,20 +3,11 @@ package com.poracode.app.ui.projects.workspace
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
-import androidx.compose.material.icons.automirrored.outlined.NoteAdd
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.CreateNewFolder
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -29,6 +20,8 @@ import androidx.compose.ui.res.stringResource
 import com.poracode.app.R
 import com.poracode.app.model.ProjectFileEntry
 import com.poracode.app.session.projects.ProjectEntryMutation
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 
 private sealed interface MutationEditor {
     data class Create(val parent: String, val type: ProjectEntryMutation.Type) : MutationEditor
@@ -46,12 +39,12 @@ internal fun ProjectDirectoryActions(
     var expanded by remember { mutableStateOf(false) }
     var editor by remember { mutableStateOf<MutationEditor?>(null) }
     IconButton(onClick = { expanded = true }, enabled = enabled) {
-        Icon(Icons.AutoMirrored.Outlined.NoteAdd, stringResource(R.string.workspace_create_entry))
+        Icon(PoracodeIcons.NoteAdd, stringResource(R.string.workspace_create_entry))
     }
     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.workspace_create_file)) },
-            leadingIcon = { Icon(Icons.AutoMirrored.Outlined.NoteAdd, contentDescription = null) },
+            leadingIcon = { Icon(PoracodeIcons.NoteAdd, contentDescription = null) },
             onClick = {
                 expanded = false
                 editor = MutationEditor.Create(directoryPath, ProjectEntryMutation.Type.File)
@@ -59,7 +52,7 @@ internal fun ProjectDirectoryActions(
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.workspace_create_folder)) },
-            leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, contentDescription = null) },
+            leadingIcon = { Icon(PoracodeIcons.CreateNewFolder, contentDescription = null) },
             onClick = {
                 expanded = false
                 editor = MutationEditor.Create(directoryPath, ProjectEntryMutation.Type.Directory)
@@ -76,49 +69,49 @@ internal fun ProjectDirectoryActions(
 
 @Composable
 internal fun ProjectFileRowActions(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
     entry: ProjectFileEntry,
     rootPath: String,
     enabled: Boolean,
     onMutation: (ProjectEntryMutation) -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
     var editor by remember { mutableStateOf<MutationEditor?>(null) }
     val context = LocalContext.current
-    IconButton(onClick = { expanded = true }, enabled = enabled) {
-        Icon(Icons.Outlined.MoreVert, stringResource(R.string.workspace_file_actions, entry.name))
-    }
-    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+    androidx.compose.foundation.layout.Box {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.workspace_rename)) },
-            leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
-            onClick = { expanded = false; editor = MutationEditor.Rename(entry) },
+            leadingIcon = { Icon(PoracodeIcons.Edit, contentDescription = null) },
+            onClick = { onDismiss(); editor = MutationEditor.Rename(entry) },
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.workspace_move)) },
-            leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, contentDescription = null) },
-            onClick = { expanded = false; editor = MutationEditor.Move(entry) },
+            leadingIcon = { Icon(PoracodeIcons.DriveFileMove, contentDescription = null) },
+            onClick = { onDismiss(); editor = MutationEditor.Move(entry) },
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.workspace_delete)) },
-            leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
-            onClick = { expanded = false; editor = MutationEditor.Delete(entry) },
+            leadingIcon = { Icon(PoracodeIcons.Delete, contentDescription = null) },
+            onClick = { onDismiss(); editor = MutationEditor.Delete(entry) },
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.workspace_copy_relative_path)) },
-            leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+            leadingIcon = { Icon(PoracodeIcons.ContentCopy, contentDescription = null) },
             onClick = {
-                expanded = false
+                onDismiss()
                 copyToClipboard(context, entry.name, entry.path)
             },
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.workspace_copy_absolute_path)) },
-            leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+            leadingIcon = { Icon(PoracodeIcons.ContentCopy, contentDescription = null) },
             onClick = {
-                expanded = false
+                onDismiss()
                 copyToClipboard(context, entry.name, absoluteFilePath(rootPath, entry.path))
             },
         )
+    }
     }
     editor?.let { current ->
         ProjectEntryMutationDialog(current, { editor = null }) {
@@ -181,7 +174,7 @@ private fun ProjectEntryMutationDialog(
                     ),
                 )
             } else {
-                OutlinedTextField(
+                PoracodeTextField(
                     value = value,
                     onValueChange = { value = it },
                     label = {

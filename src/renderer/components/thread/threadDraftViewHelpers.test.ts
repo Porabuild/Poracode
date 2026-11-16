@@ -7,6 +7,7 @@ import {
   resolveApprovalPolicyValue,
   resolveFastValue,
   resolveProviderDraftConfig,
+  resolveSandboxModeValue,
   resolveSavedProviderDraftConfig,
   resolveThinkingValue,
 } from "./threadDraftViewHelpers";
@@ -119,6 +120,37 @@ describe("resolveProviderDraftConfig fast mode", () => {
   it("leaves Fast off when the account cannot use it", () => {
     const gated = agentWith({ fastDisabledReason: "Fast requests are disabled for this account." });
     expect(resolveProviderDraftConfig(gated, { model: "fast-capable" }).fast).toBeUndefined();
+  });
+
+  it("clears a saved Fast=true when the selected family member cannot carry it", () => {
+    // A config-bound family: Fast is an independent carrier, so a member the
+    // declared fastModels list does not name (for example a Fable 5.1 pair
+    // with no Fast sibling) must never keep a stale true.
+    const configBound = {
+      ...capabilities,
+      models: [...capabilities.models, { id: "fusion-a-b", label: "Fusion A B" }],
+      fastModels: [] as string[],
+      modelFamilies: [
+        {
+          model: "fusion-a-b",
+          label: "Fusion",
+          selectors: [
+            { id: "lead", labelKey: "modelSelection.lead", options: [{ id: "a", label: "A" }] },
+            {
+              id: "sidekick",
+              labelKey: "modelSelection.sidekick",
+              options: [{ id: "b", label: "B" }],
+            },
+          ],
+          bindings: { effort: "config", fast: "config" },
+          members: [{ model: "fusion-a-b", selections: { lead: "a", sidekick: "b" } }],
+        },
+      ],
+    } as unknown as AgentCapability;
+    expect(
+      resolveProviderDraftConfig(agentWith({ ...configBound }), { model: "fusion-a-b", fast: true })
+        .fast,
+    ).toBe(false);
   });
 
   it("normalizes Cursor profile bracket models before resolving draft controls", () => {
@@ -337,8 +369,69 @@ describe("resolveApprovalPolicyValue", () => {
     expect(resolveApprovalPolicyValue(agent, "yolo")).toBe("default");
   });
 
-  it("stays empty for a provider that advertises no policies", () => {
+  it("does not preserve an undeclared policy when there is no catalog", () => {
     expect(resolveApprovalPolicyValue(agentWith(), "yolo")).toBe("");
+  });
+
+  it("preserves a provider-declared default or bypass while the catalog is empty", () => {
+    const agent = agentWith({
+      defaultApprovalPolicy: "on-request",
+      bypassPermissions: { approvalPolicy: "never" },
+    });
+    expect(resolveApprovalPolicyValue(agent, "on-request")).toBe("on-request");
+    expect(resolveApprovalPolicyValue(agent, "never")).toBe("never");
+    expect(resolveApprovalPolicyValue(agent, "other")).toBe("");
+  });
+
+  it("preserves only provider-declared sandbox values while the catalog is empty", () => {
+    const agent = agentWith({
+      defaultSandboxMode: "workspace-write",
+      bypassPermissions: { sandboxMode: "danger-full-access" },
+    });
+    expect(resolveSandboxModeValue(agent, "workspace-write")).toBe("workspace-write");
+    expect(resolveSandboxModeValue(agent, "danger-full-access")).toBe("danger-full-access");
+    expect(resolveSandboxModeValue(agent, "other")).toBe("");
+  });
+
+  it("does not retain a declared bypass excluded by a populated catalog", () => {
+    const agent = agentWith({
+      defaultApprovalPolicy: "on-request",
+      approvalPolicies: [{ id: "on-request", label: "On Request" }],
+      sandboxModes: [{ id: "workspace-write", label: "Workspace Write" }],
+      bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+    });
+    expect(resolveApprovalPolicyValue(agent, "never")).toBe("on-request");
+    expect(resolveSandboxModeValue(agent, "danger-full-access")).toBe("");
+  });
+
+  it("keeps a saved permission tuple when capability lists arrive later", () => {
+    const pending = agentWith({
+      defaultApprovalPolicy: "on-request",
+      defaultApprovalsReviewer: "auto_review",
+      defaultSandboxMode: "workspace-write",
+      bypassPermissions: { approvalPolicy: "never", sandboxMode: "danger-full-access" },
+    });
+    const ready = agentWith({
+      ...pending.capabilities,
+      approvalPolicies: [
+        { id: "on-request", label: "On Request" },
+        { id: "never", label: "Full Access" },
+      ],
+      sandboxModes: [
+        { id: "workspace-write", label: "Workspace Write" },
+        { id: "danger-full-access", label: "Full Access" },
+      ],
+    });
+    const saved = {
+      model: "plain",
+      approvalPolicy: "never",
+      approvalsReviewer: "auto_review",
+      sandboxMode: "danger-full-access",
+    };
+
+    const whilePending = resolveProviderDraftConfig(pending, saved);
+    expect(whilePending).toMatchObject(saved);
+    expect(resolveProviderDraftConfig(ready, whilePending)).toMatchObject(saved);
   });
 });
 

@@ -22,6 +22,7 @@ import {
 import { shouldSpawnAcpSession } from "./sessionFactory";
 import { ACP_INLINE_CONTENT_MAX_BYTES } from "./sessionContentBlocks";
 import {
+  createAcpPromptUsageSpentEvent,
   resolveAcpPromptFailureMessage,
   shouldEmitAcpPromptRpcErrorItem,
   type AcpPromptErrorReasonResolver,
@@ -632,6 +633,12 @@ describe("ACP prompt-response usage → usage.spent", () => {
       usage: {
         counterKind: "cumulative",
         counter: 1200,
+        tokens: {
+          input: 1000,
+          output: 200,
+          cacheRead: 0,
+          cacheWrite: 0,
+        },
         scopeId: "session-1",
         epoch: 0,
         fresh: true,
@@ -661,6 +668,78 @@ describe("ACP prompt-response usage → usage.spent", () => {
         sampleId: "session-1:0:1500",
       },
     });
+  });
+
+  it("includes ACP usage categories only when they reconcile to totalTokens", () => {
+    const scope = {
+      scopeId: "session-1",
+      epoch: 0,
+      counterKind: "per-call" as const,
+      sampleId: "acp-prompt-v1:session-1:0:turn-1",
+    };
+
+    // Standard ACP / Antigravity shape: outputTokens already includes thoughtTokens.
+    expect(
+      createAcpPromptUsageSpentEvent(
+        "thread-1",
+        {
+          inputTokens: 891_788,
+          outputTokens: 21_813,
+          thoughtTokens: 8_704,
+          cachedReadTokens: 2_016_794,
+          cachedWriteTokens: 0,
+          totalTokens: 2_930_395,
+        },
+        scope,
+      ),
+    ).toMatchObject({
+      type: "usage.spent",
+      usage: {
+        counter: 2_930_395,
+        tokens: {
+          input: 891_788,
+          output: 21_813,
+          cacheRead: 2_016_794,
+          cacheWrite: 0,
+        },
+      },
+    });
+
+    // Disjoint thoughtTokens shape: outputTokens + thoughtTokens reconciles to totalTokens.
+    expect(
+      createAcpPromptUsageSpentEvent(
+        "thread-1",
+        {
+          inputTokens: 100,
+          outputTokens: 20,
+          thoughtTokens: 5,
+          cachedReadTokens: 50,
+          cachedWriteTokens: 0,
+          totalTokens: 175,
+        },
+        scope,
+      ),
+    ).toMatchObject({
+      type: "usage.spent",
+      usage: {
+        counter: 175,
+        tokens: { input: 100, output: 25, cacheRead: 50, cacheWrite: 0 },
+      },
+    });
+
+    // Mismatched or malformed category fields stay omitted while preserving counter.
+    for (const usage of [
+      { inputTokens: 100, outputTokens: 20, totalTokens: 200 },
+      { inputTokens: 100, outputTokens: 20, cachedReadTokens: -1, totalTokens: 120 },
+      { inputTokens: 100, outputTokens: 20, totalTokens: 120.7 },
+    ]) {
+      const event = createAcpPromptUsageSpentEvent("thread-1", usage, scope);
+      expect(event).toMatchObject({
+        type: "usage.spent",
+        usage: { counter: Math.trunc(usage.totalTokens) },
+      });
+      expect((event as { usage: Record<string, unknown> }).usage).not.toHaveProperty("tokens");
+    }
   });
 
   it("marks resumed sessions non-fresh and emits nothing without prompt usage", async () => {
@@ -1691,7 +1770,7 @@ describe("ACP client protocol helpers", () => {
     },
   );
 
-  it("implements ACP terminal create/output/wait/release over a real PTY", async () => {
+  it("implements ACP terminal create/output/wait/release over a real child process", async () => {
     const projectRoot = makePosixProject();
     const { session } = makeConfigSyncSession();
     (session as unknown as Record<string, unknown>)["projectLocation"] = {
@@ -2481,6 +2560,113 @@ describe("ACP client protocol helpers", () => {
           headers: [{ name: "Authorization", value: "Bearer crossagent-token" }],
         },
       ],
+    });
+  });
+
+  describe("relayed host endpoints", () => {
+    const route = {
+      type: "http" as const,
+      url: "http://127.0.0.1:9300/route-1/mcp",
+      headers: { Authorization: "Bearer route-token" },
+    };
+    const relayed = {
+      id: "sentry",
+      name: "sentry",
+      timeoutMs: 30_000,
+      disabledTools: ["delete_project"],
+      transport: {
+        type: "stdio" as const,
+        command: "/app/node",
+        args: ["/helpers/mcp-relay.mjs"],
+        env: { PORACODE_MCP_HTTP_RELAY_CONFIG: "relay-envelope" },
+      },
+      directTransport: route,
+    };
+    const relayEntry = {
+      name: "sentry",
+      command: "/app/node",
+      args: ["/helpers/mcp-relay.mjs"],
+      env: [{ name: "PORACODE_MCP_HTTP_RELAY_CONFIG", value: "relay-envelope" }],
+    };
+    const directEntry = {
+      type: "http",
+      name: "sentry",
+      url: route.url,
+      headers: [{ name: "Authorization", value: "Bearer route-token" }],
+    };
+
+    it("connects HTTP-capable agents to the endpoint instead of spawning the relay", async () => {
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: { http: true },
+        mcpServers: [relayed],
+      });
+
+      await expect(session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+
+      expect(connection.newSession).toHaveBeenCalledWith({
+        cwd: "C:\\repo",
+        mcpServers: [directEntry],
+      });
+    });
+
+    it("keeps the stdio relay for agents without HTTP MCP", async () => {
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: { http: false },
+        mcpServers: [relayed],
+      });
+
+      await expect(session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+
+      expect(connection.newSession).toHaveBeenCalledWith({
+        cwd: "C:\\repo",
+        mcpServers: [relayEntry],
+      });
+    });
+
+    it("falls back to the relay when an assumed HTTP transport is refused", async () => {
+      const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: undefined,
+        assumedMcpCapabilities: { http: true },
+        mcpServers: [relayed],
+      });
+      connection.newSession
+        .mockRejectedValueOnce(RequestError.internalError())
+        .mockResolvedValueOnce({
+          sessionId: "session-1",
+          modes: { availableModes: [] },
+          configOptions: [],
+        });
+
+      try {
+        await expect(session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+        expect(connection.newSession).toHaveBeenNthCalledWith(1, {
+          cwd: "C:\\repo",
+          mcpServers: [directEntry],
+        });
+        expect(connection.newSession).toHaveBeenLastCalledWith({
+          cwd: "C:\\repo",
+          mcpServers: [relayEntry],
+        });
+      } finally {
+        log.mockRestore();
+      }
+    });
+
+    it("keeps a direct endpoint when only optimistic stdio servers are retried away", async () => {
+      const { connection, session } = makeConfigSyncSession({
+        agentMcpCapabilities: { http: true, sse: true },
+        optimisticMcpTransports: ["stdio"],
+        mcpServers: [relayed],
+      });
+
+      await expect(session.openThread({ model: "model-a" })).resolves.toBe("session-1");
+
+      expect(connection.newSession).toHaveBeenCalledTimes(1);
+      expect(connection.newSession).toHaveBeenCalledWith({
+        cwd: "C:\\repo",
+        mcpServers: [directEntry],
+      });
     });
   });
 
@@ -3942,11 +4128,16 @@ describe("ACP turn config sync", () => {
 
   it("cancels active ACP turns immediately when a prompt is in flight", async () => {
     const { connection, session } = makeConfigSyncSession();
+    const killAllAcpTerminals = vi.fn<() => void>();
+    (session as unknown as Record<string, unknown>)["_terminalManager"] = {
+      killAllAcpTerminals,
+    };
     (session as unknown as Record<string, unknown>)["promptInFlight"] = true;
 
     await session.interruptTurn();
 
     expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
+    expect(killAllAcpTerminals).toHaveBeenCalledOnce();
   });
 
   it("wires permission resolution and interrupt cancellation through the request coordinator", async () => {

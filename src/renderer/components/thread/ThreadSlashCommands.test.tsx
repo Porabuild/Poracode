@@ -1,3 +1,5 @@
+import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import "@/renderer/testUtils/clientDraftDatabase";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
@@ -556,22 +558,24 @@ describe("ThreadSlashCommands", () => {
     fireEvent.click(screen.getByText("review-code"));
     fireEvent.keyDown(editor, { key: "Enter" });
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: "$review-code",
-        segments: [
-          {
-            kind: "skill",
-            name: "review-code",
-            path: "C:\\Users\\me\\.agents\\skills\\review-code\\SKILL.md",
-            invocation: "$review-code",
-            provider: "Shared",
-            scope: "global",
-          },
-          { kind: "text", content: " " },
-        ],
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: "$review-code",
+          segments: [
+            {
+              kind: "skill",
+              name: "review-code",
+              path: "C:\\Users\\me\\.agents\\skills\\review-code\\SKILL.md",
+              invocation: "$review-code",
+              provider: "Shared",
+              scope: "global",
+            },
+            { kind: "text", content: " " },
+          ],
+        }),
+      );
+    });
   });
 
   it("rebinds a saved skill chip to the currently selected provider", () => {
@@ -924,13 +928,15 @@ describe("ThreadSlashCommands", () => {
     expect(editor.querySelector("svg")).not.toBeNull();
 
     fireEvent.keyDown(editor, { key: "Enter" });
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentKind: "kimi",
-        prompt: "/skill:simplify",
-        presentationMode: "gui",
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentKind: "kimi",
+          prompt: "/skill:simplify",
+          presentationMode: "gui",
+        }),
+      );
+    });
   });
 
   it("does not reintroduce locally discovered skills when the provider catalog is authoritative", async () => {
@@ -1044,13 +1050,15 @@ describe("ThreadSlashCommands", () => {
 
     fireEvent.keyDown(editor, { key: "Enter" });
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentKind: "codex",
-        prompt: "/goal ship unified GUI goal support",
-        presentationMode: "gui",
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentKind: "codex",
+          prompt: "/goal ship unified GUI goal support",
+          presentationMode: "gui",
+        }),
+      );
+    });
     expect(onConfigChange).not.toHaveBeenCalled();
   });
 
@@ -1277,19 +1285,21 @@ describe("ThreadSlashCommands", () => {
 
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        segments: expect.arrayContaining([
-          expect.objectContaining({
-            kind: "skill",
-            name: "operate-desktop",
-            invocation: "$operate-desktop",
-            pluginId: "computer-use",
-            pluginName: "Computer Use",
-          }),
-        ]),
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          segments: expect.arrayContaining([
+            expect.objectContaining({
+              kind: "skill",
+              name: "operate-desktop",
+              invocation: "$operate-desktop",
+              pluginId: "computer-use",
+              pluginName: "Computer Use",
+            }),
+          ]),
+        }),
+      );
+    });
   });
 
   it("saves draft composer content on ordinary unmount", () => {
@@ -1375,21 +1385,119 @@ describe("ThreadSlashCommands", () => {
       const saved = useAppStore.getState().draftContents[draftProject.id];
       expect(saved?.attachments).toHaveLength(1);
       expect(saved?.attachments[0]).not.toHaveProperty("previewUrl");
-      expect(saved?.attachments[0]?.path).toBe("C:\\attachments\\draft-project-1\\image-1.png");
+      expect(isClientDraftAsset(saved!.attachments[0]!.path)).toBe(true);
       expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/draft-pasted-1");
 
       const { unmount: unmountRestored } = renderDraft();
       const restoredThumb = await screen.findByAltText("Image 1.png");
-      expect(restoredThumb).toHaveAttribute(
-        "src",
-        "poracode-local://local/C:/attachments/draft-project-1/image-1.png?thumb=32",
-      );
+      expect(restoredThumb).toHaveAttribute("src", "blob:app/draft-pasted-1");
       // Drafts persist as the composer's crash-recovery mirror (cleared on
       // submit, not on mount-restore); the mirror carries the durable path.
       const mirrored = useAppStore.getState().draftContents[draftProject.id];
-      expect(mirrored?.attachments[0]?.path).toBe("C:\\attachments\\draft-project-1\\image-1.png");
+      expect(mirrored?.attachments[0]?.path).toBe(saved!.attachments[0]!.path);
       expect(mirrored?.attachments[0]).not.toHaveProperty("previewUrl");
       unmountRestored();
+    } finally {
+      Reflect.deleteProperty(URL, "createObjectURL");
+      Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
+  });
+
+  it("restores submitted editor text and attachments when a disconnected composer rejects", async () => {
+    // jsdom does not implement object URLs.
+    const createObjectURL = vi.fn<(source: File) => string>(() => "blob:app/failure-draft-1");
+    const revokeObjectURL = vi.fn<(url: string) => void>();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    try {
+      let rejectSubmit!: (error: Error) => void;
+      const onStart = vi.fn<(input: unknown) => Promise<void>>(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectSubmit = reject;
+          }),
+      );
+      const renderComposer = () =>
+        render(
+          <AppProvider>
+            <ThreadDraftComposerArea
+              project={draftProject}
+              selectedAgent={makeAgentStatus()}
+              controls={[]}
+              config={{ model: "gemini-2.5-pro" }}
+              compact={false}
+              paneCount={1}
+              gitBranch={undefined}
+              worktreeMode={false}
+              supportsModePicker={false}
+              presentationMode="terminal"
+              onConfigChange={() => {}}
+              onWorktreeModeChange={() => {}}
+              onSwitchBranch={() => {}}
+              onRememberPresentationMode={() => {}}
+              onStart={onStart}
+            />
+          </AppProvider>,
+        );
+      const view = renderComposer();
+      const editor = screen.getByRole("textbox");
+      typeSlashQuery(editor, "Recover this submitted intent");
+      const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+      const pasteEvent = new Event("paste", { bubbles: true, cancelable: true });
+      Object.defineProperty(pasteEvent, "clipboardData", {
+        value: {
+          files: [file],
+          items: [{ type: file.type, getAsFile: () => file }],
+          getData: () => "",
+        },
+      });
+      fireEvent(editor, pasteEvent);
+      await screen.findByAltText("Image 1.png");
+      await waitFor(() =>
+        expect(
+          useAppStore.getState().draftContents[draftProject.id]?.attachments[0],
+        ).not.toHaveProperty("uploading"),
+      );
+      // Wait for the local asset transaction, rather than using preview paint as readiness.
+      const draftAsset =
+        useAppStore.getState().draftContents[draftProject.id]!.attachments[0]!.path;
+      await (
+        await import("@/renderer/state/composerDrafts/clientDraftDatabase")
+      ).readClientDraftAsset(draftAsset);
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Launch thread" })).not.toBeDisabled(),
+      );
+      fireEvent.keyDown(editor, { key: "Enter" });
+      await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+      const submitted = onStart.mock.calls[0]?.[0] as {
+        prompt: string;
+        segments: PromptSegment[];
+      };
+      expect(submitted.prompt).toBe("Recover this submitted intent");
+      // The wire payload includes the attachment token alongside the editor text.
+      expect(submitted.segments.some((segment) => segment.kind === "attachment")).toBe(true);
+
+      // A connection drop unmounts the whole draft, so the editor ref is gone
+      // when the rejected launch settles and the checkpoint must use the
+      // segments captured before submit.
+      view.unmount();
+      await act(async () => {
+        rejectSubmit(new Error("host disconnected"));
+        await Promise.resolve();
+      });
+
+      const saved = useAppStore.getState().draftContents[draftProject.id];
+      expect(saved?.segments).toEqual([{ kind: "text", content: "Recover this submitted intent" }]);
+      expect(saved?.attachments).toHaveLength(1);
+
+      // Reconnect and remount: the editor text and attachment bar restore as
+      // separate carriers, with no duplicated attachment token.
+      const restored = renderComposer();
+      expect(screen.getByRole("textbox").textContent).toBe("Recover this submitted intent");
+      expect(await screen.findAllByAltText("Image 1.png")).toHaveLength(1);
+      expect(useAppStore.getState().draftContents[draftProject.id]?.segments).toEqual([
+        { kind: "text", content: "Recover this submitted intent" },
+      ]);
+      restored.unmount();
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");
       Reflect.deleteProperty(URL, "revokeObjectURL");
@@ -1412,12 +1520,14 @@ describe("ThreadSlashCommands", () => {
     const onStart = await renderDraftComposer(makeAgentStatus(), vi.fn(), "gui");
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: "existing draft\n\nreview note",
-        segments: [{ kind: "text", content: "existing draft\n\nreview note" }],
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: "existing draft\n\nreview note",
+          segments: [{ kind: "text", content: "existing draft\n\nreview note" }],
+        }),
+      );
+    });
   });
 
   it("consumes the project fallback inbox from a unique draft pane", async () => {
@@ -1437,12 +1547,14 @@ describe("ThreadSlashCommands", () => {
     );
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
 
-    expect(onStart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        prompt: "fallback note",
-        segments: [{ kind: "text", content: "fallback note" }],
-      }),
-    );
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: "fallback note",
+          segments: [{ kind: "text", content: "fallback note" }],
+        }),
+      );
+    });
     expect(
       useComposerInputInbox.getState().itemsByComposer[`draft:${draftProject.id}`],
     ).toBeUndefined();

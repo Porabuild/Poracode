@@ -75,6 +75,21 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "general",
+    anchor: "general.newsLine",
+    title: msg`News line`,
+    description: msg`Show updates, tips, and community links below the new-thread composer.`,
+    keywords: "news changelog updates tips promotion github star x twitter follow ticker",
+  },
+  {
+    section: "general",
+    anchor: "general.newsLineActivity",
+    title: msg`Activity highlights`,
+    description: msg`Include your streaks, prompt counts, and usage limits in the news line.`,
+    keywords: "news insights stats streak prompts usage limits personal",
+    conditional: true,
+  },
+  {
+    section: "general",
     anchor: "general.sidebarShortcuts",
     title: msg`Sidebar shortcuts`,
     description: msg`Choose which shortcuts appear in the sidebar footer.`,
@@ -86,9 +101,18 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "general",
     anchor: "general.preventSleep",
     title: msg`Prevent system sleep`,
-    description: msg`Keep the system awake while any agent is working, including Computer Use. The display can still turn off. Screen locking is unchanged.`,
+    description: msg`Keep the system awake while any selected condition applies. Working includes Computer Use threads. The display can still turn off.`,
     keywords:
-      "sleep awake wake idle power system display lock server connection remote always computer use automation",
+      "sleep awake wake idle power system server connection remote always computer use automation",
+    desktopOnly: true,
+  },
+  {
+    section: "general",
+    anchor: "general.preventScreenLock",
+    title: msg`Prevent screen lock`,
+    description: msg`Keep the display on while any selected condition applies, so the screen does not lock from inactivity. Manual locking, closing the lid, and enforced lock policies still apply.`,
+    keywords:
+      "screen lock locking unlock display monitor awake idle screensaver power computer use remote always",
     desktopOnly: true,
   },
   {
@@ -172,7 +196,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   {
     section: "audio",
     anchor: "audio.hexModel",
-    title: msg`Hex voice model`,
+    title: msg`Hex setup`,
     description: msg`Models available on the connected host for the selected language.`,
     keywords: "hex native model install setup download prepare parakeet whisper",
     conditional: true,
@@ -626,6 +650,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
       "mcp model context protocol tools server stdio http sse workspace user built-in crossagent routing crossagents subagent delegate delegation guide instructions spawn agent model",
     desktopOnly: true,
   },
+  {
+    section: "mcpServers",
+    anchor: "mcpServers.projects",
+    title: msg`Project MCP servers`,
+    description: msg`Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope.`,
+    keywords: "mcp project workspace scope per-project move override",
+    desktopOnly: true,
+  },
 
   // Plugins
   {
@@ -633,7 +665,8 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     anchor: "plugins.marketplace",
     title: msg`Plugins`,
     description: msg`Install bundles of skills and MCP servers built for the Agent Plugins specification.`,
-    keywords: "plugins marketplace extensions apps mcp skills bundles install",
+    keywords:
+      "plugins marketplace extensions apps mcp skills bundles install computer use locked unlock dim brightness",
     desktopOnly: true,
   },
   {
@@ -691,8 +724,15 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     section: "usage",
     anchor: "usage.showInSidebar",
     title: msg`Show circles in sidebar`,
-    description: msg`Show compact per-provider usage rings in the sidebar. Hide individual providers' circles in the list below.`,
+    description: msg`Show compact per-provider usage rings in the sidebar.`,
     keywords: "rings circle indicators usage gauge sidebar compact hide per provider",
+  },
+  {
+    section: "usage",
+    anchor: "usage.sidebarVisibility",
+    title: msg`Visible in sidebar`,
+    description: msg`Choose which providers show usage rings in the sidebar.`,
+    keywords: "rings circle indicators usage gauge sidebar compact hide show per provider",
   },
   {
     section: "usage",

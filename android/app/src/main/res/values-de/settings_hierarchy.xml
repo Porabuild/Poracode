@@ -6,7 +6,7 @@
     <string name="settings_device_general">Allgemein</string>
     <string name="settings_device_general_description">Sprache, Version und Geräteinformationen</string>
     <string name="settings_device_appearance">Darstellung</string>
-    <string name="settings_device_appearance_description">Design und Systemfarben</string>
+    <string name="settings_device_appearance_description">Theme und Chat-Schriftgröße</string>
     <string name="settings_device_notifications">Benachrichtigungen</string>
     <string name="settings_device_notifications_description">Berechtigung und Desktop-Registrierung</string>
     <string name="settings_device_terminal">Terminal</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">System</string>
     <string name="settings_appearance_light">Hell</string>
     <string name="settings_appearance_dark">Dunkel</string>
-    <string name="settings_dynamic_color">Gerätefarben verwenden</string>
     <string name="settings_notification_status">Status</string>
     <string name="settings_notification_registering">Wird registriert</string>
     <string name="settings_notification_available">Verfügbar</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Benachrichtigungen während der Nutzung von Poracode anzeigen</string>
     <string name="settings_notification_categories">Benachrichtigen bei</string>
     <string name="settings_configuration_section">Konfiguration</string>
+    <string name="settings_appearance_mode">Modus</string>
+    <string name="settings_appearance_mode_description">Passen Sie es an Ihr System an oder erzwingen Sie hell oder dunkel.</string>
+    <string name="settings_theme">Design</string>
+    <string name="settings_notifications_enabled_description">Benachrichtigungen anzeigen, wenn sich der Thread-Status ändert.</string>
+    <string name="settings_notification_sound_description">Spielen Sie einen Ton ab, wenn eine Benachrichtigung angezeigt wird.</string>
+    <string name="settings_home_shortcut_reorder">%1$s neu anordnen</string>
 </resources>

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, rename, rm, type FileHandle } from "node:fs/promises";
+import { open, rename, rm, type FileHandle } from "node:fs/promises";
 import { dirname } from "node:path";
+import { ensureDirectory } from "./ensureDirectory.ts";
 
 /**
  * Async sibling of {@link writeFileAtomic}: write through an exclusively
@@ -19,7 +20,7 @@ export async function writeFileAtomicAsync(
   data: string | NodeJS.ArrayBufferView,
   options?: { encoding?: BufferEncoding; mode?: number },
 ): Promise<void> {
-  await mkdir(dirname(filePath), { recursive: true });
+  await ensureDirectory(dirname(filePath));
   const tmp = `${filePath}.${randomUUID()}.tmp`;
   let descriptor: FileHandle | null = null;
   let ownsTemporary = false;

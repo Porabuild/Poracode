@@ -8,11 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.CallMerge
-import androidx.compose.material.icons.outlined.NoteAlt
-import androidx.compose.material.icons.outlined.PlayCircleOutline
-import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -29,8 +24,9 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.model.HOME_PROJECT_ID
 import com.poracode.app.model.RemoteProject
+import com.poracode.app.ui.theme.PoracodeIcons
 
-internal enum class HomeProjectUtility { Terminal, Notes, PullRequests, GithubActions }
+internal enum class HomeProjectUtility { Terminal, Notes, PullRequests, GithubActions, Workspace }
 
 internal val HomeProjectUtility.clearsThreadSelection: Boolean
     get() = this == HomeProjectUtility.Terminal
@@ -94,12 +90,14 @@ internal fun utilityLabel(utility: HomeProjectUtility): String = stringResource(
         HomeProjectUtility.Notes -> R.string.projects_notes
         HomeProjectUtility.PullRequests -> R.string.github_pull_requests
         HomeProjectUtility.GithubActions -> R.string.github_actions
+        HomeProjectUtility.Workspace -> R.string.workspace_title
     },
 )
 
 internal fun utilityIcon(utility: HomeProjectUtility): ImageVector = when (utility) {
-    HomeProjectUtility.Terminal -> Icons.Outlined.Terminal
-    HomeProjectUtility.Notes -> Icons.Outlined.NoteAlt
-    HomeProjectUtility.PullRequests -> Icons.AutoMirrored.Outlined.CallMerge
-    HomeProjectUtility.GithubActions -> Icons.Outlined.PlayCircleOutline
+    HomeProjectUtility.Terminal -> PoracodeIcons.Terminal
+    HomeProjectUtility.Notes -> PoracodeIcons.NoteAlt
+    HomeProjectUtility.PullRequests -> PoracodeIcons.GitPullRequest
+    HomeProjectUtility.GithubActions -> PoracodeIcons.PlayCircleOutline
+    HomeProjectUtility.Workspace -> PoracodeIcons.AccountTree
 }

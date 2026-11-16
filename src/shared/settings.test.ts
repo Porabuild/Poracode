@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   defaultSharedSettings,
+  normalizeKeepAwakeConditions,
   normalizeSharedSettings,
   normalizeSidebarShortcutOrder,
   normalizeThreadDocksOrder,
@@ -155,6 +156,28 @@ describe("shared settings defaults", () => {
     });
   });
 
+  it("shows the news line with no dismissed promotions for pre-news-line settings", () => {
+    const prior = { sidebarTranslucency: false, homeScopeEnabled: false };
+    expect(normalizeSharedSettings(prior)).toMatchObject({
+      ...prior,
+      newsLineEnabled: true,
+      newsLineActivity: true,
+      dismissedPromotions: [],
+    });
+  });
+
+  it("keeps promotion ids written by a newer app and resets only a malformed list", () => {
+    const saved = {
+      newsLineEnabled: false,
+      dismissedPromotions: ["github-star", "future-promotion"],
+    };
+    expect(normalizeSharedSettings(saved)).toMatchObject(saved);
+    expect(
+      normalizeSharedSettings({ dismissedPromotions: "github-star" }).dismissedPromotions,
+    ).toEqual([]);
+    expect(normalizeSharedSettings({ newsLineActivity: "no" }).newsLineActivity).toBe(true);
+  });
+
   it("defaults absent or malformed font preferences while retaining saved family names", () => {
     expect(normalizeSharedSettings({ agentTerminalFontSize: 16 }).terminalFontFamily).toBe("");
     expect(normalizeSharedSettings({ terminalFontFamily: 123 }).terminalFontFamily).toBe("");
@@ -238,6 +261,7 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "artifacts",
       "info",
       "context",
       "usage",
@@ -252,11 +276,16 @@ describe("shared settings defaults", () => {
     ).toEqual(["goal", "images", "agents", "plan", "backgroundTasks"]);
   });
 
-  it("preserves existing saved dock order and appends new docks on upgrade", () => {
+  it("preserves existing saved dock order and inserts artifacts beside images on upgrade", () => {
     const priorOrder = ["images", "plan", "agents", "goal", "backgroundTasks"];
     const upgraded = normalizeSharedSettings({ threadDocksOrder: priorOrder });
     expect(upgraded.threadDocksOrder).toEqual([
-      ...priorOrder,
+      "images",
+      "artifacts",
+      "plan",
+      "agents",
+      "goal",
+      "backgroundTasks",
       "vision",
       "info",
       "context",
@@ -271,6 +300,7 @@ describe("shared settings defaults", () => {
       ),
     ).toEqual([
       "usage",
+      "artifacts",
       "images",
       "agents",
       "goal",
@@ -282,9 +312,9 @@ describe("shared settings defaults", () => {
     ]);
   });
 
-  it("inserts the info dock beside a prior-release context slot without moving saved positions", () => {
-    // Orders saved before the unversioned "info" dock existed remain valid:
-    // the new dock lands next to the old combined section.
+  it("inserts split info and artifacts docks beside their prior combined slots without moving saved positions", () => {
+    // Orders saved before the unversioned "info" and "artifacts" docks existed remain valid:
+    // each new dock lands next to the old combined section.
     const priorOrder = [
       "vision",
       "goal",
@@ -302,15 +332,17 @@ describe("shared settings defaults", () => {
       "agents",
       "backgroundTasks",
       "images",
+      "artifacts",
       "info",
       "context",
       "usage",
     ]);
-    // A legacy order without context/usage keeps its relative order and gets
-    // the new docks appended in default order.
+    // A legacy order without context/usage keeps its relative order and inserts
+    // artifacts right after images while appending remaining defaults.
     expect(normalizeThreadDocksOrder(["usage", "images", "plan"])).toEqual([
       "usage",
       "images",
+      "artifacts",
       "plan",
       "vision",
       "goal",
@@ -319,8 +351,9 @@ describe("shared settings defaults", () => {
       "info",
       "context",
     ]);
-    // An explicitly saved info position is never rewritten.
-    expect(normalizeThreadDocksOrder(["info", "context", "images"])).toEqual([
+    // Explicitly saved info and artifacts positions are never rewritten.
+    expect(normalizeThreadDocksOrder(["artifacts", "info", "context", "images"])).toEqual([
+      "artifacts",
       "info",
       "context",
       "images",
@@ -348,9 +381,13 @@ describe("shared settings defaults", () => {
     expect(defaultSharedSettings.notificationFilter).toBe("all");
   });
 
-  it("defaults preventSleep to while-remote-access", () => {
-    expect(defaultSharedSettings.preventSleep).toBe("while-remote-access");
-    expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
+  it("defaults system sleep to working + remote access and screen lock to never", () => {
+    expect(defaultSharedSettings.preventSleepWhen).toEqual(["working", "remote-access"]);
+    expect(defaultSharedSettings.preventScreenLockWhen).toEqual([]);
+    expect(normalizeSharedSettings({})).toMatchObject({
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
+    });
   });
 
   it.each([true, false])(
@@ -358,11 +395,12 @@ describe("shared settings defaults", () => {
     (computerUseKeepAwake) => {
       const normalized = normalizeSharedSettings({
         ...defaultSharedSettings,
-        preventSleep: "while-working",
+        preventSleepWhen: ["working"],
         computerUseKeepAwake,
       });
 
-      expect(normalized.preventSleep).toBe("while-working");
+      expect(normalized.preventSleepWhen).toEqual(["working"]);
+      expect(normalized.preventScreenLockWhen).toEqual([]);
       expect(normalized).not.toHaveProperty("computerUseKeepAwake");
     },
   );
@@ -418,55 +456,94 @@ describe("shared settings defaults", () => {
     });
   });
 
-  it("migrates legacy sleep booleans into preventSleep", () => {
+  // Pre-upgrade settings shape: the released `preventSleep` enum, cumulative scopes.
+  it.each([
+    ["while-working", ["working"]],
+    ["while-remote-access", ["working", "remote-access"]],
+    ["always", ["always"]],
+  ] as const)("migrates legacy preventSleep %s into preventSleepWhen", (preventSleep, expected) => {
+    const migrated = normalizeSharedSettings({ preventSleep });
+    expect(migrated.preventSleepWhen).toEqual(expected);
+    expect(migrated.preventScreenLockWhen).toEqual([]);
+    expect(migrated).not.toHaveProperty("preventSleep");
+  });
+
+  it("migrates legacy sleep booleans into preventSleepWhen", () => {
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: true,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: false,
         remoteAccessPreventSleep: true,
-      }).preventSleep,
-    ).toBe("while-remote-access");
-    expect(normalizeSharedSettings({ remoteAccessPreventSleep: true }).preventSleep).toBe(
-      "while-remote-access",
-    );
+      }).preventSleepWhen,
+    ).toEqual(["working", "remote-access"]);
+    expect(normalizeSharedSettings({ remoteAccessPreventSleep: true }).preventSleepWhen).toEqual([
+      "working",
+      "remote-access",
+    ]);
     expect(
       normalizeSharedSettings({
         preventSleepWhileWorking: false,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
   });
 
-  it("lets an explicit preventSleep value win over legacy booleans", () => {
+  it("lets a valid legacy preventSleep win over the older booleans", () => {
     const migrated = normalizeSharedSettings({
       preventSleep: "always",
       preventSleepWhileWorking: true,
       remoteAccessPreventSleep: true,
     });
-    expect(migrated.preventSleep).toBe("always");
+    expect(migrated.preventSleepWhen).toEqual(["always"]);
     expect(migrated).not.toHaveProperty("preventSleepWhileWorking");
     expect(migrated).not.toHaveProperty("remoteAccessPreventSleep");
   });
 
-  it("falls back via migration when preventSleep is invalid", () => {
+  it("falls back to the legacy booleans when legacy preventSleep is invalid", () => {
     expect(
       normalizeSharedSettings({
         preventSleep: "never",
         preventSleepWhileWorking: true,
         remoteAccessPreventSleep: false,
-      }).preventSleep,
-    ).toBe("while-working");
+      }).preventSleepWhen,
+    ).toEqual(["working"]);
     expect(
       normalizeSharedSettings({
         preventSleep: "never",
         remoteAccessPreventSleep: true,
-      }).preventSleep,
-    ).toBe("while-remote-access");
+      }).preventSleepWhen,
+    ).toEqual(["working", "remote-access"]);
+  });
+
+  it("lets an explicit preventSleepWhen win over every legacy sleep value", () => {
+    const migrated = normalizeSharedSettings({
+      preventSleepWhen: [],
+      preventSleep: "always",
+      remoteAccessPreventSleep: true,
+    });
+    expect(migrated.preventSleepWhen).toEqual([]);
+  });
+
+  it("keeps stored keep-awake lists as written and normalizes client selections", () => {
+    expect(
+      normalizeSharedSettings({
+        preventSleepWhen: ["remote-access", "working"],
+        preventScreenLockWhen: ["computer-use", "always"],
+      }),
+    ).toMatchObject({
+      preventSleepWhen: ["remote-access", "working"],
+      preventScreenLockWhen: ["computer-use", "always"],
+    });
+    expect(normalizeKeepAwakeConditions(["computer-use", "working", "working"])).toEqual([
+      "working",
+      "computer-use",
+    ]);
+    expect(normalizeKeepAwakeConditions(["computer-use", "always"])).toEqual(["always"]);
   });
 
   it("drops legacy sleep keys from the normalized output", () => {
@@ -474,7 +551,7 @@ describe("shared settings defaults", () => {
       preventSleepWhileWorking: true,
       remoteAccessPreventSleep: true,
     });
-    expect(migrated.preventSleep).toBe("while-remote-access");
+    expect(migrated.preventSleepWhen).toEqual(["working", "remote-access"]);
     expect(migrated).not.toHaveProperty("preventSleepWhileWorking");
     expect(migrated).not.toHaveProperty("remoteAccessPreventSleep");
   });
@@ -920,5 +997,19 @@ describe("canonical AI-utility selection settings", () => {
         futureTopLevel: true,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe.each(["computerUseLockedUse", "computerUseLockedUseDimDisplay"] as const)("%s", (key) => {
+  it("defaults off for settings files written before the field existed", () => {
+    const legacy = { ...defaultSharedSettings } as Record<string, unknown>;
+    delete legacy[key];
+    expect(normalizeSharedSettings(legacy)[key]).toBe(false);
+    expect(defaultSharedSettings[key]).toBe(false);
+  });
+
+  it("keeps an explicit choice and drops a malformed value", () => {
+    expect(normalizeSharedSettings({ ...defaultSharedSettings, [key]: true })[key]).toBe(true);
+    expect(normalizeSharedSettings({ ...defaultSharedSettings, [key]: "yes" })[key]).toBe(false);
   });
 });

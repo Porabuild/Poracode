@@ -98,6 +98,211 @@ async function readWorkflow(name) {
   return parse(await readFile(workflowUrl(name), "utf8"));
 }
 
+void test("release preparation does not install an unused Bun toolchain", async () => {
+  for (const releaseName of ["release.yml", "release-nightly.yml"]) {
+    const workflow = await readWorkflow(releaseName);
+    assert.equal(
+      workflow.jobs.prepare.steps.some((step) => step.uses === "./.github/actions/setup-bun"),
+      false,
+      `${releaseName} resolves versions with Node and must not restore Bun`,
+    );
+  }
+});
+
+void test("Windows setup excludes the actual npm cache and canonical temp before cache restores", async () => {
+  const action = parse(
+    await readFile(new URL("../.github/actions/setup-bun/action.yml", import.meta.url), "utf8"),
+  );
+  const steps = action.runs.steps;
+  const defenderIndex = steps.findIndex(
+    (step) => step.name === "Exclude build folders from Defender scanning (Windows)",
+  );
+  const setupNodeIndex = steps.findIndex((step) => step.uses?.startsWith("actions/setup-node@"));
+  const cacheIndexes = steps.flatMap((step, index) =>
+    step.uses?.startsWith("actions/cache@") ? [index] : [],
+  );
+  assert.ok(defenderIndex > setupNodeIndex, "npm must be available before locating its cache");
+  for (const cacheIndex of cacheIndexes)
+    assert.ok(defenderIndex < cacheIndex, "exclusions must precede every cache restore");
+  const defender = steps[defenderIndex];
+  assert.match(defender.run, /\$npmCache = \(& npm config get cache\)\.Trim\(\)/u);
+  assert.match(defender.run, /Join-Path \$env:LOCALAPPDATA 'Temp'/u);
+  assert.match(defender.run, /\$npmCache,/u);
+});
+
+void test("release Windows jobs install from the registry instead of restoring a package cache", async () => {
+  const action = parse(
+    await readFile(new URL("../.github/actions/setup-bun/action.yml", import.meta.url), "utf8"),
+  );
+  assert.equal(action.inputs["registry-cache"].default, "all");
+  const steps = action.runs.steps;
+  const combined = steps.find((step) =>
+    String(step.with?.key).startsWith("registry-${{ runner.os }}"),
+  );
+  assert.equal(combined.if, "inputs.registry-cache == 'all'");
+  const bunOnly = steps.find((step) =>
+    String(step.with?.key).startsWith("registry-bun-${{ runner.os }}"),
+  );
+  assert.equal(bunOnly.if, "inputs.registry-cache == 'bun'");
+  assert.equal(bunOnly.with.path, "${{ steps.registry-cache.outputs.bun }}");
+
+  // Unpacking the Bun cache archive on Windows took 3 minutes; a cold install
+  // took 80 to 100 seconds. Every registry cache step is opt-in by value, so
+  // `none` restores nothing.
+  for (const step of steps.filter((candidate) =>
+    String(candidate.with?.key).startsWith("registry-"),
+  ))
+    assert.match(step.if, /^inputs\.registry-cache == '(all|bun)'$/u);
+  for (const workflowName of ["_build.yml", "_server-artifact.yml"]) {
+    const workflow = await readWorkflow(workflowName);
+    const setup = workflow.jobs.build.steps.find((step) => step.name === "Setup Bun");
+    assert.equal(setup.with["registry-cache"], "${{ runner.os == 'Windows' && 'none' || 'all' }}");
+  }
+});
+
+void test("the TUI manifest every build waits for comes from one Linux job", async () => {
+  // Every desktop and server build blocks on the tui-manifest artifact. Built
+  // per OS, it waited for a macOS runner and stalled the whole release.
+  const tui = await readWorkflow("_tui-binaries.yml");
+  assert.deepEqual(Object.keys(tui.jobs), ["binaries"]);
+  const job = tui.jobs.binaries;
+  assert.equal(job["runs-on"], "ubuntu-latest");
+  const steps = job.steps;
+  const setup = steps.find((step) => step.name === "Setup Bun");
+  assert.equal(setup.with["registry-cache"], "bun");
+  const build = steps.find((step) => step.name === "Build TUI binaries and the manifest");
+  assert.match(
+    build.run,
+    /build-tui\.mjs --require --manifest-out resources\/tui\/manifest\.json/u,
+  );
+  assert.doesNotMatch(build.run, /--targets/u, "all six targets build in this one job");
+
+  const uploads = steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
+  assert.deepEqual(
+    uploads.map((step) => step.with.name),
+    ["poracode-tui-binaries", "tui-manifest"],
+    "the manifest uploads only after the binaries it hashes are stored",
+  );
+  const [binaries, manifest] = uploads;
+  assert.equal(binaries.with.path, "dist/tui/*/poracode-tui-*");
+  assert.equal(manifest.with.path, "resources/tui/manifest.json");
+  for (const upload of uploads) assert.equal(upload.with["if-no-files-found"], "error");
+  // upload-artifact v4 rejects a name already stored on the run. A rerun after a
+  // failed manifest upload must replace the binaries, while a manifest that
+  // exists is never replaced under builds that may have embedded it.
+  assert.equal(binaries.with.overwrite, true);
+  assert.equal(manifest.with.overwrite, undefined);
+
+  // Consumers wait for that artifact from jobs named after the caller's job id.
+  for (const workflowName of ["_build.yml", "_server-artifact.yml"]) {
+    const workflow = await readWorkflow(workflowName);
+    const waits = workflow.jobs.build.steps.filter((step) =>
+      /wait-for-run-artifact\.mjs tui-manifest/u.test(step.run ?? ""),
+    );
+    assert.equal(waits.length, 1, `${workflowName} stages the TUI manifest once`);
+    assert.match(
+      waits[0].run,
+      /wait-for-run-artifact\.mjs tui-manifest resources\/tui "tui_binaries \/"/u,
+    );
+  }
+  for (const releaseName of ["release.yml", "release-nightly.yml"]) {
+    const release = await readWorkflow(releaseName);
+    assert.equal(release.jobs.tui_binaries.uses, "./.github/workflows/_tui-binaries.yml");
+    assert.ok(release.jobs.release.needs.includes("tui_binaries"));
+    const download = release.jobs.release.steps.find(
+      (step) => step.name === "Download the TUI binaries",
+    );
+    // The release assets take the binaries artifact and never the manifest.
+    const pattern = new RegExp(`^${download.with.pattern.replace("*", ".*")}$`, "u");
+    assert.match(binaries.with.name, pattern);
+    assert.doesNotMatch(manifest.with.name, pattern);
+  }
+});
+
+void test("Windows desktop build stages the Linux x64 MCP relay for WSL without leaking release assets", async () => {
+  const workflow = await readWorkflow("_build.yml");
+  assert.equal(workflow.jobs.build.name, "build (${{ matrix.artifact }})");
+  const steps = workflow.jobs.build.steps;
+  const prepareIndex = steps.findIndex((step) => step.name === "Prepare MCP relay");
+  const uploadIndex = steps.findIndex(
+    (step) => step.name === "Upload Linux MCP relay for Windows WSL",
+  );
+  const stageIndex = steps.findIndex((step) => step.name === "Stage Linux MCP relay for WSL");
+  const sshArchiveIndex = steps.findIndex(
+    (step) => step.name === "Build the immutable SSH runtime archive",
+  );
+  const packageWinIndex = steps.findIndex((step) => step.name === "Package Windows/Linux");
+
+  assert.ok(prepareIndex >= 0 && uploadIndex > prepareIndex);
+  assert.ok(stageIndex > prepareIndex && stageIndex < sshArchiveIndex);
+  assert.ok(sshArchiveIndex < packageWinIndex);
+
+  const upload = steps[uploadIndex];
+  assert.equal(upload.if, "matrix.platform == 'linux'");
+  assert.equal(upload.with.name, "mcp-relay-linux-x64");
+  assert.equal(upload.with.path, "resources/wsl-helpers/mcp-relay/linux-x64/poracode-mcp-relay");
+  assert.equal(upload.with["if-no-files-found"], "error");
+  assert.equal(upload.with.overwrite, true);
+
+  const stage = steps[stageIndex];
+  assert.equal(stage.if, "matrix.platform == 'win'");
+  assert.match(stage.run, /rm -rf resources\/wsl-helpers\/mcp-relay\/linux-x64/u);
+  assert.match(
+    stage.run,
+    /wait-for-run-artifact\.mjs mcp-relay-linux-x64 resources\/wsl-helpers\/mcp-relay\/linux-x64 "build \/ build \(dist-linux\)"/u,
+  );
+  assert.match(stage.run, /prepare-mcp-relay\.mjs --platform win --require/u);
+
+  for (const releaseName of ["release.yml", "release-nightly.yml"]) {
+    const release = await readWorkflow(releaseName);
+    assert.equal(release.jobs.build.name, undefined);
+    for (const step of release.jobs.release.steps.filter((candidate) =>
+      candidate.uses?.startsWith("actions/download-artifact@"),
+    )) {
+      const pattern = new RegExp(`^${step.with.pattern.replace("*", ".*")}$`, "u");
+      assert.doesNotMatch("mcp-relay-linux-x64", pattern);
+    }
+  }
+});
+
+void test("desktop packaging caches exact verified computer-use helper artifacts", async () => {
+  const workflow = await readWorkflow("_build.yml");
+  const steps = workflow.jobs.build.steps;
+  const cacheIndex = steps.findIndex((step) => step.name === "Cache computer-use helper artifact");
+  const prepareIndex = steps.findIndex((step) => step.name === "Prepare computer-use helper");
+  assert.ok(cacheIndex >= 0 && cacheIndex < prepareIndex);
+  const cache = steps[cacheIndex];
+  const directoryIndex = steps.findIndex((step) => step.name === "Prepare helper cache directory");
+  assert.ok(directoryIndex >= 0 && directoryIndex < cacheIndex);
+  assert.match(steps[directoryIndex].run, /mkdirSync\('resources\/computer-use-helper'/u);
+  assert.equal(cache.id, "helper-artifact");
+  assert.equal(cache.with.path, "resources/computer-use-helper");
+  assert.match(cache.with.key, /matrix\.rust-version/u);
+  assert.match(cache.with.key, /matrix\.helper-targets/u);
+  for (const input of [
+    "native/computer-use-helper/src/**",
+    "native/computer-use-helper/Cargo.toml",
+    "native/computer-use-helper/Cargo.lock",
+    "native/computer-use-helper/.cargo/config.toml",
+    "native/computer-use-helper/rust-toolchain.toml",
+    "scripts/prepare-computer-use-helper.mjs",
+    "scripts/lib/native-helper-prepare.mjs",
+    "src/shared/contracts/computerUse.ts",
+  ]) {
+    assert.ok(cache.with.key.includes(input), `helper cache key must include ${input}`);
+  }
+  assert.equal(cache.with["restore-keys"], undefined);
+  const touch = steps.find((step) => step.name === "Mark restored helper current");
+  assert.equal(touch.if, "steps.helper-artifact.outputs.cache-hit == 'true'");
+  assert.match(touch.run, /touch resources\/computer-use-helper\/\*\/poracode-computer-use\*/u);
+  const setupRust = steps.find((step) => step.name === "Setup Rust");
+  assert.equal(setupRust.with.toolchain, "${{ matrix.rust-version }}");
+  for (const entry of workflow.jobs.build.strategy.matrix.include) {
+    assert.equal(entry["rust-version"], "1.98.1");
+    assert.ok(entry["helper-targets"]);
+  }
+});
+
 void test("qualification and release share one server-artifact workflow (plan D3)", async () => {
   const nativeCi = await readWorkflow("native-ci.yml");
   const qualification = nativeCi.jobs.server_install_qualification;
@@ -366,8 +571,8 @@ void test("the arm64 node-pty cross-build stages the installed node-addon-api si
   );
   assert.match(
     run,
-    /npm rebuild --offline/u,
-    "npm rebuild must fail loudly on a missing dependency, not fetch one",
+    /npm_config_build_from_source=true npm rebuild --offline/u,
+    "npm rebuild must emit build/Release/pty.node even when a prebuild is available",
   );
 
   // The container proves binding.gyp's own require resolves before building.
@@ -410,9 +615,54 @@ void test("the arm64 node-pty cross-build stages the installed node-addon-api si
       addonApiVersion,
       "the staged copy must be the exact installed node-addon-api version",
     );
+    const prebuildScript = join(stagedPty, "scripts", "prebuild.js");
+    await mkdir(join(stagedPty, "prebuilds", `${process.platform}-${process.arch}`), {
+      recursive: true,
+    });
+    execFileSync(process.execPath, [prebuildScript], {
+      env: { ...process.env, npm_config_build_from_source: "false" },
+    });
+    assert.throws(
+      () =>
+        execFileSync(process.execPath, [prebuildScript], {
+          env: { ...process.env, npm_config_build_from_source: "true" },
+        }),
+      { status: 1 },
+    );
+    await assert.rejects(realpath(join(stagedPty, "prebuilds")), { code: "ENOENT" });
   } finally {
     await rm(stage, { recursive: true, force: true });
   }
+});
+
+void test("macOS updater and DMG packaging run as independent release legs", async () => {
+  const build = await readWorkflow("_build.yml");
+  const macLegs = build.jobs.build.strategy.matrix.include.filter(
+    (entry) => entry.platform === "mac",
+  );
+  assert.deepEqual(macLegs.map((entry) => entry.artifact).sort(), [
+    "dist-mac-dmg",
+    "dist-mac-updater",
+  ]);
+  for (const entry of macLegs) {
+    assert.ok(["zip", "dmg"].includes(entry.target));
+    assert.ok(entry.app_pattern);
+    assert.equal(entry.expected_zips, entry.target === "zip" ? 2 : 0);
+  }
+  const steps = build.jobs.build.steps;
+  const packageStep = steps.find((step) => step.name === "Package macOS");
+  assert.match(packageStep.run, /--target "\$\{\{ matrix\.target \}\}"/u);
+  const verifyStep = steps.find(
+    (step) => step.name === "Verify macOS app bundles and updater ZIPs",
+  );
+  assert.match(verifyStep.run, /matrix\.app_pattern/u);
+  assert.match(verifyStep.run, /matrix\.expected_zips/u);
+  const upload = steps.find((step) => step.name === "Upload built artifacts");
+  assert.equal(upload.if, "matrix.target != 'dmg'");
+  const dmgUpload = steps.find((step) => step.name === "Upload macOS DMG artifacts");
+  assert.equal(dmgUpload.if, "matrix.target == 'dmg'");
+  assert.match(dmgUpload.with.path, /Poracode-\*\.dmg/u);
+  assert.doesNotMatch(dmgUpload.with.path, /latest\*\.yml|nightly\*\.yml/u);
 });
 
 void test("desktop packaging ships the SSH worker and the preassembled archive", async () => {
@@ -466,34 +716,151 @@ void test("release promotes the qualified bytes and never rebuilds the tarball",
     const verify = releaseSteps[verifyIndex];
     assert.match(verify.run, /sha256sum/u);
     assert.match(verify.run, /server-artifact-\*\.json/u);
-    assert.match(verify.run, /ARGS\+=\(--artifact/u);
+    assert.match(verify.run, /ci-server-artifact-meta\.mjs verify-standalone-release/u);
+    assert.match(verify.run, /ARGS\+=\(--standalone/u);
     assert.match(verify.run, /generate-runtime-manifest\.mjs --verify/u);
+    // The installers and SHA256SUMS are added after verification and before
+    // the draft upload, so the checksums cover every uploaded asset.
+    const checksumsIndex = releaseSteps.findIndex(
+      (step) => step.name === "Add the one-line installers and release checksums",
+    );
+    assert.ok(checksumsIndex > verifyIndex && checksumsIndex < publishIndex);
+    assert.match(releaseSteps[checksumsIndex].run, /website\/public\/install\.sh/u);
+    assert.match(releaseSteps[checksumsIndex].run, /website\/public\/install\.ps1/u);
+    assert.match(releaseSteps[checksumsIndex].run, /release-checksums\.mjs "\$ASSETS"/u);
     assert.ok(
       !releaseSteps.some((step) => /assemble:server-tarball/u.test(step.run ?? "")),
       `${releaseName} must not rebuild the tarball after qualification`,
     );
   }
 
-  // Stable releases publish the exact packed package, gated on explicit
-  // authorization; nightly prereleases stay GitHub-only (a prerelease must
-  // never take the mutable `latest` dist-tag).
-  const release = await readWorkflow("release.yml");
-  const npmJob = release.jobs.publish_npm;
-  assert.ok(npmJob, "release.yml must define the npm publication job");
-  assert.match(String(npmJob.if), /NPM_PUBLISH_ENABLED/u);
-  assert.equal(npmJob.permissions["id-token"], "write");
-  const publishStep = npmJob.steps.find(
+  // npm allows up to 10 trusted publishers per package; one dispatched
+  // publish-npm.yml keeps a single trusted-publisher entry to audit. Both
+  // trains dispatch it after their GitHub release, gated on explicit
+  // authorization, then wait for the run so a failed publish fails the
+  // release. Stable takes `latest`; nightly only ever takes `nightly`
+  // (a prerelease must never take the mutable `latest` dist-tag, which the
+  // publish script also refuses).
+  for (const [releaseName, tag] of [
+    ["release.yml", "latest"],
+    ["release-nightly.yml", "nightly"],
+  ]) {
+    const npmJob = (await readWorkflow(releaseName)).jobs.publish_npm;
+    assert.ok(npmJob, `${releaseName} must define the npm publication job`);
+    assert.match(String(npmJob.if), /NPM_PUBLISH_ENABLED/u);
+    assert.ok(npmJob.needs.includes("release"), "npm publishes only after the GitHub release");
+    assert.equal(npmJob.permissions.actions, "write");
+    assert.equal(npmJob.permissions.contents, "read", "the sparse checkout reads the repository");
+    assert.equal(npmJob.permissions["id-token"], undefined, "only publish-npm.yml mints OIDC");
+    // The dispatch, the lookup of the run it started and the wait live in
+    // scripts/dispatch-npm-publish.mjs (dispatch-npm-publish.test.mjs), which
+    // the job checks out on its own before running it.
+    const dispatchIndex = npmJob.steps.findIndex(
+      (step) => step.name === "Dispatch the npm trusted-publisher workflow",
+    );
+    const dispatch = npmJob.steps[dispatchIndex];
+    assert.equal(
+      dispatch.run,
+      `node scripts/dispatch-npm-publish.mjs --version "$RELEASE_VERSION" --source-ref "$SOURCE_REF" --dist-tag ${tag}`,
+    );
+    assert.equal(dispatch.env.RELEASE_VERSION, "${{ needs.prepare.outputs.version }}");
+    assert.equal(dispatch.env.SOURCE_REF, "${{ needs.prepare.outputs.source_ref }}");
+    assert.equal(dispatch.env.GH_TOKEN, "${{ github.token }}");
+    const checkoutIndex = npmJob.steps.findIndex((step) =>
+      step.uses?.startsWith("actions/checkout@"),
+    );
+    assert.ok(checkoutIndex >= 0 && checkoutIndex < dispatchIndex);
+    assert.equal(
+      npmJob.steps[checkoutIndex].with["sparse-checkout"],
+      "scripts/dispatch-npm-publish.mjs",
+    );
+  }
+
+  const publish = await readWorkflow("publish-npm.yml");
+  assert.match(
+    String(publish["run-name"]),
+    /for run \$\{\{ inputs\.source_run_id \}\}$/u,
+    "the dispatch lookup finds this run by its run-name suffix",
+  );
+  const publishJob = publish.jobs.publish;
+  assert.match(String(publishJob.if), /NPM_PUBLISH_ENABLED/u);
+  assert.equal(publishJob.permissions["id-token"], "write");
+  const trigger = publish.on ?? publish[true];
+  assert.deepEqual(trigger.workflow_dispatch.inputs.dist_tag.options, ["latest", "nightly"]);
+  const steps = publishJob.steps;
+  const verifySource = steps.find(
+    (step) => step.name === "Verify the source run and the public release",
+  );
+  assert.match(
+    verifySource.run,
+    /\.github\/workflows\/release\.yml \| \.github\/workflows\/release-nightly\.yml/u,
+  );
+  assert.match(verifySource.run, /isDraft/u);
+  const download = steps.find((step) => step.name === "Download the aggregate qualified artifact");
+  assert.equal(download.with["run-id"], "${{ inputs.source_run_id }}");
+  const compare = steps.findIndex(
+    (step) => step.name === "Require the public release to carry the qualified manifest",
+  );
+  const publishIndex = steps.findIndex(
     (step) => step.name === "Pack and publish the exact qualified package",
   );
+  assert.ok(compare >= 0 && compare < publishIndex);
+  assert.match(steps[compare].run, /^cmp /u);
+  const publishStep = steps[publishIndex];
   assert.match(publishStep.run, /publish-npm-package\.mjs/u);
-  assert.match(publishStep.run, /--manifest/u);
-  assert.match(publishStep.run, /--artifact/u);
+  assert.match(publishStep.run, /--standalone/u);
+  assert.match(publishStep.run, /--tag "\$DIST_TAG"/u);
   assert.match(
     publishStep.run,
     /--trusted-publishing/u,
     "the OIDC publish job must opt in explicitly; ambient OIDC env is not authority",
   );
-  assert.equal((await readWorkflow("release-nightly.yml")).jobs.publish_npm, undefined);
+});
+
+void test("self-contained archives are built and qualified natively from the qualified bytes", async () => {
+  const workflow = await readWorkflow("_server-artifact.yml");
+  const standalone = workflow.jobs.standalone;
+  assert.deepEqual(standalone.needs, "build");
+  const entries = standalone.strategy.matrix.include;
+  const expected = {
+    "linux-x64": ["ubuntu-latest", "linux"],
+    "linux-arm64": ["ubuntu-24.04-arm", "linux"],
+    "darwin-arm64": ["macos-15", "darwin"],
+    "darwin-x64": ["macos-15-intel", "darwin"],
+    "win32-x64": ["windows-latest", "windows"],
+  };
+  assert.deepEqual(entries.map((entry) => entry.target).sort(), Object.keys(expected).sort());
+  for (const entry of entries) {
+    assert.deepEqual([entry.os, entry.build_leg], expected[entry.target], entry.target);
+  }
+  const steps = standalone.steps;
+  const build = steps.find(
+    (step) => step.name === "Build the self-contained archive from the qualified tarball",
+  );
+  assert.match(build.run, /ci-server-artifact-meta\.mjs native-target/u);
+  assert.match(build.run, /build-standalone-archive\.mjs/u);
+  const qualify = steps.find(
+    (step) => step.name === "Qualify the archive with its own Node and no host Node on PATH",
+  );
+  assert.match(qualify.run, /server-install-qualification\.mjs .*--standalone/u);
+  assert.match(qualify.run, /poracode-cli-qualification\.mjs --runtime-tarball "\$ARCHIVE"/u);
+  assert.match(
+    qualify.run,
+    /installer-qualification\.mjs --archive "\$ARCHIVE" --metadata "\$METADATA"/u,
+  );
+  assert.match(String(qualify.env.PORACODE_EXPECT_COMPUTER_USE), /matrix\.computer_use/u);
+  const upload = steps.find((step) => step.name === "Upload the qualified self-contained archive");
+  assert.equal(upload.with["if-no-files-found"], "error");
+  assert.match(String(upload.with.name), /-standalone-\$\{\{ matrix\.target \}\}-/u);
+
+  const aggregate = workflow.jobs.aggregate;
+  assert.ok(aggregate.needs.includes("standalone"));
+  const merge = aggregate.steps.find(
+    (step) => step.name === "Merge, verify, and emit the aggregate artifact",
+  );
+  assert.match(merge.run, /ci-server-artifact-meta\.mjs aggregate-standalone/u);
+  assert.match(merge.run, /generate-runtime-manifest\.mjs "\$\{STANDALONE_ARGS\[@\]\}"/u);
+  assert.match(merge.run, /--verify "\$\{STANDALONE_ARGS\[@\]\}"/u);
 });
 
 void test("the terminal turn command is valid in sh, cmd.exe and PowerShell and only its output matches", () => {
@@ -505,4 +872,36 @@ void test("the terminal turn command is valid in sh, cmd.exe and PowerShell and 
     assert.ok(!input.includes("pty-192-turn"));
     assert.ok(!/\$\(|`/u.test(input), "no shell-specific expansion syntax");
   }
+});
+
+void test("standalone qualification PATH holds the bundled runtime but no host Node or npm", async () => {
+  const { standaloneQualificationPath } = await import("./server-install-qualification.mjs");
+  const posix = standaloneQualificationPath(
+    "/prefix/current/runtime",
+    { PATH: "/opt/node/bin:/usr/bin" },
+    "linux",
+  );
+  assert.equal(posix.split(":")[0], "/prefix/current/runtime");
+  assert.ok(!posix.split(":").includes("/opt/node/bin"), posix);
+  // A git-only shim replaces a package-manager bin directory that holds node.
+  const shimmed = standaloneQualificationPath(
+    "/prefix/current/runtime",
+    { PATH: "/opt/homebrew/bin:/usr/bin" },
+    "darwin",
+    "/tmp/poracode-qualify-git-x",
+  );
+  assert.deepEqual(shimmed.split(":").slice(0, 2), [
+    "/prefix/current/runtime",
+    "/tmp/poracode-qualify-git-x",
+  ]);
+  assert.ok(!shimmed.split(":").includes("/opt/homebrew/bin"), shimmed);
+  const windows = standaloneQualificationPath(
+    "C:\\p\\current\\runtime",
+    { Path: "C:\\hostedtoolcache\\node;C:\\Windows\\System32", SystemRoot: "C:\\Windows" },
+    "win32",
+  );
+  const entries = windows.split(";");
+  assert.equal(entries[0], "C:\\p\\current\\runtime");
+  assert.ok(entries.includes("C:\\Windows\\System32\\WindowsPowerShell\\v1.0"), windows);
+  assert.ok(!entries.includes("C:\\hostedtoolcache\\node"), windows);
 });

@@ -2,6 +2,11 @@ import { useShallow } from "zustand/shallow";
 import type { Project } from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  groupProjectRows,
+  type ProjectGroupRow,
+} from "@/renderer/state/projectGroups/projectGroups";
+import { useProjectGroupIndex } from "@/renderer/state/projectGroups/useProjectGroups";
 import { useReachableProjectFilter } from "@/renderer/state/remoteServers/reachability";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
@@ -12,7 +17,7 @@ import { useWorkspaceProjectFilter } from "@/renderer/state/workspaceSelectors";
  * mirrors between local projects. Stable, so projects keep their store order
  * within each bucket.
  */
-function compareSelectorOrder(a: Project, b: Project): number {
+export function compareProjectSelectorOrder(a: Project, b: Project): number {
   const rank = (project: Project) => {
     if (isHomeProject(project)) return 0;
     return project.remoteServerId ? 2 : 1;
@@ -40,7 +45,28 @@ export function useProjectSwitchProjects(): readonly Project[] {
         .filter((project) => (isHomeProject(project) ? homeScopeEnabled : !project.disabled))
         .filter(isInWorkspace)
         .filter(isReachable)
-        .sort(compareSelectorOrder),
+        .sort(compareProjectSelectorOrder),
     ),
   );
+}
+
+/**
+ * The switcher's list at logical-project granularity: one row per project,
+ * whichever environments it lives on, holding the members the active
+ * workspace shows and this client can reach, in the same order as
+ * {@link useProjectSwitchProjects}.
+ */
+export interface ProjectSwitchEntry extends ProjectGroupRow {
+  /** Workspace-scoped copies, including offline machines, for informational details. */
+  readonly environments: readonly Project[];
+}
+
+export function useProjectSwitchEntries(): readonly ProjectSwitchEntry[] {
+  const isInWorkspace = useWorkspaceProjectFilter();
+  return groupProjectRows(useProjectSwitchProjects(), useProjectGroupIndex()).map((entry) => ({
+    ...entry,
+    environments: (entry.group?.members ?? entry.members).filter(
+      (member) => isHomeProject(member) || isInWorkspace(member),
+    ),
+  }));
 }

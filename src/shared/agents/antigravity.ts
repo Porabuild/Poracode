@@ -1,5 +1,32 @@
+import { baseAgentKind } from "@/shared/contracts/agentInstance";
+
 export const ANTIGRAVITY_ACP_REGISTRY_ID = "antigravity-acp";
 export const LEGACY_ANTIGRAVITY_ACP_KIND = `acp-generic:${ANTIGRAVITY_ACP_REGISTRY_ID}`;
+
+export function isAntigravityAgentKind(agentKind: string): boolean {
+  return baseAgentKind(agentKind) === "antigravity" || agentKind === LEGACY_ANTIGRAVITY_ACP_KIND;
+}
+
+export function sanitizePersistedAntigravityContextUsage(
+  raw: string,
+): { action: "keep" } | { action: "update"; usage: string } | { action: "delete" } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { action: "keep" };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { action: "keep" };
+  const record = parsed as Record<string, unknown>;
+  if (!Array.isArray(record.breakdown)) return { action: "keep" };
+  const { usedTokens: _usedTokens, breakdown: _breakdown, maxTokens, ...rest } = record;
+  const validMaxTokens =
+    typeof maxTokens === "number" && Number.isSafeInteger(maxTokens) && maxTokens > 0;
+  const next = validMaxTokens ? { ...rest, maxTokens } : rest;
+  return Object.keys(next).length > 0
+    ? { action: "update", usage: JSON.stringify(next) }
+    : { action: "delete" };
+}
 
 const ANTIGRAVITY_ACP_MODEL_VARIANTS: Record<string, { model: string; effort: string }> = {
   "gemini-4-argon-high": { model: "gemini-4-argon", effort: "High" },

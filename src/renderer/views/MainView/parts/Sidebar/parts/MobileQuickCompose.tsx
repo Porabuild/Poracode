@@ -1,3 +1,4 @@
+import { acceptClientSubmissionById } from "@/renderer/actions/clientDraftSubmission";
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
@@ -52,9 +53,8 @@ export function MobileQuickCompose(props: { projectId: string }) {
           autoFocusComposer={false}
           restoreWorktreeSelectionToken={restoreWorktreeSelectionToken}
           {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
-          {...(draftEnvironment.saveClipboardImage
-            ? { saveClipboardImage: draftEnvironment.saveClipboardImage }
-            : {})}
+          {...(draftEnvironment.importFiles ? { importFiles: draftEnvironment.importFiles } : {})}
+
           {...(project.lastDraftConfig ? { lastDraftConfig: project.lastDraftConfig } : {})}
           onProjectChange={(projectId) => {
             setDraft((current) =>
@@ -64,7 +64,12 @@ export function MobileQuickCompose(props: { projectId: string }) {
             );
           }}
           onStart={async (input) => {
-            await startThreadFromDraft(project, input);
+            const outcome = await startThreadFromDraft(project, input);
+            if (outcome !== "accepted") return outcome;
+            if (input.clientSubmissionId)
+              await acceptClientSubmissionById(input.clientSubmissionId, () =>
+                useAppStore.getState().clearDraftContent(project.id),
+              );
             // The mobile dock remains mounted after launch. Start a fresh editor
             // without resetting an unsent draft selected while launch was pending.
             setDraft((current) =>
@@ -72,6 +77,7 @@ export function MobileQuickCompose(props: { projectId: string }) {
                 ? { ...current, revision: current.revision + 1, expanded: false }
                 : current,
             );
+            return outcome;
           }}
         />
       </section>

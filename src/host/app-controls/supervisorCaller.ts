@@ -100,7 +100,11 @@ export function createAppControlsSupervisorCaller(
     ghUpdatePrBranch: (payload) => call("ghUpdatePrBranch", payload),
     probeMcpServer: (payload) => call("probeMcpServer", payload),
     reloadAgentMcpServers: (payload) => call("reloadAgentMcpServers", payload),
-    getMcpOauthStatus: () => call("getMcpOauthStatus", {}),
+    getMcpOauthStatus: (payload = {}) => call("getMcpOauthStatus", payload),
+    beginMcpServerOauth: (payload) => call("beginMcpServerOauth", payload),
+    waitMcpServerOauth: (payload) => call("waitMcpServerOauth", payload),
+    clearMcpServerOauth: (payload) => call("clearMcpServerOauth", payload),
+    listPlugins: (payload) => call("listPlugins", payload),
     scanSkills: (payload) => call("scanSkills", payload),
     setSkillEnabled: (payload) => call("setSkillEnabled", payload),
   };

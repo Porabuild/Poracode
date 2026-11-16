@@ -4,7 +4,10 @@ import {
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
-import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
+import type {
+  DraftStartInput,
+  DraftStartResult,
+} from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useIsDraggingPane, usePaneDropIndicatorState } from "@/renderer/dnd";
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { usePaneDragAndDrop } from "@/renderer/components/thread/PaneDragAndDrop";
@@ -16,7 +19,10 @@ export function DraftPane(props: {
   paneAlign: "left" | "center" | "right";
   headerNeedsTrafficLightPad?: boolean;
   onClose: () => void;
-  onStart: (project: Project, input: DraftStartInput) => void | Promise<void>;
+  onStart: (
+    project: Project,
+    input: DraftStartInput,
+  ) => DraftStartResult | Promise<DraftStartResult>;
 }) {
   const project = useProjectWithoutDraftConfig(props.projectId);
   const initialLastDraftConfig = useInitialProjectDraftConfig(props.projectId);
@@ -37,9 +43,8 @@ export function DraftPane(props: {
       agentStatuses={draftEnvironment.agentStatuses}
       isDetectingAgents={draftEnvironment.isDetectingAgents}
       {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
-      {...(draftEnvironment.saveClipboardImage
-        ? { saveClipboardImage: draftEnvironment.saveClipboardImage }
-        : {})}
+      {...(draftEnvironment.importFiles ? { importFiles: draftEnvironment.importFiles } : {})}
+
       compact
       paneAlign={props.paneAlign}
       paneId={props.paneId}

@@ -12,6 +12,9 @@ const NAVIGATION_FALLBACK_DELAY_MS = 500;
 const APP_BASE_URL = new URL("./", self.location.href);
 const shellUrl = (path) => new URL(path, APP_BASE_URL).pathname;
 const SHELL_URLS = ["./", "manifest.webmanifest", "app-icon.svg"].map(shellUrl);
+// The finalized manifest includes the dynamic modules required for first paint,
+// not just the entry's static modulepreloads. Older cache entries stay readable.
+const STARTUP_ASSET_URLS = "__PORACODE_STARTUP_ASSET_URLS__";
 // Substituted per channel by scripts/finalize-web-build.mjs so a nightly
 // install's notifications carry the nightly art, not the stable icon.
 const NOTIFICATION_ICON_URL = shellUrl("__PORACODE_NOTIFICATION_ICON__");
@@ -90,12 +93,17 @@ async function cacheShell() {
   const cache = await caches.open(CACHE_NAME);
   // Reject installation if the runnable shell is incomplete. Otherwise the
   // replacement could activate and retire the previous usable offline build.
-  await cache.add(shellUrl("./"));
-  const shell = await cache.match(shellUrl("./"));
-  if (!shell) throw new Error("Unavailable application shell");
-  const assets = shellAssetUrls(await shell.text());
+  const shell = await fetch(shellUrl("./"), { cache: "reload" });
+  if (!shell.ok || !isHtmlResponse(shell)) throw new Error("Unavailable application shell");
+  const html = await shell.clone().text();
+  const version = html.match(/name="poracode-build-version"\s+content="([^"]+)"/)?.[1];
+  if (version && version !== BUILD_VERSION) throw new Error("Application deployment changed");
+  const assets = Array.isArray(STARTUP_ASSET_URLS)
+    ? STARTUP_ASSET_URLS.map(shellUrl)
+    : shellAssetUrls(html);
   if (assets.length === 0) throw new Error("Application shell has no build assets");
   await Promise.all(assets.map((url) => cacheBuildAsset(cache, url)));
+  await cache.put(shellUrl("./"), shell);
   // Branding/install metadata are best-effort, not startup prerequisites.
   await Promise.allSettled(SHELL_URLS.slice(1).map((url) => cache.add(url)));
 }
@@ -113,26 +121,77 @@ function validBuildAssetUrls(value) {
 }
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(cacheShell());
-  // Keep the previous worker in control until its documents close or reload.
-  // Activating immediately can delete the previous hashed asset cache while
-  // an old document still requests one of those URLs.
+  event.waitUntil(
+    cacheShell()
+      .then(() => self.skipWaiting())
+      .catch(async (error) => {
+        // Failed installs must not leave a partial cache that a later version
+        // mistakes for the previous complete graph.
+        await caches.delete(CACHE_NAME);
+        throw error;
+      }),
+  );
 });
+
+function clientBuildVersion(client) {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const finish = (version) => {
+      clearTimeout(timer);
+      channel.port1.close();
+      resolve(version);
+    };
+    const timer = setTimeout(() => finish(null), 1000);
+    channel.port1.onmessage = (event) => finish(event.data?.version ?? null);
+    client.postMessage({ type: "poracode-build-activated", version: BUILD_VERSION }, [
+      channel.port2,
+    ]);
+  });
+}
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((key) => key.startsWith("poracode-pwa-") && key !== CACHE_NAME)
-            .map((key) => caches.delete(key)),
-        ),
-      )
-      .then(() => self.clients.claim()),
+    self.clients
+      .claim()
+      // Navigation fetches wait for activation. Refresh from a separate event
+      // so we can keep the worker alive until WebKit finishes the navigation.
+      .then(() => self.registration.active.postMessage({ type: "refresh-build-clients" })),
   );
 });
+
+async function retirePreviousBuilds() {
+  const windows = await self.clients.matchAll({ type: "window" });
+  const versions = await Promise.all(windows.map(clientBuildVersion));
+  // A failed navigation or suspended old document can still need its graph.
+  // Cache creation order alone cannot identify the active, complete build.
+  if (versions.some((version) => version !== BUILD_VERSION)) return;
+  const keys = await caches.keys();
+  const currentIndex = keys.indexOf(CACHE_NAME);
+  if (currentIndex < 0) return;
+  // Later entries can belong to a newer worker that is still installing.
+  // Retire predecessors only; never delete that worker's in-progress graph.
+  await Promise.all(
+    keys
+      .slice(0, currentIndex)
+      .filter((key) => key.startsWith("poracode-pwa-"))
+      .map((key) => caches.delete(key)),
+  );
+}
+
+async function cachedShell() {
+  const cache = await caches.open(CACHE_NAME);
+  // CacheStorage.match searches oldest first, which can select the retained
+  // previous graph. Prefer this worker's fully installed shell.
+  return (await cache.match(shellUrl("./"))) || caches.match(shellUrl("./"));
+}
+
+async function refreshBuildClient(client) {
+  if ((await clientBuildVersion(client)) === BUILD_VERSION) return;
+  // Legacy pages can fail before installing any renderer error handlers.
+  const url = new URL(client.url);
+  url.searchParams.set("__poracode_reload", String(Date.now()));
+  await client.navigate(url.href);
+}
 
 function parsePushPayload(event) {
   try {
@@ -191,6 +250,35 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 self.addEventListener("message", (event) => {
+  if (event.data?.type === "activate-build") {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
+  if (event.data?.type === "check-build") {
+    if (
+      event.data.version !== BUILD_VERSION &&
+      event.source?.type === "window" &&
+      !self.registration.installing &&
+      !self.registration.waiting
+    ) {
+      // A suspended iOS document can miss activation while the app is closed.
+      // Reconcile it even when update() finds an already-current worker.
+      event.waitUntil(refreshBuildClient(event.source).then(retirePreviousBuilds));
+    }
+    return;
+  }
+  if (
+    event.data?.type === "refresh-build-clients" &&
+    event.source?.scriptURL === self.location.href
+  ) {
+    event.waitUntil(
+      self.clients
+        .matchAll({ type: "window" })
+        .then((windows) => Promise.allSettled(windows.map(refreshBuildClient)))
+        .then(retirePreviousBuilds),
+    );
+    return;
+  }
   if (event.data?.type !== "cache-build-assets") return;
   const urls = validBuildAssetUrls(event.data.urls);
   event.waitUntil(
@@ -246,7 +334,11 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     const networkResponse = fetch(request).then(async (response) => {
-      if (response.ok) {
+      if (response.ok && isHtmlResponse(response)) {
+        // A new deployment can be served while its worker is still installing.
+        // Do not replace this worker's complete offline graph with that shell.
+        const html = await response.clone().text();
+        if (!html.includes(`content="${BUILD_VERSION}"`)) return response;
         const cache = await caches.open(CACHE_NAME);
         await cache.put(shellUrl("./"), response.clone());
       }
@@ -257,14 +349,17 @@ self.addEventListener("fetch", (event) => {
     // network and exhaust the renderer's one-reload recovery guard. Reloads
     // must wait for the network, falling back only when it actually fails.
     // Cache shapes stay valid; finalization hashes these worker bytes.
-    const isReload = request.cache === "no-cache" || request.cache === "reload";
+    const isReload =
+      request.cache === "no-cache" ||
+      request.cache === "reload" ||
+      url.searchParams.has("__poracode_reload");
     const navigationResponse = isReload
       ? networkResponse
       : Promise.race([
           networkResponse,
           new Promise((resolve) => {
             setTimeout(() => {
-              void caches.match(shellUrl("./")).then(resolve);
+              void cachedShell().then(resolve);
             }, NAVIGATION_FALLBACK_DELAY_MS);
           }),
         ]);
@@ -277,7 +372,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       navigationResponse
         .then((response) => response || networkResponse)
-        .catch(async () => (await caches.match(shellUrl("./"))) || Response.error()),
+        .catch(async () => (await cachedShell()) || Response.error()),
     );
     return;
   }

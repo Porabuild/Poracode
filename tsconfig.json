@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@vitest/browser-playwright/context": ["./src/build/vitestBrowserProviderContextStub.d.ts"]
     },
     "target": "ES2024",
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
@@ -37,7 +38,8 @@
     "tsdown.config.ts",
     "lingui.config.ts",
     "vitest.config.ts",
-    "vitest.integration.config.ts"
+    "vitest.integration.config.ts",
+    "vitest.browser.config.ts"
   ],
   "exclude": ["tui/**"]
 }

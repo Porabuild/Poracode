@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { RemoteClientError } from "@/shared/remote/client";
+import { RemoteClientError, remoteMutationMayHaveCommitted } from "@/shared/remote/client";
 import type { Project, Thread } from "@/shared/contracts";
 
 const mocks = vi.hoisted(() => ({
@@ -26,13 +26,6 @@ const mocks = vi.hoisted(() => ({
           }) => Promise<unknown>,
         ) => Promise<unknown>
       >(),
-    launchRemoteThread:
-      vi.fn<
-        (
-          input: unknown,
-          options?: { isPendingLaunchOwned?: () => boolean },
-        ) => Promise<"started" | "cancelled" | "cancellation-failed">
-      >(),
   },
   startThread: vi.fn<(input: unknown) => Promise<unknown>>(),
   bridge: {
@@ -40,7 +33,6 @@ const mocks = vi.hoisted(() => ({
   },
   notify: vi.fn<() => void>(),
   reconcile: vi.fn<(thread: Thread) => Promise<boolean>>(),
-  reconcileRemote: vi.fn<(desktopId: string, remoteId: string) => Promise<boolean>>(),
   captureThreadStarted: vi.fn<(thread: Thread) => void>(),
 }));
 
@@ -72,6 +64,7 @@ vi.mock("@/renderer/analytics/posthog", () => ({
 }));
 vi.mock("@/renderer/state/experimentStore", () => ({
   findExperimentByGroupId: () => undefined,
+  findExperimentByThreadId: () => undefined,
 }));
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
   useAgentStatusesStore: {
@@ -103,11 +96,10 @@ vi.mock("./threadCommandOutcomeActions", async (importOriginal) => {
     ...actual,
     notifyThreadCommandOutcomeUncertain: mocks.notify,
     reconcileThreadCommandOutcome: mocks.reconcile,
-    reconcileRemoteThreadCommandOutcome: mocks.reconcileRemote,
   };
 });
 
-import { performInitialThreadLaunch, startThreadFromDraft } from "./threadLaunchActions";
+import { performInitialThreadLaunch } from "./threadLaunchActions";
 
 const projectLocation = { kind: "posix", path: "/repo" } as const;
 
@@ -160,16 +152,6 @@ function uncertainError(): RemoteClientError {
     "command_outcome_uncertain",
   );
 }
-
-const remoteProject: Project = {
-  id: "remote:desktop-1:project:project-1",
-  name: "Remote",
-  location: { kind: "posix", path: "/srv/repo", remoteServerId: "desktop-1" },
-  remoteServerId: "desktop-1",
-  remoteId: "project-1",
-  scripts: { actions: [] },
-  createdAt: "2026-01-01T00:00:00.000Z",
-};
 
 describe("performInitialThreadLaunch uncertain outcomes", () => {
   beforeEach(() => {
@@ -266,6 +248,97 @@ describe("performInitialThreadLaunch uncertain outcomes", () => {
     expect(mocks.reconcile).toHaveBeenCalledExactlyOnceWith(thread);
   });
 
+  it("reports a definite launch error without an uncertainty warning when reconciliation finds the thread failed", async () => {
+    const thread = createRemoteThread();
+    mocks.appState.threads = [thread];
+    mocks.startThread.mockRejectedValue(
+      new RemoteClientError("Internal server error.", 500, "internal_error", {
+        requestPhase: "dispatched",
+        requestMayHaveCommitted: true,
+      }),
+    );
+    mocks.reconcile.mockImplementation(async () => {
+      mocks.appState.threads = [
+        { ...thread, status: "error", attention: "error", errorMessage: "Provider quota exceeded" },
+      ];
+      return true;
+    });
+
+    const failure = await performInitialThreadLaunch({
+      thread,
+      projectLocation,
+      prompt: "build it",
+      initialSize: { cols: 80, rows: 24 },
+    }).catch((reason: unknown) => reason);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toBe("Provider quota exceeded");
+    expect(remoteMutationMayHaveCommitted(failure)).toBe(false);
+    expect(mocks.reconcile).toHaveBeenCalledExactlyOnceWith(thread);
+    expect(mocks.notify).not.toHaveBeenCalled();
+    expect(mocks.captureThreadStarted).not.toHaveBeenCalled();
+  });
+
+  it("keeps uncertainty when reconciliation fails on an already-errored or resumed thread", async () => {
+    const erroredThread = createRemoteThread({
+      status: "error",
+      attention: "error",
+      errorMessage: "Earlier error",
+      sessionRef: { providerSessionId: "ses-1", discoveredAt: "2026-11-10T00:00:00.000Z" },
+    });
+    mocks.appState.threads = [erroredThread];
+    mocks.reconcile.mockResolvedValue(false);
+    mocks.startThread.mockRejectedValue(
+      new RemoteClientError("timed out", 0, "timeout", {
+        requestPhase: "dispatched",
+        requestMayHaveCommitted: true,
+      }),
+    );
+
+    const failure = await performInitialThreadLaunch({
+      thread: erroredThread,
+      projectLocation,
+      prompt: "resume turn",
+      initialSize: { cols: 80, rows: 24 },
+    }).catch((reason: unknown) => reason);
+
+    expect(remoteMutationMayHaveCommitted(failure)).toBe(true);
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps uncertainty when reconciliation shows an errored row that already has a sessionRef", async () => {
+    const thread = createRemoteThread();
+    mocks.appState.threads = [thread];
+    mocks.startThread.mockRejectedValue(
+      new RemoteClientError("timed out", 0, "timeout", {
+        requestPhase: "dispatched",
+        requestMayHaveCommitted: true,
+      }),
+    );
+    mocks.reconcile.mockImplementation(async () => {
+      mocks.appState.threads = [
+        {
+          ...thread,
+          status: "error",
+          attention: "error",
+          errorMessage: "Mid-turn failure",
+          sessionRef: { providerSessionId: "ses-live", discoveredAt: "2026-11-10T00:00:00.000Z" },
+        },
+      ];
+      return true;
+    });
+
+    const failure = await performInitialThreadLaunch({
+      thread,
+      projectLocation,
+      prompt: "build it",
+      initialSize: { cols: 80, rows: 24 },
+    }).catch((reason: unknown) => reason);
+
+    expect(remoteMutationMayHaveCommitted(failure)).toBe(true);
+    expect(mocks.notify).toHaveBeenCalledTimes(1);
+  });
+
   it("does not touch uncertainty handling on a successful start", async () => {
     const thread = createLocalThread();
 
@@ -281,53 +354,5 @@ describe("performInitialThreadLaunch uncertain outcomes", () => {
     expect(mocks.notify).not.toHaveBeenCalled();
     expect(mocks.reconcile).not.toHaveBeenCalled();
     expect(mocks.captureThreadStarted).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("startThreadFromDraft remote uncertain outcomes", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.reconcile.mockResolvedValue(true);
-    mocks.reconcileRemote.mockResolvedValue(true);
-    mocks.appState.threads = [];
-    mocks.appState.projects = [remoteProject];
-    mocks.remoteState.runtime = { "desktop-1": { status: "online" } };
-    mocks.remoteState.launchRemoteThread.mockResolvedValue("started");
-  });
-
-  it("reads the client-chosen host thread id back once and never resends", async () => {
-    mocks.remoteState.launchRemoteThread.mockRejectedValue(uncertainError());
-
-    await expect(
-      startThreadFromDraft(remoteProject, {
-        agentKind: "codex",
-        config: { model: "codex/model" },
-        prompt: "hello",
-      }),
-    ).rejects.toMatchObject({ code: "command_outcome_uncertain" });
-
-    expect(mocks.remoteState.launchRemoteThread).toHaveBeenCalledTimes(1);
-    const [launchInput] = mocks.remoteState.launchRemoteThread.mock.calls[0]!;
-    const hostThreadId = (launchInput as { threadId?: string }).threadId;
-    expect(typeof hostThreadId).toBe("string");
-    expect(mocks.notify).toHaveBeenCalledTimes(1);
-    expect(mocks.reconcileRemote).toHaveBeenCalledExactlyOnceWith("desktop-1", hostThreadId);
-    expect(mocks.reconcile).not.toHaveBeenCalled();
-  });
-
-  it("keeps the definite remote draft failure on the ordinary path", async () => {
-    const error = new RemoteClientError("conflict", 409, "command_id_conflict");
-    mocks.remoteState.launchRemoteThread.mockRejectedValue(error);
-
-    await expect(
-      startThreadFromDraft(remoteProject, {
-        agentKind: "codex",
-        config: { model: "codex/model" },
-        prompt: "hello",
-      }),
-    ).rejects.toBe(error);
-
-    expect(mocks.notify).not.toHaveBeenCalled();
-    expect(mocks.reconcileRemote).not.toHaveBeenCalled();
   });
 });

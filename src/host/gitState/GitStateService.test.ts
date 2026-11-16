@@ -79,7 +79,22 @@ function summary(overrides: Partial<PrData> = {}) {
 
 function executor(): GitStateExecutor {
   return {
+    ghPollPullRequests: vi.fn<GitStateExecutor["ghPollPullRequests"]>(async function (
+      this: GitStateExecutor,
+      input,
+    ) {
+      if (input.branch) {
+        const data = await this.ghGetPrForBranch({
+          projectLocation: input.projectLocation,
+          branch: input.branch,
+        });
+        return { status: "ready", prs: data ? { [input.branch]: data } : {}, pullRequests: [] };
+      }
+      const result = await this.ghListPullRequests(input);
+      return { status: "ready", prs: {}, ...result };
+    }),
     gitFetch: vi.fn<GitStateExecutor["gitFetch"]>(async () => undefined),
+    gitListWorktrees: vi.fn<GitStateExecutor["gitListWorktrees"]>(async () => ({ worktrees: [] })),
     gitProjectSnapshot: vi.fn<GitStateExecutor["gitProjectSnapshot"]>(async () => ({
       status: status(),
       branches: { current: "feature/unified", branches: [] },
@@ -126,6 +141,7 @@ function createService(overrides: Partial<GitStateServiceOptions> = {}): {
       hostId: "host-1",
       executor: fakeExecutor,
       getProject: (projectId) => (projectId === project.id ? project : null),
+      getProjects: () => [project],
       onPatch: patches,
       now: () => new Date("2026-07-28T12:00:00.000Z"),
       ...overrides,
@@ -134,6 +150,226 @@ function createService(overrides: Partial<GitStateServiceOptions> = {}): {
 }
 
 describe("GitStateService", () => {
+  it("keeps interested Git snapshots through ignore-only edits and refreshes unhinted events", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    service.setInterests("client", [{ kind: "target", projectId: project.id }]);
+    await vi.waitFor(() => expect(fakeExecutor.gitProjectSnapshot).toHaveBeenCalledTimes(1));
+    await service.refreshInterests([{ kind: "target", projectId: project.id }]);
+    vi.mocked(fakeExecutor.gitProjectSnapshot).mockClear();
+    service.observeSupervisorEvent({
+      type: "project-tree-changed",
+      projectId: project.id,
+      gitChanged: false,
+    });
+    await Promise.resolve();
+    expect(fakeExecutor.gitProjectSnapshot).not.toHaveBeenCalled();
+    service.observeSupervisorEvent({ type: "project-tree-changed", projectId: project.id });
+    await vi.waitFor(() => expect(fakeExecutor.gitProjectSnapshot).toHaveBeenCalledTimes(1));
+    await service.dispose();
+  });
+
+  it("repairs links on Git watcher changes without client interests", async () => {
+    const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
+    const { service, executor: fakeExecutor } = createService({
+      beginWorktreeObservation: () => observe,
+    });
+    service.observeSupervisorEvent({ type: "git-changed", projectId: project.id });
+    await vi.waitFor(() => expect(observe).toHaveBeenCalledExactlyOnceWith([]));
+    service.observeSupervisorEvent({ type: "project-tree-changed", projectId: project.id });
+    await service.dispose();
+    expect(fakeExecutor.gitListWorktrees).toHaveBeenCalledTimes(1);
+    expect(fakeExecutor.gitProjectSnapshot).not.toHaveBeenCalled();
+  });
+  it.each(["snapshot", "registry"])(
+    "discards superseded registry data from a %s without discarding unrelated status",
+    async (kind) => {
+      const beginWorktreeObservation = vi.fn<
+        NonNullable<GitStateServiceOptions["beginWorktreeObservation"]>
+      >(() => () => false);
+      const { service, patches } = createService({ beginWorktreeObservation });
+      if (kind === "snapshot") await service.refreshProject(project.id);
+      else
+        await service.refreshInterests([
+          { kind: "target", projectId: project.id, worktreePath: "/repo/wt" },
+        ]);
+      const projects = Object.values(service.getSnapshot().projects);
+      expect(projects.map((entry) => entry.status)).toEqual(kind === "registry" ? [] : [status()]);
+      expect(
+        patches.mock.calls
+          .flatMap(([patch]) => Object.values(patch.projects ?? {}))
+          .every((entry) => entry.worktrees === undefined),
+      ).toBe(true);
+      await service.dispose();
+    },
+  );
+  it.each([false, true])(
+    "preserves root status for mixed root/worktree interests (rootFirst=%s)",
+    async (rootFirst) => {
+      const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
+      const { service, executor: fakeExecutor } = createService({
+        beginWorktreeObservation: () => observe,
+      });
+      const interests = [
+        { kind: "target" as const, projectId: project.id },
+        { kind: "target" as const, projectId: project.id, worktreePath: "/repo/wt" },
+      ];
+      await service.refreshInterests(rootFirst ? interests : interests.reverse());
+      expect(fakeExecutor.gitListWorktrees).not.toHaveBeenCalled();
+      expect(fakeExecutor.gitProjectSnapshot).toHaveBeenCalledTimes(1);
+      expect(Object.values(service.getSnapshot().projects)[0]?.status).toEqual(status());
+      expect(
+        service.getSnapshot().targets[gitTargetKey({ hostId: "host-1", projectId: project.id })]
+          ?.status,
+      ).toEqual(status());
+      await service.dispose();
+    },
+  );
+  it("refreshes the registry once for clients interested only in linked worktrees", async () => {
+    const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
+    const { service, executor: fakeExecutor } = createService({
+      beginWorktreeObservation: () => observe,
+    });
+    await service.refreshInterests([
+      { kind: "target", projectId: project.id, worktreePath: "/repo/wt-a" },
+      { kind: "target", projectId: project.id, worktreePath: "/repo/wt-b" },
+    ]);
+    expect(fakeExecutor.gitListWorktrees).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: project.location,
+    });
+    expect(fakeExecutor.gitProjectSnapshot).not.toHaveBeenCalled();
+    expect(observe).toHaveBeenCalledExactlyOnceWith([]);
+    await service.dispose();
+  });
+
+  it("reconciles saved worktree links only from fresh reads, never cached notifications", async () => {
+    const observe = vi.fn<(worktrees: unknown) => boolean>(() => true);
+    const { service } = createService({ beginWorktreeObservation: () => observe });
+    await service.refreshProject(project.id);
+    expect(observe).toHaveBeenCalledExactlyOnceWith([]);
+    service.observeSupervisorEvent({
+      type: "github-polling-status",
+      projectLocation: project.location,
+      problem: { kind: "authentication", executionHost: "host", retryAt: "later" },
+    });
+    expect(observe).toHaveBeenCalledTimes(1);
+    await service.dispose();
+  });
+
+  it("discards a worktree snapshot if the project moved during the read", async () => {
+    let currentProject = project;
+    const {
+      service,
+      executor: fakeExecutor,
+      patches,
+    } = createService({ getProject: () => currentProject });
+    const pending =
+      Promise.withResolvers<Awaited<ReturnType<GitStateExecutor["gitProjectSnapshot"]>>>();
+    vi.mocked(fakeExecutor.gitProjectSnapshot).mockReturnValueOnce(pending.promise);
+    const refresh = service.refreshProject(project.id);
+    currentProject = { ...project, location: { kind: "posix", path: "/moved-repo" } };
+    pending.resolve({ status: null, branches: null, worktrees: [], ghAvailable: false });
+    await refresh;
+    expect(patches).not.toHaveBeenCalled();
+    await service.dispose();
+  });
+
+  it("publishes recovery from direct client polling before unrelated host patches", async () => {
+    const { service, patches } = createService();
+    const event = {
+      type: "github-polling-status" as const,
+      projectLocation: project.location,
+      problem: { kind: "authentication" as const, executionHost: "host", retryAt: "later" },
+    };
+    service.observeSupervisorEvent(event);
+    expect(Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem).toEqual(
+      event.problem,
+    );
+    service.observeSupervisorEvent({ ...event, problem: null });
+    await service.refreshTarget({ projectId: project.id, worktreePath: "/repo/wt" });
+    expect(Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem).toBeNull();
+    expect(patches).toHaveBeenCalled();
+    await service.dispose();
+  });
+
+  it("recovers a cached branchless review bundle after its authentication backoff", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    service.applyObservedPullRequest({ projectId: project.id, headBranch: "feature" }, pr());
+    fakeExecutor.ghPollPullRequests = vi
+      .fn<GitStateExecutor["ghPollPullRequests"]>()
+      .mockResolvedValueOnce({
+        status: "blocked",
+        problem: { kind: "authentication", executionHost: "host", retryAt: "2000-01-01T00:00:00Z" },
+      })
+      .mockResolvedValue({ status: "ready", prs: {}, pullRequests: [] });
+    await service.refreshProjectPullRequests(project.id);
+    await service.refreshPullRequestReviewBundle({ projectId: project.id, prNumber: pr().number });
+    expect(fakeExecutor.ghPollPullRequests).toHaveBeenCalledTimes(2);
+    expect(fakeExecutor.ghGetPrFiles).toHaveBeenCalledOnce();
+    expect(Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem).toBeNull();
+    await service.dispose();
+  });
+  it("preserves stale PR associations and publishes a deduplicated problem until a successful empty read", async () => {
+    const { service, executor: fakeExecutor, patches } = createService();
+    await service.refreshPullRequestForBranch(project.id, "feature");
+    const previous = service.getSnapshot();
+    const problem = {
+      kind: "authentication" as const,
+      executionHost: "remote-host / WSL Ubuntu",
+      retryAt: "2026-07-28T12:01:00.000Z",
+    };
+    vi.mocked(fakeExecutor.ghPollPullRequests).mockResolvedValue({ status: "blocked", problem });
+    await service.refreshPullRequestForBranch(project.id, "feature");
+    const blocked = service.getSnapshot();
+    expect(blocked.pullRequestKeyByBranch).toEqual(previous.pullRequestKeyByBranch);
+    expect(blocked.pullRequests).toEqual(previous.pullRequests);
+    expect(Object.values(blocked.projects)[0]?.githubPollingProblem).toEqual(problem);
+    const calls = patches.mock.calls.length;
+    await service.refreshPullRequestForBranch(project.id, "feature");
+    expect(patches).toHaveBeenCalledTimes(calls);
+    await service.refreshPullRequestReviewBundle({
+      projectId: project.id,
+      prNumber: pr().number,
+      branch: "feature",
+    });
+    expect(fakeExecutor.ghGetPrFiles).not.toHaveBeenCalled();
+    vi.mocked(fakeExecutor.ghPollPullRequests).mockResolvedValue({
+      status: "ready",
+      prs: {},
+      pullRequests: [],
+    });
+    await service.refreshPullRequestForBranch(project.id, "feature");
+    expect(Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem).toBeNull();
+    expect(service.getSnapshot().pullRequestKeyByBranch).toEqual({});
+    await service.dispose();
+  });
+
+  it("keeps unavailable first reads distinct from an empty PR list, without any attached client", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    vi.mocked(fakeExecutor.ghPollPullRequests).mockResolvedValue({
+      status: "blocked",
+      problem: { kind: "authentication", executionHost: "server", retryAt: "later" },
+    });
+    await service.refreshProjectPullRequests(project.id);
+    expect(service.getSnapshot().projectPullRequestLists).toEqual({});
+    expect(
+      Object.values(service.getSnapshot().projects)[0]?.githubPollingProblem?.executionHost,
+    ).toBe("server");
+    vi.mocked(fakeExecutor.ghPollPullRequests).mockResolvedValue({
+      status: "ready",
+      prs: {},
+      pullRequests: [],
+    });
+    await service.refreshProjectPullRequests(project.id, { afterMutation: true });
+    expect(fakeExecutor.ghPollPullRequests).toHaveBeenLastCalledWith({
+      projectLocation: project.location,
+      state: "open",
+      retry: true,
+    });
+    expect(
+      Object.values(service.getSnapshot().projectPullRequestLists)[0]?.pullRequestKeys,
+    ).toEqual([]);
+    await service.dispose();
+  });
   beforeEach(() => {
     vi.useRealTimers();
   });
@@ -490,6 +726,30 @@ describe("GitStateService", () => {
     const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
     expect(service.getSnapshot().pullRequests[key]?.data.state).toBe("merged");
     expect(service.getSnapshot().pullRequests[key]?.details?.checks[0]?.conclusion).toBe("SUCCESS");
+  });
+
+  it("associates targets when a concurrent project list aliases the same PR during a branch read", async () => {
+    const { service, executor: fakeExecutor } = createService();
+    const branchRead = Promise.withResolvers<PrData | null>();
+    vi.mocked(fakeExecutor.ghGetPrForBranch).mockReturnValueOnce(branchRead.promise);
+    vi.mocked(fakeExecutor.ghListPullRequests).mockResolvedValue({
+      pullRequests: [summary({ state: "draft", isDraft: true, checksStatus: "FAILURE" })],
+    });
+    const target = { projectId: project.id, worktreePath: "/repo/.poracode/worktrees/a" };
+    const refreshing = service.refreshTarget(target);
+    await vi.waitFor(() => expect(fakeExecutor.ghGetPrForBranch).toHaveBeenCalledOnce());
+
+    await service.refreshProjectPullRequests(project.id);
+    branchRead.resolve(pr({ state: "draft", isDraft: true }));
+    await refreshing;
+
+    const key = pullRequestKey({ hostId: "host-1", projectId: project.id, prNumber: 42 });
+    const snapshot = service.getSnapshot();
+    expect(snapshot.targets[gitTargetKey({ hostId: "host-1", ...target })]?.pullRequestKey).toBe(
+      key,
+    );
+    // The list reading landed first and is kept; the association is what was missing.
+    expect(snapshot.pullRequests[key]?.data.checksStatus).toBe("FAILURE");
   });
 
   it("attaches an explicitly created PR to targets on a reused branch", async () => {

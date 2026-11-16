@@ -72,8 +72,49 @@ function readEndRecord(record: Record<string, unknown>): NodePerfEndRecord | nul
   };
 }
 
+/** Chromium child-process memory from desktop-main `appMetrics`, summed per process type. */
+export interface ChromiumProcessMemorySummary {
+  readonly samples: number;
+  readonly workingSetKiBFirst: number;
+  readonly workingSetKiBMax: number;
+  readonly workingSetKiBLast: number;
+  /**
+   * Lowest working set in the middle and last thirds of the samples. Garbage
+   * collection turns the working set into a sawtooth: a floor that rises from
+   * the middle to the last third means retained memory (a leak), while a flat
+   * floor under a high peak means allocation churn.
+   */
+  readonly workingSetKiBMiddleFloor: number;
+  readonly workingSetKiBLateFloor: number;
+}
+
+function summarizeChromiumProcesses(
+  series: Readonly<Record<string, readonly number[]>>,
+): Record<string, ChromiumProcessMemorySummary> {
+  const min = (values: readonly number[]) =>
+    values.reduce((lowest, value) => Math.min(lowest, value), Number.POSITIVE_INFINITY);
+  return Object.fromEntries(
+    Object.entries(series).map(([type, values]) => {
+      const third = Math.floor(values.length / 3);
+      return [
+        type,
+        {
+          samples: values.length,
+          workingSetKiBFirst: values[0]!,
+          workingSetKiBMax: values.reduce((highest, value) => Math.max(highest, value), 0),
+          workingSetKiBLast: values.at(-1)!,
+          workingSetKiBMiddleFloor: min(values.slice(third, Math.max(2 * third, third + 1))),
+          workingSetKiBLateFloor: min(values.slice(2 * third)),
+        },
+      ];
+    }),
+  );
+}
+
 /** Unpublished derived summary v2; writer/queue formats are unchanged.
- * Format 1 supplies process metrics only. Missing/invalid measurements stay null. */
+ * Format 1 supplies process metrics only. Missing/invalid measurements stay null.
+ * `chromiumProcesses` is an addition within v2, present only for a role whose
+ * samples carry Electron `appMetrics` (desktop-main). */
 export interface NodePerfRoleSummary {
   readonly summaryVersion: 2;
   /** Nonblank lines with invalid JSON, record shape, ordering, or a mismatched format. */
@@ -104,6 +145,11 @@ export interface NodePerfRoleSummary {
   /** Last valid observed RSS, not an inferred value for a missing trailing measurement. */
   readonly rssBytesLast: number | null;
   readonly queueMaxima: Readonly<Record<string, NodePerfQueueSummary>>;
+  /**
+   * Renderer ("Tab"), GPU and other Chromium processes. The renderer is not a
+   * Node role, so this is the only place its memory reaches the summary.
+   */
+  readonly chromiumProcesses?: Readonly<Record<string, ChromiumProcessMemorySummary>>;
 }
 
 export function summarizeNodePerfDirectory(directory: string): NodePerfRoleSummary[] {
@@ -132,6 +178,7 @@ export function summarizeNodePerfDirectory(directory: string): NodePerfRoleSumma
       rssSamples: 0,
     };
     const queues: Record<string, NodePerfQueueSummary> = {};
+    const chromium: Record<string, number[]> = {};
     const contents = readFileSync(path, "utf8");
     for (const line of contents.split("\n")) {
       const precedingBytes = recordBytes;
@@ -204,6 +251,17 @@ export function summarizeNodePerfDirectory(directory: string): NodePerfRoleSumma
         rssMax = Math.max(rssMax ?? 0, memory.rssBytes);
         rssLast = memory.rssBytes;
         processCounts.rssSamples++;
+      }
+      const appMetrics = asRecord(parsed.appMetrics);
+      if (Array.isArray(appMetrics?.processes)) {
+        const totals = new Map<string, number>();
+        for (const entry of appMetrics.processes) {
+          const process = asRecord(entry);
+          const workingSetKiB = process?.workingSetKiB;
+          if (typeof process?.type !== "string" || !isNonnegativeNumber(workingSetKiB)) continue;
+          totals.set(process.type, (totals.get(process.type) ?? 0) + workingSetKiB);
+        }
+        for (const [type, workingSetKiB] of totals) (chromium[type] ??= []).push(workingSetKiB);
       }
       if (parsed.formatVersion !== 2) continue; // Format 1 contains no queue observations.
       const ipcQueues = asRecord(parsed.ipcQueues);
@@ -290,6 +348,9 @@ export function summarizeNodePerfDirectory(directory: string): NodePerfRoleSumma
       rssBytesMax: rssMax,
       rssBytesLast: rssLast,
       queueMaxima: queues,
+      ...(Object.keys(chromium).length > 0
+        ? { chromiumProcesses: summarizeChromiumProcesses(chromium) }
+        : {}),
     });
   }
   return summaries;

@@ -1,7 +1,9 @@
 package com.poracode.app.session.catalog
 
+import com.poracode.app.model.GitStateJsonAdapter
 import com.poracode.app.model.RemoteBoundedReadCodes
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.RemoteGitSummary
 import com.poracode.app.model.RemoteProject
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.boundedPageOrProtocolError
@@ -16,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonElement
 
 /**
  * The bounded walk mechanics: paint continuation segments, immutable-id
@@ -40,6 +43,7 @@ internal class CatalogWalkEngine(
     private val onFailure: (Exception) -> Unit,
     private val segmentYieldMs: Long = SEGMENT_YIELD_MS,
     private val passDebounceMs: Long = PASS_DEBOUNCE_MS,
+    private val onGitSummaries: (Map<String, RemoteGitSummary>) -> Unit = {},
 ) {
     private var drainOwner: DrainOwner? = null
     private var pendingThreads = false
@@ -125,6 +129,12 @@ internal class CatalogWalkEngine(
         })
     }
 
+    /** Decode a bounded page's optional per-thread Git summaries and forward them. */
+    private fun emitGitSummaries(raw: JsonElement?) {
+        val summaries = GitStateJsonAdapter.decodeSummaries(raw)
+        if (summaries.isNotEmpty()) onGitSummaries(summaries)
+    }
+
     /** Returns true when bounded work remains and the caller should yield. */
     private suspend fun paintSegment(attempt: Long, apiIdentity: Int): Boolean {
         val client = gateway() ?: return false
@@ -145,6 +155,7 @@ internal class CatalogWalkEngine(
                 )
             }.boundedPageOrProtocolError()
             if (!isCurrent(attempt, apiIdentity)) return false
+            emitGitSummaries(page.gitSummariesByThread)
             updateState { CatalogStore.installThreads(it, page.threads, startedSeq) }
             cursor = page.nextCursor
             updateState { s -> s.copy(catalog = s.catalog.copy(paintThreadCursor = cursor)) }
@@ -280,6 +291,7 @@ internal class CatalogWalkEngine(
                 pass.frontier = page.frontier
             }
             pass.seen.addAll(page.ids)
+            if (kind == CatalogKind.THREADS) emitGitSummaries(page.gitSummariesByThread)
             updateState { s ->
                 when (kind) {
                     CatalogKind.THREADS -> CatalogStore.installThreads(s, page.threads, startedSeq)
@@ -380,6 +392,7 @@ internal class CatalogWalkEngine(
                 threads = page.threads,
                 nextCursor = page.nextCursor,
                 frontier = page.inventoryFrontier,
+                gitSummariesByThread = page.gitSummariesByThread,
             )
         }
         CatalogKind.PROJECTS -> {
@@ -465,6 +478,7 @@ internal class CatalogWalkEngine(
         val projects: List<RemoteProject> = emptyList(),
         val nextCursor: String?,
         val frontier: String?,
+        val gitSummariesByThread: JsonElement? = null,
     )
 
     companion object {

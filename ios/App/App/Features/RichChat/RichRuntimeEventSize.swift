@@ -35,6 +35,18 @@ extension RichRuntimeEvent: RecoveryByteSized {
         + removedAnchors.reduce(0) { $0 + $1.utf8.count + 8 }
     case .contextUpdated(let threadID, let usage):
       return 64 + threadID.utf8.count + usage.recoveryByteCount
+    case .backgroundTasksChanged(let threadID, let tasks):
+      return 96 + threadID.utf8.count + tasks.reduce(0) { total, task in
+        total + 128 + task.taskId.utf8.count + task.kind.utf8.count
+          + task.description.utf8.count
+          + (task.category?.utf8.count ?? 0)
+          + (task.command?.utf8.count ?? 0)
+          + (task.progress?.utf8.count ?? 0)
+          + (task.stopAction?.recoveryByteCount ?? 0)
+          + (task.outputAction?.recoveryByteCount ?? 0)
+      }
+    case .sessionExited(let threadID):
+      return 64 + threadID.utf8.count
     case .usageSpent(let threadID):
       return 64 + threadID.utf8.count
     case .warning(let threadID):
@@ -73,5 +85,13 @@ extension RichContextUsage: RecoveryByteSized {
       total += 48 + entry.id.utf8.count + entry.label.utf8.count
     }
     return total
+  }
+}
+
+extension RemoteBackgroundTaskStopAction: RecoveryByteSized {
+  var recoveryByteCount: Int {
+    64 + id.utf8.count + payload.reduce(0) { total, pair in
+      total + pair.key.utf8.count + pair.value.utf8.count + 8
+    }
   }
 }

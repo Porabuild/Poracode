@@ -217,7 +217,7 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     let switcher = try Self.source("App/Features/Hosts/HostSwitcherView.swift")
     let destination = try Self.source("App/Features/Hosts/HostDestinationView.swift")
 
-    XCTAssertTrue(switcher.contains("Menu {"))
+    XCTAssertTrue(switcher.contains(".contextMenu {"))
     XCTAssertTrue(switcher.contains("kind: .projects"))
     XCTAssertTrue(switcher.contains("kind: .desktopSettings"))
     XCTAssertTrue(switcher.contains(".navigationDestination(item: $destination)"))
@@ -246,27 +246,86 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     let advanced = try Self.source("App/Features/AdvancedOperations/AdvancedOperationsChrome.swift")
     XCTAssertTrue(advanced.contains(".background(.regularMaterial"))
     XCTAssertFalse(advanced.contains("GlassEffectContainer"))
-    XCTAssertTrue(advanced.contains("buttonStyle(.glass)"))
+    XCTAssertTrue(advanced.contains("poracodeGlassButtonStyle"))
+    XCTAssertTrue(advanced.contains("poracodeProminentButtonStyle"))
 
     let github = try Self.source(
       "App/Features/Projects/GitHubOperations/GitHubOperationsChrome.swift"
     )
     XCTAssertTrue(github.contains(".background(.regularMaterial"))
     XCTAssertFalse(github.contains("GlassEffectContainer"))
-    XCTAssertTrue(github.contains("buttonStyle(.glass)"))
+    XCTAssertTrue(github.contains("poracodeGlassButtonStyle"))
+    XCTAssertTrue(github.contains("poracodeProminentButtonStyle"))
 
-    let ports = try Self.source("App/Features/PortForwarding/PortForwardingGlass.swift")
-    XCTAssertTrue(ports.contains(".background(.thinMaterial"))
-    XCTAssertFalse(ports.contains("GlassEffectContainer"))
-    XCTAssertTrue(ports.contains("buttonStyle(.glassProminent)"))
+    let ports = try Self.source("App/Features/PortForwarding/PortForwardingView.swift")
+    XCTAssertFalse(ports.contains("PortForwardingActionSurface"))
+    XCTAssertFalse(ports.contains("PortForwardingPrimaryButtonStyle"))
+    XCTAssertTrue(ports.contains("poracodeGlassButtonStyle"))
 
     let hosts = try Self.source("App/Features/Hosts/HostSwitcherView.swift")
     XCTAssertFalse(hosts.contains("GlassEffectContainer"))
     XCTAssertFalse(hosts.contains("content.glassEffect"))
   }
 
+  /// Liquid Glass primitives are implementation details of the shared
+  /// component layer. Feature code must go through the `poracode*` modifiers
+  /// so availability gating and fallbacks stay in one place.
+  func testLiquidGlassPrimitivesLiveOnlyInTheSharedComponentLayer() throws {
+    let appDirectory = Self.appRoot("App")
+    guard
+      let enumerator = FileManager.default.enumerator(
+        at: appDirectory,
+        includingPropertiesForKeys: nil
+      )
+    else {
+      XCTFail("cannot enumerate \(appDirectory.path)")
+      return
+    }
+    let forbiddenOutsideComponents = [
+      "buttonStyle(.glass",
+      "buttonStyle(.bordered",
+      "glassEffect(",
+      "GlassEffectContainer",
+      "glassEffectID(",
+      "safeAreaBar(",
+      "safeAreaInset(",
+      "matchedTransitionSource(",
+      "navigationTransition(",
+      ".background(.bar)",
+    ]
+    let gatedPrimitives = [
+      "glassEffect(",
+      "GlassEffectContainer",
+      "buttonStyle(.glass",
+      "safeAreaBar(",
+      "glassEffectID(",
+    ]
+    for case let url as URL in enumerator where url.pathExtension == "swift" {
+      let source = try String(contentsOf: url, encoding: .utf8)
+      let relative = url.path.replacingOccurrences(
+        of: appDirectory.path + "/", with: "")
+      if url.path.contains("/Features/Components/") {
+        if gatedPrimitives.contains(where: { source.contains($0) }) {
+          XCTAssertTrue(
+            source.contains("#available(iOS 26"),
+            "\(relative) uses a gated primitive without an iOS 26 availability check"
+          )
+        }
+      } else {
+        for token in forbiddenOutsideComponents {
+          XCTAssertFalse(
+            source.contains(token),
+            "\(relative) contains \(token); use the shared poracode* modifiers instead"
+          )
+        }
+      }
+    }
+  }
+
   func testPrimaryProjectActionUsesTheThumbReachableNativeBottomBar() throws {
     let projects = try Self.source("App/Features/Projects/ProjectManagementView.swift")
+    let hosts = try Self.source("App/Features/Hosts/HostSwitcherView.swift")
+    let ports = try Self.source("App/Features/PortForwarding/PortForwardingView.swift")
     let components = try Self.source("App/Features/Components/GlassHelpers.swift")
 
     XCTAssertTrue(projects.contains("PoracodeBottomActionDock(placement: .trailing)"))
@@ -283,9 +342,16 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(
       components.contains("if placement == .trailing { Spacer(minLength: 0) }")
     )
+    XCTAssertTrue(components.contains("color: Color = .secondary"))
+    XCTAssertTrue(components.contains(".foregroundStyle(color)"))
+    XCTAssertTrue(components.contains(".tint(color)"))
     XCTAssertTrue(components.contains(".foregroundStyle(.secondary)"))
     XCTAssertTrue(components.contains(".tint(.secondary)"))
     XCTAssertTrue(components.contains(".frame(width: 44, height: 44)"))
+    XCTAssertFalse(components.contains("prominent"))
+    XCTAssertTrue(projects.contains("PoracodeCircleButton"))
+    XCTAssertTrue(hosts.contains("PoracodeCircleButton"))
+    XCTAssertTrue(ports.contains("PoracodeCircleButton"))
   }
 
   func testNestedCreationPagesReuseTheTrailingNativeActionDock() throws {
@@ -306,9 +372,16 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
       "App/Features/Projects/Components/ProjectWorkspaceBottomControls.swift"
     )
     XCTAssertTrue(workspace.contains("PoracodeBottomActionStrip"))
+    XCTAssertEqual(
+      workspace.components(separatedBy: "PoracodeBottomActionStrip").count - 1, 1,
+      "search and resting states share one morphing strip"
+    )
     XCTAssertTrue(workspace.contains("PoracodeCircleMenu"))
-    XCTAssertTrue(workspace.contains("ProjectWorkspaceModePicker(selection: $mode)"))
+    XCTAssertTrue(workspace.contains("ProjectWorkspaceModePicker("))
     XCTAssertTrue(workspace.contains("native-e2e.project-files.create"))
+    XCTAssertTrue(workspace.contains("poracodeGlassID(\"workspace.leading\""))
+    XCTAssertTrue(workspace.contains("poracodeGlassID(\"workspace.center\""))
+    XCTAssertTrue(workspace.contains("poracodeGlassID(\"workspace.trailing\""))
     XCTAssertFalse(workspace.contains("ToolbarItem(placement: .primaryAction)"))
 
     let workspacePage = try Self.source(
@@ -317,17 +390,18 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     let modePicker = try Self.source(
       "App/Features/Projects/Components/ProjectWorkspaceModePicker.swift"
     )
-    XCTAssertTrue(workspacePage.contains(".safeAreaInset(edge: .bottom"))
+    XCTAssertTrue(workspacePage.contains(".poracodeBottomBar"))
     XCTAssertFalse(workspacePage.contains(".navigationTitle("))
     XCTAssertTrue(workspacePage.contains("if showsWorkspaceControls"))
     XCTAssertTrue(
       workspacePage.contains("preferredCompactColumn != .detail"),
       "Compact detail actions must not overlap the shared Files/Git control strip"
     )
-    XCTAssertTrue(modePicker.contains("Picker(ProjectWorkspaceStrings.title"))
-    XCTAssertTrue(modePicker.contains(".pickerStyle(.segmented)"))
-    XCTAssertTrue(modePicker.contains(".controlSize(.large)"))
-    XCTAssertTrue(modePicker.contains("minHeight: 44, maxHeight: 44"))
+    XCTAssertTrue(modePicker.contains("PoracodeGlassTabs"))
+    XCTAssertTrue(modePicker.contains("ProjectWorkspaceStrings.files"))
+    XCTAssertTrue(modePicker.contains("ProjectWorkspaceStrings.git"))
+    XCTAssertTrue(modePicker.contains("arrow.triangle.branch"))
+    XCTAssertTrue(modePicker.contains("native-e2e.workspace.git"))
     XCTAssertFalse(workspacePage.contains(".tabViewBottomAccessory"))
     XCTAssertFalse(workspace.contains("PoracodeCircleTabButton"))
 
@@ -488,9 +562,13 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
   func testThemeRootOwnsPageBackgroundAndCircularControlsNeverStackGlass() throws {
     let theme = try Self.source("App/AppTheme.swift")
     let glass = try Self.source("App/Features/Components/GlassHelpers.swift")
+    let poracodeGlass = try Self.source("App/Features/Components/PoracodeGlass.swift")
     let actions = try Self.source("App/Features/Components/ActionComponents.swift")
     let homeComposer = try Self.source(
       "App/Features/Home/Components/HomeComposerComponents.swift")
+    let home = try Self.source("App/Features/Home/HomeView.swift")
+    let layout = try Self.source(
+      "App/Features/RichChat/UI/Components/RichChatResponsiveLayout.swift")
 
     XCTAssertTrue(theme.contains("theme.variant(for: resolvedColorScheme).background"))
     XCTAssertTrue(theme.contains(".scrollContentBackground(.hidden)"))
@@ -500,10 +578,141 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertFalse(glass.contains(".poracodeGlassBackground(in: Circle())"))
     XCTAssertTrue(glass.contains("button.buttonStyle(.glass)"))
     XCTAssertTrue(glass.contains("menu.buttonStyle(.glass)"))
+    XCTAssertTrue(glass.contains("PoracodeGlassGroup(spacing: 8)"))
+    XCTAssertTrue(poracodeGlass.contains("struct PoracodeGlassGroup<Content: View>"))
+    XCTAssertTrue(poracodeGlass.contains("GlassEffectContainer(spacing: spacing)"))
+    XCTAssertTrue(poracodeGlass.contains("func poracodeGlassID"))
+    XCTAssertTrue(poracodeGlass.contains("func poracodeBottomBar"))
+    XCTAssertTrue(poracodeGlass.contains("func poracodeTopBar"))
+    XCTAssertTrue(poracodeGlass.contains("func poracodeZoomSource"))
+    XCTAssertTrue(poracodeGlass.contains("func poracodeZoomTransition"))
+    XCTAssertTrue(poracodeGlass.contains("func poracodeNavigationBarChrome"))
+    XCTAssertTrue(poracodeGlass.contains("func poracodeComposerInset"))
+    XCTAssertTrue(poracodeGlass.contains("safeAreaBar(edge: .bottom"))
     XCTAssertTrue(actions.contains("func poracodeNativeComposerSurface"))
+    XCTAssertTrue(
+      actions.contains("glassEffect(.regular.interactive(interactive), in: shape)"))
     XCTAssertTrue(actions.contains("background(.regularMaterial, in: shape)"))
-    XCTAssertTrue(homeComposer.contains(".poracodeNativeComposerSurface(in: shape)"))
+    XCTAssertTrue(homeComposer.contains(".poracodeNativeComposerSurface(in: shape"))
+    XCTAssertTrue(homeComposer.contains("interactive: !isExpanded"))
+    XCTAssertTrue(homeComposer.contains("poracodeGlassID(\"home.compose\""))
+    XCTAssertFalse(homeComposer.contains(".shadow("))
     XCTAssertFalse(homeComposer.contains(".background(.regularMaterial"))
+    XCTAssertTrue(home.contains("PoracodeGlassGroup(spacing: 8)"))
+    XCTAssertTrue(home.contains("poracodeGlassID(\"home.search\""))
+    XCTAssertTrue(home.contains("poracodeGlassID(\"home.more\""))
+    XCTAssertTrue(home.contains("poracodeZoomSource(id: \"home.search\""))
+    XCTAssertTrue(home.contains("poracodeZoomSource(id: \"home.more\""))
+    XCTAssertTrue(home.contains("poracodeZoomTransition(sourceID: \"home.search\""))
+    XCTAssertTrue(home.contains("poracodeZoomTransition(sourceID: \"home.more\""))
+    XCTAssertTrue(home.contains(".poracodeBottomBar"))
+    XCTAssertTrue(layout.contains("PoracodeGlassGroup(spacing: 2)"))
+    XCTAssertFalse(layout.contains("safeAreaBar("))
+    XCTAssertTrue(layout.contains(".poracodeComposerInset"))
+  }
+
+  /// The app chrome stays neutral like the PWA: the theme accent reaches the
+  /// UI only through `\.poracodeAccent`, which the root injects while keeping
+  /// its own tint neutral. Prominent accent fills are reserved for the
+  /// pairing-primary and destructive actions enumerated below.
+  func testAccentIsReservedForPrimaryActions() throws {
+    let theme = try Self.source("App/AppTheme.swift")
+    let glass = try Self.source("App/Features/Components/GlassHelpers.swift")
+    let buttonStyles = try Self.source(
+      "App/Features/Components/PoracodeButtonStyles.swift")
+
+    XCTAssertTrue(theme.contains(".tint(Color.primary)"))
+    XCTAssertTrue(theme.contains(".environment(\\.poracodeAccent"))
+    // The per-switch modifier lives in the portable button-styles file so the
+    // macOS contract packages that symlink it compile the same definition.
+    XCTAssertTrue(buttonStyles.contains("func poracodeSwitchStyle"))
+    XCTAssertTrue(buttonStyles.contains("private struct PoracodeSwitchStyleModifier"))
+    XCTAssertTrue(buttonStyles.contains("content.toggleStyle(.switch).tint(accent)"))
+    XCTAssertFalse(buttonStyles.contains("PoracodeSwitchToggleStyle"))
+    XCTAssertFalse(theme.contains("func poracodeSwitchStyle"))
+    XCTAssertFalse(theme.contains("PoracodeSwitchStyleModifier"))
+    // The theme root applies no global toggle style (which never reached
+    // sheet content anyway); switches opt in per call.
+    XCTAssertEqual(
+      theme.components(separatedBy: ".toggleStyle(").count - 1, 0,
+      "expected no .toggleStyle( in AppTheme (the per-switch modifier is portable)")
+    XCTAssertFalse(
+      theme.contains(".tint(theme.variant(for: resolvedColorScheme).accent)"))
+    XCTAssertTrue(buttonStyles.contains("tint ?? accent"))
+    XCTAssertFalse(glass.contains("prominent"))
+
+    let prominentAllowlist: Set<String> = [
+      "Features/Onboarding/OnboardingView.swift",
+      "Features/Onboarding/OnboardingStatusViews.swift",
+      "Features/Hosts/AddHostSheet.swift",
+      "Features/AdvancedOperations/AdvancedOperationsChrome.swift",
+      "Features/Projects/GitHubOperations/GitHubOperationsChrome.swift",
+    ]
+    let appDirectory = Self.appRoot("App")
+    guard
+      let enumerator = FileManager.default.enumerator(
+        at: appDirectory,
+        includingPropertiesForKeys: nil
+      )
+    else {
+      XCTFail("cannot enumerate \(appDirectory.path)")
+      return
+    }
+    for case let url as URL in enumerator where url.pathExtension == "swift" {
+      let source = try String(contentsOf: url, encoding: .utf8)
+      let relative = url.path.replacingOccurrences(
+        of: appDirectory.path + "/", with: "")
+      let isComponents = url.path.contains("/Features/Components/")
+      let isThemeRoot = url.lastPathComponent == "AppTheme.swift"
+      if source.contains("poracodeProminentButtonStyle(") {
+        XCTAssertTrue(
+          isComponents || prominentAllowlist.contains(relative),
+          "\(relative) uses poracodeProminentButtonStyle outside the primary-action allowlist"
+        )
+      }
+      if !isComponents && !isThemeRoot {
+        XCTAssertFalse(
+          source.contains("accentColor"),
+          "\(relative) references accentColor; read \\.poracodeAccent or stay neutral"
+        )
+      }
+    }
+  }
+
+  /// Root-level `.toggleStyle` modifiers do not reach sheet content, so every
+  /// switch `Toggle` opts in per call via `.poracodeSwitchStyle()`, which reads
+  /// `\.poracodeAccent` (environment values *do* cross into sheets). Chip-style
+  /// `.toggleStyle(.button)` toggles keep their own style and are exempt.
+  func testEverySwitchToggleUsesPoracodeSwitchStyle() throws {
+    let appDirectory = Self.appRoot("App")
+    guard
+      let enumerator = FileManager.default.enumerator(
+        at: appDirectory,
+        includingPropertiesForKeys: nil
+      )
+    else {
+      XCTFail("cannot enumerate \(appDirectory.path)")
+      return
+    }
+    let togglePattern = try NSRegularExpression(pattern: #"\bToggle[ \t]*\("#)
+    for case let url as URL in enumerator where url.pathExtension == "swift" {
+      let isComponents = url.path.contains("/Features/Components/")
+      let isThemeRoot = url.lastPathComponent == "AppTheme.swift"
+      if isComponents || isThemeRoot { continue }
+      let source = try String(contentsOf: url, encoding: .utf8)
+      let relative = url.path.replacingOccurrences(
+        of: appDirectory.path + "/", with: "")
+      let toggleCount = togglePattern.numberOfMatches(
+        in: source, range: NSRange(source.startIndex..., in: source))
+      let styledCount = source.components(
+        separatedBy: ".poracodeSwitchStyle()").count - 1
+      let buttonCount = source.components(
+        separatedBy: ".toggleStyle(.button)").count - 1
+      XCTAssertEqual(
+        toggleCount, styledCount + buttonCount,
+        "\(relative): every switch Toggle needs .poracodeSwitchStyle(); "
+          + "chip toggles keep .toggleStyle(.button)")
+    }
   }
 
   // MARK: - Catalog parity
@@ -529,24 +738,27 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
         let entry = try XCTUnwrap(rawEntry as? [String: Any], key)
         let localizations = try XCTUnwrap(entry["localizations"] as? [String: Any], key)
         XCTAssertEqual(Set(localizations.keys), Self.locales, "\(relative) \(key)")
-        let source = try XCTUnwrap(Self.value(localizations["en"]), "\(relative) \(key)")
+        // Plural-variation keys carry one stringUnit per CLDR category instead
+        // of a single flat stringUnit; validate every unit the same way.
+        let sourceUnits = Self.stringUnits(localizations["en"])
+        let source = try XCTUnwrap(sourceUnits.first?["value"] as? String, "\(relative) \(key)")
         let expected = Self.specifiers(in: source)
         for (locale, raw) in localizations {
-          let unit = try XCTUnwrap(
-            (raw as? [String: Any])?["stringUnit"] as? [String: Any],
-            "\(key)/\(locale)"
-          )
-          XCTAssertEqual(unit["state"] as? String, "translated", "\(key)/\(locale)")
-          let translation = try XCTUnwrap(unit["value"] as? String, "\(key)/\(locale)")
-          XCTAssertFalse(
-            translation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            "\(key)/\(locale)"
-          )
-          XCTAssertEqual(
-            Self.specifiers(in: translation),
-            expected,
-            "\(key)/\(locale) format placeholders differ"
-          )
+          let units = Self.stringUnits(raw)
+          XCTAssertFalse(units.isEmpty, "\(key)/\(locale)")
+          for unit in units {
+            XCTAssertEqual(unit["state"] as? String, "translated", "\(key)/\(locale)")
+            let translation = try XCTUnwrap(unit["value"] as? String, "\(key)/\(locale)")
+            XCTAssertFalse(
+              translation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              "\(key)/\(locale)"
+            )
+            XCTAssertEqual(
+              Self.specifiers(in: translation),
+              expected,
+              "\(key)/\(locale) format placeholders differ"
+            )
+          }
         }
       }
     }
@@ -658,8 +870,26 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     return Set(((root?["strings"] as? [String: Any]) ?? [:]).keys)
   }
 
-  private static func value(_ raw: Any?) -> String? {
-    ((raw as? [String: Any])?["stringUnit"] as? [String: Any])?["value"] as? String
+  /// Every `stringUnit` a localization carries: the flat unit, or one per
+  /// plural-variation category (`variations.plural.<category>.stringUnit`).
+  private static func stringUnits(_ raw: Any?) -> [[String: Any]] {
+    guard let localization = raw as? [String: Any] else { return [] }
+    var units: [[String: Any]] = []
+    if let unit = localization["stringUnit"] as? [String: Any] {
+      units.append(unit)
+    }
+    if let variations = localization["variations"] as? [String: Any] {
+      for (_, rawVariation) in variations {
+        for (_, rawCategory) in (rawVariation as? [String: Any] ?? [:]) {
+          if let unit = (rawCategory as? [String: Any])?["stringUnit"]
+            as? [String: Any]
+          {
+            units.append(unit)
+          }
+        }
+      }
+    }
+    return units
   }
 
   private static func specifiers(in value: String) -> [String] {

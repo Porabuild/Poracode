@@ -14,6 +14,7 @@ import {
   normalizeBuiltInMcpDisabledTools,
   resolveEnabledMcpServers,
   resolveNewThreadMcpConfig,
+  resolveLaunchPluginOverrides,
   resolveMcpLaunchSnapshot,
   type McpServer,
 } from "./mcpServer";
@@ -102,15 +103,34 @@ it("resolves individual custom MCP choices after project overrides without chang
     disabledBuiltInMcpServers: {},
     disabledBuiltInMcpTools: {},
   };
-  expect(resolveMcpLaunchSnapshot(settings, project).mcpServers).toEqual([]);
+  expect(resolveMcpLaunchSnapshot(settings, { mcpServers: project }).mcpServers).toEqual([]);
   expect(
-    resolveMcpLaunchSnapshot(settings, project, { project: true, off: true }).mcpServers.map(
-      (entry) => entry.id,
-    ),
+    resolveMcpLaunchSnapshot(
+      settings,
+      { mcpServers: project },
+      { project: true, off: true },
+    ).mcpServers.map((entry) => entry.id),
   ).toEqual(["project", "off"]);
-  expect(resolveMcpLaunchSnapshot(settings, [], { global: false }).mcpServers).toEqual([]);
+  expect(resolveMcpLaunchSnapshot(settings, null, { global: false }).mcpServers).toEqual([]);
   expect(project[0]?.enabled).toBe(false);
   expect(global[1]?.enabled).toBe(false);
+});
+
+it("carries project plugin switches in the launch snapshot beneath thread choices", () => {
+  const settings = { mcpServers: [], disabledBuiltInMcpServers: {}, disabledBuiltInMcpTools: {} };
+  expect(
+    resolveMcpLaunchSnapshot(settings, { pluginOverrides: {} }).projectPluginOverrides,
+  ).toEqual({});
+  const snapshot = resolveMcpLaunchSnapshot(settings, {
+    pluginOverrides: { sentry: true, linear: false },
+  });
+  expect(snapshot.projectPluginOverrides).toEqual({ sentry: true, linear: false });
+  expect(
+    resolveLaunchPluginOverrides(snapshot.projectPluginOverrides, { linear: true, figma: false }),
+  ).toEqual({ sentry: true, linear: true, figma: false });
+  expect(resolveLaunchPluginOverrides(undefined, undefined)).toBeUndefined();
+  expect(resolveLaunchPluginOverrides({}, {})).toBeUndefined();
+  expect(resolveLaunchPluginOverrides(undefined, { figma: true })).toEqual({ figma: true });
 });
 
 it("ignores a legacy Poracode server disable while preserving other server and tool restrictions", () => {
@@ -124,6 +144,7 @@ it("ignores a legacy Poracode server disable while preserving other server and t
     mcpServers: [],
     disabledBuiltInMcpServerIds: ["browser"],
     disabledBuiltInMcpTools: { "app-controls": ["create_thread"] },
+    projectPluginOverrides: {},
   });
 });
 

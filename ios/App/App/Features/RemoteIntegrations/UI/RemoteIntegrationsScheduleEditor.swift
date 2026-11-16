@@ -48,6 +48,7 @@ struct RemoteIntegrationsScheduleEditor: View {
       Form {
         Section(RemoteIntegrationsStrings.details) {
           Toggle(RemoteIntegrationsStrings.enabled, isOn: $draft.enabled)
+          .poracodeSwitchStyle()
           TextField(RemoteIntegrationsStrings.scheduleName, text: $draft.name)
             .textInputAutocapitalization(.sentences)
           Picker(RemoteIntegrationsStrings.project, selection: $draft.projectId) {
@@ -110,6 +111,7 @@ struct RemoteIntegrationsScheduleEditor: View {
             }
           }
           Toggle(RemoteIntegrationsStrings.fastMode, isOn: $draft.fast)
+          .poracodeSwitchStyle()
         }
 
         Section(RemoteIntegrationsStrings.recurrence) {

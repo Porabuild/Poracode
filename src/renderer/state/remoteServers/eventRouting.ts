@@ -62,7 +62,13 @@ export function filterRemoteThreadEvents(value: unknown, threadIds: ThreadIdMatc
     return typeof threadId === "string" && threadIds.has(threadId) ? value : null;
   }
 
-  if (type === "remote-git-summaries" || type === "remote-git-state") return value;
+  if (
+    type === "remote-git-summaries" ||
+    type === "remote-git-state" ||
+    type === "remote-forge-activity" ||
+    type === "remote-user-notification"
+  )
+    return value;
 
   return null;
 }

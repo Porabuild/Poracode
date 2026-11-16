@@ -28,12 +28,18 @@ import {
   type TurnCloseUpdate,
 } from "./threadTurnHelpers";
 import { recordThreadStarted } from "../usageRecorder";
+import { hasOwnWindow } from "../auxiliaryThreadWindows";
 import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { forgetRecentRuntimeWireInterest } from "../rendererEventInterests";
 import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
-import { carryPendingThreadInput, confirmPendingThreadInput } from "../pendingThreadInput";
+import {
+  carryPendingThreadInput,
+  confirmPendingThreadInput,
+  noteThreadInterruptedTurnStated,
+} from "../pendingThreadInput";
 import { noteRendererCreatedThreadIntent } from "../managedRootCatalog/rootCreateIntent";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
 import { msg } from "@lingui/core/macro";
@@ -48,6 +54,31 @@ import {
   type PendingThreadConfig,
   type ThreadConfigSubmission,
 } from "../pendingThreadConfig";
+
+type RemoteHomeThreadIdentity = Pick<Thread, "id" | "projectId" | "remoteServerId">;
+
+/**
+ * Late-bound writer for paired remote Home thread pins. The remote-servers
+ * store owns the persisted map and registers its `workspaceFilings` writer once
+ * its store exists; importing that module here would pull the whole
+ * remote-server/workspace store graph into this app-store slice module.
+ */
+let pinRemoteHomeThreadWorkspaceImpl:
+  | ((thread: RemoteHomeThreadIdentity, workspaceId: string | undefined) => void)
+  | undefined;
+
+export function registerRemoteHomeThreadWorkspacePin(
+  pin: (thread: RemoteHomeThreadIdentity, workspaceId: string | undefined) => void,
+): void {
+  pinRemoteHomeThreadWorkspaceImpl = pin;
+}
+
+function pinRemoteHomeThreadWorkspace(
+  thread: RemoteHomeThreadIdentity,
+  workspaceId: string | undefined,
+): void {
+  pinRemoteHomeThreadWorkspaceImpl?.(thread, workspaceId);
+}
 
 export interface ThreadSlice {
   /** Volatile GUI intent, retaining field revisions while dispatches are in flight. */
@@ -164,6 +195,10 @@ export interface ThreadSlice {
       threadStatusSource?: ThreadStatusSource;
       forceCloseActiveTurn?: boolean;
       errorMessage?: string;
+      /** Null clears a cut-off turn; undefined keeps it until a turn starts. */
+      interruptedTurn?: Thread["interruptedTurn"] | null;
+      /** Host-authoritative last-activity timestamp when emitted/persisted. */
+      updatedAt?: string;
     },
   ) => void;
   /**
@@ -191,7 +226,7 @@ export interface ThreadSlice {
   purgeStaleArchivedThreads: (maxAgeDays: number) => void;
   archiveOldDoneThreads: (maxAgeDays: number) => void;
   markThreadExited: (threadId: string) => void;
-  touchThread: (threadId: string) => void;
+  touchThread: (threadId: string, updatedAt?: string) => void;
   markThreadViewed: (threadId: string) => void;
   markThreadsViewed: (threadIds: readonly string[]) => void;
   reconcileRuntimeSnapshots: (
@@ -215,7 +250,7 @@ export function normalizeRuntimeSnapshotLaunchConfig<T extends ThreadRuntimeSnap
   return { ...snapshot, launchConfig: snapshot.launchConfig ?? null };
 }
 
-export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
+export const createThreadSlice: SliceCreator<ThreadSlice> = (set, get) => ({
   threads: [],
   provisioningWorktreeThreadIds: {},
   pendingThreadConfigByThreadId: {},
@@ -358,6 +393,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           : keepAlivePatch({ ...state, threads: [thread, ...state.threads] }, thread.id)),
       };
     });
+    // A paired Home host never receives this client workspace on create, and a
+    // desktop cold restart has no resident mirrored row: pin the client filing
+    // so catalog and history projection can restore it.
+    pinRemoteHomeThreadWorkspace(thread, thread.workspaceId);
 
     // Durable "thread started" usage fact (survives later delete/archive).
     recordThreadStarted(thread);
@@ -495,6 +534,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     set((state) => {
       composerDraftStorage()?.remove("thread", threadId);
       clearRuntimeStructuralChangeHint(threadId);
+      forgetRecentRuntimeWireInterest(threadId);
       forgetTimelineMeasurements(threadId);
       forgetThreadGalleryCache(threadId);
       confirmPendingThreadInput(threadId);
@@ -583,22 +623,24 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         thread.id === threadId ? { ...thread, title } : thread,
       ),
     })),
-  setThreadWorkspace: (threadId, workspaceId) =>
-    set((state) => {
-      const thread = state.threads.find((t) => t.id === threadId);
-      if (!thread || thread.workspaceId === workspaceId) return {};
-      return {
-        threads: state.threads.map((t) => {
-          if (t.id !== threadId) return t;
-          const { workspaceId: _dropped, ...rest } = t;
-          return {
-            ...rest,
-            ...(workspaceId ? { workspaceId } : {}),
-            updatedAt: new Date().toISOString(),
-          };
-        }),
-      };
-    }),
+  setThreadWorkspace: (threadId, workspaceId) => {
+    const thread = get().threads.find((t) => t.id === threadId);
+    if (!thread || thread.workspaceId === workspaceId) return;
+    set((state) => ({
+      threads: state.threads.map((t) => {
+        if (t.id !== threadId) return t;
+        const { workspaceId: _dropped, ...rest } = t;
+        return {
+          ...rest,
+          ...(workspaceId ? { workspaceId } : {}),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+    // A genuine move or explicit unfile is client-owned for paired Home
+    // threads; persist it outside the set callback, after the row changed.
+    pinRemoteHomeThreadWorkspace(thread, workspaceId);
+  },
   setThreadWorktree: (threadId, worktreePath, worktreeBranch, options) =>
     set((state) => {
       const { [threadId]: _droppedProvisioning, ...provisioningWorktreeThreadIds } =
@@ -699,11 +741,17 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       ) {
         return {};
       }
+      if (currentThread && input.interruptedTurn !== undefined) {
+        noteThreadInterruptedTurnStated(threadId);
+      }
       let changed = false;
       let turnUpdate: TurnCloseUpdate = {
         runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread,
       };
-      const isVisible = state.view.kind === "thread" && state.view.panes.includes(threadId);
+      // A thread in its own window stays on screen whatever this window shows.
+      const isVisible =
+        (state.view.kind === "thread" && state.view.panes.includes(threadId)) ||
+        hasOwnWindow(threadId);
       const nowIso = new Date().toISOString();
 
       // Track confirmed config independently of the GUI's next-turn edits.
@@ -787,6 +835,19 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         // not on working rebroadcasts after the user marks done mid-turn.
         const turnStarted = input.status === "working" && thread.status !== "working";
         const activityClearsDone = turnStarted && thread.done;
+        const nextUpdatedAt =
+          input.updatedAt !== undefined && (turnStarted || input.status === "working")
+            ? input.updatedAt
+            : turnStarted && nowIso > thread.updatedAt
+              ? nowIso
+              : thread.updatedAt;
+        const updatedAtChanged = nextUpdatedAt !== thread.updatedAt;
+        const nextInterruptedTurn =
+          input.interruptedTurn !== undefined
+            ? (input.interruptedTurn ?? undefined)
+            : turnStarted
+              ? undefined
+              : thread.interruptedTurn;
         const nextErrorMessage = input.errorMessage ?? thread.errorMessage;
 
         if (
@@ -798,9 +859,11 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           !slashCommandsChanged &&
           !sessionConfigOptionsChanged &&
           !sessionRefChanged &&
+          !updatedAtChanged &&
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
           thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
+          thread.interruptedTurn === nextInterruptedTurn &&
           (effectiveStatus === "error"
             ? input.errorMessage === undefined || thread.errorMessage === input.errorMessage
             : thread.errorMessage === undefined)
@@ -832,21 +895,26 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ...(input.sessionConfigOptions !== undefined
             ? { sessionConfigOptions: input.sessionConfigOptions }
             : {}),
+          ...(nextInterruptedTurn !== thread.interruptedTurn
+            ? { interruptedTurn: nextInterruptedTurn }
+            : {}),
           ...(effectiveStatus === "error" && nextErrorMessage !== undefined
             ? { errorMessage: nextErrorMessage }
             : {}),
-          ...(turnStarted ? { updatedAt: nowIso } : {}),
+          ...(updatedAtChanged ? { updatedAt: nextUpdatedAt } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
           ...nextTurnTiming,
         };
       });
 
-      const pendingConfigMapPatch = {
-        pendingThreadConfigByThreadId: retainPendingThreadConfigs(
-          state.pendingThreadConfigByThreadId,
-          threads,
-        ),
-      };
+      const retainedPending = retainPendingThreadConfigs(
+        state.pendingThreadConfigByThreadId,
+        threads,
+      );
+      const pendingConfigMapPatch =
+        retainedPending !== state.pendingThreadConfigByThreadId
+          ? { pendingThreadConfigByThreadId: retainedPending }
+          : undefined;
       const runtimeConfigMapPatch: Pick<ThreadSlice, "lastRuntimeConfigByThreadId"> | undefined =
         runtimeConfigChanged
           ? {
@@ -874,19 +942,29 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
                 },
               };
       }
-      const mentionToolsPatch =
-        input.threadMentionToolsAvailable === undefined
-          ? undefined
-          : {
-              threadMentionToolsAvailableByThreadId: {
-                ...state.threadMentionToolsAvailableByThreadId,
-                [threadId]: input.threadMentionToolsAvailable,
-              },
-            };
+      const mentionToolsChanged =
+        input.threadMentionToolsAvailable !== undefined &&
+        state.threadMentionToolsAvailableByThreadId[threadId] !== input.threadMentionToolsAvailable;
+      const mentionToolsPatch = mentionToolsChanged
+        ? {
+            threadMentionToolsAvailableByThreadId: {
+              ...state.threadMentionToolsAvailableByThreadId,
+              [threadId]: input.threadMentionToolsAvailable!,
+            },
+          }
+        : undefined;
 
       if (!changed) {
+        if (
+          !pendingConfigMapPatch &&
+          !runtimeConfigMapPatch &&
+          !launchConfigMapPatch &&
+          !mentionToolsPatch
+        ) {
+          return {};
+        }
         return {
-          ...pendingConfigMapPatch,
+          ...(pendingConfigMapPatch ?? {}),
           ...(runtimeConfigMapPatch ?? {}),
           ...(launchConfigMapPatch ?? {}),
           ...(mentionToolsPatch ?? {}),
@@ -897,7 +975,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       return {
         threads,
         ...(turnsChanged ? turnUpdate : {}),
-        ...pendingConfigMapPatch,
+        ...(pendingConfigMapPatch ?? {}),
         ...(runtimeConfigMapPatch ?? {}),
         ...(launchConfigMapPatch ?? {}),
         ...(mentionToolsPatch ?? {}),
@@ -919,6 +997,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       }
 
       // Archived threads leave the cache so their terminal disposes.
+      forgetRecentRuntimeWireInterest(threadId);
       const keepAlivePaneIds = removeKeepAliveId(state.keepAlivePaneIds, threadId);
       return { threads, view: nextView, keepAlivePaneIds };
     }),
@@ -1113,12 +1192,19 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         ...(backgroundTasksPatch ?? {}),
       };
     }),
-  touchThread: (threadId) =>
-    set((state) => ({
-      threads: state.threads.map((thread) =>
-        thread.id === threadId ? { ...thread, updatedAt: new Date().toISOString() } : thread,
-      ),
-    })),
+  touchThread: (threadId, updatedAt) =>
+    set((state) => {
+      const candidate = updatedAt ?? new Date().toISOString();
+      let changed = false;
+      const threads = state.threads.map((thread) => {
+        if (thread.id !== threadId) return thread;
+        const nextUpdatedAt = candidate > thread.updatedAt ? candidate : thread.updatedAt;
+        if (nextUpdatedAt === thread.updatedAt) return thread;
+        changed = true;
+        return { ...thread, updatedAt: nextUpdatedAt };
+      });
+      return changed ? { threads } : {};
+    }),
   markThreadViewed: (threadId) =>
     set((state) => {
       const now = Date.now();

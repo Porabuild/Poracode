@@ -9,15 +9,21 @@ import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { attachErrorDetails, errorDetail, msg } from "@/shared/messages";
 import { getProjectName } from "@/shared/wsl";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "@/shared/worktree";
+import { attachChildProcessTreeCleanup } from "@/shared/processTree";
 import type { WslBridgeClient, WslGitExecResult } from "../wsl/bridge/client";
 import {
   admitGitProcess,
   classifyGitProcess,
   firstGitSubcommandToken,
   gitProcessAdmissionUsage,
+  type GitProcessAdmissionTicket,
   type GitProcessClass,
 } from "./gitProcessAdmission";
+import { disposeGitExecWorker, execGitOnWorkerThread } from "./gitExecWorkerClient";
+import { disposeNativeGitHelper } from "./gitNativeHelperClient";
 import { mkdir } from "node:fs/promises";
+
+export { disposeGitExecWorker, disposeNativeGitHelper };
 
 const execFileAsync = promisify(execFile);
 
@@ -46,6 +52,7 @@ function execFileWithInput(
       }
       settle(stdinError ?? null, { stdout: stdoutText, stderr: stderrText });
     });
+    attachChildProcessTreeCleanup(child);
     if (!child.stdin) {
       child.kill();
       settle(new Error(`Unable to write stdin for ${command}.`));
@@ -72,6 +79,10 @@ export const GIT_CLONE_TIMEOUT = 600_000;
 // Operations that invoke user-defined hooks (pre-commit lint/typecheck/test, etc.).
 // Generous bound so common hook chains complete; still finite so a hung hook can't pin the UI forever.
 export const GIT_HOOK_TIMEOUT = 300_000;
+// Adding a worktree checks out every tracked file and can invoke post-checkout
+// hooks. Keep its Git deadline below the long remote request budget so the
+// caller normally receives the result instead of abandoning a live checkout.
+export const GIT_WORKTREE_ADD_TIMEOUT = 240_000;
 // Removing a worktree deletes its whole checkout from disk. Worktrees can carry
 // multi-gigabyte ignored trees (node_modules, build output), and killing git
 // mid-delete leaves a half-removed husk that later removals refuse to touch.
@@ -213,6 +224,30 @@ export async function execGit(
   }
 }
 
+/** Reserve checkout capacity before stashing or preparing an owned branch. */
+export function reserveWorktreeCheckout(
+  location: ProjectLocation,
+): Promise<GitProcessAdmissionTicket> {
+  return admitGitProcess("checkout", { environment: location.kind, subcommand: "worktree" });
+}
+
+/** Execute the one worktree-add command covered by a caller-owned reservation. */
+export function execGitWithCheckoutReservation(
+  location: ProjectLocation,
+  args: string[],
+  ticket: GitProcessAdmissionTicket,
+  timeout: number,
+): Promise<string> {
+  if (
+    ticket.gitClass !== "checkout" ||
+    ticket.units !== 1 ||
+    classifyGitProcess(args) !== "checkout"
+  ) {
+    throw new TypeError("A worktree checkout requires its checkout admission reservation.");
+  }
+  return execGitAdmitted(location, args, { timeout });
+}
+
 async function execGitAdmitted(
   location: ProjectLocation,
   args: string[],
@@ -242,6 +277,22 @@ async function execGitAdmitted(
     }
 
     const env = { ...process.env, GIT_OPTIONAL_LOCKS: "0", ...(options?.env ?? {}) };
+    const fullArgs = withQuotePathDisabled(args);
+    const workerExec = execGitOnWorkerThread({
+      command: "git",
+      args: fullArgs,
+      cwd: location.path,
+      env,
+      timeout,
+      maxBuffer,
+      ...(options?.input !== undefined ? { stdinInput: options.input } : {}),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    });
+    if (workerExec) {
+      const { stdout } = await workerExec;
+      return stdout;
+    }
+
     const execOptions = {
       cwd: location.path,
       env,
@@ -250,11 +301,12 @@ async function execGitAdmitted(
       windowsHide: true,
       ...(options?.signal ? { signal: options.signal } : {}),
     };
-    const { stdout } =
-      options?.input !== undefined
-        ? await execFileWithInput("git", withQuotePathDisabled(args), execOptions, options.input)
-        : await execFileAsync("git", withQuotePathDisabled(args), execOptions);
-    return stdout;
+    if (options?.input !== undefined) {
+      return (await execFileWithInput("git", fullArgs, execOptions, options.input)).stdout;
+    }
+    const pending = execFileAsync("git", fullArgs, execOptions);
+    attachChildProcessTreeCleanup(pending.child);
+    return (await pending).stdout;
   } catch (error: unknown) {
     if (
       options?.signal?.aborted &&

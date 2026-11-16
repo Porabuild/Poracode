@@ -88,6 +88,9 @@ const nodes = {
       "backup",
       "init-tls",
       "upgrade",
+      "update",
+      "uninstall",
+      "up",
       "service",
       "completion",
       "version",
@@ -306,6 +309,19 @@ const nodes = {
   activate: { options: { ...json, "--sign-in-again": flag } },
   backup: { options: { ...json, "--to": file } },
   "init-tls": { options: { ...json, "--cert": file, "--key": file } },
+  update: { options: { ...json, "--channel": value, "--prefix": file } },
+  uninstall: { options: { ...json, "--prefix": file, "--bin-dir": file, "--yes": flag } },
+  up: {
+    options: {
+      "--tailnet": flag,
+      "--lan": flag,
+      "--local-only": flag,
+      "--relay-url": value,
+      "--prefix": file,
+      "--no-service": flag,
+      "--no-pair": flag,
+    },
+  },
   upgrade: {
     options: {
       ...json,

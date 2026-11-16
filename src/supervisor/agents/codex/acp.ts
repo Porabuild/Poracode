@@ -4,6 +4,7 @@ import type {
   ConnectThreadVoiceResult,
 } from "@/shared/contracts/liveVoice";
 import { msg } from "@/shared/messages";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
 import { CodexLiveVoice } from "./liveVoice";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -62,7 +63,12 @@ import {
 } from "./appServerRpc";
 import type { CodexClientRequestMap } from "./protocol";
 import { acquireCodexAppServer } from "./serverPool";
+import {
+  detectConfiguredCodexBundledSidecars,
+  type DetectedCodexBundledSidecars,
+} from "./bundledSidecars";
 import { buildCodexThreadOverrides } from "./threadOverrides";
+import { readCodexNativeMcpNames } from "./nativeMcp";
 import {
   mapCodexSkillsToSlashCommands,
   mapCodexSlashCommands,
@@ -76,6 +82,7 @@ import { readCodexTurnSummaries } from "./threadTurnSummaries";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 import { readRecord } from "./canonicalMapping/readers";
 import { readCodexImageViewPreview } from "./canonicalMapping/toolExtraction";
+import { CodexAsyncQuestionAttention } from "./asyncQuestionAttention";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
 export type { CodexThreadStatus } from "./acpProtocol";
@@ -226,6 +233,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private readonly threadId: string;
   private readonly projectLocation: ProjectLocation;
   private readonly mcpServers: readonly ResolvedMcpServer[];
+  private readonly nativeMcpNames: readonly string[];
+  private readonly detectedSidecars: DetectedCodexBundledSidecars | undefined;
   private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
@@ -239,8 +248,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private rolloutSource: Record<string, unknown> | undefined;
   private rolloutModelProvider: string | undefined;
   private wslDistro: string | undefined;
-  private imageViewPaths: Map<string, string> | undefined;
+  private imageViewPaths: Map<string, string | undefined> | undefined;
   private currentThreadStatus: CodexThreadStatus = { type: "idle" };
+  private asyncQuestionAttention: CodexAsyncQuestionAttention | undefined;
   private currentConfig: ThreadConfig | undefined;
   private activeTurnId: string | undefined;
   /**
@@ -303,6 +313,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     mcpServers: readonly ResolvedMcpServer[],
     releaseAppServer: () => void,
     wslDistro?: string,
+    nativeMcpNames: readonly string[] = [],
+    detectedSidecars?: DetectedCodexBundledSidecars,
   ) {
     this.rpc = rpc;
     this.liveVoice = new CodexLiveVoice(
@@ -314,11 +326,22 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.threadId = threadId;
     this.projectLocation = projectLocation;
     this.mcpServers = mcpServers;
+    this.nativeMcpNames = nativeMcpNames;
+    this.detectedSidecars = detectedSidecars;
     this.releaseAppServer = releaseAppServer;
     this.wslDistro = wslDistro;
     this.launchOptions = {
       suppressResumeConfigOverrides: true,
     };
+  }
+
+  private buildThreadOverrides(config: ThreadConfig) {
+    return buildCodexThreadOverrides(config, {
+      projectLocation: this.projectLocation,
+      mcpServers: this.mcpServers,
+      nativeMcpNames: this.nativeMcpNames,
+      ...(this.detectedSidecars ? { detectedSidecars: this.detectedSidecars } : {}),
+    });
   }
 
   private ensureMapperState(): CodexMapperState {
@@ -343,11 +366,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     await this.ensureContextWindowReload().reload(
       {
         request: (method, params, timeoutMs) => this.rpc.request(method, params, timeoutMs),
-        buildResumeOverrides: (next) =>
-          buildCodexThreadOverrides(next, {
-            projectLocation: this.projectLocation,
-            mcpServers: this.mcpServers,
-          }),
+        buildResumeOverrides: (next) => this.buildThreadOverrides(next),
       },
       threadId,
       config,
@@ -368,13 +387,19 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       }
       if (event.type === "item.started" && event.itemType === "image_view") {
         const path = readRecord(readRecord(event.payload)?.args)?.path;
-        if (typeof path === "string") {
-          (this.imageViewPaths ??= new Map()).set(event.itemId, path);
-        }
+        (this.imageViewPaths ??= new Map()).set(
+          event.itemId,
+          typeof path === "string" ? path : undefined,
+        );
       } else if (event.type === "item.completed") {
-        const path = this.imageViewPaths?.get(event.itemId);
-        this.imageViewPaths?.delete(event.itemId);
         const payload = readRecord(event.payload);
+        const fallbackPath =
+          readRecord(payload?.args)?.path ?? readRecord(payload?.result)?.savedPath;
+        const path = this.imageViewPaths?.has(event.itemId)
+          ? (this.imageViewPaths.get(event.itemId) ??
+            (typeof fallbackPath === "string" ? fallbackPath : undefined))
+          : undefined;
+        this.imageViewPaths?.delete(event.itemId);
         if (path && payload?.status === "success" && !payload.images) {
           // Keep completion with its preview so unopened child histories retain
           // their routing until the image is admitted, too.
@@ -393,15 +418,24 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       forwarded.push(event);
     }
     if (forwarded.length === 0) return;
+    const questionAttention = (this.asyncQuestionAttention ??= new CodexAsyncQuestionAttention());
+    const attentionChanged = questionAttention.observe(forwarded);
     for (const event of forwarded) {
       this.logCodexEventDebug("poracode:runtime", event);
     }
     if (!this.listener?.onRuntimeEvent) {
       this.bufferedRuntimeEvents.push(...forwarded);
+      if (attentionChanged) this.emitDerivedUpdate();
       return;
     }
     for (const event of forwarded) {
       this.listener.onRuntimeEvent(event);
+    }
+    if (
+      attentionChanged &&
+      (questionAttention.needsReply || this.currentThreadStatus.type === "active")
+    ) {
+      this.emitDerivedUpdate();
     }
   }
 
@@ -585,7 +619,16 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     input: CreateStructuredSessionInput,
     wslExecPath?: string,
   ): Promise<CodexStructuredSession> {
-    const acquired = await acquireCodexAppServer(input, wslExecPath);
+    const [nativeMcpNames, detectedSidecars] = await Promise.all([
+      readCodexNativeMcpNames(
+        input.projectLocation,
+        input.mcpServers ?? [],
+        input.env,
+        wslExecPath,
+      ),
+      detectConfiguredCodexBundledSidecars(input.projectLocation, input.env),
+    ]);
+    const acquired = await acquireCodexAppServer(input, wslExecPath, nativeMcpNames);
     const wslDistro =
       input.projectLocation.kind === "wsl" ? input.projectLocation.distro : undefined;
     const rpc = new CodexAppServerRpc(acquired.connection, input.threadId);
@@ -596,6 +639,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       input.mcpServers ?? [],
       acquired.dispose,
       wslDistro,
+      nativeMcpNames,
+      detectedSidecars,
     );
     session.attachRpcHandlers();
 
@@ -617,7 +662,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     // Re-emit meaningful state so the listener doesn't miss updates that fired
     // before attachment. Plain `idle` from thread creation is already the
     // runtime default and should not participate in live turn status.
-    const shouldReplayStatus = this.currentThreadStatus.type !== "idle";
+    const shouldReplayStatus =
+      this.currentThreadStatus.type !== "idle" || this.asyncQuestionAttention?.needsReply === true;
     if (this.activated && this.remoteThreadId && shouldReplayStatus) {
       const sessionRef = toSessionRef(this.remoteThreadId);
       this.emitUpdate({
@@ -653,10 +699,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     // `mode` does not exist on `thread/start` or `thread/resume`; plan mode is
     // a per-turn override sent via `collaborationMode` on `turn/start`.
     this.currentConfig = config;
-    const threadOverrides = buildCodexThreadOverrides(config, {
-      projectLocation: this.projectLocation,
-      mcpServers: this.mcpServers,
-    });
+    const threadOverrides = this.buildThreadOverrides(config);
 
     let threadId: string;
     // `fresh` marks a brand-new provider thread (usage ledger baseline 0). A
@@ -677,7 +720,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         const message = error instanceof Error ? error.message : String(error);
         if (isSessionInUseResumeError(message)) {
           this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
-          throw new Error(msg("codex.sessionInUse"), { cause: error });
+          throw new DiagnosticError(
+            msg("codex.sessionInUse"),
+            {
+              failureClass: "expected-operational",
+              domain: "codex.acp",
+              errorClass: "session-in-use",
+            },
+            { cause: error },
+          );
         }
         if (!isRecoverableResumeError(message)) {
           this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
@@ -850,6 +901,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         itemType: "user_message",
         payload: {
           content: buildPromptContentBlocks(prompt, segments),
+          ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
         },
       },
       { type: "item.completed", threadId: this.threadId, itemId: userItemId },
@@ -985,7 +1037,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         threadId: this.threadId,
         itemId: userItemId,
         itemType: "user_message",
-        payload: { content: buildPromptContentBlocks(prompt, segments) },
+        payload: {
+          content: buildPromptContentBlocks(prompt, segments),
+          ...(options?.questionAnswer ? { questionAnswer: options.questionAnswer } : {}),
+        },
       },
       { type: "item.completed", threadId: this.threadId, itemId: userItemId },
     ]);
@@ -1101,15 +1156,34 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   forceCompleteTurn(): void {
     const state = this.mapperState;
     if (!state) return;
-    const itemIds = new Set(state.itemIdMap.values());
-    if (state.openAssistantItemId) itemIds.add(state.openAssistantItemId);
-    if (state.turnPlanItemId) itemIds.add(state.turnPlanItemId);
-    const events: RuntimeEvent[] = [...itemIds].map((itemId) => ({
+    const turnId = this.activeTurnId ?? state.currentTurnId;
+    const itemIds = new Map<string, string | undefined>();
+    if (state.openAssistantItemId) itemIds.set(state.openAssistantItemId, "assistant_message");
+    if (state.turnPlanItemId) itemIds.set(state.turnPlanItemId, "plan");
+    for (const [codexItemId, itemId] of state.itemIdMap) {
+      const ownerTurnId = state.itemTurnIdMap.get(codexItemId);
+      if (
+        state.itemTypeMap.get(codexItemId) === "command_execution" &&
+        ownerTurnId &&
+        ownerTurnId !== turnId
+      )
+        continue;
+      state.settledItemIds.add(codexItemId);
+      if (!itemIds.has(itemId)) {
+        itemIds.set(itemId, state.itemTypeMap.get(codexItemId));
+      }
+    }
+    const events: RuntimeEvent[] = [...itemIds].map(([itemId, itemType]) => ({
       type: "item.completed",
       threadId: this.threadId,
       itemId,
+      ...(itemType &&
+      itemType !== "assistant_message" &&
+      itemType !== "plan" &&
+      itemType !== "reasoning"
+        ? { payload: { status: "error" } }
+        : {}),
     }));
-    const turnId = this.activeTurnId ?? state.currentTurnId;
     if (turnId) {
       events.push({
         type: "turn.completed",
@@ -1118,9 +1192,14 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         state: "interrupted",
       });
     }
-    state.itemIdMap.clear();
-    state.itemTypeMap.clear();
-    state.commandOutputSeenSet.clear();
+    for (const [codexItemId, itemId] of state.itemIdMap) {
+      if (!itemIds.has(itemId)) continue;
+      if (state.itemTypeMap.get(codexItemId) === "command_execution") continue;
+      state.itemIdMap.delete(codexItemId);
+      state.itemTypeMap.delete(codexItemId);
+      state.itemTurnIdMap.delete(codexItemId);
+      state.commandOutputSeenSet.delete(codexItemId);
+    }
     state.fileChangeOutputMap.clear();
     state.fileChangePathMap.clear();
     state.reasoningSummaryIndexMap.clear();
@@ -1262,6 +1341,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     this.pendingTurnInterrupt = false;
     this.activeTurnId = undefined;
     this.activeTurnIds.clear();
+    this.asyncQuestionAttention = undefined;
     await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
     return {
       providerSessionId: threadId,
@@ -1283,10 +1363,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       throw new Error("Cannot roll back a Codex thread before its configuration is initialized.");
     }
     this.currentConfig = rollbackConfig;
-    const threadOverrides = buildCodexThreadOverrides(rollbackConfig, {
-      projectLocation: this.projectLocation,
-      mcpServers: this.mcpServers,
-    });
+    const threadOverrides = this.buildThreadOverrides(rollbackConfig);
     this.forkNotificationBuffer = [];
     try {
       forkResult = await forkCodexThread(this.rpc, {
@@ -1314,6 +1391,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
 
     this.remoteThreadId = newThreadId;
+    this.asyncQuestionAttention = undefined;
     this.rpc.claimThread(newThreadId);
     this.ensureContextWindowReload().recordApplied(rollbackConfig);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: newThreadId };
@@ -1823,8 +1901,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private emitUpdate(update: StructuredSessionUpdate): void {
-    this.logCodexEventDebug("poracode:update", update);
-    this.listener?.onUpdate(update);
+    const next = this.asyncQuestionAttention?.apply(update) ?? update;
+    this.logCodexEventDebug("poracode:update", next);
+    this.listener?.onUpdate(next);
   }
 
   private logCodexEventDebug(direction: CodexEventDebugDirection, payload: unknown): void {

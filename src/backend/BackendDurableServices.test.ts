@@ -8,16 +8,21 @@ import { RoutingOverridePersistence } from "@/supervisor/crossagentMcp/RoutingOv
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { defaultSharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult } from "@/shared/settingsTransactions";
+import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import { BackendDurableServices } from "./BackendDurableServices";
 import type { BackendDurableServicesOptions } from "./BackendDurableServices";
 import {
   dbArchiveDoneThreads,
   dbDeleteThread,
+  dbGetThread,
   dbIsThreadPurgeEligible,
+  dbReconcileProjectWorktrees,
   dbSelectPurgeCandidateThreadIds,
   dbUpsertThread,
 } from "@/host/db";
 import { SupervisorClient, SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
+import type { GitStateServiceOptions } from "@/host/gitState";
+import { gitProjectKey } from "@/shared/gitState";
 import {
   agentStatusesResponseSchema,
   type PrWatch,
@@ -35,6 +40,7 @@ const mocks = vi.hoisted(() => ({
   threadsDeletedListeners: [] as Array<(threadIds: readonly string[]) => void>,
   liveThreadIds: [] as string[],
   retireWatchThread: null as ((watch: PrWatch, threadId: string) => Promise<boolean>) | null,
+  gitStateOptions: null as GitStateServiceOptions | null,
 }));
 
 // Real SupervisorClient restarts run against fake children (see the project
@@ -67,7 +73,7 @@ vi.mock("@/host/db", () => ({
   dbGetProjectNotes: vi.fn<() => undefined>(),
   dbGetProjects: vi.fn<() => never[]>(() => []),
   dbGetState: vi.fn<() => string | null>(() => null),
-  dbGetThread: vi.fn<() => undefined>(),
+  dbGetThread: vi.fn<() => Thread | null>(() => null),
   dbGetScheduleRun: vi.fn<() => null>(() => null),
   dbGetThreadRuntimeItemCursor: vi.fn<() => Promise<number>>(async () => -1),
   dbGetThreadRuntimeItemsAfter: vi.fn<() => Promise<never[]>>(async () => []),
@@ -77,6 +83,8 @@ vi.mock("@/host/db", () => ({
   dbInterruptScheduleRuns: vi.fn<() => undefined>(),
   dbIsThreadPurgeEligible: vi.fn<() => boolean>(() => false),
   dbListThreadIds: vi.fn<() => string[]>(() => mocks.liveThreadIds),
+  dbReconcileProjectWorktrees: vi.fn<() => string[]>(() => []),
+  dbBeginWorktreeObservation: vi.fn<() => object>(() => ({})),
   dbSelectPurgeCandidateThreadIds: vi.fn<() => string[]>(() => []),
   dbUpdateScheduleRun: vi.fn<() => undefined>(),
   dbUpsertThread: vi.fn<() => undefined>(),
@@ -120,10 +128,15 @@ vi.mock("@/host/gitState", async (importOriginal) => ({
   ProjectWatchLeases: (await importOriginal<typeof import("@/host/gitState")>()).ProjectWatchLeases,
   createGitStateExecutor: () => ({}),
   GitStateService: class {
+    constructor(options: GitStateServiceOptions) {
+      mocks.gitStateOptions = options;
+    }
     start = () => {};
     dispose = () => {};
     observeSupervisorEvent = () => {};
     applyObservedPullRequest = () => {};
+    refreshTarget = async () => {};
+    refreshProjectPullRequests = async () => {};
   },
 }));
 
@@ -199,6 +212,48 @@ function createDurable(
     ...overrides,
   } as unknown as BackendDurableServicesOptions);
 }
+
+it.each([true, false])(
+  "publishes corrected worktree links to clients with hasRendererWindow=%s",
+  async (hasRendererWindow) => {
+    const publishThreadsChanged = vi.fn<(ids: readonly string[]) => void>();
+    const onGitPatch = vi.fn<BackendDurableServicesOptions["onGitPatch"]>();
+    const durable = createDurable({ hasRendererWindow, publishThreadsChanged, onGitPatch });
+    const ref = { hostId: "device-1", projectId: "fixture-home" };
+    const worktrees = [
+      { path: "/repo/renamed-wt", branch: "renamed-branch", commit: "abc123", isMain: false },
+    ];
+    const patch = {
+      revision: 1,
+      projects: {
+        [gitProjectKey(ref)]: { ref, worktrees, refreshedAt: "2026-11-10T00:00:00.000Z" },
+      },
+    };
+    vi.mocked(dbReconcileProjectWorktrees).mockReturnValueOnce(["thread-1", "archived-sibling"]);
+    try {
+      const observe = mocks.gitStateOptions?.beginWorktreeObservation?.(ref.projectId);
+      expect(observe?.(worktrees)).toBe(true);
+      mocks.gitStateOptions?.onPatch?.(patch);
+      expect(dbReconcileProjectWorktrees).toHaveBeenCalledWith(
+        ref.projectId,
+        worktrees,
+        expect.any(Object),
+      );
+      expect(publishThreadsChanged).toHaveBeenCalledExactlyOnceWith([
+        "thread-1",
+        "archived-sibling",
+      ]);
+      expect(onGitPatch).toHaveBeenCalledExactlyOnceWith(patch);
+
+      publishThreadsChanged.mockClear();
+      observe?.(worktrees);
+      mocks.gitStateOptions?.onPatch?.({ ...patch, revision: 2 });
+      expect(publishThreadsChanged).not.toHaveBeenCalled();
+    } finally {
+      await durable.dispose();
+    }
+  },
+);
 
 describe("headless routing durability", () => {
   it("still confirms a persistence failure if diagnostic reporting itself throws", async () => {
@@ -408,6 +463,56 @@ describe("BackendDurableServices host-local invalidation", () => {
       await expect(completion).resolves.toMatchObject({ status: "succeeded", summary: null });
     } finally {
       await durable.dispose();
+    }
+  });
+});
+
+describe("BackendDurableServices forge activity", () => {
+  it("publishes completed forge commands to the composition's onForgeActivity", () => {
+    vi.useFakeTimers();
+    try {
+      const onForgeActivity = vi.fn<(event: RemoteForgeActivityEvent) => void>();
+      const durable = createDurable({ onForgeActivity });
+      vi.mocked(dbGetThread).mockReturnValue({
+        id: "fixture-thread",
+        projectId: "fixture-project",
+        worktreePath: "/fixture/wt",
+        worktreeBranch: "fixture-branch",
+      } as unknown as Thread);
+
+      durable.observeSupervisorEvent({
+        type: "thread-runtime-events",
+        threadId: "fixture-thread",
+        events: [
+          {
+            type: "item.started",
+            threadId: "fixture-thread",
+            itemId: "item-1",
+            itemType: "command_execution",
+            payload: { command: "git push", status: "running" },
+          },
+          {
+            type: "item.completed",
+            threadId: "fixture-thread",
+            itemId: "item-1",
+            payload: { exitCode: 0, status: "success" },
+          },
+        ],
+      });
+
+      expect(onForgeActivity).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(750);
+      expect(onForgeActivity).toHaveBeenCalledExactlyOnceWith({
+        type: "remote-forge-activity",
+        projectId: "fixture-project",
+        threadId: "fixture-thread",
+        worktreePath: "/fixture/wt",
+        branch: "fixture-branch",
+        action: "push",
+      });
+    } finally {
+      vi.useRealTimers();
+      vi.mocked(dbGetThread).mockReturnValue(null);
     }
   });
 });

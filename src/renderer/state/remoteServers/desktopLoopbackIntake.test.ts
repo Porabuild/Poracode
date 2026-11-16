@@ -649,7 +649,6 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     expect(pairingToken).toBeTruthy();
 
     const frames: Record<string, unknown>[] = [];
-    const rawFrames: string[] = [];
     let interests = ["visible"];
     let notify: (() => void) | null = null;
     let rebuilds = 0;
@@ -670,7 +669,6 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
       },
       socketFactory: (url) =>
         wsSocketFactory(url, (frame) => {
-          rawFrames.push(frame);
           frames.push(JSON.parse(frame) as Record<string, unknown>);
         }),
     });
@@ -706,29 +704,16 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     const hiddenIds = Array.from({ length: 64 }, (_, index) => `hidden-${index}`);
     for (const threadId of hiddenIds) server.publishSupervisorEvent(itemEvent(threadId));
     server.publishSupervisorEvent(itemEvent("visible"));
-    await vi.waitFor(() => expect(eventFrames()).toHaveLength(65), { timeout: 10_000 });
+    await vi.waitFor(() => expect(eventFrames()).toHaveLength(1), { timeout: 10_000 });
 
-    // One visible thread arrives intact; 64 hidden threads arrive as empty,
-    // content-free frames (never dropped: replay/seq contiguity holds) whose
-    // wire bytes do not grow with the hidden payload at all.
+    // One visible thread arrives intact; 64 hidden content-only frames are
+    // suppressed completely on the live-only desktop-internal loopback socket
+    // so background token bursts cost zero wire/decode frames.
     const initial = eventFrames();
-    const visibleFrames = initial.filter(({ event }) => event.threadId === "visible");
-    expect(visibleFrames).toHaveLength(1);
-    expect(visibleFrames[0]!.event.event?.payload?.result).toHaveLength(5_000);
-    for (const { event } of initial.filter((frame) => frame.event.threadId !== "visible")) {
-      expect(event).toEqual({
-        type: "thread-runtime-events",
-        threadId: event.threadId,
-        events: [],
-      });
-    }
-    const hiddenFrames = frames
-      .map((frame, index) => ({ frame, raw: rawFrames[index]! }))
-      .filter(
-        ({ frame }) => frame.type === "event" && (frame.event as EventFrame).threadId !== "visible",
-      );
-    expect(hiddenFrames).toHaveLength(64);
-    expect(Math.max(...hiddenFrames.map(({ raw }) => raw.length))).toBeLessThan(400);
+    expect(initial).toHaveLength(1);
+    expect(initial[0]!.seq).toBe(65);
+    expect(initial[0]!.event.threadId).toBe("visible");
+    expect(initial[0]!.event.event?.payload?.result).toHaveLength(5_000);
 
     // Essential control for a hidden thread still arrives (a background
     // approval must never be stranded behind an interest filter).
@@ -846,20 +831,14 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     server.publishSupervisorEvent(itemEvent("thread-A"));
     server.publishSupervisorEvent(itemEvent("thread-B"));
     await vi.waitFor(() => {
-      expect(windowA.eventFrames()).toHaveLength(2);
-      expect(windowB.eventFrames()).toHaveLength(2);
+      expect(windowA.eventFrames()).toHaveLength(1);
+      expect(windowB.eventFrames()).toHaveLength(1);
     });
 
-    const contentFor = (frames: EventFrame[], threadId: string) =>
-      frames.find((frame) => frame.threadId === threadId)!;
-    expect(contentFor(windowA.eventFrames(), "thread-A").event?.payload?.result).toHaveLength(
-      5_000,
-    );
-    expect(contentFor(windowA.eventFrames(), "thread-B").events).toEqual([]);
-    expect(contentFor(windowB.eventFrames(), "thread-B").event?.payload?.result).toHaveLength(
-      5_000,
-    );
-    expect(contentFor(windowB.eventFrames(), "thread-A").events).toEqual([]);
+    expect(windowA.eventFrames()[0]!.threadId).toBe("thread-A");
+    expect(windowA.eventFrames()[0]!.event?.payload?.result).toHaveLength(5_000);
+    expect(windowB.eventFrames()[0]!.threadId).toBe("thread-B");
+    expect(windowB.eventFrames()[0]!.event?.payload?.result).toHaveLength(5_000);
   });
 });
 

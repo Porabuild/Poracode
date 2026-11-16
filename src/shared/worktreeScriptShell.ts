@@ -1,4 +1,5 @@
 import { normalizeWorktreePathForComparison } from "./worktree";
+import { fnv1a32 } from "./fnv1a32";
 
 /**
  * Stable PTY id for a worktree setup script.
@@ -14,14 +15,5 @@ export function worktreeScriptShellId(
   caseInsensitive: boolean,
 ): string {
   const comparable = normalizeWorktreePathForComparison(worktreePath, caseInsensitive);
-  return `shell:worktree-setup:${fnv1a(`${projectId}\0${comparable}`)}`;
-}
-
-function fnv1a(text: string): string {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < text.length; index += 1) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
+  return `shell:worktree-setup:${fnv1a32(`${projectId}\0${comparable}`).toString(16).padStart(8, "0")}`;
 }

@@ -52,6 +52,28 @@ object GitStateJsonAdapter {
         return out
     }
 
+    /**
+     * Decode every `gitState` target's compact summary once, keyed by
+     * (projectId, worktreePath). Rebuilt only when the served snapshot changes;
+     * per-thread lookups then cost map reads with no JSON decoding on the
+     * composition path. First matching target wins, matching the previous
+     * per-call scan order.
+     */
+    fun decodeTargetSummaries(snapshot: GitStateSnapshot): Map<GitSummaryTargetKey, RemoteGitSummary> {
+        if (snapshot.targets.isEmpty()) return emptyMap()
+        val out = LinkedHashMap<GitSummaryTargetKey, RemoteGitSummary>()
+        for (target in snapshot.targets.values) {
+            val obj = target.asObjectOrNull() ?: continue
+            val ref = obj["ref"]?.asObjectOrNull() ?: continue
+            val projectId = ref.string("projectId") ?: continue
+            val worktree = ref.string("worktreePath")?.takeIf { it.isNotEmpty() }
+            val status = obj["status"]?.asObjectOrNull() ?: continue
+            val summary = decodeSummary(status) ?: continue
+            out.putIfAbsent(GitSummaryTargetKey(projectId, worktree), summary)
+        }
+        return out
+    }
+
     fun decodeSummary(obj: JsonObject): RemoteGitSummary? {
         val isRepo = obj["isRepo"]?.booleanOrNull() ?: return null
         return RemoteGitSummary(
@@ -131,6 +153,15 @@ object GitStateJsonAdapter {
         return arr.mapNotNull { it.stringOrNull() }
     }
 }
+
+/**
+ * Lookup key for the precomputed per-target Git summary index: the thread's
+ * project plus its normalized worktree path (empty/missing → project-level).
+ */
+data class GitSummaryTargetKey(
+    val projectId: String,
+    val worktreePath: String?,
+)
 
 /** Compact per-thread Git/PR summary for thread-list and rich-chat headers. */
 data class RemoteGitSummary(

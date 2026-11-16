@@ -73,6 +73,8 @@ export interface ImageViewSource {
   remoteRef?: RemoteImageRefValue;
   /** True while {@link remoteRef} has no resolved URL yet. */
   pending?: boolean;
+  /** Stable cache key for non-ref images (e.g. canonical Markdown image source). */
+  dimensionKey?: string;
 }
 
 export interface ImageViewSourceOptions {
@@ -265,11 +267,13 @@ export function imageViewSourceFromMarkdownImage({
   alt,
   width,
   height,
+  dimensionKey,
 }: {
   src: string;
   alt: string;
   width?: unknown;
   height?: unknown;
+  dimensionKey?: string;
 }): ImageViewSource {
   const { mime, extension, fileName } = imageUrlMetadata(src, alt);
   const dimensions = readExplicitDimensions(width, height);
@@ -280,6 +284,7 @@ export function imageViewSourceFromMarkdownImage({
     fileName,
     alt,
     ...dimensions,
+    ...(dimensionKey ? { dimensionKey } : {}),
   };
 }
 

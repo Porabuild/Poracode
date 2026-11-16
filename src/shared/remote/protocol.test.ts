@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { defaultSharedSettings } from "../settings";
+import {
+  BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH,
+  backgroundTaskOutputSchema,
+} from "../contracts/runtimeEvent";
 import { LAUNCH_REMOTE_SERVER_SCRIPT } from "../sshRemoteScripts";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
@@ -130,6 +134,22 @@ describe("remote thread snapshots", () => {
         backgroundTasks: [{ taskId: "task-1", kind: "command", description: "pnpm test" }],
       }).backgroundTasks,
     ).toEqual([{ taskId: "task-1", kind: "command", description: "pnpm test" }]);
+    // Additive display/read capabilities survive a snapshot round-trip; the
+    // pre-upgrade shape above stays valid without them.
+    const enriched = {
+      taskId: "task-1",
+      kind: "command" as const,
+      category: "command" as const,
+      description: "pnpm test",
+      command: "pnpm test",
+      outputAction: {
+        id: "background-task.output.v1",
+        payload: { taskId: "task-1", token: "t" },
+      },
+    };
+    expect(
+      remoteThreadSnapshotSchema.parse({ ...base, backgroundTasks: [enriched] }).backgroundTasks,
+    ).toEqual([enriched]);
   });
 
   it("preserves a thread's pinned WSL execution environment", () => {
@@ -153,6 +173,19 @@ describe("remote thread snapshots", () => {
     expect(LAUNCH_REMOTE_SERVER_SCRIPT).toContain(
       `descriptor.protocolVersion === ${PORACODE_REMOTE_PROTOCOL_VERSION}`,
     );
+  });
+});
+
+describe("background-task output bounds", () => {
+  it.each([0, 1])("enforces the native UTF-16 budget with %i extra astral characters", (extra) => {
+    const output = "😀".repeat(BACKGROUND_TASK_OUTPUT_MAX_UTF16_LENGTH / 2 + extra);
+    expect(
+      backgroundTaskOutputSchema.safeParse({
+        output,
+        totalBytes: Buffer.byteLength(output),
+        truncated: false,
+      }).success,
+    ).toBe(extra === 0);
   });
 });
 

@@ -12,11 +12,49 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GitRemoteTransportTest {
+    @Test
+    fun worktreeCheckoutUsesLongRequestDeadline() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(MockResponse().setBody("""{"result":{"path":"/repo/checkout"}}"""))
+        server.start()
+        try {
+            var readTimeoutMs = 0
+            var callTimeoutNanos = 0L
+            val httpClient = OkHttpClient.Builder()
+                .readTimeout(5, TimeUnit.SECONDS)
+                .addInterceptor { chain ->
+                    readTimeoutMs = chain.readTimeoutMillis()
+                    callTimeoutNanos = chain.call().timeout().timeoutNanos()
+                    chain.proceed(chain.request())
+                }
+                .build()
+            val client = ProjectWorkspaceRemoteApiClient(
+                endpoint = server.url("/base").toString(),
+                accessToken = "token",
+                client = httpClient,
+                networkGate = ForegroundNetworkGate(),
+            )
+            val request = GitRequests.create(
+                GitProcedure.AddWorktree,
+                PosixProjectLocation("/repo"),
+                mapOf("branch" to JsonPrimitive("feature")),
+            )
+            val result = client.gitCall(request.procedure, request.payload).jsonObject
+            assertEquals("/repo/checkout", result.getValue("path").jsonPrimitive.content)
+            assertEquals(660_000, readTimeoutMs)
+            assertEquals(TimeUnit.MINUTES.toNanos(11), callTimeoutNanos)
+            assertEquals(1, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
+
     @Test
     fun routeBodyAndResultUseProcedureCallContract() = runBlocking {
         val server = MockWebServer()

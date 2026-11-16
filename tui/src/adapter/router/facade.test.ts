@@ -344,3 +344,224 @@ test("loginCandidates excludes authenticated and non-gui providers", async () =>
   const { value } = S.router(client);
   expect(await value.loginCandidates()).toEqual([{ kind: "kimi", label: "Kimi" }]);
 });
+
+const composerThread = {
+  id: "thread-1",
+  projectId: "project-1",
+  agentKind: "codex",
+  presentationMode: "gui",
+  status: "idle",
+  config: { model: "m1", fast: true, approvalPolicy: "auto", contextSize: "200k" },
+  title: "Thread",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-02T00:00:00.000Z",
+  archived: false,
+};
+const composerStatus = {
+  kind: "codex",
+  label: "Codex",
+  installed: true,
+  authState: "authenticated",
+  capabilities: {
+    presentationMode: "gui",
+    models: [{ id: "m1", label: "M1" }],
+    fastModels: ["m1"],
+    thinkingModels: ["m1"],
+    workflowModels: ["m1"],
+    workflowLabel: "Flows",
+    approvalPolicies: [
+      { id: "ask", label: "Ask" },
+      { id: "auto", label: "Auto" },
+    ],
+    contextSizes: [
+      { id: "200k", label: "200K" },
+      { id: "1m", label: "1M" },
+    ],
+    defaultApprovalPolicy: "ask",
+  },
+};
+
+test("composerState reflects offered options and the remote thread's config", async () => {
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject()] }),
+    boundedThreadListPage: async () => ({ page: { threads: [composerThread] } }),
+    agentStatuses: async () => ({ windows: [composerStatus], wsl: [] }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const state = await value.composerState("ses_thread-1");
+  expect(state.fast).toEqual({ on: true });
+  expect(state.thinking).toEqual({ on: false });
+  expect(state.workflows).toEqual({ on: false, label: "Flows" });
+  expect(state.approval).toMatchObject({ current: "auto", label: "Auto" });
+  expect(state.context).toMatchObject({ current: "200k", label: "200K" });
+});
+
+test("composerState omits keys the provider does not offer", async () => {
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject()] }),
+    boundedThreadListPage: async () => ({ page: { threads: [composerThread] } }),
+    agentStatuses: async () => ({
+      windows: [
+        {
+          ...composerStatus,
+          capabilities: { presentationMode: "gui", models: [{ id: "m1", label: "M1" }] },
+        },
+      ],
+      wsl: [],
+    }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  expect(await value.composerState("ses_thread-1")).toEqual({});
+});
+
+test("composerState ignores remote config values of the wrong type", async () => {
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject()] }),
+    boundedThreadListPage: async () => ({
+      page: {
+        threads: [
+          {
+            ...composerThread,
+            config: { model: "m1", fast: "yes", approvalPolicy: 7, contextSize: 42 },
+          },
+        ],
+      },
+    }),
+    agentStatuses: async () => ({ windows: [composerStatus], wsl: [] }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  const state = await value.composerState("ses_thread-1");
+  expect(state.fast).toEqual({ on: false });
+  expect(state.approval).toMatchObject({ current: "ask", label: "Ask" });
+  expect(state.context).toEqual({ options: composerStatus.capabilities.contextSizes });
+});
+
+test("composerState fetches the remote thread list once", async () => {
+  let pages = 0;
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject()] }),
+    boundedThreadListPage: async () => {
+      pages += 1;
+      return { page: { threads: [composerThread] } };
+    },
+    agentStatuses: async () => ({ windows: [composerStatus], wsl: [] }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  await value.composerState("ses_thread-1");
+  expect(pages).toBe(1);
+});
+
+test("setSessionOptions seeds a record for a listed-but-unrecorded session", async () => {
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject()] }),
+    boundedThreadListPage: async () => ({ page: { threads: [composerThread] } }),
+    agentStatuses: async () => ({ windows: [composerStatus], wsl: [] }),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  expect(await value.setSessionOptions("ses_thread-1", { approvalPolicy: "auto" })).toEqual({
+    ok: true,
+  });
+  const state = await value.composerState("ses_thread-1");
+  expect(state.approval?.current).toBe("auto");
+});
+
+test("gitChanges uses the warm thread cache without another page", async () => {
+  let pages = 0;
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject()] }),
+    boundedThreadListPage: async () => {
+      pages += 1;
+      return { page: { threads: [composerThread] } };
+    },
+    agentStatuses: async () => ({ windows: [composerStatus], wsl: [] }),
+    callRemoteProcedure: async () => gitStatus(true, 1, 1),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  await value.gitChanges("ses_thread-1");
+  expect(pages).toBe(1);
+  await value.gitChanges("ses_thread-1");
+  expect(pages).toBe(1);
+});
+
+const gitStatus = (isRepo: boolean, insertions = 0, deletions = 0) => ({
+  isRepo,
+  branch: "main",
+  tracking: "",
+  hasRemote: false,
+  remoteInfo: null,
+  ahead: 0,
+  behind: 0,
+  staged: [],
+  unstaged: [],
+  totalInsertions: insertions,
+  totalDeletions: deletions,
+  mergeInProgress: false,
+});
+
+test("gitChanges returns checkout totals and the worktree basename", async () => {
+  const calls: { name: string; payload: unknown }[] = [];
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject()] }),
+    boundedThreadListPage: async () => ({
+      page: {
+        threads: [{ ...composerThread, worktreePath: "C:/repo/.poracode/wt/feature-x" }],
+      },
+    }),
+    callRemoteProcedure: async (name: string, payload: unknown) => {
+      calls.push({ name, payload });
+      return gitStatus(true, 12, 4);
+    },
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  expect(await value.gitChanges("ses_thread-1")).toEqual({
+    insertions: 12,
+    deletions: 4,
+    worktree: "feature-x",
+  });
+  expect(calls[0]?.name).toBe("getGitStatus");
+});
+
+test("gitChanges is undefined outside a repo or on error", async () => {
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject()] }),
+    boundedThreadListPage: async () => ({ page: { threads: [composerThread] } }),
+    callRemoteProcedure: async () => gitStatus(false),
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  expect(await value.gitChanges("ses_thread-1")).toBeUndefined();
+  const failing = {
+    ...client,
+    callRemoteProcedure: async () => {
+      throw new Error("no git");
+    },
+  } as unknown as RemoteDesktopClient;
+  expect(await S.router(failing).value.gitChanges("ses_thread-1")).toBeUndefined();
+});
+
+test("composerState and gitChanges resolve inside a non-launch project's scope", async () => {
+  const other = remoteProjectSchema.parse({
+    id: "project-2",
+    name: "other",
+    location: { kind: "windows", path: "D:/other" },
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const thread2 = { ...composerThread, id: "thread-2", projectId: "project-2" };
+  const locations: unknown[] = [];
+  const client = {
+    boundedProjectListPage: async () => ({ projects: [S.forkProject(), other] }),
+    boundedThreadListPage: async () => ({ page: { threads: [thread2] } }),
+    agentStatuses: async () => ({ windows: [composerStatus], wsl: [] }),
+    callRemoteProcedure: async (name: string, payload: unknown) => {
+      if (name === "getGitStatus") locations.push(payload);
+      return gitStatus(true, 3, 2);
+    },
+  } as unknown as RemoteDesktopClient;
+  const { value } = S.router(client);
+  // Warm the thread cache through the all-projects session list so
+  // projectForSession can place ses_thread-2 in project-2.
+  await value.handle(new Request("http://poracode.invalid/api/session?parentID=null&limit=50"));
+  const state = await value.composerState("ses_thread-2");
+  expect(state.approval?.current).toBe("auto");
+  expect(await value.gitChanges("ses_thread-2")).toEqual({ insertions: 3, deletions: 2 });
+  expect(JSON.stringify(locations[0])).toContain("D:/other");
+});

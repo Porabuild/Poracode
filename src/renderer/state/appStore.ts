@@ -17,6 +17,7 @@ import { createThreadSlice } from "./slices/threadSlice";
 import { createViewSlice } from "./slices/viewSlice";
 import { stripVolatileSessionConfigOptions } from "./volatileSessionConfigOptions";
 import { dedupeProjects } from "@/shared/projectIdentity";
+import { normalizePaneSlots } from "@/shared/paneLayout";
 import {
   currentProjectIdentityOptions,
   mergeDraftContent,
@@ -60,6 +61,7 @@ export const useAppStore = create<AppStoreState>()(
       }),
       {
         name: "poracode-app-v2",
+        // Slot repair uses the existing optional slotId; v5 layouts remain readable.
         version: 5,
         storage: createDbStorage(),
         migrate: (persistedState) => {
@@ -115,6 +117,10 @@ export const useAppStore = create<AppStoreState>()(
             state.view !== undefined && isPristineView(currentState.view)
               ? state.view
               : currentState.view;
+          const view =
+            selectedView.kind === "thread" && selectedView.paneLayout
+              ? { ...selectedView, paneLayout: normalizePaneSlots(selectedView.paneLayout) }
+              : selectedView;
           const selectedGroupLayouts =
             state.groupLayouts !== undefined && isPristineGroupLayouts(currentState.groupLayouts)
               ? state.groupLayouts
@@ -123,8 +129,18 @@ export const useAppStore = create<AppStoreState>()(
             ...currentState,
             projects,
             threads,
-            view: remapProjectView(selectedView, deduped.duplicateIds),
-            groupLayouts: remapProjectGroupLayouts(selectedGroupLayouts, deduped.duplicateIds),
+            view: remapProjectView(view, deduped.duplicateIds),
+            groupLayouts: remapProjectGroupLayouts(
+              Object.fromEntries(
+                Object.entries(selectedGroupLayouts).map(([id, saved]) => [
+                  id,
+                  saved.paneLayout
+                    ? { ...saved, paneLayout: normalizePaneSlots(saved.paneLayout) }
+                    : saved,
+                ]),
+              ),
+              deduped.duplicateIds,
+            ),
             draftContents: remapProjectRecord(
               state.draftContents ?? currentState.draftContents,
               deduped.duplicateIds,

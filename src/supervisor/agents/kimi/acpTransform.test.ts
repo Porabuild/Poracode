@@ -612,10 +612,13 @@ describe("transformKimiAcpSessionUpdate", () => {
 describe("transformKimiAcpSessionUpdate (thought level)", () => {
   // Probed from kimi 0.33.0: the `thinking` select lists the untiered `on`
   // after K3's real tiers and reports it as `currentValue` even there.
-  function configOptionUpdate(thinking: {
-    currentValue?: string;
-    options: { value: string; name: string }[];
-  }): SessionNotification {
+  function configOptionUpdate(
+    thinking: {
+      currentValue?: string;
+      options: { value: string; name: string }[];
+    },
+    modelId = "kimi-code/k3-256k",
+  ): SessionNotification {
     return {
       sessionId: "s1",
       update: {
@@ -625,8 +628,8 @@ describe("transformKimiAcpSessionUpdate (thought level)", () => {
             id: "model",
             category: "model",
             type: "select",
-            currentValue: "kimi-code/k3-256k",
-            options: [{ value: "kimi-code/k3-256k", name: "K3-256k" }],
+            currentValue: modelId,
+            options: [{ value: modelId, name: modelId }],
           },
           { id: "thinking", category: "thought_level", type: "select", ...thinking },
         ],
@@ -702,5 +705,58 @@ describe("transformKimiAcpSessionUpdate (thought level)", () => {
       options: [{ value: "on", name: "Thinking On" }],
     });
     expect(transformKimiAcpSessionUpdate(notification)).toBe(notification);
+  });
+
+  it("preserves an external model's optional on/off thinking switch", () => {
+    const notification = configOptionUpdate(
+      {
+        currentValue: "off",
+        options: [
+          { value: "off", name: "Thinking Off" },
+          { value: "on", name: "Thinking On" },
+        ],
+      },
+      "local/fixture-model",
+    );
+    expect(transformKimiAcpSessionUpdate(notification)).toBe(notification);
+  });
+
+  it("drops a carried tier and off together for a legacy managed model", () => {
+    const thinking = thoughtLevelOf(
+      transformKimiAcpSessionUpdate(
+        configOptionUpdate(
+          {
+            currentValue: "max",
+            options: [
+              { value: "off", name: "Thinking Off" },
+              { value: "on", name: "Thinking On" },
+              { value: "max", name: "Thinking Max" },
+            ],
+          },
+          "kimi-code/kimi-for-coding-highspeed",
+        ),
+      ),
+    );
+    expect(thinking.options.map((option) => option.value)).toEqual(["on"]);
+    expect(thinking).not.toHaveProperty("currentValue");
+  });
+
+  it("drops off for a legacy managed model that requires thinking", () => {
+    const thinking = thoughtLevelOf(
+      transformKimiAcpSessionUpdate(
+        configOptionUpdate(
+          {
+            currentValue: "off",
+            options: [
+              { value: "off", name: "Thinking Off" },
+              { value: "on", name: "Thinking On" },
+            ],
+          },
+          "kimi-code/kimi-for-coding-highspeed",
+        ),
+      ),
+    );
+    expect(thinking.options.map((option) => option.value)).toEqual(["on"]);
+    expect(thinking).not.toHaveProperty("currentValue");
   });
 });

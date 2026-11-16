@@ -35,6 +35,17 @@ describe("hasSendablePromptContent", () => {
 });
 
 describe("buildPromptContentBlocks", () => {
+  it("sends the full selected text as ordinary prompt content", () => {
+    expect(
+      buildPromptContentBlocks("", [
+        { kind: "text", content: "quoted\ntext", selection: true },
+        { kind: "text", content: "\n\nquestion" },
+      ]),
+    ).toEqual([
+      { kind: "text", text: "quoted\ntext" },
+      { kind: "text", text: "\n\nquestion" },
+    ]);
+  });
   it("keeps text-only prompts as a text block", () => {
     expect(buildPromptContentBlocks("hello")).toEqual([{ kind: "text", text: "hello" }]);
   });

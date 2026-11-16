@@ -1,45 +1,28 @@
 package com.poracode.app.ui.home
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Computer
-import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.Lan
-import androidx.compose.material.icons.outlined.LinkOff
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.push.PushAvailability
 import com.poracode.app.push.PushPermissionCard
 import com.poracode.app.push.PushUiState
 import com.poracode.app.storage.HomeShortcut
+import com.poracode.app.ui.components.PoracodeSheet
+import com.poracode.app.ui.components.PoracodeSheetAction
+import com.poracode.app.ui.components.PoracodeSheetDivider
+import com.poracode.app.ui.components.PoracodeTone
+import com.poracode.app.ui.theme.PoracodeIcons
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeMoreSheet(
     pushState: PushUiState,
@@ -63,18 +46,8 @@ internal fun HomeMoreSheet(
     availableUtilities: Set<HomeProjectUtility>,
     onRefresh: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding(),
-        ) {
-            Text(
-                stringResource(R.string.home_more),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            )
+    PoracodeSheet(onDismissRequest = onDismiss, title = stringResource(R.string.home_more)) {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
             if (pushState.availability == PushAvailability.PermissionRequired ||
                 pushState.availability == PushAvailability.PermissionDenied
             ) {
@@ -82,38 +55,26 @@ internal fun HomeMoreSheet(
             }
             HomeMoreRow(
                 R.string.settings_profile_title,
-                Icons.Outlined.Person,
+                PoracodeIcons.Person,
                 onOpenProfile,
                 enabled = remoteAvailable,
             )
             HomeMoreRow(
                 R.string.settings_usage_title,
-                Icons.Outlined.BarChart,
+                PoracodeIcons.BarChart,
                 onOpenUsage,
                 enabled = remoteAvailable,
             )
-            HomeMoreRow(R.string.home_connections, Icons.Outlined.Computer, onManageHosts)
+            HomeMoreRow(R.string.home_connections, PoracodeIcons.Computer, onManageHosts)
             HomeMoreRow(
                 R.string.projects_manage_title,
-                Icons.Outlined.FolderOpen,
+                PoracodeIcons.FolderOpen,
                 onManageProjects,
                 enabled = remoteAvailable,
             )
             HomeMoreRow(
-                R.string.browser_mirror_title,
-                Icons.Outlined.Public,
-                onOpenBrowserMirror,
-                enabled = remoteAvailable,
-            )
-            HomeMoreRow(
-                R.string.terminal_title,
-                utilityIcon(HomeProjectUtility.Terminal),
-                onOpenTerminal,
-                enabled = HomeProjectUtility.Terminal in availableUtilities,
-            )
-            HomeMoreRow(
                 R.string.ports_title,
-                Icons.Outlined.Lan,
+                PoracodeIcons.SettingsEthernet,
                 onManagePorts,
                 enabled = remoteAvailable,
             )
@@ -139,20 +100,37 @@ internal fun HomeMoreSheet(
                     )
                     HomeShortcut.Schedules -> HomeMoreRow(
                         R.string.remote_integrations_schedules,
-                        Icons.Outlined.Schedule,
+                        PoracodeIcons.Schedule,
                         onOpenSchedules,
                         enabled = remoteAvailable,
                     )
                 }
             }
-            HomeMoreRow(R.string.settings_title, Icons.Outlined.Settings, onOpenSettings)
-            HomeMoreRow(R.string.refresh_projects, Icons.Outlined.Refresh, onRefresh)
+            HomeMoreRow(
+                R.string.terminal_title,
+                utilityIcon(HomeProjectUtility.Terminal),
+                onOpenTerminal,
+                enabled = HomeProjectUtility.Terminal in availableUtilities,
+            )
+            HomeMoreRow(
+                R.string.home_more_browser,
+                PoracodeIcons.Public,
+                onOpenBrowserMirror,
+                enabled = remoteAvailable,
+            )
+            HomeMoreRow(R.string.settings_title, PoracodeIcons.Settings, onOpenSettings)
+            HomeMoreRow(R.string.home_more_refresh, PoracodeIcons.Refresh, onRefresh)
             // Pairing lifecycle stays reachable from Home: the one action that
             // repairs a broken local store or an incompatible desktop without a
             // fresh pairing link (mirrors the onboarding DisconnectButton).
-            Spacer(Modifier.height(8.dp))
-            HomeMoreRow(R.string.disconnect, Icons.Outlined.LinkOff, onDisconnect)
-            Spacer(Modifier.height(12.dp))
+            PoracodeSheetDivider()
+            HomeMoreRow(
+                R.string.disconnect,
+                PoracodeIcons.LinkOff,
+                onDisconnect,
+                tone = PoracodeTone.Danger,
+            )
+            Spacer(Modifier.height(4.dp))
         }
     }
 }
@@ -163,23 +141,20 @@ private fun HomeMoreRow(
     icon: ImageVector,
     onClick: () -> Unit,
     enabled: Boolean = true,
+    tone: PoracodeTone = PoracodeTone.Neutral,
 ) {
-    val color = if (!enabled) {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
-    ListItem(
-        headlineContent = { Text(stringResource(labelRes), color = color) },
-        leadingContent = { Icon(icon, contentDescription = null, tint = color) },
-        modifier = Modifier
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .testTag(
-                when (labelRes) {
-                    R.string.terminal_title -> "home_more_terminal"
-                    R.string.projects_manage_title -> "home_more_projects"
-                    else -> "home_more_row"
-                },
-            ),
+    PoracodeSheetAction(
+        label = stringResource(labelRes),
+        icon = icon,
+        onClick = onClick,
+        enabled = enabled,
+        tone = tone,
+        modifier = Modifier.testTag(
+            when (labelRes) {
+                R.string.terminal_title -> "home_more_terminal"
+                R.string.projects_manage_title -> "home_more_projects"
+                else -> "home_more_row"
+            },
+        ),
     )
 }

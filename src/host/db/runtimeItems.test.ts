@@ -779,6 +779,104 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
+  it("clears pre-schema75 Antigravity prompt-consumption context snapshots while keeping valid limits and other providers", async () => {
+    dbUpsertThread({ ...testThread(), id: "agy-with-limit", agentKind: "antigravity" }, 1);
+    dbUpsertThread({ ...testThread(), id: "agy-without-limit", agentKind: "antigravity:work" }, 2);
+    dbUpsertThread(
+      { ...testThread(), id: "agy-legacy", agentKind: "acp-generic:antigravity-acp" },
+      3,
+    );
+    dbUpsertThread({ ...testThread(), id: "agy-clean", agentKind: "antigravity" }, 4);
+    dbUpsertThread({ ...testThread(), id: "codex-thread", agentKind: "codex" }, 5);
+
+    dbApplyThreadRuntimeEvents("agy-with-limit", [
+      {
+        type: "context.updated",
+        threadId: "agy-with-limit",
+        usage: {
+          usedTokens: 2_939_099,
+          maxTokens: 1_000_000,
+          breakdown: [
+            { id: "input", label: "Input", tokens: 891_788 },
+            { id: "output", label: "Output", tokens: 21_813 },
+            { id: "reasoning", label: "Reasoning", tokens: 8_704 },
+            { id: "cache-read", label: "Cache read", tokens: 2_016_794 },
+          ],
+        },
+      },
+    ]);
+    dbApplyThreadRuntimeEvents("agy-without-limit", [
+      {
+        type: "context.updated",
+        threadId: "agy-without-limit",
+        usage: {
+          usedTokens: 500_000,
+          breakdown: [{ id: "input", label: "Input", tokens: 500_000 }],
+        },
+      },
+    ]);
+    dbApplyThreadRuntimeEvents("agy-legacy", [
+      {
+        type: "context.updated",
+        threadId: "agy-legacy",
+        usage: {
+          usedTokens: 400_000,
+          maxTokens: 1_000_000,
+          breakdown: [{ id: "input", label: "Input", tokens: 400_000 }],
+        },
+      },
+    ]);
+    dbApplyThreadRuntimeEvents("agy-clean", [
+      {
+        type: "context.updated",
+        threadId: "agy-clean",
+        usage: { usedTokens: 195_000, maxTokens: 1_000_000 },
+      },
+    ]);
+    dbApplyThreadRuntimeEvents("codex-thread", [
+      {
+        type: "context.updated",
+        threadId: "codex-thread",
+        usage: {
+          usedTokens: 71_000,
+          maxTokens: 200_000,
+          breakdown: [{ id: "input", label: "Input", tokens: 71_000 }],
+        },
+      },
+    ]);
+    await dbFlushThreadRuntimeWrites();
+
+    const readRevision = (threadId: string) =>
+      (
+        getSqlite()
+          .prepare("SELECT revision FROM thread_history_revisions WHERE thread_id = ?")
+          .get(threadId) as { revision: number } | undefined
+      )?.revision;
+    const revWithLimitBefore = readRevision("agy-with-limit")!;
+    const revWithoutLimitBefore = readRevision("agy-without-limit")!;
+    const revCleanBefore = readRevision("agy-clean")!;
+
+    getSqlite().exec("UPDATE app_state SET value = '74' WHERE key = 'schema_version'");
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+
+    expect(dbGetThreadContextUsage("agy-with-limit")).toEqual({ maxTokens: 1_000_000 });
+    expect(dbGetThreadContextUsage("agy-without-limit")).toBeNull();
+    expect(dbGetThreadContextUsage("agy-legacy")).toEqual({ maxTokens: 1_000_000 });
+    expect(dbGetThreadContextUsage("agy-clean")).toEqual({
+      usedTokens: 195_000,
+      maxTokens: 1_000_000,
+    });
+    expect(dbGetThreadContextUsage("codex-thread")).toEqual({
+      usedTokens: 71_000,
+      maxTokens: 200_000,
+      breakdown: [{ id: "input", label: "Input", tokens: 71_000 }],
+    });
+    expect(readRevision("agy-with-limit")).toBeGreaterThan(revWithLimitBefore);
+    expect(readRevision("agy-without-limit")).toBeGreaterThan(revWithoutLimitBefore);
+    expect(readRevision("agy-clean")).toBe(revCleanBefore);
+  });
+
   it("keeps buffered stream writes readable before the flush window elapses", async () => {
     // Writes are queued to keep streaming off the per-chunk rewrite path, so
     // every reader must drain the queue or hydration would serve a stale

@@ -28,7 +28,8 @@ const {
 
 if (typeof localStorage !== "undefined") migrateLegacyChangelogStorage(localStorage);
 
-function currentAppVersion(): string {
+/** The running app version, or "0.0.0" when no bridge is installed (tests, early boot). */
+export function currentAppVersion(): string {
   try {
     return readBridge().appVersion;
   } catch {

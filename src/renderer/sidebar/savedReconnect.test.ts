@@ -201,6 +201,9 @@ it("mount, resume, explicit retry, autonomous refresh and event reconnect never 
   proven = true;
   await act(async () => {
     await vi.advanceTimersByTimeAsync(4000);
+    await vi.waitFor(() =>
+      expect(useRemoteServersStore.getState().runtime.current?.status).toBe("online"),
+    );
   });
   expect(status).toHaveBeenLastCalledWith(null);
   expect(useRemoteServersStore.getState().runtime.current?.status).toBe("online");
@@ -235,6 +238,7 @@ it("mount, resume, explicit retry, autonomous refresh and event reconnect never 
   proven = true;
   nonce = "b".repeat(64);
   await vi.advanceTimersByTimeAsync(4000);
+  await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(2));
   expect(issued).toBe(2);
   const bindings = createRemoteServerClientBindings(
     {

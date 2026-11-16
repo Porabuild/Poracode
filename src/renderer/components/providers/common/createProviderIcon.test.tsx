@@ -36,6 +36,7 @@ describe("createProviderIcon", () => {
       ),
     ).toBe(true);
     expect(paths.some((path) => path.getAttribute("d") === PRIMARY_PATH)).toBe(true);
+    expect(container.querySelector(".poracode-provider-icon__mask-scan-band")).not.toBeNull();
   });
 
   it("uses the provided tone and hides untitled SVGs from accessibility", () => {
@@ -54,5 +55,6 @@ describe("createProviderIcon", () => {
     const svg = container.querySelector("svg");
     expect(svg).toHaveAttribute("aria-hidden", "true");
     expect(svg).not.toHaveAttribute("role");
+    expect(container.querySelector(".poracode-provider-icon__mask-scan-band")).toBeNull();
   });
 });

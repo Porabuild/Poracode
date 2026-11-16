@@ -6,6 +6,8 @@ import { defineConfig, loadEnv, type Plugin, type Rollup } from "vite";
 import react from "@vitejs/plugin-react";
 import { lingui, linguiTransformerBabelPreset } from "@lingui/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
+import { formatter } from "@lingui/format-po";
+import { SUPPORTED_LOCALES } from "./src/shared/locale";
 
 const linguiPreset = linguiTransformerBabelPreset();
 const CLIENT_SOURCE_RE = /[\\/]src[\\/]renderer[\\/].*\.[tj]sx?(?:$|\?)/;
@@ -53,6 +55,8 @@ const CLIENT_OPTIMIZED_DEPS = [
   "@lingui/core/macro",
   "@lingui/react",
   "@lingui/react/macro",
+  "@modelcontextprotocol/client",
+  "@modelcontextprotocol/ext-apps/app-bridge",
   "@monaco-editor/react",
   // Without this, `noDiscovery` leaves it unbundled in dev, so it imports its
   // own copy of React and every AnimatedNumber throws an invalid-hook-call.
@@ -82,6 +86,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   // Deferred settings/devices import these roots directly. Optimizing only
   // I18nProvider leaves their nested CommonJS dependencies raw in dev.
   "react-aria",
+  "react-aria/private/utils/runAfterTransition",
   "react-aria-components",
   "react-aria-components/I18nProvider",
   "react/compiler-runtime",
@@ -105,6 +110,7 @@ const CLIENT_OPTIMIZED_DEPS = [
   "zustand/middleware",
   "zustand/react/shallow",
   "zustand/shallow",
+  "zustand/traditional",
   // Web-host-only deps. The default dev server can also serve the browser app and
   // noDiscovery skips anything not listed. Keep in sync with the browser graph;
   // compare against a one-off discovery-enabled cache when dependencies change.
@@ -356,6 +362,53 @@ function webDevIndex(): Plugin {
   };
 }
 
+function pwaBootScreen(): Plugin {
+  return {
+    name: "poracode:pwa-boot-screen",
+    transformIndexHtml: {
+      order: "pre",
+      async handler(html, context) {
+        // This UI must work even when none of the hashed renderer modules load.
+        // Reuse the existing Lingui translations without fetching a catalog.
+        const labels = ["Loading…", "Checking for updates…", "Failed to load", "Reload"];
+        const messages = Object.fromEntries(
+          await Promise.all(
+            SUPPORTED_LOCALES.map(async (locale) => {
+              const filename = resolve(
+                import.meta.dirname,
+                `src/renderer/locales/${locale}/messages.po`,
+              );
+              const catalog = await formatter().parse(readFileSync(filename, "utf8"), {
+                locale,
+                sourceLocale: "en",
+                filename,
+              });
+              return [
+                locale,
+                labels.map((label) => {
+                  const entry = Object.values(catalog).find((message) => message.message === label);
+                  if (!entry?.translation)
+                    throw new Error(`Missing PWA boot translation: ${locale}: ${label}`);
+                  return entry.translation;
+                }),
+              ];
+            }),
+          ),
+        );
+        return html
+          .replace(
+            "__PORACODE_BOOT_MESSAGES__",
+            JSON.stringify(messages).replaceAll("<", "\\u003c"),
+          )
+          .replace(
+            "__PORACODE_BOOT_WORKER_ENABLED__",
+            JSON.stringify(!context.server && !extensionOnly),
+          );
+      },
+    },
+  };
+}
+
 function webSshRuntime(): Plugin {
   return {
     name: "poracode:web-ssh-runtime",
@@ -441,6 +494,7 @@ function materialIconAssets(): Plugin[] {
 export default defineConfig(({ command, mode }) => ({
   plugins: [
     tailwindcss(),
+    pwaBootScreen(),
     resizeObserverLoopErrorFilter(),
     webSshRuntime(),
     rendererBootstrapTiming(),
@@ -497,6 +551,7 @@ export default defineConfig(({ command, mode }) => ({
     include: [...CLIENT_OPTIMIZED_DEPS],
   },
   build: {
+    manifest: webOnly && !extensionOnly,
     outDir: extensionOnly ? "dist/extension-client" : webOnly ? webOutputPath : "dist/renderer",
     emptyOutDir: true,
     reportCompressedSize: false,

@@ -7,6 +7,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Play,
+  Puzzle,
   Search,
   Settings2,
 } from "lucide-react";
@@ -38,6 +39,7 @@ export function SettingsSidebar(props: {
     { id: "skills", icon: <Box className="size-4" />, label: t`Skills` },
     { id: "memory", icon: <Brain className="size-4" />, label: t`Memory` },
     { id: "mcp", icon: <Cable className="size-4" />, label: t`MCP Servers` },
+    { id: "plugins", icon: <Puzzle className="size-4" />, label: t`Plugins` },
     { id: "search", icon: <Search className="size-4" />, label: t`Search` },
   ];
 

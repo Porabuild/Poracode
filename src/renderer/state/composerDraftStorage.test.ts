@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { createComposerDraftStorage } from "./composerDraftStorage";
 import type { DraftContent } from "./slices/types";
 
@@ -38,6 +39,27 @@ describe("composer draft checkpoints", () => {
     });
   });
 
+  it("keeps old text drafts and selection metadata across reloads", () => {
+    const oldContent = { segments: [{ kind: "text", content: "old draft" }], attachments: [] };
+    localStorage.setItem(
+      'poracode-composer-draft-v2:["thread","old"]',
+      JSON.stringify({ formatVersion: 2, draftId: "old", revision: 1, content: oldContent }),
+    );
+    const store = createComposerDraftStorage(localStorage, window);
+    expect(store.load("thread").old).toEqual(oldContent);
+    const segments: DraftContent["segments"] = [
+      { kind: "text", content: "old draft" },
+      { kind: "text", content: "selected\ntext", selection: true },
+    ];
+    store.save("thread", "one", { segments, attachments: [] });
+    store.flush();
+    expect(createComposerDraftStorage(localStorage, window).load("thread").one?.segments).toEqual(
+      segments,
+    );
+    const oldTextReader = z.object({ kind: z.literal("text"), content: z.string() });
+    expect(oldTextReader.parse(segments[1])).toEqual({ kind: "text", content: "selected\ntext" });
+  });
+
   it("coalesces rapid typing and flushes the latest content on pagehide", () => {
     const store = createComposerDraftStorage(localStorage, window);
     const setItem = vi.spyOn(Storage.prototype, "setItem");
@@ -72,6 +94,50 @@ describe("composer draft checkpoints", () => {
     second.flush();
     expect(Object.keys(first.load("thread"))).toEqual(["remote:a:thread:1", "remote:b:thread:1"]);
     expect(Object.keys(first.load("project"))).toEqual(["remote:a:thread:1"]);
+  });
+
+  it("adopts a draft another window changed after this window cached it", () => {
+    const text = (value: string): DraftContent => ({
+      segments: [{ kind: "text", content: value }],
+      attachments: [],
+    });
+    const main = createComposerDraftStorage(localStorage, window);
+    main.save("thread", "one", text("typed in main"));
+    main.flush();
+    const threadWindow = createComposerDraftStorage(localStorage, window);
+    expect(threadWindow.load("thread").one).toEqual(text("typed in main"));
+    threadWindow.save("thread", "one", text("edited in its own window"));
+    threadWindow.flush();
+
+    main.refresh("thread", "one");
+    expect(main.load("thread").one).toEqual(text("edited in its own window"));
+    main.save("thread", "one", text("continued in main"));
+    main.flush();
+    expect(createComposerDraftStorage(localStorage, window).load("thread").one).toEqual(
+      text("continued in main"),
+    );
+  });
+
+  it("drops a write this window still had queued when the draft comes back", () => {
+    const text = (value: string): DraftContent => ({
+      segments: [{ kind: "text", content: value }],
+      attachments: [],
+    });
+    const main = createComposerDraftStorage(localStorage, window);
+    main.save("thread", "one", text("typed in main"));
+    main.flush();
+    const threadWindow = createComposerDraftStorage(localStorage, window);
+    threadWindow.load("thread");
+    threadWindow.save("thread", "one", text("edited in its own window"));
+    threadWindow.flush();
+    main.save("thread", "one", text("stale write from main"));
+
+    main.refresh("thread", "one");
+    main.flush();
+    expect(main.load("thread").one).toEqual(text("edited in its own window"));
+    expect(createComposerDraftStorage(localStorage, window).load("thread").one).toEqual(
+      text("edited in its own window"),
+    );
   });
 
   it("starts without drafts for a previous-version profile and isolates corrupt records", () => {

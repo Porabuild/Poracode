@@ -30,7 +30,7 @@ vi.mock("@/renderer/state/managedRootCatalog/rootCatalogIntents", async (importO
   ...(await importOriginal<
     typeof import("@/renderer/state/managedRootCatalog/rootCatalogIntents")
   >()),
-  dispatchManagedRootThreadGroupIntents: groupIntentsMock,
+  dispatchThreadGroupIntents: groupIntentsMock,
 }));
 
 vi.mock("./SyncBadge", () => ({

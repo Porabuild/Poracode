@@ -1,6 +1,9 @@
 package com.poracode.app.ui.projects.workspace
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,19 +11,14 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
@@ -37,6 +35,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.app.ui.components.PoracodeTextField
+import androidx.compose.material3.FilledTonalButton
 
 private enum class GitWorktreeSourceAction { PullFromSource, MergeToSource }
 
@@ -113,6 +113,7 @@ internal fun GitWorktreeListSheet(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun GitWorktreeRow(
     worktree: GitWorktreeInfo,
     enabled: Boolean,
@@ -123,8 +124,17 @@ private fun GitWorktreeRow(
     onRemove: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    val actionsLabel = stringResource(R.string.git_worktree_actions_description, worktree.path)
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .combinedClickable(
+                onClickLabel = actionsLabel,
+                onLongClickLabel = actionsLabel,
+                onClick = { menuOpen = true },
+                onLongClick = { menuOpen = true },
+            ),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -148,13 +158,7 @@ private fun GitWorktreeRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Column {
-            IconButton(onClick = { menuOpen = true }, enabled = enabled) {
-                Icon(
-                    Icons.Outlined.MoreVert,
-                    contentDescription = stringResource(R.string.git_worktree_actions_description, worktree.path),
-                )
-            }
+        Box {
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 // Pull-from-source/abort/finish-merge are always applied to the main checkout by
                 // the host contract (GitOwner.WorktreeLocation must equal the open project's own
@@ -198,7 +202,7 @@ private fun GitWorktreeSourceBranchDialog(onDismiss: () -> Unit, onConfirm: (Str
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.git_worktree_source_branch_dialog_title)) },
         text = {
-            OutlinedTextField(
+            PoracodeTextField(
                 value = sourceBranch,
                 onValueChange = { sourceBranch = it },
                 placeholder = { Text(stringResource(R.string.git_worktree_source_branch_dialog_hint)) },
@@ -207,7 +211,7 @@ private fun GitWorktreeSourceBranchDialog(onDismiss: () -> Unit, onConfirm: (Str
             )
         },
         confirmButton = {
-            Button(
+            FilledTonalButton(
                 onClick = { onConfirm(sourceBranch.trim()) },
                 enabled = sourceBranch.isNotBlank(),
             ) { Text(stringResource(R.string.git_confirm)) }

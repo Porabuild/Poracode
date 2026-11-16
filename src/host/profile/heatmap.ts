@@ -1,9 +1,5 @@
-import type {
-  ProfileHeatmap,
-  ProfileHeatmapCell,
-  ProfileHeatmapIntensity,
-  ProfileStatsWindow,
-} from "@/shared/contracts";
+import { intensityFor } from "@/shared/profile/activity";
+import type { ProfileHeatmap, ProfileHeatmapCell, ProfileStatsWindow } from "@/shared/contracts";
 
 /** 52 weeks - a full GitHub-style contribution grid. */
 export const HEATMAP_WINDOW_DAYS = 364;
@@ -38,15 +34,6 @@ export function dayKeyFromIndex(idx: number): string {
 
 export function localHour(epochMs: number, offsetMin: number): number {
   return new Date(epochMs + offsetMin * 60_000).getUTCHours();
-}
-
-function intensityFor(count: number, max: number): ProfileHeatmapIntensity {
-  if (count <= 0 || max <= 0) return 0;
-  const ratio = count / max;
-  if (ratio <= 0.25) return 1;
-  if (ratio <= 0.5) return 2;
-  if (ratio <= 0.75) return 3;
-  return 4;
 }
 
 /**

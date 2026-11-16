@@ -1,4 +1,5 @@
 import { readBridge } from "@/renderer/bridge";
+import { projectHostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { findStatusForTarget, scopeEnvForStatus } from "@/renderer/utils/acpRegistryAuth";
 import type { TerminalLoginCompletionInput } from "../terminalLogin";
 
@@ -8,12 +9,10 @@ export function watchDeepSeekLogin({
   project,
   onAuthenticated,
 }: TerminalLoginCompletionInput): () => void {
-  // CLI re-probing is local-shell authority; never use local credentials for a paired host.
-  if (
-    status.authState === "authenticated" ||
-    project.remoteServerId ||
-    project.location.remoteServerId
-  )
+  // CLI re-probing is local-shell authority: only a host that runs on this
+  // machine can be re-probed here. Never use local credentials to complete
+  // another host's login; its dock refresh re-reads that host's own inventory.
+  if (status.authState === "authenticated" || !projectHostRunsOnThisMachine(project))
     return () => undefined;
   const target = scopeEnvForStatus(status);
   const distros = target.kind === "wsl" ? [target.distro] : [];

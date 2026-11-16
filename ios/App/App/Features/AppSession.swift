@@ -133,6 +133,9 @@ final class AppSession {
     /// sweeps; a cancelled read never writes, and epoch fencing drops any
     /// result that lands after a further reconnect or host swap anyway.
     var browserForwardAuthorityTask = OwnedTaskSlot()
+    /// Per-host in-flight peer snapshot refreshes for the unified Home list so
+    /// one offline host never stalls or duplicates concurrent refreshes.
+    var hostSnapshotTasks: [ClientConnectionID: (token: UUID, task: Task<Void, Never>)] = [:]
     /// Identity of the socket that already consumed its one-shot capability
     /// declaration reconcile. A replacement socket may reconcile once.
     var reconcileAttemptedSocketID: ObjectIdentifier?
@@ -167,6 +170,7 @@ final class AppSession {
 
     func bootstrap() async {
         await live.bootstrap()
+        await pairing.resumeDeferredAutoPair()
     }
 
     func handleScenePhase(_ phase: ScenePhase) {
@@ -306,6 +310,10 @@ final class AppSession {
         take(&pairTask, excluded: excluding.pair)
         take(&bootstrapNetworkTask, excluded: excluding.bootstrapNetwork)
         take(&backgroundSuspendTask, excluded: excluding.backgroundSuspend)
+        for (_, entry) in hostSnapshotTasks {
+            entry.task.cancel()
+        }
+        hostSnapshotTasks.removeAll()
         return handles
     }
 

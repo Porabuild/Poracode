@@ -7,6 +7,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import * as Hex from "@kitlangton/hex";
 import type { CreateOptions, HexHost } from "@kitlangton/hex";
 import type { HexVoiceErrorCode } from "@/shared/contracts/hexVoice";
+import { hexCatalogFetch } from "./hexCatalogFetch";
 
 export const HEX_ENGINE_VERSION = "3.1.1";
 const RELEASE_PREFIX = `https://github.com/anomalyco/hex/releases/download/v${HEX_ENGINE_VERSION}/`;
@@ -262,6 +263,7 @@ async function defaultProbe(executable: string, signal: AbortSignal): Promise<vo
       command: [executable, "service", "--embedded"],
       signal,
       startupTimeoutMs: PROBE_TIMEOUT_MS,
+      fetch: hexCatalogFetch(),
     } satisfies CreateOptions);
     await host.client.models.list({ language: "en", signal });
   } finally {
@@ -667,13 +669,15 @@ export class HexEngineInstaller {
   }
 
   private async verifyAuthenticode(executable: string, signal: AbortSignal): Promise<void> {
+    // A host started from PowerShell 7 passes its PSModulePath to Windows PowerShell,
+    // which then cannot autoload Get-AuthenticodeSignature. Load the inbox module by path.
     await this.runCommand(
       "powershell.exe",
       [
         "-NoProfile",
         "-NonInteractive",
         "-Command",
-        "$s = Get-AuthenticodeSignature -LiteralPath $env:PORACODE_HEX_VERIFY_PATH; if ($s.Status -ne 'Valid') { exit 1 }",
+        "Import-Module (Join-Path $PSHOME 'Modules\\Microsoft.PowerShell.Security'); $s = Get-AuthenticodeSignature -LiteralPath $env:PORACODE_HEX_VERIFY_PATH; if ($s.Status -ne 'Valid') { exit 1 }",
       ],
       {
         signal,

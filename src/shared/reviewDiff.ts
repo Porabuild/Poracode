@@ -1,3 +1,5 @@
+import { fnv1a32 } from "./fnv1a32";
+
 /** Decode Git's C-quoted UTF-8 paths without requiring Node in browser clients. */
 export function unquoteGitPath(raw: string): string {
   if (raw.length < 2 || !raw.startsWith('"') || !raw.endsWith('"')) return raw;
@@ -80,10 +82,5 @@ export function viewedFingerprint(
   file: { additions: number; deletions: number },
 ): string {
   if (patch === undefined) return `pending:${file.additions}:${file.deletions}`;
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < patch.length; index += 1) {
-    hash ^= patch.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return `ready:${file.additions}:${file.deletions}:${patch.length}:${hash >>> 0}`;
+  return `ready:${file.additions}:${file.deletions}:${patch.length}:${fnv1a32(patch)}`;
 }

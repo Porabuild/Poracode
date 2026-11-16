@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -32,6 +29,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.chat.RichContextUsage
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 fun RuntimeContextUsageDock(
@@ -74,7 +72,7 @@ fun RuntimeContextUsageDock(
                 label = { Text(percentLabel) },
                 leadingIcon = {
                     Icon(
-                        Icons.Outlined.DataUsage,
+                        PoracodeIcons.DataUsage,
                         contentDescription = null,
                         tint = toneColor(summary.indicatorTone),
                     )
@@ -109,7 +107,7 @@ fun RuntimeContextUsageDock(
                         }
                         IconButton(onClick = { expanded = false }) {
                             Icon(
-                                Icons.Filled.Close,
+                                PoracodeIcons.Close,
                                 contentDescription = stringResource(
                                     R.string.runtime_context_hide_details,
                                 ),

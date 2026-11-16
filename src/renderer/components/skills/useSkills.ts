@@ -26,7 +26,17 @@ import { formatSkillInvocation } from "@/shared/promptContent";
 
 const scanCache = new Map<string, SkillScanResult>();
 const pendingScans = new Map<string, Promise<SkillScanResult>>();
-const scanVersions = new Map<string, number>();
+let scanCacheRevision: number | undefined;
+
+// Document-local results from older plugin revisions cannot serve a current scan.
+function currentScanCache(revision: number): ReadonlyMap<string, SkillScanResult> {
+  if (scanCacheRevision !== revision) {
+    scanCacheRevision = revision;
+    scanCache.clear();
+    pendingScans.clear();
+  }
+  return scanCache;
+}
 
 function pluginSkillScanKey(installedPlugins: InstalledPlugins): string {
   return JSON.stringify(
@@ -34,6 +44,15 @@ function pluginSkillScanKey(installedPlugins: InstalledPlugins): string {
       .toSorted(([left], [right]) => left.localeCompare(right))
       .map(([id, state]) => [id, state.version, state.enabled, state.disabledSkillIds.toSorted()]),
   );
+}
+
+/** Stable key for project/thread plugin switches, which change which plugin skills are enabled. */
+function pluginOverridesScanKey(overrides: Readonly<Record<string, boolean>> | undefined): string {
+  return overrides
+    ? JSON.stringify(
+        Object.entries(overrides).toSorted(([left], [right]) => left.localeCompare(right)),
+      )
+    : "";
 }
 
 function requestSkillScan(
@@ -44,12 +63,10 @@ function requestSkillScan(
   const pending = pendingScans.get(requestKey);
   if (reusePending && pending) return pending;
 
-  const version = (scanVersions.get(requestKey) ?? 0) + 1;
-  scanVersions.set(requestKey, version);
   const request = readBridge()
     .scanSkills(payload)
     .then((result) => {
-      if (scanVersions.get(requestKey) === version) scanCache.set(requestKey, result);
+      if (pendingScans.get(requestKey) === request) scanCache.set(requestKey, result);
       return result;
     });
   pendingScans.set(requestKey, request);
@@ -65,11 +82,12 @@ export function useSkills(
   agentKind?: string,
   wslDistro?: string,
   presentationMode?: ThreadPresentationMode,
+  pluginOverrides?: Readonly<Record<string, boolean>>,
 ) {
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const pluginRevision = usePlugins((state) => state.revision);
-  const requestKey = `${agentKind ?? ""}\0${wslDistro ?? ""}\0${presentationMode ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}\0${pluginSkillScanKey(installedPlugins)}\0${pluginRevision}`;
-  const cachedScan = scanCache.get(requestKey);
+  const requestKey = `${agentKind ?? ""}\0${wslDistro ?? ""}\0${presentationMode ?? ""}\0${projectLocation ? JSON.stringify(projectLocation) : ""}\0${pluginSkillScanKey(installedPlugins)}\0${pluginRevision}\0${pluginOverridesScanKey(pluginOverrides)}`;
+  const cachedScan = currentScanCache(pluginRevision).get(requestKey);
   const [scanState, setScanState] = useState<
     | {
         requestKey: string;
@@ -93,6 +111,7 @@ export function useSkills(
           ...(wslDistro ? { wslDistro } : {}),
           ...(agentKind ? { agentKind } : {}),
           ...(presentationMode ? { presentationMode } : {}),
+          ...(pluginOverrides ? { pluginOverrides: { ...pluginOverrides } } : {}),
         },
         reusePending,
       );
@@ -126,20 +145,25 @@ export function useSkillSlashCommands(
   projectLocation: ProjectLocation,
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
+  pluginOverrides?: Readonly<Record<string, boolean>>,
 ): AgentSlashCommand[] {
-  return useSkillSlashCommandState(projectLocation, agentKind, presentationMode).commands;
+  return useSkillSlashCommandState(projectLocation, agentKind, presentationMode, pluginOverrides)
+    .commands;
 }
 
+/** `pluginOverrides` are the launch's effective switches (project beneath thread). */
 export function useSkillSlashCommandState(
   projectLocation: ProjectLocation,
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
+  pluginOverrides?: Readonly<Record<string, boolean>>,
 ) {
   const { scan, loading, error } = useSkills(
     projectLocation,
     agentKind,
     undefined,
     presentationMode,
+    pluginOverrides,
   );
   const localizedPlugins = useLocalizedPluginCatalog(projectLocation);
   return {
@@ -192,8 +216,15 @@ export function usePluginMentionItems(
   projectLocation: ProjectLocation,
   agentKind: string,
   presentationMode?: ThreadPresentationMode,
+  pluginOverrides?: Readonly<Record<string, boolean>>,
 ): PluginMentionItem[] {
-  const { scan } = useSkills(projectLocation, agentKind, undefined, presentationMode);
+  const { scan } = useSkills(
+    projectLocation,
+    agentKind,
+    undefined,
+    presentationMode,
+    pluginOverrides,
+  );
   const localizedPlugins = useLocalizedPluginCatalog(projectLocation);
   const installedPlugins = useSharedSettings((state) => state.installedPlugins);
   const disabledBuiltIns = useSharedSettings((state) => state.disabledBuiltInMcpServers);
@@ -202,7 +233,11 @@ export function usePluginMentionItems(
 
   return localizedPlugins.flatMap((localized): PluginMentionItem[] => {
     const plugin = localized.plugin;
-    const state = resolveInstalledPluginState(plugin, installedPlugins);
+    const state = resolveInstalledPluginState(
+      plugin,
+      installedPlugins,
+      pluginOverrides ? { ...pluginOverrides } : undefined,
+    );
     const core = getPluginCoreSkill(plugin);
     if (
       !state?.enabled ||

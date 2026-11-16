@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,6 +18,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.settings.SettingsHostLease
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun SettingsHostPane(
@@ -34,7 +33,7 @@ internal fun SettingsHostPane(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Icon(Icons.Outlined.Computer, contentDescription = null)
+            Icon(PoracodeIcons.Computer, contentDescription = null)
             Text(stringResource(R.string.settings_no_host), Modifier.padding(top = 12.dp))
         }
         return

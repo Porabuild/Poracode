@@ -1,15 +1,6 @@
-import { Button, Description, Dropdown, Label } from "@heroui/react";
+import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import {
-  ArrowLeft,
-  ChevronsUpDown,
-  PanelLeft,
-  PanelLeftClose,
-  Pin,
-  Play,
-  UserRound,
-  Workflow,
-} from "lucide-react";
+import { ArrowLeft, PanelLeft, PanelLeftClose, Pin, Play, UserRound, Workflow } from "lucide-react";
 import type {
   GitHubAccount,
   GitHubAccountRef,
@@ -18,10 +9,6 @@ import type {
 } from "@/shared/contracts";
 import { SidebarButton } from "@/renderer/components/common";
 import {
-  ProjectSelectorIcon,
-  useProjectRemoteServerLookup,
-} from "@/renderer/components/common/ProjectRemoteServer";
-import {
   overlaySidebarColumnClass,
   overlaySidebarSurfaceClass,
   sidebarBodyScrollClass,
@@ -29,6 +16,7 @@ import {
   sidebarIconRailFooterClass,
 } from "@/renderer/components/layout/sidebarChrome";
 import { useSidebar } from "@/renderer/views/MainView/parts/AppShell/AppShell";
+import { GitHubActionsProjectPicker } from "./GitHubActionsProjectPicker";
 
 /* The ghost recipe's hover wash is tuned for raised surfaces and vanishes on
    dim idle rows, so revealed row actions get a stronger foreground-derived
@@ -54,10 +42,8 @@ export function GitHubActionsSidebar(props: {
 }) {
   const { t } = useLingui();
   const { isCollapsed, collapse, expand } = useSidebar();
-  const remoteServerFor = useProjectRemoteServerLookup();
   const pinned = new Set(props.pinnedWorkflowIds);
   const selectedProject = props.projects.find((project) => project.id === props.selectedProjectId);
-  const selectedRemote = remoteServerFor(selectedProject);
   const workflows = [...props.workflows].sort((a, b) => {
     const aPinned = pinned.has(a.id);
     const bPinned = pinned.has(b.id);
@@ -114,46 +100,11 @@ export function GitHubActionsSidebar(props: {
         <div className={sidebarBodyScrollClass()}>
           {selectedProject ? (
             <div className="py-1">
-              <Dropdown>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 w-full min-w-0 justify-start gap-2 rounded-3xl px-2 text-sm text-muted"
-                  aria-label={t`Project`}
-                >
-                  <ProjectSelectorIcon project={selectedProject} remote={selectedRemote} />
-                  <span className="min-w-0 truncate">{selectedProject.name}</span>
-                  {selectedRemote.serverName ? (
-                    <span className="min-w-0 shrink truncate text-xs text-muted/60">
-                      {selectedRemote.serverName}
-                    </span>
-                  ) : null}
-                  <ChevronsUpDown className="ms-auto size-3.5 shrink-0" />
-                </Button>
-                <Dropdown.Popover placement="bottom start" className="min-w-[--trigger-width]">
-                  <Dropdown.Menu
-                    aria-label={t`Project`}
-                    className="poracode-menu"
-                    selectionMode="single"
-                    selectedKeys={[selectedProject.id]}
-                    onAction={(key) => props.onSelectProject(String(key))}
-                  >
-                    {props.projects.map((project) => {
-                      const remote = remoteServerFor(project);
-                      return (
-                        <Dropdown.Item key={project.id} id={project.id} textValue={project.name}>
-                          <ProjectSelectorIcon project={project} remote={remote} />
-                          <Label>{project.name}</Label>
-                          {remote.serverName ? (
-                            <Description>{remote.serverName}</Description>
-                          ) : null}
-                          <Dropdown.ItemIndicator />
-                        </Dropdown.Item>
-                      );
-                    })}
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
+              <GitHubActionsProjectPicker
+                projects={props.projects}
+                selectedProject={selectedProject}
+                onSelectProject={props.onSelectProject}
+              />
 
               {effectiveAccount ? (
                 <div className="flex h-8 w-full min-w-0 items-center gap-2 rounded-3xl px-2 text-sm text-muted">

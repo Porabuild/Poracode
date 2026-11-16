@@ -7,6 +7,7 @@ import {
   REMOTE_COMMAND_ID_HEADER,
   REMOTE_PROCEDURE_SPECS,
   REMOTE_RUNTIME_HISTORY_NOTICES_DECLARATION,
+  isRemoteAgentUpdateProcedure,
   isRemoteFollowUpQueueProcedure,
   isRemoteProcedure,
   remoteRuntimeGapAcknowledgeResultSchema,
@@ -45,6 +46,7 @@ import {
   omittedResultSchema,
 } from "@/shared/ipc";
 import type { PersistedCompletedTurn, PersistedRuntimeItem } from "@/shared/ipc/schemas";
+import { AGENT_UPDATE_REQUEST_TIMEOUT_MS } from "../agents/updatePolicy";
 import { HISTORY_COMPLETED_TURNS_MAX_LIMIT, HISTORY_ITEMS_MAX_LIMIT } from "./historyReadContract";
 import {
   isRemoteThreadCatalogCommand,
@@ -60,6 +62,7 @@ import {
   assertRemoteBoundedCompletedTurnCursor,
   assertRemoteBoundedThreadCursor,
   boundedReadLimit,
+  boundedReadProtocolError,
   boundedTimelineEntryCount,
   invalidReadsRequest,
   parseBoundedHistoryItemsPage,
@@ -83,6 +86,7 @@ import { parseResponse } from "./clientParse";
 import {
   LONG_REMOTE_REQUEST_TIMEOUT_MS,
   THREAD_START_REMOTE_REQUEST_TIMEOUT_MS,
+  WORKTREE_ADD_REMOTE_REQUEST_TIMEOUT_MS,
   type StartRemoteNewThreadInput,
   type StartRemoteNewThreadOptions,
   type StartRemoteThreadInput,
@@ -269,6 +273,11 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
     options: RemoteBoundedThreadHistoryOptions = {},
   ): Promise<RemoteBoundedThreadHistoryResult> {
     const search = new URLSearchParams();
+    if (options.historyCache) {
+      search.set("historyCache", "v1");
+      if (options.historyCache !== true)
+        search.set("historyRevision", options.historyCache.revision);
+    }
     if (options.compactDetails) {
       search.set("projection", HISTORY_DETAILS_PROJECTION);
       search.set("deferBodies", HISTORY_DEFER_FILE_CHANGE_BODIES);
@@ -303,7 +312,34 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
           `/api/threads/${encodeURIComponent(threadId)}/history?${search.toString()}`,
           options.signal !== undefined ? { signal: options.signal } : {},
         ),
-      parse: parseBoundedThreadHistoryPage,
+      parse: (body) => {
+        const result = parseBoundedThreadHistoryPage(body);
+        if (!result.page.historyCache?.unchanged) return result;
+        const cached = options.historyCache;
+        if (
+          result.negotiation !== "bounded" ||
+          !cached ||
+          cached === true ||
+          result.page.thread.id !== threadId ||
+          result.page.historyCache.revision !== cached.revision
+        ) {
+          throw boundedReadProtocolError(
+            "bounded_response_invalid",
+            "History cache validation has no matching payload.",
+          );
+        }
+        return {
+          negotiation: "bounded",
+          page: {
+            ...result.page,
+            runtimeItems: cached.runtimeItems,
+            runtimeNextCursor: cached.runtimeNextCursor,
+            completedTurns: cached.completedTurns,
+            completedTurnsNextCursor: cached.completedTurnsNextCursor,
+            contextUsage: cached.contextUsage,
+          },
+        };
+      },
     });
   }
 
@@ -771,9 +807,13 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         body: { procedure, payload },
         ...(receiptGuardedStart || procedure === "ensureThreadRunning"
           ? { timeoutMs: THREAD_START_REMOTE_REQUEST_TIMEOUT_MS }
-          : "timeout" in spec && spec.timeout === "long"
-            ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
-            : {}),
+          : procedure === "gitAddWorktree"
+            ? { timeoutMs: WORKTREE_ADD_REMOTE_REQUEST_TIMEOUT_MS }
+            : isRemoteAgentUpdateProcedure(procedure)
+              ? { timeoutMs: AGENT_UPDATE_REQUEST_TIMEOUT_MS }
+              : "timeout" in spec && spec.timeout === "long"
+                ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
+                : {}),
       });
       const resultSchema = ipcProcedureMap[procedure].resultSchema;
       if (!resultSchema) {

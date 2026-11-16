@@ -22,6 +22,7 @@ export function MobileTopLevelPage() {
   const page = usePanelStore((state) => state.mobileUtilityPage);
   const githubActionsContext = usePanelStore((state) => state.githubActionsContext);
   const projectSettingsId = usePanelStore((state) => state.projectSettingsId);
+  const projectSettingsSection = usePanelStore((state) => state.projectSettingsSection);
 
   if (page === "workspace") {
     return (
@@ -35,7 +36,9 @@ export function MobileTopLevelPage() {
     return (
       <Suspense fallback={<PageLoader />}>
         <DeferredProjectSettingsOverlay
+          key={`${projectSettingsId}:${projectSettingsSection ?? ""}`}
           projectId={projectSettingsId}
+          initialSection={projectSettingsSection}
           onClose={() => usePanelStore.getState().closeProjectSettings()}
         />
       </Suspense>

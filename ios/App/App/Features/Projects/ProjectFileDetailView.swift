@@ -28,7 +28,7 @@ struct ProjectFileDetailView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar { editorToolbar }
     .onChange(of: selectedEntry?.path) { _, _ in showsMarkdownPreview = false }
-    .safeAreaInset(edge: .bottom) {
+    .poracodeBottomBar {
       if case .failed(let failure) = controller.fileWrite.loadState,
         ProjectWorkspaceSaveRecovery.classify(failure) == .none
       {

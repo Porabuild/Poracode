@@ -1,10 +1,49 @@
 import { RequestError } from "@agentclientprotocol/sdk";
 import type { RuntimeErrorReason, RuntimeEvent } from "@/shared/contracts";
+import type { UsageTokenCategories } from "@/shared/contracts/costHistory";
 import {
   createContextUsageEvent,
   readNonNegativeInteger,
   usageFromTokenCounts,
 } from "../contextUsage";
+
+function readSafeNonNegativeInteger(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) return undefined;
+  return value === 0 ? 0 : value;
+}
+
+function readOptionalSafeNonNegativeInteger(value: unknown): number | undefined {
+  if (value === undefined || value === null) return 0;
+  return readSafeNonNegativeInteger(value);
+}
+
+function readAcpPromptUsageCategories(
+  obj: Record<string, unknown>,
+  totalTokens: number,
+): UsageTokenCategories | undefined {
+  if (readSafeNonNegativeInteger(obj.totalTokens) !== totalTokens) return undefined;
+  const input = readSafeNonNegativeInteger(obj.inputTokens);
+  const output = readSafeNonNegativeInteger(obj.outputTokens);
+  const cacheRead = readOptionalSafeNonNegativeInteger(obj.cachedReadTokens);
+  const cacheWrite = readOptionalSafeNonNegativeInteger(obj.cachedWriteTokens);
+  const thought = readOptionalSafeNonNegativeInteger(obj.thoughtTokens);
+  if (
+    input === undefined ||
+    output === undefined ||
+    cacheRead === undefined ||
+    cacheWrite === undefined ||
+    thought === undefined
+  ) {
+    return undefined;
+  }
+  if (thought <= output && input + output + cacheRead + cacheWrite === totalTokens) {
+    return { input, output, cacheRead, cacheWrite };
+  }
+  if (thought > 0 && input + output + thought + cacheRead + cacheWrite === totalTokens) {
+    return { input, output: output + thought, cacheRead, cacheWrite };
+  }
+  return undefined;
+}
 
 export function createAcpPromptUsageEvent(
   threadId: string,
@@ -46,18 +85,21 @@ export function createAcpPromptUsageSpentEvent(
   },
 ): RuntimeEvent | undefined {
   if (!usage || typeof usage !== "object") return undefined;
-  const totalTokens = readNonNegativeInteger((usage as Record<string, unknown>).totalTokens);
+  const obj = usage as Record<string, unknown>;
+  const totalTokens = readNonNegativeInteger(obj.totalTokens);
   if (totalTokens === undefined) return undefined;
   const counterKind = scope.counterKind ?? "cumulative";
   const sampleId =
     counterKind === "per-call" ? scope.sampleId : `${scope.scopeId}:${scope.epoch}:${totalTokens}`;
   if (!sampleId) return undefined;
+  const tokens = readAcpPromptUsageCategories(obj, totalTokens);
   return {
     type: "usage.spent",
     threadId,
     usage: {
       counterKind,
       counter: totalTokens,
+      ...(tokens ? { tokens } : {}),
       scopeId: scope.scopeId,
       epoch: scope.epoch,
       ...(scope.fresh ? { fresh: true } : {}),

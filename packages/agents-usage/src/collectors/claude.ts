@@ -327,7 +327,7 @@ export async function collectClaude(
  * expires and the usage endpoint 401s, so a caller that can persist the rotated
  * token uses {@link refreshClaudeOAuthToken} to renew it before collecting.
  */
-export const CLAUDE_OAUTH_TOKEN_ENDPOINT = "https://console.anthropic.com/v1/oauth/token";
+export const CLAUDE_OAUTH_TOKEN_ENDPOINT = "https://platform.claude.com/v1/oauth/token";
 export const CLAUDE_OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 
 export interface ClaudeRefreshedToken {
@@ -400,7 +400,9 @@ export async function refreshClaudeOAuthToken(
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        "User-Agent": `claude-code/${version}`,
+        // The token endpoint only serves the Claude CLI's own UA; anything
+        // else is rate-limited (429) before the grant is even evaluated.
+        "User-Agent": `claude-cli/${version} (external, cli)`,
       },
       body: JSON.stringify({
         grant_type: "refresh_token",

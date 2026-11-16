@@ -342,7 +342,9 @@ it("rejects a pre-reset rebase page and uses the reconnect snapshot cursor", asy
     nextCursor: 9,
   });
   expect(await pending).toBe(false);
-  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["new-session"]);
+  // The reset keeps the loaded transcript visible while its host re-reads it;
+  // the page read before the reset never lands in it.
+  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).not.toContain("stale");
 
   bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
     items: [
@@ -354,10 +356,9 @@ it("rejects a pre-reset rebase page and uses the reconnect snapshot cursor", asy
   expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith(
     expect.objectContaining({ beforePosition: 17 }),
   );
-  expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual([
-    "older-new-session",
-    "new-session",
-  ]);
+  const ids = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
+  expect(ids[0]).toBe("older-new-session");
+  expect(ids).not.toContain("stale");
 });
 
 it.each(["rejected", "non-advancing"])(
@@ -426,4 +427,78 @@ it("preserves the reader while a rebase read overlaps new streaming history", as
   expect(ids[0]).toBe("reading-page");
   expect(ids).toContain(boundary);
   expect(ids.at(-1)).toBe("after-page");
+});
+
+it("immediately reclaims live-pinned history within the 5s window when a turn completes or the process exits", () => {
+  // 1. `turn.completed` releases an unsettled live item without waiting 5s.
+  const turnClosedThreadId = setupThread("immediate");
+  deliver(
+    turnClosedThreadId,
+    [
+      { type: "turn.started", threadId: turnClosedThreadId, turnId: "turn-1" },
+      {
+        type: "item.started",
+        threadId: turnClosedThreadId,
+        itemId: "interrupted-live",
+        itemType: "assistant_message",
+      },
+    ],
+    "immediate",
+  );
+  grow(turnClosedThreadId, "immediate");
+  expect(useAppStore.getState().runtimeItemIdsByThread[turnClosedThreadId]).toContain(
+    "interrupted-live",
+  );
+  expect(retainedUnits(turnClosedThreadId)).toBeGreaterThan(TAIL_UNITS);
+
+  // Advance only 50ms (< 5_000ms gate) and close the turn without `item.completed`.
+  vi.setSystemTime(Date.now() + 50);
+  deliver(
+    turnClosedThreadId,
+    [
+      {
+        type: "turn.completed",
+        threadId: turnClosedThreadId,
+        turnId: "turn-1",
+        state: "interrupted",
+      },
+    ],
+    "immediate",
+  );
+  expect(useAppStore.getState().runtimeItemIdsByThread[turnClosedThreadId]).not.toContain(
+    "interrupted-live",
+  );
+  expect(retainedUnits(turnClosedThreadId)).toBeLessThanOrEqual(TAIL_UNITS);
+
+  // 2. `thread-exited` reconciles orphaned native sub-agents and reclaims history immediately.
+  const exitedThreadId = setupThread("immediate");
+  deliver(
+    exitedThreadId,
+    [
+      {
+        type: "item.started",
+        threadId: exitedThreadId,
+        itemId: "orphaned-subagent",
+        itemType: "tool_call",
+        payload: { name: "Task", status: "running", isSubAgent: true },
+      },
+    ],
+    "immediate",
+  );
+  grow(exitedThreadId, "immediate");
+  expect(useAppStore.getState().runtimeItemIdsByThread[exitedThreadId]).toContain(
+    "orphaned-subagent",
+  );
+  expect(retainedUnits(exitedThreadId)).toBeGreaterThan(TAIL_UNITS);
+
+  vi.setSystemTime(Date.now() + 50);
+  dispatchRemoteSupervisorEvent({
+    type: "thread-exited",
+    threadId: exitedThreadId,
+    exitCode: 1,
+  });
+  expect(useAppStore.getState().runtimeItemIdsByThread[exitedThreadId]).not.toContain(
+    "orphaned-subagent",
+  );
+  expect(retainedUnits(exitedThreadId)).toBeLessThanOrEqual(TAIL_UNITS);
 });

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">ポート転送</string>
+    <string name="ports_title">ポート</string>
     <string name="ports_back">戻る</string>
     <string name="ports_refresh">ポートを更新</string>
     <string name="ports_target_port">転送先ポート</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">このデスクトップではブラウザ転送が設定されていません。</string>
     <string name="ports_failure_ambiguous">リクエストは完了した可能性があります。一覧を更新しました。</string>
     <string name="ports_failure_unavailable">現在、ポート転送を利用できません。</string>
+    <string name="ports_intro">デスクトップの localhost で待ち受けている開発サーバー。</string>
+    <string name="ports_forward_a_port">ポートを転送</string>
 </resources>

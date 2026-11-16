@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">Архивных тредов нет</string>
     <string name="thread_status_starting_agent">Запуск агента…</string>
     <string name="thread_status_resuming">Возобновление сеанса…</string>
+    <string name="thread_lifecycle_pin_top">Закрепить вверху</string>
+    <string name="thread_lifecycle_archive_thread">Архивировать тред</string>
+    <string name="thread_lifecycle_delete_thread">Удалить тред</string>
+    <string name="thread_lifecycle_notes">Заметки и задачи</string>
+    <string name="thread_lifecycle_open_terminal">Открыть терминал</string>
+    <string name="thread_lifecycle_fork_thread">Ответвить разговор</string>
+    <string name="thread_lifecycle_continue_in">Продолжить в другом провайдере</string>
+    <string name="thread_lifecycle_move_worktree_changes">Переместить в рабочее дерево с изменениями</string>
+    <string name="thread_lifecycle_move_worktree_clean">Переместить в чистое рабочее дерево</string>
+    <string name="thread_lifecycle_move_worktree_title">Переместить ветку в рабочее дерево?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">Текущая среда выполнения будет остановлена. Будут созданы новое рабочее дерево и ветка, а незакоммиченные изменения перенесены туда до возобновления ветки.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">Текущая среда выполнения будет остановлена. Перед возобновлением ветки будут созданы чистое рабочее дерево и новая ветка.</string>
+    <string name="thread_lifecycle_move_confirm">Переместить</string>
 </resources>

@@ -176,6 +176,7 @@ private struct SettingsGenerationGroup: View {
       }
       Toggle(SettingsUIStrings.fastMode, isOn: $value.fast)
         .disabled(selectedAgent?.fastModels.contains(value.model) != true)
+        .poracodeSwitchStyle()
       if value.presentationMode != nil {
         Picker(
           SettingsUIStrings.presentation,

@@ -8,16 +8,10 @@ import {
   clearRuntimeStructuralChangeHint,
   readRuntimeStructuralChangeHint,
 } from "@/renderer/state/runtimeStructuralChanges";
-import { readMcpAppResource } from "@/shared/mcpAppResources";
-import { completedToolVideoSources } from "@/shared/chatVideo";
-import type { ToolCallPayload } from "@/shared/contracts";
-import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
+import { readRuntimeItemChanges } from "@/renderer/state/runtimeItemChanges";
 import { isVisibleRuntimeItem } from "@/shared/runtimeItemVisibility";
-import { imageViewRendersInline } from "./parts/items/imageViewSource";
-import {
-  isToolGroupItem as isGroupableItemType,
-  isToolLikeItem,
-} from "./parts/items/toolCallCategorization";
+import { clearThreadTodoDockStateCache } from "../threadTodoState";
+import { isToolGroupItem } from "./chatToolGroupItem";
 
 export const EMPTY_THREAD_ITEM_IDS = Object.freeze([]) as readonly string[];
 export const EMPTY_THREAD_TIMELINE_ENTRIES = Object.freeze([]) as readonly ChatTimelineEntry[];
@@ -351,36 +345,6 @@ function buildTimelineEntryProjection(
   return { entries, entryStartIndices };
 }
 
-function isToolGroupItem(item: RuntimeChatItem): boolean {
-  // Sub-agent parents render as their own pill (with overlay) — never fold
-  // them into a tool-call group.
-  if (
-    item.type === "tool_call" &&
-    isDelegatedAgentTool(item.payload as ToolCallPayload | undefined)
-  ) {
-    return false;
-  }
-  // Any tool-like row that renders as a standalone inline image card
-  // (ImageView) is never folded into a "Ran N tools" group. Rows that fall back
-  // to the generic accordion (still running, errored, or non-image) keep the
-  // default grouping — `imageViewRendersInline` mirrors ImageView's render
-  // decision so the two never disagree.
-  const payload = item.payload as ToolCallPayload | undefined;
-  if (completedToolVideoSources(item).length > 0) return false;
-  if (
-    isToolLikeItem(item) &&
-    (imageViewRendersInline(payload) ||
-      (item.state === "completed" &&
-        payload?.status === "success" &&
-        readMcpAppResource(payload.result)))
-  ) {
-    return false;
-  }
-  // The groupable type set (tools, reasoning, commands, edits, searches) lives
-  // in toolCallCategorization so it is maintained in one place.
-  return isGroupableItemType(item);
-}
-
 /**
  * Bumps when the tail of the thread grows (streaming text/output) so the chat
  * pane can re-stick scroll to the bottom without re-rendering on every row.
@@ -496,7 +460,13 @@ export function selectChildItemIds(
   }
   const items = state.runtimeItemsByIdByThread[threadId];
   const result = itemIds.filter((id) => items?.[id]?.parentItemId === parentItemId);
-  const finalResult = result.length === 0 ? EMPTY_THREAD_ITEM_IDS : result;
+  const finalResult =
+    result.length === 0
+      ? EMPTY_THREAD_ITEM_IDS
+      : cached?.result.length === result.length &&
+          result.every((id, index) => cached.result[index] === id)
+        ? cached.result
+        : result;
   if (childIdsCache.size > 500) childIdsCache.clear();
   childIdsCache.set(cacheKey, { sourceItemIds: itemIds, structuralVersion, result: finalResult });
   return finalResult;
@@ -539,7 +509,22 @@ export function selectChildTimelineEntries(
   if (cached && cached.itemIds === itemIds && cached.structuralVersion === structuralVersion) {
     return cached.entries;
   }
-  const entries = buildTimelineEntries(state, threadId, itemIds);
+  const nextEntries = buildTimelineEntries(state, threadId, itemIds);
+  const entries =
+    cached?.entries.length === nextEntries.length &&
+    nextEntries.every((entry, index) => {
+      const previous = cached.entries[index];
+      return (
+        previous?.kind === entry.kind &&
+        previous.id === entry.id &&
+        (entry.kind === "item" ||
+          (previous.kind === "tool_call_group" &&
+            previous.itemIds.length === entry.itemIds.length &&
+            entry.itemIds.every((id, childIndex) => previous.itemIds[childIndex] === id)))
+      );
+    })
+      ? cached.entries
+      : nextEntries;
   if (childTimelineEntryCache.size > 500) childTimelineEntryCache.clear();
   childTimelineEntryCache.set(cacheKey, { itemIds, structuralVersion, entries });
   return entries;
@@ -767,8 +752,154 @@ export function selectCompletedTurnForEntry(
   return undefined;
 }
 
+export type AssistantFinalAnswerStatus = "confirmed" | "candidate" | "none";
+
+export interface AssistantTurnRowState {
+  completedTurnStartedAt: number | undefined;
+  completedTurnEndedAt: number | undefined;
+  latestCompletedAnswerId: string | undefined;
+  finalAnswerStatus: AssistantFinalAnswerStatus;
+}
+
+interface AssistantTurnProjection {
+  completedTurnsByAnchor: ReadonlyMap<string, CompletedTurnRecord>;
+  latestCompletedAnswerId: string | undefined;
+  finalAnswerStatusByItemId: ReadonlyMap<string, AssistantFinalAnswerStatus>;
+}
+
+/**
+ * Per-thread assistant turn metadata shared by every assistant row, so a store
+ * notification costs each row a map lookup instead of a transcript scan. The
+ * projection rebuilds once per meaningful thread change.
+ *
+ * The source item index is replaced for every runtime commit, including
+ * content deltas that cannot affect this projection. The weak key lets a
+ * canonical delta prove the own-thread keys still cover the change without
+ * retaining a retired outer index.
+ */
+const assistantTurnProjectionCache = new Map<
+  string,
+  {
+    itemIds: readonly string[];
+    structuralVersion: number;
+    completedTurns: ReadonlyArray<CompletedTurnRecord> | undefined;
+    itemsIndex: WeakRef<AppStoreState["runtimeItemsByIdByThread"]>;
+    projection: AssistantTurnProjection;
+  }
+>();
+
+function selectAssistantTurnProjection(
+  state: AppStoreState,
+  threadId: string,
+): AssistantTurnProjection {
+  const itemIds = state.runtimeItemIdsByThread[threadId] ?? EMPTY_THREAD_ITEM_IDS;
+  const structuralVersion = state.runtimeStructuralVersionByThread?.[threadId] ?? 0;
+  const completedTurns = state.runtimeCompletedTurnsByThread?.[threadId];
+  const itemsIndex = state.runtimeItemsByIdByThread;
+  const cached = assistantTurnProjectionCache.get(threadId);
+  if (
+    cached &&
+    cached.itemIds === itemIds &&
+    cached.structuralVersion === structuralVersion &&
+    cached.completedTurns === completedTurns
+  ) {
+    const previousItemsIndex = cached.itemsIndex.deref();
+    // A canonical delta records the predecessor index it changed. The own
+    // item ids/version already cover every change that can affect this
+    // projection, so an unknown hint (recovery/direct replacement) or a
+    // missed predecessor is the only case that must rebuild.
+    if (
+      previousItemsIndex === itemsIndex ||
+      (previousItemsIndex !== undefined &&
+        readRuntimeItemChanges(previousItemsIndex, itemsIndex) !== null)
+    ) {
+      if (previousItemsIndex !== itemsIndex) cached.itemsIndex = new WeakRef(itemsIndex);
+      return cached.projection;
+    }
+  }
+
+  const projection = buildAssistantTurnProjection(state, threadId, itemIds);
+  if (assistantTurnProjectionCache.size > 500) assistantTurnProjectionCache.clear();
+  assistantTurnProjectionCache.set(threadId, {
+    itemIds,
+    structuralVersion,
+    completedTurns,
+    itemsIndex: new WeakRef(itemsIndex),
+    projection,
+  });
+  return projection;
+}
+
+function buildAssistantTurnProjection(
+  state: AppStoreState,
+  threadId: string,
+  itemIds: readonly string[],
+): AssistantTurnProjection {
+  const items = state.runtimeItemsByIdByThread[threadId];
+  const finalAnswerStatusByItemId = new Map<string, AssistantFinalAnswerStatus>();
+  // One reverse walk: carry the nearest following top-level item type. Missing
+  // and nested items are ignored exactly like the old per-row forward scan.
+  let nextTopLevelType: RuntimeChatItem["type"] | undefined;
+  for (let index = itemIds.length - 1; index >= 0; index -= 1) {
+    const item = items?.[itemIds[index]!];
+    if (!item || item.parentItemId) continue;
+    if (item.type === "assistant_message") {
+      finalAnswerStatusByItemId.set(
+        item.id,
+        nextTopLevelType === undefined
+          ? "candidate"
+          : nextTopLevelType === "user_message"
+            ? "confirmed"
+            : "none",
+      );
+    }
+    nextTopLevelType = item.type;
+  }
+
+  const completedTurnsByAnchor = selectCompletedTurnsByAnchorItem(state, threadId);
+  let latestCompletedAnswerId: string | undefined;
+  for (const anchorId of completedTurnsByAnchor.keys()) {
+    const anchor = items?.[anchorId];
+    if (anchor?.type === "assistant_message" && anchor.state === "completed") {
+      latestCompletedAnswerId = anchorId;
+    }
+  }
+  return { completedTurnsByAnchor, latestCompletedAnswerId, finalAnswerStatusByItemId };
+}
+
+/**
+ * Frozen copy-action/timestamp inputs for one assistant row. Returns a plain
+ * object by design; callers use shallow equality so unchanged values do not
+ * commit. `candidate` is the live-tail marker, resolved against
+ * `isTurnActive` here so streaming state stays out of the projection.
+ */
+export function selectAssistantTurnRowState(
+  state: AppStoreState,
+  threadId: string,
+  item: RuntimeChatItem,
+  isTurnActive: boolean,
+): AssistantTurnRowState {
+  const projection = selectAssistantTurnProjection(state, threadId);
+  const rawStatus = item.parentItemId
+    ? "none"
+    : (projection.finalAnswerStatusByItemId.get(item.id) ?? "none");
+  const finalAnswerStatus: AssistantFinalAnswerStatus =
+    rawStatus === "candidate" ? (isTurnActive ? "candidate" : "confirmed") : rawStatus;
+  const completedTurn = item.parentItemId
+    ? undefined
+    : projection.completedTurnsByAnchor.get(item.id);
+  return {
+    completedTurnStartedAt: completedTurn?.startedAt,
+    completedTurnEndedAt: completedTurn?.endedAt,
+    latestCompletedAnswerId: projection.latestCompletedAnswerId,
+    finalAnswerStatus,
+  };
+}
+
 export function clearRuntimeItemStoreSelectorCacheForThread(threadId: string): void {
+  assistantTurnProjectionCache.delete(threadId);
   clearRuntimeStructuralChangeHint(threadId);
+  clearThreadTodoDockStateCache(threadId);
   const prefix = `${threadId}\0`;
   for (const key of runtimeItemStoreSelectorCache.keys()) {
     if (key.startsWith(prefix)) {

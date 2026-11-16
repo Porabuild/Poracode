@@ -27,6 +27,18 @@ export const changelogChangeSchema = z.object({
   label: z.string().optional(),
   /** One complete, user-facing sentence describing the change. */
   text: z.string(),
+  /**
+   * Optional one-line summary (aim for under 70 characters) shown where the
+   * full sentence does not fit, such as the new-thread news line. Older apps
+   * strip the unknown key; readers fall back to `text` when it is absent.
+   */
+  headline: z.string().optional(),
+  /**
+   * Optional discovery feature id (`src/shared/featureDiscovery.ts`) this change
+   * introduces. The news line promotes that feature as new to people who have
+   * not used it yet. Unknown ids are ignored.
+   */
+  feature: z.string().optional(),
 });
 
 export const changelogReleaseSchema = z.object({

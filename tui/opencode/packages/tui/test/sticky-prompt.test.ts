@@ -1,0 +1,68 @@
+import { describe, expect, test } from "bun:test"
+import { stickyPromptID } from "../src/routes/session/sticky-prompt"
+
+const messages = [
+  { id: "u1", type: "user", text: "first prompt" },
+  { id: "a1", type: "assistant", text: "answer one" },
+  { id: "u2", type: "user", text: "second prompt" },
+  { id: "a2", type: "assistant", text: "answer two" },
+]
+
+// Content-space row layout; screen y = contentRow - scrollTop (viewportY 0).
+const layout: Record<string, { row: number; height: number }> = {
+  u1: { row: 0, height: 2 },
+  a1: { row: 3, height: 2 },
+  u2: { row: 8, height: 2 },
+  a2: { row: 10, height: 2 },
+}
+
+const at = (scrollTop: number, overrides: Record<string, unknown> = {}) => ({
+  scrollTop,
+  viewportY: 0,
+  positions: Object.keys(layout).map((id) => ({ id, y: layout[id]!.row - scrollTop })),
+  anchorFor: (id: string) => {
+    const entry = layout[id]
+    return entry ? { y: entry.row - scrollTop, height: entry.height } : undefined
+  },
+  messages,
+  ...overrides,
+})
+
+describe("stickyPromptID", () => {
+  test("returns undefined at the top of the transcript", () => {
+    expect(stickyPromptID(at(0))).toBeUndefined()
+  })
+
+  test("names the prompt once its rows scroll above the viewport", () => {
+    // u1 occupies content rows 0-1; scrollTop 3 puts its bottom above the top.
+    expect(stickyPromptID(at(3))).toBe("u1")
+  })
+
+  test("keeps the bar off while the prompt is still partly visible", () => {
+    // u1 bottom is content row 2; scrollTop 1 still shows its last row.
+    expect(stickyPromptID(at(1))).toBeUndefined()
+  })
+
+  test("moves to the next prompt once the first is far above", () => {
+    // At scrollTop 9 the top message is u2, whose rows are still on screen.
+    expect(stickyPromptID(at(9))).toBeUndefined()
+    // At scrollTop 10 a2 is at the top; its prompt u2 just left the viewport.
+    expect(stickyPromptID(at(10))).toBe("u2")
+  })
+
+  test("returns undefined when no message sits at the viewport top", () => {
+    expect(
+      stickyPromptID(
+        at(50, { positions: [{ id: "a2", y: 500 - 50 }] }),
+      ),
+    ).toBeUndefined()
+  })
+
+  test("returns undefined when no user prompt precedes the top message", () => {
+    expect(stickyPromptID(at(3, { messages: messages.slice(1) }))).toBeUndefined()
+  })
+
+  test("names an unmounted prompt whose rows are all above the viewport", () => {
+    expect(stickyPromptID(at(20, { anchorFor: () => undefined }))).toBe("u2")
+  })
+})

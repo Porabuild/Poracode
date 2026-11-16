@@ -7,6 +7,19 @@ import XCTest
 #endif
 
 final class RichChatContentFixtureTests: XCTestCase {
+  func testMcpAppsStayStandaloneAndOnlyCurrentHostReferencesAreActive() throws {
+    let fixture = try loadRichChatFixture("rich-mcp-apps.json")
+    let items = try RichContentDecoder.decodeRuntimeItems(try XCTUnwrap(fixture["runtimeItems"]))
+    XCTAssertEqual(RichMcpAppPresentation(item: items[0])?.title, "deployment")
+    XCTAssertNil(RichMcpAppPresentation(item: items[1]))
+    XCTAssertNil(RichMcpAppPresentation(item: items[2]))
+    let projection = RichTimeline.project(items)
+    XCTAssertTrue(projection.visibleEntries.contains { entry in
+      if case .item(let node) = entry { return node.item.id == "live-deployment-app" }
+      return false
+    })
+  }
+
   func testCanonicalContentBlockMatrix() throws {
     let fixture = try loadRichChatFixture("rich-content-blocks.json")
     let accepted = try richFixtureArray(try XCTUnwrap(fixture["accepted"]))

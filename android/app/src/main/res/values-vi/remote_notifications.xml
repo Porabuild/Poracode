@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="remote_notification_done">Đã hoàn tất</string>
+    <string name="remote_notification_done">Xong</string>
     <string name="remote_notification_needs_attention">Cần chú ý</string>
     <string name="remote_notification_error">Lỗi</string>
     <string name="remote_notification_dismiss">Đóng thông báo</string>
+    <string name="remote_notification_done_description">Luồng đã kết thúc hoặc đang chờ bạn nhập.</string>
+    <string name="remote_notification_needs_attention_description">Cần có sự phê duyệt hoặc trả lời từ bạn.</string>
+    <string name="remote_notification_error_description">Tác nhân đã gặp lỗi.</string>
 </resources>

@@ -42,9 +42,30 @@ export function modelSurfaceLabel(
   const label = providerLabelForPresentation(provider);
   if (provider.presentationMode) {
     const modeLabel = presentationModeLabel(provider.presentationMode);
-    if (label === (provider.label ?? provider.kind) && !label.endsWith(` ${modeLabel}`)) {
+    if (label === agent.label && !label.endsWith(` ${modeLabel}`)) {
       return `${label} ${modeLabel}`;
     }
   }
   return label;
+}
+
+/**
+ * Compact surface badge (e.g. `CLI`, `ACP`, `SDK`, `Terminal`, `Chat`) without
+ * repeating the owning provider's display name, for surface tabs and row chips
+ * rendered inside a provider's own section.
+ */
+export function modelSurfaceShortLabel(
+  provider: ProviderModelMenuProvider,
+  agent: AgentStatus,
+  runtimeSlots: NativeAgentRuntimeSlots | undefined,
+): string {
+  const full = modelSurfaceLabel(provider, agent, runtimeSlots);
+  const prefix = `${agent.label} `;
+  if (full.startsWith(prefix) && full.length > prefix.length) {
+    return full.slice(prefix.length);
+  }
+  if (provider.presentationMode) {
+    return presentationModeLabel(provider.presentationMode);
+  }
+  return full;
 }

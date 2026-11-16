@@ -1,3 +1,8 @@
+import "@/renderer/testUtils/clientDraftDatabase";
+import {
+  readClientDraftAsset,
+  isClientDraftAsset,
+} from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -12,6 +17,7 @@ const bridge = vi.hoisted(() => ({
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
+  isRemoteSession: () => false,
 }));
 
 const attachment: PendingPickerAttachment = {
@@ -36,7 +42,11 @@ describe("materializePickerAttachment", () => {
     vi.clearAllMocks();
     bridge.readLocalImageFile.mockResolvedValue(imageData);
     bridge.saveClipboardImage.mockResolvedValue("/remote/thread/capture.png");
-    saveClipboardImage.mockResolvedValue("/remote/draft/capture.png");
+    saveClipboardImage.mockImplementation(async (_desktopId, input) =>
+      input.threadId.startsWith("draft-")
+        ? "/remote/draft/capture.png"
+        : "/remote/thread/capture.png",
+    );
     useRemoteServersStore.setState({ saveClipboardImage });
     useAppStore.setState((state) => ({ ...state, projects: [], threads: [] }));
   });
@@ -45,9 +55,23 @@ describe("materializePickerAttachment", () => {
     await expect(materializePickerAttachment("local-thread", attachment)).resolves.toBe(attachment);
     expect(bridge.readLocalImageFile).not.toHaveBeenCalled();
     expect(bridge.saveClipboardImage).not.toHaveBeenCalled();
+    expect(saveClipboardImage).not.toHaveBeenCalled();
   });
 
-  it("loads and uploads bytes for an existing remote thread", async () => {
+  it("keeps the path for a thread whose host shares this machine's filesystem", async () => {
+    // The managed host reads the captured path directly, like a local thread.
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [{ id: "managed-thread" } as Thread],
+    }));
+    await expect(materializePickerAttachment("managed-thread", attachment)).resolves.toBe(
+      attachment,
+    );
+    expect(bridge.readLocalImageFile).not.toHaveBeenCalled();
+    expect(saveClipboardImage).not.toHaveBeenCalled();
+  });
+
+  it("imports captured bytes on the client for an existing remote thread", async () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
@@ -64,15 +88,16 @@ describe("materializePickerAttachment", () => {
     expect(bridge.readLocalImageFile).toHaveBeenCalledWith({
       url: "poracode-local://local/C:/capture.png",
     });
-    expect(bridge.saveClipboardImage).toHaveBeenCalledWith({
-      threadId: "remote:d1:thread:t1",
-      data: imageData,
-      extension: "png",
-    });
-    expect(result).toEqual({ ...attachment, attachmentPath: "/remote/thread/capture.png" });
+    expect(saveClipboardImage).not.toHaveBeenCalled();
+    expect(bridge.saveClipboardImage).not.toHaveBeenCalled();
+    expect(isClientDraftAsset(result.attachmentPath)).toBe(true);
+    expect(
+      new Uint8Array(await (await readClientDraftAsset(result.attachmentPath)).blob.arrayBuffer()),
+    ).toEqual(imageData);
+    expect({ ...result, attachmentPath: attachment.attachmentPath }).toEqual(attachment);
   });
 
-  it("loads and uploads remote draft bytes to the project's draft directory", async () => {
+  it("imports captured bytes independently of the remote draft environment", async () => {
     useAppStore.setState((state) => ({
       ...state,
       projects: [
@@ -87,12 +112,11 @@ describe("materializePickerAttachment", () => {
     const result = await materializePickerAttachment("draft:remote:d1:project:p1", attachment);
 
     expect(bridge.readLocalImageFile).toHaveBeenCalledOnce();
-    expect(saveClipboardImage).toHaveBeenCalledWith("d1", {
-      threadId: "draft-p1",
-      data: imageData,
-      extension: "png",
-    });
-    expect(result).toEqual({ ...attachment, attachmentPath: "/remote/draft/capture.png" });
+    expect(saveClipboardImage).not.toHaveBeenCalled();
+    expect(isClientDraftAsset(result.attachmentPath)).toBe(true);
+    expect(
+      new Uint8Array(await (await readClientDraftAsset(result.attachmentPath)).blob.arrayBuffer()),
+    ).toEqual(imageData);
   });
 
   it("does not upload when a remote capture can no longer be read", async () => {
@@ -111,6 +135,6 @@ describe("materializePickerAttachment", () => {
     await expect(materializePickerAttachment("remote:d1:thread:t1", attachment)).rejects.toThrow(
       "capture missing",
     );
-    expect(bridge.saveClipboardImage).not.toHaveBeenCalled();
+    expect(saveClipboardImage).not.toHaveBeenCalled();
   });
 });

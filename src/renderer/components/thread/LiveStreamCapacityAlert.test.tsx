@@ -19,7 +19,7 @@ it("renders nothing while every retained thread is carried", () => {
 });
 
 it("shows a truthful localized overload with the dropped count and the wire limit", () => {
-  useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(3);
+  useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(3, "managed");
   render(<LiveStreamCapacityAlert />);
   const status = screen.getByRole("status");
   expect(status).toHaveTextContent(
@@ -28,7 +28,7 @@ it("shows a truthful localized overload with the dropped count and the wire limi
 });
 
 it("uses the singular form for one paused thread", () => {
-  useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(1);
+  useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(1, "managed");
   render(<LiveStreamCapacityAlert />);
   expect(screen.getByRole("status")).toHaveTextContent(
     "Live updates are paused for 1 thread because this window exceeds the 200-thread live streaming limit.",
@@ -36,7 +36,7 @@ it("uses the singular form for one paused thread", () => {
 });
 
 it("renders a compiled plural and the wire limit in every supported locale", async () => {
-  useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(2);
+  useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(2, "managed");
   for (const locale of SUPPORTED_LOCALES) {
     await dynamicActivate(locale);
     const { unmount } = render(<LiveStreamCapacityAlert />);

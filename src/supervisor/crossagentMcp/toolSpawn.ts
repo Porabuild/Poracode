@@ -172,6 +172,7 @@ export async function spawnAgent(
       ...(typeof args.reasoning === "string" ? { reasoning: args.reasoning } : {}),
       ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
       ...(typeof args.role === "string" ? { role: args.role } : {}),
+      ...(args.user_requested !== undefined ? { user_requested: args.user_requested } : {}),
       ...(args.role !== undefined && args.fallbacks !== undefined
         ? { fallbacks: args.fallbacks }
         : {}),

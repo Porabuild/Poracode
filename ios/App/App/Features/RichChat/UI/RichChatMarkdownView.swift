@@ -3,6 +3,8 @@ import SwiftUI
 struct RichChatMarkdownView: View {
   let source: String
 
+  @Environment(\.poracodeAccent) private var accent
+
   private var blocks: [RichChatMarkdownBlock] {
     RichChatMarkdownParser.parse(source)
   }
@@ -16,6 +18,7 @@ struct RichChatMarkdownView: View {
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .textSelection(.enabled)
+    .tint(accent)
   }
 
   @ViewBuilder
@@ -114,7 +117,7 @@ struct RichChatMarkdownView: View {
   }
 }
 
-private struct RichChatMarkdownCodeBlock: View {
+struct RichChatMarkdownCodeBlock: View {
   let language: String?
   let source: String
 

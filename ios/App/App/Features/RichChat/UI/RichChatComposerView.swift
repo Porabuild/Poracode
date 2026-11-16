@@ -41,12 +41,15 @@ struct RichChatComposerView: View {
   var sessionActions: RichChatSessionActionsController?
   /// Explicit draft insertion only; a revise suggestion is never sent by the app.
   var onInsertIntoComposer: (String) -> Void = { _ in }
+  /// Cut-off turn resume and the send-settled hook (RichChatComposerResume.swift).
+  var resumeContext = RichChatComposerResumeContext()
 
   @State private var importing = false
   @State private var attachmentError: String?
   @State private var controlsPresented: RichChatComposerControlsPresentation?
   @State private var showsSkillPicker = false
   @State private var draftSelection: NSRange?
+  @Namespace private var composerGlassNamespace
 
   var body: some View {
     VStack(spacing: 6) {
@@ -89,6 +92,7 @@ struct RichChatComposerView: View {
           hiddenModels: hiddenModels,
           hasStartedSession: hasStartedSession
         )
+        .poracodeZoomTransition(sourceID: "richchat.composer-controls", in: composerGlassNamespace)
       }
     }
     .sheet(isPresented: $showsSkillPicker) {
@@ -106,12 +110,16 @@ struct RichChatComposerView: View {
       || !queuedSegments.isEmpty || !skills.isEmpty || !mcps.isEmpty
     let canSend = hasPrompt || !attachments.isEmpty
     let canOpenControls = agentStatus != nil && canConfigure
+    let resume = resumeAction(canSend: canSend)
+    let placeholder =
+      (agentStatus?.label).map { RichChatStrings.messageAgent($0) } ?? RichChatStrings.message
     return RichChatAdaptiveComposer(
       text: $draft,
       selection: $draftSelection,
       isExpanded: $composerExpanded,
       hasPrompt: hasPrompt,
-      hasTrailingAction: canSend || isTurnActive || controller.state.isSending,
+      hasTrailingAction: canSend || isTurnActive || controller.state.isSending || resume != nil,
+      placeholder: placeholder,
       submit: { send() }
     ) {
       RichChatComposerInlineConfiguration(
@@ -121,6 +129,7 @@ struct RichChatComposerView: View {
         canOpen: canOpenControls,
         crew: crewPresentation,
         openCrew: { controlsPresented = .crew },
+        glassNamespace: composerGlassNamespace,
         open: { controlsPresented = .controls }
       )
     } toolbar: {
@@ -142,6 +151,7 @@ struct RichChatComposerView: View {
         catalog: slashCommandCatalog,
         canOpen: canOpenControls,
         showsStatusIcons: false,
+        glassNamespace: composerGlassNamespace,
         open: { controlsPresented = .controls }
       )
       RichChatComposerConfigurationIcon(
@@ -163,6 +173,7 @@ struct RichChatComposerView: View {
         importing: importing,
         isResolvingRequest: requestController.state.resolvingRequestID != nil,
         queue: { send(queueInsteadOfSteer: true) },
+        resume: resume,
         interrupt: { Task { await controller.interrupt() } },
         send: { send() }
       )
@@ -256,34 +267,21 @@ struct RichChatComposerView: View {
     let queuesSteer = turnActive && !queueInsteadOfSteer
     let queuesFollowUp = turnActive && queueInsteadOfSteer
     onSubmissionStarted()
+    let steerInput = RichSetPendingSteerInput(
+      prompt: text,
+      segments: segments.isEmpty ? nil : segments,
+      config: configuration.richChatObject
+    )
     Task {
-      if let activeRequest,
-        let denial = RichChatPresentation.composerDenyResolution(for: activeRequest)
-      {
-        guard canResolveRequests,
-          await requestController.resolve(denial, request: activeRequest)
-        else {
-          onSubmissionFinished(false)
-          return
-        }
+      guard await declinePendingApproval() else {
+        onSubmissionFinished(false)
+        return
       }
       let succeeded: Bool
       if queuesFollowUp {
-        succeeded = await controller.queueFollowUp(
-          RichSetPendingSteerInput(
-            prompt: text,
-            segments: segments.isEmpty ? nil : segments,
-            config: configuration.richChatObject
-          )
-        )
+        succeeded = await controller.queueFollowUp(steerInput)
       } else if queuesSteer {
-        succeeded = await controller.setPendingSteer(
-          RichSetPendingSteerInput(
-            prompt: text,
-            segments: segments.isEmpty ? nil : segments,
-            config: configuration.richChatObject
-          )
-        )
+        succeeded = await controller.setPendingSteer(steerInput)
       } else {
         succeeded = await controller.send(
           RichChatSendInput(
@@ -303,6 +301,7 @@ struct RichChatComposerView: View {
         composerExpanded = false
       }
       onSubmissionFinished(succeeded)
+      resumeContext.sendSettled(succeeded)
     }
   }
 }

@@ -1,7 +1,7 @@
 /**
  * Per-session ACP terminal subsystem.
  *
- * Hosts the client-side PTY/child-process terminals that ACP agents (e.g.
+ * Hosts the client-side command terminals that ACP agents (e.g.
  * Gemini's shell tool) ask us to create via `terminal/create`. Owns the
  * terminal-state maps and the request handlers that the ACP dispatch table
  * in `session.ts` forwards to. Extracted verbatim from `AcpStructuredSession`
@@ -13,7 +13,6 @@
  * cwd, session-id assertion) is threaded in via `AcpTerminalManagerContext`.
  */
 import { spawn as spawnChild } from "node:child_process";
-import { spawn as spawnPty } from "node-pty";
 import {
   RequestError,
   type CreateTerminalRequest,
@@ -27,7 +26,6 @@ import {
 } from "@agentclientprotocol/sdk";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import {
   acpTerminalEnvEntries,
   buildAcpTerminalLaunch,
@@ -44,6 +42,10 @@ import {
   MAX_ACP_TERMINALS_PER_SESSION,
   type AcpTerminalRecord,
 } from "./sessionTerminal";
+
+// Drain queued pipe output after the command exits, without waiting indefinitely
+// for a background descendant that inherited stdout/stderr to close them.
+const TERMINAL_EXIT_DRAIN_MS = 100;
 
 /**
  * The slice of `AcpStructuredSession` the terminal manager needs. The session
@@ -64,6 +66,7 @@ export interface AcpTerminalManagerContext {
 export class AcpTerminalManager {
   private readonly acpTerminals = new Map<string, AcpTerminalRecord>();
   private acpTerminalSeq = 0;
+  private cancellationGeneration = 0;
   /**
    * Final stdout/stderr snapshot kept around after `releaseTerminal` so the
    * canonical mapper can still surface output when the agent emits its
@@ -84,6 +87,7 @@ export class AcpTerminalManager {
       });
     }
     const generation = this.context.getSessionGeneration?.();
+    const cancellationGeneration = this.cancellationGeneration;
     const cwd = resolveAcpTerminalCwd(
       this.context.projectLocation,
       params.cwd || this.context.cwd,
@@ -95,7 +99,10 @@ export class AcpTerminalManager {
       this.context.additionalDirectories,
     );
     this.context.assertRequestSession(params.sessionId);
-    if (this.context.getSessionGeneration?.() !== generation) {
+    if (
+      this.context.getSessionGeneration?.() !== generation ||
+      cancellationGeneration !== this.cancellationGeneration
+    ) {
       throw RequestError.invalidParams({
         message: "ACP terminal request belongs to a retired session.",
       });
@@ -117,66 +124,78 @@ export class AcpTerminalManager {
     const outputByteLimit =
       typeof params.outputByteLimit === "number" ? params.outputByteLimit : undefined;
 
-    if (process.platform === "win32") {
-      const child = spawnChild(launch.command, launch.args, {
-        ...(launch.cwd ? { cwd: launch.cwd } : {}),
-        env: launch.env,
-        stdio: ["ignore", "pipe", "pipe"],
-        shell: false,
-        windowsHide: true,
-      });
-      const record: AcpTerminalRecord = {
-        kill: () => terminateChildProcessTree(child),
-        commandLine: buildTerminalCommandLine(params.command, params.args ?? []),
-        output: "",
-        outputByteLimit,
-        truncated: false,
-        exitStatus: undefined,
-        waiters: [],
-        subscriptions: [],
-      };
-      this.acpTerminals.set(terminalId, record);
-      this.acpTerminalCommandById.set(terminalId, record.commandLine);
-      child.stdout?.on("data", (chunk) => appendTerminalOutput(record, String(chunk)));
-      child.stderr?.on("data", (chunk) => appendTerminalOutput(record, String(chunk)));
-      child.once("error", (error) => {
-        appendTerminalOutput(record, `${error.message}\n`);
-        completeAcpTerminal(record, { exitCode: 1 });
-      });
-      child.once("exit", (code, signal) => {
-        completeAcpTerminal(record, childExitStatus(code, signal));
-      });
-      return { terminalId };
-    }
-
-    ensureNodePtySpawnHelperExecutable();
-    const pty = spawnPty(launch.command, launch.args, {
+    // ACP exposes output/wait/kill/release, with no terminal-input operation.
+    // Pipes preserve that contract without spending a host PTY per command.
+    // In particular, node-pty 1.1.0 leaks an extra PTY master on macOS spawn,
+    // eventually exhausting the machine's PTY pool even after commands exit.
+    // Interactive terminal presentation remains owned by the PTY runtime.
+    const ownedProcessGroup = process.platform !== "win32";
+    const child = spawnChild(launch.command, launch.args, {
       ...(launch.cwd ? { cwd: launch.cwd } : {}),
       env: launch.env,
-      cols: 80,
-      rows: 24,
+      stdio: ["ignore", "pipe", "pipe"],
+      shell: false,
+      windowsHide: true,
+      detached: ownedProcessGroup,
     });
+    let processExited = false;
+    let stdioClosed = false;
+    let exitDrainTimer: ReturnType<typeof setTimeout> | undefined;
+    const kill = () => {
+      if (stdioClosed) return;
+      if (!processExited) {
+        terminateChildProcessTree(child, { ownedProcessGroup });
+      } else if (ownedProcessGroup && child.pid) {
+        // The leader is reaped; only its still-owned group may be signaled.
+        // Falling back to its positive PID could target a reused PID.
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch {
+          // The group may already be gone.
+        }
+      }
+    };
     const record: AcpTerminalRecord = {
-      kill: () => pty.kill(),
+      kill,
+      dispose: () => {
+        clearTimeout(exitDrainTimer);
+        kill();
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+      },
       commandLine: buildTerminalCommandLine(params.command, params.args ?? []),
       output: "",
       outputByteLimit,
       truncated: false,
       exitStatus: undefined,
       waiters: [],
-      subscriptions: [],
     };
     this.acpTerminals.set(terminalId, record);
     this.acpTerminalCommandById.set(terminalId, record.commandLine);
-    record.subscriptions.push(pty.onData((data) => appendTerminalOutput(record, data)));
-    record.subscriptions.push(
-      pty.onExit((event) => {
-        completeAcpTerminal(record, {
-          exitCode: event.exitCode,
-          ...(event.signal ? { signal: String(event.signal) } : {}),
-        });
-      }),
-    );
+    child.stdout
+      ?.setEncoding("utf8")
+      .on("data", (data: string) => appendTerminalOutput(record, data));
+    child.stderr
+      ?.setEncoding("utf8")
+      .on("data", (data: string) => appendTerminalOutput(record, data));
+    child.once("error", (error) => {
+      clearTimeout(exitDrainTimer);
+      appendTerminalOutput(record, `${error.message}\n`);
+      completeAcpTerminal(record, { exitCode: 1 });
+    });
+    child.once("exit", (code, signal) => {
+      processExited = true;
+      if (record.exitStatus) return;
+      exitDrainTimer = setTimeout(() => {
+        completeAcpTerminal(record, childExitStatus(code, signal));
+      }, TERMINAL_EXIT_DRAIN_MS);
+    });
+    // close follows normal stdio drain; inherited pipes use the deadline above.
+    child.once("close", (code, signal) => {
+      stdioClosed = true;
+      clearTimeout(exitDrainTimer);
+      completeAcpTerminal(record, childExitStatus(code, signal));
+    });
     return { terminalId };
   }
 
@@ -210,15 +229,20 @@ export class AcpTerminalManager {
   handleKillTerminal(params: KillTerminalRequest): void {
     this.context.assertRequestSession(params.sessionId);
     const record = this.getAcpTerminal(params.terminalId);
-    if (!record.exitStatus) {
-      record.kill();
-    }
+    record.kill();
   }
 
   releaseAllAcpTerminals(): void {
+    this.cancellationGeneration++;
     for (const [terminalId, record] of [...this.acpTerminals]) {
       this.disposeAcpTerminal(terminalId, record);
     }
+  }
+
+  /** Stop host-owned commands even when the provider omits terminal/kill. */
+  killAllAcpTerminals(): void {
+    this.cancellationGeneration++;
+    for (const record of this.acpTerminals.values()) record.kill();
   }
 
   /**
@@ -276,12 +300,7 @@ export class AcpTerminalManager {
     if (record.output.length > 0) {
       this.releasedAcpTerminalOutput.set(terminalId, record.output);
     }
-    for (const subscription of record.subscriptions.splice(0)) {
-      subscription.dispose();
-    }
-    if (!record.exitStatus) {
-      record.kill();
-    }
+    record.dispose();
     completeAcpTerminal(record, record.exitStatus ?? { signal: "SIGTERM" });
   }
 }

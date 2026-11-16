@@ -1,9 +1,14 @@
 import { Plugin } from "@opencode/plugin/tui";
 import { createComponent, createSignal } from "solid-js";
 import type { Adapter } from "../adapter";
+import { configureSessionOptions, configureSessionToggles } from "./composer/actions";
+import { registerComposerUi } from "./composer";
 import { registerCrewUi } from "./crew";
 import { registerServerUi } from "./servers";
 import { SlotText } from "./slotText";
+import { registerRepaint } from "./repaint";
+import { registerTranscriptUi } from "./transcript";
+import { WorkingForStatus } from "./workingFor";
 
 /**
  * Bundled Poracode plugin: contributions that ride the upstream plugin API
@@ -32,6 +37,9 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
 
       registerCrewUi(context, adapter);
       registerServerUi(context, adapter);
+      registerTranscriptUi(context);
+      registerComposerUi(context, adapter);
+      registerRepaint(context);
       const [goalTick, setGoalTick] = createSignal(0);
       adapter.subscribeGoal(() => setGoalTick((value) => value + 1));
       // A compact goal line in the prompt footer; hidden without a goal.
@@ -44,6 +52,17 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
                   goalTick();
                   return adapter.goalLine(slotInput.sessionID!) ?? null;
                 },
+              })
+            : null,
+      });
+      // The desktop's live "Working for …" elapsed label while the session runs.
+      context.ui.slot({
+        append: "prompt.footer.status",
+        render: (slotInput) =>
+          slotInput.sessionID
+            ? createComponent(WorkingForStatus, {
+                context,
+                sessionID: slotInput.sessionID,
               })
             : null,
       });
@@ -121,32 +140,7 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
             run: async () => {
               const sessionID = await pickSession("Configure which thread?");
               if (!sessionID) return;
-              const offered = await adapter.sessionOptions(sessionID);
-              const approval = offered.approvalPolicies.length
-                ? await context.ui.dialog.select<string>({
-                    title: "Approval policy",
-                    options: offered.approvalPolicies.map((option) => ({
-                      title: option.label,
-                      value: option.id,
-                    })),
-                  })
-                : undefined;
-              const sandbox = offered.sandboxModes.length
-                ? await context.ui.dialog.select<string>({
-                    title: "Sandbox mode",
-                    options: offered.sandboxModes.map((option) => ({
-                      title: option.label,
-                      value: option.id,
-                    })),
-                  })
-                : undefined;
-              if (!approval && !sandbox) return;
-              const result = await adapter.setSessionOptions(sessionID, {
-                ...(approval ? { approvalPolicy: approval } : {}),
-                ...(sandbox ? { sandboxMode: sandbox } : {}),
-              });
-              const message = "error" in result ? result.error : undefined;
-              if (message) void context.ui.dialog.alert({ title: "Thread options", message });
+              await configureSessionOptions(context, adapter, sessionID);
             },
           },
           {
@@ -157,65 +151,7 @@ export function createPoracodePlugin(input: { adapter: Adapter }) {
             run: async () => {
               const sessionID = await pickSession("Configure which thread?");
               if (!sessionID) return;
-              const offered = await adapter.sessionOptions(sessionID);
-              const choice: {
-                fast?: boolean;
-                thinking?: boolean;
-                workflows?: boolean;
-                contextSize?: string;
-              } = {};
-              if (offered.fast.offered) {
-                const fast = await context.ui.dialog.select<string>({
-                  title: "Fast mode",
-                  options: [
-                    { title: "On", value: "on" },
-                    { title: "Off", value: "off" },
-                  ],
-                });
-                if (fast === "on" || fast === "off") choice.fast = fast === "on";
-              }
-              if (offered.thinking.offered) {
-                const thinking = await context.ui.dialog.select<string>({
-                  title: "Thinking mode",
-                  options: [
-                    { title: "On", value: "on" },
-                    { title: "Off", value: "off" },
-                  ],
-                });
-                if (thinking === "on" || thinking === "off") choice.thinking = thinking === "on";
-              }
-              if (offered.workflows.offered) {
-                const workflows = await context.ui.dialog.select<string>({
-                  title: offered.workflows.label,
-                  options: [
-                    { title: "On", value: "on" },
-                    { title: "Off", value: "off" },
-                  ],
-                });
-                if (workflows === "on" || workflows === "off")
-                  choice.workflows = workflows === "on";
-              }
-              if (offered.contextSizes.length) {
-                const contextSize = await context.ui.dialog.select<string>({
-                  title: "Context size",
-                  options: offered.contextSizes.map((option) => ({
-                    title: option.label,
-                    value: option.id,
-                  })),
-                });
-                if (contextSize) choice.contextSize = contextSize;
-              }
-              if (!Object.keys(choice).length) {
-                void context.ui.dialog.alert({
-                  title: "Thread toggles",
-                  message:
-                    "This provider offers no fast, thinking, workflow, or context-size options.",
-                });
-                return;
-              }
-              const result = await adapter.setSessionOptions(sessionID, choice);
-              const message = "error" in result ? result.error : undefined;
-              if (message) void context.ui.dialog.alert({ title: "Thread toggles", message });
+              await configureSessionToggles(context, adapter, sessionID);
             },
           },
           {

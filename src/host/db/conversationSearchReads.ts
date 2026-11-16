@@ -42,7 +42,9 @@ export function readConversationSearchBatch(): SearchIndexDocument[] {
   const documents: SearchIndexDocument[] = [];
   let chars = 0;
   for (const row of rows) {
-    const item = dbGetThreadRuntimeItemCommitted(row.thread_id, row.item_id);
+    const item = dbGetThreadRuntimeItemCommitted(row.thread_id, row.item_id, {
+      rehydrateInlineImages: false,
+    });
     let text = "";
     if (item && !item.parentItemId && item.state === "completed") {
       if (item.type === "assistant_message") {

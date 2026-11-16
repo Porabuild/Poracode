@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.projects.ForgeReviewEntry
 import com.poracode.app.ui.components.EmptyStateView
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.serialization.json.JsonElement
 
 @Composable
@@ -47,7 +45,15 @@ internal fun PullRequestConversationSection(
         )
         return
     }
-    LazyColumn(modifier, contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+    LazyColumn(
+        modifier,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = 16.dp,
+            bottom = 16.dp + WorkspaceBottomBarClearance,
+        ),
+    ) {
         if (conversation.comments.isNotEmpty()) {
             item("comments-header") { SectionHeader(stringResource(R.string.github_comments)) }
             items(conversation.comments.size, key = { "c${conversation.comments[it].id}" }) { index ->
@@ -104,7 +110,7 @@ internal fun PullRequestConversationSection(
                             )
                         }
                         Icon(
-                            if (thread.isResolved) Icons.Outlined.CheckCircle else Icons.Outlined.Error,
+                            if (thread.isResolved) PoracodeIcons.CheckCircle else PoracodeIcons.Error,
                             stringResource(
                                 if (thread.isResolved) {
                                     R.string.github_thread_resolved

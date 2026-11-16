@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.chat.RichOpenRequest
 import com.poracode.app.chat.RichPendingSteer
@@ -33,6 +34,7 @@ import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.protocol.BackgroundTask
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.richchat.RichChatThreadLease
 import com.poracode.app.session.richchat.RichCheckpointState
@@ -47,6 +49,9 @@ internal fun RichChatCompactControlDock(
     agentStatus: AgentStatusEntry?,
     requests: List<RichOpenRequest>,
     pendingSteer: RichPendingSteer?,
+    backgroundTasks: List<BackgroundTask>,
+    sessionActionIds: List<String>?,
+    onOpenBackgroundTask: (BackgroundTask) -> Unit,
     checkpointState: RichCheckpointState,
     projectLocation: ProjectLocation?,
     selection: RichChatThreadLease?,
@@ -56,11 +61,15 @@ internal fun RichChatCompactControlDock(
     onOpenAgentSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (requests.isEmpty() && pendingSteer == null && !hasCompactInfo(items, agentStatus)) {
+    if (
+        requests.isEmpty() && pendingSteer == null && backgroundTasks.isEmpty() &&
+        !hasCompactInfo(items, agentStatus)
+    ) {
         return
     }
     var showDetails by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val backgroundTaskStop by runtime.backgroundTasks.stop.collectAsStateWithLifecycle()
     val canResolve = selection?.host?.scopes?.contains("requests:resolve") == true
     Column(
         modifier
@@ -84,6 +93,18 @@ internal fun RichChatCompactControlDock(
                 onClear = { scope.launch { runtime.chat.clearSteer() } },
             )
         }
+        // Phone-width tasks section: the same native component as the side
+        // panel, directly in the composer control area so it needs no navigation.
+        RichBackgroundTasksCard(
+            tasks = backgroundTasks,
+            actionIds = sessionActionIds,
+            stopState = backgroundTaskStop,
+            selection = selection,
+            canOperate = canOperate,
+            busy = busy,
+            onOpenTask = onOpenBackgroundTask,
+            onStopTask = { task -> scope.launch { runtime.backgroundTasks.stop(task) } },
+        )
         Row(
             Modifier
                 .fillMaxWidth()
@@ -125,6 +146,10 @@ internal fun RichChatCompactControlDock(
                     agentStatus = agentStatus,
                     requests = requests,
                     pendingSteer = pendingSteer,
+                    backgroundTasks = backgroundTasks,
+                    sessionActionIds = sessionActionIds,
+                    onOpenBackgroundTask = onOpenBackgroundTask,
+                    showBackgroundTasks = false,
                     checkpointState = checkpointState,
                     projectLocation = projectLocation,
                     selection = selection,

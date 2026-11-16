@@ -11,6 +11,7 @@ import type { RuntimeAtomicBatchWriter } from "./runtimeWriteQueue";
 export function commitRuntimeAtomicWrite(
   sqlite: InstanceType<typeof Database>,
   transaction: () => void,
+  busyTimeoutMs?: number,
 ): ReturnType<RuntimeAtomicBatchWriter> {
   if (sqlite.inTransaction) {
     throw new Error("An atomic runtime batch must own the outer SQLite transaction.");
@@ -31,7 +32,7 @@ export function commitRuntimeAtomicWrite(
         rolledBack = sqlite.open && !sqlite.inTransaction;
         throw error;
       }
-    });
+    }, busyTimeoutMs);
   } catch (error) {
     if (committed) {
       // A timeout-restoration error cannot turn a durable append into pending

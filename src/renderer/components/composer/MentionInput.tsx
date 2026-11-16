@@ -7,7 +7,12 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { Popover, Tooltip, useMediaQuery } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
+import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
+import { i18n } from "@/renderer/i18n/i18n";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
 import type {
   AgentSlashCommand,
@@ -75,6 +80,7 @@ export interface ThreadMentionItem {
   title: string;
   updatedAt: string;
   projectName?: string | undefined;
+  environmentName?: string | undefined;
   worktreeName?: string | undefined;
 }
 
@@ -89,6 +95,45 @@ const EMPTY_MCP_MENTIONS: readonly McpMentionItem[] = [];
 const EMPTY_PLUGIN_MENTIONS: readonly PluginMentionItem[] = [];
 const EMPTY_THREAD_MENTIONS: readonly ThreadMentionItem[] = [];
 const EMPTY_CREW_MENTIONS: readonly CrewMentionItem[] = [];
+
+const WORD_CHAR_RE = /[\p{L}\p{N}]/u;
+
+function isWordBoundary(text: string, index: number): boolean {
+  if (index <= 0 || index >= text.length) return true;
+  return !WORD_CHAR_RE.test(text[index - 1]!) || !WORD_CHAR_RE.test(text[index]!);
+}
+
+function labelMatchRank(label: string, query: string): number | null {
+  let index = label.indexOf(query);
+  if (index === -1) return null;
+  let best = 2;
+  while (index !== -1) {
+    if (isWordBoundary(label, index)) {
+      if (isWordBoundary(label, index + query.length)) return 0;
+      best = 1;
+    }
+    index = label.indexOf(query, index + 1);
+  }
+  return best;
+}
+
+function threadMentionMatchRank(item: ThreadMentionItem, query: string): number | null {
+  if (query.length === 0) return 0;
+  const labelRank = labelMatchRank(threadMentionLabel(item).toLowerCase(), query);
+  if (labelRank !== null) return labelRank;
+  // Only match raw thread ids on longer queries: ids are UUIDs, so short
+  // all-hex queries (e.g. "ed", "da") would flood the result cap with
+  // id-only matches and displace title matches.
+  if (
+    item.projectName?.toLowerCase().includes(query) ||
+    item.environmentName?.toLowerCase().includes(query) ||
+    item.worktreeName?.toLowerCase().includes(query) ||
+    (query.length >= 6 && item.threadId.toLowerCase().includes(query))
+  ) {
+    return 3;
+  }
+  return null;
+}
 
 export function buildMentionResults(
   fileResults: FileEntry[],
@@ -126,24 +171,22 @@ export function buildMentionResults(
         ? { enablesMcpServerIds: item.enablesMcpServerIds }
         : {}),
     }));
-  // Recency order comes from the producer (useThreadMentionItems); only the
-  // query filter and result cap apply here.
-  const threadResults: MentionEntry[] = threadMentions
-    .filter(
-      (item) =>
-        q.length === 0 ||
-        threadMentionLabel(item).toLowerCase().includes(q) ||
-        item.projectName?.toLowerCase().includes(q) ||
-        item.worktreeName?.toLowerCase().includes(q) ||
-        // Only match raw thread ids on longer queries: ids are UUIDs, so short
-        // all-hex queries (e.g. "ed", "da") would flood the result cap with
-        // id-only matches and displace title matches.
-        (q.length >= 6 && item.threadId.toLowerCase().includes(q)),
-    )
+  // Base order comes from the producer (useThreadMentionItems); non-empty
+  // queries promote stronger title matches while preserving scope/recency ties.
+  const matchedThreads: { item: ThreadMentionItem; rank: number }[] = [];
+  for (const item of threadMentions) {
+    const rank = threadMentionMatchRank(item, q);
+    if (rank !== null) matchedThreads.push({ item, rank });
+  }
+  const orderedThreads =
+    q.length === 0 ? matchedThreads : matchedThreads.toSorted((a, b) => a.rank - b.rank);
+  const threadResults: MentionEntry[] = orderedThreads
     .slice(0, q.length === 0 ? 3 : 5)
-    .map((item) => {
+    .map(({ item }) => {
       const base = item.worktreeName || item.threadId.slice(-8);
-      const detail = item.projectName ? `${item.projectName} · ${base}` : base;
+      const detail = [item.projectName, item.environmentName, base]
+        .filter((part): part is string => Boolean(part))
+        .join(" · ");
       return {
         type: "thread" as const,
         path: item.threadId,
@@ -316,9 +359,68 @@ function skillChipDataset(segment: Extract<PromptSegment, { kind: "skill" }>) {
   };
 }
 
+export function SelectionPreview({ text }: { text: string }) {
+  const { t } = useLingui();
+  const compact = useCompactLayout();
+  const coarse = useMediaQuery("(hover: none), (pointer: coarse)");
+  const label = <span className="poracode-slash-chip__name">{text.replace(/\s+/g, " ")}</span>;
+
+  if (compact || coarse) {
+    return (
+      <Popover>
+        <Popover.Trigger className="poracode-selection-chip__trigger">{label}</Popover.Trigger>
+        <Popover.Content placement="top" className="w-80 max-w-[calc(100vw-2rem)] p-0">
+          <Popover.Dialog
+            aria-label={t`Preview`}
+            data-selection-preview-dialog=""
+            className="max-h-[50dvh] overflow-y-auto overscroll-contain whitespace-pre-wrap break-words p-3 text-xs"
+          >
+            {text}
+          </Popover.Dialog>
+        </Popover.Content>
+      </Popover>
+    );
+  }
+
+  return (
+    <Tooltip delay={300}>
+      <Tooltip.Trigger className="poracode-selection-chip__trigger">{label}</Tooltip.Trigger>
+      <Tooltip.Content
+        placement="top"
+        className="max-h-72 max-w-96 overflow-auto whitespace-pre-wrap break-words"
+      >
+        {text}
+      </Tooltip.Content>
+    </Tooltip>
+  );
+}
+
+function createSelectionChipElement(text: string): HTMLSpanElement {
+  const chip = document.createElement("span");
+  chip.contentEditable = "false";
+  chip.dataset.selectionText = text;
+  chip.className = "poracode-slash-chip poracode-selection-chip";
+  const preview = document.createElement("span");
+  preview.dataset.selectionPreview = "true";
+  chip.appendChild(preview);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "poracode-diff-comment-chip__delete";
+  remove.dataset.chipRemove = "true";
+  remove.setAttribute("aria-label", i18n._(msg`Remove`));
+  remove.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+  chip.appendChild(remove);
+  return chip;
+}
+
 function appendPromptSegments(parent: Node, segments: PromptSegment[]): void {
   for (const segment of segments) {
     if (segment.kind === "text") {
+      if (segment.selection) {
+        parent.appendChild(createSelectionChipElement(segment.content));
+        continue;
+      }
       const lines = segment.content.split("\n");
       for (let index = 0; index < lines.length; index++) {
         if (index > 0) parent.appendChild(document.createElement("br"));
@@ -413,11 +515,15 @@ export const MentionInput = forwardRef<
   const mcpMentionKey = mcpMentions.map((item) => `${item.id}:${item.enabled}`).join(",");
   const pluginMentionKey = pluginMentions.map((item) => item.id).join(",");
   const threadMentionKey = threadMentions
-    .map((item) => `${item.threadId}:${item.updatedAt}:${item.title}:${item.projectName ?? ""}`)
+    .map(
+      (item) =>
+        `${item.threadId}:${item.updatedAt}:${item.title}:${item.projectName ?? ""}:${item.environmentName ?? ""}:${item.worktreeName ?? ""}`,
+    )
     .join(",");
   const crewMentionKey = crewMentions.map((item) => `${item.label}:${item.detail ?? ""}`).join(",");
   const editorRef = useRef<HTMLDivElement>(null);
   const [pluginIconTargets, setPluginIconTargets] = useState<HTMLElement[]>([]);
+  const [selectionPreviewTargets, setSelectionPreviewTargets] = useState<HTMLElement[]>([]);
   const imeConfirmEventTimeStampRef = useRef<number | null>(null);
   const lastSlashQueryRef = useRef<string | null>(null);
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
@@ -805,6 +911,29 @@ export const MentionInput = forwardRef<
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    let currentTargets: HTMLElement[] = [];
+    const syncPreviews = () => {
+      const targets = [...editor.querySelectorAll<HTMLElement>("[data-selection-preview]")];
+      if (
+        targets.length === currentTargets.length &&
+        targets.every((target, index) => target === currentTargets[index])
+      )
+        return;
+      for (const target of targets) {
+        if (!currentTargets.includes(target)) target.replaceChildren();
+      }
+      currentTargets = targets;
+      setSelectionPreviewTargets(targets);
+    };
+    const observer = new MutationObserver(syncPreviews);
+    observer.observe(editor, { childList: true, subtree: true });
+    syncPreviews();
+    return () => observer.disconnect();
+  }, []);
+
   function checkMentionState() {
     const query = detectTriggerQuery("@");
     setMention(query !== null ? { query } : null);
@@ -978,6 +1107,7 @@ export const MentionInput = forwardRef<
   }, []);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if ((e.target as Element).closest("[data-chip-remove], [data-selection-preview]")) return;
     if (e.nativeEvent.isComposing || e.keyCode === 229) {
       if (e.key === "Enter") {
         const timeStamp = e.nativeEvent.timeStamp;
@@ -1055,7 +1185,8 @@ export const MentionInput = forwardRef<
             prev?.dataset?.slashCommand ||
             prev?.dataset?.diffCommentPath ||
             prev?.dataset?.mcpId ||
-            prev?.dataset?.threadMentionId
+            prev?.dataset?.threadMentionId ||
+            prev?.dataset?.selectionText !== undefined
           ) {
             e.preventDefault();
             removeChip(prev);
@@ -1070,7 +1201,8 @@ export const MentionInput = forwardRef<
             child?.dataset?.slashCommand ||
             child?.dataset?.diffCommentPath ||
             child?.dataset?.mcpId ||
-            child?.dataset?.threadMentionId
+            child?.dataset?.threadMentionId ||
+            child?.dataset?.selectionText !== undefined
           ) {
             e.preventDefault();
             removeChip(child);
@@ -1095,6 +1227,13 @@ export const MentionInput = forwardRef<
     e.preventDefault();
     e.stopPropagation();
     removeChip(chip);
+  }
+
+  function handleClick(e: React.MouseEvent<HTMLDivElement>) {
+    const button = (e.target as Element).closest?.("[data-chip-remove]");
+    const chip = button?.closest(CHIP_SELECTOR);
+    if (chip && e.currentTarget.contains(chip)) removeChip(chip);
+    else checkMentionState();
   }
 
   function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
@@ -1166,7 +1305,7 @@ export const MentionInput = forwardRef<
         onKeyDown={handleKeyDown}
         onMouseDown={handleMouseDown}
         onPaste={handlePaste}
-        onClick={checkMentionState}
+        onClick={handleClick}
         {...({ placeholder } as React.HTMLAttributes<HTMLDivElement>)}
       />
       {pluginIconTargets.map((target, index) =>
@@ -1174,6 +1313,13 @@ export const MentionInput = forwardRef<
           <PluginIcon pluginId={target.dataset.pluginIcon!} className="size-full" />,
           target,
           `${index}`,
+        ),
+      )}
+      {selectionPreviewTargets.map((target, index) =>
+        createPortal(
+          <SelectionPreview text={target.parentElement?.dataset.selectionText ?? ""} />,
+          target,
+          `selection-${index}`,
         ),
       )}
       {mention && liveRange && results.length > 0 && (

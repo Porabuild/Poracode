@@ -5,16 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,8 +31,11 @@ import com.poracode.app.R
 import com.poracode.app.model.ProjectIdentity
 import com.poracode.app.model.ProjectTodo
 import com.poracode.app.session.projects.ProjectSessionRuntime
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import java.time.Instant
 import java.util.UUID
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun ProjectNotesSection(
@@ -94,7 +93,7 @@ internal fun ProjectNotesSection(
             ProjectFailureText(entry?.failure)
             return@ProjectSection
         }
-        OutlinedTextField(
+        PoracodeTextField(
             value = noteText,
             onValueChange = { commit(text = it) },
             label = { Text(stringResource(R.string.projects_notes)) },
@@ -128,7 +127,7 @@ internal fun ProjectNotesSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedTextField(
+            PoracodeTextField(
                 value = newTodo,
                 onValueChange = { newTodo = it },
                 label = { Text(stringResource(R.string.projects_new_task)) },
@@ -136,7 +135,7 @@ internal fun ProjectNotesSection(
                 enabled = access.canOperate,
                 modifier = Modifier.weight(1f),
             )
-            Button(
+            FilledTonalButton(
                 onClick = {
                     val text = newTodo.trim()
                     if (text.isNotEmpty()) {
@@ -153,7 +152,7 @@ internal fun ProjectNotesSection(
                 },
                 enabled = access.canOperate && newTodo.isNotBlank(),
             ) {
-                Icon(Icons.Outlined.Add, contentDescription = null)
+                Icon(PoracodeIcons.Add, contentDescription = null)
                 Text(stringResource(R.string.projects_add_task), Modifier.padding(start = 6.dp))
             }
         }
@@ -192,7 +191,7 @@ private fun TodoEditorRow(
             enabled = enabled,
             modifier = Modifier.semantics { contentDescription = todo.text },
         )
-        OutlinedTextField(
+        PoracodeTextField(
             value = todo.text,
             onValueChange = onText,
             singleLine = true,
@@ -200,7 +199,7 @@ private fun TodoEditorRow(
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = onDelete, enabled = enabled) {
-            Icon(Icons.Outlined.Delete, stringResource(R.string.projects_delete_task))
+            Icon(PoracodeIcons.Delete, stringResource(R.string.projects_delete_task))
         }
     }
 }

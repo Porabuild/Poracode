@@ -1,5 +1,6 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { useState } from "react";
+import { runAfterTransition } from "react-aria/private/utils/runAfterTransition";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
@@ -511,6 +512,70 @@ describe("ThreadComposer", () => {
     },
   );
 
+  it("hands OS files to the import handler instead of resolving local paths", () => {
+    const onAttachFiles = vi.fn<(paths: string[]) => void>();
+    const onImportFiles = vi.fn<(files: File[]) => void>();
+    const { container } = render(
+      <ThreadComposer
+        controls={[]}
+        placeholder="Send a message..."
+        prompt=""
+        submitDisabled
+        submitLabel="Send message"
+        onAttachFiles={onAttachFiles}
+        onImportFiles={onImportFiles}
+        onPromptChange={vi.fn<(value: string) => void>()}
+        onSubmit={vi.fn<() => void>()}
+      />,
+    );
+    const shell = container.querySelector<HTMLElement>(".poracode-composer-shell")!;
+    const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+    const dataTransfer = { types: ["Files"], files: [file], getData: () => "" };
+
+    fireEvent.dragEnter(shell, { dataTransfer });
+    expect(screen.getByText("Drop here to attach")).toBeVisible();
+    fireEvent.drop(shell, { dataTransfer });
+
+    expect(onImportFiles).toHaveBeenCalledExactlyOnceWith([file]);
+    expect(getDroppedFilePaths).not.toHaveBeenCalled();
+    expect(onAttachFiles).not.toHaveBeenCalled();
+  });
+
+  it("accepts OS file drops but ignores project-tree drags with only an import handler", () => {
+    const onImportFiles = vi.fn<(files: File[]) => void>();
+    const { container } = render(
+      <ThreadComposer
+        controls={[]}
+        placeholder="Send a message..."
+        prompt=""
+        submitDisabled
+        submitLabel="Send message"
+        onImportFiles={onImportFiles}
+        onPromptChange={vi.fn<(value: string) => void>()}
+        onSubmit={vi.fn<() => void>()}
+      />,
+    );
+    const shell = container.querySelector<HTMLElement>(".poracode-composer-shell")!;
+    const treeTransfer = {
+      types: ["application/poracode-composer-file"],
+      files: [],
+      getData: () => JSON.stringify({ path: "src/App.tsx", type: "file" }),
+    };
+
+    expect(fireEvent.dragOver(shell, { dataTransfer: treeTransfer })).toBe(true);
+    fireEvent.drop(shell, { dataTransfer: treeTransfer });
+    expect(onImportFiles).not.toHaveBeenCalled();
+
+    const file = new File(["hello"], "notes.txt", { type: "text/plain" });
+    expect(fireEvent.dragOver(shell, { dataTransfer: { types: ["Files"], files: [file] } })).toBe(
+      false,
+    );
+    fireEvent.drop(shell, {
+      dataTransfer: { types: ["Files"], files: [file], getData: () => "" },
+    });
+    expect(onImportFiles).toHaveBeenCalledExactlyOnceWith([file]);
+  });
+
   it("attaches a project-tree file once when dropped inside the panel input", () => {
     const onAttachFiles = vi.fn<(paths: string[]) => void>();
     render(attachmentPanel(onAttachFiles));
@@ -684,4 +749,116 @@ it("keeps ordinary controls in order without adding a pairing or duplicate effor
   expect(screen.getAllByRole("button", { name: "Select model" })).toHaveLength(1);
   expect(screen.getAllByRole("button", { name: "Effort and context" })).toHaveLength(1);
   expect(screen.getAllByRole("button", { name: "Fast" })).toHaveLength(1);
+});
+
+describe("ThreadComposer resume button", () => {
+  beforeEach(() => {
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+  });
+  afterEach(() => {
+    MockResizeObserver.reset();
+    globalThis.ResizeObserver = originalResizeObserver;
+  });
+
+  function renderWithResume(props: { onStop?: () => void } = {}) {
+    const onPress = vi.fn<() => void>();
+    render(
+      <ThreadComposer
+        controls={[]}
+        placeholder="Send a message..."
+        prompt=""
+        submitDisabled
+        submitLabel="Send message"
+        resume={{ label: "Resume response", onPress }}
+        onPromptChange={vi.fn<(value: string) => void>()}
+        onSubmit={vi.fn<() => void>()}
+        {...props}
+      />,
+    );
+    return onPress;
+  }
+
+  it("takes the empty composer's send slot", () => {
+    const onPress = renderWithResume();
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    const button = screen.getByRole("button", { name: "Resume response" });
+    expect(button.closest("[data-composer-send]")?.parentElement).toHaveClass(
+      "poracode-composer-actions",
+    );
+    fireEvent.click(button);
+    expect(onPress).toHaveBeenCalledOnce();
+  });
+
+  it("gives way to Stop while a turn runs", () => {
+    renderWithResume({ onStop: vi.fn<() => void>() });
+    const button = screen.getByRole("button", { name: "Stop response" });
+    expect(button.closest("[data-composer-send]")?.parentElement).toHaveClass(
+      "poracode-composer-actions",
+    );
+    expect(screen.queryByRole("button", { name: "Resume response" })).toBeNull();
+  });
+});
+
+describe("ThreadComposer detached CSS transition cleanup", () => {
+  it("purges multi-property react-aria transition tracking when unmounted mid-transition", () => {
+    const rafQueue: FrameRequestCallback[] = [];
+    const originalRaf = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+      rafQueue.push(cb);
+      return rafQueue.length;
+    }) as typeof requestAnimationFrame;
+
+    const flushAnimationFrames = () => {
+      while (rafQueue.length > 0) {
+        const batch = rafQueue.splice(0, rafQueue.length);
+        for (const callback of batch) {
+          callback(performance.now());
+        }
+      }
+    };
+
+    try {
+      const { container, unmount } = renderComposer();
+      const shell = container.querySelector(".poracode-composer-shell");
+      expect(shell).not.toBeNull();
+
+      // Simulate a 4-longhand `border-color` transition starting on the composer
+      // shell (`react-aria` listens for `transitionrun` on `document.body` and
+      // attaches `{ once: true }` `transitioncancel` on the target).
+      const makeTransitionEvent = (type: string, propertyName: string) => {
+        const event = new Event(type, { bubbles: true });
+        Object.defineProperty(event, "propertyName", { value: propertyName });
+        return event;
+      };
+
+      shell!.dispatchEvent(makeTransitionEvent("transitionrun", "border-top-color"));
+      shell!.dispatchEvent(makeTransitionEvent("transitionrun", "border-right-color"));
+      // First canceled longhand consumes `{ once: true }`; second longhand stays
+      // stranded in `transitionsByElement`.
+      shell!.dispatchEvent(makeTransitionEvent("transitioncancel", "border-top-color"));
+
+      const whileMountedProbe = vi.fn<() => void>();
+      runAfterTransition(whileMountedProbe);
+      flushAnimationFrames();
+      expect(whileMountedProbe).not.toHaveBeenCalled();
+
+      act(() => {
+        unmount();
+      });
+      expect(shell!.isConnected).toBe(false);
+
+      // ThreadComposer's unmount cleanup schedules `runAfterTransition`, whose
+      // animation-frame pass purges detached elements from `transitionsByElement`
+      // and drains queued callbacks.
+      flushAnimationFrames();
+      expect(whileMountedProbe).toHaveBeenCalledOnce();
+
+      const afterUnmountProbe = vi.fn<() => void>();
+      runAfterTransition(afterUnmountProbe);
+      flushAnimationFrames();
+      expect(afterUnmountProbe).toHaveBeenCalledOnce();
+    } finally {
+      globalThis.requestAnimationFrame = originalRaf;
+    }
+  });
 });

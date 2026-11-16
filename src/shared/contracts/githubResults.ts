@@ -2,6 +2,7 @@ import { z } from "zod";
 import { gitSafeIntSchema, gitSafeNonNegIntSchema } from "./gitResults";
 import { forgeRepositorySchema } from "./forge";
 import { prLabelSchema, prReviewerSchema } from "./prMetadata";
+import type { PrData, PullRequestSummary } from "./github";
 
 const safeInt = gitSafeIntSchema;
 const safeNonNegInt = gitSafeNonNegIntSchema;
@@ -180,6 +181,31 @@ export const ghListPullRequestsResultSchema = z.object({
   pullRequests: z.array(pullRequestSummarySchema),
   viewerLogin: z.string().optional(),
 });
+
+export const githubPollingProblemSchema = z.object({
+  kind: z.enum(["authentication", "unavailable"]),
+  executionHost: z.string(),
+  retryAt: z.string(),
+});
+export type GithubPollingProblem = z.infer<typeof githubPollingProblemSchema>;
+
+export const ghPollPullRequestsResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("ready"),
+    prs: z.record(z.string(), prDataSchema),
+    pullRequests: z.array(pullRequestSummarySchema),
+    viewerLogin: z.string().optional(),
+  }),
+  z.object({ status: z.literal("blocked"), problem: githubPollingProblemSchema }),
+]);
+export type GhPollPullRequestsResult =
+  | {
+      status: "ready";
+      prs: Record<string, PrData>;
+      pullRequests: PullRequestSummary[];
+      viewerLogin?: string;
+    }
+  | { status: "blocked"; problem: GithubPollingProblem };
 
 export const githubActionsWorkflowSchema = z.object({
   id: safeInt,

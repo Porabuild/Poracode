@@ -26,13 +26,18 @@ internal class SessionBootstrapController(
     private val apiFactory: RemoteApiGatewayFactory,
     private val hasEndpointPermission: (String) -> Boolean,
     private val updateState: ((AppSession.UiState) -> AppSession.UiState) -> Unit,
+    private val onStarted: () -> Unit,
+    private val onComplete: () -> Unit,
 ) {
     private val attempt = AtomicInteger(0)
 
     fun start() {
         val attemptAtStart = attempt.incrementAndGet()
+        onStarted()
+        var bootstrapToken: SessionOperationOwner.Token? = null
         val job = scope.launch {
             val token = owner.begin(SessionOperationOwner.Kind.Bootstrap)
+            bootstrapToken = token
             updateState { it.copy(phase = AppSession.Phase.Launching) }
             val outcome = try {
                 withContext(ioDispatcher) { credentials.loadOutcome() }
@@ -136,6 +141,12 @@ internal class SessionBootstrapController(
                 SessionCredentialLoadOutcome.Rejected.LegacyInconsistent,
                 SessionCredentialLoadOutcome.Rejected.LocalStoreInconsistent,
                 -> updateState { it.copy(phase = AppSession.Phase.LocalStoreInconsistent) }
+            }
+        }
+        job.invokeOnCompletion { cause ->
+            if (cause == null) scope.launch {
+                val token = bootstrapToken ?: return@launch
+                if (attempt.get() == attemptAtStart && owner.isCurrent(token)) onComplete()
             }
         }
         jobs.replace(SessionLifecycleJobs.BOOTSTRAP, job)

@@ -14,82 +14,140 @@ import { readCodexImageViewPreview } from "./canonicalMapping/toolExtraction";
 import { setupCodexStructuredSession } from "./structuredSessionTestHarness";
 
 describe("Codex image view admission", () => {
-  it("finishes a large image tool and the next turn without overflowing canonical admission", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "poracode-codex-large-image-"));
-    try {
-      const path = join(dir, "display.png");
-      const source = await sharp(randomBytes(2048 * 1200 * 3), {
-        raw: { width: 2048, height: 1200, channels: 3 },
-      })
-        .png()
-        .toBuffer();
-      await writeFile(path, source);
-      // The previous released shape put the entire original in one completion.
-      expect(
-        estimateRuntimeEventBytes({
-          type: "item.completed",
-          threadId: "local-thread",
-          itemId: "image",
-          payload: {
-            status: "success",
-            images: [`data:image/png;base64,${source.toString("base64")}`],
-          },
-        }),
-      ).toBeGreaterThan(8 * 1024 * 1024);
+  it.each(["imageView", "imageGeneration"])(
+    "finishes a large %s tool and the next turn without overflowing canonical admission",
+    async (type) => {
+      const dir = await mkdtemp(join(tmpdir(), "poracode-codex-large-image-"));
+      try {
+        const path = join(dir, "display.png");
+        const source = await sharp(randomBytes(2048 * 1200 * 3), {
+          raw: { width: 2048, height: 1200, channels: 3 },
+        })
+          .png()
+          .toBuffer();
+        await writeFile(path, source);
+        // The previous released shape put the entire original in one completion.
+        expect(
+          estimateRuntimeEventBytes({
+            type: "item.completed",
+            threadId: "local-thread",
+            itemId: "image",
+            payload: {
+              status: "success",
+              images: [`data:image/png;base64,${source.toString("base64")}`],
+            },
+          }),
+        ).toBeGreaterThan(8 * 1024 * 1024);
 
-      const harness = setupCodexStructuredSession();
-      const item = { id: "image", type: "imageView", path };
-      harness.notify("item/started", { threadId: "provider-thread", item });
-      harness.notify("item/completed", { threadId: "provider-thread", item });
-      harness.notify("turn/completed", {
-        threadId: "provider-thread",
-        turn: { id: "turn-1", status: "completed" },
-      });
-      await vi.waitFor(
-        () =>
-          expect(
-            harness.events.some(
-              (event) =>
-                event.type === "item.completed" &&
-                !!(event.payload as { images?: string[] }).images,
-            ),
-          ).toBe(true),
-        { timeout: 10_000 },
-      );
-      const previewEvent = harness.events.find((event) => event.type === "item.completed")!;
-      const image = (previewEvent as { payload: { images: string[] } }).payload.images[0]!;
-      const metadata = await sharp(Buffer.from(image.split(",")[1]!, "base64")).metadata();
-      expect(metadata.format).toBe("webp");
-      expect(metadata.width).toBeLessThanOrEqual(1600);
-      const started = harness.events.find((event) => event.type === "item.started")!;
-      expect(previewEvent).toMatchObject({ itemId: (started as { itemId: string }).itemId });
-      expect(harness.events).toContainEqual(expect.objectContaining({ type: "item.completed" }));
-      harness.notify("turn/started", { threadId: "provider-thread", turn: { id: "turn-2" } });
-      harness.notify("item/completed", {
-        threadId: "provider-thread",
-        item: { id: "reply", type: "agentMessage", text: "still working" },
-      });
-      harness.notify("turn/completed", {
-        threadId: "provider-thread",
-        turn: { id: "turn-2", status: "completed" },
-      });
-      const onOverflow = vi.fn<() => void>();
-      const emit = vi.fn<() => void>();
-      const buffer = new RuntimeEventBuffer(emit, { onOverflow });
-      for (const event of harness.events) buffer.append(event.threadId, event);
-      buffer.flush();
-      expect(onOverflow).not.toHaveBeenCalled();
-      expect(buffer.hasPending()).toBe(false);
-      expect(harness.events).toContainEqual(
-        expect.objectContaining({
-          type: "turn.completed",
-          turnId: "turn-2",
-          state: "completed",
-        }),
-      );
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
+        const harness = setupCodexStructuredSession();
+        const item =
+          type === "imageView"
+            ? { id: "image", type, path }
+            : { id: "image", type, fileId: "file-generated" };
+        harness.notify("item/started", { threadId: "provider-thread", item });
+        harness.notify("item/completed", {
+          threadId: "provider-thread",
+          item: {
+            ...item,
+            ...(type === "imageGeneration" ? { savedPath: path, status: "completed" } : {}),
+          },
+        });
+        harness.notify("turn/completed", {
+          threadId: "provider-thread",
+          turn: { id: "turn-1", status: "completed" },
+        });
+        await vi.waitFor(
+          () =>
+            expect(
+              harness.events.some(
+                (event) =>
+                  event.type === "item.completed" &&
+                  !!(event.payload as { images?: string[] }).images,
+              ),
+            ).toBe(true),
+          { timeout: 10_000 },
+        );
+        const previewEvent = harness.events.find((event) => event.type === "item.completed")!;
+        const image = (previewEvent as { payload: { images: string[] } }).payload.images[0]!;
+        const metadata = await sharp(Buffer.from(image.split(",")[1]!, "base64")).metadata();
+        expect(metadata.format).toBe("webp");
+        expect(metadata.width).toBeLessThanOrEqual(1600);
+        const started = harness.events.find((event) => event.type === "item.started")!;
+        expect(previewEvent).toMatchObject({ itemId: (started as { itemId: string }).itemId });
+        expect(harness.events).toContainEqual(expect.objectContaining({ type: "item.completed" }));
+        harness.notify("turn/started", { threadId: "provider-thread", turn: { id: "turn-2" } });
+        harness.notify("item/completed", {
+          threadId: "provider-thread",
+          item: { id: "reply", type: "agentMessage", text: "still working" },
+        });
+        harness.notify("turn/completed", {
+          threadId: "provider-thread",
+          turn: { id: "turn-2", status: "completed" },
+        });
+        const onOverflow = vi.fn<() => void>();
+        const emit = vi.fn<() => void>();
+        const buffer = new RuntimeEventBuffer(emit, { onOverflow });
+        for (const event of harness.events) buffer.append(event.threadId, event);
+        buffer.flush();
+        expect(onOverflow).not.toHaveBeenCalled();
+        expect(buffer.hasPending()).toBe(false);
+        expect(harness.events).toContainEqual(
+          expect.objectContaining({
+            type: "turn.completed",
+            turnId: "turn-2",
+            state: "completed",
+          }),
+        );
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("settles an unavailable generated image once without retrying its missing saved file", async () => {
+    const harness = setupCodexStructuredSession();
+    const item = { id: "missing-generated", type: "imageGeneration", fileId: "file-missing" };
+    harness.notify("item/started", { threadId: "provider-thread", item });
+    harness.notify("item/completed", {
+      threadId: "provider-thread",
+      item: {
+        ...item,
+        status: "completed",
+        savedPath: join(tmpdir(), `${randomBytes(8).toString("hex")}.png`),
+      },
+    });
+    await vi.waitFor(() =>
+      expect(harness.events.filter((event) => event.type === "item.completed")).toHaveLength(1),
+    );
+    expect(harness.events.at(-1)).toMatchObject({
+      type: "item.completed",
+      payload: { status: "success", result: { fileId: "file-missing" } },
+    });
+    expect(
+      (harness.events.at(-1) as { payload: { images?: string[] } }).payload.images,
+    ).toBeUndefined();
+  });
+
+  it("does not read images from ordinary tool completion paths", () => {
+    const harness = setupCodexStructuredSession();
+    const events: RuntimeEvent[] = [
+      {
+        type: "item.started",
+        threadId: "local-thread",
+        itemId: "ordinary",
+        itemType: "mcp_tool_call",
+      },
+      {
+        type: "item.completed",
+        threadId: "local-thread",
+        itemId: "ordinary",
+        payload: { status: "success", result: { savedPath: "C:\\fixture\\image.png" } },
+      },
+    ];
+    (
+      harness.session as unknown as { emitRuntimeEvents(events: RuntimeEvent[]): void }
+    ).emitRuntimeEvents(events);
+    expect(harness.events).toEqual(events);
   });
 
   it("does not embed oversized files when the mapper is used without a session", async () => {

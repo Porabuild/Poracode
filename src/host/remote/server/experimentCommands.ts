@@ -18,6 +18,7 @@ import {
 import { RemoteHttpError } from "../auth";
 import type { RemoteExperimentAuthority } from "../remoteAccessServerTypes";
 import { runRemoteCommand } from "./remoteCommandIdempotency";
+import { withThreadMutationCustody } from "@/host/supervisor/threadMutationCustody";
 import type { RemoteServerContext } from "./context";
 
 /**
@@ -267,12 +268,11 @@ async function withCandidateCustody<Result>(
       400,
     );
   }
-  const acquire = (index: number): Promise<Result> => {
-    const threadId = ordered[index];
-    if (threadId === undefined) return run(ordered);
-    return authority.runThreadMutation(threadId, () => acquire(index + 1));
-  };
-  return acquire(0);
+  return withThreadMutationCustody(
+    (threadId, operation) => authority.runThreadMutation(threadId, operation),
+    ordered,
+    run,
+  );
 }
 
 async function retireCandidates(

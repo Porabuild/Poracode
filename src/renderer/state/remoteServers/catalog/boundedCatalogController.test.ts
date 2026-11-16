@@ -3,12 +3,15 @@ import type { Project, Thread } from "@/shared/contracts";
 import { RemoteBoundedReadProtocolError, type RemoteDesktopClient } from "@/shared/remote/client";
 import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "../../remoteServersStore";
 import {
+  boundedCatalogRemovalMark,
+  installBoundedCatalogShellPage,
   noteBoundedCatalogMembershipEvent,
   resetBoundedCatalogForResync,
 } from "./boundedCatalogController";
 import { readBoundedHistoryTail } from "./boundedHistoryRegistry";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { useAppStore } from "@/renderer/state/appStore";
+import { resetComposerDraftStorageForTest } from "@/renderer/state/composerDraftStorage";
 import { nativeVisualUiKey, useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import {
   loadOlderThreadRuntimeItems,
@@ -66,6 +69,10 @@ interface FakeBoundedHost {
   readonly maxListInFlight: number;
   readonly maxInventoryInFlight: number;
   readonly membershipCalls: Array<{ threadIds?: string[]; projectIds?: string[] }>;
+  readonly pageReads: Array<{
+    readonly mode: "page" | "inventory";
+    readonly cursor: string | undefined;
+  }>;
   readonly snapshot: ReturnType<typeof vi.fn>;
   /** Holds every subsequent inventory page until released. */
   holdInventoryPages(): void;
@@ -120,6 +127,10 @@ function makeBoundedHost(options: FakeHostOptions): FakeBoundedHost {
   let holdInventory = false;
   const heldInventory: Array<() => void> = [];
   const membershipCalls: Array<{ threadIds?: string[]; projectIds?: string[] }> = [];
+  const pageReads: Array<{
+    readonly mode: "page" | "inventory";
+    readonly cursor: string | undefined;
+  }> = [];
   const snapshot = vi.fn<() => Promise<never>>(async () => {
     throw new Error("the assembled snapshot must not be called for a bounded host");
   });
@@ -168,6 +179,7 @@ function makeBoundedHost(options: FakeHostOptions): FakeBoundedHost {
       limit?: number;
     }) => {
       const mode = pageOptions.mode ?? "page";
+      pageReads.push({ mode, cursor: pageOptions.cursor });
       if (mode === "inventory") {
         inventoryPages += 1;
         inventoryInFlight += 1;
@@ -307,6 +319,7 @@ function makeBoundedHost(options: FakeHostOptions): FakeBoundedHost {
       }
     },
     membershipCalls,
+    pageReads,
     snapshot,
     ...(deferral ? { resolveListPage: deferral.release } : {}),
   };
@@ -337,6 +350,7 @@ async function flushAsyncWork(): Promise<void> {
 
 describe("boundedCatalogController", () => {
   beforeEach(() => {
+    resetComposerDraftStorageForTest();
     localStorage.clear();
     useNativeVisualUiStore.setState({ entries: new Map() });
     __resetRemoteServersStoreForTest();
@@ -351,6 +365,7 @@ describe("boundedCatalogController", () => {
   });
 
   afterEach(() => {
+    resetComposerDraftStorageForTest();
     vi.useRealTimers();
   });
 
@@ -545,6 +560,47 @@ describe("boundedCatalogController", () => {
     await flushAsyncWork();
     expect(useRemoteServersStore.getState().runtime.d1).toBeUndefined();
     expect(useNativeVisualUiStore.getState().entries.has(nativeKey)).toBe(true);
+  });
+
+  it("does not resurrect a confirmed-deleted row from an older paint response", async () => {
+    const gone = threadRow("gone");
+    const keep = threadRow("keep");
+    const host = makeBoundedHost({
+      rows: [gone, keep],
+      pageSize: 1,
+      deferFirstListPage: true,
+      onListPage: ({ mode }) =>
+        mode === "inventory"
+          ? { threads: [keep], nextCursor: null }
+          : { threads: [keep], nextCursor: null },
+      existing: (ids) => ids.filter((id) => id !== gone.id),
+    });
+    installServer(host.client);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await vi.waitFor(() => {
+      expect(host.listPages).toBe(1);
+      expect(host.membershipCalls.some((request) => request.threadIds?.includes(gone.id))).toBe(
+        true,
+      );
+      expect(
+        useAppStore.getState().threads.some((row) => row.id === remoteThreadId("d1", gone.id)),
+      ).toBe(false);
+    });
+    const resurrected: string[] = [];
+    const unsubscribe = useAppStore.subscribe((state) => {
+      if (state.threads.some((row) => row.id === remoteThreadId("d1", gone.id)))
+        resurrected.push(gone.id);
+    });
+    try {
+      host.resolveListPage?.({ threads: [gone], nextCursor: null });
+      await flushAsyncWork();
+      expect(resurrected).toEqual([]);
+      expect(
+        useAppStore.getState().threads.some((row) => row.id === remoteThreadId("d1", gone.id)),
+      ).toBe(false);
+    } finally {
+      unsubscribe();
+    }
   });
 
   it("reconciles project membership events into thread and project passes", async () => {
@@ -1122,5 +1178,181 @@ describe("boundedCatalogController", () => {
       { timeout: 2000 },
     );
     expect(turnsCalls[0]?.cursor).toBe("ct1.4");
+  });
+});
+
+const appDeleteThread = useAppStore.getState().deleteThread;
+
+describe("shell page after a confirmed removal", () => {
+  beforeEach(() => {
+    resetComposerDraftStorageForTest();
+    localStorage.clear();
+    __resetRemoteServersStoreForTest();
+    useAppStore.setState({ threads: [], projects: [] });
+    useRemoteServersStore.setState({
+      servers: [],
+      runtime: {},
+      openThread: null,
+      hostUpdates: {},
+      hostUpdateRestarts: {},
+    });
+  });
+
+  afterEach(() => {
+    resetComposerDraftStorageForTest();
+    useAppStore.setState({ deleteThread: appDeleteThread });
+    __resetRemoteServersStoreForTest();
+    vi.useRealTimers();
+  });
+
+  function shellPage(threads: readonly Thread[]) {
+    return {
+      snapshotSeq: 0,
+      projects: [proj],
+      threads: [...threads],
+      runtimeSummariesByThread: {},
+      reads: "bounded-v1" as const,
+      threadsNextCursor: null,
+      projectsNextCursor: null,
+      updatedAt: "now",
+    };
+  }
+
+  async function driveConfirmedRemoval(): Promise<{
+    host: FakeBoundedHost;
+    removalMark: number;
+    removedIds: string[];
+  }> {
+    const removedIds: string[] = [];
+    useAppStore.setState({
+      deleteThread: (threadId: string) => {
+        removedIds.push(threadId);
+        appDeleteThread(threadId);
+      },
+    });
+    const host = makeBoundedHost({
+      rows: [threadRow("t1"), threadRow("t2"), threadRow("t3")],
+      pageSize: 400,
+      onListPage: ({ mode }) =>
+        mode === "inventory"
+          ? { threads: [threadRow("t1"), threadRow("t3")], nextCursor: null }
+          : undefined,
+      existing: (requested) => requested.filter((id) => id !== "t2"),
+    });
+    installServer(host.client);
+    const removalMark = boundedCatalogRemovalMark();
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await vi.waitFor(() => {
+      expect(host.membershipCalls.some((call) => call.threadIds?.includes("t2"))).toBe(true);
+      expect(useRemoteServersStore.getState().runtime.d1?.threads.map((row) => row.id)).toEqual([
+        "t1",
+        "t3",
+      ]);
+    });
+    expect(host.membershipCalls).toContainEqual({ threadIds: ["t2"] });
+    // removeThreadRows(["t2"]) removed the row and its projected app row.
+    expect(removedIds).toEqual([remoteThreadId("d1", "t2")]);
+    return { host, removalMark, removedIds };
+  }
+
+  it("does not re-commit the confirmed-removed row from a shell read that started before it", async () => {
+    const { host, removalMark } = await driveConfirmedRemoval();
+    const committed: boolean[] = [];
+    const unsubscribe = useRemoteServersStore.subscribe((state) => {
+      committed.push((state.runtime.d1?.threads ?? []).some((row) => row.id === "t2"));
+    });
+
+    try {
+      const pageOneReads = () =>
+        host.pageReads.filter((read) => read.mode === "page" && read.cursor === undefined).length;
+      const readsBeforeInstall = pageOneReads();
+      // The same shell read started before the removal and still carries t2.
+      installBoundedCatalogShellPage(
+        "d1",
+        shellPage([threadRow("t1"), threadRow("t2"), threadRow("t3")]),
+        removalMark,
+      );
+      expect(useRemoteServersStore.getState().runtime.d1?.threads.map((row) => row.id)).toEqual([
+        "t1",
+        "t3",
+      ]);
+      expect(
+        useAppStore.getState().threads.some((row) => row.id === remoteThreadId("d1", "t2")),
+      ).toBe(false);
+
+      // The retired page asks for a fresh page-1 paint instead.
+      await flushAsyncWork();
+      expect(pageOneReads()).toBeGreaterThan(readsBeforeInstall);
+      expect(committed.every((hasRemovedRow) => hasRemovedRow === false)).toBe(true);
+      expect(useRemoteServersStore.getState().runtime.d1?.threads.map((row) => row.id)).toEqual([
+        "t1",
+        "t3",
+      ]);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("commits a shell page whose read started after the confirmed removal", async () => {
+    await driveConfirmedRemoval();
+    // A read that begins after the removal is not stale: its page is
+    // authoritative, even if it carries the row again.
+    const readStartedAt = boundedCatalogRemovalMark();
+    installBoundedCatalogShellPage(
+      "d1",
+      shellPage([threadRow("t1"), threadRow("t2"), threadRow("t3")]),
+      readStartedAt,
+    );
+    expect(
+      useRemoteServersStore
+        .getState()
+        .runtime.d1?.threads.map((row) => row.id)
+        .sort(),
+    ).toEqual(["t1", "t2", "t3"]);
+  });
+
+  it("does not overwrite a live row outside page 1 when a later bounded shell page omits it", async () => {
+    const page1 = Array.from({ length: 2 }, (_, index) => threadRow(`p1-${index}`));
+    const tail = { ...threadRow("tail-row"), updatedAt: "2026-01-01T00:00:00.000Z" };
+    const host = makeBoundedHost({
+      rows: [...page1, tail],
+      pageSize: 2,
+    });
+    installServer(host.client);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await vi.waitFor(() =>
+      expect(useRemoteServersStore.getState().runtime.d1?.threads).toHaveLength(3),
+    );
+
+    // Live thread-state bumped the tail row in useAppStore (simulating a
+    // newer host timestamp while runtime.d1 still holds the cached copy).
+    const viewId = remoteThreadId("d1", "tail-row");
+    const liveUpdatedAt = "2026-11-16T12:00:00.000Z";
+    useAppStore.getState().updateThreadRuntime(viewId, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+      updatedAt: liveUpdatedAt,
+    });
+
+    // A page-1-only shell refresh (snapshotSeq >= appliedSeq, omitting tail-row)
+    // must not clobber tail-row in useAppStore with the stale cached copy.
+    installBoundedCatalogShellPage(
+      "d1",
+      {
+        snapshotSeq: 99,
+        projects: [proj],
+        threads: page1,
+        runtimeSummariesByThread: {},
+        reads: "bounded-v1",
+        threadsNextCursor: "tp1.0",
+        projectsNextCursor: null,
+        updatedAt: "now",
+      },
+      boundedCatalogRemovalMark(),
+    );
+
+    const resident = useAppStore.getState().threads.find((row) => row.id === viewId);
+    expect(resident).toMatchObject({ status: "working", updatedAt: liveUpdatedAt });
   });
 });

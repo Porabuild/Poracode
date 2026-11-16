@@ -5,7 +5,7 @@ import type {
   Thread,
   TerminalSize,
 } from "@/shared/contracts";
-import type { RemoteDesktopClient, StartRemoteNewThreadInput } from "@/shared/remote/client";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import type {
   RemoteAccessScope,
   RemoteAgentStatuses,
@@ -14,6 +14,7 @@ import type {
   RemoteHostWorkspace,
   RemoteImageRefValue,
   RemoteProjectCommand,
+  RemoteProjectCommandResponse,
   RemoteShellSnapshot,
 } from "@/shared/remote";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
@@ -135,6 +136,15 @@ export interface RemoteServerRecord {
    */
   readonly connectionId?: string;
   readonly desktopId: string;
+  /**
+   * Non-secret identity of this pairing authorization's on-device recent-history
+   * cache. Minted fresh for every pairing (so a re-pair never reads an earlier
+   * grant's tail) and kept across reconnect, reload and credential rotation. A
+   * record persisted before it existed gains one only after its first
+   * authenticated host-identity read. Additive: older documents stay valid and
+   * older readers ignore it, so the persisted store version is unchanged.
+   */
+  readonly recentHistoryCacheId?: string;
   readonly label: string;
   /** Host-reported label retained when `label` is overridden locally. */
   readonly remoteLabel?: string;
@@ -217,8 +227,6 @@ export interface RemoteSocketLike {
 /** Async factories may revalidate transport authority before opening a socket. */
 export type RemoteSocketFactory = (url: string) => RemoteSocketLike | Promise<RemoteSocketLike>;
 
-export type RemoteThreadLaunchResult = "started" | "cancelled" | "cancellation-failed";
-
 export interface RemoteServersState {
   servers: RemoteServerRecord[];
   runtime: Record<string, RemoteServerRuntime>;
@@ -239,23 +247,35 @@ export interface RemoteServersState {
    * workspace above those, but never above a filing listed here.
    */
   explicitProjectWorkspaceIds: Record<string, Readonly<Record<string, true>>>;
+  /**
+   * Client-owned workspace pins for paired Home threads, keyed by the FULL
+   * renderer-mirrored thread id (`remote:<connection>:thread:<id>`). A paired
+   * host never receives the client workspace on create, and desktop clients do
+   * not persist mirrored thread rows, so this local preference is what a cold
+   * restart projects back onto catalog and history rows. `null` records an
+   * explicit unfiling (visible in every workspace). Entries are flat so the
+   * secure-storage object-entry patches merge threads written by different
+   * windows instead of replacing a nested per-connection map.
+   */
+  homeThreadWorkspaceIds: Record<string, string | null>;
   /** Each connection's workspace names from its latest shell snapshot (session only). */
   hostWorkspaces: Record<string, readonly RemoteHostWorkspace[]>;
-  /** Local display-name overrides for mirrored projects, keyed by desktop and remote project id. */
+  /**
+   * Display-name aliases older clients kept for mirrored projects, keyed by
+   * desktop and remote project id. Renames now go to the host; an alias is
+   * read for compatibility and dropped when that project is renamed.
+   */
   projectNameOverrides: Record<string, Readonly<Record<string, string>>>;
   /** Last discovered host projects, retained so offline servers keep their sidebar rows. */
   lastKnownProjects: Record<string, Project[]>;
-  setProjectNameOverride(desktopId: string, remoteProjectId: string, name: string): void;
+  clearProjectNameOverride(desktopId: string, remoteProjectId: string): void;
   setRemoteProjectSynced(desktopId: string, remoteProjectId: string, synced: boolean): void;
   clientFactory: RemoteClientFactory;
   socketFactory: RemoteSocketFactory;
   setClientFactory(factory: RemoteClientFactory): void;
   setSocketFactory(factory: RemoteSocketFactory): void;
   openThread: OpenRemoteThread | null;
-  launchRemoteThread(
-    input: StartRemoteNewThreadInput & { readonly desktopId: string },
-    options?: { readonly isPendingLaunchOwned?: () => boolean; readonly focus?: boolean },
-  ): Promise<RemoteThreadLaunchResult>;
+  loadAgentSlashCommands(desktopId: string, agentKind: string): Promise<void>;
   /**
    * Hydrate a remote thread's history and focus it. Never rejects. Resolves
    * `true` only when the snapshot was actually applied — `false` when the
@@ -277,8 +297,6 @@ export interface RemoteServersState {
     threadId: string,
     options?: {
       readonly focus?: boolean;
-      /** Retain the visible restored reader until authoritative history arbitrates overlap. */
-      readonly preserveLoadedHistory?: boolean;
       readonly quiet?: boolean;
       /**
        * Caller-owned cancellation for a bounded recovery read. Aborting the
@@ -344,11 +362,16 @@ export interface RemoteServersState {
   getHostUpdateState(desktopId: string): ReturnType<RemoteDesktopClient["hostUpdateState"]>;
   checkHostUpdate(desktopId: string): ReturnType<RemoteDesktopClient["checkHostUpdate"]>;
   installHostUpdate(desktopId: string): Promise<void>;
+  /**
+   * Sends one project intent and lets the catalog catch up. Resolves with the
+   * host's response, whose `project` names the affected row (for example the
+   * project a folder registration created or matched).
+   */
   runProjectCommand(
     desktopId: string,
     command: RemoteProjectCommand,
     options?: { readonly commandId?: string },
-  ): Promise<void>;
+  ): Promise<RemoteProjectCommandResponse>;
   browseHostDirectory(desktopId: string, path: string): Promise<BrowseHostDirectoryResult>;
   withClient<Result>(
     desktopId: string,

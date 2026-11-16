@@ -52,6 +52,7 @@ test("subagent task parts link to a virtual read-only subsession", async () => {
     boundedProjectListPage: async () => ({ projects: [project] }),
     boundedThreadListPage: async () => ({ page: { threads: [parentThread] } }),
     threadRuntimeItemsPage: async () => ({ items, nextCursor: null }),
+    threadCompletedTurns: async () => [],
   } as unknown as RemoteDesktopClient;
   const { value } = S.router(client);
 

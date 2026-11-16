@@ -74,7 +74,7 @@ describe("NewThreadButton", () => {
           id: "p2",
           name: "Beta",
           icon: <span data-testid="beta-project-icon" />,
-          description: "MacBook 16",
+          trailingContent: <span data-testid="beta-project-connection" />,
         },
       ],
       onSelectProject,
@@ -87,7 +87,9 @@ describe("NewThreadButton", () => {
     ).not.toBeInTheDocument();
     expect(within(menu).getByRole("menuitem", { name: "Alpha" })).toBeInTheDocument();
     expect(within(menu).getByTestId("beta-project-icon")).toBeInTheDocument();
-    expect(within(menu).getByRole("menuitem", { name: "Beta" })).toHaveTextContent("MacBook 16");
+    expect(within(menu).getByRole("menuitem", { name: "Beta" })).toContainElement(
+      within(menu).getByTestId("beta-project-connection"),
+    );
 
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Beta" }));
 

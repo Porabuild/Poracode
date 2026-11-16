@@ -162,8 +162,12 @@ describe("with prompts that are not loaded", () => {
     expect(findActivePromptPosition([null, null, 0, 4], 4)).toBe(3);
   });
 
-  it("falls back to the first loaded prompt above all of them", () => {
-    expect(findActivePromptPosition([null, null, 3, 6], 1)).toBe(2);
+  it("uses the nearest indexed predecessor before the first loaded prompt", () => {
+    expect(findActivePromptPosition([null, null, 3, 6], 1)).toBe(1);
+  });
+
+  it("uses the latest indexed prompt when none of the prompts are loaded", () => {
+    expect(findActivePromptPosition([null, null, null], 5)).toBe(2);
   });
 
   it("never reports an unloaded prompt as in view", () => {

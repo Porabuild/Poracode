@@ -138,6 +138,29 @@ final class RichChatConversationController {
       && state.lastCompletedOperation == .send
   }
 
+  func controlMcpApp(_ payload: [String: RichJSON]) async throws -> RichJSON {
+    guard let context = operationContext(capability: .sessionOperate) else { throw RichChatGatewayError.unavailable }
+    let result = try await gateway.controlRichMcpApp(target: context.target, payload: payload)
+    try Task.checkCancellation()
+    guard owns(context) else { throw RichChatGatewayError.unavailable }
+    return result
+  }
+
+  /// Swaps the failure a refused send published for the outcome of the
+  /// recovery that replaced it (the resume relaunch): nil once the host
+  /// accepted it, `.ambiguousOutcome` (one authoritative read, never a resend)
+  /// when its outcome is unknown. A failure published since is kept.
+  func replaceFailure(
+    _ refusal: RichChatControllerFailure,
+    with replacement: RichChatControllerFailure?
+  ) async {
+    guard state.failure == refusal, let target = state.target else { return }
+    state.failure = replacement
+    guard replacement == .ambiguousOutcome else { return }
+    state.requiresAuthoritativeRefresh = true
+    await refreshRequester.requestRichChatRefresh(target: target, reason: .ambiguousMutation)
+  }
+
   func interrupt() async {
     guard let context = operationContext(capability: .sessionOperate) else { return }
     interruptTask.launch { [weak self] in

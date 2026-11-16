@@ -145,6 +145,42 @@ describe("RuntimeControlOperationQueue bounded retry semantics", () => {
     expect(queue.pendingCount()).toBe(1);
   });
 
+  it.each(["success", "retryable", "fatal"] as const)(
+    "preserves a successor replacing an in-flight operation after %s",
+    async (outcome) => {
+      const gate = Promise.withResolvers<void>();
+      const runs: string[] = [];
+      const completed: string[] = [];
+      const queue = new RuntimeControlOperationQueue({
+        execute: async (operation) => {
+          runs.push(operation.describe);
+          await operation.run();
+          return operation.describe === "old" && outcome !== "success"
+            ? failing(outcome)
+            : { ok: true };
+        },
+      });
+      queue.enqueue({
+        key: "thread-state:t",
+        describe: "old",
+        run: () => gate.promise,
+        onCompleted: () => completed.push("old"),
+      });
+      queue.processDue();
+      queue.enqueue({
+        key: "thread-state:t",
+        describe: "new",
+        run: () => undefined,
+        onCompleted: () => completed.push("new"),
+      });
+      gate.resolve();
+      await processDue(queue);
+      expect(runs).toEqual(["old", "new"]);
+      expect(completed).toEqual(outcome === "success" ? ["old", "new"] : ["new"]);
+      expect(queue.hasPending()).toBe(false);
+    },
+  );
+
   it("clear cancels pending operations without invoking completion or drop callbacks", async () => {
     const completed: RuntimeControlWriteResult[] = [];
     const dropped: RuntimeControlWriteResult[] = [];

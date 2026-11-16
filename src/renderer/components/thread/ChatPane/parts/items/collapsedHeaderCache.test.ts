@@ -30,24 +30,32 @@ vi.mock("./acpToolPayload", async () => {
   };
 });
 
+vi.mock("./commandActionsDisplay", async () => {
+  const actual =
+    await vi.importActual<typeof import("./commandActionsDisplay")>("./commandActionsDisplay");
+  return {
+    ...actual,
+    commandPayloadDisplay: vi.fn<typeof actual.commandPayloadDisplay>(actual.commandPayloadDisplay),
+  };
+});
 vi.mock("./commandSummary", async () => {
   const actual = await vi.importActual<typeof import("./commandSummary")>("./commandSummary");
   return {
     ...actual,
     summarizeShellCommand: vi.fn<typeof actual.summarizeShellCommand>(actual.summarizeShellCommand),
-    commandIntentDisplay: vi.fn<typeof actual.commandIntentDisplay>(actual.commandIntentDisplay),
   };
 });
 
 import { deriveToolDisplay } from "./toolDisplay";
 import { extractAcpDiffResultPart, extractAcpDiffSummary } from "./acpToolPayload";
-import { commandIntentDisplay, summarizeShellCommand } from "./commandSummary";
+import { commandPayloadDisplay } from "./commandActionsDisplay";
+import { summarizeShellCommand } from "./commandSummary";
 
 const deriveToolDisplayMock = vi.mocked(deriveToolDisplay);
 const extractAcpDiffResultPartMock = vi.mocked(extractAcpDiffResultPart);
 const extractAcpDiffSummaryMock = vi.mocked(extractAcpDiffSummary);
 const summarizeShellCommandMock = vi.mocked(summarizeShellCommand);
-const commandIntentDisplayMock = vi.mocked(commandIntentDisplay);
+const commandPayloadDisplayMock = vi.mocked(commandPayloadDisplay);
 
 function makeToolItem(
   overrides: Partial<RuntimeChatItem> & { payload: ToolCallPayload },
@@ -216,7 +224,7 @@ describe("collapsedHeaderCache", () => {
 
     expect(hasCachedCommandHeader(item)).toBe(true);
     expect(summarizeShellCommandMock).toHaveBeenCalledTimes(1);
-    expect(commandIntentDisplayMock).toHaveBeenCalledTimes(1);
+    expect(commandPayloadDisplayMock).toHaveBeenCalledTimes(1);
   });
 });
 // @vitest-environment node

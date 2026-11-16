@@ -72,7 +72,7 @@ export interface ManagedItemInterestSelection {
  * `reset()` on leg teardown: a re-open rebuilds every subscription anyway, so
  * no per-thread restoration is inferred across a dead leg.
  */
-export function createManagedItemInterestTracker(): {
+export function createItemInterestTracker(): {
   select(threadIds: readonly string[]): ManagedItemInterestSelection;
   reset(): void;
 } {

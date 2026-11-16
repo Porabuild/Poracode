@@ -31,6 +31,8 @@ export interface UpgradeCliOptions {
   readonly abandonJournal?: boolean;
   /** Required confirmation for post-drain resume and for journal abandonment. */
   readonly confirm?: boolean;
+  /** Internal optimistic guard for automatic updates; explicit CLI upgrades omit it. */
+  readonly expectedCurrentDir?: string;
 }
 
 export function parseUpgradeCliOptions(args: readonly string[]): UpgradeCliOptions {

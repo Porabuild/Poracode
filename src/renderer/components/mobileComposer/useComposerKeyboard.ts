@@ -27,7 +27,11 @@ import { useKeyboardGeometry } from "./useKeyboardOffset";
 
 /** True when the element lives in the input area that summons the keyboard. */
 function isKeyboardTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && target.closest("[data-composer-input-anchor]") !== null;
+  return (
+    target instanceof HTMLElement &&
+    !target.closest(".poracode-selection-chip") &&
+    target.closest("[data-composer-input-anchor]") !== null
+  );
 }
 
 /*

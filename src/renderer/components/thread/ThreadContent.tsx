@@ -8,11 +8,10 @@ import { ChatPane } from "./ChatPane/ChatPane";
 import { ChatRuntimeDebugPanel } from "./ChatPane/ChatRuntimeDebugPanel";
 import { guiChatFontCssVars } from "./ChatPane/chatFontVars";
 import { clearUserMessageCollapsedHeightCache } from "./ChatPane/parts/items/userMessageOverflow";
-import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
+import type { TerminalPaneHandle } from "./TerminalPane";
 import type { CheckpointRevertActions } from "./ChatPane/parts/MessageList";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { useThreadDockState, type ThreadDockState } from "./useThreadDockState";
-import type { SaveClipboardImage } from "../composer/useAttachments";
 
 export type ThreadContentCommonProps = {
   threadId: string;
@@ -35,10 +34,8 @@ export type ThreadContentCommonProps = {
     | undefined;
   canShowProjectEntryInExplorer?: boolean | undefined;
   checkpointActions?: CheckpointRevertActions | undefined;
-  checkpointProjectLocation?: ProjectLocation | undefined;
-  remoteTerminalTransport?: RemoteTerminalTransport | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
-  saveClipboardImage?: SaveClipboardImage | undefined;
+  importFiles?: ((files: readonly File[]) => Promise<string[]>) | undefined;
 };
 
 export function GuiThreadContent(
@@ -99,9 +96,6 @@ export function GuiThreadContent(
                 ? { canShowProjectEntryInExplorer: props.canShowProjectEntryInExplorer }
                 : {})}
               {...(props.checkpointActions ? { checkpointActions: props.checkpointActions } : {})}
-              {...(props.checkpointProjectLocation
-                ? { checkpointProjectLocation: props.checkpointProjectLocation }
-                : {})}
               {...(props.initialScrollRevealDelayMs !== undefined
                 ? { initialScrollRevealDelayMs: props.initialScrollRevealDelayMs }
                 : {})}

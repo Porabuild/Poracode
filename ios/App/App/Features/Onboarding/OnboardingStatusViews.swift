@@ -69,15 +69,14 @@ struct OnboardingPendingPairingCard: View {
       }
       HStack(spacing: 10) {
         Button(OnboardingStrings.pendingCancel, action: onCancel)
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
         Button(
           pending.isCleartextLan
             ? OnboardingStrings.pendingConnectAnyway
             : OnboardingStrings.pendingConfirm,
           action: onConfirm
         )
-        .buttonStyle(.borderedProminent)
-        .tint(pending.isCleartextLan ? .orange : .accentColor)
+        .poracodeProminentButtonStyle(tint: pending.isCleartextLan ? .orange : nil)
         .accessibilityIdentifier("native-e2e.pair.confirm")
       }
     }

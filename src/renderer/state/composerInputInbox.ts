@@ -33,3 +33,30 @@ export const useComposerInputInbox = create<ComposerInputInboxState>((set, get) 
     return items;
   },
 }));
+
+/** The part of a composer editor that queued inputs are appended into. */
+export interface ComposerInputTarget {
+  serializeSegments(): PromptSegment[];
+  insertSegments(segments: PromptSegment[], options?: { atEnd?: boolean; focus?: boolean }): void;
+}
+
+/**
+ * Drains the queued inputs for each of `composerIds`, in order, and appends
+ * them to the end of `composer` without moving focus. An input that follows
+ * existing content is preceded by a blank line.
+ */
+export function drainComposerInputsInto(
+  composer: ComposerInputTarget,
+  composerIds: readonly string[],
+): void {
+  let composerHasContent = composer.serializeSegments().length > 0;
+  for (const composerId of composerIds) {
+    for (const segments of useComposerInputInbox.getState().drain(composerId)) {
+      const separator: PromptSegment[] = composerHasContent
+        ? [{ kind: "text", content: "\n\n" }]
+        : [];
+      composer.insertSegments([...separator, ...segments], { atEnd: true, focus: false });
+      composerHasContent = true;
+    }
+  }
+}

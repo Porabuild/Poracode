@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Thread, UsageSnapshot } from "@/shared/contracts";
+import type { AgentStatus, Thread, UsageSnapshot } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
@@ -216,6 +216,68 @@ describe("Thread details", () => {
     expect(infoHeader).not.toHaveTextContent(/tokens/);
   });
 
+  it("resolves the configured model context limit from the paired host's agentStatus", () => {
+    const codexStatus: AgentStatus = {
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      envKind: "windows",
+      capabilities: {
+        models: [{ id: "test", label: "Test" }],
+        efforts: [],
+        modelEfforts: {},
+        contextSizes: [{ id: "250k", label: "250K" }],
+        modelContextSizes: { test: ["250k"] },
+        modes: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        liveInputMode: "terminal",
+        presentationMode: "gui",
+        settingDefs: [],
+      },
+    };
+    useAppStore.setState({
+      threads: [{ ...thread, remoteServerId: "remote", projectId: "remote:p1" }],
+      projects: [
+        {
+          id: "remote:p1",
+          remoteServerId: "remote",
+          name: "Repository",
+          location: { kind: "posix", path: "/repo" },
+          createdAt: "2026-10-19",
+        },
+      ],
+      runtimeContextByThread: { t1: { usedTokens: 25_000 } },
+    });
+    useRemoteServersStore.setState({
+      runtime: {
+        remote: {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [codexStatus],
+            wsl: [],
+            updatedAt: "2026-10-19T00:00:00.000Z",
+          },
+        },
+      },
+    });
+
+    render(
+      <AppProvider>
+        <ThreadContextWindowDock threadId="t1" />
+      </AppProvider>,
+    );
+    const context = within(screen.getByRole("region", { name: "Context window" }));
+    expect(context.getByRole("button", { name: "Context window" })).toHaveTextContent(
+      "25K / 250K tokens",
+    );
+  });
+
   it("respects the estimated cost preference while preserving reported tokens", () => {
     useProviderUsageStore.getState().setSnapshots([
       {
@@ -348,7 +410,9 @@ describe("Thread details", () => {
       </AppProvider>,
     );
     const header = screen.getByRole("button", { name: "Usage" });
-    expect(within(header).getByRole("img", { name: "Codex" })).toBeInTheDocument();
+    expect(
+      within(header).getByRole("img", { name: "Codex" }).querySelector(".poracode-provider-icon"),
+    ).toHaveClass("poracode-provider-icon--active");
     expect(header).toHaveAttribute("aria-expanded", "false");
     expect(header).toHaveTextContent("Session 48%");
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();

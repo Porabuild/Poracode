@@ -23,8 +23,12 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, cpSync } 
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { verifyRuntimeManifest } from "./generate-runtime-manifest.mjs";
+import {
+  verifyRuntimeManifest,
+  verifyStandaloneRuntimeManifest,
+} from "./generate-runtime-manifest.mjs";
 import { readServerArtifactMetadata } from "./server-artifact-metadata.mjs";
+import { readStandaloneArchiveMetadata } from "./standalone-runtime.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const NPM_PACKAGE_NAME = "poracode";
@@ -40,6 +44,7 @@ export const REQUIRED_PACKED_FILES = [
 export function parseArgs(argv) {
   const options = {
     artifacts: [],
+    standalones: [],
     packageDir: join(repoRoot, "packages", "poracode-cli"),
     tag: "latest",
     dryRun: false,
@@ -50,6 +55,7 @@ export function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--artifact") options.artifacts.push(resolve(argv[++index]));
+    else if (argument === "--standalone") options.standalones.push(resolve(argv[++index]));
     else if (argument === "--manifest") options.manifest = resolve(argv[++index]);
     else if (argument === "--package-dir") options.packageDir = resolve(argv[++index]);
     else if (argument === "--tag") options.tag = argv[++index];
@@ -78,18 +84,43 @@ function assertNoMutableLatest(manifest) {
   }
 }
 
+/**
+ * A prerelease (`2.1.0-nightly.…`) must never take the mutable `latest`
+ * dist-tag that a bare `npx poracode` resolves; only plain releases may.
+ */
+export function assertDistTagMatchesVersion(version, tag) {
+  const prerelease = /-/u.test(version);
+  if (prerelease && tag === "latest") {
+    throw new Error(`Refusing to publish the prerelease ${version} under the latest dist-tag.`);
+  }
+  if (!prerelease && tag !== "latest") {
+    throw new Error(`The release ${version} must be published under latest, not ${tag}.`);
+  }
+}
+
 /** Verify the qualified inputs and return the manifest the package must embed. */
 export function verifyPublicationInputs(options) {
   if (!options.manifest || !existsSync(options.manifest)) {
     throw new Error("--manifest <poracode-runtime-manifest.json> is required");
   }
-  if (options.artifacts.length === 0) {
-    throw new Error("At least one --artifact <server-artifact.json> is required");
+  const standalonePaths = options.standalones ?? [];
+  if (options.artifacts.length === 0 && standalonePaths.length === 0) {
+    throw new Error(
+      "At least one --standalone <standalone-<target>.json> (or legacy --artifact) is required",
+    );
   }
-  const artifacts = options.artifacts.map((path) => readServerArtifactMetadata(path));
+  if (options.artifacts.length > 0 && standalonePaths.length > 0) {
+    throw new Error("Pass --standalone (format 2) or --artifact (format 1), not both");
+  }
   const manifest = JSON.parse(readFileSync(options.manifest, "utf8"));
-  verifyRuntimeManifest(artifacts, manifest);
+  const artifacts =
+    standalonePaths.length > 0
+      ? standalonePaths.map((path) => readStandaloneArchiveMetadata(path))
+      : options.artifacts.map((path) => readServerArtifactMetadata(path));
+  if (standalonePaths.length > 0) verifyStandaloneRuntimeManifest(artifacts, manifest);
+  else verifyRuntimeManifest(artifacts, manifest);
   assertNoMutableLatest(manifest);
+  assertDistTagMatchesVersion(manifest.version, options.tag ?? "latest");
   if (Object.keys(manifest.targets).length === 0) {
     throw new Error("runtime manifest advertises no targets; nothing may be published");
   }

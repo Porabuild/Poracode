@@ -95,6 +95,14 @@ const configBoundCapabilities = {
 
 const owner: SelectionBindingOwner = { agentKind: "agent", presentationMode: "gui" };
 
+// A config-bound surface whose declared fastModels list excludes the fused
+// member: Fast has no carrier for it (for example a Fable 5.1 pair without a
+// Fast sibling).
+const noFastCapabilities = {
+  ...configBoundCapabilities,
+  fastModels: [] as string[],
+};
+
 const storedConfig = {
   model: "pair-alpha-x",
   effort: "",
@@ -264,6 +272,54 @@ describe("applyComposerSelectionMutation", () => {
     });
     expect(result.mode).toBe("agent");
     expect(result.selectionBinding).toBeUndefined();
+  });
+
+  it("clears Fast when the edit targets a member its declared fastModels list omits", () => {
+    const result = mutate({
+      previous: { model: "pair-alpha-x", effort: "", fast: true },
+      patch: { model: "pair-alpha-y", effort: "", fast: true },
+      origin: { kind: "family-resolved" },
+      capabilities: noFastCapabilities,
+    });
+    expect(result.fast).toBe(false);
+  });
+
+  it("keeps an explicit Fast on a provider that declares no per-model Fast list", () => {
+    const unknownFast = {
+      ...configBoundCapabilities,
+      fastModels: undefined,
+    } as unknown as AgentCapability;
+    const result = mutate({
+      previous: { model: "pair-alpha-x", effort: "", fast: true },
+      patch: { fast: true },
+      origin: undefined,
+      capabilities: unknownFast,
+    });
+    expect(result.fast).toBe(true);
+  });
+
+  it("preserves a model-bound Fast override across unrelated edits", () => {
+    const result = mutate({
+      previous: { model: "pair-alpha-x", effort: "", fast: true },
+      patch: { mode: "plan" },
+      origin: undefined,
+      capabilities: { ...encodedCapabilities, fastModels: [] },
+    });
+    expect(result.fast).toBe(true);
+  });
+
+  it("clears independent Fast when the account disables a supported model", () => {
+    const result = mutate({
+      previous: { model: "pair-alpha-x", effort: "", fast: true },
+      patch: { mode: "plan" },
+      origin: undefined,
+      capabilities: {
+        ...configBoundCapabilities,
+        fastModels: ["pair-alpha-x"],
+        fastDisabledReason: "Fast requests are disabled for this account.",
+      },
+    });
+    expect(result.fast).toBe(false);
   });
 
   it("mints with the actual instance id and drops a record owned by another one", () => {

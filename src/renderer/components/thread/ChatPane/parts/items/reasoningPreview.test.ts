@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getReasoningInlinePreview, getReasoningPreview } from "./reasoningPreview";
+import {
+  getReasoningInlinePreview,
+  getReasoningLastLine,
+  getReasoningPreview,
+} from "./reasoningPreview";
 
 // @vitest-environment node
 
@@ -42,6 +46,20 @@ describe("getReasoningPreview", () => {
   it("truncates long reasoning with an ellipsis", () => {
     const preview = getReasoningPreview("word ".repeat(100), 40);
     expect(preview.length).toBeLessThanOrEqual(40);
+    expect(preview.endsWith("…")).toBe(true);
+  });
+
+  it("keeps a row-length thought whole so CSS truncates it at the row edge", () => {
+    const thought =
+      "The placeholder is published, so next I want to confirm it actually shows up on the registry. A quick read-only npm view should list the name, version, and dist-tags before I re-check what master does with the publish flag.";
+    expect(getReasoningPreview(thought)).toBe(thought);
+    expect(getReasoningInlinePreview(thought)).toBe(thought);
+    expect(getReasoningLastLine(`Checking the registry\n${thought}`)).toBe(thought);
+  });
+
+  it("bounds the default preview length for very long reasoning", () => {
+    const preview = getReasoningPreview("word ".repeat(1_000));
+    expect(preview.length).toBeLessThanOrEqual(500);
     expect(preview.endsWith("…")).toBe(true);
   });
 

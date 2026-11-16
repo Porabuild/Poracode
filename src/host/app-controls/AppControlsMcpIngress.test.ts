@@ -256,6 +256,13 @@ function deps(overrides: Partial<AppControlsMcpIngressDeps> = {}): AppControlsMc
       ),
       reloadAgentMcpServers: vi.fn<SC["reloadAgentMcpServers"]>(async () => undefined),
       getMcpOauthStatus: vi.fn<SC["getMcpOauthStatus"]>(async () => ({ authenticatedUrls: [] })),
+      listPlugins: vi.fn<SC["listPlugins"]>(async () => ({
+        plugins: [],
+        userPluginsDir: "/plugins",
+      })),
+      beginMcpServerOauth: vi.fn<SC["beginMcpServerOauth"]>(async () => ({ status: "authorized" })),
+      waitMcpServerOauth: vi.fn<SC["waitMcpServerOauth"]>(async () => ({ status: "authorized" })),
+      clearMcpServerOauth: vi.fn<SC["clearMcpServerOauth"]>(async () => undefined),
       scanSkills: vi.fn<SC["scanSkills"]>(async () => ({
         skills: [],
         effectiveSkillIds: [],

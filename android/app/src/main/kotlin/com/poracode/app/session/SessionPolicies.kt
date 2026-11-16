@@ -29,15 +29,22 @@ object SessionPolicies {
         ThreadPresentationPolicy.isTerminal(presentationMode)
 
     /**
-     * BROWSABLE pairing links always require an explicit Confirm UI (sanitized host).
-     * Manual onboarding paste pairs immediately without this gate.
-     * Generated pairing-machine policy (V5 5.2): one implementation shared
-     * with Swift and the TS contract tests.
+     * Externally delivered pairing links require an explicit Confirm UI
+     * (sanitized host), except for loopback endpoints, which pair immediately
+     * like the in-app manual form unless they would replace an existing pair.
+     * Manual onboarding paste pairs immediately without this gate. Generated
+     * pairing-machine policy (V5 5.2): one implementation shared with Swift and
+     * the TS contract tests.
      */
-    fun shouldShowBrowsableConfirm(fromBrowsableIntent: Boolean): Boolean =
-        com.poracode.remote.v3.generated.RemotePairingMachine.requiresBrowsableConfirmation(
-            fromBrowsableIntent,
-        )
+    fun shouldShowBrowsableConfirm(
+        fromBrowsableIntent: Boolean,
+        endpoint: String,
+        replacesExistingPair: Boolean,
+    ): Boolean =
+        fromBrowsableIntent &&
+            (replacesExistingPair ||
+                com.poracode.remote.v3.generated.RemotePairingMachine
+                    .requiresBrowsableConfirmation(true, endpoint))
 
     fun normalizeEndpointKey(endpoint: String): String =
         endpoint.trimEnd('/').lowercase()

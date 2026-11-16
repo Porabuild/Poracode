@@ -37,6 +37,31 @@ import {
 /** Pre-existing project-command kinds with their complete-list semantics. */
 type RemoteProjectLegacyCommand = Exclude<RemoteProjectCommand, RemoteProjectCatalogCommand>;
 
+/**
+ * The event-stream WebSocket URL for one host endpoint, for every client of
+ * the host (a paired connection and the desktop's own). `lastSeenSeq` is the
+ * sequence already applied; the server replays events after it (and signals
+ * `resync-required` if that window has expired). Send it whenever it is a
+ * non-negative sequence, including `0`; omission is reserved for "no snapshot
+ * yet" (`null`/`undefined`), which the server reads as "no replay".
+ */
+export function remoteWebSocketUrl(
+  endpoint: string,
+  ticket: string,
+  lastSeenSeq: number | null | undefined,
+  options: { readonly threadItemInterests?: readonly string[] } = {},
+): string {
+  const url = toWebSocketUrl(endpointUrl(endpoint, "/ws"));
+  url.searchParams.set("ticket", ticket);
+  if (typeof lastSeenSeq === "number" && Number.isInteger(lastSeenSeq) && lastSeenSeq >= 0) {
+    url.searchParams.set("lastSeenSeq", String(lastSeenSeq));
+  }
+  if (options.threadItemInterests) {
+    url.searchParams.set("threadItemInterests", JSON.stringify(options.threadItemInterests));
+  }
+  return url.toString();
+}
+
 export abstract class RemoteClientWorkspaceApi extends RemoteClientMediaApi {
   /**
    * Add (existing folder / scratch / clone) or remove a project on the paired
@@ -211,15 +236,7 @@ export abstract class RemoteClientWorkspaceApi extends RemoteClientMediaApi {
     lastSeenSeq: number | null | undefined,
     options: { readonly threadItemInterests?: readonly string[] } = {},
   ): string {
-    const url = toWebSocketUrl(endpointUrl(this.endpoint, "/ws"));
-    url.searchParams.set("ticket", ticket);
-    if (typeof lastSeenSeq === "number" && Number.isInteger(lastSeenSeq) && lastSeenSeq >= 0) {
-      url.searchParams.set("lastSeenSeq", String(lastSeenSeq));
-    }
-    if (options.threadItemInterests) {
-      url.searchParams.set("threadItemInterests", JSON.stringify(options.threadItemInterests));
-    }
-    return url.toString();
+    return remoteWebSocketUrl(this.endpoint, ticket, lastSeenSeq, options);
   }
 
   parseSocketMessage(value: string): RemoteWebSocketServerMessage {

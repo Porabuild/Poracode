@@ -14,18 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material.icons.outlined.QrCode2
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,6 +40,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 
 /** The primary — and on most devices the only necessary — pairing route. */
 @Composable
@@ -91,7 +85,7 @@ internal fun ScanPairingCard(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    Icons.Outlined.QrCode2,
+                    PoracodeIcons.QrCode2,
                     contentDescription = null,
                     tint = OnboardingViolet,
                     modifier = Modifier.size(28.dp),
@@ -112,7 +106,7 @@ internal fun ScanPairingCard(
                 )
             }
             Icon(
-                Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                PoracodeIcons.KeyboardArrowRight,
                 contentDescription = null,
                 tint = OnboardingMuted,
             )
@@ -147,7 +141,7 @@ internal fun OtherWaysButton(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Outlined.MoreHoriz,
+                PoracodeIcons.MoreHoriz,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = OnboardingMuted,
@@ -158,7 +152,7 @@ internal fun OtherWaysButton(
                 color = OnboardingMuted,
             )
             Icon(
-                Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                PoracodeIcons.KeyboardArrowRight,
                 contentDescription = null,
                 tint = OnboardingMuted,
             )
@@ -243,7 +237,7 @@ private fun PairingLinkFields(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Outlined.Link,
+                PoracodeIcons.Link,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -259,7 +253,7 @@ private fun PairingLinkFields(
                 modifier = Modifier.testTag("onboarding_paste_link"),
             ) {
                 Icon(
-                    Icons.Outlined.ContentPaste,
+                    PoracodeIcons.ContentPaste,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp),
                 )
@@ -269,7 +263,7 @@ private fun PairingLinkFields(
                 )
             }
         }
-        OutlinedTextField(
+        PoracodeTextField(
             value = pairingLink,
             onValueChange = onPairingLinkChange,
             modifier = Modifier
@@ -313,7 +307,7 @@ private fun ManualConnectionFields(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                Icons.Outlined.Tune,
+                PoracodeIcons.Tune,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -324,7 +318,7 @@ private fun ManualConnectionFields(
                 modifier = Modifier.semantics { heading() },
             )
         }
-        OutlinedTextField(
+        PoracodeTextField(
             value = baseUrl,
             onValueChange = onBaseUrlChange,
             modifier = Modifier
@@ -336,7 +330,7 @@ private fun ManualConnectionFields(
             shape = RoundedCornerShape(16.dp),
             enabled = enabled,
         )
-        OutlinedTextField(
+        PoracodeTextField(
             value = token,
             onValueChange = onTokenChange,
             modifier = Modifier

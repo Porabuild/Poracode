@@ -111,11 +111,15 @@ interface CursorSdkReplacementOperation {
 export interface CursorSdkSessionDependencies {
   spawnWorker(input: CursorSdkWorkerSpawnInput): Promise<CursorSdkWorkerHandle>;
   newId(): string;
+  idleTimeoutMs?: number;
 }
+
+export const DEFAULT_CURSOR_SDK_WORKER_IDLE_TIMEOUT_MS = 60_000;
 
 const DEFAULT_DEPENDENCIES: CursorSdkSessionDependencies = {
   spawnWorker: async (input) => spawnCursorSdkWorker(input),
   newId: randomUUID,
+  idleTimeoutMs: DEFAULT_CURSOR_SDK_WORKER_IDLE_TIMEOUT_MS,
 };
 
 interface ActiveTurn {
@@ -223,6 +227,10 @@ export class CursorSdkSession implements StructuredSessionHandle {
   private stableSessionRef: SessionRef | undefined;
   private activeTurn: ActiveTurn | undefined;
   private replacementOperation: CursorSdkReplacementOperation | undefined;
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
+  private idleReapPromise: Promise<void> | undefined;
+  private activeWorkerReads = 0;
+  private resumedWithoutModelCatalog = false;
   private disposePromise: Promise<void> | undefined;
   private readonly pendingWorkerCleanup = new Set<Pick<CursorSdkWorkerHandle, "dispose">>();
   private forceStaleRunOnNextSend = false;
@@ -276,6 +284,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
           canSteer: (config) =>
             this.activeTurn === turn &&
             !turn.settled &&
+            Boolean(turn.worker && turn.runId) &&
             turn.mcpRevision === this.mcpRevision &&
             isThreadConfigEqual(config, this.currentConfig),
           steer: (text) => turn.worker!.steer(turn.runId!, text),
@@ -384,6 +393,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       this.modelCatalog = [];
       resumeWithoutCatalog = true;
     }
+    this.resumedWithoutModelCatalog = resumeWithoutCatalog;
     const createOptions = this.buildAgentOptions(config);
     const initializeOptions = { ...createOptions };
     // Agent.resume() already receives the durable provider identity as its
@@ -432,6 +442,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       config,
       sessionRef: this.stableSessionRef,
     });
+    this.scheduleIdleReapIfIdle();
     void this.refreshContextUsage();
     return prefixedId;
   }
@@ -493,11 +504,12 @@ export class CursorSdkSession implements StructuredSessionHandle {
     options?: StartTurnOptions,
     turnOptions?: { summarize?: boolean },
   ): Promise<void> {
-    this.requireOpenedWorker();
+    this.assertSessionOpened();
     if (this.activeTurn && !this.activeTurn.settled) {
       throw new Error("Cursor SDK cannot start a second turn while one is running.");
     }
 
+    this.clearIdleTimer();
     this.currentConfig = config;
     const turn = createActiveTurn(`turn-${this.dependencies.newId()}`);
     this.activeTurn = turn;
@@ -514,7 +526,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
         return;
       }
 
-      await this.rebindWorkerForSafetyPosture(config);
+      const worker = await this.ensureOpenedWorker(config);
       if (turn.settled) return;
       if (turn.cancelRequested || this.disposed) {
         this.completeTurnWithoutWorker(turn, "cancelled");
@@ -525,7 +537,6 @@ export class CursorSdkSession implements StructuredSessionHandle {
       // subagent definitions on its Agent handle. Refresh immediately before
       // every new turn so an already-open Poracode thread observes edits made
       // since its previous send.
-      const worker = this.requireOpenedWorker();
       turn.worker = worker;
       await worker.reload();
       if (turn.settled) return;
@@ -540,6 +551,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       const started = await startRequest;
       options?.onPromptSubmitted?.();
       this.forceStaleRunOnNextSend = false;
+      this.resumedWithoutModelCatalog = false;
       turn.runId = started.runId;
       this.mapperState.currentRunId = started.runId;
       turn.resolveReady();
@@ -565,7 +577,8 @@ export class CursorSdkSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    this.requireOpenedWorker();
+    this.assertSessionOpened();
+    this.clearIdleTimer();
     // `/summarize` runs its own run and cannot steer the in-flight one. Paint
     // the bubble the same way an accepted steer does, then refuse with a
     // notice; with no turn running it routes through the normal turn path.
@@ -647,17 +660,27 @@ export class CursorSdkSession implements StructuredSessionHandle {
   }
 
   async readThread(): Promise<ThreadHistory> {
-    const worker = this.requireOpenedWorker();
-    const messages = await worker.listMessages();
-    return {
-      providerSessionId: cursorSdkSessionId(this.sessionId!),
-      messages: messages.map((entry) => ({
-        messageId: entry.uuid,
-        role: entry.type,
-        parts: messageParts(entry.message),
-        info: entry,
-      })),
-    };
+    this.assertSessionOpened();
+    this.clearIdleTimer();
+    this.activeWorkerReads += 1;
+    try {
+      const worker = await this.ensureOpenedWorker(this.currentConfig, {
+        preserveOfflineResume: true,
+      });
+      const messages = await worker.listMessages();
+      return {
+        providerSessionId: cursorSdkSessionId(this.sessionId!),
+        messages: messages.map((entry) => ({
+          messageId: entry.uuid,
+          role: entry.type,
+          parts: messageParts(entry.message),
+          info: entry,
+        })),
+      };
+    } finally {
+      this.activeWorkerReads -= 1;
+      this.scheduleIdleReapIfIdle();
+    }
   }
 
   dispose(): Promise<void> {
@@ -670,9 +693,11 @@ export class CursorSdkSession implements StructuredSessionHandle {
 
   private async disposeOnce(): Promise<void> {
     this.disposed = true;
+    this.clearIdleTimer();
     this.steering.cancel();
     const replacementOperation = this.replacementOperation;
     replacementOperation?.cancel();
+    const idleReapPromise = this.idleReapPromise;
     const worker = this.worker;
     const turn = this.activeTurn;
     if (turn && !turn.settled) {
@@ -688,6 +713,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
     this.workerListeners = undefined;
     const [workerDisposal] = await Promise.allSettled([
       worker ? worker.dispose() : Promise.resolve(),
+      idleReapPromise ?? Promise.resolve(),
       replacementOperation ? replacementOperation.promise.catch(() => {}) : Promise.resolve(),
     ]);
     if (workerDisposal.status === "fulfilled") {
@@ -750,41 +776,70 @@ export class CursorSdkSession implements StructuredSessionHandle {
     };
   }
 
-  private async rebindWorkerForSafetyPosture(config: ThreadConfig): Promise<void> {
+  private async ensureOpenedWorker(
+    config: ThreadConfig,
+    options?: { preserveOfflineResume?: boolean },
+  ): Promise<CursorSdkWorkerHandle> {
+    this.assertSessionOpened();
+    this.clearIdleTimer();
     const nextSafetyPosture = sdkSafetyPosture(config);
-    if (
+
+    while (
+      !this.worker ||
       !this.workerSafetyPosture ||
-      sameSdkSafetyPosture(this.workerSafetyPosture, nextSafetyPosture)
+      !sameSdkSafetyPosture(this.workerSafetyPosture, nextSafetyPosture)
     ) {
-      return;
+      this.assertSessionOpened();
+      if (this.replacementOperation) {
+        await this.replacementOperation.promise;
+        continue;
+      }
+
+      const operation = createReplacementOperation();
+      this.replacementOperation = operation;
+      operation.promise = Promise.resolve()
+        .then(() => this.performWorkerReplacement(config, nextSafetyPosture, operation, options))
+        .finally(() => {
+          if (this.replacementOperation === operation) {
+            this.replacementOperation = undefined;
+          }
+        });
+      await operation.promise;
     }
 
-    if (this.replacementOperation) {
-      await this.replacementOperation.promise;
-      return;
-    }
-
-    const operation = createReplacementOperation();
-    this.replacementOperation = operation;
-    operation.promise = Promise.resolve()
-      .then(() => this.performSafetyPostureRebind(config, nextSafetyPosture, operation))
-      .finally(() => {
-        if (this.replacementOperation === operation) {
-          this.replacementOperation = undefined;
-        }
-      });
-    await operation.promise;
+    return this.worker;
   }
 
-  private async performSafetyPostureRebind(
+  private async performWorkerReplacement(
     config: ThreadConfig,
     nextSafetyPosture: CursorSdkSafetyPosture,
     operation: CursorSdkReplacementOperation,
+    options?: { preserveOfflineResume?: boolean },
   ): Promise<void> {
-    const previousWorker = this.requireOpenedWorker();
+    this.assertSessionOpened();
     const previousSessionId = this.sessionId!;
+    const disposedMessage = this.worker
+      ? "Cursor SDK session was disposed while applying safety settings."
+      : "Cursor SDK session was disposed while waking worker.";
+
+    if (this.idleReapPromise) {
+      await Promise.race([
+        this.idleReapPromise,
+        operation.cancellation.then(() => {
+          throw new Error(disposedMessage);
+        }),
+      ]);
+    }
+    if (operation.cancelled || this.disposed) {
+      throw new Error(disposedMessage);
+    }
+
+    const previousWorker = this.worker;
     const createOptions = { ...this.buildAgentOptions(config) };
     delete createOptions.agentId;
+    if (!previousWorker && options?.preserveOfflineResume && this.resumedWithoutModelCatalog) {
+      delete createOptions.model;
+    }
     let replacementWorker: CursorSdkWorkerHandle | undefined;
     let replacementListeners: CursorSdkWorkerListeners | undefined;
     let committed = false;
@@ -792,9 +847,9 @@ export class CursorSdkSession implements StructuredSessionHandle {
     try {
       replacementWorker = await this.dependencies.spawnWorker(this.workerSpawnInput());
       if (operation.cancelled || this.disposed) {
-        throw new Error("Cursor SDK session was disposed while applying safety settings.");
+        throw new Error(disposedMessage);
       }
-      if (this.requireOpenedWorker() !== previousWorker) {
+      if (this.worker !== previousWorker || this.sessionId !== previousSessionId) {
         throw new Error("Cursor SDK worker changed while applying safety settings.");
       }
       const initialized = await Promise.race([
@@ -804,16 +859,16 @@ export class CursorSdkSession implements StructuredSessionHandle {
           createOptions,
         }),
         operation.cancellation.then(() => {
-          throw new Error("Cursor SDK session was disposed while applying safety settings.");
+          throw new Error(disposedMessage);
         }),
       ]);
       if (initialized.agentId !== previousSessionId) {
         throw new Error("Cursor SDK replacement returned a different agent identity.");
       }
       if (operation.cancelled || this.disposed) {
-        throw new Error("Cursor SDK session was disposed while applying safety settings.");
+        throw new Error(disposedMessage);
       }
-      if (this.requireOpenedWorker() !== previousWorker || this.sessionId !== previousSessionId) {
+      if (this.worker !== previousWorker || this.sessionId !== previousSessionId) {
         throw new Error("Cursor SDK worker changed while applying safety settings.");
       }
       replacementListeners = this.attachWorkerListeners(replacementWorker);
@@ -828,6 +883,9 @@ export class CursorSdkSession implements StructuredSessionHandle {
       replacementListeners.active = true;
       this.workerSafetyPosture = nextSafetyPosture;
       this.forceStaleRunOnNextSend = true;
+      if (initialized.supportsSummarize !== undefined) {
+        this.supportsSummarize = initialized.supportsSummarize === true;
+      }
       this.mapperState.agentId = initialized.agentId;
       this.stateRoot = initialized.stateRoot;
       const initializedModel = initialized.model?.id ?? createOptions.model?.id;
@@ -835,7 +893,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       committed = true;
 
       this.detachWorkerListeners(previousListeners);
-      await this.bestEffortDispose(previousWorker);
+      if (previousWorker) await this.bestEffortDispose(previousWorker);
     } catch (error) {
       if (error instanceof CursorSdkWorkerStartupError) this.pendingWorkerCleanup.add(error.worker);
       if (!committed) {
@@ -844,6 +902,65 @@ export class CursorSdkSession implements StructuredSessionHandle {
       }
       throw error;
     }
+  }
+
+  private canReapIdleWorker(): boolean {
+    return (
+      !this.disposed &&
+      !this.closeReported &&
+      !this.pendingTransportError &&
+      Boolean(this.sessionId) &&
+      Boolean(this.worker) &&
+      (!this.activeTurn || this.activeTurn.settled) &&
+      !this.steering.hasPending &&
+      !this.replacementOperation &&
+      !this.idleReapPromise &&
+      this.activeWorkerReads === 0
+    );
+  }
+
+  private clearIdleTimer(): void {
+    if (this.idleTimer === undefined) return;
+    clearTimeout(this.idleTimer);
+    this.idleTimer = undefined;
+  }
+
+  private scheduleIdleReapIfIdle(): void {
+    this.clearIdleTimer();
+    const timeoutMs = this.dependencies.idleTimeoutMs;
+    if (
+      timeoutMs === undefined ||
+      !Number.isFinite(timeoutMs) ||
+      timeoutMs <= 0 ||
+      !this.canReapIdleWorker()
+    ) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      this.idleTimer = undefined;
+      void this.reapIdleWorker();
+    }, timeoutMs);
+    timer.unref?.();
+    this.idleTimer = timer;
+  }
+
+  private reapIdleWorker(): Promise<void> {
+    if (!this.canReapIdleWorker()) return Promise.resolve();
+    this.clearIdleTimer();
+    const worker = this.worker!;
+    const listeners = this.workerListeners;
+    this.worker = undefined;
+    this.workerListeners = undefined;
+    this.workerSafetyPosture = undefined;
+    this.detachWorkerListeners(listeners);
+
+    const reap = this.bestEffortDispose(worker).finally(() => {
+      if (this.idleReapPromise === reap) {
+        this.idleReapPromise = undefined;
+      }
+    });
+    this.idleReapPromise = reap;
+    return reap;
   }
 
   private attachWorkerListeners(worker: CursorSdkWorkerHandle): CursorSdkWorkerListeners {
@@ -937,6 +1054,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
 
   private handleWorkerTransportError(error: Error): void {
     if (this.disposed || this.pendingTransportError || this.closeReported) return;
+    this.clearIdleTimer();
     this.steering.cancel();
     const message = errorMessage(error);
     const turn = this.activeTurn;
@@ -949,6 +1067,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
         errorMessage: message,
       });
     }
+    this.clearIdleTimer();
     this.detachWorkerListeners(this.workerListeners);
     this.workerListeners = undefined;
     if (this.listener) {
@@ -966,6 +1085,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
     if (!this.disposed && !this.activeTurn && this.currentStatus === "working") {
       this.emitUpdate({ status: "idle", attention: "none" });
     }
+    this.scheduleIdleReapIfIdle();
   }
 
   private settleTurn(
@@ -989,6 +1109,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       // reservation keeps queued work behind the replacement start.
       this.emitUpdate({ status: "idle", attention: "none" });
     }
+    this.scheduleIdleReapIfIdle();
     void this.refreshContextUsage();
     turn.resolveReady();
     turn.resolveCompletion();
@@ -1130,22 +1251,28 @@ export class CursorSdkSession implements StructuredSessionHandle {
     }
   }
 
-  private requireWorker(): CursorSdkWorkerHandle {
+  private assertSessionActive(): void {
     if (this.pendingTransportError) {
       throw new Error(this.pendingTransportError);
     }
-    if (this.disposed || this.closeReported || !this.worker) {
+    if (this.disposed || this.closeReported || !this.activated) {
       throw new Error("Cursor SDK session is not active.");
     }
-    return this.worker;
   }
 
-  private requireOpenedWorker(): CursorSdkWorkerHandle {
-    const worker = this.requireWorker();
+  private assertSessionOpened(): void {
+    this.assertSessionActive();
     if (!this.sessionId) {
       throw new Error("Cursor SDK session has not opened an agent.");
     }
-    return worker;
+  }
+
+  private requireWorker(): CursorSdkWorkerHandle {
+    this.assertSessionActive();
+    if (!this.worker) {
+      throw new Error("Cursor SDK session is not active.");
+    }
+    return this.worker;
   }
 }
 

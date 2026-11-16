@@ -13,6 +13,29 @@ import org.junit.Test
 
 class RichChatComposerConfigurationTest {
     @Test
+    fun guiPermissionOptionsUseThePresentationOverride() {
+        val agent = status("""{
+          "kind":"fixture","label":"Fixture","installed":true,"authState":"authenticated",
+          "capabilities":{"approvalPolicies":[{"id":"yolo","label":"Ask When Needed"}],
+            "presentationCapabilities":{"gui":{"approvalPolicies":[{"id":"never","label":"Ask When Needed"}]}}}
+        }""")
+        val catalog = RichChatComposerControlCatalog(agent, ThreadConfig(model = "model"))
+        assertEquals(listOf("never"), catalog.approvalPolicies.map { it.id })
+    }
+
+    @Test
+    fun declaredPermissionDefaultPreservesAnExistingPolicy() {
+        val agent = status("""{
+          "kind":"fixture","label":"Fixture","installed":true,"authState":"authenticated",
+          "capabilities":{"approvalPolicies":[{"id":"default","label":"Default"},{"id":"auto","label":"Never Ask"}],
+            "defaultApprovalPolicy":"auto",
+            "bypassPermissions":{"approvalPolicy":"auto","preferDeclaredApprovalPolicy":true}}
+        }""")
+        val catalog = RichChatComposerControlCatalog(agent, ThreadConfig(model = "model"))
+        assertEquals("auto", catalog.normalize(ThreadConfig(model = "model")).approvalPolicy)
+        assertEquals("default", catalog.normalize(ThreadConfig(model = "model", approvalPolicy = "default")).approvalPolicy)
+    }
+    @Test
     fun contextReloadConfirmationUsesDeclaredCapabilitiesAndStartedSession() {
         val agent = status("""{
           "kind":"provider","label":"Provider","installed":true,"authState":"authenticated",

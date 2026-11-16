@@ -1,16 +1,12 @@
 package com.poracode.app.ui.terminal
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -25,6 +21,9 @@ import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.terminal.TerminalConnectionPhase
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.poracode.app.ui.components.PoracodeTopAppBar
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,19 +62,20 @@ fun ProjectTerminalScreen(
             runtime.terminal.write("${command.trimEnd()}\n")
         }
     }
-    BackHandler(onBack = onBack)
+    val backModifier = rememberPredictiveBackModifier(onBack = onBack)
     DisposableEffect(runtime) {
         runtime.presentProjectTerminalSurface()
         onDispose(runtime::dismissProjectTerminalSurface)
     }
     Scaffold(
+        modifier = backModifier,
         topBar = {
-            TopAppBar(
+            PoracodeTopAppBar(
                 title = { Text(projectName ?: stringResource(R.string.terminal_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            PoracodeIcons.ArrowBack,
                             contentDescription = stringResource(R.string.back),
                         )
                     }

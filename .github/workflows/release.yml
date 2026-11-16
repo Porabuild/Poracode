@@ -40,9 +40,6 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-
       - name: Resolve version
         id: resolve
         env:
@@ -125,7 +122,7 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
   # ── Step 2c: Compile the per-target TUI binaries and manifest ────
-  # Produces poracode-tui-<family> artifacts (binaries only) plus the merged
+  # Produces the poracode-tui-binaries artifact (binaries only) plus the
   # tui-manifest artifact — the trust root staged in the server tarball and
   # desktop CLI resources.
   tui_binaries:
@@ -153,6 +150,10 @@ jobs:
     needs: [prepare, build, server_artifact, tui_binaries]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
+    # Generous because the N-1 upgrade qualification runs here. Without a
+    # limit, a stalled asset upload would hold the release concurrency group
+    # for the 6-hour default.
+    timeout-minutes: 45
 
     steps:
       - name: Download all build artifacts
@@ -190,7 +191,26 @@ jobs:
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
           SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
         run: |
-          gh api repos/${{ github.repository }}/releases/generate-notes \
+          # GitHub's API sometimes answers 5xx or an empty body (an empty
+          # generate-notes response failed a finished nightly). This call only
+          # reads, so retry it; only a successful attempt's output is kept.
+          retry() {
+            local attempt output
+            output=$(mktemp)
+            for attempt in 1 2 3 4; do
+              if "$@" > "$output"; then
+                cat "$output"
+                return 0
+              fi
+              if [ "$attempt" -lt 4 ]; then
+                echo "GitHub API call failed (attempt $attempt of 4); retrying." >&2
+                sleep $((attempt * 10))
+              fi
+            done
+            return 1
+          }
+
+          retry gh api repos/${{ github.repository }}/releases/generate-notes \
             -f "tag_name=$RELEASE_TAG" \
             -f "target_commitish=$SOURCE_REF" \
             --jq .body > "$RUNNER_TEMP/release-notes.md"
@@ -226,7 +246,6 @@ jobs:
             echo "::error::no qualified server metadata in the release assets"
             exit 1
           fi
-          ARGS=()
           for metadata in "${METADATA[@]}"; do
             NAME=$(node -p "require('$metadata').tarball.name")
             EXPECTED=$(node -p "require('$metadata').tarball.sha256")
@@ -238,10 +257,28 @@ jobs:
               echo "::error::$NAME version $VERSION does not match $RELEASE_VERSION"
               exit 1
             }
-            ARGS+=(--artifact "$metadata")
           done
+          # The launcher manifest pins the self-contained archives; each one is
+          # re-hashed against its sidecar before the manifest is verified.
+          SIDECARS=$(node scripts/ci-server-artifact-meta.mjs verify-standalone-release)
+          ARGS=()
+          while IFS= read -r sidecar; do
+            ARGS+=(--standalone "$sidecar")
+          done <<< "$SIDECARS"
           node scripts/generate-runtime-manifest.mjs --verify "${ARGS[@]}" \
             --manifest "$ASSETS/poracode-runtime-manifest.json"
+        shell: bash
+
+      # One-line installers resolve the release, then verify the archive against
+      # SHA256SUMS. Both scripts ship from the release commit, and the checksums
+      # cover every asset uploaded below.
+      - name: Add the one-line installers and release checksums
+        env:
+          ASSETS: ${{ runner.temp }}/release-assets
+        run: |
+          set -euo pipefail
+          cp website/public/install.sh website/public/install.ps1 "$ASSETS/"
+          node scripts/release-checksums.mjs "$ASSETS"
         shell: bash
 
       # Persisted-state qualification uses the exact downloaded Linux artifact
@@ -365,60 +402,36 @@ jobs:
           fi
 
   # ── Step 4: Publish the qualified launcher to npm ────────────────
-  # Publishes the exact qualified manifest/bytes from step 2b, never a rebuild.
-  # Disabled until the repository variable NPM_PUBLISH_ENABLED=true and npm
-  # trusted publishing (or an owner NPM_TOKEN) are configured; the publish
-  # script's preflight fails with the exact missing credential when that is
-  # not in place.
+  # Disabled until the repository variable NPM_PUBLISH_ENABLED=true and the npm
+  # trusted publisher (publish-npm.yml) is configured; see publish-npm.yml.
   publish_npm:
     name: Publish the poracode npm launcher
-    needs: [prepare, server_artifact, release]
+    needs: [prepare, release]
     if: ${{ !inputs.dry_run && vars.NPM_PUBLISH_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     permissions:
       contents: read
-      id-token: write
+      actions: write
     steps:
-      - name: Checkout the release source
+      # npm allows up to 10 trusted publishers per package; one dispatched
+      # workflow keeps a single trusted-publisher entry to audit. Both release
+      # trains dispatch publish-npm.yml, which publishes this run's exact
+      # qualified package once the public release carries the same manifest —
+      # and this job waits for that run so a failed publish fails the release.
+      # The script waits for the run its own dispatch started, so rerunning
+      # this job after a failed publish recovers instead of matching that
+      # failed run again.
+      - name: Checkout the dispatch script
         uses: actions/checkout@v6
         with:
-          ref: ${{ needs.prepare.outputs.source_ref }}
+          sparse-checkout: scripts/dispatch-npm-publish.mjs
+          sparse-checkout-cone-mode: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "26"
-
-      - name: Download the aggregate qualified artifact
-        uses: actions/download-artifact@v8
-        with:
-          path: ${{ runner.temp }}/release-assets
-          pattern: poracode-server-artifact-qualified-*
-          merge-multiple: true
-
-      - name: Set the release version
+      - name: Dispatch the npm trusted-publisher workflow
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-        run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
-        shell: bash
-
-      - name: Pack and publish the exact qualified package
-        env:
-          ASSETS: ${{ runner.temp }}/release-assets
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          ARGS=()
-          for metadata in "$ASSETS"/server-artifact-*.json; do
-            ARGS+=(--artifact "$metadata")
-          done
-          if [ "${#ARGS[@]}" -eq 0 ]; then
-            echo "::error::no qualified server metadata to publish"
-            exit 1
-          fi
-          node scripts/publish-npm-package.mjs "${ARGS[@]}" \
-            --manifest "$ASSETS/poracode-runtime-manifest.json" \
-            --tag latest \
-            --trusted-publishing
+          SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
+        run: node scripts/dispatch-npm-publish.mjs --version "$RELEASE_VERSION" --source-ref "$SOURCE_REF" --dist-tag latest
         shell: bash

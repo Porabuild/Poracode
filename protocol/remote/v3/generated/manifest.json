@@ -943,6 +943,8 @@
       "method": "GET",
       "path": "/api/threads/{threadId}/history",
       "queryParameters": [
+        "historyCache",
+        "historyRevision",
         "projection",
         "deferBodies",
         "reads",
@@ -1142,6 +1144,29 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-transfer-command",
+      "method": "POST",
+      "path": "/api/thread-transfers/command",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "thread-transfer-upload",
+      "method": "POST",
+      "path": "/api/thread-transfers/{transferId}/package",
+      "queryParameters": [
+        "offset",
+        "total",
+        "sha256"
+      ],
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "experiment-state",
       "method": "GET",
       "path": "/api/experiments",
@@ -1332,9 +1357,76 @@
       "scope": "session:operate"
     },
     {
+      "name": "resolveLinkMetadata",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
       "name": "listImportableSessions",
       "owner": "desktop",
       "scope": "projects:manage"
+    },
+    {
+      "name": "getLatestAgentVersion",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
+      "name": "resolveAgentAccount",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
+      "name": "refreshAgentStatuses",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "listAcpRegistry",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "installAcpRegistryAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "removeAcpRegistryAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "updateAgentBinary",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "updateAcpRegistryAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "setAcpRegistryAgentAuth",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
+      "name": "authenticateAcpAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "logoutAcpAgent",
+      "owner": "desktop",
+      "scope": "session:operate"
     },
     {
       "name": "listThreadSessionActions",
@@ -1435,6 +1527,11 @@
       "name": "workflowAgentChat",
       "owner": "location",
       "scope": "session:read"
+    },
+    {
+      "name": "controlMcpApp",
+      "owner": "thread",
+      "scope": "session:operate"
     },
     {
       "name": "scanSkills",
@@ -1624,6 +1721,11 @@
     },
     {
       "name": "ghGetPrForBranch",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "ghPollPullRequests",
       "owner": "projectLocation",
       "scope": "session:read"
     },
@@ -1895,7 +1997,8 @@
     {
       "name": "gitAddWorktree",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "gitRemoveWorktree",
@@ -2213,6 +2316,7 @@
       "agent-status-updated",
       "windows-agent-statuses",
       "wsl-agent-statuses",
+      "remote-forge-activity",
       "remote-git-summaries",
       "remote-git-state",
       "remote-projects-changed",

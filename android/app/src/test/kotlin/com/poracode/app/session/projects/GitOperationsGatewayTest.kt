@@ -28,6 +28,29 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class GitOperationsGatewayTest {
     @Test
+    fun repositoryBusyIsDefiniteAndDoesNotReconcile() = runTest {
+        val active = lease(connectionA, generation = 3)
+        val state = MutableStateFlow<ProjectHostLease?>(active)
+        val remote = GitRemoteFake { _, _ ->
+            throw RemoteClientException("busy", 429, "git_repository_busy")
+        }
+        val gateway = GeneratedGitOperationsGateway(
+            state,
+            ProjectWorkspaceRemoteGatewayProvider { remote },
+        )
+        val target = target("project-a")
+        val request = GitRequests.create(GitProcedure.Init, target.location)
+
+        val error = runCatching { gateway.mutate(active, target, request) }
+            .exceptionOrNull() as ProjectGatewayException
+
+        assertEquals(429, error.statusCode)
+        assertEquals("git_repository_busy", error.code)
+        assertEquals(false, error.requestMayHaveCommitted)
+        assertEquals(listOf(GitProcedure.Init), remote.calls)
+    }
+
+    @Test
     fun exactHostScopeOwnerAndWslLocationAreCheckedBeforeAndAfterSuspension() = runTest {
         val active = lease(connectionA, generation = 9)
         val state = MutableStateFlow<ProjectHostLease?>(active)

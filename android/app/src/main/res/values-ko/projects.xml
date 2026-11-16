@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="projects_manage_title">프로젝트 관리</string>
+    <string name="projects_manage_title">프로젝트</string>
     <string name="projects_add_title">프로젝트 추가</string>
     <string name="projects_add_existing">기존 프로젝트 추가</string>
     <string name="projects_create_new">새로 만들기</string>

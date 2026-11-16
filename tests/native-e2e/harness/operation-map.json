@@ -3,17 +3,21 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:599163541765dff22c33e9da71f7d24d4b2473bbaa92b7da376fc759adb1b8ea",
-  "keyCount": 339,
+  "manifestHash": "sha256:9a5ee59a9cb11ae69141aed18868b97f83741c84b24abe31cfa64338290d8f51",
+  "keyCount": 356,
   "counts": {
-    "route": 119,
-    "procedure": 165,
+    "route": 121,
+    "procedure": 179,
     "ws-client": 11,
     "ws-server": 12,
-    "replay": 16,
+    "replay": 17,
     "runtime": 16
   },
   "operations": {
+    "procedure:authenticateAcpAgent": {
+      "kind": "procedure",
+      "id": "authenticateAcpAgent"
+    },
     "procedure:beginMcpServerOauth": {
       "kind": "procedure",
       "id": "beginMcpServerOauth"
@@ -37,6 +41,10 @@
     "procedure:connectThreadVoice": {
       "kind": "procedure",
       "id": "connectThreadVoice"
+    },
+    "procedure:controlMcpApp": {
+      "kind": "procedure",
+      "id": "controlMcpApp"
     },
     "procedure:createFileCheckpoint": {
       "kind": "procedure",
@@ -246,6 +254,10 @@
       "kind": "procedure",
       "id": "getGitStatus"
     },
+    "procedure:getLatestAgentVersion": {
+      "kind": "procedure",
+      "id": "getLatestAgentVersion"
+    },
     "procedure:getMcpOauthStatus": {
       "kind": "procedure",
       "id": "getMcpOauthStatus"
@@ -345,6 +357,10 @@
     "procedure:ghMergePr": {
       "kind": "procedure",
       "id": "ghMergePr"
+    },
+    "procedure:ghPollPullRequests": {
+      "kind": "procedure",
+      "id": "ghPollPullRequests"
     },
     "procedure:ghPostPrComment": {
       "kind": "procedure",
@@ -506,6 +522,10 @@
       "kind": "procedure",
       "id": "importSkills"
     },
+    "procedure:installAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "installAcpRegistryAgent"
+    },
     "procedure:installMarketplaceSkill": {
       "kind": "procedure",
       "id": "installMarketplaceSkill"
@@ -513,6 +533,10 @@
     "procedure:invokeThreadSessionAction": {
       "kind": "procedure",
       "id": "invokeThreadSessionAction"
+    },
+    "procedure:listAcpRegistry": {
+      "kind": "procedure",
+      "id": "listAcpRegistry"
     },
     "procedure:listFileCheckpoints": {
       "kind": "procedure",
@@ -533,6 +557,10 @@
     "procedure:listThreadSessionActions": {
       "kind": "procedure",
       "id": "listThreadSessionActions"
+    },
+    "procedure:logoutAcpAgent": {
+      "kind": "procedure",
+      "id": "logoutAcpAgent"
     },
     "procedure:lspStart": {
       "kind": "procedure",
@@ -582,6 +610,10 @@
       "kind": "procedure",
       "id": "readThreadBackgroundTasks"
     },
+    "procedure:refreshAgentStatuses": {
+      "kind": "procedure",
+      "id": "refreshAgentStatuses"
+    },
     "procedure:refreshProviderUsage": {
       "kind": "procedure",
       "id": "refreshProviderUsage"
@@ -589,6 +621,10 @@
     "procedure:relocateProject": {
       "kind": "procedure",
       "id": "relocateProject"
+    },
+    "procedure:removeAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "removeAcpRegistryAgent"
     },
     "procedure:removeQueuedThreadFollowUp": {
       "kind": "procedure",
@@ -601,6 +637,14 @@
     "procedure:reorderQueuedThreadFollowUp": {
       "kind": "procedure",
       "id": "reorderQueuedThreadFollowUp"
+    },
+    "procedure:resolveAgentAccount": {
+      "kind": "procedure",
+      "id": "resolveAgentAccount"
+    },
+    "procedure:resolveLinkMetadata": {
+      "kind": "procedure",
+      "id": "resolveLinkMetadata"
     },
     "procedure:restoreFileCheckpoint": {
       "kind": "procedure",
@@ -630,6 +674,10 @@
       "kind": "procedure",
       "id": "searchProjectTree"
     },
+    "procedure:setAcpRegistryAgentAuth": {
+      "kind": "procedure",
+      "id": "setAcpRegistryAgentAuth"
+    },
     "procedure:setSkillEnabled": {
       "kind": "procedure",
       "id": "setSkillEnabled"
@@ -654,6 +702,14 @@
       "kind": "procedure",
       "id": "subagentUnsubscribe"
     },
+    "procedure:updateAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "updateAcpRegistryAgent"
+    },
+    "procedure:updateAgentBinary": {
+      "kind": "procedure",
+      "id": "updateAgentBinary"
+    },
     "procedure:waitMcpServerOauth": {
       "kind": "procedure",
       "id": "waitMcpServerOauth"
@@ -677,6 +733,10 @@
     "replay:agent-status-updated": {
       "kind": "replay",
       "id": "agent-status-updated"
+    },
+    "replay:remote-forge-activity": {
+      "kind": "replay",
+      "id": "remote-forge-activity"
     },
     "replay:remote-git-state": {
       "kind": "replay",
@@ -1201,6 +1261,14 @@
     "route:thread-steer-set": {
       "kind": "route",
       "id": "thread-steer-set"
+    },
+    "route:thread-transfer-command": {
+      "kind": "route",
+      "id": "thread-transfer-command"
+    },
+    "route:thread-transfer-upload": {
+      "kind": "route",
+      "id": "thread-transfer-upload"
     },
     "route:thread-turns": {
       "kind": "route",

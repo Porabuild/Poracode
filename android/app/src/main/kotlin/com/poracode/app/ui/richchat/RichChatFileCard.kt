@@ -8,12 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.FolderZip
-import androidx.compose.material.icons.outlined.InsertDriveFile
-import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -42,6 +36,7 @@ import com.poracode.app.model.ProjectLocation
 import com.poracode.app.session.richchat.RichChatMediaController
 import com.poracode.app.session.richchat.RichChatOperationResult
 import com.poracode.app.transport.richchat.RichChatDownloadedFile
+import com.poracode.app.ui.theme.PoracodeIcons
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -221,7 +216,7 @@ internal fun RichChatFileCard(ref: RichChatFileRef, modifier: Modifier = Modifie
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Outlined.Download,
+                    imageVector = PoracodeIcons.Download,
                     contentDescription = stringResource(
                         R.string.rich_chat_download_file, ref.fileName,
                     ),
@@ -237,8 +232,8 @@ internal fun RichChatFileCard(ref: RichChatFileRef, modifier: Modifier = Modifie
 }
 
 private fun fileIconFor(path: String) = when (path.substringAfterLast('.').lowercase()) {
-    "zip", "tar", "gz", "tgz", "bz2", "xz", "7z", "rar" -> Icons.Outlined.FolderZip
-    "pdf", "doc", "docx", "odt", "rtf", "txt", "csv", "tsv" -> Icons.Outlined.Description
-    "apk", "aab", "ipa", "dmg", "pkg", "exe", "msi", "deb", "rpm" -> Icons.Outlined.Inventory2
-    else -> Icons.Outlined.InsertDriveFile
+    "zip", "tar", "gz", "tgz", "bz2", "xz", "7z", "rar" -> PoracodeIcons.FolderZip
+    "pdf", "doc", "docx", "odt", "rtf", "txt", "csv", "tsv" -> PoracodeIcons.Description
+    "apk", "aab", "ipa", "dmg", "pkg", "exe", "msi", "deb", "rpm" -> PoracodeIcons.Inventory2
+    else -> PoracodeIcons.InsertDriveFile
 }

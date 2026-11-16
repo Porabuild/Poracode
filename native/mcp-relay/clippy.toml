@@ -1,0 +1,5 @@
+# `allow-unwrap-in-tests` / `allow-expect-in-tests` keep the production code
+# free of `unwrap`/`expect` (enforced by `[lints.clippy]` in Cargo.toml)
+# while tests stay idiomatic.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

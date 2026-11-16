@@ -129,6 +129,7 @@ export interface TurnContextTarget {
   /** When supplied, reflects the resolved MCP set for this exact turn. */
   crossagentsMcpAttached?: boolean | undefined;
   pendingInitialInstructions?: string | undefined;
+  mcpAppContext?: (() => string | undefined) | undefined;
   onInitialInstructionsApplied?: () => void;
   readonly structuredSession?: Pick<StructuredSessionHandle, "placesTurnContext"> | undefined;
   /** Provider commands the session last advertised. */
@@ -184,7 +185,12 @@ export function structuredTurnTextOptions(
         }
       : undefined;
   const admission = onPromptSubmitted ? { onPromptSubmitted } : {};
-  const turnContextWithCrew = joinInstructions(turn.turnContext, crewBrief?.text, editNudge?.text);
+  const turnContextWithCrew = joinInstructions(
+    turn.turnContext,
+    invokesCommand ? undefined : target?.mcpAppContext?.(),
+    crewBrief?.text,
+    editNudge?.text,
+  );
   if (target?.structuredSession?.placesTurnContext) {
     return {
       ...admission,

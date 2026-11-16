@@ -18,6 +18,8 @@ import type { ActivePortForward, DetectedPort } from "@/shared/remote";
 import { isRemoteTransportFailure, RemoteClientError } from "@/shared/remote/client";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { hasClientCapability } from "@/renderer/clientRuntime";
+import { ContextMenuSurface } from "@/renderer/components/common/ContextMenu";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
@@ -30,6 +32,7 @@ import {
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
 import { usePortsPanelChromeStore } from "./portsPanelStore";
+import { LocalPortsPanel } from "./LocalPortsPanel";
 
 function EmptyState(props: {
   readonly icon: React.ReactNode;
@@ -100,7 +103,7 @@ function ActiveForwardRow(props: {
   readonly opening: boolean;
   readonly compact: boolean;
   readonly onOpen: () => void;
-  readonly onActions: () => void;
+  readonly onActions: (position?: { x: number; y: number }) => void;
 }) {
   const { t } = useLingui();
   const longPressHandlers = useLongPress(props.onActions);
@@ -125,13 +128,18 @@ function ActiveForwardRow(props: {
             aria-label={t`Actions`}
             onClick={(event) => {
               event.stopPropagation();
-              props.onActions();
+              const rect = event.currentTarget.getBoundingClientRect();
+              props.onActions({ x: rect.right, y: rect.bottom });
             }}
           >
             <Ellipsis className="size-3.5" />
           </button>
         }
         onPress={props.onOpen}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          props.onActions({ x: event.clientX, y: event.clientY });
+        }}
       />
     );
   }
@@ -164,7 +172,7 @@ function ActiveForwardRow(props: {
           variant="ghost"
           className="size-7 min-w-0"
           aria-label={t`Actions`}
-          onPress={props.onActions}
+          onPress={() => props.onActions()}
         >
           <Ellipsis className="size-3.5" />
         </Button>
@@ -174,6 +182,10 @@ function ActiveForwardRow(props: {
 }
 
 export function PortsPanel() {
+  return hasClientCapability("nativeShell") ? <LocalPortsPanel /> : <ForwardedPortsPanel />;
+}
+
+function ForwardedPortsPanel() {
   const { t } = useLingui();
   const compact = useCompactLayout();
   const server = useRemoteServersStore(
@@ -190,6 +202,7 @@ export function PortsPanel() {
   const [copyingForwardId, setCopyingForwardId] = useState<string | null>(null);
   const [stoppingForwardId, setStoppingForwardId] = useState<string | null>(null);
   const [actionForward, setActionForward] = useState<ActivePortForward | null>(null);
+  const [actionPosition, setActionPosition] = useState<{ x: number; y: number } | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPort, setManualPort] = useState("");
   const loadGeneration = useRef(0);
@@ -470,7 +483,10 @@ export function PortsPanel() {
                     meta={t`localhost:${forward.targetPort} on desktop`}
                     opening={openingForwardId === forward.id}
                     onOpen={() => openActiveForward(forward)}
-                    onActions={() => setActionForward(forward)}
+                    onActions={(position) => {
+                      setActionForward(forward);
+                      setActionPosition(position ?? null);
+                    }}
                   />
                 ))}
               </section>
@@ -525,7 +541,44 @@ export function PortsPanel() {
         </MobileCircleButton>
       ) : null}
 
-      {actionForward ? (
+      {actionForward && !compact ? (
+        <ContextMenuSurface
+          position={actionPosition}
+          items={[
+            {
+              id: "open",
+              label: t`Open in browser`,
+              icon: <ExternalLink className="size-4" />,
+              isDisabled: openingForwardId === actionForward.id,
+            },
+            {
+              id: "copy",
+              label: t`Copy link`,
+              icon: <Copy className="size-4" />,
+              isDisabled: copyingForwardId === actionForward.id,
+            },
+            ...(direct
+              ? [{ id: "raw", label: t`Copy raw address`, icon: <Network className="size-4" /> }]
+              : []),
+            {
+              id: "stop",
+              label: t`Stop forwarding`,
+              icon: <Unplug className="size-4" />,
+              variant: "danger",
+              isDisabled: stoppingForwardId === actionForward.id,
+            },
+          ]}
+          onClose={() => setActionForward(null)}
+          onAction={(key) => {
+            if (key === "open") openActiveForward(actionForward);
+            if (key === "copy") copyForwardUrl(actionForward);
+            if (key === "raw") copyRawForwardAddress(actionForward);
+            if (key === "stop") stopForward(actionForward);
+          }}
+        />
+      ) : null}
+
+      {actionForward && compact ? (
         <BottomSheet
           label={t`Port ${actionForward.targetPort}`}
           closeLabel={t`Close forward actions`}

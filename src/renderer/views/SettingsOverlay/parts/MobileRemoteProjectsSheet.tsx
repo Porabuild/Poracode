@@ -46,7 +46,7 @@ function MobileAddProjectSheet(props: {
   const [pickerTarget, setPickerTarget] = useState<"folder" | "create" | "clone" | null>(null);
   const cloneName = cloneFolderNameFromUrl(cloneUrl);
 
-  const submit = (operation: () => Promise<void>) =>
+  const submit = (operation: () => Promise<unknown>) =>
     run(async () => {
       await operation();
       props.onClose();

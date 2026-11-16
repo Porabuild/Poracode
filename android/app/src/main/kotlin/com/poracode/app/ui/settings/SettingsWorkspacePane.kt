@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +26,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import com.poracode.app.R
 import com.poracode.app.session.settings.SettingsHostInformationEntry
 import com.poracode.app.session.settings.SettingsInformationSlot
+import com.poracode.app.ui.components.PoracodeTextField
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * Host-scoped worktree location and pull-request automation defaults. Matches iOS's
@@ -96,7 +97,7 @@ private fun SettingsWorkspaceEditor(
                 ),
                 enabled = enabled,
             ) { draft = draft.copy(worktreeStorageMode = it) }
-            OutlinedTextField(
+            PoracodeTextField(
                 value = draft.worktreeBasePath,
                 onValueChange = { draft = draft.copy(worktreeBasePath = it) },
                 label = { Text(stringResource(R.string.settings_workspace_base_path)) },
@@ -105,7 +106,7 @@ private fun SettingsWorkspaceEditor(
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            PoracodeTextField(
                 value = draft.wslWorktreeBasePath,
                 onValueChange = { draft = draft.copy(wslWorktreeBasePath = it) },
                 label = { Text(stringResource(R.string.settings_workspace_wsl_base_path)) },
@@ -144,7 +145,7 @@ private fun SettingsWorkspaceEditor(
             ) { draft = draft.copy(prMergeMethod = it) }
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(
+            FilledTonalButton(
                 onClick = { onSave(draft, baseline) },
                 enabled = enabled && draft != baseline,
                 modifier = Modifier.align(Alignment.End),

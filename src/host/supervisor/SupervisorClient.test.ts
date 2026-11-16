@@ -7,6 +7,10 @@ import {
   isGitProcessAdmissionRefusal,
 } from "@/shared/gitProcessAdmission";
 import {
+  THREAD_LAUNCH_FAILED_REFUSAL_CODE,
+  isThreadLaunchFailedRefusal,
+} from "@/shared/threadLaunchRefusal";
+import {
   THREAD_SESSION_ABSENCE_REFUSAL_CODE,
   isThreadSessionAbsenceRefusal,
 } from "@/shared/threadSessionRefusal";
@@ -962,6 +966,29 @@ describe("SupervisorClient typed refusal rehydration", () => {
     expect(isGitProcessAdmissionRefusal(error)).toBe(false);
     expect(error).toMatchObject({ code: THREAD_SESSION_ABSENCE_REFUSAL_CODE });
     expect((error as Error).message).toBe("Unknown thread session: t1");
+    expect((error as { retryAfterMs?: number }).retryAfterMs).toBeUndefined();
+  });
+
+  it("rehydrates the typed launch-failed refusal onto its own carrier, not a pressure class", async () => {
+    const { client, child } = makeClient();
+    const getId = captureSentId(child);
+    const promise = client.call("startThread", { threadId: "t1" } as never);
+    child.emit("message", {
+      replyTo: getId(),
+      ok: false,
+      error: "Provider session failed during open",
+      errorCode: THREAD_LAUNCH_FAILED_REFUSAL_CODE,
+    });
+
+    const error = await promise.then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+    expect(isThreadLaunchFailedRefusal(error)).toBe(true);
+    expect(isHostResourceBusyError(error)).toBe(false);
+    expect(isGitProcessAdmissionRefusal(error)).toBe(false);
+    expect(error).toMatchObject({ code: THREAD_LAUNCH_FAILED_REFUSAL_CODE });
+    expect((error as Error).message).toBe("Provider session failed during open");
     expect((error as { retryAfterMs?: number }).retryAfterMs).toBeUndefined();
   });
 

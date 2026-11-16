@@ -78,9 +78,10 @@ struct RichChatGoalSteerView: View {
           }
           if goal.availableActions.contains("clear") {
             Button(RichChatStrings.clearGoal, role: .destructive) { updateGoal(.clear) }
+              .tint(.red)
           }
         }
-        .buttonStyle(.bordered)
+        .poracodeSurfaceButtonStyle()
         .disabled(!canOperate)
       }
     }
@@ -104,9 +105,10 @@ struct RichChatGoalSteerView: View {
           Button(RichChatStrings.clearSteer, role: .destructive) {
             Task { await controller.clearPendingSteer() }
           }
+          .tint(.red)
         }
       }
-      .buttonStyle(.bordered)
+      .poracodeSurfaceButtonStyle()
       .disabled(!canOperate)
     }
     .padding(12)

@@ -9,6 +9,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   hydrationStatus: {} as Record<string, "pending" | "failed">,
+  setHydrationStatus: vi.fn<(threadId: string, status: string) => void>(),
   hydrated: vi.fn<(threadId: string) => boolean>(() => false),
   hydrate: vi.fn<(threadId: string) => Promise<void>>(async () => {}),
   retain: vi.fn<(threadId: string) => void>(),
@@ -29,9 +30,14 @@ vi.mock("./chatRuntimePersister", () => ({
   releaseThreadRuntimeItems: mocks.release,
 }));
 vi.mock("./rendererEventInterests", () => ({ retainRendererEventInterest: mocks.retainInterest }));
-vi.mock("./remote/sync", () => ({ recoverRemoteRuntimeHistory: mocks.recoverRemote }));
+vi.mock("./remote/sync", () => ({ recoverRuntimeHistory: mocks.recoverRemote }));
 vi.mock("./appStore", () => ({
-  useAppStore: { getState: () => ({ runtimeHydrationStatus: mocks.hydrationStatus }) },
+  useAppStore: {
+    getState: () => ({
+      runtimeHydrationStatus: mocks.hydrationStatus,
+      setRuntimeHydrationStatus: mocks.setHydrationStatus,
+    }),
+  },
 }));
 beforeEach(() => {
   vi.clearAllMocks();
@@ -66,7 +72,7 @@ it("retries failed history through the reducer that owns queued deltas", () => {
   const recover = vi.fn<(threadId: string) => void>();
   const uninstall = installRuntimeHistoryRecovery(recover);
   try {
-    void retryThreadRuntimeItems("thread-1");
+    retryThreadRuntimeItems("thread-1");
     expect(recover).toHaveBeenCalledExactlyOnceWith("thread-1");
     expect(mocks.hydrate).not.toHaveBeenCalled();
   } finally {
@@ -74,19 +80,15 @@ it("retries failed history through the reducer that owns queued deltas", () => {
   }
 });
 
-it("retries a paired host's thread through the remote reducer that owns its queue", () => {
-  const recover = vi.fn<(threadId: string) => void>();
-  const uninstall = installRuntimeHistoryRecovery(recover);
-  try {
+it.each(["thread-1", "remote:host-1:thread:thread-1"])(
+  "retries %s through the live reducer that owns its queue, whichever host owns it",
+  (threadId) => {
     mocks.hydrated.mockReturnValue(true);
-    void retryThreadRuntimeItems("remote:host-1:thread:thread-1");
-    expect(mocks.recoverRemote).toHaveBeenCalledExactlyOnceWith("remote:host-1:thread:thread-1");
-    expect(recover).not.toHaveBeenCalled();
+    retryThreadRuntimeItems(threadId);
+    expect(mocks.recoverRemote).toHaveBeenCalledExactlyOnceWith(threadId);
     expect(mocks.hydrate).not.toHaveBeenCalled();
-  } finally {
-    uninstall();
-  }
-});
+  },
+);
 
 it("fetches one cold baseline after live coverage is established", async () => {
   let ready!: () => void;
@@ -192,4 +194,38 @@ it("does not fetch a pane that was released while its live interest was pending"
   ready();
   await Promise.resolve();
   expect(mocks.hydrate).not.toHaveBeenCalled();
+});
+
+it("reads a paired host's thread through the same interest lease and hydration", async () => {
+  const id = "remote:host:thread:paired";
+  const releaseInterest = vi.fn<() => void>();
+  mocks.retainInterest.mockReturnValue({
+    continuous: false,
+    release: releaseInterest,
+    ready: Promise.resolve(),
+  });
+  const reader = prepareRuntimeThreadReader(id);
+  await reader.ready;
+  expect(mocks.retainInterest).toHaveBeenCalledExactlyOnceWith("runtime", id);
+  expect(mocks.hydrate).toHaveBeenCalledExactlyOnceWith(id);
+  const pane = adoptRuntimeThreadReader(id);
+  pane.release();
+  expect(releaseInterest).toHaveBeenCalledOnce();
+  expect(mocks.release).toHaveBeenCalledExactlyOnceWith(id);
+});
+
+it("re-baselines a reopened paired thread through the live reducer's recovery", async () => {
+  const id = "remote:host:thread:reopened";
+  mocks.hydrated.mockReturnValue(true);
+  mocks.retainInterest.mockReturnValue({
+    continuous: false,
+    release: vi.fn<() => void>(),
+    ready: Promise.resolve(),
+  });
+  const reader = retainRuntimeThreadReader(id);
+  expect(mocks.setHydrationStatus).toHaveBeenCalledWith(id, "pending");
+  await reader.ready;
+  expect(mocks.recoverRemote).toHaveBeenCalledExactlyOnceWith(id);
+  expect(mocks.hydrate).not.toHaveBeenCalled();
+  reader.release();
 });

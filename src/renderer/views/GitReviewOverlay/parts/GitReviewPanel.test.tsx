@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,6 +6,12 @@ import type { GitStatusResult, Project } from "@/shared/contracts";
 
 const bridgeMock = vi.hoisted(() => ({
   getGitStatus: vi.fn<() => Promise<GitStatusResult>>(),
+}));
+const layout = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/adaptiveLayout")>()),
+  useCompactLayout: () => layout.compact,
 }));
 
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridgeMock }));
@@ -56,6 +62,7 @@ vi.mock("@heroui/react", () => {
 });
 
 import { useGitStore } from "@/renderer/state/gitStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { GitReviewPanel } from "./GitReviewPanel";
 
 const cleanStatus: GitStatusResult = {
@@ -76,12 +83,19 @@ const cleanStatus: GitStatusResult = {
 describe("GitReviewPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    layout.compact = false;
     useGitStore.setState({
       statuses: {},
       worktreeStatuses: {},
       ghAvailable: {},
       prData: {},
       worktreeSourceInfo: {},
+    });
+    usePanelStore.setState({
+      rightPanelTab: "git",
+      gitOverlayOpen: false,
+      rightPanelSplit: null,
+      mobileUtilityPage: null,
     });
   });
 
@@ -156,4 +170,99 @@ describe("GitReviewPanel", () => {
     );
     expect(screen.queryByText("main")).not.toBeInTheDocument();
   });
+
+  it("hydrates visible compact Changes independently of stale desktop docks and utility navigation", async () => {
+    layout.compact = true;
+    const project: Project = {
+      id: "compact-project",
+      name: "Repo",
+      location: { kind: "posix", path: "/repo" },
+      createdAt: "2026-11-12T00:00:00.000Z",
+    };
+    usePanelStore.setState({
+      mobileUtilityPage: "workspace",
+      rightPanelTab: "files",
+      rightPanelSplit: { tab: "git", placement: "bottom" },
+      bottomPanelDocks: { left: "git", right: null },
+    });
+    useGitStore.getState().setStatus(project.id, { ...cleanStatus, detail: "summary" });
+    bridgeMock.getGitStatus.mockResolvedValue(cleanStatus);
+    render(
+      <GitReviewPanel
+        project={project}
+        onClose={() => {}}
+        onExpandToOverlay={() => {}}
+        touchMode
+      />,
+    );
+    expect(bridgeMock.getGitStatus).not.toHaveBeenCalled();
+
+    act(() => {
+      usePanelStore.getState().setRightPanelTab("git");
+    });
+    await waitFor(() => expect(useGitStore.getState().statuses[project.id]?.detail).toBe("full"));
+    expect(bridgeMock.getGitStatus).toHaveBeenCalledTimes(1);
+    act(() => {
+      usePanelStore.getState().openMobileUtilityPage("settings");
+    });
+    act(() => {
+      useGitStore.getState().setStatus(project.id, { ...cleanStatus, detail: "summary" });
+    });
+    expect(bridgeMock.getGitStatus).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      usePanelStore.getState().openMobileUtilityPage("workspace");
+    });
+    await waitFor(() => expect(bridgeMock.getGitStatus).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(useGitStore.getState().statuses[project.id]?.detail).toBe("full"));
+  });
+
+  it.each([false, true])(
+    "hydrates the same worktree again when its mounted panel is revealed, touch=%s",
+    async (touchMode) => {
+      const project: Project = {
+        id: "project",
+        name: "Repo",
+        location: { kind: "posix", path: "/repo" },
+        createdAt: "2026-11-12T00:00:00.000Z",
+      };
+      const worktreeLocation = { kind: "posix" as const, path: "/repo-wt" };
+      bridgeMock.getGitStatus.mockResolvedValue(cleanStatus);
+      useGitStore.getState().setWorktreeStatus("/repo-wt", { ...cleanStatus, detail: "summary" });
+      render(
+        <GitReviewPanel
+          project={project}
+          locationOverride={worktreeLocation}
+          statusKey="/repo-wt"
+          worktreePath="/repo-wt"
+          touchMode={touchMode}
+          onClose={() => {}}
+          onExpandToOverlay={() => {}}
+        />,
+      );
+      await waitFor(() =>
+        expect(useGitStore.getState().worktreeStatuses["/repo-wt"]?.detail).toBe("full"),
+      );
+      act(() => {
+        usePanelStore.setState({ rightPanelTab: "files" });
+      });
+      act(() => {
+        useGitStore.getState().setWorktreeStatus("/repo-wt", { ...cleanStatus, detail: "summary" });
+      });
+      expect(bridgeMock.getGitStatus).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        usePanelStore.setState({ rightPanelTab: "git" });
+      });
+
+      await waitFor(() => expect(bridgeMock.getGitStatus).toHaveBeenCalledTimes(2));
+      expect(bridgeMock.getGitStatus).toHaveBeenLastCalledWith({
+        projectLocation: worktreeLocation,
+      });
+      await waitFor(() =>
+        expect(useGitStore.getState().worktreeStatuses["/repo-wt"]?.detail).toBe("full"),
+      );
+      expect(useGitStore.getState().statuses[project.id]).toBeUndefined();
+    },
+  );
 });

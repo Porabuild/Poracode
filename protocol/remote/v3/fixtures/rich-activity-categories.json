@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "canonical read",
+      "item": {
+        "id": "activity-0",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "read"
+        },
+        "streams": {}
+      },
+      "category": "view"
+    },
+    {
+      "name": "canonical search",
+      "item": {
+        "id": "activity-1",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "search"
+        },
+        "streams": {}
+      },
+      "category": "search"
+    },
+    {
+      "name": "canonical fetch",
+      "item": {
+        "id": "activity-2",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "fetch"
+        },
+        "streams": {}
+      },
+      "category": "search"
+    },
+    {
+      "name": "canonical edit",
+      "item": {
+        "id": "activity-3",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "edit"
+        },
+        "streams": {}
+      },
+      "category": "edit"
+    },
+    {
+      "name": "canonical delete",
+      "item": {
+        "id": "activity-4",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "delete"
+        },
+        "streams": {}
+      },
+      "category": "edit"
+    },
+    {
+      "name": "canonical move",
+      "item": {
+        "id": "activity-5",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "move"
+        },
+        "streams": {}
+      },
+      "category": "edit"
+    },
+    {
+      "name": "canonical execute",
+      "item": {
+        "id": "activity-6",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "execute"
+        },
+        "streams": {}
+      },
+      "category": "command"
+    },
+    {
+      "name": "dynamic read hint",
+      "item": {
+        "id": "activity-7",
+        "type": "dynamic_tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "read"
+        },
+        "streams": {}
+      },
+      "category": "view"
+    },
+    {
+      "name": "MCP identity precedes kind",
+      "item": {
+        "id": "activity-8",
+        "type": "mcp_tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "mcp__fixture__read",
+          "status": "completed",
+          "serverId": "fixture",
+          "kind": "read"
+        },
+        "streams": {}
+      },
+      "category": "mcp"
+    },
+    {
+      "name": "normalized MCP server identity",
+      "item": {
+        "id": "activity-9",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "serverId": "fixture",
+          "kind": "read"
+        },
+        "streams": {}
+      },
+      "category": "mcp"
+    },
+    {
+      "name": "delegation precedes kind",
+      "item": {
+        "id": "activity-10",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "isSubAgent": true,
+          "kind": "read"
+        },
+        "streams": {}
+      },
+      "category": "command"
+    },
+    {
+      "name": "legacy artifact without kind",
+      "item": {
+        "id": "activity-11",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed"
+        },
+        "streams": {}
+      },
+      "category": "tool"
+    },
+    {
+      "name": "future kind falls back",
+      "item": {
+        "id": "activity-12",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": "future-kind"
+        },
+        "streams": {}
+      },
+      "category": "tool"
+    },
+    {
+      "name": "malformed kind is safe",
+      "item": {
+        "id": "activity-13",
+        "type": "tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed",
+          "kind": {
+            "unexpected": true
+          }
+        },
+        "streams": {}
+      },
+      "category": "tool"
+    },
+    {
+      "name": "reasoning vocabulary",
+      "item": {
+        "id": "activity-14",
+        "type": "reasoning",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed"
+        },
+        "streams": {}
+      },
+      "category": "thought"
+    },
+    {
+      "name": "canonical view vocabulary",
+      "item": {
+        "id": "activity-15",
+        "type": "image_view",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed"
+        },
+        "streams": {}
+      },
+      "category": "view"
+    },
+    {
+      "name": "canonical command vocabulary",
+      "item": {
+        "id": "activity-16",
+        "type": "command_execution",
+        "state": "completed",
+        "payload": {
+          "name": "Unclassified activity",
+          "status": "completed"
+        },
+        "streams": {}
+      },
+      "category": "command"
+    },
+    {
+      "name": "MCP identity precedes delegation flags",
+      "item": {
+        "id": "activity-mcp-delegate",
+        "type": "mcp_tool_call",
+        "state": "completed",
+        "payload": {
+          "name": "mcp__fixture__run",
+          "serverId": "fixture",
+          "isCrossagent": true,
+          "kind": "execute",
+          "status": "completed"
+        },
+        "streams": {}
+      },
+      "category": "mcp"
+    }
+  ]
+}

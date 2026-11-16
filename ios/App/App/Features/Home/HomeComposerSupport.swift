@@ -515,10 +515,12 @@ enum HomeComposerCatalog {
     presentationMode: ThreadPresentationMode
   ) -> [HomeComposerModel] {
     let capability = capabilities(for: agent, presentationMode: presentationMode)
+    var seen = Set<String>()
     return capability["models"]?.arrayValue?.compactMap { value in
       guard let object = value.objectValue,
         let modelID = object["id"]?.stringValue,
-        !modelID.isEmpty
+        !modelID.isEmpty,
+        seen.insert(modelID).inserted
       else { return nil }
       let advertisedLabel = object["label"]?.stringValue ?? modelID
       return HomeComposerModel(
@@ -736,6 +738,19 @@ enum HomeComposerPermission: String, CaseIterable, Identifiable {
     case .auto: HomeStrings.auto
     case .bypass: HomeStrings.bypass
     case .configured: SettingsUIStrings.configurationSection
+    }
+  }
+
+  func approvalPolicy(capabilities: [String: JSONValue]) -> String? {
+    let bypass = capabilities["bypassPermissions"]?.objectValue
+    let prefersDeclared = bypass?["preferDeclaredApprovalPolicy"]?.boolValue == true
+    switch self {
+    case .auto:
+      return prefersDeclared ? capabilities["defaultApprovalPolicy"]?.stringValue : nil
+    case .bypass:
+      return prefersDeclared ? bypass?["approvalPolicy"]?.stringValue : "never"
+    case .configured:
+      return nil
     }
   }
 }

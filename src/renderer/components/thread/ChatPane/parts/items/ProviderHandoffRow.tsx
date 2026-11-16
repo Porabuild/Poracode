@@ -6,9 +6,8 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useThreadAgentStatuses } from "@/renderer/hooks/uiSelectors";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 
 /**
@@ -25,23 +24,14 @@ export function ProviderHandoffRow({
 }) {
   const { t } = useLingui();
   const thread = useAppStore((state) => state.threads.find((entry) => entry.id === threadId));
-  const projectLocation = useAppStore(
-    (state) => state.projects.find((project) => project.id === thread?.projectId)?.location,
-  );
-  const threadAgentStatuses = useThreadAgentStatuses({
-    remoteServerId: thread?.remoteServerId,
-    projectLocation,
-  });
-  const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
-  // A WSL project's agents are only in the WSL list, so consult both rather
-  // than falling back to the bare kind ("copilot") for those threads.
-  const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
+  // A thread's agents are in its host's pool for the project's environment
+  // (WSL projects: the WSL list), so consult both pools rather than falling
+  // back to the bare kind ("copilot") for those threads.
+  const pools = useHostAgentStatusPools(thread?.remoteServerId);
   const payload = getRuntimeItemPayload<ProviderHandoffItemPayload>(item, "provider_handoff");
   if (!payload) return null;
 
-  const labelStatuses = thread?.remoteServerId
-    ? threadAgentStatuses
-    : [...agentStatuses, ...wslAgentStatuses];
+  const labelStatuses = [...pools.windows, ...pools.wsl];
   const labelFor = (kind: string) =>
     labelStatuses.find((status) => status.kind === kind)?.label ?? kind;
   const fromLabel = labelFor(payload.fromAgentKind);

@@ -3,11 +3,8 @@ package com.poracode.app
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
@@ -56,10 +53,7 @@ class Android37WireLabSmokeInstrumentedTest {
         )
         instrumentation.waitForIdleSync()
 
-        val confirm = context.getString(R.string.confirm_pair_button)
-        compose.onNodeWithText(context.getString(R.string.confirm_pair_title)).assertIsDisplayed()
-        compose.onNodeWithText(confirm).performClick()
-
+        // A loopback pairing deep link pairs immediately: no consent stop.
         val expected = listOf(
             "route:environment",
             "route:token-exchange",
@@ -73,6 +67,10 @@ class Android37WireLabSmokeInstrumentedTest {
         compose.waitUntil(30_000) {
             compose.onAllNodesWithText("Fixture Project").fetchSemanticsNodes().isNotEmpty()
         }
+        assertTrue(
+            compose.onAllNodesWithText(context.getString(R.string.confirm_pair_title))
+                .fetchSemanticsNodes().isEmpty(),
+        )
         assertObserved(control, expected)
     }
 }

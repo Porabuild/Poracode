@@ -27,6 +27,7 @@ vi.mock("node:child_process", async (original) => ({
 vi.mock("@/supervisor/agents/base", async (original) => ({
   ...(await original<typeof import("@/supervisor/agents/base")>()),
   resolveAgentProjectLocation: async (location: unknown) => location,
+  primeProjectShellEnv: async () => undefined,
 }));
 type Harness = Awaited<ReturnType<typeof makeRuntimePayloadCustodyHarness>>;
 let h: Harness | undefined;

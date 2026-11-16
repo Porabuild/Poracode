@@ -22,8 +22,13 @@ import { resolveCodexWindowsLaunchBinary } from "./windowsExecutable";
 import { codexAgentSettingOverrideArgs } from "@/shared/agents/codexAgentSettings";
 import { codexContextWindowOverrides } from "@/shared/agents/codexContextWindows";
 import { buildCodexMcp } from "./mcpConfig";
+import { readCodexNativeMcpNames } from "./nativeMcp";
 import { isCodexAgentsConfigSupported } from "./agentsConfigSupport";
 import { buildCodexMcpSkillConflictArgs } from "./mcpSkillConflicts";
+import {
+  buildCodexBundledSidecarCliArgs,
+  detectConfiguredCodexBundledSidecars,
+} from "./bundledSidecars";
 
 const CODEX_GOALS_FEATURE_FLAG = "goals";
 const codexGoalsSupportCache = new Map<string, boolean>();
@@ -35,10 +40,19 @@ interface BuildCodexArgsOptions {
   supportsAgentsConfig: boolean;
   launchOptions?: AgentLaunchOptions;
   mcpArgs?: string[];
+  bundledSidecarArgs?: string[];
 }
 
 function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
-  const { config, prompt, enableGoals, supportsAgentsConfig, launchOptions, mcpArgs } = opts;
+  const {
+    config,
+    prompt,
+    enableGoals,
+    supportsAgentsConfig,
+    launchOptions,
+    mcpArgs,
+    bundledSidecarArgs,
+  } = opts;
   const args: string[] = [];
 
   if (enableGoals) {
@@ -80,12 +94,14 @@ function buildCodexArgs(opts: BuildCodexArgsOptions): string[] {
     if (config.approvalPolicy) {
       args.push("-a", config.approvalPolicy);
     }
-    if (config.approvalsReviewer) {
-      args.push("-c", `approvals_reviewer="${config.approvalsReviewer}"`);
+    const approvalsReviewer = config.approvalPolicy === "never" ? "user" : config.approvalsReviewer;
+    if (approvalsReviewer) {
+      args.push("-c", `approvals_reviewer="${approvalsReviewer}"`);
     }
     if (config.sandboxMode) {
       args.push("-s", config.sandboxMode);
     }
+    args.push(...(bundledSidecarArgs ?? []));
   }
 
   if (prompt.trim().length > 0) {
@@ -120,12 +136,22 @@ export async function buildCodexArgvFor(
   prompt: string,
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
+  env?: Record<string, string>,
 ): Promise<AgentArgvSpec> {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
   const mcpServers = launchOptions?.mcpServers ?? [];
-  const mcp = buildCodexMcp(mcpServers);
-  const mcpArgs = [...(await buildCodexMcpSkillConflictArgs(location, mcpServers)), ...mcp.args];
-  const mcpEnv = mcp.env;
+  const [nativeNames, skillConflictArgs, detectedSidecars] = await Promise.all([
+    readCodexNativeMcpNames(location, mcpServers, env),
+    buildCodexMcpSkillConflictArgs(location, mcpServers),
+    detectConfiguredCodexBundledSidecars(location, env),
+  ]);
+  const mcp = buildCodexMcp(mcpServers, nativeNames);
+  const bundledSidecarArgs = buildCodexBundledSidecarCliArgs({
+    detected: detectedSidecars,
+    mcpServers,
+  });
+  const mcpArgs = [...skillConflictArgs, ...mcp.args];
+  const mcpEnv = { ...mcp.env, ...env };
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const enableGoals = isCodexGoalsSupported(location);
   const baseArgsOptions: BuildCodexArgsOptions = {
@@ -135,6 +161,7 @@ export async function buildCodexArgvFor(
     supportsAgentsConfig: isCodexAgentsConfigSupported(location),
     ...(launchOptions ? { launchOptions } : {}),
     mcpArgs,
+    bundledSidecarArgs,
   };
   // When the structured session owns thread lifecycle, the TUI resumes the
   // server-created thread. Config is controlled by the server, not the CLI.
@@ -179,6 +206,7 @@ export async function buildCodexAppServerCommand(
     wslNodePath?: string;
     mcpServers?: readonly ResolvedMcpServer[];
     includeMcpConfig?: boolean;
+    nativeMcpNames?: readonly string[];
     /** Stored Codex agent settings; sub-agent defaults apply to the whole shared app-server. */
     agentSettings?: Record<string, boolean | string>;
     /**
@@ -191,7 +219,10 @@ export async function buildCodexAppServerCommand(
   const wslExecPath = options?.wslExecPath;
   const wslNodePath = options?.wslNodePath;
   const mcpServers = options?.mcpServers ?? [];
-  const mcp = buildCodexMcp(mcpServers);
+  const nativeNames =
+    options?.nativeMcpNames ??
+    (await readCodexNativeMcpNames(location, mcpServers, options?.env, wslExecPath));
+  const mcp = buildCodexMcp(mcpServers, nativeNames);
   const includeMcpConfig = options?.includeMcpConfig ?? true;
   const mcpSkillConflictArgs = await buildCodexMcpSkillConflictArgs(location, mcpServers);
   const mcpEnv = { ...mcp.env, ...(options?.env ?? {}) };

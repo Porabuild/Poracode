@@ -1,6 +1,5 @@
 import type {
   BackgroundTask,
-  CanonicalItemType,
   CanonicalRequestType,
   FileCheckpointRecord,
   FileCheckpointTurn,
@@ -13,16 +12,20 @@ import type { PersistedRuntimeItem } from "@/shared/ipc";
 import type { HistoryRuntimeItem } from "@/shared/remote/historyPresentation";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { retainPendingThreadInputItems } from "../pendingThreadInput";
 import { forgetThreadGalleryCache } from "../threadGalleryCache";
-import { forgetThreadPromptIndex } from "../threadPromptIndexCache";
+import { forgetThreadPromptIndex, invalidateThreadPromptIndex } from "../threadPromptIndexCache";
 import {
   applyRuntimeEventsToState,
   applyRuntimeEventBatchesToState,
   mergeCompletedTurns,
 } from "./runtimeEventReducer";
 import { markLiveCrossagentItems, terminateStaleSubAgentItems } from "./staleSubAgents";
-import { hydrateRuntimeStream, type RuntimeStreamRetention } from "./runtimeStreamRetention";
+import { hydrateRuntimeStream } from "./runtimeStreamRetention";
+import type { RuntimeChatItem } from "./runtimeChatItem";
 import { getRuntimeItemPayload } from "@/shared/runtimeItemVisibility";
+
+export type { RuntimeChatItem } from "./runtimeChatItem";
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -38,46 +41,6 @@ export interface CompletedTurnRecord {
   startedAt: number;
   endedAt: number;
   anchorItemId: string | null;
-}
-
-/** Per-thread record of canonical chat items, derived from RuntimeEvent streams. */
-export interface RuntimeChatItem {
-  /** Presentation-only marker; full stored bodies are loaded on expansion. */
-  detailsDeferred?: true;
-  id: string;
-  type: CanonicalItemType;
-  /** "started" / "updated" land on items that haven't ended yet; "completed" → final. */
-  state: "started" | "updated" | "completed";
-  /** Local wall-clock timing for delegated-agent parents. Not persisted; provider duration is the reload fallback. */
-  startedAt?: number;
-  completedAt?: number;
-  /** Last payload object reported via `item.started` or `item.updated`. */
-  payload?: unknown;
-  /** Streamed content buckets (markdown text, command output, etc.). */
-  streams: Partial<Record<RuntimeContentStreamKind, string>>;
-  /**
-   * Session-local offsets/counts for bounded stream projections. Stored on the
-   * item so eviction/reset also releases them; never serialized or persisted.
-   * The strings above remain the display/copy representation, including gaps.
-   */
-  streamRetention?: Partial<Record<RuntimeContentStreamKind, RuntimeStreamRetention>>;
-  /**
-   * Identifier of a parent tool_call row when this item was emitted by a
-   * sub-agent (e.g. items inside a Claude `Task` tool use). Set on
-   * `item.started` and immutable thereafter. The chat timeline groups children
-   * under their parent row instead of listing them as top-level entries.
-   */
-  parentItemId?: string;
-  /**
-   * True when this item was first seen via the LIVE event stream in the current
-   * app session (`item.started`), as opposed to being seeded from the DB on
-   * thread open (`hydrateThreadRuntimeItems`). Scopes background-workflow
-   * liveness: a detached workflow only keeps running if THIS session launched
-   * it, so a row replayed from a prior session's transcript must never light
-   * the working spinner (manifest status can't tell - a crashed run stays
-   * pinned "running" on disk). Never persisted; absent on DB-hydrated items.
-   */
-  observedLive?: boolean;
 }
 
 export function toRuntimeChatItem(
@@ -179,8 +142,6 @@ export interface RuntimeEventSlice {
    * uncovered truncation still pending - the transcript may not reflect a
    * deletion the server made. Drives the pane's resync banner (WS6).
    */
-  truncateReloadExhausted: Record<string, true>;
-  setTruncateReloadExhausted(key: string, exhausted: boolean): void;
   applyRuntimeEvent(threadId: string, event: RuntimeEvent): void;
   applyRuntimeEvents(threadId: string, events: RuntimeEvent[]): void;
   /**
@@ -192,7 +153,7 @@ export interface RuntimeEventSlice {
   ): void;
   clearThreadRuntimeEvents(
     threadId: string,
-    options?: { keepOpenRequests?: boolean; keepTranscript?: boolean },
+    options?: { keepOpenRequests?: boolean; keepTranscript?: boolean; keepPromptIndex?: boolean },
   ): void;
   /**
    * Force-terminate any still-running sub-agent tool_call items in a thread.
@@ -251,6 +212,7 @@ export interface RuntimeEventSlice {
     count: number,
     preserveIds?: ReadonlySet<string>,
   ): void;
+  removeThreadRuntimeItem(threadId: string, itemId: string): void;
   /** Drop an inactive transcript projection without deleting its SQLite rows. */
   evictThreadRuntimeItems(threadId: string): void;
   /** Replace the completed-turn list wholesale (bounded-window cap/drop). */
@@ -286,6 +248,12 @@ export { getRuntimeItemPayload };
  * added here. The slice creator below spreads it too, so a newly-added map is
  * a type error until it lands in this factory.
  */
+const runtimeHydrationPendingStartedAtMs = new Map<string, number>();
+
+export function getRuntimeHydrationPendingStartedAtMs(threadId: string): number | undefined {
+  return runtimeHydrationPendingStartedAtMs.get(threadId);
+}
+
 export function createInitialRuntimeEventState(): Pick<
   RuntimeEventSlice,
   | "runtimeItemIdsByThread"
@@ -299,8 +267,8 @@ export function createInitialRuntimeEventState(): Pick<
   | "fileCheckpointsByThread"
   | "fileCheckpointTurnsByThread"
   | "runtimeHydrationStatus"
-  | "truncateReloadExhausted"
 > {
+  runtimeHydrationPendingStartedAtMs.clear();
   return {
     runtimeItemIdsByThread: {},
     runtimeItemsByIdByThread: {},
@@ -313,19 +281,26 @@ export function createInitialRuntimeEventState(): Pick<
     fileCheckpointsByThread: {},
     fileCheckpointTurnsByThread: {},
     runtimeHydrationStatus: {},
-    truncateReloadExhausted: {},
   };
 }
 
-export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) => ({
+export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set, get) => ({
   ...createInitialRuntimeEventState(),
 
   setRuntimeHydrationStatus: (threadId, status) =>
     set((state) => {
       if (status === null) {
+        runtimeHydrationPendingStartedAtMs.delete(threadId);
         if (!(threadId in state.runtimeHydrationStatus)) return {};
         const { [threadId]: _removed, ...runtimeHydrationStatus } = state.runtimeHydrationStatus;
         return { runtimeHydrationStatus };
+      }
+      if (status === "pending") {
+        if (!runtimeHydrationPendingStartedAtMs.has(threadId)) {
+          runtimeHydrationPendingStartedAtMs.set(threadId, Date.now());
+        }
+      } else {
+        runtimeHydrationPendingStartedAtMs.delete(threadId);
       }
       if (state.runtimeHydrationStatus[threadId] === status) return {};
       return {
@@ -333,35 +308,29 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       };
     }),
 
-  setTruncateReloadExhausted: (key, exhausted) =>
-    set((state) => {
-      if (exhausted) {
-        if (state.truncateReloadExhausted[key]) return {};
-        return { truncateReloadExhausted: { ...state.truncateReloadExhausted, [key]: true } };
-      }
-      if (!(key in state.truncateReloadExhausted)) return {};
-      const { [key]: _removed, ...truncateReloadExhausted } = state.truncateReloadExhausted;
-      return { truncateReloadExhausted };
-    }),
-
   applyRuntimeEvent: (threadId, event) => {
     markLiveCrossagentItems(threadId, [event]);
-    set((state) => applyRuntimeEventsToState(state, threadId, [event]));
+    const next = applyRuntimeEventsToState(get(), threadId, [event]);
+    if (Object.keys(next).length > 0) set(next);
   },
 
   applyRuntimeEvents: (threadId, events) => {
     markLiveCrossagentItems(threadId, events);
-    set((state) => applyRuntimeEventsToState(state, threadId, events));
+    const next = applyRuntimeEventsToState(get(), threadId, events);
+    if (Object.keys(next).length > 0) set(next);
   },
 
   applyRuntimeEventBatches: (batches) => {
     for (const batch of batches) markLiveCrossagentItems(batch.threadId, batch.events);
-    set((state) => applyRuntimeEventBatchesToState(state, batches));
+    const next = applyRuntimeEventBatchesToState(get(), batches);
+    if (Object.keys(next).length > 0) set(next);
   },
 
   clearThreadRuntimeEvents: (threadId, options) =>
     set((state) => {
-      forgetThreadPromptIndex(threadId);
+      if (options?.keepTranscript || options?.keepPromptIndex)
+        invalidateThreadPromptIndex(threadId);
+      else forgetThreadPromptIndex(threadId);
       clearRuntimeStructuralChangeHint(threadId);
       forgetThreadGalleryCache(threadId);
       if (
@@ -375,6 +344,9 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         !(threadId in state.runtimeOpenTurnByThread)
       ) {
         return {};
+      }
+      if (!options?.keepTranscript) {
+        retainPendingThreadInputItems(threadId, state.runtimeItemsByIdByThread[threadId]);
       }
       const { [threadId]: _droppedItemIds, ...runtimeItemIdsByThread } =
         state.runtimeItemIdsByThread;
@@ -578,6 +550,31 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
             ...itemIds.slice(startIndex, endIndex).filter((id) => preserveIds?.has(id)),
             ...itemIds.slice(endIndex),
           ],
+        },
+        runtimeItemsByIdByThread: {
+          ...state.runtimeItemsByIdByThread,
+          [threadId]: nextItemsById,
+        },
+        runtimeStructuralVersionByThread: {
+          ...state.runtimeStructuralVersionByThread,
+          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        },
+      };
+    }),
+
+  removeThreadRuntimeItem: (threadId, itemId) =>
+    set((state) => {
+      const itemIds = state.runtimeItemIdsByThread[threadId];
+      const itemsById = state.runtimeItemsByIdByThread[threadId];
+      if (!itemIds || !itemsById?.[itemId]) return {};
+      const { [itemId]: _removed, ...nextItemsById } = itemsById;
+      invalidateThreadPromptIndex(threadId);
+      clearRuntimeStructuralChangeHint(threadId);
+      forgetThreadGalleryCache(threadId);
+      return {
+        runtimeItemIdsByThread: {
+          ...state.runtimeItemIdsByThread,
+          [threadId]: itemIds.filter((id) => id !== itemId),
         },
         runtimeItemsByIdByThread: {
           ...state.runtimeItemsByIdByThread,

@@ -10,9 +10,10 @@ import { AppContent } from "@/renderer/views/MainView/parts/AppContent/AppConten
 import { SidebarHeaderControls } from "@/renderer/views/MainView/parts/SidebarHeaderControls";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { useProjectIds } from "@/renderer/state/useThread";
+import { getProjectMap, getThreadMap, useProjectIds } from "@/renderer/state/useThread";
 import { closeAllPanels, dismissRightOverlay } from "@/renderer/actions/panelActions";
 import { setMainPanelDropZoneElement, useIsMainPanelDropActive } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 import { DeferredFileEditorPanel } from "@/renderer/deferredFeatures";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useLingui } from "@lingui/react/macro";
@@ -54,16 +55,14 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
   const activeMobileUtilityPage = compactLayout ? mobileUtilityPage : null;
   const compactHome = view.kind === "home" && activeMobileUtilityPage === null;
   const compactThread = useAppStore((state) => {
-    if (state.view.kind !== "thread") return undefined;
+    if (!compactLayout || state.view.kind !== "thread") return undefined;
     const focusedId = state.focusedPaneId;
     const threadId =
       focusedId && state.view.panes.includes(focusedId) ? focusedId : state.view.panes[0];
-    return state.threads.find((thread) => thread.id === threadId);
+    return getThreadMap(state.threads).get(threadId);
   });
   const compactProject = useAppStore((state) =>
-    compactThread
-      ? state.projects.find((project) => project.id === compactThread.projectId)
-      : undefined,
+    compactThread ? getProjectMap(state.projects).get(compactThread.projectId) : undefined,
   );
   const compactAgentStatuses = useProjectAgentStatuses(compactProject?.location);
   const compactAgentStatus = compactAgentStatuses.find(
@@ -73,6 +72,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
     view.kind === "experiment" ? (state.experiments[view.experimentId]?.title ?? null) : null,
   );
   const compactTitle = useAppStore((state) => {
+    if (!compactLayout) return getAppName(channel, isDev);
     if (activeMobileUtilityPage === "profile") return t`Profile`;
     if (activeMobileUtilityPage === "usage") return t`Usage`;
     if (activeMobileUtilityPage === "projects") return t`Projects`;
@@ -88,9 +88,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
       const focusedId = state.focusedPaneId;
       const threadId =
         focusedId && state.view.panes.includes(focusedId) ? focusedId : state.view.panes[0];
-      return (
-        state.threads.find((thread) => thread.id === threadId)?.title ?? getAppName(channel, isDev)
-      );
+      return getThreadMap(state.threads).get(threadId)?.title ?? getAppName(channel, isDev);
     }
     if (state.view.kind === "draft") return t`New thread`;
     if (state.view.kind === "experiment") return experimentTitle ?? t`Experiment`;
@@ -183,12 +181,13 @@ function DesktopMainPanelDropZone(props: { children: ReactNode }) {
   // The dnd-kit registration keeps the source from going into "no valid
   // target" cancellation; pointer hit-testing is done by the dnd module via
   // the element registered through `setMainPanelDropZoneElement` below.
-  useDroppable({
+  const droppableResult = useDroppable({
     id: "main-panel-drop-zone",
     accept: "sidebar-panel",
     data: { type: "main-panel-drop-zone" },
     element: elementRef,
   });
+  useClearDndEntityElementsOnUnmount(droppableResult);
   const isActive = useIsMainPanelDropActive();
 
   useEffect(() => {

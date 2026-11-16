@@ -50,7 +50,7 @@ class PortForwardRemoteApiClient(
 ) : PortForwardRemoteGateway {
     override suspend fun snapshot(): PortForwardSnapshot {
         val route = RemoteV3PortContract.route("ports-read")
-        val raw = api.requestText(route.path, expectedStatus = route.expectedStatus)
+        val raw = api.requestText(route.path, expectedStatus = route.expectedStatus, retryableRead = true)
         return RemoteV3PortContract.decodePorts(raw)
     }
 

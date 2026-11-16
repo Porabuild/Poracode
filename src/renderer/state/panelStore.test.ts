@@ -195,6 +195,23 @@ describe("compact project settings navigation", () => {
     });
   });
 
+  it("deep-links project settings to a section and forgets it on close", () => {
+    usePanelStore.getState().openProjectSettings("proj-1", "mcp");
+    expect(usePanelStore.getState()).toMatchObject({
+      projectSettingsId: "proj-1",
+      projectSettingsSection: "mcp",
+    });
+
+    usePanelStore.getState().openProjectSettings("proj-1", "plugins");
+    expect(usePanelStore.getState().projectSettingsSection).toBe("plugins");
+
+    usePanelStore.getState().closeProjectSettings();
+    expect(usePanelStore.getState()).toMatchObject({
+      projectSettingsId: null,
+      projectSettingsSection: null,
+    });
+  });
+
   it("keeps the desktop project settings overlay route unchanged", () => {
     resetAdaptiveLayoutForTest();
     stubMatchMedia(() => false);
@@ -492,6 +509,18 @@ describe("create project modal", () => {
 
     usePanelStore.getState().closeCreateProjectModal();
     expect(usePanelStore.getState().createProjectModalOpen).toBe(false);
+  });
+
+  it("opens the remote folder picker for one paired machine at a time", () => {
+    expect(usePanelStore.getState().remoteFolderPickerConnectionKey).toBeNull();
+
+    usePanelStore.getState().openRemoteFolderPicker("mac");
+    expect(usePanelStore.getState().remoteFolderPickerConnectionKey).toBe("mac");
+    usePanelStore.getState().openRemoteFolderPicker("linux-box");
+    expect(usePanelStore.getState().remoteFolderPickerConnectionKey).toBe("linux-box");
+
+    usePanelStore.getState().closeRemoteFolderPicker();
+    expect(usePanelStore.getState().remoteFolderPickerConnectionKey).toBeNull();
   });
 });
 

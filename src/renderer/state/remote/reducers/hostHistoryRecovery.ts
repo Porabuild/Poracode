@@ -1,0 +1,164 @@
+import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
+import type { SupervisorEvent } from "@/shared/ipc";
+import { useAppStore } from "@/renderer/state/appStore";
+import { rehydrateThreadRuntimeItemsAfterReset } from "@/renderer/state/chatRuntimePersister";
+import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
+import type { resumeHostThreadHistory } from "@/renderer/state/hostThreadHistory";
+import { readHistoryResume } from "@/renderer/state/historyResumeRegistry";
+import type {
+  RuntimeEventRecoveryStrategy,
+  RuntimeQueueArbitration,
+} from "./supervisorEventReducer";
+
+/**
+ * The recovery strategy for every host, desktop-managed or paired. The host
+ * persists runtime events before broadcasting them, so after a queue overflow,
+ * a `thread-reset` or a reconnect the renderer re-reads the thread's history
+ * from the host that owns it (resuming from the last seen event when the host
+ * serves a cursor), and the reducer resumes live deltas only once that read
+ * has landed.
+ */
+export interface HostHistoryRecovery {
+  readonly strategy: RuntimeEventRecoveryStrategy;
+  /** Records the transport sequence of every sequenced event, per thread. */
+  readonly noteSequencedSupervisorEvent: (
+    event: SupervisorEvent,
+    rendererSequence: number,
+    space?: EventSequenceSpace,
+  ) => void;
+  /** A new backend renderer-stream generation invalidates prior reads. */
+  readonly onTransportGenerationChanged: () => void;
+  readonly clearSequenceTracking: () => void;
+}
+
+/**
+ * The owning host's resume step and resume authority, registered by the host
+ * history module (kept out of this module's imports: the live reducer that
+ * creates this recovery must not import the host graph).
+ */
+export interface HostHistoryResumer {
+  readonly resume: typeof resumeHostThreadHistory;
+  readonly resumeAuthority: (threadId: string) => string | undefined;
+}
+
+let resumer: HostHistoryResumer | null = null;
+
+export function setHostHistoryResumer(next: HostHistoryResumer | null): void {
+  resumer = next;
+}
+
+export function createHostHistoryRecovery(deps: {
+  readonly getArbitration: () => RuntimeQueueArbitration;
+}): HostHistoryRecovery {
+  let rendererTransportGeneration = 0;
+  const latestRendererSequenceByThread = new Map<
+    string,
+    Partial<Record<EventSequenceSpace, number>>
+  >();
+
+  /**
+   * A host snapshot is only as new as the read. Repeat the read when the
+   * renderer observed new sequenced events during it; the next read then
+   * includes those persisted rows. A sustained stream eventually becomes an
+   * explicit failed/retryable state instead of an unbounded recovery loop.
+   */
+  async function recoverRuntimeThread(threadId: string): Promise<boolean> {
+    const generation = rendererTransportGeneration;
+    let resume: Awaited<ReturnType<HostHistoryResumer["resume"]>>;
+    try {
+      const pendingResume = resumer?.resume(
+        { id: threadId },
+        {
+          arbitration: deps.getArbitration(),
+          isCurrent: () => rendererTransportGeneration === generation,
+          lastSeenEventSeq: () => latestRendererSequenceByThread.get(threadId)?.loopback,
+        },
+      );
+      resume = pendingResume ? await pendingResume : null;
+    } catch {
+      return false;
+    }
+    if (resume?.kind === "stale") return false;
+    if (resume?.kind === "applied") return resume.applied;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const before = { ...latestRendererSequenceByThread.get(threadId) };
+      // Keep the reader visible during I/O. Reset and install in the same
+      // synchronous continuation, after the authoritative read succeeds.
+      const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId, {
+        ...(attempt === 0 && resume?.kind === "snapshot" ? { historyPage: resume.page } : {}),
+        beforeInstall: () => {
+          if (rendererTransportGeneration !== generation) return false;
+          // The DB contains transcript rows, not authoritative open requests.
+          useAppStore.getState().clearThreadRuntimeEvents(threadId, {
+            keepOpenRequests: true,
+            keepPromptIndex: true,
+          });
+          clearRuntimeItemStoreSelectorCacheForThread(threadId);
+          return true;
+        },
+      });
+      if (!recovered) return false;
+      if (rendererTransportGeneration !== generation) return false;
+      const authority = resumer?.resumeAuthority(threadId);
+      const snapshot = authority && readHistoryResume(threadId, authority);
+      if (snapshot) {
+        const arbitration = deps.getArbitration();
+        if (arbitration.hasUnsequenced(threadId)) return false;
+        // The host's snapshot cursor covers a fixed prefix even while newer
+        // deltas arrive. Keep that tail queued instead of waiting for silence.
+        arbitration.discardThroughSequence(threadId, snapshot.appliedSeq, "loopback");
+        return true;
+      }
+      const after = latestRendererSequenceByThread.get(threadId) ?? before;
+      if (after.ipc !== before.ipc || after.loopback !== before.loopback) continue;
+      const arbitration = deps.getArbitration();
+      if (arbitration.hasUnsequenced(threadId)) return false;
+      for (const space of ["ipc", "loopback"] as const) {
+        const sequence = after[space];
+        if (sequence !== undefined) arbitration.discardThroughSequence(threadId, sequence, space);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  const strategy: RuntimeEventRecoveryStrategy = {
+    preservesOpenRequests: true,
+    preservesTranscript: true,
+    recoverFromQueueOverflow: (threadIds) => {
+      if (threadIds.length === 1) {
+        const [threadId] = threadIds;
+        return recoverRuntimeThread(threadId!);
+      }
+      return Promise.all(threadIds.map((threadId) => recoverRuntimeThread(threadId))).then(
+        (results) => results.every(Boolean),
+      );
+    },
+    recoverFromThreadReset: (threadId) => recoverRuntimeThread(threadId),
+  };
+
+  return {
+    strategy,
+    noteSequencedSupervisorEvent: (event, rendererSequence, space = "ipc") => {
+      const note = (threadId: string): void => {
+        const previous = latestRendererSequenceByThread.get(threadId) ?? {};
+        latestRendererSequenceByThread.set(threadId, {
+          ...previous,
+          [space]: rendererSequence,
+        });
+      };
+      if (event.type === "thread-runtime-events-multi") {
+        for (const batch of event.batches) note(batch.threadId);
+      } else if ("threadId" in event) {
+        note(event.threadId);
+      }
+    },
+    onTransportGenerationChanged: () => {
+      rendererTransportGeneration += 1;
+      latestRendererSequenceByThread.clear();
+    },
+    clearSequenceTracking: () => {
+      latestRendererSequenceByThread.clear();
+    },
+  };
+}

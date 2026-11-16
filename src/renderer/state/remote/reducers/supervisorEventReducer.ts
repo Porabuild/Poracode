@@ -5,10 +5,10 @@ import {
 } from "@/renderer/state/pendingThreadInput";
 import { historyContentOmissions } from "@/renderer/state/historyDelivery";
 import { noteHistoryDeliveryGap } from "@/renderer/state/historyResumeRegistry";
+import { isRendererRuntimeInterestWireCovered } from "@/renderer/state/rendererEventInterests";
 import {
   noteAppliedHistoryBatches,
   noteImmediatelyAppliedHistoryBatches,
-  hasHistoryTranscriptCoverage,
   appliedHistoryTranscriptSequence,
 } from "@/renderer/state/historyResumeApplied";
 import {
@@ -16,6 +16,7 @@ import {
   subscribeRuntimeHistoryReadCompletion,
 } from "@/renderer/state/runtimeHistoryReadBarrier";
 import {
+  boundSettledThreadRuntimeWindows,
   boundVisibleThreadRuntimeWindows,
   evictOversizedInactiveThreadRuntimeItems,
   forgetThreadRuntimeWindow,
@@ -23,6 +24,8 @@ import {
 import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import { RuntimeEventQueue, type RuntimeEventQueueBatch } from "@/renderer/state/runtimeEventQueue";
+import { invalidateRuntimeHistoryRead } from "@/renderer/state/runtimeHistoryBoundary";
+import { forgetBoundedHistoryThreadByViewId } from "@/renderer/state/remoteServers/catalog/boundedHistoryRegistry";
 import { drainRuntimeEventQueue } from "@/renderer/state/runtimeEventDrain";
 import { createRecoveryRetries } from "./recoveryRetries";
 import {
@@ -30,28 +33,25 @@ import {
   type AgentStatusSupervisorEvent,
   type SupervisorEvent,
 } from "@/shared/ipc";
-import type { RuntimeEvent, Thread } from "@/shared/contracts";
+import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 
 /**
- * THE one `SupervisorEvent` reducer (V5 plan 2.3 / T3).
+ * THE one `SupervisorEvent` reducer (V5 plan 2.3 / T3), for every host.
  *
- * Desktop (`app.tsx`) and remote clients (`state/remote/sync.ts`) used to run
- * two hand-maintained copies of this state machine over the same event union.
- * They diverged on selector-cache invalidation and on reset/resume ordering.
- * This module is the single implementation; each flavor injects:
+ * The desktop's own host (`app.tsx`) and paired hosts (`state/remote/sync.ts`)
+ * run this one state machine over the same event union; each composition
+ * injects:
  *
- * - a RECOVERY STRATEGY — how authoritative state is re-installed when the
- *     bounded runtime queue overflows, and how a `thread-reset` orders the
- *     resume:
- *     - local snapshot (`localSnapshotRecovery.ts`): the desktop re-reads the
- *       backend-persisted runtime history and resumes only once it lands;
- *     - HTTP snapshot (remote): the caller re-fetches snapshots from the host
- *       for overflow, and a reset — having no snapshot to await — resumes the
- *       queue immediately so fresh deltas are not blocked behind recovery.
- * - persistence/surface hooks — the fan-outs only one flavor owns (Electron
- *     terminal scrollback + dev shells, provider usage, agent-status bulk
- *     discovery; remote launch-config normalization and mobile side effects).
+ * - a RECOVERY STRATEGY (`hostHistoryRecovery.ts`) — how authoritative state
+ *     is re-installed when the bounded runtime queue overflows, a
+ *     `thread-reset` arrives or a connection resumes: the thread's history is
+ *     re-read from its owning host and the queue resumes only once that read
+ *     has landed;
+ * - persistence/surface hooks — the fan-outs only one composition owns
+ *     (desktop terminal scrollback + dev shells, provider usage, agent-status
+ *     bulk discovery; paired launch-config normalization and mobile side
+ *     effects).
  *
  * The core owns everything shared: the bounded runtime event queue, the
  * frame-paced flush scheduling, overflow lifecycle (in-flight/invalidated
@@ -169,25 +169,29 @@ export interface SupervisorEventReducerConfig {
    * `shell:`; the event is fully consumed afterwards (dev shells never touch
    * the thread stores).
    */
-  readonly routeShellEvent?: (event: SupervisorEvent) => void;
+  readonly routeShellEvent?: ((event: SupervisorEvent) => void) | undefined;
   /** Electron persistence hooks: the renderer-side terminal scrollback accumulator. */
-  readonly onThreadOutput?: (threadId: string, data: string) => void;
-  readonly onThreadOutputCleared?: (threadId: string) => void;
+  readonly onThreadOutput?: ((threadId: string, data: string) => void) | undefined;
+  readonly onThreadOutputCleared?: ((threadId: string) => void) | undefined;
   /** Flavor-specific agent-status fan-out (bulk discovery is desktop-only). */
   readonly onAgentStatusEvent?: (event: AgentStatusSupervisorEvent) => void;
-  readonly onProviderUsage?: (event: ProviderUsageSupervisorEvent) => void;
-  readonly onProviderUsageAll?: (event: ProviderUsageAllSupervisorEvent) => void;
+  readonly onProviderUsage?: ((event: ProviderUsageSupervisorEvent) => void) | undefined;
+  readonly onProviderUsageAll?: ((event: ProviderUsageAllSupervisorEvent) => void) | undefined;
   /** Remote: snapshot-shaped thread-state events normalize a missing launchConfig to null. */
   readonly normalizeThreadState?: (event: ThreadStateSupervisorEvent) => ThreadStateEventPayload;
   /** Electron perf diagnostics (Gate 4). `stats` is filled by the flush. */
-  readonly wrapFlush?: (
-    run: () => void,
-    stats: { drainedThreads: number; drainedEvents: number },
-  ) => void;
-  readonly wrapApply?: (
-    run: () => void,
-    stats: { drainedThreads: number; drainedEvents: number },
-  ) => void;
+  readonly wrapFlush?:
+    | ((run: () => void, stats: { drainedThreads: number; drainedEvents: number }) => void)
+    | undefined;
+  readonly wrapApply?:
+    | ((run: () => void, stats: { drainedThreads: number; drainedEvents: number }) => void)
+    | undefined;
+  /**
+   * True when the thread's installed authoritative history already includes
+   * the host's events through `sequence`: a replayed `runtime.truncated` at or
+   * below it would only roll back newer state.
+   */
+  readonly isHistoryIncorporated?: ((threadId: string, sequence: number) => boolean) | undefined;
   /** Flavor-specific post-drain persistence, such as durable usage capture. */
   readonly afterApply?: (
     batches: readonly RuntimeEventQueueBatch[],
@@ -212,6 +216,12 @@ export interface SupervisorEventReducer {
   ): void;
   /** Drains one thread's queued deltas synchronously, preserving event order. */
   flushSync(threadId: string): void;
+  /**
+   * Drops one thread's queued, not yet applied deltas without applying them:
+   * its host restarted, so its sequence space restarted and every queued frame
+   * belongs to the previous instance.
+   */
+  discardQueued(threadId: string): void;
   /** Reacquired live content needs a baseline before queued deltas resume. */
   recoverRuntimeHistory(threadId: string): void;
   /**
@@ -307,15 +317,20 @@ export function createSupervisorEventReducer(
         (threadId) => !isRuntimeHistoryReadHeld(threadId) && shouldFlush(threadId),
         (batches, sliceStats) => {
           const store = useAppStore.getState();
+          const previousRuntimeItemsByThread = store.runtimeItemsByIdByThread;
           const threadMetadata = store.threads;
           const applyBatches = (): void => {
             store.applyRuntimeEventBatches(batches);
           };
           if (config.wrapApply) config.wrapApply(applyBatches, sliceStats);
           else applyBatches();
+          const nextStore = useAppStore.getState();
+          const batchThreadIds = batches.map((batch) => batch.threadId);
           noteAppliedHistoryBatches(batches, threadMetadata);
-          evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-          boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
+          if (nextStore.runtimeItemsByIdByThread !== previousRuntimeItemsByThread) {
+            evictOversizedInactiveThreadRuntimeItems(batchThreadIds);
+          }
+          boundVisibleThreadRuntimeWindows(batchThreadIds);
           config.afterApply?.(batches, {
             threadMetadata,
             ...sliceStats,
@@ -453,7 +468,57 @@ export function createSupervisorEventReducer(
     );
   };
 
+  /**
+   * A host truncation deletes the thread's tail. One the installed history
+   * already includes is dropped; any other invalidates in-flight reads and the
+   * recorded continuation, and when this client has not loaded the checkpoint
+   * it cannot tell what was deleted, so the thread re-baselines from its host.
+   */
+  const admitTruncations = (
+    batches: readonly RuntimeBatchInput[],
+    sequence: number | undefined,
+  ): { readonly batches: readonly RuntimeBatchInput[]; readonly rebaseline: string[] } => {
+    const rebaseline: string[] = [];
+    if (!batches.some((batch) => batch.events.some((event) => event.type === "runtime.truncated")))
+      return { batches, rebaseline };
+    const admitted = batches.flatMap((batch) => {
+      const events = batch.events.filter(
+        (event) =>
+          event.type !== "runtime.truncated" ||
+          sequence === undefined ||
+          config.isHistoryIncorporated?.(batch.threadId, sequence) !== true,
+      );
+      for (const event of events) {
+        if (event.type !== "runtime.truncated") continue;
+        invalidateRuntimeHistoryRead(batch.threadId);
+        forgetBoundedHistoryThreadByViewId(batch.threadId);
+        const loaded =
+          useAppStore.getState().runtimeItemIdsByThread[batch.threadId]?.includes(event.itemId) ===
+          true;
+        if (!loaded) rebaseline.push(batch.threadId);
+      }
+      return events.length > 0 ? [{ threadId: batch.threadId, events }] : [];
+    });
+    return { batches: admitted, rebaseline };
+  };
+
   const enqueueRuntimeBatches = (
+    input: readonly RuntimeBatchInput[],
+    options?: RuntimeBatchDispatchOptions,
+  ): void => {
+    const { batches, rebaseline } = admitTruncations(input, options?.rendererSequence);
+    try {
+      enqueueAdmittedRuntimeBatches(batches, options);
+    } finally {
+      for (const threadId of rebaseline) {
+        // A recovery already reading may predate this truncation: let it retry.
+        if (runtimeRecoveryInFlight.has(threadId)) runtimeRecoveryInvalidated.add(threadId);
+        else recoverRuntimeHistory(threadId);
+      }
+    }
+  };
+
+  const enqueueAdmittedRuntimeBatches = (
     batches: readonly RuntimeBatchInput[],
     options?: RuntimeBatchDispatchOptions,
   ): void => {
@@ -462,8 +527,7 @@ export function createSupervisorEventReducer(
       noteHistoryDeliveryGap(threadId);
       if (
         options?.rendererSequence !== undefined &&
-        (runtimeRecoveryInFlight.has(threadId) ||
-          hasHistoryTranscriptCoverage(threadId, useAppStore.getState().threads))
+        (runtimeRecoveryInFlight.has(threadId) || isRendererRuntimeInterestWireCovered(threadId))
       ) {
         pendingContentOmissions.set(
           threadId,
@@ -475,6 +539,14 @@ export function createSupervisorEventReducer(
     if (batches.length === 0) return;
     for (const batch of batches)
       notePendingThreadInputCanonicalEvents(batch.threadId, batch.events);
+    // A batch intake's sequences arbitrate recovery exactly like a dispatched frame's.
+    if (options?.rendererSequence !== undefined && config.onSequencedEvent)
+      for (const batch of batches)
+        config.onSequencedEvent(
+          { type: "thread-runtime-events", threadId: batch.threadId, events: [...batch.events] },
+          options.rendererSequence,
+          options.sequenceSpace ?? "ipc",
+        );
     if (options?.deliverRuntimeEventsImmediately) {
       // Ordered authoritative replay (recovery): apply directly without
       // re-entering the bounded queue.
@@ -548,8 +620,7 @@ export function createSupervisorEventReducer(
     if (runtimeRecoveryInFlight.has(threadId)) return;
     recoveryRetries.cancel(threadId);
     // A visible failure gives way to the attempt; it returns if retries run out.
-    if (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed")
-      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
+    useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
     queue.block(threadId);
     runtimeRecoveryInFlight.add(threadId);
     const resume = createGroupResume([threadId]);
@@ -626,6 +697,9 @@ export function createSupervisorEventReducer(
         if (event.status === "inactive" || event.status === "error") {
           useAppStore.getState().reconcileStaleSubAgents(event.threadId);
         }
+        if (!isThreadTurnActive(event.status)) {
+          boundSettledThreadRuntimeWindows([event.threadId]);
+        }
         options?.sideEffects?.onThreadState?.({
           threadId: event.threadId,
           status: event.status,
@@ -660,7 +734,9 @@ export function createSupervisorEventReducer(
       }
       case "thread-exited":
         useAppStore.getState().markThreadExited(event.threadId);
+        useAppStore.getState().reconcileStaleSubAgents(event.threadId);
         useAppStore.getState().clearAllPendingSteer(event.threadId);
+        boundSettledThreadRuntimeWindows([event.threadId]);
         options?.sideEffects?.onThreadExited?.({
           threadId: event.threadId,
           exitCode: event.exitCode,
@@ -742,7 +818,7 @@ export function createSupervisorEventReducer(
       pendingContentOmissions.delete(threadId);
       return;
     }
-    if (hasHistoryTranscriptCoverage(threadId, threads)) recoverRuntimeHistory(threadId);
+    if (isRendererRuntimeInterestWireCovered(threadId)) recoverRuntimeHistory(threadId);
   };
 
   return {
@@ -754,6 +830,7 @@ export function createSupervisorEventReducer(
     dispatch,
     enqueueRuntimeBatches,
     flushSync,
+    discardQueued: (threadId) => queue.discard(threadId),
     recoverRuntimeHistory,
     noteAuthoritativeBaselines,
     installScheduling,

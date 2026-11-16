@@ -5,6 +5,12 @@ import type {
   SideChatThreadBinding,
   SideChatWindowsChanged,
 } from "./sideChat";
+import type {
+  ThreadWindowBootstrap,
+  ThreadWindowCloseOptions,
+  ThreadWindowNavigation,
+  ThreadWindowsChanged,
+} from "./threadWindow";
 import type { RemoteThreadCommand } from "../contracts";
 import type { RemoteAccessPairingInfo } from "../remote";
 import type { SharedSettings } from "../settings";
@@ -59,6 +65,14 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   bindSideChatThread?: (input: SideChatThreadBinding) => Promise<void>;
   getSideChatThreadIds?: () => Promise<string[]>;
   onSideChatWindowsChanged?: (listener: (event: SideChatWindowsChanged) => void) => () => void;
+  /** Opens the thread in its own window, or focuses the window it already has. */
+  openThreadWindow?: (input: ThreadWindowBootstrap) => Promise<void>;
+  /** Closes the thread's window and, unless told otherwise, shows the thread in the main window. */
+  closeThreadWindow?: (threadId: string, options?: ThreadWindowCloseOptions) => Promise<void>;
+  navigateFromThreadWindow?: (navigation: ThreadWindowNavigation) => Promise<void>;
+  getThreadWindowInfo?: () => Promise<ThreadWindowBootstrap | null>;
+  getThreadWindowIds?: () => Promise<string[]>;
+  onThreadWindowsChanged?: (listener: (event: ThreadWindowsChanged) => void) => () => void;
   platform: NodeJS.Platform;
   appVersion: string;
   arch: string;

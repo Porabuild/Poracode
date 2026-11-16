@@ -68,7 +68,11 @@ export function createAutoUpdaterController(
     onStatus(status);
   }
 
-  function reportClassifiedFailure(operation: UpdateOperation, outcome: UpdateFailureKind): void {
+  function reportClassifiedFailure(
+    operation: UpdateOperation,
+    outcome: UpdateFailureKind,
+    error: unknown,
+  ): void {
     if (outcome === "optional-manifest-missing") {
       console.warn("[poracode] optional nightly update manifest is not available.");
       return;
@@ -85,7 +89,7 @@ export function createAutoUpdaterController(
       return;
     }
     reportError(
-      new UpdateDiagnosticError(operation, outcome),
+      new UpdateDiagnosticError(operation, outcome, error),
       buildUpdateDiagnosticTags(channel, operation, outcome),
     );
   }
@@ -113,7 +117,7 @@ export function createAutoUpdaterController(
           await new Promise((resolve) => setTimeout(resolve, retryDelay));
           continue;
         }
-        reportClassifiedFailure(operation, failure.kind);
+        reportClassifiedFailure(operation, failure.kind, attemptState.eventError ?? error);
         if (updateReady) {
           // A background check/download failed while an update is staged; keep
           // the install affordance instead of replacing it with an error state.
@@ -285,7 +289,7 @@ export function createAutoUpdaterController(
       }
       const operation: UpdateOperation = downloadPromise ? "download" : "check";
       const failure = classifyUpdateFailure(error, operation, channel);
-      reportClassifiedFailure(operation, failure.kind);
+      reportClassifiedFailure(operation, failure.kind, error);
       checkInFlight = false;
       if (updateReady) {
         sendStagedStatus();

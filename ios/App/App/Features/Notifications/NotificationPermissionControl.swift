@@ -6,27 +6,35 @@ struct NotificationPermissionControl: View {
 
   var body: some View {
     Group {
-      switch permissions.state {
-      case .usable:
-        Label(String(localized: "notifications.status.on"), systemImage: "bell.badge.fill")
-      case .denied:
-        Button {
-          permissions.openSettings()
-        } label: {
-          Label(String(localized: "notifications.openSettings"), systemImage: "gear")
-        }
-      case .unknown, .notDetermined:
-        Button {
-          Task { await permissions.requestFromUserAction() }
-        } label: {
-          Label(String(localized: "notifications.enable"), systemImage: "bell.badge")
-        }
-      }
+      permissionAction
       if pushStatus.state == .disabledForPreservedState {
         Label(
           String(localized: "notifications.status.unavailable"),
           systemImage: "exclamationmark.shield"
         )
+      }
+    }
+  }
+
+  /// The permission action row appears only while the system permission is
+  /// missing: denied opens Settings, not-determined requests it. Once usable
+  /// there is nothing to act on, so no row is shown.
+  @ViewBuilder
+  private var permissionAction: some View {
+    switch permissions.state {
+    case .usable:
+      EmptyView()
+    case .denied:
+      Button {
+        permissions.openSettings()
+      } label: {
+        Label(String(localized: "notifications.openSettings"), systemImage: "gear")
+      }
+    case .unknown, .notDetermined:
+      Button {
+        Task { await permissions.requestFromUserAction() }
+      } label: {
+        Label(String(localized: "notifications.enable"), systemImage: "bell.badge")
       }
     }
   }

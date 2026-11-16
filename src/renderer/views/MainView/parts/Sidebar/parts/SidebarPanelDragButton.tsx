@@ -1,6 +1,7 @@
 import { type ReactNode, useId, useRef } from "react";
 import { useDraggable } from "@dnd-kit/react";
 import type { DragSourceData } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 
 export function SidebarPanelDragButton(props: {
   panel: "files" | "git" | "terminal";
@@ -13,8 +14,8 @@ export function SidebarPanelDragButton(props: {
 }) {
   const elementRef = useRef<HTMLDivElement>(null);
   const dragId = useId();
-  useDraggable({
-    id: `sidebar-panel:${props.panel}:${props.projectId}:${props.worktreePath ?? "root"}:${dragId}`,
+  const draggableResult = useDraggable({
+    id: `sidebar-panel:${props.panel}:${dragId}`,
     type: "sidebar-panel",
     data: {
       type: "sidebar-panel",
@@ -24,6 +25,7 @@ export function SidebarPanelDragButton(props: {
     } satisfies DragSourceData,
     element: elementRef,
   });
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   return (
     <div

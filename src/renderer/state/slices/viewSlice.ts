@@ -34,6 +34,13 @@ import { usePanelStore } from "../panelStore";
 export interface ViewSlice {
   view: AppView;
   focusedPaneId: string | null;
+  /**
+   * Bumped whenever a draft is opened. Client-only surfaces use it to re-roll
+   * per-visit content (the news line) even though the draft view stays mounted.
+   * Moving the open draft to another project row (`moveDraft`) keeps the visit,
+   * so the draft view it remounts resumes that content instead.
+   */
+  draftVisit: number;
   pendingComposerFocusThreadId: string | null;
   chatScrollToBottomTokens: Record<string, number>;
   chatScrollToPromptRequests: Record<string, { afterItemId: string | null; remaining: number }>;
@@ -55,6 +62,13 @@ export interface ViewSlice {
   clearChatPromptAnchor: (threadId: string) => void;
   setPendingActiveThread: (threadId: string | null) => void;
   openDraft: (projectId: string) => void;
+  /**
+   * Point the open draft at another project row (another project, or the same
+   * project on another machine) within the current visit, so per-visit content
+   * such as the news line continues. From any other view it opens a draft and
+   * starts a visit, like `openDraft`.
+   */
+  moveDraft: (projectId: string) => void;
   openDraftSideBySide: (projectId: string) => void;
   openHome: () => void;
   openPullRequests: () => void;
@@ -99,6 +113,7 @@ export interface ViewSlice {
 export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
   view: { kind: "home" },
   focusedPaneId: null,
+  draftVisit: 0,
   pendingComposerFocusThreadId: null,
   chatScrollToBottomTokens: {},
   chatScrollToPromptRequests: {},
@@ -148,14 +163,28 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       return { chatPromptAnchorIds: anchors };
     }),
   setPendingActiveThread: (threadId) => set({ pendingActiveThreadId: threadId }),
-  openDraft: (projectId) => set({ view: { kind: "draft", projectId } }),
+  openDraft: (projectId) =>
+    set((state) => ({
+      view: { kind: "draft", projectId },
+      draftVisit: state.draftVisit + 1,
+    })),
+  moveDraft: (projectId) =>
+    set((state) => ({
+      view: { kind: "draft", projectId },
+      ...(state.view.kind === "draft" ? {} : { draftVisit: state.draftVisit + 1 }),
+    })),
   openDraftSideBySide: (projectId) =>
     set((state) => {
+      const draftVisit = state.draftVisit + 1;
       if (state.view.kind !== "thread") {
-        return { view: { kind: "draft", projectId } };
+        return { view: { kind: "draft", projectId }, draftVisit };
       }
       if (state.view.activeGroupId) {
-        return { groupLayouts: saveGroupLayout(state), view: { kind: "draft", projectId } };
+        return {
+          groupLayouts: saveGroupLayout(state),
+          view: { kind: "draft", projectId },
+          draftVisit,
+        };
       }
       const draftPaneId = makeDraftPaneId(projectId);
       const existing = state.view.panes;
@@ -180,6 +209,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
             panes: collectPaneIds(layout),
             paneLayout: layout,
           },
+          draftVisit,
         };
       }
       const rl = state.view.rowLayout;
@@ -196,6 +226,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       );
       return {
         view: nextView,
+        draftVisit,
       };
     }),
   openHome: () => set({ view: { kind: "home" } }),
@@ -234,6 +265,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           if (state.view.panes.includes(threadId)) {
             const cleared = clearFinished(state.threads, [threadId]);
             return {
+              focusedPaneId: threadId,
               ...(cleared ? { threads: cleared } : {}),
               ...keepAlivePatch(state, threadId),
             };
@@ -257,6 +289,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           };
           const cleared = clearFinished(state.threads, nextView.panes);
           return {
+            focusedPaneId: threadId,
             ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
             ...keepAlivePatch(state, threadId),
           };
@@ -265,6 +298,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         const gl = saveGroupLayout(state);
         return {
+          focusedPaneId: threadId,
           groupLayouts: gl,
           view: nextView,
           ...(cleared ? { threads: cleared } : {}),
@@ -284,6 +318,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           if (nextView) {
             const cleared = clearFinished(state.threads, nextView.panes);
             return {
+              focusedPaneId: threadId,
               groupLayouts: gl,
               view: nextView,
               ...(cleared ? { threads: cleared } : {}),
@@ -297,6 +332,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         if (state.view.panes.includes(threadId)) {
           const cleared = clearFinished(state.threads, [threadId]);
           return {
+            focusedPaneId: threadId,
             ...(cleared ? { threads: cleared } : {}),
             ...keepAlivePatch(state, threadId),
           };
@@ -305,6 +341,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const nextPanes = nextView.kind === "thread" ? nextView.panes : [threadId];
         const cleared = clearFinished(state.threads, nextPanes);
         return {
+          focusedPaneId: threadId,
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
           ...keepAlivePatch(state, threadId),
         };
@@ -312,6 +349,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const nextView: AppView = { kind: "thread", panes: [threadId] };
       const cleared = clearFinished(state.threads, [threadId]);
       return {
+        focusedPaneId: threadId,
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
         ...keepAlivePatch(state, threadId),
       };

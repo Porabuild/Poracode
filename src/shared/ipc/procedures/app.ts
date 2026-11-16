@@ -10,10 +10,17 @@ import {
   keybindingsFileSchema,
 } from "../../keybindings";
 import { remoteGitSummariesSchema, type RemoteAccessPairingInfo } from "../../remote";
+import type {
+  LockedComputerUseActionResult,
+  LockedComputerUseStatus,
+} from "../../contracts/lockedComputerUse";
 import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
+  closeLocalPortPayloadSchema,
+  closeLocalPortResultSchema,
   copyImageToClipboardPayloadSchema,
   createProjectDirectoryPayloadSchema,
+  listLocalPortsResultSchema,
   openExternalPayloadSchema,
   pickFilesOptionsSchema,
   readLocalImageFilePayloadSchema,
@@ -21,7 +28,10 @@ import {
   saveHandoffContextPayloadSchema,
   saveImageFilePayloadSchema,
   showNotificationPayloadSchema,
+  type CloseLocalPortPayload,
+  type CloseLocalPortResult,
   type CreateProjectDirectoryResult,
+  type ListLocalPortsResult,
 } from "../schemas";
 
 export const publishRemoteGitSummariesPayloadSchema = z.object({
@@ -41,6 +51,15 @@ export const detectProjectIconPayloadSchema = z.object({
 
 export const revokeRemoteAccessSessionPayloadSchema = z.object({
   sessionId: z.string().min(1),
+});
+
+export const resolveLinkMetadataPayloadSchema = z.object({
+  url: z.string().min(1).max(2048),
+});
+
+export const linkMetadataSchema = z.object({
+  title: z.string().nullable(),
+  description: z.string().nullable(),
 });
 
 export const setRemoteAccessEnabledPayloadSchema = z.object({
@@ -98,10 +117,6 @@ export interface StartTailscaleResult {
   readonly message?: string;
 }
 
-export interface LegacyDataMigrationRequestResult {
-  readonly status: "scheduled" | "no-legacy-data" | "unavailable";
-}
-
 export const appProcedures = {
   pickFolder: defineIpcProcedure<[string?], string | undefined, string | null, "main-local">(
     "pickFolder",
@@ -152,12 +167,23 @@ export const appProcedures = {
     Uint8Array,
     "main-local"
   >("readLocalImageFile", "main-local", readLocalImageFilePayloadSchema),
+  // Distinct bounded device read; older dispatchers reject this name before I/O.
+  readClientDraftFile: definePayloadProcedure<
+    z.infer<typeof readLocalImageFilePayloadSchema>,
+    Uint8Array,
+    "main-local"
+  >("readClientDraftFile", "main-local", readLocalImageFilePayloadSchema),
   createProjectDirectory: definePayloadProcedure<
     z.infer<typeof createProjectDirectoryPayloadSchema>,
     CreateProjectDirectoryResult,
     "main-local"
   >("createProjectDirectory", "main-local", createProjectDirectoryPayloadSchema),
   listWslDistros: defineNoArgProcedure<string[], "supervisor">("listWslDistros", "supervisor"),
+  resolveLinkMetadata: definePayloadProcedure<
+    z.infer<typeof resolveLinkMetadataPayloadSchema>,
+    z.infer<typeof linkMetadataSchema>,
+    "supervisor"
+  >("resolveLinkMetadata", "supervisor", resolveLinkMetadataPayloadSchema, linkMetadataSchema),
   openExternal: defineIpcProcedure<[string], string, void, "main-local">(
     "openExternal",
     "main-local",
@@ -180,14 +206,21 @@ export const appProcedures = {
     boolean,
     "main-local"
   >("showNotification", "main-local", showNotificationPayloadSchema),
-  requestLegacyDataMigration: defineNoArgProcedure<LegacyDataMigrationRequestResult, "main-local">(
-    "requestLegacyDataMigration",
-    "main-local",
-  ),
   relaunchApp: defineNoArgProcedure<void, "main-local">("relaunchApp", "main-local"),
   getHomeScopeLocation: defineNoArgProcedure<ProjectLocation, "main-local">(
     "getHomeScopeLocation",
     "main-local",
+  ),
+  listLocalPorts: defineNoArgProcedure<ListLocalPortsResult, "main-local">(
+    "listLocalPorts",
+    "main-local",
+    listLocalPortsResultSchema,
+  ),
+  closeLocalPort: definePayloadProcedure<CloseLocalPortPayload, CloseLocalPortResult, "main-local">(
+    "closeLocalPort",
+    "main-local",
+    closeLocalPortPayloadSchema,
+    closeLocalPortResultSchema,
   ),
   getKeybindings: defineNoArgProcedure<KeybindingsConfig, "main-local">(
     "getKeybindings",
@@ -276,6 +309,21 @@ export const appProcedures = {
     RemoteAccessPairingInfo,
     "main-local"
   >("setRemoteAccessAdvertisedUrl", "main-local", setRemoteAccessAdvertisedUrlPayloadSchema),
+  // Locked Computer Use (macOS). main-local on purpose: installing changes the
+  // Mac's login rules behind an administrator prompt, so only this desktop's
+  // own window may ask, never a paired browser or phone.
+  getLockedComputerUseStatus: defineNoArgProcedure<LockedComputerUseStatus, "main-local">(
+    "getLockedComputerUseStatus",
+    "main-local",
+  ),
+  installLockedComputerUse: defineNoArgProcedure<LockedComputerUseActionResult, "main-local">(
+    "installLockedComputerUse",
+    "main-local",
+  ),
+  uninstallLockedComputerUse: defineNoArgProcedure<LockedComputerUseActionResult, "main-local">(
+    "uninstallLockedComputerUse",
+    "main-local",
+  ),
   // The renderer owns live git state; it mirrors compact per-thread summaries
   // to main so the remote access server can serve them to paired clients.
   publishRemoteGitSummaries: definePayloadProcedure<

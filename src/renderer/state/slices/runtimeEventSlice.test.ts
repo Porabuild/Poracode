@@ -1541,4 +1541,38 @@ describe("runtimeEventSlice background tasks", () => {
     apply("t1", { type: "session.exited", threadId: "t1" });
     expect("t1" in store.getState().runtimeBackgroundTasksByThread).toBe(false);
   });
+
+  it("skips notifying store subscribers when a runtime batch produces no state mutations", () => {
+    let notifications = 0;
+    const unsubscribe = store.subscribe(() => {
+      notifications += 1;
+    });
+    try {
+      store.getState().applyRuntimeEventBatches([
+        {
+          threadId: "t1",
+          events: [
+            {
+              type: "usage.spent",
+              threadId: "t1",
+              usage: {
+                counterKind: "cumulative",
+                counter: 1,
+                scopeId: "t1",
+                epoch: 0,
+                sampleId: "sample-1",
+              },
+            },
+            {
+              type: "session.started",
+              threadId: "t1",
+            },
+          ],
+        },
+      ]);
+      expect(notifications).toBe(0);
+    } finally {
+      unsubscribe();
+    }
+  });
 });

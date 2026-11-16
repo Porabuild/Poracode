@@ -9,9 +9,7 @@ import {
 } from "@/shared/remote/client";
 import { formatHandoffRow } from "@/renderer/actions/handoffTranscriptRows";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
-import { managedRootHistoryActivation } from "@/renderer/state/managedRootCatalog/rootHistory";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { entityHost } from "@/renderer/state/entityHost";
 import { extractAcpArgsText, extractAcpResultText } from "../ChatPane/parts/items/acpToolPayload";
 
 const MAX_ROW_CHARS = 6_000;
@@ -57,8 +55,8 @@ export async function readSideChatContext(
   thread: Thread,
   maxChars: number,
 ): Promise<ExtractContextResult | null> {
-  const owner = remoteOwner(thread);
-  const activation = owner ? null : managedRootHistoryActivation();
+  const host = entityHost(thread);
+  if (!host) throw new Error("History connection unavailable for side chat snapshot");
   const read = async (client: RemoteDesktopClient): Promise<ExtractContextResult | null> => {
     const signal = AbortSignal.timeout(15_000);
     const header =
@@ -74,7 +72,7 @@ export async function readSideChatContext(
       if (index >= MAX_PAGES)
         throw new Error("Side chat context exceeds the bounded history page limit");
       const common = {
-        threadId: owner?.remoteId ?? thread.id,
+        threadId: host.hostId,
         limit: 500,
         maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
         maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
@@ -85,7 +83,7 @@ export async function readSideChatContext(
           ? { ...common, beforePosition, after: proof }
           : common,
       );
-      if (!owner && managedRootHistoryActivation() !== activation)
+      if (!host.isCurrent())
         throw new Error("History connection changed during side chat snapshot");
       if (result.negotiation !== "bounded")
         throw new Error("Side chat requires bounded conversation history");
@@ -123,7 +121,5 @@ export async function readSideChatContext(
         }
       : null;
   };
-  if (owner) return useRemoteServersStore.getState().withClient(owner.desktopId, read);
-  if (!activation) throw new Error("History connection unavailable for side chat snapshot");
-  return read(activation.client);
+  return host.withClient(read);
 }

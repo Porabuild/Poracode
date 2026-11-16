@@ -6,6 +6,7 @@ import {
   type IncomingHttpHeaders,
   type Server as HttpServer,
 } from "node:http";
+import { request as httpsRequestNode } from "node:https";
 import { connect, createServer as createNetServer, type AddressInfo, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -41,10 +42,16 @@ import { emptyGitStateSnapshot } from "@/shared/gitState";
 import {
   isCleartextLanUrl,
   normalizePairingEndpoint,
+  parsePairingCertFingerprint,
   parsePairingUrlParts,
 } from "@/shared/remote/pairingUrl";
 import type { BrowserPanelManager } from "@/host/browser/types";
 import { SettingsWriteRefusedError } from "@/backend/settings/settingsCompatWrites";
+import {
+  isUnauthorizedRemoteError,
+  RemoteClientError,
+  RemoteDesktopClient,
+} from "@/shared/remote/client";
 import {
   dbAppendThreadCompletedTurn,
   dbApplyThreadRuntimeEvents,
@@ -94,6 +101,7 @@ import * as remoteConfig from "./config";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
 import { PortProxy } from "./portForward/portProxy";
+import { generateSelfSignedTlsMaterial } from "./server/tlsMaterial";
 import { rawRequestWithAuthority } from "./portForward/testFixtures";
 import {
   RemoteAccessServer,
@@ -122,6 +130,7 @@ vi.mock("@/host/db", () => {
   const getProjects = vi.fn<() => Project[]>(() => []);
   const getRuntimeItemCommitted = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
   return {
+    dbAssertNoRunningCheckpointRevert: vi.fn<() => void>(),
     dbAppendThreadCompletedTurn: vi.fn<(...args: unknown[]) => void>(),
     dbApplyThreadRuntimeEvents: vi.fn<(...args: unknown[]) => void>(),
     // B4 legacy bulk-read pre-check: empty reservations keep every legacy
@@ -220,13 +229,28 @@ vi.mock("@/host/db", () => {
     }),
     dbSetProjectNotes: vi.fn<(notes: unknown) => void>(),
     dbTruncateThreadRuntimeAfter: vi.fn<(...args: unknown[]) => void>(),
-    dbGetAllUsageEvents: vi.fn<() => unknown[]>(() => []),
     getProfileDataGeneration: vi.fn<() => number>(() => profileDataGeneration),
     bumpProfileDataGeneration: vi.fn<() => void>(() => {
       profileDataGeneration++;
     }),
   };
 });
+
+vi.mock("@/host/db/usageEvents", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/host/db/usageEvents")>()),
+  dbQueryUsageEventsBounds: vi.fn<typeof import("@/host/db/usageEvents").dbQueryUsageEventsBounds>(
+    () => ({ minId: 0, maxId: 0 }),
+  ),
+  dbQueryUsageAccountCountsUpTo: vi.fn<
+    typeof import("@/host/db/usageEvents").dbQueryUsageAccountCountsUpTo
+  >(() => []),
+  dbIterateCoreUsageEventsInRange: vi.fn<
+    typeof import("@/host/db/usageEvents").dbIterateCoreUsageEventsInRange
+  >(() => [][Symbol.iterator]()),
+  dbIterateTokenUsageScanRowsInRange: vi.fn<
+    typeof import("@/host/db/usageEvents").dbIterateTokenUsageScanRowsInRange
+  >(() => [][Symbol.iterator]()),
+}));
 
 vi.mock("@/host/db/legacyCatalogReads", async () => import("./server/snapshotReads.testFixtures"));
 vi.mock("@/host/db/runtimeSnapshotRead", async () => import("./server/snapshotReads.testFixtures"));
@@ -279,6 +303,46 @@ function getFreePort(): Promise<number> {
       const port = typeof address === "object" && address ? address.port : 0;
       probe.close(() => resolve(port));
     });
+  });
+}
+
+function httpsRequestWithAuthority(input: {
+  readonly port: number;
+  readonly path: string;
+  readonly authority: string;
+  readonly method?: string;
+  readonly headers?: Record<string, string>;
+  readonly body?: string;
+}): Promise<{
+  readonly status: number;
+  readonly headers: IncomingHttpHeaders;
+  text(): Promise<string>;
+}> {
+  return new Promise((resolve, reject) => {
+    const req = httpsRequestNode(
+      {
+        host: "127.0.0.1",
+        port: input.port,
+        path: input.path,
+        method: input.method ?? "GET",
+        rejectUnauthorized: false,
+        headers: { host: input.authority, ...input.headers },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            headers: res.headers,
+            text: async () => Buffer.concat(chunks).toString("utf8"),
+          }),
+        );
+      },
+    );
+    req.once("error", reject);
+    if (input.body !== undefined) req.write(input.body);
+    req.end();
   });
 }
 
@@ -818,6 +882,306 @@ describe("RemoteAccessServer", () => {
     } finally {
       tailnet.mockRestore();
     }
+  });
+
+  it("publishes a Tailnet endpoint without replacing loopback access or pairing credentials", async () => {
+    const pairingAppUrl = "https://pairing.poracode.test/app";
+    const onPairingChanged = vi.fn<() => void>();
+    const tls = generateSelfSignedTlsMaterial({
+      commonName: "desktop.tailnet.ts.net",
+      dnsNames: ["desktop.tailnet.ts.net"],
+    });
+    const server = createTestServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "advertised-endpoint-test", label: "Advertised endpoint test" },
+      host: "127.0.0.1",
+      port: 0,
+      pairingAppUrl,
+      tls,
+      onPairingChanged,
+      truncateThreadRuntime: () => {},
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const initial = await server.start();
+    const loopbackEndpoint = initial.localHttpBaseUrl;
+    const loopbackPort = Number(new URL(loopbackEndpoint).port);
+    const desktopPairing = parsePairingUrlParts(initial.pairingUrl);
+    expect(desktopPairing).not.toBeNull();
+    const rendererGrant = server.mintLoopbackRendererCredential();
+    expect(rendererGrant?.endpoint).toBe(loopbackEndpoint);
+    expect(rendererGrant).not.toBeNull();
+    const rendererPairing = parsePairingUrlParts(rendererGrant!.pairingUrl);
+    expect(rendererPairing).not.toBeNull();
+
+    const tokenResponse = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/oauth/token",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grantType: "pairing-token",
+        credential: rendererPairing!.token,
+        scopes: ["session:read"],
+      }),
+    });
+    expect(tokenResponse.status).toBe(200);
+    const rendererToken = JSON.parse(await tokenResponse.text()) as { accessToken: string };
+
+    const tailnetOrigin = "https://desktop.tailnet.ts.net";
+    const beforePublication = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/.well-known/poracode/environment",
+      authority: "desktop.tailnet.ts.net",
+      headers: { origin: tailnetOrigin },
+    });
+    expect(beforePublication.status).toBe(403);
+    await expect(beforePublication.text()).resolves.toContain("origin_not_allowed");
+
+    const tailnetHostBeforePublication = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "desktop.tailnet.ts.net",
+      headers: { origin: loopbackEndpoint, authorization: `Bearer ${rendererToken.accessToken}` },
+    });
+    expect(tailnetHostBeforePublication.status).toBe(403);
+    await expect(tailnetHostBeforePublication.text()).resolves.toContain("host_not_allowed");
+
+    onPairingChanged.mockClear();
+    const published = server.publishAdvertisedEndpoint({
+      advertisedBaseUrl: tailnetOrigin,
+      tailscaleHttpBaseUrl: tailnetOrigin,
+    });
+    expect(published).toMatchObject({
+      httpBaseUrl: `${tailnetOrigin}/`,
+      localHttpBaseUrl: loopbackEndpoint,
+      wsBaseUrl: "wss://desktop.tailnet.ts.net/",
+      tailscaleHttpBaseUrl: tailnetOrigin,
+      pairingExpiresAt: initial.pairingExpiresAt,
+    });
+    expect(onPairingChanged).toHaveBeenCalledOnce();
+    expect(server.getInfo()).toEqual(published);
+    expect(normalizePairingEndpoint(published.pairingUrl)).toBe(tailnetOrigin);
+    expect(new URL(published.pairingUrl).origin).toBe(new URL(pairingAppUrl).origin);
+    expect(parsePairingUrlParts(published.pairingUrl)?.token).toBe(desktopPairing!.token);
+    expect(parsePairingCertFingerprint(published.pairingUrl)).toBe(tls.fingerprint);
+
+    const tailnetPreflight = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `desktop.tailnet.ts.net`,
+      method: "OPTIONS",
+      headers: {
+        origin: tailnetOrigin,
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(tailnetPreflight.status).toBe(204);
+    expect(tailnetPreflight.headers["access-control-allow-origin"]).toBe(tailnetOrigin);
+
+    const tailnetRequest = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "desktop.tailnet.ts.net",
+      headers: {
+        origin: tailnetOrigin,
+        authorization: `Bearer ${rendererToken.accessToken}`,
+      },
+    });
+    expect(tailnetRequest.status).toBe(200);
+    expect(tailnetRequest.headers["access-control-allow-origin"]).toBe(tailnetOrigin);
+
+    const existingLoopbackRequest = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      headers: { authorization: `Bearer ${rendererToken.accessToken}` },
+    });
+    expect(existingLoopbackRequest.status).toBe(200);
+    expect(server.getInfo()?.localHttpBaseUrl).toBe(loopbackEndpoint);
+
+    const arbitraryHost = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "attacker.example",
+    });
+    expect(arbitraryHost.status).toBe(403);
+    await expect(arbitraryHost.text()).resolves.toContain("host_not_allowed");
+
+    const arbitraryOrigin = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "OPTIONS",
+      headers: {
+        origin: "https://attacker.example",
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(arbitraryOrigin.status).toBe(403);
+  });
+
+  it("returns retryable startup errors for unknown hosts and origins while Tailnet publication is pending", async () => {
+    let advertisedEndpointPending = true;
+    const tls = generateSelfSignedTlsMaterial({
+      commonName: "desktop.tailnet.ts.net",
+      dnsNames: ["desktop.tailnet.ts.net"],
+    });
+    const server = createTestServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "pending-endpoint-test", label: "Pending endpoint test" },
+      host: "127.0.0.1",
+      port: 0,
+      tls,
+      isAdvertisedEndpointPending: () => advertisedEndpointPending,
+      truncateThreadRuntime: () => {},
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const initial = await server.start();
+    const loopbackEndpoint = initial.localHttpBaseUrl;
+    const loopbackPort = Number(new URL(loopbackEndpoint).port);
+    const rendererGrant = server.mintLoopbackRendererCredential();
+    expect(rendererGrant?.endpoint).toBe(loopbackEndpoint);
+    const rendererCredential = parsePairingUrlParts(rendererGrant!.pairingUrl)!.token;
+    const tokenResponse = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/oauth/token",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grantType: "pairing-token",
+        credential: rendererCredential,
+        scopes: ["session:read"],
+      }),
+    });
+    expect(tokenResponse.status).toBe(200);
+    const rendererToken = JSON.parse(await tokenResponse.text()) as { accessToken: string };
+    const authorization = `Bearer ${rendererToken.accessToken}`;
+    const tailnetOrigin = "https://desktop.tailnet.ts.net";
+    const tailnetClient = new RemoteDesktopClient(
+      tailnetOrigin,
+      rendererToken.accessToken,
+      async (url, init) => {
+        const target = new URL(url);
+        const response = await httpsRequestWithAuthority({
+          port: loopbackPort,
+          path: `${target.pathname}${target.search}`,
+          authority: target.host,
+          ...(init?.method ? { method: init.method } : {}),
+          headers: { ...init?.headers, origin: tailnetOrigin },
+        });
+        return new Response(await response.text(), {
+          status: response.status,
+          headers: {
+            "content-type": String(response.headers["content-type"] ?? "application/json"),
+            ...(response.headers["retry-after"]
+              ? { "retry-after": String(response.headers["retry-after"]) }
+              : {}),
+          },
+        });
+      },
+    );
+
+    const localRequest = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      headers: { authorization, origin: loopbackEndpoint },
+    });
+    expect(localRequest.status).toBe(200);
+
+    const oldTailnetOrigin = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/.well-known/poracode/environment",
+      authority: `127.0.0.1:${loopbackPort}`,
+      headers: { origin: tailnetOrigin },
+    });
+    expect(oldTailnetOrigin.status).toBe(503);
+    expect(oldTailnetOrigin.headers["retry-after"]).toBe("1");
+    await expect(oldTailnetOrigin.text()).resolves.toContain("host_starting");
+
+    let hostStartingError: unknown;
+    try {
+      await tailnetClient.describeHost();
+    } catch (error) {
+      hostStartingError = error;
+    }
+    expect(hostStartingError).toBeInstanceOf(RemoteClientError);
+    expect(hostStartingError).toMatchObject({ status: 503, code: "host_starting" });
+    expect(isUnauthorizedRemoteError(hostStartingError)).toBe(false);
+
+    const oldTailnetHost = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "desktop.tailnet.ts.net",
+      headers: { authorization, origin: loopbackEndpoint },
+    });
+    expect(oldTailnetHost.status).toBe(503);
+    expect(oldTailnetHost.headers["retry-after"]).toBe("1");
+    await expect(oldTailnetHost.text()).resolves.toContain("host_starting");
+
+    const arbitraryHostWhilePending = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "attacker.example",
+      headers: { authorization, origin: loopbackEndpoint },
+    });
+    expect(arbitraryHostWhilePending.status).toBe(503);
+    expect(arbitraryHostWhilePending.headers["retry-after"]).toBe("1");
+    await expect(arbitraryHostWhilePending.text()).resolves.toContain("host_starting");
+
+    const arbitraryOriginWhilePending = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "OPTIONS",
+      headers: {
+        origin: "https://attacker.example",
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(arbitraryOriginWhilePending.status).toBe(503);
+    expect(arbitraryOriginWhilePending.headers["retry-after"]).toBe("1");
+
+    server.publishAdvertisedEndpoint({
+      advertisedBaseUrl: tailnetOrigin,
+      tailscaleHttpBaseUrl: tailnetOrigin,
+    });
+    advertisedEndpointPending = false;
+
+    const publishedTailnetRequest = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "desktop.tailnet.ts.net",
+      headers: { authorization, origin: tailnetOrigin },
+    });
+    expect(publishedTailnetRequest.status).toBe(200);
+    expect(publishedTailnetRequest.headers["access-control-allow-origin"]).toBe(tailnetOrigin);
+    await expect(tailnetClient.describeHost()).resolves.toBeTruthy();
+
+    const arbitraryHostAfterPublication = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: "attacker.example",
+      headers: { authorization, origin: loopbackEndpoint },
+    });
+    expect(arbitraryHostAfterPublication.status).toBe(403);
+    await expect(arbitraryHostAfterPublication.text()).resolves.toContain("host_not_allowed");
+
+    const arbitraryOriginAfterPublication = await httpsRequestWithAuthority({
+      port: loopbackPort,
+      path: "/api/snapshot",
+      authority: `127.0.0.1:${loopbackPort}`,
+      method: "OPTIONS",
+      headers: {
+        origin: "https://attacker.example",
+        "access-control-request-method": "GET",
+      },
+    });
+    expect(arbitraryOriginAfterPublication.status).toBe(403);
   });
 
   it("holds its loopback port so a second local host cannot take its loopback traffic", async () => {
@@ -1869,6 +2233,255 @@ describe("RemoteAccessServer", () => {
     // level must not shadow that read forever.
     server.clearBackgroundTaskLevels();
     await expect(history()).resolves.toMatchObject({ backgroundTasks: [] });
+  });
+
+  it("keeps enriched background tasks through the no-client cache, two live clients, and reconnect drain", async () => {
+    const thread = createTestThread({
+      id: "thread-background-enriched",
+      status: "working",
+      presentationMode: "gui",
+      activeTurnStartedAt: "2026-01-01T00:00:00.000Z",
+      lastTurnStartedAt: "2026-01-01T00:00:00.000Z",
+    });
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    const server = createTestServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: async () => null as never,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const history = async () => {
+      const response = await fetch(
+        new URL(`/api/threads/thread-background-enriched/history`, info.httpBaseUrl),
+        { headers: { authorization: `Bearer ${token}` } },
+      );
+      expect(response.status).toBe(200);
+      return (await response.json()) as { backgroundTasks?: BackgroundTask[] };
+    };
+    const changed = (tasks: BackgroundTask[]) =>
+      ({
+        type: "thread-runtime-event",
+        threadId: thread.id,
+        event: {
+          type: "background_tasks.changed",
+          threadId: thread.id,
+          tasks,
+        },
+      }) satisfies SupervisorEvent;
+
+    const initialTask: BackgroundTask = {
+      taskId: "task-enriched",
+      kind: "command",
+      category: "command",
+      description: "Run the enriched fixture command",
+      command: "printf 'ENRICHED\\n'",
+      outputAction: {
+        id: "fixture.background.read.v1",
+        payload: { taskId: "task-enriched", token: "owner-token" },
+      },
+    };
+
+    // No live client is attached yet; the host must retain the whole owner
+    // record for the first snapshot and not only replay it on the socket.
+    server.publishSupervisorEvent(changed([initialTask]));
+    const noClientSnapshot = await history();
+    expect(noClientSnapshot.backgroundTasks).toEqual([initialTask]);
+    expect(noClientSnapshot.backgroundTasks?.[0]).toMatchObject({
+      taskId: "task-enriched",
+      category: "command",
+      command: "printf 'ENRICHED\\n'",
+    });
+    expect(noClientSnapshot.backgroundTasks?.[0]?.outputAction?.payload).toEqual({
+      taskId: "task-enriched",
+      token: "owner-token",
+    });
+
+    const openSocket = async (lastSeenSeq?: number) => {
+      const ticket = await issueWebSocketTicket(info, token);
+      const url = new URL("/ws", info.wsBaseUrl);
+      url.searchParams.set("ticket", ticket);
+      if (lastSeenSeq !== undefined) url.searchParams.set("lastSeenSeq", String(lastSeenSeq));
+      const ws = new WebSocket(url);
+      const next = createWsReader(ws);
+      await new Promise<void>((resolve, reject) => {
+        ws.once("open", resolve);
+        ws.once("error", reject);
+      });
+      const ready = await next();
+      return { ws, next, ready } as const;
+    };
+
+    const first = await openSocket();
+    const second = await openSocket();
+    expect(first.ready).toMatchObject({ type: "ready" });
+    expect(second.ready).toMatchObject({ type: "ready" });
+
+    const updatedTask: BackgroundTask = {
+      ...initialTask,
+      kind: "other",
+      category: "monitor",
+      description: "Watch the enriched fixture",
+      command: "printf 'WATCH_ENRICHED\\n'",
+    };
+    server.publishSupervisorEvent(changed([updatedTask]));
+    const firstFrame = (await first.next()) as {
+      seq: number;
+      event: { event: { tasks: BackgroundTask[] } };
+    };
+    const secondFrame = (await second.next()) as {
+      seq: number;
+      event: { event: { tasks: BackgroundTask[] } };
+    };
+    expect(firstFrame.seq).toBe(secondFrame.seq);
+    expect(firstFrame.event.event.tasks).toEqual([updatedTask]);
+    expect(secondFrame.event.event.tasks).toEqual([updatedTask]);
+    expect(JSON.stringify(firstFrame)).not.toContain("Run the enriched fixture command");
+
+    const updatedSnapshot = await history();
+    expect(updatedSnapshot.backgroundTasks).toEqual([updatedTask]);
+    expect(updatedSnapshot.backgroundTasks?.[0]?.outputAction?.payload.token).toBe("owner-token");
+
+    first.ws.close();
+    await waitWsClose(first.ws);
+    server.publishSupervisorEvent(changed([]));
+    const drainFrame = (await second.next()) as {
+      seq: number;
+      event: { event: { tasks: BackgroundTask[] } };
+    };
+    expect(drainFrame.event.event.tasks).toEqual([]);
+    const drainedSnapshot = await history();
+    expect(drainedSnapshot.backgroundTasks).toEqual([]);
+
+    // The disconnected client saw the metadata update at firstFrame.seq, so
+    // its replay must contain only the later authoritative empty level. No
+    // replayed or fresh snapshot may restore the old action descriptor.
+    const reconnected = await openSocket(firstFrame.seq);
+    const replayFrame = (await reconnected.next()) as {
+      seq: number;
+      event: { event: { tasks: BackgroundTask[] } };
+    };
+    expect(replayFrame.seq).toBe(drainFrame.seq);
+    expect(replayFrame.event.event.tasks).toEqual([]);
+    expect(JSON.stringify(replayFrame)).not.toContain("fixture.background.read.v1");
+    const reconnectSnapshot = await history();
+    expect(reconnectSnapshot.backgroundTasks).toEqual([]);
+    expect(JSON.stringify(reconnectSnapshot)).not.toContain("owner-token");
+
+    reconnected.ws.close();
+    second.ws.close();
+  });
+
+  it("invokes a neutral session read action without model-turn or thread-runtime effects", async () => {
+    const actionId = "fixture.neutral.read.v1";
+    const output = { output: "READY\n", totalBytes: 6, truncated: false };
+    const thread = createTestThread({
+      id: "thread-session-action",
+      status: "working",
+      presentationMode: "gui",
+      activeTurnStartedAt: "2026-01-01T00:00:00.000Z",
+      lastTurnStartedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const threadBefore = JSON.parse(JSON.stringify(thread)) as Thread;
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async (name, payload) => {
+        if (name === "listThreadSessionActions") {
+          return { actions: [{ id: actionId }] } as never;
+        }
+        if (name === "invokeThreadSessionAction") {
+          if ((payload as { threadId?: string }).threadId === "thread-stale") {
+            throw new Error("Session action is unavailable.");
+          }
+          return output as never;
+        }
+        throw new Error(`unexpected supervisor call: ${name}`);
+      },
+    );
+    const server = createTestServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const viewer = await issueAccessToken(info, ["session:read"]);
+    const operator = await issueIndependentAccessToken(server, info, [
+      "session:read",
+      "session:operate",
+    ]);
+    const post = (accessToken: string, procedure: string, payload: unknown) =>
+      fetch(new URL("/api/git/call", info.httpBaseUrl), {
+        method: "POST",
+        headers: {
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+          authorization: `Bearer ${accessToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ procedure, payload }),
+      });
+    const payload = {
+      threadId: thread.id,
+      actionId,
+      payload: { runKey: "one" },
+    };
+
+    const listResponse = await post(viewer, "listThreadSessionActions", { threadId: thread.id });
+    expect(listResponse.status).toBe(200);
+    await expect(listResponse.json()).resolves.toEqual({ result: { actions: [{ id: actionId }] } });
+
+    const viewerInvoke = await post(viewer, "invokeThreadSessionAction", payload);
+    expect(viewerInvoke.status).toBe(403);
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+
+    const malformed = await post(operator, "invokeThreadSessionAction", {
+      threadId: thread.id,
+      payload: { runKey: "one" },
+    });
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toMatchObject({
+      error: { code: "invalid_request" },
+    });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+
+    const invoked = await post(operator, "invokeThreadSessionAction", payload);
+    expect(invoked.status).toBe(200);
+    const invokedBody = (await invoked.json()) as { result: Record<string, unknown> };
+    expect(invokedBody).toEqual({ result: output });
+    expect(Object.keys(invokedBody.result).sort()).toEqual(["output", "totalBytes", "truncated"]);
+    expect(callSupervisor).toHaveBeenNthCalledWith(1, "listThreadSessionActions", {
+      threadId: thread.id,
+    });
+    expect(callSupervisor).toHaveBeenNthCalledWith(2, "invokeThreadSessionAction", payload);
+
+    const stale = await post(operator, "invokeThreadSessionAction", {
+      ...payload,
+      threadId: "thread-stale",
+    });
+    expect(stale.status).toBe(500);
+    await expect(stale.json()).resolves.toEqual({
+      error: { code: "internal_error", message: "Internal server error." },
+    });
+    expect(callSupervisor).toHaveBeenNthCalledWith(3, "invokeThreadSessionAction", {
+      ...payload,
+      threadId: "thread-stale",
+    });
+    expect(
+      callSupervisor.mock.calls.every(
+        ([name]) => name === "listThreadSessionActions" || name === "invokeThreadSessionAction",
+      ),
+    ).toBe(true);
+    expect(JSON.parse(JSON.stringify(thread))).toEqual(threadBefore);
+    expect(dbUpsertThread).not.toHaveBeenCalled();
+    expect(dbApplyThreadRuntimeEvents).not.toHaveBeenCalled();
+    expect(dbAppendThreadCompletedTurn).not.toHaveBeenCalled();
   });
 
   it("builds shell snapshots from aggregated runtime summaries", async () => {
@@ -5366,7 +5979,12 @@ describe("RemoteAccessServer", () => {
     const dispatched: unknown[] = [];
     let rendererAvailable = true;
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
-      async () => undefined as never,
+      async (name) =>
+        (name === "gitListWorktrees"
+          ? {
+              worktrees: [{ path: "/repo/wt", branch: "feat/x", commit: "abc123", isMain: false }],
+            }
+          : undefined) as never,
     );
     const server = createTestServer({
       truncateThreadRuntime: () => {},

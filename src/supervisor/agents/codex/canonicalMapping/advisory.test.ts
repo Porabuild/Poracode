@@ -56,6 +56,36 @@ describe("Codex advisory notifications", () => {
     expect(map("model/rerouted", { threadId: "provider-thread", fromModel: "a" })).toEqual([]);
   });
 
+  it("keeps successful automatic reviews out of the warning dock", () => {
+    expect(
+      map("guardianWarning", {
+        threadId: "provider-thread",
+        message:
+          "Automatic approval review approved (risk low, authorization high): Read-only inspection.",
+      }),
+    ).toEqual([
+      {
+        type: "warning",
+        threadId: "local-thread",
+        message:
+          "Automatic approval review approved (risk low, authorization high): Read-only inspection.",
+      },
+    ]);
+    expect(
+      map("guardianWarning", {
+        threadId: "provider-thread",
+        message: "Automatic approval review rejected (risk high): Action denied.",
+      }),
+    ).toEqual([
+      {
+        type: "warning",
+        threadId: "local-thread",
+        message: "Automatic approval review rejected (risk high): Action denied.",
+        presentation: "notice",
+      },
+    ]);
+  });
+
   it("surfaces a repeated advisory once per session", () => {
     const state = createCodexMapperState("local-thread");
     const params = { threadId: null, message: "Skills were shortened." };

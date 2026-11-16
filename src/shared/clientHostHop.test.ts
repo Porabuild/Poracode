@@ -20,11 +20,11 @@ describe("CLIENT_HOST_HOP_VERSION (V6 B.5)", () => {
     expect(PREVIOUS_IPC_PROCEDURE_MAP_VERSION).not.toBe(CLIENT_HOST_HOP_VERSION);
   });
 
-  it("rejects a hop-17 pre-upgrade peer at the exchange gates, typed", () => {
-    // Pre-upgrade regression: hop 18 adds closed schedule status values and
-    // automation payloads. A hop-17 bundle must be refused at every exchange
-    // gate before it can read or write those shapes.
-    expect(PREVIOUS_CLIENT_HOST_HOP_VERSION).toBe(17);
+  it("rejects a hop-18 pre-upgrade peer at the exchange gates, typed", () => {
+    // Pre-upgrade regression: hop 19 removes the Lightcode import operation.
+    // A hop-18 bundle must be refused at every exchange gate before it can
+    // dispatch that retired operation.
+    expect(PREVIOUS_CLIENT_HOST_HOP_VERSION).toBe(18);
     expect(PREVIOUS_CLIENT_HOST_HOP_VERSION).not.toBe(CLIENT_HOST_HOP_VERSION);
     expect(() => assertIpcProcedureMapVersion(PREVIOUS_CLIENT_HOST_HOP_VERSION)).toThrow(
       /IPC procedure map version mismatch/,
@@ -38,7 +38,7 @@ describe("CLIENT_HOST_HOP_VERSION (V6 B.5)", () => {
         changes: [],
       }),
     ).toBe(true);
-    // Backend⇄main leg: a hop-17 activity declaration is stale.
+    // Backend⇄main leg: a hop-18 activity declaration is stale.
     expect(
       isBackendHostOutboundMessage({
         version: PREVIOUS_CLIENT_HOST_HOP_VERSION,

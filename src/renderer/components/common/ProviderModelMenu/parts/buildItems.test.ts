@@ -59,6 +59,30 @@ function makeCapability(
 }
 
 describe("buildProviderModelItems", () => {
+  it("shows each model ID once per provider without merging distinct choices", () => {
+    const providers = [
+      makeProvider("first", "First", [
+        { id: "auto", label: "Auto", description: "1x" },
+        { id: "auto", label: "Auto", description: "1x" },
+        { id: "other", label: "Auto" },
+      ]),
+      makeProvider("second", "Second", [{ id: "auto", label: "Auto" }]),
+    ];
+
+    for (const search of ["", "Auto"]) {
+      const rows = buildProviderModelItems({ providers, search }).filter(
+        (item) => item.type === "model",
+      );
+      expect(rows.map((row) => [row.providerKind, row.modelId])).toEqual([
+        ["first", "auto"],
+        ["first", "other"],
+        ["second", "auto"],
+      ]);
+      expect(new Set(rows.map((row) => row.id)).size).toBe(rows.length);
+      expect(rows[0]?.contextDescription).toBe("1x");
+    }
+  });
+
   it("keeps meaningful groups and exact choices without repeating singleton model names", () => {
     const provider = makeProvider("agent", "Agent", [
       { id: "adaptive", label: "Adaptive" },

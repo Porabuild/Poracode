@@ -19,6 +19,10 @@ const ghGetPrForBranchMock = vi.hoisted(() =>
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({
     ghGetPrForBranch: ghGetPrForBranchMock,
+    ghPollPullRequests: async (input: { projectLocation: ProjectLocation; branch: string }) => {
+      const pr = await ghGetPrForBranchMock(input);
+      return { status: "ready", prs: pr ? { [input.branch]: pr } : {}, pullRequests: [] };
+    },
   }),
 }));
 
@@ -62,6 +66,17 @@ const basePr: PrData = {
 };
 
 describe("GitBadge", () => {
+  it("keeps a blocked compact badge at the inline size and active treatment", () => {
+    useGitStore.getState().setGithubPollingProblem("project-1", {
+      kind: "authentication",
+      executionHost: "host",
+      retryAt: "later",
+    });
+    render(<GitBadge projectId="project-1" projectName="Project" compact isActive />);
+    const badge = screen.getByRole("button", { name: /PR data is unavailable/ });
+    expect(badge.className).toContain("poracode-compact-git-badge");
+    expect(badge.className).toContain("bg-accent/15");
+  });
   beforeEach(() => {
     ghGetPrForBranchMock.mockReset();
     useAppStore.setState({
@@ -73,6 +88,7 @@ describe("GitBadge", () => {
       worktrees: {},
       branches: {},
       ghAvailable: {},
+      githubPollingProblems: {},
       prData: {},
       worktreeSourceInfo: {},
       prFiles: {},

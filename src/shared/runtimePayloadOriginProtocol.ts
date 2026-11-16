@@ -262,3 +262,53 @@ export function admittedRuntimePayloadBatch(
   if (!batch) throw new Error("Runtime payload custody batch does not exist.");
   return batch;
 }
+
+/**
+ * Extract admitted payload-origin bindings for an in-process `worker_threads`
+ * write hop (`postMessage` structured clone drops Symbol-keyed properties).
+ */
+export function extractAdmittedBatchOriginTuples(
+  batches: readonly { readonly events: readonly RuntimeEvent[] }[],
+): ReadonlyArray<readonly [batchIndex: number, eventIndex: number, formatOwnerKey: string]> {
+  const out: Array<readonly [number, number, string]> = [];
+  for (let b = 0; b < batches.length; b += 1) {
+    const events = batches[b]!.events;
+    for (let e = 0; e < events.length; e += 1) {
+      const origin = readAdmittedRuntimePayloadOrigin(events[e]!);
+      if (origin && isRuntimePayloadFormatOwnerKey(origin.formatOwnerKey)) {
+        out.push([b, e, origin.formatOwnerKey]);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Restore admitted payload-origin symbols inside `databaseWriteWorker` on the
+ * cloned `RuntimeWriteBatch[]` received over `parentPort`.
+ */
+export function restoreWorkerAdmittedBatchOrigins<
+  B extends { readonly threadId: string; readonly events: readonly RuntimeEvent[] },
+>(
+  batches: readonly B[],
+  tuples:
+    | ReadonlyArray<readonly [batchIndex: number, eventIndex: number, formatOwnerKey: string]>
+    | undefined,
+): readonly B[] {
+  if (!tuples || tuples.length === 0) return batches;
+  const clonedBatches = batches.map((batch) => ({ ...batch, events: [...batch.events] }));
+  for (const [batchIndex, eventIndex, key] of tuples) {
+    if (!isRuntimePayloadFormatOwnerKey(key)) continue;
+    const batch = clonedBatches[batchIndex];
+    const event = batch?.events[eventIndex];
+    if (!event || !ownsPayload(event)) continue;
+    batch.events[eventIndex] = {
+      ...event,
+      [admittedOrigin]: Object.freeze({
+        formatOwnerKey: key,
+        originFormatVersion: RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION,
+      }),
+    } as CustodyEvent;
+  }
+  return clonedBatches as unknown as readonly B[];
+}

@@ -12,6 +12,9 @@ await test("native visuals and inert source fallback retain the dedicated change
     "src/renderer/components/thread/ChatPane/parts/items/VisualSource.tsx",
     "src/renderer/components/thread/ChatPane/parts/items/NativeVisual.tsx",
     "src/renderer/components/thread/ChatPane/parts/items/InlineVisual.tsx",
+    "src/shared/htmlVisuals.ts",
+    "src/renderer/components/thread/ChatPane/parts/items/HtmlVisual.tsx",
+    "src/renderer/components/thread/ChatPane/parts/items/HtmlVisualFrame.tsx",
     "src/shared/mcpAppResources.ts",
     "src/supervisor/mcp/mcpAppResult.ts",
   ]) {
@@ -41,7 +44,6 @@ await test("backend production files are production roots mapped to areas", () =
     "src/backend/BackendDurableServices.ts",
     "src/backend/electronIpcBackpressure.ts",
     "src/backend/index.ts",
-    "src/backend/legacyMigrationWorker.ts",
   ];
   for (const file of backendFiles) {
     assert.ok(isProductionFile(file), `${file} must count as a production file`);

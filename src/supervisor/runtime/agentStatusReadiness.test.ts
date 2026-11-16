@@ -96,6 +96,151 @@ describe("AgentStatusService accepted readiness publication", () => {
     expect((await service.getAgentStatuses({ wslDistros: [] })).fromCache).toBe(true);
   });
 
+  it.each([STATUS_CACHE_VERSION - 1, STATUS_CACHE_VERSION])(
+    "keeps a replaced provider visible from cache v%i until its scoped refresh finishes",
+    async (version) => {
+      seedBaseline();
+      memory.cache = JSON.stringify({
+        ...JSON.parse(memory.cache!),
+        version,
+        wsl: [{ ...status(FAST, "baseline-wsl"), envKind: "wsl", envDistro: DISTRO }],
+      });
+      const held = deferred<AgentStatus>();
+      const fresh = vi.fn<AgentAdapter["detectInstall"]>(() => held.promise);
+      const { service, registry, events } = setup([
+        adapter(FAST, vi.fn<AgentAdapter["detectInstall"]>()),
+        adapter(SLOW, vi.fn<AgentAdapter["detectInstall"]>()),
+      ]);
+      await service.ready;
+      registry.set(FAST, adapter(FAST, fresh));
+      service.reconcileAgentRegistry([FAST]);
+      expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("baseline-fast");
+      expect(events).toEqual([]);
+
+      const refresh = service.refreshAgentStatuses({
+        wslDistros: [DISTRO],
+        scope: { agentKinds: [FAST], envs: [{ kind: "native" }] },
+      });
+      await vi.waitFor(() => expect(fresh).toHaveBeenCalledOnce());
+      expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("baseline-fast");
+      expect(memory.writes).toEqual([]);
+      held.resolve(status(FAST, "updated"));
+      const response = await refresh;
+      expect(modelIds(response)).toEqual(["updated"]);
+      expect(modelIds(response, SLOW)).toEqual(["baseline-slow"]);
+      expect(response.wsl[0]?.capabilities.models[0]?.id).toBe("baseline-wsl");
+      expect(events.map((event) => event.type)).toEqual(["agent-status-updated"]);
+      expect(JSON.parse(memory.cache!).windows).toEqual(response.windows);
+    },
+  );
+
+  it("retains a cold accepted provider during replacement and applies a fresh unavailable verdict", async () => {
+    const { service, registry, events } = setup([
+      adapter(FAST, async () => status(FAST, "last-known")),
+    ]);
+    const payload = {
+      wslDistros: [],
+      scope: { agentKinds: [FAST], envs: [{ kind: "native" as const }] },
+    };
+    await service.refreshAgentStatuses(payload);
+    expect(memory.cache).toBeUndefined();
+    events.length = 0;
+    const held = deferred<AgentStatus>();
+    const fresh = vi.fn<AgentAdapter["detectInstall"]>(() => held.promise);
+    registry.set(FAST, adapter(FAST, fresh));
+    service.reconcileAgentRegistry([FAST]);
+    const refresh = service.refreshAgentStatuses(payload);
+    await vi.waitFor(() => expect(fresh).toHaveBeenCalledOnce());
+    expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("last-known");
+    expect(events).toEqual([]);
+    held.resolve({ ...status(FAST, "unavailable"), installed: false });
+    expect((await refresh).windows[0]?.installed).toBe(false);
+    expect(service.getCachedCapabilities(FAST)).toBeNull();
+    expect(events).toEqual([
+      { type: "agent-status-updated", status: expect.objectContaining({ installed: false }) },
+    ]);
+    expect(memory.writes).toEqual([]);
+  });
+
+  it.each(["scoped", "startup"] as const)(
+    "keeps replacement observations across client reads and rejects obsolete %s probes",
+    async (source) => {
+      seedBaseline();
+      const oldHeld = deferred<AgentStatus>();
+      const old = vi.fn<AgentAdapter["detectInstall"]>(() => oldHeld.promise);
+      const newHeld = deferred<AgentStatus>();
+      const fresh = vi.fn<AgentAdapter["detectInstall"]>(() => newHeld.promise);
+      const { service, registry, events } = setup([
+        adapter(FAST, old),
+        adapter(SLOW, async () => status(SLOW, "peer")),
+      ]);
+      const payload = {
+        wslDistros: [],
+        scope: { agentKinds: [FAST], envs: [{ kind: "native" as const }] },
+      };
+      let previous: Promise<unknown>;
+      if (source === "scoped") previous = service.refreshAgentStatuses(payload);
+      else {
+        await service.getAgentStatuses({ wslDistros: [] });
+        previous = activeDetection(service);
+      }
+      await vi.waitFor(() => expect(old).toHaveBeenCalledOnce());
+      registry.set(FAST, adapter(FAST, fresh));
+      service.reconcileAgentRegistry([FAST]);
+      // A reconnect can reserve a full sweep before the updater's scoped probe.
+      expect(modelIds(await service.getAgentStatuses({ wslDistros: [] }))).toEqual([
+        "baseline-fast",
+      ]);
+      const full = activeDetection(service);
+      const cancelled = full.catch(() => undefined);
+      if (source === "scoped") service.cancelAgentDiscovery();
+      const refresh = service.refreshAgentStatuses(payload);
+      oldHeld.resolve(status(FAST, "obsolete"));
+      await Promise.all([previous.catch(() => undefined), cancelled]);
+      await vi.waitFor(() => expect(fresh).toHaveBeenCalledOnce());
+      expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("baseline-fast");
+      newHeld.resolve(status(FAST, "updated"));
+      expect(modelIds(await refresh)).toEqual(["updated"]);
+      expect(
+        events.filter(
+          (event) =>
+            (event.type === "agent-detected" || event.type === "agent-status-updated") &&
+            event.status.kind === FAST,
+        ),
+      ).toEqual([
+        {
+          type: "agent-status-updated",
+          status: expect.objectContaining({
+            capabilities: expect.objectContaining({
+              models: [{ id: "updated", label: "updated" }],
+            }),
+          }),
+        },
+      ]);
+    },
+  );
+
+  it("publishes actual removals without hiding a replacement in the same registry change", async () => {
+    seedBaseline();
+    const { service, registry, events } = setup([
+      adapter(FAST, vi.fn<AgentAdapter["detectInstall"]>()),
+      adapter(SLOW, vi.fn<AgentAdapter["detectInstall"]>()),
+    ]);
+    await service.ready;
+    registry.set(FAST, adapter(FAST, vi.fn<AgentAdapter["detectInstall"]>()));
+    registry.delete(SLOW);
+    service.reconcileAgentRegistry([FAST, SLOW]);
+    expect(service.getCachedCapabilities(FAST)?.models[0]?.id).toBe("baseline-fast");
+    expect(service.getCachedCapabilities(SLOW)).toBeUndefined();
+    expect(events).toEqual([
+      {
+        type: "windows-agent-statuses",
+        statuses: [expect.objectContaining({ kind: FAST, installed: true })],
+      },
+      { type: "wsl-agent-statuses", statuses: [] },
+    ]);
+  });
+
   it("reconciles removed registry kinds without dropping unrelated observations or accepting their late probes", async () => {
     seedBaseline();
     const held = deferred<AgentStatus>();

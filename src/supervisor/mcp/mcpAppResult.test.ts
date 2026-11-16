@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { materializeMcpAppResult } from "./mcpAppResult";
+import { materializeMcpAppResult, readMcpToolResource } from "./mcpAppResult";
 import { registerMcpBridgeTools, type BridgeTool, type BridgeToolCall } from "./toolBridge";
 import { MCP_APP_MIME_TYPE, readMcpAppResource } from "@/shared/mcpAppResources";
 
@@ -89,5 +89,46 @@ describe("MCP Apps resource discovery", () => {
       contents: [{ uri: "ui://other", mimeType: MCP_APP_MIME_TYPE, text: "<b>Other</b>" }],
     });
     expect(await materializeMcpAppResult(client, tool, result, { timeout: 1000 })).toBe(result);
+  });
+
+  it("uses listing policy only when resource content has no UI metadata", async () => {
+    const tool: BridgeTool = {
+      name: "chart",
+      inputSchema: { type: "object" },
+      _meta: { ui: { resourceUri: "ui://fixture/chart" } },
+    };
+    const resource = {
+      uri: "ui://fixture/chart",
+      mimeType: MCP_APP_MIME_TYPE,
+      text: "<h1>Chart</h1>",
+      _meta: { author: "fixture" },
+    };
+    const ui = { csp: { resourceDomains: ["https://cdn.test"] }, prefersBorder: true };
+    const readResource = vi.fn<() => Promise<{ contents: (typeof resource)[] }>>(async () => ({
+      contents: [resource],
+    }));
+    const listResources = vi.fn<
+      () => Promise<{ resources: { uri: string; name: string; _meta: { ui: typeof ui } }[] }>
+    >(async () => ({
+      resources: [{ uri: resource.uri, name: "Chart", _meta: { ui } }],
+    }));
+    const client = { readResource, listResources };
+    expect(await readMcpToolResource(client, tool, { timeout: 1000 })).toEqual({
+      ...resource,
+      _meta: { author: "fixture", ui },
+    });
+    listResources.mockClear();
+    const withContentPolicy = {
+      ...resource,
+      _meta: { ...resource._meta, ui: { prefersBorder: false } },
+    };
+    readResource.mockResolvedValue({ contents: [withContentPolicy] });
+    expect(await readMcpToolResource(client, tool, { timeout: 1000 })).toEqual(withContentPolicy);
+    expect(listResources).not.toHaveBeenCalled();
+    readResource.mockResolvedValue({ contents: [resource] });
+    listResources.mockResolvedValue({ resources: [] });
+    expect(await readMcpToolResource(client, tool, { timeout: 1000 })).toEqual(resource);
+    listResources.mockRejectedValue(new Error("Listing unavailable"));
+    expect(await readMcpToolResource(client, tool, { timeout: 1000 })).toEqual(resource);
   });
 });

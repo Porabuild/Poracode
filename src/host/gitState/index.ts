@@ -18,8 +18,10 @@ export interface GitStateSupervisorCaller {
 
 export function createGitStateExecutor(call: GitStateSupervisorCaller): GitStateExecutor {
   return {
+    ghPollPullRequests: (payload) => call("ghPollPullRequests", payload),
     gitFetch: (payload) => call("gitFetch", payload),
     gitProjectSnapshot: (payload) => call("gitProjectSnapshot", payload),
+    gitListWorktrees: (payload) => call("gitListWorktrees", payload),
     getGitStatus: (payload) => call("getGitStatus", payload),
     gitWorktreeStatusBatch: (payload) => call("gitWorktreeStatusBatch", payload),
     gitGetWorktreeSourceBranch: (payload) => call("gitGetWorktreeSourceBranch", payload),

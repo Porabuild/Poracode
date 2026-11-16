@@ -27,7 +27,7 @@ registerTitleGenDefaults(PROVIDER_KIND, {
 registerConflictResolverDefaults(PROVIDER_KIND, {
   label: "Gemini",
   hint: "3.1 Pro",
-  model: "gemini-3.1-pro",
+  model: "gemini-3.1-pro-preview",
   effort: "",
 });
 

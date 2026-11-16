@@ -214,6 +214,13 @@ export function createDesktopRemoteAccessController(
     return advertisedBaseUrl ? { advertisedBaseUrl } : {};
   };
 
+  const resolveInitialAdvertisedBaseUrl = (): string | undefined => {
+    if (process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST?.trim()) return undefined;
+    return normalizeAdvertisedUrlSetting(
+      readSharedSettingsFile(options.paths.settingsPath).remoteAccessAdvertisedUrl,
+    );
+  };
+
   const isCurrentStartAttempt = (attempt: RemoteAccessStartAttempt): boolean =>
     !refs.disposed &&
     !attempt.cancelled &&
@@ -264,14 +271,18 @@ export function createDesktopRemoteAccessController(
     isCurrentStartAttempt,
     stopMdnsAdvertiser,
     resolveAdvertisedBaseUrl,
+    resolveInitialAdvertisedBaseUrl,
     teardownAttemptTailscaleServe,
     getPairingInfo,
     prewarmGitStateOnce,
     clearEventInterests,
   };
 
-  const startRemoteAccessServer = (loopbackOnly: boolean): Promise<RemoteAccessServerInfo> =>
-    startDesktopRemoteAccessServer(startContext, loopbackOnly);
+  const startRemoteAccessServer = (
+    loopbackOnly: boolean,
+    waitForAdvertisement = false,
+  ): Promise<RemoteAccessServerInfo> =>
+    startDesktopRemoteAccessServer(startContext, loopbackOnly, waitForAdvertisement);
 
   /** Best-effort teardown of a Tailscale mapping established by this process. */
   const teardownTailscaleServe = (): Promise<void> => {
@@ -286,12 +297,22 @@ export function createDesktopRemoteAccessController(
   // out, so the managed desktop never loses its loopback leg.
 
   const restartRemoteAccessServer = async (loopbackOnly: boolean): Promise<void> => {
-    const restartGeneration = refs.remoteAccessGeneration;
+    let restartGeneration = refs.remoteAccessGeneration;
     const starting = refs.remoteAccessStartAttempt;
     if (!refs.remoteAccessServer && !starting) return;
     if (starting) {
+      starting.cancelled = true;
+      restartGeneration = ++refs.remoteAccessGeneration;
+      refs.remoteAccessServer = null;
+      refs.pushCoordinator = null;
+      refs.runningLoopbackOnly = loopbackOnly;
+      await retirements.run([
+        () => disposeAttemptServer(starting),
+        () => starting.coordinator?.dispose(),
+        () => stopMdnsAdvertiser(),
+        clearEventInterests,
+      ]);
       await starting.promise.catch(() => {});
-      if (starting.cancelled) return;
     }
     if (refs.disposed || restartGeneration !== refs.remoteAccessGeneration) return;
     const server = refs.remoteAccessServer;
@@ -307,7 +328,7 @@ export function createDesktopRemoteAccessController(
     ]);
     if (refs.disposed || restartGeneration !== refs.remoteAccessGeneration) return;
     try {
-      await startRemoteAccessServer(loopbackOnly);
+      await startRemoteAccessServer(loopbackOnly, true);
     } catch (error) {
       if (
         error instanceof RemoteAccessStartSupersededError &&
@@ -425,7 +446,8 @@ export function createDesktopRemoteAccessController(
 
     await writeRemoteAccessEnabledSetting(true);
     try {
-      await startRemoteAccessServer(false);
+      if (refs.runningLoopbackOnly) await restartRemoteAccessServer(false);
+      else await startRemoteAccessServer(false, true);
     } catch (error) {
       if (error instanceof RemoteAccessStartSupersededError) {
         return getPairingInfo();
@@ -506,6 +528,7 @@ export function createDesktopRemoteAccessController(
     },
     updateGitSummaries: (summaries) => {
       refs.remoteGitSummaries = summaries;
+      if (refs.runningLoopbackOnly) return;
       refs.remoteAccessServer?.publishSupervisorEvent({
         type: "remote-git-summaries",
         summaries,

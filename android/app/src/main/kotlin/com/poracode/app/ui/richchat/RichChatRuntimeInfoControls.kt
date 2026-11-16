@@ -7,11 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
-import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +24,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.model.AgentStatusEntry
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun RichDelegatedAgentsCard(
@@ -84,7 +80,7 @@ internal fun RichAuthenticationRequiredCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Outlined.WarningAmber, contentDescription = null)
+            Icon(PoracodeIcons.WarningAmber, contentDescription = null)
             Column(Modifier.weight(1f)) {
                 Text(
                     stringResource(R.string.rich_chat_sign_in_required),
@@ -128,7 +124,7 @@ internal fun RichPlanCard(
                 ) {
                     when (step.status) {
                         RichPlanStepStatus.Completed -> Icon(
-                            Icons.Outlined.CheckCircle,
+                            PoracodeIcons.CheckCircle,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -137,7 +133,7 @@ internal fun RichPlanCard(
                             strokeWidth = 2.dp,
                         )
                         RichPlanStepStatus.Pending -> Icon(
-                            Icons.Outlined.RadioButtonUnchecked,
+                            PoracodeIcons.RadioButtonUnchecked,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -178,7 +174,7 @@ internal fun RichErrorsCard(
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.ErrorOutline, contentDescription = null)
+                Icon(PoracodeIcons.ErrorOutline, contentDescription = null)
                 Text(
                     stringResource(R.string.rich_chat_errors),
                     modifier = Modifier.padding(start = 8.dp),

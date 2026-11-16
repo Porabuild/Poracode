@@ -1,8 +1,15 @@
+import { dirname, join } from "node:path";
+import { retirePendingThreadState } from "@/host/remote/server/pendingInterruptedTurns";
 import {
   closeAsyncDatabaseReads,
   enableAsyncDatabaseReads,
   warmAsyncDatabaseReads,
 } from "@/host/db/asyncReads";
+import {
+  closeAsyncDatabaseWrites,
+  enableAsyncDatabaseWrites,
+  isAsyncDatabaseWritesReady,
+} from "@/host/db/asyncWrites";
 import {
   closeDatabase,
   dbGetThread,
@@ -29,6 +36,10 @@ import {
   type RuntimeProducerSignal,
   type RuntimeShutdownReport,
 } from "@/host/db";
+import {
+  commitRuntimeThreadPrefixAsync,
+  waitForAsyncRuntimeWrites,
+} from "@/host/db/runtimePersistenceRuntime";
 import {
   capturePreparedDatabaseWriteAdmission,
   PreparedDatabaseUnavailableError,
@@ -131,6 +142,8 @@ export interface BackendHostCoreOptions {
   dbPath: string;
   /** Packaged read-only worker; direct/offline database harnesses omit it. */
   databaseReadWorkerPath?: string;
+  /** Packaged SQLite runtime-write worker; defaults beside `databaseReadWorkerPath`. */
+  databaseWriteWorkerPath?: string;
   databaseReadImagePreviews?: boolean;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
@@ -218,6 +231,16 @@ export class BackendHostCore {
         );
         // Clients load projects and threads right after the host starts.
         warmAsyncDatabaseReads();
+      }
+      if (options.databaseSchemaMode !== "validate") {
+        const writeWorkerPath =
+          options.databaseWriteWorkerPath ??
+          (options.databaseReadWorkerPath
+            ? join(dirname(options.databaseReadWorkerPath), "databaseWriteWorker.cjs")
+            : undefined);
+        if (writeWorkerPath) {
+          enableAsyncDatabaseWrites(options.dbPath, writeWorkerPath);
+        }
       }
       this.preparedDatabaseWriteAdmission = capturePreparedDatabaseWriteAdmission(
         database,
@@ -624,6 +647,7 @@ export class BackendHostCore {
     if (!result.truncated) {
       return result;
     }
+    retirePendingThreadState(threadId);
     this.options.onEvent({
       type: "thread-runtime-event",
       threadId,
@@ -698,6 +722,11 @@ export class BackendHostCore {
 
   private async runRevertCheckpoint(input: RevertCheckpointInput): Promise<RevertCheckpointResult> {
     this.assertRevertAllowed(input.threadId, input.checkpointItemId);
+    if (isAsyncDatabaseWritesReady()) {
+      await commitRuntimeThreadPrefixAsync(input.threadId);
+    } else {
+      await waitForAsyncRuntimeWrites(input.threadId);
+    }
     if (!dbHasThreadRuntimeItem(input.threadId, input.checkpointItemId)) {
       // Nothing addressable to revert: no journal row, no side effects, and a
       // concurrent second client converges on this noop after the first
@@ -1011,6 +1040,7 @@ export class BackendHostCore {
       this.canonicalAdmissionControl?.retireOwner();
       await Promise.all(continuations);
       await delegatedRecoveryDisposal;
+      await closeAsyncDatabaseWrites();
       await closeAsyncDatabaseReads();
       this.supervisorJoined = true;
     })();

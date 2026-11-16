@@ -46,6 +46,17 @@ describe("PersistentJsonLineHost", () => {
     await expect(host.request("echo", { value: "restarted" })).resolves.toBe("restarted");
   });
 
+  it("lets one request outlive the host-wide timeout", async () => {
+    const host = createHost({ timeoutMs: 20 });
+    await expect(
+      host.request("echo", { value: "slow but healthy", delay: 80 }, { timeoutMs: 1_000 }),
+    ).resolves.toBe("slow but healthy");
+    await expect(host.request("hang", {}, { timeoutMs: 30 })).rejects.toMatchObject({
+      code: "timeout",
+      message: expect.stringContaining("30ms"),
+    });
+  });
+
   it("rejects an oversized unterminated response", async () => {
     const host = createHost({ maxBytes: 32 });
     await expect(host.request("oversized", { bytes: 128 })).rejects.toMatchObject({

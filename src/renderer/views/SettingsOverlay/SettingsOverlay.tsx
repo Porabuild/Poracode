@@ -1,7 +1,6 @@
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
-import { refreshAgentDiscovery } from "@/renderer/actions/agentDiscoveryActions";
 import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
 import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { isRemoteSession } from "@/renderer/bridge";
@@ -9,9 +8,9 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useMachines } from "@/renderer/state/machines";
-import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
+import { FloatingScopeBar } from "@/renderer/components/machineScope/FloatingScopeBar";
 import { agentStatusNeedsAuthAttention } from "@/shared/agentSelection";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
@@ -35,6 +34,11 @@ import { ShortcutsSettings } from "./parts/ShortcutsSettings";
 import { TerminalSettings } from "./parts/TerminalSettings";
 import { ThreadSettings } from "./parts/ThreadSettings";
 import { ArchivedThreadsSettings } from "./parts/ArchivedThreadsSettings";
+import {
+  ArchivedThreadsMachinePicker,
+  LOCAL_ARCHIVE_MACHINE_ID,
+  type ArchivedThreadsScopeProps,
+} from "./parts/ArchivedThreadsMachinePicker";
 import { ChangelogSettings } from "./parts/ChangelogSettings";
 import { MemorySettings } from "./parts/MemorySettings";
 import { AboutSettings } from "./parts/AboutSettings";
@@ -93,7 +97,6 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   browser: () => <BrowserSettings />,
   usage: () => <UsageSettings />,
   import: () => <ImportSettings />,
-  archived: () => <ArchivedThreadsSettings />,
   changelog: () => <ChangelogSettings />,
   about: () => <AboutSettings />,
   dev: () => <DevSettings />,
@@ -132,6 +135,7 @@ function renderSection(
   activeSection: SettingsSection,
   onSectionChange: (section: SettingsSection) => void,
   onOpenDesktopSettings: (desktopId: string) => void,
+  archiveScope: ArchivedThreadsScopeProps,
 ): ReactNode {
   let section: ReactNode;
   if (activeSection === "acpRegistry") {
@@ -145,6 +149,8 @@ function renderSection(
         onOpenProfile={(kind) => onSectionChange(`agents:${kind}`)}
       />
     );
+  } else if (activeSection === "archived") {
+    section = <ArchivedThreadsSettings {...archiveScope} />;
   } else if (activeSection === "remoteServers") {
     section = <RemoteServersSettings onOpenDesktopSettings={onOpenDesktopSettings} />;
   } else {
@@ -202,6 +208,8 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     requestedSection === null ? "root" : "main",
   );
   const [mobileDesktopParent, setMobileDesktopParent] = useState<"root" | "connections">("root");
+  const [archiveMachineId, setArchiveMachineId] = useState(LOCAL_ARCHIVE_MACHINE_ID);
+  const archiveScope = { machineId: archiveMachineId, onMachineChange: setArchiveMachineId };
   const firstServer = useRemoteServersStore((state) => state.servers[0]);
   const chooseSettingsHost = useSettingsHostStore((state) => state.choose);
   const selectedDesktop = useSettingsHostServer() ?? firstServer;
@@ -300,10 +308,8 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     return () => cancelAnimationFrame(raf);
   }, [scrollTarget]);
 
-  const isRefreshingAgents = useAgentStatusesStore((s) => s.inFirstLaunchDiscovery);
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
-  const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
   const installedAgents = getSettingsInstalledAgents(agentStatuses, wslAgentStatuses);
   const attentionAgentKinds = new Set(
     [...agentStatuses, ...wslAgentStatuses]
@@ -312,14 +318,21 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   );
   const remoteSession = isRemoteSession();
   const isMachineScopedSection =
-    activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
-  const scopeBar = isMachineScopedSection ? (
-    <AgentsMachineBar />
-  ) : remoteSession && HOST_SCOPED_SECTIONS.has(activeSection) ? (
-    <SettingsHostBar />
-  ) : !remoteSession && activeSection === "usage" ? (
-    <UsageHostBar />
-  ) : null;
+    activeSection === "agentsGeneral" ||
+    activeSection === "acpRegistry" ||
+    activeSection.startsWith("agents:");
+  const scopeBar =
+    activeSection === "archived" ? (
+      <FloatingScopeBar>
+        <ArchivedThreadsMachinePicker {...archiveScope} />
+      </FloatingScopeBar>
+    ) : isMachineScopedSection ? (
+      <AgentsMachineBar />
+    ) : remoteSession && HOST_SCOPED_SECTIONS.has(activeSection) ? (
+      <SettingsHostBar />
+    ) : !remoteSession && activeSection === "usage" ? (
+      <UsageHostBar />
+    ) : null;
   // Mirrors the bars' own render condition: a floating pill only appears once
   // there is a second machine (or host) to pick, and only then does the scroll
   // area need to reserve room so its last rows are not covered by it.
@@ -329,7 +342,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     (isMachineScopedSection
       ? machines.length > 1
       : machines.filter((machine) => machine.ref.env.kind === "native").length > 1);
-  const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   const section = renderSection(
     activeSection,
     (nextSection) => navigateToSection(nextSection, undefined, mobileDetailParent),
@@ -338,6 +350,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       setMobileDesktopParent("connections");
       setMobileScreen("desktop");
     },
+    archiveScope,
   );
   const showMobileDesktopPicker =
     compactLayout && remoteSession && selectedDesktop !== undefined && mobileScreen === "desktop";
@@ -357,20 +370,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
         ? t`Desktop Settings`
         : detailTitle;
 
-  const refreshAgents = () => {
-    if (isRefreshingAgents) {
-      return;
-    }
-    setActiveSection((prev) => {
-      if (prev === "agents" || prev.startsWith("agents:")) {
-        return prev;
-      }
-      const firstInstalled = installedAgents[0];
-      return firstInstalled ? `agents:${firstInstalled.kind}` : "agents";
-    });
-    refreshAgentDiscovery(wslDistros);
-  };
-
   const mobileIndex = (
     <MobileSettingsIndex
       screen={mobileScreen === "desktop" ? "desktop" : "device"}
@@ -389,8 +388,18 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
 
   const detailContent =
     activeSection === "acpRegistry" ? (
-      <div key={activeSection} className="relative h-full min-h-0">
-        {section}
+      <div className="relative flex h-full min-h-0 flex-col">
+        <div
+          key={
+            remoteSession && selectedDesktop
+              ? `${activeSection}:${remoteConnectionKey(selectedDesktop)}`
+              : activeSection
+          }
+          className="min-h-0 flex-1"
+        >
+          {section}
+        </div>
+        {!compactLayout ? scopeBar : null}
       </div>
     ) : compactLayout ? (
       <div
@@ -469,8 +478,6 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
           onClose={onClose}
           installedAgents={installedAgents}
           attentionAgentKinds={attentionAgentKinds}
-          isRefreshingAgents={isRefreshingAgents}
-          onRefreshAgents={refreshAgents}
         />
       }
       content={scopedPageContent}

@@ -159,10 +159,13 @@
     }
   ],
   "ignorePatterns": [
+    "ios/App/App/Resources/mcp-app-host.js",
+    "android/app/src/main/assets/mcp-app-host.js",
     "dist",
     "node_modules",
     "tui/opencode/**",
     "tui/node_modules/**",
-    "tui/dist/**"
+    "tui/dist/**",
+    "**/skills/heroui-react/**"
   ]
 }

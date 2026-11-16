@@ -170,16 +170,17 @@ void test("native qualification preserves every existing contract, build, and fo
   assert.equal(evaluate({ android: false, ios: false, shared: false, full: undefined }), 1);
 });
 
-void test("each portable Swift contract suite is required, isolated, and cannot hide failure behind tee", async () => {
+void test("each portable Swift contract suite is required, isolated, and fails closed", async () => {
   const { jobs } = await load("native-ci");
   const step = jobs.ios.steps.find((item) => item.name === "Run portable Swift contract suites");
   assert.ok(step);
   assert.equal(step.shell, "bash");
   assert.equal(step["continue-on-error"], undefined);
-  assert.match(step.run, /--jobs 2/);
+  assert.match(step.run, /--jobs 1/);
   assert.match(step.run, /--scratch-path "\$RUNNER_TEMP\/poracode-swift-contracts\/\$suite"/);
   const suites = ["PortForwarding", "BrowserMirror", "GitHubOperations", "AdvancedOperations"];
-  assert.ok(step.run.includes(`for suite in ${suites.join(" ")}; do`));
+  assert.ok(step.run.includes(`suites=(${suites.join(" ")})`));
+  assert.match(step.run, /if ! wait/);
   await mkdir(new URL("../tmp/", import.meta.url), { recursive: true });
   const temporary = await mkdtemp(
     resolve(fileURLToPath(new URL("../tmp/", import.meta.url)), "swift-gate-"),
@@ -191,7 +192,7 @@ void test("each portable Swift contract suite is required, isolated, and cannot 
         env: { ...process.env, RUNNER_TEMP: temporary, FAIL_SUITE: failing },
         encoding: "utf8",
       });
-      assert.equal(result.status, failing === "not-a-suite" ? 0 : 7, result.stderr);
+      assert.equal(result.status, failing === "not-a-suite" ? 0 : 1, result.stderr);
     }
     const evidence = jobs.ios.steps.find((item) => item.name === "Upload iOS test evidence");
     assert.ok(evidence.with.path.includes("poracode-swift-contracts/*.log"));

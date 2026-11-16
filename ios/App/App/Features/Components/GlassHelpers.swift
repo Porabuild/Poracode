@@ -21,10 +21,12 @@ struct PoracodeBottomActionDock<Content: View>: View {
   }
 
   var body: some View {
-    HStack(spacing: 0) {
-      if placement == .trailing { Spacer(minLength: 0) }
-      content
-      if placement == .leading { Spacer(minLength: 0) }
+    PoracodeGlassGroup(spacing: 8) {
+      HStack(spacing: 0) {
+        if placement == .trailing { Spacer(minLength: 0) }
+        content
+        if placement == .leading { Spacer(minLength: 0) }
+      }
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 8)
@@ -47,10 +49,12 @@ struct PoracodeBottomActionBar<Leading: View, Trailing: View>: View {
   }
 
   var body: some View {
-    HStack(spacing: 12) {
-      leading
-      Spacer(minLength: 0)
-      trailing
+    PoracodeGlassGroup(spacing: 8) {
+      HStack(spacing: 12) {
+        leading
+        Spacer(minLength: 0)
+        trailing
+      }
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 8)
@@ -76,15 +80,9 @@ struct PoracodeBottomActionStrip<Leading: View, Center: View, Trailing: View>: V
   }
 
   var body: some View {
-    Group {
-      if #available(iOS 26.0, *) {
-        GlassEffectContainer(spacing: 12) { controls }
-      } else {
-        controls
-      }
-    }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 8)
+    PoracodeGlassGroup(spacing: 8) { controls }
+      .padding(.horizontal, 16)
+      .padding(.vertical, 8)
   }
 
   private var controls: some View {
@@ -149,7 +147,7 @@ struct PoracodeBottomSearchField: View {
       .focused($isFocused)
       .padding(.horizontal, 16)
       .frame(height: 44)
-      .poracodeGlassBackground(in: Capsule())
+      .poracodeGlassBackground(in: Capsule(), interactive: true)
       .onAppear { isFocused = true }
   }
 }
@@ -188,26 +186,20 @@ struct PoracodeCircleMenu<Content: View, Label: View>: View {
 
 extension View {
   /// Apply Liquid Glass styling when available; fall back to standard materials.
+  /// `interactive` opts the glass into the system's touch response on iOS 26.
   @ViewBuilder
   func poracodeGlassBackground(
-    in shape: some Shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+    in shape: some Shape = RoundedRectangle(cornerRadius: 16, style: .continuous),
+    interactive: Bool = false
   ) -> some View {
     if #available(iOS 26.0, *) {
       // Liquid Glass when the OS supports it; still clipped to the shape.
-      self.glassEffect(in: shape)
+      glassEffect(.regular.interactive(interactive), in: shape)
     } else {
       self.background(.ultraThinMaterial, in: shape)
     }
   }
 
-  @ViewBuilder
-  func poracodeProminentButtonStyle() -> some View {
-    if #available(iOS 26.0, *) {
-      self.buttonStyle(.glassProminent)
-    } else {
-      self.buttonStyle(.borderedProminent)
-    }
-  }
 }
 
 extension View {

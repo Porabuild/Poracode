@@ -20,6 +20,7 @@ struct RichChatCompactControlDock: View {
   let refreshProviderUsage: @MainActor () async -> Void
 
   @State private var destination: RichChatCompactControlDestination?
+  @Namespace private var glassNamespace
 
   var body: some View {
     VStack(spacing: 7) {
@@ -43,7 +44,10 @@ struct RichChatCompactControlDock: View {
       }
 
       if !infoControls.isEmpty {
-        RichChatCompactInfoControls(controls: infoControls) { selected in
+        RichChatCompactInfoControls(
+          controls: infoControls,
+          glassNamespace: glassNamespace
+        ) { selected in
           destination = selected
         }
       }
@@ -51,6 +55,7 @@ struct RichChatCompactControlDock: View {
     .padding(.top, showsAnyContent ? 7 : 0)
     .sheet(item: $destination) { destination in
       destinationSheet(destination)
+        .poracodeZoomTransition(sourceID: destination.id, in: glassNamespace)
     }
   }
 
@@ -76,6 +81,10 @@ struct RichChatCompactControlDock: View {
 
   private var delegatedAgents: [RichDelegatedAgentPresentation] {
     transcript.map { RichChatPresentation.activeDelegatedAgents(in: $0.itemsInOrder) } ?? []
+  }
+
+  private var backgroundTasks: [RichBackgroundTaskPresentation] {
+    (suite.transcript.state.backgroundTasks ?? []).map(RichBackgroundTaskPresentation.init)
   }
 
   private var goal: RichGoalPresentation? {
@@ -116,6 +125,17 @@ struct RichChatCompactControlDock: View {
           systemImage: delegatedAgentIcon(kind),
           accessibilityLabel: delegatedAgentLabel(kind),
           badge: count.formatted(),
+          isActive: true
+        )
+      )
+    }
+    if !backgroundTasks.isEmpty {
+      controls.append(
+        RichChatCompactInfoControl(
+          destination: .backgroundTasks,
+          systemImage: "gearshape.2",
+          accessibilityLabel: RichChatStrings.backgroundTasks,
+          badge: backgroundTasks.count.formatted(),
           isActive: true
         )
       )
@@ -215,7 +235,7 @@ struct RichChatCompactControlDock: View {
       } label: {
         Image(systemName: "pencil")
       }
-      .buttonStyle(.bordered)
+      .poracodeSurfaceButtonStyle()
       .controlSize(.small)
       .accessibilityLabel(RichChatStrings.editSteer)
       Button(role: .destructive) {
@@ -223,7 +243,7 @@ struct RichChatCompactControlDock: View {
       } label: {
         Image(systemName: "xmark")
       }
-      .buttonStyle(.bordered)
+      .poracodeSurfaceButtonStyle(tint: .red)
       .controlSize(.small)
       .disabled(!canOperate)
       .accessibilityLabel(RichChatStrings.clearSteer)
@@ -248,6 +268,8 @@ struct RichChatCompactControlDock: View {
       RichChatInfoSheet(title: delegatedAgentLabel(kind)) {
         RichChatDelegatedAgentsView(agents: delegatedAgents.filter { $0.kind == kind })
       }
+    case .backgroundTasks:
+      RichChatBackgroundTasksSheet(suite: suite, canOperate: canOperate)
     case .context:
       RichChatContextControlSheet(usage: suite.transcript.state.contextUsage)
     case .usage:

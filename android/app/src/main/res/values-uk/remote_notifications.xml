@@ -4,4 +4,7 @@
     <string name="remote_notification_needs_attention">Потребує уваги</string>
     <string name="remote_notification_error">Помилка</string>
     <string name="remote_notification_dismiss">Закрити сповіщення</string>
+    <string name="remote_notification_done_description">Тред завершено або він очікує на ваш ввід.</string>
+    <string name="remote_notification_needs_attention_description">Потрібне ваше підтвердження або відповідь.</string>
+    <string name="remote_notification_error_description">Агент натрапив на помилку.</string>
 </resources>

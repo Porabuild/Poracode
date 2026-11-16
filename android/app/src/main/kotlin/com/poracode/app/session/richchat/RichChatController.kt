@@ -24,7 +24,7 @@ import kotlinx.serialization.json.JsonObject
 class RichChatController(
     internal val session: StateFlow<RichChatHostLease?>,
     private val gateway: RichChatSessionGateway,
-    private val lifecycle: ForegroundOperationRegistry = ForegroundOperationRegistry(),
+    internal val lifecycle: ForegroundOperationRegistry = ForegroundOperationRegistry(),
 ) : RichChatEventSink {
     internal val mutableState = MutableStateFlow(RichChatControllerState())
     val state: StateFlow<RichChatControllerState> = mutableState.asStateFlow()
@@ -36,6 +36,20 @@ class RichChatController(
     /** Seam for the queue-operation and history extension files (size-gate split). */
     internal val sessionGateway: RichChatSessionGateway
         get() = gateway
+
+    suspend fun controlMcpApp(payload: JsonObject): JsonObject {
+        if (!lifecycle.isForeground) throw IllegalStateException("App is backgrounded.")
+        val selected = selection.value ?: throw IllegalStateException("No selected thread.")
+        val (host, failure) = session.currentLease(RichChatCapability.Operate)
+        if (failure != null || host == null || host.key != selected.host.key) throw IllegalStateException("Host unavailable.")
+        val bound = kotlinx.serialization.json.buildJsonObject {
+            payload.forEach { (key, value) -> put(key, value) }
+            put("threadId", kotlinx.serialization.json.JsonPrimitive(selected.threadId))
+        }
+        val result = gateway.controlMcpApp(host, selected.threadId, bound)
+        if (selection.value != selected || session.value?.key != host.key) throw IllegalStateException("Host changed.")
+        return result
+    }
     private var threadGeneration = 0L
     internal val frameBuffer = RichChatLiveFrameBuffer()
 
@@ -101,11 +115,16 @@ class RichChatController(
         events: List<RichRuntimeEvent>,
         pendingSteer: RichPendingSteerEnvelope? = null,
         followUpQueue: RichFollowUpQueueEnvelope? = null,
+        backgroundTaskChanges: List<RichChatBackgroundTaskChange> = emptyList(),
     ): Boolean {
         if (!lifecycle.isForeground || !isSelected(lease) || !session.isCurrent(lease.host)) {
             return false
         }
-        if (events.isEmpty() && pendingSteer == null && followUpQueue == null) return false
+        if (events.isEmpty() && pendingSteer == null && followUpQueue == null &&
+            backgroundTaskChanges.isEmpty()
+        ) {
+            return false
+        }
         if (events.any { it.threadKey != lease.key } ||
             pendingSteer?.let { it.threadKey != lease.key } == true ||
             followUpQueue?.let { it.threadKey != lease.key } == true
@@ -115,15 +134,27 @@ class RichChatController(
         if (frameBuffer.isStale(sequence)) {
             return false
         }
-        val frame = RichChatLiveFrame(sequence, events, pendingSteer, followUpQueue)
+        val frame = RichChatLiveFrame(sequence, events, pendingSteer, followUpQueue, backgroundTaskChanges)
         var accepted = false
         val truncated = events.any { it is RichRuntimeEvent.RuntimeTruncated }
         mutableState.update { current ->
             val transcript = current.transcript
+            val nextBackgroundTasks = applyBackgroundTaskChanges(
+                current.backgroundTasks,
+                backgroundTaskChanges,
+            )
+            val nextBackgroundTaskSequence =
+                if (backgroundTaskChanges.isNotEmpty() && sequence != null) {
+                    current.backgroundTaskSequence?.let { maxOf(it, sequence) } ?: sequence
+                } else {
+                    current.backgroundTaskSequence
+                }
             if (transcript == null) {
                 frameBuffer.buffer(frame)
                 accepted = true
                 return@update current.copy(
+                    backgroundTasks = nextBackgroundTasks,
+                    backgroundTaskSequence = nextBackgroundTaskSequence,
                     needsAuthoritativeRefresh = current.needsAuthoritativeRefresh ||
                         frameBuffer.overflow,
                 )
@@ -143,6 +174,8 @@ class RichChatController(
             val truncationCatchup = frameNeedsTruncationCatchup(next, frame)
             current.copy(
                 transcript = next,
+                backgroundTasks = nextBackgroundTasks,
+                backgroundTaskSequence = nextBackgroundTaskSequence,
                 // A truncate renumbers/removes turn rows: the held `ct1.`
                 // continuation is dropped and in-flight older pages are fenced.
                 olderTurnsCursor = if (truncated) null else current.olderTurnsCursor,
@@ -181,6 +214,23 @@ class RichChatController(
                 effectiveConfig,
                 segments,
                 userMessageItemId,
+            )
+        }
+    }
+
+    /**
+     * Swaps the failure a refused send published for the outcome of the
+     * recovery that replaced it (the resume relaunch): null once the host
+     * accepted it, an uncertain failure (one authoritative read, never a
+     * resend) when its outcome is unknown. A failure published since is kept.
+     */
+    fun replaceFailure(refusal: RichChatOperationFailure, replacement: RichChatOperationFailure?) {
+        mutableState.update {
+            if (it.failure != refusal) return@update it
+            it.copy(
+                failure = replacement,
+                needsAuthoritativeRefresh = it.needsAuthoritativeRefresh ||
+                    (replacement as? RichChatOperationFailure.Remote)?.requestMayHaveCommitted == true,
             )
         }
     }

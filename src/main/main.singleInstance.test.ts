@@ -51,7 +51,6 @@ vi.mock("./diagnostics/sentry", () => ({
   initializeMainSentry: () => false,
 }));
 vi.mock("./mockKeychain", () => ({ shouldUseMockKeychain: () => false }));
-vi.mock("./legacyMigrationClient", () => ({}));
 vi.mock("./processStdio", () => ({ installProcessStdioErrorHandlers: () => undefined }));
 vi.mock("@/backend/ownership/hostDataFence", () => ({}));
 vi.mock("@/backend/ownership/hostOwnerLease", () => ({}));
@@ -68,8 +67,6 @@ vi.mock("./desktopAppState", () => ({
   defaultElectronUserDataDir: "/profiles/poracode",
   desktopApp: mocks.desktopApp,
   isDev: false,
-  legacyBaseDirOverride: undefined,
-  legacyElectronUserDataDir: undefined,
   preserveLegacySafeStorageIdentity: false,
 }));
 vi.mock("./desktopAppWindows", () => ({ ensureMainWindow: mocks.ensureMainWindow }));

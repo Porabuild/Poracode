@@ -291,6 +291,8 @@ export interface GitProcessAdmissionClassDiagnostics {
 export interface GitProcessAdmissionDiagnostics {
   short: GitProcessAdmissionClassDiagnostics;
   long: GitProcessAdmissionClassDiagnostics;
+  /** Additive checkout pool; absent on reports from older supervisors. */
+  checkout?: GitProcessAdmissionClassDiagnostics;
   admitted: number;
   queueFullRefusals: number;
   waitTimeoutRefusals: number;
@@ -332,6 +334,7 @@ export const gitProcessAdmissionClassDiagnosticsSchema = z.object({
 export const gitProcessAdmissionDiagnosticsSchema = z.object({
   short: gitProcessAdmissionClassDiagnosticsSchema,
   long: gitProcessAdmissionClassDiagnosticsSchema,
+  checkout: gitProcessAdmissionClassDiagnosticsSchema.optional(),
   admitted: z.number().int().min(0),
   queueFullRefusals: z.number().int().min(0),
   waitTimeoutRefusals: z.number().int().min(0),

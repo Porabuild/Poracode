@@ -35,7 +35,7 @@ async function fetchApi(path) {
 
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": "HeroUI-Skill/1.0" },
+      headers: {"User-Agent": "HeroUI-Skill/1.0"},
       signal: AbortSignal.timeout(30000),
     });
 
@@ -68,12 +68,12 @@ async function fetchFallback(path) {
 
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": "HeroUI-Skill/1.0" },
+      headers: {"User-Agent": "HeroUI-Skill/1.0"},
       signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
-      return { error: `HTTP ${response.status}: ${response.statusText}`, path };
+      return {error: `HTTP ${response.status}: ${response.statusText}`, path};
     }
 
     const content = await response.text();
@@ -86,7 +86,7 @@ async function fetchFallback(path) {
       url,
     };
   } catch (error) {
-    return { error: `Fetch Error: ${error.message}`, path };
+    return {error: `Fetch Error: ${error.message}`, path};
   }
 }
 
@@ -145,7 +145,4 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main();

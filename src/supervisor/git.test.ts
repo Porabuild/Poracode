@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import type { ChildProcess } from "node:child_process";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -55,6 +56,10 @@ vi.mock("node:child_process", async () => {
     execFile: execFileMock,
   };
 });
+
+vi.mock("@/shared/processTree", () => ({
+  attachChildProcessTreeCleanup: vi.fn<(child: ChildProcess) => void>(),
+}));
 
 import { computeDefaultWorktreePath, GitService, parseRemoteUrl } from "./git";
 import {
@@ -290,6 +295,166 @@ describe("GitService.addWorktree", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mkdirMock.mockResolvedValue(undefined);
+  });
+
+  it("allows a checkout to finish after the ordinary Git timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      execFileMock.mockImplementation((_cmd, _args, options, callback) => {
+        const timeout = (options as { timeout: number }).timeout;
+        const checkoutDuration = 16_000;
+        setTimeout(
+          () => {
+            if (timeout < checkoutDuration) {
+              callback(new Error("checkout timed out"), { stdout: "", stderr: "" });
+            } else {
+              callback(null, { stdout: "", stderr: "" });
+            }
+          },
+          Math.min(timeout, checkoutDuration),
+        );
+      });
+
+      const result = new GitService().addWorktree(location, "C:\\worktrees\\slow", "slow", false);
+      await vi.advanceTimersByTimeAsync(16_001);
+      await expect(result).resolves.toEqual({ path: "C:\\worktrees\\slow" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("allows multiple slow worktree checkouts to proceed concurrently", async () => {
+    vi.useFakeTimers();
+    try {
+      execFileMock.mockImplementation((_cmd, _args, _options, callback) => {
+        setTimeout(() => callback(null, { stdout: "", stderr: "" }), 16_000);
+      });
+
+      const service = new GitService();
+      const names = ["one", "two", "three"];
+      const result = Promise.allSettled(
+        names.map((name) =>
+          service.addWorktree(
+            { ...location, path: `${location.path}-${name}` },
+            `C:\\worktrees\\${name}`,
+            name,
+            false,
+          ),
+        ),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      const initialStarts = execFileMock.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(32_001);
+      const settled = await result;
+      expect(initialStarts).toBe(2);
+      expect(execFileMock).toHaveBeenCalledTimes(3);
+      expect(settled).toEqual(
+        names.map((name) => ({ status: "fulfilled", value: { path: `C:\\worktrees\\${name}` } })),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not stash source changes while waiting for checkout capacity", async () => {
+    vi.useFakeTimers();
+    try {
+      execFileMock.mockImplementation((_cmd, _args, _options, callback) => {
+        setTimeout(() => callback(null, { stdout: "", stderr: "" }), 90_000);
+      });
+      const service = new GitService();
+      const project = (name: string) => ({ ...location, path: `${location.path}-${name}` });
+      const result = Promise.allSettled([
+        service.addWorktree(project("one"), "C:\\worktrees\\one", "one", false),
+        service.addWorktree(project("two"), "C:\\worktrees\\two", "two", false),
+        service.addWorktree(
+          project("three"),
+          "C:\\worktrees\\three",
+          "three",
+          false,
+          undefined,
+          undefined,
+          true,
+          false,
+        ),
+      ]);
+      await vi.advanceTimersByTimeAsync(90_001);
+      const settled = await result;
+
+      expect(settled[2]).toMatchObject({
+        status: "rejected",
+        reason: { code: "git_admission_wait_timeout" },
+      });
+      expect(execFileMock).toHaveBeenCalledTimes(2);
+      expect(
+        execFileMock.mock.calls.every(([, args]) => gitSubcommandArgs(args)[0] === "worktree"),
+      ).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("serializes slow worktree checkouts in the same repository", async () => {
+    vi.useFakeTimers();
+    try {
+      execFileMock.mockImplementation((_cmd, _args, _options, callback) => {
+        setTimeout(() => callback(null, { stdout: "", stderr: "" }), 160_000);
+      });
+
+      const service = new GitService();
+      const names = ["one", "two"];
+      const result = Promise.allSettled(
+        names.map((name) => service.addWorktree(location, `C:\\worktrees\\${name}`, name, false)),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      const initialStarts = execFileMock.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(320_001);
+      const settled = await result;
+
+      expect(initialStarts).toBe(1);
+      expect(execFileMock).toHaveBeenCalledTimes(2);
+      expect(settled).toEqual(
+        names.map((name) => ({ status: "fulfilled", value: { path: `C:\\worktrees\\${name}` } })),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not run a timed-out repository waiter or let later work bypass the active checkout", async () => {
+    vi.useFakeTimers();
+    try {
+      execFileMock.mockImplementation((_cmd, _args, _options, callback) => {
+        setTimeout(() => callback(null, { stdout: "", stderr: "" }), 160_000);
+      });
+      const service = new GitService();
+      const add = (name: string) =>
+        service.addWorktree(location, `C:\\worktrees\\${name}`, name, false);
+      const firstThree = Promise.allSettled([add("one"), add("two"), add("three")]);
+      await vi.advanceTimersByTimeAsync(240_001);
+      const startsBeforeFourth = execFileMock.mock.calls.length;
+      const fourth = Promise.allSettled([add("four")]);
+      await vi.advanceTimersByTimeAsync(0);
+      const startsWhileSecondActive = execFileMock.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(240_000);
+      const initialResults = await firstThree;
+      const fourthResult = await fourth;
+
+      expect(startsBeforeFourth).toBe(2);
+      expect(startsWhileSecondActive).toBe(2);
+      expect(initialResults[0]).toMatchObject({ status: "fulfilled" });
+      expect(initialResults[1]).toMatchObject({ status: "fulfilled" });
+      expect(initialResults[2]).toMatchObject({
+        status: "rejected",
+        reason: { code: "git_repository_busy" },
+      });
+      expect(fourthResult).toEqual([
+        { status: "fulfilled", value: { path: "C:\\worktrees\\four" } },
+      ]);
+      expect(execFileMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stores the current branch as the source when no explicit start point is provided", async () => {
@@ -939,6 +1104,11 @@ describe("GitService.addWorktree (transfer uncommitted changes)", () => {
       const applyCalls = gitExec.mock.calls.filter(
         ([, input]) => gitSubcommandArgs(input.args).join(" ") === "stash apply --index stashsha",
       );
+      const addCall = gitExec.mock.calls.find(([, input]) => {
+        const args = gitSubcommandArgs(input.args);
+        return args[0] === "worktree" && args[1] === "add";
+      });
+      expect(addCall?.[1].timeoutMs).toBeGreaterThan(16_000);
       expect(applyCalls[0]?.[0]).toMatchObject({
         kind: "wsl",
         distro: "Ubuntu",

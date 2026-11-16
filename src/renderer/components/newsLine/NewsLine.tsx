@@ -1,0 +1,393 @@
+import { useEffect, useRef, useState } from "react";
+import { ArrowUpRight, ChevronLeft, ChevronRight, Pause, Play, X } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
+import { useNewsLineStore } from "@/renderer/state/newsLineStore";
+import type { ChangelogHighlight } from "@/shared/changelogHighlights";
+import { NewsHighlightCard } from "./NewsHighlightCard";
+import { syncNewsStream, targetNewsCountForIndex, type NewsStreamState } from "./newsPlaylist";
+import { useNewsLineSources } from "./useNewsLineItems";
+import {
+  countShowing,
+  recordOnScreen,
+  rememberPaused,
+  rememberStream,
+  useNewsVisit,
+  type NewsCursor,
+} from "./newsVisit";
+import type { NewsItem } from "./newsTypes";
+
+/** Time a regular item stays before the next one slides in. */
+export const NEWS_ROTATE_MS = 5_000;
+/** Give items with a deliberate call to action more time to be read and acted on. */
+export const NEWS_LONG_DWELL_MS = 20_000;
+/** Rotation stays paused this long after the last keystroke in the composer. */
+export const NEWS_TYPING_PAUSE_MS = 15_000;
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+const controlButtonClass =
+  "flex size-[22px] shrink-0 cursor-default items-center justify-center rounded-full text-muted/80 outline-none transition hover:bg-[var(--row-hover)] hover:text-foreground focus-visible:focus-ring disabled:opacity-35";
+
+/**
+ * One quiet, rotating line below the new-thread composer: activity
+ * highlights, trends, behavioral insights, changelog points, a usage limit,
+ * keyboard tips, and community promotions. Starts with a 5-item batch and
+ * prepares 5 fresh items whenever reaching item 4 of a batch, keeping
+ * promotions repeating periodically.
+ */
+export function NewsLine(props: {
+  className?: string;
+  /**
+   * The draft visit this line belongs to; pass the same value as the React
+   * `key`, since the visit is read once per mount. A remount within the visit
+   * (the draft moved to another project or machine) resumes the item on screen
+   * instead of starting over.
+   */
+  visitKey?: number;
+}) {
+  const { t } = useLingui();
+  const visit = useNewsVisit(props.visitKey);
+  const { sources, highlights } = useNewsLineSources(visit);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const [cursor, setCursor] = useState<NewsCursor>(() => visit.onScreen);
+  const [highestViewed, setHighestViewed] = useState(() => visit.highestViewedIndex);
+  const [stream, setStream] = useState<NewsStreamState>(
+    () =>
+      syncNewsStream(visit.stream, sources, {
+        targetCount: targetNewsCountForIndex(visit.onScreen.index),
+        viewedThroughIndex: visit.highestViewedIndex,
+      }).stream,
+  );
+  const [userPaused, setUserPaused] = useState(() => visit.paused);
+  const [interacting, setInteracting] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [pageHidden, setPageHidden] = useState(() => document.visibilityState === "hidden");
+  const [openHighlight, setOpenHighlight] = useState<ChangelogHighlight | null>(null);
+  const actionRef = useRef<HTMLButtonElement>(null);
+
+  // Sync the stream cleanly on every source/cursor change; reaching item 4 of a
+  // 5-item batch (index 3, 8, 13, ...) immediately plans 5 more distinct items.
+  const preliminaryIndex = (() => {
+    if (cursor.slotKey !== null) {
+      const idx = stream.slots.findIndex((s) => s.slotKey === cursor.slotKey);
+      if (idx >= 0) return idx;
+    }
+    return cursor.index;
+  })();
+  const targetCount = targetNewsCountForIndex(preliminaryIndex);
+  const synced = syncNewsStream(stream, sources, {
+    targetCount,
+    viewedThroughIndex: highestViewed,
+  });
+  const entries = synced.entries;
+
+  const foundIndex = (() => {
+    if (cursor.slotKey !== null) {
+      const bySlot = entries.findIndex((entry) => entry.slotKey === cursor.slotKey);
+      if (bySlot >= 0) return bySlot;
+    }
+    if (cursor.id !== null) {
+      const byId = entries.findIndex((entry) => entry.item.id === cursor.id);
+      if (byId >= 0) return byId;
+    }
+    return -1;
+  })();
+  const index =
+    foundIndex >= 0 ? foundIndex : Math.min(cursor.index, Math.max(0, entries.length - 1));
+  const currentEntry = entries[index];
+  const current: NewsItem | undefined = currentEntry?.item;
+  const currentId = current?.id ?? null;
+  const currentSlotKey = currentEntry?.slotKey ?? null;
+  const rotateMs = current?.longDwell ? NEWS_LONG_DWELL_MS : NEWS_ROTATE_MS;
+  const paused = userPaused || interacting || typing || pageHidden || openHighlight !== null;
+
+  useEffect(() => {
+    rememberStream(visit, synced.stream);
+  }, [visit, synced.stream]);
+
+  const step = (delta: number) => {
+    if (entries.length === 0) return;
+    const nextIndex = delta < 0 ? Math.max(0, index + delta) : index + delta;
+    if (nextIndex === index) return;
+    const nextHighest = Math.max(highestViewed, nextIndex);
+    setHighestViewed(nextHighest);
+    const extended = syncNewsStream(synced.stream, sources, {
+      targetCount: targetNewsCountForIndex(nextIndex),
+      viewedThroughIndex: nextHighest,
+    });
+    setStream(extended.stream);
+    rememberStream(visit, extended.stream);
+    const clampedIndex = Math.min(nextIndex, Math.max(0, extended.entries.length - 1));
+    const target = extended.entries[clampedIndex];
+    setCursor({
+      id: target?.item.id ?? null,
+      slotKey: target?.slotKey ?? null,
+      index: clampedIndex,
+    });
+  };
+
+  // Auto-advance. Items are rebuilt on every store change, so the timer keys on
+  // the visible slot and reads the latest list when it fires.
+  const entriesRef = useRef(entries);
+  const sourcesRef = useRef(sources);
+  const streamRef = useRef(synced.stream);
+  const highestRef = useRef(highestViewed);
+  useEffect(() => {
+    entriesRef.current = entries;
+    sourcesRef.current = sources;
+    streamRef.current = synced.stream;
+    highestRef.current = highestViewed;
+  });
+  const itemCount = entries.length;
+  const rotateTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (paused || itemCount < 2) return;
+    const tick = () => {
+      // Some browsers skip focusout when the focused control is removed, so
+      // check where focus really is and wait while it is on the line.
+      if (rootRef.current?.contains(document.activeElement)) {
+        rotateTimerRef.current = window.setTimeout(tick, rotateMs);
+        return;
+      }
+      const list = entriesRef.current;
+      const from = list.findIndex((entry) => entry.slotKey === currentSlotKey);
+      const rawNext = from >= 0 ? from + 1 : 0;
+      const nextHighest = Math.max(highestRef.current, rawNext);
+      const extended = syncNewsStream(streamRef.current, sourcesRef.current, {
+        targetCount: targetNewsCountForIndex(rawNext),
+        viewedThroughIndex: nextHighest,
+      });
+      setStream(extended.stream);
+      rememberStream(visit, extended.stream);
+      const nextIndex = rawNext < extended.entries.length ? rawNext : 0;
+      const target = extended.entries[nextIndex];
+      setHighestViewed(nextHighest);
+      setCursor({
+        id: target?.item.id ?? null,
+        slotKey: target?.slotKey ?? null,
+        index: nextIndex,
+      });
+    };
+    rotateTimerRef.current = window.setTimeout(tick, rotateMs);
+    return () => window.clearTimeout(rotateTimerRef.current);
+  }, [paused, itemCount, currentSlotKey, rotateMs, visit]);
+
+  // Count a showing once per visit, and slide a newly shown item in. A remount
+  // within the visit finds its item already on screen: it neither counts again
+  // nor slides in.
+  useEffect(() => {
+    if (current && countShowing(visit, current.id)) current.onShown?.();
+  }, [current, visit]);
+  useEffect(() => {
+    if (currentId === null || !recordOnScreen(visit, currentId, index, currentSlotKey)) return;
+    const element = contentRef.current;
+    if (!element || typeof element.animate !== "function") return;
+    if (window.matchMedia?.(REDUCED_MOTION_QUERY).matches) return;
+    element.animate(
+      [
+        { opacity: 0, transform: "translateY(6px)" },
+        { opacity: 1, transform: "none" },
+      ],
+      { duration: 260, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" },
+    );
+  }, [currentId, currentSlotKey, index, visit]);
+
+  // Pause while the user types in this draft's composer.
+  const typingTimerRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const scope = rootRef.current?.closest("[data-draft-body]");
+    if (!scope) return;
+    const onInput = () => {
+      setTyping(true);
+      window.clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = window.setTimeout(() => setTyping(false), NEWS_TYPING_PAUSE_MS);
+    };
+    scope.addEventListener("input", onInput);
+    scope.addEventListener("keydown", onInput);
+    return () => {
+      scope.removeEventListener("input", onInput);
+      scope.removeEventListener("keydown", onInput);
+      window.clearTimeout(typingTimerRef.current);
+    };
+  }, []);
+
+  // Pause while the pointer or keyboard focus is on the line or its card.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const state = { pointer: false, focus: false };
+    const sync = () => setInteracting(state.pointer || state.focus);
+    const onPointerEnter = () => {
+      state.pointer = true;
+      sync();
+    };
+    const onPointerLeave = () => {
+      state.pointer = false;
+      sync();
+    };
+    const onFocusIn = () => {
+      state.focus = true;
+      sync();
+    };
+    const onFocusOut = (event: FocusEvent) => {
+      state.focus = root.contains(event.relatedTarget as Node | null);
+      sync();
+    };
+    root.addEventListener("pointerenter", onPointerEnter);
+    root.addEventListener("pointerleave", onPointerLeave);
+    root.addEventListener("focusin", onFocusIn);
+    root.addEventListener("focusout", onFocusOut);
+    return () => {
+      root.removeEventListener("pointerenter", onPointerEnter);
+      root.removeEventListener("pointerleave", onPointerLeave);
+      root.removeEventListener("focusin", onFocusIn);
+      root.removeEventListener("focusout", onFocusOut);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onVisibility = () => setPageHidden(document.visibilityState === "hidden");
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  // The root stays mounted (its listeners attach once); it is empty when there is nothing to show.
+  if (!current) return <div ref={rootRef} className={props.className} data-news-line="" />;
+
+  const openCard = (highlight: ChangelogHighlight) => {
+    // Opening a point counts as reading it: it won't be featured again.
+    useNewsLineStore.getState().retireHighlight(highlight.id);
+    setOpenHighlight(highlight);
+  };
+  const action = current.action;
+  const closeCard = () => {
+    setOpenHighlight(null);
+    // Return focus to the control that opened the card instead of dropping it.
+    actionRef.current?.focus();
+  };
+  const onAction = () => {
+    if (current.highlight) {
+      if (openHighlight) closeCard();
+      else openCard(current.highlight);
+      return;
+    }
+    action?.onPress();
+  };
+  const dotCount = Math.min(5, entries.length);
+  const position = index % dotCount;
+
+  return (
+    <div ref={rootRef} className={props.className} data-news-line="">
+      <div
+        role="region"
+        aria-roledescription={t`carousel`}
+        aria-label={t`News`}
+        className="group flex flex-col items-center gap-0.5 text-[12.5px] text-muted"
+      >
+        <div
+          ref={contentRef}
+          // Announce only while rotation is stopped (APG carousel): never on every rotation.
+          aria-live={paused ? "polite" : "off"}
+          aria-atomic="true"
+          className="flex h-8 w-full min-w-0 items-center gap-2 rounded-full px-3 transition-colors group-hover:bg-[var(--row-hover)] group-focus-within:bg-[var(--row-hover)]"
+          data-news-item={current.id}
+          data-news-kind={current.kind}
+          {...(currentSlotKey ? { "data-news-slot": currentSlotKey } : {})}
+        >
+          {current.icon}
+          <span className="min-w-0 truncate" data-news-text="">
+            {current.content}
+          </span>
+          {action ? (
+            <button
+              ref={actionRef}
+              type="button"
+              aria-expanded={current.highlight ? openHighlight !== null : undefined}
+              className={`flex shrink-0 cursor-default items-center gap-1 rounded-full px-2.5 py-0.5 outline-none transition focus-visible:focus-ring ${
+                action.emphasis
+                  ? "border border-[var(--border)] bg-[var(--surface-secondary)] text-foreground hover:bg-[var(--default)]"
+                  : "text-foreground/85 hover:bg-[var(--row-hover)] hover:text-foreground"
+              }`}
+              onClick={onAction}
+            >
+              {action.leadingIcon}
+              {action.label}
+              {action.external ? (
+                <ArrowUpRight className="size-3" />
+              ) : action.emphasis ? null : (
+                <ChevronRight className="size-3" />
+              )}
+            </button>
+          ) : null}
+        </div>
+        {/* Reserve the controls' row so revealing it never shifts the content. */}
+        <div
+          className="flex h-[22px] shrink-0 items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+          data-news-controls=""
+        >
+          {entries.length > 1 ? (
+            <>
+              <span aria-hidden="true" className="mx-1.5 flex gap-1">
+                {Array.from({ length: dotCount }, (_, dot) => (
+                  <span
+                    key={dot}
+                    className={`h-1 rounded-full transition-all ${dot === position ? "w-3 bg-muted" : "w-1 bg-muted/35"}`}
+                  />
+                ))}
+              </span>
+              <button
+                type="button"
+                aria-label={t`Previous`}
+                disabled={index === 0}
+                className={controlButtonClass}
+                onClick={() => step(-1)}
+              >
+                <ChevronLeft className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label={t`Next`}
+                className={controlButtonClass}
+                onClick={() => step(1)}
+              >
+                <ChevronRight className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label={userPaused ? t`Resume news` : t`Pause news`}
+                aria-pressed={userPaused}
+                className={controlButtonClass}
+                onClick={() => {
+                  rememberPaused(visit, !userPaused);
+                  setUserPaused(!userPaused);
+                }}
+              >
+                {userPaused ? <Play className="size-3" /> : <Pause className="size-3" />}
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            aria-label={t`Hide this`}
+            className={controlButtonClass}
+            onClick={() => {
+              if (current.highlight) setOpenHighlight(null);
+              current.onDismiss();
+            }}
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      </div>
+      {openHighlight ? (
+        <NewsHighlightCard
+          highlight={openHighlight}
+          highlights={highlights}
+          onNavigate={openCard}
+          onClose={closeCard}
+        />
+      ) : null}
+    </div>
+  );
+}

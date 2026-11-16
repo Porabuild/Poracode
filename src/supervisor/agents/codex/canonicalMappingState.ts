@@ -19,6 +19,14 @@ export interface CodexMapperState {
   itemIdMap: Map<string, string>;
   /** Map Codex `itemId` → canonical type, for routing deltas + completions. */
   itemTypeMap: Map<string, CanonicalItemType>;
+  /** Owning turn for items that may outlive the foreground turn. */
+  itemTurnIdMap: Map<string, string>;
+  /**
+   * Codex `itemId`s force-closed when a turn ended without their `item/completed`.
+   * Suppresses late deltas and duplicate starts. Commands retain their mapping
+   * so an eventual native completion can report the actual process outcome.
+   */
+  settledItemIds: Set<string>;
   /** Command items that already streamed outputDelta; used to avoid duplicate aggregated output. */
   commandOutputSeenSet: Set<string>;
   /** Accumulated file-change output, used when Codex reports the path there. */
@@ -49,6 +57,8 @@ export function createCodexMapperState(threadId: string): CodexMapperState {
     threadId,
     itemIdMap: new Map(),
     itemTypeMap: new Map(),
+    itemTurnIdMap: new Map(),
+    settledItemIds: new Set(),
     commandOutputSeenSet: new Set(),
     fileChangeOutputMap: new Map(),
     fileChangePathMap: new Map(),

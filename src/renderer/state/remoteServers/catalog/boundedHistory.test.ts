@@ -6,19 +6,22 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import {
   __resetBoundedHistoryForTest,
-  configureBoundedHistoryClient,
   forgetBoundedHistoryThread,
   forgetBoundedHistoryThreadByViewId,
   invokeBoundedRuntimeItemsPage,
-  loadOlderRemoteCompletedTurns,
+  loadOlderBoundedCompletedTurns,
   mergeBoundedTailTurns,
-  recordBoundedHistoryTail,
 } from "./boundedHistory";
 import {
-  configureBoundedHistoryManagedRootClient,
+  invokeRecordedRuntimeItemsPage,
   readBoundedHistoryTail,
-  recordManagedRootBoundedHistoryTail,
+  recordHistoryTail,
 } from "./boundedHistoryRegistry";
+import { bumpRemoteServerGeneration, setRemoteServerSnapshotSeq } from "../eventSocketRegistry";
+import {
+  configureBoundedHistoryClient,
+  recordBoundedHistoryTail,
+} from "./boundedHistoryTail.testSupport";
 
 const VIEW_THREAD_ID = remoteThreadId("d1", "rt-1");
 const BASE_TIME = Date.parse("2026-01-01T00:00:00.000Z");
@@ -104,12 +107,12 @@ describe("boundedHistory", () => {
       const page = historyPage("ct1.450");
       let viewId = VIEW_THREAD_ID;
       if (connectionKind === "managed-root") {
-        configureBoundedHistoryManagedRootClient(() => ({
-          client: {} as RemoteDesktopClient,
-          seq: 7,
+        const client = {} as RemoteDesktopClient;
+        recordHistoryTail("rt-1", "rt-1", page, {
           authority: "proof-test",
-        }));
-        recordManagedRootBoundedHistoryTail({ threadId: "rt-1", page });
+          isCurrent: () => true,
+          withClient: (invoke) => invoke(client),
+        });
         viewId = "rt-1";
       } else {
         recordBoundedHistoryTail({ desktopId: "d1", threadId: "rt-1", page });
@@ -143,7 +146,7 @@ describe("boundedHistory", () => {
     let more = true;
     let guard = 0;
     while (more && guard < 10) {
-      more = await loadOlderRemoteCompletedTurns(VIEW_THREAD_ID);
+      more = await loadOlderBoundedCompletedTurns(VIEW_THREAD_ID);
       guard += 1;
     }
 
@@ -158,6 +161,24 @@ describe("boundedHistory", () => {
     expect(calls.every((call) => call.limit === 200)).toBe(true);
     expect(calls.every((call) => call.hasCompletedTurnsLimit === false)).toBe(true);
     expect(calls.map((call) => call.cursor)).toEqual(["ct1.450", "ct1.250", "ct1.50"]);
+  });
+
+  it("captures the host identity without keeping the history input in continuation callbacks", async () => {
+    const calls: TurnsCall[] = [];
+    configureBoundedHistoryClient((_desktopId, invoke) => invoke(makeTurnsClient(650, calls)));
+    let recording = true;
+    recordBoundedHistoryTail({
+      get desktopId() {
+        if (!recording) throw new Error("History input must not outlive recording");
+        return "d1";
+      },
+      threadId: "rt-1",
+      page: historyPage("ct1.450"),
+    });
+    recording = false;
+    expect(readBoundedHistoryTail(VIEW_THREAD_ID)?.cursor).toBe("ct1.450");
+    await expect(loadOlderBoundedCompletedTurns(VIEW_THREAD_ID)).resolves.toBe(true);
+    expect(calls[0]?.cursor).toBe("ct1.450");
   });
 
   it("preserves loaded older turns when a bounded tail is installed", () => {
@@ -231,7 +252,7 @@ describe("boundedHistory", () => {
     recordBoundedHistoryTail({ desktopId: "d1", threadId: "rt-1", page: historyPage("ct1.5") });
     const { forgetBoundedHistoryForServer } = await import("./boundedHistory");
     forgetBoundedHistoryForServer("d1");
-    expect(await loadOlderRemoteCompletedTurns(VIEW_THREAD_ID)).toBe(false);
+    expect(await loadOlderBoundedCompletedTurns(VIEW_THREAD_ID)).toBe(false);
     expect(calls).toHaveLength(0);
   });
 
@@ -255,7 +276,7 @@ describe("boundedHistory", () => {
       },
     });
 
-    const pending = loadOlderRemoteCompletedTurns(VIEW_THREAD_ID);
+    const pending = loadOlderBoundedCompletedTurns(VIEW_THREAD_ID);
     // A truncate/reset/removal lands while the page is in flight.
     forgetBoundedHistoryThread("d1", "rt-1");
     releasePage({
@@ -276,13 +297,93 @@ describe("boundedHistory", () => {
     recordBoundedHistoryTail({ desktopId: "d1", threadId: "rt-1", page: historyPage("ct1.450") });
     forgetBoundedHistoryThreadByViewId(VIEW_THREAD_ID);
     expect(readBoundedHistoryTail(VIEW_THREAD_ID)).toBeUndefined();
-    expect(await loadOlderRemoteCompletedTurns(VIEW_THREAD_ID)).toBe(false);
+    expect(await loadOlderBoundedCompletedTurns(VIEW_THREAD_ID)).toBe(false);
     expect(calls).toHaveLength(0);
 
     // Re-opening the thread installs a new bounded tail: continuation resumes.
     recordBoundedHistoryTail({ desktopId: "d1", threadId: "rt-1", page: historyPage("ct1.250") });
-    expect(await loadOlderRemoteCompletedTurns(VIEW_THREAD_ID)).toBe(true);
+    expect(await loadOlderBoundedCompletedTurns(VIEW_THREAD_ID)).toBe(true);
     expect(calls[0]?.cursor).toBe("ct1.250");
+  });
+
+  it.each(["remote", "managed-root"] as const)(
+    "rejects %s item and turn pages that finish after their session is replaced",
+    async (kind) => {
+      let releaseItems!: (value: unknown) => void;
+      let releaseTurns!: (value: unknown) => void;
+      let generation = 1;
+      const client = {
+        boundedThreadHistoryItems: () =>
+          new Promise((resolve) => {
+            releaseItems = resolve;
+          }),
+        boundedThreadTurns: () =>
+          new Promise((resolve) => {
+            releaseTurns = resolve;
+          }),
+      } as unknown as RemoteDesktopClient;
+      let viewId = VIEW_THREAD_ID;
+      if (kind === "managed-root") {
+        const captured = generation;
+        recordHistoryTail("rt-1", "rt-1", historyPage("ct1.450"), {
+          authority: "root-test",
+          isCurrent: () => generation === captured,
+          withClient: (invoke) => invoke(client),
+        });
+        viewId = "rt-1";
+      } else {
+        configureBoundedHistoryClient((_desktopId, invoke) => invoke(client));
+        recordBoundedHistoryTail({
+          desktopId: "d1",
+          threadId: "rt-1",
+          page: historyPage("ct1.450"),
+        });
+      }
+      const payload = { threadId: "rt-1", limit: 50, beforePosition: 100 };
+      const items =
+        kind === "managed-root"
+          ? invokeRecordedRuntimeItemsPage(payload)
+          : invokeBoundedRuntimeItemsPage(client, "d1", payload);
+      const turns = loadOlderBoundedCompletedTurns(viewId);
+      generation += 1;
+      if (kind === "remote") bumpRemoteServerGeneration("d1");
+      releaseItems({
+        negotiation: "bounded",
+        page: { items: ["old"], nextCursor: 50, reads: "bounded-v1" },
+      });
+      releaseTurns({
+        turns: [turn(449)],
+        completedTurnsNextCursor: "ct1.449",
+        reads: "bounded-v1",
+      });
+      await expect(items).resolves.toBeUndefined();
+      await expect(turns).resolves.toBe(false);
+      expect(readBoundedHistoryTail(viewId)).toBeUndefined();
+      expect(useAppStore.getState().runtimeCompletedTurnsByThread[viewId]).toBeUndefined();
+    },
+  );
+
+  it("rejects an old remote page after the same endpoint restarts its event epoch", async () => {
+    let releaseItems!: (value: unknown) => void;
+    const client = {
+      boundedThreadHistoryItems: () =>
+        new Promise((resolve) => {
+          releaseItems = resolve;
+        }),
+    } as unknown as RemoteDesktopClient;
+    setRemoteServerSnapshotSeq("d1", 40, "before");
+    recordBoundedHistoryTail({ desktopId: "d1", threadId: "rt-1", page: historyPage("ct1.450") });
+    const pending = invokeBoundedRuntimeItemsPage(client, "d1", {
+      threadId: "rt-1",
+      limit: 50,
+      beforePosition: 100,
+    });
+    setRemoteServerSnapshotSeq("d1", 0, "after");
+    releaseItems({
+      negotiation: "bounded",
+      page: { items: ["old"], nextCursor: 50, reads: "bounded-v1" },
+    });
+    await expect(pending).resolves.toBeUndefined();
   });
 });
 

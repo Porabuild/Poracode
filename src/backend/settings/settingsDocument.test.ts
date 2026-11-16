@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { defaultSharedSettings } from "@/shared/settings";
-import { SettingsDocumentError, decodeSettingsDocument } from "./settingsDocument";
+import {
+  SETTINGS_DOCUMENT_VERSION_KEY,
+  SettingsDocumentError,
+  decodeSettingsDocument,
+} from "./settingsDocument";
 
 describe("settings document migration", () => {
   it("adds native voice defaults while preserving legacy audio choices", () => {
@@ -129,14 +133,52 @@ describe("settings document migration", () => {
     });
     expect(document.settings).toMatchObject({
       prAutomationDefault: "merge",
-      preventSleep: "while-remote-access",
+      preventSleepWhen: ["working", "remote-access"],
+      preventScreenLockWhen: [],
     });
     expect(document.raw).toMatchObject({
       prAutomationDefault: "merge",
-      preventSleep: "while-remote-access",
+      preventSleepWhen: ["working", "remote-access"],
       futureField: { sealed: "lc-safe:v1:untouched" },
     });
     expect(document.settings).not.toHaveProperty("futureField");
+  });
+
+  // Previous released shape: the single `preventSleep` enum, no condition lists.
+  it.each([
+    ["while-working", ["working"]],
+    ["while-remote-access", ["working", "remote-access"]],
+    ["always", ["always"]],
+  ] as const)(
+    "migrates a pre-upgrade preventSleep %s document and keeps it readable by older apps",
+    (preventSleep, expected) => {
+      const document = decodeSettingsDocument({
+        [SETTINGS_DOCUMENT_VERSION_KEY]: 3,
+        preventSleep,
+        themeMode: "dark",
+      });
+      expect(document.settings.preventSleepWhen).toEqual(expected);
+      expect(document.settings.preventScreenLockWhen).toEqual([]);
+      expect(document.settings).not.toHaveProperty("preventSleep");
+      // The legacy key stays in the persisted document, so an older app that
+      // reads a newer file still finds a value valid in its schema.
+      expect(document.raw).toMatchObject({ preventSleep, preventSleepWhen: expected });
+    },
+  );
+
+  it("keeps stored keep-awake condition lists over the legacy enum", () => {
+    const document = decodeSettingsDocument({
+      preventSleep: "always",
+      preventSleepWhen: [],
+      preventScreenLockWhen: ["computer-use"],
+    });
+    expect(document.settings).toMatchObject({
+      preventSleepWhen: [],
+      preventScreenLockWhen: ["computer-use"],
+    });
+    expect(() => decodeSettingsDocument({ preventScreenLockWhen: ["sometimes"] })).toThrow(
+      "invalid preventScreenLockWhen",
+    );
   });
 
   it("accepts the documented legacy URL migration without losing future server fields", () => {

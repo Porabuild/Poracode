@@ -308,6 +308,7 @@ extension HomeQuickComposeView {
           }
           .tint(.green)
           .poracodeDrawerRowSurface()
+          .poracodeSwitchStyle()
         }
       }
     }

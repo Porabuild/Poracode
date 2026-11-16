@@ -1,4 +1,7 @@
 import { toError, toErrorMessage } from "@/shared/errorMessage";
+import { isGitProcessAdmissionRefusal } from "@/shared/gitProcessAdmission";
+import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
+import { isThreadSessionAbsenceRefusal } from "@/shared/threadSessionRefusal";
 import type { AgentKind, SessionRef } from "@/shared/contracts";
 import type { RuntimeEventRouter } from "./runtimeEventRouter";
 
@@ -8,6 +11,48 @@ type AllocatedSession = {
   canResumeWithConfig: boolean;
 };
 const allocatedSessions = new WeakMap<Error, Map<string, AllocatedSession>>();
+
+export interface StartThreadAttemptOutcome {
+  confirmedPreRuntimeFailure?: boolean;
+  providerSessionTouched?: boolean;
+  launchTurnDispatched?: boolean;
+}
+
+class ConfirmedIpcThreadLaunchFailureCarrier extends Error {
+  readonly rawError: unknown;
+
+  constructor(rawError: unknown) {
+    super(toErrorMessage(rawError), rawError instanceof Error ? { cause: rawError } : undefined);
+    this.name = "ConfirmedIpcThreadLaunchFailureCarrier";
+    this.rawError = rawError;
+  }
+}
+
+export function isEligiblePreRuntimeLaunchFailure(error: unknown): boolean {
+  return (
+    !isHostResourceAdmissionRefusal(error) &&
+    !isGitProcessAdmissionRefusal(error) &&
+    !isThreadSessionAbsenceRefusal(error)
+  );
+}
+
+export function wrapConfirmedIpcThreadLaunchFailure(error: unknown): Error {
+  if (error instanceof ConfirmedIpcThreadLaunchFailureCarrier) return error;
+  return new ConfirmedIpcThreadLaunchFailureCarrier(error);
+}
+
+export function unwrapConfirmedIpcThreadLaunchFailure(error: unknown): {
+  rawError: unknown;
+  confirmedLaunchFailure: boolean;
+} {
+  if (error instanceof ConfirmedIpcThreadLaunchFailureCarrier) {
+    return {
+      rawError: error.rawError,
+      confirmedLaunchFailure: isEligiblePreRuntimeLaunchFailure(error.rawError),
+    };
+  }
+  return { rawError: error, confirmedLaunchFailure: false };
+}
 
 /**
  * An open can allocate a native resource before later configuration fails.
@@ -37,11 +82,16 @@ export function retainUnpublishedStartSessionRef(
   return error;
 }
 
-/** A rejected startup has no live runtime to settle the client's optimistic turn. */
+/**
+ * A rejected startup has no live runtime to settle the client's optimistic turn.
+ * A start that carried the user's message was a turn of its own: it stays
+ * resumable, like any other turn that failed.
+ */
 export function publishUnpublishedStartFailure(
   threadId: string,
   error: unknown,
   router: Pick<RuntimeEventRouter, "append" | "queueStopMarker">,
+  options: { carriedPrompt?: boolean } = {},
 ): void {
   // One error object may be reused by concurrent provider attempts. Consume
   // only this thread's capture; another owner must never acquire its ref.
@@ -59,9 +109,10 @@ export function publishUnpublishedStartFailure(
     status: "error",
     attention: "error",
     errorMessage: message,
-    canResumeWithConfig: allocated?.canResumeWithConfig ?? false,
+    canResumeWithConfig: allocated?.canResumeWithConfig ?? options.carriedPrompt === true,
     sessionConfigOptions: null,
     ...(allocated ? { agentKind: allocated.agentKind, sessionRef: allocated.sessionRef } : {}),
+    ...(options.carriedPrompt ? { interruptedTurn: "error" as const } : {}),
     forceCloseActiveTurn: true,
     threadStatusSource: "server",
   });

@@ -24,7 +24,7 @@ import {
 } from "./promptRailTarget";
 import { RAIL_MIN_GUTTER_PX, useRailPane } from "./useRailPane";
 import { useThreadPromptIndex } from "./useThreadPromptIndex";
-import { useVisibleRowRange } from "./useVisibleRowRange";
+import type { VisibleRowRange } from "./stickyPromptTarget";
 
 /** Grace period before the preview closes, so sweeping across ticks never flickers it. */
 const PREVIEW_CLOSE_DELAY_MS = 100;
@@ -39,6 +39,8 @@ interface ChatPromptRailProps {
   scrollElement: HTMLDivElement | null;
   /** False while the transcript is still hidden for its initial scroll. */
   isEnabled: boolean;
+  /** Rows overlapping the transcript viewport, measured once by the overlays. */
+  visibleRange: VisibleRowRange | null;
   /** The prompt being paged in for a jump; its tick shows progress. */
   pendingPromptId: string | null;
   /** Scrolls to a prompt, paging it in first when it has not been loaded. */
@@ -61,6 +63,7 @@ export function ChatPromptRail({
   entries,
   scrollElement,
   isEnabled,
+  visibleRange,
   pendingPromptId,
   onJumpToPrompt,
 }: ChatPromptRailProps) {
@@ -80,8 +83,6 @@ export function ChatPromptRail({
   const railPane = useRailPane(scrollElement);
   const hasRoom = railPane !== null && railPane.gutter >= RAIL_MIN_GUTTER_PX;
   const promptIndex = useThreadPromptIndex(threadId, hasRoom);
-  const prompts = buildRailPrompts(promptIndex ?? null, entries, loadedPromptIndexes);
-  const visibleRange = useVisibleRowRange(hasRoom ? scrollElement : null, entries);
 
   useEffect(
     () => () => {
@@ -90,7 +91,14 @@ export function ChatPromptRail({
     [],
   );
 
+  // Hidden rails are re-rendered whenever the shared visible range moves, so
+  // reject them before deriving anything from the timeline.
+  if (!isEnabled || isFindOpen || promptIndex === undefined || !railPane || !hasRoom) return null;
+
+  const prompts = buildRailPrompts(promptIndex ?? null, entries, loadedPromptIndexes);
   const count = prompts.length;
+  if (count < 2) return null;
+
   const loadedIndexes = prompts.map((prompt) => prompt.loadedIndex);
   const activePosition = findActivePromptPosition(loadedIndexes, visibleRange?.last ?? null);
 
@@ -122,16 +130,6 @@ export function ChatPromptRail({
     node.addEventListener("wheel", onWheel, { passive: false });
     return () => node.removeEventListener("wheel", onWheel);
   };
-
-  if (
-    !isEnabled ||
-    isFindOpen ||
-    promptIndex === undefined ||
-    prompts.length < 2 ||
-    !railPane ||
-    !hasRoom
-  )
-    return null;
 
   const openPreviewAt = (position: number) => {
     if (closeTimerRef.current !== null) clearTimeout(closeTimerRef.current);

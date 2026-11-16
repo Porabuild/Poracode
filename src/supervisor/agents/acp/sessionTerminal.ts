@@ -1,18 +1,17 @@
-import type { IDisposable } from "node-pty";
 import type { TerminalExitStatus } from "@agentclientprotocol/sdk";
 
 export type AcpTerminalRecord = {
   kill: () => void;
+  dispose: () => void;
   commandLine: string;
   output: string;
   outputByteLimit: number | undefined;
   truncated: boolean;
   exitStatus: TerminalExitStatus | undefined;
   waiters: Array<(status: TerminalExitStatus) => void>;
-  subscriptions: IDisposable[];
 };
 
-// Cap concurrent host PTYs per ACP session. Legitimate use rarely exceeds a
+// Cap concurrent command processes per ACP session. Legitimate use rarely exceeds a
 // handful; the cap is a defensive bound against a misbehaving agent that
 // creates terminals without releasing them and leaks file descriptors.
 export const MAX_ACP_TERMINALS_PER_SESSION = 32;

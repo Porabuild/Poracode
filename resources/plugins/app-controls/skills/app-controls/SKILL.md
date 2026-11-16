@@ -21,10 +21,22 @@ condition. Heartbeats require a same-project, same-agent GUI conversation.
 `mcpServers` maps configured server ids to booleans, and `plugins` maps installed
 manifest names to booleans. These choices are per thread and survive resume;
 global hard disables and provider/platform restrictions still apply. Discover
-custom server ids with `list_mcp_servers`/`get_project` and installed plugin names
+custom server ids with `list_mcp_servers` (pass the target `projectId`) and installed plugin names
 with `get_settings` (`section: "installedPlugins"`). Attach files or images to
 the first message with `attachments: [{path, mimeType?}]`; paths must be absolute
 files on this host, and image MIME types are inferred from their extension.
+
+Custom MCP servers are global (shared settings) or belong to one project; a
+project server overrides a global one with the same name in that project. The
+`*_mcp_server` tools take `scope: "global" | "project"` and `projectId`; project
+scope defaults to the calling thread's project, and the Home project has none.
+`list_mcp_servers` shows both scopes and marks overrides; `move_mcp_server`
+moves a server between them with its secrets. When the user asks for a server
+"in this project", use project scope. `authenticate_mcp_server` starts OAuth for
+an HTTP/SSE server: give the user the returned `authorizationUrl`, then poll with
+`action: "wait"` and the `flowId`. Projects also switch installed Agent Plugins
+with `update_project` `plugins` (`null` follows the global state); the thread's
+own `plugins` choices still win.
 
 With `worktree: {enabled: true}`, `create_thread` creates and assigns the child's
 checkout before launching the agent there. The caller provisions it through
@@ -60,12 +72,40 @@ completed but the UI refresh needs retrying; do not repeat the mutation.
 
 For app-native charts, comparison tables, calculators, checklists, tabs, text and
 relationship diagrams, use Native visuals v2 below. Existing v1 documents remain supported.
-An assistant-message fence opened with `poracode-html-v1` followed by a plain
-title preserves HTML as a source preview in desktop and web/PWA conversations
-(at most 256 KiB per block). Interactive HTML rendering and MCP Apps sessions
-are unavailable: author markup and scripts are not executed. Do not promise
-interactive HTML, MCP Apps sessions or host actions. Ordinary
-`html` code fences remain source examples.
+Use an HTML page (below) only for content native visuals cannot express.
+Configured MCP Apps servers can supply interactive cards in GUI chat through
+declared `ui://` resources and the host-managed sandbox. Do not promise app tools
+or host actions from authored HTML or native visual fences. Ordinary `html`
+code fences remain source examples.
+
+### HTML pages
+
+In a completed assistant reply, open a fenced code block with `poracode-html-v1`
+followed by a plain title. Its body is one self-contained HTML document or
+fragment. Desktop, web/PWA and native iOS/Android render it in a sandboxed frame
+inside the conversation. Streaming, unfinished and unknown-version blocks stay
+source, and viewers can always switch to the source or copy it.
+
+- Scripts and inline styles run. The page has no access to the app, session,
+  storage, cookies or host API: it cannot call tools, send messages or read the
+  conversation.
+- Scripts, styles, fonts, images and media load only from
+  `https://cdn.jsdelivr.net`, `https://cdnjs.cloudflare.com` and
+  `https://unpkg.com`. fetch/XHR/WebSocket, other hosts, frames, form submission
+  and navigation are blocked; inline anything else (images as `data:` URLs).
+  Submit events still fire, so handle forms in script.
+- Clicked http(s) links open like other chat links; mobile asks first. Fragment
+  links scroll within the page; nothing else navigates it.
+- Use the app theme variables instead of fixed colors: `--background`,
+  `--foreground`, `--surface`, `--surface-secondary`, `--muted` (secondary
+  text), `--border`, `--accent`, `--accent-foreground`, `--success`, `--warning`,
+  `--danger`, `--font-sans` and `--font-mono`. Pages follow the viewer's light or
+  dark theme; leave the page background to the app.
+- Height follows the content up to 2,000 px, after which the page scrolls. Do not
+  size `html` or `body` with vh units or `height: 100%`.
+- At most 248 KiB of UTF-8 per block and four previews per message; larger or
+  later blocks show source. Search keeps only the surrounding prose and the
+  title, so put the useful conclusion in the prose.
 
 ### Native visuals v1
 

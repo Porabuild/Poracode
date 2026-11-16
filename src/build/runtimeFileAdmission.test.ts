@@ -220,6 +220,9 @@ async function fixture(root: string, kind: string) {
     "scripts/server-host-tools.mjs",
     "packages/poracode-cli/lib/completion.mjs",
     "packages/poracode-cli/lib/desktopBundle.mjs",
+    "packages/poracode-cli/lib/installPaths.mjs",
+    "packages/poracode-cli/lib/artifact.mjs",
+    "packages/poracode-cli/lib/errors.mjs",
   ])
     await writeFile(join(root, path), "{}");
   await mkdir(join(sourceAgentsDir, "plugin/forward-runtime"), { recursive: true });

@@ -93,6 +93,32 @@ describe("Codex app-server pool", () => {
     shutdownSpawnedCodexAppServers();
   });
 
+  it("isolates native collisions while retaining sharing for unrelated native servers", async () => {
+    const location = { kind: "posix" as const, path: "/repo" };
+    const servers = [httpServer("custom-admin", "https://admin.test/mcp")];
+    const original = await codexAppServerPoolKey(location, servers);
+    const unrelated = await codexAppServerPoolKey(
+      location,
+      servers,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ["unrelated"],
+    );
+    const colliding = await codexAppServerPoolKey(
+      location,
+      servers,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      ["custom-admin"],
+    );
+    expect(unrelated).toBe(original);
+    expect(colliding).not.toBe(original);
+  });
+
   it("reuses one process when only thread-scoped MCP query values differ", async () => {
     const first = await acquireCodexAppServer(input("local-a", browserServer("local-a")));
     const secondInput = {

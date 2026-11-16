@@ -107,7 +107,7 @@ struct GitHubWorkflowRunsView: View {
     .listStyle(.insetGrouped)
     .navigationTitle(workflow.name)
     .navigationBarTitleDisplayMode(.inline)
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       PoracodeBottomActionBar {
         PoracodeCircleButton {
           Task { await load() }
@@ -391,10 +391,16 @@ enum GitHubActionsStatus {
 }
 
 enum GitHubActionsDate {
+  // Formatters are configured once and safe to share for parsing.
+  nonisolated(unsafe) private static let fractional: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+  }()
+  nonisolated(unsafe) private static let standard = ISO8601DateFormatter()
+
   static func parse(_ value: String) -> Date? {
-    let fractional = ISO8601DateFormatter()
-    fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    return fractional.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+    fractional.date(from: value) ?? standard.date(from: value)
   }
 }
 

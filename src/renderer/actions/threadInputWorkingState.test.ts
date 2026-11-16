@@ -1,3 +1,7 @@
+import {
+  dropPendingThreadLaunch,
+  notePendingThreadLaunch,
+} from "@/renderer/state/threadLaunchIntents";
 import "fake-indexeddb/auto";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,11 +37,7 @@ vi.mock("./threadCommandOutcomeActions", async (importOriginal) => {
 import { useAppStore } from "@/renderer/state/appStore";
 import { resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { applyRootCatalogThreadRows } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
-import {
-  __resetManagedRootCatalogStoreForTest,
-  dropPendingManagedRootLaunch,
-  notePendingManagedRootLaunch,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+import { __resetManagedRootCatalogStoreForTest } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "@/renderer/state/remote/sync";
 import { projectRemoteProject, projectRemoteThread } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -184,7 +184,7 @@ describe("working state during prompt admission", () => {
       };
       const inactive: Thread = { ...idle, status: "inactive", canResumeWithConfig: false };
       useAppStore.setState({ threads: [preparing] });
-      notePendingManagedRootLaunch(idle.id, false);
+      notePendingThreadLaunch(idle.id, false);
       useAppStore.getState().openThread("other-thread");
       if (source === "catalog") applyRootCatalogThreadRows([inactive], new Set());
       else if (source === "history") applyThreadSnapshot(snapshot(inactive));
@@ -196,7 +196,7 @@ describe("working state during prompt admission", () => {
           ]);
       expect(currentThread().status).toBe("launching");
       expect(currentThread().activeTurnStartedAt).toBe(startedAt);
-      dropPendingManagedRootLaunch(idle.id);
+      dropPendingThreadLaunch(idle.id);
       applyThreadSnapshot(snapshot(inactive));
       expect(currentThread().status).toBe("inactive");
     },
@@ -206,7 +206,7 @@ describe("working state during prompt admission", () => {
     const preparing: Thread = { ...idle, status: "launching", canResumeWithConfig: false };
     const inactive: Thread = { ...idle, status: "inactive", canResumeWithConfig: false };
     useAppStore.setState({ threads: [preparing] });
-    notePendingManagedRootLaunch(idle.id, false);
+    notePendingThreadLaunch(idle.id, false);
     applyThreadSnapshot({ ...snapshot(inactive), runtimeStateCurrent: true });
     expect(currentThread().status).toBe("inactive");
   });
@@ -217,7 +217,7 @@ describe("working state during prompt admission", () => {
       useAppStore.setState({
         threads: [{ ...idle, status: "launching", canResumeWithConfig: false }],
       });
-      notePendingManagedRootLaunch(idle.id, false);
+      notePendingThreadLaunch(idle.id, false);
       useAppStore.getState().reconcileRuntimeSnapshots([
         {
           ...idleRuntimeSnapshot(),
@@ -242,6 +242,12 @@ describe("working state during prompt admission", () => {
     async (source) => {
       const checkpoint = deferred();
       const sendThreadInput = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+      const staleHistory: RemoteThreadSnapshot = {
+        ...snapshot(idle),
+        runtimeItems: [
+          { id: "prior-turn-item", type: "assistant_message", state: "completed", streams: {} },
+        ],
+      };
       const sending = performThreadInputSubmit({
         thread: idle,
         prompt: "hello",
@@ -249,11 +255,13 @@ describe("working state during prompt admission", () => {
         captureCheckpoint: () => checkpoint.promise,
       });
       const startedAt = currentThread().activeTurnStartedAt;
+      const optimisticItemIds = [...(useAppStore.getState().runtimeItemIdsByThread[idle.id] ?? [])];
+      expect(optimisticItemIds).toHaveLength(1);
       expect(currentThread().status).toBe("working");
       expect(startedAt).toBeDefined();
       useAppStore.getState().openThread("other-thread");
       if (source === "catalog") applyRootCatalogThreadRows([idle], new Set());
-      else if (source === "history") applyThreadSnapshot(snapshot(idle));
+      else if (source === "history") applyThreadSnapshot(staleHistory);
       else if (source === "reconcile" || source === "missing-runtime")
         useAppStore
           .getState()
@@ -272,12 +280,13 @@ describe("working state during prompt admission", () => {
         attention: "working",
         activeTurnStartedAt: startedAt,
       });
+      expect(useAppStore.getState().runtimeItemIdsByThread[idle.id]).toEqual(optimisticItemIds);
       expect(useAppStore.getState().runtimeCompletedTurnsByThread[idle.id] ?? []).toHaveLength(0);
       expect(sendThreadInput).not.toHaveBeenCalled();
       checkpoint.resolve();
       await sending;
       if (source === "catalog") applyRootCatalogThreadRows([idle], new Set());
-      else if (source === "history") applyThreadSnapshot(snapshot(idle));
+      else if (source === "history") applyThreadSnapshot(staleHistory);
       else if (source === "reconcile" || source === "missing-runtime")
         useAppStore
           .getState()
@@ -292,8 +301,44 @@ describe("working state during prompt admission", () => {
           canResumeWithConfig: idle.canResumeWithConfig,
         });
       expect(currentThread().status).toBe("working");
+      expect(useAppStore.getState().runtimeItemIdsByThread[idle.id]).toEqual(optimisticItemIds);
     },
   );
+
+  it("retains a pending optimistic prompt across a recovery clear and pre-admission snapshot install", async () => {
+    const checkpoint = deferred();
+    const sendThreadInput = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const sending = performThreadInputSubmit({
+      thread: idle,
+      prompt: "let's merge",
+      transport: { sendThreadInput },
+      captureCheckpoint: () => checkpoint.promise,
+    });
+    const optimisticId = useAppStore.getState().runtimeItemIdsByThread[idle.id]?.[0];
+    expect(optimisticId).toBeDefined();
+
+    // Simulate hostHistoryRecovery's beforeInstall clear followed by a larger
+    // pre-admission snapshot from the remote host.
+    useAppStore.getState().clearThreadRuntimeEvents(idle.id, {
+      keepOpenRequests: true,
+      keepPromptIndex: true,
+    });
+    applyThreadSnapshot({
+      ...snapshot(idle),
+      runtimeItems: [
+        { id: "u1", type: "user_message", state: "completed", streams: {} },
+        { id: "a1", type: "assistant_message", state: "completed", streams: {} },
+      ],
+    });
+
+    expect(useAppStore.getState().runtimeItemIdsByThread[idle.id]).toEqual([
+      "u1",
+      "a1",
+      optimisticId,
+    ]);
+    checkpoint.resolve();
+    await sending;
+  });
 
   it("keeps a new thread working while checkpoint capture and launch are pending", async () => {
     const checkpoint = deferred();
@@ -339,14 +384,14 @@ describe("working state during prompt admission", () => {
       prompt: "First prompt",
       initialSize: { cols: 80, rows: 24 },
     });
-    notePendingManagedRootLaunch(idle.id, false);
+    notePendingThreadLaunch(idle.id, false);
     useAppStore.getState().openThread("other-thread");
     applyRootCatalogThreadRows(
       [{ ...idle, status: "inactive", canResumeWithConfig: false }],
       new Set(),
     );
     expect(currentThread().status).toBe("working");
-    dropPendingManagedRootLaunch(idle.id);
+    dropPendingThreadLaunch(idle.id);
     launchResponse.resolve();
     await launch;
     applyThreadSnapshot(snapshot(idle));
@@ -418,6 +463,74 @@ describe("working state during prompt admission", () => {
       await sending;
     });
     expect(waiting.result.current).toBe(true);
+  });
+
+  it("offers the resume again when a resume send fails", async () => {
+    const cutOff: Thread = { ...idle, interruptedTurn: "restart" };
+    useAppStore.setState({ threads: [cutOff] });
+    const sending = performThreadInputSubmit({
+      thread: cutOff,
+      prompt: "Continue from where you left off.",
+      transport: {
+        sendThreadInput: async () => {
+          expect(currentThread().interruptedTurn).toBeUndefined();
+          throw new Error("rejected");
+        },
+      },
+    });
+    await expect(sending).rejects.toThrow("rejected");
+    expect(currentThread().interruptedTurn).toBe("restart");
+  });
+
+  it("keeps a resume retired when Stop settled the thread before the send failed", async () => {
+    const cutOff: Thread = { ...idle, interruptedTurn: "restart" };
+    useAppStore.setState({ threads: [cutOff] });
+    const sending = performThreadInputSubmit({
+      thread: cutOff,
+      prompt: "Continue from where you left off.",
+      transport: {
+        sendThreadInput: async () => {
+          // The user pressed Stop while the send was still pending.
+          useAppStore.getState().updateThreadRuntime(idle.id, {
+            status: "inactive",
+            attention: "none",
+            canResumeWithConfig: true,
+            forceCloseActiveTurn: true,
+            interruptedTurn: null,
+          });
+          throw new Error("rejected");
+        },
+      },
+    });
+    await expect(sending).rejects.toThrow("rejected");
+    expect(currentThread().interruptedTurn).toBeUndefined();
+  });
+
+  it("keeps a resume retired when Stop cleared it while the send held the thread working", async () => {
+    const cutOff: Thread = { ...idle, interruptedTurn: "restart" };
+    useAppStore.setState({ threads: [cutOff] });
+    const sending = performThreadInputSubmit({
+      thread: cutOff,
+      prompt: "Continue from where you left off.",
+      transport: {
+        sendThreadInput: async () => {
+          // Stop retires the turn while the pending send still shows working.
+          dispatchRemoteSupervisorEvent({
+            type: "thread-state",
+            threadId: idle.id,
+            agentKind: idle.agentKind,
+            status: "idle",
+            attention: "none",
+            canResumeWithConfig: true,
+            interruptedTurn: null,
+          });
+          expect(currentThread().status).toBe("working");
+          throw new Error("rejected");
+        },
+      },
+    });
+    await expect(sending).rejects.toThrow("rejected");
+    expect(currentThread().interruptedTurn).toBeUndefined();
   });
 
   it("lets real completion settle the thread even before the submit response arrives", async () => {
@@ -726,5 +839,24 @@ describe("working state during prompt admission", () => {
       ],
     });
     expect(currentThread().status).toBe("idle");
+  });
+
+  it("retains the optimistic updatedAt jump across a pre-admission catalog refresh", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-10T14:00:00.000Z"));
+    const sendGate = deferred();
+    const sending = performThreadInputSubmit({
+      thread: idle,
+      prompt: "jump to top",
+      transport: { sendThreadInput: () => sendGate.promise },
+    });
+    expect(currentThread().updatedAt).toBe("2026-05-10T14:00:00.000Z");
+
+    applyRootCatalogThreadRows([idle], new Set());
+    expect(currentThread().updatedAt).toBe("2026-05-10T14:00:00.000Z");
+
+    sendGate.resolve();
+    await sending;
+    vi.useRealTimers();
   });
 });

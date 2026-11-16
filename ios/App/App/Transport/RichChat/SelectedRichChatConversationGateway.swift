@@ -1,6 +1,15 @@
 import Foundation
 
 extension SelectedRichChatSessionGateway: RichChatConversationGateway {
+  func controlRichMcpApp(target: RichChatThreadTarget, payload: [String: RichJSON]) async throws -> RichJSON {
+    var bound = payload
+    bound["threadId"] = .string(target.threadID)
+    let request = bound
+    return try await executeMutation(target: target, capability: .sessionOperate) { api in
+      try await api.richControlMcpApp(payload: request)
+    }
+  }
+
   func sendRichInput(target: RichChatThreadTarget, input: RichChatSendInput) async throws {
     try await executeMutation(target: target, capability: .sessionOperate) { api in
       try await api.richSend(threadID: target.threadID, input: input)

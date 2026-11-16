@@ -1,3 +1,8 @@
+import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
+import {
+  THREAD_LAUNCH_FAILED_REFUSAL_CODE,
+  isThreadLaunchFailedRefusal,
+} from "@/shared/threadLaunchRefusal";
 import type {
   RemoteThreadCommand,
   StartThreadPayload,
@@ -197,4 +202,21 @@ export function retargetRemoteThreadForSwitch(
   };
   dbUpsertThread(switched, sortOrderForThread(threads, threadId));
   return { previous, switched };
+}
+
+export function isPlainThreadStartPreEffectFailure(error: unknown): boolean {
+  return isHostResourceAdmissionRefusal(error) || isThreadLaunchFailedRefusal(error);
+}
+
+export function rethrowPlainThreadStartRefusal(error: unknown, providerSwitch: unknown): never {
+  if (!providerSwitch && isThreadLaunchFailedRefusal(error)) {
+    throw new RemoteHttpError(
+      THREAD_LAUNCH_FAILED_REFUSAL_CODE,
+      error instanceof Error && error.message.length > 0
+        ? error.message
+        : "The thread could not be started.",
+      422,
+    );
+  }
+  throw error;
 }

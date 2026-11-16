@@ -2,7 +2,6 @@ import SwiftUI
 
 struct HomeAllProjectsFilterRow: View {
   let isSelected: Bool
-  let accent: Color
   let select: () -> Void
 
   var body: some View {
@@ -17,7 +16,7 @@ struct HomeAllProjectsFilterRow: View {
         if isSelected {
           Image(systemName: "checkmark")
             .font(.caption.weight(.semibold))
-            .foregroundStyle(accent)
+            .foregroundStyle(.primary)
         }
       }
       .contentShape(Rectangle())
@@ -30,7 +29,6 @@ struct HomeAllProjectsFilterRow: View {
 struct HomeProjectFilterRow: View {
   let option: HomeProjectFilterOption
   let isSelected: Bool
-  let accent: Color
   let select: () -> Void
   let openActions: () -> Void
 
@@ -46,26 +44,22 @@ struct HomeProjectFilterRow: View {
           if isSelected {
             Image(systemName: "checkmark")
               .font(.caption.weight(.semibold))
-              .foregroundStyle(accent)
+              .foregroundStyle(.primary)
           }
         }
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
       .frame(maxWidth: .infinity, alignment: .leading)
-
-      Button(action: openActions) {
-        Image(systemName: "ellipsis")
-          .font(.subheadline.weight(.semibold))
-          .foregroundStyle(.secondary)
-          .frame(width: 34, height: 34)
-          .contentShape(Circle())
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel(ProjectManagementStrings.title)
-      .accessibilityIdentifier("native-e2e.project-actions.\(option.id)")
     }
     .poracodeDrawerRowSurface()
+    .accessibilityIdentifier("native-e2e.project-actions.\(option.id)")
+    .simultaneousGesture(
+      LongPressGesture(minimumDuration: 0.5).onEnded { _ in openActions() }
+    )
+    .accessibilityActions {
+      Button(ProjectManagementStrings.title) { openActions() }
+    }
   }
 
   private var projectIdentity: some View {

@@ -82,6 +82,50 @@ function useAndroidUserAgent(): void {
 }
 
 describe("useKeyboardOffset", () => {
+  it("keeps the geometry identity and avoids renders for unchanged viewport events", () => {
+    setWindowHeight(800);
+    setDocumentHeight(800);
+    const viewport = installVisualViewport({ height: 500 });
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders++;
+      return useKeyboardGeometry();
+    });
+    const geometry = result.current;
+    // React may call the component once to bail out after a prior state change.
+    act(() => viewport.dispatch());
+    const settledRenders = renders;
+    for (let i = 0; i < 10; i++) act(() => viewport.dispatch("scroll"));
+    expect(result.current).toBe(geometry);
+    expect(renders).toBe(settledRenders);
+    act(() => {
+      viewport.viewport.height = 550;
+      viewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 250, visibilityOffset: 250 });
+  });
+
+  it("updates visibility when Android changes geometry without changing lift", () => {
+    useAndroidUserAgent();
+    setWindowHeight(800);
+    setDocumentHeight(800);
+    const viewport = installVisualViewport({ height: 800 });
+    const { result } = renderHook(() => useKeyboardGeometry());
+    act(() => {
+      setWindowHeight(500);
+      setDocumentHeight(500);
+      viewport.viewport.height = 500;
+      viewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 300 });
+    act(() => {
+      setWindowHeight(550);
+      setDocumentHeight(550);
+      viewport.viewport.height = 550;
+      viewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 250 });
+  });
   afterEach(() => {
     document.documentElement.style.removeProperty("--m-viewport-baseline-height");
     document.documentElement.style.removeProperty("--m-keyboard-visibility-offset");

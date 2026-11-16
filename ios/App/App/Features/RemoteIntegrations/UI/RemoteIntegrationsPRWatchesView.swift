@@ -164,8 +164,10 @@ struct RemoteIntegrationsPRWatchesView: View {
       }
       Toggle(RemoteIntegrationsStrings.watchEnabled, isOn: .constant(watch.watchEnabled))
         .disabled(true)
+        .poracodeSwitchStyle()
       Toggle(RemoteIntegrationsStrings.autoMerge, isOn: .constant(watch.autoMerge))
         .disabled(true)
+        .poracodeSwitchStyle()
       if watch.hasLastError {
         Label(RemoteIntegrationsStrings.lastCheckFailed, systemImage: "exclamationmark.triangle")
           .foregroundStyle(.secondary)

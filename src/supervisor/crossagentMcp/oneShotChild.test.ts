@@ -217,4 +217,54 @@ describe("runOneShotChild", () => {
     handle.cancel();
     expect(onSettle).toHaveBeenCalledOnce();
   });
+
+  it("streams and cleanly retires a PTY-backed one-shot child on natural exit and cancellation", async () => {
+    const baselinePorts = process
+      .getActiveResourcesInfo()
+      .filter((r) => r === "MessagePort").length;
+
+    const completed = await run(
+      nodeAdapter(() => ({
+        command: process.execPath,
+        args: ["-e", "process.stdout.write('pty-ok')"],
+        stdin: "",
+        pty: true,
+      })),
+    );
+    expect(completed.status).toBe("completed");
+    expect(completed.output).toContain("pty-ok");
+
+    const ready = Promise.withResolvers<void>();
+    const onSettle = vi.fn<OneShotChildParams["onSettle"]>();
+    const cancelled = await runOneShotChild({
+      adapter: nodeAdapter(() => ({
+        command: process.execPath,
+        args: ["-e", "process.stdout.write('pty-ready'); setInterval(() => {}, 1000)"],
+        stdin: "",
+        pty: true,
+      })),
+      projectLocation: PROJECT,
+      model: "m",
+      effort: undefined,
+      prompt: "hi",
+      onTextDelta: (delta) => {
+        if (delta.includes("pty-ready")) ready.resolve();
+      },
+      onSettle,
+    });
+    await ready.promise;
+    cancelled.cancel();
+    await cancelled.closed;
+    expect(onSettle).toHaveBeenCalledOnce();
+
+    await vi.waitFor(
+      () => {
+        const currentPorts = process
+          .getActiveResourcesInfo()
+          .filter((r) => r === "MessagePort").length;
+        expect(currentPorts).toBeLessThanOrEqual(baselinePorts);
+      },
+      { timeout: 3_000 },
+    );
+  }, 15_000);
 });

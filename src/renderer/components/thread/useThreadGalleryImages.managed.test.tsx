@@ -363,7 +363,7 @@ it("updates a mounted gallery and lightbox with every image from one tool row", 
   expect(result.current.map((image) => image.src)).toEqual([inline]);
   expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
   mountLightbox();
-  render(
+  const dock = render(
     <AppProvider>
       <ThreadImagesBubble threadId={threadId} />
       <ThreadDocksPanel threadId={threadId} visible={false} />
@@ -379,14 +379,20 @@ it("updates a mounted gallery and lightbox with every image from one tool row", 
   expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
   expect(getThreadGalleryImages(threadId)).toBe(result.current);
   expect(document.querySelector("[data-images-bubble]")).toHaveTextContent("3");
-  expect(document.querySelector("[data-images-dock]")).toHaveTextContent("3");
   expect(screen.getByText("2 / 3")).toBeInTheDocument();
   // The expanded dock mosaic also renders thumbnails; scope to the lightbox.
   const lightbox = () => within(document.querySelector(".poracode-image-lightbox") as HTMLElement);
   expect(lightbox().getByRole("img")).toHaveAttribute("src", inline);
   fireEvent.click(screen.getByRole("button", { name: "Previous image" }));
   expect(lightbox().getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
-  // The images dock starts expanded, so the mosaic tiles are already mounted.
+  // Reveal the retained dock before interacting; hidden presentation can pause.
+  dock.rerender(
+    <AppProvider>
+      <ThreadImagesBubble threadId={threadId} />
+      <ThreadDocksPanel threadId={threadId} visible />
+    </AppProvider>,
+  );
+  expect(document.querySelector("[data-images-dock]")).toHaveTextContent("3");
   fireEvent.click(screen.getByRole("button", { name: "Open image 3 of 3" }));
   expect(screen.getByText("3 / 3")).toBeInTheDocument();
 });

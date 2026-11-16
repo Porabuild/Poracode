@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessagePortMain } from "electron";
 import {
   REMOTE_HTTP_BRIDGE_PORT_CHANNEL,
@@ -166,6 +166,74 @@ function createHarness(
 describe("RemoteHttpBridgeSupervisor", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("retires an idle utility and starts a fresh generation for the next request", async () => {
+    vi.useFakeTimers();
+    const { supervisor, forks } = createHarness();
+    const target = createTarget();
+    const first = request();
+    await supervisor.open(target, first);
+    forks[0]!.emitMessage({
+      v: REMOTE_HTTP_BRIDGE_VERSION,
+      kind: "settled",
+      generation: 1,
+      requestId: first.requestId,
+      outcome: "completed",
+      receivedBytes: 0,
+      sentBytes: 0,
+    });
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(forks[0]!.killed).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(forks[0]!.killed).toBe(true);
+    expect(supervisor.generation).toBe(0);
+    await expect(supervisor.open(target, request())).resolves.toEqual({ generation: 2 });
+    supervisor.shutdown();
+  });
+
+  it("keeps requests alive when they start just before an idle deadline", async () => {
+    vi.useFakeTimers();
+    const { supervisor, forks } = createHarness();
+    const target = createTarget();
+    const first = request();
+    await supervisor.open(target, first);
+    supervisor.cancel(target.id, first.requestId);
+    forks[0]!.emitMessage({
+      v: REMOTE_HTTP_BRIDGE_VERSION,
+      kind: "settled",
+      generation: 1,
+      requestId: first.requestId,
+      outcome: "cancelled",
+      receivedBytes: 0,
+      sentBytes: 0,
+    });
+    await vi.advanceTimersByTimeAsync(59_999);
+    await supervisor.open(target, request());
+    await vi.advanceTimersByTimeAsync(60_001);
+    expect(forks[0]!.killed).toBe(false);
+    expect(supervisor.localStats().activeRequests).toBe(1);
+    supervisor.shutdown();
+  });
+
+  it("retires a child whose final reservation was cancelled while spawning", async () => {
+    vi.useFakeTimers();
+    const { supervisor, forks } = createHarness({ pidForFork: () => undefined });
+    const target = createTarget();
+    const first = request();
+    const pending = supervisor.open(target, first).catch((error: unknown) => error);
+    supervisor.cancel(target.id, first.requestId);
+    forks[0]!.emitSpawn();
+    await expect(pending).resolves.toMatchObject({
+      message: "The remote request was retired before it could start.",
+    });
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(forks[0]!.killed).toBe(true);
+    expect(supervisor.generation).toBe(0);
   });
 
   it("lazily forks one utility, hands off both port halves, and carries no body bytes", async () => {

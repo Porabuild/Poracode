@@ -9,8 +9,12 @@ import {
 export interface ProviderMarkdownImageRootsInput {
   sessionId?: string;
   projectLocation: ProjectLocation;
+  /**
+   * Home directory of the machine the thread's host runs on. Absent when the
+   * host does not expose one (a host on another machine), in which case roots
+   * under the home directory cannot be resolved.
+   */
   homeDir?: string;
-  isRemote?: boolean;
 }
 
 export interface RendererProviderManifest {

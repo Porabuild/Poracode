@@ -66,7 +66,7 @@ struct RemoteIntegrationsSchedulesView: View {
     }
     .refreshable { await composition.schedules.load() }
     .searchable(text: $query, prompt: RemoteIntegrationsStrings.searchSchedules)
-    .safeAreaInset(edge: .top, spacing: 0) {
+    .poracodeTopBar {
       Picker(RemoteIntegrationsStrings.schedules, selection: $statusFilter) {
         ForEach(StatusFilter.allCases) { value in
           Text(value.title).tag(value)
@@ -75,9 +75,9 @@ struct RemoteIntegrationsSchedulesView: View {
       .pickerStyle(.segmented)
       .padding(.horizontal)
       .padding(.vertical, 8)
-      .background(.bar)
+      .poracodeBarBackground()
     }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       PoracodeBottomActionDock(placement: .trailing) {
         PoracodeCircleMenu {
           if let createWithAgent {
@@ -203,7 +203,7 @@ struct RemoteIntegrationsSchedulesView: View {
             Button(RemoteIntegrationsStrings.runNow) {
               confirmation = .run(schedule)
             }
-            .tint(.accentColor)
+            .tint(.gray)
           }
           .swipeActions(edge: .leading, allowsFullSwipe: false) {
             Button(
@@ -218,7 +218,7 @@ struct RemoteIntegrationsSchedulesView: View {
             }
             .tint(.orange)
             Button(RemoteIntegrationsStrings.edit) { editor = .edit(schedule) }
-              .tint(.accentColor)
+              .tint(.gray)
           }
           .disabled(mutationDisabled)
         }
@@ -431,8 +431,8 @@ struct RemoteIntegrationsScheduleRow: View {
 
   private var iconColor: Color {
     if schedule.lastStatus == .failed { return .red }
-    if schedule.lastStatus == .running { return .accentColor }
-    return schedule.enabled ? .accentColor : .secondary
+    if schedule.lastStatus == .running { return .primary }
+    return schedule.enabled ? .primary : .secondary
   }
 }
 

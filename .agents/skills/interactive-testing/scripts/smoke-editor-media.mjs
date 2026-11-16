@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { clickCdpLabel } from "./poracode-cdp-actions.mjs";
+import { replaceNativeSvgDimensions } from "./smoke-browser-editor-source-input.mjs";
 import {
   validateFixture,
   ownFixtureFiles,
@@ -208,7 +209,40 @@ export async function mockEditorMediaGate({
       );
       record("svg-source-preview", "real file read and visible Monaco SVG source model");
       await action("edit");
-      await client.send("Input.insertText", { text: edited });
+      const input = await read();
+      if (input.sourceInputKind === "native-edit-context") {
+        const receipts = [];
+        await replaceNativeSvgDimensions({
+          client,
+          read: async () => {
+            const value = await read();
+            return { ...value, sourceText: value.sourceValue };
+          },
+          wait: async (oracle, label) => {
+            const value = await wait((current) => {
+              try {
+                oracle({ ...current, sourceText: current.sourceValue });
+                return true;
+              } catch {
+                return false;
+              }
+            }, label);
+            const result = { ...value, sourceText: value.sourceValue };
+            oracle(result);
+            return result;
+          },
+          content: edited,
+          originalSvg: original,
+          editedSvg: edited,
+          receipts,
+        });
+        record(
+          "svg-source-preview",
+          "native numeric input selections: " + JSON.stringify(receipts),
+        );
+      } else {
+        await client.send("Input.insertText", { text: edited });
+      }
       await wait(
         (value) =>
           value.buffer?.isDirty && value.sourceValue === edited && value.buffer.content === edited,

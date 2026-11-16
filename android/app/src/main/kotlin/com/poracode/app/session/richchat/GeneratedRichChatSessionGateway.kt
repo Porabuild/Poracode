@@ -278,6 +278,11 @@ class GeneratedRichChatSessionGateway(
         }
     }
 
+    override suspend fun controlMcpApp(lease: RichChatHostLease, threadId: String, payload: JsonObject): JsonObject =
+        invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
+            rich.controlMcpApp(payload)
+        }
+
     override suspend fun invokeSessionAction(
         lease: RichChatHostLease,
         threadId: String,
@@ -486,12 +491,6 @@ class GeneratedRichChatSessionGateway(
             throw RichChatGatewayException(403, "missing_scope", false)
         }
     }
-
-    private fun invalidResponse(mutation: Boolean = false): Nothing = throw RichChatGatewayException(
-        500,
-        "invalid_response",
-        mutation,
-    )
 
     private fun unavailable(code: String): Nothing = throw RichChatGatewayException(501, code, false)
 }

@@ -6,6 +6,7 @@ import {
   discoverPluginRuntimeSpecifiers,
   pluginRuntimeLoaderCode,
 } from "@opencode/plugin/runtime-modules";
+import { desktopPresentationPlugin } from "../desktop/bunPlugin";
 
 const poracode = process.argv[2] === "poracode";
 const outfile = path.resolve(
@@ -43,7 +44,7 @@ const result = await Bun.build({
   ],
   tsconfig: path.resolve(import.meta.dirname, "../../tsconfig.json"),
   target: "bun",
-  plugins: [createSolidTransformPlugin(), pluginRuntimePlugin],
+  plugins: [createSolidTransformPlugin(), pluginRuntimePlugin, desktopPresentationPlugin],
   external: ["@opencode/simulation/frontend"],
   compile: {
     target: "bun-windows-x64",

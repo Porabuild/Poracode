@@ -1,3 +1,4 @@
+import { Skeleton } from "@heroui/react";
 import { GitCommitHorizontal, GitMerge, GitPullRequest } from "lucide-react";
 import { Trans } from "@lingui/react/macro";
 import type { AiActionType, ProfileAiAction } from "@/shared/contracts";
@@ -8,16 +9,34 @@ const ICONS: Record<AiActionType, typeof GitCommitHorizontal> = {
   conflict: GitMerge,
 };
 
+function SkeletonRow() {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2">
+      <span className="flex items-center gap-2">
+        <Skeleton className="size-3.5 rounded bg-foreground/10" />
+        <Skeleton className="h-4 w-28 rounded bg-foreground/10" />
+      </span>
+      <Skeleton className="h-4 w-10 rounded bg-foreground/10" />
+    </div>
+  );
+}
+
 /** AI-performed git actions (commits / PRs / conflict resolutions). */
-export function AiActions(props: { actions: ProfileAiAction[] }) {
-  const { actions } = props;
+export function AiActions(props: { actions: ProfileAiAction[]; loading?: boolean }) {
+  const { actions, loading = false } = props;
 
   return (
     <section className="flex flex-col gap-1">
       <h2 className="mb-1 text-sm font-semibold text-foreground">
         <Trans>AI git actions</Trans>
       </h2>
-      {actions.length === 0 ? (
+      {loading && actions.length === 0 ? (
+        <div className="divide-y divide-separator">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </div>
+      ) : actions.length === 0 ? (
         <p className="py-2 text-sm text-muted">
           <Trans>No AI commits, PRs, or conflict resolutions tracked yet.</Trans>
         </p>

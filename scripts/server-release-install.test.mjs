@@ -328,3 +328,28 @@ void test("extractServerTarball refuses a link entry in a CRLF bsdtar listing", 
     /link/iu,
   );
 });
+
+void test("archive listings are not capped at the 1 MiB exec buffer", async () => {
+  // A standalone archive carries tens of thousands of node_modules entries;
+  // its listing is several MiB, which execFileSync's default buffer rejects.
+  const { ARCHIVE_LISTING_MAX_BUFFER } = await import("./server-release-install.mjs");
+  const { validateRuntimeArchive } = await import("../packages/poracode-cli/lib/archive.mjs");
+  assert.ok(ARCHIVE_LISTING_MAX_BUFFER >= 64 * 1024 * 1024);
+  const listings = [];
+  const run = (command, args, options = {}) => {
+    if (args.some((arg) => /^-t/u.test(arg))) listings.push(options.maxBuffer);
+    if (args.includes("-tzf")) return Buffer.from("./\n./lib/server.cjs\n");
+    if (args.includes("-tvzf"))
+      return Buffer.from("-rw-r--r--  0 0 0 1 Jan 1 00:00 ./lib/server.cjs\n");
+    return Buffer.from("");
+  };
+  const root = tempDir("poracode-release-listing-");
+  extractServerTarball({
+    tarball: join(root, "a.tar.gz"),
+    destination: join(root, "out"),
+    tar: "tar",
+    run,
+  });
+  validateRuntimeArchive({ tarball: join(root, "a.tar.gz"), tar: "tar", run });
+  assert.deepEqual(listings, Array(4).fill(ARCHIVE_LISTING_MAX_BUFFER));
+});

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Portweiterleitungen</string>
+    <string name="ports_title">Ports</string>
     <string name="ports_back">Zurück</string>
     <string name="ports_refresh">Ports aktualisieren</string>
     <string name="ports_target_port">Zielport</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">Die Browser-Weiterleitung ist auf diesem Computer nicht eingerichtet.</string>
     <string name="ports_failure_ambiguous">Die Anfrage wurde möglicherweise abgeschlossen. Die Liste wurde aktualisiert.</string>
     <string name="ports_failure_unavailable">Portweiterleitung ist derzeit nicht verfügbar.</string>
+    <string name="ports_intro">Dev-Server, die auf dem localhost Ihres Desktops lauschen.</string>
+    <string name="ports_forward_a_port">Port weiterleiten</string>
 </resources>

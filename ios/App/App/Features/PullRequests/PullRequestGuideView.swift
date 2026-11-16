@@ -96,7 +96,7 @@ struct PullRequestGuideView: View {
       }
     }
     .listStyle(.insetGrouped)
-    .safeAreaInset(edge: .bottom) {
+    .poracodeBottomBar {
       if !stops.isEmpty {
         PoracodeBottomActionBar {
           Button(PullRequestsStrings.guideText("Back")) { stopIndex = index - 1 }.disabled(index == 0)

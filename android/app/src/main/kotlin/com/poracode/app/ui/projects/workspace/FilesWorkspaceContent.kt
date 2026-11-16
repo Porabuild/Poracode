@@ -5,11 +5,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.poracode.app.R
 import com.poracode.app.session.projects.ProjectEntryMutation
 import com.poracode.app.session.projects.ProjectWorkspaceEntry
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun FilesWorkspaceContent(
@@ -28,6 +33,7 @@ internal fun FilesWorkspaceContent(
     onClearSearch: () -> Unit,
     onDirectory: (String) -> Unit,
     onFile: (String) -> Unit,
+    onCloseFile: () -> Unit,
     onMutation: (ProjectEntryMutation) -> Unit,
     onDraftChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -67,11 +73,17 @@ internal fun FilesWorkspaceContent(
             VerticalDivider()
             editor(Modifier.weight(0.62f).fillMaxSize())
         }
-    } else {
+    } else if (entry.openFile != null) {
         Column(Modifier.fillMaxSize()) {
-            browser(Modifier.weight(0.44f).fillMaxWidth())
-            HorizontalDivider()
-            editor(Modifier.weight(0.56f).fillMaxWidth())
+            IconButton(onClick = onCloseFile) {
+                Icon(
+                    PoracodeIcons.ArrowBack,
+                    contentDescription = stringResource(R.string.back),
+                )
+            }
+            editor(Modifier.weight(1f).fillMaxWidth())
         }
+    } else {
+        browser(Modifier.fillMaxSize())
     }
 }

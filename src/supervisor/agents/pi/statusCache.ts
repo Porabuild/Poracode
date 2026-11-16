@@ -1,2 +1,2 @@
-// v72 reads scoped models and the default model from Pi settings.
-export const piStatusCachePolicy = { kind: "pi", minimumVersion: 72 };
+// v73 excludes thinking-suffix patterns from exact scoped model IDs.
+export const piStatusCachePolicy = { kind: "pi", minimumVersion: 73 };

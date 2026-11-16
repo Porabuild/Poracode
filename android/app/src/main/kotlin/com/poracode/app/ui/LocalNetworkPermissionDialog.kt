@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.poracode.app.R
 import com.poracode.app.protocol.LocalNetworkPermissionUi
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 fun LocalNetworkPermissionDialog(
@@ -28,7 +29,7 @@ fun LocalNetworkPermissionDialog(
                 )
             },
             confirmButton = {
-                Button(onClick = onContinue) {
+                FilledTonalButton(onClick = onContinue) {
                     Text(stringResource(R.string.local_network_permission_continue))
                 }
             },
@@ -43,7 +44,7 @@ fun LocalNetworkPermissionDialog(
             title = { Text(stringResource(R.string.local_network_permission_denied_title)) },
             text = { Text(stringResource(R.string.local_network_permission_denied_message)) },
             confirmButton = {
-                Button(onClick = onContinue) {
+                FilledTonalButton(onClick = onContinue) {
                     Text(stringResource(R.string.local_network_permission_try_again))
                 }
             },

@@ -1,5 +1,6 @@
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import {
   selectBrowserBridgeServer,
@@ -19,12 +20,14 @@ export function PortsPanelHeaderActions(props: { dragControlClass: string }) {
   const loading = usePortsPanelChromeStore((state) => state.loading);
   const requestRefresh = usePortsPanelChromeStore((state) => state.requestRefresh);
   const requestManualForward = usePortsPanelChromeStore((state) => state.requestManualForward);
-  const canUse = server?.scopes.includes("ports:forward") ?? false;
+  const local = hasClientCapability("nativeShell");
+  const canForward = !local && (server?.scopes.includes("ports:forward") ?? false);
+  const canUse = local || canForward;
   const buttonClass = `${props.dragControlClass} ${panelHeaderIconButtonClass}`;
 
   return (
     <>
-      {canUse ? (
+      {canForward ? (
         <button
           type="button"
           className={buttonClass}

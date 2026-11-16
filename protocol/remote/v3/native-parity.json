@@ -3118,6 +3118,34 @@
         "note": "B1 declared-only history-gap reads and command-id acknowledgements are implemented in both handwritten native transports. Both platforms have executed visible recovery and foreground/reconnect journeys; iOS additionally proves a fresh second-turn response after foregrounding. See the V2 execution log for exact artifacts and qualification limits."
       },
       {
+        "id": "thread-transfer-command",
+        "scopes": ["session:operate"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "note": "Thread transfer (Move to another machine) is driven by the shared browser renderer (Electron and web/PWA), which holds grants for both hosts. Native clients can open and continue a moved thread on its new host but have no move surface yet."
+      },
+      {
+        "id": "thread-transfer-upload",
+        "scopes": ["session:operate"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": { "disposition": "planned", "evidence": [] }
+        },
+        "note": "Thread transfer (Move to another machine) is driven by the shared browser renderer (Electron and web/PWA), which holds grants for both hosts. Native clients can open and continue a moved thread on its new host but have no move surface yet."
+      },
+      {
         "id": "experiment-state",
         "scopes": ["session:read"],
         "batch": "thread-lifecycle",
@@ -5155,6 +5183,26 @@
         }
       },
       {
+        "id": "resolveLinkMetadata",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Link metadata previews are available to shared chat renderers; native clients do not invoke this host-side metadata read."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Link metadata previews are available to shared chat renderers; native clients do not invoke this host-side metadata read."
+          }
+        }
+      },
+      {
         "id": "listImportableSessions",
         "batch": "projects",
         "ios": {
@@ -5171,6 +5219,226 @@
             "disposition": "planned",
             "evidence": [],
             "note": "Remote import is served to the shared browser renderer (PWA) through the procedure passthrough and the import-session thread command; native clients have no import surface yet."
+          }
+        }
+      },
+      {
+        "id": "getLatestAgentVersion",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+          }
+        }
+      },
+      {
+        "id": "listAcpRegistry",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
+        "id": "refreshAgentStatuses",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Manual host discovery is available in the shared desktop and PWA Agents General page; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Manual host discovery is available in the shared desktop and PWA Agents General page; native clients have no agent management surface yet."
+          }
+        }
+      },
+      {
+        "id": "updateAgentBinary",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent update surface yet."
+          }
+        }
+      },
+      {
+        "id": "updateAcpRegistryAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
+        "id": "installAcpRegistryAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
+        "id": "removeAcpRegistryAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent registry surface yet."
+          }
+        }
+      },
+      {
+        "id": "setAcpRegistryAgentAuth",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        }
+      },
+      {
+        "id": "authenticateAcpAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        }
+      },
+      {
+        "id": "logoutAcpAgent",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        }
+      },
+      {
+        "id": "resolveAgentAccount",
+        "batch": "settings-integrations",
+        "ios": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
+          }
+        },
+        "android": {
+          "wire": { "disposition": "planned", "evidence": [] },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Host agent management is served to desktop and the shared browser renderer (PWA) through the procedure passthrough; native clients have no agent management surface yet."
           }
         }
       },
@@ -7116,6 +7384,33 @@
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
         }
+      },
+      {
+        "id": "ghPollPullRequests",
+        "batch": "projects",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Native GitHub polling-status and retry UI has not been implemented."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Native GitHub polling-status and retry UI has not been implemented."
+          }
+        },
+        "note": "The shared renderer uses this additive background read. Native clients preserve the optional host Git-state problem field but do not yet present its recovery control."
       },
       {
         "id": "ghGetPrForBranch",
@@ -9469,6 +9764,40 @@
         }
       },
       {
+        "id": "controlMcpApp",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Transport/RichChat/GeneratedMcpAppContract.swift",
+              "ios/App/App/Transport/RichChat/SelectedRichChatConversationGateway.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/UI/RichChatMcpAppView.swift"],
+            "note": "The isolated app content view is implemented; iOS build and paired-host device journeys remain unverified on this Windows host."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedMcpAppContract.kt",
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/GeneratedRichChatSessionGateway.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichMcpAppView.kt"
+            ],
+            "note": "The isolated app content view compiles; a paired-host device journey remains unverified."
+          }
+        }
+      },
+      {
         "id": "invokeThreadSessionAction",
         "batch": "rich-chat-requests",
         "ios": {
@@ -10628,9 +10957,13 @@
             "evidence": [
               "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift",
               "ios/App/App/Features/RichChat/RichChatSessionConfigOptions.swift",
-              "ios/App/AppTests/RichChatSessionConfigControlsTests.swift"
+              "ios/App/AppTests/RichChatSessionConfigControlsTests.swift",
+              "ios/App/App/Features/RichChat/RichChatResumePlan.swift",
+              "ios/App/AppTests/RichChatResumePlanTests.swift",
+              "ios/App/App/Features/RichChat/UI/Pages/RichChatThreadResume.swift",
+              "ios/App/AppTests/RichChatResumeRecoveryTests.swift"
             ],
-            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
+            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. The cut-off turn marker drives the empty composer's resume button with the same absent/null/foreign-provider rules; a settled marked row outranks a stale open turn, and a send the host refuses for want of a session relaunches the thread with the same prompt. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
           }
         },
         "android": {
@@ -10647,9 +10980,13 @@
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt",
               "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatLiveSessionControls.kt",
-              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatLiveSessionControlsTest.kt"
+              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatLiveSessionControlsTest.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatResumePlan.kt",
+              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatResumePlanTest.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadResume.kt",
+              "android/app/src/test/kotlin/com/poracode/app/ui/richchat/RichChatResumeRecoveryTest.kt"
             ],
-            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
+            "note": "Live session model/effort/context choices feed existing composer controls; absent inventories preserve legacy detection, null retires, and foreign-provider events are rejected. The cut-off turn marker drives the empty composer's resume button with the same absent/null/foreign-provider rules; a settled marked row outranks a stale open turn, and a send the host refuses for want of a session relaunches the thread with the same prompt. Unit evidence is cited; no checked-in device journey qualifies this UI yet."
           }
         }
       },
@@ -10905,6 +11242,30 @@
               "android/app/src/main/kotlin/com/poracode/app/ui/settings/SettingsAgentsPane.kt"
             ],
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
+          }
+        }
+      },
+      {
+        "id": "remote-forge-activity",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/state/remoteServers/eventSocketMessages.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/state/gitRefresh.ts"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/state/remoteServers/eventSocketMessages.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/renderer/state/gitRefresh.ts"]
           }
         }
       },
@@ -11462,9 +11823,12 @@
             "evidence": [
               "ios/App/App/Protocol/RuntimeEventDecoder.swift",
               "ios/App/App/Protocol/RuntimeEventReducer.swift",
-              "ios/App/App/Features/Session/SessionState.swift"
+              "ios/App/App/Features/Session/SessionState.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatControlPanel.swift",
+              "ios/App/App/Features/RichChat/UI/RichChatCompactControlSheets.swift",
+              "screen:ios.background_tasks.changed"
             ],
-            "note": "No screen-registry entry yet: no device journey exercises a dedicated screen for it. The cited surface-side sources are RuntimeEventDecoder.swift, RuntimeEventReducer.swift, SessionState.swift."
+            "note": "The shared rich-chat panel/details UI and its checked-in device journey are landing with this change; the ui claim stays partial until NativeBackgroundTaskUITests.testBackgroundTaskDetailsJourney executes against the mock wire lab on the pushed SHA. No runtime pass is claimed from source alone."
           }
         },
         "android": {
@@ -11479,12 +11843,15 @@
             "disposition": "partial",
             "evidence": [
               "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventSchema.kt",
-              "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt"
+              "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatBackgroundTaskControls.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt",
+              "screen:android.background_tasks.changed"
             ],
-            "note": "No dedicated native screen and no device journey: the operation is reached through the shared RuntimeEventSchema.kt, RuntimeThreadState.kt plumbing cited here."
+            "note": "The shared rich-chat panel/details UI and its checked-in device journey are landing with this change; the ui claim stays partial until BackgroundTaskDetailsInstrumentedTest.backgroundTaskDetailsJourney executes against the mock wire lab on the pushed SHA. No runtime pass is claimed from source alone."
           }
         },
-        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Both natives decode the event strictly and reduce it into session-scoped background-task state, including optional timing, progress and opaque Stop actions (replace/drain, not persisted, not rendered). Native task controls remain planned; this compact dock enhancement is scoped to the existing desktop/web surface."
+        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Both natives decode the event strictly and reduce it into session-scoped background-task state, including optional timing, progress and opaque Stop/output actions (replace/drain, not persisted). The shared wire-lab fixture installs three neutral tasks in the initial snapshot, publishes progress and category/command-only replacements, drains the roster, and answers the unguessable fixture actions; both platforms have a checked-in details-panel journey. Runtime qualification of those journeys remains open."
       },
       {
         "id": "request.opened",

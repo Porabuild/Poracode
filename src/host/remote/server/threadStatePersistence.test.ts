@@ -56,6 +56,32 @@ describe.skipIf(!sqliteAvailable)("durable thread execution scope", () => {
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
+  it("retains the specific failure across refresh and restart, then clears it on retry", () => {
+    const failure = {
+      type: "thread-state" as const,
+      threadId: thread.id,
+      agentKind: thread.agentKind,
+      status: "error" as const,
+      attention: "error" as const,
+      canResumeWithConfig: true,
+    };
+    const message = "Your weekly usage quota has been exhausted.";
+    persistThreadStateEvent({ ...failure, errorMessage: message });
+    expect(dbGetThread(thread.id)?.errorMessage).toBe(message);
+    // Later state broadcasts need not repeat the explanation.
+    persistThreadStateEvent(failure);
+    closeDatabase();
+    initDatabase(join(directory, "state.sqlite"));
+    expect(dbGetThread(thread.id)?.errorMessage).toBe(message);
+
+    persistThreadStateEvent({ ...failure, agentKind: "departed", errorMessage: "Other account" });
+    expect(dbGetThread(thread.id)?.errorMessage).toBe(message);
+    persistThreadStateEvent({ ...failure, status: "working", attention: "working" });
+    expect(dbGetThread(thread.id)).not.toHaveProperty("errorMessage");
+    persistThreadStateEvent(failure);
+    expect(dbGetThread(thread.id)).not.toHaveProperty("errorMessage");
+  });
+
   it("persists a fast reply's fork boundary", async () => {
     await dbReplaceThreadRuntimeItems(thread.id, [
       {
@@ -161,5 +187,51 @@ describe.skipIf(!sqliteAvailable)("durable thread execution scope", () => {
       sessionRef: { ...reference, executionIdentity: "foreign-scope" },
     });
     expect(dbGetThread(thread.id)?.sessionRef).toEqual(reference);
+  });
+
+  it("remembers a cut-off turn until the next turn starts", () => {
+    const settle = (interruptedTurn?: "error" | null) =>
+      persistThreadStateEvent({
+        type: "thread-state",
+        threadId: thread.id,
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        ...(interruptedTurn !== undefined ? { interruptedTurn } : {}),
+      });
+    settle("error");
+    expect(dbGetThread(thread.id)?.interruptedTurn).toBe("error");
+    // An older emitter that never states the marker leaves it alone.
+    settle();
+    expect(dbGetThread(thread.id)?.interruptedTurn).toBe("error");
+    // A session spawned straight into a turn never cleared it itself.
+    persistThreadStateEvent({
+      type: "thread-state",
+      threadId: thread.id,
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    expect(dbGetThread(thread.id)).not.toHaveProperty("interruptedTurn");
+  });
+
+  it("clears a cut-off turn when Stop says so", () => {
+    persistThreadStateEvent({
+      type: "thread-state",
+      threadId: thread.id,
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: true,
+      interruptedTurn: "error",
+    });
+    persistThreadStateEvent({
+      type: "thread-state",
+      threadId: thread.id,
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      interruptedTurn: null,
+    });
+    expect(dbGetThread(thread.id)).not.toHaveProperty("interruptedTurn");
   });
 });

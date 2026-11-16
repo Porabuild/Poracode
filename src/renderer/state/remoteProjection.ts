@@ -37,14 +37,27 @@ export function unprojectRemoteThreadId(remoteServerId: string, value: string): 
     : undefined;
 }
 
-export function isProjectedRemoteEntityId(value: string, kind: "project" | "thread"): boolean {
+export function parseProjectedRemoteEntityId(
+  value: string,
+  kind: "project" | "thread",
+): RemoteOwner | undefined {
   const marker = `:${kind}:`;
   const markerIndex = value.indexOf(marker, "remote:".length);
-  return (
-    value.startsWith("remote:") &&
-    markerIndex > "remote:".length &&
-    markerIndex + marker.length < value.length
-  );
+  if (
+    !value.startsWith("remote:") ||
+    markerIndex <= "remote:".length ||
+    markerIndex + marker.length >= value.length
+  ) {
+    return undefined;
+  }
+  return {
+    desktopId: value.slice("remote:".length, markerIndex),
+    remoteId: value.slice(markerIndex + marker.length),
+  };
+}
+
+export function isProjectedRemoteEntityId(value: string, kind: "project" | "thread"): boolean {
+  return parseProjectedRemoteEntityId(value, kind) !== undefined;
 }
 
 export function projectRemoteProject(remoteServerId: string, project: Project): Project {
@@ -259,26 +272,6 @@ function threadMentionTextSegment(
   return { kind: "text", content: inlinePromptSegmentText(segment) };
 }
 
-/** Translate renderer-projected thread mention ids back to a remote host id. */
-export function unprojectRemoteThreadMentionSegments(
-  remoteServerId: string,
-  segments: readonly PromptSegment[],
-  threads: readonly Thread[],
-): PromptSegment[] {
-  const remoteThreads = new Map(
-    threads
-      .filter((thread) => thread.remoteServerId === remoteServerId && thread.remoteId)
-      .map((thread) => [thread.id, thread.remoteId!]),
-  );
-  return segments.map((segment) => {
-    if (segment.kind !== "thread") return segment;
-    const remoteId =
-      remoteThreads.get(segment.threadId) ??
-      unprojectRemoteThreadId(remoteServerId, segment.threadId);
-    return remoteId ? { ...segment, threadId: remoteId } : threadMentionTextSegment(segment);
-  });
-}
-
 /**
  * Degrade renderer-projected thread mentions destined for a LOCAL host: a
  * `remote:<desktopId>:thread:<id>` mention references another desktop's thread
@@ -292,4 +285,22 @@ export function downgradeProjectedThreadMentionSegments(
       ? threadMentionTextSegment(segment)
       : segment,
   );
+}
+
+/**
+ * Prepare prompt segments for `readBridge()` thread input/steer/queue calls.
+ * Projected target threads keep their store ids so `resolveThreadRoute` can
+ * unproject same-host mentions and degrade foreign ones; unprojected threads
+ * never own `remote:<desktopId>:thread:<id>` mentions, so degrade those before
+ * local or browser-bridge dispatch.
+ */
+export function bridgeThreadInputSegments(
+  targetThread: { readonly id: string; readonly remoteServerId?: string | undefined },
+  segments: PromptSegment[] | undefined,
+): PromptSegment[] | undefined {
+  if (!segments) return undefined;
+  if (targetThread.remoteServerId || isProjectedRemoteEntityId(targetThread.id, "thread")) {
+    return segments;
+  }
+  return downgradeProjectedThreadMentionSegments(segments);
 }

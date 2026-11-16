@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Chuyển tiếp cổng</string>
+    <string name="ports_title">Cổng</string>
     <string name="ports_back">Quay lại</string>
     <string name="ports_refresh">Làm mới các cổng</string>
     <string name="ports_target_port">Cổng đích</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">Chưa thiết lập chuyển tiếp qua trình duyệt trên máy tính này.</string>
     <string name="ports_failure_ambiguous">Yêu cầu có thể đã hoàn tất. Danh sách đã được làm mới.</string>
     <string name="ports_failure_unavailable">Hiện không thể sử dụng tính năng chuyển tiếp cổng.</string>
+    <string name="ports_intro">Máy chủ phát triển đang lắng nghe trên localhost của máy tính bạn.</string>
+    <string name="ports_forward_a_port">Chuyển tiếp một cổng</string>
 </resources>

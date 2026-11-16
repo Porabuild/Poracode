@@ -6,7 +6,7 @@
     <string name="settings_device_general">Geral</string>
     <string name="settings_device_general_description">Idioma, versão e informações do dispositivo</string>
     <string name="settings_device_appearance">Aparência</string>
-    <string name="settings_device_appearance_description">Tema e cores do sistema</string>
+    <string name="settings_device_appearance_description">Tema e tamanho da fonte do chat</string>
     <string name="settings_device_notifications">Notificações</string>
     <string name="settings_device_notifications_description">Permissão e status de registro do desktop</string>
     <string name="settings_device_terminal">Terminal</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">Sistema</string>
     <string name="settings_appearance_light">Claro</string>
     <string name="settings_appearance_dark">Escuro</string>
-    <string name="settings_dynamic_color">Usar cores do dispositivo</string>
     <string name="settings_notification_status">Status</string>
     <string name="settings_notification_registering">Registrando</string>
     <string name="settings_notification_available">Disponível</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Mostrar notificações enquanto usa o Poracode</string>
     <string name="settings_notification_categories">Notificar sobre</string>
     <string name="settings_configuration_section">Configuração</string>
+    <string name="settings_appearance_mode">Modo</string>
+    <string name="settings_appearance_mode_description">Combine com seu sistema ou force claro ou escuro.</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_notifications_enabled_description">Mostrar notificações quando o status do tópico for alterado.</string>
+    <string name="settings_notification_sound_description">Reproduzir um som quando uma notificação for exibida.</string>
+    <string name="settings_home_shortcut_reorder">Reordenar %1$s</string>
 </resources>

@@ -88,6 +88,7 @@ export const REMOTE_REPLAYABLE_EVENT_TYPES: readonly string[] = [
   "agent-status-updated",
   "windows-agent-statuses",
   "wsl-agent-statuses",
+  "remote-forge-activity",
   "remote-git-summaries",
   "remote-git-state",
   "remote-projects-changed",

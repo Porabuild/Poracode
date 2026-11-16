@@ -19,6 +19,7 @@ import {
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
 import { ensureProjectMcpServersLoaded } from "@/renderer/state/projectSettings/projectSettingsLoader";
+import type { ProjectSettingsSection } from "@/renderer/state/projectSettings/sections";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
@@ -27,6 +28,7 @@ import { closeThreads } from "@/renderer/utils/shellUtils";
 import { resolveActivePaneId } from "./currentProject";
 import { showTerminalPanel } from "./terminalActions";
 import { activateFileEditorContext, isFileEditorContextActive } from "./fileEditorContext";
+import { openInMainWindowFromThread } from "./threadWindowActions";
 
 function panelContextMatchesThread(
   projectId: string,
@@ -105,6 +107,10 @@ export function openRemoteAccessSettings(): void {
   usePanelStore.getState().openSettingsSection("remoteAccess");
 }
 
+export function openProfileSettings(): void {
+  usePanelStore.getState().openSettingsSection("profile");
+}
+
 export function openChangelogSettings(): void {
   usePanelStore.getState().openSettingsSection("changelog");
 }
@@ -117,7 +123,11 @@ export function openMcpServersSettings(): void {
   usePanelStore.getState().openSettingsSection("mcpServers");
 }
 
-function openUsagePanelSurface(): void {
+export function openCrewsSettings(crewId?: string): void {
+  usePanelStore.getState().openSettingsSection("crews", crewId ? `crews.${crewId}` : undefined);
+}
+
+function openUsagePanelSurface(toggle = true): void {
   const panelStore = usePanelStore.getState();
   if (isCompactLayoutViewport()) {
     panelStore.openMobileUtilityPage("usage");
@@ -126,6 +136,7 @@ function openUsagePanelSurface(): void {
   // A docked Usage is not what the right panel is showing, so closing it here
   // would be a no-op the user can see; bring it back instead.
   if (
+    toggle &&
     panelStore.usagePanelOpen &&
     panelStore.rightPanelTab === "usage" &&
     !isTabBottomDocked("usage")
@@ -147,6 +158,12 @@ export function openUsagePanel(): void {
 export function openUsagePanelForProvider(providerId: string): void {
   useUsageScopeStore.getState().setPreferredProviderId(providerId);
   openUsagePanelSurface();
+}
+
+/** Reveal a sidebar provider in the saved order, including when Usage is already open. */
+export function openUsagePanelAtProvider(providerId: string): void {
+  useUsageScopeStore.getState().revealProvider(providerId);
+  openUsagePanelSurface(false);
 }
 
 /** Open the docked notes panel, or close all right-side panels if it is already active. */
@@ -205,7 +222,7 @@ export function toggleBrowserPanel(): void {
   }
 }
 
-export function openProjectSettings(projectId: string): void {
+export function openProjectSettings(projectId: string, section?: ProjectSettingsSection): void {
   // Settings surfaces must not read a not-yet-loaded projection as "configured
   // empty": make the private settings resident before the overlay paints, for
   // BOTH owner shapes — the loader resolves paired mirror vs managed root in
@@ -213,7 +230,7 @@ export function openProjectSettings(projectId: string): void {
   void ensureProjectMcpServersLoaded(projectId).catch((error) =>
     toast.danger(friendlyError(error)),
   );
-  usePanelStore.getState().openProjectSettings(projectId);
+  usePanelStore.getState().openProjectSettings(projectId, section);
 }
 
 /**
@@ -338,6 +355,7 @@ export function openGitReview(
   worktreePath?: string,
   originComposerId?: string,
 ): void {
+  if (openInMainWindowFromThread({ kind: "review" })) return;
   const panelStore = usePanelStore.getState();
   if (isCompactLayoutViewport()) {
     showGitReviewPanel(projectId, worktreePath, originComposerId);
@@ -384,6 +402,7 @@ export function showGitReviewPanel(
   worktreePath?: string,
   originComposerId?: string,
 ): void {
+  if (openInMainWindowFromThread({ kind: "review" })) return;
   const panelStore = usePanelStore.getState();
   panelStore.setGitReviewContext({
     projectId,
@@ -397,6 +416,7 @@ export function showGitReviewPanel(
 
 /** Open Git review as a full page, independent of the desktop panel preference. */
 export function showGitReviewPage(projectId: string, worktreePath?: string): void {
+  if (openInMainWindowFromThread({ kind: "review" })) return;
   const panelStore = usePanelStore.getState();
   panelStore.setGitReviewContext({ projectId, ...(worktreePath ? { worktreePath } : {}) });
   panelStore.setGitReviewAsPanel(false);

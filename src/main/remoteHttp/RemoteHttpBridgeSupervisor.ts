@@ -39,6 +39,8 @@ export type {
   RemoteHttpBridgeUtilityProcessLike,
 } from "./RemoteHttpBridgeSupervisorSupport";
 
+const IDLE_RETIREMENT_MS = 60_000;
+
 export class RemoteHttpBridgeSupervisor {
   private readonly options: RemoteHttpBridgeSupervisorOptions;
   private readonly spawnTimeoutMs: number;
@@ -55,6 +57,7 @@ export class RemoteHttpBridgeSupervisor {
   /** Bumped by shutdown; fences a start attempt that is still in flight. */
   private shutdownEpoch = 0;
   private startPromise: Promise<number> | null = null;
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private statsQueryId = 0;
   private readonly statsQueries = new Map<number, (stats: RemoteHttpBridgeStats | null) => void>();
 
@@ -121,6 +124,8 @@ export class RemoteHttpBridgeSupervisor {
     };
     this.records.set(record.requestId, record);
     this.senderCounts.set(record.senderId, (this.senderCounts.get(record.senderId) ?? 0) + 1);
+    clearTimer(this.idleTimer);
+    this.idleTimer = null;
 
     const shutdownEpoch = this.shutdownEpoch;
     let generation: number;
@@ -371,6 +376,8 @@ export class RemoteHttpBridgeSupervisor {
 
   /** Abort all in-flight work and stop the utility (app quit). */
   shutdown(): void {
+    clearTimer(this.idleTimer);
+    this.idleTimer = null;
     // Fence any in-flight start: a child that spawns after this point is
     // retired, never published, and never receives a request.
     this.shutdownEpoch += 1;
@@ -467,6 +474,7 @@ export class RemoteHttpBridgeSupervisor {
     this.options.log?.(
       `[poracode] remote-http-bridge utility started generation=${generation} pid=${child.pid ?? "unknown"}`,
     );
+    this.scheduleIdleRetirement();
     return generation;
   }
 
@@ -522,6 +530,8 @@ export class RemoteHttpBridgeSupervisor {
     attempt.detach?.();
     attempt.detach = null;
     if (this.child === attempt.child) {
+      clearTimer(this.idleTimer);
+      this.idleTimer = null;
       this.child = null;
       this.currentGeneration = 0;
     }
@@ -597,6 +607,19 @@ export class RemoteHttpBridgeSupervisor {
     const count = (this.senderCounts.get(record.senderId) ?? 1) - 1;
     if (count <= 0) this.senderCounts.delete(record.senderId);
     else this.senderCounts.set(record.senderId, count);
+    this.scheduleIdleRetirement();
+  }
+
+  private scheduleIdleRetirement(): void {
+    if (this.records.size > 0 || !this.child || this.idleTimer !== null) return;
+    const child = this.child;
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = null;
+      if (this.child !== child || this.records.size > 0) return;
+      this.options.log?.("[poracode] remote-http-bridge utility retired while idle");
+      this.shutdown();
+    }, IDLE_RETIREMENT_MS);
+    unrefTimer(this.idleTimer);
   }
 
   /** Drop every reservation, clearing its safety timer (exit/shutdown paths). */

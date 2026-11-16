@@ -94,6 +94,7 @@ class RichChatRemoteFileExecutor internal constructor(
                     path = "/api/files/media",
                     query = listOf("ticket" to ticket),
                     destination = destination,
+                    retryableRead = true,
                 )
                 val size = destination.length().takeIf { destination.exists() }
                     ?: throw RichChatInvalidResponseException()

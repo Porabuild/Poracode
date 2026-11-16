@@ -3,6 +3,7 @@ import { resolveComposerMcpScope, type AgentCapability } from "./contracts/agent
 import type { ThreadPresentationMode } from "./contracts/common";
 
 // Absence stays compatible with pre-crew writers; unknown future versions are preserved and inert.
+// Explicit user-request exceptions are per-call MCP input, so existing v1 crews stay valid.
 export const CREW_BINDING_VERSION = 1;
 export const MAX_CREW_ROLES = 6;
 export const MAX_CREW_ROLE_PARALLEL = 4;

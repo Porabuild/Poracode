@@ -25,6 +25,7 @@ import { startDeferredFeaturePrewarm } from "@/renderer/deferredFeatures";
 import { setThreadRuntimeReopenEnabled } from "@/renderer/actions/threadActions";
 import { isManagedRootDesktopRuntime } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import { auxiliaryThreadIds, setAuxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import { threadWindowIdsLoaded } from "@/renderer/state/threadWindowTracking";
 
 interface IdleCallbackHandle {
   cancel: () => void;
@@ -169,6 +170,7 @@ export function useAppHydration(
       try {
         const ids = await readBridge().getSideChatThreadIds?.();
         if (ids) setAuxiliaryThreadIds(ids);
+        await threadWindowIdsLoaded();
       } catch (error) {
         auxiliaryOwnershipKnown = false;
         captureRendererException(error, { featureArea: "hydration" });

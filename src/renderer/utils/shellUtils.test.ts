@@ -512,8 +512,10 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     expect(lastWrite()).toMatch(/^command bash -c /u);
     expect(lastWrite()).toMatch(/ && exit\r$/u);
     const innerScript = unwrapBashScript(lastWrite());
-    expect(innerScript).toContain("__poracode_setup_exit=$?");
-    expect(innerScript).toContain('exit "$__poracode_setup_exit"');
+    expect(innerScript).toContain(
+      `trap '__poracode_setup_exit=$?; printf "\\033]777;poracode-shell-complete=${token}:%s\\007" "$__poracode_setup_exit"' EXIT`,
+    );
+    expect(innerScript).toContain("npm install && npm run setup");
 
     const echoedCommand = lastWrite();
     emit({
@@ -592,6 +594,37 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     expect(onCommandComplete).toHaveBeenCalledWith(0);
     expect(onExit).toHaveBeenCalledWith(0);
     expect(supervisorHandlers).toHaveLength(0);
+  });
+
+  it("wraps Windows completion scripts in try/catch/finally so terminating errors still emit completion", () => {
+    const onExit = vi.fn<(exitCode: number | null) => void>();
+    const onCommandComplete = vi.fn<(exitCode: number) => void>();
+    writeScriptToShellThenExitOnSuccess(
+      "shell:1",
+      "$ErrorActionPreference = 'Stop'\ndirenv allow\nbun install",
+      "windows",
+      onExit,
+      onCommandComplete,
+    );
+
+    emit({
+      type: "thread-output",
+      threadId: "shell:1",
+      data: "PS> ",
+      outputLength: 4,
+      terminalInstanceId: "gen-test",
+    });
+    settlePrompt();
+    const written = lastWrite();
+    const token = /poracode-shell-complete=([^:]+):/u.exec(written)?.[1];
+    expect(token).toBeTruthy();
+    expect(written).toContain("$global:LASTEXITCODE = 0");
+    expect(written).toContain(
+      "try { $ErrorActionPreference = 'Stop'; if ($?) { direnv allow; if ($?) { bun install; if ($?) { $poracodeSetupSucceeded = $true } } } } catch { $_ | Out-String | Write-Host -NoNewline } finally {",
+    );
+    expect(written).toContain(
+      `Write-Host "$([char]27)]777;poracode-shell-complete=${token}:$poracodeSetupExitCode$([char]7)" -NoNewline }`,
+    );
   });
 
   it("ignores events for other shells", () => {

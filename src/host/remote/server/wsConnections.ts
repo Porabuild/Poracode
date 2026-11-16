@@ -48,6 +48,7 @@ import {
 import { PrincipalOverloadError, type PrincipalSocketLease } from "./principalAdmission";
 import { buildTerminalWatchResultMessage, unavailableWatchResult } from "./terminalCursorSync";
 import { MAX_TERMINAL_WATCHES_PER_CLIENT, handleReliableTerminalWatch } from "./wsTerminalWatch";
+import { reportEventInterestFailures } from "./eventInterestFailures";
 
 export {
   DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS,
@@ -305,6 +306,14 @@ export async function handleUpgrade(
     // ticket is already consumed, so the client mints a fresh one on retry.
     const socketLease = ctx.principalAdmission.tryAdmitSocket(session.sessionId);
     let handedOff = false;
+    // Direct loopback desktop-internal sessions sit in the same local OS
+    // network stack: skipping `permessage-deflate` eliminates zlib CPU and its
+    // 4-job concurrency queue on the backend-host event loop during multi-agent
+    // bursts, without affecting paired remote/Tailscale clients.
+    const savedExtensions = desktopInternal ? req.headers["sec-websocket-extensions"] : undefined;
+    if (desktopInternal && savedExtensions !== undefined) {
+      delete req.headers["sec-websocket-extensions"];
+    }
     try {
       ctx.wss.handleUpgrade(req, socket, head, (ws) => {
         handedOff = true;
@@ -324,6 +333,9 @@ export async function handleUpgrade(
         );
       });
     } finally {
+      if (desktopInternal && savedExtensions !== undefined) {
+        req.headers["sec-websocket-extensions"] = savedExtensions;
+      }
       // `handleUpgrade` hands the lease to the connection synchronously; if
       // the handshake itself failed, release it here exactly once.
       if (!handedOff) socketLease.release();
@@ -337,7 +349,9 @@ export async function handleUpgrade(
           ? "Unauthorized"
           : error.status === 429
             ? "Too Many Requests"
-            : "Forbidden",
+            : error.status === 503
+              ? "Service Unavailable"
+              : "Forbidden",
         error.retryAfterMs,
       );
       return;
@@ -387,7 +401,7 @@ function handleConnection(
   if (boundedCatalogChanges && session.scopes.includes("session:read")) {
     ctx.boundedCatalogChangeClients.add(ws);
   }
-  void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+  reportEventInterestFailures(ctx.notifyEventInterestsChanged());
   const gitStateInterestOwnerId = `${session.sessionId}:${randomUUID()}`;
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
@@ -438,7 +452,7 @@ function handleConnection(
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
     notifyPairingChanged(ctx);
-    void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    reportEventInterestFailures(ctx.notifyEventInterestsChanged());
   });
   try {
     ctx.auth.markSessionConnected(session.sessionId);
@@ -603,13 +617,13 @@ function handleConnection(
         }
         ctx.terminalCursorSync.clearReliable(ws, message.id);
         terminalWatches?.add(message.id);
-        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+        reportEventInterestFailures(ctx.notifyEventInterestsChanged());
       }
       if (message.type === "terminal-unwatch") {
         ctx.terminalWatches.get(ws)?.delete(message.id);
         ctx.principalAdmission.releaseWatch(ws, message.id);
         ctx.terminalCursorSync.clearReliable(ws, message.id);
-        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+        reportEventInterestFailures(ctx.notifyEventInterestsChanged());
       }
       if (message.type === "terminal-watch-baseline-ack") {
         // Credit release for a v2 chunked baseline. Stale watchIds are
@@ -624,7 +638,7 @@ function handleConnection(
       if (message.type === "thread-item-interests") {
         if (!session.scopes.includes("session:read")) return;
         ctx.itemInterests.set(ws, new Set(message.threadIds));
-        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+        reportEventInterestFailures(ctx.notifyEventInterestsChanged());
       }
       if (message.type === "git-state-interests") {
         if (!session.scopes.includes("session:read")) return;

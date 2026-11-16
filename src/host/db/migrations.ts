@@ -8,7 +8,11 @@ import { migrateScheduleAutomation } from "./scheduleAutomationMigration";
 import { createConversationSearchSchema } from "./conversationSearchSchema";
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
-import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
+import {
+  isAntigravityAgentKind,
+  normalizePersistedAntigravityModelSelection,
+  sanitizePersistedAntigravityContextUsage,
+} from "@/shared/agents/antigravity";
 import { repairDuplicateProjects } from "./projectDeduplication";
 import { HEAD_CHARS } from "./runtimeStreamCap";
 import { createRuntimeStreamHeadSchema } from "./runtimeStreamHeadSchema";
@@ -16,8 +20,17 @@ import {
   assertRuntimePayloadOriginSchema,
   createRuntimePayloadOriginSchema,
 } from "./runtimePayloadOriginsSchema";
+import { backfillRuntimeInlineImages } from "./runtimeInlineImages";
+import {
+  assertRuntimeInlineImageSchema,
+  createRuntimeInlineImageSchema,
+} from "./runtimeInlineImagesSchema";
 import { writeLegacyMigrationItemStreams } from "./runtimeStreamLegacyMigration";
 import { migrateTerminalScrollbackChunks } from "./terminalScrollbackSchema";
+import {
+  assertHistoryCacheRevisionSchema,
+  createHistoryCacheRevisionSchema,
+} from "./historyCacheRevision";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -96,6 +109,27 @@ function foldContextSuffix(sqlite: SqliteDatabase, table: string, column: string
       config.contextSize = match[1]!.toLowerCase();
     }
     update.run(JSON.stringify(config), row.rowid);
+  }
+}
+
+function clearAntigravityPromptConsumptionContextUsage(sqlite: SqliteDatabase): void {
+  const rows = sqlite
+    .prepare(
+      `SELECT u.thread_id, u.usage, t.agent_kind
+       FROM thread_context_usage AS u
+       JOIN threads AS t ON t.id = u.thread_id`,
+    )
+    .all() as { thread_id: string; usage: string; agent_kind: string }[];
+  const update = sqlite.prepare("UPDATE thread_context_usage SET usage = ? WHERE thread_id = ?");
+  const remove = sqlite.prepare("DELETE FROM thread_context_usage WHERE thread_id = ?");
+  for (const row of rows) {
+    if (!isAntigravityAgentKind(row.agent_kind)) continue;
+    const sanitized = sanitizePersistedAntigravityContextUsage(row.usage);
+    if (sanitized.action === "update") {
+      update.run(sanitized.usage, row.thread_id);
+    } else if (sanitized.action === "delete") {
+      remove.run(row.thread_id);
+    }
   }
 }
 
@@ -1069,6 +1103,73 @@ export const DATABASE_MIGRATIONS = [
   },
   {
     version: 70,
+    name: "remember turns cut off before they finished",
+    rollback: "rollback-compatible",
+    // Additive to released schema 69. Unreleased PR builds used 66 and 69;
+    // preserve their markers and install the branch pins skipped by PR schema69.
+    // Private "stopped" markers remember accepted Stop until boot; old readers
+    // ignore unknown marker values, and clients still see only error/restart.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "worktree_base_branch", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "pinned_branches", "TEXT");
+      // PR-only schema66 profiles predate master's index migration with the
+      // same number. Ensure both intentions survive that upgrade too.
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_threads_catalog_manual ON threads(sort_order, id);
+        CREATE INDEX IF NOT EXISTS idx_projects_catalog_manual ON projects(sort_order, id);
+      `);
+    },
+  },
+  {
+    version: 71,
+    name: "project plugin overrides",
+    // Additive nullable column; older app versions ignore it, so a project's
+    // plugin overrides are simply inert on a downgraded build.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "projects", "plugin_overrides", "TEXT"),
+  },
+  {
+    version: 72,
+    name: "externalize inline runtime images",
+    // Rewrites canonical >= 8 KiB inline image strings in thread_runtime_items.payload
+    // into compact content-addressed stubs backed by runtime_inline_image_blobs and
+    // thread_runtime_item_image_refs; older builds would treat those stubs as plain
+    // JSON objects instead of inline images.
+    rollback: "forward-only",
+    migrate: (sqlite) => {
+      createRuntimeInlineImageSchema(sqlite);
+      backfillRuntimeInlineImages(sqlite);
+    },
+  },
+  {
+    version: 73,
+    name: "durable thread history cache revisions",
+    // Additive transactional invalidation; old history is retained and receives
+    // a fresh incarnation. Pre-revision client caches cannot prove freshness.
+    rollback: "rollback-compatible",
+    migrate: createHistoryCacheRevisionSchema,
+  },
+  {
+    version: 74,
+    name: "retain thread failure explanations",
+    // Additive to schema73: old rows keep an unknown explanation (NULL).
+    // The existing optional errorMessage wire field needs no protocol/cache
+    // bump; catalog and history reads project the newly durable value.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => addColumnIfMissing(sqlite, "threads", "error_message", "TEXT"),
+  },
+  {
+    version: 75,
+    name: "clear Antigravity prompt-consumption context snapshots",
+    // Drops per-turn PromptResponse consumption that previously overwrote
+    // Antigravity thread_context_usage while retaining any valid window limit;
+    // remaining rows keep threadContextUsageSchema and bump history revisions.
+    rollback: "rollback-compatible",
+    migrate: clearAntigravityPromptConsumptionContextUsage,
+  },
+  {
+    version: 76,
     name: "poracode memory",
     // Additive tables. Older builds refuse this schema version, so they never
     // read the tables. Dropping them on a code rollback loses only memory rows,
@@ -1156,6 +1257,8 @@ export const DATABASE_MIGRATIONS = [
   },
 ] as const satisfies readonly DatabaseMigration[];
 
+// Worktree link reconciliation refreshes existing path/branch columns from Git;
+// old rows remain valid and are repaired on observation, without a schema bump.
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
 
 export interface MigrationRollbackPolicyEntry {
@@ -1283,6 +1386,7 @@ const SAFE_COLUMN_REPAIRS = [
   ["projects", "gh_account", "TEXT"],
   ["projects", "worktree_base_branch", "TEXT"],
   ["projects", "pinned_branches", "TEXT"],
+  ["projects", "plugin_overrides", "TEXT"],
   ["projects", "workspace_id", "TEXT"],
   ["projects", "disabled", "INTEGER NOT NULL DEFAULT 0"],
   ["threads", "done", "INTEGER NOT NULL DEFAULT 0"],
@@ -1319,6 +1423,14 @@ export function repairSafeSchemaDrift(sqlite: SqliteDatabase): void {
       .prepare("SELECT value FROM app_state WHERE key = 'schema_version'")
       .get() as { value: string } | undefined;
     if (Number(schema?.value) >= 58) createRuntimeGoalIndex(sqlite);
+    // Migration56 calls this helper too. Do not inject a future column into
+    // historical schemas before its own ordered migration has run.
+    if (Number(schema?.value) >= 70) {
+      addColumnIfMissing(sqlite, "threads", "interrupted_turn", "TEXT");
+    }
+    if (Number(schema?.value) >= 74) {
+      addColumnIfMissing(sqlite, "threads", "error_message", "TEXT");
+    }
     sqlite.exec(
       "UPDATE threads SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL",
     );
@@ -1363,6 +1475,7 @@ const REQUIRED_COLUMNS = {
     "gh_account",
     "worktree_base_branch",
     "pinned_branches",
+    "plugin_overrides",
     "workspace_id",
     "disabled",
     "sort_order",
@@ -1404,7 +1517,10 @@ const REQUIRED_COLUMNS = {
     "active_turn_started_at",
     "last_turn_started_at",
     "last_turn_ended_at",
+    "interrupted_turn",
+    "error_message",
   ],
+  thread_history_revisions: ["thread_id", "incarnation", "revision"],
   thread_runtime_items: [
     "thread_id",
     "item_id",
@@ -1538,6 +1654,17 @@ const REQUIRED_COLUMNS = {
     "first_acknowledged_at",
     "last_acknowledged_at",
   ],
+  runtime_inline_image_blobs: [
+    "blob_hash",
+    "encoding",
+    "header",
+    "mime",
+    "raw_bytes",
+    "inline_utf8_bytes",
+    "width",
+    "height",
+  ],
+  thread_runtime_item_image_refs: ["thread_id", "item_id", "path_json", "blob_hash"],
 } as const;
 
 export function assertRequiredDatabaseSchema(sqlite: SqliteDatabase): void {
@@ -1554,5 +1681,7 @@ export function assertRequiredDatabaseSchema(sqlite: SqliteDatabase): void {
     throw new Error(`Database schema is incomplete; missing: ${missing.join(", ")}.`);
   }
   assertRuntimePayloadOriginSchema(sqlite);
+  assertRuntimeInlineImageSchema(sqlite);
   assertThreadWorkspaceGrantsSchema(sqlite);
+  assertHistoryCacheRevisionSchema(sqlite);
 }

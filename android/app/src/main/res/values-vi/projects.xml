@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="projects_manage_title">Quản lý dự án</string>
+    <string name="projects_manage_title">Dự án</string>
     <string name="projects_add_title">Thêm dự án</string>
     <string name="projects_add_existing">Thêm dự án có sẵn</string>
     <string name="projects_create_new">Tạo dự án mới</string>

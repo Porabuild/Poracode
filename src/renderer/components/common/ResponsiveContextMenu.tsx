@@ -13,6 +13,7 @@ interface ResponsiveContextMenuProps {
   ) => void;
   label: string;
   children: ReactNode;
+  as?: "div" | "span";
 }
 
 /**
@@ -21,6 +22,7 @@ interface ResponsiveContextMenuProps {
  * the responsive bottom drawer.
  */
 export function ResponsiveContextMenu(props: ResponsiveContextMenuProps) {
+  const Trigger = props.as ?? "div";
   const mobile = useCompactLayout();
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const longPressHandlers = useLongPress(
@@ -43,9 +45,9 @@ export function ResponsiveContextMenu(props: ResponsiveContextMenuProps) {
     <>
       {/* `contents` preserves the canonical row DOM/layout while giving touch
           events from either a DOM row or a composite header one shared host. */}
-      <div className="contents" {...longPressHandlers}>
+      <Trigger className="contents" {...longPressHandlers}>
         {props.children}
-      </div>
+      </Trigger>
       <ResponsiveContextMenuSurface
         position={position}
         label={props.label}

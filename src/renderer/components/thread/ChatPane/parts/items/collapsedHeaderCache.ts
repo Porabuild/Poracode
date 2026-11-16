@@ -27,11 +27,8 @@ import {
   readAcpStringField,
   type DiffSummary,
 } from "./acpToolPayload";
-import {
-  commandIntentDisplay,
-  summarizeShellCommand,
-  type CommandIntentDisplay,
-} from "./commandSummary";
+import { commandPayloadDisplay } from "./commandActionsDisplay";
+import { summarizeShellCommand, type CommandIntentDisplay } from "./commandSummary";
 import { deriveToolDisplay, type ToolDisplay } from "./toolDisplay";
 
 type CacheEntry<T> = {
@@ -176,7 +173,7 @@ function computeCommandHeader(payload: CommandExecutionPayload): CommandExecutio
   const fullCommandLine = formatShellInvocation(cwd, command);
   const displayCommandLine = fullCommandLine ? summarizeShellCommand(fullCommandLine) : "";
   return {
-    display: commandIntentDisplay(fullCommandLine),
+    display: commandPayloadDisplay(payload, fullCommandLine),
     displayCommandLine,
     fullCommandLine,
     exitCode: payload.exitCode,

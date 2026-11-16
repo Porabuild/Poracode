@@ -1,4 +1,4 @@
-import { startTransition } from "react";
+import { startTransition, type ReactNode } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ArrowUpCircle } from "lucide-react";
@@ -18,6 +18,7 @@ export function AgentHeader(props: {
   wslDistros: readonly string[];
   onPerformUpdate: () => void;
   onSetAgentDisabled: (agentKind: string, disabled: boolean) => void;
+  refreshButton: ReactNode;
 }) {
   const { t } = useLingui();
   const { agent } = props;
@@ -38,6 +39,7 @@ export function AgentHeader(props: {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {props.refreshButton}
         {props.updateAvailable && (
           <Button
             size="sm"

@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
-import { createAcpStructuredSession } from "../acp";
+import {
+  createAcpStructuredSession,
+  createSharedAcpStructuredSession,
+  shutdownSharedAcpProcesses,
+} from "../acp";
 import {
   assertOneShotControlsMapped,
   resolveCheckedOneShotBuilderSelection,
@@ -158,8 +162,13 @@ export function createCopilotAdapter(): AgentAdapter {
         args,
         resolveAgentBinaryPath(input.projectLocation, "copilot"),
       );
-      return createAcpStructuredSession(command, input);
+      return input.projectLocation.kind === "wsl"
+        ? createAcpStructuredSession(command, input)
+        : await createSharedAcpStructuredSession(command, input, {
+            scope: copilotDetectionSpec.kind,
+          });
     },
+    shutdown: () => shutdownSharedAcpProcesses(copilotDetectionSpec.kind),
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
       await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });

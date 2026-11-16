@@ -47,6 +47,7 @@ describe("GeneralSettings", () => {
     expect(screen.getByText("Sidebar shortcuts")).toBeInTheDocument();
     expect(screen.getByText("Prevent system sleep")).toBeInTheDocument();
     expect(screen.getByLabelText("Prevent system sleep")).toBeInTheDocument();
+    expect(screen.getByLabelText("Prevent screen lock")).toBeInTheDocument();
     expect(screen.queryByText("Pull requests shortcut")).not.toBeInTheDocument();
   });
 
@@ -127,32 +128,47 @@ describe("GeneralSettings", () => {
     expect(profile).toHaveAttribute("aria-selected", "false");
   });
 
-  it("explains the increasing coverage of the system sleep options", async () => {
-    useSharedSettings.setState({ preventSleep: "while-working" });
+  it("selects multiple system sleep conditions and makes Always exclusive", async () => {
+    useSharedSettings.setState({ preventSleepWhen: ["working"] });
     render(<GeneralSettings />);
 
     const trigger = screen.getByLabelText("Prevent system sleep");
-    expect(trigger).toHaveTextContent("While working");
-    expect(
-      screen.getByText(/while any agent is working, including Computer Use/),
-    ).toBeInTheDocument();
+    expect(trigger).toHaveTextContent("Working");
+    expect(screen.getByText(/Working includes Computer Use threads/)).toBeInTheDocument();
 
     fireEvent.click(trigger);
-    fireEvent.click(await screen.findByRole("option", { name: "Working + remote access" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Remote access" }));
+    expect(useSharedSettings.getState().preventSleepWhen).toEqual(["working", "remote-access"]);
+    expect(trigger).toHaveTextContent("Working, Remote access");
 
-    expect(useSharedSettings.getState().preventSleep).toBe("while-remote-access");
-    expect(trigger).toHaveTextContent("Working + remote access");
-    expect(screen.getByText(/while agents work or remote access is enabled/)).toBeInTheDocument();
-
-    fireEvent.click(trigger);
     fireEvent.click(await screen.findByRole("option", { name: "Always" }));
-
-    expect(useSharedSettings.getState().preventSleep).toBe("always");
+    expect(useSharedSettings.getState().preventSleepWhen).toEqual(["always"]);
     expect(trigger).toHaveTextContent("Always");
+
+    fireEvent.click(await screen.findByRole("option", { name: "Computer Use" }));
+    expect(useSharedSettings.getState().preventSleepWhen).toEqual(["computer-use"]);
+
+    fireEvent.click(await screen.findByRole("option", { name: "Computer Use" }));
+    expect(useSharedSettings.getState().preventSleepWhen).toEqual([]);
+    expect(trigger).toHaveTextContent("Never");
+  });
+
+  it("offers screen lock prevention separately and states its limits", async () => {
+    useSharedSettings.setState({ preventSleepWhen: ["working"], preventScreenLockWhen: [] });
+    render(<GeneralSettings />);
+
+    const trigger = screen.getByLabelText("Prevent screen lock");
+    expect(trigger).toHaveTextContent("Never");
     expect(
-      screen.getByText(/whenever Poracode is running, even in the background/),
+      screen.getByText(/Manual locking, closing the lid, and enforced lock policies still apply/),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("switch", { name: /Computer Use/ })).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole("option", { name: "Computer Use" }));
+
+    expect(useSharedSettings.getState().preventScreenLockWhen).toEqual(["computer-use"]);
+    expect(useSharedSettings.getState().preventSleepWhen).toEqual(["working"]);
+    expect(trigger).toHaveTextContent("Computer Use");
   });
 
   it("hides Windows startup controls on other desktop platforms", () => {
@@ -176,6 +192,7 @@ describe("GeneralSettings", () => {
     expect(screen.queryByText("Editor LSP")).not.toBeInTheDocument();
     expect(screen.getByText("Sidebar shortcuts")).toBeInTheDocument();
     expect(screen.queryByText("Prevent system sleep")).not.toBeInTheDocument();
+    expect(screen.queryByText("Prevent screen lock")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("switch", { name: "Keep display on during Computer Use" }),
     ).not.toBeInTheDocument();

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import type { ChildProcess } from "node:child_process";
 
 // Mock child_process.execFile (used by execGit internally)
 const mockExecFile =
@@ -17,6 +18,10 @@ vi.mock("node:child_process", async () => {
     execFile: mockExecFile,
   };
 });
+
+vi.mock("@/shared/processTree", () => ({
+  attachChildProcessTreeCleanup: vi.fn<(child: ChildProcess) => void>(),
+}));
 
 // Must import after mock
 const { FileIndexService } = await import("./fileIndex");

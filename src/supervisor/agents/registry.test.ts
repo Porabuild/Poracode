@@ -35,7 +35,7 @@ const EXPECTED_SUBAGENT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)
     qwen: "never",
     qoder: "bypassPermissions",
     grok: "bypassPermissions",
-    kimi: "yolo",
+    kimi: "auto",
     muse: "yolo",
     antigravity: "yolo",
     commandcode: "yolo",
@@ -177,6 +177,25 @@ describe("profile agent registry", () => {
     ]);
     expect(adapters.find((adapter) => adapter.kind === "codex:broken")).toBeUndefined();
     expect(adapters.find((adapter) => adapter.kind === "codex")).toBeDefined();
+  });
+
+  it("registers Gemini profiles with their own adapter kinds and skips malformed configs", () => {
+    const adapters = buildAgentRegistry([
+      {
+        id: "work",
+        driver: "gemini",
+        displayName: "Work",
+        config: { homeDir: "~/.poracode/gemini-profiles/work" },
+      },
+      { id: "broken", driver: "gemini", displayName: "Broken", config: {} },
+    ]);
+
+    expect(adapters.find((adapter) => adapter.kind === "gemini:work")).toMatchObject({
+      label: "Gemini Work",
+      binary: "gemini",
+    });
+    expect(adapters.find((adapter) => adapter.kind === "gemini:broken")).toBeUndefined();
+    expect(adapters.find((adapter) => adapter.kind === "gemini")).toBeDefined();
   });
 });
 

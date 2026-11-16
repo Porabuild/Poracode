@@ -30,10 +30,9 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { npmInvocation, resolveTar, tarCommand } from "./server-host-tools.mjs";
+import { npmInvocation, releaseScratchRoot, resolveTar, tarCommand } from "./server-host-tools.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageDir = join(repoRoot, "packages", "poracode-cli");
@@ -137,7 +136,7 @@ export function stageOwnedRuntimeTarball(sourceTarball, workRoot) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
-  const workRoot = mkdtempSync(join(tmpdir(), "poracode-cli-qualify-"));
+  const workRoot = mkdtempSync(join(releaseScratchRoot(), "poracode-cli-qualify-"));
   const home = join(workRoot, "home");
   const cacheRoot = join(workRoot, "runtime-cache");
   const npmCache = join(workRoot, "npm-cache");

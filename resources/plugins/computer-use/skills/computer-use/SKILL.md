@@ -11,7 +11,7 @@ Tree conventions, `delivery.verified`, refusals, and platform recovery live in t
 
 ## Workflow
 
-1. Pick the exact window with `list_apps` or `list_windows`. Call `computer_use.api` only for capability or permission status. If the app is not running, `list_apps` with `query` then `launch_app`.
+1. If the Mac reports a locked screen, call `computer_use.enable` once before inspection so the host can use Locked Computer Use when enabled; if it stays locked, ask the user to unlock. Pick the exact window with `list_apps` or `list_windows`. Call `computer_use.api` only for capability or permission status. If the app is not running, `list_apps` with `query` then `launch_app`.
 2. Inspect with `get_window_state` (`include_text:true`; `include_screenshot:false` unless you need pixels or coordinates). Prefer `invoke_element` or `set_element_value` over coordinates.
 3. Call `computer_use.enable` immediately before the first control action and keep it enabled across uninterrupted related steps.
 4. Act, then verify from the window. Prefer `observe:"text"`; use `"screenshot"` or `"both"` for visual checks. Reuse `observation.state`. Continue only after a successful `delivery`; follow a `refused` hint.
@@ -22,7 +22,8 @@ Tree conventions, `delivery.verified`, refusals, and platform recovery live in t
 ## Boundaries
 
 - Background actions leave the user's foreground window, pointer, and keyboard alone. Foreground actions take over the desktop.
-- Locked desktops, secure prompts, operating-system permission dialogs, passwords, and authentication surfaces require the user.
+- A locked desktop requires the user, unless Locked Computer Use is on and the host unlocked the Mac for this turn. If an action is still refused with `screen_locked`, or a result carries a `locked_use_` note, stop and ask the user to unlock.
+- Secure prompts, operating-system permission dialogs, passwords, and authentication surfaces require the user.
 - Do not type or expose secrets unless the user supplied them for that exact purpose.
 - Confirm before destructive changes or external communication unless the user already authorized the exact action.
 

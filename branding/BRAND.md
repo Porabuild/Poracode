@@ -179,6 +179,5 @@ node branding/assets/build-native-assets.mjs
 
 The Lightcode → Poracode codebase rename is complete.
 
-- On first launch, all data from `~/.lightcode` (or the legacy `LIGHTCODE_BASE_DIR`) and the separate Electron user-data directory are copied into Poracode. The source is retained as a rollback backup, and Settings can schedule the complete import again.
 - The desktop app IDs (`com.lightcode.app` / `com.lightcode.app.nightly`) and mobile app ID (`com.lightcodeapp.mobile`) remain stable technical upgrade identities. Product names, UI, packages, and namespaces use Poracode.
 - Legacy names remain only at explicit compatibility boundaries for existing data, cached URLs, paired clients, hook cleanup, and Git checkpoints.

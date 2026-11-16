@@ -1,7 +1,7 @@
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
-import { getCurrentProjectId } from "@/renderer/actions/currentProject";
+import { selectCurrentProjectIdForView } from "@/renderer/actions/currentProject";
 import { ProjectFilesPanel } from "@/renderer/views/FileEditorOverlay/parts/ProjectFilesPanel";
 import { BrowserDockSlot } from "../BrowserPanel/BrowserDockSlot";
 import { extractBrowserToWindow, injectBrowserToMain } from "../BrowserPanel/browserWindowActions";
@@ -25,7 +25,7 @@ export function BottomDockPanelContent(props: { tab: RightPanelTab }) {
   const browserExtracted = useBrowserPanelStore((s) => s.extracted);
   // Reactive id of the project the notes panel should show — recomputed as the
   // user navigates between threads/drafts/projects.
-  const currentProjectId = useAppStore(() => getCurrentProjectId());
+  const currentProjectId = useAppStore(selectCurrentProjectIdForView);
 
   switch (props.tab) {
     case "usage":

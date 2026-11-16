@@ -4,6 +4,13 @@
  */
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
+import {
+  parsePowerShellGetContentView,
+  parseSelectObjectLineWindow,
+  splitPowerShellPipeline,
+  splitPowerShellWords,
+  type PowerShellFileView,
+} from "./powerShellViewScript";
 
 const MAX_TITLE_LEN = 120;
 
@@ -73,7 +80,7 @@ function extractShellCommand(full: string): string {
   return collapseWhitespace(work.trim());
 }
 
-function finalizeTitle(s: string): string {
+export function finalizeTitle(s: string): string {
   const t = collapseWhitespace(s.trim());
   if (t.length <= MAX_TITLE_LEN) return t;
   return `${t.slice(0, MAX_TITLE_LEN - 1)}…`;
@@ -96,8 +103,17 @@ function extractPowerShellQuotedCommand(s: string): string | null {
   }
   const reDq = /-Command\s+"((?:\\.|[^"\\])*)"/i;
   const m2 = reDq.exec(s);
-  if (m2?.[1] != null) return m2[1]!.replace(/\\"/g, '"').replace(/\\n/g, "\n");
+  if (m2?.[1] != null) return unescapePosixDoubleQuoted(m2[1]);
   return null;
+}
+
+/**
+ * POSIX double-quote unescaping for `pwsh -Command "…"`: backslash is special
+ * only before `$`, `` ` ``, `"`, `\` (and newline). Anything else — notably `\n`
+ * inside Windows paths like `C:\node` — stays literal.
+ */
+function unescapePosixDoubleQuoted(s: string): string {
+  return s.replace(/\\([$`"\\])/g, "$1");
 }
 
 function extractPowerShellCommandShellWord(s: string): string | null {
@@ -185,7 +201,7 @@ function trimCommandCache<T>(cache: Map<string, T>): void {
 }
 
 /** Localized "View" / "View <line-range>" display prefix (line range is data). */
-function viewPrefix(lines?: string): string {
+export function viewPrefix(lines?: string): string {
   return lines ? `${i18n._(msg`View`)} ${formatLineRange(lines)}: ` : `${i18n._(msg`View`)}: `;
 }
 
@@ -194,13 +210,21 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
 
   const powerShellFileView = parsePowerShellGetContentView(trimmed);
   if (powerShellFileView) {
+    if (powerShellFileView.aggregateLabel) {
+      const prefix = viewPrefix();
+      return { title: `${prefix}${powerShellFileView.aggregateLabel}`, kind: "view" };
+    }
     const prefix = viewPrefix(powerShellFileView.lines);
     const label = powerShellFileView.lines
       ? powerShellFileView.path
       : basenameFromPath(powerShellFileView.path);
     return {
       title: `${prefix}${label}`,
-      parts: { prefix, path: powerShellFileView.path, filePath: true },
+      parts: {
+        prefix,
+        path: powerShellFileView.path,
+        filePath: !powerShellFileView.path.includes("$"),
+      },
       kind: "view",
     };
   }
@@ -259,10 +283,7 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
 
   const grepLike = parseGrepLikeSearch(trimmed);
   if (grepLike) {
-    return {
-      title: `${i18n._(msg`Search`)}: "${grepLike.pattern}"`,
-      kind: "search",
-    };
+    return { title: grepLikeSearchTitle(grepLike), kind: "search" };
   }
 
   const findSearch = parseFindSearch(trimmed);
@@ -317,14 +338,42 @@ function intentFromSummarizedCommand(t: string): CommandIntentDisplay | null {
   return null;
 }
 
+/**
+ * Scope display rule shared with provider-classified actions: an absolute
+ * path (drive letter, `/`, `\\`, `~`) shows its basename; anything else shows
+ * verbatim.
+ */
+export function scopeDisplayPath(path: string): string {
+  return isAbsoluteScopePath(path) ? basenameFromPath(path) : path;
+}
+
+function isAbsoluteScopePath(path: string): boolean {
+  return (
+    /^[A-Za-z]:[\\/]/.test(path) ||
+    path.startsWith("/") ||
+    path.startsWith("\\\\") ||
+    path.startsWith("~")
+  );
+}
+
+function grepLikeSearchTitle(search: GrepLikeSearch): string {
+  const query = search.patterns[0]!;
+  const extra = search.patterns.length > 1 ? ` +${search.patterns.length - 1}` : "";
+  const rawScope =
+    search.scopes.length === 1 && search.scopes[0] !== "." ? search.scopes[0]! : undefined;
+  const scope = rawScope ? scopeDisplayPath(rawScope) : undefined;
+  if (scope) return `${i18n._(msg`Search: "${query}" in ${scope}`)}${extra}`;
+  return `${i18n._(msg`Search`)}: "${query}"${extra}`;
+}
+
 interface SedView {
   path: string;
   lines: string;
 }
 
 interface GrepLikeSearch {
-  pattern: string;
-  scope: string | undefined;
+  patterns: string[];
+  scopes: string[];
 }
 
 const GREP_LIKE_EXECUTABLES = new Set([
@@ -337,14 +386,84 @@ const GREP_LIKE_EXECUTABLES = new Set([
   "rgrep",
 ]);
 
+const RIPGREP_EXECUTABLES = new Set(["rg", "ripgrep"]);
+
+/** ripgrep options whose separate (non-`=`) form consumes the next word. */
+const RIPGREP_VALUE_OPTIONS = new Set([
+  "-A",
+  "-B",
+  "-C",
+  "-m",
+  "-j",
+  "-M",
+  "-t",
+  "-T",
+  "-g",
+  "-E",
+  "-d",
+  "-r",
+  "--context",
+  "--after-context",
+  "--before-context",
+  "--max-count",
+  "--threads",
+  "--max-columns",
+  "--type",
+  "--type-not",
+  "--glob",
+  "--iglob",
+  "--encoding",
+  "--max-depth",
+  "--max-filesize",
+  "--sort",
+  "--sortr",
+  "--color",
+  "--colors",
+  "--context-separator",
+  "--field-match-separator",
+  "--path-separator",
+  "--replace",
+  "--pre",
+  "--pre-glob",
+  "--type-add",
+  "--ignore-file",
+  "--engine",
+]);
+
+/** grep/egrep/fgrep options whose separate (non-`=`) form consumes the next word. */
+const GREP_VALUE_OPTIONS = new Set([
+  "-A",
+  "-B",
+  "-C",
+  "-m",
+  "-d",
+  "-D",
+  "--context",
+  "--after-context",
+  "--before-context",
+  "--max-count",
+  "--include",
+  "--exclude",
+  "--exclude-dir",
+  "--label",
+  "--directories",
+  "--devices",
+  "--color",
+]);
+
+/**
+ * Whether `word` is an option that consumes the following word as its value.
+ * Attached forms (`-C2`, `--context=2`, `--color=auto`) never consume.
+ */
+function grepLikeOptionConsumesValue(word: string, executable: string): boolean {
+  if (word.startsWith("--") && word.includes("=")) return false;
+  const options = RIPGREP_EXECUTABLES.has(executable) ? RIPGREP_VALUE_OPTIONS : GREP_VALUE_OPTIONS;
+  return options.has(word);
+}
+
 interface PipedFileView {
   path: string;
   lines: string;
-}
-
-interface PowerShellFileView {
-  path: string;
-  lines?: string;
 }
 
 interface FindSearch {
@@ -502,7 +621,9 @@ function parseHeadInvocation(words: string[]): { path: string | undefined; lines
 
 function parseGrepLikeFileView(command: string): PowerShellFileView | null {
   const parts = splitPowerShellPipeline(command);
-  const path = extractGrepLikeFileViewPath(splitPowerShellWords(parts[0] ?? command));
+  const words = splitPowerShellWords(parts[0] ?? command);
+  const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase() ?? "";
+  const path = extractGrepLikeFileViewPath(words, executable);
   if (!path) return null;
 
   const lines = parts
@@ -512,200 +633,53 @@ function parseGrepLikeFileView(command: string): PowerShellFileView | null {
   return { path, ...(lines ? { lines } : {}) };
 }
 
-function parsePowerShellGetContentView(command: string): PowerShellFileView | null {
-  const indexedView = parsePowerShellIndexedGetContentView(command);
-  if (indexedView) return indexedView;
-
-  const parts = splitPowerShellPipeline(command);
-  const path = extractPowerShellGetContentPath(splitPowerShellWords(parts[0] ?? command));
-  if (path) {
-    const lines = parts
-      .slice(1)
-      .map((part) => parseSelectObjectLineWindow(splitPowerShellWords(part)))
-      .find((lineWindow): lineWindow is string => !!lineWindow);
-    return { path, ...(lines ? { lines } : {}) };
-  }
-
-  return parsePowerShellScriptGetContentView(command);
-}
-
-function parsePowerShellScriptGetContentView(command: string): PowerShellFileView | null {
-  const match = /(?:^|;)\s*(?:\$\w+\s*=\s*)?((?:Get-Content|gc)\b[^;|]*)/i.exec(command);
-  if (!match?.[1]) return null;
-
-  const variables = extractPowerShellStringAssignments(command);
-  const path = extractPowerShellGetContentPath(splitPowerShellWords(match[1]), variables);
-  if (!path) return null;
-
-  const lines = parsePowerShellForeachLineRanges(command);
-  return { path, ...(lines ? { lines } : {}) };
-}
-
-function parsePowerShellIndexedGetContentView(command: string): PowerShellFileView | null {
-  const match =
-    /^\s*(\$\w+)\s*=\s*((?:Get-Content|gc)\b.*?)\s*;\s*(\$\w+)\s*\[\s*(\d+)\s*\.\.\s*(\d+)\s*\]/i.exec(
-      command,
-    );
-  if (!match || match[1]!.toLowerCase() !== match[3]!.toLowerCase()) return null;
-
-  const path = extractPowerShellGetContentPath(splitPowerShellWords(match[2]!));
-  const startIndex = readNonNegativeInteger(match[4]);
-  const endIndex = readNonNegativeInteger(match[5]);
-  if (!path || startIndex === undefined || endIndex === undefined || endIndex < startIndex)
-    return null;
-
-  return { path, lines: `${startIndex + 1}-${endIndex + 1}` };
-}
-
-function extractPowerShellStringAssignments(command: string): ReadonlyMap<string, string> {
-  const variables = new Map<string, string>();
-  const re = /(?:^|;)\s*(\$\w+)\s*=\s*(?:"((?:`.|[^"`])*)"|'((?:''|[^'])*)')/gi;
-  for (const match of command.matchAll(re)) {
-    const value =
-      match[2] !== undefined ? match[2].replace(/`(.)/g, "$1") : match[3]!.replace(/''/g, "'");
-    variables.set(match[1]!.toLowerCase(), value);
-  }
-  return variables;
-}
-
-function parsePowerShellForeachLineRanges(command: string): string | undefined {
-  const match =
-    /foreach\s*\(\s*\$\w+\s+in\s+@\(\s*((?:@\(\s*\d+\s*,\s*\d+\s*\)\s*,?\s*)+)\)\s*\)/i.exec(
-      command,
-    );
-  if (!match?.[1]) return undefined;
-
-  const ranges = [...match[1].matchAll(/@\(\s*(\d+)\s*,\s*(\d+)\s*\)/g)].map((range) => {
-    const start = Number(range[1]);
-    const end = Number(range[2]);
-    return end >= start ? (start === end ? `${start}` : `${start}-${end}`) : undefined;
-  });
-  return ranges.every((range): range is string => !!range) ? ranges.join(",") : undefined;
-}
-
-function extractGrepLikeFileViewPath(words: string[]): string | undefined {
-  const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase();
+function extractGrepLikeFileViewPath(words: string[], executable: string): string | undefined {
   if (!executable || !GREP_LIKE_EXECUTABLES.has(executable)) return undefined;
 
-  let pattern: string | undefined;
+  const patterns: string[] = [];
   const paths: string[] = [];
   for (let i = 1; i < words.length; i++) {
     const word = words[i]!;
     if (word === "--") {
-      if (pattern === undefined) {
-        pattern = words[++i];
+      if (patterns.length === 0) {
+        const next = words[++i];
+        if (next) patterns.push(next);
       } else {
         paths.push(...words.slice(i + 1));
       }
       break;
     }
     if (word === "-e" || word === "--regexp" || word === "-f" || word === "--file") {
-      pattern = words[++i] ?? pattern;
+      const value = words[++i];
+      if (value) patterns.push(value);
       continue;
     }
     if (word.startsWith("--regexp=")) {
-      pattern = word.slice("--regexp=".length);
+      patterns.push(word.slice("--regexp=".length));
       continue;
     }
     if (word.startsWith("--file=")) {
-      pattern = word.slice("--file=".length);
+      patterns.push(word.slice("--file=".length));
       continue;
     }
-    if (word === "-g" || word === "--glob" || word === "--type" || word === "-t") {
+    if (grepLikeOptionConsumesValue(word, executable)) {
       i++;
       continue;
     }
     if (word.startsWith("-")) continue;
-    if (pattern === undefined) {
-      pattern = word;
+    if (patterns.length === 0) {
+      patterns.push(word);
       continue;
     }
     paths.push(word);
   }
 
+  const pattern = patterns[0];
   return pattern && isAllLinesRegex(pattern) && paths.length === 1 ? paths[0] : undefined;
 }
 
 function isAllLinesRegex(pattern: string): boolean {
   return pattern.replace(/^'+/u, "") === "^";
-}
-
-function extractPowerShellGetContentPath(
-  words: string[],
-  variables?: ReadonlyMap<string, string>,
-): string | undefined {
-  const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase();
-  if (executable !== "get-content" && executable !== "gc") return undefined;
-
-  for (let i = 1; i < words.length; i++) {
-    const word = words[i]!;
-    const lower = word.toLowerCase();
-    if (lower === "-path" || lower === "-literalpath")
-      return resolvePowerShellPathOperand(words[i + 1], variables);
-    if (lower.startsWith("-path:"))
-      return resolvePowerShellPathOperand(word.slice("-Path:".length), variables);
-    if (lower.startsWith("-literalpath:"))
-      return resolvePowerShellPathOperand(word.slice("-LiteralPath:".length), variables);
-    if (word.startsWith("-")) {
-      if (getContentOptionConsumesValue(lower)) i++;
-      continue;
-    }
-    return resolvePowerShellPathOperand(word, variables);
-  }
-  return undefined;
-}
-
-function resolvePowerShellPathOperand(
-  value: string | undefined,
-  variables?: ReadonlyMap<string, string>,
-): string | undefined {
-  if (!value) return undefined;
-  return variables?.get(value.toLowerCase()) ?? value;
-}
-
-function getContentOptionConsumesValue(option: string): boolean {
-  return (
-    option === "-encoding" ||
-    option === "-filter" ||
-    option === "-include" ||
-    option === "-exclude" ||
-    option === "-readcount" ||
-    option === "-totalcount" ||
-    option === "-tail" ||
-    option === "-delimiter" ||
-    option === "-stream" ||
-    option === "-credential"
-  );
-}
-
-function parseSelectObjectLineWindow(words: string[]): string | undefined {
-  const executable = words[0]?.split(/[/\\]/).pop()?.toLowerCase();
-  if (executable !== "select-object" && executable !== "select") return undefined;
-
-  let skip = 0;
-  let first: number | undefined;
-  for (let i = 1; i < words.length; i++) {
-    const word = words[i]!;
-    const lower = word.toLowerCase();
-    if (lower === "-skip") {
-      skip = readNonNegativeInteger(words[++i]) ?? skip;
-      continue;
-    }
-    if (lower.startsWith("-skip:")) {
-      skip = readNonNegativeInteger(word.slice("-Skip:".length)) ?? skip;
-      continue;
-    }
-    if (lower === "-first") {
-      first = readNonNegativeInteger(words[++i]) ?? first;
-      continue;
-    }
-    if (lower.startsWith("-first:")) {
-      first = readNonNegativeInteger(word.slice("-First:".length)) ?? first;
-    }
-  }
-  if (first === undefined) return undefined;
-  const start = skip + 1;
-  return `${start}-${start + first - 1}`;
 }
 
 function readNonNegativeInteger(value: string | undefined): number | undefined {
@@ -745,44 +719,46 @@ function parseGrepLikeSearch(command: string): GrepLikeSearch | null {
   const executable = words[0]!.split(/[/\\]/).pop()?.toLowerCase();
   if (!executable || !GREP_LIKE_EXECUTABLES.has(executable)) return null;
 
-  let pattern: string | undefined;
+  const patterns: string[] = [];
   const paths: string[] = [];
   for (let i = 1; i < words.length; i++) {
     const word = words[i]!;
     if (word === "--") {
-      if (pattern === undefined) {
-        pattern = words[++i];
+      if (patterns.length === 0) {
+        const next = words[++i];
+        if (next) patterns.push(next);
       } else {
         paths.push(...words.slice(i + 1));
       }
       break;
     }
     if (word === "-e" || word === "--regexp" || word === "-f" || word === "--file") {
-      pattern = words[++i] ?? pattern;
+      const value = words[++i];
+      if (value) patterns.push(value);
       continue;
     }
     if (word.startsWith("--regexp=")) {
-      pattern = word.slice("--regexp=".length);
+      patterns.push(word.slice("--regexp=".length));
       continue;
     }
     if (word.startsWith("--file=")) {
-      pattern = word.slice("--file=".length);
+      patterns.push(word.slice("--file=".length));
       continue;
     }
-    if (word === "-g" || word === "--glob" || word === "--type" || word === "-t") {
+    if (grepLikeOptionConsumesValue(word, executable)) {
       i++;
       continue;
     }
     if (word.startsWith("-")) continue;
-    if (pattern === undefined) {
-      pattern = word;
+    if (patterns.length === 0) {
+      patterns.push(word);
       continue;
     }
     paths.push(word);
   }
 
-  if (!pattern) return null;
-  return { pattern, scope: paths.length > 0 ? paths.join(" ") : undefined };
+  if (patterns.length === 0) return null;
+  return { patterns, scopes: paths };
 }
 
 function parseFindSearch(command: string): FindSearch | null {
@@ -901,46 +877,6 @@ function splitShellPipeline(command: string): string[] {
   return parts;
 }
 
-function splitPowerShellPipeline(command: string): string[] {
-  const parts: string[] = [];
-  let current = "";
-  let quote: "'" | '"' | null = null;
-  let escaped = false;
-
-  for (const ch of command) {
-    if (escaped) {
-      current += ch;
-      escaped = false;
-      continue;
-    }
-    if (ch === "`") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      current += ch;
-      if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === "'" || ch === '"') {
-      current += ch;
-      quote = ch;
-      continue;
-    }
-    if (ch === "|") {
-      const part = current.trim();
-      if (part.length > 0) parts.push(part);
-      current = "";
-      continue;
-    }
-    current += ch;
-  }
-
-  const tail = current.trim();
-  if (tail.length > 0) parts.push(tail);
-  return parts;
-}
-
 function splitShellWords(input: string): string[] {
   const words: string[] = [];
   let current = "";
@@ -983,54 +919,6 @@ function splitShellWords(input: string): string[] {
   return words;
 }
 
-function splitPowerShellWords(input: string): string[] {
-  const words: string[] = [];
-  let current = "";
-  let quote: "'" | '"' | null = null;
-  let escaped = false;
-
-  for (let i = 0; i < input.length; i++) {
-    const ch = input[i]!;
-    if (escaped) {
-      current += ch;
-      escaped = false;
-      continue;
-    }
-    if (ch === "`") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      if (quote === "'" && ch === "'" && input[i + 1] === "'") {
-        current += "'";
-        i++;
-        continue;
-      }
-      if (ch === quote) {
-        quote = null;
-      } else {
-        current += ch;
-      }
-      continue;
-    }
-    if (ch === "'" || ch === '"') {
-      quote = ch;
-      continue;
-    }
-    if (/\s/.test(ch)) {
-      if (current.length > 0) {
-        words.push(current);
-        current = "";
-      }
-      continue;
-    }
-    current += ch;
-  }
-
-  if (current.length > 0) words.push(current);
-  return words;
-}
-
-function basenameFromPath(path: string): string {
+export function basenameFromPath(path: string): string {
   return path.split(/[/\\]/).pop() ?? path;
 }

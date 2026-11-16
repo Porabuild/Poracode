@@ -837,6 +837,9 @@ pub struct Hello {
     /// not own the console). Background control keeps working; foreground
     /// operations are refused with `screen_locked`.
     pub screen_locked: bool,
+    /// Locked Computer Use availability (protocol 4). Every platform reports
+    /// it; only macOS can set `supported`.
+    pub locked_use: super::locked_use::LockedUseFlags,
     pub notes: Vec<String>,
 }
 
@@ -963,10 +966,16 @@ mod tests {
                 screen_recording: PermissionState::NotRequired,
             },
             screen_locked: false,
+            locked_use: super::super::locked_use::LockedUseFlags {
+                supported: true,
+                ..Default::default()
+            },
             notes: vec![],
         };
         let value = serde_json::to_value(hello).unwrap();
         assert_eq!(value["protocolVersion"], 1);
+        assert_eq!(value["lockedUse"]["supported"], true);
+        assert_eq!(value["lockedUse"]["signed"], false);
         assert_eq!(value["capabilities"]["backgroundPointer"], false);
         assert_eq!(value["permissions"]["screenRecording"], "not_required");
         assert_eq!(value["screenLocked"], false);

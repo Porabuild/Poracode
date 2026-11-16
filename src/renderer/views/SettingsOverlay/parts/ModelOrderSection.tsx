@@ -16,7 +16,6 @@ import {
 } from "../../../components/providers/settings/useProviderUpdates";
 import { machineIdForStatus, useMachines, useSelectedMachine } from "@/renderer/state/machines";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { isRemoteSession } from "@/renderer/bridge";
 import { effectiveProviderOrder } from "@/shared/machineSettings";
 
 function resolveDisplayedKinds(
@@ -64,6 +63,15 @@ function SortableProviderRow(props: {
     group: "provider-order",
     data: { kind: agent.kind },
   });
+  const runtimeSummary = update.runtimeUpdate?.runtimes
+    .filter((runtime) => runtime.installed)
+    .map(
+      (runtime) =>
+        `${runtime.label} ${runtime.installedVersion ? `v${runtime.installedVersion}` : "—"}${
+          runtime.updateAvailable ? ` → v${runtime.latestVersion}` : ""
+        }`,
+    )
+    .join(" · ");
   const updateLabel = update.targetVersion ? `v${update.targetVersion}` : "";
 
   return (
@@ -88,14 +96,18 @@ function SortableProviderRow(props: {
         className="size-3.5 shrink-0"
       />
       <span className="truncate text-foreground">{agent.label}</span>
-      <span className="ml-auto min-w-0 max-w-[45%] truncate tabular-nums text-muted/60">
-        {update.environments.length > 0
-          ? update.environments
-              .map((env) => `${env.label} ${env.version ? `v${env.version}` : "—"}`.trim())
-              .join(" · ")
-          : update.installedVersion
-            ? `v${update.installedVersion}`
-            : "—"}
+      <span
+        className="ml-auto min-w-0 max-w-[45%] truncate tabular-nums text-muted/60"
+        title={runtimeSummary}
+      >
+        {runtimeSummary ||
+          (update.environments.length > 0
+            ? update.environments
+                .map((env) => `${env.label} ${env.version ? `v${env.version}` : "—"}`.trim())
+                .join(" · ")
+            : update.installedVersion
+              ? `v${update.installedVersion}`
+              : "—")}
       </span>
       {update.updatePhase ? (
         <div
@@ -103,11 +115,15 @@ function SortableProviderRow(props: {
           role="status"
           {...(isBulkUpdating ? { "aria-live": "off" as const } : {})}
           aria-label={
-            update.updatePhase === "queued"
-              ? t`${agent.label} queued for update to v${update.targetVersion}`
-              : update.updatePhase === "probing"
-                ? t`Probing ${agent.label} v${update.targetVersion}`
-                : t`Updating ${agent.label} to v${update.targetVersion}`
+            !update.targetVersion
+              ? update.updatePhase === "queued"
+                ? t`Queued`
+                : t`Updating ${agent.label}`
+              : update.updatePhase === "queued"
+                ? t`${agent.label} queued for update to v${update.targetVersion}`
+                : update.updatePhase === "probing"
+                  ? t`Probing ${agent.label} v${update.targetVersion}`
+                  : t`Updating ${agent.label} to v${update.targetVersion}`
           }
         >
           {update.updatePhase === "queued" ? (
@@ -127,19 +143,31 @@ function SortableProviderRow(props: {
                 <Trans>Updating to v{update.targetVersion}</Trans>
               )}
             </span>
-          ) : null}
+          ) : (
+            <span className="truncate">
+              {update.updatePhase === "queued" ? <Trans>Queued</Trans> : <Trans>Updating</Trans>}
+            </span>
+          )}
         </div>
-      ) : update.targetVersion ? (
+      ) : update.targetVersion || update.runtimeUpdate?.updateAvailable ? (
         <Button
           size="sm"
           variant="ghost"
           className="h-6 min-h-6 shrink-0 gap-1.5 px-1.5 py-0 text-[11px] text-muted hover:text-foreground"
-          aria-label={t`Update ${agent.label} to ${updateLabel}`}
+          aria-label={
+            update.targetVersion
+              ? t`Update ${agent.label} to ${updateLabel}`
+              : t`Update ${agent.label}`
+          }
           isDisabled={isBulkUpdating}
           onPress={() => onUpdate(agent.kind)}
         >
           <ArrowUpCircle className="size-3 shrink-0" />
-          <Trans>Update to v{update.targetVersion}</Trans>
+          {update.targetVersion ? (
+            <Trans>Update to v{update.targetVersion}</Trans>
+          ) : (
+            <Trans>Update</Trans>
+          )}
         </Button>
       ) : null}
     </div>
@@ -199,12 +227,8 @@ export function ModelOrderSection() {
     if (orderLocked) setProviderOrder(next);
     else setMachineProviderOrder(selectedMachine.id, next);
   };
-  // Update actions run on the local supervisor only. A remote client labels its
-  // bridge host as the local machine, but has no supervisor of its own.
-  const updates = useProviderUpdates(
-    isRemoteMachine || isRemoteSession() ? [] : orderedAgents,
-    selectedMachine.id,
-  );
+  // Update actions run on the selected machine's host.
+  const updates = useProviderUpdates(orderedAgents, selectedMachine);
   const outdatedCount = updates.outdatedKinds.length;
   const updateAllProgress = updates.updateAllProgress;
   const updateAllProgressAriaLabel = updateAllProgress

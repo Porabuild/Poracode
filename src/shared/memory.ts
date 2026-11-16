@@ -5,7 +5,7 @@ import { modelSelectionSchema } from "./selectionBinding.schemas";
 /**
  * Poracode memory document. Settings live in the shared settings file
  * (unknown fields are preserved by older builds; missing `memory` fills these
- * defaults). Memory rows live in SQLite migration 70, which older builds
+ * defaults). Memory rows live in SQLite migration 76, which older builds
  * refuse because the schema version moved forward. No settings-document
  * version bump: old readers keep the object and new readers default it.
  */

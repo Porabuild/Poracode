@@ -9,11 +9,10 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { continuesInPlace } from "@/shared/continueProviderRanking";
+import { friendlyError } from "@/shared/messages";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
@@ -22,6 +21,7 @@ import {
   useProjectIds,
   useProjectWithoutDraftConfig,
 } from "@/renderer/state/useThread";
+import { materializeDraftSegments } from "@/renderer/actions/clientDraftSubmission";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { markThreadDone } from "@/renderer/actions/threadActions";
 import {
@@ -30,9 +30,12 @@ import {
   type ProviderHandoffContext,
 } from "@/renderer/actions/providerHandoff";
 import { switchThreadProviderInPlace } from "@/renderer/actions/providerSwitchActions";
-import { continueRemoteThreadInNewThread } from "@/renderer/actions/providerSwitchRemoteActions";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { entityHost } from "@/renderer/state/entityHost";
+import { dispatchThreadGroupIntents } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
+import {
+  readHostAgentStatusPools,
+  selectLocationAgentStatuses,
+} from "@/renderer/hooks/useHostAgentStatuses";
 import type { ContinueIntent } from "@/renderer/components/thread/ContinueInProviderDialog";
 import {
   resolvePaneDomKey,
@@ -42,14 +45,19 @@ import {
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import { LiveStreamCapacityAlert } from "@/renderer/components/thread/LiveStreamCapacityAlert";
-import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
+import type {
+  DraftStartInput,
+  DraftStartResult,
+} from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
 import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import { ThreadPane } from "./parts/ThreadPane";
+import { ThreadWindowPlaceholder } from "./parts/ThreadWindowPlaceholder";
 import { DraftPane } from "./parts/DraftPane";
 import { resolveResponsivePaneLayout } from "./responsivePaneLayout";
 
@@ -90,6 +98,7 @@ export function AppContent() {
   const draftLastDraftConfig = useInitialProjectDraftConfig(draftProjectId);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
   const focusedPaneId = useAppStore((state) => state.focusedPaneId);
+  const ownWindowThreadIds = useAuxiliaryThreadWindows((state) => state.ownWindowThreadIds);
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((state) => state.mobileUtilityPage);
   const activeGroupName = useAppStore((s) => {
@@ -113,23 +122,14 @@ export function AppContent() {
     const project = storeProjects.find((p) => p.id === sourceThread.projectId);
     if (!project) return;
 
-    const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
-    const agents = getProjectAgentStatuses(project.location, agentStatuses, wslAgentStatuses);
-    // A mirrored thread's agents live on the host — its statuses carry the
-    // labels and capabilities, and the local list may not know either agent.
-    const owner = remoteOwner(sourceThread);
-    const runtime = owner ? useRemoteServersStore.getState().runtime[owner.desktopId] : undefined;
-    const hostStatuses = owner
-      ? ((project.location.kind === "wsl"
-          ? runtime?.agentStatuses?.wsl
-          : runtime?.agentStatuses?.windows) ?? [])
-      : [];
-    const statusSource = owner
-      ? hostStatuses.find((a) => a.kind === sourceThread.agentKind)
-      : agents.find((a) => a.kind === sourceThread.agentKind);
-    const targetLabel = owner
-      ? (hostStatuses.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind)
-      : (agents.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind);
+    // The agents live on the project's own host: its statuses carry the
+    // labels and capabilities, whichever host that is.
+    const agents = selectLocationAgentStatuses(
+      readHostAgentStatusPools(project.remoteServerId),
+      project.location,
+    );
+    const statusSource = agents.find((a) => a.kind === sourceThread.agentKind);
+    const targetLabel = agents.find((a) => a.kind === targetAgentKind)?.label ?? targetAgentKind;
 
     // Switching in place keeps the whole thread — id, title, and transcript —
     // and only changes which agent answers next; see `continuesInPlace`.
@@ -140,15 +140,26 @@ export function AppContent() {
     const switchesInPlace =
       intent === "switch" && continuesInPlace(sourcePresentationMode, targetPresentationMode);
     if (switchesInPlace) {
-      await switchThreadProviderInPlace({
-        thread: sourceThread,
-        targetAgentKind,
-        targetConfig,
-        prompt,
-        segments,
-        handoffContext,
-        targetLabel,
-      });
+      try {
+        const materializedSegments = segments
+          ? await materializeDraftSegments(
+              sourceThread,
+              segments,
+              entityHost(sourceThread)?.hostId ?? sourceThread.id,
+            )
+          : undefined;
+        await switchThreadProviderInPlace({
+          thread: sourceThread,
+          targetAgentKind,
+          targetConfig,
+          prompt,
+          segments: materializedSegments,
+          handoffContext,
+          targetLabel,
+        });
+      } catch (error) {
+        toast.danger(friendlyError(error));
+      }
       return;
     }
 
@@ -160,6 +171,19 @@ export function AppContent() {
       handoffContext.strategy === "context-file" ? handoffContext.extracted : null;
     const isFork = intent === "fork";
     const readsSourceThread = isFork && handoffContext.strategy === "thread-transcript";
+    const hostThreadId = crypto.randomUUID();
+    const rowIdentity = entityHost(project)?.projectThreadRow(hostThreadId) ?? {
+      threadId: hostThreadId,
+    };
+    let materializedSegments: PromptSegment[] | undefined;
+    try {
+      materializedSegments = segments
+        ? await materializeDraftSegments(project, segments, hostThreadId)
+        : undefined;
+    } catch (error) {
+      toast.danger(friendlyError(error));
+      return;
+    }
 
     // The title is the user's own label for the task, and the task is what
     // carries over — so inherit it instead of generating a new one. A fork is
@@ -173,24 +197,6 @@ export function AppContent() {
         ? t`${sourceThread.title} (fork)`
         : sourceThread.title;
 
-    // A mirrored source builds its replacement on the host — a locally created
-    // thread would launch against the host's paths on this machine.
-    if (remoteOwner(sourceThread)) {
-      await continueRemoteThreadInNewThread({
-        thread: sourceThread,
-        targetAgentKind,
-        targetConfig,
-        targetPresentationMode,
-        prompt,
-        segments,
-        extractedContext,
-        title,
-        targetLabel,
-        fork: isFork,
-      });
-      return;
-    }
-
     let groupId: string | undefined;
     let groupName: string | undefined;
     if (isFork) {
@@ -202,10 +208,15 @@ export function AppContent() {
             thread.id === sourceThread.id ? { ...thread, groupId, groupName } : thread,
           ),
         }));
+        // The source's host owns its group, so the assignment persists there.
+        dispatchThreadGroupIntents([{ threadId: sourceThread.id, groupId, groupName }]);
       }
     }
 
+    // The replacement is created and launched on the source project's host,
+    // like any new thread there (its rows carry that host's identity).
     const thread = useAppStore.getState().createThread({
+      ...rowIdentity,
       projectId: project.id,
       agentKind: targetAgentKind,
       config: targetConfig,
@@ -219,11 +230,11 @@ export function AppContent() {
     });
 
     const launch = readsSourceThread
-      ? buildForkMentionLaunchInput({ sourceThread, prompt, segments })
+      ? buildForkMentionLaunchInput({ sourceThread, prompt, segments: materializedSegments })
       : await buildHandoffLaunchInput({
           threadId: thread.id,
           prompt,
-          segments,
+          segments: materializedSegments,
           extractedContext,
         });
     queueThreadLaunch(
@@ -367,6 +378,8 @@ export function AppContent() {
             startThreadFromDraft(project, input, { replacePaneId: paneId })
           }
         />
+      ) : ownWindowThreadIds.has(paneId) ? (
+        <ThreadWindowPlaceholder threadId={paneId} onClose={() => closePane(paneId)} />
       ) : (
         <ThreadPane
           threadId={paneId}
@@ -441,7 +454,7 @@ export function AppContent() {
 function DraftViewContent(props: {
   project: Project;
   lastDraftConfig?: Project["lastDraftConfig"];
-  onStart: (input: DraftStartInput) => void | Promise<void>;
+  onStart: (input: DraftStartInput) => DraftStartResult | Promise<DraftStartResult>;
 }) {
   const { project, lastDraftConfig, onStart } = props;
   const draftEnvironment = useDraftEnvironment(project);
@@ -451,9 +464,8 @@ function DraftViewContent(props: {
       agentStatuses={draftEnvironment.agentStatuses}
       isDetectingAgents={draftEnvironment.isDetectingAgents}
       {...(draftEnvironment.pickFiles ? { pickFiles: draftEnvironment.pickFiles } : {})}
-      {...(draftEnvironment.saveClipboardImage
-        ? { saveClipboardImage: draftEnvironment.saveClipboardImage }
-        : {})}
+      {...(draftEnvironment.importFiles ? { importFiles: draftEnvironment.importFiles } : {})}
+
       {...(lastDraftConfig ? { lastDraftConfig } : {})}
       onStart={onStart}
     />

@@ -2,7 +2,8 @@ import { stripAnsi } from "@/shared/ansi";
 import type { AgentCapability, LabeledOption } from "@/shared/contracts";
 
 const COMMANDCODE_EFFORT_SENTINEL_ATTEMPTS = 2;
-const COMMANDCODE_EFFORT_PROBE_CONCURRENCY = 24;
+// A wide fan-out can exhaust the per-process startup timeout before validation runs.
+const COMMANDCODE_EFFORT_PROBE_CONCURRENCY = 4;
 const COMMANDCODE_EFFORT_CACHE_SIZE = 8;
 const COMMANDCODE_MODELS_ENDPOINT = "https://api.commandcode.ai/provider/v1/models";
 const COMMANDCODE_MODEL_NAMES_TTL_MS = 5 * 60_000;

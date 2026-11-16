@@ -10,6 +10,24 @@ import {
 } from "./turnClientContext";
 
 describe("formatTurnClientContext", () => {
+  it("reads the latest app context for each model turn without rewriting provider commands", () => {
+    let state = "BUILDING";
+    const target: TurnContextTarget = {
+      mcpAppContext: () => `App state: ${state}`,
+      slashCommands: [{ id: "clear", label: "clear", description: "Clear context" }],
+    };
+    expect(
+      structuredTurnTextOptions(target, { prompt: "Inspect deployment" }).inlineInstructions,
+    ).toContain("BUILDING");
+    state = "READY";
+    expect(
+      structuredTurnTextOptions(target, { prompt: "Inspect deployment" }).inlineInstructions,
+    ).toContain("READY");
+    expect(
+      structuredTurnTextOptions(target, { prompt: "/clear" }).inlineInstructions,
+    ).toBeUndefined();
+  });
+
   it("renders nothing without browser focus", () => {
     expect(formatTurnClientContext(undefined)).toBeUndefined();
     expect(formatTurnClientContext({})).toBeUndefined();
@@ -194,7 +212,7 @@ describe("structured turn crew briefs", () => {
     });
     expect(target.crewBriefDelivered).toBeUndefined();
     expect(setOptions).toMatchObject({
-      turnContext: `client context\n\n[crew] The user gave this thread a Poracode crew named "Ship crew" (Crew only). That is their request to delegate: hand work that fits a role to it with the Crossagents spawn_agent tool and role=<id>, then review the results yourself. Crew only: spawns without a role are refused.\nRoles:\n- builder (Builder, up to 2 at once): codex/gpt-5.5, high reasoning, fast. Implements changes. Told not to edit files.\n${crewPlaybookText(firstCrew)}\nThe crew can change during this thread; Crossagents list_agents returns the current roles.`,
+      turnContext: `client context\n\n[crew] The user gave this thread a Poracode crew named "Ship crew" (Crew only). That is their request to delegate: hand work that fits a role to it with the Crossagents spawn_agent tool and role=<id>, then review the results yourself. Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.\nRoles:\n- builder (Builder, up to 2 at once): codex/gpt-5.5, high reasoning, fast. Implements changes. Told not to edit files.\n${crewPlaybookText(firstCrew)}\nThe crew can change during this thread; Crossagents list_agents returns the current roles.`,
       onPromptSubmitted: expect.any(Function),
     });
     setOptions.onPromptSubmitted?.();

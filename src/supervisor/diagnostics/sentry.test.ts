@@ -1,4 +1,11 @@
-import { describe, expect, it } from "vitest";
+import Module from "node:module";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
+import type { SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
+import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
+import { StructuredRuntimeDiagnosticError } from "../runtime/threadSession/structuredRuntimeDiagnosticError";
 import {
   HostResourceBusyError,
   HostResourcePolicyUnavailableError,
@@ -12,6 +19,11 @@ import {
   GIT_ADMISSION_QUEUE_FULL_CODE,
   GitProcessAdmissionError,
 } from "../git/gitProcessAdmission";
+
+const sentryMock = vi.hoisted(() => ({
+  init: vi.fn<(options: { beforeSend: (event: never) => unknown }) => void>(),
+  setContext: vi.fn<(name: string, value: Record<string, unknown>) => void>(),
+}));
 
 type ClassificationCase = {
   operation: string;
@@ -35,6 +47,31 @@ const EXPECTED_OPERATIONAL_CASES: ClassificationCase[] = [
     operation: "ghListPrs",
     message: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal.',
     errorClass: "github-cli-unauthenticated",
+  },
+  {
+    operation: "ghGetPrForBranch",
+    message: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal.',
+    errorClass: "github-cli-unauthenticated",
+  },
+  {
+    operation: "ghGetPrForBranch",
+    message: "Configure credentials scoped to this exact source host in the project's runtime.",
+    errorClass: "source-host-credentials-unconfigured",
+  },
+  {
+    operation: "ghListPrs",
+    message: "Configure credentials scoped to this exact source host in the project's runtime.",
+    errorClass: "source-host-credentials-unconfigured",
+  },
+  {
+    operation: "readProjectFile",
+    message: "Only files can be opened in the editor.",
+    errorClass: "editor-target-not-file",
+  },
+  {
+    operation: "readProjectFile",
+    message: "Path traversal is not allowed.",
+    errorClass: "project-path-traversal-rejected",
   },
   {
     operation: "interruptThread",
@@ -123,6 +160,21 @@ const EXPECTED_OPERATIONAL_CASES: ClassificationCase[] = [
 ];
 
 const NEAR_MISS_CASES: ClassificationCase[] = [
+  {
+    operation: "ghGetPrForBranch",
+    message: "Configure credentials scoped to this source host in the project's runtime.",
+    errorClass: "source-host-credentials-unconfigured",
+  },
+  {
+    operation: "readProjectFile",
+    message: "Only files can be opened in the editor",
+    errorClass: "editor-target-not-file",
+  },
+  {
+    operation: "readProjectFile",
+    message: "Path traversal is not allowed",
+    errorClass: "project-path-traversal-rejected",
+  },
   {
     operation: "ghListPrs",
     message: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal!',
@@ -222,6 +274,130 @@ function expectTransient(operation: string, error: Error, errorClass: string): v
 }
 
 describe("supervisor Sentry policy", () => {
+  it("sends safe reasons through the actual capture and beforeSend path", async () => {
+    vi.resetModules();
+    let beforeSend: (event: SentryEventLike) => SentryEventLike | null = () => null;
+    let tags: Record<string, unknown> = {};
+    const events: Array<SentryEventLike | null> = [];
+    const metrics = vi.fn<(name: string, count: number, options: unknown) => void>();
+    const sdk = {
+      init: (options: { beforeSend: typeof beforeSend }) => {
+        beforeSend = options.beforeSend;
+      },
+      setContext: () => {},
+      isEnabled: () => true,
+      metrics: { count: metrics },
+      withScope: (callback: (scope: unknown) => void) =>
+        callback({
+          setTags: (value: Record<string, unknown>) => {
+            tags = value;
+          },
+          setFingerprint: () => {},
+          setLevel: () => {},
+          addBreadcrumb: () => {},
+        }),
+      captureException: (error: Error) => {
+        events.push(beforeSend({ message: error.message, tags }));
+      },
+    };
+    const loader = Module as unknown as { _load(request: string, ...args: unknown[]): unknown };
+    const originalLoad = loader._load;
+    const spy = vi
+      .spyOn(loader, "_load")
+      .mockImplementation((request, ...args) =>
+        request === "@sentry/node" ? sdk : originalLoad(request, ...args),
+      );
+    const previousDsn = process.env.SENTRY_DSN;
+    process.env.SENTRY_DSN = "https://public@example.test/1";
+    try {
+      const reporter = await import("./sentry");
+      expect(reporter.initializeSupervisorSentry({ appVersion: "test", isDev: false })).toBe(true);
+      reporter.captureSupervisorIpcFailure(
+        Object.assign(new Error("Command failed: private-command\nprivate-stderr"), {
+          cmd: "private-command",
+          code: 128,
+        }),
+        "gitFetch",
+      );
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        message: "Command failed: [redacted]",
+        tags: { "poracode.cause_reason": "subprocess-exit", "poracode.exit_code": "128" },
+      });
+      expect(JSON.stringify(events)).not.toContain("private");
+      reporter.captureSupervisorIpcFailure(
+        Object.assign(new Error("private"), { code: "ABORT_ERR" }),
+        "gitFetch",
+      );
+      reporter.captureSupervisorIpcFailure(
+        Object.assign(new Error("private"), { code: "ECONNRESET" }),
+        "gitFetch",
+      );
+      expect(events).toHaveLength(1);
+      expect(metrics).toHaveBeenCalledOnce();
+      reporter.captureSupervisorIpcFailure(new TypeError("Parser invariant failed."), "gitFetch");
+      expect(events).toHaveLength(2);
+      expect(events[1]?.tags).toMatchObject({ "poracode.cause_type": "type-error" });
+    } finally {
+      spy.mockRestore();
+      if (previousDsn === undefined) delete process.env.SENTRY_DSN;
+      else process.env.SENTRY_DSN = previousDsn;
+    }
+  });
+  it.each(["ABORT_ERR", "ECONNRESET", "ETIMEDOUT"])(
+    "routes structural %s away from bug events",
+    (code) => {
+      const error = Object.assign(new Error("private"), { code });
+      expect(classifySupervisorIpcFailure(error, "gitFetch").treatment).toBe(
+        code === "ABORT_ERR" ? "drop" : "metric",
+      );
+      expect(
+        classifySupervisorFailure(
+          new StructuredRuntimeDiagnosticError("turn", "codex", error),
+          "structured-runtime-turn",
+        ).treatment,
+      ).toBe(code === "ABORT_ERR" ? "drop" : "metric");
+    },
+  );
+
+  it.each(["ABORT_ERR", "ECONNRESET"])(
+    "keeps explicit product defects reportable despite a %s cause",
+    (code) => {
+      const source = new DiagnosticError(
+        "private payload",
+        { failureClass: "product-defect", domain: "provider.session", errorClass: "parser-failed" },
+        { cause: Object.assign(new Error("private cause"), { code }) },
+      );
+      const wrapped = new Error("private wrapper", { cause: source });
+      for (const error of [
+        source,
+        wrapped,
+        new StructuredRuntimeDiagnosticError("turn", "codex", wrapped),
+      ]) {
+        expect(classifySupervisorIpcFailure(error, "sendThreadInput")).toMatchObject({
+          treatment: "capture",
+          errorClass: "parser-failed",
+          domain: "provider.session",
+        });
+        expect(classifySupervisorFailure(error, "structured-runtime-turn").treatment).toBe(
+          "capture",
+        );
+        expect(buildErrorCauseTags(error)["poracode.cause_code"]).toBe(code);
+      }
+      expect(
+        JSON.stringify(new StructuredRuntimeDiagnosticError("turn", "codex", wrapped)),
+      ).not.toContain("private");
+    },
+  );
+
+  it.each([128, 9, "ENOENT", "EPERM"])("keeps unknown subprocess %s observable", (code) => {
+    expect(
+      classifySupervisorIpcFailure(
+        Object.assign(new Error("Command failed: private"), { code }),
+        "gitFetch",
+      ).treatment,
+    ).toBe("capture");
+  });
   it("does not initialize reporting in local development", () => {
     const originalDsn = process.env.SENTRY_DSN;
     process.env.SENTRY_DSN = "https://public@example.test/1";
@@ -388,9 +564,12 @@ describe("supervisor Sentry policy", () => {
 
   it.each(EXPECTED_OPERATIONAL_CASES.filter((testCase) => testCase.operationScoped !== false))(
     "keeps $errorClass unknown outside its scoped operation",
-    ({ message }) => {
+    ({ operation, message }) => {
       expect.hasAssertions();
-      expectUnknown("readProjectFile", message);
+      expectUnknown(
+        operation === "readProjectFile" ? "writeProjectFile" : "readProjectFile",
+        message,
+      );
     },
   );
 
@@ -454,5 +633,74 @@ describe("supervisor Sentry policy", () => {
       errorClass: "type-error",
       fingerprint: null,
     });
+  });
+});
+
+describe("supervisor Sentry event admission", () => {
+  it("applies the limiter from the configured beforeSend callback", () => {
+    sentryMock.init.mockReset();
+    sentryMock.setContext.mockReset();
+    const originalDsn = process.env.SENTRY_DSN;
+    const originalDataDir = process.env.PORACODE_DATA_DIR;
+    mkdirSync("tmp", { recursive: true });
+    const directory = mkdtempSync(join(process.cwd(), "tmp", "sentry-supervisor-"));
+    process.env.PORACODE_DATA_DIR = directory;
+    process.env.SENTRY_DSN = "https://public@example.test/1";
+
+    const moduleLoader = Module as unknown as {
+      _load: (request: string, ...rest: unknown[]) => unknown;
+    };
+    const originalLoad = moduleLoader._load.bind(moduleLoader);
+    const loadSpy = vi
+      .spyOn(moduleLoader, "_load")
+      .mockImplementation((request, ...rest) =>
+        request === "@sentry/node" ? sentryMock : originalLoad(request, ...rest),
+      );
+
+    try {
+      expect(initializeSupervisorSentry({ appVersion: "test", isDev: false })).toBe(true);
+      const beforeSend = sentryMock.init.mock.calls[0]?.[0].beforeSend;
+      expect(beforeSend).toBeDefined();
+      const event = {
+        exception: {
+          values: [
+            {
+              type: "Error",
+              value: "poll failed",
+              stacktrace: {
+                frames: [{ function: "pollProject", filename: "/app/supervisor.cjs", lineno: 12 }],
+              },
+            },
+          ],
+        },
+      };
+
+      expect(beforeSend!(event as never)).not.toBeNull();
+      expect(beforeSend!(event as never)).not.toBeNull();
+      expect(beforeSend!(event as never)).not.toBeNull();
+      expect(beforeSend!(event as never)).toBeNull();
+      expect(initializeSupervisorSentry({ appVersion: "test-next", isDev: false })).toBe(true);
+      const restarted = sentryMock.init.mock.calls.at(-1)?.[0].beforeSend;
+      expect(restarted!(event as never)).toBeNull();
+      const ledger = JSON.parse(
+        readFileSync(join(directory, "cache", "sentry", "event-budget.json"), "utf8"),
+      );
+      expect(ledger.processEvents).toHaveLength(3);
+    } finally {
+      loadSpy.mockRestore();
+      if (originalDsn === undefined) {
+        delete process.env.SENTRY_DSN;
+      } else {
+        process.env.SENTRY_DSN = originalDsn;
+      }
+      if (originalDataDir === undefined) {
+        delete process.env.PORACODE_DATA_DIR;
+      } else {
+        process.env.PORACODE_DATA_DIR = originalDataDir;
+      }
+      rmSync(directory, { recursive: true, force: true });
+      sentryMock.init.mockReset();
+      sentryMock.setContext.mockReset();
+    }
   });
 });

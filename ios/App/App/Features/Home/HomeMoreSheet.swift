@@ -39,18 +39,6 @@ struct HomeMoreSheet: View {
           }
           .disabled(session.currentProjectControllerSession == nil)
           .accessibilityIdentifier("native-e2e.more.projects")
-          NavigationLink {
-            BrowserMirrorSessionView(session: session, embeddedInNavigationStack: true)
-          } label: {
-            HomeMoreLabel(BrowserMirrorStrings.title, systemImage: "globe")
-          }
-          .disabled(session.currentBrowserMirrorAccess == nil)
-          NavigationLink {
-            HomeTerminalProjectsView(session: session)
-          } label: {
-            HomeMoreLabel(TerminalStrings.title, systemImage: "terminal")
-          }
-          .accessibilityIdentifier("native-e2e.more.terminal")
           if let lease = session.currentPortForwardingAccess?.lease {
             NavigationLink {
               PortForwardingSessionView(
@@ -70,6 +58,18 @@ struct HomeMoreSheet: View {
           ForEach(shortcutPreferences.visible) { shortcut in
             shortcutDestination(shortcut)
           }
+          NavigationLink {
+            HomeTerminalProjectsView(session: session)
+          } label: {
+            HomeMoreLabel(TerminalStrings.title, systemImage: "terminal")
+          }
+          .accessibilityIdentifier("native-e2e.more.terminal")
+          NavigationLink {
+            BrowserMirrorSessionView(session: session, embeddedInNavigationStack: true)
+          } label: {
+            HomeMoreLabel(BrowserMirrorStrings.title, systemImage: "globe")
+          }
+          .disabled(session.currentBrowserMirrorAccess == nil)
           NavigationLink {
             SettingsMoreIndexView(session: session)
           } label: {

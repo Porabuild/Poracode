@@ -192,11 +192,11 @@ class RemoteApiClient(
     override suspend fun environment(): RemoteEnvironmentDescriptor {
         var legacy = false
         val raw = try {
-            requestText(ProtocolConstants.ENVIRONMENT_PATH)
+            requestText(ProtocolConstants.ENVIRONMENT_PATH, retryableRead = true)
         } catch (e: RemoteClientException) {
             if (!e.isNotFound) throw e
             legacy = true
-            requestText(ProtocolConstants.LEGACY_ENVIRONMENT_PATH)
+            requestText(ProtocolConstants.LEGACY_ENVIRONMENT_PATH, retryableRead = true)
         }
 
         val versionProbe = runCatching {
@@ -255,14 +255,14 @@ class RemoteApiClient(
     // --- Authenticated API ---
 
     override suspend fun snapshot(): RemoteShellSnapshot {
-        val data = requestText(ProtocolConstants.SNAPSHOT_PATH)
+        val data = requestText(ProtocolConstants.SNAPSHOT_PATH, retryableRead = true)
         return RemoteV3TransportAdapters.snapshot(data)
     }
 
     override suspend fun agentStatuses(): RemoteAgentStatuses {
         val route = GeneratedRemoteV3SettingsContract.route(SettingsRouteId.AgentStatuses)
         val snapshot = SettingsRemoteV3Adapters.agentStatuses(
-            GeneratedRemoteV3SettingsContract.agentStatusesResponse(requestText(route.path)),
+            GeneratedRemoteV3SettingsContract.agentStatusesResponse(requestText(route.path, retryableRead = true)),
         )
         return RemoteAgentStatuses(
             native = GitStateJsonAdapter.decodeAgentStatuses(JsonArray(snapshot.windows)),
@@ -275,7 +275,7 @@ class RemoteApiClient(
         // transport failures, and undecodable payloads all degrade to UNKNOWN.
         return try {
             RemoteV3TransportAdapters.hostDescribe(
-                requestText(GeneratedRemoteV3Contract.hostDescribeRoutePath),
+                requestText(GeneratedRemoteV3Contract.hostDescribeRoutePath, retryableRead = true),
             )
         } catch (e: CancellationException) {
             throw e
@@ -294,7 +294,7 @@ class RemoteApiClient(
             noticesCapable = declarations.noticesDeclared,
         )
         val path = "/api/threads/${encodePath(route.threadId)}/history"
-        val data = requestText(path, query = route.query)
+        val data = requestText(path, query = route.query, retryableRead = true)
         return RemoteV3TransportAdapters.threadHistory(data)
     }
 
@@ -312,7 +312,7 @@ class RemoteApiClient(
             noticesCapable = declarations.noticesDeclared,
         )
         val path = "/api/threads/${encodePath(route.threadId)}/history/items"
-        val data = requestText(path, query = route.query)
+        val data = requestText(path, query = route.query, retryableRead = true)
         return RemoteV3TransportAdapters.historyItems(data)
     }
 
@@ -414,7 +414,8 @@ class RemoteApiClient(
         path: String,
         query: List<Pair<String, String>> = emptyList(),
         destination: java.io.File,
-    ) = http.streamFile(path, query, destination)
+        retryableRead: Boolean = false,
+    ) = http.streamFile(path, query, destination, retryableRead = retryableRead)
 
     internal suspend fun requestText(
         path: String,
@@ -425,6 +426,7 @@ class RemoteApiClient(
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
         timeoutMs: Long? = null,
+        retryableRead: Boolean = false,
     ): String = http.requestText(
         path = path,
         method = method,
@@ -434,6 +436,7 @@ class RemoteApiClient(
         extraHeaders = extraHeaders,
         expectedStatus = expectedStatus,
         timeoutMs = timeoutMs,
+        retryableRead = retryableRead,
     )
 
     /** Executes a bounded raw-body request without converting the upload or response to JSON. */
@@ -445,6 +448,7 @@ class RemoteApiClient(
         authorized: Boolean = true,
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
+        retryableRead: Boolean = false,
     ): String = http.requestRawText(
         path = path,
         method = method,
@@ -453,6 +457,7 @@ class RemoteApiClient(
         authorized = authorized,
         extraHeaders = extraHeaders,
         expectedStatus = expectedStatus,
+        retryableRead = retryableRead,
     )
 
     /** Fetches binary data with early Content-Length rejection and an incremental hard cap. */
@@ -461,11 +466,13 @@ class RemoteApiClient(
         query: List<Pair<String, String>> = emptyList(),
         authorized: Boolean = true,
         expectedStatus: Int? = null,
+        retryableRead: Boolean = false,
     ): RemoteBinaryResponse = http.requestBytes(
         path = path,
         query = query,
         authorized = authorized,
         expectedStatus = expectedStatus,
+        retryableRead = retryableRead,
     )
 
     private fun endpointUrl(path: String): String = http.endpointUrl(path)

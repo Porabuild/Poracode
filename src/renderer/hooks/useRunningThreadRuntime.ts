@@ -2,12 +2,10 @@ import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/shallow";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
-import { isManagedRootDesktopRuntime } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import { retainRuntimeThreadReader } from "@/renderer/state/runtimeInterestHydration";
 
-const EMPTY_IDS: readonly string[] = [];
 const runningIdCache = new WeakMap<readonly Thread[], readonly string[]>();
-function runningThreadIds(threads: readonly Thread[]): readonly string[] {
+export function runningThreadIds(threads: readonly Thread[]): readonly string[] {
   let ids = runningIdCache.get(threads);
   if (!ids) {
     ids = threads
@@ -15,8 +13,7 @@ function runningThreadIds(threads: readonly Thread[]): readonly string[] {
         (thread) =>
           thread.presentationMode === "gui" &&
           !thread.archived &&
-          isThreadTurnActive(thread.status) &&
-          thread.remoteServerId === undefined,
+          isThreadTurnActive(thread.status),
       )
       .map((thread) => thread.id);
     runningIdCache.set(threads, ids);
@@ -24,13 +21,10 @@ function runningThreadIds(threads: readonly Thread[]): readonly string[] {
   return ids;
 }
 
-/** Runtime ownership follows running threads, independently of mounted chat panes. */
+/** Runtime ownership follows running threads on every host, independently of
+ * mounted chat panes. */
 export function useRunningThreadRuntime(enabled: boolean): void {
-  const runningIds = useAppStore(
-    useShallow((state) =>
-      isManagedRootDesktopRuntime() ? runningThreadIds(state.threads) : EMPTY_IDS,
-    ),
-  );
+  const runningIds = useAppStore(useShallow((state) => runningThreadIds(state.threads)));
   const leases = useRef(new Map<string, ReturnType<typeof retainRuntimeThreadReader>>());
 
   useEffect(() => {

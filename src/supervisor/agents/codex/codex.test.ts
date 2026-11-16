@@ -1,6 +1,8 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
+import { classifySupervisorIpcFailure } from "@/supervisor/diagnostics/sentry";
 import {
   createCodexAdapter,
   deriveCodexStructuredState,
@@ -12,6 +14,7 @@ import {
   codexDefaultCapabilities,
   formatCodexPlanLabel,
   parseCodexLoginStatusOutput,
+  probeResultToCapabilityPartial,
 } from "./detection";
 import { CodexStructuredSession } from "./acp";
 import { CodexLiveVoice } from "./liveVoice";
@@ -1248,6 +1251,46 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("force-completes only the current turn's commands and retains earlier background output", () => {
+    const structuredSession = makeStructuredSession([]);
+    const state = createCodexMapperState("local-thread");
+    const events: RuntimeEvent[] = [];
+    Object.assign(structuredSession, {
+      mapperState: state,
+      activeTurnId: "current-turn",
+      listener: { onRuntimeEvent: (event: RuntimeEvent) => events.push(event) },
+    });
+    for (const [id, turnId] of [
+      ["background", "previous-turn"],
+      ["foreground", "current-turn"],
+    ]) {
+      state.itemIdMap.set(id!, id!);
+      state.itemTypeMap.set(id!, "command_execution");
+      state.itemTurnIdMap.set(id!, turnId!);
+    }
+
+    structuredSession.forceCompleteTurn();
+
+    expect(events).toEqual([
+      {
+        type: "item.completed",
+        threadId: "local-thread",
+        itemId: "foreground",
+        payload: { status: "error" },
+      },
+      {
+        type: "turn.completed",
+        threadId: "local-thread",
+        turnId: "current-turn",
+        state: "interrupted",
+      },
+    ]);
+    expect(state.itemIdMap.get("background")).toBe("background");
+    expect(state.itemTurnIdMap.get("background")).toBe("previous-turn");
+    expect(state.settledItemIds.has("foreground")).toBe(true);
+    expect(state.settledItemIds.has("background")).toBe(false);
+  });
+
   it("merges tracked and authoritative active provider turns during dispose", async () => {
     const structuredSession = makeStructuredSession([]);
     const requests: Array<{
@@ -2025,6 +2068,48 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it.each([undefined, "", "auto_review"])(
+    "clears auto-review on full-access turns and steers with saved reviewer %j",
+    async (approvalsReviewer) => {
+      const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+      const structuredSession = makeStructuredSession(requests);
+      await structuredSession.startTurn("review", {
+        model: "gpt-5.4",
+        approvalPolicy: "on-request",
+        approvalsReviewer: "auto_review",
+        sandboxMode: "workspace-write",
+      });
+      const config = {
+        model: "gpt-5.4",
+        approvalPolicy: "never",
+        sandboxMode: "danger-full-access",
+        ...(approvalsReviewer !== undefined ? { approvalsReviewer } : {}),
+      };
+
+      await structuredSession.startTurn("full access", config);
+      dispatchNotification(structuredSession, {
+        jsonrpc: "2.0",
+        method: "turn/started",
+        params: {
+          threadId: "provider-thread",
+          turn: { id: "turn-live", threadId: "provider-thread" },
+        },
+      });
+      await structuredSession.steerTurn("continue", config);
+
+      expect(requests[0]?.params.approvalsReviewer).toBe("auto_review");
+      for (const method of ["turn/start", "thread/settings/update"]) {
+        expect(
+          requests.slice(1).find((request) => request.method === method)?.params,
+        ).toMatchObject({
+          approvalPolicy: "never",
+          approvalsReviewer: "user",
+          sandboxPolicy: { type: "dangerFullAccess" },
+        });
+      }
+    },
+  );
+
   it("forces serviceTier each turn: null when Fast is off (incl. the first turn), 'fast' when on", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);
@@ -2194,6 +2279,7 @@ describe("CodexStructuredSession", () => {
           effort: "medium",
           summary: "auto",
           approvalPolicy: "never",
+          approvalsReviewer: "user",
           sandboxPolicy: { type: "workspaceWrite" },
           collaborationMode: expect.objectContaining({
             mode: "default",
@@ -3161,15 +3247,60 @@ describe("CodexStructuredSession", () => {
       },
     };
 
-    await expect(
-      (session as unknown as CodexStructuredSession).openThread(
+    const error = await (session as unknown as CodexStructuredSession)
+      .openThread(
         { model: "gpt-5.4" },
         { providerSessionId: "01a0", discoveredAt: "2026-05-10T12:00:00.000Z" },
-      ),
-    ).rejects.toThrow(/open in another Codex app/u);
+      )
+      .catch((failure: unknown) => failure);
+    expect(error).toBeInstanceOf(DiagnosticError);
+    expect(error).toMatchObject({
+      message: expect.stringMatching(/open in another Codex app/u),
+      diagnostic: {
+        failureClass: "expected-operational",
+        domain: "codex.acp",
+        errorClass: "session-in-use",
+      },
+    });
+    expect(classifySupervisorIpcFailure(error, "startThread")).toMatchObject({
+      failureClass: "expected-operational",
+      treatment: "drop",
+      domain: "codex.acp",
+      errorClass: "session-in-use",
+    });
     // Unlike a missing thread, a held lock must not fall back to a fresh thread:
     // that would silently start the conversation over.
     expect(requests).toEqual(["thread/resume"]);
+  });
+
+  it("keeps an unrelated Codex resume failure reportable", async () => {
+    const session = createSessionShell();
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = undefined;
+    session["launchOptions"] = {};
+    session["activated"] = true;
+    session["isDisposed"] = false;
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
+    const cause = new Error("unexpected resume failure");
+    session["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string) => {
+        if (method === "thread/resume") throw cause;
+        return {};
+      },
+    };
+
+    const error = await (session as unknown as CodexStructuredSession)
+      .openThread(
+        { model: "gpt-5.4" },
+        { providerSessionId: "01a0", discoveredAt: "2026-05-10T12:00:00.000Z" },
+      )
+      .catch((failure: unknown) => failure);
+    expect(error).toBe(cause);
+    expect(classifySupervisorIpcFailure(error, "startThread")).toMatchObject({
+      failureClass: "unknown",
+      treatment: "capture",
+    });
   });
 
   it("does not surface resume-time active status as new work", async () => {
@@ -3536,10 +3667,45 @@ describe("CodexStructuredSession", () => {
 });
 
 describe("mapCodexSlashCommands", () => {
-  it("keeps built-in Codex slash commands available when app-server init omits commands", () => {
-    expect(codexDefaultCapabilities.slashCommands?.map((cmd) => cmd.id)).toEqual(
-      expect.arrayContaining(["status", "model", "review", "compact", "permissions"]),
+  it("retains built-in terminal commands when the probe reports only skills", () => {
+    const skill = { id: "review-code", label: "Review code", section: "skills" as const };
+    const commands = probeResultToCapabilityPartial({ slashCommands: [skill] }).slashCommands;
+    expect(commands).toContainEqual(skill);
+    expect(commands?.map((command) => command.id)).toEqual(
+      expect.arrayContaining(["status", "model", "daybreak"]),
     );
+    expect(commands?.map((command) => command.id)).not.toContain("personality");
+  });
+
+  it("uses an authoritative probed terminal catalog without adding fallback commands", () => {
+    const commands = [{ id: "native-command", label: "Native command" }];
+    expect(probeResultToCapabilityPartial({ slashCommands: commands }).slashCommands).toEqual(
+      commands,
+    );
+  });
+
+  it("keeps built-in Codex 0.167 slash commands available and drops retired commands", () => {
+    const ids = codexDefaultCapabilities.slashCommands?.map((cmd) => cmd.id) ?? [];
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "status",
+        "model",
+        "presets",
+        "daybreak",
+        "review",
+        "compact",
+        "permissions",
+        "agents",
+        "subagents",
+        "voice",
+        "worktree",
+        "memories",
+      ]),
+    );
+    expect(ids).not.toContain("personality");
+    expect(ids).not.toContain("sandbox-add-read-dir");
+    expect(ids).not.toContain("fast");
+    expect(ids).not.toContain("agent");
   });
 
   it("advertises 272k, 400k, and 1M context windows with a 400k default", () => {

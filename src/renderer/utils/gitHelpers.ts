@@ -31,6 +31,11 @@ export function resolveWorktreeBranch(
   worktreePath: string,
   fallbackBranch?: string,
 ): string | undefined {
+  const gitBranch = useGitStore
+    .getState()
+    .worktrees[projectId]?.find((worktree) => worktree.path === worktreePath)?.branch;
+  if (gitBranch) return gitBranch;
+
   const storeBranch = useAppStore
     .getState()
     .threads.find(
@@ -40,11 +45,6 @@ export function resolveWorktreeBranch(
         thread.worktreeBranch,
     )?.worktreeBranch;
   if (storeBranch) return storeBranch;
-
-  const gitBranch = useGitStore
-    .getState()
-    .worktrees[projectId]?.find((worktree) => worktree.path === worktreePath)?.branch;
-  if (gitBranch) return gitBranch;
 
   return fallbackBranch;
 }

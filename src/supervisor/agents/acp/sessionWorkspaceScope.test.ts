@@ -2,7 +2,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { spawn as spawnPty } from "node-pty";
+import { spawn as spawnChild } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import {
   RequestError,
   type CreateTerminalRequest,
@@ -13,17 +15,16 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { makeConfigSyncSession } from "./sessionTestFixture";
 import { snapshotAcpAdditionalDirectories } from "./sessionWorkspaceRoots";
 
-vi.mock("node-pty", () => ({
-  spawn: vi.fn<typeof import("node-pty").spawn>(
+vi.mock("node:child_process", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:child_process")>()),
+  spawn: vi.fn<() => import("node:child_process").ChildProcess>(
     () =>
-      ({
-        kill: () => {},
-        onData: () => ({ dispose: () => {} }),
-        onExit: () => ({ dispose: () => {} }),
-      }) as unknown as import("node-pty").IPty,
+      Object.assign(new EventEmitter(), {
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      }) as unknown as import("node:child_process").ChildProcess,
   ),
 }));
-vi.mock("@/supervisor/nodePty", () => ({ ensureNodePtySpawnHelperExecutable: () => {} }));
 
 const cleanup: string[] = [];
 afterEach(() => {
@@ -143,6 +144,41 @@ describe("ACP immutable workspace lifecycle", () => {
 });
 
 describe("ACP approved text filesystem scope", () => {
+  it("rejects terminal creates after Stop until a fresh turn is accepted", async () => {
+    const { session, handlers, connection } = fixture();
+    let completeCancel!: () => void;
+    let completePrompt!: (result: { stopReason: string }) => void;
+    connection.prompt.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          completePrompt = resolve;
+        }),
+    );
+    connection.cancel.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          completeCancel = resolve;
+        }),
+    );
+    const activeTurn = session.startTurn("old turn", { model: "test" });
+    await vi.waitFor(() => {
+      expect(connection.prompt).toHaveBeenCalledOnce();
+    });
+    vi.mocked(spawnChild).mockClear();
+    const interrupt = session.interruptTurn();
+    const params = { sessionId: "session-1", command: "test-command", args: ["argument"] };
+    await expect(handlers.handleCreateTerminal(params)).rejects.toMatchObject({ code: -32602 });
+    expect(spawnChild).not.toHaveBeenCalled();
+    completeCancel();
+    await interrupt;
+    completePrompt({ stopReason: "cancelled" });
+    await activeTurn;
+    await expect(handlers.handleCreateTerminal(params)).rejects.toMatchObject({ code: -32602 });
+    await session.startTurn("next turn", { model: "test" });
+    await expect(handlers.handleCreateTerminal(params)).resolves.toHaveProperty("terminalId");
+    expect(spawnChild).toHaveBeenCalledOnce();
+  });
+
   it("preserves the explicit Home exception outside all workspace roots", async () => {
     const { handlers, internal, base } = fixture();
     internal.projectLocation = {
@@ -163,7 +199,7 @@ describe("ACP approved text filesystem scope", () => {
     "passes the same snapshot to terminal creation and defaults its cwd to primary",
     async () => {
       const { handlers, base } = fixture();
-      vi.mocked(spawnPty).mockClear();
+      vi.mocked(spawnChild).mockClear();
       mkdirSync(join(base, "primary", "subdir"));
       for (const cwd of [undefined, join(base, "extra-a"), "subdir"]) {
         await handlers.handleCreateTerminal({
@@ -173,7 +209,7 @@ describe("ACP approved text filesystem scope", () => {
           ...(cwd ? { cwd } : {}),
         });
       }
-      expect(vi.mocked(spawnPty).mock.calls.map((call) => call[2]?.cwd)).toEqual([
+      expect(vi.mocked(spawnChild).mock.calls.map((call) => call[2]?.cwd)).toEqual([
         join(base, "primary"),
         join(base, "extra-a"),
         join(base, "primary", "subdir"),
@@ -185,7 +221,7 @@ describe("ACP approved text filesystem scope", () => {
           cwd: join(base, "denied"),
         }),
       ).rejects.toThrow("Invalid params");
-      expect(spawnPty).toHaveBeenCalledTimes(3);
+      expect(spawnChild).toHaveBeenCalledTimes(3);
     },
   );
 
@@ -193,7 +229,7 @@ describe("ACP approved text filesystem scope", () => {
     "rejects a symlink cwd escaping to an unapproved sibling before spawn",
     async () => {
       const { handlers, base } = fixture();
-      vi.mocked(spawnPty).mockClear();
+      vi.mocked(spawnChild).mockClear();
       symlinkSync(join(base, "denied"), join(base, "primary", "escape"));
       await expect(
         handlers.handleCreateTerminal({
@@ -202,20 +238,20 @@ describe("ACP approved text filesystem scope", () => {
           cwd: join(base, "primary", "escape"),
         }),
       ).rejects.toMatchObject({ code: -32602 });
-      expect(spawnPty).not.toHaveBeenCalled();
+      expect(spawnChild).not.toHaveBeenCalled();
       symlinkSync(join(base, "extra-b"), join(base, "primary", "granted"));
       await handlers.handleCreateTerminal({
         sessionId: "session-1",
         command: "test-command",
         cwd: join(base, "primary", "granted"),
       });
-      expect(spawnPty).toHaveBeenCalledOnce();
+      expect(spawnChild).toHaveBeenCalledOnce();
     },
   );
 
   it("requires an existing directory for terminal cwd", async () => {
     const { handlers, base } = fixture();
-    vi.mocked(spawnPty).mockClear();
+    vi.mocked(spawnChild).mockClear();
     const file = join(base, "extra-a", "file");
     writeFileSync(file, "fixture");
     await expect(
@@ -228,14 +264,14 @@ describe("ACP approved text filesystem scope", () => {
         cwd: join(base, "extra-a", "missing"),
       }),
     ).rejects.toMatchObject({ code: "ENOENT" });
-    expect(spawnPty).not.toHaveBeenCalled();
+    expect(spawnChild).not.toHaveBeenCalled();
   });
 
   it.each(["isDisposed", "transportClosed", "sessionId", "sessionGeneration"])(
     "does not spawn if %s changes while cwd validation awaits",
     async (field) => {
       const { handlers, internal } = fixture();
-      vi.mocked(spawnPty).mockClear();
+      vi.mocked(spawnChild).mockClear();
       const pending = handlers.handleCreateTerminal({
         sessionId: "session-1",
         command: "test-command",
@@ -243,7 +279,7 @@ describe("ACP approved text filesystem scope", () => {
       internal[field] =
         field === "sessionId" ? "successor" : field === "sessionGeneration" ? 1 : true;
       await expect(pending).rejects.toMatchObject({ code: -32602 });
-      expect(spawnPty).not.toHaveBeenCalled();
+      expect(spawnChild).not.toHaveBeenCalled();
     },
   );
 

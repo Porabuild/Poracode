@@ -1,14 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { npmInvocation } from "./server-host-tools.mjs";
+import { npmInvocation, releaseScratchRoot } from "./server-host-tools.mjs";
 
 const { devDependencies } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url)));
 const version = devDependencies.bun;
 const prefix = join(
-  process.env.RUNNER_TEMP || tmpdir(),
+  releaseScratchRoot(),
   "poracode-bun",
   `${process.platform}-${process.arch}`,
   version,

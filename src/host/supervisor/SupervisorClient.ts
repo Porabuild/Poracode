@@ -49,6 +49,10 @@ import {
   isGitProcessAdmissionRefusalCode,
 } from "@/shared/gitProcessAdmission";
 import {
+  ThreadLaunchFailedRefusalError,
+  isThreadLaunchFailedRefusalCode,
+} from "@/shared/threadLaunchRefusal";
+import {
   ThreadSessionAbsenceRefusalError,
   isThreadSessionAbsenceRefusalCode,
 } from "@/shared/threadSessionRefusal";
@@ -70,6 +74,9 @@ function createSupervisorFailureError(message: Extract<SupervisorReply, { ok: fa
   }
   if (isThreadSessionAbsenceRefusalCode(errorCode)) {
     return new ThreadSessionAbsenceRefusalError(message.error);
+  }
+  if (isThreadLaunchFailedRefusalCode(errorCode)) {
+    return new ThreadLaunchFailedRefusalError(message.error);
   }
   const retryAfterMs = admissionRetryAfterMsOf(message);
   if (isGitProcessAdmissionRefusalCode(errorCode)) {
@@ -1015,7 +1022,13 @@ export class SupervisorClient {
       type,
       requestPayload,
       options.requestTimeoutMs ??
-        (type === "updateAgentBinary" ? AGENT_UPDATE_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS),
+        (type === "updateAgentBinary" ||
+        type === "installAcpRegistryAgent" ||
+        type === "updateAcpRegistryAgent" ||
+        type === "removeAcpRegistryAgent" ||
+        type === "authenticateAcpAgent"
+          ? AGENT_UPDATE_REQUEST_TIMEOUT_MS
+          : REQUEST_TIMEOUT_MS),
     );
   }
 

@@ -1,15 +1,30 @@
 import type { RuntimeEvent, Thread } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import { reuseRemoteRows } from "./remoteServers/rowReuse";
-import { carryPendingRootLaunchRuntime } from "./managedRootCatalog/rootLaunchRuntime";
+import { carryPendingRootLaunchRuntime } from "./hostLaunchRuntime";
+import type { RuntimeChatItem } from "./slices/runtimeChatItem";
 
 // Admission is renderer-local and never persisted or sent over the wire. Old
 // host rows remain valid; they simply cannot settle a prompt still being sent.
 interface PendingInput {
   userMessageItemId?: string;
   canonicalMessageSeen?: boolean;
+  item?: RuntimeChatItem;
 }
 const pendingInputs = new Map<string, Set<PendingInput>>();
+
+// How often the host has stated each thread's cut-off marker. A send that
+// fails restores the marker only when the host stayed silent meanwhile: a
+// Stop, or a turn that did start, already decided it.
+const interruptedTurnStatements = new Map<string, number>();
+
+export function noteThreadInterruptedTurnStated(threadId: string): void {
+  interruptedTurnStatements.set(threadId, (interruptedTurnStatements.get(threadId) ?? 0) + 1);
+}
+
+export function threadInterruptedTurnStatements(threadId: string): number {
+  return interruptedTurnStatements.get(threadId) ?? 0;
+}
 
 /** Read during the optimistic store updates that accompany input admission. */
 export function hasPendingThreadInput(threadId: string): boolean {
@@ -32,6 +47,37 @@ export function notePendingThreadInputMessage(threadId: string, userMessageItemI
   for (const input of pendingInputs.get(threadId) ?? []) {
     input.userMessageItemId ??= userMessageItemId;
   }
+}
+
+/** Snapshot optimistic user_message items before a recovery reset clears the store. */
+export function retainPendingThreadInputItems(
+  threadId: string,
+  itemsById: Readonly<Record<string, RuntimeChatItem>> | undefined,
+): void {
+  if (!itemsById) return;
+  for (const input of pendingInputs.get(threadId) ?? []) {
+    if (!input.userMessageItemId) continue;
+    const item = itemsById[input.userMessageItemId];
+    if (item) input.item = item;
+  }
+}
+
+/** Unconfirmed optimistic user_message items still awaiting host admission. */
+export function pendingThreadInputItems(
+  threadId: string,
+  itemsById: Readonly<Record<string, RuntimeChatItem>> | undefined,
+): RuntimeChatItem[] {
+  const inputs = pendingInputs.get(threadId);
+  if (!inputs) return [];
+  const items: RuntimeChatItem[] = [];
+  for (const input of inputs) {
+    if (!input.userMessageItemId) continue;
+    const item = itemsById?.[input.userMessageItemId] ?? input.item;
+    if (!item) continue;
+    input.item = item;
+    items.push(item);
+  }
+  return items;
 }
 
 /** Host frames, including replay, can prove receipt of this exact input. */
@@ -125,6 +171,7 @@ export function carryPendingThreadInput(
     ...incoming,
     status: resident.status,
     attention: resident.attention,
+    updatedAt: resident.updatedAt > incoming.updatedAt ? resident.updatedAt : incoming.updatedAt,
     activeTurnStartedAt: resident.activeTurnStartedAt,
     lastTurnStartedAt: resident.lastTurnStartedAt,
     lastTurnEndedAt: resident.lastTurnEndedAt,

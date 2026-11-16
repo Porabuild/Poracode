@@ -1,12 +1,12 @@
 import { startTransition, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { RefreshCw } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown, RefreshCw } from "lucide-react";
 import { Button } from "@/renderer/components/common";
 import { UsageProviderCardView } from "@/renderer/components/providers/UsageProviderCardView";
 import { HostUsageStatus, useHostUsageView } from "@/renderer/components/providers/HostUsageView";
 import { HostUsageInfo } from "@/renderer/components/providers/HostUsageInfo";
 import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
-import { usageProvidersForAgentInstances } from "@/renderer/components/providers/usageProviders";
+import { resolveHostUsageProviders } from "@/renderer/components/providers/usageProviders";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { SettingsPage } from "./SettingsForm";
 import { UsageDisplaySettings } from "./UsageDisplaySettings";
@@ -17,13 +17,26 @@ export function HostUsageSettings(props: { connectionId: string; selector: React
   const { t, i18n } = useLingui();
   const view = useHostUsageView(connectionId);
   const collapsed = useSharedSettings((state) => state.usage.collapsedProviders);
+  const providerOrder = useSharedSettings((state) => state.usage.providerOrder);
   const setUsageSetting = useSharedSettings((state) => state.setUsageSetting);
-  const labels = new Map(usageProvidersForAgentInstances(undefined).map((p) => [p.id, p.label]));
-  if (view.canRead) {
-    for (const agent of view.agents?.windows ?? []) labels.set(agent.kind, agent.label);
-    for (const snapshot of view.usage.snapshots)
-      if (!labels.has(snapshot.providerId)) labels.set(snapshot.providerId, snapshot.providerId);
-  }
+
+  const orderedProviders = view.canRead
+    ? resolveHostUsageProviders(view.usage.snapshots, providerOrder, view.agents)
+    : [];
+  const snapshotById = new Map(
+    view.usage.snapshots.map((snapshot) => [snapshot.providerId, snapshot]),
+  );
+  const allCollapsed =
+    orderedProviders.length > 0 && orderedProviders.every((p) => collapsed.includes(p.id));
+
+  const toggleCollapseAll = () => {
+    const visibleIds = new Set(orderedProviders.map((p) => p.id));
+    const next = allCollapsed
+      ? collapsed.filter((id) => !visibleIds.has(id))
+      : [...new Set([...collapsed, ...visibleIds])];
+    startTransition(() => setUsageSetting("collapsedProviders", next));
+  };
+
   return (
     <SettingsPage
       title={t`Provider Usage`}
@@ -45,24 +58,59 @@ export function HostUsageSettings(props: { connectionId: string; selector: React
       }
     >
       {selector}
-      <UsageDisplaySettings showProviderVisibility />
-      <HostUsageStatus view={view} />
-      {view.canRead
-        ? view.usage.snapshots.map((snapshot, index) => {
-            const fetchedAt = i18n.date(snapshot.fetchedAt, {
-              dateStyle: "short",
-              timeStyle: "short",
-            });
-            return (
-              <div key={snapshot.providerId} className="space-y-1 py-2">
+      <UsageDisplaySettings showHostNote />
+
+      <section className="space-y-2 pt-1">
+        {view.canRead && orderedProviders.length > 0 ? (
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-foreground/80">
+              <Trans>Quotas</Trans>
+            </h3>
+            {orderedProviders.length > 1 ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={allCollapsed ? t`Expand all` : t`Collapse all`}
+                className="h-6 min-h-6 gap-1 px-2 text-xs text-muted hover:text-foreground"
+                onPress={toggleCollapseAll}
+              >
+                {allCollapsed ? (
+                  <>
+                    <ChevronsUpDown className="size-3.5" />
+                    <Trans>Expand all</Trans>
+                  </>
+                ) : (
+                  <>
+                    <ChevronsDownUp className="size-3.5" />
+                    <Trans>Collapse all</Trans>
+                  </>
+                )}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
+        <HostUsageStatus view={view} />
+
+        {view.canRead && orderedProviders.length > 0 ? (
+          <div className="space-y-2.5">
+            {orderedProviders.map((provider, index) => {
+              const snapshot = snapshotById.get(provider.id);
+              if (!snapshot) return null;
+              const fetchedAt = i18n.date(snapshot.fetchedAt, {
+                dateStyle: "short",
+                timeStyle: "short",
+              });
+              return (
                 <UsageProviderCardView
-                  id={snapshot.providerId}
-                  label={labels.get(snapshot.providerId) ?? snapshot.providerId}
+                  key={provider.id}
+                  id={provider.id}
+                  label={provider.label}
                   snapshot={snapshot}
                   showAccount
                   index={index}
                   compact={false}
-                  collapsed={collapsed.includes(snapshot.providerId)}
+                  collapsed={collapsed.includes(provider.id)}
                   draggable={false}
                   onToggleCollapse={(id) =>
                     startTransition(() =>
@@ -78,18 +126,17 @@ export function HostUsageSettings(props: { connectionId: string; selector: React
                   refreshDisabled={!view.canRefresh}
                   onRefresh={() =>
                     void fetchHostUsage(connectionId, true, {
-                      providerIds: [snapshot.providerId],
+                      providerIds: [provider.id],
                       force: true,
                     })
                   }
+                  footer={<Trans>Last updated: {fetchedAt}</Trans>}
                 />
-                <p className="text-xs text-muted">
-                  <Trans>Last updated: {fetchedAt}</Trans>
-                </p>
-              </div>
-            );
-          })
-        : null}
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
     </SettingsPage>
   );
 }

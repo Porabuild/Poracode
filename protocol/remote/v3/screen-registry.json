@@ -3,6 +3,11 @@
   "formatVersion": 1,
   "screens": [
     {
+      "id": "android.background_tasks.changed",
+      "testClass": "BackgroundTaskDetailsInstrumentedTest",
+      "file": "android/app/src/androidTest/kotlin/com/poracode/app/BackgroundTaskDetailsInstrumentedTest.kt"
+    },
+    {
       "id": "android.environment",
       "testClass": "Android37WireLabJourneyInstrumentedTest",
       "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
@@ -66,6 +71,11 @@
       "id": "android.websocket-ticket",
       "testClass": "Android37WireLabJourneyInstrumentedTest",
       "file": "android/app/src/androidTest/kotlin/com/poracode/app/Android37WireLabJourneyInstrumentedTest.kt"
+    },
+    {
+      "id": "ios.background_tasks.changed",
+      "testClass": "NativeBackgroundTaskUITests",
+      "file": "ios/App/NativeE2ETests/NativeBackgroundTaskUITests.swift"
     },
     {
       "id": "ios.content.delta",

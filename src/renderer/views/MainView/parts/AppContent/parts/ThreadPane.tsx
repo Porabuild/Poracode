@@ -1,4 +1,3 @@
-import { useRemoteTerminalTransport } from "@/renderer/components/thread/useRemoteTerminalTransport";
 import { startTransition } from "react";
 import { Trans } from "@lingui/react/macro";
 import type {
@@ -9,32 +8,32 @@ import type {
 } from "@/shared/contracts";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { toggleMarkThreadDone } from "@/renderer/actions/threadActions";
+import { openInMainWindowFromThread } from "@/renderer/actions/threadWindowActions";
 import type { ProviderHandoffContext } from "@/renderer/actions/providerHandoff";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { resolveHostFileAccess } from "@/renderer/state/hostFileAccess";
 import { useProject, useThread } from "@/renderer/state/useThread";
 import type { ContinueIntent } from "@/renderer/components/thread/ContinueInProviderDialog";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
-import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import { useIsDraggingPane, usePaneDropIndicatorState } from "@/renderer/dnd";
 import { usePaneDragAndDrop } from "@/renderer/components/thread/PaneDragAndDrop";
-import {
-  useThreadAgentStatuses,
-  useProjectAgentStatuses,
-  useThreadPendingLaunch,
-} from "@/renderer/hooks/uiSelectors";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useThreadAgentStatuses, useThreadPendingLaunch } from "@/renderer/hooks/uiSelectors";
+import { useHostAgentStatuses } from "@/renderer/hooks/useHostAgentStatuses";
 
-// Non-subscribing action read: these stable store actions don't need a
-// subscription, and aliasing keeps the render path from referencing the hook
-// as a value.
-const getAppState = useAppStore.getState;
+// Only actions may enter React Compiler's memo cache; the whole store would
+// keep obsolete transcript snapshots alive for the lifetime of this pane.
+const getAppActions = () => {
+  const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = useAppStore.getState();
+  return { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch };
+};
 
 export function ThreadPane(props: {
   threadId: string;
   paneCount: number;
   chatOnly?: boolean;
+  /** `window`: the pane is the whole content of a thread window. */
+  surface?: "main" | "window";
   hidden?: boolean;
   paneAlign: "left" | "center" | "right";
   headerNeedsTrafficLightPad?: boolean;
@@ -59,19 +58,8 @@ export function ThreadPane(props: {
     remoteServerId: thread?.remoteServerId,
     projectLocation: project?.location,
   });
-  const projectAgentStatuses = useProjectAgentStatuses(project?.location);
-  const remoteRuntime = useRemoteServersStore((state) =>
-    thread?.remoteServerId ? state.runtime[thread.remoteServerId] : undefined,
-  );
-  const remoteTerminalTransport = useRemoteTerminalTransport(props.threadId);
-  const remoteAgentStatuses =
-    project?.location.kind === "wsl"
-      ? remoteRuntime?.agentStatuses?.wsl
-      : remoteRuntime?.agentStatuses?.windows;
-  const effectiveAgentStatuses = thread?.remoteServerId
-    ? (remoteAgentStatuses ?? [])
-    : projectAgentStatuses;
-  const agentStatus = effectiveAgentStatuses.find((status) => status.kind === thread?.agentKind);
+  const hostAgentStatuses = useHostAgentStatuses(thread?.remoteServerId, project?.location);
+  const agentStatus = hostAgentStatuses.find((status) => status.kind === thread?.agentKind);
   const {
     prompt: pendingLaunchPrompt,
     segments: pendingLaunchSegments,
@@ -79,7 +67,7 @@ export function ThreadPane(props: {
     providerSwitch: pendingLaunchProviderSwitch,
     mentionHandoff: pendingLaunchMentionHandoff,
   } = useThreadPendingLaunch(props.threadId);
-  const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = getAppState();
+  const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = getAppActions();
 
   const { paneElementRef, dragHandleRef } = usePaneDragAndDrop({
     paneId: props.threadId,
@@ -90,22 +78,8 @@ export function ThreadPane(props: {
 
   const isDragging = useIsDraggingPane(props.threadId);
   const dropIndicator = usePaneDropIndicatorState(props.threadId);
-  const owner = remoteOwner(thread);
-  const remoteDesktopId = owner?.desktopId;
-  const remoteThreadId = owner?.remoteId;
-  function pickRemoteFiles() {
-    if (!remoteDesktopId || !remoteThreadId) return Promise.resolve(null);
-    return useRemoteServersStore.getState().pickAndUploadFiles(remoteDesktopId, remoteThreadId);
-  }
-  // Pasted images must land on the host desktop — the agent runs there and
-  // can't read a path saved on this machine.
-  const saveRemoteClipboardImage: SaveClipboardImage | undefined =
-    remoteDesktopId && remoteThreadId
-      ? (input) =>
-          useRemoteServersStore
-            .getState()
-            .saveClipboardImage(remoteDesktopId, { ...input, threadId: remoteThreadId })
-      : undefined;
+  // Import picked files on this client; explicit submission uploads to the owner.
+  const { saveClipboardImage: _captureAdapter, ...fileAccess } = resolveHostFileAccess(thread);
   if (!thread) return null;
   if (!project) return null;
   if (experiment && !thread.worktreePath) {
@@ -126,7 +100,18 @@ export function ThreadPane(props: {
       agentStatus={agentStatus}
       isWsl={project.location.kind === "wsl"}
       {...(props.chatOnly ? { chatOnly: true } : {})}
-      showCloseButton
+      {...(props.surface === "window" ? { surface: "window" as const } : { showCloseButton: true })}
+      {...(props.surface === "window"
+        ? {
+            onOpenProjectRelativePath: (path: string, lineNumber?: number) => {
+              openInMainWindowFromThread({
+                kind: "file",
+                path,
+                ...(lineNumber !== undefined ? { lineNumber } : {}),
+              });
+            },
+          }
+        : {})}
       paneAlign={props.paneAlign}
       isDragging={isDragging}
       dropIndicator={dropIndicator}
@@ -166,14 +151,7 @@ export function ThreadPane(props: {
       {...(pendingLaunchProviderSwitch ? { pendingLaunchProviderSwitch } : {})}
       {...(pendingLaunchMentionHandoff ? { pendingLaunchMentionHandoff: true } : {})}
       installedAgents={installedAgents}
-      {...(thread.remoteServerId
-        ? {
-            canShowProjectEntryInExplorer: false,
-            remoteTerminalTransport,
-            pickFiles: pickRemoteFiles,
-          }
-        : {})}
-      {...(saveRemoteClipboardImage ? { saveClipboardImage: saveRemoteClipboardImage } : {})}
+      {...fileAccess}
       onContinueInProvider={
         props.onContinueInProvider
           ? (targetKind, tConfig, targetPresentationMode, prompt, segments, intent, ctx) => {

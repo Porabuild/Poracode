@@ -4,6 +4,8 @@ import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-l
 import { describe, expect, it, vi } from "vitest";
 import { Globe, Monitor, Users } from "lucide-react";
 import type { PromptSegment } from "@/shared/contracts";
+import { renderWithI18n } from "@/renderer/testUtils/i18n";
+import { resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import {
   buildMentionResults,
   MentionInput,
@@ -381,6 +383,99 @@ describe("buildMentionResults", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0]?.path).toBe("aaaaaaaa-1111-4222-8333-666666666666");
+  });
+
+  it("ranks exact word matches in thread titles ahead of prefix and mid-word matches and formats remote environment details", () => {
+    const results = buildMentionResults(
+      [],
+      "pr",
+      [],
+      [],
+      [
+        {
+          threadId: "local-improve-d7181f02",
+          title: "Improve stuck Apocalypse Warlock build now",
+          updatedAt: "2026-08-26T00:00:00.000Z",
+        },
+        {
+          threadId: "local-pr-43",
+          title: "PR #43: Improve GPUI capture and UI parity",
+          updatedAt: "2026-08-29T12:04:00.000Z",
+          projectName: "Pora.take",
+          worktreeName: "poracode/nimble-badger-314d2ec2",
+        },
+        {
+          threadId: "local-pr-1296",
+          title: "PR #1296 and PR #1312: Deep review",
+          updatedAt: "2026-08-29T12:03:00.000Z",
+          projectName: "Pora.code",
+          worktreeName: "poracode/warm-albatross-d9556f77",
+        },
+        {
+          threadId: "local-profile-1",
+          title: "Profile Nightly app RAM usage and potential gains",
+          updatedAt: "2026-08-29T12:02:00.000Z",
+          projectName: "Pora.code",
+          worktreeName: "poracode/eager-ibis-0c03d6c3",
+        },
+        {
+          threadId: "local-profile-2",
+          title: "Profile Nightly app RAM usage and improvements",
+          updatedAt: "2026-08-29T12:01:00.000Z",
+          projectName: "Pora.code",
+          worktreeName: "poracode/cosmic-dolphin-976a96a1",
+        },
+        {
+          threadId: "remote:env-mac:thread:5001abcd",
+          title: "PR #5001: Prepare macOS Lume certification",
+          updatedAt: "2026-08-29T11:56:00.000Z",
+          projectName: "Home",
+          environmentName: "MacBook",
+        },
+      ],
+    );
+
+    expect(results.map((entry) => entry.path)).toEqual([
+      "local-pr-43",
+      "local-pr-1296",
+      "remote:env-mac:thread:5001abcd",
+      "local-profile-1",
+      "local-profile-2",
+    ]);
+    expect(results[2]).toEqual({
+      type: "thread",
+      path: "remote:env-mac:thread:5001abcd",
+      name: "PR #5001: Prepare macOS Lume certification",
+      detail: "Home · MacBook · 5001abcd",
+    });
+
+    const byEnvironment = buildMentionResults(
+      [],
+      "macbook",
+      [],
+      [],
+      [
+        {
+          threadId: "local-1",
+          title: "Local thread",
+          updatedAt: "2026-08-29T12:00:00.000Z",
+        },
+        {
+          threadId: "remote:env-mac:thread:5001abcd",
+          title: "PR #5001: Prepare macOS Lume certification",
+          updatedAt: "2026-08-29T11:56:00.000Z",
+          environmentName: "MacBook",
+        },
+      ],
+    );
+    expect(byEnvironment).toEqual([
+      {
+        type: "thread",
+        path: "remote:env-mac:thread:5001abcd",
+        name: "PR #5001: Prepare macOS Lume certification",
+        detail: "MacBook · 5001abcd",
+      },
+    ]);
   });
 
   it("lists crew roles only when the crew is active and filters them by query", () => {
@@ -880,6 +975,94 @@ describe("Enter handling", () => {
 });
 
 describe("structured segment insertion", () => {
+  it("restores, submits, removes and undoes a selection without losing its full text", async () => {
+    const ref = createRef<MentionInputHandle>();
+    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+    const segments: PromptSegment[] = [
+      { kind: "text", content: "Question: " },
+      { kind: "text", content: "first line\nsecond @file.ts line", selection: true },
+      { kind: "text", content: " please" },
+    ];
+    renderWithI18n(
+      createElement(MentionInput, {
+        ref,
+        placeholder: "Send a message...",
+        projectLocation: undefined,
+        onTextChange: vi.fn<(hasText: boolean) => void>(),
+        onSubmit,
+      }),
+    );
+    act(() => ref.current?.restoreFromSegments(segments));
+    const editor = screen.getByRole("textbox");
+    await waitFor(() =>
+      expect(editor.querySelector("[data-selection-preview]")?.textContent).toBe(
+        "first line second @file.ts line",
+      ),
+    );
+    expect(ref.current?.serializeSegments()).toEqual(segments);
+    expect(ref.current?.serialize()).toBe("Question: first line\nsecond @file.ts line please");
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(onSubmit).toHaveBeenCalledWith(segments);
+    fireEvent.mouseDown(screen.getByRole("button", { name: "Remove" }));
+    expect(editor.querySelector("[data-selection-text]")).toBeNull();
+    fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+    expect(ref.current?.serializeSegments()).toEqual(segments);
+  });
+
+  it.each(["(hover: none), (pointer: coarse)", "(max-width: 767px)"])(
+    "opens the full selection without submitting or changing the draft when %s",
+    async (activeQuery) => {
+      const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
+        matches: query === activeQuery,
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      }));
+      const ref = createRef<MentionInputHandle>();
+      const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+      const segments: PromptSegment[] = [
+        { kind: "text", content: "First line\nSecond line", selection: true },
+      ];
+      const view = renderWithI18n(
+        createElement(MentionInput, {
+          ref,
+          placeholder: "Send a message...",
+          projectLocation: undefined,
+          onTextChange: vi.fn<(hasText: boolean) => void>(),
+          onSubmit,
+        }),
+      );
+      try {
+        act(() => ref.current?.restoreFromSegments(segments));
+        const trigger = await screen.findByRole("button", { name: "First line Second line" });
+        fireEvent.pointerDown(trigger, { pointerType: "touch", pointerId: 1, button: 0 });
+        fireEvent.pointerUp(trigger, { pointerType: "touch", pointerId: 1, button: 0 });
+        fireEvent.click(trigger);
+        const preview = await screen.findByRole("dialog", { name: "Preview" });
+        expect(preview.textContent).toBe("First line\nSecond line");
+        expect(ref.current?.serializeSegments()).toEqual(segments);
+        expect(onSubmit).not.toHaveBeenCalled();
+        fireEvent.keyDown(preview, { key: "Escape" });
+        await waitFor(() => expect(screen.queryByRole("dialog", { name: "Preview" })).toBeNull());
+        trigger.focus();
+        fireEvent.keyDown(trigger, { key: "Enter", code: "Enter" });
+        fireEvent.keyUp(trigger, { key: "Enter", code: "Enter" });
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(await screen.findByRole("dialog", { name: "Preview" })).toHaveTextContent(
+          "First line Second line",
+        );
+      } finally {
+        view.unmount();
+        matchMedia.mockRestore();
+        resetAdaptiveLayoutForTest();
+      }
+    },
+  );
+
   it("renders and restores multiple diff-comment badges", () => {
     const ref = createRef<MentionInputHandle>();
     const comments: PromptSegment[] = [

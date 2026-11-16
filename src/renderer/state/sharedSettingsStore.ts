@@ -18,6 +18,7 @@ import { customThemeSchema, MAX_CUSTOM_THEMES, type CustomTheme } from "@/shared
 import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
+  normalizeKeepAwakeConditions,
   normalizeSharedSettings,
   normalizeThreadDocksOrder,
   WINDOWS_SHELL_ARGUMENTS_MAX,
@@ -25,7 +26,7 @@ import {
   type FollowUpBehavior,
   type ThreadDocksPlacement,
   type ThreadDockKind,
-  type PreventSleep,
+  type KeepAwakeCondition,
   type ProviderModelPreference,
   type SidebarShortcutId,
   type SharedSettings,
@@ -148,7 +149,8 @@ interface SharedSettingsState extends SharedSettings {
   setAgentTerminalFontSize: (value: number) => void;
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
-  setPreventSleep: (value: PreventSleep) => void;
+  setPreventSleepWhen: (value: KeepAwakeCondition[]) => void;
+  setPreventScreenLockWhen: (value: KeepAwakeCondition[]) => void;
   setLaunchAtStartup: (value: boolean) => void;
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
@@ -159,8 +161,14 @@ interface SharedSettingsState extends SharedSettings {
   setSidebarShortcutVisible: (id: SidebarShortcutId, visible: boolean) => void;
   setSidebarShortcutOrder: (order: SidebarShortcutId[]) => void;
   setSidebarTranslucency: (value: boolean) => void;
+  setNewsLineEnabled: (value: boolean) => void;
+  setNewsLineActivity: (value: boolean) => void;
+  /** Hide a community promotion on every surface (idempotent). */
+  dismissPromotion: (id: string) => void;
   setSidebarGlassTint: (appearance: "light" | "dark", value: number | null) => void;
   setAutoShowTerminalPanel: (value: boolean) => void;
+  setComputerUseLockedUse: (value: boolean) => void;
+  setComputerUseLockedUseDimDisplay: (value: boolean) => void;
   setWorktreeStorageMode: (value: WorktreeStorageMode) => void;
   setWorktreeBasePath: (value: string) => void;
   setWslWorktreeBasePath: (value: string) => void;
@@ -767,8 +775,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ terminalPanelFontSize });
     persistSettings(selectSharedSettings(get()));
   },
-  setPreventSleep: (preventSleep) => {
-    set({ preventSleep });
+  setPreventSleepWhen: (value) => {
+    set({ preventSleepWhen: normalizeKeepAwakeConditions(value) });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setPreventScreenLockWhen: (value) => {
+    set({ preventScreenLockWhen: normalizeKeepAwakeConditions(value) });
     persistSettings(selectSharedSettings(get()));
   },
   setLaunchAtStartup: (launchAtStartup) => {
@@ -838,6 +850,22 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ sidebarTranslucency });
     persistSettings(selectSharedSettings(get()));
   },
+  setNewsLineEnabled: (newsLineEnabled) => {
+    if (get().newsLineEnabled === newsLineEnabled) return;
+    set({ newsLineEnabled });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setNewsLineActivity: (newsLineActivity) => {
+    if (get().newsLineActivity === newsLineActivity) return;
+    set({ newsLineActivity });
+    persistSettings(selectSharedSettings(get()));
+  },
+  dismissPromotion: (id) => {
+    const current = get().dismissedPromotions;
+    if (current.includes(id)) return;
+    set({ dismissedPromotions: [...current, id] });
+    persistSettings(selectSharedSettings(get()));
+  },
   setSidebarGlassTint: (appearance, value) => {
     const current = get().sidebarGlassTint;
     if (current[appearance] === value) return;
@@ -846,6 +874,16 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setAutoShowTerminalPanel: (autoShowTerminalPanel) => {
     set({ autoShowTerminalPanel });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setComputerUseLockedUseDimDisplay: (computerUseLockedUseDimDisplay) => {
+    if (get().computerUseLockedUseDimDisplay === computerUseLockedUseDimDisplay) return;
+    set({ computerUseLockedUseDimDisplay });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setComputerUseLockedUse: (computerUseLockedUse) => {
+    if (get().computerUseLockedUse === computerUseLockedUse) return;
+    set({ computerUseLockedUse });
     persistSettings(selectSharedSettings(get()));
   },
   setWorktreeStorageMode: (worktreeStorageMode) => {
@@ -1377,7 +1415,8 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     agentTerminalFontSize: state.agentTerminalFontSize,
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
-    preventSleep: state.preventSleep,
+    preventSleepWhen: state.preventSleepWhen,
+    preventScreenLockWhen: state.preventScreenLockWhen,
     launchAtStartup: state.launchAtStartup,
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,
@@ -1392,8 +1431,13 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     sidebarHiddenShortcuts: state.sidebarHiddenShortcuts,
     sidebarShortcutOrder: state.sidebarShortcutOrder,
     sidebarTranslucency: state.sidebarTranslucency,
+    newsLineEnabled: state.newsLineEnabled,
+    newsLineActivity: state.newsLineActivity,
+    dismissedPromotions: state.dismissedPromotions,
     sidebarGlassTint: state.sidebarGlassTint,
     autoShowTerminalPanel: state.autoShowTerminalPanel,
+    computerUseLockedUse: state.computerUseLockedUse,
+    computerUseLockedUseDimDisplay: state.computerUseLockedUseDimDisplay,
     worktreeStorageMode: state.worktreeStorageMode,
     worktreeBasePath: state.worktreeBasePath,
     wslWorktreeBasePath: state.wslWorktreeBasePath,

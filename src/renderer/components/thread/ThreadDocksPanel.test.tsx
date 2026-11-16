@@ -120,7 +120,7 @@ describe("ThreadDocksPanel", () => {
     });
     useSharedSettings.setState({
       threadDocksPlacement: "right",
-      threadDocksOrder: ["backgroundTasks", "images", "plan", "goal", "agents"],
+      threadDocksOrder: ["backgroundTasks", "images", "artifacts", "plan", "goal", "agents"],
     });
     useAppStore.setState({
       threads: [],
@@ -334,9 +334,9 @@ describe("ThreadDocksPanel", () => {
     expect(screen.getByText("New background update")).toBeInTheDocument();
   });
 
-  it("renders Images in persisted order with its drag handle", () => {
+  it("renders Media (images + videos) and Files & artifacts as separate sections in persisted order", () => {
     useAppStore.setState({
-      runtimeItemIdsByThread: { "thread-1": ["plan-1", "image-1"] },
+      runtimeItemIdsByThread: { "thread-1": ["plan-1", "image-1", "video-1", "doc-1"] },
       runtimeItemsByIdByThread: {
         "thread-1": {
           ...useAppStore.getState().runtimeItemsByIdByThread["thread-1"],
@@ -351,6 +351,26 @@ describe("ThreadDocksPanel", () => {
             },
             streams: {},
           },
+          "video-1": {
+            id: "video-1",
+            type: "user_message",
+            state: "completed",
+            payload: {
+              content: [
+                { kind: "file", path: "/tmp/demo.mp4", name: "demo.mp4", mimeType: "video/mp4" },
+              ],
+            },
+            streams: {},
+          },
+          "doc-1": {
+            id: "doc-1",
+            type: "assistant_message",
+            state: "completed",
+            payload: {
+              content: [{ kind: "text", text: "[Report](report.pdf)" }],
+            },
+            streams: {},
+          },
         },
       },
       runtimeStructuralVersionByThread: { "thread-1": 1 },
@@ -362,21 +382,30 @@ describe("ThreadDocksPanel", () => {
       </AppProvider>,
     );
 
-    expect(screen.getByRole("button", { name: "Reorder Images" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Media" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reorder Files & artifacts" })).toBeInTheDocument();
     expect(
       [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
         element.getAttribute("data-dock-kind"),
       ),
-    ).toEqual(["backgroundTasks", "images", "plan"]);
-    // The images section starts expanded so tiles are visible without a click.
-    const header = screen.getByRole("button", { name: "Images" });
-    expect(header).toHaveAttribute("aria-expanded", "true");
+    ).toEqual(["backgroundTasks", "images", "artifacts", "plan"]);
+
+    // Media starts expanded with both the image and video tiles, and collapses independently.
+    const mediaRegion = screen.getByRole("region", { name: "Media" });
+    expect(mediaRegion).toHaveTextContent("2");
+    const mediaHeader = screen.getByRole("button", { name: "Media" });
+    expect(mediaHeader).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Open image 1 of 1" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Collapse images" }));
-    expect(header).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Open video 1 of 1: demo.mp4" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /report\.pdf/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse media" }));
+    expect(mediaHeader).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("button", { name: "Open image 1 of 1" })).not.toBeInTheDocument();
-    fireEvent.click(header);
-    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /report\.pdf/ })).toBeInTheDocument();
+
+    fireEvent.click(mediaHeader);
+    expect(mediaHeader).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Open image 1 of 1" })).toBeInTheDocument();
   });
 
@@ -445,6 +474,7 @@ describe("ThreadDocksPanel", () => {
         "plan",
         "backgroundTasks",
         "images",
+        "artifacts",
         "goal",
         "agents",
       ]);

@@ -2,7 +2,15 @@ import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
-import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "@/host/db";
+import {
+  dbFindProjectByLocation,
+  dbGetProject,
+  dbGetProjects,
+  dbGetThread,
+  dbGetThreads,
+  dbUpdateProject,
+} from "@/host/db";
+import { resolveWorktreePlacement } from "@/shared/worktree";
 import { callDatabaseRpc } from "@/host/db/databaseRpc";
 import { persistedThreadPageSchema } from "@/shared/ipc/schemas";
 import {
@@ -361,6 +369,14 @@ export async function composeHeadlessRemoteHost(
         ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
       },
       onEvent: (event) => {
+        if (event.type === "thread-state" || event.type === "thread-exited") {
+          // Same turn rule as the desktop's native thread-activity projection.
+          hostServicesRef?.observeThreadActivity(
+            event.threadId,
+            event.type === "thread-state" &&
+              (event.status === "working" || event.status === "launching"),
+          );
+        }
         if (
           event.type === "thread-exited" ||
           (event.type === "thread-state" &&
@@ -392,6 +408,7 @@ export async function composeHeadlessRemoteHost(
       onRuntimeGapAcknowledged: createRuntimeGapAcknowledgedHook(() => serverRef),
       onReset: () => {
         hostServicesRef?.agentVision.stopAll();
+        hostServicesRef?.resetThreadActivity();
         administration?.reset();
         durableServices?.handleSupervisorReset();
         // Match the desktop backend: a supervisor crash leaves durable rows
@@ -486,6 +503,7 @@ export async function composeHeadlessRemoteHost(
       readProject: dbGetProject,
       writeProject: dbUpdateProject,
       projectsChanged: publishHeadlessProjectsChanged,
+      settingsCommitted: (settings) => hostServices.applyBrowserAllowFlags(settings),
       ...(options.reportError ? { reportError: options.reportError } : {}),
     });
     const settings = settingsAuthority;
@@ -558,6 +576,9 @@ export async function composeHeadlessRemoteHost(
       }),
       onGitPatch: (patch) => {
         serverRef?.publishSupervisorEvent({ type: "remote-git-state", patch });
+      },
+      onForgeActivity: (event) => {
+        serverRef?.publishSupervisorEvent(event);
       },
     });
     supervisorLaunchServicesReady.resolve();
@@ -644,6 +665,8 @@ export async function composeHeadlessRemoteHost(
       // B1: the durable gap/notice store is this composition's own backend
       // host, so the capability is advertised and the routes serve real state.
       runtimeHistoryGap: createRuntimeHistoryGapPort(backendHost),
+      runThreadMutation: (threadId, operation) =>
+        supervisorClient.runThreadMutation(threadId, operation),
       truncateThreadRuntime: (threadId, itemId) => {
         backendHost.truncateThreadRuntime(threadId, itemId);
       },
@@ -658,10 +681,12 @@ export async function composeHeadlessRemoteHost(
         }
       },
       resolveMcpLaunchSnapshot: (projectId, overrides) =>
-        resolveMcpLaunchSnapshot(
+        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId), overrides),
+      resolveWorktreePlacement: (location) =>
+        resolveWorktreePlacement(
           getSharedSettings(),
-          dbGetProject(projectId)?.mcpServers ?? [],
-          overrides,
+          dbFindProjectByLocation(location)?.worktreeLocation,
+          location,
         ),
       settings: settings.remoteSettingsGateway(settings.mcpSettings),
       attachments: {
@@ -695,7 +720,7 @@ export async function composeHeadlessRemoteHost(
           ? supervisorClient.call(name, payload, callOptions)
           : supervisorClient.call(name, payload),
       resolveMcpLaunchSnapshot: (projectId) =>
-        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
+        resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)),
       ...(options.sessionExportWorkerPath
         ? { sessionExportWorker: { path: options.sessionExportWorkerPath, dbPath: paths.dbPath } }
         : {}),

@@ -167,7 +167,7 @@ describe.skipIf(process.platform === "win32")(
       expect(request.type).toBe("request.opened");
       if (request.type !== "request.opened") throw new Error("Missing forwarded request");
       expect(
-        manager.resolveChildServerRequest(
+        await manager.resolveChildServerRequest(
           request.requestId,
           {
             optionId: "reject",

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
   lstat,
-  mkdir,
   readFile,
   readdir,
   readlink,
@@ -49,6 +48,7 @@ import {
   skillScanResultSchema,
 } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
+import { ensureDirectory as ensureDirectoryExists } from "@/shared/ensureDirectory";
 import { formatSkillInvocation } from "@/shared/promptContent";
 import { getPluginCoreSkill, pluginNativeNames } from "@/shared/plugins/catalog";
 import { getWslLocationHostFsPath, parseWslUncPath, toWslUncPath } from "@/shared/wsl";
@@ -501,7 +501,7 @@ export class SkillsService {
     const stagingPath = join(destinationRoot.fsPath, `.poracode-marketplace-${randomUUID()}`);
     const backups: Array<{ original: string; backup: string }> = [];
     try {
-      await mkdir(stagingPath, { recursive: true });
+      await ensureDirectoryExists(stagingPath);
       // The overall size is pre-checked against the declared sizes above; the
       // per-file cap here still bounds each download independently, so files
       // can be fetched concurrently without weakening either guard.
@@ -524,7 +524,7 @@ export class SkillsService {
             throw new Error("A marketplace skill file is too large.");
           }
           const outputPath = join(stagingPath, ...relativePath.split("/"));
-          await mkdir(dirname(outputPath), { recursive: true });
+          await ensureDirectoryExists(dirname(outputPath));
           await writeFile(outputPath, contents);
           return contents.length;
         },
@@ -1266,7 +1266,7 @@ export class SkillsService {
   }
 
   private async stageImport(item: PreparedSkillImport): Promise<void> {
-    await mkdir(dirname(item.stagingPath), { recursive: true });
+    await ensureDirectoryExists(dirname(item.stagingPath));
     if (item.input.mode === "link") {
       await createDirectoryLink(item.input.sourcePath, item.stagingPath);
       return;
@@ -1362,7 +1362,7 @@ export class SkillsService {
     const moved: LinkedImportMove[] = [];
     try {
       for (const move of moves) {
-        await mkdir(dirname(move.destinationPath), { recursive: true });
+        await ensureDirectoryExists(dirname(move.destinationPath));
         await unlink(move.sourcePath);
         try {
           await createDirectoryLink(move.destinationTarget, move.destinationPath);
@@ -1382,7 +1382,7 @@ export class SkillsService {
   private async rollbackLinkedImports(moves: LinkedImportMove[]): Promise<void> {
     for (const move of moves.toReversed()) {
       if (await pathExists(move.destinationPath)) await removeSkillPath(move.destinationPath);
-      await mkdir(dirname(move.sourcePath), { recursive: true });
+      await ensureDirectoryExists(dirname(move.sourcePath));
       await createDirectoryLink(move.sourceTarget, move.sourcePath);
     }
   }
@@ -2025,7 +2025,7 @@ export class SkillsService {
         }),
     );
     if (sourceByFolder.size === 0 && !(await pathExists(targetFsPath))) return;
-    await mkdir(targetFsPath, { recursive: true });
+    await ensureDirectoryExists(targetFsPath);
     const existing = await readdir(targetFsPath, { withFileTypes: true });
     for (const entry of existing) {
       if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
@@ -2126,7 +2126,7 @@ export class SkillsService {
 
   private async ensureDirectory(environment: ResolvedEnvironment, path: string): Promise<void> {
     try {
-      await mkdir(path, { recursive: true });
+      await ensureDirectoryExists(path);
       return;
     } catch (error) {
       if (!environment.wsl || !environment.distro) throw error;

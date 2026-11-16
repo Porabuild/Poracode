@@ -1,11 +1,19 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { canonicalHostPath } from "@/backend/ownership/hostRootPaths";
 import type { ServerUpgradeJournalRead, ServerUpgradePhase } from "./serverUpgradeJournal";
 import { defaultUpgradeIo } from "./serverUpgrade";
-import { abandonServerUpgrade } from "./serverUpgradeRecovery";
+import { abandonServerUpgrade, resumeServerUpgrade } from "./serverUpgradeRecovery";
 import { serverUpgradeLockPath } from "./serverUpgradeLock";
 
 /**
@@ -33,6 +41,7 @@ vi.mock("./serverUpgradeJournal", async (importOriginal) => {
 
 const dirs: string[] = [];
 afterEach(() => {
+  vi.unstubAllEnvs();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
   journalMock.scripted.length = 0;
 });
@@ -77,6 +86,33 @@ function okRead(
 const noOwnerIo = { ...defaultUpgradeIo, probeOwner: async () => null };
 
 describe("server upgrade recovery under the prefix lock (V3)", () => {
+  it.runIf(process.platform !== "win32")(
+    "refuses an old staged nightly candidate on the stable default profile",
+    async () => {
+      const { prefix, releaseDir, journalPath } = sandbox();
+      const home = canonicalHostPath(join(prefix, ".."));
+      vi.stubEnv("HOME", home);
+      vi.stubEnv("PORACODE_BASE_DIR", join(home, ".poracode"));
+      writeFileSync(
+        join(releaseDir, "package.json"),
+        JSON.stringify({ version: "2.0.0-nightly.202611091529" }),
+      );
+      symlinkSync("releases/release-interrupted", join(prefix, "current"));
+      writeFileSync(
+        journalPath,
+        `${JSON.stringify(okRead(prefix, releaseDir, "swapped").journal)}\n`,
+      );
+      const start = vi.fn<typeof defaultUpgradeIo.startCandidate>();
+      await expect(
+        resumeServerUpgrade(
+          { from: "", prefix, json: true, resume: true, confirm: true },
+          { ...noOwnerIo, startCandidate: start },
+        ),
+      ).rejects.toThrow(/other channel/u);
+      expect(start).not.toHaveBeenCalled();
+      expect(existsSync(journalPath)).toBe(true);
+    },
+  );
   it("preserves journal bytes if the prefix lock changes during the awaited owner probe", async () => {
     const { prefix, releaseDir, journalPath } = sandbox();
     const bytes = `${JSON.stringify(okRead(prefix, releaseDir, "staged").journal)}\n`;

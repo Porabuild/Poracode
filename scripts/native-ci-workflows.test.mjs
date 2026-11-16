@@ -38,6 +38,214 @@ void test("the remote-v3 contract and core lint jobs lock the committed operatio
   assert.match(coreLock.run, /tests\/native-e2e\/vitest\.config\.ts/u);
 });
 
+void test("Linux setups recover mirror DNS failures without hiding install errors", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+  );
+  const step = workflow.jobs.rust_helper.steps.find(
+    (item) => item.name === "Install Linux integration-test tools",
+  );
+  assert.ok(step);
+  const browser = parse(
+    await readFile(new URL("../.github/workflows/browser-layout.yml", import.meta.url), "utf8"),
+  );
+  const browserSteps = browser.jobs.browser_layout.steps;
+  const browserStep = browserSteps.find((item) => item.name === "Prepare Ubuntu package mirrors");
+  assert.ok(browserStep);
+  assert.ok(
+    browserSteps.indexOf(browserStep) <
+      browserSteps.findIndex((item) => item.name === "Install Chromium for Playwright"),
+  );
+  const temporaryRoot = fileURLToPath(new URL("../tmp/", import.meta.url));
+  await mkdir(temporaryRoot, { recursive: true });
+  const temporary = await mkdtemp(join(temporaryRoot, "ci-mirror-"));
+  try {
+    const bin = join(temporary, "bin");
+    const mirrors = join(temporary, "mirrors");
+    const hosts = join(temporary, "hosts");
+    const calls = join(temporary, "calls");
+    await mkdir(bin);
+    await Promise.all([
+      writeFile(
+        join(bin, "getent"),
+        [
+          "#!/bin/sh",
+          'case "$MOCK_DNS:$2" in',
+          "  ok:*) exit 0 ;;",
+          "  azure-down:azure.archive.ubuntu.com) exit 1 ;;",
+          "  azure-down:*) exit 0 ;;",
+          "  all-down:*) exit 1 ;;",
+          "esac",
+          "exit 2",
+          "",
+        ].join("\n"),
+        { mode: 0o755 },
+      ),
+      writeFile(
+        join(bin, "curl"),
+        [
+          "#!/bin/sh",
+          'if [ "$DNS_BAD" = "1" ]; then',
+          "  printf '%s\\n' '{\"Status\":2,\"Answer\":[]}'",
+          "else",
+          '  printf \'%s\\n\' \'{"Status":0,"Answer":[{"type":1,"data":"203.0.113.42"}]}\'',
+          "fi",
+          "",
+        ].join("\n"),
+        { mode: 0o755 },
+      ),
+      writeFile(
+        join(bin, "sudo"),
+        [
+          "#!/bin/sh",
+          'case "$1" in',
+          '  sed) shift; [ "$1" = "-i" ] || exit 2; shift; expr="$1"; shift; [ "$1" = "/etc/apt/apt-mirrors.txt" ] || exit 2; sed -i "$expr" "$MIRROR_FILE" ;;',
+          '  tee) [ "$2" = "-a" ] && [ "$3" = "/etc/hosts" ] || exit 2; cat >> "$HOSTS_FILE" ;;',
+          '  apt-get) printf "%s\\n" "$*" >> "$CALLS_FILE"; [ "$FAIL_APT" != "$2" ] ;;',
+          "  *) exit 3 ;;",
+          "esac",
+          "",
+        ].join("\n"),
+        { mode: 0o755 },
+      ),
+    ]);
+    for (const [setup, dns, dnsBad, failApt] of [
+      [step, "ok", "0", ""],
+      [step, "azure-down", "0", ""],
+      [step, "all-down", "0", ""],
+      [step, "all-down", "1", ""],
+      [step, "ok", "0", "update"],
+      [browserStep, "ok", "0", ""],
+      [browserStep, "azure-down", "0", ""],
+      [browserStep, "all-down", "0", ""],
+      [browserStep, "all-down", "1", ""],
+    ]) {
+      await writeFile(
+        mirrors,
+        "http://azure.archive.ubuntu.com/ubuntu/ priority:1\n" +
+          "https://archive.ubuntu.com/ubuntu/ priority:2\n" +
+          "https://security.ubuntu.com/ubuntu/ priority:3\n",
+      );
+      await Promise.all([writeFile(hosts, ""), writeFile(calls, "")]);
+      const result = spawnSync("bash", ["-e", "-c", setup.run], {
+        cwd: temporary,
+        env: {
+          ...process.env,
+          PATH: bin + ":" + process.env.PATH,
+          MIRROR_FILE: mirrors,
+          HOSTS_FILE: hosts,
+          CALLS_FILE: calls,
+          MOCK_DNS: dns,
+          DNS_BAD: dnsBad,
+          FAIL_APT: failApt,
+        },
+        encoding: "utf8",
+        timeout: 15_000,
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status === 0, dnsBad === "0" && failApt === "", result.stderr);
+      const mirrorList = await readFile(mirrors, "utf8");
+      assert.equal(mirrorList.includes("azure.archive.ubuntu.com"), dns === "ok");
+      assert.match(mirrorList, /https:\/\/archive\.ubuntu\.com\/ubuntu\//u);
+      assert.match(mirrorList, /https:\/\/security\.ubuntu\.com\/ubuntu\//u);
+      const hostEntries = await readFile(hosts, "utf8");
+      if (dns === "all-down" && dnsBad === "0") {
+        assert.equal(
+          hostEntries,
+          "203.0.113.42 archive.ubuntu.com\n203.0.113.42 security.ubuntu.com\n",
+        );
+      } else {
+        assert.equal(hostEntries, "");
+      }
+      const aptCalls = await readFile(calls, "utf8");
+      if (setup === browserStep || dnsBad === "1") assert.equal(aptCalls, "");
+      else if (failApt) assert.equal(aptCalls, "apt-get update\n");
+      else assert.equal(aptCalls, "apt-get update\napt-get install --yes dbus-x11 xvfb\n");
+    }
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+void test("portable Swift suites run concurrently, join every suite, and propagate failures", async () => {
+  const native = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const step = native.jobs.ios.steps.find(
+    (item) => item.name === "Run portable Swift contract suites",
+  );
+  assert.ok(step, "the portable Swift contract step must stay present");
+  const temporaryRoot = fileURLToPath(new URL("../tmp/", import.meta.url));
+  await mkdir(temporaryRoot, { recursive: true });
+  const temporary = await mkdtemp(join(temporaryRoot, "swift-ci-"));
+  try {
+    const bin = join(temporary, "bin");
+    await mkdir(bin);
+    await writeFile(
+      join(bin, "swift"),
+      `#!${process.execPath}\n` +
+        `import fs from 'node:fs';\n` +
+        `const suite = process.argv[process.argv.indexOf('--package-path') + 1].split('/').pop();\n` +
+        `const events = process.env.RUNNER_TEMP + '/events.log';\n` +
+        `fs.appendFileSync(events, Date.now() + ' ' + suite + ' start\\n');\n` +
+        `console.log(suite + ' start');\n` +
+        `setTimeout(() => {\n` +
+        `  fs.appendFileSync(events, Date.now() + ' ' + suite + ' end\\n');\n` +
+        `  console.log(suite + ' end');\n` +
+        `  process.exit(process.env.FAIL_SUITE === suite ? 9 : 0);\n` +
+        `}, 100);\n`,
+      { mode: 0o755 },
+    );
+    for (const failSuite of ["", "BrowserMirror"]) {
+      const evidence = join(temporary, failSuite || "success");
+      await mkdir(evidence);
+      const result = spawnSync("bash", ["-c", step.run], {
+        cwd: temporary,
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          RUNNER_TEMP: evidence,
+          FAIL_SUITE: failSuite,
+        },
+        encoding: "utf8",
+        timeout: 15_000,
+      });
+      assert.ifError(result.error);
+      if (failSuite) assert.notEqual(result.status, 0, result.stdout + result.stderr);
+      else assert.equal(result.status, 0, result.stdout + result.stderr);
+      const events = await readFile(join(evidence, "events.log"), "utf8");
+      let active = 0;
+      let maximum = 0;
+      for (const line of events.trim().split("\n")) {
+        const [, , phase] = line.split(" ");
+        active += phase === "start" ? 1 : -1;
+        maximum = Math.max(maximum, active);
+      }
+      assert.ok(maximum >= 2, `suites did not overlap:\n${events}`);
+      for (const suite of [
+        "PortForwarding",
+        "BrowserMirror",
+        "GitHubOperations",
+        "AdvancedOperations",
+      ])
+        assert.match(
+          await readFile(join(evidence, "poracode-swift-contracts", `${suite}.log`), "utf8"),
+          new RegExp(`${suite} (start|end)`),
+        );
+    }
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});
+
+void test("Android unit tests use two isolated JVM forks", async () => {
+  const gradle = await readFile(
+    new URL("../android/app/build.gradle.kts", import.meta.url),
+    "utf8",
+  );
+  assert.match(gradle, /unitTests\s*\{[\s\S]*?all\s*\{\s*it\.maxParallelForks = 2\s*\}/u);
+});
+
 void test("API 37 workflow preserves shell state, joins its harness, and propagates failures", async () => {
   const workflow = parse(
     await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
@@ -75,6 +283,7 @@ void test("API 37 workflow preserves shell state, joins its harness, and propaga
         join(bin, "adb"),
         `#!/bin/sh
 case "$*" in
+  'pull /data/local/tmp/poracode-background-task-details.png '*) if [ "$FAILURE_STAGE" = screenshot ]; then printf 'not-a-png' > "$3"; else printf '\\211PNG\\r\\n\\032\\n' > "$3"; fi;;
   'install -r '*) if [ "$FAILURE_STAGE" = install ]; then exit 6; fi;;
   'logcat -d -t '*) if [ "$FAILURE_STAGE" = instrumentation-logcat ]; then echo fixture-logcat-error >&2; exit 8; fi; echo fixture-logcat;;
   'logcat -d '*) echo fixture-logcat;;
@@ -142,6 +351,7 @@ if (process.argv[2] === 'assembleDebug') {
       ["harness", 1],
       ["instrumentation", 7],
       ["instrumentation-logcat", 7],
+      ["screenshot", 1],
     ]) {
       const evidence = join(temporary, failureStage);
       await mkdir(evidence);
@@ -221,6 +431,7 @@ if (process.argv[2] === 'assembleDebug') {
               "com.poracode.app.Android37WireLabFamilyInstrumentedTest",
               "com.poracode.app.Android37WireLabJourneyInstrumentedTest",
               "com.poracode.app.Android37WireLabSmokeInstrumentedTest",
+              "com.poracode.app.BackgroundTaskDetailsInstrumentedTest",
             ].join(","),
         );
         assert.doesNotMatch(classFilter, /CapableHistory|NoticeCapability/u);
@@ -247,24 +458,80 @@ void test("API 34 minimum-supported runtime boots Android 14 and requires launch
   const job = workflow.jobs.android_api34_runtime;
   assert.ok(job, "The API 26 lane must be replaced by a required Android 14/API 34 lane");
   assert.deepEqual(job.needs, ["changes", "android"]);
-  const boot = job.steps.find(
+  const bootIndex = job.steps.findIndex(
     (item) => item.name === "Boot Android 14 and run the minimum-supported runtime tests",
   );
+  const boot = job.steps[bootIndex];
   assert.ok(boot, "The minimum-supported runtime boot step must stay present");
   assert.equal(boot.with["api-level"], 34);
-  assert.match(boot.with.script, /ro\.build\.version\.sdk \| tr -d '\\r'\)" = "34"/);
+  assert.equal(boot.with.script, "bash ../scripts/ci-android-api34.sh");
+  const script = await readFile(new URL("./ci-android-api34.sh", import.meta.url), "utf8");
+  assert.match(script, /ro\.build\.version\.sdk \| tr -d '\\r'\)" = "34"/);
   // Both minimum-floor classes stay required on the oldest supported release:
   // the cold-launch pairing entry point and the TLS pin pairing test.
   assert.ok(
-    boot.with.script.includes(
+    script.includes(
       "-Pandroid.testInstrumentationRunnerArguments.class=com.poracode.app.MinimumSdkLaunchInstrumentedTest,com.poracode.app.transport.TlsPinPairingInstrumentedTest",
     ),
   );
+  // APKs are compiled before the emulator boots so Gradle never competes with
+  // the emulator for runner memory.
+  const buildIndex = job.steps.findIndex(
+    (item) => item.name === "Build Android runtime APKs before boot",
+  );
+  assert.ok(buildIndex >= 0 && buildIndex < bootIndex, "APKs must be built before boot");
+  assert.match(job.steps[buildIndex].run, /assembleDebug assembleDebugAndroidTest/);
   const upload = job.steps.find(
     (item) => item.name === "Upload Android 14 minimum-supported runtime evidence",
   );
   assert.ok(upload, "The minimum-supported runtime evidence upload must stay present");
   assert.match(upload.with.name, /^android-api34-runtime-/);
+});
+
+void test("API 34 lane retries only infrastructure failures and still fails real test failures", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const steps = workflow.jobs.android_api34_runtime.steps;
+  const boot = steps.find((item) => item.id === "api34_runtime");
+  const retry = steps.find((item) => item.id === "api34_runtime_retry");
+  const require = steps.find((item) => item.name === "Require a passing Android 14 run");
+  assert.equal(boot["continue-on-error"], true);
+  assert.ok(retry, "an infrastructure failure gets one retry on a fresh emulator");
+  assert.match(retry.if, /steps\.api34_runtime\.outcome == 'failure'/);
+  assert.match(retry.if, /hashFiles\('android\/build\/ci\/api34-test-failure'\) == ''/);
+  assert.equal(retry["continue-on-error"], undefined, "a failed retry fails the job");
+  assert.deepEqual(retry.with, boot.with, "the retry boots the same emulator configuration");
+  assert.ok(require, "a real test failure must still fail the job");
+  assert.match(require.if, /steps\.api34_runtime\.outcome == 'failure'/);
+  assert.match(require.if, /steps\.api34_runtime_retry\.outcome != 'success'/);
+  assert.match(require.run, /exit 1/);
+  const script = await readFile(new URL("./ci-android-api34.sh", import.meta.url), "utf8");
+  // The marker is cleared first and written only when the instrumentation run
+  // failed while adb still saw the device; a device that never answers cannot
+  // hang the step.
+  assert.match(script, /android\/build\/ci\/api34-test-failure/);
+  const clear = script.indexOf('rm -f "$test_failure_marker"');
+  const write = script.indexOf(': > "$test_failure_marker"');
+  assert.ok(clear >= 0 && clear < write, "the marker is cleared before anything can write it");
+  assert.match(
+    script,
+    /if \[ "\$\(adb get-state[^\n]*\)" = "device" \]; then\n\s+mkdir -p "\$\(dirname "\$test_failure_marker"\)"\n\s+: > "\$test_failure_marker"\n\s+else/,
+  );
+  assert.match(script, /timeout \d+ adb wait-for-device/);
+});
+
+void test("CI and native runs cancel superseded pull request pushes but finish branch pushes", async () => {
+  for (const file of ["ci.yml", "native-ci.yml"]) {
+    const workflow = parse(
+      await readFile(new URL(`../.github/workflows/${file}`, import.meta.url), "utf8"),
+    );
+    assert.equal(
+      workflow.concurrency["cancel-in-progress"],
+      "${{ github.event_name == 'pull_request' }}",
+      `${file} must not cancel in-progress runs for landed commits`,
+    );
+  }
 });
 
 void test("iOS UI journeys keep the owned harness alive through a clean Xcode build", async () => {

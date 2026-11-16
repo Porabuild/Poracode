@@ -99,6 +99,7 @@ const THREAD_PHASE1_RAW_COLUMNS = [
   "t.agent_instance_id",
   "t.status",
   "t.attention",
+  "(CASE WHEN t.status = 'error' THEN t.error_message ELSE NULL END)",
   "t.thread_status_source",
   "t.worktree_path",
   "t.worktree_branch",
@@ -142,6 +143,7 @@ const PROJECT_PHASE1_JSON_COLUMNS = [
   "p.worktree_location",
   "p.gh_account",
   "p.pinned_branches",
+  "p.plugin_overrides",
 ] as const;
 
 /** Every field `rowToThread` reads except `terminal_prompt`, which the wire
@@ -159,6 +161,7 @@ const THREAD_PHASE2_COLUMNS = [
   "config",
   "status",
   "attention",
+  "error_message",
   "thread_status_source",
   "can_resume_with_config",
   "session_ref",
@@ -181,6 +184,7 @@ const THREAD_PHASE2_COLUMNS = [
   "active_turn_started_at",
   "last_turn_started_at",
   "last_turn_ended_at",
+  "interrupted_turn",
 ].join(", ");
 
 /** Project columns the remote project schema emits. `mcp_servers` is stripped
@@ -201,6 +205,7 @@ const PROJECT_PHASE2_COLUMNS = [
   "gh_account",
   "worktree_base_branch",
   "pinned_branches",
+  "plugin_overrides",
   "workspace_id",
   "disabled",
   "sort_order",

@@ -154,7 +154,7 @@ struct EnvironmentsView: View {
         .refreshable {
             await controller.refresh()
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .poracodeBottomBar {
             if controller.capabilities.canManage {
                 PoracodeBottomActionDock(placement: .trailing) {
                     PoracodeCircleButton {

@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Використання провайдерів</string>
+    <string name="settings_usage_title">Використання</string>
     <string name="settings_usage_cached">Показано кешовані дані використання.</string>
     <string name="settings_usage_empty">Дані використання провайдерів недоступні.</string>
     <string name="settings_usage_empty_title">Немає даних про використання</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Квоту вичерпано</string>
     <string name="settings_usage_unsupported">Не підтримується</string>
     <string name="settings_usage_meter_description">Використання %1$s: %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% до скидання</string>
+    <string name="settings_usage_pace_over">Темп перевищено — закінчиться раніше</string>
+    <string name="settings_usage_pace_ran_out">Вичерпано</string>
+    <string name="settings_usage_pace_ran_out_resets">Вичерпано · скидання через %1$s</string>
+    <string name="settings_usage_pace_runs_out_in">Закінчиться через %1$s</string>
+    <string name="settings_usage_pace_runs_out_early">Закінчиться раніше</string>
     <string name="settings_profile_identity">Особисті дані</string>
     <string name="settings_profile_identity_description">Цей профіль зберігається на вибраному робочому столі.</string>
     <string name="settings_profile_name">Ім’я</string>
@@ -128,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">Токени за провайдерами</string>
     <string name="settings_profile_tokens_by_provider_empty">Дані про використання токенів за провайдерами недоступні.</string>
     <string name="settings_profile_provider_cost">Орієнтовна вартість</string>
+    <string name="settings_profile_trends">Недавнє та тренди</string>
+    <string name="settings_profile_yesterday">Учора</string>
+    <string name="settings_profile_last_7d">Останні 7 днів</string>
+    <string name="settings_profile_avg_task_duration">Середня тривалість завдання</string>
+    <string name="settings_profile_prompt_cache_hit">Влучання в кеш</string>
+    <string name="settings_profile_weekend_share">Частка вихідних</string>
+    <string name="settings_profile_switched_provider">Зміна провайдера</string>
+    <string name="settings_profile_switched_model">Зміна моделі</string>
+    <string name="settings_profile_provider_less">%1$s на %2$d%% менше за тиждень</string>
+    <string name="settings_profile_provider_more">%1$s на %2$d%% більше за тиждень</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s запитів</string>
 </resources>

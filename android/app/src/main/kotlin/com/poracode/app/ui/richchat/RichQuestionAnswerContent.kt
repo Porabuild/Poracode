@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -14,6 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.poracode.app.ui.theme.LocalChatTextSizeSp
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun RichQuestionAnswerContent(entries: List<RichQuestionAnswerEntry>) {
@@ -30,7 +29,7 @@ internal fun RichQuestionAnswerContent(entries: List<RichQuestionAnswerEntry>) {
                     }
                     entry.selected.forEach { selection ->
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                            Icon(Icons.Filled.Check, contentDescription = null)
+                            Icon(PoracodeIcons.Check, contentDescription = null)
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(selection.label, fontWeight = FontWeight.Medium, fontSize = chatSize.sp)
                                 selection.description?.takeIf(String::isNotBlank)?.let {

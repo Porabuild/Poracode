@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Button, toast } from "@heroui/react";
+import { Button, Disclosure, toast } from "@heroui/react";
 import { CircleAlert, LogIn, TriangleAlert } from "lucide-react";
-import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
   extractAgentProfileInstanceId,
@@ -94,25 +93,10 @@ function DevinProfileRowSubtitle(props: { instance: AgentInstanceConfig }) {
   );
 }
 
-/**
- * Devin profiles are configurations under one login by default: native
- * credentials stay where the CLI put them and no key is copied. The optional
- * second field points at a native user-config file (`devin --config`) that
- * differentiates the profile; auth source and the rest are edited on the
- * profile's own page.
- */
+/** New profiles start with their own login; existing profiles keep their account source. */
 export const devinProfileSupport: NativeAgentProfileSupport = {
   driver: DEVIN_PROFILE_DRIVER,
-  description: (
-    <Trans>
-      Multiple Devin configurations under one login — different config files, organizations, or
-      approval defaults — or an isolated second login. Native credentials are never copied.
-    </Trans>
-  ),
-  field: {
-    ariaLabel: msg`New Devin profile config file (optional)`,
-    placeholder: msg`Config file path (optional)`,
-  },
+  description: <Trans>Add another Devin account with its own sign-in.</Trans>,
   RowSubtitle: DevinProfileRowSubtitle,
   removalBody: (profileName) => (
     <Trans>
@@ -120,14 +104,14 @@ export const devinProfileSupport: NativeAgentProfileSupport = {
       files, and session history stay on disk, and other profiles are unaffected.
     </Trans>
   ),
-  createPayload: ({ id, displayName, field }) => ({
+  createPayload: ({ id, displayName }) => ({
     driver: DEVIN_PROFILE_DRIVER,
     id,
     displayName,
     config: devinProfileConfigPatch(emptyDevinProfileConfig(), {
-      authKind: "native-default",
+      authKind: "isolated-owner",
       ownerId: undefined,
-      configPath: field,
+      configPath: "",
       orgId: "",
       runtimeTarget: undefined,
       agentType: undefined,
@@ -355,9 +339,9 @@ function DevinProfileEditor(props: {
     props.view.status !== "unsupported-format";
 
   const authOptions: ReadonlyArray<{ id: string; label: string }> = [
-    { id: "native-default", label: t`Devin's own login (default)` },
-    { id: "isolated-owner", label: t`Own isolated login` },
-    { id: "owner-reference", label: t`Share another profile's isolated login` },
+    { id: "native-default", label: t`Use Devin's main account` },
+    { id: "isolated-owner", label: t`Use a separate account` },
+    { id: "owner-reference", label: t`Use another profile's account` },
   ];
   const ownerName = storedOwnerRef
     ? (instances[storedOwnerRef]?.displayName ?? storedOwnerRef)
@@ -472,10 +456,7 @@ function DevinProfileEditor(props: {
             <Trans>Devin profile</Trans>
           </p>
           <p className="text-xs text-muted">
-            <Trans>
-              Login source, config file, organization, and runtime for this configuration. Thread
-              knobs like model and approvals stay on the composer.
-            </Trans>
+            <Trans>Manage the Devin account used by this profile.</Trans>
           </p>
         </div>
         <Button
@@ -515,188 +496,217 @@ function DevinProfileEditor(props: {
         />
       </section>
 
-      {/* Auth source */}
-      <section className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-foreground">
-          <Trans>Login</Trans>
-        </p>
-        <div className="max-w-sm">
-          <Select
-            aria-label={t`Login source`}
-            options={authOptions}
-            value={authKind}
-            onChange={(value) => {
-              if (AUTH_KINDS.includes(value as AuthKind)) setAuthKind(value as AuthKind);
-            }}
-          />
-        </div>
-        <DevinProfileSignInRow
-          authKind={authKind}
-          {...(authKind === "owner-reference"
-            ? { ownerName: ownerId ? (instances[ownerId]?.displayName ?? ownerId) : ownerName }
-            : {})}
-          statuses={props.statuses}
-        />
-        {authKind === "owner-reference" ? (
-          ownerCandidates.length === 0 ? (
-            <p className="text-[11px] text-warning">
+      <DevinProfileSignInRow
+        authKind={authKind}
+        {...(authKind === "owner-reference"
+          ? { ownerName: ownerId ? (instances[ownerId]?.displayName ?? ownerId) : ownerName }
+          : {})}
+        statuses={props.statuses}
+      />
+
+      <Disclosure defaultExpanded={props.view.status === "invalid" || ownerReferenceUnresolved}>
+        <Disclosure.Heading>
+          <Disclosure.Trigger
+            aria-label={t`Advanced settings`}
+            className="flex w-full items-start gap-3 py-1 text-left"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">
+                <Trans>Advanced settings</Trans>
+              </p>
+              <p className="text-xs text-muted">
+                <Trans>Account sharing and launch defaults.</Trans>
+              </p>
+            </div>
+            <Disclosure.Indicator className="mt-1 size-3.5 shrink-0 text-muted" />
+          </Disclosure.Trigger>
+        </Disclosure.Heading>
+        <Disclosure.Content>
+          <Disclosure.Body className="space-y-5 pt-3">
+            <section className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-foreground">
+                <Trans>Login</Trans>
+              </p>
+              <div className="max-w-sm">
+                <Select
+                  aria-label={t`Login source`}
+                  options={authOptions}
+                  value={authKind}
+                  onChange={(value) => {
+                    if (AUTH_KINDS.includes(value as AuthKind)) setAuthKind(value as AuthKind);
+                  }}
+                />
+              </div>
+              {authKind === "owner-reference" ? (
+                ownerCandidates.length === 0 ? (
+                  <p className="text-[11px] text-warning">
+                    <Trans>
+                      No profile with its own isolated login exists yet. Set a profile to "Own
+                      isolated login" and sign in there first; it then appears here.
+                    </Trans>
+                  </p>
+                ) : (
+                  <div className="max-w-sm">
+                    <Select
+                      aria-label={t`Shared login owner`}
+                      options={ownerCandidates.map((candidate) => ({
+                        id: candidate.id,
+                        label: candidate.displayName,
+                      }))}
+                      value={ownerId || null}
+                      onChange={setOwnerId}
+                      placeholder={t`Pick the profile whose login to share`}
+                    />
+                  </div>
+                )
+              ) : null}
+              {ownerReferenceUnresolved ? (
+                <p className="text-[11px] text-warning">
+                  <Trans>
+                    The profile this profile shared a login with ({ownerName}) no longer exists or
+                    is not usable. Pick another owner or switch the login source — nothing is lost
+                    until you save.
+                  </Trans>
+                </p>
+              ) : null}
+              {wouldBreakLoginDependents ? (
+                <p className="text-[11px] text-warning">
+                  <Trans>
+                    {loginDependents
+                      .map((dependent) => dependent.displayName ?? dependent.id)
+                      .join(", ")}{" "}
+                    share this profile's isolated login. Move them to another owner first — the host
+                    refuses changes that leave them without a login.
+                  </Trans>
+                </p>
+              ) : null}
+            </section>
+
+            {/* Native config file */}
+            <section className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-muted">
+                <Trans>Config file (optional)</Trans>
+              </span>
+              <Input
+                aria-label={t`Devin profile config file`}
+                className="font-mono text-xs"
+                placeholder={t`~/.config/devin/config.json`}
+                value={configPath}
+                onChange={(event) => setConfigPath(event.target.value)}
+              />
+              <p className="text-[11px] text-muted">
+                <Trans>
+                  Passed to Devin as its user config for this profile only. It does not isolate
+                  credentials, skills, MCP servers, or plugins — those stay shared with the login.
+                </Trans>
+              </p>
+            </section>
+
+            {/* Organization */}
+            <section className="flex flex-col gap-1">
+              <span className="text-[11px] font-medium text-muted">
+                <Trans>Organization (optional)</Trans>
+              </span>
+              <Input
+                aria-label={t`Devin organization id`}
+                className="font-mono text-xs"
+                placeholder="org-…"
+                value={orgId}
+                onChange={(event) => setOrgId(event.target.value)}
+              />
+              <p className="text-[11px] text-muted">
+                <Trans>
+                  Leave empty to use the organization selected by Devin. Set this only to choose a
+                  different organization for this account.
+                </Trans>
+              </p>
+            </section>
+
+            {/* Runtime target + agent type */}
+            <section className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-medium text-muted">
+                  <Trans>Runs on</Trans>
+                </span>
+                <div className="max-w-56">
+                  <Select
+                    aria-label={t`Runtime target`}
+                    options={[
+                      { id: "local", label: t`This machine (local)` },
+                      { id: "cloud", label: t`Devin cloud` },
+                    ]}
+                    value={runtimeTarget ?? "local"}
+                    onChange={(value) => {
+                      if (value === "cloud") {
+                        setRuntimeTarget("cloud");
+                        // Cloud chats ignore the root agent type; drop the stored
+                        // choice up front so Save removes it instead of the select
+                        // silently keeping a value that no longer applies.
+                        setAgentType(undefined);
+                      } else if (value === "local") {
+                        setRuntimeTarget("local");
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              {runtimeTarget === "cloud" ? null : (
+                <div className="flex flex-col gap-1">
+                  <span className="text-[11px] font-medium text-muted">
+                    <Trans>Agent type</Trans>
+                  </span>
+                  <div className="max-w-56">
+                    <Select
+                      aria-label={t`Agent type`}
+                      options={[
+                        { id: "default", label: t`Default coding agent` },
+                        { id: "review", label: t`Review` },
+                        { id: "summarizer", label: t`Summarizer` },
+                      ]}
+                      value={agentType ?? "default"}
+                      onChange={(value) =>
+                        setAgentType(
+                          value === "default"
+                            ? undefined
+                            : value === "review" || value === "summarizer"
+                              ? value
+                              : undefined,
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </section>
+            <p className="text-[11px] text-muted">
               <Trans>
-                No profile with its own isolated login exists yet. Set a profile to "Own isolated
-                login" and sign in there first; it then appears here.
+                Choose where new sessions start. Use /handoff in chat to transfer an existing
+                session.
               </Trans>
             </p>
-          ) : (
-            <div className="max-w-sm">
-              <Select
-                aria-label={t`Shared login owner`}
-                options={ownerCandidates.map((candidate) => ({
-                  id: candidate.id,
-                  label: candidate.displayName,
-                }))}
-                value={ownerId || null}
-                onChange={setOwnerId}
-                placeholder={t`Pick the profile whose login to share`}
-              />
-            </div>
-          )
-        ) : null}
-        {ownerReferenceUnresolved ? (
-          <p className="text-[11px] text-warning">
-            <Trans>
-              The profile this profile shared a login with ({ownerName}) no longer exists or is not
-              usable. Pick another owner or switch the login source — nothing is lost until you
-              save.
-            </Trans>
-          </p>
-        ) : null}
-        {wouldBreakLoginDependents ? (
-          <p className="text-[11px] text-warning">
-            <Trans>
-              {loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")}{" "}
-              share this profile's isolated login. Move them to another owner first — the host
-              refuses changes that leave them without a login.
-            </Trans>
-          </p>
-        ) : null}
-      </section>
-
-      {/* Native config file */}
-      <section className="flex flex-col gap-1">
-        <span className="text-[11px] font-medium text-muted">
-          <Trans>Config file (optional)</Trans>
-        </span>
-        <Input
-          aria-label={t`Devin profile config file`}
-          className="font-mono text-xs"
-          placeholder={t`~/.config/devin/config.json`}
-          value={configPath}
-          onChange={(event) => setConfigPath(event.target.value)}
-        />
-        <p className="text-[11px] text-muted">
-          <Trans>
-            Passed to Devin as its user config for this profile only. It does not isolate
-            credentials, skills, MCP servers, or plugins — those stay shared with the login.
-          </Trans>
-        </p>
-      </section>
-
-      {/* Organization */}
-      <section className="flex flex-col gap-1">
-        <span className="text-[11px] font-medium text-muted">
-          <Trans>Organization (optional)</Trans>
-        </span>
-        <Input
-          aria-label={t`Devin organization id`}
-          className="font-mono text-xs"
-          placeholder="org-…"
-          value={orgId}
-          onChange={(event) => setOrgId(event.target.value)}
-        />
-        <p className="text-[11px] text-muted">
-          <Trans>
-            Applied to this profile's config view (devin.org_id). Poracode cannot list the
-            organizations a login belongs to; Devin validates the id at launch and an unauthorized
-            org fails visibly.
-          </Trans>
-        </p>
-      </section>
-
-      {/* Runtime target + agent type */}
-      <section className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <span className="text-[11px] font-medium text-muted">
-            <Trans>Runs on</Trans>
-          </span>
-          <div className="max-w-56">
-            <Select
-              aria-label={t`Runtime target`}
-              options={[
-                { id: "local", label: t`This machine (local)` },
-                { id: "cloud", label: t`Devin cloud` },
-              ]}
-              value={runtimeTarget ?? "local"}
-              onChange={(value) => {
-                if (value === "cloud") {
-                  setRuntimeTarget("cloud");
-                  // Cloud chats ignore the root agent type; drop the stored
-                  // choice up front so Save removes it instead of the select
-                  // silently keeping a value that no longer applies.
-                  setAgentType(undefined);
-                } else if (value === "local") {
-                  setRuntimeTarget("local");
-                }
-              }}
-            />
-          </div>
-        </div>
-        {runtimeTarget === "cloud" ? null : (
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-muted">
-              <Trans>Agent type</Trans>
-            </span>
-            <div className="max-w-56">
-              <Select
-                aria-label={t`Agent type`}
-                options={[
-                  { id: "default", label: t`Default coding agent` },
-                  { id: "review", label: t`Review` },
-                  { id: "summarizer", label: t`Summarizer` },
-                ]}
-                value={agentType ?? "default"}
-                onChange={(value) =>
-                  setAgentType(
-                    value === "default"
-                      ? undefined
-                      : value === "review" || value === "summarizer"
-                        ? value
-                        : undefined,
-                  )
-                }
-              />
-            </div>
-          </div>
-        )}
-      </section>
-      {runtimeTarget === "cloud" ? (
-        <>
-          <p className="text-[11px] text-muted">
-            <Trans>
-              Cloud sessions use their own workspace. Local files and local MCP processes are
-              unavailable.
-            </Trans>
-          </p>
-          <DevinCloudChatSetup form={cloud} onChange={setCloud} />
-        </>
-      ) : null}
-      {runtimeTarget !== "cloud" && agentType ? (
-        <p className="text-[11px] text-muted">
-          <Trans>
-            Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native
-            personas are subagent definitions configured in Devin's own files — they cannot be
-            selected here.
-          </Trans>
-        </p>
-      ) : null}
+            {runtimeTarget === "cloud" ? (
+              <>
+                <p className="text-[11px] text-muted">
+                  <Trans>
+                    Cloud sessions use their own workspace. Local files and local MCP processes are
+                    unavailable.
+                  </Trans>
+                </p>
+                <DevinCloudChatSetup form={cloud} onChange={setCloud} />
+              </>
+            ) : null}
+            {runtimeTarget !== "cloud" && agentType ? (
+              <p className="text-[11px] text-muted">
+                <Trans>
+                  Review and Summarizer are the only root agent types Devin's CLI accepts. Custom
+                  native personas are subagent definitions configured in Devin's own files — they
+                  cannot be selected here.
+                </Trans>
+              </p>
+            ) : null}
+          </Disclosure.Body>
+        </Disclosure.Content>
+      </Disclosure>
     </div>
   );
 }

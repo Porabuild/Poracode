@@ -6,10 +6,12 @@ import { recordHandlerTiming } from "@/shared/diagnostics/handlerTimingObservati
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import {
+  toWebSocketUrl,
   type RemoteAccessScopePreset,
   type RemoteAccessSessionSummary,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
+import { retargetPairingUrl } from "@/shared/remote/pairingUrl";
 import type { GitStateInterest } from "@/shared/gitState";
 import { TerminalBaselineStreamScheduler } from "./server/terminalBaselineStream";
 import type { BackgroundTask, Project } from "@/shared/contracts";
@@ -121,6 +123,9 @@ export type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "./remote
  *   `agent-status-updated`, `windows-agent-statuses`, `wsl-agent-statuses`).
  * - `src/renderer/state/remoteServersStore.ts` `shouldRefreshRemoteServerAfterEvent`
  *   (adds `remote-projects-changed` / `remote-threads-changed`).
+ * - `src/renderer/state/remoteServers/eventRouting.ts` `filterRemoteThreadEvents`
+ *   (adds `remote-forge-activity`, which `sync.ts` `dispatchRemoteSupervisorEvent`
+ *   hands to its `onForgeActivity` hook).
  *
  * `thread-output` is intentionally absent: it short-circuits to
  * `broadcastTerminalOutput` before reaching this allowlist.
@@ -141,6 +146,7 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
   "windows-agent-statuses",
   "wsl-agent-statuses",
   // Out-of-band remote events.
+  "remote-forge-activity",
   "remote-git-summaries",
   "remote-git-state",
   "remote-projects-changed",
@@ -564,6 +570,45 @@ export class RemoteAccessServer {
 
   getInfo(): RemoteAccessServerInfo | null {
     return this.info;
+  }
+
+  /** Publish a validated public origin after the listener is already serving. */
+  publishAdvertisedEndpoint(input: {
+    readonly advertisedBaseUrl: string;
+    readonly tailscaleHttpBaseUrl?: string;
+  }): RemoteAccessServerInfo {
+    if (this.stopping) throw new Error("Remote access server is stopping.");
+    const current = requireRemoteAccessInfo(this.asHost());
+    const advertised = new URL(input.advertisedBaseUrl);
+    if (
+      (advertised.protocol !== "http:" && advertised.protocol !== "https:") ||
+      advertised.username ||
+      advertised.password
+    ) {
+      throw new Error("Advertised remote access URL must be an HTTP(S) origin.");
+    }
+    const httpBaseUrl = `${advertised.origin}/`;
+    const tailscale =
+      input.tailscaleHttpBaseUrl === undefined ? undefined : new URL(input.tailscaleHttpBaseUrl);
+    if (
+      tailscale &&
+      (tailscale.protocol !== "https:" ||
+        tailscale.username ||
+        tailscale.password ||
+        tailscale.origin !== advertised.origin)
+    ) {
+      throw new Error("Tailscale HTTPS URL must match the advertised HTTPS origin.");
+    }
+    const info: RemoteAccessServerInfo = {
+      ...current,
+      httpBaseUrl,
+      wsBaseUrl: toWebSocketUrl(httpBaseUrl).toString(),
+      pairingUrl: retargetPairingUrl(current.pairingUrl, httpBaseUrl),
+      ...(tailscale ? { tailscaleHttpBaseUrl: tailscale.origin } : {}),
+    };
+    this.info = info;
+    this.options.onPairingChanged?.();
+    return info;
   }
 
   /**

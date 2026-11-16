@@ -40,12 +40,20 @@ function isContainedRelativePath(entry) {
   return !normalized.split(/[\\/]/u).includes("..");
 }
 
+/**
+ * Listings are captured whole; a self-contained runtime carries its installed
+ * node_modules (tens of thousands of entries), far past execFileSync's 1 MiB
+ * default. Mirrors `ARCHIVE_LISTING_MAX_BUFFER` in the shipped installer.
+ */
+export const ARCHIVE_LISTING_MAX_BUFFER = 256 * 1024 * 1024;
+
 export function validateRuntimeArchive(options) {
   const run = options.run ?? defaultRun;
   const tool = options.tar
     ? { command: options.tar, baseArgs: [] }
     : resolveTar(options.tarResolution);
-  const names = run(...tarCommand(tool, ["-tzf", options.tarball]), { encoding: "utf8" })
+  const listing = { encoding: "utf8", maxBuffer: ARCHIVE_LISTING_MAX_BUFFER };
+  const names = run(...tarCommand(tool, ["-tzf", options.tarball]), listing)
     .toString("utf8")
     .split(/\r?\n/u)
     .map((line) => line.trim())
@@ -57,7 +65,7 @@ export function validateRuntimeArchive(options) {
       );
     }
   }
-  const verbose = run(...tarCommand(tool, ["-tvzf", options.tarball]), { encoding: "utf8" })
+  const verbose = run(...tarCommand(tool, ["-tvzf", options.tarball]), listing)
     .toString("utf8")
     .split(/\r?\n/u)
     .filter((line) => line.trim().length > 0);

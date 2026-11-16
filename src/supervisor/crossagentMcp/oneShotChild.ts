@@ -7,6 +7,7 @@ import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { buildOneShotSpec } from "@/supervisor/oneShotSpawn";
 import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import { processEnvRecord } from "@/supervisor/processEnv";
+import { disposeNodePtyAfterExit, terminateNodePty } from "@/supervisor/pty/nodePtyTeardown";
 import { OneShotStderrTail } from "./oneShotStderrTail";
 
 /**
@@ -288,6 +289,7 @@ function spawnPtyTransport(spec: SpawnSpec): ChildTransport {
       exitDisposable = pty.onExit(({ exitCode }) => {
         dataDisposable?.dispose();
         exitDisposable?.dispose();
+        disposeNodePtyAfterExit(pty);
         cb(
           exitCode === 0
             ? { status: "completed" }
@@ -297,14 +299,14 @@ function spawnPtyTransport(spec: SpawnSpec): ChildTransport {
     },
     kill() {
       try {
-        pty.kill();
+        terminateNodePty(pty);
       } catch {
         // PTY may already be gone.
       }
     },
     killForce() {
       try {
-        pty.kill("SIGKILL");
+        terminateNodePty(pty, "SIGKILL");
       } catch {
         // Already reaped.
       }

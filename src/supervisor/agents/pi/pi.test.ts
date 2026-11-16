@@ -294,6 +294,7 @@ openai     gpt-4.1-mini      1M       32K      no        yes`;
         enabledModels: [
           "openrouter/anthropic/claude-sonnet-4-5",
           "openrouter/qwen/qwen3:free",
+          "anthropic/claude-sonnet-4:low",
           "*sonnet*",
           "openai/*",
           "sonnet",
@@ -320,6 +321,8 @@ openai     gpt-4.1-mini      1M       32K      no        yes`;
     "{}",
     '{"enabledModels": []}',
     '{"enabledModels": "bad"}',
+    '{"enabledModels": ["anthropic/claude-sonnet-4:high"]}',
+    '{"defaultProvider": "anthropic", "defaultModel": "claude-sonnet-4"}',
   ])("falls back to CLI discovery for unusable settings %s", async (settings) => {
     if (settings !== undefined) vi.mocked(readFile).mockResolvedValue(settings);
     const signal = new AbortController().signal;

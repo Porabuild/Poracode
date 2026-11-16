@@ -11,6 +11,12 @@ final class RichChatTerminalController {
   private let gateway: any RichChatTerminalGateway
   private let watchIDGenerator: any RichChatWatchIDGenerating
   private let refreshRequester: any RichChatAuthoritativeRefreshRequesting
+  /// Answers device queries in live PTY output; replies bypass `.watching` (see `TerminalQueryResponder`).
+  @ObservationIgnored lazy var queryResponder = TerminalQueryResponder {
+    [weak self] reply in
+    guard let self, !reply.isEmpty, let target = self.state.target else { return }
+    Task { try? await self.gateway.writeRichTerminal(target: target, data: reply) }
+  }
   private let watchTask = RichChatControllerTaskSlot()
   private let streamTask = RichChatControllerTaskSlot()
   private let resyncTask = RichChatControllerTaskSlot()
@@ -173,6 +179,7 @@ final class RichChatTerminalController {
     watchTask.cancel()
     state.terminalID = terminalID
     state.watchID = watchID
+    resetQueryResponder()
     // Request cursor-sync v2 with the retained durable position as resume
     // (only with a durable generation); the transport negotiates down to v1
     // on hosts that do not advertise v2. The new watch's cursor is seeded
@@ -268,6 +275,7 @@ final class RichChatTerminalController {
         cursorFrame.watchID == state.watchID,
         let cursor = state.cursor
       else { return }
+      offerCursorFrameToQueryResponder(cursorFrame)
       let result = TerminalCursorReconciler.reconcile(state: cursor, frame: cursorFrame)
       state.cursor = result.state
       if result.action == .resync, !state.requiresAuthoritativeRefresh {

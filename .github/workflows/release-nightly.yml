@@ -42,9 +42,6 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-
       - name: Resolve nightly version
         id: resolve
         env:
@@ -117,6 +114,9 @@ jobs:
     needs: [prepare, build, server_artifact, tui_binaries]
     if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' }}
     runs-on: ubuntu-latest
+    # Takes 2 to 5 minutes; a stalled asset upload must not hold the release
+    # concurrency group for the 6-hour default.
+    timeout-minutes: 30
 
     steps:
       - name: Download all build artifacts
@@ -154,7 +154,26 @@ jobs:
           CURRENT_TAG: ${{ needs.prepare.outputs.tag }}
           SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
         run: |
-          previous_tag=$(gh release list --repo "${{ github.repository }}" --json tagName,isPrerelease,createdAt --limit 1000 \
+          # GitHub's API sometimes answers 5xx or an empty body (an empty
+          # generate-notes response failed a finished nightly). These calls only
+          # read, so retry them; only a successful attempt's output is kept.
+          retry() {
+            local attempt output
+            output=$(mktemp)
+            for attempt in 1 2 3 4; do
+              if "$@" > "$output"; then
+                cat "$output"
+                return 0
+              fi
+              if [ "$attempt" -lt 4 ]; then
+                echo "GitHub API call failed (attempt $attempt of 4); retrying." >&2
+                sleep $((attempt * 10))
+              fi
+            done
+            return 1
+          }
+
+          previous_tag=$(retry gh release list --repo "${{ github.repository }}" --json tagName,isPrerelease,createdAt --limit 1000 \
             --jq '[.[] | select(.isPrerelease and .tagName != env.CURRENT_TAG and (.tagName | test("-nightly\\.")))] | sort_by(.createdAt) | last | .tagName // empty')
 
           args=(-f "tag_name=$CURRENT_TAG" -f "target_commitish=$SOURCE_REF")
@@ -165,7 +184,7 @@ jobs:
             echo "No previous nightly release found; generating default release notes."
           fi
 
-          gh api repos/${{ github.repository }}/releases/generate-notes "${args[@]}" \
+          retry gh api repos/${{ github.repository }}/releases/generate-notes "${args[@]}" \
             --jq .body > "$RUNNER_TEMP/release-notes.md"
 
       # electron-updater treats bare semver tags in GitHub's releases.atom feed
@@ -193,7 +212,6 @@ jobs:
             echo "::error::no qualified server metadata in the release assets"
             exit 1
           fi
-          ARGS=()
           for metadata in "${METADATA[@]}"; do
             NAME=$(node -p "require('$metadata').tarball.name")
             EXPECTED=$(node -p "require('$metadata').tarball.sha256")
@@ -205,10 +223,28 @@ jobs:
               echo "::error::$NAME version $VERSION does not match $RELEASE_VERSION"
               exit 1
             }
-            ARGS+=(--artifact "$metadata")
           done
+          # The launcher manifest pins the self-contained archives; each one is
+          # re-hashed against its sidecar before the manifest is verified.
+          SIDECARS=$(node scripts/ci-server-artifact-meta.mjs verify-standalone-release)
+          ARGS=()
+          while IFS= read -r sidecar; do
+            ARGS+=(--standalone "$sidecar")
+          done <<< "$SIDECARS"
           node scripts/generate-runtime-manifest.mjs --verify "${ARGS[@]}" \
             --manifest "$ASSETS/poracode-runtime-manifest.json"
+        shell: bash
+
+      # One-line installers resolve the release, then verify the archive against
+      # SHA256SUMS. Both scripts ship from the release commit, and the checksums
+      # cover every asset uploaded below.
+      - name: Add the one-line installers and release checksums
+        env:
+          ASSETS: ${{ runner.temp }}/release-assets
+        run: |
+          set -euo pipefail
+          cp website/public/install.sh website/public/install.ps1 "$ASSETS/"
+          node scripts/release-checksums.mjs "$ASSETS"
         shell: bash
 
       - name: Create release commit and staging tag
@@ -266,6 +302,41 @@ jobs:
           gh api --method DELETE \
             "repos/${{ github.repository }}/git/refs/tags/$DRAFT_TAG" ||
             echo "::warning::Published successfully but could not delete staging tag $DRAFT_TAG."
+
+  # ── Step 4: Publish the qualified launcher to npm (nightly tag) ───
+  # `npx poracode@nightly`; a prerelease never takes `latest` (the publish
+  # script refuses that pairing). Gated like the stable job.
+  publish_npm:
+    name: Publish the poracode npm launcher (nightly)
+    needs: [prepare, release]
+    if: ${{ !inputs.dry_run && needs.prepare.outputs.skip != 'true' && vars.NPM_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      # npm allows up to 10 trusted publishers per package; one dispatched
+      # workflow keeps a single trusted-publisher entry to audit. Both release
+      # trains dispatch publish-npm.yml, which publishes this run's exact
+      # qualified package once the public release carries the same manifest —
+      # and this job waits for that run so a failed publish fails the release.
+      # The script waits for the run its own dispatch started, so rerunning
+      # this job after a failed publish recovers instead of matching that
+      # failed run again.
+      - name: Checkout the dispatch script
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: scripts/dispatch-npm-publish.mjs
+          sparse-checkout-cone-mode: false
+
+      - name: Dispatch the npm trusted-publisher workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
+        run: node scripts/dispatch-npm-publish.mjs --version "$RELEASE_VERSION" --source-ref "$SOURCE_REF" --dist-tag nightly
+        shell: bash
 
   cleanup-failed-release:
     needs: [prepare, build, release]

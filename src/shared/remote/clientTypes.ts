@@ -221,8 +221,8 @@ export const LOCAL_IMAGE_TICKET_REUSE_MARGIN_MS = 5_000;
 export const LOCAL_IMAGE_TICKET_CACHE_MAX_ENTRIES = 64;
 
 /**
- * Long-running server operations (clone, push, PR creation, commit, sync,
- * merge) routinely exceed the 60s default while succeeding server-side; a
+ * Long-running server operations (clone, worktree creation, push, PR creation,
+ * commit, sync, merge) can exceed the 60s default while succeeding server-side; a
  * short deadline reports a false failure while the op keeps running. These get
  * a generous deadline instead.
  */
@@ -230,6 +230,9 @@ export const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
 
 /** Native session restoration can take several minutes before accepting input. */
 export const THREAD_START_REMOTE_REQUEST_TIMEOUT_MS = 10 * 60_000;
+
+/** Worktree requests can wait behind another repository mutation before checkout. */
+export const WORKTREE_ADD_REMOTE_REQUEST_TIMEOUT_MS = 11 * 60_000;
 
 export function defaultClientMetadata(): RemoteClientMetadata {
   const userAgent = globalThis.navigator?.userAgent;

@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.richchat.RichChatHistoryNoticeState
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * B1 durable history-incomplete banner. Renders server-truth notice state —
@@ -45,7 +46,7 @@ internal fun RichChatHistoryNoticeBanner(
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.weight(1f),
                 )
-                Button(onClick = onRetryCheck) {
+                FilledTonalButton(onClick = onRetryCheck) {
                     Text(stringResource(R.string.rich_chat_retry))
                 }
             }
@@ -82,7 +83,7 @@ internal fun RichChatHistoryNoticeBanner(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (descriptor != null) {
-            Button(
+            FilledTonalButton(
                 onClick = onAcknowledge,
                 enabled = canOperate && !noticeState.acknowledging,
                 modifier = Modifier.padding(top = 4.dp),

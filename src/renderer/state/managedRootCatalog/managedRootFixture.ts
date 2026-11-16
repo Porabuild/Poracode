@@ -22,6 +22,7 @@ import {
   acknowledgeRuntimeThreadGap,
   attachRuntimePersistenceDurableGapFromCurrentConnection,
   closeDatabase,
+  dbGetThreads,
   getRuntimeThreadGapDescriptor,
   getRuntimeThreadGapNotice,
   initDatabase,
@@ -29,6 +30,10 @@ import {
 } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  composerDraftStorage,
+  resetComposerDraftStorageForTest,
+} from "@/renderer/state/composerDraftStorage";
 import {
   installElectronClientRuntime,
   isDesktopLoopbackIntakeActive,
@@ -43,6 +48,8 @@ import {
 } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { exchangePairingCredential } from "@/renderer/state/remoteServers/desktopLoopbackAuth";
 import { getManagedRootCatalogStatus } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+// Registers the host history readers the persister hydrates managed threads through.
+import "@/renderer/state/hostThreadHistory";
 
 /**
  * Shared managed-root integration fixture (extracted verbatim from
@@ -219,6 +226,21 @@ export async function startFixtureServer(
         return { threadId: payload.threadId };
       }
       if (procedure === "closeThreadConfirmed") return { confirmed: true };
+      if (procedure === "gitListWorktrees") {
+        const paths = new Map(
+          dbGetThreads()
+            .filter((thread) => thread.worktreePath)
+            .map((thread) => [thread.worktreePath!, thread.worktreeBranch ?? "fixture-worktree"]),
+        );
+        return {
+          worktrees: [...paths].map(([path, branch]) => ({
+            path,
+            branch,
+            commit: FIXTURE_BASE_COMMIT,
+            isMain: false,
+          })),
+        };
+      }
       if (procedure === "gitListBranches") {
         return {
           current: "main",
@@ -456,4 +478,6 @@ export async function teardownManagedRootFixture(): Promise<void> {
   });
   vi.restoreAllMocks();
   await new Promise((resolve) => setTimeout(resolve, 0));
+  await composerDraftStorage()?.flushRequired();
+  resetComposerDraftStorageForTest();
 }

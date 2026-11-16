@@ -42,6 +42,12 @@ export interface CrewRosterModel {
   onSaveToCrew: (savedCrew: SavedCrew, binding: ThreadCrewBinding) => void;
   onSaveAsNewCrew: (savedCrew: SavedCrew, binding: ThreadCrewBinding) => void;
   onHandOff?: () => void;
+  /**
+   * Replaces the roster gear's direct Settings navigation. Surfaces that sit
+   * behind a modal supply this to dismiss themselves first; absence opens
+   * the Crews settings section immediately.
+   */
+  onEditInSettings?: () => void;
 }
 
 export function leadSelectionOf(
@@ -272,7 +278,7 @@ export function crewSummary(
   roles: readonly CrewRole[],
   modelLabelOf: (selection: CrewMemberSelection) => string,
 ): string {
-  if (roles.length === 1 && (roles[0]?.parallel ?? 1) === 1) {
+  if (roles.length === 1) {
     return `${leadLabel} + ${modelLabelOf(roles[0]!.selection)}`;
   }
   return `${leadLabel} + ${roles.length}`;

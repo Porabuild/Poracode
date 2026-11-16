@@ -57,6 +57,54 @@ export function buildBranchPrPrefetchThreadKeys(
   return keys;
 }
 
+const worktreeWatchThreadKeysCache = new WeakMap<readonly Thread[], ReadonlyMap<string, string>>();
+
+/**
+ * Per-project structural key of thread fields that determine which worktree
+ * paths `getProjectActiveWorktreePaths` watches/polls. Volatile runtime updates
+ * (turn timing, slashCommands, sessionConfigOptions, idle/finished transitions
+ * that keep `threadIsProtected` identical) reuse the same string so
+ * `syncActiveWorktrees` does not re-sort and rebuild sidebar rows on every
+ * background thread tick.
+ */
+export function buildWorktreeWatchThreadKeys(
+  threads: readonly Thread[],
+): ReadonlyMap<string, string> {
+  const cached = worktreeWatchThreadKeysCache.get(threads);
+  if (cached) return cached;
+  const entriesByProject = new Map<string, string[]>();
+  for (const thread of threads) {
+    const isProtected =
+      thread.starred ||
+      thread.status === "working" ||
+      thread.status === "launching" ||
+      thread.status === "needs_approval" ||
+      thread.status === "needs_reply" ||
+      thread.status === "error";
+    const entry = [
+      thread.id,
+      thread.archived ? "1" : "0",
+      thread.done ? "1" : "0",
+      thread.starred ? "1" : "0",
+      isProtected ? "1" : "0",
+      thread.groupId ?? "",
+      thread.worktreePath ?? "",
+      thread.worktreeBranch ?? "",
+      thread.updatedAt,
+      thread.createdAt,
+    ].join("\0");
+    const entries = entriesByProject.get(thread.projectId);
+    if (entries) entries.push(entry);
+    else entriesByProject.set(thread.projectId, [entry]);
+  }
+  const keys = new Map<string, string>();
+  for (const [projectId, entries] of entriesByProject) {
+    keys.set(projectId, entries.join("\u0001"));
+  }
+  worktreeWatchThreadKeysCache.set(threads, keys);
+  return keys;
+}
+
 /** Project ids whose key differs between two per-project key maps, including added/removed ones. */
 export function diffProjectKeys(
   previous: ReadonlyMap<string, string>,

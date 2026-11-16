@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, TextArea } from "@heroui/react";
 import { DiffView, SplitSide, type DiffFile, type DiffViewProps } from "@git-diff-view/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -76,6 +76,7 @@ export function resolveDiffAnnotationComposerId(
 }
 
 export function DiffAnnotationEditor(props: {
+  onEditingChange?: (editing: boolean) => void;
   filePath: string;
   lineNumber: number;
   onClose: () => void;
@@ -87,6 +88,11 @@ export function DiffAnnotationEditor(props: {
   const { filePath, lineNumber, onClose, projectId, side, staged, worktreePath } = props;
   const { t } = useLingui();
   const [body, setBody] = useState("");
+  const { onEditingChange } = props;
+  useEffect(() => {
+    onEditingChange?.(true);
+    return () => onEditingChange?.(false);
+  }, [onEditingChange]);
 
   function addComment() {
     if (!body.trim()) return;
@@ -147,6 +153,7 @@ type AnnotationDiffViewProps = Omit<
   DiffViewProps<never>,
   "diffFile" | "diffViewAddWidget" | "onAddWidgetClick" | "renderWidgetLine"
 > & {
+  onEditingChange?: (editing: boolean) => void;
   diffFile: DiffFile;
   filePath: string;
   projectId: string;
@@ -155,7 +162,8 @@ type AnnotationDiffViewProps = Omit<
 };
 
 export function DiffAnnotationView(props: AnnotationDiffViewProps) {
-  const { diffFile, filePath, projectId, staged, worktreePath, ...diffViewProps } = props;
+  const { diffFile, filePath, projectId, staged, worktreePath, onEditingChange, ...diffViewProps } =
+    props;
   return (
     <DiffView
       {...diffViewProps}
@@ -163,6 +171,7 @@ export function DiffAnnotationView(props: AnnotationDiffViewProps) {
       diffViewAddWidget
       renderWidgetLine={({ lineNumber, side, onClose }) => (
         <DiffAnnotationEditor
+          {...(onEditingChange ? { onEditingChange } : {})}
           filePath={filePath}
           lineNumber={lineNumber}
           onClose={onClose}

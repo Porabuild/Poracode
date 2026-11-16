@@ -4,6 +4,11 @@ import {
 } from "@/shared/workspaceDirectorySelection";
 import type { ProjectLocation, Project, Thread } from "@/shared/contracts";
 import {
+  nonEmptyPluginOverrides,
+  pluginOverridesSchema,
+  threadTurnInterruptionSchema,
+} from "@/shared/contracts";
+import {
   readPersistedProjectDraftConfig,
   readPersistedThreadConfig,
 } from "./persistedSelectionData";
@@ -30,6 +35,7 @@ export interface ProjectRow {
   gh_account: string | null;
   worktree_base_branch: string | null;
   pinned_branches: string | null;
+  plugin_overrides: string | null;
   workspace_id: string | null;
   disabled: number;
   sort_order: number;
@@ -48,6 +54,7 @@ export interface ThreadRow {
   config: string;
   status: string;
   attention: string;
+  error_message: string | null;
   thread_status_source: string | null;
   can_resume_with_config: number;
   session_ref: string | null;
@@ -71,6 +78,7 @@ export interface ThreadRow {
   active_turn_started_at: string | null;
   last_turn_started_at: string | null;
   last_turn_ended_at: string | null;
+  interrupted_turn: string | null;
 }
 
 // ── Converters ──────────────────────────────────────────────────────
@@ -99,6 +107,9 @@ export function projectMutableRow(project: Project) {
     ghAccount: project.ghAccount ? JSON.stringify(project.ghAccount) : null,
     worktreeBaseBranch: project.worktreeBaseBranch ?? null,
     pinnedBranches: project.pinnedBranches?.length ? JSON.stringify(project.pinnedBranches) : null,
+    pluginOverrides: nonEmptyPluginOverrides(project.pluginOverrides)
+      ? JSON.stringify(project.pluginOverrides)
+      : null,
     workspaceId: project.workspaceId ?? null,
     disabled: (project.disabled ? 1 : 0) as SqliteBool,
   };
@@ -144,6 +155,7 @@ export function rowToProject(row: ProjectRow): Project {
     ...(row.gh_account ? { ghAccount: JSON.parse(row.gh_account) } : {}),
     ...(row.worktree_base_branch ? { worktreeBaseBranch: row.worktree_base_branch } : {}),
     ...(row.pinned_branches ? { pinnedBranches: JSON.parse(row.pinned_branches) } : {}),
+    ...readPluginOverrides(row.plugin_overrides),
     ...(row.workspace_id ? { workspaceId: row.workspace_id } : {}),
     ...(row.disabled ? { disabled: true } : {}),
     createdAt: row.created_at,
@@ -163,6 +175,7 @@ export function rowToThread(row: ThreadRow): Thread {
     config: readPersistedThreadConfig(row.config),
     status: row.status as Thread["status"],
     attention: row.attention as Thread["attention"],
+    ...(row.status === "error" && row.error_message ? { errorMessage: row.error_message } : {}),
     ...(row.thread_status_source
       ? { threadStatusSource: row.thread_status_source as Thread["threadStatusSource"] }
       : {}),
@@ -188,7 +201,14 @@ export function rowToThread(row: ThreadRow): Thread {
     ...(row.active_turn_started_at ? { activeTurnStartedAt: row.active_turn_started_at } : {}),
     ...(row.last_turn_started_at ? { lastTurnStartedAt: row.last_turn_started_at } : {}),
     ...(row.last_turn_ended_at ? { lastTurnEndedAt: row.last_turn_ended_at } : {}),
+    ...readInterruptedTurn(row.interrupted_turn),
   };
+}
+
+/** A value from a newer release reads as "nothing to resume", never as a guess. */
+function readInterruptedTurn(value: string | null): Pick<Thread, "interruptedTurn"> {
+  const parsed = threadTurnInterruptionSchema.safeParse(value);
+  return parsed.success ? { interruptedTurn: parsed.data } : {};
 }
 
 export function safeParse(json: string): unknown {
@@ -196,5 +216,17 @@ export function safeParse(json: string): unknown {
     return JSON.parse(json);
   } catch {
     return undefined;
+  }
+}
+
+/** A malformed stored value is inert (every plugin inherits) rather than fatal to the row. */
+function readPluginOverrides(value: string | null): Pick<Project, "pluginOverrides"> {
+  if (!value) return {};
+  try {
+    const parsed = pluginOverridesSchema.safeParse(JSON.parse(value));
+    const pluginOverrides = parsed.success ? nonEmptyPluginOverrides(parsed.data) : undefined;
+    return pluginOverrides ? { pluginOverrides } : {};
+  } catch {
+    return {};
   }
 }

@@ -1,5 +1,4 @@
 import { remotePushRegistrationRoutingSchema } from "../../../src/shared/remote/protocol.ts";
-import type { FaultFixtureId } from "./controlFixtures.ts";
 import { LabHttpError } from "./labAuth.ts";
 import { buildReplayableEvent } from "./labFixtures.ts";
 import { scenarioActionFingerprint } from "./nativeScenarioIdempotency.ts";
@@ -12,11 +11,36 @@ import { sortCodePoints } from "./sort.ts";
 import type { WireLab } from "./wireLab.ts";
 import { NATIVE_E2E_SCENARIO_API_VERSION } from "./versions.ts";
 import { validateScenarioTimeout } from "./nativeScenarioValidation.ts";
-import type { WireOperationObservation } from "./observationLedger.ts";
+import {
+  SCENARIO_ACTION_PATH,
+  SCENARIO_DESCRIPTOR_PATH,
+  SCENARIO_STATE_PATH,
+} from "./nativeScenarioTypes.ts";
+import type {
+  NativeScenarioState,
+  ScenarioAction,
+  ScenarioActionResult,
+  ScenarioCondition,
+  ScenarioDescriptor,
+  ScenarioHostId,
+  ScenarioHostState,
+} from "./nativeScenarioTypes.ts";
 
-export const SCENARIO_STATE_PATH = "/v1/scenario/state" as const;
-export const SCENARIO_ACTION_PATH = "/v1/scenario/actions" as const;
-export const SCENARIO_DESCRIPTOR_PATH = "/v1/scenario" as const;
+export {
+  SCENARIO_ACTION_PATH,
+  SCENARIO_DESCRIPTOR_PATH,
+  SCENARIO_STATE_PATH,
+} from "./nativeScenarioTypes.ts";
+export type {
+  NativeScenarioState,
+  ScenarioAction,
+  ScenarioActionResult,
+  ScenarioCondition,
+  ScenarioDescriptor,
+  ScenarioHostId,
+  ScenarioHostState,
+  ScenarioHostTarget,
+} from "./nativeScenarioTypes.ts";
 
 const CANONICAL_REPLAY_EVENTS = [
   "thread-reset",
@@ -32,92 +56,6 @@ const PRIMARY_CLIENT_CONNECTION_ID = "00000000-0000-4000-8000-000000000001";
 const COLLISION_CLIENT_CONNECTION_ID = "00000000-0000-4000-8000-000000000002";
 const COLLISION_THREAD_ID = "thread-collision-001";
 const DEFAULT_TIMEOUT_MS = 5_000;
-
-export type ScenarioHostId = "primary" | "collision-b";
-export type ScenarioHostTarget = ScenarioHostId | "all";
-
-export interface ScenarioHostState {
-  readonly hostId: ScenarioHostId;
-  readonly desktopId: string;
-  readonly clientConnectionId: string;
-  readonly remoteThreadIds: readonly string[];
-  readonly httpBaseUrl: string;
-  readonly wsBaseUrl: string;
-  readonly pairingState: "pairable" | "paired" | "unpaired";
-  readonly observedOperationIds: readonly string[];
-  readonly operationJournal: readonly WireOperationObservation[];
-  readonly lastReplay: readonly { readonly seq: number; readonly type: string }[];
-}
-
-export interface NativeScenarioState {
-  readonly formatVersion: typeof NATIVE_E2E_SCENARIO_API_VERSION;
-  readonly revision: number;
-  readonly pairingState: "pairable" | "paired" | "unpaired";
-  readonly hosts: readonly ScenarioHostState[];
-  readonly declaredOperationIds: readonly string[];
-  readonly observedOperationIds: readonly string[];
-  readonly faults: readonly string[];
-}
-
-export interface ScenarioDescriptor {
-  readonly formatVersion: typeof NATIVE_E2E_SCENARIO_API_VERSION;
-  readonly descriptorPath: typeof SCENARIO_DESCRIPTOR_PATH;
-  readonly statePath: typeof SCENARIO_STATE_PATH;
-  readonly actionPath: typeof SCENARIO_ACTION_PATH;
-  readonly authScheme: "harness-capability";
-  readonly pairing: "action-result-only";
-  readonly actions: readonly string[];
-  readonly awaitConditions: readonly string[];
-}
-
-export type ScenarioCondition =
-  | { readonly kind: "revision-at-least"; readonly revision: number }
-  | { readonly kind: "operations-observed"; readonly operationIds: readonly string[] }
-  | { readonly kind: "pairing-state"; readonly state: NativeScenarioState["pairingState"] }
-  | { readonly kind: "host-count"; readonly count: number };
-
-export type ScenarioAction =
-  | { readonly type: "reset"; readonly requestId?: string }
-  | { readonly type: "pairing-url"; readonly hostId?: ScenarioHostId; readonly requestId?: string }
-  | { readonly type: "seed-multihost-collision"; readonly requestId?: string }
-  | {
-      readonly type: "emit-canonical-replay";
-      readonly hostId?: ScenarioHostTarget;
-      readonly threadId?: string;
-      readonly requestId?: string;
-    }
-  | {
-      readonly type: "declare-observations";
-      readonly operationIds: readonly string[];
-      readonly requestId?: string;
-    }
-  | {
-      readonly type: "activate-fault";
-      readonly fixtureId: FaultFixtureId;
-      readonly requestId?: string;
-    }
-  | { readonly type: "clear-faults"; readonly requestId?: string }
-  | {
-      readonly type: "await";
-      readonly condition: ScenarioCondition;
-      readonly timeoutMs?: number;
-      readonly requestId?: string;
-    };
-
-export interface ScenarioActionResult {
-  readonly formatVersion: typeof NATIVE_E2E_SCENARIO_API_VERSION;
-  readonly ok: true;
-  readonly action: ScenarioAction["type"];
-  readonly operationId: string;
-  readonly revision: number;
-  readonly state: NativeScenarioState;
-  readonly pairingUrl?: string;
-  readonly pairingExpiresAt?: string;
-  readonly hostId?: ScenarioHostId;
-  readonly firstSeq?: number;
-  readonly lastSeq?: number;
-  readonly eventTypes?: readonly string[];
-}
 
 export interface NativeScenarioOptions {
   readonly primaryDesktopId?: string;
@@ -181,6 +119,8 @@ export class NativeScenarioController implements NativeScenarioControl {
         "declare-observations",
         "activate-fault",
         "clear-faults",
+        "background-task-stage",
+        "background-task-output-delay",
         "await",
       ],
       awaitConditions: ["revision-at-least", "operations-observed", "pairing-state", "host-count"],
@@ -200,6 +140,7 @@ export class NativeScenarioController implements NativeScenarioControl {
       declaredOperationIds: sortCodePoints(this.declared),
       observedOperationIds: unionObservedOperationIds(hosts),
       faults: this.primary.faults.list(),
+      backgroundTasks: this.primary.backgroundTasks.snapshot(),
     };
   }
 
@@ -255,6 +196,17 @@ export class NativeScenarioController implements NativeScenarioControl {
         break;
       case "clear-faults":
         this.primary.activateFaultFixture("clear");
+        this.changed();
+        result = this.result(action.type);
+        break;
+      case "background-task-stage":
+        // Publishing the replacement already notifies the revision waiters
+        // through the ledger listener; exactly one revision bump.
+        this.primary.setBackgroundTaskStage(action.stage);
+        result = this.result(action.type);
+        break;
+      case "background-task-output-delay":
+        this.primary.backgroundTasks.delayNextRead(action.delayMs);
         this.changed();
         result = this.result(action.type);
         break;

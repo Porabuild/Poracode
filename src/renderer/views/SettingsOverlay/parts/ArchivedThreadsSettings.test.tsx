@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, screen } from "@testing-library/react";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -17,6 +18,20 @@ vi.mock("@/renderer/components/providers/ThreadProviderIcon", () => ({
 }));
 
 import { ArchivedThreadsSettings } from "./ArchivedThreadsSettings";
+import {
+  ArchivedThreadsMachinePicker,
+  LOCAL_ARCHIVE_MACHINE_ID,
+} from "./ArchivedThreadsMachinePicker";
+
+function ArchiveSettings() {
+  const [machineId, onMachineChange] = useState(LOCAL_ARCHIVE_MACHINE_ID);
+  return (
+    <>
+      <ArchivedThreadsSettings machineId={machineId} onMachineChange={onMachineChange} />
+      <ArchivedThreadsMachinePicker machineId={machineId} onMachineChange={onMachineChange} />
+    </>
+  );
+}
 
 const project: Project = {
   id: "local-project",
@@ -99,25 +114,24 @@ describe("ArchivedThreadsSettings", () => {
   });
 
   it("separates local and remote archives by machine", async () => {
-    render(<ArchivedThreadsSettings />);
+    render(<ArchiveSettings />);
 
     expect(screen.getByText("Local newer")).toBeInTheDocument();
     expect(screen.queryByText("Remote archive")).not.toBeInTheDocument();
 
-    const machineTrigger = screen.getByRole("button", { name: "Machine: This machine" });
-    expect(machineTrigger).toHaveClass("rounded-3xl", "justify-start");
+    const machineTrigger = screen.getByRole("button", { name: /Machine: This machine/ });
     expect(machineTrigger.querySelector(".lucide-monitor")).not.toBeNull();
     fireEvent.click(machineTrigger);
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio Mac" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Studio Mac" }));
 
     expect(screen.getByText("Remote archive")).toBeInTheDocument();
     expect(screen.queryByText("Local newer")).not.toBeInTheDocument();
     expect(machineTrigger.querySelector(".lucide-server")).not.toBeNull();
-    expect(machineTrigger).toHaveAccessibleName("Machine: Studio Mac");
+    expect(machineTrigger).toHaveAccessibleName(/Machine: Studio Mac/);
   });
 
   it("groups archives by day and clears only the selected day", () => {
-    render(<ArchivedThreadsSettings />);
+    render(<ArchiveSettings />);
 
     const clearDayButtons = screen.getAllByRole("button", { name: /Clear archived threads from/ });
     expect(clearDayButtons).toHaveLength(2);
@@ -133,7 +147,7 @@ describe("ArchivedThreadsSettings", () => {
   });
 
   it("shows the archive time and clears every archive on the selected machine", () => {
-    render(<ArchivedThreadsSettings />);
+    render(<ArchiveSettings />);
 
     expect(screen.getAllByText(/Archived at/)).toHaveLength(2);
     expect(screen.getByText("Worktree: feature/archive")).toBeInTheDocument();
@@ -151,7 +165,7 @@ describe("ArchivedThreadsSettings", () => {
   });
 
   it("confirms a single archived thread and discloses worktree removal", () => {
-    render(<ArchivedThreadsSettings />);
+    render(<ArchiveSettings />);
 
     fireEvent.click(screen.getAllByRole("button", { name: "Delete thread" })[1]!);
 
@@ -174,10 +188,10 @@ describe("ArchivedThreadsSettings", () => {
         d1: { status: "offline", projects: [], threads: [] },
       },
     }));
-    render(<ArchivedThreadsSettings />);
+    render(<ArchiveSettings />);
 
     fireEvent.click(screen.getByRole("button", { name: /Machine:/ }));
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio Mac" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Studio Mac" }));
 
     expect(screen.getByText(/selected machine is unavailable/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clear all" })).toBeDisabled();
@@ -192,10 +206,10 @@ describe("ArchivedThreadsSettings", () => {
         d1: { status: "error", message: "Previous request failed", projects: [], threads: [] },
       },
     }));
-    render(<ArchivedThreadsSettings />);
+    render(<ArchiveSettings />);
 
     fireEvent.click(screen.getByRole("button", { name: /Machine:/ }));
-    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio Mac" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Studio Mac" }));
 
     expect(screen.queryByText(/selected machine is unavailable/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Clear all" })).toBeEnabled();

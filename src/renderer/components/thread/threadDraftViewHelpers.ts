@@ -194,8 +194,9 @@ export function resolveModeValue(agent: AgentStatus, preferred?: string): string
 export { formatEffortLabel } from "@/renderer/components/common/effortLabel";
 
 /**
- * A saved policy only wins while the surface still advertises it. Carrying an
- * unsupported id through as "" left the draft with no permission selected —
+ * Keep a provider-declared default or bypass policy while its catalog is empty;
+ * once advertised, only supported ids win. Carrying an unsupported id through
+ * as "" left the draft with no permission selected —
  * and dual-runtime providers hit that on every draft, because one id space
  * (Antigravity's `agy` says `yolo`) is not the other's (Chat says `never`).
  * Falling back to the provider's declared default keeps a valid posture
@@ -203,6 +204,13 @@ export { formatEffortLabel } from "@/renderer/components/common/effortLabel";
  */
 export function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: string): string {
   const policies = agent.capabilities.approvalPolicies;
+  if (policies.length === 0) {
+    return preferred &&
+      (preferred === agent.capabilities.defaultApprovalPolicy ||
+        preferred === agent.capabilities.bypassPermissions?.approvalPolicy)
+      ? preferred
+      : "";
+  }
   if (preferred !== undefined && policies.some((p) => p.id === preferred)) {
     return preferred;
   }
@@ -215,6 +223,13 @@ export function resolveApprovalPolicyValue(agent: AgentStatus, preferred?: strin
 
 export function resolveSandboxModeValue(agent: AgentStatus, preferred?: string): string {
   const modes = agent.capabilities.sandboxModes;
+  if (modes.length === 0) {
+    return preferred &&
+      (preferred === agent.capabilities.defaultSandboxMode ||
+        preferred === agent.capabilities.bypassPermissions?.sandboxMode)
+      ? preferred
+      : "";
+  }
   if (preferred !== undefined) {
     return modes.some((m) => m.id === preferred) ? preferred : "";
   }
@@ -306,6 +321,13 @@ export function resolveProviderDraftConfig(
       resolveContextSizeValue(agent, nextModel, normalizedPreferred.contextSize))
     : resolveContextSizeValue(agent, nextModel, normalizedPreferred.contextSize);
   const supportsFast = supportsUsableFastMode(agent.capabilities, nextModel);
+  // A declared fastModels list is authoritative: a model it does not name
+  // cannot carry Fast, so a saved `true` must not survive the selection. An
+  // undeclared list stays unknown and keeps the legacy saved value (providers
+  // that have not published per-model Fast support yet).
+  const fastKnown =
+    agent.capabilities.fastModels !== undefined ||
+    agent.capabilities.fastDisabledReason !== undefined;
   // Fast mode is the composer's default for every model that can actually use
   // it unless the provider declares an opt-in default. AI helpers call
   // `resolveFastValue` directly and keep their opt-in default, so background
@@ -314,12 +336,14 @@ export function resolveProviderDraftConfig(
   const nextFast = family
     ? fastBound
       ? (normalizedPreferred.fast ?? false)
-      : (normalizedPreferred.fast ??
-        resolveFastValue(
-          agent,
-          nextModel,
-          normalizedPreferred.fast ?? defaultFastEnabled(agent.kind),
-        ))
+      : fastKnown && !supportsFast
+        ? false
+        : (normalizedPreferred.fast ??
+          resolveFastValue(
+            agent,
+            nextModel,
+            normalizedPreferred.fast ?? defaultFastEnabled(agent.kind),
+          ))
     : resolveFastValue(
         agent,
         nextModel,

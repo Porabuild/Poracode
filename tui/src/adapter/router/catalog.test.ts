@@ -947,3 +947,15 @@ test("the Poracode catalog disappears when no provider can lead a crew", async (
   ).json()) as ModelListOutput;
   expect(models.data.some((m) => m.providerID === "poracode")).toBe(false);
 });
+
+test("websearch provider catalog answers an empty list instead of 404", async () => {
+  const { value } = S.router();
+  const response = await value.handle(
+    new Request("http://poracode.invalid/api/websearch/provider"),
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    location: { directory: "C:/repo" },
+    data: [],
+  });
+});

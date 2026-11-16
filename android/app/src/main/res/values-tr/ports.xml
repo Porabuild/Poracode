@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Bağlantı noktası yönlendirme</string>
+    <string name="ports_title">Portlar</string>
     <string name="ports_back">Geri</string>
     <string name="ports_refresh">Bağlantı noktalarını yenile</string>
     <string name="ports_target_port">Hedef bağlantı noktası</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">Tarayıcı yönlendirmesi bu masaüstü bilgisayarda yapılandırılmamış.</string>
     <string name="ports_failure_ambiguous">İstek tamamlanmış olabilir. Liste yenilendi.</string>
     <string name="ports_failure_unavailable">Bağlantı noktası yönlendirme şu anda kullanılamıyor.</string>
+    <string name="ports_intro">Masaüstünüzün localhost\'unda dinleyen geliştirme sunucuları.</string>
+    <string name="ports_forward_a_port">Bir portu yönlendir</string>
 </resources>

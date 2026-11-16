@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { RuntimeEvent } from "@/shared/contracts";
 import { createAcpMapperState, mapAcpSessionUpdate } from "../acp/canonicalMapping";
-import {
-  createCommandCodeSessionUpdateTransform,
-  normalizeCommandCodeSessionUpdate,
-} from "./acpUpdates";
+import { CommandCodeSubagentSteps, normalizeCommandCodeSessionUpdate } from "./acpUpdates";
 
 describe("Command Code native ACP agent calls", () => {
   it("renders the bundled default agent as a subagent when no subtype is supplied", () => {
@@ -66,59 +64,123 @@ describe("Command Code native ACP agent calls", () => {
     },
   });
 
-  it("keeps native tool summaries out of child message text and preserves the final response", () => {
-    const transform = createCommandCodeSessionUpdateTransform();
+  const completedProgress = (text: string, id = "agent-1"): SessionNotification => {
+    const notification = progress(text, id);
+    return {
+      ...notification,
+      update: { ...notification.update, status: "completed" } as SessionNotification["update"],
+    };
+  };
+
+  /** Mirrors AcpStructuredSession: sources see raw updates before the transform. */
+  function harness() {
     const state = createAcpMapperState("thread-1");
-    mapAcpSessionUpdate(transform(agentCall()), state);
-    for (const [index, text] of ["read_directory(.)", "read_file(src\\ChatPane.tsx)"].entries()) {
-      const events = mapAcpSessionUpdate(transform(progress(text)), state);
-      expect(events).toEqual([
-        expect.objectContaining({
-          type: "item.updated",
-          payload: expect.objectContaining({
-            progress: expect.objectContaining({ description: text, toolUses: index + 1 }),
-          }),
-        }),
-      ]);
-      expect(events[0]).not.toHaveProperty("payload.result");
-    }
-    const final = progress("The layout is in ChatPane.tsx.");
-    final.update = { ...final.update, status: "completed" } as SessionNotification["update"];
-    const events = mapAcpSessionUpdate(transform(final), state);
-    expect(events.filter((event) => event.type === "content.delta")).toEqual([
+    const events: RuntimeEvent[] = [];
+    const map = (notification: SessionNotification) => {
+      events.push(...mapAcpSessionUpdate(normalizeCommandCodeSessionUpdate(notification), state));
+    };
+    const source = new CommandCodeSubagentSteps(map);
+    const feed = (notification: SessionNotification) => {
+      if (source.onSessionUpdate(notification) !== true) map(notification);
+    };
+    return { events, feed };
+  }
+
+  it("renders native tool summaries as child tool rows, not message text, and keeps the final response", () => {
+    const { events, feed } = harness();
+    feed(agentCall());
+    feed(progress("read_directory(.)"));
+    feed(progress("read_file(src\\ChatPane.tsx)"));
+
+    const [parent, ...children] = events.filter((event) => event.type === "item.started");
+    expect(parent).toMatchObject({ itemType: "tool_call", payload: { isSubAgent: true } });
+    const parentItemId = parent?.itemId;
+    expect(children).toEqual([
+      expect.objectContaining({
+        itemType: "tool_call",
+        parentItemId,
+        payload: expect.objectContaining({ title: "read_directory(.)", status: "success" }),
+      }),
+      expect.objectContaining({
+        itemType: "tool_call",
+        parentItemId,
+        payload: expect.objectContaining({ title: "read_file(src\\ChatPane.tsx)" }),
+      }),
+    ]);
+    expect(
+      events.flatMap((event) => (event.type === "item.completed" ? [event.itemId] : [])),
+    ).toEqual(children.map((child) => child.itemId));
+    expect(events.some((event) => event.type === "content.delta")).toBe(false);
+    const parentUpdates = events.filter(
+      (event) => event.type === "item.updated" && event.itemId === parentItemId,
+    );
+    expect(parentUpdates.at(-1)).toMatchObject({
+      payload: { progress: { lastToolName: "read_file", toolUses: 2, stepCount: 2 } },
+    });
+
+    const before = events.length;
+    feed(completedProgress("The layout is in ChatPane.tsx."));
+    const finalEvents = events.slice(before);
+    expect(finalEvents.filter((event) => event.type === "content.delta")).toEqual([
       expect.objectContaining({ delta: "The layout is in ChatPane.tsx." }),
     ]);
-    expect(events.at(-1)).toMatchObject({
+    expect(finalEvents.at(-1)).toMatchObject({
       type: "item.completed",
+      itemId: parentItemId,
       payload: { result: "The layout is in ChatPane.tsx.", status: "success" },
     });
   });
 
-  it("isolates sibling counts and never reinterprets ordinary, unknown, or completed tool output", () => {
-    const transform = createCommandCodeSessionUpdateTransform();
-    transform(agentCall());
-    transform(agentCall("agent-2"));
-    const first = transform(progress("glob(src/**)"));
-    const sibling = transform(progress("grep(foo)", "agent-2"));
-    expect(first.update._meta).toMatchObject({ poracodeSubAgentProgress: { toolUses: 1 } });
-    expect(sibling.update._meta).toMatchObject({ poracodeSubAgentProgress: { toolUses: 1 } });
+  it("isolates sibling steps and never reinterprets ordinary, unknown, or completed tool output", () => {
+    const ingested: SessionNotification[] = [];
+    const source = new CommandCodeSubagentSteps((notification) => {
+      ingested.push(notification);
+    });
+    expect(source.onSessionUpdate(agentCall())).toBe(false);
+    expect(source.onSessionUpdate(agentCall("agent-2"))).toBe(false);
+    expect(source.onSessionUpdate(progress("glob(src/**)"))).toBe(true);
+    expect(source.onSessionUpdate(progress("grep(foo)", "agent-2"))).toBe(true);
+    expect(ingested.map((notification) => notification.update)).toEqual([
+      expect.objectContaining({
+        sessionUpdate: "tool_call",
+        toolCallId: "agent-1:step:1",
+        title: "glob(src/**)",
+        status: "completed",
+        _meta: { poracodeParentToolCallId: "agent-1" },
+      }),
+      expect.objectContaining({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "agent-1",
+        content: [],
+        _meta: {
+          poracodeSubAgentProgress: expect.objectContaining({ lastToolName: "glob", toolUses: 1 }),
+        },
+      }),
+      expect.objectContaining({
+        toolCallId: "agent-2:step:1",
+        _meta: { poracodeParentToolCallId: "agent-2" },
+      }),
+      expect.objectContaining({
+        toolCallId: "agent-2",
+        _meta: {
+          poracodeSubAgentProgress: expect.objectContaining({ lastToolName: "grep", toolUses: 1 }),
+        },
+      }),
+    ]);
+
+    ingested.length = 0;
     for (const notification of [
       progress("read_file(test)", "unknown"),
       progress("Ordinary intermediate prose"),
       { ...progress("read_file(test)"), sessionId: "another-session" },
     ]) {
-      expect(transform(notification)).toBe(notification);
+      expect(source.onSessionUpdate(notification)).toBe(false);
     }
-    transform(agentCall());
-    const completed = progress("read_file(test)");
-    completed.update = {
-      ...completed.update,
-      status: "completed",
-    } as SessionNotification["update"];
-    expect(transform(completed)).toBe(completed);
-    const late = progress("read_file(test)");
-    expect(transform(late)).toBe(late);
-    const independent = createCommandCodeSessionUpdateTransform();
-    expect(independent(progress("read_file(test)"))).toEqual(progress("read_file(test)"));
+    source.onSessionUpdate(agentCall());
+    expect(source.onSessionUpdate(completedProgress("read_file(test)"))).toBe(false);
+    expect(source.onSessionUpdate(progress("read_file(test)"))).toBe(false);
+    expect(ingested).toEqual([]);
+    const independent = new CommandCodeSubagentSteps(() => {});
+    expect(independent.onSessionUpdate(progress("read_file(test)"))).toBe(false);
   });
 });

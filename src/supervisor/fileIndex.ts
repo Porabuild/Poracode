@@ -7,10 +7,23 @@ import type {
   SearchProjectFilesResult,
 } from "@/shared/contracts";
 import { execGit, getLocationIdentity } from "./git";
+import { GIT_DEFAULT_TIMEOUT } from "./git/exec";
+import { admitGitProcess } from "./git/gitProcessAdmission";
+import {
+  areSearchExcludePatternsNativeCompatible,
+  invalidateNativeSearchCache,
+  isNativeGitHelperActive,
+  queryNativeSearchFiles,
+} from "./git/gitNativeHelperClient";
 
 const MAX_INDEX_SIZE = 100_000;
 const CACHE_TTL_MS = 15_000;
 const MAX_CACHE_ENTRIES = 4;
+
+const entryPathCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
 
 interface CachedIndex {
   entries: FileEntry[];
@@ -24,10 +37,23 @@ const LEGACY_CONFIG: SearchConfigPayload = {
 
 export class FileIndexService {
   private cache = new Map<string, CachedIndex>();
+  private nativeWarmTimestamps = new Map<string, number>();
 
   async searchProjectFiles(payload: SearchProjectFilesPayload): Promise<SearchProjectFilesResult> {
     const { projectLocation, query, limit } = payload;
     const config = payload.searchConfig ?? LEGACY_CONFIG;
+
+    if (
+      projectLocation.kind !== "wsl" &&
+      isNativeGitHelperActive() &&
+      areSearchExcludePatternsNativeCompatible(config.excludePatterns)
+    ) {
+      const nativeResult = await this.tryNativeSearchFiles(projectLocation, query, limit, config);
+      if (nativeResult) {
+        return nativeResult;
+      }
+    }
+
     const { entries } = await this.getOrBuildIndex(projectLocation, config);
 
     if (!query) {
@@ -36,6 +62,51 @@ export class FileIndexService {
 
     const results = this.rankEntries(entries, query.toLowerCase(), limit);
     return { entries: results, totalIndexed: entries.length };
+  }
+
+  private async tryNativeSearchFiles(
+    location: ProjectLocation & { kind: "posix" | "windows" },
+    query: string,
+    limit: number,
+    config: SearchConfigPayload,
+  ): Promise<SearchProjectFilesResult | null> {
+    const key = `${getLocationIdentity(location)}|${cacheKeyForConfig(config)}`;
+    const warmSince = this.nativeWarmTimestamps.get(key);
+    const isWarm = warmSince !== undefined && Date.now() - warmSince < CACHE_TTL_MS;
+
+    const ticket = !isWarm
+      ? await admitGitProcess("short", {
+          units: 1,
+          environment: location.kind,
+          subcommand: "ls-files",
+        })
+      : null;
+    let result: SearchProjectFilesResult | null;
+    try {
+      result = await queryNativeSearchFiles({
+        rootPath: location.path,
+        query,
+        limit,
+        useIgnoreFiles: config.useIgnoreFiles,
+        excludePatterns: config.excludePatterns,
+        timeoutMs: GIT_DEFAULT_TIMEOUT,
+      });
+    } finally {
+      ticket?.release();
+    }
+    if (!result) return null;
+
+    if (isWarm) {
+      this.nativeWarmTimestamps.delete(key);
+      this.nativeWarmTimestamps.set(key, warmSince);
+    } else {
+      if (this.nativeWarmTimestamps.size >= MAX_CACHE_ENTRIES) {
+        const oldest = this.nativeWarmTimestamps.keys().next().value;
+        if (oldest !== undefined) this.nativeWarmTimestamps.delete(oldest);
+      }
+      this.nativeWarmTimestamps.set(key, Date.now());
+    }
+    return result;
   }
 
   /**
@@ -48,6 +119,14 @@ export class FileIndexService {
       if (key.startsWith(prefix)) {
         this.cache.delete(key);
       }
+    }
+    for (const key of this.nativeWarmTimestamps.keys()) {
+      if (key.startsWith(prefix)) {
+        this.nativeWarmTimestamps.delete(key);
+      }
+    }
+    if (location.kind !== "wsl") {
+      invalidateNativeSearchCache(location.path);
     }
   }
 
@@ -137,7 +216,7 @@ export class FileIndexService {
       });
     }
 
-    entries.sort((a, b) => a.path.localeCompare(b.path));
+    entries.sort((a, b) => entryPathCollator.compare(a.path, b.path));
     return entries;
   }
 
@@ -163,7 +242,7 @@ export class FileIndexService {
       // Shorter paths first
       if (a.entry.path.length !== b.entry.path.length)
         return a.entry.path.length - b.entry.path.length;
-      return a.entry.path.localeCompare(b.entry.path);
+      return entryPathCollator.compare(a.entry.path, b.entry.path);
     });
 
     return scored.slice(0, limit).map((s) => s.entry);

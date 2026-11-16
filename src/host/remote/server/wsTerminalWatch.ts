@@ -17,6 +17,7 @@ import {
   unavailableWatchResult,
   unsupportedCursorSyncVersionResult,
 } from "./terminalCursorSync";
+import { reportEventInterestFailures } from "./eventInterestFailures";
 
 /** A client normally watches only the visible terminals. Keep interest state
  * finite even if a malformed or runaway client sends unique watch IDs. */
@@ -50,7 +51,7 @@ export async function handleReliableTerminalWatch(
     ctx.terminalWatches.get(ws)?.delete(terminalId);
     ctx.principalAdmission.releaseWatch(ws, terminalId);
     try {
-      void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+      reportEventInterestFailures(ctx.notifyEventInterestsChanged());
     } catch {
       // Synchronous throw from onEventInterestsChanged — still deliver error.
     }
@@ -129,7 +130,7 @@ export async function handleReliableTerminalWatch(
       ctx.terminalWatches.get(ws)?.delete(terminalId);
       ctx.principalAdmission.releaseWatch(ws, terminalId);
     }
-    void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    reportEventInterestFailures(ctx.notifyEventInterestsChanged());
     if (ws.readyState === WebSocket.OPEN) {
       ctx.send(ws, buildTerminalWatchResultMessage(terminalId, watchId, errorResult));
     }
@@ -164,7 +165,7 @@ export async function handleReliableTerminalWatch(
         ctx.terminalWatches.get(ws)?.delete(terminalId);
         ctx.principalAdmission.releaseWatch(ws, terminalId);
       }
-      void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+      reportEventInterestFailures(ctx.notifyEventInterestsChanged());
     }
     return;
   }

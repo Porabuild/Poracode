@@ -7,6 +7,7 @@ struct HomeQuickComposeView: View {
   @Binding var isExpanded: Bool
   let onStarted: (String) -> Void
   let launchSeed: HomeThreadLaunchSeed?
+  var glassNamespace: Namespace.ID? = nil
 
   @State var lifecycle: ThreadLifecycleController
   @State var mediaSuite: RichChatControllerSuite
@@ -66,12 +67,14 @@ struct HomeQuickComposeView: View {
     initialProjectID: String? = nil,
     initialWorktree: HomeComposerBranchSelection? = nil,
     launchSeed: HomeThreadLaunchSeed? = nil,
+    glassNamespace: Namespace.ID? = nil,
     onStarted: @escaping (String) -> Void
   ) {
     self.session = session
     _isExpanded = isExpanded
     self.onStarted = onStarted
     self.launchSeed = launchSeed
+    self.glassNamespace = glassNamespace
     _lifecycle = State(initialValue: session.makeThreadLifecycleController())
     _mediaSuite = State(initialValue: session.makeRichChatControllerSuite())
     _fileMentionController = State(initialValue: RichChatFileMentionController(session: session))
@@ -127,13 +130,16 @@ struct HomeQuickComposeView: View {
 
   var effectiveConfiguration: ThreadLaunchConfiguration? {
     guard var configuration = targetConfiguration else { return nil }
+    let capabilities = selectedAgent.map {
+      HomeComposerCatalog.capabilities(for: $0, presentationMode: presentationMode)
+    }
     switch permissionMode {
     case .auto:
-      configuration.approvalPolicy = nil
+      configuration.approvalPolicy = permissionMode.approvalPolicy(capabilities: capabilities ?? [:])
       configuration.approvalsReviewer = nil
       configuration.sandboxMode = nil
     case .bypass:
-      configuration.approvalPolicy = "never"
+      configuration.approvalPolicy = permissionMode.approvalPolicy(capabilities: capabilities ?? [:])
       configuration.approvalsReviewer = nil
       configuration.sandboxMode = "danger-full-access"
     case .configured:

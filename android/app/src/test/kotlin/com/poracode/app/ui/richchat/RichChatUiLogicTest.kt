@@ -11,6 +11,7 @@ import com.poracode.app.model.PosixProjectLocation
 import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -19,7 +20,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -208,6 +211,76 @@ class RichChatUiLogicTest {
         )
     }
 
+    @Test
+    fun missingBackgroundTaskReportIsDetectedDespiteTheTitle() {
+        val item = toolItem(
+            status = "error",
+            result = buildJsonObject {
+                put("error", "The task ended without a completion report.")
+            },
+        )
+        // The generic row text prefers the title, which would hide the error.
+        assertEquals("Agent", RichChatUiLogic.itemText(item))
+        assertTrue(RichChatUiLogic.backgroundTaskReportMissing(item))
+    }
+
+    @Test
+    fun unrelatedToolErrorStaysNormal() {
+        val item = toolItem(
+            status = "error",
+            result = buildJsonObject { put("error", "Provider-specific failure") },
+        )
+        assertFalse(RichChatUiLogic.backgroundTaskReportMissing(item))
+        assertEquals("Agent", RichChatUiLogic.itemText(item))
+    }
+
+    @Test
+    fun lateCompletionAndNullResultKeepTheNormalRowText() {
+        assertFalse(
+            RichChatUiLogic.backgroundTaskReportMissing(
+                toolItem(status = "success", result = JsonPrimitive("done")),
+            ),
+        )
+        assertFalse(
+            RichChatUiLogic.backgroundTaskReportMissing(
+                toolItem(status = "success", result = JsonNull),
+            ),
+        )
+        assertFalse(
+            RichChatUiLogic.backgroundTaskReportMissing(
+                toolItem(status = "error", result = JsonNull),
+            ),
+        )
+    }
+
+    @Test
+    fun partialOutputKeepsTheRawResultBehavior() {
+        val item = toolItem(
+            status = "error",
+            result = buildJsonObject {
+                put("error", "The task ended without a completion report.")
+                put("output", "Partial work")
+            },
+        )
+        assertFalse("an actual output result is never replaced", RichChatUiLogic.backgroundTaskReportMissing(item))
+        assertEquals("Agent", RichChatUiLogic.itemText(item))
+    }
+
+    private fun toolItem(
+        status: String,
+        result: kotlinx.serialization.json.JsonElement = JsonNull,
+    ) = RichRuntimeItem(
+        id = "tool-report-missing",
+        type = RichItemTypes.TOOL_CALL,
+        state = RichItemState.COMPLETED,
+        payload = buildJsonObject {
+            put("title", "Agent")
+            put("name", "Agent")
+            put("status", status)
+            put("result", result)
+        },
+    )
+
     private fun goal(objective: String, status: String, actions: List<String>) = RichRuntimeItem(
         id = "goal-$objective",
         type = "goal",
@@ -323,5 +396,62 @@ class RichChatUiLogicTest {
             },
         )
         assertTrue(RichChatUiLogic.chatFiles(item).isEmpty())
+    }
+
+    @Test
+    fun completedTurnDurationHidesSubSecondTurns() {
+        assertNull(RichChatUiLogic.completedTurnDurationParts(0))
+        assertNull(RichChatUiLogic.completedTurnDurationParts(999))
+        assertEquals(
+            listOf(1 to RichChatUiLogic.RichDurationUnit.Second),
+            RichChatUiLogic.completedTurnDurationParts(1_000),
+        )
+    }
+
+    @Test
+    fun completedTurnDurationUnderHourUsesMinutesAndSeconds() {
+        assertEquals(
+            listOf(
+                59 to RichChatUiLogic.RichDurationUnit.Minute,
+                59 to RichChatUiLogic.RichDurationUnit.Second,
+            ),
+            RichChatUiLogic.completedTurnDurationParts(3_599_000),
+        )
+        assertEquals(
+            listOf(1 to RichChatUiLogic.RichDurationUnit.Minute),
+            RichChatUiLogic.completedTurnDurationParts(60_000),
+        )
+        assertEquals(
+            listOf(
+                1 to RichChatUiLogic.RichDurationUnit.Minute,
+                5 to RichChatUiLogic.RichDurationUnit.Second,
+            ),
+            RichChatUiLogic.completedTurnDurationParts(65_000),
+        )
+    }
+
+    @Test
+    fun completedTurnDurationAtHourUsesHoursAndMinutes() {
+        assertEquals(
+            listOf(1 to RichChatUiLogic.RichDurationUnit.Hour),
+            RichChatUiLogic.completedTurnDurationParts(3_600_000),
+        )
+        assertEquals(
+            listOf(
+                2 to RichChatUiLogic.RichDurationUnit.Hour,
+                5 to RichChatUiLogic.RichDurationUnit.Minute,
+            ),
+            RichChatUiLogic.completedTurnDurationParts(7_500_000),
+        )
+    }
+
+    @Test
+    fun canTruncateRejectsBlankAndLastVisibleItem() {
+        assertFalse(RichChatUiLogic.canTruncate("", "item-1"))
+        assertFalse(RichChatUiLogic.canTruncate("   ", "item-1"))
+        assertFalse(RichChatUiLogic.canTruncate("item-1", "item-1"))
+        assertFalse(RichChatUiLogic.canTruncate(" item-1 ", "item-1"))
+        assertTrue(RichChatUiLogic.canTruncate("item-1", "item-2"))
+        assertTrue(RichChatUiLogic.canTruncate("item-1", null))
     }
 }

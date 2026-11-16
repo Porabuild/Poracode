@@ -5,6 +5,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useSidebarOverlayStore } from "@/renderer/state/sidebarOverlayStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import { AppShell } from "./AppShell";
 
 vi.mock("@/renderer/bridge", () => ({ isMac: () => false, isWindows: () => false }));
@@ -151,3 +152,27 @@ it.each(["right", "git"])(
     expect(dispose).not.toHaveBeenCalled();
   },
 );
+
+it("flags the document root while its sidebar sits in a visible overlay", async () => {
+  const flagged = () => document.documentElement.hasAttribute("data-glass-overlay-visible");
+  const base = render(shell());
+  expect(flagged()).toBe(false);
+
+  const overlay = render(
+    <OverlayShell open instantEnter>
+      {shell()}
+    </OverlayShell>,
+  );
+  expect(flagged()).toBe(true);
+
+  // The fade-out starts: the sidebar is still mounted, the base app is back.
+  overlay.rerender(
+    <OverlayShell open={false} instantEnter>
+      {null}
+    </OverlayShell>,
+  );
+  await vi.waitFor(() => expect(flagged()).toBe(false));
+  overlay.unmount();
+  base.unmount();
+  expect(flagged()).toBe(false);
+});

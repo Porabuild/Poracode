@@ -1,4 +1,6 @@
-FROM node:24-bookworm-slim
+# Node 26 satisfies the artifact's engines.node floor (>=26.13.0); the image
+# runtime must match what the server declares and qualifies.
+FROM node:26-bookworm-slim
 
 # Standalone Poracode server image (V6 D.3). Expects the published tarball
 # layout: lib/server.cjs, resources/, and package.json at the image workdir.

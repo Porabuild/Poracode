@@ -88,8 +88,14 @@ class AppSessionDecisionsTest {
     @Test
     fun browsableConfirmAndFingerprint() {
         // Generated pairing-machine policy (V5 5.2) surfaced through the SessionPolicies facade.
-        assertTrue(SessionPolicies.shouldShowBrowsableConfirm(fromBrowsableIntent = true))
-        assertFalse(SessionPolicies.shouldShowBrowsableConfirm(fromBrowsableIntent = false))
+        assertTrue(SessionPolicies.shouldShowBrowsableConfirm(true, "https://a.test", false))
+        assertFalse(
+            SessionPolicies.shouldShowBrowsableConfirm(true, "http://127.0.0.1:49152", false),
+        )
+        assertTrue(
+            SessionPolicies.shouldShowBrowsableConfirm(true, "http://127.0.0.1:49152", true),
+        )
+        assertFalse(SessionPolicies.shouldShowBrowsableConfirm(false, "https://a.test", true))
         val fp = RemotePairingMachine.fingerprint("https://a.test", "secret")
         assertTrue(fp.isNotEmpty())
         assertFalse(fp.contains("secret"))

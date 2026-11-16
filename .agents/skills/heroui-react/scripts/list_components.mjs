@@ -22,7 +22,7 @@ async function fetchApi(endpoint) {
 
   try {
     const response = await fetch(url, {
-      headers: { "User-Agent": "HeroUI-Skill/1.0" },
+      headers: {"User-Agent": "HeroUI-Skill/1.0"},
       signal: AbortSignal.timeout(30000),
     });
 
@@ -46,7 +46,7 @@ async function fetchApi(endpoint) {
 async function fetchFallback() {
   try {
     const response = await fetch(LLMS_TXT_URL, {
-      headers: { "User-Agent": "HeroUI-Skill/1.0" },
+      headers: {"User-Agent": "HeroUI-Skill/1.0"},
       signal: AbortSignal.timeout(30000),
     });
 
@@ -74,11 +74,11 @@ async function fetchFallback() {
       }
 
       // Extract component name from markdown link pattern
-      // Match: - [ComponentName](https://www.heroui.com/en/docs/react/components/component-name)
+      // Match: - [ComponentName](https://www.heroui.com/docs/react/components/component-name)
       // Skip "All Components" which links to /components without a specific component
       if (inComponentsSection) {
         const match = line.match(
-          /^\s*-\s*\[([^\]]+)\]\(https:\/\/www\.heroui\.com\/(?:en\/)?docs\/react\/components\/[a-z]/,
+          /^\s*-\s*\[([^\]]+)\]\(https:\/\/www\.heroui\.com\/docs\/react\/components\/[a-z]/,
         );
 
         if (match) {
@@ -131,7 +131,4 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main();

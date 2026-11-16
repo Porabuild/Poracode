@@ -3,7 +3,7 @@ import { composerDraftStorage } from "./composerDraftStorage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readRawBrowserMetadataRecordForTest } from "./browserMetadataCacheRecords";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
-import { findPaneSlotId, type PaneLayout } from "@/shared/paneLayout";
+import { findPaneSlotId, normalizePaneSlots, type PaneLayout } from "@/shared/paneLayout";
 import {
   readStoredSizes,
   splitStorageKey,
@@ -17,6 +17,7 @@ import { usePanelStore } from "./panelStore";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { useThreadFollowUpQueueStore } from "./threadFollowUpQueueStore";
+import { setOwnWindowThreadIds } from "./auxiliaryThreadWindows";
 
 const volatileInventory: SessionConfigOptions = [
   {
@@ -46,6 +47,33 @@ describe("appStore runtime config sync", () => {
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
     useThreadFollowUpQueueStore.getState().reset();
+  });
+
+  it("repairs v5 active and saved group slot collisions during hydration", () => {
+    const paneLayout: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "b", slotId: "a" },
+        { kind: "leaf", paneId: "a" },
+        { kind: "leaf", paneId: "c" },
+      ],
+    };
+    const persisted = {
+      view: { kind: "thread", panes: ["b", "a", "c"], paneLayout },
+      groupLayouts: { group: { panes: ["b", "a", "c"], paneLayout } },
+    };
+    const merge = useAppStore.persist.getOptions().merge!;
+    const merged = merge(persisted, { ...useAppStore.getState(), groupLayouts: {} });
+    expect(merged.view.kind).toBe("thread");
+    if (merged.view.kind !== "thread") throw new Error("Expected restored panes");
+    expect(merged.view.paneLayout).toMatchObject({
+      children: [{ paneId: "b", slotId: "a" }, { paneId: "a", slotId: "a:1" }, { paneId: "c" }],
+    });
+    expect(merged.groupLayouts.group?.paneLayout).toEqual(merged.view.paneLayout);
+    expect(merge(persisted, merged).view).toEqual(merged.view);
+    expect(paneLayout.children[1]).toEqual({ kind: "leaf", paneId: "a" });
+    expect(useAppStore.persist.getOptions().version).toBe(5);
   });
 
   it("commits app metadata to the async cache when only a draft changes", async () => {
@@ -92,10 +120,10 @@ describe("appStore runtime config sync", () => {
           attachments: [],
         });
       }
-      composerDraftStorage()?.flush();
+      await composerDraftStorage()?.flushRequired();
       expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(0);
       expect(
-        writes.mock.calls.filter(([name]) => name.startsWith("poracode-composer-draft-v1:")),
+        writes.mock.calls.filter(([name]) => name.startsWith("poracode-composer-draft-v2:")),
       ).toHaveLength(1);
       // Draft-only changes never re-commit the full app metadata.
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -633,6 +661,32 @@ describe("appStore runtime config sync", () => {
     expect(hydrated.view).toEqual({ kind: "thread", panes: [thread.id] });
     expect(hydrated.pendingLaunchUserMessageItemIds).toEqual({});
     expect(hydrated.provisioningWorktreeThreadIds).toEqual({});
+  });
+
+  it("bumps the draft visit on every open so per-visit content re-rolls", () => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const before = useAppStore.getState().draftVisit;
+
+    useAppStore.getState().openDraft(project.id);
+    expect(useAppStore.getState().draftVisit).toBe(before + 1);
+    useAppStore.getState().openDraft(project.id);
+    expect(useAppStore.getState().draftVisit).toBe(before + 2);
+  });
+
+  it("moves the open draft within its visit and starts one from other views", () => {
+    const first = useAppStore.getState().addProject({ kind: "posix", path: "/repo-a" });
+    const second = useAppStore.getState().addProject({ kind: "posix", path: "/repo-b" });
+    useAppStore.getState().openDraft(first.id);
+    const visit = useAppStore.getState().draftVisit;
+
+    useAppStore.getState().moveDraft(second.id);
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: second.id });
+    expect(useAppStore.getState().draftVisit).toBe(visit);
+
+    useAppStore.getState().openHome();
+    useAppStore.getState().moveDraft(first.id);
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: first.id });
+    expect(useAppStore.getState().draftVisit).toBe(visit + 1);
   });
 
   it.each([
@@ -1329,6 +1383,33 @@ describe("appStore runtime config sync", () => {
     expect(useAppStore.getState().threads[0]?.activeTurnStartedAt).toBeUndefined();
     expect(useAppStore.getState().threads[0]?.lastTurnStartedAt).toBe("2026-05-01T12:00:00.000Z");
     expect(useAppStore.getState().threads[0]?.lastTurnEndedAt).toBe("2026-05-01T12:01:15.000Z");
+  });
+
+  it("working→idle on a thread open in its own window stays idle", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const t1 = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+    useAppStore.setState((s) => ({ ...s, view: { kind: "home" } }));
+    setOwnWindowThreadIds([t1.id]);
+    try {
+      useAppStore.getState().updateThreadRuntime(t1.id, {
+        status: "working",
+        attention: "working",
+        canResumeWithConfig: false,
+      });
+      useAppStore.getState().updateThreadRuntime(t1.id, {
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+      });
+      expect(useAppStore.getState().threads[0]?.status).toBe("idle");
+    } finally {
+      setOwnWindowThreadIds([]);
+    }
   });
 
   it("working→idle on visible thread stays idle", () => {
@@ -2844,8 +2925,49 @@ describe("group view layout restore", () => {
       projects: [],
       threads: [],
       groupLayouts: {},
+      focusedPaneId: null,
       view: { kind: "home" },
     }));
+  });
+
+  it.each([0, 1, 2])("selects clicked group member %i on first open and saved restore", (index) => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+    const ids = ["parent", "fork", "sibling"].map(
+      (prompt) =>
+        useAppStore.getState().createThread({
+          projectId: project.id,
+          agentKind: "codex",
+          config: { model: "m" },
+          prompt,
+          groupId: "group-1",
+        }).id,
+    );
+    useAppStore.setState({ view: { kind: "home" }, focusedPaneId: ids[(index + 1) % 3]! });
+
+    useAppStore.getState().openThread(ids[index]!);
+
+    const view = useAppStore.getState().view;
+    expect(view).toMatchObject({ kind: "thread", activeGroupId: "group-1" });
+    expect(view.kind === "thread" && view.panes).toEqual([...ids].reverse());
+    expect(useAppStore.getState().focusedPaneId).toBe(ids[index]);
+
+    useAppStore.getState().closeGroupView();
+    useAppStore.getState().setFocusedPane("stale-pane");
+    useAppStore.getState().openThread(ids[index]!);
+    expect(useAppStore.getState().view).toEqual(view);
+    expect(useAppStore.getState().focusedPaneId).toBe(ids[index]);
+
+    for (const id of ids) {
+      useAppStore.getState().openThread(id);
+      expect(useAppStore.getState().view).toEqual(view);
+      expect(useAppStore.getState().focusedPaneId).toBe(id);
+    }
+
+    useAppStore.getState().closePane(ids[index]!);
+    useAppStore.getState().openThread(ids[index]!);
+    const reopened = useAppStore.getState();
+    expect(reopened.view.kind === "thread" && reopened.view.panes).toContain(ids[index]);
+    expect(reopened.focusedPaneId).toBe(ids[index]);
   });
 
   it("opens four or more group threads in a balanced two-row grid", () => {
@@ -2965,7 +3087,7 @@ describe("group view layout restore", () => {
     });
   });
 
-  it("restores the saved pane layout when clicking a thread inside a group from outside the group view", () => {
+  it.each([false, true])("restores a saved group layout with colliding slots: %s", (colliding) => {
     const project = useAppStore.getState().addProject({
       kind: "windows",
       path: "C:\\repo",
@@ -2992,7 +3114,7 @@ describe("group view layout restore", () => {
           kind: "split",
           axis: "vertical",
           children: [
-            { kind: "leaf", paneId: ids[0]! },
+            { kind: "leaf", paneId: ids[0]!, ...(colliding ? { slotId: ids[1]! } : {}) },
             { kind: "leaf", paneId: ids[1]! },
           ],
         },
@@ -3024,6 +3146,63 @@ describe("group view layout restore", () => {
     expect(view.kind).toBe("thread");
     expect(view.kind === "thread" && view.activeGroupId).toBe(groupId);
     expect(view.kind === "thread" && view.panes).toEqual([ids[0], ids[1], ids[2], ids[3]]);
-    expect(view.kind === "thread" && view.paneLayout).toEqual(savedLayout);
+    expect(view.kind === "thread" && view.paneLayout).toEqual(normalizePaneSlots(savedLayout));
+    expect(useAppStore.getState().focusedPaneId).toBe(ids[2]);
+  });
+
+  it("adopts host updatedAt on working state and prevents local clock regression", () => {
+    vi.useFakeTimers();
+    const project = useAppStore.getState().addProject({
+      kind: "posix",
+      path: "/clock-skew",
+    });
+    vi.setSystemTime(new Date("2026-05-10T12:00:00.000Z"));
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "a",
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    // Client clock is ahead of host clock when optimistic working runs, then
+    // the host thread-state delivers its authoritative updatedAt.
+    vi.setSystemTime(new Date("2026-05-10T12:05:00.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T12:05:00.000Z");
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+      updatedAt: "2026-05-10T12:00:10.000Z",
+    });
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T12:00:10.000Z");
+
+    // Client clock behind host clock must not move updatedAt backwards on touch or legacy working.
+    vi.setSystemTime(new Date("2026-05-10T11:59:00.000Z"));
+    useAppStore.getState().touchThread(thread.id);
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T12:00:10.000Z");
+
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().threads[0]?.updatedAt).toBe("2026-05-10T12:00:10.000Z");
+    vi.useRealTimers();
   });
 });

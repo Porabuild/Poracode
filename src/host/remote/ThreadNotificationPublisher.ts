@@ -1,10 +1,11 @@
-import type { Thread, ThreadStatus } from "@/shared/contracts";
+import type { Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import {
   classifyThreadNotification,
   shouldPublishThreadNotification,
   type UserNotification,
 } from "@/shared/threadNotification";
+import { threadAttentionStatus } from "@/shared/threadAttention";
 
 export interface ThreadNotificationPublisherOptions {
   getThread(threadId: string): Thread | null;
@@ -26,17 +27,25 @@ export interface ThreadNotificationPublisherOptions {
  * publisher emits; they must not re-classify supervisor `thread-state`.
  */
 export class ThreadNotificationPublisher {
-  private readonly lastStatusByThread = new Map<string, ThreadStatus>();
+  private readonly lastStateByThread = new Map<string, Pick<Thread, "status" | "attention">>();
 
   constructor(private readonly options: ThreadNotificationPublisherOptions) {}
 
   handleSupervisorEvent(event: SupervisorEvent): void {
     if (event.type !== "thread-state") return;
-    const previousStatus = this.lastStatusByThread.get(event.threadId);
-    this.lastStatusByThread.set(event.threadId, event.status);
-    if (previousStatus === undefined) return;
+    const previous = this.lastStateByThread.get(event.threadId);
+    this.lastStateByThread.set(event.threadId, {
+      status: event.status,
+      attention: event.attention,
+    });
+    if (previous === undefined) return;
 
-    const category = classifyThreadNotification(previousStatus, event.status, event.attention);
+    const category = classifyThreadNotification(
+      previous.status,
+      event.status,
+      event.attention,
+      previous.attention,
+    );
     if (!category) return;
 
     const thread = this.options.getThread(event.threadId);
@@ -60,7 +69,7 @@ export class ThreadNotificationPublisher {
       category,
       projectName: this.options.getProjectName(thread.projectId),
       threadTitle: thread.title,
-      status: event.status,
+      status: threadAttentionStatus(event.status, event.attention),
     });
   }
 }

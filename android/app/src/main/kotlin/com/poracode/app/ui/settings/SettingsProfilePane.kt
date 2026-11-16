@@ -8,13 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,9 +29,12 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.settings.SettingsHostInformationEntry
 import com.poracode.app.session.settings.SettingsInformationSlot
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun SettingsProfilePane(
@@ -84,6 +84,9 @@ internal fun SettingsProfilePane(
                 )
             }
             item { SettingsActivityCard(projection) }
+            projection.trends?.let { trends ->
+                item { SettingsTrendsCard(trends) }
+            }
             item { SettingsAutomationCard(projection) }
             if (projection.tokenStatsAvailable) item { SettingsTokensCard(projection) }
             item { SettingsDevicesCard(projection.devices) }
@@ -115,10 +118,10 @@ private fun SettingsIdentityEditor(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Outlined.Person, contentDescription = null)
+            Icon(PoracodeIcons.Person, contentDescription = null)
             Text(stringResource(R.string.settings_profile_identity_description))
         }
-        OutlinedTextField(
+        PoracodeTextField(
             value = name,
             onValueChange = { if (it.length <= 80) name = it },
             label = { Text(stringResource(R.string.settings_profile_name)) },
@@ -126,7 +129,7 @@ private fun SettingsIdentityEditor(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        PoracodeTextField(
             value = handle,
             onValueChange = { if (it.length <= 41) handle = it },
             label = { Text(stringResource(R.string.settings_profile_handle)) },
@@ -134,7 +137,7 @@ private fun SettingsIdentityEditor(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        PoracodeTextField(
             value = color,
             onValueChange = { if (it.length <= 64) color = it },
             label = { Text(stringResource(R.string.settings_profile_color)) },
@@ -147,7 +150,7 @@ private fun SettingsIdentityEditor(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(
+        FilledTonalButton(
             onClick = { onSave(draft) },
             enabled = access.canWrite && draft.isValid && !mutation.profileSaving &&
                 draft != projection.identity,
@@ -206,6 +209,60 @@ private fun SettingsActivityCard(profile: SettingsProfileProjection) {
                 stringResource(R.string.settings_profile_tokens_unavailable)
             },
         )
+    }
+}
+
+@Composable
+private fun SettingsTrendsCard(trends: SettingsProfileTrendsProjection) {
+    val format = NumberFormat.getIntegerInstance()
+    SettingsSection(stringResource(R.string.settings_profile_trends)) {
+        val yesterdayText = buildString {
+            append(stringResource(R.string.settings_profile_prompts_count, format.format(trends.yesterdayPrompts)))
+            if (trends.yesterdayTopProvider != null && trends.yesterdayTopProviderPercent != null && trends.yesterdayPrompts > 0) {
+                append(" · ${trends.yesterdayTopProvider} (${trends.yesterdayTopProviderPercent}%)")
+            }
+        }
+        SettingsValueRow(stringResource(R.string.settings_profile_yesterday), yesterdayText)
+
+        val weekText = buildString {
+            append(stringResource(R.string.settings_profile_prompts_count, format.format(trends.last7dPrompts)))
+            trends.last7dDeltaPercent?.let { delta ->
+                val sign = if (delta >= 0) "+" else ""
+                append(" ($sign$delta%)")
+            }
+        }
+        SettingsValueRow(stringResource(R.string.settings_profile_last_7d), weekText)
+
+        trends.providerSwitch?.let { (from, to) ->
+            SettingsValueRow(
+                stringResource(R.string.settings_profile_switched_provider),
+                stringResource(R.string.settings_profile_switched_from_to, from, to),
+            )
+        }
+        trends.modelSwitch?.let { (from, to) ->
+            SettingsValueRow(
+                stringResource(R.string.settings_profile_switched_model),
+                stringResource(R.string.settings_profile_switched_from_to, from, to),
+            )
+        }
+        trends.providerDeltas.forEach { mover ->
+            val summary = if (mover.deltaPercent < 0) {
+                stringResource(R.string.settings_profile_provider_less, mover.provider, kotlin.math.abs(mover.deltaPercent))
+            } else {
+                stringResource(R.string.settings_profile_provider_more, mover.provider, mover.deltaPercent)
+            }
+            SettingsValueRow(mover.provider, summary)
+        }
+        trends.avgTaskSeconds?.let { sec ->
+            val formattedDuration = if (sec >= 60) "${sec / 60}m ${sec % 60}s" else "${sec}s"
+            SettingsValueRow(stringResource(R.string.settings_profile_avg_task_duration), formattedDuration)
+        }
+        trends.weekendPercent?.let { pct ->
+            SettingsValueRow(stringResource(R.string.settings_profile_weekend_share), "$pct%")
+        }
+        trends.cacheHitPercent?.let { pct ->
+            SettingsValueRow(stringResource(R.string.settings_profile_prompt_cache_hit), "$pct%")
+        }
     }
 }
 

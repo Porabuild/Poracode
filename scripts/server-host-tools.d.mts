@@ -35,6 +35,9 @@ export declare function defaultServerPrefix(
   env?: Readonly<Record<string, string | undefined>>,
 ): string;
 export declare function scratchId(platform?: NodeJS.Platform): string;
+export declare function releaseScratchRoot(
+  env?: Readonly<Record<string, string | undefined>>,
+): string;
 export declare function sleepSync(milliseconds: number): void;
 
 export interface RetryOptions {

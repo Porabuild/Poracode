@@ -24,6 +24,10 @@ export const context = createContext<{
   groupExpanded: (groupID: string, kind: GroupKind) => boolean
   /** An anchor keeps its viewport row through the layout change the toggle causes. */
   setGroupExpanded: (groupID: string, expanded: boolean, anchor?: Renderable | null) => void
+  /** poracode: any saved disclosure, undefined until the reader toggles it. */
+  savedDisclosure: (key: string) => boolean | undefined
+  /** poracode: like setGroupExpanded; `ending` rows skip the anchor while the reader follows the bottom. */
+  setDisclosure: (key: string, expanded: boolean, anchor: Renderable | null | undefined, ending: boolean) => void
   thinkingMode: () => ThinkingMode
   markdownMode: () => "source" | "rendered"
   groupExploration: () => boolean

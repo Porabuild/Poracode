@@ -1,6 +1,7 @@
 import { hostname } from "node:os";
 import * as Hex from "@kitlangton/hex";
 import type { CreateOptions, HexHost, ModelId, ModelInfo, ModelProgress } from "@kitlangton/hex";
+import { hexCatalogFetch } from "./hexCatalogFetch";
 import {
   HEX_VOICE_MAX_AUDIO_BYTES,
   hexVoiceRequestSchema,
@@ -141,7 +142,9 @@ export class HexVoiceService {
   private disposed = false;
 
   constructor(options: HexVoiceServiceOptions = {}) {
-    this.create = options.create ?? ((createOptions) => Hex.create(createOptions));
+    this.create =
+      options.create ??
+      ((createOptions) => Hex.create({ ...createOptions, fetch: hexCatalogFetch() }));
     this.explicitExecutable =
       options.executable ??
       (() => externalHexExecutable(process.env, process.platform, "").executable);

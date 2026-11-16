@@ -8,6 +8,7 @@ import {
   getLastWorkspaceProjectId,
   rememberWorkspaceProject,
   resolveActiveWorkspaceId,
+  resolveCompactWorkspaceFilter,
   useWorkspaceStore,
 } from "./workspaceStore";
 
@@ -142,5 +143,29 @@ describe("bootstrapWorkspaces", () => {
     expect(useSharedSettings.getState().workspaces).toHaveLength(2);
     expect(useWorkspaceStore.getState().activeWorkspaceId).toBe(work!.id);
     expect(side).toBeDefined();
+  });
+});
+
+describe("compactWorkspaceFilter", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useWorkspaceStore.setState({ activeWorkspaceId: null, compactWorkspaceFilter: null });
+  });
+
+  it("defaults to All workspaces (null) and drops stale or single-workspace filters", () => {
+    expect(resolveCompactWorkspaceFilter([{ id: "a" }, { id: "b" }], null)).toBeNull();
+    expect(resolveCompactWorkspaceFilter([{ id: "a" }, { id: "b" }], "b")).toBe("b");
+    expect(resolveCompactWorkspaceFilter([{ id: "a" }, { id: "b" }], "gone")).toBeNull();
+    expect(resolveCompactWorkspaceFilter([{ id: "a" }], "a")).toBeNull();
+  });
+
+  it("aligns activeWorkspaceId when selecting a specific compact workspace without losing it on All", () => {
+    useWorkspaceStore.getState().setCompactWorkspaceFilter("b");
+    expect(useWorkspaceStore.getState().compactWorkspaceFilter).toBe("b");
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("b");
+
+    useWorkspaceStore.getState().setCompactWorkspaceFilter(null);
+    expect(useWorkspaceStore.getState().compactWorkspaceFilter).toBeNull();
+    expect(useWorkspaceStore.getState().activeWorkspaceId).toBe("b");
   });
 });

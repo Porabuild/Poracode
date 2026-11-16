@@ -1448,6 +1448,182 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(session.phase, .launching)
   }
 
+  func testLoopbackDeepLinkPairsWithoutConfirmation() async throws {
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a", label: "A"))
+      api.tokenResult = .success(
+        RemoteAccessTokenResult(
+          accessToken: "token-loopback",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          scopes: ["session:read", "session:operate"]
+        )
+      )
+      api.snapshotResult = .success(makeShell(seq: 1))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+
+    await session.bootstrap()
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=loopback-token")!
+    )
+
+    XCTAssertNil(session.pendingPairing)
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(session.profile?.httpBaseURL, "http://127.0.0.1:49152")
+    XCTAssertEqual(session.state.accessToken, "token-loopback")
+  }
+
+  func testColdLaunchLoopbackLinkPairsAfterBootstrap() async throws {
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a", label: "A"))
+      api.tokenResult = .success(
+        RemoteAccessTokenResult(
+          accessToken: "token-loopback",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          scopes: ["session:read", "session:operate"]
+        )
+      )
+      api.snapshotResult = .success(makeShell(seq: 1))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+
+    // onOpenURL can arrive before the launch bootstrap starts: the candidate
+    // must survive bootstrap's operation epoch and pair afterward.
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=cold-token")!
+    )
+    XCTAssertNil(session.pendingPairing)
+    XCTAssertNil(session.profile)
+
+    await session.bootstrap()
+
+    XCTAssertNil(session.pendingPairing)
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(session.profile?.httpBaseURL, "http://127.0.0.1:49152")
+    XCTAssertEqual(session.state.accessToken, "token-loopback")
+  }
+
+  func testDeferredLoopbackLinkConfirmsWhenBootstrapLoadsStoredPair() async throws {
+    let (session, repo, _) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "live"
+    ) { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment())
+      api.snapshotResult = .success(makeShell(seq: 3))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=deferred-token")!
+    )
+    XCTAssertNil(session.pendingPairing)
+
+    // Bootstrap loads the stored pair, so the deferred link must now replace
+    // only through the confirmation card.
+    await session.bootstrap()
+
+    XCTAssertEqual(session.profile?.desktopId, "desk-a")
+    let pending = try XCTUnwrap(session.pendingPairing)
+    XCTAssertTrue(pending.replacesExistingPair)
+    XCTAssertEqual(pending.endpoint, "http://127.0.0.1:49152")
+  }
+
+  func testLoopbackDeepLinkReplacingPairStillConfirms() async throws {
+    let (session, repo, _) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "live"
+    ) { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment())
+      api.snapshotResult = .success(makeShell(seq: 3))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+    await session.bootstrap()
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=replace-token")!
+    )
+
+    XCTAssertEqual(session.profile?.desktopId, "desk-a")
+    let pending = try XCTUnwrap(session.pendingPairing)
+    XCTAssertTrue(pending.replacesExistingPair)
+    XCTAssertEqual(pending.endpoint, "http://127.0.0.1:49152")
+    XCTAssertEqual(session.phase, .ready)
+  }
+
+  func testDeferredLoopbackLinkConfirmsWhenStoredCredentialsCannotBeRead() async throws {
+    var pairingRequests = 0
+    let (session, repo, keychain) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "stored-token"
+    ) { e, t in
+      pairingRequests += 1
+      return FakeRemoteAPI(endpoint: e, accessToken: t)
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let stored = try await repo.v2RawData()
+    try keychain.save(
+      account: HostTransactionJournal.account,
+      data: Data("corrupt-journal".utf8)
+    )
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=unreadable-store")!
+    )
+    await session.bootstrap()
+
+    XCTAssertEqual(session.phase, .localStoreInconsistent)
+    XCTAssertNotNil(session.pendingPairing)
+    XCTAssertEqual(pairingRequests, 0)
+    let after = try await repo.v2RawData()
+    XCTAssertEqual(after, stored)
+  }
+
+  func testDeferredLoopbackLinkConfirmsWhenStoredHostIsIncompatible() async throws {
+    var pairingRequests = 0
+    let (session, repo, _) = try await makeSession { e, t in
+      pairingRequests += 1
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .failure(RemoteClientError.protocolMismatch(found: 9))
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let stored = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: makeProfileV9(), token: "stored-v9-token")
+
+    await session.handleIncomingPairingURL(
+      URL(string: "http://127.0.0.1:49152/#token=incompatible-store")!
+    )
+    await session.bootstrap()
+
+    XCTAssertEqual(session.phase, .protocolIncompatible)
+    let pending = try XCTUnwrap(session.pendingPairing)
+    XCTAssertTrue(pending.replacesExistingPair)
+    XCTAssertEqual(pairingRequests, 1)
+    let after = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(after.selected?.connectionId, stored.connectionId)
+    XCTAssertEqual(after.selected?.protocolVersion, 9)
+  }
+
   func testDeepLinkCancelLeavesSessionUntouched() async throws {
     let (session, repo, _) = try await makeSession(
       seedProfile: makeProfile(),
@@ -2496,6 +2672,122 @@ final class AppSessionCompositionTests: XCTestCase {
     var storedFuture = stored9
     storedFuture.protocolVersion = ProtocolConstants.remoteProtocolVersion + 1
     XCTAssertFalse(PreservedPairingUpgrade.verify(stored: storedFuture, environment: live10))
+  }
+
+  func testRefreshUnifiedThreadListDoesNotBlockOnlinePeerBehindHangingOfflineHost() async throws {
+    let offlineGate = AsyncGate()
+    let api1 = FakeRemoteAPI(endpoint: "https://h1.test", accessToken: "t1")
+    api1.environmentResult = .success(makeEnvironment(desktopId: "d1", label: "Host 1"))
+    api1.snapshotResult = .success(makeShell(seq: 11))
+    let api2 = FakeRemoteAPI(endpoint: "https://h2.test", accessToken: "t2")
+    api2.environmentResult = .success(makeEnvironment(desktopId: "d2", label: "Host 2"))
+    api2.snapshotResult = .success(makeShell(seq: 22))
+    api2.snapshotGateSkipCount = 0
+    api2.snapshotGate = offlineGate
+    let api3 = FakeRemoteAPI(endpoint: "https://h3.test", accessToken: "t3")
+    api3.environmentResult = .success(makeEnvironment(desktopId: "d3", label: "Host 3"))
+    api3.snapshotResult = .success(makeShell(seq: 33))
+
+    let (session, repo, _) = try await makeSession(
+      apiFactory: { endpoint, _ in
+        if endpoint.contains("h2.test") { return api2 }
+        return endpoint.contains("h3.test") ? api3 : api1
+      },
+      socketFactory: { _ in FakeLiveSocket() }
+    )
+    let catalog = session.deps.hostCatalog
+    defer { Task { await repo.wipeSuiteForTests(); await catalog.wipeForTests() } }
+
+    let h1 = HostRecord(connectionId: ClientConnectionID(), profile: makeProfile(desktopId: "d1", endpoint: "https://h1.test"))
+    let h2 = HostRecord(connectionId: ClientConnectionID(), profile: makeProfile(desktopId: "d2", endpoint: "https://h2.test"))
+    let h3 = HostRecord(connectionId: ClientConnectionID(), profile: makeProfile(desktopId: "d3", endpoint: "https://h3.test"))
+    let op1 = session.state.operationOwner.begin(.pair)
+    _ = try await catalog.activate(id: op1.operationId, kind: .add)
+    _ = try await catalog.pairAdd(record: h1, token: "t1", owning: op1.operationId)
+    let op2 = session.state.operationOwner.begin(.pair)
+    _ = try await catalog.activate(id: op2.operationId, kind: .add)
+    _ = try await catalog.pairAdd(record: h2, token: "t2", owning: op2.operationId)
+    let op3 = session.state.operationOwner.begin(.pair)
+    _ = try await catalog.activate(id: op3.operationId, kind: .add)
+    _ = try await catalog.pairAdd(record: h3, token: "t3", owning: op3.operationId)
+    let op4 = session.state.operationOwner.begin(.switchHost)
+    _ = try await catalog.activate(id: op4.operationId, kind: .switchSelected)
+    _ = try await catalog.switchSelected(to: h1.connectionId, owning: op4.operationId)
+    session.applyCatalogSnapshot(try await catalog.snapshot())
+    session.state.api = api1
+    session.state.profile = h1.asProfile()
+    session.state.accessToken = "t1"
+    session.phase = .ready
+
+    let firstRefresh = Task { @MainActor in
+      await session.refreshUnifiedThreadList()
+    }
+    try await offlineGate.waitUntilWaiting()
+    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
+      session.state.hostSnapshots[h3.connectionId]?.snapshotSeq == 33
+    }
+    XCTAssertNil(session.state.hostSnapshots[h2.connectionId])
+
+    // Duplicate unified refresh while h2 is hanging must coalesce h2 without blocking h3.
+    let secondRefresh = Task { @MainActor in
+      await session.refreshUnifiedThreadList()
+    }
+    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
+      api3.snapshotCalls >= 2
+    }
+    XCTAssertEqual(api2.snapshotCalls, 0)
+
+    await offlineGate.resume()
+    await firstRefresh.value
+    await secondRefresh.value
+    XCTAssertEqual(api2.snapshotCalls, 1)
+  }
+
+  func testSwitchToWarmOnlineHostFromOfflineHostRestoresOnlineSocketState() async throws {
+    let api1 = FakeRemoteAPI(endpoint: "https://h1.test", accessToken: "t1")
+    api1.environmentResult = .failure(RemoteClientError.invalidResponse("offline"))
+    api1.snapshotResult = .failure(RemoteClientError.invalidResponse("offline"))
+    let api2 = FakeRemoteAPI(endpoint: "https://h2.test", accessToken: "t2")
+    api2.environmentResult = .success(makeEnvironment(desktopId: "d2", label: "Host 2"))
+    api2.snapshotResult = .success(makeShell(seq: 20))
+
+    let (session, repo, _) = try await makeSession(
+      apiFactory: { endpoint, _ in endpoint.contains("h2.test") ? api2 : api1 },
+      socketFactory: { _ in FakeLiveSocket() }
+    )
+    let catalog = session.deps.hostCatalog
+    defer { Task { await repo.wipeSuiteForTests(); await catalog.wipeForTests() } }
+
+    let h1 = HostRecord(connectionId: ClientConnectionID(), profile: makeProfile(desktopId: "d1", endpoint: "https://h1.test"))
+    let h2 = HostRecord(connectionId: ClientConnectionID(), profile: makeProfile(desktopId: "d2", endpoint: "https://h2.test"))
+    let op1 = session.state.operationOwner.begin(.pair)
+    _ = try await catalog.activate(id: op1.operationId, kind: .add)
+    _ = try await catalog.pairAdd(record: h1, token: "t1", owning: op1.operationId)
+    let op2 = session.state.operationOwner.begin(.pair)
+    _ = try await catalog.activate(id: op2.operationId, kind: .add)
+    _ = try await catalog.pairAdd(record: h2, token: "t2", owning: op2.operationId)
+    let op3 = session.state.operationOwner.begin(.switchHost)
+    _ = try await catalog.activate(id: op3.operationId, kind: .switchSelected)
+    _ = try await catalog.switchSelected(to: h1.connectionId, owning: op3.operationId)
+    session.applyCatalogSnapshot(try await catalog.snapshot())
+    session.state.hostsLRU = [h1.connectionId, h2.connectionId]
+    session.state.socketState = .connecting
+
+    _ = session.state.operationOwner.bumpWorkGeneration()
+    _ = await session.sessionPool.startSocket(
+      key: .host(h2.connectionId),
+      api: api2,
+      workGeneration: session.state.workGeneration,
+      lastSeenSeq: 0
+    )
+    session.recordSocketState(.online, for: .host(h2.connectionId))
+    XCTAssertEqual(session.socketState, .connecting)
+
+    await session.switchHost(h2.connectionId)
+
+    XCTAssertEqual(session.selectedConnectionId, h2.connectionId)
+    XCTAssertEqual(session.state.hostSocketStates[h2.connectionId], .online)
+    XCTAssertEqual(session.socketState, .online)
   }
 }
 

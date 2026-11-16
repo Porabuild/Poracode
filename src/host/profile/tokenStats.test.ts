@@ -6,6 +6,7 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase, getProfileDataGeneration, getSqlite, initDatabase } from "../db/connection";
 import { dbAppendUsageEvents } from "../db/usageEvents";
+import { modelKey } from "./labels";
 import { computeProfileTokenStats } from "./tokenStats";
 import { historicalTokenEstimate } from "@poracode/agents-usage";
 
@@ -388,5 +389,167 @@ describe("computeProfileTokenStats (real sqlite)", () => {
 
     const stats = computeProfileTokenStats({ utcOffsetMinutes: 0 });
     expect(stats.unavailableProviders).toEqual(["kimi"]);
+  });
+
+  it("folds historical days into compact buckets and serves multiple windows/accounts from one SQL scan", () => {
+    const now = Date.parse("2026-10-17T12:00:00Z");
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const day = 86_400_000;
+    const tokens = { input: 20_000, output: 5_000, cacheRead: 10_000, cacheWrite: 0 };
+    const estimate = historicalTokenEstimate("claude-sonnet-4-6", tokens, now)!;
+
+    dbAppendUsageEvents([
+      {
+        ts: now - 20 * day,
+        kind: "tokens_v2",
+        provider: "claude:work",
+        model: "claude-sonnet-4-6",
+        value: 35_000,
+        costDetails: {
+          version: 1,
+          model: "claude-sonnet-4-6",
+          tokens,
+          estimate,
+          observed: { amount: 0.4, currency: "USD" },
+        },
+      },
+      {
+        ts: now - 20 * day + 1_000,
+        kind: "tokens_v2",
+        provider: "claude:work",
+        model: "claude-sonnet-4-6",
+        value: 35_000,
+        costDetails: {
+          version: 1,
+          model: "claude-sonnet-4-6",
+          tokens,
+          estimate,
+          observed: { amount: 0.6, currency: "USD" },
+        },
+      },
+      {
+        ts: now - 3 * day,
+        kind: "tokens_v2",
+        provider: "codex:personal",
+        model: "gpt-5.3-codex",
+        value: 10_000,
+      },
+      {
+        ts: now,
+        kind: "tokens_v2",
+        provider: "claude:work",
+        model: "claude-sonnet-4-6",
+        value: 5_000,
+      },
+    ]);
+
+    const prepare = vi.spyOn(getSqlite(), "prepare");
+    const allStats = computeProfileTokenStats({ utcOffsetMinutes: 0 });
+    const monthStats = computeProfileTokenStats({ utcOffsetMinutes: 0, window: "30d" });
+    const weekStats = computeProfileTokenStats({ utcOffsetMinutes: 0, window: "7d" });
+    const accountWeekStats = computeProfileTokenStats({
+      utcOffsetMinutes: 0,
+      provider: "claude:work",
+      window: "7d",
+    });
+
+    expect(allStats.lifetimeTokens).toBe(85_000);
+    expect(monthStats.lifetimeTokens).toBe(85_000);
+    expect(monthStats.costs?.totals).toMatchObject({
+      tokens: 85_000,
+      categorizedTokens: 70_000,
+      unpricedTokens: 15_000,
+      observedSamples: 2,
+      estimatedSamples: 2,
+      observed: [{ amount: 1, currency: "USD" }],
+    });
+    expect(weekStats.lifetimeTokens).toBe(15_000);
+    expect(accountWeekStats.lifetimeTokens).toBe(5_000);
+    expect(
+      prepare.mock.calls.filter(([sql]) => sql.startsWith("SELECT ts, kind, provider")),
+    ).toHaveLength(1);
+  });
+
+  it("keeps unknown future cost_details versions and malformed JSON unpriced on downgrade", () => {
+    const now = Date.parse("2026-10-17T12:00:00Z");
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const sqlite = getSqlite();
+    const insert = sqlite.prepare(
+      "INSERT INTO usage_events (ts, kind, provider, model, mode, fast, effort, name, value, cost_details) VALUES (?, ?, ?, ?, NULL, 0, NULL, NULL, ?, ?)",
+    );
+    insert.run(
+      now - 86_400_000,
+      "tokens_v2",
+      "claude:work",
+      "claude-sonnet-4-6",
+      400,
+      JSON.stringify({
+        version: 2,
+        model: "future-override",
+        observed: { amount: 9, currency: "USD" },
+      }),
+    );
+    insert.run(now, "tokens_v2", "claude:work", "claude-sonnet-4-6", 250, "{not-valid-json");
+
+    const stats = computeProfileTokenStats({ utcOffsetMinutes: 0, window: "7d" });
+    expect(stats.lifetimeTokens).toBe(650);
+    expect(stats.costs?.totals).toMatchObject({
+      tokens: 650,
+      unpricedTokens: 650,
+      observedSamples: 0,
+      estimatedSamples: 0,
+      observed: [],
+      estimatedUsd: 0,
+    });
+    expect(stats.costs?.models.map((entry) => entry.key)).toEqual([
+      modelKey("claude:work", "claude-sonnet-4-6"),
+    ]);
+  });
+
+  it("populates recent token and cost period snapshots regardless of requested window", () => {
+    const now = Date.parse("2026-10-17T12:00:00Z");
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const day = 86_400_000;
+    const cat = { input: 1_000, output: 500, cacheRead: 2_500, cacheWrite: 0 };
+    const estimate = historicalTokenEstimate("claude-sonnet-4-6", cat, now)!;
+
+    dbAppendUsageEvents([
+      // 10 days ago -> prev7d + last30d
+      { ts: now - 10 * day, kind: "tokens_v2", provider: "codex", model: "m-old", value: 9_000 },
+      // yesterday -> yesterday + last7d + last30d
+      {
+        ts: now - day,
+        kind: "tokens_v2",
+        provider: "claude",
+        model: "claude-sonnet-4-6",
+        value: 4_000,
+        costDetails: {
+          version: 1,
+          model: "claude-sonnet-4-6",
+          tokens: cat,
+          estimate,
+        },
+      },
+      // today -> today + last7d + last30d
+      { ts: now, kind: "tokens_v2", provider: "claude", model: "claude-sonnet-4-6", value: 2_000 },
+    ]);
+
+    const weekStats = computeProfileTokenStats({ utcOffsetMinutes: 0, window: "7d" });
+    expect(weekStats.recent?.today.tokens).toBe(2_000);
+    expect(weekStats.recent?.yesterday).toMatchObject({
+      tokens: 4_000,
+      inputTokens: 1_000,
+      outputTokens: 500,
+      cacheReadTokens: 2_500,
+      providers: [{ provider: "claude", tokens: 4_000, percent: 100 }],
+    });
+    expect(weekStats.recent?.yesterday.estimatedUsd).toBeGreaterThan(0);
+    expect(weekStats.recent?.last7d.tokens).toBe(6_000);
+    expect(weekStats.recent?.prev7d).toMatchObject({
+      tokens: 9_000,
+      providers: [{ provider: "codex", tokens: 9_000, percent: 100 }],
+    });
+    expect(weekStats.recent?.last30d.tokens).toBe(15_000);
+    expect(weekStats.recent?.prev30d.tokens).toBe(0);
   });
 });

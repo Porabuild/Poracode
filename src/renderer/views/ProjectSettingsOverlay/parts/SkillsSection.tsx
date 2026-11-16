@@ -4,6 +4,7 @@ import { SkillsManager } from "@/renderer/components/skills/SkillsManager";
 import { mcpProjectDestinationId } from "@/renderer/components/mcp/McpProjectDestinationDropdown";
 import { useAppStore } from "@/renderer/state/appStore";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
+import { PROJECT_SETTINGS_SCROLL_CLASS, ProjectScopeHeading } from "./ProjectEnvironmentScope";
 
 export function SkillsSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -16,12 +17,13 @@ export function SkillsSection(props: { projectId: string }) {
   if (!projects.some((project) => project.id === props.projectId)) return null;
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
+    <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
       <SettingsPage
         title={t`Skills`}
         description={t`Project skills are available only when agents run in this project. Each provider applies its own precedence rules when names overlap.`}
         bodyClassName="space-y-5"
       >
+        <ProjectScopeHeading projectId={props.projectId} scope="environment" />
         <SkillsManager
           projects={projects}
           defaultDestinationId={mcpProjectDestinationId(props.projectId)}

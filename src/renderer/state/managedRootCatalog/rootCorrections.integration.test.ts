@@ -1,3 +1,8 @@
+import {
+  consumePendingThreadLaunch,
+  notePendingThreadLaunch,
+  peekPendingThreadLaunch,
+} from "@/renderer/state/threadLaunchIntents";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { DEFAULT_TERMINAL_SIZE, type Project } from "@/shared/contracts";
@@ -17,16 +22,14 @@ import {
   applyRootCatalogThreadRows,
   removeRootCatalogThreads,
 } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
+import { dispatchThreadGroupIntents } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import {
-  dispatchManagedRootProjectReorder,
-  dispatchManagedRootThreadGroupIntents,
-  dispatchManagedRootThreadReorder,
-} from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
+  dispatchHostProjectReorder,
+  dispatchHostThreadReorder,
+} from "@/renderer/state/hostCatalogReorder";
 import { sendManagedRootProjectCommand } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import {
-  managedRootSupportsRuntimeHistoryNotices,
-  readManagedRootHistoryPage,
-} from "@/renderer/state/managedRootCatalog/rootHistory";
+import { readHostThreadHistory } from "@/renderer/state/hostThreadHistory";
+import { hostSupportsRuntimeHistoryNoticesFor } from "@/renderer/state/remote/historyNoticeCapability";
 import {
   hasHydratedThreadRuntimeItems,
   hydrateThreadRuntimeItems,
@@ -47,12 +50,7 @@ import {
   readThreadHistoryNotice,
   recordThreadHistoryNoticeRead,
 } from "@/renderer/state/remote/historyNoticeStore";
-import {
-  consumePendingManagedRootLaunch,
-  getManagedRootCatalogStatus,
-  notePendingManagedRootLaunch,
-  peekPendingManagedRootLaunch,
-} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+import { getManagedRootCatalogStatus } from "@/renderer/state/managedRootCatalog/rootCatalogStore";
 import {
   activate,
   externalClientFor,
@@ -226,7 +224,7 @@ describe("F3 centralized root create+launch ownership", () => {
     expect(hostRow?.group_id).toBe("g-1");
     // A completed create+launch retires the pending intent: a later message on
     // this thread must never replay the launch operation.
-    expect(consumePendingManagedRootLaunch(row.id)).toBeUndefined();
+    expect(consumePendingThreadLaunch(row.id)).toBeUndefined();
   }, 60_000);
 
   it("carries the worktree launch fields through the SDK start entry", async () => {
@@ -293,11 +291,11 @@ describe("F3 centralized root create+launch ownership", () => {
     // Definite pre-effect failure: the host row was never created and the
     // pending intent survived for an explicit retry.
     expect(hostThreadRow(row.id)).toBeUndefined();
-    expect(consumePendingManagedRootLaunch(row.id)).toEqual({
+    expect(consumePendingThreadLaunch(row.id)).toEqual({
       isNewWorktree: false,
       commandId: expect.any(String),
     });
-    notePendingManagedRootLaunch(row.id, false);
+    notePendingThreadLaunch(row.id, false);
 
     await attempt(row.id, "p-1");
     expect(hostThreadRow(row.id)?.id).toBe(row.id);
@@ -352,7 +350,7 @@ describe("F3 centralized root create+launch ownership", () => {
 
       // Evidence 2: the pending create+launch intent kept the SAME operation id
       // and the exact original body for the explicit retry.
-      const retained = peekPendingManagedRootLaunch(row.id);
+      const retained = peekPendingThreadLaunch(row.id);
       expect(retained).toBeDefined();
       expect(retained?.commandId).toBe(supervisorTrace.startThreadCommandIds[0]);
       expect(retained?.replay?.threadId).toBe(row.id);
@@ -389,7 +387,7 @@ describe("F3 centralized root create+launch ownership", () => {
       );
       expect(third.ok).toBe(false);
       expect(third.ok === false && third.uncertain).toBe(false);
-      const afterLegDown = peekPendingManagedRootLaunch(row.id);
+      const afterLegDown = peekPendingThreadLaunch(row.id);
       expect(afterLegDown?.commandId).toBe(supervisorTrace.startThreadCommandIds[0]);
       expect(afterLegDown?.replay?.threadId).toBe(row.id);
       expect(supervisorTrace.startThreadCommandIds).toHaveLength(2);
@@ -403,15 +401,13 @@ describe("F4/F5 group and worktree-group host commands", () => {
   it("writes set-group/clear-group durably through the host", async () => {
     await activate();
     expect(threadRow("t-1")).toBeDefined();
-    dispatchManagedRootThreadGroupIntents([
-      { threadId: "t-1", groupId: "g-1", groupName: "Group One" },
-    ]);
+    dispatchThreadGroupIntents([{ threadId: "t-1", groupId: "g-1", groupName: "Group One" }]);
     await vi.waitFor(() => expect(hostThreadRow("t-1")?.group_id).toBe("g-1"), {
       timeout: 10_000,
     });
     expect(hostThreadRow("t-1")?.group_name).toBe("Group One");
 
-    dispatchManagedRootThreadGroupIntents([{ threadId: "t-1" }]);
+    dispatchThreadGroupIntents([{ threadId: "t-1" }]);
     await vi.waitFor(() => expect(hostThreadRow("t-1")?.group_id).toBeNull(), { timeout: 10_000 });
     expect(hostThreadRow("t-1")?.group_name).toBeNull();
   }, 60_000);
@@ -437,7 +433,9 @@ describe("F6 bounded managed-root history and notices", () => {
     await activate();
     await vi.waitFor(() => expect(threadRow("t-1")).toBeDefined(), { timeout: 15_000 });
 
-    const page = await readManagedRootHistoryPage("t-1");
+    const read = await readHostThreadHistory({ id: "t-1" });
+    if (read.kind !== "installed" || !read.boundedPage) throw new Error(read.kind);
+    const page = read.boundedPage;
     expect(page.reads).toBe("bounded-v1");
     expect(page.runtimeItems.length).toBeGreaterThan(0);
     expect(page.completedTurns.length).toBe(200);
@@ -459,7 +457,7 @@ describe("F6 bounded managed-root history and notices", () => {
     expect(preloadCalls).not.toContain("dbGetThreadRuntimeItemsPage");
   }, 90_000);
 
-  it("treats an unpersisted root row as an empty transcript instead of a failed load", async () => {
+  it("waits for the host to create a launching root row instead of failing its load", async () => {
     await activate();
     useAppStore.getState().createThread({
       threadId: "t-unpersisted",
@@ -471,7 +469,9 @@ describe("F6 bounded managed-root history and notices", () => {
 
     await hydrateThreadRuntimeItems("t-unpersisted");
 
-    expect(hasHydratedThreadRuntimeItems("t-unpersisted")).toBe(true);
+    // Still launching: the read reached the host before it created the row.
+    // Nothing is loaded yet, so a later read loads the real history.
+    expect(hasHydratedThreadRuntimeItems("t-unpersisted")).toBe(false);
     expect(useAppStore.getState().runtimeItemIdsByThread["t-unpersisted"] ?? []).toEqual([]);
     expect(useAppStore.getState().runtimeHydrationStatus["t-unpersisted"] ?? null).not.toBe(
       "failed",
@@ -486,9 +486,17 @@ describe("F6 bounded managed-root history and notices", () => {
     expect(new URL(socketUrls[0]!).searchParams.get("notices")).toBe("v1");
 
     await vi.waitFor(() => expect(threadRow("t-gap")).toBeDefined(), { timeout: 15_000 });
-    await vi.waitFor(() => expect(managedRootSupportsRuntimeHistoryNotices()).toBe(true), {
-      timeout: 10_000,
-    });
+    await vi.waitFor(
+      () =>
+        expect(
+          hostSupportsRuntimeHistoryNoticesFor({
+            authority: readManagedLoopbackActivation()?.authority,
+          }),
+        ).toBe(true),
+      {
+        timeout: 10_000,
+      },
+    );
 
     // The declared read of a thread with an open gap is refused; the managed
     // root surfaces the explicit recovery path instead of a silent failure.
@@ -602,7 +610,12 @@ describe("F8 full bounded order recovery", () => {
     // the relative order intent fails and the production catch must recover
     // the FULL authoritative order, not just page 1.
     getSqlite().prepare("DELETE FROM threads WHERE id = 't-00f8'").run();
-    dispatchManagedRootThreadReorder("t-0000", "t-00f8", "after");
+    dispatchHostThreadReorder({
+      threadId: "t-0000",
+      targetThreadId: "t-00f8",
+      placement: "after",
+      paint: () => {},
+    });
 
     const authoritative = [...rootThreads().map((thread) => thread.id)]
       .filter((id) => id !== "t-00f8")
@@ -751,7 +764,14 @@ describe("I3 late multi-page order recovery fence", () => {
       // its host command is deliberately still in flight.
       const newerLocalOrder = [...rootThreads().map((thread) => thread.id)].reverse();
       useAppStore.setState((state) => ({ threads: [...state.threads].reverse() }));
-      expect(dispatchManagedRootThreadReorder("t-0000", "t-0001", "after")).toBe(true);
+      expect(
+        dispatchHostThreadReorder({
+          threadId: "t-0000",
+          targetThreadId: "t-0001",
+          placement: "after",
+          paint: () => {},
+        }),
+      ).toBe(true);
 
       holdPages = false;
       for (const run of heldPages.splice(0)) run();
@@ -853,7 +873,7 @@ describe("host housekeeping projection", () => {
       config: { model: "sonnet" },
       prompt: "removed later",
     });
-    notePendingManagedRootLaunch("t-removed", false);
+    notePendingThreadLaunch("t-removed", false);
     recordThreadHistoryNoticeRead("t-removed", "authority", {
       kind: "history-incomplete",
       source: "exact",
@@ -869,7 +889,7 @@ describe("host housekeeping projection", () => {
 
     expect(useAppStore.getState().threads.some((thread) => thread.id === "t-removed")).toBe(false);
     expect(readThreadHistoryNotice("t-removed")).toBeUndefined();
-    expect(consumePendingManagedRootLaunch("t-removed")).toBeUndefined();
+    expect(consumePendingThreadLaunch("t-removed")).toBeUndefined();
   });
 });
 
@@ -934,7 +954,14 @@ describe("O4/N2 managed project-order recovery over the real host", () => {
         useAppStore.getState().projects.find((project) => project.id === "p-1")!,
       ],
     });
-    expect(dispatchManagedRootProjectReorder("p-1", "missing", "after")).toBe(true);
+    expect(
+      dispatchHostProjectReorder({
+        projectId: "p-1",
+        targetProjectId: "missing",
+        placement: "after",
+        paint: () => {},
+      }),
+    ).toBe(true);
     await vi.waitFor(
       () =>
         expect(rootProjects().map((project) => project.id)).toEqual(
@@ -978,7 +1005,14 @@ describe("O4/N2 managed project-order recovery over the real host", () => {
           useAppStore.getState().projects.find((project) => project.id === "p-1")!,
         ],
       });
-      expect(dispatchManagedRootProjectReorder("p-1", "missing", "after")).toBe(true);
+      expect(
+        dispatchHostProjectReorder({
+          projectId: "p-1",
+          targetProjectId: "missing",
+          placement: "after",
+          paint: () => {},
+        }),
+      ).toBe(true);
       await vi.waitFor(
         () =>
           expect(rootProjects().map((project) => project.id)).toEqual(

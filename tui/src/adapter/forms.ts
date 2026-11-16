@@ -42,7 +42,9 @@ export function formInfoForRequest(request: OpenRuntimeRequest): FormInfo | unde
           const common = {
             key: question.id,
             title: question.header || question.question,
-            ...(question.header !== question.question ? { description: question.question } : {}),
+            // The vendored form renders `field.description` under the title;
+            // the question text always lives there (the desktop rule).
+            description: question.question,
             required: true,
           };
           if (question.multiSelect)
@@ -50,27 +52,42 @@ export function formInfoForRequest(request: OpenRuntimeRequest): FormInfo | unde
               ...common,
               type: "multiselect",
               options: options ?? [],
-              ...(question.allowCustom ? { custom: true } : {}),
+              // Desktop always offers "Something else…" on optioned questions.
+              ...(options && options.length > 0 ? { custom: true } : {}),
             };
           return {
             ...common,
             type: "string",
             ...(options && options.length > 0 ? { options } : {}),
-            ...(question.allowCustom && options && options.length > 0 ? { custom: true } : {}),
+            ...(options && options.length > 0 ? { custom: true } : {}),
           };
         })
       : plainOptionField(request);
   if (fields.length === 0) return undefined;
-  const message = structured?.message ?? request.payload.summary;
+  // The vendored form renders title, then metadata.message, then each field's
+  // description — so the userInputForm path must not repeat the summary as a
+  // message (the question text already sits in the field description). Its
+  // title follows the desktop rule: a distinct header, else "Question" for a
+  // single question and the summary (or "Questions") for several.
+  const title = questions
+    ? questions.questions.length === 1
+      ? (() => {
+          const question = questions.questions[0]!;
+          const header = question.header ?? "";
+          return header.length > 0 && header !== question.question ? header : "Question";
+        })()
+      : request.payload.summary || "Questions"
+    : (structured?.message ?? request.payload.summary) || "Input requested";
   // Secret questions display masked in the TUI; the submitted value is the
   // real answer, unchanged. The flag rides form metadata, not the field type.
   const maskedKeys = questions?.questions.filter((q) => q.isSecret).map((q) => q.id) ?? [];
+  const message = structured?.message ?? request.payload.summary;
   return {
     id: formId(request.threadId, request.requestId) as FormInfo["id"],
     sessionID: sessionId(request.threadId),
-    title: message || "Input requested",
+    title,
     metadata: {
-      ...(message ? { message } : {}),
+      ...(questions ? {} : message ? { message } : {}),
       ...(maskedKeys.length > 0 ? { poracode: { maskedKeys } } : {}),
     },
     fields: fields as FormInfo["fields"],
@@ -240,16 +257,31 @@ export function formResponseForRequest(request: OpenRuntimeRequest, answer: Form
     };
   const details = asUserInputFormDetails(request.payload.details);
   if (details) {
-    const answers: UserInputFormAnswers = Object.fromEntries(
-      Object.entries(answer).flatMap(([key, value]) =>
-        typeof value === "string" ||
-        (Array.isArray(value) && value.every((entry) => typeof entry === "string"))
-          ? [[key, value]]
-          : [],
-      ),
-    );
+    // The vendored form folds "Type your own answer" text into the field's
+    // value; desktop keeps it in a separate customAnswers map. Values that
+    // match no option id are custom answers — route them the same way.
+    const answers: UserInputFormAnswers = {};
+    const customAnswers: Record<string, string> = {};
+    for (const [key, value] of Object.entries(answer)) {
+      if (
+        typeof value !== "string" &&
+        !(Array.isArray(value) && value.every((entry) => typeof entry === "string"))
+      )
+        continue;
+      const question = details.questions.find((entry) => entry.id === key);
+      const optionIds = new Set(question?.options?.map((option) => option.optionId) ?? []);
+      if (!question || optionIds.size === 0) {
+        answers[key] = value;
+        continue;
+      }
+      const values = Array.isArray(value) ? value : [value];
+      const picked = values.filter((entry) => optionIds.has(entry));
+      const custom = values.filter((entry) => !optionIds.has(entry));
+      if (custom.length > 0) customAnswers[key] = custom.join(", ");
+      if (picked.length > 0) answers[key] = Array.isArray(value) ? picked : picked[0]!;
+    }
     return {
-      response: buildUserInputFormResponse(details, answers, {}),
+      response: buildUserInputFormResponse(details, answers, customAnswers),
       outcome: "answered" as const,
     };
   }

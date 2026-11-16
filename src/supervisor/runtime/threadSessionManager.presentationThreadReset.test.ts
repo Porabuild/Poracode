@@ -185,4 +185,25 @@ it("keeps the GUI thread-reset skip while a terminal start still resets", async 
   );
   expect(terminalResets).toHaveLength(1);
   expect(ptySpawnMock).toHaveBeenCalledTimes(1);
+
+  ptySpawnMock.mockImplementationOnce(() => {
+    throw new Error("spawn ENOENT");
+  });
+  await expect(
+    runtime.threadSessionManager.startThread({
+      threadId: "thread-reset-terminal-failed",
+      projectLocation: { kind: "windows" as const, path: process.cwd() },
+      agentKind: "fixture-terminal",
+      config: { model: "fixture-model" },
+      prompt: "hi",
+      presentationMode: "terminal",
+      initialSize,
+    }),
+  ).rejects.toThrow("Failed to spawn agent");
+  expect(ptySpawnMock).toHaveBeenCalledTimes(2);
+  expect(
+    emitted.filter(
+      (event) => event.type === "thread-reset" && event.threadId === "thread-reset-terminal-failed",
+    ),
+  ).toEqual([]);
 });

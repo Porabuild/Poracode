@@ -132,7 +132,7 @@ struct OnboardingView: View {
             .padding(20)
           }
           .scrollDismissesKeyboard(.interactively)
-          .safeAreaInset(edge: .bottom, spacing: 0) {
+          .poracodeBottomBar {
             otherWaysActionBar
           }
           .navigationTitle(OnboardingStrings.otherWays)
@@ -274,10 +274,7 @@ struct OnboardingView: View {
     }
     .padding(.horizontal, 20)
     .padding(.vertical, 12)
-    .background(.ultraThinMaterial)
-    .overlay(alignment: .top) {
-      Divider()
-    }
+    .poracodeBarBackground(divider: .top)
   }
 
   private func pairingError(_ error: String) -> some View {
@@ -311,7 +308,7 @@ struct OnboardingView: View {
       Text(disconnectButtonTitle)
         .frame(maxWidth: .infinity)
     }
-    .buttonStyle(.bordered)
+    .poracodeGlassButtonStyle(tint: .red)
     .controlSize(.large)
     .disabled(isSubmitting || session.phase == .connecting)
     .accessibilityLabel(disconnectButtonAccessibilityLabel)

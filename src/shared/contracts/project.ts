@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { projectLocationSchema } from "./common";
-import { projectDraftConfigSchema } from "./config";
+import { pluginOverridesSchema, projectDraftConfigSchema } from "./config";
 import { gitHubAccountRefSchema } from "./github";
 import { mcpServerListSchema } from "./mcpServer";
 
@@ -84,6 +84,12 @@ export const projectSchema = z.object({
   pinnedBranches: z.array(z.string().min(1)).optional(),
   /** Project MCP entries override global entries by name (case-insensitive). */
   mcpServers: mcpServerListSchema.optional(),
+  /**
+   * Per-project Agent Plugin switches keyed by manifest name. They sit between
+   * the global `installedPlugins` state and a thread's own `pluginOverrides`
+   * (thread wins), and are re-read at every launch. Absent = inherit.
+   */
+  pluginOverrides: pluginOverridesSchema.optional(),
   /**
    * GitHub account to scope `gh` Actions calls to. Absent = the supervisor
    * auto-detects the signed-in account that can see the repository.

@@ -848,8 +848,9 @@ export function __resetEnvironmentSessionDependenciesForTest(): void {
  * drive `useSyncExternalStore` with `subscribe*` + `resolve*` and call
  * `request*` from an effect, so `getSnapshot` stays pure.
  * Mounted image consumers default to foreground priority. Gallery observers
- * and prefetch requests use background priority so cache limits cannot turn
- * enumeration of off-screen history into repeated downloads and evictions.
+ * use background priority so cache limits cannot turn enumeration of
+ * off-screen history into repeated downloads and evictions; the bounded
+ * running-thread warmup uses prefetch priority.
  */
 export interface RemoteImageReadiness {
   readonly resolveRef: (ref: RemoteImageRefValue, variant?: EnvironmentImageVariant) => string;

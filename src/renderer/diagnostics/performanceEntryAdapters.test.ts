@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { adaptEventTimingEntry, adaptLongTaskEntry } from "./performanceEntryAdapters";
+import {
+  adaptEventTimingEntry,
+  adaptLongAnimationFrameEntry,
+  adaptLongTaskEntry,
+  MAX_FRAME_SCRIPTS,
+  sourceFileName,
+} from "./performanceEntryAdapters";
 
 describe("adaptEventTimingEntry", () => {
   it("adapts a standards-shaped entry and keeps its event identity", () => {
@@ -107,5 +113,76 @@ describe("adaptLongTaskEntry", () => {
     expect(adaptLongTaskEntry({ startTime: 5_000, duration: -1 })).toBeNull();
     expect(adaptLongTaskEntry({ startTime: Number.NaN, duration: 137 })).toBeNull();
     expect(adaptLongTaskEntry({ duration: 137 })).toBeNull();
+  });
+});
+
+describe("adaptLongAnimationFrameEntry", () => {
+  const script = (duration: number, overrides: Record<string, unknown> = {}) => ({
+    invoker: "DOMWindow.onmessage",
+    invokerType: "event-listener",
+    sourceURL: "file:///Users/someone/Poracode.app/out/renderer/assets/index-3f2a.js?v=1#x",
+    sourceFunctionName: "applyRuntimeEvents",
+    sourceCharPosition: 4242,
+    duration,
+    forcedStyleAndLayoutDuration: 12,
+    ...overrides,
+  });
+
+  it("keeps the longest attributed scripts and strips paths from URLs", () => {
+    const record = adaptLongAnimationFrameEntry({
+      startTime: 100,
+      duration: 226,
+      blockingDuration: 176,
+      renderStart: 300,
+      scripts: [
+        script(5),
+        script(150),
+        { duration: "bad" },
+        null,
+        script(40, {
+          invoker: "C:\\Users\\someone\\AppData\\Local\\Poracode\\resources\\vendor-91.js",
+          invokerType: "classic-script",
+        }),
+        ...Array.from({ length: 6 }, (_, index) => script(1 + index)),
+      ],
+    });
+    expect(record).toMatchObject({
+      startMs: 100,
+      durationMs: 226,
+      blockingDurationMs: 176,
+      renderMs: 26,
+    });
+    expect(record?.scripts).toHaveLength(MAX_FRAME_SCRIPTS);
+    expect(record?.scripts.map((entry) => entry.durationMs)).toEqual([150, 40, 6, 5, 5]);
+    expect(record?.scripts[0]).toEqual({
+      invoker: "DOMWindow.onmessage",
+      invokerType: "event-listener",
+      sourceFile: "index-3f2a.js",
+      sourceFunctionName: "applyRuntimeEvents",
+      sourceCharPosition: 4242,
+      durationMs: 150,
+      forcedStyleAndLayoutMs: 12,
+    });
+    expect(record?.scripts[1]?.invoker).toBe("vendor-91.js");
+    expect(JSON.stringify(record)).not.toContain("someone");
+  });
+
+  it("rejects malformed timing and tolerates missing attribution", () => {
+    expect(adaptLongAnimationFrameEntry({ startTime: 1 })).toBeNull();
+    expect(adaptLongAnimationFrameEntry({ startTime: 1, duration: -1 })).toBeNull();
+    expect(adaptLongAnimationFrameEntry({ startTime: 1, duration: 60, renderStart: 0 })).toEqual({
+      startMs: 1,
+      durationMs: 60,
+      blockingDurationMs: null,
+      renderMs: null,
+      scripts: [],
+    });
+  });
+
+  it("reduces any URL or path to its file name", () => {
+    expect(sourceFileName("https://host/a/b/chunk.js?x=1")).toBe("chunk.js");
+    expect(sourceFileName("C:\\Users\\u\\app\\main.js")).toBe("main.js");
+    expect(sourceFileName("")).toBeNull();
+    expect(sourceFileName(42)).toBeNull();
   });
 });

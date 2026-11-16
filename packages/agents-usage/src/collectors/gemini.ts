@@ -1,11 +1,13 @@
 import { toEpochMs } from "../formatters";
 import type { CollectOptions, HostPort, HttpResponse } from "../host";
-import type { UsageSnapshot, UsageWindow } from "../types";
+import type { UsageCredits, UsageSnapshot, UsageWindow } from "../types";
 
 /**
  * Gemini (Google Code Assist). Reuses the Gemini CLI OAuth token the host reads
- * from `~/.gemini/oauth_creds.json`. `loadCodeAssist` gives the plan tier;
- * `retrieveUserQuota` gives daily quota buckets.
+ * from `~/.gemini/oauth_creds.json`, encrypted `FileKeychain`, or macOS
+ * Keychain. `loadCodeAssist` gives the plan tier (`paidTier` preferred over
+ * `currentTier`) and optional AI credits; `retrieveUserQuota` gives daily
+ * quota buckets.
  *
  * The wire response is `{ buckets: [{ modelId, tokenType, remainingFraction,
  * resetTime, remainingAmount? }] }` — one entry per (model, tokenType), with no
@@ -16,11 +18,12 @@ import type { UsageSnapshot, UsageWindow } from "../types";
  * as their own bar. We mirror that grouping; window ids are `gemini:<group>`.
  *
  * Reverse-engineered private API (cloudcode-pa `v1internal`), confirmed against
- * gemini-cli (`ModelQuotaDisplay.tsx`, tier grouping, lowest fraction wins) and
- * codexbar. `percentUsed = (1 - remainingFraction) * 100`. The parse is
- * defensive — it walks the response for objects carrying those fields. If
- * nothing parses, the snapshot still carries the plan. Tokens expire ~hourly;
- * an expired token yields a 401 → auth-missing (the host refreshes it).
+ * gemini-cli v0.68.0 (`ModelQuotaDisplay.tsx`, `code_assist/types.ts`).
+ * `percentUsed = (1 - remainingFraction) * 100`. The parse is defensive — it
+ * walks the response for objects carrying those fields. If nothing parses, the
+ * snapshot still carries the plan. Tokens expire ~hourly; a rejected token
+ * triggers `refreshOAuthToken("gemini", token)` once before degrading to
+ * `auth-missing`.
  */
 
 const CLOUDCODE_BASE = "https://cloudcode-pa.googleapis.com/v1internal";
@@ -31,9 +34,21 @@ const LOAD_BODY = JSON.stringify({
   metadata: { ideType: "GEMINI_CLI", pluginType: "GEMINI" },
 });
 
+interface AvailableCreditEntry {
+  creditType?: string;
+  creditAmount?: string | number;
+}
+
+interface GeminiUserTier {
+  id?: string;
+  name?: string;
+  availableCredits?: AvailableCreditEntry[] | null;
+}
+
 interface LoadCodeAssistResponse {
-  currentTier?: { id?: string; name?: string };
-  cloudaicompanionProject?: string;
+  currentTier?: GeminiUserTier | null;
+  paidTier?: GeminiUserTier | null;
+  cloudaicompanionProject?: string | null;
 }
 
 const TIER_LABELS: Record<string, string> = {
@@ -43,10 +58,33 @@ const TIER_LABELS: Record<string, string> = {
   "enterprise-tier": "Gemini Code Assist (Enterprise)",
 };
 
-function tierLabel(tier: LoadCodeAssistResponse["currentTier"]): string | undefined {
+function tierLabel(tier: GeminiUserTier | null | undefined): string | undefined {
   if (!tier) return undefined;
   if (tier.id && TIER_LABELS[tier.id]) return TIER_LABELS[tier.id];
   return tier.name?.trim() || tier.id?.trim() || undefined;
+}
+
+function parseAvailableCredits(tier: GeminiUserTier | null | undefined): UsageCredits | undefined {
+  const entries = tier?.availableCredits;
+  if (!Array.isArray(entries) || entries.length === 0) return undefined;
+  let total = 0;
+  let sawNumeric = false;
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object") continue;
+    const rawAmount = entry.creditAmount;
+    const parsed =
+      typeof rawAmount === "number"
+        ? rawAmount
+        : typeof rawAmount === "string" && rawAmount.trim().length > 0
+          ? Number(rawAmount.trim())
+          : Number.NaN;
+    if (Number.isFinite(parsed)) {
+      total += parsed;
+      sawNumeric = true;
+    }
+  }
+  if (!sawNumeric) return undefined;
+  return { balance: total, label: "AI credits" };
 }
 
 interface GroupBucket {
@@ -133,7 +171,9 @@ export function parseGeminiUsage(
   nowMs: number,
 ): UsageSnapshot {
   const load = (loadBody ?? {}) as LoadCodeAssistResponse;
-  const plan = tierLabel(load.currentTier);
+  const activeTier = load.paidTier ?? load.currentTier;
+  const plan = tierLabel(activeTier) ?? tierLabel(load.currentTier);
+  const credits = parseAvailableCredits(activeTier) ?? parseAvailableCredits(load.currentTier);
 
   const groups = new Map<string, GroupBucket>();
   collectGroupedBuckets(quotaBody, groups);
@@ -154,6 +194,7 @@ export function parseGeminiUsage(
     windows,
     fetchedAt: nowMs,
     ...(plan ? { plan } : {}),
+    ...(credits ? { credits } : {}),
   };
 }
 
@@ -181,12 +222,19 @@ export async function collectGemini(
   _opts?: CollectOptions,
 ): Promise<UsageSnapshot> {
   const now = host.now();
-  const token = await host.credentials.getOAuthToken("gemini");
+  let token = await host.credentials.getOAuthToken("gemini");
   if (!token?.accessToken) {
     return { providerId: "gemini", status: "auth-missing", windows: [], fetchedAt: now };
   }
 
-  const loadRes = await geminiPost(host, GEMINI_LOAD_ENDPOINT, token.accessToken, LOAD_BODY);
+  let loadRes = await geminiPost(host, GEMINI_LOAD_ENDPOINT, token.accessToken, LOAD_BODY);
+  if (loadRes.status === 401 || loadRes.status === 403) {
+    const refreshed = await host.credentials.refreshOAuthToken?.("gemini", token);
+    if (refreshed?.accessToken && refreshed.accessToken !== token.accessToken) {
+      token = refreshed;
+      loadRes = await geminiPost(host, GEMINI_LOAD_ENDPOINT, token.accessToken, LOAD_BODY);
+    }
+  }
   if (loadRes.status === 401 || loadRes.status === 403) {
     return {
       providerId: "gemini",

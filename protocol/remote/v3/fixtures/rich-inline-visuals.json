@@ -1,0 +1,393 @@
+{
+  "authority": "src/shared/inlineVisuals.ts splitInlineVisuals is the reference. Native clients mirror it to find poracode-html fences; markdown and native parts keep their existing source presentation.",
+  "elision": {
+    "noticePrefix": "[... poracode elided ",
+    "headUtf16Units": 256128,
+    "convention": "A text whose first headUtf16Units UTF-16 units contain noticePrefix is never split; every fence stays inert source."
+  },
+  "preview": {
+    "formatVersion": 1,
+    "maxPreviewsPerMessage": 4,
+    "maxSourceUtf8Bytes": 253952,
+    "minHeight": 80,
+    "maxHeight": 2000,
+    "themeVariables": [
+      "--background",
+      "--foreground",
+      "--surface",
+      "--surface-secondary",
+      "--muted",
+      "--border",
+      "--accent",
+      "--accent-foreground",
+      "--success",
+      "--warning",
+      "--danger",
+      "--font-sans",
+      "--font-mono"
+    ],
+    "convention": "Only settled replies preview complete blocks of formatVersion within maxSourceUtf8Bytes; later blocks in a message stay source. Clients supply every themeVariables entry from their app theme. Reported page heights clamp to minHeight..maxHeight CSS px."
+  },
+  "cases": [
+    {
+      "id": "titled-html",
+      "text": "Before\n```poracode-html-v1 Loan calculator\n<script>privateSource()</script>\n```\nAfter",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "Before\n"
+        },
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "Loan calculator",
+          "html": "<script>privateSource()</script>\n",
+          "complete": true
+        },
+        {
+          "kind": "markdown",
+          "text": "After"
+        }
+      ]
+    },
+    {
+      "id": "crlf-native",
+      "text": "Before\r\n```poracode-visual-v1 Cost comparison\r\n{\"secret\":\"source\"}\r\n```\r\nAfter",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "Before\r\n"
+        },
+        {
+          "kind": "native",
+          "version": 1,
+          "title": "Cost comparison",
+          "source": "{\"secret\":\"source\"}\r\n",
+          "complete": true
+        },
+        {
+          "kind": "markdown",
+          "text": "After"
+        }
+      ]
+    },
+    {
+      "id": "unclosed-future-html",
+      "text": "Before\n~~~poracode-html-v2 Chart\r\n<script>privateSource()",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "Before\n"
+        },
+        {
+          "kind": "visual",
+          "version": 2,
+          "title": "Chart",
+          "html": "<script>privateSource()",
+          "complete": false
+        }
+      ]
+    },
+    {
+      "id": "quoted-example",
+      "text": "````markdown\n```poracode-html-v1 Example\n<script>example()</script>\n```\n````",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "````markdown\n```poracode-html-v1 Example\n<script>example()</script>\n```\n````"
+        }
+      ]
+    },
+    {
+      "id": "ordinary-html-fence",
+      "text": "```html\n<button>Example</button>\n```",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "```html\n<button>Example</button>\n```"
+        }
+      ]
+    },
+    {
+      "id": "indented-code",
+      "text": "    ```poracode-html-v1 Example\n    <div>Indented code</div>",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "    ```poracode-html-v1 Example\n    <div>Indented code</div>"
+        }
+      ]
+    },
+    {
+      "id": "fence-marker-and-length",
+      "text": "````poracode-html-v1 First\n```\n~~~\n<div>one</div>\n````\nprose\n~~~poracode-html-v1 Second\n<div>two</div>\n~~~",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "First",
+          "html": "```\n~~~\n<div>one</div>\n",
+          "complete": true
+        },
+        {
+          "kind": "markdown",
+          "text": "prose\n"
+        },
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "Second",
+          "html": "<div>two</div>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "mixed-html-and-native",
+      "text": "```poracode-html-v1 HTML\n<span>x</span>\n```\n```poracode-visual-v1 Native\n{}\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "HTML",
+          "html": "<span>x</span>\n",
+          "complete": true
+        },
+        {
+          "kind": "native",
+          "version": 1,
+          "title": "Native",
+          "source": "{}\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "untitled-indented-fences",
+      "text": "   ```poracode-html-v1\n<b>x</b>\n   ```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "",
+          "html": "<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "backtick-info-with-backtick",
+      "text": "```poracode-html-v1 a`b\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "```poracode-html-v1 a`b\n<b>x</b>\n```"
+        }
+      ]
+    },
+    {
+      "id": "tilde-info-with-backtick",
+      "text": "~~~poracode-html-v1 a`b\n<b>x</b>\n~~~",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "a`b",
+          "html": "<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "closer-needs-same-marker",
+      "text": "```poracode-html-v1 X\n~~~\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "X",
+          "html": "~~~\n<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "closer-with-info-stays-body",
+      "text": "```poracode-html-v1 X\n```js\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "X",
+          "html": "```js\n<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "tab-separator-and-trim",
+      "text": "```poracode-html-v1\t  Spaced title  \n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "Spaced title",
+          "html": "<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "no-title-separator",
+      "text": "```poracode-html-v1x\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "```poracode-html-v1x\n<b>x</b>\n```"
+        }
+      ]
+    },
+    {
+      "id": "leading-zero-version",
+      "text": "```poracode-html-v01 Zero\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "Zero",
+          "html": "<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "empty-text",
+      "text": "",
+      "parts": []
+    },
+    {
+      "id": "trailing-carriage-return-closer",
+      "text": "```poracode-html-v1 X\n<b>x</b>\n```\r",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "X",
+          "html": "<b>x</b>\n```\r",
+          "complete": false
+        }
+      ]
+    },
+    {
+      "id": "line-separator-in-info",
+      "text": "```poracode-html-v1 A\u2028B\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "```poracode-html-v1 A\u2028B\n<b>x</b>\n```"
+        }
+      ]
+    },
+    {
+      "id": "unicode-whitespace-trim",
+      "text": "```poracode-html-v1 \u00a0Title\u00a0\ufeff\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "Title",
+          "html": "<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "zero-width-space-kept",
+      "text": "```poracode-html-v1 \u200bTitle\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "\u200bTitle",
+          "html": "<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "long-title-truncated",
+      "text": "```poracode-html-v1 ttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "tttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttttt",
+          "html": "<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "four-space-closer-stays-body",
+      "text": "```poracode-html-v1 X\n<b>x</b>\n    ```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "X",
+          "html": "<b>x</b>\n    ```",
+          "complete": false
+        }
+      ]
+    },
+    {
+      "id": "longer-closer-closes",
+      "text": "```poracode-html-v1 X\n<b>x</b>\n`````",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "X",
+          "html": "<b>x</b>\n",
+          "complete": true
+        }
+      ]
+    },
+    {
+      "id": "shorter-closer-stays-body",
+      "text": "````poracode-html-v1 X\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "X",
+          "html": "<b>x</b>\n```",
+          "complete": false
+        }
+      ]
+    },
+    {
+      "id": "opener-inside-ordinary-fence",
+      "text": "```js\nconst a = 1\n```poracode-html-v1 X\n<b>x</b>\n```",
+      "parts": [
+        {
+          "kind": "markdown",
+          "text": "```js\nconst a = 1\n```poracode-html-v1 X\n<b>x</b>\n```"
+        }
+      ]
+    },
+    {
+      "id": "unicode-body",
+      "text": "```poracode-html-v1 Émoji 📊\n<p>Ünïcödé 📈</p>\r\n```\n",
+      "parts": [
+        {
+          "kind": "visual",
+          "version": 1,
+          "title": "Émoji 📊",
+          "html": "<p>Ünïcödé 📈</p>\r\n",
+          "complete": true
+        }
+      ]
+    }
+  ]
+}

@@ -25,7 +25,9 @@ internal class RemoteHistoryNoticeClient(
     override suspend fun threadRuntimeGap(threadId: String): RemoteRuntimeGapRead {
         val route = GeneratedRemoteV3Contract.runtimeGapRoute(threadId)
         val path = "/api/threads/${encodePath(route.threadId)}/runtime/gap"
-        return RemoteV3TransportAdapters.runtimeGap(client.requestText(path, query = route.query))
+        return RemoteV3TransportAdapters.runtimeGap(
+            client.requestText(path, query = route.query, retryableRead = true),
+        )
     }
 
     override suspend fun acknowledgeThreadRuntimeGap(

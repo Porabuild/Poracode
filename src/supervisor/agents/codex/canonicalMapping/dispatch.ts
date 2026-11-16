@@ -116,6 +116,12 @@ export function mapCodexNotification(
     const events: RuntimeEvent[] = [];
     const usageEvent = createCodexContextUsageEvent(threadId, params);
     if (usageEvent) events.push(usageEvent);
+    // Report the completing notification's own turn id — with concurrent turns
+    // the server's completion order need not match `currentTurnId`.
+    const turnId = readTurnId(params) ?? state.currentTurnId ?? `t-${Date.now()}`;
+    const turnState = readTurnState(method, params);
+    const turnFailed =
+      turnState === "interrupted" || turnState === "failed" || turnState === "cancelled";
     if (state.openAssistantItemId) {
       events.push({
         type: "item.completed",
@@ -133,20 +139,33 @@ export function mapCodexNotification(
       delete state.turnPlanItemId;
     }
     if (turnSettled) {
-      // Codex can start a reasoning item without sending its completion (for
-      // example, a final thought with no visible summary). Finish it before
-      // dropping its mapping, or the persisted row shimmers forever. A sibling
-      // turn's completion cannot close reasoning that may still be streaming.
+      // Codex can leave items open without their completion notification
+      // (a reasoning item with no visible summary, file changes, MCP/tool
+      // calls, or a command running when the user interrupts the turn).
+      // Finish them before dropping their mappings, or the persisted rows
+      // shimmer forever. On a clean turn completion, command_execution is
+      // exempt: unified exec background commands may legitimately outlive
+      // the turn and complete later. On an interrupted/failed turn, settle the
+      // visible command immediately; the native process may still finish later.
       for (const [codexItemId, itemType] of state.itemTypeMap) {
-        if (itemType !== "reasoning") continue;
+        if (itemType === "assistant_message" || itemType === "plan") {
+          continue;
+        }
+        if (itemType === "command_execution") {
+          const ownerTurnId = state.itemTurnIdMap.get(codexItemId);
+          if (!turnFailed || (ownerTurnId && ownerTurnId !== turnId)) continue;
+        }
         const itemId = state.itemIdMap.get(codexItemId);
-        if (itemId) events.push({ type: "item.completed", threadId, itemId });
+        if (!itemId) continue;
+        state.settledItemIds.add(codexItemId);
+        events.push({
+          type: "item.completed",
+          threadId,
+          itemId,
+          ...(turnFailed && itemType !== "reasoning" ? { payload: { status: "error" } } : {}),
+        });
       }
     }
-    // Report the completing notification's own turn id — with concurrent turns
-    // the server's completion order need not match `currentTurnId`.
-    const turnId = readTurnId(params) ?? state.currentTurnId ?? `t-${Date.now()}`;
-    const turnState = readTurnState(method, params);
     const errorMessage = turnState === "failed" ? readCodexErrorMessage(params) : undefined;
     if (errorMessage) {
       const reason = readCodexErrorReason(params);
@@ -165,13 +184,15 @@ export function mapCodexNotification(
     });
     if (turnSettled) {
       delete state.currentTurnId;
-      // Unified exec commands can keep running after the model turn finishes.
+      // Unified exec commands can keep running even after the turn is interrupted.
       // Preserve those mappings so late output and completion notifications
       // continue updating the original row instead of opening a blank command.
       for (const [codexItemId, itemType] of state.itemTypeMap) {
         if (itemType === "command_execution") continue;
         state.itemIdMap.delete(codexItemId);
         state.itemTypeMap.delete(codexItemId);
+        state.itemTurnIdMap.delete(codexItemId);
+        state.commandOutputSeenSet.delete(codexItemId);
       }
       state.fileChangeOutputMap.clear();
       state.fileChangePathMap.clear();
@@ -274,7 +295,7 @@ export function mapCodexNotification(
     if (isCodexContextCompactionItem(item)) {
       return mapCodexContextCompaction("started", codexItemId, state);
     }
-    if (state.itemIdMap.has(codexItemId)) return [];
+    if (state.itemIdMap.has(codexItemId) || state.settledItemIds.has(codexItemId)) return [];
     const itemType = canonicalTypeFor(item.type ?? item.kind);
     // `CodexStructuredSession.startTurn` emits the user bubble before `turn/start`;
     // Codex echoes a user item here too — skip to avoid duplicate rows.
@@ -282,6 +303,8 @@ export function mapCodexNotification(
     const internalId = newItemId(itemType);
     state.itemIdMap.set(codexItemId, internalId);
     state.itemTypeMap.set(codexItemId, itemType);
+    const turnId = readTurnId(params) ?? state.currentTurnId;
+    if (turnId) state.itemTurnIdMap.set(codexItemId, turnId);
     if (itemType === "assistant_message") state.openAssistantItemId = internalId;
     const events: RuntimeEvent[] = [
       {
@@ -317,6 +340,11 @@ export function mapCodexNotification(
     if (isCodexContextCompactionItem(item)) {
       return mapCodexContextCompaction("completed", codexItemId, state);
     }
+    const wasSettled = state.settledItemIds.has(codexItemId);
+    if (wasSettled && state.itemTypeMap.get(codexItemId) !== "command_execution") {
+      return [];
+    }
+    state.settledItemIds.delete(codexItemId);
     const internalId = state.itemIdMap.get(codexItemId);
     if (!internalId) {
       // Item completed without us seeing started — synthesize both so the chat
@@ -365,6 +393,7 @@ export function mapCodexNotification(
       });
       state.itemIdMap.delete(codexItemId);
       state.itemTypeMap.delete(codexItemId);
+      state.itemTurnIdMap.delete(codexItemId);
       state.commandOutputSeenSet.delete(codexItemId);
       state.fileChangeOutputMap.delete(codexItemId);
       state.fileChangePathMap.delete(codexItemId);
@@ -374,6 +403,7 @@ export function mapCodexNotification(
     const itemType = state.itemTypeMap.get(codexItemId) ?? canonicalTypeFor(item.type ?? item.kind);
     state.itemIdMap.delete(codexItemId);
     state.itemTypeMap.delete(codexItemId);
+    state.itemTurnIdMap.delete(codexItemId);
     if (state.openAssistantItemId === internalId) delete state.openAssistantItemId;
     const events: RuntimeEvent[] = [];
     if (itemType === "assistant_message" || itemType === "user_message") {
@@ -387,9 +417,10 @@ export function mapCodexNotification(
         });
       }
     }
-    const aggregatedCommandOutput = state.commandOutputSeenSet.has(codexItemId)
-      ? undefined
-      : readCommandAggregatedOutput(itemType, item);
+    const aggregatedCommandOutput =
+      !wasSettled && state.commandOutputSeenSet.has(codexItemId)
+        ? undefined
+        : readCommandAggregatedOutput(itemType, item);
     if (aggregatedCommandOutput) {
       events.push({
         type: "content.delta",
@@ -397,6 +428,7 @@ export function mapCodexNotification(
         itemId: internalId,
         stream: "command_output",
         delta: aggregatedCommandOutput,
+        ...(wasSettled ? { replace: true } : {}),
       });
     }
     const completedPayload = buildCompletedPayload(itemType, item, wslDistro);
@@ -419,7 +451,7 @@ export function mapCodexNotification(
     const delta = typeof params?.delta === "string" ? params.delta : "";
     if (!delta) return [];
     const codexItemId = readItemId(params);
-    if (!codexItemId) return [];
+    if (!codexItemId || state.settledItemIds.has(codexItemId)) return [];
     let contentDelta = delta;
     const summaryIndex = params?.summaryIndex;
     if (method === "item/reasoning/summaryTextDelta" && typeof summaryIndex === "number") {
@@ -436,6 +468,8 @@ export function mapCodexNotification(
       internalId = newItemId(itemType);
       state.itemIdMap.set(codexItemId, internalId);
       state.itemTypeMap.set(codexItemId, itemType);
+      const turnId = readTurnId(params) ?? state.currentTurnId;
+      if (turnId) state.itemTurnIdMap.set(codexItemId, turnId);
       if (itemType === "assistant_message") state.openAssistantItemId = internalId;
       opened.push({
         type: "item.started",

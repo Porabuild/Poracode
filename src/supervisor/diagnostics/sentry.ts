@@ -1,3 +1,7 @@
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEventLedger";
+import { poracodeBaseDirFromEnv, resolvePoracodePaths } from "@/shared/poracodePaths";
 import {
   prepareSentryEvent,
   type PoracodeDiagnosticTags,
@@ -20,6 +24,11 @@ import {
   isHostResourcePolicyUnavailableError,
 } from "@/shared/hostResourceAdmission";
 import { isGitProcessAdmissionRefusal } from "@/shared/gitProcessAdmission";
+import {
+  buildErrorCauseTags,
+  classifyErrorCause,
+  findDiagnosticFailureMetadata,
+} from "@/shared/diagnostics/errorCause";
 
 type SupervisorSentryModule = typeof import("@sentry/node");
 
@@ -74,10 +83,28 @@ const SUPERVISOR_IPC_FAILURE_RULES: readonly SupervisorIpcFailureRule[] = [
     errorClass: "terminal-not-attached",
   },
   {
-    operations: ["ghListPrs"],
+    operations: ["ghGetPrForBranch", "ghListPrs"],
     signature: 'GitHub CLI is not authenticated. Run "gh auth login" in the terminal.',
     failureClass: "expected-operational",
     errorClass: "github-cli-unauthenticated",
+  },
+  {
+    operations: ["ghGetPrForBranch", "ghListPrs"],
+    signature: "Configure credentials scoped to this exact source host in the project's runtime.",
+    failureClass: "expected-operational",
+    errorClass: "source-host-credentials-unconfigured",
+  },
+  {
+    operations: ["readProjectFile"],
+    signature: "Only files can be opened in the editor.",
+    failureClass: "expected-operational",
+    errorClass: "editor-target-not-file",
+  },
+  {
+    operations: ["readProjectFile"],
+    signature: "Path traversal is not allowed.",
+    failureClass: "expected-operational",
+    errorClass: "project-path-traversal-rejected",
   },
   {
     operations: ["interruptThread"],
@@ -236,6 +263,10 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
     return false;
   }
 
+  const paths = resolvePoracodePaths(poracodeBaseDirFromEnv() ?? join(homedir(), ".poracode"));
+  const shouldSendSupervisorSentryEvent = createPersistentSentryEventLimiter(
+    join(paths.cacheDir, "sentry", "event-budget.json"),
+  );
   Sentry.init({
     dsn,
     release: `poracode@${options.appVersion}`,
@@ -251,7 +282,10 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
       tags: buildBaseTags(options),
     },
     beforeSend(event) {
-      return prepareSentryEvent(event as unknown as SentryEventLike) as unknown as typeof event;
+      const prepared = prepareSentryEvent(event as unknown as SentryEventLike);
+      return prepared && shouldSendSupervisorSentryEvent(prepared)
+        ? (prepared as unknown as typeof event)
+        : null;
     },
   });
 
@@ -273,11 +307,12 @@ function structuredRuntimeClassification(error: unknown): DiagnosticFailureMetad
   }
   const errorClass = STRUCTURED_RUNTIME_FAILURES.get(error.message);
   return errorClass
-    ? {
-        failureClass: "product-defect",
-        domain: "structured-runtime",
-        errorClass,
-      }
+    ? (findDiagnosticFailureMetadata(error) ??
+        classifyErrorCause(error, "structured-runtime") ?? {
+          failureClass: "product-defect",
+          domain: "structured-runtime",
+          errorClass,
+        })
     : undefined;
 }
 
@@ -352,7 +387,9 @@ export function classifySupervisorIpcFailure(
   return classifyDiagnosticFailure(
     error,
     { domain: "supervisor.ipc", operation },
-    knownSupervisorIpcClassification(error, operation),
+    knownSupervisorIpcClassification(error, operation) ??
+      findDiagnosticFailureMetadata(error) ??
+      classifyErrorCause(error, "supervisor.ipc"),
   );
 }
 
@@ -369,7 +406,13 @@ export function classifySupervisorFailure(
           errorClass: "broken-pipe",
         }
       : undefined);
-  return classifyDiagnosticFailure(error, { domain: "supervisor", operation }, knownClassification);
+  return classifyDiagnosticFailure(
+    error,
+    { domain: "supervisor", operation },
+    knownClassification ??
+      findDiagnosticFailureMetadata(error) ??
+      classifyErrorCause(error, "supervisor"),
+  );
 }
 
 function captureSupervisorFailure(
@@ -384,6 +427,7 @@ function captureSupervisorFailure(
 
   const diagnosticTags: PoracodeDiagnosticTags = {
     ...tags,
+    ...buildErrorCauseTags(error),
     "poracode.error_class": decision.errorClass,
     "poracode.failure_domain": decision.domain,
     "poracode.operation": decision.operation,

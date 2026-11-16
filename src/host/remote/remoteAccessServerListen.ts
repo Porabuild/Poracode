@@ -23,6 +23,7 @@ import {
 import { mintPairingUrl, recordAudit } from "./remoteAccessServerPairing";
 import { announceRemoteServerShutdown } from "./remoteAccessServerShutdown";
 import { releaseLoopbackPort, reserveLoopbackPort } from "./remoteAccessLoopbackGuard";
+import { reportEventInterestFailures } from "./server/eventInterestFailures";
 
 export function createRemoteAccessHttpServer(
   tls: RemoteAccessServerHost["tls"],
@@ -173,7 +174,7 @@ export async function finishDispose(host: RemoteAccessServerHost): Promise<void>
   host.desktopEventBuffer.length = 0;
   host.gitStateInterests.clear();
   host.itemInterests.clear();
-  void Promise.resolve(host.notifyEventInterestsChanged()).catch(() => {});
+  reportEventInterestFailures(host.notifyEventInterestsChanged());
   // Abort host-side gateway requests before waiting for handlers. A public
   // key fetch can otherwise hold the handler until its transport timeout.
   await host.options.pushRegistrations?.dispose?.();

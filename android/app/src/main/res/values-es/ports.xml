@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="ports_title">Reenvío de puertos</string>
+    <string name="ports_title">Puertos</string>
     <string name="ports_back">Atrás</string>
     <string name="ports_refresh">Actualizar puertos</string>
     <string name="ports_target_port">Puerto de destino</string>
@@ -27,4 +27,6 @@
     <string name="ports_failure_browser_unavailable">El reenvío por navegador no está configurado en este escritorio.</string>
     <string name="ports_failure_ambiguous">Es posible que la solicitud se completara. La lista se actualizó.</string>
     <string name="ports_failure_unavailable">El reenvío de puertos no está disponible en este momento.</string>
+    <string name="ports_intro">Servidores de desarrollo escuchando en el localhost de tu escritorio.</string>
+    <string name="ports_forward_a_port">Reenviar un puerto</string>
 </resources>

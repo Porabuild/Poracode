@@ -76,6 +76,10 @@ class RuntimeEventStrictUnionTest {
                 stopAction = com.poracode.remote.v3.generated.RemoteBackgroundTaskStopAction(
                     "background-task.stop.v1", mapOf("taskId" to "task-fixture-001", "token" to "run-fixture-001"),
                 ),
+                category = "command", command = "pnpm test",
+                outputAction = com.poracode.remote.v3.generated.RemoteBackgroundTaskStopAction(
+                    "background-task.output.v1", mapOf("taskId" to "task-fixture-001", "token" to "run-fixture-001"),
+                ),
             )),
             domain.backgroundTasks,
         )

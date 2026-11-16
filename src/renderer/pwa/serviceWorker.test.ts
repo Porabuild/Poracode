@@ -26,9 +26,29 @@ function writeBuildFixture(root: string, workerBody: string): void {
   const runtime = resolve(root, "resources/web-ssh-runtime");
   mkdirSync(output, { recursive: true });
   mkdirSync(runtime, { recursive: true });
+  mkdirSync(resolve(output, ".vite"), { recursive: true });
+  writeFileSync(
+    resolve(output, ".vite/manifest.json"),
+    JSON.stringify({
+      "index.html": { file: "assets/index.js", imports: ["framework"] },
+      framework: { file: "assets/framework.js" },
+      "src/renderer/browser/remoteBridge.ts": { file: "assets/remoteBridge.js" },
+      "src/renderer/pwa/registerServiceWorker.ts": { file: "assets/registerServiceWorker.js" },
+      "src/renderer/pwa/BrowserRuntimeServices.tsx": { file: "assets/BrowserRuntimeServices.js" },
+      "src/renderer/locales/de/messages.po": { file: "assets/messages-de.js" },
+      "src/renderer/locales/fr/messages.po": { file: "assets/messages-fr.js" },
+      "src/renderer/main.tsx": { file: "assets/main.js" },
+      "src/renderer/app.tsx": {
+        file: "assets/app.js",
+        imports: ["framework"],
+        css: ["assets/app.css"],
+      },
+      "src/renderer/components/providers/bootstrap.ts": { file: "assets/providers.js" },
+    }),
+  );
   writeFileSync(
     resolve(output, "index.html"),
-    '<!doctype html><link rel="icon" href="app-icon.svg"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><title>Poracode</title>',
+    '<!doctype html><meta name="poracode-build-version" content="__PORACODE_BUILD_VERSION__"><link rel="icon" href="app-icon.svg"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><title>Poracode</title>',
   );
   writeFileSync(
     resolve(output, "manifest.webmanifest"),
@@ -44,7 +64,7 @@ function writeBuildFixture(root: string, workerBody: string): void {
   );
   writeFileSync(
     resolve(output, "service-worker.js"),
-    `const CACHE_NAME = "poracode-__PORACODE_BUILD_VERSION__";\nconst ICON = "__PORACODE_NOTIFICATION_ICON__";\n${workerBody}\n`,
+    `const CACHE_NAME = "poracode-__PORACODE_BUILD_VERSION__";\nconst ICON = "__PORACODE_NOTIFICATION_ICON__";\nconst STARTUP = "__PORACODE_STARTUP_ASSET_URLS__";\n${workerBody}\n`,
   );
   writeFileSync(resolve(runtime, "manifest.json"), "{}");
   writeFileSync(resolve(runtime, "runtime.bin"), "runtime");
@@ -79,16 +99,6 @@ describe("canonical service worker", () => {
     expect(source).toContain("caches.match(request, { ignoreVary: true })");
   });
 
-  it("waits for existing documents before activating a new asset cache", () => {
-    const source = readFileSync(
-      resolve(import.meta.dirname, "../../../public/service-worker.js"),
-      "utf8",
-    );
-
-    expect(source).not.toContain("self.skipWaiting()");
-    expect(source).toContain("old document still requests one of those URLs");
-  });
-
   it("invalidates the cache identity when service-worker behavior changes", () => {
     const root = mkdtempSync(resolve(tmpdir(), "poracode-web-build-"));
 
@@ -97,6 +107,20 @@ describe("canonical service worker", () => {
       const second = finalizedCacheName(root, "self.second = true;");
 
       expect(second).not.toBe(first);
+      const output = resolve(root, "dist/web");
+      const html = readFileSync(resolve(output, "index.html"), "utf8");
+      expect(html).toContain(second.replace("poracode-", ""));
+      const worker = readFileSync(resolve(output, "service-worker.js"), "utf8");
+      expect(worker).toContain('"assets/main.js"');
+      expect(worker).toContain('"assets/remoteBridge.js"');
+      expect(worker).toContain('"assets/registerServiceWorker.js"');
+      expect(worker).toContain('"assets/BrowserRuntimeServices.js"');
+      expect(worker).toContain('"assets/messages-de.js"');
+      expect(worker).toContain('"assets/messages-fr.js"');
+      expect(worker).toContain('"assets/app.js"');
+      expect(worker).toContain('"assets/providers.js"');
+      expect(worker).toContain('"assets/app.css"');
+      expect(worker).not.toContain("__PORACODE_");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

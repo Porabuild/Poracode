@@ -21,7 +21,7 @@ export function ThreadHistoryLoadFailureDock({ threadId }: { threadId: string })
             size="sm"
             variant="ghost"
             className="h-6 min-w-0 px-2 text-xs text-foreground"
-            onPress={() => void retryThreadRuntimeItems(threadId)}
+            onPress={() => retryThreadRuntimeItems(threadId)}
           >
             <Trans>Retry</Trans>
           </Button>

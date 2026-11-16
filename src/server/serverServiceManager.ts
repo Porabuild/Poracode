@@ -70,13 +70,17 @@ export function serviceDefinitionPath(id: string, home: string): string {
   return join(home, ".config", "systemd", "user", `${id}.service`);
 }
 
-function quote(value: string, command = false): string {
+function assertNoControlCharacters(value: string): void {
   if (
     value
       .split("")
       .some((character) => character.charCodeAt(0) <= 31 || character.charCodeAt(0) === 127)
   )
     throw new ServerServiceRefusedError("Service paths must not contain control characters.");
+}
+
+function quote(value: string, command = false): string {
+  assertNoControlCharacters(value);
   return `"${value
     .replace(/\\/gu, "\\\\")
     .replace(/"/gu, '\\"')
@@ -84,13 +88,27 @@ function quote(value: string, command = false): string {
     .replace(/\$/gu, command ? "$$$$" : "$")}"`;
 }
 
-export function renderServiceDefinition(registration: ServerServiceRegistration): string {
-  if (registration.formatVersion === 2) return renderWindowsServiceDefinition(registration);
-  if (registration.manager === "launchd-agent")
-    return renderMacosServiceDefinition(
-      registration,
-      dirname(dirname(dirname(registration.definition.locator))),
+/**
+ * systemd's `WorkingDirectory=` takes a verbatim path: no quoting or word
+ * splitting, only specifier expansion — so the value must be a clean absolute
+ * path with `%` escaped as `%%`. systemd trims surrounding whitespace itself,
+ * which would silently change the directory, so it is refused instead.
+ */
+function systemdWorkingDirectoryLine(path: string): string {
+  if (!path.startsWith("/"))
+    throw new ServerServiceRefusedError("Service working directory must be an absolute path.");
+  if (path !== path.trim())
+    throw new ServerServiceRefusedError(
+      "Service working directory must not have surrounding whitespace.",
     );
+  assertNoControlCharacters(path);
+  return `WorkingDirectory=${path.replace(/%/gu, "%%")}`;
+}
+
+function renderSystemdServiceDefinition(
+  registration: ServerServiceRegistration,
+  workingDirectory: string,
+): string {
   const args = [
     registration.nodeExecutable,
     join(registration.installPrefix, "current", "lib", "server.cjs"),
@@ -105,7 +123,7 @@ export function renderServiceDefinition(registration: ServerServiceRegistration)
     "Type=exec",
     `ExecStart=${args.map((arg) => quote(arg, true)).join(" ")}`,
     `Environment=${quote(`PORACODE_BASE_DIR=${registration.profileNamespace}`)}`,
-    `WorkingDirectory=${quote(registration.installPrefix)}`,
+    workingDirectory,
     "Restart=no",
     "UnsetEnvironment=PORACODE_APP_VERSION PORACODE_UPGRADE_STAGING NODE_OPTIONS NODE_PATH",
     "",
@@ -113,6 +131,33 @@ export function renderServiceDefinition(registration: ServerServiceRegistration)
     "WantedBy=default.target",
     "",
   ].join("\n");
+}
+
+/**
+ * The pre-unquoting systemd rendering, kept only so a CLI can recognize (and
+ * remove) a `prepared` registration a released CLI left behind: its unit was
+ * written with `WorkingDirectory="…"`, which systemd rejects as bad-setting.
+ */
+export function renderLegacySystemdServiceDefinition(
+  registration: ServerServiceRegistration,
+): string {
+  return renderSystemdServiceDefinition(
+    registration,
+    `WorkingDirectory=${quote(registration.installPrefix)}`,
+  );
+}
+
+export function renderServiceDefinition(registration: ServerServiceRegistration): string {
+  if (registration.formatVersion === 2) return renderWindowsServiceDefinition(registration);
+  if (registration.manager === "launchd-agent")
+    return renderMacosServiceDefinition(
+      registration,
+      dirname(dirname(dirname(registration.definition.locator))),
+    );
+  return renderSystemdServiceDefinition(
+    registration,
+    systemdWorkingDirectoryLine(registration.installPrefix),
+  );
 }
 
 export function serviceDefinitionHash(text: string): string {
@@ -238,9 +283,19 @@ export function readServiceManagerState(
   return state;
 }
 
+export interface ServiceQualificationOptions {
+  /**
+   * Accept the pre-unquoting systemd definition hash, only for removing a
+   * `prepared` registration: that is the only state a legacy Linux
+   * registration can reach, since systemd never loaded its bad-setting unit.
+   */
+  readonly legacyPreparedRemoval?: boolean;
+}
+
 export function qualifyServicePolicy(
   registration: ServerServiceRegistration,
   deps: ServerServiceManagerDeps = {},
+  options: ServiceQualificationOptions = {},
 ): void {
   const context = serviceManagerContext(deps);
   if (
@@ -261,17 +316,27 @@ export function qualifyServicePolicy(
       "Service manager/account/definition location does not match this native user context.",
     );
   const text = renderServiceDefinition(registration);
-  if (serviceDefinitionHash(text) !== registration.definition.sha256)
-    throw new ServerServiceRefusedError(
-      "The registered service definition differs from this CLI's versioned policy; use a compatible CLI.",
-    );
+  if (serviceDefinitionHash(text) !== registration.definition.sha256) {
+    const legacyHash =
+      options.legacyPreparedRemoval === true &&
+      registration.manager === "systemd-user" &&
+      registration.formatVersion === 1 &&
+      registration.state === "prepared"
+        ? serviceDefinitionHash(renderLegacySystemdServiceDefinition(registration))
+        : undefined;
+    if (legacyHash !== registration.definition.sha256)
+      throw new ServerServiceRefusedError(
+        "The registered service definition differs from this CLI's versioned policy; use a compatible CLI.",
+      );
+  }
 }
 
 export function qualifyServiceDefinition(
   registration: ServerServiceRegistration,
   deps: ServerServiceManagerDeps = {},
+  options: ServiceQualificationOptions = {},
 ): void {
-  qualifyServicePolicy(registration, deps);
+  qualifyServicePolicy(registration, deps, options);
   if (registration.formatVersion === 2) qualifyWindowsServiceLauncher(registration);
   if (
     !lstatSync(registration.definition.locator).isFile() ||

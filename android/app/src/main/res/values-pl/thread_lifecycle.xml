@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">Brak zarchiwizowanych wątków</string>
     <string name="thread_status_starting_agent">Uruchamianie agenta…</string>
     <string name="thread_status_resuming">Wznawianie sesji…</string>
+    <string name="thread_lifecycle_pin_top">Przypnij do góry</string>
+    <string name="thread_lifecycle_archive_thread">Archiwum wątku</string>
+    <string name="thread_lifecycle_delete_thread">Usuń wątek</string>
+    <string name="thread_lifecycle_notes">Notatki i zadania</string>
+    <string name="thread_lifecycle_open_terminal">Otwórz terminal</string>
+    <string name="thread_lifecycle_fork_thread">Rozgałęź rozmowę</string>
+    <string name="thread_lifecycle_continue_in">Kontynuuj u innego dostawcy</string>
+    <string name="thread_lifecycle_move_worktree_changes">Przenieś do drzewa roboczego ze zmianami</string>
+    <string name="thread_lifecycle_move_worktree_clean">Przenieś do czystego drzewa roboczego</string>
+    <string name="thread_lifecycle_move_worktree_title">Przenieść wątek do drzewa roboczego?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">Bieżące środowisko zostanie zatrzymane. Zostanie utworzone nowe drzewo robocze i gałąź, a niezatwierdzone zmiany zostaną tam przeniesione przed wznowieniem wątku.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">Bieżące środowisko zostanie zatrzymane. Czyste drzewo robocze i gałąź zostaną utworzone przed wznowieniem wątku.</string>
+    <string name="thread_lifecycle_move_confirm">Przenieś</string>
 </resources>

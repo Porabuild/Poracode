@@ -46,6 +46,18 @@ export function hostSupportsRuntimeHistoryNoticesForConnection(connectionKey: st
 }
 
 /**
+ * Whether the host that owns a thread advertised the notice capability on its
+ * live connection, recorded under that host's authority.
+ */
+export function hostSupportsRuntimeHistoryNoticesFor(host: {
+  readonly authority: string | undefined;
+}): boolean {
+  return (
+    host.authority !== undefined && hostSupportsRuntimeHistoryNoticesForConnection(host.authority)
+  );
+}
+
+/**
  * The raw descriptor projection: true only when the SAME descriptor this
  * connection negotiated advertises the notice version.
  */

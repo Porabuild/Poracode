@@ -1,14 +1,13 @@
-import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
+import { protectedThreadRowIds } from "@/renderer/state/protectedThreadRows";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
+import { HostSession, hostEventThreadIds } from "@/renderer/hostTransport/hostSession";
 import {
   REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
   REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-  RemoteClientError,
   isRemoteBoundedReadProtocolError,
   type RemoteBoundedReadsProof,
-  type RemoteBoundedThreadHistoryResult,
   type RemoteDesktopClient,
 } from "@/shared/remote/client";
 import { friendlyError } from "@/shared/messages";
@@ -24,6 +23,7 @@ import {
 } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import {
   beginBoundedCatalogAttempt,
+  boundedCatalogRemovalMark,
   configureBoundedCatalogController,
   disposeBoundedCatalog,
   installBoundedCatalogShellPage,
@@ -35,12 +35,10 @@ import {
   BOUNDED_CATALOG_PAGE_LIMIT,
   type CatalogKind,
 } from "@/renderer/state/remoteServers/catalog/boundedCatalogAlgorithm";
-import { configureBoundedHistoryManagedRootClient } from "@/renderer/state/remoteServers/catalog/boundedHistory";
 import {
   getManagedParentAuthorityState,
   subscribeManagedParentAuthority,
 } from "@/renderer/state/remoteServers/managedLoopbackOwner";
-import { useAppStore } from "@/renderer/state/appStore";
 import { pendingProjectRemovalRows } from "../projectRemovalIntents";
 import {
   applyRootCatalogOrder,
@@ -53,13 +51,7 @@ import {
   removeRootCatalogProjects,
   removeRootCatalogThreads,
 } from "./rootCatalogRows";
-import {
-  getManagedRootCatalogStatus,
-  pinManagedRootThread,
-  pinnedManagedRootThreadIds,
-  retainedUncertainManagedRootThreadIds,
-  setManagedRootCatalogStatus,
-} from "./rootCatalogStore";
+import { getManagedRootCatalogStatus, setManagedRootCatalogStatus } from "./rootCatalogStore";
 import { configureRootCreateIntentRuntime } from "./rootCreateIntent";
 import { __resetManagedRootLaunchMetadataCapabilityForTest } from "./rootLaunchMetadataCapability";
 import {
@@ -88,6 +80,10 @@ import {
 
 export { MANAGED_ROOT_CATALOG_KEY } from "./managedRootOrderFence";
 
+const SHELL_SNAPSHOT_RETRY_BASE_MS = 500;
+const SHELL_SNAPSHOT_RETRY_MAX_MS = 10_000;
+const SHELL_SNAPSHOT_MAX_AUTO_RETRIES = 5;
+
 /**
  * The root connection's seq ledger. Both the page guard and the per-thread
  * applied seq come from the SAME loopback dispatch sequence space (the
@@ -97,8 +93,12 @@ export { MANAGED_ROOT_CATALOG_KEY } from "./managedRootOrderFence";
  * `thread-osc-*`, `thread-scrollback-resync`, …): they carry an independent
  * sequence whose head must never raise the shared live head.
  */
-let rootConnectionSeq = 0;
-const rootThreadAppliedSeqs = new Map<string, number>();
+const rootSession = new HostSession();
+
+/** The managed host's live sequence session. */
+export function managedRootHostSession(): HostSession {
+  return rootSession;
+}
 
 function noteRootDispatchSequence(
   event: unknown,
@@ -109,38 +109,7 @@ function noteRootDispatchSequence(
   // default (see PreloadIpcTransport.dispatch).
   if (space !== undefined && space !== "loopback") return;
   if (typeof seq !== "number") return;
-  rootConnectionSeq = Math.max(rootConnectionSeq, seq);
-  const threadId = (event as { readonly threadId?: unknown } | null)?.threadId;
-  if (typeof threadId !== "string") return;
-  const previous = rootThreadAppliedSeqs.get(threadId) ?? 0;
-  if (seq > previous) rootThreadAppliedSeqs.set(threadId, seq);
-}
-
-/**
- * Rows the deletion gate must never remove while their intent is in flight:
- * call-scoped pins, open managed-root panes, in-flight worktree provisioning,
- * queued launch episodes, and retained UNCERTAIN launch operations (whose
- * same-command-id replay body must survive until the host resolves the
- * operation or the row is removed — an absent durable row is evidence only).
- */
-function protectedRootThreadIds(): ReadonlySet<string> {
-  const protectedIds = new Set<string>(pinnedManagedRootThreadIds());
-  const state = useAppStore.getState();
-  for (const id of auxiliaryThreadIds()) protectedIds.add(id);
-  if (state.view.kind === "thread") {
-    for (const paneId of state.view.panes) {
-      const row = state.threads.find((thread) => thread.id === paneId);
-      if (row && isManagedRootRow(row)) protectedIds.add(row.id);
-    }
-  }
-  for (const [threadId, value] of Object.entries(state.provisioningWorktreeThreadIds)) {
-    if (value === true) protectedIds.add(threadId);
-  }
-  for (const [threadId, pending] of Object.entries(state.pendingThreadLaunches)) {
-    if (pending !== undefined) protectedIds.add(threadId);
-  }
-  for (const threadId of retainedUncertainManagedRootThreadIds()) protectedIds.add(threadId);
-  return protectedIds;
+  rootSession.recordApplied(seq, hostEventThreadIds(event));
 }
 
 function rootRuntimeStatus(): string | undefined {
@@ -165,6 +134,39 @@ let unsubscribeActivation: (() => void) | null = null;
 let unsubscribeMembership: (() => void) | null = null;
 let unsubscribeAuthority: (() => void) | null = null;
 let unsubscribeSupervisorEvents: (() => void) | null = null;
+let shellRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let shellLoadAttempt = 0;
+let shellRetryDelayOverrideMs: number | null = null;
+let shellLoadToken = 0;
+let shellLoadInFlight: {
+  readonly activation: ManagedLoopbackActivationSnapshot;
+  readonly token: number;
+  readonly promise: Promise<void>;
+} | null = null;
+const failedProtocolKinds = new Set<CatalogKind>();
+
+function clearShellRetryTimer(): void {
+  if (shellRetryTimer !== null) {
+    clearTimeout(shellRetryTimer);
+    shellRetryTimer = null;
+  }
+}
+
+function clearShellLoadInFlight(token: number): void {
+  if (shellLoadInFlight?.token === token) shellLoadInFlight = null;
+}
+
+function recoverManagedRootStatusIfFailed(kind: CatalogKind): void {
+  failedProtocolKinds.delete(kind);
+  if (
+    failedProtocolKinds.size === 0 &&
+    shellLoadInFlight === null &&
+    shellRetryTimer === null &&
+    getManagedRootCatalogStatus().status === "failed"
+  ) {
+    setManagedRootCatalogStatus({ status: "ready" });
+  }
+}
 
 function configureController(): void {
   if (configured) return;
@@ -196,10 +198,12 @@ function configureController(): void {
       commitThreadRows: (connectionKey, rows, preserveThreadIds) => {
         if (connectionKey !== MANAGED_ROOT_CATALOG_KEY) return;
         applyRootCatalogThreadRows(rows, preserveThreadIds);
+        recoverManagedRootStatusIfFailed("threads");
       },
       commitProjectRows: (connectionKey, rows) => {
         if (connectionKey !== MANAGED_ROOT_CATALOG_KEY) return;
         applyRootCatalogProjectRows(rows);
+        recoverManagedRootStatusIfFailed("projects");
       },
       removeThreadRows: (connectionKey, threadIds) => {
         if (connectionKey !== MANAGED_ROOT_CATALOG_KEY) return;
@@ -215,23 +219,29 @@ function configureController(): void {
         }
         return withRootClient(invoke);
       },
-      reportProtocolError: (connectionKey, error) => {
+      reportProtocolError: (connectionKey, error, kind) => {
         if (connectionKey !== MANAGED_ROOT_CATALOG_KEY) return;
+        if (kind) {
+          failedProtocolKinds.add(kind);
+        } else {
+          failedProtocolKinds.add("threads");
+          failedProtocolKinds.add("projects");
+        }
         const message = friendlyError(error) || i18n._(msg`The desktop's own catalog read failed.`);
         setManagedRootCatalogStatus({ status: "failed", message, retrying: false });
         toast.danger(message);
       },
       appliedThreadSeq: (connectionKey, threadId) =>
         connectionKey === MANAGED_ROOT_CATALOG_KEY
-          ? rootThreadAppliedSeqs.get(threadId)
+          ? rootSession.threadSequence(threadId)
           : undefined,
       connectionSeq: (connectionKey) =>
-        connectionKey === MANAGED_ROOT_CATALOG_KEY ? rootConnectionSeq : 0,
+        connectionKey === MANAGED_ROOT_CATALOG_KEY ? rootSession.appliedSequence() : 0,
       // The guard is the live dispatch sequence at install time; page snapshot
       // seqs live in a different space and are deliberately not mixed in.
       bumpConnectionSeq: () => {},
       protectedThreadIds: (connectionKey) =>
-        connectionKey === MANAGED_ROOT_CATALOG_KEY ? protectedRootThreadIds() : new Set<string>(),
+        connectionKey === MANAGED_ROOT_CATALOG_KEY ? protectedThreadRowIds() : new Set<string>(),
       // Manual-order convergence: the controller applies each completed manual
       // paint pass's accumulated id order here, and refreshes the paint on
       // membership events. Each kind has its own generation, so a finished pass
@@ -255,28 +265,35 @@ function configureController(): void {
       isForeground: () => typeof document === "undefined" || document.visibilityState === "visible",
     },
   );
-  // Bind the bounded-history engine to the ONE managed loopback client. The
-  // adapter is the module that owns the transport import, so the registry
-  // stays import-light; the provider is null while the leg is down.
-  configureBoundedHistoryManagedRootClient(() => {
-    const activation = readManagedLoopbackActivation();
-    return activation
-      ? {
-          client: activation.client,
-          seq: activation.seq,
-          authority: activation.authority,
-        }
-      : null;
-  });
 }
 
-async function loadRootCatalogPageOne(
+function shellSnapshotRetryDelayMs(attempt: number): number {
+  if (shellRetryDelayOverrideMs !== null) return shellRetryDelayOverrideMs;
+  return Math.min(SHELL_SNAPSHOT_RETRY_BASE_MS * 2 ** attempt, SHELL_SNAPSHOT_RETRY_MAX_MS);
+}
+
+function loadRootCatalogPageOne(activation: ManagedLoopbackActivationSnapshot): Promise<void> {
+  if (readManagedLoopbackActivation() !== activation) return Promise.resolve();
+  if (shellLoadInFlight?.activation === activation) return shellLoadInFlight.promise;
+  clearShellRetryTimer();
+  const token = ++shellLoadToken;
+  const run = runLoadRootCatalogPageOne(activation, token).finally(() => {
+    clearShellLoadInFlight(token);
+  });
+  shellLoadInFlight = { activation, token, promise: run };
+  return run;
+}
+
+async function runLoadRootCatalogPageOne(
   activation: ManagedLoopbackActivationSnapshot,
+  token: number,
 ): Promise<void> {
   if (readManagedLoopbackActivation() !== activation) return;
+  failedProtocolKinds.clear();
   setManagedRootCatalogStatus({ status: "starting" });
   beginBoundedCatalogAttempt(MANAGED_ROOT_CATALOG_KEY);
   try {
+    const removalMark = boundedCatalogRemovalMark();
     const result = await activation.client.boundedShellSnapshot({
       order: "manual",
       threadLimit: BOUNDED_CATALOG_PAGE_LIMIT,
@@ -286,6 +303,7 @@ async function loadRootCatalogPageOne(
     });
     if (readManagedLoopbackActivation() !== activation) return;
     if (result.negotiation !== "bounded") {
+      clearShellLoadInFlight(token);
       setManagedRootCatalogStatus({
         status: "failed",
         message: i18n._(msg`This server does not support the bounded catalog read.`),
@@ -293,92 +311,39 @@ async function loadRootCatalogPageOne(
       });
       return;
     }
-    installBoundedCatalogShellPage(MANAGED_ROOT_CATALOG_KEY, result.page);
+    shellLoadAttempt = 0;
+    failedProtocolKinds.clear();
+    clearShellLoadInFlight(token);
+    installBoundedCatalogShellPage(MANAGED_ROOT_CATALOG_KEY, result.page, removalMark);
     setManagedRootCatalogStatus({ status: "ready" });
   } catch (error) {
     if (readManagedLoopbackActivation() !== activation) return;
     if (isRemoteBoundedReadProtocolError(error)) {
+      clearShellLoadInFlight(token);
       const message = friendlyError(error) || i18n._(msg`The desktop's own catalog read failed.`);
       setManagedRootCatalogStatus({ status: "failed", message, retrying: false });
       return;
     }
+    if (shellLoadAttempt < SHELL_SNAPSHOT_MAX_AUTO_RETRIES) {
+      const delayMs = shellSnapshotRetryDelayMs(shellLoadAttempt);
+      shellLoadAttempt += 1;
+      clearShellLoadInFlight(token);
+      clearShellRetryTimer();
+      shellRetryTimer = setTimeout(() => {
+        shellRetryTimer = null;
+        if (readManagedLoopbackActivation() !== activation) return;
+        void loadRootCatalogPageOne(activation);
+      }, delayMs);
+      shellRetryTimer.unref?.();
+      return;
+    }
+    clearShellLoadInFlight(token);
     setManagedRootCatalogStatus({
       status: "failed",
       message: friendlyError(error) || i18n._(msg`The desktop's own server is not connected yet.`),
       retrying: false,
     });
   }
-}
-
-/**
- * Resolve one exact root thread outside the progressive projection (pane,
- * provisioning, deeplink, pending intent) with the existing bounded history
- * route: the authoritative row plus a one-turn tail. Installed like a page;
- * never a local DB read and never a new route.
- */
-export async function resolveManagedRootThreadPin(threadId: string): Promise<boolean> {
-  return (await readManagedRootThreadExistence(threadId)) === "present";
-}
-
-/** Authoritative existence of one root thread (never a local DB read). */
-export type ManagedRootThreadExistence = "present" | "absent" | "unknown";
-
-export async function readManagedRootThreadExistence(
-  threadId: string,
-): Promise<ManagedRootThreadExistence> {
-  const activation = readManagedLoopbackActivation();
-  if (!activation) return "unknown";
-  const release = pinManagedRootThread(threadId);
-  try {
-    const result: RemoteBoundedThreadHistoryResult = await activation.client.boundedThreadHistory(
-      threadId,
-      {
-        completedTurnsLimit: 1,
-        compactDetails: true,
-        omitScrollback: true,
-        maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
-        maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
-      },
-    );
-    if (readManagedLoopbackActivation() !== activation) return "unknown";
-    applyRootCatalogThreadRows([result.page.thread], new Set());
-    return "present";
-  } catch (error) {
-    if (readManagedLoopbackActivation() !== activation) return "unknown";
-    // A definite 404 is the host's authoritative "no such row". It is NOT used
-    // as proof that a launch never effected anything (the host retains the row
-    // on a possibly-effective start failure); callers treat it as evidence
-    // only. Anything else (timeout, transport, protocol) leaves it unknown.
-    if (error instanceof RemoteClientError && error.status === 404) return "absent";
-    if (import.meta.env.DEV) {
-      const evidence = error as { body?: unknown; responseEvidence?: unknown; code?: unknown };
-      console.error(
-        "[root-catalog] pin read failed",
-        evidence.code,
-        evidence.body,
-        evidence.responseEvidence,
-        error instanceof Error ? error.message : error,
-      );
-    }
-    return "unknown";
-  } finally {
-    release();
-  }
-}
-
-/**
- * One bounded authoritative read after an uncertain root launch: the row is
- * read back exactly once — never a resend — and a follow-up pass converges
- * membership/order. The existence verdict is evidence for the caller; it is
- * never used to mint a fresh operation identity, because a missing row does
- * not prove the provider never started.
- */
-export async function reconcileManagedRootThreadLaunch(
-  threadId: string,
-): Promise<ManagedRootThreadExistence> {
-  const existence = await readManagedRootThreadExistence(threadId);
-  refreshManagedRootCatalogSoon();
-  return existence;
 }
 
 /** Ask the controller for a bounded follow-up pass (event or intent result). */
@@ -499,6 +464,14 @@ function arraysEqual(left: readonly string[], right: readonly string[]): boolean
 }
 
 function applyActivation(activation: ManagedLoopbackActivationSnapshot | null): void {
+  clearShellRetryTimer();
+  shellLoadAttempt = 0;
+  shellLoadInFlight = null;
+  failedProtocolKinds.clear();
+  rootSession.clearApplied();
+  // A new activation may be a new backend child whose sequences restart:
+  // baselines recorded against the previous stream prove nothing for it.
+  rootSession.clearResume();
   // A replaced (or dropped) authority invalidates every in-flight order walk of
   // BOTH kinds: a delayed page from the retired activation must never paint its
   // order over the successor's state.
@@ -523,7 +496,16 @@ function applyActivation(activation: ManagedLoopbackActivationSnapshot | null): 
 }
 
 function handleMembershipEvent(eventType: string): void {
-  if (!readManagedLoopbackActivation()) return;
+  const activation = readManagedLoopbackActivation();
+  if (!activation) return;
+  if (getManagedRootCatalogStatus().status === "failed" && shellRetryTimer === null) {
+    // If an earlier shell snapshot or bounded read left status failed while the
+    // loopback leg remained live, a fresh host membership change re-arms page 1
+    // instead of ignoring the event.
+    shellLoadAttempt = 0;
+    void loadRootCatalogPageOne(activation);
+    return;
+  }
   if (eventType === "resync-required") {
     resetBoundedCatalogForResync(MANAGED_ROOT_CATALOG_KEY);
     return;
@@ -569,6 +551,9 @@ export function installManagedRootCatalogRuntime(): void {
 
 /** Truthful retry from the readiness surface. */
 export function retryManagedRootCatalog(): void {
+  clearShellRetryTimer();
+  shellLoadAttempt = 0;
+  failedProtocolKinds.clear();
   setManagedRootCatalogStatus({ status: "starting" });
   retryManagedParentDescriptor();
   retryManagedLoopbackIntake();
@@ -580,8 +565,18 @@ export function managedRootCatalogStatus(): ReturnType<typeof getManagedRootCata
   return getManagedRootCatalogStatus();
 }
 
+/** Test seam: override the automatic shell-snapshot retry delay. */
+export function __setManagedRootRetryDelayForTest(delayMs: number | null): void {
+  shellRetryDelayOverrideMs = delayMs;
+}
+
 /** Test seam: tear down subscriptions and controller/ledger state. */
 export function __resetManagedRootCatalogRuntimeForTest(): void {
+  clearShellRetryTimer();
+  shellLoadAttempt = 0;
+  shellRetryDelayOverrideMs = null;
+  shellLoadInFlight = null;
+  failedProtocolKinds.clear();
   unsubscribeActivation?.();
   unsubscribeMembership?.();
   unsubscribeAuthority?.();
@@ -593,10 +588,8 @@ export function __resetManagedRootCatalogRuntimeForTest(): void {
   installed = false;
   configured = false;
   configureRootCreateIntentRuntime(null);
-  configureBoundedHistoryManagedRootClient(null);
   __resetManagedRootLaunchMetadataCapabilityForTest();
   __resetManagedRootOrderFenceForTest();
-  rootConnectionSeq = 0;
-  rootThreadAppliedSeqs.clear();
+  rootSession.clearApplied();
   disposeBoundedCatalog(MANAGED_ROOT_CATALOG_KEY);
 }

@@ -5,6 +5,35 @@ import UIKit
 @testable import App
 
 final class RichChatComposerParityTests: XCTestCase {
+  func testHomePermissionsHonorAnExplicitProviderBypass() {
+    let capabilities: [String: JSONValue] = [
+      "defaultApprovalPolicy": .string("auto"),
+      "bypassPermissions": .object([
+        "approvalPolicy": .string("auto"),
+        "preferDeclaredApprovalPolicy": .bool(true),
+      ]),
+    ]
+    XCTAssertEqual(HomeComposerPermission.auto.approvalPolicy(capabilities: capabilities), "auto")
+    XCTAssertEqual(HomeComposerPermission.bypass.approvalPolicy(capabilities: capabilities), "auto")
+    XCTAssertNil(HomeComposerPermission.auto.approvalPolicy(capabilities: [:]))
+    XCTAssertEqual(HomeComposerPermission.bypass.approvalPolicy(capabilities: [:]), "never")
+  }
+
+  func testGuiPermissionsUseThePresentationOverride() throws {
+    let agent = try AgentStatusRecord(wire: .object([
+      "kind": .string("fixture"), "label": .string("Fixture"),
+      "installed": .bool(true), "authState": .string("authenticated"),
+      "capabilities": .object([
+        "approvalPolicies": .array([.object(["id": .string("yolo"), "label": .string("Ask When Needed")])]),
+        "presentationCapabilities": .object(["gui": .object([
+          "approvalPolicies": .array([.object(["id": .string("never"), "label": .string("Ask When Needed")])]),
+        ])]),
+      ]),
+    ]))
+    let catalog = RichChatComposerControlCatalog(agentStatus: agent, presentationMode: .gui, configuration: ThreadConfig(model: "model"))
+    XCTAssertEqual(catalog.permissionOptions.map(\.id), ["never"])
+  }
+
   func testContextReloadConfirmationUsesDeclaredCapabilitiesAndStartedSession() throws {
     let previous = ThreadConfig(model: "wide")
     let next = ThreadConfig(model: "wide", contextSize: "400k")
@@ -448,6 +477,7 @@ final class RichChatComposerParityTests: XCTestCase {
       "App/Features/RichChat/UI/RichChatComposerInlineControls.swift"
     )
     let thread = try Self.source("App/Features/RichChat/UI/Pages/RichChatThreadView.swift")
+    let resume = try Self.source("App/Features/RichChat/UI/RichChatComposerResume.swift")
 
     XCTAssertTrue(
       inlineControls.contains("(isTurnActive || isSending) && !hasPrompt")
@@ -459,8 +489,10 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(composer.contains("controller.queueFollowUp("))
     XCTAssertTrue(composer.contains("controller.setPendingSteer("))
     XCTAssertTrue(composer.contains("RichSetPendingSteerInput("))
-    XCTAssertTrue(composer.contains("RichChatPresentation.composerDenyResolution"))
-    XCTAssertTrue(composer.contains("requestController.resolve(denial"))
+    // Typed and resume sends decline a pending approval through one helper.
+    XCTAssertTrue(composer.contains("guard await declinePendingApproval()"))
+    XCTAssertTrue(resume.contains("RichChatPresentation.composerDenyResolution"))
+    XCTAssertTrue(resume.contains("requestController.resolve(denial"))
     XCTAssertTrue(thread.contains("thread?.status == \"working\""))
     XCTAssertFalse(thread.contains("\"needs_reply\"].contains(status)"))
   }
@@ -541,10 +573,13 @@ final class RichChatComposerParityTests: XCTestCase {
     )
     let providerUsage = try Self.source("App/Features/RichChat/UI/RichChatProviderUsage.swift")
     let checkpoints = try Self.source("App/Features/RichChat/UI/RichChatCheckpointView.swift")
+    let poracodeGlass = try Self.source("App/Features/Components/PoracodeGlass.swift")
 
     XCTAssertTrue(thread.contains("RichChatResponsiveLayout"))
-    XCTAssertTrue(thread.contains(".toolbarBackground(.hidden, for: .navigationBar)"))
+    XCTAssertTrue(thread.contains("poracodeNavigationBarChrome"))
     XCTAssertFalse(thread.contains(".toolbarBackground(.ultraThinMaterial"))
+    XCTAssertTrue(poracodeGlass.contains("toolbarBackground(.hidden, for: .navigationBar)"))
+    XCTAssertTrue(poracodeGlass.contains("if #available(iOS 26.0, *)"))
     XCTAssertTrue(thread.contains("PoracodeToolbarInfoBubble {"))
     XCTAssertTrue(layout.contains("if width >= breakpoint"))
     XCTAssertTrue(layout.contains("maximumSidebarWidth: CGFloat = 350"))
@@ -574,6 +609,12 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(infoControls.contains("PoracodeCompactControlGroup"))
     XCTAssertTrue(infoControls.contains(".buttonStyle(.plain)"))
     XCTAssertTrue(layout.contains(".overlay(alignment: .bottom)"))
+    XCTAssertFalse(layout.contains("safeAreaBar("))
+    XCTAssertTrue(layout.contains("PoracodeGlassGroup(spacing: 2)"))
+    XCTAssertTrue(layout.contains("richChatCompactOverlayClearance, compactOverlayHeight"))
+    XCTAssertTrue(layout.contains(".poracodeComposerInset"))
+    XCTAssertTrue(dock.contains("poracodeZoomTransition(sourceID: destination.id"))
+    XCTAssertTrue(infoControls.contains("poracodeZoomSource(id:"))
     XCTAssertFalse(layout.contains("compactScrimPresented"))
     XCTAssertFalse(layout.contains("Color.black.opacity(0.22)"))
     XCTAssertTrue(infoControls.contains("Image(systemName: control.systemImage)"))
@@ -582,13 +623,11 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(dock.contains("gitSummary.totalDeletions"))
     XCTAssertTrue(dock.contains("thread?.worktreePath?.isEmpty == false"))
     XCTAssertTrue(dock.contains("point.3.connected.trianglepath.dotted"))
-    XCTAssertTrue(infoControls.contains(".frame(width: 28, height: 28)"))
+    XCTAssertTrue(infoControls.contains(".frame(minWidth: 28, minHeight: 28)"))
+    XCTAssertTrue(infoControls.contains(".fixedSize(horizontal: true, vertical: false)"))
     XCTAssertTrue(infoControls.contains("struct RichChatProgressRing: View"))
-    XCTAssertTrue(
-      infoControls.contains(
-        "RichChatProgressRing(percent: control.progressPercent, diameter: 22, lineWidth: 2)"
-      )
-    )
+    XCTAssertTrue(infoControls.contains("control.progressPercent.map"))
+    XCTAssertFalse(infoControls.contains("RichChatProgressRing(percent: control.progressPercent"))
     XCTAssertTrue(
       infoControls.contains(
         "RichChatProgressRing(percent: rings.outerPercent, diameter: 22, lineWidth: 2)"
@@ -640,6 +679,12 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(actions.contains("func poracodeNativeBubbleSurface"))
     XCTAssertTrue(actions.contains("glassEffect(.regular.interactive(), in: shape)"))
     XCTAssertTrue(actions.contains("glassEffect(.regular, in: shape)"))
+    XCTAssertTrue(actions.contains("func poracodeNativeComposerSurface"))
+    XCTAssertTrue(
+      actions.contains("glassEffect(.regular.interactive(interactive), in: shape)")
+    )
+    XCTAssertTrue(actions.contains("interactive: Bool = false"))
+    XCTAssertTrue(actions.contains("interactive: true"))
     XCTAssertTrue(
       actions.contains(".poracodeNativeBubbleSurface(in: Capsule(), interactive: true)")
     )
@@ -674,7 +719,7 @@ final class RichChatComposerParityTests: XCTestCase {
     let components = try Self.source("App/Features/Home/Components/HomeComposerComponents.swift")
 
     XCTAssertTrue(page.contains("composerSurface"))
-    XCTAssertTrue(content.contains("HomeComposerSurface(isExpanded: isExpanded)"))
+    XCTAssertTrue(content.contains("HomeComposerSurface(isExpanded: isExpanded, glassNamespace: glassNamespace)"))
     XCTAssertTrue(content.contains("HomeComposerCompactSurface("))
     XCTAssertTrue(content.contains("HomeComposerExpandedSurface"))
     XCTAssertTrue(content.contains("HomeComposerActionBar"))
@@ -709,6 +754,20 @@ final class RichChatComposerParityTests: XCTestCase {
   }
 
   func testThreadHeaderTreatsLiveBackgroundWorkAsWorking() {
+    for status in ["working", "idle", "finished"] {
+      XCTAssertEqual(
+        ThreadStatusPresentation.resolvedStatus(
+          status: status, attention: "needs_reply", hasBackgroundActivity: false
+        ),
+        "needs_reply"
+      )
+    }
+    XCTAssertEqual(
+      ThreadStatusPresentation.resolvedStatus(
+        status: "error", attention: "needs_reply", hasBackgroundActivity: false
+      ),
+      "error"
+    )
     XCTAssertEqual(
       ThreadStatusPresentation.resolvedStatus(
         status: "finished",

@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 fun PushPermissionCard(state: PushUiState, onAction: () -> Unit) {
@@ -54,7 +55,7 @@ fun PushPermissionCard(state: PushUiState, onAction: () -> Unit) {
                 )
             }
             content.third?.let { label ->
-                Button(onClick = onAction) { Text(stringResource(label)) }
+                FilledTonalButton(onClick = onAction) { Text(stringResource(label)) }
             }
         }
     }

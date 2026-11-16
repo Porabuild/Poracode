@@ -1,4 +1,6 @@
 import type { Thread } from "@/shared/contracts";
+import { gitStatusResultSchema } from "@/shared/contracts/gitResults";
+import { resolveProjectLocation } from "@/shared/worktree";
 import { hostSupportsThreadLaunchMetadata } from "@/shared/remote/protocol/threadLaunchMetadata";
 import { sideChatLaunchInput } from "@/shared/sideChatLaunchInput";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
@@ -28,10 +30,14 @@ export function createFacade(ctx: RouterContext) {
     visibleThread,
     threadListPage,
     listThreads,
+    cachedThreadById,
   } = ctx;
-  const sessionOptions = async (session: string) => {
+  const sessionOptions = async (session: string, remoteThread?: Thread | null) => {
     const current = sessions.get(session);
-    const remote = (await listThreads()).find((value) => value.id === threadId(session));
+    const remote =
+      remoteThread === undefined
+        ? (await listThreads()).find((value) => value.id === threadId(session))
+        : (remoteThread ?? undefined);
     const status = (await agentStatuses()).find(
       (value) => value.kind === (current?.providerID ?? remote?.agentKind ?? ctx.activeProviderID),
     );
@@ -79,8 +85,16 @@ export function createFacade(ctx: RouterContext) {
       contextSize?: string;
     },
   ) => {
-    const current = sessions.get(session);
-    const offered = await sessionOptions(session);
+    let current = sessions.get(session);
+    // A thread opened from the session list was never prompted in this run,
+    // so it has no record; look the remote thread up once (as composerState
+    // does) and seed a record so option mutations have somewhere to land.
+    const remote = current
+      ? undefined
+      : (await listThreads()).find((value) => value.id === threadId(session));
+    const offered = current
+      ? await sessionOptions(session)
+      : await sessionOptions(session, remote ?? null);
     if (
       choice.approvalPolicy &&
       offered.approvalPolicies.length > 0 &&
@@ -111,7 +125,17 @@ export function createFacade(ctx: RouterContext) {
       !offered.contextSizes.some((option) => option.id === choice.contextSize)
     )
       return { error: `Unknown context size: ${choice.contextSize}`, status: 400 };
-    if (!current) return { error: "Unknown session", status: 404 };
+    if (!current) {
+      if (!remote) return { error: "Unknown session", status: 404 };
+      current = {
+        threadId: threadId(session),
+        projectId: remote.projectId,
+        providerID: remote.agentKind,
+        model: remote.config.model,
+        remoteStarted: true,
+      };
+      sessions.set(session, current);
+    }
     const updated = {
       ...current,
       ...(choice.approvalPolicy ? { approvalPolicy: choice.approvalPolicy } : {}),
@@ -133,6 +157,99 @@ export function createFacade(ctx: RouterContext) {
       ...(choice.sandboxMode ? { sandboxMode: choice.sandboxMode } : {}),
     });
     return { ok: true as const };
+  };
+
+  // Composer metadata chips — the desktop composer control state for one
+  // session. Each key appears only when the provider offers it; the current
+  // choice is the session record's value, then the remote thread's config,
+  // then the offered default.
+  const composerState = async (session: string) => {
+    const current = sessions.get(session);
+    const remote = (await listThreads()).find((value) => value.id === threadId(session));
+    const remoteConfig = record(remote?.config);
+    const remoteBool = (key: string) =>
+      typeof remoteConfig[key] === "boolean" ? (remoteConfig[key] as boolean) : undefined;
+    const remoteString = (key: string) =>
+      typeof remoteConfig[key] === "string" ? (remoteConfig[key] as string) : undefined;
+    const offered = await sessionOptions(session, remote ?? null);
+    const state: {
+      approval?: {
+        current: string;
+        label: string;
+        options: readonly { id: string; label: string }[];
+      };
+      fast?: { on: boolean; disabledReason?: string };
+      thinking?: { on: boolean };
+      workflows?: { on: boolean; label: string };
+      context?: {
+        current?: string;
+        label?: string;
+        options: readonly { id: string; label: string }[];
+      };
+    } = {};
+    if (offered.approvalPolicies.length > 0) {
+      const approval =
+        current?.approvalPolicy ??
+        remoteString("approvalPolicy") ??
+        offered.defaults.approvalPolicy;
+      const option = offered.approvalPolicies.find((entry) => entry.id === approval);
+      if (approval && option)
+        state.approval = {
+          current: approval,
+          label: option.label,
+          options: offered.approvalPolicies,
+        };
+    }
+    if (offered.fast.offered) {
+      state.fast = {
+        on: current?.fast ?? remoteBool("fast") ?? false,
+        ...(offered.fast.disabledReason ? { disabledReason: offered.fast.disabledReason } : {}),
+      };
+    }
+    if (offered.thinking.offered)
+      state.thinking = { on: current?.thinking ?? remoteBool("thinking") ?? false };
+    if (offered.workflows.offered)
+      state.workflows = {
+        on: current?.workflows ?? remoteBool("workflows") ?? false,
+        label: offered.workflows.label,
+      };
+    if (offered.contextSizes.length > 0) {
+      const contextSize = current?.contextSize ?? remoteString("contextSize") ?? undefined;
+      const option = offered.contextSizes.find((entry) => entry.id === contextSize);
+      state.context = {
+        ...(contextSize ? { current: contextSize } : {}),
+        ...(option ? { label: option.label } : {}),
+        options: offered.contextSizes,
+      };
+    }
+    return state;
+  };
+
+  // The thread checkout's git totals for the composer changes chip; undefined
+  // when the thread is not in a repo or the host cannot answer.
+  const gitChanges = async (session: string) => {
+    try {
+      // worktreePath is immutable per thread, so the cached lookup (kept
+      // current by listThreads/refreshChangedThreads, paging only on a cold
+      // miss) avoids a host page on every poll.
+      const remote = await cachedThreadById(threadId(session));
+      if (!remote) return undefined;
+      const currentProject = await resolveProject();
+      const status = gitStatusResultSchema.parse(
+        await input.client.callRemoteProcedure("getGitStatus", {
+          projectLocation: resolveProjectLocation(currentProject.location, remote.worktreePath),
+        }),
+      );
+      if (!status.isRepo) return undefined;
+      const worktree = remote.worktreePath?.split(/[\\/]/u).filter(Boolean).at(-1);
+      return {
+        insertions: status.totalInsertions,
+        deletions: status.totalDeletions,
+        ...(worktree ? { worktree } : {}),
+      };
+    } catch {
+      return undefined;
+    }
   };
 
   // exportSession assembles a full transcript through the existing history
@@ -346,6 +463,8 @@ export function createFacade(ctx: RouterContext) {
   return {
     sessionOptions,
     setSessionOptions,
+    composerState,
+    gitChanges,
     exportSession,
     offeredProviders,
     threadFlags,

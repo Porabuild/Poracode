@@ -253,4 +253,92 @@ describe("Antigravity official ACP runtime", () => {
       consoleLog.mockRestore();
     }
   });
+
+  it("keeps UsageUpdate as context occupancy and records PromptResponse.usage as per-call spend", async () => {
+    const adapter = createAntigravityAcpRuntime(
+      acpInstance({
+        FAKE_MODELS: "gemini-4-hydrogen",
+        FAKE_PROMPT_USAGE_UPDATES: JSON.stringify([
+          { used: 195_000, size: 1_000_000 },
+          { used: 210_000, size: 1_000_000 },
+        ]),
+        FAKE_PROMPT_RESPONSE_USAGES: JSON.stringify([
+          {
+            inputTokens: 891_788,
+            outputTokens: 21_813,
+            thoughtTokens: 8_704,
+            cachedReadTokens: 2_016_794,
+            cachedWriteTokens: 0,
+            totalTokens: 2_930_395,
+          },
+          {
+            inputTokens: 12_000,
+            outputTokens: 500,
+            thoughtTokens: 100,
+            cachedReadTokens: 197_500,
+            cachedWriteTokens: 0,
+            totalTokens: 210_000,
+          },
+        ]),
+      }),
+    )!;
+    const session = await adapter.createStructuredSession?.({
+      threadId: "antigravity-usage",
+      projectLocation: projectLocation(),
+      config: { model: "gemini-4-hydrogen" },
+      presentationMode: "gui",
+    });
+    expect(session).toBeDefined();
+    const sessionListener = listener();
+    session!.setListener(sessionListener);
+
+    try {
+      await session!.activate?.();
+      await session!.openThread?.({ model: "gemini-4-hydrogen" });
+      await session!.startTurn?.("first turn with many tool calls", { model: "gemini-4-hydrogen" });
+      await session!.startTurn?.("short follow-up turn", { model: "gemini-4-hydrogen" });
+
+      const events = sessionListener.onRuntimeEvent.mock.calls.map(
+        ([event]) => event as { type?: string; usage?: Record<string, unknown> },
+      );
+      const contextEvents = events.filter((event) => event.type === "context.updated");
+      expect(contextEvents.map((event) => event.usage)).toEqual([
+        { usedTokens: 195_000, maxTokens: 1_000_000 },
+        { usedTokens: 210_000, maxTokens: 1_000_000 },
+      ]);
+
+      const spentEvents = events.filter((event) => event.type === "usage.spent");
+      expect(
+        spentEvents.map((event) => ({
+          counterKind: event.usage?.counterKind,
+          counter: event.usage?.counter,
+          tokens: event.usage?.tokens,
+        })),
+      ).toEqual([
+        {
+          counterKind: "per-call",
+          counter: 2_930_395,
+          tokens: {
+            input: 891_788,
+            output: 21_813,
+            cacheRead: 2_016_794,
+            cacheWrite: 0,
+          },
+        },
+        {
+          counterKind: "per-call",
+          counter: 210_000,
+          tokens: {
+            input: 12_000,
+            output: 500,
+            cacheRead: 197_500,
+            cacheWrite: 0,
+          },
+        },
+      ]);
+      expect(new Set(spentEvents.map((event) => event.usage?.sampleId)).size).toBe(2);
+    } finally {
+      await session!.dispose();
+    }
+  }, 30_000);
 });

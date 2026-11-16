@@ -66,6 +66,8 @@ export interface TerminalFeedListener {
    * live-only fallback.
    */
   readonly onWatchError?: (error: RemoteTerminalWatchResultError) => void;
+  /** Local socket loss; queued input must not survive a reconnect. */
+  readonly onDisconnected?: () => void;
 }
 
 export type TerminalSocketSender = (message: RemoteWebSocketClientMessage) => boolean;
@@ -238,6 +240,7 @@ export function createTerminalFeed(options: TerminalFeedOptions = {}): TerminalF
       cursorSyncActive = wantCursorSync;
       senderVersion = wantVersion ?? TERMINAL_CURSOR_SYNC_VERSION;
       if (!next) {
+        for (const id of listeners.keys()) fanout(id, (listener) => listener.onDisconnected?.());
         for (const session of sessions.values()) session.suspend();
         return;
       }
@@ -391,6 +394,7 @@ export function createTerminalFeed(options: TerminalFeedOptions = {}): TerminalF
       fanout(id, (listener) => listener.onExited(exitCode));
     },
     reset() {
+      for (const id of listeners.keys()) fanout(id, (listener) => listener.onDisconnected?.());
       for (const id of listeners.keys()) sender?.({ type: "terminal-unwatch", id });
       listeners.clear();
       for (const session of sessions.values()) session.dispose();

@@ -26,6 +26,13 @@ interface WorkspaceUiState {
   activeWorkspaceId: string | null;
   setActiveWorkspaceId: (workspaceId: string | null) => void;
   /**
+   * Compact-layout workspace filter (`null` = All workspaces). Stored separately
+   * from `activeWorkspaceId` so mobile defaults to showing every workspace
+   * while desktop stays scoped to one active workspace.
+   */
+  compactWorkspaceFilter: string | null;
+  setCompactWorkspaceFilter: (workspaceId: string | null) => void;
+  /**
    * The project last deliberately picked while each workspace was active, keyed
    * by workspace id, so a new thread started with no explicit target resumes
    * that workspace's own work instead of whatever project happens to sit first
@@ -42,6 +49,15 @@ export const useWorkspaceStore = create<WorkspaceUiState>()(
     (set) => ({
       activeWorkspaceId: null,
       setActiveWorkspaceId: (activeWorkspaceId) => set({ activeWorkspaceId }),
+      compactWorkspaceFilter: null,
+      setCompactWorkspaceFilter: (compactWorkspaceFilter) =>
+        set((state) => ({
+          compactWorkspaceFilter,
+          // Keep activeWorkspaceId aligned with an explicit compact workspace
+          // selection so newly created Home threads file into the filtered workspace.
+          ...(compactWorkspaceFilter ? { activeWorkspaceId: compactWorkspaceFilter } : {}),
+          lastProjectIdByWorkspace: state.lastProjectIdByWorkspace,
+        })),
       lastProjectIdByWorkspace: {},
       rememberProjectForWorkspace: (workspaceId, projectId) =>
         set((state) => ({
@@ -92,6 +108,20 @@ export function useActiveWorkspaceId(): string | null {
   const workspaces = useSharedSettings((state) => state.workspaces);
   const storedId = useWorkspaceStore((state) => state.activeWorkspaceId);
   return resolveActiveWorkspaceId(workspaces, storedId);
+}
+
+export function resolveCompactWorkspaceFilter(
+  workspaces: readonly { id: string }[],
+  storedFilter: string | null,
+): string | null {
+  if (workspaces.length < 2 || !storedFilter) return null;
+  return workspaces.some((workspace) => workspace.id === storedFilter) ? storedFilter : null;
+}
+
+export function useCompactWorkspaceFilter(): string | null {
+  const workspaces = useSharedSettings((state) => state.workspaces);
+  const storedFilter = useWorkspaceStore((state) => state.compactWorkspaceFilter);
+  return resolveCompactWorkspaceFilter(workspaces, storedFilter);
 }
 
 export function getActiveWorkspaceId(): string | null {

@@ -21,8 +21,17 @@ export function coalesceByKey<K, V>(
   return tracked;
 }
 
-/** Append one runtime event, merging only an immediately preceding matching delta. */
-export function appendCoalescedRuntimeEvent(target: RuntimeEvent[], event: RuntimeEvent): void {
+/**
+ * Append one runtime event, merging only an immediately preceding matching
+ * delta. `maxMergedDeltaChars` bounds an append merge so a producer that split
+ * an oversized delta (#994) does not get it reassembled; by default merges are
+ * unbounded.
+ */
+export function appendCoalescedRuntimeEvent(
+  target: RuntimeEvent[],
+  event: RuntimeEvent,
+  maxMergedDeltaChars = Number.POSITIVE_INFINITY,
+): void {
   const previous = target.at(-1);
   if (
     event.type === "content.delta" &&
@@ -30,16 +39,23 @@ export function appendCoalescedRuntimeEvent(target: RuntimeEvent[], event: Runti
     previous.itemId === event.itemId &&
     previous.stream === event.stream
   ) {
-    target[target.length - 1] = event.replace
-      ? event
-      : { ...previous, delta: previous.delta + event.delta };
-    return;
+    if (event.replace) {
+      target[target.length - 1] = event;
+      return;
+    }
+    if (previous.delta.length + event.delta.length <= maxMergedDeltaChars) {
+      target[target.length - 1] = { ...previous, delta: previous.delta + event.delta };
+      return;
+    }
   }
   target.push(event);
 }
 
-export function coalesceRuntimeEvents(events: readonly RuntimeEvent[]): RuntimeEvent[] {
+export function coalesceRuntimeEvents(
+  events: readonly RuntimeEvent[],
+  maxMergedDeltaChars = Number.POSITIVE_INFINITY,
+): RuntimeEvent[] {
   const coalesced: RuntimeEvent[] = [];
-  for (const event of events) appendCoalescedRuntimeEvent(coalesced, event);
+  for (const event of events) appendCoalescedRuntimeEvent(coalesced, event, maxMergedDeltaChars);
   return coalesced;
 }

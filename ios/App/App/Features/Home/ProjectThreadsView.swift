@@ -227,12 +227,22 @@ struct ProjectThreadsView: View {
         }
         .accessibilityLabel(threadAccessibilityLabel(thread))
         .accessibilityIdentifier("native-e2e.thread.\(thread.id)")
-        ThreadLifecycleActionMenu(
-          thread: thread,
-          enabled: canOperate(on: thread),
-          isBusy: lifecycle.isBusy,
-          perform: { action in perform(action, on: thread) }
-        )
+        .contextMenu {
+          ThreadLifecycleActionsContent(
+            thread: thread,
+            enabled: canOperate(on: thread),
+            isBusy: lifecycle.isBusy,
+            perform: { action in perform(action, on: thread) }
+          )
+        }
+        .accessibilityActions {
+          ThreadLifecycleActionsContent(
+            thread: thread,
+            enabled: canOperate(on: thread),
+            isBusy: lifecycle.isBusy,
+            perform: { action in perform(action, on: thread) }
+          )
+        }
       }
     }
   }

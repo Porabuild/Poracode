@@ -110,6 +110,12 @@ describe("searchSettings", () => {
     expect(searchSettings("appearance missing", t)).toEqual([]);
   });
 
+  it("finds Computer Use options through plugin settings", () => {
+    expect(searchSettings("locked computer use", t).map((result) => result.anchor)).toContain(
+      "plugins.marketplace",
+    );
+  });
+
   it("finds the Skills and MCP settings", () => {
     expect(searchSettings("skills", t).map((result) => result.anchor)).toContain("skills.manage");
     expect(searchSettings("shared", t).map((result) => result.anchor)).toContain("skills.manage");

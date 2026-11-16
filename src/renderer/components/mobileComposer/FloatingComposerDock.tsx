@@ -10,6 +10,8 @@ import { getComposerInput, useComposerKeyboard } from "./useComposerKeyboard";
 
 const KEYBOARD_VISIBILITY_OFFSET_VAR = "--m-keyboard-visibility-offset";
 const COLLAPSE_CONTENT_SWAP_MS = 100;
+const NON_COMPOSER_INPUT_SELECTOR =
+  ".poracode-composer-send, .poracode-selection-chip, [data-selection-preview-dialog]";
 const COMPOSER_OVERLAY_SELECTOR = [
   '[data-slot^="popover-"]',
   '[data-slot$="-popover"]',
@@ -342,6 +344,8 @@ export function FloatingComposerDock(props: {
 
   const handleFocusCapture = (event: ReactFocusEvent<HTMLDivElement>) => {
     if (expansionLocked) return;
+    if (event.target instanceof Element && event.target.closest(NON_COMPOSER_INPUT_SELECTOR))
+      return;
     if (event.target instanceof HTMLElement && !expanded) {
       setExpanded(true);
     }
@@ -457,6 +461,11 @@ export function FloatingComposerDock(props: {
           onFocusCapture={handleFocusCapture}
           onPointerDownCapture={(event) => {
             if (!props.collapsedTapLabel || visuallyExpanded || expansionLocked) return;
+            if (
+              event.target instanceof Element &&
+              event.target.closest(NON_COMPOSER_INPUT_SELECTOR)
+            )
+              return;
             event.preventDefault();
             event.stopPropagation();
             expandAndFocus(event.pointerType);

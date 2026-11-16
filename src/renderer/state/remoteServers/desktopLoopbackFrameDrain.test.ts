@@ -2,14 +2,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ClientEngineWorkerMode } from "@/renderer/state/remote/engine";
 import type { DesktopFrameDecodeResult } from "@/renderer/state/remote/engine/decode";
 import {
-  DesktopLoopbackFrameDrain,
-  type DesktopLoopbackDecodePort,
-  type DesktopLoopbackDrainUnavailableReason,
-} from "./desktopLoopbackFrameDrain";
+  HostEventDrain,
+  type HostEventDrainOptions,
+  type HostEventDrainUnavailableReason,
+} from "@/renderer/hostTransport/hostEventDrain";
 import type { DesktopLoopbackFrame } from "./desktopLoopbackFrames";
 import { parseDesktopLoopbackFrame } from "./desktopLoopbackFrames";
 import {
+  WorkerDesktopLoopbackTransport,
+  type WorkerDesktopLoopbackCallbacks,
+} from "./desktopLoopbackWorkerTransport";
+import {
   DesktopLoopbackIntake,
+  type DesktopLoopbackDecodePort,
   type DesktopLoopbackIntakeDeps,
   type DesktopLoopbackSocket,
 } from "./desktopLoopbackIntake";
@@ -76,12 +81,17 @@ const terminalFrame = (id: string) => JSON.stringify({ type: "terminal-output", 
 
 function makeDrain(
   port: DesktopLoopbackDecodePort,
-  overrides: Partial<ConstructorParameters<typeof DesktopLoopbackFrameDrain>[0]> = {},
+  overrides: Partial<HostEventDrainOptions<DesktopLoopbackFrame>> = {},
 ) {
   const frames: DesktopLoopbackFrame[] = [];
-  const unavailable: DesktopLoopbackDrainUnavailableReason[] = [];
-  const drain = new DesktopLoopbackFrameDrain({
-    decode: port,
+  const unavailable: HostEventDrainUnavailableReason[] = [];
+  const drain = new HostEventDrain({
+    decode: {
+      decodeFrame: (raw) =>
+        port.decodeDesktopFrame(raw).then((result) => (result.ok ? result.frame : null)),
+      renew: () => port.renew(),
+      dispose: () => port.dispose(),
+    },
     onFrame: (frame) => frames.push(frame),
     onUnavailable: (reason) => unavailable.push(reason),
     ...overrides,
@@ -89,7 +99,7 @@ function makeDrain(
   return { drain, frames, unavailable };
 }
 
-describe("DesktopLoopbackFrameDrain (A3 ordered bounded managed decode)", () => {
+describe("HostEventDrain with managed desktop frames", () => {
   it("routes terminal and event frames in push order even when decode completes out of order", async () => {
     const port = new FakeDecodePort();
     const pending = new Map<string, Deferred>();
@@ -293,9 +303,7 @@ describe("DesktopLoopbackFrameDrain (A3 ordered bounded managed decode)", () => 
     const { drain, frames, unavailable } = makeDrain(port);
     drain.push(eventFrame(1));
     pending.reject(new Error("worker gone"));
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(unavailable).toEqual(["worker"]);
+    await vi.waitFor(() => expect(unavailable).toEqual(["worker"]));
     // Unavailability fences this generation and renews the decode port;
     // actual reclamation of the port's posted work is the engine's
     // response/termination boundary, not this call.
@@ -534,5 +542,119 @@ describe("managed loopback reduced state (A3)", () => {
     expect(sockets).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(60);
     expect(sockets).toHaveLength(3);
+  });
+});
+
+describe("managed loopback worker batch draining", () => {
+  const intakes: DesktopLoopbackIntake[] = [];
+
+  afterEach(() => {
+    for (const intake of intakes.splice(0)) intake.dispose();
+    vi.clearAllTimers();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  async function activateWorkerIntake(dispatch: DesktopLoopbackIntakeDeps["dispatch"]) {
+    vi.useFakeTimers();
+    const socket = makeFakeSocket();
+    let callbacks!: WorkerDesktopLoopbackCallbacks;
+    vi.spyOn(WorkerDesktopLoopbackTransport.prototype, "open").mockImplementation((_url, next) => {
+      callbacks = next;
+      return socket.socket;
+    });
+    const intake = new DesktopLoopbackIntake({
+      endpoint: "http://127.0.0.1:9031",
+      pairingToken: "pairing-credential",
+      fetchImpl: createFakeFetch().fetchImpl,
+      retryDelayMs: 100,
+      decodeRetryDelayMs: 100,
+      dispatch,
+      requestRebuild: () => {},
+      onActiveChanged: () => {},
+    });
+    intakes.push(intake);
+    const activation = intake.activate();
+    await vi.advanceTimersByTimeAsync(1);
+    socket.emitOpen();
+    await expect(activation).resolves.toBe(true);
+    return { intake, socket, callbacks };
+  }
+
+  it("acknowledges each batch after its UI yield continuations drain, not on receipt", async () => {
+    let clock = 0;
+    const dispatch = vi.fn<DesktopLoopbackIntakeDeps["dispatch"]>(() => {
+      clock += 8;
+    });
+    const { callbacks } = await activateWorkerIntake(dispatch);
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+    const firstAck = vi.fn<() => void>();
+    const secondAck = vi.fn<() => void>();
+    callbacks.onDecodedBatch(
+      [1, 2, 3].map((seq) => parseDesktopLoopbackFrame(eventFrame(seq))),
+      firstAck,
+    );
+    callbacks.onDecodedBatch([parseDesktopLoopbackFrame(eventFrame(4))], secondAck);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(firstAck).not.toHaveBeenCalled();
+    expect(secondAck).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(dispatch.mock.calls.map(([, seq]) => seq)).toEqual([1, 2, 3, 4]);
+    expect(firstAck).toHaveBeenCalledOnce();
+    expect(secondAck).toHaveBeenCalledOnce();
+    expect(firstAck.mock.invocationCallOrder[0]).toBeGreaterThan(
+      dispatch.mock.invocationCallOrder[2]!,
+    );
+    expect(firstAck.mock.invocationCallOrder[0]).toBeLessThan(
+      dispatch.mock.invocationCallOrder[3]!,
+    );
+  });
+
+  it.each(["close", "overflow", "dispose"] as const)(
+    "discards and acknowledges pending batches on %s and fences their continuation",
+    async (reason) => {
+      let clock = 0;
+      const dispatch = vi.fn<DesktopLoopbackIntakeDeps["dispatch"]>(() => {
+        clock += 8;
+      });
+      const { intake, socket, callbacks } = await activateWorkerIntake(dispatch);
+      vi.spyOn(performance, "now").mockImplementation(() => clock);
+      const acknowledge = vi.fn<() => void>();
+      callbacks.onDecodedBatch(
+        [1, 2].map((seq) => parseDesktopLoopbackFrame(eventFrame(seq))),
+        acknowledge,
+      );
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      if (reason === "close") socket.emitClose();
+      else if (reason === "overflow") callbacks.onOverflow();
+      else intake.dispose();
+      expect(acknowledge).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(10);
+      expect(acknowledge).toHaveBeenCalledOnce();
+      expect(dispatch).toHaveBeenCalledTimes(1);
+      const staleAck = vi.fn<() => void>();
+      callbacks.onDecodedBatch([parseDesktopLoopbackFrame(eventFrame(3))], staleAck);
+      expect(staleAck).toHaveBeenCalledOnce();
+      expect(dispatch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("defers discard acknowledgement until a handler-triggered teardown returns", async () => {
+    const acknowledge = vi.fn<() => void>();
+    let closeSocket = () => {};
+    const dispatch = vi.fn<DesktopLoopbackIntakeDeps["dispatch"]>(() => {
+      closeSocket();
+      expect(acknowledge).not.toHaveBeenCalled();
+    });
+    const { socket, callbacks } = await activateWorkerIntake(dispatch);
+    closeSocket = () => socket.emitClose();
+    callbacks.onDecodedBatch(
+      [1, 2].map((seq) => parseDesktopLoopbackFrame(eventFrame(seq))),
+      acknowledge,
+    );
+    expect(acknowledge).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(acknowledge).toHaveBeenCalledOnce();
+    expect(dispatch).toHaveBeenCalledTimes(1);
   });
 });

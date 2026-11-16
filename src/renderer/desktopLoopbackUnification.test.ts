@@ -27,7 +27,7 @@ import {
 } from "./clientRuntime";
 import {
   managedTerminalFeedId,
-  watchManagedTerminal,
+  watchRoutedTerminal,
   watchRemoteTerminal,
 } from "./state/remoteTerminalFeed";
 import {
@@ -559,7 +559,7 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
     let resets = 0;
     let exited: number | null | undefined;
     let snapshotText: string | null = null;
-    const unsubscribe = watchManagedTerminal("term-1", {
+    const unsubscribe = watchRoutedTerminal("term-1", {
       onOutput: (data) => outputs.push(data),
       onReset: () => {
         resets += 1;
@@ -619,7 +619,7 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
     const outputs: string[] = [];
     let resyncs = 0;
     let snapshots = 0;
-    const unsubscribe = watchManagedTerminal("term-2", {
+    const unsubscribe = watchRoutedTerminal("term-2", {
       onOutput: (data) => outputs.push(data),
       onReset: () => {},
       onExited: () => {},
@@ -942,7 +942,7 @@ describe("app-owned managed terminal routing (A0 correction)", () => {
       terminalSize: { cols: 100, rows: 31 },
     });
     const feedSnapshots: string[] = [];
-    const unsubscribeFeed = watchManagedTerminal(shellId, {
+    const unsubscribeFeed = watchRoutedTerminal(shellId, {
       onOutput: () => {},
       onReset: () => {},
       onExited: () => {},

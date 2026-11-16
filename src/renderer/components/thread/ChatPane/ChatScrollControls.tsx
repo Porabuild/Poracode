@@ -11,10 +11,7 @@ import { createPortal, flushSync } from "react-dom";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
-import {
-  floatingGlassBubbleClass,
-  floatingGlassSurfaceClass,
-} from "@/renderer/components/layout/floatingGlass";
+import { floatingBubbleIconClass } from "@/renderer/components/layout/floatingGlass";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { isPanelResizing, subscribePanelResize } from "@/renderer/state/panelResizeSignal";
@@ -116,6 +113,7 @@ export function ChatScrollControls(props: {
   // that row; otherwise it floats over the pane (sub-agent overlays, previews).
   const bubbleSlot = useComposerBubbleSlotStore((s) => s.control[threadId] ?? null);
   const initialLayoutChangeTokenRef = useRef(layoutChangeToken);
+  const initializedThreadRef = useRef<string | null>(null);
   const lastScrollTopRef = useRef(0);
   const stickToBottomRef = useRef(true);
   const promptAnchoredRef = useRef(false);
@@ -215,7 +213,12 @@ export function ChatScrollControls(props: {
    * unless the reader took over in the meantime.
    */
   function followReplyPastPromptSpace(el: HTMLElement): boolean {
-    if (!promptReplySpaceShownRef.current || reservedReplySpace(el) > 0) return false;
+    if (
+      !promptReplySpaceShownRef.current ||
+      el.dataset.chatEndSpaceSize === undefined ||
+      reservedReplySpace(el) > 0
+    )
+      return false;
     promptReplySpaceShownRef.current = false;
     // Keyboard navigation arms intent without a takeover; keep that reader's place.
     if (hasRecentUserScrollIntent()) return false;
@@ -632,6 +635,8 @@ export function ChatScrollControls(props: {
     disableStickToBottom,
     anchorToPrompt: () => {
       disableStickToBottom();
+      userScrollIntentUntilRef.current = 0;
+      userScrollTowardEndUntilRef.current = 0;
       promptAnchoredRef.current = true;
       // The ready callback re-anchors after LegendList reports the reply space.
       promptReplySpaceShownRef.current = reservedReplySpace(scrollRef.current) > 0;
@@ -646,6 +651,9 @@ export function ChatScrollControls(props: {
   }));
 
   useLayoutEffect(() => {
+    // Activity reconnects effects without opening a new thread or resetting its reader.
+    if (initializedThreadRef.current === threadId) return;
+    initializedThreadRef.current = threadId;
     promptAnchoredRef.current = false;
     readerFollow?.resume();
     cancelScheduledPin();
@@ -975,7 +983,7 @@ export function ChatScrollControls(props: {
          centered via a negative margin, not `-translate-x-1/2`: HeroUI's pressed
          state animates `transform`, which would fight a translate and snap the
          button sideways on click. */
-        className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} size-7 min-w-0 rounded-full text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
+        className={`${floatingBubbleIconClass} text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
           bubbleSlot ? "" : "absolute bottom-4 left-1/2 z-10 -ml-3.5"
         } ${showScrollDown ? "opacity-100" : "pointer-events-none opacity-0"}`}
       >

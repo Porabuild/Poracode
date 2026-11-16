@@ -34,11 +34,11 @@ describe("operation-map inventory lock", () => {
     expect(live).toEqual(committed);
     expect(committed.keyCount).toBe(EXPECTED_OPERATION_KEY_COUNT);
     expect(committed.counts).toEqual({
-      route: 119,
-      procedure: 165,
+      route: 121,
+      procedure: 179,
       "ws-client": 11,
       "ws-server": 12,
-      replay: 16,
+      replay: 17,
       runtime: 16,
     });
   });

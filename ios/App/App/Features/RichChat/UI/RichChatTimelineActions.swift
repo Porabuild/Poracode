@@ -35,14 +35,34 @@ struct RichChatTimelineActions {
   var checkpoints = RichChatCheckpointCollection(checkpoints: [], turns: [])
   var isTurnActive = false
   var inheritedItemIDs: Set<String> = []
+  var mcpAppThreadID: String?
+  var controlMcpApp: (([String: RichJSON]) async throws -> RichJSON)?
+  var sendMcpAppMessage: ((String) async -> Bool)?
   var requestRevert: ((RichChatMessageRevertPlan) -> Void)?
   let requestTruncate: ((String) -> Void)?
+  var requestFork: ((String) -> Void)? = nil
 
   static let none = RichChatTimelineActions(
     lastVisibleItemID: nil,
     requestRevert: nil,
     requestTruncate: nil
   )
+
+  mutating func bindMcpAppActions(
+    conversation: RichChatConversationController, config: [String: RichJSON], canOperate: Bool
+  ) {
+    let target = conversation.state.target
+    mcpAppThreadID = target?.threadID
+    guard canOperate else { return }
+    controlMcpApp = { payload in
+      guard conversation.state.target == target else { throw RichChatGatewayError.unavailable }
+      return try await conversation.controlMcpApp(payload)
+    }
+    sendMcpAppMessage = { text in
+      guard conversation.state.target == target else { return false }
+      return await conversation.send(RichChatSendInput(prompt: text, config: config))
+    }
+  }
 
   func canCopy(item: RichRuntimeItem, text: String) -> Bool {
     RichChatMessageCopyEligibility.isEligible(
@@ -72,6 +92,40 @@ struct RichChatTimelineActions {
         itemID: itemID,
         lastVisibleItemID: lastVisibleItemID
       )
+  }
+
+  /// The completed-turn anchor a fork from `itemID` would use: the latest turn
+  /// whose anchor precedes the item in transcript order. Forking is anchored at
+  /// the turn boundary, so an assistant reply maps back to its own turn.
+  func forkAnchorItemID(for itemID: String) -> String? {
+    guard let index = rawItems.firstIndex(where: { $0.id == itemID }) else { return nil }
+    var best: (position: Int, anchor: String)?
+    for turn in completedTurns {
+      guard let anchor = turn.anchorItemID,
+        let anchorIndex = rawItems.firstIndex(where: { $0.id == anchor }),
+        anchorIndex <= index
+      else { continue }
+      if best == nil || anchorIndex > best!.position {
+        best = (anchorIndex, anchor)
+      }
+    }
+    return best?.anchor
+  }
+
+  func canFork(itemID: String) -> Bool {
+    guard requestFork != nil, !isTurnActive else { return false }
+    guard let anchor = forkAnchorItemID(for: itemID) else { return false }
+    return !inheritedItemIDs.contains(anchor)
+  }
+
+  /// Whether the entry already surfaces fork through a completed assistant
+  /// message's inline action row, making a separate per-entry fork button
+  /// redundant. Entries without a forkable assistant message (tool-only turns)
+  /// still need the boundary button.
+  func entryOffersInlineFork(_ entry: RichTimelineEntry) -> Bool {
+    entry.runtimeItems.contains { item in
+      item.type == RichItemType.assistantMessage && canFork(itemID: item.id)
+    }
   }
 
   func completedTurnLabel(itemID: String) -> String? {

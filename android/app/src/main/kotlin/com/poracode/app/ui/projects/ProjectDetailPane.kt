@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.model.ProjectIdentity
@@ -25,6 +26,8 @@ import com.poracode.app.session.projects.ProjectHostLease
 import com.poracode.app.session.projects.ProjectSessionRuntime
 import com.poracode.app.ui.settings.GlobalMcpSettingsController
 import com.poracode.app.ui.settingsintegrations.SettingsIntegrationsPage
+import com.poracode.app.ui.theme.PoracodeTextStyles
+import com.poracode.app.ui.theme.PoracodeTheme
 
 @Composable
 internal fun ProjectDetailPane(
@@ -56,11 +59,14 @@ internal fun ProjectDetailPane(
     ) {
         item(key = "header-${identity.connectionId.value}:${identity.projectId}") {
             Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                Text(project.name, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    project.name,
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 15.sp),
+                )
                 Text(
                     project.location.displayPath(),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = PoracodeTextStyles.rowDescription,
+                    color = PoracodeTheme.colors.muted,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )

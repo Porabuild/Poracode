@@ -1,4 +1,4 @@
-import type { PrDetails, Project } from "@/shared/contracts";
+import type { PrDetails, Project, GithubPollingProblem } from "@/shared/contracts";
 import type { GitStateServiceOptions } from "./gitStateExecutor";
 export type { GitStateExecutor, GitStateServiceOptions } from "./gitStateExecutor";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/shared/gitState";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { projectLocationKey } from "@/shared/projectIdentity";
 
 const DEFAULT_POLL_INTERVAL_MS = 30_000;
 const DEFAULT_REMOTE_FETCH_INTERVAL_MS = 3 * 60_000;
@@ -107,8 +108,23 @@ export class GitStateService {
 
   observeSupervisorEvent(event: SupervisorEvent): void {
     if (this.disposed) return;
+    if (event.type === "github-polling-status") {
+      const locationKey = projectLocationKey(event.projectLocation);
+      for (const project of this.options.getProjects()) {
+        const locations = [
+          project.location,
+          ...Object.values(this.snapshot.targets)
+            .filter((target) => target.ref.projectId === project.id && target.ref.worktreePath)
+            .map((target) => buildWorktreeLocation(project.location, target.ref.worktreePath!)),
+        ];
+        if (locations.some((location) => projectLocationKey(location) === locationKey))
+          this.publishPollingProblem(project.id, event.problem);
+      }
+      return;
+    }
     if (event.type !== "git-changed" && event.type !== "project-tree-changed") return;
-    void this.refreshInterestedProject(event.projectId);
+    if (event.type === "project-tree-changed" && event.gitChanged === false) return;
+    void this.refreshInterestedProject(event.projectId, event.type === "git-changed");
   }
 
   async refreshProject(
@@ -119,11 +135,20 @@ export class GitStateService {
     await this.dedupe(
       `project:${projectId}`,
       async () => {
+        const observe = this.options.beginWorktreeObservation?.(projectId);
         const result = await this.options.executor.gitProjectSnapshot({
           projectLocation: project.location,
           includeGhCheck: true,
         });
         if (this.disposed) return;
+        const currentProject = this.options.getProject(projectId);
+        if (
+          !currentProject ||
+          projectLocationKey(currentProject.location) !== projectLocationKey(project.location)
+        )
+          return;
+        const worktrees =
+          result.worktrees && observe?.(result.worktrees) === false ? undefined : result.worktrees;
         const refreshedAt = this.timestamp();
         const projectRef = { hostId: this.options.hostId, projectId };
         const projectKey = gitProjectKey(projectRef);
@@ -132,10 +157,11 @@ export class GitStateService {
         this.publish({
           projects: {
             [projectKey]: {
+              ...this.snapshot.projects[projectKey],
               ref: projectRef,
               ...(result.status ? { status: result.status } : {}),
               ...(result.branches ? { branches: result.branches } : {}),
-              ...(result.worktrees ? { worktrees: result.worktrees } : {}),
+              ...(worktrees ? { worktrees } : {}),
               ...(result.ghAvailable !== null ? { ghAvailable: result.ghAvailable } : {}),
               refreshedAt,
             },
@@ -156,6 +182,31 @@ export class GitStateService {
       },
       options.afterMutation,
     );
+  }
+
+  private async refreshWorktrees(projectId: string): Promise<void> {
+    const project = this.requireProject(projectId);
+    await this.dedupe(`worktrees:${projectId}`, async () => {
+      const observe = this.options.beginWorktreeObservation?.(projectId);
+      const { worktrees } = await this.options.executor.gitListWorktrees({
+        projectLocation: project.location,
+      });
+      if (this.disposed) return;
+      const currentProject = this.options.getProject(projectId);
+      if (
+        !currentProject ||
+        projectLocationKey(currentProject.location) !== projectLocationKey(project.location)
+      )
+        return;
+      if (observe?.(worktrees) === false) return;
+      const ref = { hostId: this.options.hostId, projectId };
+      const key = gitProjectKey(ref);
+      this.publish({
+        projects: {
+          [key]: { ...this.snapshot.projects[key], ref, worktrees, refreshedAt: this.timestamp() },
+        },
+      });
+    });
   }
 
   async refreshTarget(input: {
@@ -230,12 +281,27 @@ export class GitStateService {
       async () => {
         const initialBranchKey = this.snapshot.pullRequestKeyByBranch[branchKey];
         const initialPullRequests = this.snapshot.pullRequests;
-        const data = await this.options.executor.ghGetPrForBranch({
+        const result = await this.options.executor.ghPollPullRequests({
           projectLocation: project.location,
           branch,
+          ...(options.afterMutation ? { retry: true } : {}),
         });
         if (this.disposed) return null;
-        if (this.snapshot.pullRequestKeyByBranch[branchKey] !== initialBranchKey) {
+        this.publishPollingProblem(projectId, result.status === "blocked" ? result.problem : null);
+        if (result.status === "blocked")
+          return initialBranchKey
+            ? (this.snapshot.pullRequests[initialBranchKey]?.data ?? null)
+            : null;
+        const data = result.prs[branch] ?? null;
+        const readKey = data ? pullRequestKey({ ...projectRef, prNumber: data.number }) : null;
+        // Another reader moved the branch alias during this fetch. Aliasing it to
+        // the PR read here (a concurrent project list, say) agrees with this read,
+        // so only a different association wins over it.
+        const aliasMovedElsewhere = () => {
+          const currentKey = this.snapshot.pullRequestKeyByBranch[branchKey];
+          return currentKey !== initialBranchKey && currentKey !== readKey;
+        };
+        if (aliasMovedElsewhere()) {
           const currentKey = this.snapshot.pullRequestKeyByBranch[branchKey];
           return currentKey ? (this.snapshot.pullRequests[currentKey]?.data ?? null) : null;
         }
@@ -264,29 +330,39 @@ export class GitStateService {
                 projectLocation: project.location,
                 prNumber: data.number,
               })
-              .then((result) => result.details)
+              .then((detailsResult) => detailsResult.details)
               .catch(() => undefined)
           : undefined;
         if (this.disposed) return null;
-        if (this.snapshot.pullRequestKeyByBranch[branchKey] !== initialBranchKey) {
+        if (aliasMovedElsewhere()) {
           const currentKey = this.snapshot.pullRequestKeyByBranch[branchKey];
           return currentKey ? (this.snapshot.pullRequests[currentKey]?.data ?? null) : null;
         }
         const latest = this.snapshot.pullRequests[key];
-        if (
-          latest &&
+        // A reading of this same PR published during the fetch is kept, but the
+        // branch and its targets still associate with it.
+        const keepLatest =
+          latest !== undefined &&
           latest.data !== initialPullRequests[key]?.data &&
-          JSON.stringify(latest.data) !== JSON.stringify(data)
-        )
-          return latest.data;
+          JSON.stringify(latest.data) !== JSON.stringify(data);
         this.publish({
-          pullRequests: {
-            [key]: mergePullRequestState({ existing: latest, ref, data, details, at: fetchedAt }),
-          },
+          ...(keepLatest
+            ? {}
+            : {
+                pullRequests: {
+                  [key]: mergePullRequestState({
+                    existing: latest,
+                    ref,
+                    data,
+                    details,
+                    at: fetchedAt,
+                  }),
+                },
+              }),
           pullRequestKeyByBranch: { [branchKey]: key },
           targets: this.targetsForBranch(projectId, branch, key),
         });
-        return data;
+        return keepLatest ? latest.data : data;
       },
       options.afterMutation,
     );
@@ -352,10 +428,14 @@ export class GitStateService {
     await this.dedupe(`pr-bundle:${key}`, async () => {
       if (input.branch) {
         await this.refreshPullRequestForBranch(input.projectId, input.branch);
-      } else if (!this.snapshot.pullRequests[key]) {
+      } else if (
+        !this.snapshot.pullRequests[key] ||
+        this.snapshot.projects[gitProjectKey(ref)]?.githubPollingProblem
+      ) {
         await this.refreshProjectPullRequests(input.projectId);
       }
       if (this.disposed) return;
+      if (this.snapshot.projects[gitProjectKey(ref)]?.githubPollingProblem) return;
       const initialCore = this.snapshot.pullRequests[key]?.data;
       const initialDetails = this.snapshot.pullRequests[key]?.details;
       const [details, files, diff, reviews] = await Promise.allSettled([
@@ -434,10 +514,14 @@ export class GitStateService {
       `pr-list:${projectKey}`,
       async () => {
         const initialBranchKeys = this.snapshot.pullRequestKeyByBranch;
-        const result = await this.options.executor.ghListPullRequests({
+        const result = await this.options.executor.ghPollPullRequests({
           projectLocation: project.location,
+          state: "open",
+          ...(options.afterMutation ? { retry: true } : {}),
         });
         if (this.disposed) return;
+        this.publishPollingProblem(projectId, result.status === "blocked" ? result.problem : null);
+        if (result.status === "blocked") return;
         const refreshedAt = this.timestamp();
         const pullRequests: Record<string, PullRequestState> = {};
         const aliases: Record<string, string> = {};
@@ -497,8 +581,24 @@ export class GitStateService {
       }
       if (this.disposed) return;
       const tasks = new Map<string, Promise<void>>();
+      const rootProjects = new Set(
+        interests
+          .filter((interest) => interest.kind === "target" && !interest.worktreePath)
+          .map((interest) => interest.projectId),
+      );
       for (const interest of interests) {
         if (interest.kind === "target") {
+          // A worktree-only client still needs registry observations to follow
+          // moves/renames in its saved thread links after reconnect or a poll.
+          if (
+            interest.worktreePath &&
+            !rootProjects.has(interest.projectId) &&
+            this.options.beginWorktreeObservation
+          ) {
+            const projectKey = `worktrees:${interest.projectId}`;
+            if (!tasks.has(projectKey))
+              tasks.set(projectKey, this.refreshWorktrees(interest.projectId));
+          }
           const key = JSON.stringify(interest);
           tasks.set(key, this.refreshTarget(interest));
           continue;
@@ -563,12 +663,28 @@ export class GitStateService {
     );
   }
 
-  private async refreshInterestedProject(projectId: string): Promise<void> {
+  private async refreshInterestedProject(
+    projectId: string,
+    registryChanged = false,
+  ): Promise<void> {
     if (this.disposed) return;
     const interests = [...this.interestsByOwner.values()]
       .flat()
       .filter((interest) => interest.projectId === projectId);
-    if (interests.length === 0) return;
+    if (interests.length === 0) {
+      // Desktop status-only polling does not request a project snapshot. The
+      // host still repairs its durable links when its Git watcher signals a change.
+      if (
+        registryChanged &&
+        this.options.beginWorktreeObservation &&
+        this.options.getProject(projectId)
+      ) {
+        await this.track(async () => {
+          await Promise.allSettled([this.refreshWorktrees(projectId)]);
+        });
+      }
+      return;
+    }
     await this.refreshInterests(interests);
   }
 
@@ -600,6 +716,23 @@ export class GitStateService {
     const revisioned = { ...patch, revision };
     this.snapshot = applyGitStatePatch(this.snapshot, revisioned);
     this.options.onPatch?.(revisioned);
+  }
+
+  private publishPollingProblem(projectId: string, problem: GithubPollingProblem | null): void {
+    const ref = { hostId: this.options.hostId, projectId };
+    const key = gitProjectKey(ref);
+    const existing = this.snapshot.projects[key];
+    if (JSON.stringify(existing?.githubPollingProblem ?? null) === JSON.stringify(problem)) return;
+    this.publish({
+      projects: {
+        [key]: {
+          ...existing,
+          ref,
+          refreshedAt: existing?.refreshedAt ?? this.timestamp(),
+          githubPollingProblem: problem,
+        },
+      },
+    });
   }
 
   private interestsEqual(

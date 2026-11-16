@@ -1832,19 +1832,53 @@ export function Prompt(props: PromptProps) {
               syntaxStyle={syntax()}
             />
             <box flexDirection="row" flexShrink={0} paddingTop={1} gap={1} justifyContent="space-between">
-              <PromptMetadataRow
-                mode={store.mode}
-                agent={agentLabel()}
-                auto={local.permission.mode === "autoaccept"}
-                model={promptDisplay().modelLabel}
-                provider={promptDisplay().providerLabel}
-                variant={promptDisplay().variant}
-                muted={!!muted()}
-                highlight={highlight()}
-                agentAlpha={agentMetaAlpha()}
-                modelAlpha={modelMetaAlpha()}
-                variantAlpha={variantMetaAlpha()}
-              />
+              {/* poracode: plugins may replace the agent/model metadata row. */}
+              <Slot
+                path="prompt.metadata"
+                input={{
+                  get sessionID() {
+                    return props.sessionID
+                  },
+                  get mode() {
+                    return store.mode
+                  },
+                  get agent() {
+                    return promptDisplay().agentLabel
+                  },
+                  get auto() {
+                    return local.permission.mode === "autoaccept"
+                  },
+                  get model() {
+                    return promptDisplay().modelLabel
+                  },
+                  get provider() {
+                    return promptDisplay().providerLabel
+                  },
+                  get variant() {
+                    return promptDisplay().variant
+                  },
+                  get muted() {
+                    return !!muted()
+                  },
+                  get width() {
+                    return Math.max(0, dimensions().width - (dimensions().width < 44 ? 9 : 13))
+                  },
+                }}
+              >
+                <PromptMetadataRow
+                  mode={store.mode}
+                  agent={agentLabel()}
+                  auto={local.permission.mode === "autoaccept"}
+                  model={promptDisplay().modelLabel}
+                  provider={promptDisplay().providerLabel}
+                  variant={promptDisplay().variant}
+                  muted={!!muted()}
+                  highlight={highlight()}
+                  agentAlpha={agentMetaAlpha()}
+                  modelAlpha={modelMetaAlpha()}
+                  variantAlpha={variantMetaAlpha()}
+                />
+              </Slot>
             </box>
           </box>
         </box>

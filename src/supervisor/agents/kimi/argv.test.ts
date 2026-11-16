@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildKimiAcpArgs, buildKimiArgs, buildKimiContinueArgs } from "./argv";
+import { buildKimiAcpArgs, buildKimiArgs, buildKimiContinueArgs, resolveKimiAcpMode } from "./argv";
 
 describe("buildKimiArgs (TUI/PTY)", () => {
   it("emits nothing for a bare default config", () => {
@@ -27,14 +27,16 @@ describe("buildKimiArgs (TUI/PTY)", () => {
     expect(args).not.toContain("--auto");
   });
 
-  it("maps the auto approval policy to --auto", () => {
-    expect(buildKimiArgs({ mode: "agent", approvalPolicy: "auto" } as any, "", undefined)).toEqual([
-      "--auto",
-    ]);
+  it("maps the most permissive policies to --auto", () => {
+    for (const policy of ["auto", "bypassPermissions"]) {
+      expect(
+        buildKimiArgs({ mode: "agent", approvalPolicy: policy } as any, "", undefined),
+      ).toEqual(["--auto"]);
+    }
   });
 
-  it("maps yolo / bypassPermissions to --yolo", () => {
-    for (const policy of ["yolo", "bypassPermissions"]) {
+  it("maps the terminal and saved GUI ask-when-needed policies to --yolo", () => {
+    for (const policy of ["yolo", "never"]) {
       expect(
         buildKimiArgs({ mode: "agent", approvalPolicy: policy } as any, "", undefined),
       ).toEqual(["--yolo"]);
@@ -48,7 +50,7 @@ describe("buildKimiArgs (TUI/PTY)", () => {
   });
 
   it("never combines --auto with --yolo", () => {
-    for (const policy of ["auto", "yolo", "bypassPermissions"]) {
+    for (const policy of ["auto", "yolo", "never", "bypassPermissions"]) {
       const args = buildKimiArgs({ mode: "agent", approvalPolicy: policy } as any, "", undefined);
       expect(args.includes("--auto") && args.includes("--yolo")).toBe(false);
     }
@@ -90,5 +92,18 @@ describe("buildKimiAcpArgs (`kimi acp` prefix)", () => {
       "k3",
       "--auto",
     ]);
+  });
+});
+
+describe("resolveKimiAcpMode", () => {
+  it("maps full access and saved GUI selections to their native ACP modes", () => {
+    const modes = ["default", "plan", "auto", "yolo"];
+    expect(resolveKimiAcpMode({ model: "", approvalPolicy: "bypassPermissions" }, modes)).toBe(
+      "auto",
+    );
+    expect(resolveKimiAcpMode({ model: "", approvalPolicy: "never" }, modes)).toBe("yolo");
+    expect(
+      resolveKimiAcpMode({ model: "", mode: "plan", approvalPolicy: "bypassPermissions" }, modes),
+    ).toBe("plan");
   });
 });

@@ -1,10 +1,10 @@
+import { peekPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { RemoteClientError } from "@/shared/remote/client";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeActions";
 import { useAppStore } from "../appStore";
 import { applyRootCatalogThreadRows } from "./rootCatalogRows";
-import { peekPendingManagedRootLaunch } from "./rootCatalogStore";
 import {
   activate,
   setupManagedRootFixture,
@@ -72,13 +72,13 @@ it("replays the exact uncertain operation while a newer effort remains for the n
   store.updateThreadConfig(row.id, { ...threadRow(row.id)!.config, effort: "high" });
   release();
   await expect(first).rejects.toBeInstanceOf(RemoteClientError);
-  expect(peekPendingManagedRootLaunch(row.id)?.replay?.config.effort).toBe("xhigh");
+  expect(peekPendingThreadLaunch(row.id)?.replay?.config.effort).toBe("xhigh");
   expect(threadRow(row.id)?.config.effort).toBe("high");
   await launch();
   expect(requests).toHaveLength(2);
   expect(requests[1]).toEqual(requests[0]); // Actual HTTP headers and serialized body, not a rebuilt config.
   expect(supervisorTrace.startThreadCalls).toBe(1); // Host receipt replay, no second launch.
-  expect(peekPendingManagedRootLaunch(row.id)).toBeUndefined();
+  expect(peekPendingThreadLaunch(row.id)).toBeUndefined();
   applyRootCatalogThreadRows([{ ...threadRow(row.id)!, config: row.config }], new Set());
   expect(threadRow(row.id)?.config.effort).toBe("high");
   expect(useAppStore.getState().pendingThreadConfigByThreadId[row.id]?.config.effort).toBe("high");

@@ -8,6 +8,12 @@ import { localizedPath } from "@/lib/i18n/config";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
 import { extensionStoreLinks } from "@/lib/extensionStores";
 
+const CLI_INSTALLERS = [
+  { labelKey: "download.cli.unix", command: "curl -fsSL https://poracode.com/install.sh | sh" },
+  { labelKey: "download.cli.windows", command: "irm https://poracode.com/install.ps1 | iex" },
+] as const;
+const NPX_COMMAND = { labelKey: "download.cli.npx", command: "npx poracode@latest" } as const;
+
 const PLATFORMS = [
   {
     os: "macOS",
@@ -32,7 +38,13 @@ const PLATFORMS = [
   },
 ];
 
-export function DownloadContent({ release }: { release: ReleaseInfo }) {
+export function DownloadContent({
+  release,
+  npxAvailable,
+}: {
+  release: ReleaseInfo;
+  npxAvailable: boolean;
+}) {
   const { locale, t } = useI18n();
   const versionSuffix = release.version ? ` v${release.version}` : "";
   const homeHref = localizedPath("/", locale);
@@ -113,11 +125,37 @@ export function DownloadContent({ release }: { release: ReleaseInfo }) {
               </div>
             </motion.div>
           ))}
-          {extensionStores.length > 0 ? (
+          {release.cliInstaller ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 * (PLATFORMS.length + 1) }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <Terminal className="w-5 h-5 text-gray-400" />
+                <h2 className="text-xl font-semibold">{t("download.cli.title")}</h2>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">{t("download.cli.description")}</p>
+              <div className="grid gap-3">
+                {[...CLI_INSTALLERS, ...(npxAvailable ? [NPX_COMMAND] : [])].map((entry) => (
+                  <div
+                    key={entry.command}
+                    className="px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06]"
+                  >
+                    <span className="block text-xs text-gray-500 mb-2">{t(entry.labelKey)}</span>
+                    <code className="block select-all overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-200">
+                      {entry.command}
+                    </code>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          ) : null}
+          {extensionStores.length > 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 * (PLATFORMS.length + 2) }}
             >
               <div className="flex items-center gap-3 mb-2">
                 <Puzzle className="w-5 h-5 text-gray-400" />
@@ -131,22 +169,22 @@ export function DownloadContent({ release }: { release: ReleaseInfo }) {
                     href={store.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="group flex items-center justify-between px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/10 transition-all duration-200"
+                    className="group flex items-center justify-between gap-3 px-5 py-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/10 transition-all duration-200"
                   >
-                    <div className="flex items-center gap-3">
-                      <Download className="w-4 h-4 text-gray-500 group-hover:text-white transition-colors" />
-                      <div>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <Download className="w-4 h-4 shrink-0 text-gray-500 group-hover:text-white transition-colors" />
+                      <div className="min-w-0">
                         <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">
                           {store.id === "chrome" ? "Chrome Web Store" : "Microsoft Edge Add-ons"}
                         </span>
-                        <span className="ml-3 text-xs text-gray-600">
+                        <span className="mt-1 block text-xs text-gray-600 sm:mt-0 sm:ml-3 sm:inline">
                           {store.id === "chrome"
                             ? t("download.extension.chromeHint")
                             : "Microsoft Edge"}
                         </span>
                       </div>
                     </div>
-                    <span className="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
+                    <span className="shrink-0 whitespace-nowrap text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
                       {t("download.extension.install")} →
                     </span>
                   </a>

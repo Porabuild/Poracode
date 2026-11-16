@@ -871,7 +871,7 @@ export class ScheduleRunCoordinator {
       presentationMode: "gui",
       ...resolveMcpLaunchSnapshot(
         this.deps.getSharedSettings(),
-        project.mcpServers ?? [],
+        project,
         config.mcpServerOverrides,
       ),
     };

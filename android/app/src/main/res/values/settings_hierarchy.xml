@@ -6,7 +6,7 @@
     <string name="settings_device_general">General</string>
     <string name="settings_device_general_description">Language, version, and device information</string>
     <string name="settings_device_appearance">Appearance</string>
-    <string name="settings_device_appearance_description">Theme and system colors</string>
+    <string name="settings_device_appearance_description">Theme and chat font size</string>
     <string name="settings_device_notifications">Notifications</string>
     <string name="settings_device_notifications_description">Permission and desktop registration status</string>
     <string name="settings_device_terminal">Terminal</string>
@@ -29,7 +29,6 @@
     <string name="settings_appearance_system">System</string>
     <string name="settings_appearance_light">Light</string>
     <string name="settings_appearance_dark">Dark</string>
-    <string name="settings_dynamic_color">Use device colors</string>
     <string name="settings_notification_status">Status</string>
     <string name="settings_notification_registering">Registering</string>
     <string name="settings_notification_available">Available</string>
@@ -49,4 +48,10 @@
     <string name="settings_notification_foreground">Show notifications while using Poracode</string>
     <string name="settings_notification_categories">Notify about</string>
     <string name="settings_configuration_section">Configuration</string>
+    <string name="settings_appearance_mode">Mode</string>
+    <string name="settings_appearance_mode_description">Match your system, or force light or dark.</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_notifications_enabled_description">Show notifications when thread status changes.</string>
+    <string name="settings_notification_sound_description">Play a sound when a notification is shown.</string>
+    <string name="settings_home_shortcut_reorder">Reorder %1$s</string>
 </resources>

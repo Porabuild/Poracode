@@ -7,6 +7,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { WindowsShellPreference } from "../shellPreference";
 import type { SessionRuntime } from "./sessionTypes";
+import { unwrapConfirmedIpcThreadLaunchFailure } from "./threadSession/unpublishedStartFailure";
 
 const captureSupervisorException = vi.hoisted(() =>
   vi.fn<(error: unknown, tags?: Record<string, string>) => void>(),
@@ -82,6 +83,7 @@ function createManager(
     kind: "powershell" as const,
     args: ["-NoLogo"],
   }),
+  extraOptions: Partial<ConstructorParameters<typeof ThreadSessionManager>[0]> = {},
 ): ThreadSessionManager {
   const tempDir = mkdtempSync(join(tmpdir(), "poracode-start-close-"));
   tempDirs.push(tempDir);
@@ -93,6 +95,7 @@ function createManager(
     readDisableCliHookPlugin: () => false,
     adapters: new Map([[agentKind, adapter]]),
     resolveWindowsShell,
+    ...extraOptions,
   });
   managersToDispose.push(manager);
   return manager;
@@ -199,7 +202,175 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 
+describe("MCP App startup ownership", () => {
+  it.each(["factory-failure", "close-during-prepare"])(
+    "retires prepared routes after %s",
+    async (scenario) => {
+      const prepared = deferred<[]>();
+      const structured = createStructuredSession(Promise.resolve());
+      const adapter = createAdapter("codex", structured);
+      if (scenario === "factory-failure")
+        vi.mocked(adapter.createStructuredSession!).mockRejectedValueOnce(
+          new Error("factory failed"),
+        );
+      const mcpApps = {
+        prepare: vi.fn<
+          NonNullable<ConstructorParameters<typeof ThreadSessionManager>[0]["mcpApps"]>["prepare"]
+        >(() => prepared.promise),
+        releaseThread: vi.fn<(threadId: string) => Promise<void>>().mockResolvedValue(undefined),
+        modelContext: vi.fn<(threadId: string) => string | undefined>(),
+      };
+      const manager = createManager("codex", adapter, undefined, undefined, { mcpApps });
+      const starting = manager.startThread({
+        threadId: "app-start",
+        projectLocation: { kind: "posix", path: process.cwd() },
+        agentKind: "codex",
+        config: { model: "test" },
+        prompt: "",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      });
+      const settled = starting.catch((error: unknown) => error);
+      await vi.waitFor(() => expect(mcpApps.prepare).toHaveBeenCalledOnce());
+      mcpApps.releaseThread.mockClear();
+      const closing =
+        scenario === "close-during-prepare"
+          ? manager.closeThread({ threadId: "app-start" })
+          : Promise.resolve();
+      prepared.resolve([]);
+      await Promise.all([settled, closing]);
+      expect(manager.sessions.has("app-start")).toBe(false);
+      expect(mcpApps.releaseThread).toHaveBeenCalledWith("app-start");
+    },
+  );
+});
+
+describe("accepted structured turn interruption", () => {
+  it("does not offer resume when the owner deliberately retires an accepted turn", async () => {
+    const structured = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("fixture", structured);
+    const events: SupervisorEvent[] = [];
+    const manager = createManager("fixture", adapter, (event) => events.push(event));
+    await manager.startThread({
+      threadId: "retired-close",
+      agentKind: "fixture",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "fixture/model" },
+      prompt: "Explain the code",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    });
+    const session = manager.sessions.get("retired-close")!;
+    const listener = vi.mocked(structured.setListener).mock.calls.at(-1)![0];
+    vi.mocked(structured.dispose).mockImplementation(async () => listener.onClose());
+    await manager.closeThread({ threadId: session.threadId });
+    expect(session.interruptedTurn).toBeNull();
+    expect(
+      events.some((event) => event.type === "thread-state" && event.interruptedTurn === "error"),
+    ).toBe(false);
+  });
+
+  it.each([false, true])(
+    "marks unexpected close after accepted start (stop=%s)",
+    async (stopped) => {
+      const structured = createStructuredSession(Promise.resolve());
+      const adapter = createAdapter("fixture", structured);
+      const events: SupervisorEvent[] = [];
+      const manager = createManager("fixture", adapter, (event) => events.push(event));
+      await manager.startThread({
+        threadId: "accepted-close",
+        agentKind: "fixture",
+        projectLocation: { kind: "posix", path: process.cwd() },
+        config: { model: "fixture/model" },
+        prompt: "Explain the code",
+        initialSize: { cols: 80, rows: 24 },
+        presentationMode: "gui",
+      });
+      const session = manager.sessions.get("accepted-close")!;
+      expect(session.status).toBe("working");
+      session.turnStopRequested = stopped;
+      const listener = vi.mocked(structured.setListener).mock.calls.at(-1)![0];
+      listener.onClose();
+      expect(session.status).toBe("inactive");
+      expect(session.interruptedTurn).toBe(stopped ? null : "error");
+      expect(
+        events.some((event) => event.type === "thread-state" && event.interruptedTurn === "error"),
+      ).toBe(!stopped);
+    },
+  );
+});
+
 describe("ThreadSessionManager provider-session routing", () => {
+  it("routes parsed metadata only to its adapter's current root or child owner", () => {
+    const firstSession = createStructuredSession(Promise.resolve());
+    firstSession.ownsProviderSession = (sessionId) => sessionId === "ses_child";
+    const adapter = createAdapter("opencode", firstSession);
+    adapter.capabilities.crossagentMcpRouting = "provider-session";
+    adapter.readMcpSessionId = (metadata) =>
+      typeof metadata.nativeSessionId === "string" ? metadata.nativeSessionId : undefined;
+    const manager = createManager("opencode", adapter);
+    const first = createInactiveRuntime("opencode", adapter, firstSession);
+    const second = {
+      ...createInactiveRuntime("opencode", adapter, createStructuredSession(Promise.resolve())),
+      threadId: "thread-second",
+      sessionRef: { providerSessionId: "ses_second", discoveredAt: "2026-09-08T00:00:00.000Z" },
+    };
+    manager.sessions.set(first.threadId, first);
+    manager.sessions.set(second.threadId, second);
+
+    expect(manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_existing" })).toBe(
+      first.threadId,
+    );
+    expect(manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_second" })).toBe(
+      second.threadId,
+    );
+    expect(manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_child" })).toBe(
+      first.threadId,
+    );
+    expect(
+      manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_unknown" }),
+    ).toBeUndefined();
+
+    const foreignAdapter = createAdapter("codex", createStructuredSession(Promise.resolve()));
+    foreignAdapter.capabilities.crossagentMcpRouting = "provider-session";
+    second.adapter = foreignAdapter;
+    expect(
+      manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_second" }),
+    ).toBeUndefined();
+
+    first.sessionRef = {
+      providerSessionId: "ses_resumed",
+      discoveredAt: "2026-09-09T00:00:00.000Z",
+    };
+    expect(
+      manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_existing" }),
+    ).toBeUndefined();
+    expect(manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_resumed" })).toBe(
+      first.threadId,
+    );
+    manager.sessions.delete(first.threadId);
+    expect(
+      manager.getThreadIdByProviderMcpMetadata({ nativeSessionId: "ses_child" }),
+    ).toBeUndefined();
+  });
+
+  it("rejects ambiguous metadata rather than choosing a parent by registration order", () => {
+    const session = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("opencode", session);
+    adapter.capabilities.crossagentMcpRouting = "provider-session";
+    adapter.readMcpSessionId = () => "ses_existing";
+    const manager = createManager("opencode", adapter);
+    const first = createInactiveRuntime("opencode", adapter, session);
+    const second = { ...first, threadId: "thread-second" };
+    manager.sessions.set(first.threadId, first);
+    manager.sessions.set(second.threadId, second);
+    expect(manager.getThreadIdByProviderMcpMetadata({})).toBeUndefined();
+    manager.sessions.delete(second.threadId);
+    expect(manager.getThreadIdByProviderMcpMetadata({})).toBe(first.threadId);
+    delete adapter.capabilities.crossagentMcpRouting;
+    expect(manager.getThreadIdByProviderMcpMetadata({})).toBeUndefined();
+  });
+
   it("resolves both root and provider-owned child sessions to the live thread", () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     structuredSession.ownsProviderSession = (sessionId) => sessionId === "ses_child";
@@ -529,6 +700,9 @@ describe("ThreadSessionManager start guards", () => {
         status: "error",
         errorMessage: "The selected configuration was rejected",
         forceCloseActiveTurn: true,
+        // The submitted message never ran: offer to resume it.
+        interruptedTurn: "error",
+        canResumeWithConfig: true,
       }),
     );
     const runtimeEvents = events.flatMap((event) =>
@@ -1100,7 +1274,60 @@ describe("ThreadSessionManager start guards", () => {
       attention: "none",
       canResumeWithConfig: false,
       forceCloseActiveTurn: true,
+      interruptedTurn: null,
     });
+  });
+
+  it("retires a cut-off turn when Stop reaches a live session after the failure", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.status = "error";
+    runtime.interruptedTurn = "error";
+    manager.sessions.set(runtime.threadId, runtime);
+
+    await manager.interruptThread({ threadId: runtime.threadId });
+
+    expect(runtime.interruptedTurn).toBeNull();
+    expect(runtime.turnStopRequested).toBe(true);
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-state",
+        threadId: runtime.threadId,
+        interruptedTurn: null,
+      }),
+    );
+  });
+
+  it("publishes accepted Stop before the provider acknowledges cancellation", async () => {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const emit = vi.fn<(event: SupervisorEvent) => void>();
+    const manager = createManager("codex", adapter, emit);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    runtime.status = "working";
+    runtime.interruptedTurn = null;
+    runtime.reportedInterruptedTurn = null;
+    manager.sessions.set(runtime.threadId, runtime);
+    const cancellation = deferred<void>();
+    structuredSession.interruptTurn = vi.fn<NonNullable<StructuredSessionHandle["interruptTurn"]>>(
+      () => cancellation.promise,
+    );
+
+    const stopping = manager.interruptThread({ threadId: runtime.threadId });
+
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "thread-state",
+        status: "working",
+        interruptedTurn: null,
+        turnStopRequested: true,
+      }),
+    );
+    cancellation.resolve();
+    await stopping;
   });
 
   it("preserves bookkeeping errors for never-known session ids", async () => {
@@ -1464,4 +1691,108 @@ it("releases launch reservations when config rewriting fails, permitting a retry
   expect(cleanup).toHaveBeenCalledOnce();
   await expect(manager.startThread(payload)).resolves.toEqual({ threadId: payload.threadId });
   expect(spawnPty).toHaveBeenCalled();
+});
+
+it("wraps only genuine pre-runtime IPC launch failures without cross-attempt leakage", async () => {
+  const sharedError = new Error("provider rejected initial open");
+  const openFailed = createStructuredSession(Promise.resolve());
+  openFailed.openThread = async () => {
+    throw sharedError;
+  };
+  const manager = createManager("codex", createAdapter("codex", openFailed));
+  const failure = await manager
+    .startThreadForIpc({
+      threadId: "fresh-open-failure",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5" },
+      prompt: "start thread",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    })
+    .catch((error: unknown) => error);
+  expect(unwrapConfirmedIpcThreadLaunchFailure(failure)).toEqual({
+    rawError: sharedError,
+    confirmedLaunchFailure: true,
+  });
+
+  // A failure after `openThread` allocated a native sessionRef must stay uncertain.
+  const allocatedSession = createStructuredSession(Promise.resolve());
+  allocatedSession.openThread = async () => {
+    throw sharedError;
+  };
+  allocatedSession.getSessionRef = () => ({
+    providerSessionId: "allocated-native-session",
+    discoveredAt: "2026-11-10T00:00:00.000Z",
+  });
+  const allocatedManager = createManager("codex", createAdapter("codex", allocatedSession));
+  const allocatedFailure = await allocatedManager
+    .startThreadForIpc({
+      threadId: "allocated-ref-failure",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5" },
+      prompt: "start thread",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    })
+    .catch((error: unknown) => error);
+  expect(unwrapConfirmedIpcThreadLaunchFailure(allocatedFailure)).toEqual({
+    rawError: sharedError,
+    confirmedLaunchFailure: false,
+  });
+
+  // A session replacement that already tore down a live session must stay uncertain,
+  // even when rejecting with the exact same Error object.
+  const liveSession = createStructuredSession(Promise.resolve());
+  const replacementAdapter = createAdapter("codex", liveSession);
+  const replacementManager = createManager("codex", replacementAdapter);
+  await replacementManager.startThreadForIpc({
+    threadId: "replace-existing",
+    agentKind: "codex",
+    projectLocation: { kind: "posix", path: process.cwd() },
+    config: { model: "gpt-5" },
+    prompt: "",
+    initialSize: { cols: 80, rows: 24 },
+    presentationMode: "gui",
+  });
+  liveSession.openThread = async () => {
+    throw sharedError;
+  };
+  const replacementFailure = await replacementManager
+    .startThreadForIpc({
+      threadId: "replace-existing",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5" },
+      prompt: "restart",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    })
+    .catch((error: unknown) => error);
+  expect(unwrapConfirmedIpcThreadLaunchFailure(replacementFailure)).toEqual({
+    rawError: sharedError,
+    confirmedLaunchFailure: false,
+  });
+
+  const leakOnDispose = createStructuredSession(Promise.resolve());
+  leakOnDispose.openThread = async () => {
+    throw new Error("open failed before unconfirmed dispose");
+  };
+  leakOnDispose.dispose = vi.fn<StructuredSessionHandle["dispose"]>(async () => {
+    throw new Error("dispose hung");
+  });
+  const leakManager = createManager("codex", createAdapter("codex", leakOnDispose));
+  const unconfirmed = await leakManager
+    .startThreadForIpc({
+      threadId: "unconfirmed-dispose",
+      agentKind: "codex",
+      projectLocation: { kind: "posix", path: process.cwd() },
+      config: { model: "gpt-5" },
+      prompt: "start thread",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+    })
+    .catch((error: unknown) => error);
+  expect(unwrapConfirmedIpcThreadLaunchFailure(unconfirmed).confirmedLaunchFailure).toBe(false);
 });

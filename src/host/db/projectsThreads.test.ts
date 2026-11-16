@@ -763,6 +763,60 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(legacyProject).not.toHaveProperty("pinnedBranches");
   });
 
+  it("upgrades a schema-70 database by adding the plugin overrides column", () => {
+    dbUpsertProject(
+      {
+        id: "legacy-project",
+        name: "Legacy project",
+        location: { kind: "posix", path: "/tmp/legacy-project" },
+        pinnedBranches: ["main"],
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+    closeDatabase();
+    const databasePath = join(dir, "state.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      ALTER TABLE projects DROP COLUMN plugin_overrides;
+      UPDATE app_state SET value = '70' WHERE key = 'schema_version';
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    const projectColumns = getSqlite().prepare("PRAGMA table_info(projects)").all() as Array<{
+      name: string;
+    }>;
+    expect(projectColumns.map((column) => column.name)).toContain("plugin_overrides");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
+    const legacyProject = dbGetProject("legacy-project");
+    expect(legacyProject?.pinnedBranches).toEqual(["main"]);
+    expect(legacyProject).not.toHaveProperty("pluginOverrides");
+  });
+
+  it("round-trips project plugin overrides and drops an empty or malformed value", () => {
+    const project = {
+      id: "plugins-project",
+      name: "Plugins",
+      location: { kind: "posix" as const, path: "/tmp/plugins-project" },
+      pluginOverrides: { sentry: true, devices: false },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    dbUpsertProject(project, 0);
+    expect(dbGetProject(project.id)?.pluginOverrides).toEqual({ sentry: true, devices: false });
+
+    dbUpdateProject({ ...project, pluginOverrides: {} });
+    expect(dbGetProject(project.id)).not.toHaveProperty("pluginOverrides");
+
+    getSqlite()
+      .prepare("UPDATE projects SET plugin_overrides = ? WHERE id = ?")
+      .run('{"sentry":"yes"}', project.id);
+    expect(dbGetProject(project.id)).not.toHaveProperty("pluginOverrides");
+  });
+
   it("round-trips the project workspace through the projects table", () => {
     const project = {
       id: "project-1",

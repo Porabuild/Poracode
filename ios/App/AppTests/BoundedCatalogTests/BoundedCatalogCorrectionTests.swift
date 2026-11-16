@@ -467,4 +467,31 @@ final class BoundedCatalogCorrectionTests: XCTestCase {
       "the payload-less signal must drive a bounded inventory refresh"
     )
   }
+
+  func testThreadStateAdoptsHostUpdatedAtOverLocalClock() async throws {
+    let fixture = BoundedCatalogHostFixture()
+    fixture.setThreads([.make(id: "t1", updatedAt: "2026-01-01T00:00:00.000Z")])
+    fixture.setProjects([.make(id: "p1")])
+    let harness = try await BoundedCatalogSessionHarness.make(
+      fixture: fixture, threadCount: 0, projectCount: 0, configurePolicy: policy()
+    )
+    let hostUpdatedAt = "2026-05-10T12:34:56.000Z"
+    harness.session.handleServerMessageForTests(
+      .event(
+        seq: 50,
+        event: .object([
+          "type": .string("thread-state"),
+          "threadId": .string("t1"),
+          "status": .string("working"),
+          "attention": .string("working"),
+          "canResumeWithConfig": .bool(true),
+          "updatedAt": .string(hostUpdatedAt),
+        ])
+      )
+    )
+    XCTAssertEqual(
+      harness.session.snapshot?.threads.first(where: { $0.id == "t1" })?.updatedAt,
+      hostUpdatedAt
+    )
+  }
 }

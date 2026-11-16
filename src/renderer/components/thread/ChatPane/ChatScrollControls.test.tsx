@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent } from "@testing-library/react";
-import { createRef, useRef } from "react";
+import { Activity, createRef, useRef } from "react";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
@@ -85,6 +85,53 @@ describe("ChatScrollControls", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it("preserves a reader's scrollback when Activity reconnects a retained panel", () => {
+    vi.useFakeTimers();
+    let scrollTop = 800;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = Math.min(value, 800);
+        },
+      },
+    });
+    const controlsRef = createRef<ChatScrollControlsHandle>();
+    const virtualScrollToBottom = vi.fn<() => void>();
+    const body = (visible: boolean) => (
+      <Activity mode={visible ? "visible" : "hidden"}>
+        <Harness
+          scrollEl={scrollEl}
+          controlsRef={controlsRef}
+          virtualScrollToBottom={virtualScrollToBottom}
+        />
+      </Activity>
+    );
+    const view = renderWithI18n(body(true));
+    act(() => {
+      vi.advanceTimersByTime(100);
+      controlsRef.current?.disableStickToBottom();
+      scrollTop = 400;
+      fireEvent.scroll(scrollEl);
+    });
+    view.rerender(body(false));
+    virtualScrollToBottom.mockClear();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    view.rerender(body(true));
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(scrollTop).toBe(400);
+    expect(controlsRef.current?.isStickToBottom()).toBe(false);
+    expect(virtualScrollToBottom).not.toHaveBeenCalled();
   });
 
   it("renders into the thread's composer bubble slot when one is published", () => {
@@ -341,6 +388,17 @@ describe("ChatScrollControls", () => {
       expect(scrollTop).toBe(800);
       expect(clearChatPromptAnchor).not.toHaveBeenCalled();
       expect(button).toBeDisabled();
+
+      act(() => {
+        // A transient missing attribute (before LegendList reports the new
+        // prompt's space) must not clear the prompt anchor.
+        delete scrollEl.dataset.chatEndSpaceSize;
+        controlsRef.current?.onContentHeightChange();
+      });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      expect(clearChatPromptAnchor).not.toHaveBeenCalled();
 
       if (sequence === "before growth") {
         act(() => {

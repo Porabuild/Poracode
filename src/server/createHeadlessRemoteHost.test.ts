@@ -1065,6 +1065,7 @@ describe("createHeadlessRemoteHost", () => {
       mcpServers: [projectServer],
       disabledBuiltInMcpServerIds: ["chrome"],
       disabledBuiltInMcpTools: {},
+      projectPluginOverrides: {},
     });
     await host.dispose();
   });

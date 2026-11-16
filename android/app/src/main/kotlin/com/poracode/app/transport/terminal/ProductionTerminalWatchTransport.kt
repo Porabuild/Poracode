@@ -161,7 +161,7 @@ class ProductionTerminalWatchTransport(
             // transient preflight failure must not strand a retained shell until
             // a user manually presses Reconnect.
             if (synchronized(lock) { !environmentValidated }) {
-                val environment = http.requestText(ProtocolConstants.ENVIRONMENT_PATH)
+                val environment = http.requestText(ProtocolConstants.ENVIRONMENT_PATH, retryableRead = true)
                 if (!isCurrent(expected, gen)) return
                 val negotiated = try {
                     cursorSync.negotiate(expected.requestedVersion, environment)

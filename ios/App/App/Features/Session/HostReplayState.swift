@@ -68,6 +68,25 @@ struct HostReplayState: Sendable, Equatable {
     gitSummariesByThread[threadId]
   }
 
+  /// Per-thread Git summary for a known thread row: the published
+  /// `gitSummariesByThread` entry first, then the served `gitState` target for the
+  /// thread's project + worktree. Standalone hosts have no renderer publisher, so
+  /// the map is often empty while `gitState` is populated — the same fallback the
+  /// thread surface uses.
+  func gitSummary(forThread threadId: String, thread: RemoteThread?) -> GitThreadSummary? {
+    if let summary = gitSummariesByThread[threadId] { return summary }
+    guard let thread else { return nil }
+    let worktreePath = thread.worktreePath.flatMap { $0.isEmpty ? nil : $0 }
+    guard let statusValue = gitState.targets.values.first(where: {
+      $0.ref.projectId == thread.projectId
+        && ($0.ref.worktreePath.flatMap { $0.isEmpty ? nil : $0 }) == worktreePath
+    })?.status,
+      let data = try? JSONEncoder().encode(statusValue),
+      let status = try? JSONDecoder().decode(ProjectGitStatus.self, from: data)
+    else { return nil }
+    return GitThreadSummary(status: status)
+  }
+
   /// Cached target state for a thread's worktree, when the host published one.
   func targetState(hostId: String, projectId: String, worktreePath: String?) -> GitTargetState? {
     gitState.targets[

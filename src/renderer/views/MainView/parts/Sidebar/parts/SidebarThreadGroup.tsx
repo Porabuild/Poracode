@@ -21,7 +21,7 @@ import {
 } from "@/renderer/actions/experimentActions";
 import { archiveThread, deleteThread, markThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
-import { dispatchManagedRootThreadGroupIntents } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
+import { dispatchThreadGroupIntents } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
@@ -335,7 +335,7 @@ function clearThreadGroup(groupKey: string) {
   });
   // The local paint clears the group; the host assignment changes only through
   // the explicit clear-group command for each affected root row.
-  dispatchManagedRootThreadGroupIntents(clearedThreadIds.map((threadId) => ({ threadId })));
+  dispatchThreadGroupIntents(clearedThreadIds.map((threadId) => ({ threadId })));
 }
 
 /** Rename one thread group: every member row carries the group name. */
@@ -346,7 +346,7 @@ function renameThreadGroup(groupKey: string, groupName: string): void {
       thread.groupId === groupKey ? { ...thread, groupName } : thread,
     ),
   }));
-  dispatchManagedRootThreadGroupIntents(
+  dispatchThreadGroupIntents(
     members.map((thread) => ({ threadId: thread.id, groupId: groupKey, groupName })),
   );
 }

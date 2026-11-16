@@ -23,14 +23,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { scanRuntimeExternals } from "./runtime-externals.mjs";
 import { prepareDesktopCli } from "./prepare-desktop-cli.mjs";
 import { preparePackagedDeviceHub } from "./prepare-device-hub.mjs";
 import { pinInstalledVersions, readRuntimeClosure } from "./runtime-closure.mjs";
-import { npmInvocation } from "./server-host-tools.mjs";
+import { npmInvocation, releaseScratchRoot } from "./server-host-tools.mjs";
 import { verifyRuntimeResources } from "../src/shared/runtimeResourceInventory.ts";
 import { readPtyJobOwnerArtifact } from "../src/shared/ptyJobOwnerArtifact.ts";
 import { SUPPORTED_LOCALES } from "../src/shared/locale.ts";
@@ -55,6 +54,7 @@ const { supportEmail } = requireFromHere("../branding/contact.json");
 const RUNTIME_DEPS = [
   "@anthropic-ai/claude-agent-sdk",
   "@modelcontextprotocol/client",
+  "@modelcontextprotocol/server",
   "@opencode-ai/sdk",
   "@opencode/client",
   "@sentry/electron",
@@ -257,6 +257,25 @@ function pruneStageBinaries(stageRoot) {
     console.log(`[stage] pruned ${pruned} @anthropic-ai/claude-agent-sdk-* platform pack(s)`);
 }
 
+// Staged by scripts/prepare-locked-computer-use.mjs (macOS only).
+const LOCKED_COMPUTER_USE_DIR = "resources/locked-computer-use";
+const LOCKED_COMPUTER_USE_BUNDLE = "PoracodeLockedUse.bundle";
+
+export function verifyLockedComputerUseResources(resourceDir) {
+  for (const entry of [
+    `${LOCKED_COMPUTER_USE_BUNDLE}/Contents/Info.plist`,
+    `${LOCKED_COMPUTER_USE_BUNDLE}/Contents/MacOS/PoracodeLockedUse`,
+    "locked-computer-use-installer",
+    "README.md",
+  ]) {
+    if (!existsSync(join(resourceDir, entry))) {
+      throw new Error(
+        `macOS packaging requires the staged locked computer use plug-in (missing ${entry}). Run node scripts/prepare-locked-computer-use.mjs first.`,
+      );
+    }
+  }
+}
+
 function copyArtifactsBack(stageReleaseDir, outputDir) {
   mkdirSync(outputDir, { recursive: true });
   const copied = [];
@@ -315,6 +334,15 @@ async function main() {
     ];
     if (arch && platform !== "mac") helperArgs.push("--arch", arch);
     run("node", helperArgs, { cwd: repoRoot });
+    const relayArgs = ["scripts/prepare-mcp-relay.mjs", "--require", "--platform", platform];
+    if (arch && platform !== "mac") relayArgs.push("--arch", arch);
+    run("node", relayArgs, { cwd: repoRoot });
+    const gitHelperArgs = ["scripts/prepare-git-helper.mjs", "--require", "--platform", platform];
+    if (arch && platform !== "mac") gitHelperArgs.push("--arch", arch);
+    run("node", gitHelperArgs, { cwd: repoRoot });
+    if (platform === "mac") {
+      run("node", ["scripts/prepare-locked-computer-use.mjs"], { cwd: repoRoot });
+    }
     run("bun", ["run", "prepare:package-assets"], { cwd: repoRoot });
   }
 
@@ -332,6 +360,7 @@ async function main() {
     throw new Error(
       "Windows packaging requires a runtime built with the prepared PTY job owner. Rebuild before packaging.",
     );
+  if (platform === "mac") verifyLockedComputerUseResources(join(repoRoot, LOCKED_COMPUTER_USE_DIR));
   verifyRuntimeResources(runtimeClosure.resources, {
     agentPlugins: { path: join(repoRoot, "resources/agent-plugins"), layout: "staged" },
     bundledPlugins: join(repoRoot, "resources/plugins"),
@@ -341,7 +370,7 @@ async function main() {
     verifyDesktopPtyTargets(join(repoRoot, "resources"), arch ? [arch] : DEFAULT_TARGET_ARCHES.win);
 
   // 2. Create the stage in tmp (outside the workspace).
-  const stageRoot = mkdtempSync(join(tmpdir(), "poracode-stage-"));
+  const stageRoot = mkdtempSync(join(releaseScratchRoot(), "poracode-stage-"));
   console.log(`[stage] root: ${stageRoot}`);
 
   try {
@@ -515,6 +544,16 @@ export function buildElectronBuilderConfig(
   const desktopCliResources = includeDesktopCli
     ? '\n  - from: resources/desktop-cli\n    to: desktop-cli\n    filter:\n      - "**/*"'
     : "";
+  // The plug-in bundle is signed as a whole (electron-builder only walks
+  // .app/.framework directories and loose Mach-O files on its own).
+  const lockedComputerUseResources =
+    platform === "mac"
+      ? `\n  - from: ${LOCKED_COMPUTER_USE_DIR}\n    to: locked-computer-use\n    filter:\n      - "**/*"`
+      : "";
+  const lockedComputerUseBinaries =
+    platform === "mac"
+      ? `\n  binaries:\n    - Contents/Resources/locked-computer-use/${LOCKED_COMPUTER_USE_BUNDLE}`
+      : "";
   const ptyOwnerResources = includePtyOwner
     ? '\n  - from: resources/pty-job-owner\n    to: pty-job-owner\n    filter:\n      - "**/*"'
     : "";
@@ -582,7 +621,7 @@ extraResources:${desktopCliResources}${ptyOwnerResources}
   - from: resources/computer-use-helper
     to: computer-use-helper
     filter:
-      - "**/*"
+      - "**/*"${lockedComputerUseResources}
   - from: resources/wsl-helpers
     to: wsl-helpers
     filter:
@@ -695,7 +734,7 @@ mac:
   extendInfo:
     NSMicrophoneUsageDescription: Poracode uses the microphone for local voice input in the composer.
   entitlements: ${macEntitlements}
-  entitlementsInherit: ${macEntitlementsInherit}
+  entitlementsInherit: ${macEntitlementsInherit}${lockedComputerUseBinaries}
   notarize: true
 
 npmRebuild: false

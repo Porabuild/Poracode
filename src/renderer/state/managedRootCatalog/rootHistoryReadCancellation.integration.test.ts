@@ -18,7 +18,7 @@ import {
   noteThreadHistoryRecoveryNeeded,
   readThreadHistoryNotice,
 } from "@/renderer/state/remote/historyNoticeStore";
-import { createLocalSnapshotRecovery } from "@/renderer/state/remote/reducers/localSnapshotRecovery";
+import { createHostHistoryRecovery } from "@/renderer/state/remote/reducers/hostHistoryRecovery";
 import {
   createSupervisorEventReducer,
   type SupervisorEventReducer,
@@ -68,7 +68,7 @@ it.each([
       throw new Error("History temporarily unavailable");
     });
     let reducer: SupervisorEventReducer;
-    const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+    const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
     reducer = createSupervisorEventReducer({
       recovery: recovery.strategy,
       onSequencedEvent: recovery.noteSequencedSupervisorEvent,
@@ -142,7 +142,7 @@ it.each([
       getSqlite()
         .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = 'item-1'")
         .run(threadId);
-      if (action === "retry") void retryThreadRuntimeItems(threadId);
+      if (action === "retry") retryThreadRuntimeItems(threadId);
       else void hydrateThreadRuntimeItemsForInterest(threadId, true);
       await vi.waitFor(() => {
         expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBeUndefined();
@@ -155,9 +155,9 @@ it.each([
         "item-0",
         "queued-during-recovery",
       ]);
-      expect(useAppStore.getState().runtimeRequestsByThread[threadId]?.at(-1)?.requestId).toBe(
-        "new-approval",
-      );
+      // The re-read began after every request the client held, and its host
+      // reports nothing awaiting the user: that newer snapshot settles them.
+      expect(useAppStore.getState().runtimeRequestsByThread[threadId] ?? []).toEqual([]);
       reducer.dispatch(
         {
           type: "thread-runtime-event",
@@ -200,7 +200,7 @@ it("recovers on a new connection while the retired reader is waiting to retry", 
     .spyOn(previous.client, "boundedThreadHistory")
     .mockRejectedValueOnce(new TypeError("Failed to fetch"));
   let reducer: SupervisorEventReducer;
-  const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+  const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
   reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
   const unsubscribe = readBridge().onSupervisorEvent((event) => reducer.dispatch(event));
   const interest = retainRendererEventInterest("runtime", threadId);
@@ -477,7 +477,7 @@ it.each([false, true])(
         return result;
       });
     let reducer: SupervisorEventReducer;
-    const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+    const recovery = createHostHistoryRecovery({ getArbitration: () => reducer.arbitration });
     reducer = createSupervisorEventReducer({ recovery: recovery.strategy });
     const discard = vi.spyOn(reducer.arbitration, "discardThroughSequence");
     recovery.noteSequencedSupervisorEvent(

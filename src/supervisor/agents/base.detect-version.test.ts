@@ -283,6 +283,35 @@ describe("detectAgentInstall baseSpawnEnv fan-out", () => {
       { id: "login", name: "Login", type: "terminal", args: [], env: baseSpawnEnv },
     ]);
   });
+
+  it("forwards merged probeEnv into authProbes and loginCommand", async () => {
+    let authProbeEnv: Readonly<Record<string, string | undefined>> | undefined;
+    let loginCmdEnv: Readonly<Record<string, string | undefined>> | undefined;
+    const { statusProbe: _statusProbe, ...specWithoutStatusProbe } = baseEnvSpec;
+    const status = await detectAgentInstall(undefined, {
+      ...specWithoutStatusProbe,
+      authProbes: [
+        async (ctx) => {
+          authProbeEnv = ctx.probeEnv;
+          return "missing";
+        },
+      ],
+      loginCommand: (ctx) => {
+        loginCmdEnv = ctx.probeEnv;
+        return "grok login";
+      },
+    });
+
+    expect(status.authState).toBe("missing");
+    expect(authProbeEnv).toEqual({
+      AGY_CLI_DISABLE_AUTO_UPDATE: "1",
+      PROBE_ONLY: "1",
+    });
+    expect(loginCmdEnv).toEqual({
+      AGY_CLI_DISABLE_AUTO_UPDATE: "1",
+      PROBE_ONLY: "1",
+    });
+  });
 });
 
 describe("detectAgentInstall WSL interop guard", () => {

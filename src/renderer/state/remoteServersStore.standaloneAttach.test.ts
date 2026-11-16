@@ -8,6 +8,7 @@
 // RemoteDesktopClient — no mocked client, no new transport/codec/engine.
 // Event sockets stay mocked (existing store pattern); HTTP proves routing.
 
+import "fake-indexeddb/auto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { McpServer } from "@/shared/contracts";
 import { probeMcpServer } from "./probeMcpServer";
 
@@ -412,13 +412,20 @@ describe("probeMcpServer", () => {
       expect(result).toMatchObject({ status: "unavailable", error: { code: "timeout" } });
 
       const pid = Number(readFileSync(pidFile, "utf8"));
-      let alive = true;
-      try {
-        process.kill(pid, 0);
-      } catch {
-        alive = false;
-      }
-      expect(alive).toBe(false);
+      // Termination is signalled, not awaited: under load the OS can take a
+      // moment to reap the server after the probe has already resolved.
+      await vi.waitFor(
+        () => {
+          let alive = true;
+          try {
+            process.kill(pid, 0);
+          } catch {
+            alive = false;
+          }
+          expect(alive).toBe(false);
+        },
+        { timeout: 5_000, interval: 25 },
+      );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

@@ -160,11 +160,16 @@ internal object RuntimeEventValidators {
 
     val BACKGROUND_TASK_KINDS: Set<String> = setOf("command", "other")
 
+    /** Additive `backgroundTaskSchema.category`; absent means fall back to `kind`. */
+    val BACKGROUND_TASK_CATEGORIES: Set<String> =
+        setOf("command", "monitor", "tool", "agent", "workflow", "other")
+
     /**
      * Zod `backgroundTaskSchema` parity: taskId min(1), kind is the closed
      * "command"|"other" enum, description any string. Unknown fields are
      * stripped upstream (x-poracode-unknownFields), so extra keys pass. String
-     * bounds count code points, like Zod and the generated runtime.
+     * bounds count code points, like Zod and the generated runtime. Category,
+     * command, and the output action are additive optional fields.
      */
     fun validateBackgroundTask(task: JsonElement): Boolean {
         val obj = task.asObjectOrNull() ?: return false
@@ -185,16 +190,31 @@ internal object RuntimeEventValidators {
             val progress = obj.strictString("progress") ?: return false
             if (progress.codePointLength() > 4096) return false
         }
-        if (obj.containsKey("stopAction")) {
-            val action = obj["stopAction"] as? JsonObject ?: return false
-            val id = action.strictString("id") ?: return false
-            if (id.isEmpty() || id.codePointLength() > 120) return false
-            val payload = action["payload"] as? JsonObject ?: return false
-            if (payload.any { (key, value) ->
-                key.codePointLength() > 120 || value.strictStringOrNull()?.let { it.codePointLength() <= 512 } != true
-            }) return false
+        if (obj.containsKey("category")) {
+            val category = obj.strictString("category") ?: return false
+            if (category !in BACKGROUND_TASK_CATEGORIES) return false
+        }
+        if (obj.containsKey("command")) {
+            val command = obj.strictString("command") ?: return false
+            if (command.codePointLength() > 16384) return false
+        }
+        for (key in listOf("stopAction", "outputAction")) {
+            if (!obj.containsKey(key)) continue
+            val action = obj[key] as? JsonObject ?: return false
+            if (!validateTaskAction(action)) return false
         }
         return true
+    }
+
+    /** Shared shape for `stopAction` / `outputAction`. */
+    private fun validateTaskAction(action: JsonObject): Boolean {
+        val id = action.strictString("id") ?: return false
+        if (id.isEmpty() || id.codePointLength() > 120) return false
+        val payload = action["payload"] as? JsonObject ?: return false
+        return payload.all { (key, value) ->
+            key.codePointLength() <= 120 &&
+                value.strictStringOrNull()?.let { it.codePointLength() <= 512 } == true
+        }
     }
 
     private fun String.codePointLength(): Int = codePointCount(0, length)

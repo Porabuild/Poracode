@@ -11,7 +11,7 @@ class SettingsUiResourceTest {
     fun settingsResourcesMatchInEverySupportedLocale() {
         val root = projectFile("app/src/main/res")
         val source = values(root.resolve("values/settings_strings.xml"))
-        assertEquals(128, source.size)
+        assertEquals(146, source.size)
         LOCALES.forEach { locale ->
             val file = root.resolve("values-$locale/settings_strings.xml")
             assertTrue("Missing $locale settings resources", file.isFile)
@@ -59,6 +59,10 @@ class SettingsUiResourceTest {
             "settings_usage_meter_description" to listOf("%1${DOLLAR}s", "%2${DOLLAR}s"),
             "settings_profile_days" to listOf("%1${DOLLAR}s"),
             "settings_profile_current_device" to listOf("%1${DOLLAR}s"),
+            "settings_profile_provider_less" to listOf("%1${DOLLAR}s", "%2${DOLLAR}d"),
+            "settings_profile_provider_more" to listOf("%1${DOLLAR}s", "%2${DOLLAR}d"),
+            "settings_profile_switched_from_to" to listOf("%1${DOLLAR}s", "%2${DOLLAR}s"),
+            "settings_profile_prompts_count" to listOf("%1${DOLLAR}s"),
         )
     }
 }

@@ -1,4 +1,4 @@
-const REASONING_PREVIEW_MAX_LENGTH = 120;
+const REASONING_PREVIEW_MAX_LENGTH = 500;
 
 function stripMarkdownMarkers(text: string): string {
   return text

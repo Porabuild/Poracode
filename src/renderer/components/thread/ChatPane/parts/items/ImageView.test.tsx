@@ -46,6 +46,41 @@ function installBridge(overrides: Record<string, unknown> = {}) {
 }
 
 describe("ImageView", () => {
+  it("renders a generated file's preview alongside fileId result metadata", () => {
+    render(
+      <AppProvider>
+        <ImageView
+          item={imageItem({
+            name: "imageGeneration",
+            status: "success",
+            result: { fileId: "file-generated", savedPath: "C:\\fixture\\generated.png" },
+            images: [`data:image/png;base64,${PNG_BASE64}`],
+          })}
+        />
+      </AppProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Open image preview" })).toBeInTheDocument();
+    expect(screen.getByRole("img")).toHaveAttribute("src", `data:image/png;base64,${PNG_BASE64}`);
+  });
+
+  it("shows generated file metadata when Codex provides no accessible image bytes", () => {
+    render(
+      <AppProvider>
+        <ImageView
+          item={imageItem({
+            name: "imageGeneration",
+            status: "success",
+            args: { prompt: "A blue square" },
+            result: { fileId: "file-remote-only", generationId: "generation-1" },
+          })}
+        />
+      </AppProvider>,
+    );
+    expect(screen.queryByRole("img")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    expect(screen.getByText(/file-remote-only/)).toBeInTheDocument();
+  });
+
   it("shows completed MCP resource source without starting a viewer session", () => {
     const item: RuntimeChatItem = {
       id: "app-tool",
@@ -438,5 +473,82 @@ describe("ImageView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Download image" }));
 
     await waitFor(() => expect(toastDanger).toHaveBeenCalledWith("download failed"));
+  });
+});
+
+describe("RemoteImageCard preview intent", () => {
+  function imageActions(requestRef: RemoteImageReadiness["requestRef"]) {
+    const readiness: RemoteImageReadiness = {
+      resolveRef: () => "blob:card",
+      subscribeRef: () => () => undefined,
+      requestRef,
+      resolvePath: () => "",
+      subscribePath: () => () => undefined,
+      requestPath: () => undefined,
+    };
+    return { readiness };
+  }
+
+  it("warms the full-resolution ref on pointerDown for a variant card", () => {
+    const requestRef = vi.fn<RemoteImageReadiness["requestRef"]>();
+    const ref = {
+      threadId: "thread-1",
+      itemId: "item-1",
+      path: ["result", "images", 0] as const,
+      mime: "image/png",
+      bytes: 300_000,
+      width: 2560,
+      height: 1600,
+    };
+    const { readiness } = imageActions(requestRef);
+    const view = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ remoteImageReadiness: readiness }}>
+          <ImageView
+            item={imageItem({
+              name: "image_view",
+              status: "success",
+              result: { images: [remoteImageRef(ref)] },
+            })}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    requestRef.mockClear();
+    fireEvent.pointerDown(view.container.querySelector("[data-poracode-image-card]")!);
+    expect(requestRef).toHaveBeenCalledWith(
+      expect.objectContaining({ itemId: "item-1" }),
+      "prefetch",
+    );
+  });
+
+  it("does not warm a small ref that has no display variant", () => {
+    const requestRef = vi.fn<RemoteImageReadiness["requestRef"]>();
+    const ref = {
+      threadId: "thread-1",
+      itemId: "small-1",
+      path: ["result", "images", 0] as const,
+      mime: "image/png",
+      bytes: 100,
+      width: 64,
+      height: 64,
+    };
+    const { readiness } = imageActions(requestRef);
+    const view = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={{ remoteImageReadiness: readiness }}>
+          <ImageView
+            item={imageItem({
+              name: "image_view",
+              status: "success",
+              result: { images: [remoteImageRef(ref)] },
+            })}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    requestRef.mockClear();
+    fireEvent.pointerDown(view.container.querySelector("[data-poracode-image-card]")!);
+    expect(requestRef).not.toHaveBeenCalled();
   });
 });

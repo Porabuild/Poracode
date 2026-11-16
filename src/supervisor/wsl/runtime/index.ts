@@ -24,6 +24,7 @@
  */
 
 import { toWslUncPath } from "@/shared/wsl";
+import { batchWslCommandsAsync, quotePosixShellArg } from "../../agents/base";
 import {
   MIN_ACCEPTED_NODE_MAJOR,
   NODE_TARBALL_CHECKSUMS,
@@ -32,7 +33,12 @@ import {
 import { SingleFlight } from "../singleFlight";
 import { getWslStagingService } from "../staging";
 import { installRuntimeIntoDistro } from "./install";
-import { probeUserNode } from "./probe";
+import {
+  batchWslCommandsForBootstrap,
+  probeDistroArch,
+  probeUserNode,
+  type LinuxArch,
+} from "./probe";
 import type { ResolveNodeOptions, ResolvedNode } from "./types";
 import {
   assertManagedNodeSatisfiesMinimum,
@@ -42,7 +48,7 @@ import {
 } from "./version";
 
 export { PORACODE_PINNED_NODE_VERSION, MIN_ACCEPTED_NODE_MAJOR, NODE_TARBALL_CHECKSUMS };
-export { probeUserNode } from "./probe";
+export { probeDistroArch, probeUserNode } from "./probe";
 export { installRuntimeIntoDistro } from "./install";
 export type { LinuxArch, NodeProbeOptions } from "./probe";
 export type {
@@ -58,7 +64,77 @@ export type {
  * re-probed without manual action.
  */
 const distroNodeCache = new Map<string, ResolvedNode>();
+const distroArchCache = new Map<string, LinuxArch>();
+const distroExecutableCache = new Set<string>();
 const distroFlights = new SingleFlight();
+const nativeHelperFlights = new SingleFlight();
+
+/**
+ * Probe and cache a WSL distro's Linux architecture (`"x64"` | `"arm64"`).
+ * Uses the active WSL bridge when connected and falls back to a bootstrap
+ * login-shell probe on Windows when the bridge has not started yet.
+ */
+export async function resolveDistroArch(distro: string): Promise<LinuxArch | null> {
+  const cached = distroArchCache.get(distro);
+  if (cached) return cached;
+  return nativeHelperFlights.run(`arch:${distro}`, async () => {
+    const again = distroArchCache.get(distro);
+    if (again) return again;
+    let arch = await probeDistroArch(distro, true);
+    if (!arch && process.platform === "win32") {
+      arch = await probeDistroArch(distro, false);
+    }
+    if (arch) distroArchCache.set(distro, arch);
+    return arch;
+  });
+}
+
+/**
+ * Drop cached executable-bit markers for `linuxPathPrefix` (exact file or any
+ * child under that directory) when a staging deploy overwrites/recreates files
+ * or removes a staged directory inside `distro`.
+ */
+export function invalidateDistroExecutableCache(distro: string, linuxPathPrefix: string): void {
+  const exactKey = `${distro}\0${linuxPathPrefix}`;
+  const dirPrefix = `${exactKey.replace(/\/+$/u, "")}/`;
+  for (const key of distroExecutableCache) {
+    if (key === exactKey || key.startsWith(dirPrefix)) {
+      distroExecutableCache.delete(key);
+    }
+  }
+}
+
+/**
+ * Mark a staged helper binary executable (`chmod 755 && test -x`) inside a WSL
+ * distro once per `(distro, linuxBinaryPath)`. Files copied over `\\wsl.localhost`
+ * UNC paths may not carry the POSIX execute bit on drvfs/ext4 staging roots.
+ */
+export async function markDistroBinaryExecutable(
+  distro: string,
+  linuxBinaryPath: string,
+  options?: { force?: boolean },
+): Promise<boolean> {
+  const key = `${distro}\0${linuxBinaryPath}`;
+  if (options?.force) {
+    distroExecutableCache.delete(key);
+  } else if (distroExecutableCache.has(key)) {
+    return true;
+  }
+  return nativeHelperFlights.run(`chmod:${key}`, async () => {
+    if (!options?.force && distroExecutableCache.has(key)) return true;
+    const quoted = quotePosixShellArg(linuxBinaryPath);
+    const cmd = `chmod 755 ${quoted} && test -x ${quoted} && printf ok`;
+    let [res] = await batchWslCommandsAsync(distro, [cmd]);
+    if (res?.stdout.trim() !== "ok" && process.platform === "win32") {
+      [res] = await batchWslCommandsForBootstrap(distro, [cmd]);
+    }
+    if (res?.stdout.trim() === "ok") {
+      distroExecutableCache.add(key);
+      return true;
+    }
+    return false;
+  });
+}
 
 /**
  * Resolve a usable Node binary inside `distro`. Probes once per supervisor

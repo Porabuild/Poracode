@@ -12,6 +12,13 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "local-ports",
+    title: "Local listening ports and desktop port action menus",
+    patterns: [/localPorts/i, /PortsPanel/],
+    automated: ["baseline"],
+    manual: ["changed-surface", "ipc-roundtrip", "visual-a11y"],
+  },
+  {
     id: "feedback",
     title: "Sidebar feedback modal and public website form",
     patterns: [
@@ -40,10 +47,29 @@ export const functionalAreas = [
   },
   {
     id: "inline-visuals",
-    title: "App-native visual data and source-only HTML/MCP fallback",
-    patterns: [/inlineVisual/i, /nativeVisual/i, /VisualSource/, /mcpAppResource/i, /mcpAppResult/],
+    title: "App-native visual data, sandboxed HTML pages, and source fallback",
+    patterns: [
+      /inlineVisual/i,
+      /nativeVisual/i,
+      /htmlVisual/i,
+      /VisualSource/,
+      /mcpAppResource/i,
+      /mcpAppResult/,
+    ],
     automated: ["baseline"],
     manual: ["changed-surface"],
+  },
+  {
+    id: "mcp-apps",
+    title: "Interactive MCP Apps in chat",
+    patterns: [
+      /mcpApps/i,
+      /McpApp(Session|Card|Presentation|View)/,
+      /mcpAppSandbox/i,
+      /mcpAppBridge/,
+    ],
+    automated: ["baseline"],
+    manual: ["changed-surface", "ipc-roundtrip", "provider-live", "remote-client"],
   },
   {
     id: "device-workspace",
@@ -277,7 +303,13 @@ export const functionalAreas = [
   {
     id: "remote-client",
     title: "Remote access, adaptive client, chat sidebar, pairing, and push",
-    patterns: [/^src\/renderer\/(?:browser|native|pwa|sidebar)\//, /remote/i, /pairing/i, /push/i],
+    patterns: [
+      /^src\/renderer\/(?:browser|native|pwa|sidebar)\//,
+      /^src\/renderer\/staleBuildRecovery\./,
+      /remote/i,
+      /pairing/i,
+      /push/i,
+    ],
     automated: ["settings"],
     manual: ["remote-client"],
   },

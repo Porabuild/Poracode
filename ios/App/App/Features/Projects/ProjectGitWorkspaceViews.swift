@@ -36,7 +36,7 @@ struct ProjectGitSidebarView: View {
     .task(id: GitHubOperationsActivationID(gitHubContext)) {
       await loadPullRequestContext()
     }
-    .safeAreaInset(edge: .bottom) {
+    .poracodeBottomBar {
       createPullRequestBar
     }
     .sheet(isPresented: $createPullRequestPresented) {
@@ -77,7 +77,7 @@ struct ProjectGitSidebarView: View {
             }
           }
         } label: {
-          Label(ProjectWorkspaceStrings.git, systemImage: "ellipsis.circle")
+          Label(ProjectWorkspaceStrings.git, systemImage: "ellipsis")
         }
         .accessibilityLabel(ProjectWorkspaceStrings.git)
         .accessibilityIdentifier("native-e2e.git.panel-menu")
@@ -121,13 +121,13 @@ struct ProjectGitSidebarView: View {
         } primaryAction: {
           runCreationMode(currentCreationMode)
         }
-        .poracodeProminentButtonStyle()
+        .poracodeGlassButtonStyle()
         .disabled(!canCreatePullRequest)
         .accessibilityIdentifier("project.git.createPullRequest")
       }
       .padding(.horizontal)
       .padding(.vertical, 8)
-      .background(.bar)
+      .poracodeBarBackground()
     }
   }
 
@@ -354,7 +354,7 @@ struct ProjectGitSidebarView: View {
               fileAction(.gitRevert, change: change)
             }
             fileAction(change.staged ? .gitUnstage : .gitStage, change: change)
-              .tint(change.staged ? .orange : .accentColor)
+              .tint(change.staged ? .orange : .gray)
           }
         }
       } header: {
@@ -367,7 +367,7 @@ struct ProjectGitSidebarView: View {
               groupAction(.gitRevertAll)
             }
           } label: {
-            Image(systemName: "ellipsis.circle")
+            Image(systemName: "ellipsis")
           }
           .disabled(isMutationUnavailable)
           .accessibilityLabel(GitOperationsStrings.quickActions)

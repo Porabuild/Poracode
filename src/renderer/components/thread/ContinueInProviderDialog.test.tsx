@@ -1,10 +1,12 @@
 import { extractContextPayloadSchema } from "@/shared/contracts/git";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import type { AgentStatus, Thread } from "@/shared/contracts";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
@@ -114,6 +116,18 @@ async function pressSwitch() {
   fireEvent.click(await screen.findByRole("button", { name: "Switch" }));
 }
 
+/** The app-wide usage entry that makes `popular-model` the most-used codex selection. */
+function popularModelUsage(count: number) {
+  return {
+    agentKind: "codex",
+    modelId: "popular-model",
+    effort: "high",
+    fast: false,
+    count,
+    lastUsedAt: 10,
+  };
+}
+
 describe("ContinueInProviderDialog handoff flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -127,13 +141,87 @@ describe("ContinueInProviderDialog handoff flow", () => {
       hiddenModels: {},
       providerConfigs: {},
       providerModelPreferences: {},
+      disabledBuiltInMcpServers: {},
+      disabledBuiltInMcpTools: {},
     } as never);
     useAppStore.setState({
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
       threadMentionToolsAvailableByThreadId: {},
     } as never);
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
+
+  it.each(["gui", "terminal"] as const)(
+    "loads the selected remote target's commands in the %s handoff composer",
+    async (mode) => {
+      const remoteThread = { ...thread, agentKind: "codex", remoteServerId: "handoff-host" };
+      const statuses = [agent("codex", "Codex", "gui"), agent("claude", "Claude", mode)];
+      const commands = [{ id: "goal", label: "goal", description: "Set a goal" }];
+      let resolveCatalog!: (value: { kind: string; commands: typeof commands }) => void;
+      const agentSlashCommands = vi.fn<RemoteDesktopClient["agentSlashCommands"]>(
+        () => new Promise((resolve) => (resolveCatalog = resolve)),
+      );
+      const previousFactory = useRemoteServersStore.getState().clientFactory;
+      useRemoteServersStore.setState({
+        clientFactory: () =>
+          ({ setTokenLifecycle: () => {}, agentSlashCommands }) as unknown as RemoteDesktopClient,
+        servers: [
+          {
+            desktopId: "handoff-host",
+            label: "Remote",
+            endpoint: `http://handoff-catalog-${mode}.test/`,
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+        runtime: {
+          "handoff-host": {
+            status: "online",
+            projects: [],
+            threads: [],
+            agentStatuses: { windows: statuses, wsl: [], updatedAt: "now" },
+          },
+        },
+      });
+      function RemoteHandoff() {
+        const installedAgents = useRemoteServersStore(
+          (state) => state.runtime["handoff-host"]!.agentStatuses!.windows,
+        );
+        return (
+          <AppProvider>
+            <ContinueInProviderDialog
+              isOpen
+              thread={remoteThread}
+              projectLocation={{ kind: "posix", path: "/repo", remoteServerId: "handoff-host" }}
+              installedAgents={installedAgents}
+              onClose={() => {}}
+              onContinue={() => {}}
+            />
+          </AppProvider>
+        );
+      }
+      const view = render(<RemoteHandoff />);
+      try {
+        await waitFor(() => expect(agentSlashCommands).toHaveBeenCalledWith("claude"));
+        const editor = screen.getByRole("textbox");
+        editor.textContent = "/g";
+        const range = document.createRange();
+        range.setStart(editor.firstChild!, 2);
+        range.collapse(true);
+        window.getSelection()!.removeAllRanges();
+        window.getSelection()!.addRange(range);
+        fireEvent.input(editor);
+        expect(screen.queryByRole("option", { name: /goal/ })).not.toBeInTheDocument();
+        await act(async () => resolveCatalog({ kind: "claude", commands }));
+        expect(await screen.findByRole("option", { name: /goal/ })).toBeInTheDocument();
+        expect(agentSlashCommands).toHaveBeenCalledOnce();
+      } finally {
+        view.unmount();
+        useRemoteServersStore.setState({ clientFactory: previousFactory });
+      }
+    },
+  );
 
   it("can add, remove, and re-add Plan for the target provider", () => {
     renderDialog({
@@ -409,6 +497,150 @@ describe("ContinueInProviderDialog handoff flow", () => {
       { strategy: "context-file", extracted: null },
     );
   });
+  it("extracts a paired host's thread through the same routed procedure as a local one", async () => {
+    const onContinue = renderDialog({
+      thread: {
+        remoteServerId: "handoff-host",
+        remoteId: "host-thread",
+        sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+      },
+    });
+
+    await pressSwitch();
+
+    // The bridge routes the thread-owned procedure to the owning host.
+    expect(bridge.extractContext).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: thread.id, agentKind: "claude" }),
+    );
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.anything(),
+      "terminal",
+      expect.anything(),
+      undefined, // empty composer: no segments
+      "switch",
+      { strategy: "context-file", extracted: expect.objectContaining({ summary: "extracted" }) },
+    );
+  });
+
+  it.each([
+    ["switch", false],
+    ["fork", false],
+    ["switch", true],
+    ["fork", true],
+  ] as const)(
+    "uses a paired host's readable history on %s with local read_thread disabled=%s",
+    async (intent, locallyDisabled) => {
+      useSharedSettings.setState({
+        disabledBuiltInMcpServers: locallyDisabled ? { "app-controls": true } : {},
+        disabledBuiltInMcpTools: locallyDisabled ? { "app-controls": ["read_thread"] } : {},
+      });
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          remoteServerId: "handoff-host",
+          remoteId: "host-thread",
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: intent === "switch" ? "Switch" : "Fork" }),
+      );
+
+      expect(bridge.extractContext).not.toHaveBeenCalled();
+      expect(onContinue).toHaveBeenCalledExactlyOnceWith(
+        "codex",
+        expect.anything(),
+        "gui",
+        "Continue where the previous provider left off.",
+        undefined,
+        intent,
+        { strategy: "thread-transcript" },
+      );
+    },
+  );
+
+  it.each(["server", "tool"] as const)(
+    "keeps the context fallback when the local host disables the read_thread %s",
+    async (disabled) => {
+      useSharedSettings.setState({
+        disabledBuiltInMcpServers: disabled === "server" ? { "app-controls": true } : {},
+        disabledBuiltInMcpTools: disabled === "tool" ? { "app-controls": ["read_thread"] } : {},
+      });
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      await pressSwitch();
+
+      expect(onContinue.mock.calls[0]?.[6].strategy).toBe("context-file");
+      expect(bridge.extractContext).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each([false, undefined])(
+    "keeps the context fallback when a paired host reports read_thread availability as %s",
+    async (available) => {
+      // Older hosts omit this optional field; they retain the existing fallback.
+      useAppStore.setState({
+        threadMentionToolsAvailableByThreadId:
+          available === undefined ? {} : { [thread.id]: available },
+      } as never);
+      const onContinue = renderDialog({
+        thread: {
+          remoteServerId: "handoff-host",
+          remoteId: "host-thread",
+          sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [agent("claude", "Claude", "gui"), agent("codex", "Codex", "gui")],
+      });
+
+      await pressSwitch();
+
+      expect(onContinue.mock.calls[0]?.[6].strategy).toBe("context-file");
+      expect(bridge.extractContext).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("keeps the context fallback when the paired host's target has no MCP support", async () => {
+    useAppStore.setState({
+      threadMentionToolsAvailableByThreadId: { [thread.id]: true },
+    } as never);
+    const onContinue = renderDialog({
+      thread: {
+        remoteServerId: "handoff-host",
+        remoteId: "host-thread",
+        sessionRef: { providerSessionId: "ses_1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+      },
+      installedAgents: [
+        agent("claude", "Claude", "gui"),
+        agent("codex", "Codex", "gui", { mcpScope: { gui: "none" } }),
+      ],
+    });
+
+    await pressSwitch();
+
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.anything(),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      { strategy: "context-file", extracted: expect.anything() },
+    );
+    expect(bridge.extractContext).toHaveBeenCalledOnce();
+  });
 });
 
 describe("ContinueInProviderDialog target config", () => {
@@ -418,6 +650,10 @@ describe("ContinueInProviderDialog target config", () => {
       hiddenModels: {},
       providerConfigs: {},
       providerModelPreferences: {},
+      agentSelectionUsage: [],
+      crossagentSelectionUsage: [],
+      favoriteModels: [],
+      crews: [],
     } as never);
     useAppStore.setState({
       runtimeItemIdsByThread: {},
@@ -480,6 +716,199 @@ describe("ContinueInProviderDialog target config", () => {
     expect(onContinue).toHaveBeenCalledWith(
       "codex",
       expect.objectContaining({ approvalPolicy: "never" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("opens on the target provider's last-selected model, not the first catalog entry", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "first-model", label: "First" },
+        { id: "last-model", label: "Last Selected" },
+      ],
+    });
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "last-model" } },
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    expect((await screen.findAllByText("Last Selected")).length).toBeGreaterThan(0);
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "last-model" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("opens on the last-selected model when the catalog head is hidden", async () => {
+    // Regression: the unfiltered ranking defaulted to the hidden head model,
+    // which the visible surface then collapsed to its first visible entry —
+    // so the dialog always opened on that entry (e.g. Cursor's Grok 4.7
+    // behind a hidden Auto) instead of the saved model.
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "auto-model", label: "Auto" },
+        { id: "first-visible", label: "First Visible" },
+        { id: "last-model", label: "Last Selected" },
+      ],
+    });
+    useSharedSettings.setState({
+      hiddenModels: { codex: ["auto-model"] },
+      providerConfigs: { codex: { model: "last-model" } },
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "last-model" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("opens on the target provider's most-used model when nothing is saved", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "first-model", label: "First" },
+        { id: "popular-model", label: "Popular" },
+      ],
+      efforts: ["low", "high"],
+    });
+    useSharedSettings.setState({
+      agentSelectionUsage: [popularModelUsage(7)],
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "popular-model", effort: "high" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("keeps the last-selected tuple when usage favors another model", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "popular-model", label: "Popular" },
+        { id: "last-model", label: "Last Selected" },
+      ],
+      efforts: ["low", "high"],
+    });
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "last-model", effort: "low" } },
+      agentSelectionUsage: [popularModelUsage(9)],
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    // The ranked tuple must not stomp the saved model or leak its effort.
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "last-model", effort: "low" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("falls back to the most-used model when the saved model was hidden", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "first-visible", label: "First Visible" },
+        { id: "popular-model", label: "Popular" },
+        { id: "last-model", label: "Last Selected" },
+      ],
+      efforts: ["low", "high"],
+    });
+    useSharedSettings.setState({
+      hiddenModels: { codex: ["last-model"] },
+      providerConfigs: { codex: { model: "last-model", effort: "low" } },
+      agentSelectionUsage: [popularModelUsage(9)],
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    // An unusable saved tuple must not collapse to the first visible model
+    // or leak its effort onto the ranked one.
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "popular-model", effort: "high" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("opens on a model learned from crossagent usage when nothing is saved", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "first-model", label: "First" },
+        { id: "learned-model", label: "Learned" },
+      ],
+      efforts: ["low", "high"],
+      fastModels: ["learned-model"],
+    });
+    useSharedSettings.setState({
+      crossagentSelectionUsage: [
+        {
+          agentKind: "codex",
+          modelId: "learned-model",
+          effort: "high",
+          fast: true,
+          count: 3,
+          lastUsedAt: 10,
+          explicitFields: { provider: false, model: true, effort: true, fast: true },
+        },
+      ],
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    // The ranking's provider bucket stays "built-in" for model-explicit
+    // entries, but its preferred selection is still the learned tuple.
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "learned-model", effort: "high", fast: true }),
       "gui",
       expect.anything(),
       undefined,

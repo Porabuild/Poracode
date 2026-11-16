@@ -281,6 +281,7 @@ internal fun ProjectUtilityDestinationContent(
                 HomeProjectUtility.PullRequests -> ProjectManagementDestination.PullRequests
                 HomeProjectUtility.GithubActions -> ProjectManagementDestination.GithubActions
                 HomeProjectUtility.Terminal -> ProjectManagementDestination.Detail
+                HomeProjectUtility.Workspace -> ProjectManagementDestination.Git
             },
             onOpenIntegrations = navigation::openSettingsIntegrations,
             mcpController = settings.globalMcp,
@@ -299,6 +300,9 @@ internal fun ProjectUtilityDestinationContent(
                 navigation.advancedOperationsConnectionId = identity.connectionId.value
                 navigation.showAdvancedOperations = true
             },
+            hostName = state.hostCatalog.hosts
+                .firstOrNull { it.connectionId == state.hostCatalog.selectedConnectionId }
+                ?.label,
         )
     }
 }
@@ -343,6 +347,9 @@ internal fun ProjectsDestinationContent(
             navigation.advancedOperationsConnectionId = identity.connectionId.value
             navigation.showAdvancedOperations = true
         },
+        hostName = state.hostCatalog.hosts
+            .firstOrNull { it.connectionId == state.hostCatalog.selectedConnectionId }
+            ?.label,
     )
 }
 
@@ -408,11 +415,13 @@ internal fun HomeDestinationScreenContent(
     deviceSettingsState: DeviceSettingsState,
     userHiddenModels: kotlinx.serialization.json.JsonObject?,
     onRefreshModelVisibility: () -> Unit,
+    providerUsageControl: @Composable (com.poracode.app.model.RemoteThread?, com.poracode.app.model.AgentStatusEntry?) -> Unit,
 ) {
     androidx.compose.runtime.LaunchedEffect(state.hostCatalog.selectedConnectionId, state.openThreadId) {
         onRefreshModelVisibility()
     }
     HomeScreen(
+        providerUsageControl = providerUsageControl,
         userHiddenModels = userHiddenModels,
         onRefreshModelVisibility = onRefreshModelVisibility,
         state = state,

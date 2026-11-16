@@ -29,10 +29,11 @@ const planStatusSchema = z.object({
   dailyQuotaResetAtUnix: timestamp.optional(),
   weeklyQuotaResetAtUnix: timestamp.optional(),
   overageBalanceMicros: z
-    .union([z.number(), z.string().regex(/^\d+$/)])
+    .union([z.number(), z.string().regex(/^-?\d+$/)])
     .transform(Number)
-    .pipe(z.number().nonnegative().finite())
-    .optional(),
+    .pipe(z.number().finite())
+    .optional()
+    .catch(undefined),
 });
 const statusSchema = z.object({ userStatus: z.object({ planStatus: planStatusSchema }) });
 
@@ -48,11 +49,12 @@ export function parseDevinUsage(data: unknown, now: number): UsageSnapshot {
     remaining: number | undefined,
     reset: number | undefined,
   ) => {
-    if (remaining === undefined) return;
+    // Connect's proto3 JSON omits a zero percentage; a reset identifies its window.
+    if (remaining === undefined && (reset === undefined || reset === 0)) return;
     windows.push({
       id,
       label: id === "daily" ? "Daily" : "Weekly",
-      usedPercent: 100 - remaining,
+      usedPercent: 100 - (remaining ?? 0),
       ...(reset !== undefined ? { resetsAt: reset * 1000 } : {}),
     });
   };

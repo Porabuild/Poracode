@@ -1,8 +1,14 @@
 export type HistoryStartReached = () => void | Promise<boolean>;
 
+export interface HistoryGroupBoundary {
+  readonly headId: string;
+  readonly tailId: string;
+}
+
 interface UnderfilledHistoryMeasurement {
   readonly threadId: string;
   readonly oldestEntryId: string | undefined;
+  readonly oldestGroup?: HistoryGroupBoundary;
   readonly scroller: Pick<HTMLElement, "clientHeight" | "scrollHeight"> | null;
   readonly onStartReached: HistoryStartReached | undefined;
 }
@@ -11,13 +17,15 @@ interface UnderfilledHistoryMeasurement {
 export function createUnderfilledHistoryTrigger() {
   let currentThreadId: string | undefined;
   let requestedOldestEntryId: string | undefined;
-  let failedOldestEntryId: string | undefined;
+  let requestedOldestGroup: HistoryGroupBoundary | undefined;
+  let blockedOldestEntryId: string | undefined;
   let latestMeasurement: UnderfilledHistoryMeasurement | null = null;
   let pending: { oldestEntryId: string } | null = null;
 
   function reset() {
     requestedOldestEntryId = undefined;
-    failedOldestEntryId = undefined;
+    requestedOldestGroup = undefined;
+    blockedOldestEntryId = undefined;
     latestMeasurement = null;
     pending = null;
   }
@@ -27,7 +35,8 @@ export function createUnderfilledHistoryTrigger() {
     pending = null;
     if (!loaded) {
       requestedOldestEntryId = undefined;
-      failedOldestEntryId = request.oldestEntryId;
+      requestedOldestGroup = undefined;
+      blockedOldestEntryId = request.oldestEntryId;
       return;
     }
     // A prepend can commit before the pager clears its pending request. Continue
@@ -37,7 +46,7 @@ export function createUnderfilledHistoryTrigger() {
     }
   }
 
-  function measure(value: UnderfilledHistoryMeasurement, retryFailed = false): boolean {
+  function measure(value: UnderfilledHistoryMeasurement, retryBlocked = false): boolean {
     const { threadId, oldestEntryId, scroller, onStartReached } = value;
     if (currentThreadId !== threadId) {
       currentThreadId = threadId;
@@ -59,11 +68,28 @@ export function createUnderfilledHistoryTrigger() {
     }
     latestMeasurement = value;
     if (pending || requestedOldestEntryId === oldestEntryId) return false;
-    if (retryFailed ? failedOldestEntryId !== oldestEntryId : failedOldestEntryId === oldestEntryId)
+    const group = value.oldestGroup;
+    if (
+      !retryBlocked &&
+      group &&
+      requestedOldestGroup?.tailId === group.tailId &&
+      requestedOldestGroup.headId !== group.headId
+    ) {
+      // More calls in the same visible group do not fill the viewport. This
+      // also covers a layout that commits after its paging promise settles.
+      requestedOldestEntryId = undefined;
+      requestedOldestGroup = undefined;
+      blockedOldestEntryId = oldestEntryId;
+      return false;
+    }
+    if (
+      retryBlocked ? blockedOldestEntryId !== oldestEntryId : blockedOldestEntryId === oldestEntryId
+    )
       return false;
     // Mark before invoking: a synchronous content measurement can reenter this callback.
     requestedOldestEntryId = oldestEntryId;
-    failedOldestEntryId = undefined;
+    requestedOldestGroup = group;
+    blockedOldestEntryId = undefined;
     const request = { oldestEntryId };
     pending = request;
     try {

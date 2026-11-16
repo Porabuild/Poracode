@@ -156,6 +156,14 @@ export function buildCrewHelperOptions(input: {
   return { providers, ranked, modelLabelOf, selectionFor, defaultSelectionFor };
 }
 
+// Keep temporary serialized comparisons outside React Compiler's memo cache.
+function sameRoutingInputs(left: readonly unknown[], right: readonly unknown[]): boolean {
+  return left.every(
+    (value, index) =>
+      value === right[index] || JSON.stringify(value) === JSON.stringify(right[index]),
+  );
+}
+
 export function useCrewHelperOptions(): CrewHelperOptions {
   const statuses = useAgentStatusesStore((state) => state.agentStatuses);
   const wslStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
@@ -164,16 +172,22 @@ export function useCrewHelperOptions(): CrewHelperOptions {
   const crossagentPausedProviders = useSharedSettings((state) => state.crossagentPausedProviders);
   const crossagentHiddenModels = useSharedSettings((state) => state.crossagentHiddenModels);
   const remote = isRemoteSession();
-  const routingRefreshKey = JSON.stringify([
+  const routingInputs = [
     statuses,
     wslStatuses,
     disabledAgents,
     hiddenModels,
     crossagentPausedProviders,
     crossagentHiddenModels,
-  ]);
+  ];
+  const [routingSnapshot, setRoutingSnapshot] = useState({ inputs: routingInputs, key: 0 });
+  let routingRefreshKey = routingSnapshot.key;
+  if (routingInputs.some((value, index) => value !== routingSnapshot.inputs[index])) {
+    if (!sameRoutingInputs(routingInputs, routingSnapshot.inputs)) routingRefreshKey += 1;
+    setRoutingSnapshot({ inputs: routingInputs, key: routingRefreshKey });
+  }
   const [routingResult, setRoutingResult] = useState<{
-    key: string;
+    key: number;
     routing: CrossagentRoutingState | null;
   }>();
   useEffect(() => {

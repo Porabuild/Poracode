@@ -34,9 +34,10 @@ import java.net.URLEncoder
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 
@@ -342,7 +343,9 @@ internal object RemoteBoundedWire {
     fun threadHistory(raw: String): RemoteBoundedReadResult<RemoteThreadSnapshot, RemoteThreadSnapshot> {
         val codec = RemoteRootCodecs.routeU2EThreadU2DHistoryU2EResponse
         val envelope = envelope(raw, codec, "thread history")
-        val page = project(envelope, RemoteThreadSnapshot.serializer(), "thread history")
+        val page = project(envelope, RemoteThreadSnapshot.serializer(), "thread history").withBackgroundTaskPresence(
+            RemoteJson.parseToJsonElement(raw).jsonObject,
+        ) ?: throw protocolError("invalid_field:thread history:backgroundTasks")
         return when (val reads = echo(envelope)) {
             null -> RemoteBoundedReadResult.Legacy(page)
             RemoteBoundedReadCodes.CAPABILITY -> {

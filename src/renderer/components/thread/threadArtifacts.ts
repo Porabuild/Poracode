@@ -1,6 +1,7 @@
 import { unified } from "unified";
 import remarkParse from "remark-parse";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
+import { isVideoPath } from "@/shared/chatVideo";
 import { fileNameFromPath, isImagePath } from "@/shared/promptContent";
 import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 import type { MessageItemPayload } from "@/shared/contracts";
@@ -53,7 +54,11 @@ function itemArtifacts(
   const artifacts: ThreadArtifact[] = [];
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, item.type);
   for (const block of payload?.content ?? []) {
-    if (block.kind === "file" && !isImagePath(block.path) && !block.mimeType?.startsWith("image/"))
+    if (
+      block.kind === "file" &&
+      !isImagePath(block.path, block.mimeType ?? undefined) &&
+      !isVideoPath(block.path, block.mimeType ?? undefined)
+    )
       artifacts.push({
         target: normalizeWindowsDrivePath(block.path),
         name: block.name || fileNameFromPath(block.path),
@@ -111,7 +116,7 @@ function artifactFromHref(href: string): ThreadArtifact | undefined {
     try {
       const url = new URL(href);
       if (
-        !/\.(?:pdf|docx?|xlsx?|pptx?|csv|tsv|zip|gz|tar|7z|mp[34]|wav|webm|json|txt|md|html?)$/i.test(
+        !/\.(?:pdf|docx?|xlsx?|pptx?|csv|tsv|zip|gz|tar|7z|mp3|wav|json|txt|md|html?)$/i.test(
           url.pathname,
         )
       )
@@ -147,7 +152,7 @@ function artifactFromHref(href: string): ThreadArtifact | undefined {
   const ref = explicit ?? parseProjectPathRef(path);
   const filePath =
     ref?.kind === "file" ? ref.path : /\.[a-z\d]{1,12}$/i.test(path) ? path : undefined;
-  if (!filePath || isImagePath(filePath)) return undefined;
+  if (!filePath || isImagePath(filePath) || isVideoPath(filePath)) return undefined;
   return {
     target: normalizeWindowsDrivePath(filePath),
     name: fileNameFromPath(filePath),
@@ -171,8 +176,9 @@ export function collectThreadArtifacts(
   return artifacts;
 }
 
-export function useThreadArtifacts(threadId: string): readonly ThreadArtifact[] {
+export function useThreadArtifacts(threadId: string | undefined): readonly ThreadArtifact[] {
   return useAppStore((state) => {
+    if (!threadId) return EMPTY_ARTIFACTS;
     const ids = state.runtimeItemIdsByThread[threadId];
     const byId = state.runtimeItemsByIdByThread[threadId];
     if (!ids || !byId) return EMPTY_ARTIFACTS;

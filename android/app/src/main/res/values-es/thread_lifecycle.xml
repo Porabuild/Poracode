@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">No hay hilos archivados</string>
     <string name="thread_status_starting_agent">Iniciando agente…</string>
     <string name="thread_status_resuming">Reanudando sesión…</string>
+    <string name="thread_lifecycle_pin_top">Fijar arriba</string>
+    <string name="thread_lifecycle_archive_thread">Archivar hilo</string>
+    <string name="thread_lifecycle_delete_thread">Eliminar hilo</string>
+    <string name="thread_lifecycle_notes">Notas y tareas pendientes</string>
+    <string name="thread_lifecycle_open_terminal">Abrir terminal</string>
+    <string name="thread_lifecycle_fork_thread">Bifurcar conversación</string>
+    <string name="thread_lifecycle_continue_in">Continuar en otro proveedor</string>
+    <string name="thread_lifecycle_move_worktree_changes">Mover al árbol de trabajo con cambios</string>
+    <string name="thread_lifecycle_move_worktree_clean">Mover a un árbol de trabajo limpio</string>
+    <string name="thread_lifecycle_move_worktree_title">¿Mover el hilo a un árbol de trabajo?</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">La ejecución actual se detendrá. Se crearán un árbol de trabajo y una rama nuevos, y los cambios sin confirmar se moverán allí antes de reanudar el hilo.</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">La ejecución actual se detendrá. Se crearán un árbol de trabajo limpio y una rama antes de reanudar el hilo.</string>
+    <string name="thread_lifecycle_move_confirm">Mover</string>
 </resources>

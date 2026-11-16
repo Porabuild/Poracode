@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import {
@@ -8,6 +8,12 @@ import {
 import ItemMarkdownInner from "../../thread/ChatPane/parts/items/ItemMarkdownInner";
 import { ItemMarkdown } from "../../thread/ChatPane/parts/items/ItemMarkdown";
 import { resolveThreadTranscriptMarkdownFormatter } from "../../thread/threadTranscriptMarkdown";
+import { downloadChatFile } from "@/renderer/components/media/fileMediaSource";
+
+vi.mock("@/renderer/components/media/fileMediaSource", () => ({
+  createEditorMediaSource: vi.fn<() => Promise<never>>(),
+  downloadChatFile: vi.fn<typeof downloadChatFile>(async () => {}),
+}));
 
 vi.mock("@/renderer/deferredFeatures", () => ({
   DeferredItemMarkdownInner: () => {
@@ -125,7 +131,8 @@ describe("Codex file citation rendering", () => {
     ["lazy fallback", ItemMarkdown],
   ] as const)(
     "renders the stored-response regression as three working files in %s",
-    (_, Renderer) => {
+    async (_, Renderer) => {
+      vi.mocked(downloadChatFile).mockClear();
       const actions = makeActions();
       const { container } = render(
         <AppProvider>
@@ -139,13 +146,28 @@ describe("Codex file citation rendering", () => {
       expect(container).not.toHaveTextContent("https://poracode.local");
       expect(container).toHaveTextContent("Your wording and colors are preserved.");
       expect(container.querySelectorAll(".poracode-inline-path-chip")).toHaveLength(3);
-      for (const file of ["workflow_3.pptx", "workflow_3.pdf", "workflow_2.pptx"]) {
-        fireEvent.click(screen.getByRole("button", { name: file }));
-        expect(actions.openProjectRelativePath).toHaveBeenCalledWith(
-          `figures/source/${file}`,
-          undefined,
-        );
-      }
+      fireEvent.click(screen.getByRole("button", { name: "workflow_3.pptx" }));
+      await waitFor(() =>
+        expect(downloadChatFile).toHaveBeenCalledExactlyOnceWith(
+          actions.projectLocation,
+          "figures/source/workflow_3.pptx",
+          expect.any(AbortSignal),
+        ),
+      );
+      fireEvent.click(screen.getByRole("button", { name: "workflow_3.pdf" }));
+      expect(actions.openProjectRelativePath).toHaveBeenCalledExactlyOnceWith(
+        "figures/source/workflow_3.pdf",
+        undefined,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "workflow_2.pptx" }));
+      await waitFor(() =>
+        expect(downloadChatFile).toHaveBeenCalledWith(
+          actions.projectLocation,
+          "figures/source/workflow_2.pptx",
+          expect.any(AbortSignal),
+        ),
+      );
+      expect(downloadChatFile).toHaveBeenCalledTimes(2);
     },
   );
 

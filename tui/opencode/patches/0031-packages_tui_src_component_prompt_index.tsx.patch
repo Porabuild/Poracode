@@ -1,0 +1,100 @@
+diff --git a/packages/tui/src/component/prompt/index.tsx b/packages/tui/src/component/prompt/index.tsx
+index d5e0477..b7d4ad5 100644
+--- a/packages/tui/src/component/prompt/index.tsx
++++ b/packages/tui/src/component/prompt/index.tsx
+@@ -43,8 +43,6 @@ import { Locale } from "../../util/locale"
+ import { errorMessage } from "../../util/error"
+ import { createColors, createFrames } from "../../ui/spinner"
+ import { useDialog } from "../../ui/dialog"
+-import { DialogIntegration } from "../dialog-integration"
+-import { useConnected } from "../use-connected"
+ import { useToast } from "../../ui/toast"
+ import { createFadeIn } from "../../util/signal"
+ import { DialogSkill } from "../dialog-skill"
+@@ -312,17 +310,13 @@ export function Prompt(props: PromptProps) {
+     ],
+   }))
+   const [cursorVersion, setCursorVersion] = createSignal(0)
+-  const connected = useConnected()
+-
++  // poracode: provider setup stays in the host app.
+   function promptModelWarning() {
+     toast.show({
+       variant: "warning",
+-      message: "Connect an integration to send prompts",
++      message: "Choose a configured model before sending prompts",
+       duration: 3000,
+     })
+-    if (!connected()) {
+-      dialog.replace(() => <DialogIntegration />)
+-    }
+   }
+ 
+   function dismissEditorContext() {
+@@ -1838,19 +1832,53 @@ export function Prompt(props: PromptProps) {
+               syntaxStyle={syntax()}
+             />
+             <box flexDirection="row" flexShrink={0} paddingTop={1} gap={1} justifyContent="space-between">
+-              <PromptMetadataRow
+-                mode={store.mode}
+-                agent={agentLabel()}
+-                auto={local.permission.mode === "autoaccept"}
+-                model={promptDisplay().modelLabel}
+-                provider={promptDisplay().providerLabel}
+-                variant={promptDisplay().variant}
+-                muted={!!muted()}
+-                highlight={highlight()}
+-                agentAlpha={agentMetaAlpha()}
+-                modelAlpha={modelMetaAlpha()}
+-                variantAlpha={variantMetaAlpha()}
+-              />
++              {/* poracode: plugins may replace the agent/model metadata row. */}
++              <Slot
++                path="prompt.metadata"
++                input={{
++                  get sessionID() {
++                    return props.sessionID
++                  },
++                  get mode() {
++                    return store.mode
++                  },
++                  get agent() {
++                    return promptDisplay().agentLabel
++                  },
++                  get auto() {
++                    return local.permission.mode === "autoaccept"
++                  },
++                  get model() {
++                    return promptDisplay().modelLabel
++                  },
++                  get provider() {
++                    return promptDisplay().providerLabel
++                  },
++                  get variant() {
++                    return promptDisplay().variant
++                  },
++                  get muted() {
++                    return !!muted()
++                  },
++                  get width() {
++                    return Math.max(0, dimensions().width - (dimensions().width < 44 ? 9 : 13))
++                  },
++                }}
++              >
++                <PromptMetadataRow
++                  mode={store.mode}
++                  agent={agentLabel()}
++                  auto={local.permission.mode === "autoaccept"}
++                  model={promptDisplay().modelLabel}
++                  provider={promptDisplay().providerLabel}
++                  variant={promptDisplay().variant}
++                  muted={!!muted()}
++                  highlight={highlight()}
++                  agentAlpha={agentMetaAlpha()}
++                  modelAlpha={modelMetaAlpha()}
++                  variantAlpha={variantMetaAlpha()}
++                />
++              </Slot>
+             </box>
+           </box>
+         </box>

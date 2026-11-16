@@ -153,12 +153,10 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
 
       // A second desktop admission never acquires: bounded reprobe, then a
       // loud refusal whose guidance matches the holder kind.
-      await expect(
-        admitDesktopManagedOwner({ baseDir: namespace, channel: "stable" }),
-      ).rejects.toThrow(HostRootInUseError);
-      await expect(
-        admitDesktopManagedOwner({ baseDir: namespace, channel: "stable" }),
-      ).rejects.toThrow(/Quit the running Poracode app/);
+      await expect(admitDesktopManagedOwner(namespace)).rejects.toThrow(HostRootInUseError);
+      await expect(admitDesktopManagedOwner(namespace)).rejects.toThrow(
+        /Quit the running Poracode app/,
+      );
       expect(() => HostOwnerLease.acquire(paths, "desktop")).toThrow(HostRootInUseError);
 
       // The desktop owner mints no attach pairings: the handler failure maps
@@ -185,9 +183,7 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
 
       // Lease is free, so admission gets past the lease and must refuse on
       // the fence probe — the orphaned-backend window is closed.
-      await expect(
-        admitDesktopManagedOwner({ baseDir: namespace, channel: "stable" }),
-      ).rejects.toThrow(HostDataFenceInUseError);
+      await expect(admitDesktopManagedOwner(namespace)).rejects.toThrow(HostDataFenceInUseError);
 
       // The refused admission released its lease before throwing: a clean
       // owner can acquire immediately.

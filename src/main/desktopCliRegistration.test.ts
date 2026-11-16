@@ -41,7 +41,6 @@ describe("desktop CLI registration admission", () => {
     isPackaged: true,
     isDev: false,
     baseDirOverride: undefined,
-    legacyBaseDirOverride: undefined,
     env: {},
   };
   it("admits ordinary packaged macOS launches and excludes disposable/other-platform launches", () => {
@@ -52,7 +51,6 @@ describe("desktop CLI registration admission", () => {
       { isPackaged: false },
       { isDev: true },
       { baseDirOverride: "/disposable-profile" },
-      { legacyBaseDirOverride: "/legacy-override" },
       { env: { CI: "1" } },
       { env: { PORACODE_CDP_PORT: "9222" } },
       { env: { PORACODE_STARTUP_FAILURE_MODE: " quiet " } },

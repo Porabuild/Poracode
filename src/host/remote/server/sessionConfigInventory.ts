@@ -17,6 +17,19 @@ export interface SessionConfigInventoryEntry {
 }
 
 /**
+ * Pure read-side overlay of one captured {@link SessionConfigInventoryEntry}
+ * onto a served row. Safe for worker-projected catalog reads where the live
+ * store is unavailable.
+ */
+export function applySessionConfigInventoryEntry(
+  thread: Thread,
+  entry: SessionConfigInventoryEntry | undefined,
+): Thread {
+  if (!entry || entry.agentKind !== thread.agentKind) return thread;
+  return { ...thread, sessionConfigOptions: entry.options };
+}
+
+/**
  * Volatile, in-memory latest inventory of per-thread `sessionConfigOptions`
  * (live composer controls), projected from supervisor `thread-state` events.
  *
@@ -51,6 +64,15 @@ export class SessionConfigInventory {
   /** Latest entry for a thread, for read-side helpers and tests. */
   entryFor(threadId: string): SessionConfigInventoryEntry | undefined {
     return this.entries.get(threadId);
+  }
+
+  /** Read-only copy of all stored entries for worker-dispatched catalog reads. */
+  snapshotEntries(): Record<string, SessionConfigInventoryEntry> {
+    const snapshot: Record<string, SessionConfigInventoryEntry> = {};
+    for (const [threadId, entry] of this.entries) {
+      snapshot[threadId] = entry;
+    }
+    return snapshot;
   }
 
   /**
@@ -148,7 +170,7 @@ export class SessionConfigInventory {
       this.entries.delete(thread.id);
       return thread;
     }
-    return { ...thread, sessionConfigOptions: entry.options };
+    return applySessionConfigInventoryEntry(thread, entry);
   }
 
   /**

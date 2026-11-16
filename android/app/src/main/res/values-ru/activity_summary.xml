@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="rich_chat_activity_view">
+        <item quantity="one">%1$d просмотр</item>
+        <item quantity="few">%1$d просмотра</item>
+        <item quantity="many">%1$d просмотров</item>
+        <item quantity="other">%1$d просмотра</item>
+    </plurals>
+    <plurals name="rich_chat_activity_search">
+        <item quantity="one">%1$d поиск</item>
+        <item quantity="few">%1$d поиска</item>
+        <item quantity="many">%1$d поисков</item>
+        <item quantity="other">%1$d поиска</item>
+    </plurals>
+    <plurals name="rich_chat_activity_edit">
+        <item quantity="one">%1$d изменение</item>
+        <item quantity="few">%1$d изменения</item>
+        <item quantity="many">%1$d изменений</item>
+        <item quantity="other">%1$d изменения</item>
+    </plurals>
+    <plurals name="rich_chat_activity_command">
+        <item quantity="one">%1$d команда</item>
+        <item quantity="few">%1$d команды</item>
+        <item quantity="many">%1$d команд</item>
+        <item quantity="other">%1$d команды</item>
+    </plurals>
+    <plurals name="rich_chat_activity_tool">
+        <item quantity="one">%1$d инструмент</item>
+        <item quantity="few">%1$d инструмента</item>
+        <item quantity="many">%1$d инструментов</item>
+        <item quantity="other">%1$d инструмента</item>
+    </plurals>
+    <plurals name="rich_chat_activity_thought">
+        <item quantity="one">%1$d мысль</item>
+        <item quantity="few">%1$d мысли</item>
+        <item quantity="many">%1$d мыслей</item>
+        <item quantity="other">%1$d мысли</item>
+    </plurals>
+    <plurals name="rich_chat_activity_mcp">
+        <item quantity="one">%d MCP</item>
+        <item quantity="few">%d MCP</item>
+        <item quantity="many">%d MCP</item>
+        <item quantity="other">%d MCP</item>
+    </plurals>
+</resources>

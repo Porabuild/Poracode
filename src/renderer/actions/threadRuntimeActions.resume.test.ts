@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
     sendThreadInput: vi.fn<(payload: SendThreadInputPayload) => Promise<void>>(),
   },
   performInitialThreadLaunch: vi.fn<(input: unknown) => Promise<void>>(),
+  remoteOwner: vi.fn<(entity: unknown) => { desktopId: string } | undefined>(() => undefined),
+  captureFileCheckpoint: vi.fn<(input: unknown) => Promise<void>>(),
 }));
 
 vi.mock("@/renderer/state/appStore", () => ({
@@ -26,11 +28,15 @@ vi.mock("@/renderer/state/appStore", () => ({
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => mocks.bridge,
 }));
-vi.mock("@/renderer/state/remoteProjection", () => ({
-  remoteOwner: () => undefined,
-}));
+vi.mock("@/renderer/state/remoteProjection", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/state/remoteProjection")>();
+  return {
+    ...actual,
+    remoteOwner: mocks.remoteOwner,
+  };
+});
 vi.mock("@/renderer/state/fileCheckpointActions", () => ({
-  captureFileCheckpoint: vi.fn<(input: unknown) => Promise<void>>(),
+  captureFileCheckpoint: mocks.captureFileCheckpoint,
 }));
 vi.mock("@/renderer/analytics/posthog", () => ({
   captureThreadPromptSubmitted: vi.fn<(...args: unknown[]) => void>(),
@@ -296,6 +302,7 @@ describe("performThreadInputSubmit unknown-session resume", () => {
 describe("submitThreadInput resume wiring", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.remoteOwner.mockReturnValue(undefined);
     mocks.performInitialThreadLaunch.mockResolvedValue(undefined);
     mocks.appState.projects = [project];
     mocks.appState.threads = [createThread()];
@@ -322,6 +329,21 @@ describe("submitThreadInput resume wiring", () => {
     expect(mocks.bridge.sendThreadInput).toHaveBeenCalledWith(
       expect.objectContaining({ prompt: "", segments: attachmentOnly }),
     );
+  });
+
+  it.each([
+    ["managed", undefined],
+    ["paired", { desktopId: "desktop-1" }],
+  ])("captures a file checkpoint for a %s host's thread", async (_host, owner) => {
+    mocks.remoteOwner.mockReturnValue(owner);
+
+    await submitThreadInput("thread-1", "hello", segments);
+
+    expect(mocks.captureFileCheckpoint).toHaveBeenCalledExactlyOnceWith({
+      threadId: "thread-1",
+      checkpointItemId: expect.stringMatching(/^user-/),
+      projectLocation: { kind: "posix", path: "/repo" },
+    });
   });
 
   it("relaunches with the freshest thread snapshot and the optimistic item id", async () => {
@@ -384,7 +406,9 @@ describe("submitThreadInput resume wiring", () => {
     );
     mocks.appState.threads = [];
 
-    await expect(submitThreadInput("thread-1", "hello", segments)).resolves.toBeUndefined();
+    await expect(submitThreadInput("thread-1", "hello", segments)).rejects.toThrow(
+      "Thread not found.",
+    );
 
     expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
   });

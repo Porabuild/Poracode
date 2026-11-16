@@ -22,6 +22,8 @@ import { deriveToolDisplay, isCrossagentTool, isWorkflowTool } from "./toolDispl
 import { WorkflowOverlayBody } from "./WorkflowOverlayBody";
 import { parseWorkflowInfo } from "./workflowDisplay";
 import { SubAgentMessageList, type WorkflowOverlayProgress } from "./SubAgentMessageList";
+import { PanelActivity } from "@/renderer/components/layout/panelMotion";
+import { PaneVisibility } from "@/renderer/paneVisibility";
 
 interface SubAgentOpenControllerProps {
   threadId: string;
@@ -64,22 +66,21 @@ interface SubAgentContentProps {
   onClose?: () => void;
   projectLocation?: ProjectLocation;
   hideHeader?: boolean;
+  visible?: boolean;
   /** Zero uses the normal frame-based reveal; other hosts keep a longer settle. */
   initialScrollRevealDelayMs?: number;
 }
 
 /** Shared live subagent content rendered by routed mobile pages and right panels. */
-export function SubAgentContent({
-  threadId,
-  parentItemId,
-  onClose,
-  projectLocation,
-  hideHeader = false,
-  initialScrollRevealDelayMs = 50,
-}: SubAgentContentProps) {
-  const { t } = useLingui();
+export function SubAgentContent(props: SubAgentContentProps) {
+  const { threadId, parentItemId, visible = true } = props;
   const item = useThreadRuntimeItem(threadId, parentItemId);
-  const childEntries = useAppStore(getChildTimelineEntriesStoreSelector(threadId, parentItemId));
+  const payload = item ? getRuntimeItemPayload<ToolCallPayload>(item, "tool_call") : undefined;
+  const ownsWorkflow = !!(
+    payload &&
+    isWorkflowTool(payload) &&
+    parseWorkflowInfo(payload)?.manifestPath
+  );
   const applyRuntimeEvents = useAppStore((s) => s.applyRuntimeEvents);
   const target = `${threadId}:${parentItemId}`;
   const [historyReadyFor, setHistoryReadyFor] = useState<string | null>(null);
@@ -112,6 +113,30 @@ export function SubAgentContent({
       });
     };
   }, [threadId, parentItemId, target, applyRuntimeEvents]);
+
+  return (
+    <PaneVisibility value={visible}>
+      {/* Workflow bodies own polling and synthetic history; their transcript UI suspends below that owner. */}
+      <PanelActivity visible={visible || ownsWorkflow}>
+        <SubAgentTranscript {...props} historyReady={historyReadyFor === target} />
+      </PanelActivity>
+    </PaneVisibility>
+  );
+}
+
+function SubAgentTranscript({
+  threadId,
+  parentItemId,
+  onClose,
+  projectLocation,
+  hideHeader = false,
+  initialScrollRevealDelayMs = 50,
+  historyReady,
+}: SubAgentContentProps & { historyReady: boolean }) {
+  const { t } = useLingui();
+  const item = useThreadRuntimeItem(threadId, parentItemId);
+  const childEntries = useAppStore(getChildTimelineEntriesStoreSelector(threadId, parentItemId));
+  const target = `${threadId}:${parentItemId}`;
 
   if (!item) {
     return (
@@ -174,7 +199,7 @@ export function SubAgentContent({
       ) : (
         <SubAgentMessageList
           key={target}
-          historyReady={childEntries.length > 0 || historyReadyFor === target}
+          historyReady={childEntries.length > 0 || historyReady}
           initialScrollRevealDelayMs={initialScrollRevealDelayMs}
           threadId={threadId}
           parentItemId={parentItemId}

@@ -121,7 +121,7 @@ struct ProjectManagementView: View {
         HostSelectionMenu(session: session)
       }
     }
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       if hasManageCapability {
         PoracodeBottomActionDock(placement: .trailing) {
           PoracodeCircleButton {
@@ -309,7 +309,7 @@ private struct ProjectManagementRow: View {
   var body: some View {
     HStack(spacing: 12) {
       Image(systemName: project.disabled == true ? "folder.badge.minus" : "folder")
-        .foregroundStyle(project.disabled == true ? Color.secondary : Color.accentColor)
+        .foregroundStyle(project.disabled == true ? Color.secondary : Color.primary)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 4) {
         Text(project.name)

@@ -21,6 +21,10 @@ vi.mock("./codex/plugin/install", async (importOriginal) => {
   };
 });
 
+// These are argv-shaping fixtures with synthetic Windows/WSL locations, not
+// live Codex installations. Native config discovery has separate coverage.
+vi.mock("./codex/nativeMcp", () => ({ readCodexNativeMcpNames: async () => [] }));
+
 // Skip slow PATH / WSL probes. These tests only exercise argv-shaping logic;
 // resolving the binary against the host or distro PATH is irrelevant and
 // flakes under parallel load when many suites spawn wsl.exe at once.
@@ -266,6 +270,25 @@ describe("agent command builders", () => {
     expect(spec.args).toContain("-c");
     expect(spec.args).toContain('approvals_reviewer="auto_review"');
   });
+
+  it.each([undefined, "", "auto_review"])(
+    "resets the reviewer for full-access terminal sessions with saved reviewer %j",
+    async (approvalsReviewer) => {
+      const spec = await buildCodexArgvFor(
+        windowsProject,
+        {
+          ...config,
+          approvalPolicy: "never",
+          sandboxMode: "danger-full-access",
+          ...(approvalsReviewer !== undefined ? { approvalsReviewer } : {}),
+        },
+        "hello",
+      );
+
+      expect(spec.args).toContain('approvals_reviewer="user"');
+      expect(spec.args).not.toContain('approvals_reviewer="auto_review"');
+    },
+  );
 
   it("passes the Codex context window and compact limit to terminal sessions", async () => {
     const spec = await buildCodexArgvFor(windowsProject, { ...config, contextSize: "1m" }, "hello");

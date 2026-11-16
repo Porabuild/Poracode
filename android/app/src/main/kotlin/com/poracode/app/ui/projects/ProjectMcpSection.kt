@@ -6,11 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,7 +44,10 @@ import com.poracode.app.session.projects.ProjectSessionRuntime
 import com.poracode.app.ui.settings.GlobalMcpSettingsController
 import com.poracode.app.ui.settings.McpScopedMutationResult
 import com.poracode.app.ui.settings.McpServerEditorSheet
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.launch
+import com.poracode.app.ui.components.PoracodeSwitch
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun ProjectMcpSection(
@@ -132,12 +130,12 @@ internal fun ProjectMcpSection(
             OutlinedButton(enabled = enabled, onClick = onDiscover) {
                 Text(stringResource(R.string.settings_integrations_discover_project))
             }
-            Button(
+            FilledTonalButton(
                 enabled = enabled,
                 onClick = { adding = true },
                 modifier = Modifier.testTag("project_mcp_add"),
             ) {
-                Icon(Icons.Outlined.Add, contentDescription = null)
+                Icon(PoracodeIcons.Add, contentDescription = null)
                 Text(stringResource(R.string.settings_global_mcp_add))
             }
         }
@@ -202,7 +200,7 @@ internal fun ProjectMcpSection(
                     Text(stringResource(R.string.settings_global_mcp_delete_message, server.name))
                 },
                 confirmButton = {
-                    Button(
+                    FilledTonalButton(
                         onClick = {
                             mutate { settled ->
                                 mcpController.removeProject(
@@ -273,7 +271,7 @@ private fun ProjectMcpServerCard(
                         )
                     }
                 }
-                Switch(
+                PoracodeSwitch(
                     checked = server.enabled,
                     enabled = enabled,
                     onCheckedChange = null,
@@ -283,16 +281,16 @@ private fun ProjectMcpServerCard(
             HorizontalDivider()
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 IconButton(enabled = enabled, onClick = onEdit) {
-                    Icon(Icons.Outlined.Edit, stringResource(R.string.settings_global_mcp_edit))
+                    Icon(PoracodeIcons.Edit, stringResource(R.string.settings_global_mcp_edit))
                 }
                 IconButton(enabled = enabled, onClick = onMove) {
                     Icon(
-                        Icons.Outlined.Public,
+                        PoracodeIcons.Public,
                         stringResource(R.string.settings_global_mcp_move_global),
                     )
                 }
                 IconButton(enabled = enabled, onClick = onDelete) {
-                    Icon(Icons.Outlined.Delete, stringResource(R.string.settings_global_mcp_delete))
+                    Icon(PoracodeIcons.Delete, stringResource(R.string.settings_global_mcp_delete))
                 }
             }
         }

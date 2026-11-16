@@ -11,6 +11,7 @@ struct AdvancedSegmentsSection: View {
     Section(AdvancedOperationsStrings.segmentsSection) {
       Toggle(AdvancedOperationsStrings.includeSegments, isOn: $draft.includesSegments)
         .accessibilityIdentifier("advancedOperations.includeSegments")
+        .poracodeSwitchStyle()
       if draft.includesSegments {
         ForEach($draft.segments) { $segment in
           AdvancedSegmentEditor(segment: $segment) {
@@ -67,6 +68,7 @@ struct AdvancedSegmentEditor: View {
       }
     case .staged:
       Toggle(key.title, isOn: $segment.staged)
+      .poracodeSwitchStyle()
     case .content, .body:
       TextField(key.title, text: text(key), axis: .vertical)
         .lineLimit(2...6)

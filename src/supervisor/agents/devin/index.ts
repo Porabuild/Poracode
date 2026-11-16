@@ -1,6 +1,7 @@
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { detectAgentInstall, type AgentAdapter, type AgentEnvContext } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
+import { shutdownSharedAcpProcesses } from "../acp";
 import {
   createDevinAdapterContexts,
   devinDefaultAccountContext,
@@ -58,6 +59,7 @@ export function createDevinAdapter(options: DevinAdapterOptions = {}): AgentAdap
   const createStructuredSession = createDevinStructuredSessionLauncher(
     contexts,
     devinDefaultAccountContext,
+    kind,
   );
   // Profile resources live under the profile's own config root, which the
   // spawn env redirects — the shared skills scanner only sees supervisor env,
@@ -125,6 +127,9 @@ export function createDevinAdapter(options: DevinAdapterOptions = {}): AgentAdap
     rewriteLaunchArgsForConfig: terminal.rewriteLaunchArgsForConfig,
     buildOneShotCommand: terminal.buildOneShotCommand,
     createStructuredSession,
+    // GUI threads of this adapter share pooled ACP agent processes; releasing
+    // the scope retires every pooled process this kind still owns.
+    shutdown: () => shutdownSharedAcpProcesses(kind),
     supportsStructuredWorkspaceDirectories: profile?.runtimeTarget !== "cloud",
     initialSessionRefDiscoveryDelayMs: 1000,
     discoverSessionRef: async (location) => {

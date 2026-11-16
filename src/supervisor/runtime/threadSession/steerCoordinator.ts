@@ -490,6 +490,7 @@ export class SteerCoordinator {
         : undefined;
     const steerOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
+      ...(turn.questionAnswer ? { questionAnswer: turn.questionAnswer } : {}),
       // "Last turn you edited files…" does not fit a turn still running, so
       // that reminder stays for the next submitted prompt.
       ...structuredTurnTextOptions(session, turn, { steersRunningTurn: true }),

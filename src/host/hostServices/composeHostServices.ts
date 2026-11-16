@@ -42,6 +42,9 @@ import {
   type ComputerUseActivityEvent,
 } from "../computer-use/ComputerUseMcpIngress";
 import { isComputerUseBackendAvailable } from "../computer-use/drivers";
+import { resolveLockedComputerUseResourcesDir } from "../computer-use/lockedUse/constants";
+import { LockedComputerUseService } from "../computer-use/lockedUse/LockedComputerUseService";
+import { createLockedUseAuditWriter } from "../computer-use/lockedUse/lockedUseAudit";
 import { SshConnectionManager } from "../ssh/SshConnectionManager";
 
 export interface HostServicesCore {
@@ -77,6 +80,12 @@ export interface HostServicesCore {
   readonly computerUse: {
     readonly helperRootDir: string;
     readonly stateDir: string;
+    /**
+     * Locked Computer Use installer folder. Defaults to the
+     * `locked-computer-use` sibling of `helperRootDir`, which matches the
+     * packaged, development, and standalone layouts.
+     */
+    readonly lockedUseResourcesDir?: string;
   } | null;
   /**
    * Declared custody/gateway facts the composition does not construct itself:
@@ -119,6 +128,20 @@ export interface ComposedHostServices {
   /** Null without `nativeShell` — the embedded browser is shell-owned. */
   readonly browserMcpIngress: BrowserMcpIngress | null;
   readonly computerUseMcpIngress: ComputerUseMcpIngress | null;
+  /**
+   * Locked Computer Use status and installer (macOS). Null when the host
+   * composes no computer use. Install/uninstall are exposed to clients only
+   * through the desktop shell's local IPC.
+   */
+  readonly lockedComputerUse: LockedComputerUseService | null;
+  /**
+   * Turn start/end per thread from supervisor thread state (`working` or
+   * `launching` is active). Both hosts feed it so a locked-use session ends
+   * with its turn, including stop and interrupt.
+   */
+  observeThreadActivity(threadId: string, active: boolean): void;
+  /** Supervisor restart: no turn is running any more. */
+  resetThreadActivity(): void;
   /** Host-declared service capabilities for the describe payload (V5 1.2). */
   readonly capabilities: HostServiceCapabilities;
   /**
@@ -188,10 +211,39 @@ export function composeHostServices(
   const computerUseSupported =
     core.computerUse !== null && isComputerUseBackendAvailable(core.computerUse.helperRootDir);
   const overlayHooks = nativeShell?.computerUse;
+  // The setting is re-read at most every couple of seconds: the gate runs
+  // before every Computer Use tool call, and on the desktop the read parses
+  // the settings file.
+  let lockedUseSetting: { value: boolean; dimDisplay: boolean; at: number } | null = null;
+  const isLockedUseSettingEnabled = (): boolean => {
+    const now = Date.now();
+    if (lockedUseSetting && now - lockedUseSetting.at < 2_000) return lockedUseSetting.value;
+    let value = false;
+    let dimDisplay = false;
+    try {
+      const settings = core.getSharedSettings();
+      value = settings.computerUseLockedUse === true;
+      dimDisplay = settings.computerUseLockedUseDimDisplay === true;
+    } catch {
+      value = false;
+    }
+    lockedUseSetting = { value, dimDisplay, at: now };
+    return value;
+  };
+  let lockedComputerUse: LockedComputerUseService | null = null;
   const computerUseMcpIngress =
     computerUseSupported && core.computerUse
       ? new ComputerUseMcpIngress({
           vision: agentVision,
+          lockedUse: {
+            isSettingEnabled: isLockedUseSettingEnabled,
+            shouldDimDisplay: () => {
+              isLockedUseSettingEnabled();
+              return lockedUseSetting?.dimDisplay === true;
+            },
+            isInstalled: async () => (await lockedComputerUse?.isInstalledCached()) === true,
+            audit: createLockedUseAuditWriter(core.computerUse.stateDir),
+          },
           driverOptions: {
             helperRootDir: core.computerUse.helperRootDir,
             stateDir: core.computerUse.stateDir,
@@ -205,6 +257,16 @@ export function composeHostServices(
         })
       : null;
 
+  if (computerUseMcpIngress && core.computerUse) {
+    lockedComputerUse = new LockedComputerUseService({
+      resourcesDir:
+        core.computerUse.lockedUseResourcesDir ??
+        resolveLockedComputerUseResourcesDir(core.computerUse.helperRootDir),
+      helperStatus: () => computerUseMcpIngress.lockedUseStatus(),
+      beforeUninstall: () => computerUseMcpIngress.setLockedUseSetting(false),
+    });
+  }
+
   const capabilities: HostServiceCapabilities = {
     ssh: sshConnectionManager !== null,
     browserPanel: nativeShell !== undefined,
@@ -217,16 +279,22 @@ export function composeHostServices(
   };
 
   const applyBrowserAllowFlags = (settings?: SharedSettings): void => {
+    let lockedUseEnabled = false;
+    let dimDisplay = false;
     let allowEval = false;
     let allowDataAccess = false;
     try {
       const s = settings ?? core.getSharedSettings();
+      lockedUseEnabled = s.computerUseLockedUse === true;
+      dimDisplay = s.computerUseLockedUseDimDisplay === true;
       allowEval = s.browser?.allowEval === true;
       allowDataAccess = s.browser?.allowDataAccess === true;
     } catch {
       allowEval = false;
       allowDataAccess = false;
     }
+    lockedUseSetting = { value: lockedUseEnabled, dimDisplay, at: Date.now() };
+    void computerUseMcpIngress?.setLockedUseSetting(lockedUseEnabled);
     // The embedded browser and the external Chrome bridge share the same
     // eval / data-access gates from browser settings.
     browserMcpIngress?.setAllowEval(allowEval);
@@ -291,6 +359,13 @@ export function composeHostServices(
     chromeMcpIngress,
     browserMcpIngress,
     computerUseMcpIngress,
+    lockedComputerUse,
+    observeThreadActivity: (threadId, active) => {
+      computerUseMcpIngress?.setThreadTurnActive(threadId, active);
+    },
+    resetThreadActivity: () => {
+      computerUseMcpIngress?.resetThreadTurns();
+    },
     capabilities,
     supervisorExtraEnv: () => {
       const env: Record<string, string> = {};

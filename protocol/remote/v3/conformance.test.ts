@@ -212,7 +212,19 @@ const EXPECTED_PROCEDURE_NAMES = [
   "hexVoice",
   "getProviderUsage",
   "refreshProviderUsage",
+  "resolveLinkMetadata",
   "listImportableSessions",
+  "getLatestAgentVersion",
+  "resolveAgentAccount",
+  "refreshAgentStatuses",
+  "listAcpRegistry",
+  "installAcpRegistryAgent",
+  "removeAcpRegistryAgent",
+  "updateAgentBinary",
+  "updateAcpRegistryAgent",
+  "setAcpRegistryAgentAuth",
+  "authenticateAcpAgent",
+  "logoutAcpAgent",
   "listThreadSessionActions",
   "invokeThreadSessionAction",
   "rollbackThreadConversation",
@@ -233,6 +245,7 @@ const EXPECTED_PROCEDURE_NAMES = [
   "stageThreadInput",
   "workflowGetRun",
   "workflowAgentChat",
+  "controlMcpApp",
   "scanSkills",
   "listSkillMarketplace",
   "setSkillEnabled",
@@ -271,6 +284,7 @@ const EXPECTED_PROCEDURE_NAMES = [
   "gitGetWorktreeOwner",
   "ghCheckAvailable",
   "ghGetPrForBranch",
+  "ghPollPullRequests",
   "ghListPrs",
   "forgeGetRepository",
   "forgeGetPrViewedFiles",
@@ -438,7 +452,7 @@ describe("language-neutral remote protocol v3 contract", () => {
   it("keeps the complete generic procedure inventory and metadata aligned", () => {
     const manifestNames = manifest.procedures.map((procedure) => procedure.name);
     const authoritativeNames = Object.keys(REMOTE_PROCEDURE_SPECS);
-    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(165);
+    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(179);
     expect(new Set(EXPECTED_PROCEDURE_NAMES).size).toBe(EXPECTED_PROCEDURE_NAMES.length);
     expect(new Set(manifestNames).size).toBe(manifestNames.length);
     expect(manifestNames).toEqual([...EXPECTED_PROCEDURE_NAMES]);

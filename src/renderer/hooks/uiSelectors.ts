@@ -1,5 +1,4 @@
 import { useShallow } from "zustand/shallow";
-import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import { parseDraftProjectId } from "@/shared/paneId";
 import type {
   AgentStatus,
@@ -8,12 +7,11 @@ import type {
   PromptSegment,
   Thread,
 } from "@/shared/contracts";
-import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { resolveActivePaneId } from "@/renderer/actions/currentProject";
 import {
-  isDetectingAgentsForLocation,
-  useAgentStatusesStore,
-} from "@/renderer/state/agentStatusesStore";
+  useHostAgentStatuses,
+  useHostAgentsDetecting,
+} from "@/renderer/hooks/useHostAgentStatuses";
 import { useAppStore } from "@/renderer/state/appStore";
 import { getThreadMap } from "@/renderer/state/useThread";
 import { hasPendingThreadInput } from "@/renderer/state/pendingThreadInput";
@@ -22,7 +20,7 @@ import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launch
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { resolveHostFileAccess } from "@/renderer/state/hostFileAccess";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -36,7 +34,6 @@ import {
 
 const EMPTY_STRINGS: string[] = [];
 const EMPTY_THREADS: Thread[] = [];
-const EMPTY_AGENT_STATUSES: AgentStatus[] = [];
 
 function selectCurrentProjectId(s: ReturnType<typeof useAppStore.getState>) {
   const v = s.view;
@@ -46,7 +43,7 @@ function selectCurrentProjectId(s: ReturnType<typeof useAppStore.getState>) {
     if (!firstPaneId) return undefined;
     const draftProjectId = parseDraftProjectId(firstPaneId);
     if (draftProjectId) return draftProjectId;
-    return s.threads.find((t) => t.id === firstPaneId)?.projectId;
+    return getThreadMap(s.threads).get(firstPaneId)?.projectId;
   }
   return undefined;
 }
@@ -151,8 +148,9 @@ export function useCurrentWorktreePath(): string | undefined {
   return useAppStore((s) => {
     const v = s.view;
     if (v.kind !== "thread") return undefined;
+    const threadMap = getThreadMap(s.threads);
     for (const threadId of v.panes) {
-      const thread = s.threads.find((t) => t.id === threadId);
+      const thread = threadMap.get(threadId);
       if (thread?.worktreePath) return thread.worktreePath;
     }
     return undefined;
@@ -340,105 +338,71 @@ export function useIsWorktreeFilesPanelActive(worktreePath: string | null | unde
 
 /**
  * The agent statuses a thread's pane offers for "Continue in another provider":
- * the local statuses for the project's environment, or — for a thread mirrored
- * from a remote desktop — that host's matching statuses, filtered to installed.
- * The sidebar's continue-in gate reads the same hook, so an enabled menu entry
- * always matches what the pane's dialog can actually offer.
+ * the statuses of the host that owns the thread (its own, or a paired host's)
+ * for the project's environment, filtered to installed. The sidebar's
+ * continue-in gate reads the same hook, so an enabled menu entry always
+ * matches what the pane's dialog can actually offer.
  */
 export function useThreadAgentStatuses(input: {
   remoteServerId: string | undefined;
   projectLocation: ProjectLocation | undefined;
 }): AgentStatus[] {
-  const localInstalled = useAgentStatusesStore(
-    useShallow((state) =>
-      input.projectLocation
-        ? getProjectAgentStatuses(
-            input.projectLocation,
-            state.agentStatuses,
-            state.wslAgentStatuses,
-          ).filter((status) => status.installed)
-        : EMPTY_AGENT_STATUSES,
-    ),
-  );
-  const remoteStatuses = useRemoteServersStore(
-    useShallow((state) => {
-      if (!input.remoteServerId) return EMPTY_AGENT_STATUSES;
-      const statuses = state.runtime[input.remoteServerId]?.agentStatuses;
-      const source = input.projectLocation?.kind === "wsl" ? statuses?.wsl : statuses?.windows;
-      return source?.filter((status) => status.installed) ?? EMPTY_AGENT_STATUSES;
-    }),
-  );
-  return input.remoteServerId === undefined ? localInstalled : remoteStatuses;
+  return useHostAgentStatuses(input.remoteServerId, input.projectLocation, {
+    installedOnly: true,
+  });
 }
 
 /** Agent statuses scoped to the project's execution environment (windows vs wsl). */
 export function useProjectAgentStatuses(
   projectLocation: ProjectLocation | undefined,
 ): AgentStatus[] {
-  return useAgentStatusesStore(
-    useShallow((s) =>
-      projectLocation
-        ? getProjectAgentStatuses(projectLocation, s.agentStatuses, s.wslAgentStatuses)
-        : [],
-    ),
-  );
+  return useHostAgentStatuses(undefined, projectLocation);
 }
 
 export function useDraftEnvironment(project: Project | undefined): {
   agentStatuses: AgentStatus[];
   isDetectingAgents: boolean;
   pickFiles?: () => Promise<string[] | null>;
-  saveClipboardImage?: SaveClipboardImage;
+  importFiles?: (files: readonly File[]) => Promise<string[]>;
 } {
-  const localAgentStatuses = useAgentStatusesStore(
-    useShallow((state) =>
-      project
-        ? getProjectAgentStatuses(project.location, state.agentStatuses, state.wslAgentStatuses)
-        : EMPTY_AGENT_STATUSES,
-    ),
-  );
-  const localIsDetectingAgents = useAgentStatusesStore((state) =>
-    project ? isDetectingAgentsForLocation(state, project.location) : false,
-  );
-  const remoteAgentStatuses = useRemoteServersStore(
-    useShallow((state) => {
-      if (!project?.remoteServerId) return EMPTY_AGENT_STATUSES;
-      const statuses = state.runtime[project.remoteServerId]?.agentStatuses;
-      const source = project.location.kind === "wsl" ? statuses?.wsl : statuses?.windows;
-      return source?.filter((status) => status.installed) ?? EMPTY_AGENT_STATUSES;
-    }),
-  );
-  const remoteStatus = useRemoteServersStore((state) =>
-    project?.remoteServerId ? state.runtime[project.remoteServerId]?.status : undefined,
-  );
-  const owner = remoteOwner(project);
-  const remoteServerId = owner?.desktopId;
-  const remoteProjectId = owner?.remoteId;
+  const remoteServerId = remoteOwner(project)?.desktopId;
+  // The managed host's draft lists every agent so an uninstalled one can be
+  // offered for install; a paired host's agents can only be used, not installed
+  // from here, so its draft lists installed agents.
+  const agentStatuses = useHostAgentStatuses(remoteServerId, project?.location, {
+    installedOnly: remoteServerId !== undefined,
+  });
+  const isDetectingAgents = useHostAgentsDetecting(remoteServerId, project?.location);
+  const fileAccess = resolveHostFileAccess(project);
 
   return {
-    agentStatuses: remoteServerId ? remoteAgentStatuses : localAgentStatuses,
-    isDetectingAgents: remoteServerId ? remoteStatus === "connecting" : localIsDetectingAgents,
-    ...(remoteServerId && remoteProjectId
-      ? {
-          pickFiles: () =>
-            useRemoteServersStore
-              .getState()
-              .pickAndUploadFiles(remoteServerId, `draft-${remoteProjectId}`),
-          saveClipboardImage: (input) =>
-            useRemoteServersStore.getState().saveClipboardImage(remoteServerId, {
-              ...input,
-              threadId: `draft-${remoteProjectId}`,
-            }),
-        }
-      : {}),
+    agentStatuses,
+    isDetectingAgents,
+    // Files picked or pasted into a draft land where the owning host can read
+    // them (see `resolveHostFileAccess`); a host on this machine needs nothing.
+    ...(fileAccess.pickFiles ? { pickFiles: fileAccess.pickFiles } : {}),
+    ...(fileAccess.importFiles ? { importFiles: fileAccess.importFiles } : {}),
   };
 }
+
+const getProjectNonArchivedThreads = createArrayKeyedMap<Thread, string, Thread[]>((threads) => {
+  const byProject = new Map<string, Thread[]>();
+  for (const thread of threads) {
+    if (thread.archived) continue;
+    const list = byProject.get(thread.projectId);
+    if (list) list.push(thread);
+    else byProject.set(thread.projectId, [thread]);
+  }
+  return byProject;
+});
 
 /** Non-archived threads for a given project, ordered as in the store. */
 export function useProjectThreads(projectId: string | undefined): Thread[] {
   return useAppStore(
     useShallow((s) =>
-      projectId ? s.threads.filter((t) => t.projectId === projectId && !t.archived) : EMPTY_THREADS,
+      projectId
+        ? (getProjectNonArchivedThreads(s.threads, projectId) ?? EMPTY_THREADS)
+        : EMPTY_THREADS,
     ),
   );
 }
@@ -448,9 +412,9 @@ export function useActiveProjectThreads(projectId: string | undefined): Thread[]
   return useAppStore(
     useShallow((s) =>
       projectId
-        ? s.threads.filter(
-            (t) => t.projectId === projectId && !t.archived && (t.status !== "inactive" || !t.done),
-          )
+        ? (getProjectNonArchivedThreads(s.threads, projectId)?.filter(
+            (t) => t.status !== "inactive" || !t.done,
+          ) ?? EMPTY_THREADS)
         : EMPTY_THREADS,
     ),
   );

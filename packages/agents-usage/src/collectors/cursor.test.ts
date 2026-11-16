@@ -6,11 +6,28 @@ import {
   CURSOR_API_KEY_EXCHANGE_ENDPOINT,
   CURSOR_PERIOD_USAGE_ENDPOINT,
   CURSOR_PLAN_INFO_ENDPOINT,
+  CURSOR_SHARED_USAGE_ENDPOINT,
+  CURSOR_BILLING_USAGE_ENDPOINT,
   parseCursorPeriodUsage,
   parseCursorUsage,
 } from "./cursor";
 
 const NOW = 1_717_000_000_000;
+const SHARED_USAGE = {
+  isUnified: true,
+  usagePercent: 8.927,
+  hasNonZeroIncludedLimit: true,
+  nextResetTimestampUtc: new Date(NOW + 3 * 86_400_000).toISOString(),
+};
+const BILLING_USAGE = {
+  availability: "available",
+  monthlyUsage: {
+    usedCents: 725,
+    limitCents: 1000,
+    periodStart: new Date(NOW - 86_400_000).toISOString(),
+    resetsAt: new Date(NOW + 20 * 86_400_000).toISOString(),
+  },
+};
 
 /** Minimal host that captures the outgoing request and returns a canned body. */
 function fakeHost(token: OAuthToken | undefined): {
@@ -46,9 +63,195 @@ describe("collectCursor cookie", () => {
     await collectCursor(host);
     expect(sent.cookie).toBe("WorkosCursorSessionToken=jwt-abc");
   });
+
+  it.each([false, true])(
+    "collects shared quota for CLI or API-key accounts (API key: %s)",
+    async (apiKey) => {
+      const token = `header.${Buffer.from(JSON.stringify({ sub: "auth0|fixture-user", email: "work@example.com" })).toString("base64url")}.sig`;
+      const requests: Array<{ url: string; method?: string; headers?: Record<string, string> }> =
+        [];
+      const host: HostPort = {
+        now: () => NOW,
+        credentials: {
+          getOAuthToken: async () => ({ accessToken: token, accountId: "fixture-user" }),
+          getSecret: async () => undefined,
+        },
+        http: {
+          request: async (req) => {
+            requests.push(req);
+            const bodies: Record<string, unknown> = {
+              [CURSOR_API_KEY_EXCHANGE_ENDPOINT]: { accessToken: token },
+              [CURSOR_PLAN_INFO_ENDPOINT]: { planInfo: { planName: "premium" } },
+              [CURSOR_PERIOD_USAGE_ENDPOINT]: {
+                planUsage: { autoPercentUsed: 0, apiPercentUsed: 0 },
+              },
+              "https://cursor.com/api/usage-summary": {
+                membershipType: "premium",
+                individualUsage: { plan: { autoPercentUsed: 0, apiPercentUsed: 0 } },
+              },
+              [CURSOR_SHARED_USAGE_ENDPOINT]: SHARED_USAGE,
+              [CURSOR_BILLING_USAGE_ENDPOINT]: BILLING_USAGE,
+            };
+            if (!(req.url in bodies)) throw new Error(`unexpected URL: ${req.url}`);
+            return { status: 200, headers: {}, body: JSON.stringify(bodies[req.url]) };
+          },
+        },
+      };
+      const snap = apiKey
+        ? await collectCursorFromApiKey(host, "crsr_work", "cursor:work")
+        : await collectCursor(host);
+      expect(snap.providerId).toBe(apiKey ? "cursor:work" : "cursor");
+      expect(snap.plan).toBe("Cursor Premium");
+      expect(snap.windows.map((w) => w.id)).toEqual(["weekly", "extra-usage"]);
+      const sharedRequest = requests.find((req) => req.url === CURSOR_SHARED_USAGE_ENDPOINT);
+      expect(sharedRequest?.method).toBe("POST");
+      expect(sharedRequest?.headers).toMatchObject({
+        Origin: "https://cursor.com",
+        Cookie: `WorkosCursorSessionToken=fixture-user%3A%3A${token}`,
+      });
+      expect(requests.find((req) => req.url === CURSOR_BILLING_USAGE_ENDPOINT)?.method).toBe("GET");
+    },
+  );
+
+  it("keeps legacy usage when the optional shared-pool request fails", async () => {
+    const { host } = fakeHost({ accessToken: "fixture" });
+    host.http.request = async (req) => {
+      if (req.url === CURSOR_SHARED_USAGE_ENDPOINT) throw new Error("unavailable");
+      return {
+        status: 200,
+        headers: {},
+        body: JSON.stringify({
+          membershipType: "pro",
+          individualUsage: { plan: { autoPercentUsed: 20, apiPercentUsed: 30 } },
+        }),
+      };
+    };
+    const snap = await collectCursor(host);
+    expect(snap.status).toBe("ok");
+    expect(snap.windows.map((w) => w.id)).toEqual(["cursor-auto", "cursor-api"]);
+  });
 });
 
 describe("parseCursorUsage", () => {
+  it.each(["premium", "super", "ultra", "unified_ultra"])(
+    "uses the shared weekly pool and separate paid spend for %s",
+    (membershipType) => {
+      const snap = parseCursorUsage(
+        {
+          membershipType,
+          billingCycleEnd: BILLING_USAGE.monthlyUsage.resetsAt,
+          individualUsage: {
+            plan: { autoPercentUsed: 0, apiPercentUsed: 0 },
+            onDemand: { enabled: false, used: 0 },
+          },
+        },
+        {},
+        NOW,
+        { shared: SHARED_USAGE, billing: BILLING_USAGE },
+      );
+      expect(snap.status).toBe("ok");
+      expect(snap.windows).toEqual([
+        {
+          id: "weekly",
+          label: "Weekly",
+          usedPercent: 8.927,
+          unit: "percent",
+          resetsAt: NOW + 3 * 86_400_000,
+        },
+        {
+          id: "extra-usage",
+          label: "Extra usage",
+          unit: "usd",
+          currency: "USD",
+          used: 7.25,
+          limit: 10,
+          usedPercent: 72.5,
+          resetsAt: NOW + 20 * 86_400_000,
+        },
+      ]);
+    },
+  );
+
+  it("omits unused paid usage without a spending cap", () => {
+    const snap = parseCursorUsage({ membershipType: "premium" }, {}, NOW, {
+      shared: SHARED_USAGE,
+      billing: {
+        ...BILLING_USAGE,
+        monthlyUsage: { ...BILLING_USAGE.monthlyUsage, usedCents: 0, limitCents: null },
+      },
+    });
+    expect(snap.plan).toBe("Cursor Premium");
+    expect(snap.windows.map((w) => w.id)).toEqual(["weekly"]);
+  });
+
+  it("shows paid usage without inventing a credit balance or spending cap", () => {
+    const snap = parseCursorUsage({}, {}, NOW, {
+      shared: SHARED_USAGE,
+      billing: {
+        ...BILLING_USAGE,
+        monthlyUsage: { ...BILLING_USAGE.monthlyUsage, limitCents: null },
+      },
+    });
+    expect(snap.windows.map((w) => w.id)).toEqual(["weekly"]);
+    expect(snap.cost).toEqual({ amount: 7.25, currency: "USD", period: "cycle", estimated: false });
+    expect(snap.credits).toBeUndefined();
+  });
+
+  it.each([
+    {},
+    { availability: "identity_unlinked" },
+    { ...BILLING_USAGE, monthlyUsage: { ...BILLING_USAGE.monthlyUsage, usedCents: -1 } },
+    {
+      ...BILLING_USAGE,
+      monthlyUsage: { ...BILLING_USAGE.monthlyUsage, periodStart: new Date(NOW + 1).toISOString() },
+    },
+    {
+      ...BILLING_USAGE,
+      monthlyUsage: { ...BILLING_USAGE.monthlyUsage, resetsAt: new Date(NOW).toISOString() },
+    },
+  ])("does not present unavailable or invalid paid usage as zero: %j", (billing) => {
+    const snap = parseCursorUsage({}, {}, NOW, { shared: SHARED_USAGE, billing });
+    expect(snap.status).toBe("ok");
+    expect(snap.windows.map((w) => w.id)).toEqual(["weekly"]);
+  });
+
+  it.each([
+    undefined,
+    { ...SHARED_USAGE, usagePercent: null },
+    { ...SHARED_USAGE, nextResetTimestampUtc: "bad-date" },
+    { ...SHARED_USAGE, nextResetTimestampUtc: new Date(NOW).toISOString() },
+    { ...SHARED_USAGE, includedLimitZero: true },
+  ])("does not revive legacy bars when shared usage is unavailable: %j", (shared) => {
+    const snap = parseCursorUsage(
+      {
+        membershipType: "premium",
+        individualUsage: {
+          plan: { autoPercentUsed: 0, apiPercentUsed: 0 },
+        },
+      },
+      {},
+      NOW,
+      { shared },
+    );
+    expect(snap.status).toBe("error");
+    expect(snap.windows).toEqual([]);
+  });
+
+  it("keeps legacy Ultra's monthly pools when the Bot pool is not unified", () => {
+    const snap = parseCursorUsage(
+      {
+        membershipType: "ultra",
+        individualUsage: {
+          plan: { autoPercentUsed: 20, apiPercentUsed: 30 },
+        },
+      },
+      {},
+      NOW,
+      { shared: { ...SHARED_USAGE, isUnified: false }, billing: BILLING_USAGE },
+    );
+    expect(snap.windows.map((w) => w.id)).toEqual(["cursor-auto", "cursor-api"]);
+  });
+
   it("maps usage-summary to Auto / API windows with API spend + reset", () => {
     const body = {
       billingCycleEnd: "1719600000000",

@@ -7,6 +7,7 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import {
   buildActiveProjectsKey,
   buildBranchPrPrefetchThreadKeys,
+  buildWorktreeWatchThreadKeys,
   diffProjectKeys,
 } from "@/renderer/state/projectKeys";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -14,14 +15,16 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useAuxiliaryThreadWindows } from "@/renderer/state/auxiliaryThreadWindows";
 import { runRendererAction } from "@/renderer/state/rendererActionStore";
-import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
+import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
 import {
   cleanupGitRefreshProjects,
   getWatcherRefreshMode,
+  ownsGitProjectWatches,
   prefetchBranchPrData,
   refreshGitProject,
   stopPendingPrRefresh,
@@ -53,37 +56,32 @@ function subscribeToFieldChanges<S>(
   });
 }
 
-export function useGitRefresh(storeHydrated: boolean) {
+export function useGitRefresh(storeHydrated: boolean, scopeProjectId?: string) {
   // Subscribe only to the active-project identity/location key so draft config
   // writes do not invalidate the whole shell.
-  const activeProjectsKey = useAppStore((state) => buildActiveProjectsKey(state.projects));
+  const activeProjectsKey = useAppStore((state) =>
+    buildActiveProjectsKey(
+      scopeProjectId
+        ? state.projects.filter((project) => project.id === scopeProjectId)
+        : state.projects,
+    ),
+  );
   useEffect(() => {
     // `activeProjectsKey` is this run's request identity: the project set
     // below must derive from the same store snapshot, otherwise the key raced
     // ahead and this run would watch/fetch a stale set.
     const requestKey = activeProjectsKey;
-    const projectsSnapshot = useAppStore.getState().projects;
+    const projectsSnapshot = useAppStore
+      .getState()
+      .projects.filter((project) => scopeProjectId === undefined || project.id === scopeProjectId);
     if (buildActiveProjectsKey(projectsSnapshot) !== requestKey) return;
     const allActiveProjects = projectsSnapshot.filter((project) => !project.disabled);
     if (!storeHydrated) return;
     cleanupGitRefreshProjects(new Set(allActiveProjects.map((project) => project.id)));
-    const reachableProjects = () => {
-      const state = useRemoteServersStore.getState();
-      const reachableServerIds = new Set(
-        state.servers
-          .filter(
-            (server) =>
-              !isRemoteProjectStatusUnreachable(
-                { remoteServerId: remoteConnectionKey(server) },
-                state.runtime[remoteConnectionKey(server)]?.status,
-              ),
-          )
-          .map(remoteConnectionKey),
-      );
-      return allActiveProjects.filter(
-        (project) => !project.remoteServerId || reachableServerIds.has(project.remoteServerId),
-      );
-    };
+    // Reachability is a property of the project's host: the managed host is
+    // always reachable, a paired host only while its connection is up.
+    const reachableProjects = () =>
+      allActiveProjects.filter((project) => !isRemoteProjectUnreachable(project));
     let activeProjects = reachableProjects();
     const projectRuns = new Map(activeProjects.map((project) => [project.id, Symbol()]));
     // Projects whose watch settled in this run. A project watch replaces every
@@ -99,24 +97,83 @@ export function useGitRefresh(storeHydrated: boolean) {
       return () => isActive && run !== undefined && projectRuns.get(projectId) === run;
     };
 
-    const watcherDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    type QueuedWatcherScope = {
+      timer: ReturnType<typeof setTimeout>;
+      includeMainStatus: boolean;
+      allWorktrees: boolean;
+      worktreePaths: Set<string>;
+    };
+    const watcherDebounceTimers = new Map<string, QueuedWatcherScope>();
+    const watcherDetailTimers = new Map<string, QueuedWatcherScope>();
     const WATCHER_DEBOUNCE_MS = 250;
+    const WATCHER_DETAILS_INTERVAL_MS = 2_000;
 
-    function scheduleWatcherRefresh(project: { id: string; location: ProjectLocation }) {
-      if (!isActive) return;
+    function runWatcherRefresh(
+      project: { id: string; location: ProjectLocation },
+      scope: QueuedWatcherScope,
+      reason: "watcher" | "watcher-details",
+    ) {
       const isProjectActive = projectActiveCheck(project.id);
-      const existing = watcherDebounceTimers.get(project.id);
-      if (existing) clearTimeout(existing);
-      watcherDebounceTimers.set(
-        project.id,
-        setTimeout(() => {
-          watcherDebounceTimers.delete(project.id);
-          if (!isProjectActive()) return;
-          void refreshGitProject(project, "watcher", getWatcherRefreshMode(project.id), {
-            isActive: isProjectActive,
-          });
-        }, WATCHER_DEBOUNCE_MS),
+      if (!isProjectActive()) return;
+      const scopedOptions = scope.allWorktrees
+        ? scope.includeMainStatus
+          ? {}
+          : { includeMainStatus: false }
+        : { includeMainStatus: scope.includeMainStatus, worktreePaths: [...scope.worktreePaths] };
+      void refreshGitProject(
+        project,
+        reason,
+        reason === "watcher" ? getWatcherRefreshMode(project.id) : "status",
+        {
+          isActive: isProjectActive,
+          ...scopedOptions,
+        },
       );
+    }
+
+    function scheduleWatcherRefresh(
+      project: { id: string; location: ProjectLocation },
+      worktreePath?: string,
+    ) {
+      if (!isActive) return;
+      const existing = watcherDebounceTimers.get(project.id);
+      if (existing) clearTimeout(existing.timer);
+      const scopedToWorktree = Boolean(worktreePath);
+      const scope: QueuedWatcherScope = existing ?? {
+        timer: 0 as unknown as ReturnType<typeof setTimeout>,
+        includeMainStatus: false,
+        allWorktrees: false,
+        worktreePaths: new Set<string>(),
+      };
+      const pendingDetails = watcherDetailTimers.get(project.id);
+      const details: QueuedWatcherScope = pendingDetails ?? {
+        timer: 0 as unknown as ReturnType<typeof setTimeout>,
+        includeMainStatus: false,
+        allWorktrees: false,
+        worktreePaths: new Set<string>(),
+      };
+      for (const pending of [scope, details]) {
+        if (!scopedToWorktree) {
+          pending.includeMainStatus = true;
+          pending.allWorktrees = true;
+        } else if (!pending.allWorktrees && worktreePath) {
+          pending.worktreePaths.add(worktreePath);
+        }
+      }
+      scope.timer = setTimeout(() => {
+        watcherDebounceTimers.delete(project.id);
+        runWatcherRefresh(project, scope, "watcher");
+      }, WATCHER_DEBOUNCE_MS);
+      watcherDebounceTimers.set(project.id, scope);
+      // Summaries keep the hot watcher path cheap. A bounded follow-up refreshes
+      // line counts used outside Git Review, even during continuous agent edits.
+      if (!pendingDetails) {
+        details.timer = setTimeout(() => {
+          watcherDetailTimers.delete(project.id);
+          runWatcherRefresh(project, details, "watcher-details");
+        }, WATCHER_DETAILS_INTERVAL_MS);
+        watcherDetailTimers.set(project.id, details);
+      }
     }
 
     function getPriorityProjectIds(): Set<string> {
@@ -160,9 +217,10 @@ export function useGitRefresh(storeHydrated: boolean) {
         `git:initial:${project.remoteServerId ?? "local"}`,
         async () => {
           if (!isProjectActive()) return;
-          await readBridge()
-            .gitWatchProject({ projectId: project.id, projectLocation: project.location })
-            .catch(() => undefined);
+          if (ownsGitProjectWatches())
+            await readBridge()
+              .gitWatchProject({ projectId: project.id, projectLocation: project.location })
+              .catch(() => undefined);
           if (!isProjectActive()) return;
           watchedProjectIds.add(project.id);
           // The watch dropped this project's worktree watchers, so anything this
@@ -196,15 +254,7 @@ export function useGitRefresh(storeHydrated: boolean) {
     // wait out its deadline once per project on the shared desktop bridge. Its
     // watch is replaced when the host returns.
     function releaseProjectWatch(project: Project) {
-      if (
-        project.remoteServerId &&
-        isRemoteProjectStatusUnreachable(
-          project,
-          useRemoteServersStore.getState().runtime[project.remoteServerId]?.status,
-        )
-      ) {
-        return;
-      }
+      if (!ownsGitProjectWatches() || isRemoteProjectUnreachable(project)) return;
       readBridge()
         .gitUnwatchProject({ projectId: project.id })
         .catch(() => undefined);
@@ -218,32 +268,32 @@ export function useGitRefresh(storeHydrated: boolean) {
       // plain thread switches must not spawn Git work while the panel is hidden.
       for (const project of activeProjects) {
         if (onlyProjectIds && !onlyProjectIds.has(project.id)) continue;
-        if (
-          project.remoteServerId &&
-          isRemoteProjectStatusUnreachable(
-            project,
-            useRemoteServersStore.getState().runtime[project.remoteServerId]?.status,
-          )
-        ) {
-          continue;
-        }
+        if (isRemoteProjectUnreachable(project)) continue;
         if (!shouldPollProject(project)) continue;
         void prefetchBranchPrData(project);
       }
     }
 
     const unsubWatcher = readBridge().onSupervisorEvent((event) => {
-      // Both events are git-affecting: `.git` metadata clearly, and worktree
-      // edits change `git status` output (a tracked file becomes modified,
-      // an untracked file appears, etc.). Refresh git state for either.
-      if (event.type === "git-changed" || event.type === "project-tree-changed") {
-        console.log(`[git-refresh] watcher-event ${event.type} project=${event.projectId}`);
+      // Ignore-only edits still refresh file views. Older hosts/fallbacks omit
+      // the hint, so their worktree notifications retain the full refresh.
+      if (
+        event.type === "git-changed" ||
+        (event.type === "project-tree-changed" && event.gitChanged !== false)
+      ) {
+        console.log(
+          `[git-refresh] watcher-event ${event.type} project=${event.projectId}${event.worktreePath ? ` worktree=${event.worktreePath}` : ""}`,
+        );
         const project = activeProjects.find((p) => p.id === event.projectId);
-        if (project) scheduleWatcherRefresh(project);
+        if (project) scheduleWatcherRefresh(project, event.worktreePath);
       }
       if (event.type === "project-tree-changed") {
         const editorRoot = useFileEditorStore.getState().rootContext;
-        if (editorRoot && editorRoot.projectId === event.projectId) {
+        if (
+          editorRoot &&
+          editorRoot.projectId === event.projectId &&
+          (!event.worktreePath || editorRoot.worktreePath === event.worktreePath)
+        ) {
           useFileEditorStore.getState().bumpRefreshToken();
           void useFileEditorStore.getState().refreshOpenBuffers();
         }
@@ -266,9 +316,12 @@ export function useGitRefresh(storeHydrated: boolean) {
       for (const project of removed) {
         projectRuns.delete(project.id);
         watchedProjectIds.delete(project.id);
-        const timer = watcherDebounceTimers.get(project.id);
-        if (timer) clearTimeout(timer);
+        const entry = watcherDebounceTimers.get(project.id);
+        if (entry) clearTimeout(entry.timer);
         watcherDebounceTimers.delete(project.id);
+        const details = watcherDetailTimers.get(project.id);
+        if (details) clearTimeout(details.timer);
+        watcherDetailTimers.delete(project.id);
         lastFetchTimes.delete(project.id);
         releaseProjectWatch(project);
       }
@@ -288,11 +341,18 @@ export function useGitRefresh(storeHydrated: boolean) {
         syncPendingPrRefreshProjects(activeProjects);
       }
     });
-    const unsubActiveWorktreeApp = subscribeToFieldChanges(
-      useAppStore.subscribe,
-      (state) => [state.threads, state.view, state.projects],
-      syncActiveWorktrees,
-    );
+    const unsubActiveWorktreeApp = useAppStore.subscribe((state, prev) => {
+      if (state.view !== prev.view || state.projects !== prev.projects) {
+        syncActiveWorktrees();
+        return;
+      }
+      if (state.threads === prev.threads) return;
+      const changedProjects = diffProjectKeys(
+        buildWorktreeWatchThreadKeys(prev.threads),
+        buildWorktreeWatchThreadKeys(state.threads),
+      );
+      if (changedProjects.size > 0) syncActiveWorktrees();
+    });
     const unsubBranchPrPrefetchApp = useAppStore.subscribe((state, prev) => {
       if (state.projects !== prev.projects) {
         prefetchVisibleBranchPrData();
@@ -307,6 +367,11 @@ export function useGitRefresh(storeHydrated: boolean) {
       );
       if (changedProjectIds.size > 0) prefetchVisibleBranchPrData(changedProjectIds);
     });
+    const unsubThreadWindows = subscribeToFieldChanges(
+      useAuxiliaryThreadWindows.subscribe,
+      (state) => [state.ownWindowThreadIds],
+      syncActiveWorktrees,
+    );
     const unsubActiveWorktreeExperiments = subscribeToFieldChanges(
       useExperimentStore.subscribe,
       (state) => [state.experiments],
@@ -320,8 +385,12 @@ export function useGitRefresh(storeHydrated: boolean) {
       (state) => [
         state.gitReviewContext,
         state.gitReviewAsPanel,
+        state.gitOverlayOpen,
+        state.mobileUtilityPage,
         state.filesPanelContext,
         state.rightPanelTab,
+        state.rightPanelSplit,
+        state.bottomPanelDocks,
         state.threadSortMode,
       ],
       syncActiveWorktrees,
@@ -337,6 +406,11 @@ export function useGitRefresh(storeHydrated: boolean) {
     const unsubActiveWorktreeTerminal = subscribeToFieldChanges(
       useDevTerminalStore.subscribe,
       (state) => [state.isOpen, state.activeProjectId, state.activeWorktreePath],
+      syncActiveWorktrees,
+    );
+    const unsubActiveWorktreeSettings = subscribeToFieldChanges(
+      useSharedSettings.subscribe,
+      (state) => [state.terminalPosition],
       syncActiveWorktrees,
     );
 
@@ -438,20 +512,24 @@ export function useGitRefresh(storeHydrated: boolean) {
       clearTimeout(initialFetchTimer);
       clearInterval(fetchIntervalId);
       clearInterval(wslStatusPollIntervalId);
-      for (const timer of watcherDebounceTimers.values()) clearTimeout(timer);
+      for (const entry of watcherDebounceTimers.values()) clearTimeout(entry.timer);
       watcherDebounceTimers.clear();
+      for (const entry of watcherDetailTimers.values()) clearTimeout(entry.timer);
+      watcherDetailTimers.clear();
       unsubRemoteReachability();
       unsubPendingPrRefresh();
       unsubActiveWorktreeApp();
       unsubBranchPrPrefetchApp();
+      unsubThreadWindows();
       unsubActiveWorktreeExperiments();
       unsubActiveWorktreePanel();
       unsubActiveWorktreeSidebar();
       unsubActiveWorktreeTerminal();
+      unsubActiveWorktreeSettings();
       stopPendingPrRefresh();
       unsubWatcher();
       for (const project of activeProjects) releaseProjectWatch(project);
       cleanupGitRefreshProjects(new Set());
     };
-  }, [storeHydrated, activeProjectsKey]);
+  }, [storeHydrated, activeProjectsKey, scopeProjectId]);
 }

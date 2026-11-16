@@ -26,4 +26,17 @@
     <string name="archived_threads_empty">没有已归档的会话</string>
     <string name="thread_status_starting_agent">正在启动智能体…</string>
     <string name="thread_status_resuming">正在恢复会话…</string>
+    <string name="thread_lifecycle_pin_top">固定到顶部</string>
+    <string name="thread_lifecycle_archive_thread">存档线程</string>
+    <string name="thread_lifecycle_delete_thread">删除线程</string>
+    <string name="thread_lifecycle_notes">笔记和待办事项</string>
+    <string name="thread_lifecycle_open_terminal">打开终端</string>
+    <string name="thread_lifecycle_fork_thread">分支对话</string>
+    <string name="thread_lifecycle_continue_in">继续使用另一个提供商</string>
+    <string name="thread_lifecycle_move_worktree_changes">连同更改移至工作树</string>
+    <string name="thread_lifecycle_move_worktree_clean">移至干净的工作树</string>
+    <string name="thread_lifecycle_move_worktree_title">将线程移至工作树？</string>
+    <string name="thread_lifecycle_move_worktree_changes_message">当前运行时将停止。系统会创建新的工作树和分支，并在恢复线程前将未提交的更改移到其中。</string>
+    <string name="thread_lifecycle_move_worktree_clean_message">当前运行时将停止。系统会先创建干净的工作树和分支，再恢复线程。</string>
+    <string name="thread_lifecycle_move_confirm">移动</string>
 </resources>

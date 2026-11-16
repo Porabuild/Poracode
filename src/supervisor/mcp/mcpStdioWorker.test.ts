@@ -1,17 +1,45 @@
-import { spawn } from "node:child_process";
+import { spawn, type SpawnOptions } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { nativeMcpRelayBinaryPath, nativeRelaySupportsExtendedModes } from "./McpToolFilterService";
+
+type StdioBackend = "js" | "native";
+
+function nativeRelayBin(): string | undefined {
+  if (process.env.PORACODE_MCP_RELAY_BIN && existsSync(process.env.PORACODE_MCP_RELAY_BIN)) {
+    return process.env.PORACODE_MCP_RELAY_BIN;
+  }
+  const checkoutHelpers = fileURLToPath(new URL("../../../resources/wsl-helpers", import.meta.url));
+  if (!nativeRelaySupportsExtendedModes(checkoutHelpers)) return undefined;
+  const candidate = nativeMcpRelayBinaryPath(checkoutHelpers);
+  return candidate && existsSync(candidate) ? candidate : undefined;
+}
+
+const backends: readonly StdioBackend[] = nativeRelayBin() ? ["js", "native"] : ["js"];
+
+function spawnLauncher(backend: StdioBackend, options: SpawnOptions) {
+  if (backend === "native") {
+    const bin = nativeRelayBin();
+    if (!bin) throw new Error("native relay binary unavailable");
+    return spawn(bin, [], options);
+  }
+  return spawn(
+    process.execPath,
+    [fileURLToPath(new URL("./mcpStdioWorker.ts", import.meta.url))],
+    options,
+  );
+}
 
 const roots: string[] = [];
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-describe("MCP stdio cwd launcher", () => {
+describe.each(backends)("MCP stdio cwd launcher (%s)", (backend) => {
   it("preserves raw protocol traffic, cwd and env without limiting server capabilities", async () => {
     const root = mkdtempSync(join(tmpdir(), "poracode-stdio-test-"));
     roots.push(root);
@@ -25,24 +53,20 @@ describe("MCP stdio cwd launcher", () => {
         env: { FIXTURE: "verified" },
       },
     };
-    const child = spawn(
-      process.execPath,
-      [fileURLToPath(new URL("./mcpStdioWorker.ts", import.meta.url))],
-      {
-        env: {
-          ...process.env,
-          PORACODE_MCP_STDIO_CONFIG: Buffer.from(JSON.stringify({ version: 1, server })).toString(
-            "base64url",
-          ),
-        },
-        stdio: ["pipe", "pipe", "pipe"],
+    const child = spawnLauncher(backend, {
+      env: {
+        ...process.env,
+        PORACODE_MCP_STDIO_CONFIG: Buffer.from(JSON.stringify({ version: 1, server })).toString(
+          "base64url",
+        ),
       },
-    );
+      stdio: ["pipe", "pipe", "pipe"],
+    });
     const chunks: Buffer[] = [];
-    child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    child.stdout!.on("data", (chunk: Buffer) => chunks.push(chunk));
     const traffic =
       '{"capabilities":{"tools":{},"resources":{},"prompts":{}}}\n{"method":"resources/list"}\n{"method":"prompts/get"}\n';
-    child.stdin.end(traffic);
+    child.stdin!.end(traffic);
     try {
       const [code] = await once(child, "exit");
       expect(code).toBe(0);
@@ -74,21 +98,17 @@ describe("MCP stdio cwd launcher", () => {
       const server = {
         transport: { type: "stdio", command: shim, args: [value], cwd: root, env: {} },
       };
-      const child = spawn(
-        process.execPath,
-        [fileURLToPath(new URL("./mcpStdioWorker.ts", import.meta.url))],
-        {
-          env: {
-            ...process.env,
-            PORACODE_MCP_STDIO_CONFIG: Buffer.from(JSON.stringify({ version: 1, server })).toString(
-              "base64url",
-            ),
-          },
-          stdio: ["ignore", "pipe", "pipe"],
+      const child = spawnLauncher(backend, {
+        env: {
+          ...process.env,
+          PORACODE_MCP_STDIO_CONFIG: Buffer.from(JSON.stringify({ version: 1, server })).toString(
+            "base64url",
+          ),
         },
-      );
+        stdio: ["ignore", "pipe", "pipe"],
+      });
       const chunks: Buffer[] = [];
-      child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+      child.stdout!.on("data", (chunk: Buffer) => chunks.push(chunk));
       try {
         const [code] = await once(child, "exit");
         expect(code).toBe(0);
@@ -100,22 +120,18 @@ describe("MCP stdio cwd launcher", () => {
   );
 
   it("rejects an older launch envelope before executing its command", async () => {
-    const child = spawn(
-      process.execPath,
-      [fileURLToPath(new URL("./mcpStdioWorker.ts", import.meta.url))],
-      {
-        env: {
-          ...process.env,
-          PORACODE_MCP_STDIO_CONFIG: Buffer.from(
-            JSON.stringify({
-              version: 0,
-              server: { transport: { type: "stdio", command: "not-executed", args: [], env: {} } },
-            }),
-          ).toString("base64url"),
-        },
-        stdio: "ignore",
+    const child = spawnLauncher(backend, {
+      env: {
+        ...process.env,
+        PORACODE_MCP_STDIO_CONFIG: Buffer.from(
+          JSON.stringify({
+            version: 0,
+            server: { transport: { type: "stdio", command: "not-executed", args: [], env: {} } },
+          }),
+        ).toString("base64url"),
       },
-    );
+      stdio: "ignore",
+    });
     const [code] = await once(child, "exit");
     expect(code).not.toBe(0);
   });

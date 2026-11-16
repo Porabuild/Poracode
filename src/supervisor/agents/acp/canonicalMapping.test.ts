@@ -2406,6 +2406,48 @@ describe("mapAcpSessionUpdate", () => {
     ]);
   });
 
+  it("does not repeat an unchanged subagent status line in its child markdown", () => {
+    const state = createAcpMapperState("t-subagent-status");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-subagent-status",
+        title: "Agent",
+        status: "in_progress",
+        rawInput: { _toolName: "task", subagent_type: "Explore" },
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const update = (fields: Record<string, unknown>) =>
+      mapAcpSessionUpdate(
+        note({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "tc-subagent-status",
+          ...fields,
+        } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+        state,
+      );
+    // Streamed launch input re-sends the same title many times.
+    const events = [
+      ...["Running A", "Running A", "Running B", "Running B", "Running B now"].flatMap((title) =>
+        update({ title }),
+      ),
+      ...update({ status: "completed", rawOutput: "Done" }),
+    ];
+
+    const progressItemId = events.find(
+      (event): event is Extract<(typeof events)[number], { type: "item.started" }> =>
+        event.type === "item.started" && event.itemType === "assistant_message",
+    )?.itemId;
+    expect(progressItemId).toBeDefined();
+    expect(
+      events.filter((event) => event.type === "content.delta").map((event) => event.delta),
+    ).toEqual(["Running A", "\n\nRunning B", " now", "\n\nDone"]);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: progressItemId }),
+    );
+  });
+
   it("switches the inferred ACP parent for nested subagents", () => {
     const state = createAcpMapperState("t-nested-subagent");
     const outer = mapAcpSessionUpdate(

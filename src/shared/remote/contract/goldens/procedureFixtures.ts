@@ -121,6 +121,7 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   importSkills: { imported: [] },
   installMarketplaceSkill: { installed: "/skills/demo" },
   discoverExternalMcpServers: { groups: [] },
+  controlMcpApp: { result: { tools: [] } },
   probeMcpServer: {
     status: "available",
     latencyMs: 12,
@@ -234,6 +235,7 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   },
   forgeGetPrReviewComments: { comments: [], threads: [] },
   ghGetPrForBranch: null,
+  ghPollPullRequests: { status: "ready", prs: {}, pullRequests: [] },
   ghListPrs: { prs: {} },
   ghListPullRequests: { pullRequests: [] },
   ghGetPrChecks: { checks: [] },
@@ -347,6 +349,62 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   readThreadBackgroundTasks: [],
   getProviderUsage: { snapshots: [], fromCache: true },
   refreshProviderUsage: { snapshots: [], fromCache: false },
+  resolveLinkMetadata: { title: "Example page", description: "A useful page summary" },
+  refreshAgentStatuses: { windows: [], wsl: [], fromCache: false },
+  getLatestAgentVersion: { version: "1.2.3", source: "npm" },
+  resolveAgentAccount: { account: { authenticatedAs: "demo@example.com", plan: "Pro" } },
+  listAcpRegistry: {
+    version: "1.0.0",
+    agents: [
+      {
+        id: "claude-acp",
+        name: "Claude Code",
+        version: "2.1.0",
+        description: "Anthropic's coding agent over ACP.",
+        distribution: { npx: { package: "@anthropic-ai/claude-code" } },
+      },
+    ],
+  },
+  installAcpRegistryAgent: {
+    installed: [
+      {
+        id: "demo-acp",
+        name: "Demo Agent",
+        version: "2.1.0",
+        installedAt: "2026-08-12T00:00:00.000Z",
+        adapterKind: "acp-generic:demo-acp",
+        installKind: "generic",
+      },
+    ],
+  },
+  removeAcpRegistryAgent: { installed: [] },
+  updateAgentBinary: { ok: true, strategy: "npm-global" },
+  updateAcpRegistryAgent: {
+    installed: [
+      {
+        id: "claude-acp",
+        name: "Claude Code",
+        version: "2.1.0",
+        installedAt: "2026-08-12T00:00:00.000Z",
+        adapterKind: "claude",
+        installKind: "first-class",
+      },
+    ],
+  },
+  setAcpRegistryAgentAuth: {
+    installed: [
+      {
+        id: "demo-acp",
+        name: "Demo Agent",
+        version: "2.1.0",
+        installedAt: "2026-08-12T00:00:00.000Z",
+        adapterKind: "acp-generic:demo-acp",
+        installKind: "generic",
+      },
+    ],
+  },
+  authenticateAcpAgent: undefined,
+  logoutAcpAgent: undefined,
   listImportableSessions: {
     sessions: [
       {

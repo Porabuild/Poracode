@@ -100,6 +100,7 @@ extension RichChatHistoryGateway {
 }
 
 protocol RichChatConversationGateway: Sendable {
+  func controlRichMcpApp(target: RichChatThreadTarget, payload: [String: RichJSON]) async throws -> RichJSON
   func sendRichInput(target: RichChatThreadTarget, input: RichChatSendInput) async throws
   func interruptRichThread(target: RichChatThreadTarget) async throws
   func closeRichThread(target: RichChatThreadTarget) async throws
@@ -153,6 +154,12 @@ protocol RichChatConversationGateway: Sendable {
   func checkpointRevert(
     target: RichChatThreadTarget, itemID: String, operationKey: String
   ) async throws
+}
+
+extension RichChatConversationGateway {
+  func controlRichMcpApp(target _: RichChatThreadTarget, payload _: [String: RichJSON]) async throws -> RichJSON {
+    throw RichChatGatewayError.unavailable
+  }
 }
 
 protocol RichChatRequestGateway: Sendable {

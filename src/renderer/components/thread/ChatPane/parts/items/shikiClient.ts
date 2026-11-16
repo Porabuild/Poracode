@@ -1,70 +1,52 @@
 import type { HighlighterCore, ShikiTransformer } from "shiki/core";
+import type { HighlightLanguage } from "./languageDetect";
 
 /**
- * Languages registered when the highlighter is created. Keep this aligned
- * with `HighlightLanguage` in languageDetect.ts so the bundle only includes
- * grammars the UI can select.
+ * Keep the existing grammar versions and load only those the UI requests.
+ * Imported grammars include their required embedded-language dependencies.
  */
-const INITIAL_LANGS = [
-  "json",
-  "jsonc",
-  "javascript",
-  "typescript",
-  "tsx",
-  "jsx",
-  "python",
-  "bash",
-  "shell",
-  "yaml",
-  "html",
-  "css",
-  "go",
-  "rust",
-  "markdown",
-  "sql",
-  "diff",
-] as const;
+const LANGUAGE_LOADERS = {
+  json: () => import("@shikijs/langs/json"),
+  jsonc: () => import("@shikijs/langs/jsonc"),
+  javascript: () => import("@shikijs/langs/javascript"),
+  typescript: () => import("@shikijs/langs/typescript"),
+  tsx: () => import("@shikijs/langs/tsx"),
+  jsx: () => import("@shikijs/langs/jsx"),
+  python: () => import("@shikijs/langs/python"),
+  bash: () => import("@shikijs/langs/bash"),
+  shell: () => import("@shikijs/langs/shell"),
+  yaml: () => import("@shikijs/langs/yaml"),
+  html: () => import("@shikijs/langs/html"),
+  css: () => import("@shikijs/langs/css"),
+  go: () => import("@shikijs/langs/go"),
+  rust: () => import("@shikijs/langs/rust"),
+  markdown: () => import("@shikijs/langs/markdown"),
+  sql: () => import("@shikijs/langs/sql"),
+  diff: () => import("@shikijs/langs/diff"),
+} satisfies Record<HighlightLanguage, () => Promise<unknown>>;
 
 export const SHIKI_THEMES = ["github-light", "github-dark"] as const;
 export type ShikiTheme = (typeof SHIKI_THEMES)[number];
 
 let highlighterPromise: Promise<HighlighterCore> | null = null;
-const loadedLangs = new Set<string>(INITIAL_LANGS);
+const pendingLanguages = new Map<HighlightLanguage, Promise<boolean>>();
 
 /**
  * Lazy-create the singleton Shiki highlighter. Done via dynamic import so
- * Shiki's grammars / WASM stay out of the renderer's initial chunk and only
+ * Shiki's engine and themes stay out of the renderer's initial chunk and only
  * load the first time a tool-call body needs syntax highlighting.
  */
 export function getShikiHighlighter(): Promise<HighlighterCore> {
   if (!highlighterPromise) {
     highlighterPromise = (async () => {
-      const [{ createHighlighterCore }, { createOnigurumaEngine }] = await Promise.all([
+      const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([
         import("shiki/core"),
-        import("shiki/engine/oniguruma"),
+        import("shiki/engine/javascript"),
       ]);
       return createHighlighterCore({
         themes: [import("@shikijs/themes/github-light"), import("@shikijs/themes/github-dark")],
-        langs: [
-          import("@shikijs/langs/json"),
-          import("@shikijs/langs/jsonc"),
-          import("@shikijs/langs/javascript"),
-          import("@shikijs/langs/typescript"),
-          import("@shikijs/langs/tsx"),
-          import("@shikijs/langs/jsx"),
-          import("@shikijs/langs/python"),
-          import("@shikijs/langs/bash"),
-          import("@shikijs/langs/shell"),
-          import("@shikijs/langs/yaml"),
-          import("@shikijs/langs/html"),
-          import("@shikijs/langs/css"),
-          import("@shikijs/langs/go"),
-          import("@shikijs/langs/rust"),
-          import("@shikijs/langs/markdown"),
-          import("@shikijs/langs/sql"),
-          import("@shikijs/langs/diff"),
-        ],
-        engine: createOnigurumaEngine(import("shiki/wasm")),
+        langs: [],
+        engine: createJavaScriptRegexEngine(),
       });
     })().catch((error: unknown) => {
       highlighterPromise = null;
@@ -75,11 +57,33 @@ export function getShikiHighlighter(): Promise<HighlighterCore> {
 }
 
 /**
- * Return whether `lang` is registered with the singleton highlighter. Unknown
- * languages fall back to plain rendering.
+ * Share concurrent grammar loads, retaining successful registrations and
+ * allowing failed imports to retry. Unknown languages render as plain text.
  */
 export async function ensureLanguage(lang: string): Promise<boolean> {
-  return loadedLangs.has(lang);
+  if (!Object.hasOwn(LANGUAGE_LOADERS, lang)) return false;
+  const language = lang as HighlightLanguage;
+  const pending = pendingLanguages.get(language);
+  if (pending) return pending;
+  const request = (async () => {
+    const highlighter = await getShikiHighlighter();
+    if (!highlighter.getLoadedLanguages().includes(language)) {
+      // Markdown's optional embedded grammars must not depend on which code
+      // blocks happened to render earlier in this document.
+      const grammars =
+        language === "markdown"
+          ? Object.values(LANGUAGE_LOADERS).map((load) => load())
+          : [LANGUAGE_LOADERS[language]()];
+      await highlighter.loadLanguage(...grammars);
+    }
+    return true;
+  })();
+  pendingLanguages.set(language, request);
+  try {
+    return await request;
+  } finally {
+    pendingLanguages.delete(language);
+  }
 }
 
 /** Strip the theme-provided `background-color` from the `<pre>` so the host surface shows through. */

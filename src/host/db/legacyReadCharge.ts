@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { getSqlite } from "./connection";
 import { readRuntimeSnapshot } from "./runtimeReadSnapshot";
 import { THREAD_PAGE_ORDER_SQL } from "./projectsThreads";
+import { measureLegacyInlineImageStoredBytes } from "./runtimeInlineImages";
 import { measureRuntimePayloadProjectionMetadataStorage } from "./runtimePayloadProjection";
 import {
   LEGACY_RUNTIME_PAGE_LIMIT,
@@ -318,11 +319,11 @@ export function dbMeasureLegacyHistoryCharge(
     }
     // The page materializer guarantees at least the target newest raw rows;
     // charging any older provenance would overstate this lower reservation.
-    items += measureRuntimePayloadProjectionMetadataStorage(
-      sqlite,
-      threadId,
-      options.runtimePage ? runtimePageTailRows(options.targetTimelineEntryCount) : undefined,
-    );
+    const selectedTailRows = options.runtimePage
+      ? runtimePageTailRows(options.targetTimelineEntryCount)
+      : undefined;
+    items += measureRuntimePayloadProjectionMetadataStorage(sqlite, threadId, selectedTailRows);
+    items += measureLegacyInlineImageStoredBytes(sqlite, threadId, selectedTailRows);
     const turns = scalarBytes(
       sqlite,
       `SELECT COALESCE(SUM(${completedTurnBytesTerm()}), 0) AS bytes

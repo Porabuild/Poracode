@@ -12,6 +12,7 @@ import { threadCrewBinding } from "@/shared/crew";
 import {
   changeThreadConfig,
   resolveThreadServerRequest,
+  submitThreadInput,
 } from "@/renderer/actions/threadRuntimeActions";
 import { openFileInEditor } from "@/renderer/utils/gitHelpers";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
@@ -73,6 +74,8 @@ type ThreadComposerDocksProps = {
   onCancelPendingSteer: () => void;
   onRestoreComposerFocus?: (() => void) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
+  /** Host-supplied prompt sender (remote clients); defaults to the local submit. */
+  onSubmitInput?: ((prompt: string) => Promise<void>) | undefined;
   onSlashActiveIndexChange: (index: number) => void;
   onSelectCommand: (command: AgentSlashCommand) => void;
 };
@@ -229,6 +232,11 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
                 ? { approvalPolicy: optionId }
                 : {}),
             })
+          }
+          onSubmitPlanFeedback={(message) =>
+            props.onSubmitInput
+              ? props.onSubmitInput(message)
+              : submitThreadInput(threadId, message)
           }
           onOpenPlanFile={
             project

@@ -65,6 +65,40 @@ new autonomous turn: a nonempty batch of only replacing text deltas must neither
 reopen work nor extend an orphan turn's idle window. New items, appends, and
 other lifecycle events keep the ordinary activity rules.
 
+### Shared agent processes
+
+An adapter may opt GUI threads into pooled ACP processes through
+`createSharedAcpStructuredSession` (`acp/sharedProcess.ts`). Threads join one
+child process — one `initialize`, one ACP session per thread — when scope,
+command, normalized env, initialize request, and `prepare.key` all match;
+`command.cwd` is excluded because the process always spawns in a private
+empty directory (agents may derive per-process state such as stdio MCP
+servers from it). Env is normalized for the key only (`normalizePoolKeyEnv`
+in `sharedProcess.ts`): per-shell-instance bookkeeping (`PWD`, `OLDPWD`,
+`SHLVL`, `_`, `DIRENV_*`, `STARSHIP_SESSION_KEY`, `FNM_MULTISHELL_PATH`) is
+dropped and PATH entries are canonicalized through `realpathSync`, while
+every exported variable stays keyed — unknown per-instance noise merely
+prevents sharing, and project-specific env can never cross projects.
+`AcpSharedProcessOptions.prepare` materializes process-scoped state once per
+process, and `maxSessionsPerProcess` caps leased members per process (default
+`DEFAULT_MAX_SESSIONS_PER_PROCESS` = 8; identical specs simply span additional
+entries). `unaddressedRequests` attributes agent→client requests that carry no
+sessionId: `"single-active-session"` routes to the only member with agent work
+in flight, or — when several members work — to the first when they all report
+the same defined `unaddressedRouteKey` (members with equal keys answer
+identically); methodNotFound otherwise. Member release sends `session/cancel`
+then `session/close` for its own ids. A failed close quarantines the member
+when its turn already settled — its session ids are abandoned (notifications
+drop, requests get an immediate refusal), the entry drains so nothing new
+joins, and surviving members keep working; it escalates to process
+termination only while the member still has agent work. When the process
+dies, idle members close without an error (their session ref survives for
+`session/load`) while working members get the unexpected-exit report. Crash,
+failed initialize, or missing `sessionCapabilities.close` evicts the entry.
+`shutdownSharedAcpProcesses(scope)` retires a scope's pool — adapters wire it
+to `AgentAdapter.shutdown`. Cloud relays and WSL commands keep the dedicated
+per-thread path.
+
 ### Command tool calls and client terminals
 
 Command execution tools may stream `rawInput.command` and `rawInput.cwd` after
@@ -115,6 +149,40 @@ Providers that ignore a stdio server's `cwd` declare
 launcher, which applies cwd/env and preserves raw MCP traffic, including
 resources and prompts. Servers with disabled tools still use the filtering
 proxy.
+
+### GUI MCP routes and relays
+
+Every launch helper is a separate process per server per agent session,
+so relays are the largest per-thread memory cost. GUI user servers run through
+supervisor-owned `McpAppsService` routes, and built-in servers through their
+own ingresses. Both apply the server's tool policy themselves, so they are
+marked with `ResolvedMcpServer.directTransport`. An ACP agent that negotiates
+HTTP MCP connects to that endpoint directly and spawns no relay. Other clients
+get a stdio-to-HTTP relay that keeps the endpoint's session and enforces
+disabled tools and per-request timeouts. Two interchangeable relays share the
+versioned `PORACODE_MCP_HTTP_RELAY_CONFIG` envelope: `poracode-mcp-relay`, a
+staged Rust binary selected for plain-`http:` endpoints on supported host
+targets (darwin-universal, win32-x64/arm64, linux-x64), and `mcp-relay.mjs`,
+the SDK-free JavaScript fallback used for HTTPS endpoints, WSL locations, and
+hosts without a staged binary. Both fail closed on an unknown config version.
+Failure isolation and schema normalization keep the SDK filtering proxy; a
+server already wrapped by a helper is never wrapped again.
+
+Direct HTTP endpoints bypass relays entirely, so the agent's own HTTP
+client owns the connection — including proxy handling. When the env that
+reaches the agent carries `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`, the ACP
+session factory (`createAcpStructuredSession`, the one seam every location
+shares) extends `NO_PROXY`/`no_proxy` with the `directTransport` endpoints'
+hostnames — Poracode-served routes only, so a remote user server that needs
+the corporate proxy is never bypassed. Existing entries are merged
+case-insensitively, duplicates dropped, other-cased variants blanked, `*`
+left alone; with no proxy variable the env is untouched. For WSL the bypass
+merges into `command.env` so `injectWslEnv` exports it inside the distro —
+vars on the `wsl.exe` process never cross — while native spawns inherit it
+through `command.env` as well. Linux-side proxy variables set outside
+`command.env` (shell rc files) are invisible to this check. This is
+provider-agnostic: Devin 3000.12.28 was observed failing a loopback MCP
+connect through an unreachable proxy until the bypass listed the host.
 
 Command Code mods and Pi extensions share the SDK connection implementation;
 each provider maps schemas/results and owns its extension lifecycle. Pi closes

@@ -1,4 +1,5 @@
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
+import type { ProjectSettingsSection } from "./projectSettings/sections";
 import { create } from "zustand";
 import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -184,12 +185,19 @@ interface PanelState {
   /** Optional setting row to scroll to after opening a deep-linked section. */
   settingsAnchor: string | null;
   projectSettingsId: string | null;
+  /** Section the project settings view opens on (e.g. "mcp"); null = its default page. */
+  projectSettingsSection: ProjectSettingsSection | null;
   threadSortMode: ThreadSortMode;
   threadListLayout: ThreadListLayout;
-  /** Whether the "Start from scratch" create-project modal is open. */
+  /** Whether the "New project" create-project modal is open. */
   createProjectModalOpen: boolean;
   /** Whether the "Clone a repository" modal is open. */
   cloneProjectModalOpen: boolean;
+  /**
+   * Paired connection whose folder browser "Add folder" opened, or
+   * null while it is closed.
+   */
+  remoteFolderPickerConnectionKey: string | null;
   /** Session-only compact PWA page. Desktop panel state remains independent. */
   mobileUtilityPage: MobileUtilityPage | null;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
@@ -235,12 +243,14 @@ interface PanelState {
   clearSettingsSection: () => void;
   setActiveSettingsSection: (section: string) => void;
   closeSettings: () => void;
-  openProjectSettings: (projectId: string) => void;
+  openProjectSettings: (projectId: string, section?: ProjectSettingsSection) => void;
   closeProjectSettings: () => void;
   openCreateProjectModal: () => void;
   closeCreateProjectModal: () => void;
   openCloneProjectModal: () => void;
   closeCloneProjectModal: () => void;
+  openRemoteFolderPicker: (connectionKey: string) => void;
+  closeRemoteFolderPicker: () => void;
   openMobileUtilityPage: (page: MobileUtilityPage) => void;
   closeMobileUtilityPage: () => void;
   closeAllPanels: () => void;
@@ -378,10 +388,12 @@ export const usePanelStore = create<PanelState>()((set) => ({
   activeSettingsSection: null,
   settingsAnchor: null,
   projectSettingsId: null,
+  projectSettingsSection: null,
   threadSortMode: sanitizeThreadSortMode(initialPersisted?.threadSortMode),
   threadListLayout: sanitizeThreadListLayout(initialPersisted?.threadListLayout),
   createProjectModalOpen: false,
   cloneProjectModalOpen: false,
+  remoteFolderPickerConnectionKey: null,
   mobileUtilityPage: null,
 
   setGitReviewContext: (ctx) => {
@@ -728,23 +740,27 @@ export const usePanelStore = create<PanelState>()((set) => ({
       ...(state.settingsOpen ? { settingsOpen: false } : {}),
       ...(state.mobileUtilityPage === "settings" ? { mobileUtilityPage: null } : {}),
     })),
-  openProjectSettings: (projectId) =>
+  openProjectSettings: (projectId, section) =>
     set((state) => {
       const compactLayout = isCompactLayoutViewport();
+      const projectSettingsSection = section ?? null;
       if (
         state.projectSettingsId === projectId &&
+        state.projectSettingsSection === projectSettingsSection &&
         (!compactLayout || state.mobileUtilityPage === "projectSettings")
       ) {
         return {};
       }
       return {
         projectSettingsId: projectId,
+        projectSettingsSection,
         ...(compactLayout ? { mobileUtilityPage: "projectSettings" as const } : {}),
       };
     }),
   closeProjectSettings: () =>
     set((state) => ({
       ...(state.projectSettingsId !== null ? { projectSettingsId: null } : {}),
+      ...(state.projectSettingsSection !== null ? { projectSettingsSection: null } : {}),
       ...(state.mobileUtilityPage === "projectSettings" ? { mobileUtilityPage: null } : {}),
     })),
   openCreateProjectModal: () =>
@@ -755,18 +771,30 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => (state.cloneProjectModalOpen ? {} : { cloneProjectModalOpen: true })),
   closeCloneProjectModal: () =>
     set((state) => (state.cloneProjectModalOpen ? { cloneProjectModalOpen: false } : {})),
+  openRemoteFolderPicker: (connectionKey) =>
+    set((state) =>
+      state.remoteFolderPickerConnectionKey === connectionKey
+        ? {}
+        : { remoteFolderPickerConnectionKey: connectionKey },
+    ),
+  closeRemoteFolderPicker: () =>
+    set((state) =>
+      state.remoteFolderPickerConnectionKey === null
+        ? {}
+        : { remoteFolderPickerConnectionKey: null },
+    ),
   openMobileUtilityPage: (page) =>
     set((state) => ({
       ...(state.mobileUtilityPage === page ? {} : { mobileUtilityPage: page }),
       ...(page !== "projectSettings" && state.projectSettingsId !== null
-        ? { projectSettingsId: null }
+        ? { projectSettingsId: null, projectSettingsSection: null }
         : {}),
     })),
   closeMobileUtilityPage: () =>
     set((state) => ({
       ...(state.mobileUtilityPage !== null ? { mobileUtilityPage: null } : {}),
       ...(state.mobileUtilityPage === "projectSettings" && state.projectSettingsId !== null
-        ? { projectSettingsId: null }
+        ? { projectSettingsId: null, projectSettingsSection: null }
         : {}),
     })),
   closeAllPanels: () => {

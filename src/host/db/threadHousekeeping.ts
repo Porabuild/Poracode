@@ -1,4 +1,4 @@
-import { getSqlite } from "./connection";
+import { getSqlite, reclaimDatabaseSpace, type DatabaseSpaceReclamationResult } from "./connection";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 
 /**
@@ -88,4 +88,12 @@ export function dbIsThreadPurgeEligible(threadId: string, cutoff: string): boole
       )
       .get(threadId, cutoff) !== undefined
   );
+}
+
+/**
+ * Reclaim orphan content-addressed inline image blobs and bounded SQLite
+ * freelist / WAL space after housekeeping purges archived threads.
+ */
+export function dbReclaimDeletedThreadSpace(): DatabaseSpaceReclamationResult {
+  return reclaimDatabaseSpace(getSqlite());
 }

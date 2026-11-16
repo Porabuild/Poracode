@@ -11,8 +11,73 @@ import {
   adjustInsertTargetForRemoval,
   findPaneAlign,
   findPanePath,
+  findPaneSlotId,
+  normalizePaneSlots,
   type PaneLayout,
 } from "./paneLayout";
+
+describe("pane slot identity", () => {
+  it.each(["insert", "split-left", "split-right"])(
+    "allocates a free slot on %s without stealing the replacement's slot",
+    (operation) => {
+      const replaced = replacePaneIdInLayout(buildPaneLayoutFromLegacy(["a", "c"]), "a", "b");
+      const layout =
+        operation === "insert"
+          ? insertPaneInLayout(replaced, { path: [], axis: "vertical", index: 1 }, "a")
+          : splitPaneInLayout(replaced, "b", "a", operation === "split-left" ? "left" : "right");
+      expect(findPaneSlotId(layout, "b")).toBe("a");
+      const insertedSlot = findPaneSlotId(layout, "a");
+      expect(insertedSlot).not.toBe("a");
+      expect(normalizePaneSlots(layout)).toBe(layout);
+      const swapped = swapPaneIdsInLayout(layout, "a", "b");
+      expect(findPaneSlotId(swapped, "a")).toBe(insertedSlot);
+      expect(findPaneSlotId(swapped, "b")).toBe("a");
+      const removed = removePaneFromLayout(swapped, "a")!;
+      const moved = insertPaneInLayout(
+        removed,
+        { path: [], axis: "vertical", index: 0 },
+        "a",
+        insertedSlot!,
+      );
+      expect(findPaneSlotId(moved, "a")).toBe(insertedSlot);
+      expect(normalizePaneSlots(moved)).toBe(moved);
+    },
+  );
+
+  it("repairs the previous persisted shape deterministically and preserves reserved suffixes", () => {
+    const persisted: PaneLayout = {
+      kind: "split",
+      axis: "vertical",
+      children: [
+        { kind: "leaf", paneId: "b", slotId: "a" },
+        {
+          kind: "split",
+          axis: "horizontal",
+          children: [
+            { kind: "leaf", paneId: "a" },
+            { kind: "leaf", paneId: "c", slotId: "a:1" },
+            { kind: "leaf", paneId: "d", slotId: "a" },
+          ],
+        },
+      ],
+    };
+    const repaired = normalizePaneSlots(persisted);
+    expect(repaired).toEqual(
+      normalizePaneSlots(JSON.parse(JSON.stringify(persisted)) as PaneLayout),
+    );
+    expect(collectPaneIds(repaired)).toEqual(["b", "a", "c", "d"]);
+    expect(collectPaneIds(repaired).map((id) => findPaneSlotId(repaired, id))).toEqual([
+      "a",
+      "a:2",
+      "a:1",
+      "a:3",
+    ]);
+    expect(normalizePaneSlots(repaired)).toBe(repaired);
+    const added = splitPaneInLayout(repaired, "b", "e", "left", "a:1");
+    expect(findPaneSlotId(added, "e")).toBe("a:1:1");
+    expect(findPaneSlotId(added, "b")).toBe("a");
+  });
+});
 
 describe("buildPaneLayoutFromLegacy", () => {
   it("throws for empty panes", () => {

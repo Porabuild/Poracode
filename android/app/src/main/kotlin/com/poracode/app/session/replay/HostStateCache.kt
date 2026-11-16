@@ -2,6 +2,7 @@ package com.poracode.app.session.replay
 
 import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.GitStateJsonAdapter
+import com.poracode.app.model.RemoteGitSummary
 import com.poracode.app.model.RemoteShellSnapshot
 
 /**
@@ -134,6 +135,27 @@ class HostStateCache(
         if (nextSummaries !== current.gitSummaries || nextGitState !== current.gitState) {
             stateRef = current.copy(gitSummaries = nextSummaries, gitState = nextGitState)
         }
+    }
+
+    /**
+     * Merge per-thread Git summaries carried by a bounded `thread-list` page
+     * into the replay map. Page entries win per key while summaries for threads
+     * outside the page are preserved; a later `remote-git-summaries` event still
+     * replaces the whole map authoritatively.
+     */
+    @Synchronized
+    fun mergeGitSummaries(summaries: Map<String, RemoteGitSummary>) {
+        if (summaries.isEmpty()) return
+        val current = stateRef
+        val merged = LinkedHashMap(current.gitSummaries)
+        var changed = false
+        for ((threadId, summary) in summaries) {
+            if (merged[threadId] != summary) {
+                merged[threadId] = summary
+                changed = true
+            }
+        }
+        if (changed) stateRef = current.copy(gitSummaries = merged)
     }
 
     @Synchronized

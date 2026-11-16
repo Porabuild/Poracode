@@ -10,15 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Login
-import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -51,6 +42,9 @@ import com.poracode.app.model.McpStdioTransport
 import com.poracode.app.ui.components.EmptyStateView
 import com.poracode.app.ui.components.ErrorStateView
 import com.poracode.app.ui.components.LoadingStateView
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.components.PoracodeSwitch
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun GlobalMcpSettingsPane(
@@ -84,11 +78,11 @@ internal fun GlobalMcpSettingsPane(
                 OutlinedButton(onClick = onDiscover) {
                     Text(stringResource(R.string.settings_integrations_mcp_discovery))
                 }
-                Button(
+                FilledTonalButton(
                     enabled = canManage && !state.mutating,
                     onClick = { adding = true },
                 ) {
-                    Icon(Icons.Outlined.Add, contentDescription = null)
+                    Icon(PoracodeIcons.Add, contentDescription = null)
                     Text(stringResource(R.string.settings_global_mcp_add))
                 }
             }
@@ -152,7 +146,7 @@ internal fun GlobalMcpSettingsPane(
                 }
                 state.authorizationUrl?.let { url ->
                     item {
-                        Button(
+                        FilledTonalButton(
                             onClick = {
                                 if (runCatching { uriHandler.openUri(url) }.isSuccess) {
                                     controller.continueOauthAfterBrowserOpened()
@@ -182,7 +176,7 @@ internal fun GlobalMcpSettingsPane(
             title = { Text(stringResource(R.string.settings_global_mcp_delete_title)) },
             text = { Text(stringResource(R.string.settings_global_mcp_delete_message, server.name)) },
             confirmButton = {
-                Button(onClick = { controller.remove(server.id); deleting = null }) {
+                FilledTonalButton(onClick = { controller.remove(server.id); deleting = null }) {
                     Text(stringResource(R.string.settings_global_mcp_delete))
                 }
             },
@@ -267,7 +261,7 @@ private fun GlobalMcpServerCard(
                     )
                     Text(server.transport.safeLabel(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(
+                PoracodeSwitch(
                     checked = server.enabled,
                     enabled = enabled,
                     onCheckedChange = null,
@@ -293,29 +287,29 @@ private fun GlobalMcpServerCard(
             HorizontalDivider()
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 IconButton(enabled = enabled, onClick = onEdit) {
-                    Icon(Icons.Outlined.Edit, stringResource(R.string.settings_global_mcp_edit))
+                    Icon(PoracodeIcons.Edit, stringResource(R.string.settings_global_mcp_edit))
                 }
                 IconButton(enabled = enabled, onClick = onDelete) {
-                    Icon(Icons.Outlined.Delete, stringResource(R.string.settings_global_mcp_delete))
+                    Icon(PoracodeIcons.Delete, stringResource(R.string.settings_global_mcp_delete))
                 }
                 if (state.probes[server.id]?.tools?.isNotEmpty() == true) IconButton(
                     enabled = enabled,
                     onClick = onTools,
                 ) {
-                    Icon(Icons.Outlined.Build, stringResource(R.string.settings_global_mcp_tools))
+                    Icon(PoracodeIcons.Build, stringResource(R.string.settings_global_mcp_tools))
                 }
                 if (canMove) IconButton(
                     enabled = enabled,
                     onClick = onMove,
                 ) {
-                    Icon(Icons.Outlined.FolderOpen, stringResource(R.string.settings_global_mcp_move))
+                    Icon(PoracodeIcons.FolderOpen, stringResource(R.string.settings_global_mcp_move))
                 }
                 IconButton(
                     enabled = enabled && state.probingServerId == null,
                     onClick = onProbe,
                 ) {
                     if (state.probingServerId == server.id) CircularProgressIndicator()
-                    else Icon(Icons.Outlined.PlayArrow, stringResource(R.string.settings_global_mcp_probe))
+                    else Icon(PoracodeIcons.PlayArrow, stringResource(R.string.settings_global_mcp_probe))
                 }
                 if (server.transport !is McpStdioTransport) IconButton(
                     enabled = enabled,
@@ -323,8 +317,8 @@ private fun GlobalMcpServerCard(
                 ) {
                     val authorized = server.id in state.authenticatedServerIds
                     Icon(
-                        if (authorized) Icons.AutoMirrored.Outlined.Logout
-                        else Icons.AutoMirrored.Outlined.Login,
+                        if (authorized) PoracodeIcons.Logout
+                        else PoracodeIcons.Login,
                         stringResource(
                             if (authorized) R.string.settings_global_mcp_clear_oauth
                             else R.string.settings_global_mcp_authorize,

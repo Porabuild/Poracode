@@ -222,6 +222,7 @@ private struct NotificationSettingsView: View {
             }
           )
         )
+        .poracodeSwitchStyle()
         if delivery.isEnabled {
           NotificationPermissionControl()
         }
@@ -234,6 +235,7 @@ private struct NotificationSettingsView: View {
           SettingsUIStrings.notificationSound,
           isOn: alertBinding(\.soundEnabled, update: delivery.setSoundEnabled)
         )
+        .poracodeSwitchStyle()
         Picker(
           SettingsUIStrings.notificationPresentation,
           selection: Binding(
@@ -253,14 +255,17 @@ private struct NotificationSettingsView: View {
           SettingsUIStrings.notificationDone,
           isOn: alertBinding(\.doneEnabled, update: delivery.setDoneEnabled)
         )
+        .poracodeSwitchStyle()
         Toggle(
           SettingsUIStrings.notificationNeedsAttention,
           isOn: alertBinding(\.needsAttentionEnabled, update: delivery.setNeedsAttentionEnabled)
         )
+        .poracodeSwitchStyle()
         Toggle(
           SettingsUIStrings.notificationError,
           isOn: alertBinding(\.errorEnabled, update: delivery.setErrorEnabled)
         )
+        .poracodeSwitchStyle()
       }
       .disabled(!delivery.isEnabled)
     }

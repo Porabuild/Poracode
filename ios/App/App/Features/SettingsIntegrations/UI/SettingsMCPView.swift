@@ -129,7 +129,7 @@ struct SettingsMCPView: View {
           ) {
             onImport(server)
           }
-          .buttonStyle(.borderedProminent)
+          .poracodeGlassButtonStyle()
           .disabled(configured || candidate.unsupportedReason != nil)
         }
       }
@@ -164,6 +164,7 @@ struct SettingsMCPView: View {
           Button(SettingsIntegrationsStrings.clearSignIn, role: .destructive) {
             Task { await oauth.clear(server: server) }
           }
+          .tint(.red)
         } else {
           Button(SettingsIntegrationsStrings.signIn) {
             Task { await oauth.start(server: server) }
@@ -172,7 +173,7 @@ struct SettingsMCPView: View {
       }
       Spacer()
     }
-    .buttonStyle(.bordered)
+    .poracodeGlassButtonStyle()
     .disabled(!canOperate || unsupported)
   }
 
@@ -223,6 +224,7 @@ struct SettingsMCPView: View {
           )
         )
         .disabled(onUpdateConfigured == nil || currentConfiguredServer(for: server) == nil)
+        .poracodeSwitchStyle()
       }
       .navigationTitle(server.name)
       .navigationBarTitleDisplayMode(.inline)

@@ -5,7 +5,10 @@ import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useThreadArtifacts } from "@/renderer/components/thread/threadArtifacts";
 import { useThreadGalleryCollection } from "@/renderer/components/thread/useThreadGalleryImages";
+import { useThreadVideos } from "@/renderer/components/thread/threadVideos";
+import { getThreadMap } from "@/renderer/state/useThread";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
 /**
@@ -22,7 +25,7 @@ export function useBottomTerminalVisible(): boolean {
   const currentThreadId = useFocusedThreadId();
   const currentThreadScope = useAppStore((state) => {
     if (currentThreadId === null) return null;
-    const thread = state.threads.find((item) => item.id === currentThreadId);
+    const thread = getThreadMap(state.threads).get(currentThreadId);
     return thread ? `${thread.projectId}\0${thread.worktreePath ?? ""}` : null;
   });
   const activeTerminalScopeHasTabs = useDevTerminalStore((state) => {
@@ -73,10 +76,17 @@ export function usePanelVisibility() {
   const gallery = useThreadGalleryCollection(currentThreadId ?? undefined, {
     requestPending: false,
   });
-  const hasImages =
-    gallery.images.length + gallery.pendingRemoteRefs.length + gallery.pendingRemotePaths.length >
+  const videos = useThreadVideos(currentThreadId ?? undefined);
+  const artifacts = useThreadArtifacts(currentThreadId ?? undefined);
+  const hasMediaOrArtifacts =
+    gallery.images.length +
+      gallery.pendingRemoteRefs.length +
+      gallery.pendingRemotePaths.length +
+      videos.length +
+      artifacts.length >
     0;
-  const docksPanelOpen = informationalDocksPanelOpen || (threadDocksPanelOpen && hasImages);
+  const docksPanelOpen =
+    informationalDocksPanelOpen || (threadDocksPanelOpen && hasMediaOrArtifacts);
 
   const isTerminalRight = terminalPosition === "right";
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;

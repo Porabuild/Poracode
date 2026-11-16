@@ -80,29 +80,48 @@ describe("remote v3 native binding generator", () => {
         // the optional review-thread diff side adds one field; optional async reply source IDs
         // preserve wire versions; the optional `deferBodies` history query parameter adds one
         // structural type (its literal).
+        // Optional response-only quota ring IDs add two structural types.
         // Optional sessionId on the token-exchange result moves the source hash only.
         // Optional crew favorites/usage and model recency move only the source hash.
         // The optional `ready.epoch` and the eventEpoch/lastSeenEpoch handshake
         // parameters move both hashes without changing counts or wire versions.
         // The optional shell snapshotEpoch moves the source hash only.
         // The optional open-string runtime error `reason` moves the source hash only.
+        // The optional cut-off marker adds one structural union; older peers omit it.
         // Host-owned Hex voice transcription adds one typed procedure and schema roots.
         // The optional mediaFileRequest `disposition` attachment literal moves the source hash.
-        sourceHash: "sha256:423b4bcfdfa465e98a02878055196717382862961321a2911bf092980c4f16a8",
-        manifestHash: "sha256:221fd5494c26aa7faa5088f4a966834bb7d251cd5e9f1b2a686fcf93bbe210c0",
+        // Background PR polling adds one read procedure and its typed status result.
+        // Additive background-task category/command display metadata adds one
+        // structural enum and moves the source hash without changing wire versions.
+        // Host agent management adds four desktop procedures and their request/result roots;
+        // registry listing is an operate-scoped long mutation because it can install/update agents.
+        // The additive remote-forge-activity broadcast event moves both authority
+        // hashes and grows only the replayable-event count.
+        // Link metadata adds one read procedure, two roots and structural types.
+        // Thread transfer adds two operate-scoped routes (command and raw upload)
+        // with their request, query and result roots and structural types.
+        // Optional agent-statuses `detecting` moves only the source hash.
+        // Worktree creation adds an optional checkout-pool diagnostic and a longer client deadline.
+        // Remote agent management exposes ACP install/remove/auth/logout/account resolution.
+        // Optional period activity snapshots (`recent`) on ProfileCoreStats and ProfileTokenStats
+        // add five structural types and move only the source hash while keeping older hosts valid.
+        sourceHash: "sha256:95c61030df1c62beff0f434e61059ec710d6533b4e1b688499e0c2164a0921a4",
+        manifestHash: "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3",
         counts: {
-          routes: 119,
-          procedures: 165,
-          voidProcedureResults: 64,
-          jsonProcedureResults: 101,
+          routes: 121,
+          procedures: 179,
+          voidProcedureResults: 66,
+          jsonProcedureResults: 113,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 548,
-          structuralTypes: 1262,
+          schemaRoots: 579,
+          structuralTypes: 1365,
           semanticValidators: 25,
-          swiftFiles: 77,
-          kotlinFiles: 67,
+          // Content-defined shards (emitterCommon.shardDeclarations) average
+          // ~200 lines, so a contract change rewrites only nearby files.
+          swiftFiles: 149,
+          kotlinFiles: 127,
           stateMachines: 5,
         },
       });
@@ -133,7 +152,9 @@ describe("remote v3 native binding generator", () => {
       },
     ]);
     const output = emitSwiftBindings(parseNativeBindingIr(ir, manifest), graph);
-    expect(output["Models001.swift"]).toContain(
+    const models = Object.entries(output).filter(([path]) => path.startsWith("Models_"));
+    expect(models).toHaveLength(1);
+    expect(models[0]?.[1]).toContain(
       '  case `normal` = "normal"\n' +
         '  case `true` = "true"\n' +
         '  case `false` = "false"\n' +
@@ -374,7 +395,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(548);
+        expect(adapters).toHaveLength(579);
         expect(
           adapters
             .map((adapter) => adapter.id)

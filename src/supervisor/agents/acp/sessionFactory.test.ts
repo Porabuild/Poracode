@@ -172,6 +172,112 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
     });
   });
 
+  it("exports a direct-MCP NO_PROXY bypass inside WSL when the launch env proxies", () => {
+    const createSpy = spyOnCreate();
+    const directServer = {
+      id: "browser",
+      name: "browser",
+      timeoutMs: 30_000,
+      transport: {
+        type: "http" as const,
+        url: "http://172.30.0.1:9300/mcp",
+        headers: {},
+      },
+      directTransport: {
+        type: "http" as const,
+        url: "http://172.30.0.1:9300/mcp",
+        headers: {},
+      },
+    };
+
+    createAcpStructuredSession(
+      {
+        command: "wsl.exe",
+        args: [
+          "-d",
+          "Ubuntu",
+          "--cd",
+          "/repo",
+          "--exec",
+          "/bin/bash",
+          "-l",
+          "-i",
+          "-c",
+          "devin acp",
+        ],
+      },
+      makeInput({
+        projectLocation: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+        },
+        baseSpawnEnv: { HTTP_PROXY: "http://proxy.corp:8080" },
+        mcpServers: [directServer],
+      }),
+    );
+
+    const command = createSpy.mock.calls[0]?.[0] as {
+      env: Record<string, string>;
+      args: string[];
+    };
+    expect(command.env.NO_PROXY).toBe("172.30.0.1");
+    expect(command.env.no_proxy).toBe("172.30.0.1");
+    expect(command.args.at(-1)).toContain("export NO_PROXY='172.30.0.1'");
+    expect(command.args.at(-1)).toContain("export no_proxy='172.30.0.1'");
+  });
+
+  it("adds no bypass env inside WSL when no proxy variable reaches the agent", () => {
+    const createSpy = spyOnCreate();
+    const directServer = {
+      id: "browser",
+      name: "browser",
+      timeoutMs: 30_000,
+      transport: {
+        type: "http" as const,
+        url: "http://172.30.0.1:9300/mcp",
+        headers: {},
+      },
+      directTransport: {
+        type: "http" as const,
+        url: "http://172.30.0.1:9300/mcp",
+        headers: {},
+      },
+    };
+
+    createAcpStructuredSession(
+      {
+        command: "wsl.exe",
+        args: [
+          "-d",
+          "Ubuntu",
+          "--cd",
+          "/repo",
+          "--exec",
+          "/bin/bash",
+          "-l",
+          "-i",
+          "-c",
+          "devin acp",
+        ],
+      },
+      makeInput({
+        projectLocation: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+        },
+        mcpServers: [directServer],
+      }),
+    );
+
+    const command = createSpy.mock.calls[0]?.[0] as { env?: Record<string, string> };
+    expect(command.env ?? {}).not.toHaveProperty("NO_PROXY");
+    expect(command.env ?? {}).not.toHaveProperty("no_proxy");
+  });
+
   it("passes the command through unchanged when nothing contributes env", () => {
     const createSpy = spyOnCreate();
     const command = { command: "droid", args: ["exec"] };

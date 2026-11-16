@@ -1,11 +1,9 @@
+import { notePendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "../appStore";
 import { applyRootCatalogThreadRows } from "./rootCatalogRows";
-import {
-  __resetManagedRootCatalogStoreForTest,
-  notePendingManagedRootLaunch,
-} from "./rootCatalogStore";
+import { __resetManagedRootCatalogStoreForTest } from "./rootCatalogStore";
 
 function seedLaunchingThread(id: string): Thread {
   return useAppStore.getState().createThread({
@@ -42,7 +40,7 @@ describe("root catalog pages during a pending launch", () => {
     expect(resident.status).toBe("launching");
     // The create command is still in flight: creation is not marked yet, so
     // only the pending launch itself proves this row is mid-launch.
-    notePendingManagedRootLaunch(resident.id, true);
+    notePendingThreadLaunch(resident.id, true);
 
     applyRootCatalogThreadRows(
       [{ ...resident, status: "inactive", attention: "none", title: "Host row" }],

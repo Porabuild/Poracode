@@ -233,4 +233,13 @@ describe("CLI configuration administration", () => {
     expect(existsSync(defaultServerConfigPath(profile))).toBe(false);
     expect(existsSync(profile)).toBe(false);
   });
+
+  it("writes the file silently in quiet mode", async () => {
+    const { profile } = fixture();
+    const path = defaultServerConfigPath(profile);
+    const output = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    await runConfigure(profile, ["--bind-mode", "loopback"], { quiet: true });
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({ bindMode: "loopback" });
+    expect(output).not.toHaveBeenCalled();
+  });
 });

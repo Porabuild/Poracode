@@ -358,6 +358,18 @@ describe("item payload schemas", () => {
     expect(commandExecutionPayloadSchema.safeParse({ cwd: "/tmp" }).success).toBe(false);
   });
 
+  it("commandExecutionPayload carries provider-classified actions and stays pre-upgrade compatible", () => {
+    const payload = {
+      command: "Get-Content notes.txt",
+      actions: [{ kind: "read", path: "/repo/notes.txt", name: "notes.txt" }],
+      status: "success",
+    };
+    expect(commandExecutionPayloadSchema.parse(roundTrip(payload))).toEqual(payload);
+    // Payloads persisted before `actions` existed still parse unchanged.
+    const preUpgrade = { command: "ls", status: "success" };
+    expect(commandExecutionPayloadSchema.parse(preUpgrade)).toEqual(preUpgrade);
+  });
+
   it("fileChangePayload enforces nonnegative diff counts", () => {
     const payload = {
       path: "src/x.ts",
@@ -421,6 +433,18 @@ describe("item payload schemas", () => {
       resultCount: 5,
     });
     expect(webSearchPayloadSchema.safeParse({ resultCount: 1 }).success).toBe(false);
+  });
+
+  it("webSearchPayload carries provider action metadata and stays pre-upgrade compatible", () => {
+    const payload = {
+      query: "a · b",
+      action: "search",
+      queries: ["a", "b"],
+      resultCount: 29,
+    };
+    expect(webSearchPayloadSchema.parse(roundTrip(payload))).toEqual(payload);
+    const preUpgrade = { query: "x ...", resultCount: 40 };
+    expect(webSearchPayloadSchema.parse(preUpgrade)).toEqual(preUpgrade);
   });
 
   it("questionAnswerItemPayload round-trips with empty selections", () => {

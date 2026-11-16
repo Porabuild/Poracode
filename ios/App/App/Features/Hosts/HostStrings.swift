@@ -170,4 +170,28 @@ enum HostStrings {
   static func endpointCaption(_ baseURL: String) -> String {
     URL(string: baseURL).flatMap(\.host).flatMap { $0.isEmpty ? nil : $0 } ?? baseURL
   }
+
+  /// "N paired connection(s)" caption, plural-aware via the String Catalog.
+  static func pairedConnections(_ count: Int) -> String {
+    let format = NSLocalizedString(
+      "hosts.pairedConnections",
+      tableName: nil,
+      bundle: .main,
+      value: "%lld paired connections",
+      comment: ""
+    )
+    return String.localizedStringWithFormat(format, Int64(count))
+  }
+
+  /// Single compact status line: state · endpoint · transport, matching the
+  /// mobile web / Android connection row.
+  static func statusLine(
+    state: String,
+    endpoint: String,
+    transport: String
+  ) -> String {
+    [state, endpoint, transport]
+      .filter { !$0.isEmpty }
+      .joined(separator: " · ")
+  }
 }

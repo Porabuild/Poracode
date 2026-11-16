@@ -18,7 +18,7 @@ export function RemoteServerIcon(props: {
         <RemoteServerStatusDot
           status={props.status}
           {...(props.dotClassName ? { sizeClassName: props.dotClassName } : {})}
-          className="absolute right-0 bottom-0 ring-1 ring-background"
+          className="absolute right-0 bottom-0"
         />
       ) : null}
     </span>

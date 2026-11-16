@@ -1,6 +1,7 @@
 import {
   dbArchiveDoneThreads,
   dbIsThreadPurgeEligible,
+  dbReclaimDeletedThreadSpace,
   dbSelectPurgeCandidateThreadIds,
 } from "@/host/db";
 import { readPersistedExperiments } from "@/host/remote/experimentOwnership";
@@ -237,6 +238,13 @@ export async function runThreadHousekeeping(
   }
 
   const wasCancelled = cancelled();
+  if (purgedThreadIds.length > 0 && !wasCancelled) {
+    try {
+      dbReclaimDeletedThreadSpace();
+    } catch (error) {
+      dependencies.reportError?.(error);
+    }
+  }
   const changedThreadIds = [...archivedThreadIds, ...purgedThreadIds];
   if (changedThreadIds.length > 0 && !wasCancelled) {
     try {

@@ -16,7 +16,7 @@ export const MEDIA_PAYLOAD_CASES: readonly TaxonomyCase[] = [
       result: "image result",
       status: "success",
     },
-    "other",
+    "viewed",
     { inlineImage: true, groupEligible: false },
   ),
   toolCase(
@@ -40,7 +40,7 @@ export const MEDIA_PAYLOAD_CASES: readonly TaxonomyCase[] = [
       result: { b64_json: IMAGE_ASSETS.png.base64 },
       status: "success",
     },
-    "other",
+    "viewed",
     { inlineImage: true, groupEligible: false },
   ),
   itemCase(
@@ -51,7 +51,7 @@ export const MEDIA_PAYLOAD_CASES: readonly TaxonomyCase[] = [
       result: `data:image/png;base64,${IMAGE_ASSETS.webp.base64}`,
       status: "success",
     },
-    "other",
+    "viewed",
     { inlineImage: true, groupEligible: false },
   ),
   itemCase(
@@ -70,7 +70,7 @@ export const MEDIA_PAYLOAD_CASES: readonly TaxonomyCase[] = [
     "image_fallback",
     "image_view",
     { name: "FixtureImage", result: "https://fixture.invalid/track.png", status: "success" },
-    "other",
+    "viewed",
     { inlineImage: false },
   ),
   toolCase(

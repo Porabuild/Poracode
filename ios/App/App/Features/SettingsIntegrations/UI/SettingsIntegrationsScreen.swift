@@ -86,7 +86,7 @@ struct SettingsIntegrationsScreen: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.bar)
+            .poracodeBarBackground()
         }
         switch route ?? .skills {
         case .skills:

@@ -6,11 +6,10 @@ import {
 } from "./chatRuntimePersister";
 import { retainRendererEventInterest } from "./rendererEventInterests";
 import { useAppStore } from "./appStore";
-import { isProjectedRemoteEntityId } from "./remoteProjection";
-import { recoverRemoteRuntimeHistory } from "./remote/sync";
+import { recoverRuntimeHistory as recoverOnLiveReducer } from "./remote/sync";
 
 interface RuntimeThreadReader {
-  readonly ready: Promise<void>;
+  readonly ready: Promise<boolean | void>;
   release(): void;
 }
 
@@ -48,13 +47,22 @@ export function adoptRuntimeThreadReader(threadId: string): RuntimeThreadReader 
   return retainRuntimeThreadReader(threadId);
 }
 
-/** One owner for both a local reader's bounded window and its live stream. */
+/** One owner for a thread's bounded window and its host's live stream, whichever
+ * host owns the thread. */
 export function retainRuntimeThreadReader(threadId: string): RuntimeThreadReader {
   retainThreadRuntimeItems(threadId);
   const interest = retainRendererEventInterest("runtime", threadId);
   const continuous = interest.continuous;
+  if (
+    !continuous &&
+    hasHydratedThreadRuntimeItems(threadId) &&
+    useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed"
+  ) {
+    useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
+  }
   let active = true;
-  const ready = interest.ready.then(() => {
+  // Resolves false only when this reader's own history read failed.
+  const ready: Promise<boolean | void> = interest.ready.then(async () => {
     if (active)
       return hydrateThreadRuntimeItemsForInterest(threadId, continuous && interest.continuous);
   });
@@ -72,9 +80,9 @@ export function retainRuntimeThreadReader(threadId: string): RuntimeThreadReader
 type RuntimeHistoryRecovery = (threadId: string) => void;
 let recoverRuntimeHistory: RuntimeHistoryRecovery | null = null;
 
-/** Bind the window's existing reducer recovery, including its bounded queue
- * and sequence arbitration. A pane must not perform a parallel history reset
- * outside that reducer while newly subscribed deltas are arriving. */
+/** Replaces the live reducer's recovery (a test drives its own reducer). A pane
+ * must not perform a parallel history reset outside the reducer that owns the
+ * thread's queue while newly subscribed deltas are arriving. */
 export function installRuntimeHistoryRecovery(recover: RuntimeHistoryRecovery): () => void {
   recoverRuntimeHistory = recover;
   return () => {
@@ -82,13 +90,18 @@ export function installRuntimeHistoryRecovery(recover: RuntimeHistoryRecovery): 
   };
 }
 
+/**
+ * Re-reads a thread's history through the reducer that owns its live queue,
+ * whichever host the thread is on, so its bounded queue and sequence
+ * arbitration stay authoritative.
+ */
+function recoverThreadRuntimeHistory(threadId: string): void {
+  (recoverRuntimeHistory ?? recoverOnLiveReducer)(threadId);
+}
+
 /** A failed recovery still owns its blocked deltas; retry through that owner. */
-export function retryThreadRuntimeItems(threadId: string): Promise<void> | void {
-  // A remote thread's queue belongs to the remote reducer, whose snapshot
-  // re-read also covers a first read that failed.
-  if (isProjectedRemoteEntityId(threadId, "thread")) return recoverRemoteRuntimeHistory(threadId);
-  if (recoverRuntimeHistory) return recoverRuntimeHistory(threadId);
-  return hydrateThreadRuntimeItems(threadId);
+export function retryThreadRuntimeItems(threadId: string): void {
+  recoverThreadRuntimeHistory(threadId);
 }
 
 /** Called only after the pane's live-interest lease is ready. A cached
@@ -97,13 +110,12 @@ export function retryThreadRuntimeItems(threadId: string): Promise<void> | void 
 export function hydrateThreadRuntimeItemsForInterest(
   threadId: string,
   continuous: boolean,
-): Promise<void> | void {
+): Promise<boolean> | void {
   if (
-    recoverRuntimeHistory &&
-    (useAppStore.getState().runtimeHydrationStatus[threadId] === "failed" ||
-      (!continuous && hasHydratedThreadRuntimeItems(threadId)))
+    useAppStore.getState().runtimeHydrationStatus[threadId] === "failed" ||
+    (!continuous && hasHydratedThreadRuntimeItems(threadId))
   ) {
-    recoverRuntimeHistory(threadId);
+    recoverThreadRuntimeHistory(threadId);
     return;
   }
   return hydrateThreadRuntimeItems(threadId);

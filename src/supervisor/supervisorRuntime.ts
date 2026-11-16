@@ -80,6 +80,7 @@ import {
   type ResolvedHostResourceAdmission,
 } from "./runtime/hostResourceAdmission";
 import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission";
+import { disposeGitExecWorker, disposeNativeGitHelper } from "./git/exec";
 import { gitProcessAdmissionUsage } from "./git/gitProcessAdmission";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
@@ -108,6 +109,7 @@ import { resolveWslHostAccess } from "./wsl/hostAccess";
 import { disposeWslStagingService } from "./wsl/staging";
 import { McpOAuthService } from "./mcp/McpOAuthService";
 import { McpOAuthRelay } from "./mcp/McpOAuthRelay";
+import { McpAppsService } from "./mcp/McpAppsService";
 import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
@@ -118,6 +120,7 @@ import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
 import { PluginCatalogService } from "./plugins/PluginCatalogService";
 import { PluginAccountService } from "./plugins/PluginAccountService";
 import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
+import { resolveLinkMetadata as resolveChatLinkMetadata } from "./linkMetadata";
 
 export { detectWslAgentStatuses, writeSubmittedPrompt };
 
@@ -175,7 +178,10 @@ export class SupervisorRuntime {
   readonly gitCheckpointService = new GitCheckpointService();
   private _projectWatcher: ProjectWatcher | undefined;
   readonly githubService = new GitHubService();
-  readonly forgeReviewService = new ForgeReviewService(this.githubService);
+  readonly forgeReviewService = new ForgeReviewService(this.githubService, {
+    onPollingProblem: (projectLocation, problem) =>
+      this.emit({ type: "github-polling-status", projectLocation, problem }),
+  });
   readonly fileIndexService = new FileIndexService();
 
   cancelCrossagentRun(runId: string, parentThreadId?: string): Promise<void> {
@@ -203,6 +209,7 @@ export class SupervisorRuntime {
   readonly mcpOAuthService: McpOAuthService;
   readonly mcpAuthenticationService: McpAuthenticationService;
   private readonly mcpOAuthRelay: McpOAuthRelay;
+  readonly mcpAppsService: McpAppsService;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
   readonly sessionImportService: SessionImportService;
@@ -226,12 +233,23 @@ export class SupervisorRuntime {
   get projectWatcher(): ProjectWatcher {
     if (!this._projectWatcher) {
       const watcher = new ProjectWatcher({
-        onGitChanged: (projectId) => {
-          this.emit({ type: "git-changed", projectId });
+        onGitChanged: (projectId, worktreePath) => {
+          this.gitService.invalidateStatus();
+          this.emit({
+            type: "git-changed",
+            projectId,
+            ...(worktreePath ? { worktreePath } : {}),
+          });
         },
-        onTreeChanged: (projectId) => {
-          this.projectTreeService.invalidateAllCaches();
-          this.emit({ type: "project-tree-changed", projectId });
+        onTreeChanged: (projectId, worktreePath, location, gitChanged) => {
+          this.projectTreeService.invalidateCaches(location);
+          if (gitChanged !== false) this.gitService.invalidateStatus();
+          this.emit({
+            type: "project-tree-changed",
+            projectId,
+            ...(worktreePath ? { worktreePath } : {}),
+            ...(gitChanged === false ? { gitChanged: false } : {}),
+          });
         },
       });
       if (this.wslBridgeClient) watcher.setWslClient(this.wslBridgeClient);
@@ -255,6 +273,9 @@ export class SupervisorRuntime {
     this.baseDir = baseDir;
     this.mcpOAuthService = new McpOAuthService({ baseDir });
     this.mcpOAuthRelay = new McpOAuthRelay(this.mcpOAuthService, {
+      resolveHostAccess: (distro) => resolveWslHostAccess(distro),
+    });
+    this.mcpAppsService = new McpAppsService({
       resolveHostAccess: (distro) => resolveWslHostAccess(distro),
     });
     this.mcpProbeService = new McpProbeService({
@@ -496,6 +517,8 @@ export class SupervisorRuntime {
         threadCrewBinding(this.threadSessionManager.getThreadConfig(threadId)),
       resolveProviderSessionThreadId: (sessionId) =>
         this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
+      resolveProviderMcpThreadId: (metadata) =>
+        this.threadSessionManager.getThreadIdByProviderMcpMetadata(metadata),
       // User-configured routing guidance, read live from shared settings (the
       // cache invalidates on file change) so edits take effect on the next turn
       // without a supervisor restart. Empty/whitespace-only = no guidance.
@@ -591,6 +614,7 @@ export class SupervisorRuntime {
         });
       },
       prepareMcpToolFilters,
+      mcpApps: this.mcpAppsService,
       resolvePluginLaunchContributions: async (projectLocation, agentKind, selection) => {
         const envContext =
           projectLocation.kind === "wsl"
@@ -738,6 +762,16 @@ export class SupervisorRuntime {
    * other consumer; this never starts work and never forces a file read when
    * the cache is warm.
    */
+  resolveLinkMetadata(url: string) {
+    const settings = this.sharedSettingsCache.readFresh();
+    const pluginServers = resolvePluginMcpServers(
+      this.pluginRegistry.listPlugins(),
+      settings.installedPlugins,
+      { pluginDataRoot: this.pluginDataDir, hostPlatform: process.platform },
+    ).servers;
+    return resolveChatLinkMetadata(url, { mcpServers: settings.mcpServers, pluginServers });
+  }
+
   getResourceAdmissionStatus(): HostResourceAdmissionStatus {
     const resolved = this.sharedSettingsCache.readHostResourceAdmission();
     this.logHostResourceAdmissionResolution(resolved);
@@ -1118,7 +1152,7 @@ export class SupervisorRuntime {
     this.fileIndexService.invalidateCacheForLocation(newLocation);
 
     // Re-point the file watcher at the new path (idempotent: replaces the old entry).
-    this.projectWatcher.watch(payload.projectId, newLocation);
+    await this.projectWatcher.watch(payload.projectId, newLocation);
 
     return { repairedWorktrees };
   }
@@ -1256,6 +1290,7 @@ export class SupervisorRuntime {
       () => retireMacKeychainCommands(),
       () => this.agentRegistryService.disposeAcpAuthentications(),
       () => this.mcpOAuthRelay.dispose(),
+      () => this.mcpAppsService.dispose(),
       () => this.mcpOAuthService.dispose(),
       () => this.mcpAuthenticationService.dispose(),
       () => this.hexVoiceService.dispose(),
@@ -1288,6 +1323,10 @@ export class SupervisorRuntime {
         await disposeWslStagingService().catch((error) => {
           console.warn("[supervisor] WSL staging worker dispose failed:", error);
         });
+        await disposeGitExecWorker().catch((error) => {
+          console.warn("[supervisor] Git execution worker dispose failed:", error);
+        });
+        disposeNativeGitHelper();
         await Promise.all(
           [...this.adapters.values()].map(async (adapter) => {
             try {

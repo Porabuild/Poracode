@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="remote_notification_done">완료됨</string>
+    <string name="remote_notification_done">완료</string>
     <string name="remote_notification_needs_attention">확인 필요</string>
     <string name="remote_notification_error">오류</string>
     <string name="remote_notification_dismiss">알림 닫기</string>
+    <string name="remote_notification_done_description">스레드가 완료되었거나 입력을 기다리는 중입니다.</string>
+    <string name="remote_notification_needs_attention_description">사용자의 승인 또는 응답이 필요합니다.</string>
+    <string name="remote_notification_error_description">에이전트에 오류가 발생했습니다.</string>
 </resources>

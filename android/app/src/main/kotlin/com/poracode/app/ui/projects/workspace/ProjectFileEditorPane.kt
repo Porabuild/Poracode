@@ -8,18 +8,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Save
-import androidx.compose.material.icons.outlined.Undo
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,7 +31,10 @@ import com.poracode.app.model.ProjectFileReadResult
 import com.poracode.app.session.projects.ProjectOperationFailure
 import com.poracode.app.ui.components.EmptyStateView
 import com.poracode.app.ui.components.LoadingStateView
+import com.poracode.app.ui.components.PoracodeTextField
 import com.poracode.app.ui.richchat.RichMarkdownView
+import com.poracode.app.ui.theme.PoracodeIcons
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun ProjectFileEditorPane(
@@ -150,7 +146,7 @@ private fun TextFileEditor(
             if (canPreviewMarkdown) {
                 IconButton(onClick = { previewing = !previewing }) {
                     Icon(
-                        if (previewing) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        if (previewing) PoracodeIcons.VisibilityOff else PoracodeIcons.Visibility,
                         contentDescription = stringResource(
                             if (previewing) {
                                 R.string.workspace_markdown_edit
@@ -164,19 +160,19 @@ private fun TextFileEditor(
             if (dirty) {
                 IconButton(onClick = onDiscard, enabled = canWrite && !saving) {
                     Icon(
-                        Icons.Outlined.Undo,
+                        PoracodeIcons.Undo,
                         contentDescription = stringResource(R.string.workspace_discard),
                     )
                 }
             }
             IconButton(onClick = onReload, enabled = canReload && !saving) {
                 Icon(
-                    Icons.Outlined.Refresh,
+                    PoracodeIcons.Refresh,
                     contentDescription = stringResource(R.string.workspace_reload),
                 )
             }
-            Button(onClick = onSave, enabled = canSave) {
-                Icon(Icons.Outlined.Save, contentDescription = null)
+            FilledTonalButton(onClick = onSave, enabled = canSave) {
+                Icon(PoracodeIcons.Save, contentDescription = null)
                 Text(
                     stringResource(R.string.workspace_save),
                     modifier = Modifier.padding(start = 6.dp),
@@ -203,13 +199,25 @@ private fun TextFileEditor(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(12.dp),
+                    .padding(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 12.dp,
+                        bottom = 12.dp + WorkspaceBottomBarClearance,
+                    ),
             )
         } else {
-            OutlinedTextField(
+            PoracodeTextField(
                 value = draft,
                 onValueChange = onDraftChange,
-                modifier = Modifier.fillMaxSize().padding(12.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 12.dp,
+                        bottom = 12.dp + WorkspaceBottomBarClearance,
+                    ),
                 enabled = canWrite && !saving,
                 label = { Text(stringResource(R.string.workspace_editor_label)) },
                 textStyle = TextStyle(

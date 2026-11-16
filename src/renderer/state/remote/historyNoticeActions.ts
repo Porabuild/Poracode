@@ -1,16 +1,8 @@
 import { msg } from "@lingui/core/macro";
-import { remoteMutationMayHaveCommitted, type RemoteDesktopClient } from "@/shared/remote/client";
+import { remoteMutationMayHaveCommitted } from "@/shared/remote/client";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { remoteConnectionKey, type RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 import { i18n } from "@/renderer/i18n/i18n";
-import { readManagedLoopbackActivation } from "@/renderer/hostTransport/loopbackHttpWsTransport";
-import {
-  acknowledgeManagedRootRuntimeHistoryGap,
-  readManagedRootRuntimeHistoryGap,
-} from "@/renderer/state/managedRootCatalog/rootHistory";
-import { isManagedRootDesktopRuntime } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
-import { isManagedRootRow } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
+import { entityHost, type EntityHost } from "@/renderer/state/entityHost";
 import { rehydrateThreadRuntimeItemsAfterReset } from "@/renderer/state/chatRuntimePersister";
 import {
   recordThreadHistoryGapRead,
@@ -20,7 +12,7 @@ import {
 } from "./historyNoticeStore";
 import {
   hostSupportsRuntimeHistoryNotices,
-  hostSupportsRuntimeHistoryNoticesForConnection,
+  hostSupportsRuntimeHistoryNoticesFor,
 } from "./historyNoticeCapability";
 
 /**
@@ -35,106 +27,39 @@ import {
  * response keeps the descriptor and lets the same explicit retry reuse the
  * same command id/token.
  *
- * Root threads on the managed desktop read/ack through the ONE managed
- * loopback client (the same client as their bounded transcript reads); their
- * authority is the opaque per-activation managed identity.
+ * Every thread reads and acknowledges through its own host's client, whichever
+ * host that is; the managed host's authority is the opaque per-activation
+ * managed identity.
  */
-export { hostSupportsRuntimeHistoryNotices };
+export { hostSupportsRuntimeHistoryNotices, hostSupportsRuntimeHistoryNoticesFor };
 
-interface OwnedRemoteThread {
-  readonly kind: "remote";
-  readonly desktopId: string;
-  readonly remoteId: string;
-  readonly authority: string;
+/**
+ * The host that owns this thread, resolved while it has a live connection.
+ * Every read and acknowledgement goes through that host's own client and is
+ * recorded under its authority.
+ */
+function ownedHost(viewThreadId: string): EntityHost | undefined {
+  const host = entityHost(
+    useAppStore.getState().threads.find((candidate) => candidate.id === viewThreadId),
+  );
+  return host?.authority !== undefined && host.isCurrent() ? host : undefined;
 }
 
-interface OwnedManagedRootThread {
-  readonly kind: "managed-root";
-  readonly threadId: string;
-  readonly authority: string;
+/** The row is still owned by the same host over the same connection. */
+function stillOwned(viewThreadId: string, host: EntityHost): boolean {
+  const current = entityHost(
+    useAppStore.getState().threads.find((candidate) => candidate.id === viewThreadId),
+  );
+  return (
+    host.isCurrent() &&
+    current !== undefined &&
+    current.sessionKey === host.sessionKey &&
+    current.hostId === host.hostId
+  );
 }
 
-type OwnedThread = OwnedRemoteThread | OwnedManagedRootThread;
-
-function authorityOf(server: RemoteServerRecord): string {
-  // Connection identity: stable across token rotation, distinct across hosts
-  // and re-pairings, so a notice from one authority can never be displayed or
-  // acknowledged against another.
-  return remoteConnectionKey(server);
-}
-
-function ownedThread(viewThreadId: string): OwnedThread | undefined {
-  const thread = useAppStore.getState().threads.find((candidate) => candidate.id === viewThreadId);
-  if (!thread) return undefined;
-  if (thread.remoteServerId && thread.remoteId) {
-    const server = useRemoteServersStore
-      .getState()
-      .servers.find((entry) => remoteConnectionKey(entry) === thread.remoteServerId);
-    if (!server) return undefined;
-    return {
-      kind: "remote",
-      desktopId: thread.remoteServerId,
-      remoteId: thread.remoteId,
-      authority: authorityOf(server),
-    };
-  }
-  if (!isManagedRootRow(thread) || !isManagedRootDesktopRuntime()) return undefined;
-  const activation = readManagedLoopbackActivation();
-  if (!activation) return undefined;
-  return {
-    kind: "managed-root",
-    threadId: thread.id,
-    authority: activation.authority,
-  };
-}
-
-function stillOwned(owned: OwnedThread): boolean {
-  if (owned.kind === "managed-root") {
-    const activation = readManagedLoopbackActivation();
-    if (!activation || activation.authority !== owned.authority) {
-      return false;
-    }
-    const thread = useAppStore
-      .getState()
-      .threads.find((candidate) => candidate.id === owned.threadId);
-    return thread !== undefined && isManagedRootRow(thread);
-  }
-  const thread = useAppStore
-    .getState()
-    .threads.find(
-      (candidate) =>
-        candidate.remoteServerId === owned.desktopId && candidate.remoteId === owned.remoteId,
-    );
-  if (!thread) return false;
-  const server = useRemoteServersStore
-    .getState()
-    .servers.find((entry) => remoteConnectionKey(entry) === owned.desktopId);
-  return server !== undefined && authorityOf(server) === owned.authority;
-}
-
-/** The advertised notice capability of this thread's actual authority. */
-function capabilityAdvertisedFor(owned: OwnedThread): boolean {
-  if (owned.kind === "managed-root") {
-    return hostSupportsRuntimeHistoryNoticesForConnection(owned.authority);
-  }
-  const server = useRemoteServersStore
-    .getState()
-    .servers.find((entry) => remoteConnectionKey(entry) === owned.desktopId);
-  return server !== undefined && hostSupportsRuntimeHistoryNotices(server);
-}
-
-async function withOwnedClient<Result>(
-  owned: OwnedThread,
-  invoke: (client: RemoteDesktopClient) => Promise<Result>,
-): Promise<Result> {
-  if (owned.kind === "managed-root") {
-    const activation = readManagedLoopbackActivation();
-    if (!activation || activation.authority !== owned.authority) {
-      throw new Error(i18n._(msg`The desktop's own server is not connected.`));
-    }
-    return invoke(activation.client);
-  }
-  return useRemoteServersStore.getState().withClient(owned.desktopId, invoke);
+function readGap(host: EntityHost) {
+  return host.withClient((client) => client.runtimeHistoryGap(host.hostId));
 }
 
 const pendingAckCommandIds = new Map<string, string>();
@@ -146,18 +71,15 @@ const pendingAckCommandIds = new Map<string, string>();
 export async function requestThreadHistoryGap(
   viewThreadId: string,
 ): Promise<"ok" | "unsupported" | "failed"> {
-  const owned = ownedThread(viewThreadId);
-  if (!owned) return "failed";
-  if (!capabilityAdvertisedFor(owned)) return "unsupported";
+  const host = ownedHost(viewThreadId);
+  if (!host?.authority) return "failed";
+  if (!hostSupportsRuntimeHistoryNoticesFor(host)) return "unsupported";
   try {
-    const result =
-      owned.kind === "managed-root"
-        ? await readManagedRootRuntimeHistoryGap(owned.threadId)
-        : await withOwnedClient(owned, (client) => client.runtimeHistoryGap(owned.remoteId));
-    if (!stillOwned(owned)) return "failed";
-    recordThreadHistoryGapRead(viewThreadId, owned.authority, result.gap);
+    const result = await readGap(host);
+    if (!stillOwned(viewThreadId, host)) return "failed";
+    recordThreadHistoryGapRead(viewThreadId, host.authority, result.gap);
     if (result.notice) {
-      recordThreadHistoryNoticeRead(viewThreadId, owned.authority, result.notice);
+      recordThreadHistoryNoticeRead(viewThreadId, host.authority, result.notice);
     }
     return "ok";
   } catch {
@@ -179,22 +101,20 @@ export type AcknowledgeHistoryNoticeOutcome =
 export async function acknowledgeThreadHistoryNotice(
   viewThreadId: string,
 ): Promise<AcknowledgeHistoryNoticeOutcome> {
-  const owned = ownedThread(viewThreadId);
-  if (!owned) return "failed";
-  if (!capabilityAdvertisedFor(owned)) return "failed";
+  const host = ownedHost(viewThreadId);
+  if (!host?.authority) return "failed";
+  if (!hostSupportsRuntimeHistoryNoticesFor(host)) return "failed";
+  const authority = host.authority;
 
   // Read the exact precondition immediately before acknowledging: the gap may
   // have advanced since the banner listed it.
   let gap: { readonly token: string } | null;
   try {
-    const read =
-      owned.kind === "managed-root"
-        ? await readManagedRootRuntimeHistoryGap(owned.threadId)
-        : await withOwnedClient(owned, (client) => client.runtimeHistoryGap(owned.remoteId));
-    if (!stillOwned(owned)) return "failed";
-    recordThreadHistoryGapRead(viewThreadId, owned.authority, read.gap);
+    const read = await readGap(host);
+    if (!stillOwned(viewThreadId, host)) return "failed";
+    recordThreadHistoryGapRead(viewThreadId, authority, read.gap);
     if (read.notice) {
-      recordThreadHistoryNoticeRead(viewThreadId, owned.authority, read.notice);
+      recordThreadHistoryNoticeRead(viewThreadId, authority, read.notice);
     }
     gap = read.gap;
   } catch {
@@ -205,19 +125,10 @@ export async function acknowledgeThreadHistoryNotice(
   const token = gap.token;
   const commandId = pendingAckCommandIds.get(token) ?? crypto.randomUUID();
   try {
-    const result =
-      owned.kind === "managed-root"
-        ? await acknowledgeManagedRootRuntimeHistoryGap(owned.threadId, {
-            episodeToken: token,
-            commandId,
-          })
-        : await withOwnedClient(owned, (client) =>
-            client.acknowledgeRuntimeHistoryGap(owned.remoteId, {
-              episodeToken: token,
-              commandId,
-            }),
-          );
-    if (!stillOwned(owned)) {
+    const result = await host.withClient((client) =>
+      client.acknowledgeRuntimeHistoryGap(host.hostId, { episodeToken: token, commandId }),
+    );
+    if (!stillOwned(viewThreadId, host)) {
       pendingAckCommandIds.delete(token);
       return "failed";
     }
@@ -225,27 +136,20 @@ export async function acknowledgeThreadHistoryNotice(
       case "applied":
       case "already": {
         pendingAckCommandIds.delete(token);
-        recordThreadHistoryGapRead(viewThreadId, owned.authority, null);
-        recordThreadHistoryNoticeRead(viewThreadId, owned.authority, result.notice);
+        recordThreadHistoryGapRead(viewThreadId, authority, null);
+        recordThreadHistoryNoticeRead(viewThreadId, authority, result.notice);
         // The acknowledged prefix is readable now (declared readers get the
-        // retained transcript plus the durable notice): re-attach once so the
-        // ChatPane installs what the server actually kept. Never a resend of
-        // any mutation.
-        if (owned.kind === "managed-root") {
-          void rehydrateThreadRuntimeItemsAfterReset(owned.threadId).catch(() => undefined);
-        } else {
-          void useRemoteServersStore
-            .getState()
-            .openRemoteThread(owned.desktopId, owned.remoteId, { focus: false })
-            .catch(() => undefined);
-        }
+        // retained transcript plus the durable notice): read the history once
+        // more so the pane installs what the host actually kept. Never a
+        // resend of any mutation.
+        void rehydrateThreadRuntimeItemsAfterReset(viewThreadId).catch(() => undefined);
         return result.outcome;
       }
       case "stale":
         // Zero effect: the descriptor shown to the user is updated, and its
         // replacement is never auto-acknowledged.
         pendingAckCommandIds.delete(token);
-        recordThreadHistoryGapRead(viewThreadId, owned.authority, result.current);
+        recordThreadHistoryGapRead(viewThreadId, authority, result.current);
         return "stale";
     }
   } catch (error) {

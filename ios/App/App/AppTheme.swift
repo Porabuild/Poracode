@@ -195,7 +195,8 @@ struct PoracodeThemeRoot<Content: View>: View {
     }
       .scrollContentBackground(.hidden)
       .environment(\.poracodeTheme, theme)
-      .tint(theme.variant(for: resolvedColorScheme).accent)
+      .environment(\.poracodeAccent, theme.variant(for: resolvedColorScheme).accent)
+      .tint(Color.primary)
       .preferredColorScheme(mode.preferredColorScheme)
   }
 }

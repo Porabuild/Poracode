@@ -13,7 +13,11 @@ import {
   type RendererCrashKind,
   type RendererCrashReport,
 } from "./RendererCrashScreen";
-import { isIgnorableRejection, isIgnorableWindowError } from "./rendererGlobalErrors";
+import {
+  isAnonymousEvaluationError,
+  isIgnorableRejection,
+  isIgnorableWindowError,
+} from "./rendererGlobalErrors";
 import { reloadForStaleBuild } from "./staleBuildRecovery";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
 import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
@@ -151,6 +155,8 @@ window.addEventListener(
       event.stopImmediatePropagation();
       return;
     }
+    // Leave evaluation failures visible to the console and Sentry without unmounting the app.
+    if (isAnonymousEvaluationError(event, window.location.href)) return;
     // Sentry's Electron renderer integration already captures global errors; this only swaps UI.
     showCrash("uncaught", event.error ?? event.message, buildSource(event), { capture: false });
   },
@@ -205,7 +211,10 @@ const localeBootstrapPromise = bootstrapAppLocaleFromCache().then(() => {
 });
 
 void Promise.all([appModulePromise, providerBootstrapPromise, localeBootstrapPromise])
-  .then(([{ App }]) => {
+  .then(async ([{ App }]) => {
+    const { initializeClientDraftRecovery } =
+      await import("./state/composerDrafts/initializeRecovery");
+    await initializeClientDraftRecovery();
     logRendererBootstrap("rendering React app");
     reactRoot?.render(
       <RendererErrorBoundary captureCaughtErrors={false}>

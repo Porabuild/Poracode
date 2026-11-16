@@ -154,7 +154,7 @@ describe("finite normalized taxonomy declarations", () => {
     );
     expect(new Set(CROSSAGENT_CATALOG_NAMES)).toEqual(catalog);
     const compaction = source(
-      "renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx",
+      "renderer/components/thread/ChatPane/parts/items/contextCompactionToolCall.ts",
     );
     const keys = /COMPACTION_NAME_KEYS[^=]*= \[([\s\S]*?)\];/.exec(compaction)?.[1];
     expect(keys).toBeDefined();

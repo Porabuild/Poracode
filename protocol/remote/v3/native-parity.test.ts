@@ -58,12 +58,12 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 119,
-  procedures: 165,
+  httpRoutes: 121,
+  procedures: 179,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 12,
-  replayableEventTypes: 16,
+  replayableEventTypes: 17,
   runtimeEventTypes: 16,
 } as const;
 
@@ -267,6 +267,8 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "thread-history-item",
       "thread-history-prompts",
       "thread-history-changes",
+      "thread-transfer-command",
+      "thread-transfer-upload",
     ].map((id) => [
       id,
       [
@@ -277,15 +279,30 @@ const PLANNED_ABSENCE_TOKENS: Record<
   ),
   // Quoted procedure identifiers distinguish the new wire calls from existing UI method names.
   ...Object.fromEntries(
-    ["hexVoice", "getProviderUsage", "refreshProviderUsage", "listImportableSessions"].map(
-      (token) => [
-        token,
-        [
-          { platform: "ios" as Platform, token: `"${token}"` },
-          { platform: "android" as Platform, token: `"${token}"` },
-        ],
+    [
+      "hexVoice",
+      "getProviderUsage",
+      "refreshProviderUsage",
+      "resolveLinkMetadata",
+      "listImportableSessions",
+      "getLatestAgentVersion",
+      "resolveAgentAccount",
+      "refreshAgentStatuses",
+      "listAcpRegistry",
+      "installAcpRegistryAgent",
+      "removeAcpRegistryAgent",
+      "updateAgentBinary",
+      "updateAcpRegistryAgent",
+      "setAcpRegistryAgentAuth",
+      "authenticateAcpAgent",
+      "logoutAcpAgent",
+    ].map((token) => [
+      token,
+      [
+        { platform: "ios" as Platform, token: `"${token}"` },
+        { platform: "android" as Platform, token: `"${token}"` },
       ],
-    ),
+    ]),
   ),
   // Scoped review operations that a native platform has not wired keep their quoted wire
   // name out of that platform's tree until the ledger records the implementation.
@@ -295,6 +312,7 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "forgeGetPrCommitDiff",
       "forgeSetPrReaction",
       "forgeSubmitPrReviewDraft",
+      "ghPollPullRequests",
     ].map((token) => [
       token,
       [

@@ -163,4 +163,10 @@ struct SettingsUsageSnapshot: Codable, Equatable, Sendable {
 struct SettingsProviderUsage: Codable, Equatable, Sendable {
   let snapshots: [SettingsUsageSnapshot]
   let fromCache: Bool
+  var ringLayouts: [String: SettingsUsageRingLayout]? = nil
+}
+
+struct SettingsUsageRingLayout: Codable, Equatable, Sendable {
+  var outerWindowId: String? = nil
+  var innerWindowId: String? = nil
 }

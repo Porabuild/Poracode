@@ -1,5 +1,6 @@
 import type {
   RendererPerfEventTimingRecord,
+  RendererPerfLongAnimationFrameRecord,
   RendererPerfLongTaskRecord,
   RendererPerfSlowFrameRecord,
   RendererPerfSnapshot,
@@ -94,6 +95,12 @@ export interface SegmentedIdleSegmentEvidence {
    */
   readonly lateArrivalSamples: readonly SegmentedEventTimingSample[];
   readonly longTasks: readonly RendererPerfLongTaskRecord[];
+  /**
+   * Long animation frames in the window with script attribution, so a
+   * blocked-input verdict names the code that ran. Empty when the arm's
+   * renderer predates frame attribution or the platform lacks the API.
+   */
+  readonly longAnimationFrames?: readonly RendererPerfLongAnimationFrameRecord[];
   readonly slowFrames: readonly RendererPerfSlowFrameRecord[];
   readonly droppedEventTimings: number;
   readonly droppedLongTasks: number;

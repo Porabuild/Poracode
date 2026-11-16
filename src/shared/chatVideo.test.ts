@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { chatVideoFilePath, isChatVideoSource, readToolVideoSources } from "./chatVideo";
+import {
+  chatVideoFilePath,
+  completedToolVideoSources,
+  isChatVideoSource,
+  readToolVideoSources,
+} from "./chatVideo";
 import { rewriteMarkdownLocalImageUrls } from "./markdownLocalImages";
 
 describe("chat video references", () => {
@@ -79,5 +84,49 @@ describe("chat video references", () => {
     expect(rewriteMarkdownLocalImageUrls("[Watch](videos/demo.webm")).toBe(
       "[Watch](videos/demo.webm",
     );
+  });
+
+  it("recovers video sources from completed read tool locations when result has no resource blocks", () => {
+    expect(
+      completedToolVideoSources({
+        type: "tool_call",
+        state: "completed",
+        payload: {
+          status: "success",
+          kind: "read",
+          locations: [
+            { path: "/tmp/clip.mp4" },
+            { path: "/tmp/clip.mp4" },
+            { path: "/tmp/readme.md" },
+            { path: "/tmp/other.webm" },
+          ],
+        },
+      }),
+    ).toEqual([
+      { src: "/tmp/clip.mp4", name: "clip.mp4", mimeType: "video/mp4" },
+      { src: "/tmp/other.webm", name: "other.webm", mimeType: "video/webm" },
+    ]);
+
+    expect(
+      completedToolVideoSources({
+        type: "tool_call",
+        state: "running",
+        payload: { status: "running", kind: "read", locations: [{ path: "/tmp/clip.mp4" }] },
+      }),
+    ).toEqual([]);
+    expect(
+      completedToolVideoSources({
+        type: "tool_call",
+        state: "completed",
+        payload: { status: "error", kind: "read", locations: [{ path: "/tmp/clip.mp4" }] },
+      }),
+    ).toEqual([]);
+    expect(
+      completedToolVideoSources({
+        type: "tool_call",
+        state: "completed",
+        payload: { status: "success", kind: "edit", locations: [{ path: "/tmp/clip.mp4" }] },
+      }),
+    ).toEqual([]);
   });
 });

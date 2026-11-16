@@ -5,11 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -21,7 +16,6 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,6 +32,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.settings.SettingsOperationFailure
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.theme.PoracodeRadius
+import com.poracode.app.ui.theme.PoracodeTextStyles
+import com.poracode.app.ui.theme.PoracodeTheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun SettingsAccessBanner(
@@ -68,7 +71,7 @@ internal fun SettingsAccessBanner(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                if (!access.online) Icons.Outlined.CloudOff else Icons.Outlined.Lock,
+                if (!access.online) PoracodeIcons.CloudOff else PoracodeIcons.Lock,
                 contentDescription = null,
             )
             Text(message, style = MaterialTheme.typography.bodySmall)
@@ -82,18 +85,21 @@ internal fun SettingsSection(
     modifier: Modifier = Modifier,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    Card(modifier.fillMaxWidth()) {
-        Column(
-            Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics { heading() },
-            )
-            content()
-        }
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(PoracodeRadius.card))
+            .background(PoracodeTheme.colors.listRow)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            title,
+            style = PoracodeTextStyles.sheetTitle,
+            color = PoracodeTheme.colors.foreground,
+            modifier = Modifier.semantics { heading() },
+        )
+        content()
     }
 }
 
@@ -107,13 +113,15 @@ internal fun SettingsCard(
     modifier: Modifier = Modifier,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    Card(modifier.fillMaxWidth()) {
-        Column(
-            Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            content = content,
-        )
-    }
+    Column(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(PoracodeRadius.card))
+            .background(PoracodeTheme.colors.listRow)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        content = content,
+    )
 }
 
 @Composable
@@ -163,7 +171,7 @@ internal fun SettingsFailure(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(
-            Icons.Outlined.ErrorOutline,
+            PoracodeIcons.ErrorOutline,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.error,
         )
@@ -173,7 +181,7 @@ internal fun SettingsFailure(
             style = MaterialTheme.typography.bodyMedium,
         )
         if (onRetry != null) {
-            Button(onClick = onRetry) { Text(stringResource(R.string.settings_retry)) }
+            FilledTonalButton(onClick = onRetry) { Text(stringResource(R.string.settings_retry)) }
         }
     }
 }
@@ -198,7 +206,7 @@ internal fun SettingsMutationMessage(outcome: SettingsMutationOutcome?) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            if (error) Icons.Outlined.ErrorOutline else Icons.Outlined.Sync,
+            if (error) PoracodeIcons.ErrorOutline else PoracodeIcons.Sync,
             contentDescription = null,
             tint = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
         )
@@ -232,7 +240,7 @@ internal fun SettingsDropdownRow(
         onExpandedChange = { if (enabled) expanded = it },
         modifier = Modifier.fillMaxWidth(),
     ) {
-        OutlinedTextField(
+        PoracodeTextField(
             value = selectedLabel,
             onValueChange = {},
             readOnly = true,

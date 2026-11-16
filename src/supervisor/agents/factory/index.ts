@@ -1,4 +1,8 @@
-import { createAcpStructuredSession } from "../acp";
+import {
+  createAcpStructuredSession,
+  createSharedAcpStructuredSession,
+  shutdownSharedAcpProcesses,
+} from "../acp";
 import { AcpStructuredSession } from "../acp/session";
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import { createAcpGenericAdapter } from "../acp-generic";
@@ -115,12 +119,20 @@ export function createFactoryAdapter(): AgentAdapter {
       // droid 0.188.0, `exec --output-format acp`). Left to the advertised
       // capabilities alone it would receive none of Poracode's built-in MCP
       // servers, which are all HTTP.
-      const session = createAcpStructuredSession(command, input, {
-        assumedMcpCapabilities: { http: true },
-      });
+      const overrides = { assumedMcpCapabilities: { http: true } };
+      const session =
+        input.projectLocation.kind === "wsl"
+          ? createAcpStructuredSession(command, input, overrides)
+          : await createSharedAcpStructuredSession(
+              command,
+              input,
+              { scope: factoryDetectionSpec.kind },
+              overrides,
+            );
       if (session) attachFactorySubagentTranscripts(session, input.projectLocation);
       return session;
     },
+    shutdown: () => shutdownSharedAcpProcesses(factoryDetectionSpec.kind),
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
       await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });

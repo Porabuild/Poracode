@@ -82,6 +82,7 @@ export function installDevBridge(): void {
       return { loopback, rootCatalog, remoteServers };
     },
     loadRuntimeDiagnostics: async () => import("./state/remote"),
+    loadThreadNavigation: () => import("./actions/threadActions"),
     /** Raw Zustand stores — call `.getState()` / `.setState()` to inspect or drive any state. */
     stores: {
       update: useUpdateStore,
@@ -130,10 +131,12 @@ export function installDevBridge(): void {
         notesPanelOpen: false,
         settingsOpen: false,
         projectSettingsId: null,
+        projectSettingsSection: null,
         settingsSection: null,
         settingsAnchor: null,
         createProjectModalOpen: false,
         cloneProjectModalOpen: false,
+        remoteFolderPickerConnectionKey: null,
         gitOverlayOpen: false,
         prReviewContext: null,
         pullRequestsOverlayOpen: false,

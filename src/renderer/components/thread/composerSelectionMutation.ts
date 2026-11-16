@@ -5,6 +5,7 @@ import {
   type SelectionMutationEvent,
 } from "@/shared/selectionBinding";
 import { modelFamilyForModel } from "@/shared/modelFamilySelection";
+import { modelSelectionFor } from "@/shared/agentSelection";
 import type { SelectionBindingOwner } from "@/shared/selectionBinding.schemas";
 
 /**
@@ -92,6 +93,20 @@ export function applyComposerSelectionMutation(input: {
     ...input.effective,
     ...input.patch,
   };
+  // Independent Fast cannot survive an explicit unsupported declaration.
+  // Model-bound carriers stay untouched so meaningful legacy overrides keep
+  // their rejection path until the user replaces the selection.
+  const fastKnown =
+    input.capabilities.fastModels !== undefined ||
+    input.capabilities.fastDisabledReason !== undefined;
+  if (
+    candidate.fast === true &&
+    fastKnown &&
+    modelFamilyForModel(input.capabilities, candidate.model)?.bindings.fast !== "model" &&
+    !modelSelectionFor(input.capabilities, candidate.model).fast.available
+  ) {
+    candidate.fast = false;
+  }
   return applyThreadConfigMutation({
     previous: input.previous,
     next: candidate,

@@ -2,10 +2,9 @@ import { create } from "zustand";
 import { createFindCursorSlice, type FindCursorState } from "./findCursorSlice";
 
 /**
- * Find state for the Git diff viewer. Unlike the chat (virtualized, so matches
- * are counted from item data), the diff is fully rendered in the DOM, so the
- * controller counts matches directly from the rendered text and reports the
- * total back via {@link FindCursorState.setMatchCount}.
+ * Find state for the Git diff viewer. The controller searches patch data for
+ * deferred sections and rendered text for single-file views, then reports the
+ * total via {@link FindCursorState.setMatchCount}.
  */
 export interface GitFindState extends FindCursorState {
   isOpen: boolean;

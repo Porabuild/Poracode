@@ -1,16 +1,18 @@
 import { noteHistoryDeliveryGap } from "./historyResumeRegistry";
+import { isProjectedRemoteEntityId } from "./remoteProjection";
 
 export type RendererEventInterestKind = "terminal" | "runtime";
 
 /**
  * The renderer's retained live-event interests: the single source of truth for
- * "which threads does this window currently need live content for".
+ * "which threads does this window currently need live content for", whichever
+ * host owns each thread.
  *
- * The managed loopback intake consumes {@link snapshotRendererEventInterests}
- * for the socket's `threadItemInterests` (wire) and subscribes to changes with
- * {@link subscribeRendererEventInterests}. The legacy `setRendererEventInterests`
- * IPC publish was removed with the backend relay (A2): the loopback WS is the
- * only live-content consumer, and main no longer routes renderer content.
+ * Each host's socket is a wire consumer: it reads
+ * {@link snapshotRendererEventInterests}, selects the threads its host owns for
+ * its `threadItemInterests`, subscribes to changes with
+ * {@link subscribeRendererEventInterests}, and reports what it carries through
+ * {@link noteRendererEventInterestWireCoverage}.
  */
 export interface RendererEventInterestSnapshot {
   /** Terminal watches, sorted. Terminal delivery is `terminal-watch`-scoped,
@@ -43,6 +45,15 @@ export interface RendererEventInterestLease {
 }
 
 const RELEASE_GRACE_MS = 250;
+/**
+ * Bounded data-only wire-interest LRU for recently visited hydrated threads.
+ * Keeping up to 4 inactive recent threads subscribed on the wire (Zustand data
+ * only — zero mounted DOM/GPU panes) means switching back and forth between
+ * active threads preserves `continuous === true` and avoids round-tripping
+ * `/api/threads/:id/history` or blocking the live queue under backend load.
+ */
+export const MAX_RECENT_RUNTIME_WIRE_INTERESTS = 4;
+const recentRuntimeWireLru = new Set<string>();
 const counts: Record<RendererEventInterestKind, Map<string, number>> = {
   terminal: new Map(),
   runtime: new Map(),
@@ -57,11 +68,14 @@ const pendingReleases: Record<
 const subscribers = new Set<(snapshot: RendererEventInterestSnapshot) => void>();
 
 /**
- * The runtime ids the managed socket currently carries, as reported by the
- * wire consumer. `null` means coverage was never established or the leg is
- * down/being torn down — a retained runtime thread is then not covered.
+ * The runtime ids each host socket currently carries, as reported by its wire
+ * consumer and keyed by wire. A wire with no entry carries nothing (never
+ * established, down, or being torn down); a retained runtime thread no wire
+ * carries is not covered.
  */
-let wireCoveredRuntimeIds: ReadonlySet<string> | null = null;
+const wireCoveredRuntimeIds = new Map<string, ReadonlySet<string>>();
+/** The desktop's own managed host socket. */
+export const MANAGED_EVENT_INTEREST_WIRE = "managed";
 
 interface PublishWaiter {
   revision: number;
@@ -127,10 +141,40 @@ function markRetained(kind: RendererEventInterestKind, threadId: string, count: 
 }
 
 function buildSubscriberSnapshot(): RendererEventInterestSnapshot {
+  const activeRuntimeIds = [...counts.runtime.keys()].reverse();
+  if (recentRuntimeWireLru.size === 0) {
+    return {
+      terminalThreadIds: currentThreadIds("terminal"),
+      runtimeThreadIds: activeRuntimeIds,
+    };
+  }
+  const activeSet = new Set(activeRuntimeIds);
+  const recentIds = [...recentRuntimeWireLru].reverse().filter((id) => !activeSet.has(id));
   return {
     terminalThreadIds: currentThreadIds("terminal"),
-    runtimeThreadIds: [...counts.runtime.keys()].reverse(),
+    runtimeThreadIds: [...activeRuntimeIds, ...recentIds],
   };
+}
+
+/**
+ * Pin a recently visited hydrated thread in the bounded data-only wire-interest
+ * LRU so revisiting it keeps `continuous === true` without an HTTP snapshot read.
+ */
+export function rememberRecentRuntimeWireInterest(threadId: string): void {
+  recentRuntimeWireLru.delete(threadId);
+  recentRuntimeWireLru.add(threadId);
+  while (recentRuntimeWireLru.size > MAX_RECENT_RUNTIME_WIRE_INTERESTS) {
+    const oldest = recentRuntimeWireLru.values().next().value;
+    if (oldest === undefined) break;
+    recentRuntimeWireLru.delete(oldest);
+  }
+  void publishInterests();
+}
+
+/** Drop a thread from the recent wire-interest LRU when its cached transcript is evicted/closed. */
+export function forgetRecentRuntimeWireInterest(threadId: string): void {
+  if (!recentRuntimeWireLru.delete(threadId)) return;
+  void publishInterests(true);
 }
 
 function publishInterests(deferToNextTask = false): Promise<void> {
@@ -179,6 +223,11 @@ async function flushPublish(): Promise<void> {
   if (desiredRevision > revision) schedulePublish();
 }
 
+/** True for a thread the desktop's own managed host owns (an unprojected id). */
+export function isManagedHostEventInterest(threadId: string): boolean {
+  return !isProjectedRemoteEntityId(threadId, "thread");
+}
+
 /**
  * The current retained interests, readable without publishing. `runtimeThreadIds`
  * is priority-ordered (most recently retained first); the wire consumer applies
@@ -201,22 +250,27 @@ export function subscribeRendererEventInterests(
 }
 
 /**
- * The wire consumer (managed loopback intake) reports the bounded runtime ids
- * the socket currently carries. `null` means the leg carries nothing (down,
- * disposed, or never opened). This is the only input to the runtime half of
+ * A host socket reports the bounded runtime ids it currently carries. `null`
+ * means that wire carries nothing (down, disposed, or never opened). This is
+ * the only input to the runtime half of
  * {@link RendererEventInterestLease.continuous}; the registry itself stays
- * unaware of the wire's capacity.
+ * unaware of each wire's capacity.
  */
-export function noteRendererEventInterestWireCoverage(threadIds: readonly string[] | null): void {
+export function noteRendererEventInterestWireCoverage(
+  threadIds: readonly string[] | null,
+  wire: string = MANAGED_EVENT_INTEREST_WIRE,
+): void {
   const next = threadIds === null ? null : new Set(threadIds);
-  for (const threadId of wireCoveredRuntimeIds ?? []) {
+  for (const threadId of wireCoveredRuntimeIds.get(wire) ?? []) {
     if (!next?.has(threadId)) noteHistoryDeliveryGap(threadId);
   }
-  wireCoveredRuntimeIds = next;
+  if (next) wireCoveredRuntimeIds.set(wire, next);
+  else wireCoveredRuntimeIds.delete(wire);
 }
 
 export function isRendererRuntimeInterestWireCovered(threadId: string): boolean {
-  return wireCoveredRuntimeIds?.has(threadId) === true;
+  for (const covered of wireCoveredRuntimeIds.values()) if (covered.has(threadId)) return true;
+  return false;
 }
 
 function isContinuouslyCovered(kind: RendererEventInterestKind, threadId: string): boolean {
@@ -250,8 +304,15 @@ export function retainRendererEventInterest(
   const entries = counts[kind];
   const releaseTimers = pendingReleases[kind];
   const pendingRelease = releaseTimers.get(threadId);
-  const handOffContinuous = pendingRelease !== undefined || (entries.get(threadId) ?? 0) > 0;
+  const handOffContinuous =
+    pendingRelease !== undefined ||
+    (entries.get(threadId) ?? 0) > 0 ||
+    (kind === "runtime" && recentRuntimeWireLru.has(threadId));
   const alreadyMostRecent = lastRetainedId(kind) === threadId;
+  if (kind === "runtime" && recentRuntimeWireLru.has(threadId)) {
+    recentRuntimeWireLru.delete(threadId);
+    recentRuntimeWireLru.add(threadId);
+  }
   if (pendingRelease !== undefined) {
     clearTimeout(pendingRelease);
     releaseTimers.delete(threadId);
@@ -301,8 +362,9 @@ export function __resetRendererEventInterestsForTest(): void {
     pendingReleases[kind].clear();
     counts[kind].clear();
   }
+  recentRuntimeWireLru.clear();
   subscribers.clear();
-  wireCoveredRuntimeIds = null;
+  wireCoveredRuntimeIds.clear();
   lastNotifiedSnapshot = null;
   publishWaiters.splice(0);
   desiredRevision = 0;

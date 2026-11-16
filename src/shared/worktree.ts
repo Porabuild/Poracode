@@ -1,4 +1,9 @@
-import type { ProjectLocation, ProjectWorktreeLocation, WorktreeStorageMode } from "./contracts";
+import type {
+  GitWorktreeInfo,
+  ProjectLocation,
+  ProjectWorktreeLocation,
+  WorktreeStorageMode,
+} from "./contracts";
 import { toWslUncPath } from "./wsl";
 
 /** Sanitize a branch name into a stable directory segment. */
@@ -25,6 +30,24 @@ export function sanitizeWorktreePathSegment(value: string): string {
 export function normalizeWorktreePathForComparison(path: string, caseInsensitive: boolean): string {
   const normalized = path.replace(/\\/gu, "/").replace(/\/+$/u, "");
   return caseInsensitive ? normalized.toLowerCase() : normalized;
+}
+
+/** Follow the registered path first, or the linked branch after a worktree move. */
+export function resolveRegisteredWorktree(
+  worktrees: readonly GitWorktreeInfo[],
+  path: string,
+  branch: string | undefined,
+  caseInsensitive: boolean,
+): GitWorktreeInfo | undefined {
+  const pathKey = normalizeWorktreePathForComparison(path, caseInsensitive);
+  const atPath = worktrees.find(
+    (worktree) => normalizeWorktreePathForComparison(worktree.path, caseInsensitive) === pathKey,
+  );
+  if (atPath) return atPath;
+  if (!branch || branch === "detached") return undefined;
+  const matches = worktrees.filter((worktree) => !worktree.isMain && worktree.branch === branch);
+  // `git worktree add --force` can check the same branch out more than once.
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 /**

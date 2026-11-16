@@ -78,6 +78,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
       ghAccount: projectSchema.shape.ghAccount.unwrap().nullable().optional(),
       worktreeBaseBranch: projectSchema.shape.worktreeBaseBranch.unwrap().nullable().optional(),
       pinnedBranches: projectSchema.shape.pinnedBranches.unwrap().nullable().optional(),
+      pluginOverrides: projectSchema.shape.pluginOverrides.unwrap().nullable().optional(),
       disabled: projectSchema.shape.disabled,
     }),
   }),
@@ -635,6 +636,8 @@ export type RemoteThreadListPage = z.infer<typeof remoteThreadListPageSchema>;
 export const remoteAgentStatusesSchema = z.object({
   windows: z.array(agentStatusSchema),
   wsl: z.array(agentStatusSchema),
+  /** True while the host is still warming up provider detection (`fromCache === false`). */
+  detecting: z.boolean().optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteAgentStatuses = z.infer<typeof remoteAgentStatusesSchema>;
@@ -649,6 +652,13 @@ export const remoteAgentSlashCommandsSchema = z.object({
 export type RemoteAgentSlashCommands = z.infer<typeof remoteAgentSlashCommandsSchema>;
 
 export const remoteThreadSnapshotSchema = z.object({
+  /** Opt-in historyCache=v1 only. Unchanged payloads require the matching local cache. */
+  historyCache: z
+    .object({
+      revision: z.string().min(1).max(160),
+      unchanged: z.boolean(),
+    })
+    .optional(),
   /** Process-epoch and thread-bound cursor for independent transcript recovery. */
   runtimeResumeCursor: z.string().min(1).optional(),
   historyProjection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),

@@ -65,14 +65,6 @@ export function ChatTurnElapsedFooter(props: ChatTurnStatusProps) {
   );
 }
 
-export function ChatStatusFooter({ text }: { text: string }) {
-  return (
-    <ChatTailStatus>
-      <ChatShimmerStatus text={text} />
-    </ChatTailStatus>
-  );
-}
-
 function WorkingFor({ turn, isPaused }: { turn: TurnTiming; isPaused: boolean }) {
   if (turn.endedAt !== null) {
     return <WorkedFor startedAt={turn.startedAt} endedAt={turn.endedAt} />;

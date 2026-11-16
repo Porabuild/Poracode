@@ -3,11 +3,11 @@ import { TERMINAL_CURSOR_SYNC_V2_VERSION } from "@/shared/remote/protocol";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BrowseHostDirectoryResult } from "@/shared/contracts";
+import type { RemoteProjectCommandResponse } from "@/shared/remote";
 import {
   registerRemoteProcedureHost,
   resetRemoteProcedureRouterForTest,
 } from "@/renderer/remoteProcedureRouter";
-import { __resetTruncateRecoveryForTest } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import {
@@ -20,6 +20,8 @@ import {
   type TerminalConnectionCapabilities,
 } from "@/renderer/state/remoteServers/terminalCapabilities";
 import { persistedRemoteServersState } from "@/renderer/state/remoteServers/projectCache";
+import { pinRemoteHomeThreadWorkspace } from "@/renderer/state/remoteServers/workspaceFilings";
+import { registerRemoteHomeThreadWorkspacePin } from "@/renderer/state/slices/threadSlice";
 import { clearRemoteGitState } from "@/renderer/state/remoteServers/gitState";
 import { withRemoteProjectSync } from "@/renderer/state/remoteServers/projectSync";
 import { syncRemoteAppRows } from "@/renderer/state/remoteServers/appRows";
@@ -33,6 +35,7 @@ import {
   createSecureRemoteServersStorage,
   patchRemoteServersFields,
 } from "@/renderer/state/remoteServers/secureStorage";
+import { remotePairingStorage } from "@/renderer/state/remoteServers/storageIdentity";
 import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
 import { __resetBoundedCatalogForTest } from "@/renderer/state/remoteServers/catalog/boundedCatalogController";
 import { __resetCatalogOrderFencesForTest } from "@/renderer/state/remoteServers/catalog/catalogOrderFence";
@@ -78,6 +81,7 @@ import {
   environmentTransportHasParent,
   remoteConnectionKey,
 } from "@/renderer/state/remoteServers/types";
+import { installPairedItemInterests } from "@/renderer/state/remoteServers/pairedItemInterests";
 import {
   certPinForDesktop,
   createPairingActions,
@@ -132,7 +136,7 @@ export function migrateRemoteServersPersistedState(
 
 export { hydrateRefreshTokens, __peekRefreshTokenForTest };
 
-const REMOTE_SERVERS_STORE_NAME = "poracode-remote-servers";
+const REMOTE_SERVERS_STORE_NAME = remotePairingStorage.name;
 
 /** Shared by every renderer realm of this origin; see secureStorage. */
 const remoteServersStorage = createSecureRemoteServersStorage<
@@ -142,6 +146,7 @@ const remoteServersStorage = createSecureRemoteServersStorage<
   excludedProjectIds: {},
   projectWorkspaceIds: {},
   explicitProjectWorkspaceIds: {},
+  homeThreadWorkspaceIds: {},
   projectNameOverrides: {},
   lastKnownProjects: {},
 }));
@@ -193,10 +198,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         setRemoteServerFailure,
         reportRemoteServerError,
         persistAccessToken,
+        restoreStoredCredentials,
         clientForServer,
         requireClient,
         directImagesFor,
         withClient,
+        disposeSessionRenewal,
         checkHostUpdateInBackground,
       } = createRemoteServerClientBindings({ set, get }, certPinForDesktop, remoteServersStorage);
       configureEnvironmentSessions({
@@ -246,16 +253,20 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       const pairing = createPairingActions({
         set,
         get,
+        setRemoteServerFailure,
         checkHostUpdateInBackground,
         startRemoteServerEventStream,
         closeRemoteServerEventSocket,
+        persistPairing: (server) => remoteServersStorage.commitPairing(server),
       });
       const session = createSessionReconnectActions({
         set,
         get,
         setRemoteServerFailure,
         clientForServer,
+        restoreStoredCredentials,
         withClient,
+        disposeSessionRenewal,
         checkHostUpdateInBackground,
         startRemoteServerEventStream,
         persistHasHydrated: () => useRemoteServersStore.persist.hasHydrated(),
@@ -281,6 +292,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         excludedProjectIds: {},
         projectWorkspaceIds: {},
         explicitProjectWorkspaceIds: {},
+        homeThreadWorkspaceIds: {},
         hostWorkspaces: {},
         projectNameOverrides: {},
         lastKnownProjects: {},
@@ -296,14 +308,17 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           set({ socketFactory: factory });
         },
 
-        launchRemoteThread: projection.launchRemoteThread,
+        loadAgentSlashCommands: projection.loadAgentSlashCommands,
         openRemoteThread: projection.openRemoteThread,
         closeRemoteThread: projection.closeRemoteThread,
         sendThreadCommand: async (desktopId, command, options = {}) => {
-          await withClient(desktopId, (client) =>
-            sendClientThreadCommand(client, command, options),
-          );
-          get().scheduleServerRefresh(desktopId);
+          try {
+            await withClient(desktopId, (client) =>
+              sendClientThreadCommand(client, command, options),
+            );
+          } finally {
+            get().scheduleServerRefresh(desktopId);
+          }
         },
 
         pairServer: pairing.pairServer,
@@ -336,16 +351,15 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         checkHostUpdate: session.checkHostUpdate,
         installHostUpdate: session.installHostUpdate,
 
-        setProjectNameOverride: (desktopId, remoteId, name) => {
-          set((state) => ({
-            projectNameOverrides: {
-              ...state.projectNameOverrides,
-              [desktopId]: {
-                ...state.projectNameOverrides[desktopId],
-                [remoteId]: name,
-              },
-            },
-          }));
+        clearProjectNameOverride: (desktopId, remoteId) => {
+          set((state) => {
+            const aliases = state.projectNameOverrides[desktopId];
+            if (!aliases || !(remoteId in aliases)) return {};
+            const { [remoteId]: _cleared, ...remaining } = aliases;
+            return {
+              projectNameOverrides: { ...state.projectNameOverrides, [desktopId]: remaining },
+            };
+          });
         },
 
         setRemoteProjectSynced: (desktopId, remoteId, synced) => {
@@ -365,19 +379,28 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // legacy response (and receives no unsupported declaration). The
           // explicit per-operation id the mode requires is minted in the
           // shared command seam, which also honors a caller's reused id.
-          await withClient(desktopId, (client) =>
-            sendClientProjectCommand(client, command, {
-              ...options,
-              ...(hostSupportsProjectCommandResultsForConnection(desktopId)
-                ? { result: "bounded" as const }
-                : {}),
-            }),
-          );
+          let response: RemoteProjectCommandResponse;
+          try {
+            response = await withClient(desktopId, (client) =>
+              sendClientProjectCommand(client, command, {
+                ...options,
+                ...(hostSupportsProjectCommandResultsForConnection(desktopId)
+                  ? { result: "bounded" as const }
+                  : {}),
+              }),
+            );
+          } catch (error) {
+            // A refused or ambiguous command still needs the catalog to
+            // converge on the host's authoritative state.
+            get().scheduleServerRefresh(desktopId);
+            throw error;
+          }
           if (command.kind === "update") {
             get().scheduleServerRefresh(desktopId);
           } else {
             await get().refreshServer(desktopId);
           }
+          return response;
         },
 
         browseHostDirectory: async (desktopId, path) => {
@@ -474,8 +497,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // valid; workspaceFilings.test covers delayed hydration and reload.
       // `explicitProjectWorkspaceIds` is additive: a document without it reads
       // as no user moves recorded, and older apps ignore the key.
-      // Token rotation updates existing bearer slots through secure storage;
+      // `homeThreadWorkspaceIds` is additive too: a v2 document without the
+      // field hydrates empty, entries are merged per full thread id, and older
+      // apps ignore the key, so the document version stays 2.
+      // Pairing persistence and token rotation reuse the bearer/refresh slots;
       // v1/v2 records and encrypted vault keys remain valid without a bump.
+      // `recentHistoryCacheId` is additive local cache metadata (no credential):
+      // records without it stay valid, gain one after their next verified
+      // connect, and older apps ignore it, so no version bump or migration.
+      // Remote Home uses the existing ids and workspace filings; v2 caches and
+      // exclusions remain valid and are reprojected without a version bump.
       version: 2,
       /**
        * v1 → v2: `connectionId` becomes the per-connection key.
@@ -491,6 +522,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         migrateRemoteServersPersistedState(persistedState, version),
     },
   ),
+);
+
+// The app store's thread slice pins paired Home filings through this late
+// binding: a static import there would cycle the app-store module graph.
+registerRemoteHomeThreadWorkspacePin(pinRemoteHomeThreadWorkspace);
+
+// Each paired socket carries the live interests panes retain for its host's threads.
+installPairedItemInterests(
+  () => useRemoteServersStore.getState().servers.map(remoteConnectionKey),
+  (connectionKey) => useRemoteServersStore.getState().runtime[connectionKey]?.status === "online",
 );
 
 registerRemoteProcedureHost({
@@ -589,7 +630,6 @@ export function __resetRemoteServersStoreForTest(): void {
   __resetCatalogMutationsCapabilityForTest();
   __resetBoundedHistoryForTest();
   __resetEventSocketRegistryForTest();
-  __resetTruncateRecoveryForTest();
   clearRemoteGitState();
   resetRemoteProcedureRouterForTest();
   __resetConnectAllForTest();

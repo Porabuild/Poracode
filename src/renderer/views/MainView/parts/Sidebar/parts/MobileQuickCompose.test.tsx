@@ -5,7 +5,9 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { MobileQuickCompose } from "./MobileQuickCompose";
 
-const launchMock = vi.hoisted(() => vi.fn<() => Promise<void>>().mockResolvedValue(undefined));
+const launchMock = vi.hoisted(() =>
+  vi.fn<() => Promise<"accepted" | "cancelled">>().mockResolvedValue("accepted"),
+);
 
 vi.mock("@/renderer/actions/threadLaunchActions", () => ({
   startThreadFromDraft: launchMock,
@@ -85,7 +87,7 @@ const projectTwo = {
 describe("MobileQuickCompose", () => {
   beforeEach(() => {
     launchMock.mockClear();
-    launchMock.mockResolvedValue(undefined);
+    launchMock.mockResolvedValue("accepted");
     useAppStore.setState({ projects: [projectOne, projectTwo] });
   });
 
@@ -151,7 +153,9 @@ describe("MobileQuickCompose", () => {
 
   it("does not replace another project's editor when an earlier launch finishes", async () => {
     let finish!: () => void;
-    launchMock.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)));
+    launchMock.mockReturnValueOnce(
+      new Promise<"accepted" | "cancelled">((resolve) => (finish = () => resolve("accepted"))),
+    );
     render(<MobileQuickCompose projectId="project-1" />);
     fireEvent.click(screen.getByRole("button", { name: "New thread" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Draft prompt" }), {
@@ -169,7 +173,9 @@ describe("MobileQuickCompose", () => {
 
   it("keeps a newer draft when the user returns to the launching project", async () => {
     let finish!: () => void;
-    launchMock.mockReturnValueOnce(new Promise<void>((resolve) => (finish = resolve)));
+    launchMock.mockReturnValueOnce(
+      new Promise<"accepted" | "cancelled">((resolve) => (finish = () => resolve("accepted"))),
+    );
     render(<MobileQuickCompose projectId="project-1" />);
     fireEvent.click(screen.getByRole("button", { name: "New thread" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Draft prompt" }), {

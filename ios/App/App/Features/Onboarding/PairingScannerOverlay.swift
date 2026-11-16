@@ -161,7 +161,7 @@ struct PairingScannerGuidanceCard: View {
       VStack(spacing: 10) {
         if let action, let actionTitle = guidance.actionTitle {
           Button(actionTitle, action: action)
-            .poracodeProminentButtonStyle()
+            .poracodeGlassButtonStyle()
             .controlSize(.large)
             .frame(maxWidth: .infinity)
             .accessibilityLabel(actionTitle)
@@ -174,7 +174,7 @@ struct PairingScannerGuidanceCard: View {
           )
           .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
+        .poracodeSurfaceButtonStyle()
         .controlSize(.large)
         .disabled(isDecodingPhoto)
         if let photoError {
@@ -184,7 +184,7 @@ struct PairingScannerGuidanceCard: View {
             .multilineTextAlignment(.center)
         }
         Button(OnboardingStrings.scanUsePairingLink, action: usePairingLink)
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .controlSize(.large)
           .frame(maxWidth: .infinity)
           .accessibilityLabel(OnboardingStrings.scanUsePairingLink)

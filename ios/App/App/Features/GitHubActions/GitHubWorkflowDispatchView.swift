@@ -95,6 +95,7 @@ struct GitHubWorkflowDispatchView: View {
           set: { values[input.name] = $0 ? "true" : "false" }
         )
       )
+      .poracodeSwitchStyle()
     } else if input.type == "choice", !input.options.isEmpty {
       Picker(input.name, selection: valueBinding(input)) {
         ForEach(input.options, id: \.self) { option in

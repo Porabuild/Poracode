@@ -42,6 +42,12 @@ import {
 import { useRevertedPromptStore } from "../../revertedPrompt";
 import { ThreadForkBoundary, ThreadForkTurnAction } from "../../ThreadForkControls";
 import { ChatItemRow } from "./items/ChatItemRow";
+import { ToolCallEntranceScope } from "./items/toolCallEntrance";
+import {
+  getCachedInlineImageDimensions,
+  inlineImageDimensionCacheKey,
+  resolveInlineImageDimensions,
+} from "./items/chatImageClass";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
@@ -49,7 +55,7 @@ import { useTimelineMeasurements } from "./useTimelineMeasurements";
 import { useNewPromptScroll } from "./useNewPromptScroll";
 import { PROMPT_FLOOR_CSS_VAR, usePromptReserveFloor } from "./usePromptReserveFloor";
 import { type HistoryStartReached } from "./underfilledHistory";
-import { useUnderfilledHistory } from "./useUnderfilledHistory";
+import { HISTORY_START_REACHED_THRESHOLD, useUnderfilledHistory } from "./useUnderfilledHistory";
 import {
   useVirtualRowMeasurement,
   type RemeasureVirtualRow,
@@ -183,16 +189,28 @@ export function MessageList({
     onNewPrompt,
     onScrollWrite: onPromptScrollWrite,
   });
-  const { notifyContentHeight, retryUnderfilledHistory, resetUnderfilledHistory } =
-    useUnderfilledHistory({
-      threadId,
-      oldestVisibleEntryId: entries[0]?.id,
-      scrollElementRef,
-      onStartReached,
-      onContentHeightChange: () => {
-        if (!newPromptReady) onContentHeightNotification?.();
-      },
-    });
+  const {
+    handleStartReached,
+    notifyContentHeight,
+    retryUnderfilledHistory,
+    resetUnderfilledHistory,
+  } = useUnderfilledHistory({
+    threadId,
+    oldestVisibleEntryId: entries[0]?.id,
+    ...(entries[0]?.kind === "tool_call_group"
+      ? {
+          oldestVisibleGroup: {
+            headId: entries[0].itemIds[0]!,
+            tailId: entries[0].itemIds.at(-1)!,
+          },
+        }
+      : {}),
+    scrollElementRef,
+    onStartReached,
+    onContentHeightChange: () => {
+      if (!newPromptReady) onContentHeightNotification?.();
+    },
+  });
   const entriesRef = useRef(entries);
   useLayoutEffect(() => {
     entriesRef.current = entries;
@@ -457,7 +475,7 @@ export function MessageList({
   );
 
   return (
-    <>
+    <ToolCallEntranceScope key={threadId} threadId={threadId}>
       <LegendList
         ref={setListRef}
         data={entries}
@@ -465,7 +483,12 @@ export function MessageList({
         estimatedItemSize={DEFAULT_ROW_ESTIMATE_PX}
         extraData={`${lastLiveIndex}:${isTurnActive}:${markTailAsLive}:${suppressInlineTurnAnchorId ?? ""}:${canRevertCheckpoints}`}
         getFixedItemSize={(entry) =>
-          getFixedTimelineEntrySize(entry, threadId, () => scrollElementRef.current?.clientWidth)
+          getFixedTimelineEntrySize(
+            entry,
+            threadId,
+            () => scrollElementRef.current?.clientWidth,
+            parentActions?.remoteImageReadiness !== undefined,
+          )
         }
         getItemType={(entry, index) =>
           getTimelineEntryType(
@@ -496,10 +519,8 @@ export function MessageList({
         {...(drawDistance !== undefined ? { drawDistance } : {})}
         {...(onStartReached
           ? {
-              onStartReached: () => {
-                void onStartReached();
-              },
-              onStartReachedThreshold: 0.75,
+              onStartReached: handleStartReached,
+              onStartReachedThreshold: HISTORY_START_REACHED_THRESHOLD,
             }
           : {})}
         recycleItems={false}
@@ -581,7 +602,7 @@ export function MessageList({
         onClose={closeRevertDialog}
         onConfirm={confirmRevert}
       />
-    </>
+    </ToolCallEntranceScope>
   );
 }
 
@@ -810,6 +831,7 @@ function getFixedTimelineEntrySize(
   entry: ChatTimelineEntry,
   threadId: string,
   readListWidth: () => number | undefined,
+  reservesPendingRemoteImages: boolean,
 ): number | undefined {
   if (entry.kind !== "item") return undefined;
   const item = selectRuntimeItemById(useAppStore.getState(), threadId, entry.id);
@@ -826,7 +848,22 @@ function getFixedTimelineEntrySize(
     unresolvedImageRefUrl,
     { pendingAsPlaceholder: true },
   );
-  if (!source?.width || !source.height) return undefined;
+  if (!source) return undefined;
+  const dimensionKey = inlineImageDimensionCacheKey(source);
+  const cached = dimensionKey ? getCachedInlineImageDimensions(dimensionKey) : undefined;
+  const dimensions = resolveInlineImageDimensions(
+    source.width,
+    source.height,
+    cached?.width,
+    cached?.height,
+  );
+  if (!dimensions) return undefined;
+  // ImageView keeps an unresolved host-held reference as a reserved card only
+  // under remote image readiness. Without it (the right-panel subagent
+  // transcript mounts outside ChatPane's actions) the row can fall back to the
+  // one-line tool row, so a fixed card height would leave a blank slot. Let
+  // LegendList measure those rows instead.
+  if (source.remoteRef && !reservesPendingRemoteImages) return undefined;
   // Ordinary message/tool rows need no geometry read at all.
   const listWidth = readListWidth();
   if (!listWidth) return undefined;
@@ -837,9 +874,9 @@ function getFixedTimelineEntrySize(
   );
   const availableWidth = Math.max(0, Math.min(listWidth, 920) - INLINE_IMAGE_HORIZONTAL_CHROME_PX);
   const renderedHeight = Math.min(
-    source.height,
+    dimensions.height,
     maxHeight,
-    (availableWidth * source.height) / source.width,
+    (availableWidth * dimensions.height) / dimensions.width,
   );
   return Math.round(renderedHeight + INLINE_IMAGE_ROW_CHROME_PX);
 }

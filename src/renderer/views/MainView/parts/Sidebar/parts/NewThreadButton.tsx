@@ -1,10 +1,11 @@
-import { useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { Columns2, Plus } from "lucide-react";
 import { useDraggable } from "@dnd-kit/react";
 import { useLingui } from "@lingui/react/macro";
 import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common/ContextMenu";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import type { DragSourceData } from "@/renderer/dnd";
+import { useClearDndEntityElementsOnUnmount } from "@/renderer/dndEntityCleanup";
 import { DraftIndicator } from "./DraftIndicator";
 
 export function NewThreadButton(props: {
@@ -19,7 +20,7 @@ export function NewThreadButton(props: {
     id: string;
     name: string;
     icon?: ReactNode;
-    description?: string;
+    trailingContent?: ReactNode;
   }[];
   onSelectProject?: (projectId: string) => void;
   /**
@@ -33,13 +34,15 @@ export function NewThreadButton(props: {
 }) {
   const { t } = useLingui();
   const newThreadRef = useRef<HTMLDivElement>(null);
-  useDraggable({
-    id: `new-thread:${props.projectId}`,
+  const dragId = useId();
+  const draggableResult = useDraggable({
+    id: `new-thread:${dragId}`,
     type: "new-thread",
     data: { type: "new-thread", projectId: props.projectId } satisfies DragSourceData,
     handle: newThreadRef,
     element: newThreadRef,
   });
+  useClearDndEntityElementsOnUnmount(draggableResult);
 
   const projectMenuItems: ContextMenuEntry[] =
     props.projectOptions && props.onSelectProject
@@ -47,7 +50,7 @@ export function NewThreadButton(props: {
           id: `new-thread-project:${project.id}`,
           label: project.name,
           ...(project.icon ? { icon: project.icon } : {}),
-          ...(project.description ? { description: project.description } : {}),
+          ...(project.trailingContent ? { trailingContent: project.trailingContent } : {}),
           // Same payload as dragging the button itself, so a row can be dropped
           // straight onto a pane target to open that project's draft there.
           dragSource: {

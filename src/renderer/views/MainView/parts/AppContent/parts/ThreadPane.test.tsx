@@ -1,15 +1,21 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { AppDndProvider } from "@/renderer/dnd";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  composerDraftStorage,
+  resetComposerDraftStorageForTest,
+} from "@/renderer/state/composerDraftStorage";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { buildPaneLayoutFromLegacy } from "@/shared/paneLayout";
 import type { Project, Thread } from "@/shared/contracts";
 import {
   PaneDropRegistryProbe,
+  PaneRegistrySnapshotProbe,
+  type PaneRegistrySnapshot,
   expectNoDisabledDraggableAncestor,
   queryDndActivatorArtifacts,
   settleDndAttributes,
@@ -27,6 +33,13 @@ const { bridge, captureFileCheckpoint, runtimeActions, layoutState } = vi.hoiste
       .fn<() => Promise<{ entries: unknown[]; totalIndexed: number }>>()
       .mockResolvedValue({ entries: [], totalIndexed: 0 }),
     dbGetThreadRuntimeItems: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+    dbGetThreadRuntimeItemsPage: vi
+      .fn<() => Promise<{ items: unknown[]; hasMoreBefore: boolean }>>()
+      .mockResolvedValue({ items: [], hasMoreBefore: false }),
+    dbGetLatestThreadGoalItem: vi.fn<() => Promise<unknown | null>>().mockResolvedValue(null),
+    listFileCheckpoints: vi
+      .fn<() => Promise<{ checkpoints: unknown[]; turns: unknown[] }>>()
+      .mockResolvedValue({ checkpoints: [], turns: [] }),
     dbGetThreadCompletedTurns: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
     dbGetThreadContextUsage: vi.fn<() => Promise<unknown | null>>().mockResolvedValue(null),
     getProviderUsage: vi.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -150,6 +163,15 @@ describe("ThreadPane drag registration accessibility", () => {
     });
   });
 
+  afterEach(async () => {
+    cleanup();
+    try {
+      await composerDraftStorage()?.flushRequired();
+    } finally {
+      resetComposerDraftStorageForTest();
+    }
+  });
+
   it("exposes a single-pane thread without drag-button semantics", async () => {
     const { container } = render(makeUi(1));
     await settleDndAttributes();
@@ -244,5 +266,126 @@ describe("ThreadPane drag registration accessibility", () => {
     expect(queryDndActivatorArtifacts(getPaneElement(container))).toEqual([]);
     expectNoDisabledDraggableAncestor(getPaneElement(container));
     await waitFor(() => expect(snapshotRef.current()).toBe("attached"));
+  });
+
+  it("unregisters prior pane entities across in-place thread switches and releases DOM on unmount", async () => {
+    const secondThread: Thread = {
+      ...THREAD,
+      id: "thread-pane-2",
+      title: "Second thread",
+      presentationMode: "gui",
+    };
+    const thirdThread: Thread = {
+      ...THREAD,
+      id: "thread-pane-3",
+      title: "Third thread",
+      presentationMode: "gui",
+    };
+    useAppStore.setState({
+      threads: [{ ...THREAD, presentationMode: "gui" }, secondThread, thirdThread],
+    });
+
+    const registryRef = {
+      current: (): PaneRegistrySnapshot => ({ draggables: [], droppables: [] }),
+    };
+
+    const slotUi = (activeThreadId: string | null) => (
+      <AppProvider>
+        <AppDndProvider
+          onSidebarSortEnd={() => undefined}
+          onPaneDrop={() => undefined}
+          onMainPanelDrop={() => undefined}
+          onPanelDockDrop={() => undefined}
+          paneLayout={buildPaneLayoutFromLegacy(
+            activeThreadId ? [activeThreadId, "peer"] : ["peer"],
+          )}
+        >
+          <PaneRegistrySnapshotProbe snapshotRef={registryRef} />
+          {activeThreadId ? (
+            <ThreadPane
+              key="pane-slot:slot-1"
+              threadId={activeThreadId}
+              paneCount={2}
+              paneAlign="center"
+              onClose={() => undefined}
+            />
+          ) : null}
+        </AppDndProvider>
+      </AppProvider>
+    );
+
+    const { container, rerender } = render(slotUi(THREAD.id));
+    await settleDndAttributes();
+    const initialPaneElement = getPaneElement(container);
+    expect(registryRef.current()).toEqual({
+      draggables: [
+        {
+          id: `pane:${THREAD.id}`,
+          hasElement: true,
+          hasHandle: true,
+          elementConnected: true,
+        },
+      ],
+      droppables: [
+        {
+          id: `pane-drop:${THREAD.id}`,
+          hasElement: true,
+          elementConnected: true,
+        },
+      ],
+    });
+
+    // Switch threadId in place on the same `pane-slot:slot-1` instance.
+    rerender(slotUi(secondThread.id));
+    await settleDndAttributes();
+    expect(getPaneElement(container)).toBe(initialPaneElement);
+    expect(registryRef.current()).toEqual({
+      draggables: [
+        {
+          id: `pane:${secondThread.id}`,
+          hasElement: true,
+          hasHandle: true,
+          elementConnected: true,
+        },
+      ],
+      droppables: [
+        {
+          id: `pane-drop:${secondThread.id}`,
+          hasElement: true,
+          elementConnected: true,
+        },
+      ],
+    });
+
+    rerender(slotUi(thirdThread.id));
+    await settleDndAttributes();
+    expect(getPaneElement(container)).toBe(initialPaneElement);
+    expect(registryRef.current()).toEqual({
+      draggables: [
+        {
+          id: `pane:${thirdThread.id}`,
+          hasElement: true,
+          hasHandle: true,
+          elementConnected: true,
+        },
+      ],
+      droppables: [
+        {
+          id: `pane-drop:${thirdThread.id}`,
+          hasElement: true,
+          elementConnected: true,
+        },
+      ],
+    });
+
+    // Unmount the pane after multiple in-place id transitions and verify zero
+    // leaked entities or detached DOM references remain in the live registry.
+    rerender(slotUi(null));
+    await settleDndAttributes();
+    expect(initialPaneElement.isConnected).toBe(false);
+    expect(registryRef.current()).toEqual({
+      draggables: [],
+      droppables: [],
+    });
   });
 });

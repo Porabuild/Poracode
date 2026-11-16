@@ -14,6 +14,7 @@ import {
   devinConfigNeedsVariantMapping,
   DevinCatalogUnavailableError,
   effectiveDevinUserConfigPath,
+  planDevinProfileMcpOverlay,
   prepareDevinProfileLaunch,
   prepareDevinProfileMcpOverlay,
   resolveDevinLaunchModel as resolveLaunchForOwner,
@@ -22,8 +23,62 @@ import {
 import { parseDevinModelCatalog } from "./models";
 import type { DevinExecutionContext } from "./profileContext";
 import type { DevinModelFamily } from "./models";
+import { devinWindowsHomePath } from "./accountRoots";
 
 const terminalOwner = { agentKind: "devin", presentationMode: "terminal" as const };
+
+it("prepares the Windows account view before auth and uses a private view for profile MCPs", async () => {
+  const root = await mkdtemp(join(tmpdir(), "devin-windows-launch-"));
+  try {
+    const context: DevinExecutionContext = {
+      instanceId: "backup",
+      label: "Devin backup",
+      binaryIdentity: "devin",
+      runtimeTarget: "local",
+      configGeneration: "fixture",
+      generation: "fixture",
+      prefixArgs: [],
+      location: { kind: "windows", path: "C:\\project" },
+      account: { kind: "isolated", ownerId: "backup" },
+      roots: {
+        configRoot: root,
+        dataRoot: root,
+        credentialsPath: join(root, "devin", "credentials.toml"),
+        nativeConfigPath: join(root, "devin", "config.json"),
+        manifestPath: join(root, "poracode-account.json"),
+      },
+      env: { APPDATA: root, USERPROFILE: devinWindowsHomePath(root) },
+      requiresConfigSeed: false,
+    };
+    await prepareDevinProfileLaunch(context);
+    const effective = join(context.env!.USERPROFILE!, "AppData", "Roaming", "devin");
+    await writeFile(join(effective, "credentials.toml"), "backup-login");
+    expect(await readFile(join(root, "devin", "credentials.toml"), "utf8")).toBe("backup-login");
+    const overlay = await prepareDevinProfileMcpOverlay(context.location, context, [
+      {
+        id: "host",
+        name: "host",
+        timeoutMs: 1000,
+        transport: { type: "stdio", command: "fixture", args: [], env: {} },
+      },
+    ]);
+    expect(overlay).toBeDefined();
+    try {
+      const overlayDevin = join(overlay!.env.USERPROFILE!, "AppData", "Roaming", "devin");
+      expect(await readFile(join(overlayDevin, "credentials.toml"), "utf8")).toBe("backup-login");
+      expect(
+        JSON.parse(await readFile(join(overlayDevin, "mcp_config.json"), "utf8")),
+      ).toMatchObject({
+        mcpServers: { host: { command: "fixture" } },
+      });
+    } finally {
+      await overlay?.cleanup();
+    }
+    expect(await readFile(join(effective, "credentials.toml"), "utf8")).toBe("backup-login");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 const resolveDevinLaunchModel = (
   families: Parameters<typeof resolveLaunchForOwner>[0],
   config: Parameters<typeof resolveLaunchForOwner>[1],
@@ -523,6 +578,69 @@ describe("private profile MCP overlay", () => {
       await expect(
         prepareDevinProfileMcpOverlay({ kind: "posix", path: "/p" }, context, []),
       ).rejects.toMatchObject({ name: "DevinProfilePolicyError" });
+    } finally {
+      await rm(base, { recursive: true, force: true });
+    }
+  });
+
+  it("plans a shared-process overlay that omits hosted servers and deletes same-named native entries", async () => {
+    const base = await mkdtemp(join(tmpdir(), "poracode-devin-plan-"));
+    try {
+      const configRoot = join(base, "account", "config");
+      await mkdir(join(configRoot, "devin"), { recursive: true });
+      await writeFile(
+        join(configRoot, "devin", "mcp_config.json"),
+        JSON.stringify({
+          mcpServers: {
+            browser: { command: "native-browser" },
+            personal: { command: "keep" },
+          },
+        }),
+      );
+      const context = {
+        env: { XDG_CONFIG_HOME: configRoot },
+        roots: {},
+      } as unknown as DevinExecutionContext;
+      const relayed = {
+        name: "fs",
+        transport: { type: "stdio" as const, command: "run" },
+      } as never;
+      const plan = await planDevinProfileMcpOverlay(
+        { kind: "posix", path: "/p" },
+        context,
+        [relayed],
+        ["browser"],
+      );
+      expect(plan).toBeDefined();
+      const materialized = await plan!.materialize();
+      const merged = JSON.parse(
+        await readFile(
+          join(materialized.env!.XDG_CONFIG_HOME!, "devin", "mcp_config.json"),
+          "utf8",
+        ),
+      );
+      // The hosted route's name cannot resolve to the account's own entry,
+      // the relayed server is injected, unrelated entries survive.
+      expect(merged.mcpServers).not.toHaveProperty("browser");
+      expect(merged.mcpServers.fs).toBeDefined();
+      expect(merged.mcpServers.personal).toEqual({ command: "keep" });
+      await materialized.cleanup();
+      // The plan key identifies the merged content: identical inputs share,
+      // different deletions do not.
+      const same = await planDevinProfileMcpOverlay(
+        { kind: "posix", path: "/p" },
+        context,
+        [relayed],
+        ["browser"],
+      );
+      expect(same!.key).toBe(plan!.key);
+      const different = await planDevinProfileMcpOverlay(
+        { kind: "posix", path: "/p" },
+        context,
+        [relayed],
+        ["browser", "personal"],
+      );
+      expect(different!.key).not.toBe(plan!.key);
     } finally {
       await rm(base, { recursive: true, force: true });
     }

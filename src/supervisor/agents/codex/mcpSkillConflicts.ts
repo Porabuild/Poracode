@@ -35,7 +35,7 @@ const BROWSER_PLUGIN_SKILL = {
   pathSegments: ["skills", "control-in-app-browser", "SKILL.md"],
 } as const;
 
-const nativeSkillConflictIo: CodexSkillConflictIo = {
+export const nativeSkillConflictIo: CodexSkillConflictIo = {
   async exists(path) {
     try {
       await stat(path);
@@ -62,7 +62,10 @@ const nativeSkillConflictIo: CodexSkillConflictIo = {
   },
 };
 
-function wslSkillConflictIo(distro: string, options?: WslFileIoOptions): CodexSkillConflictIo {
+export function wslSkillConflictIo(
+  distro: string,
+  options?: WslFileIoOptions,
+): CodexSkillConflictIo {
   return {
     exists: (path) => wslPathExists(distro, path, options),
     readDirectory: (path) => readWslDirectory(distro, path, options),
@@ -155,23 +158,26 @@ async function installedBrowserSkillPaths(
   }
 }
 
-async function codexHomePaths(
+export async function codexHomePaths(
   location: ProjectLocation,
+  env?: Record<string, string>,
 ): Promise<{ codexHome: string; projectConfigPath: string } | undefined> {
   if (location.kind !== "wsl") {
-    const codexHome = join(homedir(), ".codex");
+    const codexHome = env?.CODEX_HOME?.trim() ? env.CODEX_HOME.trim() : join(homedir(), ".codex");
     return {
       codexHome,
       projectConfigPath: join(getProjectFsPath(location), ".codex", "config.toml"),
     };
   }
   // Awaits the bounded authoritative distro probe; no synchronous UNC read.
-  const home = await resolveWslHomeDirectory(location.distro);
-  if (!home) return undefined;
-  const linuxHome = home.replace(/\/$/, "");
+  const home = env?.CODEX_HOME?.trim() ? null : await resolveWslHomeDirectory(location.distro);
+  if (!env?.CODEX_HOME?.trim() && !home) return undefined;
+  const linuxCodexHome = env?.CODEX_HOME?.trim()
+    ? env.CODEX_HOME.trim().replace(/\/$/, "")
+    : `${home!.replace(/\/$/, "")}/.codex`;
   const linuxProject = location.linuxPath.replace(/\/$/, "");
   return {
-    codexHome: `${linuxHome}/.codex`,
+    codexHome: linuxCodexHome,
     projectConfigPath: `${linuxProject}/.codex/config.toml`,
   };
 }

@@ -1,4 +1,4 @@
-import { useRef, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import {
   captureEditorSnapshot,
   restoreEditorSnapshot,
@@ -28,6 +28,8 @@ function groupForInputType(inputType: string): string | undefined {
 export interface ExternalUndoChange {
   undo(): void;
   redo(): void;
+  /** Release resources only when no retained history step can restore them. */
+  dispose?(): void;
 }
 
 /** One step of the composer's history. */
@@ -59,7 +61,14 @@ export function useComposerUndoHistory(
   const dragMoveRef = useRef(false);
 
   function history(editor: HTMLDivElement): UndoHistory<UndoStep> {
-    historyRef.current ??= createUndoHistory({ initial: captureEditorSnapshot(editor) });
+    historyRef.current ??= createUndoHistory<UndoStep>({
+      initial: captureEditorSnapshot(editor),
+      onDiscard: (step, retained) => {
+        const external = step.external;
+        if (external && !retained.some((candidate) => candidate.external === external))
+          external.dispose?.();
+      },
+    });
     return historyRef.current;
   }
 
@@ -101,7 +110,10 @@ export function useComposerUndoHistory(
 
   function commit(group?: string, external?: ExternalUndoChange) {
     const editor = editorRef.current;
-    if (!editor) return;
+    if (!editor) {
+      external?.dispose?.();
+      return;
+    }
     const snapshot = captureEditorSnapshot(editor);
     const undoHistory = history(editor);
     if (external) {
@@ -144,6 +156,16 @@ export function useComposerUndoHistory(
     run();
     commit(undefined, external);
   }
+
+  useEffect(
+    () => () => {
+      const current = historyRef.current;
+      if (!current) return;
+      const { external: _external, ...snapshot } = current.current();
+      current.reset(snapshot);
+    },
+    [],
+  );
 
   return {
     edit,

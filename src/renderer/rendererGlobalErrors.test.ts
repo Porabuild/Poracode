@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isAnonymousEvaluationError,
   isIgnorableRejection,
   isIgnorableWindowError,
   isOpaqueScriptError,
@@ -49,6 +50,76 @@ describe("rendererGlobalErrors", () => {
 
     expect(isOpaqueScriptError(event)).toBe(false);
     expect(isIgnorableWindowError(event)).toBe(false);
+  });
+
+  it.each([
+    [
+      "file:///C:/Poracode/resources/app.asar/dist/renderer/index.html",
+      "file:///C:/Poracode/resources/app.asar/dist/renderer/index.html",
+    ],
+    ["https://app.poracode.com/", "https://app.poracode.com/"],
+    ["", "http://localhost:3100/"],
+  ])("recognizes anonymous diagnostic evaluations with source %j", (filename, documentUrl) => {
+    const error = new Error("Cannot instrument shimmer writes");
+    error.stack =
+      "Error: Cannot instrument shimmer writes\n    at <anonymous>:4:67\n    at <anonymous>:10:7";
+    const event = new ErrorEvent("error", {
+      message: error.message,
+      error,
+      filename,
+      lineno: 4,
+      colno: 61,
+    });
+
+    expect(isAnonymousEvaluationError(event, documentUrl)).toBe(true);
+    // Nonfatal evaluation errors must still reach the console and diagnostics.
+    expect(isIgnorableWindowError(event)).toBe(false);
+    expect(isIgnorableRejection(error)).toBe(false);
+  });
+
+  it.each([
+    "Error: probe failed\n    at <anonymous>:4:67\n    at run (https://app.poracode.com/assets/app.js:10:7)",
+    "Error: probe failed\n    at https://app.poracode.com/:4:67",
+    "Error: probe failed\n    at eval (eval at run (https://app.poracode.com/assets/app.js:10:7), <anonymous>:4:67)",
+    "Error: probe failed",
+    undefined,
+  ])("keeps sourced or missing stacks fatal: %s", (stack) => {
+    const error = new Error("probe failed");
+    if (stack === undefined) delete error.stack;
+    else error.stack = stack;
+    const documentUrl = "https://app.poracode.com/";
+    const event = new ErrorEvent("error", {
+      error,
+      filename: documentUrl,
+      lineno: 4,
+      colno: 67,
+    });
+
+    expect(isAnonymousEvaluationError(event, documentUrl)).toBe(false);
+    expect(isAnonymousEvaluationError(new ErrorEvent("error", { error }), documentUrl)).toBe(false);
+  });
+
+  it.each(["https://app.poracode.com/assets/app.js", "chrome-extension://probe/script.js"])(
+    "keeps errors attributed to a different source fatal: %s",
+    (filename) => {
+      const error = new Error("probe failed");
+      error.stack = "Error: probe failed\n    at <anonymous>:4:67";
+      const event = new ErrorEvent("error", { error, filename });
+
+      expect(isAnonymousEvaluationError(event, "https://app.poracode.com/")).toBe(false);
+    },
+  );
+
+  it("keeps window errors without an exception fatal", () => {
+    const documentUrl = "https://app.poracode.com/";
+    const event = new ErrorEvent("error", {
+      message: "probe failed",
+      filename: documentUrl,
+      lineno: 4,
+      colno: 67,
+    });
+
+    expect(isAnonymousEvaluationError(event, documentUrl)).toBe(false);
   });
 
   it("recognizes view-transition skipped AbortError rejections", () => {

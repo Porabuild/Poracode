@@ -100,6 +100,23 @@ describe("RemoteServerPicker", () => {
     expect(within(trigger).queryByText(/^·/)).toBeNull();
   });
 
+  it("applies triggerClassName to the popover trigger wrapper", () => {
+    layout.compact = false;
+    render(
+      <RemoteServerPicker
+        value={null}
+        includeLocal
+        triggerClassName="inline-flex min-w-0 items-center"
+        onChange={vi.fn<(desktopId: string | null) => void>()}
+      />,
+    );
+
+    const trigger = screen
+      .getByRole("button", { name: "Connections" })
+      .closest(".popover__trigger");
+    expect(trigger).toHaveClass("inline-flex", "min-w-0", "items-center");
+  });
+
   it("uses the standard desktop menu and switches between remote and local machines", async () => {
     layout.compact = false;
     pickerState.servers = [

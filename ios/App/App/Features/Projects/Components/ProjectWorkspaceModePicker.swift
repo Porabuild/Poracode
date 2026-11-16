@@ -1,22 +1,33 @@
 import SwiftUI
 
 /// Native two-mode selector shared by the project workspace's compact bottom
-/// chrome. A segmented picker preserves platform selection semantics while the
-/// surrounding action strip keeps the selector centered between edge actions.
+/// chrome. The floating glass tab platter preserves platform selection
+/// semantics while the surrounding action strip keeps the selector centered
+/// between edge actions.
 struct ProjectWorkspaceModePicker: View {
   @Binding var selection: ProjectWorkspaceMode
+  var glassID: String? = nil
+  var glassNamespace: Namespace.ID? = nil
 
   var body: some View {
-    Picker(ProjectWorkspaceStrings.title, selection: $selection) {
-      Label(ProjectWorkspaceStrings.files, systemImage: "folder")
-        .tag(ProjectWorkspaceMode.files)
-      Label(ProjectWorkspaceStrings.git, systemImage: "arrow.triangle.branch")
-        .tag(ProjectWorkspaceMode.git)
-        .accessibilityIdentifier("native-e2e.workspace.git")
-    }
-    .pickerStyle(.segmented)
-    .controlSize(.large)
-    .labelsHidden()
-    .frame(maxWidth: 190, minHeight: 44, maxHeight: 44)
+    PoracodeGlassTabs(
+      title: ProjectWorkspaceStrings.title,
+      selection: $selection,
+      tabs: [
+        PoracodeGlassTab(
+          value: ProjectWorkspaceMode.files,
+          title: ProjectWorkspaceStrings.files,
+          systemImage: "folder"
+        ),
+        PoracodeGlassTab(
+          value: ProjectWorkspaceMode.git,
+          title: ProjectWorkspaceStrings.git,
+          systemImage: "arrow.triangle.branch",
+          accessibilityIdentifier: "native-e2e.workspace.git"
+        ),
+      ],
+      glassID: glassID,
+      glassNamespace: glassNamespace
+    )
   }
 }

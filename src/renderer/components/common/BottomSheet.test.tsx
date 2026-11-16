@@ -1,6 +1,6 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { useEffect, useRef, useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { BottomSheet } from "./BottomSheet";
 
@@ -122,5 +122,44 @@ describe("BottomSheet", () => {
 
     await screen.findByRole("dialog", { name: "Actions" });
     expect(document.querySelector(".m-sheet")).toHaveAttribute("data-full-screen", "true");
+  });
+
+  describe("touch reveal gate", () => {
+    afterEach(() => {
+      Reflect.deleteProperty(window.navigator, "maxTouchPoints");
+      vi.restoreAllMocks();
+    });
+
+    it("waits until Modal.Backdrop enters before enabling appear animations on touch devices", async () => {
+      Object.defineProperty(window.navigator, "maxTouchPoints", {
+        configurable: true,
+        get: () => 5,
+      });
+      const queuedFrames: FrameRequestCallback[] = [];
+      vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+        queuedFrames.push(cb);
+        return queuedFrames.length;
+      });
+      vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+
+      render(<ControlledHarness />);
+      fireEvent.click(screen.getByRole("button", { name: "Open controlled actions" }));
+
+      expect(await screen.findByRole("dialog", { name: "Controlled actions" })).toBeInTheDocument();
+      // React Aria's runAfterKeyboard holds the overlay hidden for 2 rAFs on touch
+      // devices; the sheet must not start its enter animation until revealed.
+      expect(document.querySelector(".m-sheet-backdrop")).not.toHaveAttribute("data-entered");
+
+      act(() => {
+        while (queuedFrames.length > 0) {
+          const frame = queuedFrames.shift()!;
+          frame(performance.now());
+        }
+      });
+
+      await waitFor(() =>
+        expect(document.querySelector(".m-sheet-backdrop")).toHaveAttribute("data-entered", "true"),
+      );
+    });
   });
 });

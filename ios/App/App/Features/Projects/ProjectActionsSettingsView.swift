@@ -97,7 +97,7 @@ struct ProjectActionsSettingsView: View {
     .contentMargins(.top, 0, for: .scrollContent)
     .navigationTitle(ProjectSettingsStrings.actions)
     .navigationBarTitleDisplayMode(.inline)
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       PoracodeBottomActionBar {
         PoracodeCircleButton {
           save()

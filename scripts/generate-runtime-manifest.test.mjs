@@ -102,3 +102,46 @@ void test("verifyRuntimeManifest refuses version, hash, url, and target mismatch
     /do not match the qualified artifacts/u,
   );
 });
+
+void test("format 2 pins one standalone archive per target and verifies it", async () => {
+  const { buildStandaloneRuntimeManifest, verifyStandaloneRuntimeManifest } =
+    await import("./generate-runtime-manifest.mjs");
+  const standalone = (target, letter) => ({
+    formatVersion: 1,
+    kind: "poracode-standalone-archive",
+    version: "2.1.0",
+    target,
+    archive: {
+      name: `poracode-2.1.0-${target}.${target.startsWith("win32-") ? "zip" : "tar.gz"}`,
+      sha256: letter.repeat(64),
+      bytes: 1,
+    },
+    runtime: { kind: "poracode-standalone-runtime", node: { version: "26.13.0" } },
+  });
+  const list = [standalone("linux-x64", "a"), standalone("win32-x64", "b")];
+  const base = "https://github.com/Porabuild/Poracode/releases/download/v2.1.0";
+  const manifest = buildStandaloneRuntimeManifest(list, base);
+  assert.equal(manifest.formatVersion, 2);
+  assert.deepEqual(manifest.targets["win32-x64"], {
+    url: `${base}/poracode-2.1.0-win32-x64.zip`,
+    sha256: "b".repeat(64),
+    kind: "standalone",
+    archive: "zip",
+  });
+  assert.equal(verifyStandaloneRuntimeManifest(list, manifest), true);
+  assert.throws(
+    () => buildStandaloneRuntimeManifest([...list, standalone("linux-x64", "c")], base),
+    /more than once/u,
+  );
+  const tampered = structuredClone(manifest);
+  tampered.targets["linux-x64"].sha256 = "c".repeat(64);
+  assert.throws(() => verifyStandaloneRuntimeManifest(list, tampered), /does not pin/u);
+  assert.throws(
+    () => verifyStandaloneRuntimeManifest(list, { ...manifest, formatVersion: 1 }),
+    /unsupported/u,
+  );
+  assert.throws(
+    () => verifyStandaloneRuntimeManifest([list[0]], manifest),
+    /do not match the standalone archives/u,
+  );
+});

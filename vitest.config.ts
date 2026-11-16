@@ -1,8 +1,10 @@
+import { availableParallelism } from "node:os";
 import { resolve } from "node:path";
 import { defineConfig, type TestProjectInlineConfiguration } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
 import { DurationShardSequencer } from "./src/build/durationShardSequencer.ts";
+import { FlakyTestReporter } from "./src/build/flakyTestReporter.ts";
 import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
 // Core CI shards exclude compiler fixtures in the project that collects them.
@@ -36,6 +38,29 @@ function rendererProject(
   };
 }
 
+// A single run keeps half the cores. When scripts/heavy-run-gate.mjs reports
+// peers (other worktrees running heavy tasks), split that same budget so the
+// machine is not oversubscribed. CI and ungated runs keep the plain 50%.
+const gatePeers = Number.parseInt(process.env.PORACODE_HEAVY_GATE_PEERS ?? "", 10);
+const maxWorkers =
+  !process.env.CI && gatePeers > 1
+    ? Math.max(2, Math.floor(availableParallelism() / 2 / gatePeers))
+    : "50%";
+
+// CI retries a failed test once so a timing flake cannot turn a landed commit
+// red; FlakyTestReporter turns every pass-on-retry into a warning annotation
+// and a job-summary entry. Local runs never retry.
+const ci = Boolean(process.env.CI);
+const ciReporters = ci
+  ? {
+      reporters: [
+        "default",
+        ...(process.env.GITHUB_ACTIONS === "true" ? ["github-actions"] : []),
+        new FlakyTestReporter(),
+      ],
+    }
+  : {};
+
 export default defineConfig({
   plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
@@ -44,12 +69,14 @@ export default defineConfig({
     // (mock history is cleared before each test, implementations are kept).
     clearMocks: true,
     // Leave capacity for compiler subprocesses and large JSDOM module graphs.
-    maxWorkers: "50%",
+    maxWorkers,
     // Default 5s is too tight for tests that vi.resetModules() + dynamic-import
     // under heavy parallel load. Raise to 15s so import jitter doesn't flake
     // the suite; per-test timeouts can still override.
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    retry: ci ? 1 : 0,
+    ...ciReporters,
     // `--shard` balances files by recorded CI duration instead of by count.
     sequence: { sequencer: DurationShardSequencer },
     coverage: {
@@ -65,7 +92,8 @@ export default defineConfig({
       rendererProject({
         name: "renderer",
         include: ["src/renderer/**/*.test.{ts,tsx}", "website/src/**/*.test.tsx"],
-        exclude: ["**/*.perf.test.ts", ...monacoTestFiles],
+        // Real-browser layout tests run through vitest.browser.config.ts.
+        exclude: ["**/*.perf.test.ts", "**/*.chromium.test.tsx", ...monacoTestFiles],
       }),
       rendererProject({
         name: "renderer-monaco",

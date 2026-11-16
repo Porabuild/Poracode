@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link, Surface, toast, Tooltip } from "@heroui/react";
+import { Surface, toast, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { CanonicalContentBlock, MessageItemPayload } from "@/shared/contracts";
@@ -26,14 +26,11 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
-import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { formatMessageTimestamp } from "@/renderer/utils/formatTime";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
-import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
+import { attachmentImageUrlFor } from "@/renderer/components/thread/threadImageAuthority";
 import { isRemoteSession } from "@/renderer/bridge";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
@@ -41,6 +38,7 @@ import { selectUserMessageSentAt } from "../../chatPaneSelectors";
 import { openUserMessageActions } from "../../userMessageActions";
 import { CheckpointRevertButton, type CheckpointRevertRequest } from "../CheckpointRevertControls";
 import { chatPromptSurfaceClass } from "./chatMessageSurface";
+import { ChatExternalLink } from "./ChatExternalLink";
 import { CopyTextButton } from "./CopyTextButton";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import {
@@ -90,12 +88,7 @@ export const UserMessage = memo(function UserMessage({
   const remoteServerId = useAppStore(
     (state) => state.threads.find((thread) => thread.id === threadId)?.remoteServerId,
   );
-  const imageUrlForPath = remoteServerId
-    ? (path: string) =>
-        usesBridgeThreadImages(remoteServerId)
-          ? remoteBridgeLocalImageUrl(path)
-          : useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
-    : undefined;
+  const imageUrlForPath = attachmentImageUrlFor(remoteServerId);
   // Own-host files already have a native `poracode-local://` URL. Routing them
   // through the managed image cache paints an empty slot, then swaps in a blob
   // URL once the fetch lands — the thumb flickers when a new thread's first
@@ -295,9 +288,15 @@ export const UserMessage = memo(function UserMessage({
                 }
                 const imageAttachments = attachments.filter((a) => a.isImage);
                 const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                if (idx >= 0) openAttachmentLightbox(imageAttachments, idx, imageUrlForPath);
+                if (idx >= 0)
+                  openAttachmentLightbox(
+                    imageAttachments,
+                    idx,
+                    imageUrlForPath,
+                    hostHeldAttachmentImages ? actions?.remoteImageReadiness : undefined,
+                  );
               }}
-              onPreviewPdf={(att) => openPdfPreview(att.path)}
+              onPreviewPdf={(att) => openPdfPreview(att)}
             />
           </div>
         ) : null}
@@ -465,18 +464,9 @@ function renderUserMessageUrls(text: string, keyPrefix: string): ReactNode[] {
       );
     }
     nodes.push(
-      <Link
-        key={`${keyPrefix}-url-${match.index}`}
-        href={href}
-        rel="noreferrer noopener"
-        className="text-[length:inherit] text-foreground no-underline hover:underline hover:decoration-1 underline-offset-2 [display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
-        onClick={(event) => {
-          event.preventDefault();
-          openExternalWithFeedback(href);
-        }}
-      >
+      <ChatExternalLink key={`${keyPrefix}-url-${match.index}`} href={href} resolveTitle>
         {href}
-      </Link>,
+      </ChatExternalLink>,
     );
     cursor = match.index + href.length;
   }

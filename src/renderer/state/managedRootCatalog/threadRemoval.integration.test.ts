@@ -174,9 +174,9 @@ it("opens a cold GUI thread while done worktrees are being removed, even when on
   } finally {
     cleanup.resolve();
     await vi.waitFor(() => expect(removals).toHaveLength(8));
-    await vi.waitFor(() => expect(rootThreads()).toHaveLength(1));
+    await vi.waitFor(() => expect(rootThreads()).toHaveLength(2));
     await vi.waitFor(() => expect(toastDanger).toHaveBeenCalledWith(failure));
   }
-  expect(threadRow("done-0")).toBeUndefined();
+  expect(threadRow("done-0")).toBeDefined();
   expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: ["t-1"] });
 });

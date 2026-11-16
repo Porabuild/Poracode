@@ -316,3 +316,45 @@ void test("dry-run packs the exact bytes without touching the registry", () => {
   assert.ok(calls.some((call) => call.startsWith("npm pack")));
   assert.ok(!calls.some((call) => /^npm (view|owner|whoami|publish)/u.test(call)));
 });
+
+void test("standalone inputs verify the format-2 manifest and guard the dist-tag", async () => {
+  const { buildStandaloneRuntimeManifest } = await import("./generate-runtime-manifest.mjs");
+  const { assertDistTagMatchesVersion } = await import("./publish-npm-package.mjs");
+  const root = tempDir("poracode-npm-standalone-");
+  const metadata = {
+    formatVersion: 1,
+    kind: "poracode-standalone-archive",
+    version: packageVersion,
+    target: "linux-x64",
+    archive: { name: `poracode-${packageVersion}-linux-x64.tar.gz`, sha256: sha("d"), bytes: 1 },
+    runtime: { kind: "poracode-standalone-runtime", node: { version: "26.13.0" } },
+  };
+  const standalonePath = join(root, "standalone-linux-x64.json");
+  writeFileSync(standalonePath, `${JSON.stringify(metadata)}\n`);
+  const manifestPath = join(root, "poracode-runtime-manifest.json");
+  writeFileSync(
+    manifestPath,
+    `${JSON.stringify(
+      buildStandaloneRuntimeManifest(
+        [metadata],
+        `https://github.com/Porabuild/Poracode/releases/download/v${packageVersion}`,
+      ),
+    )}\n`,
+  );
+  const inputs = verifyPublicationInputs(
+    parseArgs(["--standalone", standalonePath, "--manifest", manifestPath]),
+  );
+  assert.equal(inputs.manifest.formatVersion, 2);
+  assert.throws(
+    () =>
+      verifyPublicationInputs(
+        parseArgs(["--standalone", standalonePath, "--manifest", manifestPath, "--tag", "nightly"]),
+      ),
+    /must be published under latest/u,
+  );
+  assert.throws(
+    () => assertDistTagMatchesVersion("2.1.0-nightly.202611080110", "latest"),
+    /prerelease/u,
+  );
+  assert.doesNotThrow(() => assertDistTagMatchesVersion("2.1.0-nightly.202611080110", "nightly"));
+});

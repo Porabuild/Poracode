@@ -44,6 +44,26 @@ export function isPlanApprovalRequest(request: RuntimeRequestFormRequest): boole
   return details.toolName === "ExitPlanMode" || details.toolName === "exit_plan_mode";
 }
 
+/**
+ * The option a plan review answers with when the user wants another planning
+ * round: the provider's explicit revise/keep-planning option, else its negative
+ * one. Undefined when the request is not a plan review or offers neither, so
+ * callers can leave plan feedback off instead of guessing an approval.
+ */
+export function findPlanRevisionOption(
+  request: RuntimeRequestFormRequest,
+): UserInputOption | undefined {
+  if (!isPlanApprovalRequest(request)) return undefined;
+  const options = request.payload.options ?? [];
+  return (
+    options.find(
+      (option) =>
+        PLAN_KEEP_PLANNING_PATTERN.test(option.optionId) ||
+        PLAN_KEEP_PLANNING_PATTERN.test(option.label),
+    ) ?? options.find(isNegativeOption)
+  );
+}
+
 const APPROVAL_REQUEST_TYPES = new Set<CanonicalRequestType>([
   "command_execution_approval",
   "file_read_approval",

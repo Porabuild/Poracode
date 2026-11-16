@@ -425,7 +425,7 @@ describe("provider discovery", () => {
         name: "Ship crew",
         policy: "crew-only",
         instructions:
-          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: spawns without a role are refused.",
+          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.",
         roles: [
           {
             role: "builder",
@@ -493,13 +493,13 @@ describe("provider discovery", () => {
       "Unknown crew role: missing. Roles: builder.",
     );
     expect(await failure({ role: "builder", provider: "claude", prompt: "work" }, baseCrew)).toBe(
-      "role=builder sets provider, model, reasoning and Fast; omit them.",
+      "role=builder sets provider, model, reasoning, Fast and context length; omit them.",
     );
     expect(await failure({ role: "builder", fallbacks: [], prompt: "work" }, baseCrew)).toBe(
       "role=builder uses the role's own fallbacks; omit fallbacks.",
     );
     expect(await failure({ prompt: "work" }, baseCrew)).toBe(
-      "This thread's crew is Crew only: spawn with role=<id> (builder).",
+      "This thread's crew is Crew only: spawn with role=<id> (builder) for automatic delegation. If the user explicitly requested other agents or models, omit role and pass user_requested=true with their requested selection.",
     );
   });
 
@@ -657,20 +657,24 @@ describe("subagent tool registration", () => {
     expect(byName.get("wait_for_agent")!.inputSchema).not.toHaveProperty("oneOf");
     expect(byName.get("spawn_agent")!.inputSchema).toMatchObject({
       type: "object",
-      properties: expect.objectContaining({
+      properties: {
         prompt: expect.anything(),
+        user_requested: { type: "boolean" },
+        tasks: { items: { properties: { user_requested: { type: "boolean" } } } },
         role: {
           type: "string",
           description:
             "Crew role id from list_agents (for example `sidekick`) when this thread has a crew. The role sets provider, model, reasoning and Fast; omit those.",
         },
-        tasks: expect.anything(),
-      }),
+      },
     });
     expect(byName.get("run_workflow")!.inputSchema).toMatchObject({
       properties: {
         role: expect.anything(),
-        tasks: { items: { properties: { role: expect.anything() } } },
+        user_requested: { type: "boolean" },
+        tasks: {
+          items: { properties: { role: expect.anything(), user_requested: { type: "boolean" } } },
+        },
       },
     });
     expect(byName.get("get_agent")!.inputSchema).toMatchObject({ required: ["id"] });
@@ -689,6 +693,10 @@ describe("subagent tool registration", () => {
     });
     expect(byName.get("get_status")!.inputSchema).toMatchObject({ required: ["run_id"] });
     expect(byName.get("cancel")!.inputSchema).toMatchObject({ required: ["run_id"] });
+    const steerSchema = byName.get("steer_agent")!.inputSchema;
+    expect(steerSchema.required).toEqual(["run_id", "prompt"]);
+    expect(steerSchema.required).not.toContain("name");
+    expect(steerSchema.properties).toMatchObject({ name: { type: "string" } });
     expect(byName.get("list_agents")!.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
@@ -824,7 +832,7 @@ describe("subagent tool registration", () => {
     const byName = new Map(TOOLS.map((tool) => [tool.name, tool]));
     expect(byName.get("spawn_agent")!.description).toContain("never spawn before it");
     expect(byName.get("spawn_agent")!.description).toContain(
-      "root provider/model/reasoning/fast/permissions are batch defaults",
+      "root provider/model/reasoning/fast/permissions/role/user_requested are batch defaults",
     );
   });
 
@@ -1203,7 +1211,14 @@ describe("subagent tool registration", () => {
       ctx,
     );
     expect(JSON.parse(result.content[0]!.text)).toEqual({ run_id: "r", status: "accepted" });
-    expect(steer).toHaveBeenCalledWith("r", "focus on tests", ctx.parentThreadId, true);
+    expect(steer).toHaveBeenCalledWith(
+      "r",
+      "focus on tests",
+      ctx.parentThreadId,
+      true,
+      undefined,
+      undefined,
+    );
     expect(TOOLS.find((tool) => tool.name === "steer_agent")?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,

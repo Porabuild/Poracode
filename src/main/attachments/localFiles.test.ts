@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  truncateSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -8,6 +16,7 @@ import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
 import {
   readLocalImageFile,
+  readClientDraftFile,
   saveClipboardImageFile,
   saveHandoffContextFile,
   writeImageFile,
@@ -244,6 +253,24 @@ describe("saveClipboardImageFile", () => {
     await expect(readLocalImageFile(`file://${filePath}`)).rejects.toThrow(
       "Unsupported local image URL",
     );
+  });
+
+  it("imports exact native file bytes and refuses directories or over-limit files", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-client-draft-file-"));
+    const filePath = join(tempDir, "notes.pdf");
+    const bytes = new Uint8Array([0, 128, 255, 4]);
+    writeFileSync(filePath, bytes);
+    const url = `poracode-local://local${pathToFileURL(filePath).pathname}`;
+    await expect(readClientDraftFile(url)).resolves.toEqual(bytes);
+    await expect(readClientDraftFile(`file://${filePath}`)).rejects.toThrow("Unsupported");
+    await expect(
+      readClientDraftFile(`poracode-local://local${pathToFileURL(tempDir).pathname}`),
+    ).rejects.toThrow("size limit");
+    truncateSync(filePath, 20 * 1024 * 1024 + 1);
+    await expect(readClientDraftFile(url)).rejects.toThrow("size limit");
+    // The bounded read closed its handle after refusal, so the same path can be reused.
+    writeFileSync(filePath, bytes);
+    await expect(readClientDraftFile(url)).resolves.toEqual(bytes);
   });
 
   it("writes image bytes to a chosen absolute path", async () => {

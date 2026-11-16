@@ -86,7 +86,7 @@ struct RichChatCrewRosterSheet: View {
       .poracodeDrawerListStyle()
       .navigationTitle(crew.name.isEmpty ? RichChatStrings.crew : crew.name)
       .navigationBarTitleDisplayMode(.inline)
-      .safeAreaInset(edge: .bottom) {
+      .poracodeBottomBar {
         Text(crew.policy == "crew-first" ? RichChatStrings.crewFirst : RichChatStrings.crewOnly)
           .font(.footnote)
           .foregroundStyle(.secondary)

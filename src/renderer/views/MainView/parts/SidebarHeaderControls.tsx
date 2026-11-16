@@ -25,6 +25,7 @@ import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { hasClientCapability, isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCompactWorkspaceFilter, useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { toggleGlobalTerminal } from "@/renderer/actions/terminalActions";
 import { SidebarProjectFilter } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter";
 import { useFlatListProjectFilterModel } from "@/renderer/views/MainView/parts/Sidebar/parts/useFlatListProjectFilterModel";
@@ -33,12 +34,15 @@ import { CheckForUpdatesButton } from "@/renderer/views/MainView/parts/CheckForU
 function MobileSidebarHeaderControls(props: { connected: boolean }) {
   const { t } = useLingui();
   const projectFilter = useFlatListProjectFilterModel();
+  const workspaces = useSharedSettings((state) => state.workspaces);
+  const compactWorkspaceFilter = useCompactWorkspaceFilter();
+  const hasWorkspaceFilter = workspaces.length >= 2;
   const hasProjectFilter = projectFilter.workspaceProjects.length > 0;
-  if (!hasProjectFilter && props.connected) return null;
+  if (!hasProjectFilter && !hasWorkspaceFilter && props.connected) return null;
 
   return (
     <div className="flex items-center gap-1.5">
-      {hasProjectFilter ? (
+      {hasProjectFilter || hasWorkspaceFilter ? (
         <SidebarProjectFilter
           projects={projectFilter.workspaceProjects}
           filterableProjectIds={projectFilter.filterableProjectIds}
@@ -46,6 +50,21 @@ function MobileSidebarHeaderControls(props: { connected: boolean }) {
           value={projectFilter.activeProjectFilter}
           onChange={projectFilter.setFlatListProjectFilter}
           mobileIconTrigger
+          statusView={{
+            showDone: projectFilter.showDone,
+            doneCount: projectFilter.doneThreadCount,
+            onChange: projectFilter.setFlatListShowDone,
+          }}
+          {...(hasWorkspaceFilter
+            ? {
+                workspaceFilter: {
+                  workspaces,
+                  value: compactWorkspaceFilter,
+                  onChange: (workspaceId: string | null) =>
+                    useWorkspaceStore.getState().setCompactWorkspaceFilter(workspaceId),
+                },
+              }
+            : {})}
         />
       ) : null}
       {props.connected ? null : (

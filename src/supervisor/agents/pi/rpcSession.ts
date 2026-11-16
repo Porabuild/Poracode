@@ -9,6 +9,7 @@ import type {
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import {
+  buildAgentCommand,
   createKnownSessionRef,
   type CreateStructuredSessionInput,
   type StartTurnOptions,
@@ -181,7 +182,6 @@ export class PiRpcSession implements StructuredSessionHandle {
     if (input.projectLocation.kind === "wsl") {
       throw new Error("Pi structured chat requires a native project; use Pi terminal mode in WSL.");
     }
-    const cwd = input.projectLocation.path;
     const binary = options?.binary ?? resolveAgentBinaryPath(input.projectLocation, "pi") ?? "pi";
     const mcp = await piMcpLaunch(input.projectLocation, input.mcpServers);
 
@@ -197,12 +197,9 @@ export class PiRpcSession implements StructuredSessionHandle {
     }
     args.push(...mcp.args);
 
-    const client = PiRpcClient.spawn({
-      command: binary,
-      args,
-      cwd,
-      ...(mcp.env ? { env: mcp.env } : {}),
-    });
+    const client = PiRpcClient.spawn(
+      buildAgentCommand(input.projectLocation, "pi", args, binary, mcp.env),
+    );
     try {
       await client.spawnReady;
       return new PiRpcSession(input, client, mcp.cleanup);
@@ -429,6 +426,9 @@ export class PiRpcSession implements StructuredSessionHandle {
       case "message_update":
         this.handleMessageUpdate(event);
         break;
+      case "message_end":
+        this.handleMessageEnd(event);
+        break;
       case "tool_execution_start":
         this.handleToolStart(event);
         break;
@@ -518,6 +518,25 @@ export class PiRpcSession implements StructuredSessionHandle {
         "Pi model request failed.";
       this.turnErrorMessage ??= message;
       this.emit({ type: "error", threadId: this.input.threadId, message });
+    }
+  }
+
+  private handleMessageEnd(event: PiRpcEvent): void {
+    const message = recordOf(event.message);
+    if (message?.role !== "assistant") return;
+    // Auth and other pre-stream failures can arrive only on the final message.
+    // Wait for settlement: a later successful attempt supersedes this error.
+    if (message.stopReason === "error") {
+      this.turnErrorMessage =
+        (typeof message.errorMessage === "string" && message.errorMessage) ||
+        this.turnErrorMessage ||
+        "Pi model request failed.";
+    } else if (
+      message.stopReason === "stop" ||
+      message.stopReason === "length" ||
+      message.stopReason === "toolUse"
+    ) {
+      this.turnErrorMessage = undefined;
     }
   }
 
@@ -811,7 +830,11 @@ export class PiRpcSession implements StructuredSessionHandle {
 
   private handleExit(): void {
     if (this.disposed) return;
-    if (this.currentTurnId) this.finishTurn("cancelled");
+    // Without a Stop, a process that died mid-turn cut that turn off.
+    if (this.currentTurnId) {
+      if (!this.interruptRequested && this.turnErrorMessage) this.failTurn(this.turnErrorMessage);
+      else this.finishTurn(this.interruptRequested ? "cancelled" : "failed");
+    }
     const stderr = this.client.stderr;
     this.emit({
       type: "session.exited",

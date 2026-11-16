@@ -24,6 +24,7 @@ export function NativeAgentActionControl<Action extends NativeAgentCardAction>(p
   /** `aria-label` of the dropdown menu. */
   menuLabel: string;
   isPending: boolean;
+  isDisabled?: boolean;
   onRun: (action: Action | undefined) => void;
 }) {
   const Icon = props.icon;
@@ -35,6 +36,7 @@ export function NativeAgentActionControl<Action extends NativeAgentCardAction>(p
         size="sm"
         variant="tertiary"
         isPending={props.isPending}
+        {...(props.isDisabled !== undefined ? { isDisabled: props.isDisabled } : {})}
         onPress={() => props.onRun(action)}
       >
         {({ isPending }) => (
@@ -49,7 +51,12 @@ export function NativeAgentActionControl<Action extends NativeAgentCardAction>(p
   const actionsById = new Map(props.actions.map((action) => [action.id, action]));
   return (
     <Dropdown>
-      <Button size="sm" variant="tertiary" isPending={props.isPending}>
+      <Button
+        size="sm"
+        variant="tertiary"
+        isPending={props.isPending}
+        {...(props.isDisabled !== undefined ? { isDisabled: props.isDisabled } : {})}
+      >
         {({ isPending }) => (
           <>
             {isPending ? <PixelLoader size="xs" /> : <Icon className="size-4" />}

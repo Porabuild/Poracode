@@ -103,7 +103,7 @@ struct ProjectGitChangeRow: View {
   var body: some View {
     HStack(spacing: 10) {
       Image(systemName: symbol)
-        .foregroundStyle(change.staged ? Color.accentColor : Color.secondary)
+        .foregroundStyle(change.staged ? Color.primary : Color.secondary)
         .accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 3) {
         Text(change.path)

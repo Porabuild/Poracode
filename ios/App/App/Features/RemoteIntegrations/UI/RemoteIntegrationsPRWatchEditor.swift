@@ -57,7 +57,9 @@ struct RemoteIntegrationsPRWatchEditor: View {
 
         Section(RemoteIntegrationsStrings.automation) {
           Toggle(RemoteIntegrationsStrings.watchEnabled, isOn: $draft.watchEnabled)
+          .poracodeSwitchStyle()
           Toggle(RemoteIntegrationsStrings.autoMerge, isOn: $draft.autoMerge)
+          .poracodeSwitchStyle()
           if agents.isEmpty {
             TextField(RemoteIntegrationsStrings.agent, text: $draft.agentKind)
               .textInputAutocapitalization(.never)
@@ -103,6 +105,7 @@ struct RemoteIntegrationsPRWatchEditor: View {
             }
           }
           Toggle(RemoteIntegrationsStrings.fastMode, isOn: $draft.fast)
+          .poracodeSwitchStyle()
         }
 
         if showValidationError {

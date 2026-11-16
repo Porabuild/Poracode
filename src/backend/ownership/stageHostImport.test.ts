@@ -93,6 +93,50 @@ afterEach(() => {
 });
 
 describe("explicit offline backup staging", () => {
+  it("preserves user files inside pre-upgrade CLI runtime trees during profile import", async () => {
+    const value = fixture();
+    const version = "2.0.0-nightly.202611091529";
+    const target = "darwin-arm64";
+    const release = join(value.source, "server", "releases", version);
+    const cache = join(value.source, "runtime", version, target);
+    for (const directory of [release, cache]) {
+      mkdirSync(join(directory, "lib"), { recursive: true });
+      writeFileSync(join(directory, "lib", "server.cjs"), "old CLI binary");
+      writeFileSync(
+        join(directory, "standalone.json"),
+        JSON.stringify({ formatVersion: 1, kind: "poracode-standalone-runtime", version, target }),
+      );
+    }
+    writeFileSync(join(release, "custom-config.json"), "user config");
+    writeFileSync(
+      join(cache, ".poracode-runtime.json"),
+      JSON.stringify({
+        formatVersion: 1,
+        version,
+        target,
+        tarballSha256: "a".repeat(64),
+        entrySha256: "b".repeat(64),
+      }),
+    );
+    symlinkSync(`releases/${version}`, join(value.source, "server", "current"));
+    mkdirSync(join(value.source, "server", "backups"));
+    writeFileSync(join(value.source, "server", "backups", "keep.txt"), "user backup");
+    mkdirSync(join(value.source, "runtime", "future", "target"), { recursive: true });
+    writeFileSync(join(value.source, "runtime", "future", "target", "keep.txt"), "unknown data");
+    await importFixture(value);
+    const dest = value.lease.paths.dataRoot;
+    expect(
+      readFileSync(join(dest, "server", "releases", version, "custom-config.json"), "utf8"),
+    ).toBe("user config");
+    expect(existsSync(join(dest, "server", "current"))).toBe(true);
+    expect(existsSync(join(dest, "runtime", version, target))).toBe(true);
+    expect(readFileSync(join(dest, "server", "backups", "keep.txt"), "utf8")).toBe("user backup");
+    expect(readFileSync(join(dest, "runtime", "future", "target", "keep.txt"), "utf8")).toBe(
+      "unknown data",
+    );
+    expect(existsSync(join(value.source, "server", "releases", version))).toBe(true);
+  });
+
   it("excludes the old owner's ephemeral control credential from an otherwise valid offline backup", async () => {
     const value = fixture();
     const sourceControl = join(value.source, HOST_CONTROL_DISCOVERY_FILE);

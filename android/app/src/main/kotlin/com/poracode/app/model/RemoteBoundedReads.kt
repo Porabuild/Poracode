@@ -1,6 +1,7 @@
 package com.poracode.app.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  * Stable domain shapes for the B4 `bounded-v1` reads. The generated route
@@ -15,6 +16,12 @@ data class RemoteThreadPage(
     val nextCursor: String? = null,
     /** Present on page 1 of a non-empty inventory walk; carries the frontier copy. */
     val inventoryFrontier: String? = null,
+    /**
+     * Optional per-thread Git/PR summaries sliced to this page's rows by the
+     * host. Carried as opaque JSON and decoded through [GitStateJsonAdapter] at
+     * the boundary, matching [RemoteShellSnapshot.gitSummariesByThread].
+     */
+    val gitSummariesByThread: JsonElement? = null,
 )
 
 /** Bounded `project-list` page (paint or inventory). */

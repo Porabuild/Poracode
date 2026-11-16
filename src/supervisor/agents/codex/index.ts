@@ -287,15 +287,23 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
           ].join("\n"),
         );
       }
-      return withProfileEnv(
-        await buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions),
+      return buildCodexArgvFor(
         location,
+        config,
+        prompt,
+        sessionRef,
+        launchOptions,
+        await profileEnv(location),
       );
     },
     async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      return withProfileEnv(
-        await buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions),
+      return buildCodexArgvFor(
         location,
+        config,
+        prompt,
+        sessionRef,
+        launchOptions,
+        await profileEnv(location),
       );
     },
     extraArgsPosition: codexExtraArgsPosition,

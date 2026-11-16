@@ -1,4 +1,8 @@
 import type { PoracodeDiagnosticTags } from "./diagnostics/sentryPrivacy";
+import {
+  isBackendDiagnosticError,
+  type BackendDiagnosticError,
+} from "./diagnostics/backendDiagnosticError";
 import { CLIENT_HOST_HOP_VERSION } from "./clientHostHop";
 import type {
   ProfileCoreStats,
@@ -42,7 +46,6 @@ import type {
   SupervisorRequest,
 } from "./ipc";
 import type { ManagedLoopbackBootstrap } from "./managedLoopback";
-import type { PoracodeChannel } from "./channel";
 
 /** Increment whenever the desktop/backend-host IPC envelope becomes incompatible. */
 // Version 3 carried renderer stream sequence numbers through the Electron IPC fallback.
@@ -103,6 +106,9 @@ import type { PoracodeChannel } from "./channel";
 // payload. Previous initialize/start envelopes, including empty env, remain
 // valid; this ordering fix requires no wire-version change.
 // LAN enablement is an additive same-build desktop procedure; the hop stays compatible.
+// Optional diagnostic format 1 adds only safe causes and bundle source frames.
+// Old message-only events remain valid; old readers ignore the new detail.
+// Public remote/native contracts and persisted state do not change.
 export const BACKEND_HOST_PROTOCOL_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export const BACKEND_DATABASE_PROCEDURE_NAMES = [
@@ -275,17 +281,6 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
   getProfileIdentity: { payload: Record<string, never>; result: ProfileIdentityResponse };
   setProfileIdentity: { payload: ProfileIdentity; result: ProfileIdentityResponse };
   updateStatusChanged: { payload: { status: RemoteHostUpdateStatus | null }; result: void };
-  requestLegacyDataMigration: {
-    payload: {
-      baseDir: string;
-      channel: PoracodeChannel;
-      electronUserDataDir: string;
-      legacyElectronUserDataDir: string;
-      legacyBaseDir?: string;
-      allowCustomDataRoot: boolean;
-    };
-    result: IpcProcedureResult<"requestLegacyDataMigration">;
-  };
 }
 
 export const BACKEND_SERVICE_PROCEDURE_NAMES = [
@@ -322,7 +317,6 @@ export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   "getProfileIdentity",
   "setProfileIdentity",
   "updateStatusChanged",
-  "requestLegacyDataMigration",
 ] as const satisfies readonly (keyof BackendServiceProcedureMap)[];
 
 export type BackendServiceProcedureName = keyof BackendServiceProcedureMap;
@@ -330,10 +324,7 @@ export type BackendServiceProcedureName = keyof BackendServiceProcedureMap;
 export function isDirectRendererServiceProcedure(
   name: string,
 ): name is BackendServiceProcedureName {
-  return (
-    (BACKEND_SERVICE_PROCEDURE_NAMES as readonly string[]).includes(name) &&
-    name !== "requestLegacyDataMigration"
-  );
+  return (BACKEND_SERVICE_PROCEDURE_NAMES as readonly string[]).includes(name);
 }
 export type BackendServicePayload<Name extends BackendServiceProcedureName> =
   BackendServiceProcedureMap[Name]["payload"];
@@ -480,6 +471,7 @@ export type BackendHostOutboundMessage =
       kind: "error";
       message: string;
       tags?: PoracodeDiagnosticTags;
+      diagnostic?: BackendDiagnosticError;
     };
 
 /**
@@ -682,7 +674,10 @@ export function isBackendHostOutboundMessage(
         ].includes(message.event.type)
       );
     case "error":
-      return typeof message.message === "string";
+      return (
+        typeof message.message === "string" &&
+        (message.diagnostic === undefined || isBackendDiagnosticError(message.diagnostic))
+      );
     default:
       return false;
   }

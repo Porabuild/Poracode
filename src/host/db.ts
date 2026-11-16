@@ -1,11 +1,12 @@
 // Barrel for the host SQLite layer. The implementation lives in `./db/*`.
-// Keep module-level singleton state (the db handle, profile-data generation
-// counter, usage-events cache) inside its owning module so identity is
-// preserved across all consumers. Desktop and backend code import this barrel
-// directly; the former `src/main/db` compatibility re-exports are gone.
+// Keep module-level singleton state (the db handle and profile-data generation
+// counter) inside its owning module so identity is preserved across consumers.
+// Desktop and backend code import this barrel directly; the former
+// `src/main/db` compatibility re-exports are gone.
 
 export {
   getProfileDataGeneration,
+  getProfileUsageResetGeneration,
   bumpProfileDataGeneration,
   initDatabase,
   closeDatabase,
@@ -27,6 +28,7 @@ export {
   dbUpdateThreadMetadata,
   dbSetThreadGroup,
   dbSetThreadsDone,
+  dbTouchThreadUpdatedAt,
   dbMarkLiveThreadsInactive,
   dbDeleteThread,
   dbDeleteProject,
@@ -51,11 +53,13 @@ export type {
 } from "./db/catalogIntents";
 
 export { dbGetProjectNotes, dbSetProjectNotes } from "./db/notes";
+export { dbBeginWorktreeObservation, dbReconcileProjectWorktrees } from "./db/worktreeLinks";
 
 export {
   dbArchiveDoneThreads,
   dbSelectPurgeCandidateThreadIds,
   dbIsThreadPurgeEligible,
+  dbReclaimDeletedThreadSpace,
 } from "./db/threadHousekeeping";
 
 export { dbSyncAll, dbSyncChanges } from "./db/sync";
@@ -171,8 +175,24 @@ export {
   dbClearThreadTerminalScrollback,
 } from "./db/terminalScrollback";
 
-export { dbAppendUsageEvents, dbGetAllUsageEvents } from "./db/usageEvents";
-export type { UsageEventRow } from "./db/usageEvents";
+export {
+  CORE_USAGE_EVENT_KINDS,
+  dbAppendUsageEvents,
+  dbGetAllUsageEvents,
+  dbIterateCoreUsageEventsInRange,
+  dbIterateTokenUsageScanRowsInRange,
+  dbIterateUsageAccountRowsInRange,
+  dbQueryUsageAccountCountsUpTo,
+  dbQueryUsageEventsBounds,
+  parseUsageCostRecord,
+} from "./db/usageEvents";
+export type {
+  CoreUsageEventRow,
+  TokenUsageScanRow,
+  UsageAccountAggregateRow,
+  UsageEventRow,
+  UsageEventsBounds,
+} from "./db/usageEvents";
 
 export {
   dbClaimRemoteCommand,
@@ -299,3 +319,8 @@ export {
   type CompletedTurnRowMeta,
 } from "./db/completedTurnPages";
 export { dbMeasureLegacyHistoryCharge, dbMeasureLegacySnapshotCharge } from "./db/legacyReadCharge";
+export {
+  dbReadCommittedRuntimeItemImageBlob,
+  dbReadCommittedRuntimeItemImageRefMeta,
+  dbReadInlineImageBlobPreviewSource,
+} from "./db/runtimeInlineImageReads";

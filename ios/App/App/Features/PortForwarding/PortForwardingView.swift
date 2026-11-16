@@ -27,10 +27,16 @@ struct PortForwardingView: View {
   var body: some View {
     let projection = PortForwardingViewProjection(controller: controller, access: access)
     List {
+      // Plain footnote intro above the sections — no card, matching the mobile
+      // web / Android panel.
       Section {
         Text(PortForwardingStrings.intro)
           .font(.footnote)
           .foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .listRowBackground(Color.clear)
+          .listRowSeparator(.hidden)
+          .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
       }
 
       switch projection.gate {
@@ -55,7 +61,7 @@ struct PortForwardingView: View {
           Button(PortForwardingStrings.retry) {
             run { await controller.scan() }
           }
-          .buttonStyle(.bordered)
+          .poracodeGlassButtonStyle()
         }
       case .looking:
         Section {
@@ -76,14 +82,16 @@ struct PortForwardingView: View {
           }
         }
         if !projection.active.isEmpty {
-          Section(PortForwardingStrings.active) {
+          Section {
             ForEach(projection.active) { row in
               activeRow(row)
             }
+          } header: {
+            sectionLabel(PortForwardingStrings.active)
           }
         }
         if showDetectedSection(projection) {
-          Section(PortForwardingStrings.detected) {
+          Section {
             if projection.detected.isEmpty {
               gateState(
                 systemImage: "plug",
@@ -95,13 +103,15 @@ struct PortForwardingView: View {
                 detectedRow(row)
               }
             }
+          } header: {
+            sectionLabel(PortForwardingStrings.detected)
           }
         }
       }
     }
     .navigationTitle(PortForwardingStrings.title)
     .navigationBarTitleDisplayMode(.inline)
-    .safeAreaInset(edge: .bottom, spacing: 0) {
+    .poracodeBottomBar {
       PoracodeBottomActionBar {
         PoracodeCircleButton {
           run { await controller.scan() }
@@ -183,6 +193,15 @@ struct PortForwardingView: View {
     return port.map((1...65_535).contains) ?? false
   }
 
+  /// Uppercase muted section label above a group of rows, matching the mobile
+  /// web / Android `PoracodeSectionLabel`.
+  private func sectionLabel(_ text: String) -> some View {
+    Text(text)
+      .font(.caption.weight(.medium))
+      .foregroundStyle(.secondary)
+      .textCase(.uppercase)
+  }
+
   private func showDetectedSection(_ projection: PortForwardingViewProjection) -> Bool {
     let visible = projection.detected.filter(\.canStart)
     return !visible.isEmpty || projection.active.isEmpty
@@ -209,22 +228,51 @@ struct PortForwardingView: View {
   }
 
   private func detectedRow(_ row: PortForwardingDetectedRow) -> some View {
-    PortForwardingActionSurface {
+    Button {
+      run { await controller.start(port: row.id) }
+    } label: {
+      HStack(spacing: 12) {
+        Image(systemName: "plug")
+          .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(row.title)
+            .font(.body.weight(.medium))
+            .foregroundStyle(.primary)
+          if let subtitle = row.subtitle {
+            Text(subtitle)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+        }
+        Spacer()
+        if row.isBusy {
+          ProgressView()
+        }
+      }
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .disabled(!row.canStart || row.isBusy)
+    .accessibilityLabel(PortForwardingStrings.start)
+    .accessibilityValue(row.title)
+    .accessibilityIdentifier("port-forwarding.start.\(row.id)")
+  }
+
+  private func activeRow(_ row: PortForwardingActiveRow) -> some View {
+    HStack(spacing: 12) {
       Button {
-        run { await controller.start(port: row.id) }
+        run { await controller.open(forwardID: row.id) }
       } label: {
         HStack(spacing: 12) {
-          Image(systemName: "plug")
+          Image(systemName: "powerplug")
             .foregroundStyle(.secondary)
           VStack(alignment: .leading, spacing: 2) {
             Text(row.title)
               .font(.body.weight(.medium))
               .foregroundStyle(.primary)
-            if let subtitle = row.subtitle {
-              Text(subtitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
+            Text(row.value)
+              .font(.caption)
+              .foregroundStyle(.secondary)
           }
           Spacer()
           if row.isBusy {
@@ -234,71 +282,40 @@ struct PortForwardingView: View {
         .contentShape(Rectangle())
       }
       .buttonStyle(.plain)
-      .disabled(!row.canStart || row.isBusy)
-      .accessibilityLabel(PortForwardingStrings.start)
+      .disabled(!row.canOpen || row.isBusy)
+      .accessibilityLabel(PortForwardingStrings.open)
       .accessibilityValue(row.title)
-      .accessibilityIdentifier("port-forwarding.start.\(row.id)")
+      .accessibilityIdentifier("port-forwarding.open.\(row.id)")
+    }
+    .accessibilityIdentifier("port-forwarding.row.\(row.id)")
+    .contextMenu {
+      portForwardActions(row)
+    }
+    .accessibilityActions {
+      portForwardActions(row)
     }
   }
 
-  private func activeRow(_ row: PortForwardingActiveRow) -> some View {
-    PortForwardingActionSurface {
-      HStack(spacing: 12) {
-        Button {
-          run { await controller.open(forwardID: row.id) }
-        } label: {
-          HStack(spacing: 12) {
-            Image(systemName: "powerplug")
-              .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
-              Text(row.title)
-                .font(.body.weight(.medium))
-                .foregroundStyle(.primary)
-              Text(row.value)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if row.isBusy {
-              ProgressView()
-            }
-          }
-          .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(!row.canOpen || row.isBusy)
-        .accessibilityLabel(PortForwardingStrings.open)
-        .accessibilityValue(row.title)
-        .accessibilityIdentifier("port-forwarding.open.\(row.id)")
-
-        Menu {
-          Button {
-            run { await controller.open(forwardID: row.id) }
-          } label: {
-            Label(PortForwardingStrings.openInBrowser, systemImage: "safari")
-          }
-          .disabled(!row.canOpen || row.isBusy || !canUseBrowserEntry)
-          Button {
-            copyURL(row)
-          } label: {
-            Label(PortForwardingStrings.copyURL, systemImage: "doc.on.doc")
-          }
-          .disabled(row.isBusy || copyAddress == nil || !canUseBrowserEntry)
-          Button(role: .destructive) {
-            run { await controller.stop(forwardID: row.id) }
-          } label: {
-            Label(PortForwardingStrings.stopForwarding, systemImage: "powerplug")
-          }
-          .disabled(!row.canStop || row.isBusy)
-        } label: {
-          Image(systemName: "ellipsis")
-            .frame(width: 34, height: 34)
-            .contentShape(Rectangle())
-        }
-        .accessibilityLabel(PortForwardingStrings.actions)
-        .accessibilityIdentifier("port-forwarding.actions.\(row.id)")
-      }
+  @ViewBuilder
+  private func portForwardActions(_ row: PortForwardingActiveRow) -> some View {
+    Button {
+      run { await controller.open(forwardID: row.id) }
+    } label: {
+      Label(PortForwardingStrings.openInBrowser, systemImage: "safari")
     }
+    .disabled(!row.canOpen || row.isBusy || !canUseBrowserEntry)
+    Button {
+      copyURL(row)
+    } label: {
+      Label(PortForwardingStrings.copyURL, systemImage: "doc.on.doc")
+    }
+    .disabled(row.isBusy || copyAddress == nil || !canUseBrowserEntry)
+    Button(role: .destructive) {
+      run { await controller.stop(forwardID: row.id) }
+    } label: {
+      Label(PortForwardingStrings.stopForwarding, systemImage: "powerplug")
+    }
+    .disabled(!row.canStop || row.isBusy)
   }
 
   private func copyURL(_ row: PortForwardingActiveRow) {

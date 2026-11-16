@@ -1,5 +1,6 @@
 import { msg } from "@lingui/core/macro";
 import { create } from "zustand";
+import { purgeRecentHistoryForConnection } from "@/renderer/browser/recentHistoryCache";
 import type { EnvironmentPublicProjection } from "@/shared/environments";
 import { filterKnownRemoteAccessScopes, REMOTE_OPERATOR_SCOPES } from "@/shared/remote";
 import { RemoteClientError } from "@/shared/remote/client";
@@ -423,6 +424,8 @@ export const useEnvironmentManagementStore = create<EnvironmentManagementState>(
             record = {
               connectionId,
               desktopId: pairing.childDesktopId,
+              // Every fresh authorization gets its own cache identity.
+              recentHistoryCacheId: crypto.randomUUID(),
               label: descriptor?.label ?? existing?.label ?? pairing.childDesktopId,
               ...(descriptor?.label ? { remoteLabel: descriptor.label } : {}),
               endpoint,
@@ -438,6 +441,9 @@ export const useEnvironmentManagementStore = create<EnvironmentManagementState>(
             releaseEnvironmentChildGrant(created.childGrantSubject, created.grantOwner);
           }
           bumpRemoteServerGeneration(record.connectionId!);
+          // Reclaim only: the fresh cache id already hides earlier tails, and
+          // pairing must not wait on optional derived-cache I/O.
+          void purgeRecentHistoryForConnection(record.connectionId!);
           useRemoteServersStore.setState((previous) => ({
             servers: [
               ...previous.servers.filter(

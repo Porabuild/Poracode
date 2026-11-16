@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { WelcomeOverlay } from "./WelcomeOverlay";
 
@@ -72,5 +73,63 @@ describe("WelcomeOverlay", () => {
 
     expect(document.querySelector(".poracode-welcome-page")).toBeNull();
     expect(openDraft).toHaveBeenCalledWith(HOME_PROJECT_ID);
+  });
+
+  it("prefers the local canonical Home when a mirrored Home is listed first", () => {
+    runtime.browser = false;
+    runtime.localBackend = true;
+    const openDraft = vi.fn<() => void>();
+    useSharedSettings.setState({ homeScopeEnabled: true });
+    useAppStore.setState({
+      projects: [
+        {
+          id: `remote:studio:project:${HOME_PROJECT_ID}`,
+          name: "Studio Home",
+          location: { kind: "windows", path: "C:\\Users\\studio" },
+          remoteServerId: "studio",
+          remoteId: HOME_PROJECT_ID,
+          disabled: true,
+          createdAt: "2026-09-13T00:00:00.000Z",
+        },
+        {
+          id: HOME_PROJECT_ID,
+          name: "Home",
+          location: { kind: "posix", path: "/tmp/home" },
+          disabled: true,
+          createdAt: "2026-09-13T00:00:00.000Z",
+        },
+      ],
+      openDraft,
+    });
+    render(<WelcomeOverlay />);
+
+    fireEvent.click(screen.getByText("Ask Question"));
+    expect(openDraft).toHaveBeenCalledWith(HOME_PROJECT_ID);
+  });
+
+  it("uses a mirrored Home when no local canonical Home exists", () => {
+    runtime.browser = false;
+    runtime.localBackend = true;
+    const openDraft = vi.fn<() => void>();
+    const remoteHomeId = `remote:studio:project:${HOME_PROJECT_ID}`;
+    useSharedSettings.setState({ homeScopeEnabled: true });
+    useAppStore.setState({
+      projects: [
+        {
+          id: remoteHomeId,
+          name: "Studio Home",
+          location: { kind: "windows", path: "C:\\Users\\studio" },
+          remoteServerId: "studio",
+          remoteId: HOME_PROJECT_ID,
+          disabled: true,
+          createdAt: "2026-09-13T00:00:00.000Z",
+        },
+      ],
+      openDraft,
+    });
+    render(<WelcomeOverlay />);
+
+    fireEvent.click(screen.getByText("Ask Question"));
+    expect(openDraft).toHaveBeenCalledWith(remoteHomeId);
   });
 });

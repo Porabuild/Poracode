@@ -51,6 +51,7 @@ env:
 
 jobs:
   build:
+    name: build (${{ matrix.artifact }})
     # Pinned off macos-latest (macos-26): image 20260831.0337 breaks
     # electron-builder 26 code signing (`security set-key-partition-list`
     # fails with SecKeychainUnlock). Stay on macos-15 until upstream fixes it.
@@ -61,20 +62,42 @@ jobs:
           - os: windows-latest
             artifact: dist-windows
             platform: win
+            rust-version: 1.98.1
+            helper-targets: win32-dual
             rust-targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
             electron-cache: "~/AppData/Local/electron/Cache"
           - os: ubuntu-latest
             artifact: dist-linux
             platform: linux
+            rust-version: 1.98.1
+            helper-targets: linux-x64
             rust-targets: x86_64-unknown-linux-musl
             electron-cache: "~/.cache/electron"
           - os: macos-15
-            artifact: dist-mac
+            artifact: dist-mac-updater
             platform: mac
+            target: zip
+            app_pattern: Lightcode
+            expected_zips: 2
+            rust-version: 1.98.1
+            helper-targets: darwin-universal
+            rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
+            electron-cache: "~/Library/Caches/electron"
+          - os: macos-15
+            artifact: dist-mac-dmg
+            platform: mac
+            target: dmg
+            app_pattern: Poracode
+            expected_zips: 0
+            rust-version: 1.98.1
+            helper-targets: darwin-universal
             rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
             electron-cache: "~/Library/Caches/electron"
 
     runs-on: ${{ matrix.os }}
+    # A leg takes 10 to 15 minutes. Without a limit, a stalled notarization or
+    # upload would hold the release concurrency group for the 6-hour default.
+    timeout-minutes: 60
 
     steps:
       - name: Checkout source
@@ -89,7 +112,7 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.98.1
+          toolchain: ${{ matrix.rust-version }}
           components: rustfmt, clippy
           targets: ${{ matrix.rust-targets }}
 
@@ -98,8 +121,27 @@ jobs:
         with:
           workspaces: native/computer-use-helper
 
+      - name: Cache MCP relay Rust build
+        # A distinct prefix keeps restore-keys from ever matching the
+        # computer-use helper's cache entries.
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: native/mcp-relay
+          prefix: mcp-relay-rust
+
+      - name: Cache Git helper Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: native/git-helper
+          prefix: git-helper-rust
+
+      # Windows installs from the registry: unpacking the 1.4 GB Bun cache
+      # archive there took 3 minutes, against 80 to 100 seconds for a cold
+      # `bun install` (20 seconds with the cache restored).
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
+        with:
+          registry-cache: ${{ runner.os == 'Windows' && 'none' || 'all' }}
 
       - name: Set package version
         env:
@@ -127,6 +169,9 @@ jobs:
           # other native deps (node-pty, better-sqlite3) are still verified.
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
+      - name: Check native PTY lifecycle
+        run: node --test scripts/node-pty-lifecycle.test.mjs
+
       - name: Build app
         run: bun run build
         shell: bash
@@ -140,9 +185,87 @@ jobs:
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}
           POSTHOG_ENABLE_DEV: "0"
 
+      - name: Prepare helper cache directory
+        run: >-
+          node -e "const fs=require('node:fs');fs.mkdirSync('resources/computer-use-helper',{recursive:true});fs.mkdirSync('resources/wsl-helpers/mcp-relay',{recursive:true});fs.mkdirSync('resources/wsl-helpers/git-helper',{recursive:true})"
+        shell: bash
+
+      - name: Cache computer-use helper artifact
+        id: helper-artifact
+        uses: actions/cache@v5
+        with:
+          path: resources/computer-use-helper
+          key: computer-use-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/computer-use-helper/src/**', 'native/computer-use-helper/Cargo.toml', 'native/computer-use-helper/Cargo.lock', 'native/computer-use-helper/.cargo/config.toml', 'native/computer-use-helper/rust-toolchain.toml', 'scripts/prepare-computer-use-helper.mjs', 'scripts/lib/native-helper-prepare.mjs', 'src/shared/contracts/computerUse.ts') }}
+
+      - name: Mark restored helper current
+        if: steps.helper-artifact.outputs.cache-hit == 'true'
+        run: touch resources/computer-use-helper/*/poracode-computer-use*
+        shell: bash
+
       - name: Prepare computer-use helper
         run: node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" --require
         shell: bash
+
+      - name: Cache MCP relay artifact
+        id: mcp-relay-artifact
+        uses: actions/cache@v5
+        with:
+          path: resources/wsl-helpers/mcp-relay
+          key: mcp-relay-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/mcp-relay/src/**', 'native/mcp-relay/Cargo.toml', 'native/mcp-relay/Cargo.lock', 'native/mcp-relay/.cargo/config.toml', 'native/mcp-relay/rust-toolchain.toml', 'scripts/prepare-mcp-relay.mjs', 'scripts/lib/native-helper-prepare.mjs', 'src/supervisor/mcp/mcpToolFilterConfig.ts') }}
+
+      - name: Mark restored MCP relay current
+        if: steps.mcp-relay-artifact.outputs.cache-hit == 'true'
+        run: touch resources/wsl-helpers/mcp-relay/*/poracode-mcp-relay*
+        shell: bash
+
+      - name: Prepare MCP relay
+        run: node scripts/prepare-mcp-relay.mjs --platform "${{ matrix.platform }}" --require
+        shell: bash
+
+      - name: Upload Linux MCP relay for Windows WSL
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-relay-linux-x64
+          path: resources/wsl-helpers/mcp-relay/linux-x64/poracode-mcp-relay
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 1
+
+      - name: Stage Linux MCP relay for WSL
+        if: matrix.platform == 'win'
+        run: |
+          rm -rf resources/wsl-helpers/mcp-relay/linux-x64
+          node scripts/wait-for-run-artifact.mjs mcp-relay-linux-x64 resources/wsl-helpers/mcp-relay/linux-x64 "build / build (dist-linux)"
+          node scripts/prepare-mcp-relay.mjs --platform win --require
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Cache Git helper artifact
+        id: git-helper-artifact
+        uses: actions/cache@v5
+        with:
+          path: resources/wsl-helpers/git-helper
+          key: git-helper-v1-${{ runner.os }}-${{ matrix.platform }}-${{ matrix.rust-version }}-${{ matrix.helper-targets }}-${{ hashFiles('native/git-helper/src/**', 'native/git-helper/Cargo.toml', 'native/git-helper/Cargo.lock', 'native/git-helper/.cargo/config.toml', 'native/git-helper/rust-toolchain.toml', 'scripts/prepare-git-helper.mjs', 'scripts/lib/native-helper-prepare.mjs', 'src/supervisor/git/gitNativeHelperProtocol.ts') }}
+
+      - name: Mark restored Git helper current
+        if: steps.git-helper-artifact.outputs.cache-hit == 'true'
+        run: touch resources/wsl-helpers/git-helper/*/poracode-git-helper*
+        shell: bash
+
+      - name: Prepare Git helper
+        run: node scripts/prepare-git-helper.mjs --platform "${{ matrix.platform }}" --require
+        shell: bash
+
+      - name: Prepare locked computer use plug-in
+        if: matrix.platform == 'mac'
+        # The plug-in pins the helper's Developer ID team at build time; a
+        # release build without it would always deny, so require it here.
+        run: node scripts/prepare-locked-computer-use.mjs --require-team
+        shell: bash
+        env:
+          PORACODE_LCU_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Build the immutable SSH runtime archive
         # C3/S3: release-time preassembled SSH runtime from the same frozen
@@ -212,7 +335,7 @@ jobs:
         if: matrix.platform == 'mac'
         run: |
           bun run prepare:package-assets
-          node scripts/build-desktop-artifact.mjs --platform mac --skip-build
+          node scripts/build-desktop-artifact.mjs --platform mac --target "${{ matrix.target }}" --skip-build
         shell: bash
         env:
           PORACODE_CHANNEL: ${{ inputs.channel }}
@@ -261,6 +384,29 @@ jobs:
               exit 1
             fi
 
+            relay="$app/Contents/Resources/wsl-helpers/mcp-relay/darwin-universal/poracode-mcp-relay"
+            codesign --verify --strict --verbose=4 "$relay"
+            relay_signature="$(codesign -d --verbose=4 "$relay" 2>&1)"
+            if ! grep -q 'flags=.*runtime' <<<"$relay_signature"; then
+              echo "::error file=$relay::MCP relay is missing the hardened-runtime signature flag."
+              exit 1
+            fi
+
+            git_helper="$app/Contents/Resources/wsl-helpers/git-helper/darwin-universal/poracode-git-helper"
+            codesign --verify --strict --verbose=4 "$git_helper"
+            git_helper_signature="$(codesign -d --verbose=4 "$git_helper" 2>&1)"
+            if ! grep -q 'flags=.*runtime' <<<"$git_helper_signature"; then
+              echo "::error file=$git_helper::Git helper is missing the hardened-runtime signature flag."
+              exit 1
+            fi
+
+            plugin="$app/Contents/Resources/locked-computer-use/PoracodeLockedUse.bundle"
+            codesign --verify --strict --verbose=4 "$plugin"
+            if ! grep -q "^TeamIdentifier=${APPLE_TEAM_ID}$" <<<"$(codesign -d --verbose=4 "$plugin" 2>&1)"; then
+              echo "::error file=$plugin::Locked computer use plug-in is not signed by the expected Apple team."
+              exit 1
+            fi
+
             main_executable="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
             expected_arch="$(lipo -archs "$main_executable")"
             if [[ "$expected_arch" == *arm64* ]]; then
@@ -274,9 +420,9 @@ jobs:
             fi
           }
 
-          apps=(release/mac*/Poracode*.app)
-          if [ "${#apps[@]}" -eq 0 ]; then
-            echo "::error::No branded macOS app bundles found under release/mac*."
+          apps=(release/mac*/${{ matrix.app_pattern }}*.app)
+          if [ "${#apps[@]}" -ne 2 ]; then
+            echo "::error::Expected two macOS app bundles for ${{ matrix.target }}, found ${#apps[@]}."
             exit 1
           fi
           for app in "${apps[@]}"; do
@@ -284,10 +430,8 @@ jobs:
           done
 
           zips=(release/Poracode-*.zip)
-          if [ "${#zips[@]}" -eq 2 ]; then
-            :
-          else
-            echo "::error::Expected one updater ZIP per macOS architecture, found ${#zips[@]}."
+          if [ "${#zips[@]}" -ne "${{ matrix.expected_zips }}" ]; then
+            echo "::error::Expected ${{ matrix.expected_zips }} updater ZIPs for ${{ matrix.target }}, found ${#zips[@]}."
             exit 1
           fi
 
@@ -311,6 +455,7 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload built artifacts
+        if: matrix.target != 'dmg'
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
@@ -323,5 +468,14 @@ jobs:
             release/latest*.yml
             release/nightly*.yml
             release/*.blockmap
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload macOS DMG artifacts
+        if: matrix.target == 'dmg'
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/Poracode-*.dmg
           if-no-files-found: error
           retention-days: 7

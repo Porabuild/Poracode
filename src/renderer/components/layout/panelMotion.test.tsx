@@ -1,8 +1,9 @@
-import { createRef, type ReactNode } from "react";
+import { createRef, useEffect, useState, type ReactNode } from "react";
+import { create } from "zustand";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AsideSlot } from "@/renderer/views/MainView/parts/AppShell/parts/AsideSlot";
-import { PanelExitContent, usePanelContentDeferred } from "./panelMotion";
+import { PanelActivity, PanelExitContent, usePanelContentDeferred } from "./panelMotion";
 
 function Body() {
   return <div data-testid="body">{usePanelContentDeferred() ? "Waiting for panel" : "Ready"}</div>;
@@ -28,6 +29,83 @@ function panel(open: boolean, width = 350, children: ReactNode = <Body />) {
 afterEach(() => vi.useRealTimers());
 
 describe("panel motion", () => {
+  it("retains input and scroll state while hidden subscriptions pause and resume current data", async () => {
+    vi.useFakeTimers();
+    const store = create(() => ({ value: 1 }));
+    const renders = vi.fn<() => void>();
+    const disposed = vi.fn<() => void>();
+    function Content() {
+      const value = store((state) => state.value);
+      const [draft, setDraft] = useState("");
+      renders();
+      useEffect(() => disposed, []);
+      return (
+        <div data-testid="retained-panel">
+          <span>{value}</span>
+          <input
+            aria-label="Draft"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+          />
+        </div>
+      );
+    }
+    const view = render(
+      <PanelActivity visible>
+        <Content />
+      </PanelActivity>,
+    );
+    const input = screen.getByRole("textbox", { name: "Draft" });
+    const retainedPanel = screen.getByTestId("retained-panel");
+    fireEvent.change(input, { target: { value: "unsent" } });
+    retainedPanel.scrollTop = 73;
+    view.rerender(
+      <PanelActivity visible={false}>
+        <Content />
+      </PanelActivity>,
+    );
+    expect(retainedPanel).toBeVisible();
+    await act(() => vi.advanceTimersByTime(120));
+    expect(retainedPanel).not.toBeVisible();
+    expect(disposed).toHaveBeenCalledTimes(1);
+    renders.mockClear();
+    act(() => store.setState({ value: 2 }));
+    expect(renders).not.toHaveBeenCalled();
+    expect(retainedPanel).toHaveTextContent("1");
+    view.rerender(
+      <PanelActivity visible>
+        <Content />
+      </PanelActivity>,
+    );
+    expect(retainedPanel).toBeVisible();
+    expect(retainedPanel).toHaveTextContent("2");
+    expect(screen.getByRole("textbox", { name: "Draft" })).toBe(input);
+    expect(input).toHaveValue("unsent");
+    expect(retainedPanel.scrollTop).toBe(73);
+  });
+
+  it("cancels a pending suspension when a tab is reopened during its fade", async () => {
+    vi.useFakeTimers();
+    const view = render(
+      <PanelActivity visible>
+        <span>Panel body</span>
+      </PanelActivity>,
+    );
+    view.rerender(
+      <PanelActivity visible={false}>
+        <span>Panel body</span>
+      </PanelActivity>,
+    );
+    await act(() => vi.advanceTimersByTime(60));
+    view.rerender(
+      <PanelActivity visible>
+        <span>Panel body</span>
+      </PanelActivity>,
+    );
+    await act(() => vi.advanceTimersByTime(120));
+    expect(screen.getByText("Panel body")).toBeVisible();
+  });
+
   it("defers heavy bodies through opening, without deferring again for a resize", () => {
     const { container, rerender } = render(panel(false));
     rerender(panel(true));

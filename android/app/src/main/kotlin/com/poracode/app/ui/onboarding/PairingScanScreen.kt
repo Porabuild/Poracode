@@ -25,11 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.NoPhotography
-import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material.icons.outlined.VideocamOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -64,8 +59,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.poracode.app.R
 import com.poracode.app.protocol.PairingUrl
 import com.poracode.app.ui.components.rememberReducedMotion
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import com.poracode.app.ui.components.PoracodeAccentButton
+import com.poracode.app.ui.theme.PoracodeTheme
 
 private enum class CameraPermissionStatus {
     /** First ask in flight (or awaiting the system dialog). */
@@ -227,7 +225,7 @@ fun PairingScanScreen(
                     )
                     ScanCameraStatus.NoCamera -> NoCameraPane(onUseLinkInstead)
                     ScanCameraStatus.Failed -> ScanMessagePane(
-                        icon = Icons.Outlined.VideocamOff,
+                        icon = PoracodeIcons.VideocamOff,
                         title = stringResource(R.string.scan_camera_failed_title),
                         message = stringResource(R.string.scan_camera_failed_message),
                         primaryLabel = stringResource(R.string.scan_camera_try_again),
@@ -241,7 +239,7 @@ fun PairingScanScreen(
                 }
             }
             permission == CameraPermissionStatus.Denied -> ScanMessagePane(
-                icon = Icons.Outlined.PhotoCamera,
+                icon = PoracodeIcons.PhotoCamera,
                 title = stringResource(R.string.scan_camera_permission_denied_title),
                 message = stringResource(R.string.scan_camera_permission_denied_message),
                 primaryLabel = stringResource(R.string.scan_camera_permission_allow),
@@ -250,7 +248,7 @@ fun PairingScanScreen(
                 onUseLinkInstead = onUseLinkInstead,
             )
             permission == CameraPermissionStatus.Blocked -> ScanMessagePane(
-                icon = Icons.Outlined.PhotoCamera,
+                icon = PoracodeIcons.PhotoCamera,
                 title = stringResource(R.string.scan_camera_permission_blocked_title),
                 message = stringResource(R.string.scan_camera_permission_blocked_message),
                 primaryLabel = stringResource(R.string.scan_camera_open_settings),
@@ -259,7 +257,7 @@ fun PairingScanScreen(
                 onUseLinkInstead = onUseLinkInstead,
             )
             else -> ScanMessagePane(
-                icon = Icons.Outlined.PhotoCamera,
+                icon = PoracodeIcons.PhotoCamera,
                 title = stringResource(R.string.scan_camera_permission_title),
                 message = stringResource(R.string.scan_camera_permission_message),
                 primaryLabel = stringResource(R.string.scan_camera_permission_allow),
@@ -289,7 +287,7 @@ private fun ScanTopBar(onClose: () -> Unit, onDarkSurface: Boolean) {
             modifier = Modifier.testTag("qr_scanner_close"),
         ) {
             Icon(
-                Icons.Outlined.Close,
+                PoracodeIcons.Close,
                 contentDescription = stringResource(R.string.scan_close),
                 tint = tint,
             )
@@ -322,7 +320,7 @@ private fun StartingCameraOverlay() {
 @Composable
 private fun NoCameraPane(onUseLinkInstead: () -> Unit) {
     ScanMessagePane(
-        icon = Icons.Outlined.NoPhotography,
+        icon = PoracodeIcons.NoPhotography,
         title = stringResource(R.string.scan_no_camera_title),
         message = stringResource(R.string.scan_no_camera_message),
         primaryLabel = null,
@@ -355,7 +353,7 @@ private fun ScanMessagePane(
             icon,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = PoracodeTheme.colors.accent,
         )
         Spacer(Modifier.height(16.dp))
         Text(
@@ -373,7 +371,7 @@ private fun ScanMessagePane(
         )
         Spacer(Modifier.height(24.dp))
         if (primaryLabel != null && onPrimary != null) {
-            Button(
+            PoracodeAccentButton(
                 onClick = onPrimary,
                 modifier = Modifier.then(
                     if (primaryTestTag != null) Modifier.testTag(primaryTestTag) else Modifier,

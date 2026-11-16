@@ -65,7 +65,7 @@ test("recovers a pending question form and resolves its shared answer shape", as
       {
         id: formId("thread-1", "question-1"),
         sessionID,
-        title: "Choose a color",
+        title: "Color",
         fields: [{ key: "color", type: "string" }],
       },
     ],

@@ -12,6 +12,68 @@ afterEach(() => {
   useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeHydrationStatus: {} });
 });
 
+it("keeps automatic edge callbacks paused while an upward gesture can extend a tool group", async () => {
+  const threadId = "pending-history";
+  useAppStore.setState({ runtimeItemIdsByThread: { [threadId]: ["tool-5000", "tool-9999"] } });
+  const page = Promise.withResolvers<boolean>();
+  const onStartReached = vi
+    .fn<() => Promise<boolean>>()
+    .mockReturnValueOnce(page.promise)
+    .mockResolvedValue(false);
+  let controls!: ReturnType<typeof useUnderfilledHistory>;
+  function Reader({ headId }: { headId: string }) {
+    const ref = useRef<HTMLDivElement>(null);
+    const history = useUnderfilledHistory({
+      threadId,
+      oldestVisibleEntryId: `group:${headId}`,
+      oldestVisibleGroup: { headId, tailId: "tool-9999" },
+      scrollElementRef: ref,
+      onStartReached,
+      onContentHeightChange: undefined,
+    });
+    useLayoutEffect(() => {
+      controls = history;
+    });
+    return (
+      <div
+        ref={(element) => {
+          ref.current = element;
+          if (element)
+            Object.defineProperties(element, {
+              clientHeight: { value: 776 },
+              scrollHeight: { value: 776 },
+            });
+        }}
+      />
+    );
+  }
+  const view = render(<Reader headId="tool-5000" />);
+  expect(onStartReached).toHaveBeenCalledOnce();
+  await act(async () => {
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: ["tool-0", "tool-5000", "tool-9999"] },
+    });
+    view.rerender(<Reader headId="tool-0" />);
+  });
+  await act(async () => {
+    page.resolve(true);
+    await page.promise;
+  });
+  act(() => {
+    controls.handleStartReached();
+    controls.notifyContentHeight();
+    controls.handleStartReached();
+  });
+  expect(onStartReached).toHaveBeenCalledOnce();
+  await act(async () => {
+    controls.retryUnderfilledHistory({
+      defaultPrevented: false,
+      target: view.container.firstElementChild,
+    });
+  });
+  expect(onStartReached).toHaveBeenCalledTimes(2);
+});
+
 it("continues after collapsed rows finish committing their smaller height", async () => {
   const frames: FrameRequestCallback[] = [];
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {

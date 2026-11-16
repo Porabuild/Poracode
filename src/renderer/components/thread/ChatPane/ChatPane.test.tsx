@@ -1,6 +1,16 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { toast } from "@heroui/react";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
@@ -9,6 +19,8 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
 import { installRuntimeHistoryRecovery } from "@/renderer/state/runtimeInterestHydration";
+import * as runtimeInterestHydration from "@/renderer/state/runtimeInterestHydration";
+import { clearPendingRuntimeEvents } from "@/renderer/state/remote";
 import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
@@ -48,6 +60,7 @@ vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
   return {
     ...actual,
     hydrateThreadRuntimeItems,
+    hasHydratedThreadRuntimeItems: () => false,
     loadOlderThreadRuntimeItems,
     releaseThreadRuntimeItems,
     retainThreadRuntimeItems,
@@ -59,7 +72,12 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   finalizeFileCheckpoint,
 }));
 
-vi.mock("@/renderer/state/rendererEventInterests", () => ({ retainRendererEventInterest }));
+vi.mock("@/renderer/state/rendererEventInterests", () => ({
+  retainRendererEventInterest,
+  snapshotRendererEventInterests: () => ({ terminalThreadIds: [], runtimeThreadIds: [] }),
+  subscribeRendererEventInterests: () => () => {},
+  noteRendererEventInterestWireCoverage: () => {},
+}));
 
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");
@@ -289,6 +307,8 @@ describe("ChatPane", () => {
     }));
   });
 
+  afterEach(clearPendingRuntimeEvents);
+
   it("shows the submitted prompt while its worktree is being created", async () => {
     const thread = {
       ...makeThread(),
@@ -316,7 +336,7 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
   });
 
-  it("shows loading without a transcript error or false empty hint while hydrating", async () => {
+  it("keeps hydration silent without a transcript error or false empty hint", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({ threads: [thread] });
 
@@ -324,10 +344,11 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
     expect(screen.getByText("No messages yet")).toBeInTheDocument();
 
-    // First read in flight: the empty hint is suppressed, loading shows.
+    // First read in flight: suppress the empty hint without flashing a loader immediately.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "pending" } });
     await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
-    expect(screen.getByText("Loading messages…")).toBeInTheDocument();
+    expect(screen.queryByTestId("chat-delayed-hydration-loader")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
 
     // Failed reads are reported by the composer, never inside the transcript.
     useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "failed" } });
@@ -389,7 +410,7 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
   });
 
-  it("keeps a loaded reply and its completed timer during recovery", async () => {
+  it("keeps a reopened failed transcript hidden until recovery validates it", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -405,11 +426,16 @@ describe("ChatPane", () => {
     const uninstall = installRuntimeHistoryRecovery(recover);
     try {
       renderChatPane(thread);
-      expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
-      expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
+      expect(screen.queryByText("Previously loaded reply")).not.toBeInTheDocument();
+      expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
       expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
       await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
-      expect(screen.getByText("Previously loaded reply")).toBeInTheDocument();
+      expect(screen.queryByText("Previously loaded reply")).not.toBeInTheDocument();
+      act(() => {
+        useAppStore.getState().setRuntimeHydrationStatus(thread.id, null);
+      });
+      expect(await screen.findByText("Previously loaded reply")).toBeInTheDocument();
+      expect(screen.getByText(/^Worked for/)).toBeInTheDocument();
     } finally {
       uninstall();
     }
@@ -431,13 +457,17 @@ describe("ChatPane", () => {
         threads: [thread],
         runtimeHydrationStatus: { [thread.id]: "failed" },
       });
+      // A failed load retries through the reducer that owns the thread's queue.
+      const recover = vi.fn<(threadId: string) => void>();
+      const uninstall = installRuntimeHistoryRecovery(recover);
+      onTestFinished(uninstall);
 
       renderChatPane(thread);
 
       expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
       expect(screen.queryAllByText(/^Working for/)).toHaveLength(status === "working" ? 1 : 0);
-      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledOnce());
+      await waitFor(() => expect(recover).toHaveBeenCalledExactlyOnceWith(thread.id));
 
       act(() => {
         seedAssistantMessage(thread.id, "Recovered saved reply");
@@ -471,7 +501,7 @@ describe("ChatPane", () => {
     ["inactive", 75_000],
     ["inactive", 700],
   ] as const)(
-    "shows message loading while an %s thread's completed history is loading (%i ms turn)",
+    "keeps an %s thread's completed history loading silent (%i ms turn)",
     async (status, durationMs) => {
       const startedAt = "2026-05-01T12:00:00.000Z";
       const thread = {
@@ -487,10 +517,85 @@ describe("ChatPane", () => {
 
       renderChatPane(thread);
 
-      expect(await screen.findByText("Loading messages…")).toBeInTheDocument();
+      expect(screen.queryByText("Loading messages…")).not.toBeInTheDocument();
       expect(screen.queryByText(/^Worked for/)).not.toBeInTheDocument();
     },
   );
+
+  it("shows the delayed loading indicator only when hydration exceeds 180ms", () => {
+    vi.useFakeTimers();
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({
+      threads: [thread],
+      runtimeHydrationStatus: { [thread.id]: "pending" },
+    });
+    useAppStore.getState().setRuntimeHydrationStatus(thread.id, null);
+    useAppStore.getState().setRuntimeHydrationStatus(thread.id, "pending");
+    try {
+      renderChatPane(thread);
+      expect(screen.queryByTestId("chat-delayed-hydration-loader")).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(175);
+      });
+      expect(screen.queryByTestId("chat-delayed-hydration-loader")).not.toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(10);
+      });
+      expect(screen.getByTestId("chat-delayed-hydration-loader")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not mount an unverified resident transcript before its authoritative replacement", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread], runtimeHydrationStatus: { [thread.id]: "pending" } });
+    seedAssistantMessage(thread.id, "Stale cached answer");
+    const reader = vi
+      .spyOn(runtimeInterestHydration, "adoptRuntimeThreadReader")
+      .mockReturnValue({ ready: new Promise(() => {}), release: () => {} });
+    try {
+      renderChatPane(thread);
+      expect(screen.queryByText("Stale cached answer")).not.toBeInTheDocument();
+      act(() => {
+        useAppStore.getState().clearThreadRuntimeEvents(thread.id);
+        seedAssistantMessage(thread.id, "Authoritative final answer");
+        useAppStore.getState().setRuntimeHydrationStatus(thread.id, null);
+      });
+      expect(await screen.findByText("Authoritative final answer")).toBeInTheDocument();
+      expect(screen.queryByText("Stale cached answer")).not.toBeInTheDocument();
+    } finally {
+      reader.mockRestore();
+    }
+  });
+
+  it.each([false, true])("reveals measured history immediately for remote=%s", (remote) => {
+    const thread: Thread = {
+      ...makeThread(),
+      ...(remote ? { remoteServerId: "remote-host", remoteId: "remote-thread" } : {}),
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Measured history");
+    const height = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    const reader = vi.spyOn(runtimeInterestHydration, "adoptRuntimeThreadReader").mockReturnValue({
+      ready: Promise.resolve(),
+      release: () => {},
+    });
+    const frames = vi.spyOn(window, "requestAnimationFrame").mockReturnValue(1);
+    const onInitialScrollSettled = vi.fn<() => void>();
+    try {
+      const { container, unmount } = renderChatPane(thread, { onInitialScrollSettled });
+      expect(onInitialScrollSettled).toHaveBeenCalledOnce();
+      expect(getContentElement(getScrollElement(container))).not.toHaveClass("opacity-0");
+      unmount();
+    } finally {
+      height.mockRestore();
+      reader.mockRestore();
+      frames.mockRestore();
+    }
+  });
 
   it("waits for the initial history layout before paging at the start", async () => {
     const thread = makeThread();
@@ -2051,7 +2156,10 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     expect(screen.getByText("goal").parentElement).toHaveClass("poracode-slash-chip");
-    expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
+    expect(screen.getByRole("link", { name: "Tanstack virtual chat" })).toHaveAttribute(
+      "href",
+      url,
+    );
   });
 
   it("renders ACP skill commands with their short display name", async () => {
@@ -2100,7 +2208,7 @@ describe("ChatPane", () => {
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    fireEvent.click(screen.getByRole("link", { name: url }));
+    fireEvent.click(screen.getByRole("link", { name: "Tanstack virtual chat" }));
 
     await waitFor(() => {
       expect(toastDangerSpy).toHaveBeenCalledWith("open failed");
@@ -2656,6 +2764,133 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Worked for 0s")).not.toBeInTheDocument();
   });
 
+  it("keeps the inherited turn's worked-for line above the move boundary row", () => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: ASSISTANT_ITEM_ID,
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+        transfer: {
+          version: 1,
+          transferId: "transfer-1",
+          sourceHostLabel: "Laptop",
+          targetHostLabel: "Remote server",
+          transferredAt: "2026-05-01T12:05:00.000Z",
+        },
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+    ]);
+
+    const { container } = renderChatPane(thread);
+
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Worked for 1m 15s")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Worked for 1m 15s")).toBeLessThan(text.indexOf("Moved from"));
+    expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
+  });
+
+  it("keeps the inherited turn's worked-for line above the fork boundary row", () => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: ASSISTANT_ITEM_ID,
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+    ]);
+
+    const { container } = renderChatPane(thread);
+
+    const text = container.textContent ?? "";
+    expect(text.indexOf("Worked for 1m 15s")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("Worked for 1m 15s")).toBeLessThan(
+      text.indexOf("Inherited history ends here"),
+    );
+    expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
+  });
+
+  it("still tails a newer completed turn that follows the fork boundary", () => {
+    const thread: Thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:02:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:02:22.000Z",
+      forkedFrom: {
+        version: 1,
+        threadId: "thread-source",
+        title: "Source thread",
+        throughItemId: ASSISTANT_ITEM_ID,
+        inheritedTurnCount: 1,
+        contextStrategy: "transcript",
+      },
+    };
+    useAppStore.setState({ threads: [thread] });
+    seedAssistantMessage(thread.id, "Inherited answer");
+    completeAssistantMessage(thread.id);
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    seedAssistantMessage(thread.id, "New answer", "asst-new");
+    completeAssistantMessage(thread.id, "asst-new");
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:01:15.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+      {
+        startedAt: new Date("2026-05-01T12:02:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:02:22.000Z").getTime(),
+        anchorItemId: "asst-new",
+      },
+    ]);
+
+    const { container } = renderChatPane(thread);
+
+    const text = container.textContent ?? "";
+    expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
+    expect(screen.getAllByText("Worked for 22s")).toHaveLength(1);
+    expect(text.indexOf("Worked for 1m 15s")).toBeLessThan(
+      text.indexOf("Inherited history ends here"),
+    );
+    expect(text.indexOf("Inherited history ends here")).toBeLessThan(
+      text.indexOf("Worked for 22s"),
+    );
+  });
+
   it("waits for a base file checkpoint before finalizing a completed turn", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({ projects: [project] });
@@ -2940,7 +3175,7 @@ describe("ChatPane", () => {
         },
       },
     });
-    renderChatPane(thread, { checkpointProjectLocation: project.location });
+    renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
@@ -3339,6 +3574,7 @@ describe("ChatPane", () => {
       expect(
         within(slot).getByText("Resuming session…").closest("[data-chat-status-bubble]"),
       ).not.toBeNull();
+      expect(within(container).getByText("Worked for 1m 15s")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
       expect(within(container).queryByText(/Resuming session/)).toBeNull();
 
@@ -3349,6 +3585,32 @@ describe("ChatPane", () => {
       expect(slot).toBeEmptyDOMElement();
       expect(screen.getByText("Worked for 1m 15s")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Fork from here" })).toBeInTheDocument();
+    });
+
+    it("keeps the completed turn's duration in the transcript while resuming", () => {
+      const thread = {
+        ...makeThread(),
+        status: "idle" as const,
+        activeTurnStartedAt: undefined,
+        lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+        lastTurnEndedAt: "2026-05-01T12:01:15.000Z",
+      };
+      useAppStore.setState({
+        threads: [thread],
+        connectingThreadIds: { [thread.id]: "connection-1" },
+      });
+
+      const { container } = renderChatPane(thread);
+
+      expect(within(slot).getByText("Resuming session…")).toBeInTheDocument();
+      expect(within(container).getAllByText("Worked for 1m 15s")).toHaveLength(1);
+
+      act(() => {
+        useAppStore.getState().finishThreadConnecting(thread.id, "connection-1");
+      });
+
+      expect(slot).toBeEmptyDOMElement();
+      expect(within(container).getAllByText("Worked for 1m 15s")).toHaveLength(1);
     });
   });
 });

@@ -17,6 +17,7 @@ import type {
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type { ResourceAdmissionPeek } from "@/shared/hostResourceAdmission";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
+import type { WorktreePlacement } from "@/shared/worktree";
 import type {
   RuntimeHistoryGapAcknowledgeResult,
   RuntimeHistoryGapDescriptor,
@@ -326,6 +327,12 @@ export interface RemoteAccessServerOptions {
   readonly advertisedBaseUrl?: string;
   /** Tailscale HTTPS origin exposed alongside the LAN origin in pairing UI. */
   readonly tailscaleHttpBaseUrl?: string;
+  /**
+   * Host-owned signal for a pending public-origin update. Unknown Host/Origin
+   * requests get a retryable 503 while the listener is preparing that origin;
+   * this never adds a hostname or origin to the allowlist.
+   */
+  readonly isAdvertisedEndpointPending?: () => boolean;
   readonly pairingAppUrl?: string;
   readonly trustedCorsOrigins?: readonly string[];
   /**
@@ -507,6 +514,8 @@ export interface RemoteAccessServerOptions {
     checkpointItemId: string;
     operationKey: string;
   }): Promise<CheckpointRevertResult>;
+  /** Keep compound removal ordered against launches and checkpoint reverts. */
+  runThreadMutation?: import("@/host/supervisor/threadMutationCustody").RunThreadMutation;
   /**
    * Forwards a thread-metadata command to the desktop renderer, which owns
    * thread metadata and persists it. Returns false when no renderer window is
@@ -526,6 +535,12 @@ export interface RemoteAccessServerOptions {
    * trigger.
    */
   readonly experimentAuthority?: RemoteExperimentAuthority;
+  /**
+   * Where this host places a project's new worktrees (its own settings and the
+   * project's override). A client asking for a worktree without a placement
+   * gets this one, so every client lands worktrees where the host is set up.
+   */
+  resolveWorktreePlacement?(location: ProjectLocation): WorktreePlacement;
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
   resolveMcpLaunchSnapshot?(
     projectId: string,
@@ -683,7 +698,7 @@ export interface RemoteAccessServerOptions {
     upsert(registration: RemotePushRegistration): void;
     remove(deviceId: string, routing?: RemotePushRegistrationRouting): void;
   };
-  /** Notifies the desktop shell after the active pairing code rotates. */
+  /** Notifies the desktop shell after published pairing information changes. */
   readonly onPairingChanged?: () => void;
   /**
    * Optional host hook receiving the authoritative project rows after an HTTP

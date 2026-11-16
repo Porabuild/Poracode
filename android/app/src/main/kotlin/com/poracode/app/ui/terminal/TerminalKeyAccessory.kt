@@ -7,12 +7,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -22,6 +18,8 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.theme.PoracodeTheme
 import com.poracode.remote.v3.generated.TerminalHardwareKey
 
 /** A touch-accessible virtual key with no dedicated physical-keyboard equivalent on-screen. */
@@ -131,6 +129,10 @@ fun TerminalKeyAccessory(
             enabled = isEnabled,
             onClick = onCtrlToggle,
             label = { Text(stringResource(R.string.terminal_control_modifier)) },
+            colors = FilterChipDefaults.filterChipColors(
+                selectedContainerColor = PoracodeTheme.colors.accent,
+                selectedLabelColor = PoracodeTheme.colors.accentForeground,
+            ),
         )
         OutlinedButton(enabled = isEnabled, onClick = { onKey(TerminalVirtualKey.Escape) }) {
             Text(stringResource(R.string.terminal_key_escape))
@@ -143,25 +145,25 @@ fun TerminalKeyAccessory(
         }
         OutlinedButton(enabled = isEnabled, onClick = { onKey(TerminalVirtualKey.Left) }) {
             Icon(
-                Icons.Filled.KeyboardArrowLeft,
+                PoracodeIcons.KeyboardArrowLeft,
                 contentDescription = stringResource(R.string.terminal_key_arrow_left),
             )
         }
         OutlinedButton(enabled = isEnabled, onClick = { onKey(TerminalVirtualKey.Up) }) {
             Icon(
-                Icons.Filled.KeyboardArrowUp,
+                PoracodeIcons.KeyboardArrowUp,
                 contentDescription = stringResource(R.string.terminal_key_arrow_up),
             )
         }
         OutlinedButton(enabled = isEnabled, onClick = { onKey(TerminalVirtualKey.Down) }) {
             Icon(
-                Icons.Filled.KeyboardArrowDown,
+                PoracodeIcons.KeyboardArrowDown,
                 contentDescription = stringResource(R.string.terminal_key_arrow_down),
             )
         }
         OutlinedButton(enabled = isEnabled, onClick = { onKey(TerminalVirtualKey.Right) }) {
             Icon(
-                Icons.Filled.KeyboardArrowRight,
+                PoracodeIcons.KeyboardArrowRight,
                 contentDescription = stringResource(R.string.terminal_key_arrow_right),
             )
         }

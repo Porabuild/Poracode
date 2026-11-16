@@ -69,7 +69,12 @@ internal fun UnifiedDiffView(
                 color = MaterialTheme.colorScheme.tertiary,
             )
         }
-        LazyColumn(Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                bottom = WorkspaceBottomBarClearance,
+            ),
+        ) {
             items(document.lines.size) { index ->
                 val line = document.lines[index]
                 val numbers = lineNumbers[index]

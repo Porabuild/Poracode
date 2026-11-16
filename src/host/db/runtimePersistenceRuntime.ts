@@ -32,6 +32,7 @@ import {
   applyRuntimeEventBatchesNow,
   resetRuntimeItemsWriterCache,
 } from "./runtimeItemsWriter";
+import { getAsyncDatabaseWrites, releaseAsyncDatabaseWritesSync } from "./asyncWrites";
 import {
   RuntimePersistenceDrainIncompleteError,
   type RuntimeAdmission,
@@ -85,8 +86,17 @@ function notifyHealthListeners(notify: (listener: RuntimePersistenceHealthListen
 
 export const runtimePersistenceController = new RuntimePersistenceController({
   onAuthoritativeHistoryChanged: noteRuntimeHistoryMutation,
-  write: (threadId, events) => applyThreadRuntimeEventsNow(threadId, events),
-  atomicBatchWriter: applyRuntimeEventBatchesNow,
+  write: (threadId, events, busyTimeoutMs) =>
+    applyThreadRuntimeEventsNow(threadId, events, busyTimeoutMs),
+  atomicBatchWriter: (batches) => applyRuntimeEventBatchesNow(batches),
+  resolveAsyncWriters: () => {
+    const asyncWrites = getAsyncDatabaseWrites();
+    if (!asyncWrites) return null;
+    return {
+      writeAsync: (threadId, events) => asyncWrites.writeSingle(threadId, events),
+      atomicBatchWriterAsync: (batches) => asyncWrites.writeBatches(batches),
+    };
+  },
   onSignal: (signal) => notifyHealthListeners((listener) => listener.onSignal?.(signal)),
   onStateChange: (info) => notifyHealthListeners((listener) => listener.onStateChange?.(info)),
   onThreadAccessAvailable: (threadId) =>
@@ -134,6 +144,7 @@ function bindCurrentConnection(): void {
 }
 
 registerBeforeDatabaseClose(() => {
+  releaseAsyncDatabaseWritesSync();
   const report = runtimePersistenceController.shutdown();
   if (report.kind === "incomplete") {
     lastShutdownReport = report;
@@ -366,6 +377,16 @@ export function markRuntimeRebaseDropped(threadId: string): void {
 export function commitRuntimeThreadPrefixSync(threadId: string): number {
   bindCurrentConnection();
   return runtimePersistenceController.commitThreadPrefixSync(threadId);
+}
+
+export function commitRuntimeThreadPrefixAsync(threadId: string): Promise<number> {
+  bindCurrentConnection();
+  return runtimePersistenceController.commitThreadPrefixAsync(threadId);
+}
+
+export function waitForAsyncRuntimeWrites(threadId?: string): Promise<void> {
+  bindCurrentConnection();
+  return runtimePersistenceController.waitForAsyncWrites(threadId);
 }
 
 export function hasPendingRuntimeWrites(threadId?: string): boolean {

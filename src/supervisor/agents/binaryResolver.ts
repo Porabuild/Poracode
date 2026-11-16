@@ -53,7 +53,7 @@ export function resolveAgentBinaryPath(
   // absolute path and fail with opaque "posix_spawnp failed".
   const cached = getCachedExecutablePath(binary);
   if (cached !== undefined && isExecutableRegularFile(cached)) return cached;
-  // Cache miss (never primed, expired past the TTL, or the cached path is gone).
+  // Cache miss (never primed, or the cached path is gone).
   // Fall back to the well-known install dirs so launch finds a binary whose dir
   // isn't on the login `$SHELL` PATH (e.g. OpenCode in ~/.opencode/bin wired
   // only into the user's fish config).

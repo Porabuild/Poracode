@@ -443,18 +443,26 @@ export class AgentStatusService {
       return;
     }
     const baseline = this.readAcceptedStatuses();
-    const affected = new Set([
-      ...changedKinds,
+    const removed = new Set([
+      ...changedKinds.filter((kind) => !this.options.adapters.has(kind)),
       ...[...baseline.windows, ...baseline.wsl]
         .filter((status) => !this.options.adapters.has(status.kind))
         .map((status) => status.kind),
     ]);
-    if (affected.size === 0) return;
-    this.publication.discardKinds(affected, baseline, [
+    const replaced = new Set(changedKinds.filter((kind) => this.options.adapters.has(kind)));
+    if (removed.size === 0 && replaced.size === 0) return;
+    const tickets = [
       ...this.fullDetectionJobs.keys(),
       ...[...this.scopedDetectionJobs].map((job) => job.ticket),
-    ]);
+    ];
+    if (removed.size > 0) {
+      this.publication.discardKinds(removed, baseline, tickets);
+    }
+    if (replaced.size > 0) {
+      this.publication.retireKinds(replaced, tickets);
+    }
     this.clearDiskCache(this.readAcceptedStatuses());
+    if (removed.size === 0) return;
     this.registryPublicationPending = true;
     this.publishRegistryStatuses();
   }

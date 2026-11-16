@@ -164,7 +164,7 @@ export const threadTools: ToolDomain = {
     {
       name: "create_thread",
       description:
-        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Plugins and MCPs follow the New thread page's saved defaults. Override browserMcp, crossagentMcp, chromeMcp, or computerUse per thread; provider/platform restrictions and global hard disables still apply. mcpServers maps configured server ids (from list_mcp_servers or get_project) to booleans; plugins maps installed manifest names (from get_settings installedPlugins) to booleans. These choices affect only the new thread and survive resume. Attach files or images with attachments: [{path, mimeType?}], using absolute paths on the host; image types are inferred from extensions. With worktree.enabled=true, this tool creates and assigns the worktree before launching the agent there; tell the child to use that checkout for task changes and checks, not create another one. For Home threads, workspaceId files the new conversation into a workspace (id or unique name from list_workspaces); omitted Home threads inherit the calling thread's workspace when possible. Project threads follow their project's workspace — use update_project to file a project.",
+        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Plugins and MCPs follow the New thread page's saved defaults. Override browserMcp, crossagentMcp, chromeMcp, or computerUse per thread; provider/platform restrictions and global hard disables still apply. mcpServers maps configured server ids (global or the target project's, from list_mcp_servers with its projectId) to booleans; plugins maps installed manifest names (from get_settings installedPlugins) to booleans and wins over the project's own plugin switches. These choices affect only the new thread and survive resume. Attach files or images with attachments: [{path, mimeType?}], using absolute paths on the host; image types are inferred from extensions. With worktree.enabled=true, this tool creates and assigns the worktree before launching the agent there; tell the child to use that checkout for task changes and checks, not create another one. For Home threads, workspaceId files the new conversation into a workspace (id or unique name from list_workspaces); omitted Home threads inherit the calling thread's workspace when possible. Project threads follow their project's workspace — use update_project to file a project.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -634,11 +634,7 @@ function buildResumeStartPayload(
     initialSize: DEFAULT_TERMINAL_SIZE,
     ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
-    ...resolveMcpLaunchSnapshot(
-      ctx.settings.read(),
-      project.mcpServers ?? [],
-      thread.config.mcpServerOverrides,
-    ),
+    ...resolveMcpLaunchSnapshot(ctx.settings.read(), project, thread.config.mcpServerOverrides),
   };
 }
 

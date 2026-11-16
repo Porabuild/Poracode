@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.poracode.app.chat.RichFollowUpQueue
-import com.poracode.app.chat.RichContextUsage
 import com.poracode.app.chat.RichPromptSegment
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.AgentStatusEntry
@@ -42,7 +41,6 @@ internal fun RichChatThreadComposerSection(
     canConfigure: Boolean,
     currentThread: RemoteThread?,
     followUpQueue: RichFollowUpQueue?,
-    contextUsage: RichContextUsage?,
     mentionItems: List<RichRuntimeItem>,
     workspaceFiles: List<ProjectFileEntry>,
     mentionThreads: List<RemoteThread>,
@@ -63,6 +61,8 @@ internal fun RichChatThreadComposerSection(
     onSend: () -> Unit,
     onQueueSend: (() -> Unit)?,
     onInterrupt: () -> Unit,
+    resumePlan: RichChatResumePlan?,
+    onResume: () -> Unit,
 ) {
     Column(Modifier.imePadding().navigationBarsPadding()) {
         followUpQueue?.let { queue ->
@@ -79,7 +79,6 @@ internal fun RichChatThreadComposerSection(
             // SessionRef change resets panel state and fences in-flight
             // results to the new owner.
             sessionActionOwnerKey = sessionActionOwnerKey,
-            contextUsage = contextUsage,
             draft = draft,
             attachments = attachments,
             sending = sending,
@@ -115,6 +114,8 @@ internal fun RichChatThreadComposerSection(
             onSend = onSend,
             onQueueSend = onQueueSend,
             onInterrupt = onInterrupt,
+            resumePlan = resumePlan,
+            onResume = onResume,
         )
     }
 }

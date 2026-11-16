@@ -43,6 +43,11 @@ vi.mock("electron", () => {
   return { Notification: FakeNotification };
 });
 
+const threadWindows = vi.hoisted(() => ({
+  find: vi.fn<(threadId: string) => unknown>(() => undefined),
+}));
+vi.mock("./window/threadWindows", () => ({ findThreadWindow: threadWindows.find }));
+
 import { showOsNotification, showUserNotificationFallback } from "./osNotifications";
 
 function createFakeWindow() {
@@ -60,6 +65,7 @@ function createFakeWindow() {
 type FakeWindow = ReturnType<typeof createFakeWindow>;
 
 beforeEach(() => {
+  threadWindows.find.mockReset().mockReturnValue(undefined);
   notificationState.instances.length = 0;
   notificationState.isSupported.mockReturnValue(true);
   notificationState.showThrows = false;
@@ -91,6 +97,31 @@ describe("showOsNotification", () => {
       threadId: "t1",
       source: "notification",
     });
+  });
+
+  it("skips a thread whose own window has focus", () => {
+    const threadWindow = { ...createFakeWindow(), isFocused: () => true };
+    threadWindows.find.mockReturnValue(threadWindow);
+    const shown = showOsNotification(
+      { title: "P", body: "B", threadId: "t9" },
+      () => createFakeWindow() as never,
+    );
+
+    expect(shown).toBe(false);
+    expect(notificationState.instances).toHaveLength(0);
+  });
+
+  it("focuses the thread's own window instead of the main window when clicked", () => {
+    const main = createFakeWindow();
+    const threadWindow = { ...createFakeWindow(), isFocused: () => false };
+    threadWindows.find.mockReturnValue(threadWindow);
+    showOsNotification({ title: "P", body: "B", threadId: "t10" }, () => main as never);
+
+    notificationState.instances[0]!.emit("click");
+
+    expect(threadWindow.focus).toHaveBeenCalledOnce();
+    expect(main.focus).not.toHaveBeenCalled();
+    expect(main.webContents.send).not.toHaveBeenCalled();
   });
 
   it("restores a minimized window before focusing on click", () => {

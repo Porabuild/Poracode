@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createConnection, createServer } from "node:net";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
@@ -627,7 +628,7 @@ void test("installing twice is idempotent and preserves the probe id and counter
   assert.equal(second.wrapperOwned, true);
 });
 
-void test("a suspended target times out and later calls recover on a fresh connection", async (t) => {
+void test("a stalled inspector connection times out and recovers through a fresh connection", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   await installProbe(fixture.info.inspectorUrl, options);
@@ -643,32 +644,60 @@ void test("a suspended target times out and later calls recover on a fresh conne
   );
   assert.equal(sent.value, true);
 
-  // SIGSTOP suspends every thread, including the inspector's, so the ws
-  // handshake cannot complete. (A plain JS busy loop does NOT stall the
-  // inspector: V8 services inspector interrupts between bytecodes.)
-  fixture.child.kill("SIGSTOP");
+  const inspectorUrl = new URL(fixture.info.inspectorUrl);
+  const sockets = new Set();
+  let forwarding = false;
+  let connections = 0;
+  const proxy = createServer((socket) => {
+    connections++;
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+    socket.on("error", () => socket.destroy());
+    // Accept TCP but withhold the WebSocket handshake until recovery is tested.
+    if (!forwarding) return;
+    const upstream = createConnection(Number(inspectorUrl.port), "127.0.0.1");
+    sockets.add(upstream);
+    upstream.on("close", () => {
+      sockets.delete(upstream);
+      socket.destroy();
+    });
+    socket.on("close", () => upstream.destroy());
+    socket.on("error", () => upstream.destroy());
+    upstream.on("error", () => socket.destroy());
+    socket.pipe(upstream).pipe(socket);
+  });
+  t.after(async () => {
+    for (const socket of sockets) socket.destroy();
+    await new Promise((done, reject) => proxy.close((error) => (error ? reject(error) : done())));
+  });
+  await new Promise((done) => proxy.listen(0, "127.0.0.1", done));
+  const proxyUrl = new URL(inspectorUrl);
+  proxyUrl.port = String(proxy.address().port);
   const startedAt = Date.now();
   let stallError = null;
   try {
-    await getProbeSnapshot(fixture.info.inspectorUrl, {
+    await getProbeSnapshot(proxyUrl.href, {
       ...options,
       commandTimeoutMs: 400,
       connectTimeoutMs: 400,
     });
   } catch (error) {
     stallError = error;
-  } finally {
-    fixture.child.kill("SIGCONT");
   }
-  assert.ok(stallError instanceof ProbeError, "expected a ProbeError against the suspended target");
+  assert.ok(
+    stallError instanceof ProbeError,
+    "expected a ProbeError while the handshake is stalled",
+  );
   assert.ok(
     stallError.code === "command-timeout" || stallError.code === "connect-timeout",
     `unexpected code ${stallError.code}`,
   );
   assert.ok(Date.now() - startedAt < 2000, "timeout must fire promptly");
 
-  const snapshot = await getProbeSnapshot(fixture.info.inspectorUrl, options);
+  forwarding = true;
+  const snapshot = await getProbeSnapshot(proxyUrl.href, options);
   assert.equal(snapshot.counters.attempts, 1);
+  assert.equal(connections, 2, "recovery must open a fresh connection to the real inspector");
 });
 
 void test("peer death while a capture is open rejects promptly instead of hanging", async (t) => {

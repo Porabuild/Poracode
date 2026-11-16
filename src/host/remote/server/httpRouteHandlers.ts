@@ -6,6 +6,7 @@ import { ENVIRONMENT_MANAGEMENT_ROUTE_HANDLERS } from "./httpRouteHandlers.envir
 import { SESSION_ROUTE_HANDLERS } from "./httpRouteHandlers.session";
 import type { HttpRouteHandlerTable } from "./httpRouteHandlers.shared";
 import { THREAD_ROUTE_HANDLERS } from "./httpRouteHandlers.threads";
+import { THREAD_TRANSFER_ROUTE_HANDLERS } from "./httpRouteHandlers.threadTransfer";
 import { WORKSPACE_ROUTE_HANDLERS } from "./httpRouteHandlers.workspace";
 
 export {
@@ -32,6 +33,7 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
   ...ENVIRONMENT_MANAGEMENT_ROUTE_HANDLERS,
   ...WORKSPACE_ROUTE_HANDLERS,
   ...THREAD_ROUTE_HANDLERS,
+  ...THREAD_TRANSFER_ROUTE_HANDLERS,
   ...EXPERIMENT_ROUTE_HANDLERS,
   ...OPS_ROUTE_HANDLERS,
 };

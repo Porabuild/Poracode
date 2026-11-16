@@ -84,14 +84,17 @@ export function useNewPromptScroll({
         chatPromptAnchorIds: { ...state.chatPromptAnchorIds, [threadId]: latestPromptId },
       };
     });
+    const element = listRef.current?.getScrollableNode();
+    if (element) delete element.dataset.chatEndSpaceSize;
     onNewPrompt?.();
-  }, [request, bottomToken, latestPromptId, onNewPrompt, cancelAnimation, threadId]);
+  }, [request, bottomToken, latestPromptId, listRef, onNewPrompt, cancelAnimation, threadId]);
 
   useLayoutEffect(() => cancelAnimation, [cancelAnimation]);
 
   useLayoutEffect(() => {
     if (anchorIndex >= 0) return;
     if (anchorId === null && animationFrame.current !== null) cancelAnimation();
+    if (anchorId !== null) pendingAnimation.current = anchorId;
     const element = listRef.current?.getScrollableNode();
     if (element) delete element.dataset.chatEndSpaceSize;
   }, [anchorId, anchorIndex, cancelAnimation, listRef]);
@@ -107,6 +110,8 @@ export function useNewPromptScroll({
             if (element) element.dataset.chatEndSpaceSize = String(size);
           },
           onReady: ({ anchorKey, size }) => {
+            const element = listRef.current?.getScrollableNode();
+            if (element) element.dataset.chatEndSpaceSize = String(size);
             if (!anchorKey || pendingAnimation.current !== anchorKey) return;
             pendingAnimation.current = null;
             if (restoringAnchor.current && size <= 0) {
@@ -115,7 +120,6 @@ export function useNewPromptScroll({
               useAppStore.getState().clearChatPromptAnchor(threadId);
               return;
             }
-            const element = listRef.current?.getScrollableNode();
             if (!element) return;
             onNewPrompt?.();
             const from = element.scrollTop;
@@ -135,8 +139,8 @@ export function useNewPromptScroll({
                 (listRef.current?.getState().positionByKey(anchorKey) ?? 0) - PROMPT_TOP_OFFSET_PX,
               );
               const top = from + (target - from) * (1 - (1 - progress) ** 3);
-              onScrollWrite?.(top);
               element.scrollTop = top;
+              onScrollWrite?.(element.scrollTop);
               animationFrame.current = progress < 1 ? requestAnimationFrame(step) : null;
             };
             // The ready signal precedes the trailing-space DOM commit.

@@ -37,11 +37,19 @@ import { gitStatePatchSchema } from "../../gitState";
 // optional and old thread rows remain valid. Older hosts never receive the kind.
 // Optional thread tool overrides remain additive: absent maps keep old defaults,
 // and the host retains durable choices when older clients omit them on mutation.
+// Optional thread.interruptedTurn is additive: old readers ignore it and old hosts
+// omit it, so no resume button shows. Only the host writes it (schema 70).
+// Optional thread-state.turnStopRequested is host persistence input; older event
+// readers ignore it. The private stored "stopped" value is never a Thread marker.
 // The optional mediaFileRequest.disposition:"attachment" download option stays
 // additive within v14: old clients never send it, an old host strips or rejects
 // the field and keeps answering nonmedia with typed unsupported_media_type, and
 // no request/response discriminator meaning changes, so no version bump.
+// GitHub polling adds an opt-in read procedure and optional project status.
+// Old snapshots stay valid; native Git state entries preserve unknown fields.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 14;
+// Optional provider-usage ringLayouts adds display metadata only: v14 readers
+// ignore unknown fields, and new readers accept previous responses without it.
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 /**
@@ -398,6 +406,8 @@ export const remoteEnvironmentCapabilitiesSchema = z.object({
   threadForks: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   /** Host transcript listing and the `import-session` thread command. */
   sessionImport: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
+  /** Thread transfer between hosts (`THREAD_TRANSFER_VERSION`): command and upload routes. */
+  threadTransfer: z.object({ versions: remoteCapabilityVersionsSchema }).optional(),
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
   browserForward: remoteBrowserForwardCapabilitySchema.optional(),

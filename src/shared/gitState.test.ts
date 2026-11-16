@@ -6,9 +6,31 @@ import {
   gitTargetKey,
   pullRequestBranchKey,
   pullRequestKey,
+  gitStateSnapshotSchema,
 } from "./gitState";
 
 describe("git state references", () => {
+  it("accepts pre-upgrade snapshots without polling metadata and round-trips additive host problems", () => {
+    const old = {
+      ...emptyGitStateSnapshot(),
+      projects: {
+        legacy: { ref: { hostId: "host", projectId: "project" }, refreshedAt: "before" },
+      },
+    };
+    expect(gitStateSnapshotSchema.parse(old)).toEqual(old);
+    const current = applyGitStatePatch(old, {
+      revision: 1,
+      projects: {
+        legacy: {
+          ...old.projects.legacy,
+          githubPollingProblem: { kind: "authentication", executionHost: "host", retryAt: "later" },
+        },
+      },
+    });
+    expect(gitStateSnapshotSchema.parse(current).projects.legacy?.githubPollingProblem?.kind).toBe(
+      "authentication",
+    );
+  });
   it("namespaces project, target, branch, and PR identities by host", () => {
     const project = { hostId: "host-a", projectId: "project-a" };
     expect(gitProjectKey(project)).not.toBe(

@@ -1,6 +1,10 @@
 import { act, fireEvent, renderHook, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { RemoteRuntimeGapDescriptor, RemoteRuntimeHistoryNotice } from "@/shared/remote";
+import {
+  __resetRuntimeHistoryNoticeCapabilityForTest,
+  noteRuntimeHistoryNoticesCapability,
+} from "@/renderer/state/remote/historyNoticeCapability";
 import {
   __resetThreadHistoryNoticeStoreForTest,
   noteThreadHistoryRecoveryNeeded,
@@ -10,6 +14,11 @@ import {
 import { useThreadHistoryNoticeDockStore } from "@/renderer/state/threadHistoryNoticeDockStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
+
+const hostState = vi.hoisted(() => ({
+  host: undefined as { authority: string | undefined } | undefined,
+}));
+vi.mock("@/renderer/state/entityHost", () => ({ entityHost: () => hostState.host }));
 
 const THREAD_ID = "thread-1";
 const AUTHORITY = "connection-1";
@@ -47,6 +56,8 @@ function DockHarness() {
 afterEach(() => {
   __resetThreadHistoryNoticeStoreForTest();
   useThreadHistoryNoticeDockStore.setState({ dismissedByThreadId: {} });
+  __resetRuntimeHistoryNoticeCapabilityForTest();
+  hostState.host = undefined;
 });
 
 describe("ThreadHistoryNoticeDock", () => {
@@ -86,6 +97,33 @@ describe("ThreadHistoryNoticeDock", () => {
 
     expect(screen.getByRole("status").textContent).toContain("may be missing");
     expect(screen.queryByRole("button", { name: "Dismiss warning" })).toBeNull();
+  });
+
+  describe("recovery review follows the owning host's advertised capability", () => {
+    const reviewButton = () => screen.queryByRole("button", { name: "Review recovery" });
+
+    it.each([
+      ["paired", "d1"],
+      ["managed", "managed-activation-authority"],
+    ])("offers review only once the %s host advertised it", (_label, authority) => {
+      hostState.host = { authority };
+      act(() => noteThreadHistoryRecoveryNeeded(THREAD_ID, AUTHORITY));
+      const { unmount } = render(<DockHarness />);
+      expect(reviewButton()).toBeNull();
+      unmount();
+
+      // Each host advertises under its own authority, whichever host it is.
+      noteRuntimeHistoryNoticesCapability(authority, true);
+      render(<DockHarness />);
+      expect(reviewButton()).not.toBeNull();
+    });
+
+    it("does not offer review for a thread no host owns", () => {
+      act(() => noteThreadHistoryRecoveryNeeded(THREAD_ID, AUTHORITY));
+      noteRuntimeHistoryNoticesCapability("d1", true);
+      render(<DockHarness />);
+      expect(reviewButton()).toBeNull();
+    });
   });
 
   it("hides when the thread has no notice", () => {

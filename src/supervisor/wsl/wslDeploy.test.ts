@@ -267,6 +267,7 @@ describe("staging-backed WSL deploys", () => {
     );
 
     expect(result?.linuxBaseDir).toMatch(/^\/tmp\/poracode-bridge-99-[0-9a-f]{12}$/u);
+    expect(result?.filesWritten).toBe(1);
     expect(requests[0]).toMatchObject({
       op: "deploy",
       base: expect.stringContaining("poracode-bridge-99-"),

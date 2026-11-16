@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
-import { copyFile, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { ensureDirectory } from "@/shared/ensureDirectory";
 import type {
   WslStagingDeployRequest,
   WslStagingDeployResult,
@@ -26,10 +27,7 @@ export async function executeStagingRequest(request: WslStagingRequest): Promise
       await removePath(request.path, request.recursive);
       return undefined;
     case "mkdirp":
-      await mkdir(request.path, {
-        recursive: true,
-        ...(request.mode !== undefined ? { mode: request.mode } : {}),
-      });
+      await ensureDirectory(request.path, request.mode);
       return undefined;
     case "stage-file":
       await stageFile(request.src, request.dest);
@@ -60,7 +58,7 @@ async function deployFiles(request: WslStagingDeployRequest): Promise<WslStaging
     const segments = file.relDest.split("/").filter((segment) => segment.length > 0);
     if (segments.length === 0) continue;
     const dest = appendPath(request.base, ...segments);
-    await mkdir(dirname(dest), { recursive: true });
+    await ensureDirectory(dirname(dest));
     if (await isFresh(file.src, dest, request.freshness)) continue;
     await writeFileAtomic(file.src, dest);
     filesWritten += 1;
@@ -102,7 +100,7 @@ async function writeFileAtomic(src: string, dest: string): Promise<void> {
 }
 
 async function stageFile(src: string, dest: string): Promise<void> {
-  await mkdir(dirname(dest), { recursive: true });
+  await ensureDirectory(dirname(dest));
   await writeFileAtomic(src, dest);
 }
 
@@ -122,7 +120,7 @@ async function readStagedFile(path: string): Promise<WslStagingReadFileResult> {
  * when a reader races the install.
  */
 async function writeStagedFile(path: string, contentBase64: string, mode?: number): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
+  await ensureDirectory(dirname(path));
   const temp = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
   try {
     await writeFile(temp, Buffer.from(contentBase64, "base64"), {

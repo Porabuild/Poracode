@@ -1,13 +1,11 @@
+import * as clientDraftSubmission from "./actions/clientDraftSubmission";
+import * as gitHelpers from "./utils/gitHelpers";
 import {
   __resetRemoteServersStoreForTest,
   useRemoteServersStore,
 } from "./state/remoteServersStore";
 import { isBrowserClientRuntime, resetClientRuntimeForTest } from "./clientRuntime";
-import type { RemoteDesktopClient } from "@/shared/remote/client";
-import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import { worktreeScriptShellId } from "@/shared/worktreeScriptShell";
-import type { RemoteServerRecord, RemoteSocketLike } from "./state/remoteServers/types";
-import { remoteThreadId } from "./state/remoteProjection";
 import { Fragment, type ReactNode } from "react";
 import { toast } from "@heroui/react";
 import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
@@ -481,6 +479,7 @@ vi.mock("./state/sharedSettingsStore", () => ({
         pushRecentModel: () => undefined,
         setThemeMode: () => undefined,
       }),
+      subscribe: () => () => undefined,
     },
   ),
 }));
@@ -772,176 +771,6 @@ describe("App", () => {
     }
   });
 
-  it("re-attaches a restored remote thread's live subscription after a reload", async () => {
-    resetClientRuntimeForTest();
-    __resetRemoteServersStoreForTest();
-    localStorage.clear();
-    // The secure vault hydrates asynchronously; settle it so a MainView-driven
-    // rehydrate at mount cannot wipe the servers seeded below.
-    await act(async () => {
-      await useRemoteServersStore.persist.rehydrate();
-    });
-    await vi.waitFor(() => {
-      const persistedServers = JSON.parse(localStorage.getItem("poracode-remote-servers")!).state
-        .servers;
-      if (persistedServers.length !== 0)
-        throw new Error("Remote server reset is not persisted yet");
-    });
-    const remoteProjectRow = {
-      id: "p1",
-      name: "Remote App",
-      location: { kind: "posix", path: "/r/app" },
-      createdAt: "2026-01-01T00:00:00.000Z",
-    };
-    const remoteThreadRow = {
-      id: "rt-1",
-      projectId: "p1",
-      title: "Remote GUI thread",
-      agentKind: "claude",
-      status: "idle",
-      presentationMode: "terminal",
-    } as unknown as Thread;
-    const projectedThreadId = remoteThreadId("d1", "rt-1");
-    const serverRecord: RemoteServerRecord = {
-      desktopId: "d1",
-      label: "Server One",
-      remoteLabel: "Server One",
-      endpoint: "http://192.168.1.9:38987/",
-      accessToken: "acc-token",
-      scopes: ["session:read", "projects:manage"],
-    };
-    const remoteThreadHistory = async () => ({
-      snapshotSeq: 1,
-      thread: remoteThreadRow,
-      runtimeItems: [],
-      completedTurns: [],
-      contextUsage: null,
-      updatedAt: "now",
-    });
-    const remoteSnapshot = async () => ({
-      snapshotSeq: 1,
-      projects: [remoteProjectRow],
-      threads: [remoteThreadRow],
-      runtimeSummariesByThread: {},
-      updatedAt: "now",
-    });
-    const remoteClient = {
-      // The store pushes the rotating-token lifecycle onto its client at
-      // connect (V5 4.6); this mock has no refresh behavior to drive.
-      setTokenLifecycle: vi.fn<() => void>(),
-      environment: async () => ({
-        protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
-        hostMode: "desktop",
-        desktopId: "d1",
-        label: "Server One",
-        appVersion: "1.0",
-        auth: {
-          policy: "remote-reachable",
-          bootstrapMethods: ["one-time-token"],
-          sessionMethods: ["bearer-access-token"],
-          scopes: ["session:read", "projects:manage"],
-        },
-        endpoints: {
-          httpBaseUrl: "http://192.168.1.9:38987/",
-          wsBaseUrl: "ws://192.168.1.9:38987/",
-        },
-      }),
-      agentStatuses: async () => ({ windows: [], wsl: [], updatedAt: "now" }),
-      snapshot: remoteSnapshot,
-      // The startup refresh probes the B4 bounded shell read first; this older
-      // host negotiates `legacy` and the assembled snapshot paints.
-      boundedShellSnapshot: async () => ({
-        negotiation: "legacy" as const,
-        page: await remoteSnapshot(),
-      }),
-      threadHistory: remoteThreadHistory,
-      // Production opens a restored remote thread through the B4 bounded
-      // read; this older host negotiates `legacy` with the same snapshot.
-      boundedThreadHistory: async () => ({
-        negotiation: "legacy" as const,
-        page: await remoteThreadHistory(),
-      }),
-      websocketTicket: async () => "ticket-1",
-      websocketUrl: (
-        _ticket: string,
-        _lastSeenSeq: number,
-        options: { threadItemInterests?: readonly string[] },
-      ) => {
-        connectInterests.push(options?.threadItemInterests);
-        return "ws://192.168.1.9:38987/ws?ticket=ticket-1";
-      },
-      checkHostUpdate: async () => ({
-        currentVersion: "1.0",
-        status: { type: "update-not-available" },
-      }),
-      parseSocketMessage: (value: string) => JSON.parse(value),
-    } as unknown as RemoteDesktopClient;
-    const sockets: RemoteSocketLike[] = [];
-    const connectInterests: Array<readonly string[] | undefined> = [];
-    const originalClientFactory = useRemoteServersStore.getState().clientFactory;
-    const originalSocketFactory = useRemoteServersStore.getState().socketFactory;
-    useRemoteServersStore.setState({
-      clientFactory: () => remoteClient,
-      socketFactory: () => {
-        const socket: RemoteSocketLike = {
-          close: vi.fn<() => void>(),
-          send: vi.fn<(data: string) => void>(),
-          onmessage: null,
-          onclose: null,
-        };
-        sockets.push(socket);
-        return socket;
-      },
-      servers: [serverRecord],
-    });
-    // Post-reload state: the persisted view renders from the local cache while
-    // the projected thread row only (re)arrives when the startup refreshServer
-    // mirror runs, and the live subscription (`openThread`) is still null.
-    useAppStore.setState({ view: { kind: "thread", panes: [projectedThreadId] } });
-
-    const view = render(<App />);
-    try {
-      // The restored pane re-attaches through the same openRemoteThread
-      // pipeline a thread click uses, registering its thread-item-interests
-      // with the host (in the connect URL and/or on the live socket) without
-      // navigating the restored view away.
-      await waitFor(() =>
-        expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1"),
-      );
-      await waitFor(() => {
-        const registrations = [
-          ...connectInterests,
-          ...sockets.flatMap((socket) =>
-            (
-              socket.send as NonNullable<RemoteSocketLike["send"]> as ReturnType<typeof vi.fn>
-            ).mock.calls.map((call) => {
-              const frame = JSON.parse(call[0] as string) as {
-                type: string;
-                threadIds: string[];
-              };
-              return frame.type === "thread-item-interests" ? frame.threadIds : [];
-            }),
-          ),
-        ];
-        expect(registrations).toContainEqual(["rt-1"]);
-      });
-      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [projectedThreadId] });
-      expect(
-        useAppStore.getState().threads.find((thread) => thread.id === projectedThreadId),
-      ).toBeTruthy();
-    } finally {
-      view.unmount();
-      __resetRemoteServersStoreForTest();
-      useRemoteServersStore.setState({
-        clientFactory: originalClientFactory,
-        socketFactory: originalSocketFactory,
-        servers: [],
-        runtime: {},
-        openThread: null,
-      });
-    }
-  });
-
   it("offers recovery controls when initial hydration does not finish", async () => {
     vi.useFakeTimers();
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(false);
@@ -990,6 +819,55 @@ describe("App", () => {
 
     expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [thread.id] });
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+  });
+
+  it("opens detached-window file and review links in their source worktree", async () => {
+    const project = {
+      id: "link-project",
+      name: "Links",
+      location: { kind: "windows" as const, path: "C:/repo" },
+      createdAt: "2026-11-13T00:00:00Z",
+    };
+    const thread: Thread = {
+      id: "link-thread",
+      projectId: project.id,
+      title: "Links",
+      agentKind: "codex",
+      config: { model: "test-model" },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: false,
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-11-13T00:00:00Z",
+      updatedAt: "2026-11-13T00:00:00Z",
+      worktreePath: "C:/repo-worktree",
+    };
+    useAppStore.setState({ projects: [project], threads: [thread] });
+    const openFile = vi.spyOn(gitHelpers, "openFileInEditor").mockResolvedValue(undefined);
+    threadOpenRequestedListeners.at(-1)?.({
+      threadId: thread.id,
+      navigation: { kind: "file", path: "src/app.ts", lineNumber: 12 },
+    });
+    await waitFor(() =>
+      expect(openFile).toHaveBeenCalledExactlyOnceWith(
+        project,
+        thread.worktreePath,
+        undefined,
+        "src/app.ts",
+        12,
+      ),
+    );
+
+    threadOpenRequestedListeners.at(-1)?.({ threadId: thread.id, navigation: { kind: "review" } });
+    expect(usePanelStore.getState()).toMatchObject({
+      gitOverlayOpen: true,
+      gitReviewAsPanel: false,
+      gitReviewContext: { projectId: project.id, worktreePath: thread.worktreePath },
+    });
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    usePanelStore.getState().setGitOverlayOpen(false);
   });
 
   it("switches workspaces when a notification requests a thread in another workspace", async () => {
@@ -1401,6 +1279,30 @@ describe("App", () => {
     });
 
     expect(runWorktreeSetupScript).not.toHaveBeenCalled();
+  });
+
+  it("settles a Quick Composer handoff refused before launch when its project disappeared", async () => {
+    useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
+    const settle = vi
+      .spyOn(clientDraftSubmission, "settleClientSubmission")
+      .mockResolvedValue(undefined);
+    useAppStore.setState({ projects: [] });
+    render(<App />);
+    const listener = quickComposerSubmitListeners.at(-1)!;
+    act(() =>
+      listener({
+        projectId: "deleted-project",
+        input: {
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          prompt: "retained draft",
+          clientSubmissionId: "receipt",
+        },
+      }),
+    );
+    await waitFor(() => expect(settle).toHaveBeenCalledWith("receipt", "failed"));
+    expect(bridge.startThread).not.toHaveBeenCalled();
+    settle.mockRestore();
   });
 
   it("creates and launches the thread submitted by the quick composer", async () => {

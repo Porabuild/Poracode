@@ -11,28 +11,25 @@ import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 import { notifyRendererStartupReady } from "./window/deferredDevTools";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import { registerSideChatWindowIpc } from "./window/sideChatWindows";
+import { registerThreadWindowIpc } from "./window/threadWindows";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import type { AutoUpdaterController } from "./updates/autoUpdater";
 import type { BackendHostClient } from "./backend/BackendHostClient";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
 import { updatePowerSaveBlocker } from "./desktopAppShell";
-import {
-  desktopApp,
-  isDev,
-  legacyBaseDirOverride,
-  legacyElectronUserDataDir,
-  requirePoracodePaths,
-} from "./desktopAppState";
+import { desktopApp, isDev, requirePoracodePaths } from "./desktopAppState";
 import {
   extractBrowserToWindow,
   finishQuickComposerDismiss,
   flushPendingThreadCommands,
   flushTrayThreadOpen,
+  openThreadFromTray,
   injectBrowserToMain,
   quickComposerWindowFor,
   toggleQuickComposerWindow,
   createSideChatAppWindow,
+  createThreadAppWindow,
 } from "./desktopAppWindows";
 
 export interface DesktopIpcDeps {
@@ -52,8 +49,6 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       getBrowserPanelManager: () => desktopApp.browserPanelManager,
       sshConnectionManager: deps.ssh,
       requirePoracodePaths,
-      legacyElectronUserDataDir,
-      ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
       updatePowerSaveBlocker,
       autoUpdater: deps.autoUpdater,
       onKeybindingsChanged: (file) => deps.quickComposerShortcutManager.apply(file),
@@ -71,6 +66,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       hostOffersAutoUpdate: () => desktopApp.hostServices?.capabilities.autoUpdate === true,
       hostOffersOsNotifications: () =>
         desktopApp.hostServices?.capabilities.osNotifications === true,
+      lockedComputerUse: () => desktopApp.hostServices?.lockedComputerUse ?? null,
     }),
     callSupervisor: (name, payload) => deps.backendHost.call(name, payload),
   });
@@ -79,6 +75,13 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     getMainWindow: () => desktopApp.mainWindow,
     createWindow: createSideChatAppWindow,
     statePath: join(requirePoracodePaths().baseDir, "side-chat-ownership.json"),
+  });
+  registerThreadWindowIpc({
+    getMainWindow: () => desktopApp.mainWindow,
+    createWindow: createThreadAppWindow,
+    // Waits for the main renderer, which may be reloading when a thread returns.
+    showThreadInMain: (threadId, navigation) => openThreadFromTray(threadId, undefined, navigation),
+    isQuitting: () => desktopApp.isQuitting,
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {
     const overlay = quickComposerWindowFor(event);

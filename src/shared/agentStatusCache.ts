@@ -10,13 +10,25 @@ import {
 } from "./contracts/agent";
 
 // The supervisor, passive owner inventory, and renderer migration share this
-// codec. v67-v72 have compatible shapes; provider-owned policies invalidate only
+// codec. v67-v81 have compatible shapes; provider-owned policies invalidate only
 // changed derivations. Older/future generations still refuse in full. v71 adds
 // the optional workflow-mode capability fields; only Claude rows are re-probed.
 // v72 refreshes Pi models from the user's scoped settings.
+// v73 discards Pi scope patterns previously published as literal model IDs.
+// v74 refreshes Devin effort ownership so effort-less models don't inherit a global ladder.
+// v75 refreshes Devin's GUI Fusion relation from the catalog, so pairs the
+// agent adds after detection (for example a SWE-2 Flash sidekick) join the
+// family instead of staying raw-only.
+// v76 refreshes Command Code reasoning options missing from partial catalog probes.
+// v77 refreshes Codex's retired and newly supported terminal slash commands.
+// v78 re-probes Kimi capabilities so external models recover their optional
+// off/on thinking control instead of the legacy managed on-only workaround.
+// v79 refreshes Kimi's permission labels, defaults, and bypass selection.
+// v80 re-probes Devin accounts after correcting Windows Known Folder isolation.
+// v81 re-probes Gemini after preserving probe env/cwd, macOS Keychain API-key detection, and profile file storage isolation.
 // Provider-only changes advance the producer and provider policy together;
 // incompatible shared changes also advance the minimum compatible generation.
-export const STATUS_CACHE_VERSION = 72;
+export const STATUS_CACHE_VERSION = 81;
 const MINIMUM_COMPATIBLE_STATUS_CACHE_VERSION = 67;
 
 export interface AgentStatusCacheSnapshot {

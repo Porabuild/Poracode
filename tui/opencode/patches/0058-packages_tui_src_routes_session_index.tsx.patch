@@ -1,0 +1,375 @@
+diff --git a/packages/tui/src/routes/session/index.tsx b/packages/tui/src/routes/session/index.tsx
+index 52fd66c..fe29dc0 100644
+--- a/packages/tui/src/routes/session/index.tsx
++++ b/packages/tui/src/routes/session/index.tsx
+@@ -67,7 +67,6 @@ import { DialogSessionRename } from "../../component/dialog-session-rename"
+ import { TodoItem } from "../../component/todo-item"
+ import { DialogImagePreview } from "../../component/dialog-image-preview"
+ import { statusLabel } from "../../component/dialog-workspace-file-changes"
+-import { DialogMessage } from "./dialog-message"
+ import { DialogFork } from "./dialog-fork"
+ import { DialogTimeline } from "./dialog-timeline"
+ import { Composer } from "./composer"
+@@ -87,7 +86,8 @@ import { FormPrompt } from "./form"
+ import { DialogExportOptions } from "../../ui/dialog-export-options"
+ import { DialogExportResult } from "../../ui/dialog-export-result"
+ import { sessionEpilogue } from "../../util/presentation"
+-import { useConfig, useNewDesigns } from "../../config"
++import { tint } from "../../theme/color"
++import { useConfig } from "../../config"
+ import { useClipboard } from "../../context/clipboard"
+ import { nextThinkingMode, type ThinkingMode } from "../../context/thinking"
+ import { getScrollAcceleration } from "../../util/scroll"
+@@ -113,6 +113,7 @@ import {
+ } from "./rows"
+ import { switchLabel } from "../../util/model"
+ import { findMessageBoundary, messageNavigationSlack } from "./message-navigation"
++import { stickyPromptID } from "./sticky-prompt"
+ import { stringWidth } from "../../util/string-width"
+ import { useArgs } from "../../context/args"
+ import { withTimestampedFallback } from "@opencode/util/session-title-fallback"
+@@ -129,6 +130,7 @@ import { defaultVerbosity, type GroupKind, type SessionEntry } from "./grouping/
+ import { SessionGroupView } from "./group-view"
+ import { useEntryAnchor } from "./anchor-view"
+ import { containsAnchor, createTimelineAnchors, groupID } from "./anchors"
++import { TranscriptRowSlot, useMessageActions } from "./transcript-slot"
+ import { rowsAfter, rowsBefore, rowWeight } from "./mount-budget"
+ export { InlineToolRow } from "./message-parts"
+ export { toolDisplay } from "./message-parts"
+@@ -170,6 +172,7 @@ export function Session(props: {
+   const configState = useConfig()
+   const config = configState.data
+   const theme = useTheme()
++  const dimensions = useTerminalDimensions()
+   const promptRef = usePromptRef()
+   const session = createMemo(() => data.session.get(route.sessionID))
+   const messages = () => data.session.message.list(route.sessionID)
+@@ -194,7 +197,16 @@ export function Session(props: {
+ 
+   createEffect(() => {
+     const title = Locale.truncate(session()?.title ?? "", 50)
+-    setEpilogue(sessionEpilogue({ title, sessionID: session()?.id }))
++    // poracode: the epilogue wordmark follows the live width and carries the
++    // theme's brand dot and tinted shadow colours.
++    setEpilogue(
++      sessionEpilogue({
++        title,
++        sessionID: session()?.id,
++        width: dimensions().width,
++        colors: { brand: theme.text.brand, shadow: tint(theme.background.base, theme.text.base, 0.25) },
++      }),
++    )
+   })
+   onCleanup(() => setEpilogue())
+   const descendantSessionIDs = createMemo(() => {
+@@ -236,7 +248,6 @@ export function Session(props: {
+   const disabled = createMemo(() => promptedPermissions().length > 0 || forms().length > 0)
+ 
+   const renderer = useRenderer()
+-  const dimensions = useTerminalDimensions()
+   const thinkingMode = createMemo<ThinkingMode>(() => config.session?.thinking ?? "hide")
+   const showScrollbar = createMemo(() => config.session?.scrollbar ?? false)
+   const markdownMode = createMemo(() => config.session?.markdown ?? "rendered")
+@@ -381,7 +392,9 @@ export function Session(props: {
+     firstJump()?.()
+     if (!scroll || scroll.isDestroyed) return
+     scroll.verticalScrollBar.off("change", updateAwayFromBottom)
++    scroll.verticalScrollBar.off("change", updateStickyPrompt)
+     scroll.content.off("resize", holdAnchor)
++    scroll.content.off("resize", updateStickyPrompt)
+     saveScrollAnchor(true)
+   })
+   const [prompt, setPrompt] = createSignal<PromptRef>()
+@@ -431,6 +444,10 @@ export function Session(props: {
+   )
+   const visibleEnd = createMemo(() => Math.max(hidden(), Math.min(visibleRowsEnd() ?? rows.length, rows.length)))
+   const visibleRows = createMemo(() => rows.slice(hidden(), visibleEnd()))
++  // poracode: the transcript tail, ignoring turn footers; plugin rows keep it open while it grows.
++  const liveRow = createMemo(() =>
++    rows.findLastIndex((row) => row.type !== "assistant-footer" && row.type !== "turn-usage"),
++  )
+   const prependHistory = createHistoryPrepend({
+     sessionID: () => route.sessionID,
+     more: (id) => data.session.message.more(id),
+@@ -753,6 +770,42 @@ export function Session(props: {
+       alignMessage(messageID, Math.max(0, y - (message?.type === "assistant" ? 1 : 0)))
+     })
+ 
++  // poracode: the prompt whose rows have scrolled out of view, for the
++  // session.transcript.top slot. Anchor y values are screen-absolute and
++  // move with the scroll, so recompute once layout settles.
++  const [stickyPrompt, setStickyPrompt] = createSignal<string>()
++  const updateStickyPrompt = () =>
++    afterLayout(() => {
++      if (!scroll || scroll.isDestroyed) return setStickyPrompt(undefined)
++      const bounds = new Map<string, { y: number; height: number }>()
++      for (const anchor of anchors.list()) {
++        if (anchor.target.type !== "part") continue
++        const id = anchor.target.ref.messageID
++        const y = anchor.node.y
++        const bottom = y + anchor.node.height
++        const current = bounds.get(id)
++        if (!current) {
++          bounds.set(id, { y, height: anchor.node.height })
++        } else {
++          const top = Math.min(current.y, y)
++          bounds.set(id, { y: top, height: Math.max(current.y + current.height, bottom) - top })
++        }
++      }
++      setStickyPrompt(
++        stickyPromptID({
++          scrollTop: scroll.scrollTop,
++          viewportY: scroll.viewport.y,
++          positions: anchors.messagePositions(),
++          anchorFor: (id) => bounds.get(id),
++          messages: messages(),
++        }),
++      )
++    })
++  createEffect(() => {
++    messages()
++    updateStickyPrompt()
++  })
++
+   function toBottom() {
+     clearMessageNavigation()
+     ensureAllRowsPending = undefined
+@@ -1344,25 +1397,31 @@ export function Session(props: {
+   const terminalWidth = createMemo(() => dimensions().width)
+   const terminalHeight = createMemo(() => dimensions().height)
+ 
++  const setDisclosure = (key: string, expanded: boolean, anchor: Renderable | null | undefined, ending: boolean) => {
++    // A group that ends the transcript would open off screen while the reader follows the bottom.
++    if (anchor && !(ending && !isAwayFromBottom())) {
++      const hold = { node: anchor, top: layoutTop(anchor) - scroll.scrollTop }
++      held = hold
++      afterLayout(() => {
++        if (held === hold) held = undefined
++      })
++    }
++    sessionTabs.setGroupExpanded(sessionID, key, expanded)
++    afterLayout(saveScrollAnchor)
++  }
++
+   return (
+     <context.Provider
+       value={{
+         anchors,
+         groupExpanded,
+         setGroupExpanded: (id, expanded, anchor) => {
+-          // A group that ends the transcript would open off screen while the reader follows the bottom.
+           const last = rows.findLast((row) => row.type !== "assistant-footer" && row.type !== "turn-usage")
+-          const ending = last?.type === "group" && groupID(last, 0) === id
+-          if (anchor && !(ending && !isAwayFromBottom())) {
+-            const hold = { node: anchor, top: layoutTop(anchor) - scroll.scrollTop }
+-            held = hold
+-            afterLayout(() => {
+-              if (held === hold) held = undefined
+-            })
+-          }
+-          sessionTabs.setGroupExpanded(sessionID, id, expanded)
+-          afterLayout(saveScrollAnchor)
++          setDisclosure(id, expanded, anchor, last?.type === "group" && groupID(last, 0) === id)
+         },
++        // poracode: plugin rows keep disclosure in the same per-session store.
++        savedDisclosure: (key) => sessionTabs.groupExpanded(sessionID, key),
++        setDisclosure,
+         get width() {
+           return contentWidth()
+         },
+@@ -1402,7 +1461,9 @@ export function Session(props: {
+                   scroll = r
+                   props.scrollRef?.(r)
+                   scroll.verticalScrollBar.on("change", updateAwayFromBottom)
++                  scroll.verticalScrollBar.on("change", updateStickyPrompt)
+                   scroll.content.on("resize", holdAnchor)
++                  scroll.content.on("resize", updateStickyPrompt)
+                 }}
+                 viewportOptions={{
+                   paddingRight: showScrollbar() ? 1 : 0,
+@@ -1432,6 +1493,7 @@ export function Session(props: {
+                       row={row}
+                       message={(messageID) => data.session.message.get(route.sessionID, messageID)}
+                       boundaryID={boundaries()[index() + hidden()]}
++                      live={index() + hidden() === liveRow()}
+                     />
+                   )}
+                 </For>
+@@ -1446,6 +1508,22 @@ export function Session(props: {
+                   {(height) => <box id={NAVIGATION_SLACK_ID} height={height()} flexShrink={0} />}
+                 </Show>
+               </scrollbox>
++              {/* poracode: pinned prompt header while its rows are scrolled out of view. */}
++              <box position="absolute" top={0} left={0} width="100%" zIndex={1}>
++                <Slot
++                  path="session.transcript.top"
++                  input={{
++                    sessionID: route.sessionID,
++                    get messageID() {
++                      return stickyPrompt()
++                    },
++                    get width() {
++                      return contentWidth()
++                    },
++                    jump: (messageID: string) => jumpToMessage(messageID),
++                  }}
++                />
++              </box>
+             </box>
+             <box height={1} flexShrink={0} flexDirection="row" justifyContent="flex-end">
+               <Show when={firstJump()}>
+@@ -1548,31 +1626,47 @@ type SessionRowViewProps = {
+   row: SessionRow
+   message: (messageID: string) => SessionMessageInfo | undefined
+   boundaryID?: string
++  live?: boolean
+ }
+ 
+ function SessionRowView(props: SessionRowViewProps) {
+   const [target, setTarget] = createSignal<BoxRenderable>()
++  const [hidden, setHidden] = createSignal(false)
+   useEntryAnchor({
+     entry: () => (props.row.type === "group" ? undefined : props.row),
+     node: target,
+   })
+   return (
+-    <box ref={setTarget} id={sessionRowID(props.row, props.boundaryID)} marginTop={1} flexShrink={0}>
+-      <Switch>
+-        <Match when={props.row.type === "group" ? props.row : undefined}>
+-          {(row) => (
+-            <SessionGroupView
+-              row={row()}
+-              message={props.message}
+-              entry={(entry, images) => <SessionEntryView row={entry} message={props.message} images={images} />}
+-              images={(parts) => <ToolImages parts={parts} />}
+-            />
+-          )}
+-        </Match>
+-        <Match when={props.row.type !== "group" ? props.row : undefined}>
+-          {(row) => <SessionEntryView row={row()} message={props.message} />}
+-        </Match>
+-      </Switch>
++    <box
++      ref={setTarget}
++      id={sessionRowID(props.row, props.boundaryID)}
++      marginTop={hidden() ? 0 : 1}
++      flexShrink={0}
++    >
++      {/* poracode: rows publish the session.transcript.row slot. */}
++      <TranscriptRowSlot
++        row={props.row}
++        live={props.live === true}
++        hide={setHidden}
++        entry={(entry) => <SessionEntryView row={entry} message={props.message} />}
++        render={() => (
++          <Switch>
++            <Match when={props.row.type === "group" ? props.row : undefined}>
++              {(row) => (
++                <SessionGroupView
++                  row={row()}
++                  message={props.message}
++                  entry={(entry, images) => <SessionEntryView row={entry} message={props.message} images={images} />}
++                  images={(parts) => <ToolImages parts={parts} />}
++                />
++              )}
++            </Match>
++            <Match when={props.row.type !== "group" ? props.row : undefined}>
++              {(row) => <SessionEntryView row={row()} message={props.message} />}
++            </Match>
++          </Switch>
++        )}
++      />
+     </box>
+   )
+ }
+@@ -2222,29 +2316,19 @@ function ShellMessage(props: { message: Extract<SessionMessageInfo, { type: "she
+ 
+ function UserMessage(props: { message: SessionMessageUser }) {
+   const ctx = use()
+-  const newDesigns = useNewDesigns()
+   const data = useData()
+   const local = useLocal()
+   const files = createMemo(() => deduplicateVisibleImages(props.message.files ?? []))
+   const skills = createMemo(() => props.message.skills ?? [])
+-  const images = createMemo(() =>
+-    files().flatMap((file) =>
+-      file.mime.startsWith("image/") ? [{ uri: `data:${file.mime};base64,${file.data}` }] : [],
+-    ),
+-  )
++  const images = createMemo(() => userMessageImages(props.message))
+   const themes = useThemes()
+   const theme = useTheme()
+   const mode = themes.mode
+   const [hover, setHover] = createSignal(false)
+   const color = createMemo(() => local.agent.color(data.session.get(ctx.sessionID)?.agent ?? "build"))
+   const delivery = createMemo(() => ctx.pendingDelivery(props.message.id))
+-  const dialog = useDialog()
+-  const renderer = useRenderer()
+-  const promptRef = usePromptRef()
+-
+-  const updatePendingSteer = async (action: "queue" | "cancel") => {
+-    if (await ctx.mutatePending(action, props.message.id)) dialog.clear()
+-  }
++  // poracode: shared with plugin-rendered user messages.
++  const openActions = useMessageActions()
+ 
+   return (
+     <Show when={props.message.text.trim() || files().length || skills().length}>
+@@ -2262,34 +2346,7 @@ function UserMessage(props: { message: SessionMessageUser }) {
+           onMouseOut={() => {
+             setHover(false)
+           }}
+-          onMouseUp={() => {
+-            if (renderer.getSelection()?.getSelectedText()) return
+-            if (delivery() === "steer") {
+-              dialog.replace(() => (
+-                <DialogSelect
+-                  title="Pending steer"
+-                  renderFilter={!newDesigns()}
+-                  options={[
+-                    { title: "Move to queue", value: "queue" as const },
+-                    { title: "Delete", value: "cancel" as const },
+-                  ]}
+-                  onSelect={(option) => {
+-                    void updatePendingSteer(option.value)
+-                  }}
+-                />
+-              ))
+-              return
+-            }
+-            // The dialog outlives this row, whose props go stale when a resync drops the message.
+-            const messageID = props.message.id
+-            dialog.replace(() => (
+-              <DialogMessage
+-                messageID={messageID}
+-                sessionID={ctx.sessionID}
+-                setPrompt={(value) => promptRef.current?.set(value)}
+-              />
+-            ))
+-          }}
++          onMouseUp={() => openActions(props.message.id)}
+           paddingTop={1}
+           paddingBottom={1}
+           paddingLeft={2}
+@@ -2494,12 +2551,20 @@ function ToolPart(props: { part: SessionMessageAssistantTool; images?: boolean }
+   ]
+ }
+ 
++// poracode: shared with plugin-rendered user messages.
++export function userMessageImages(message: SessionMessageUser) {
++  return deduplicateVisibleImages(message.files ?? []).flatMap((file) =>
++    file.mime.startsWith("image/") ? [{ uri: `data:${file.mime};base64,${file.data}` }] : [],
++  )
++}
++
+ function ToolImages(props: { parts: readonly SessionMessageAssistantTool[] }) {
+   const images = createMemo(() => props.parts.flatMap(inlineToolImages))
+   return <SessionImages images={images()} />
+ }
+ 
+-function SessionImages(props: { images: readonly { uri: string }[]; paddingLeft?: number }) {
++// poracode: shared with plugin-rendered user messages.
++export function SessionImages(props: { images: readonly { uri: string }[]; paddingLeft?: number }) {
+   const ctx = use()
+   const dialog = useDialog()
+   const images = createMemo(() => (ctx.config.session?.image_preview ? props.images : []))

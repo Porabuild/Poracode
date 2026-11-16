@@ -12,6 +12,13 @@ import {
   chatRowShellClass,
 } from "./chatRow";
 import { ItemMarkdown } from "./ItemMarkdown";
+import {
+  pickLabel,
+  pickResultDetail,
+  safeStringify,
+  summarizeObject,
+  workflowResultView,
+} from "./workflowResult";
 
 /**
  * Renders a Workflow tool's structured return value as a single grouped row,
@@ -32,31 +39,24 @@ export const WorkflowResultGroup = memo(function WorkflowResultGroup({
   const { t } = useLingui();
   const actions = useChatPaneActions();
   const [isExpanded, setIsExpanded] = useState(false);
-  const trimmed = resultText.trim();
-  if (!trimmed) return null;
-
-  // <tool_use_error>…</tool_use_error> is what Claude SDK emits when the tool
-  // itself rejected the call (e.g. workflow script validation). The error
-  // text is already attached as a tooltip on the row's error icon — don't
-  // duplicate it as an inline banner here.
-  if (TOOL_USE_ERROR_RE.test(trimmed)) return null;
-
-  const parsed = tryParseJson(trimmed);
-  const list = parsed !== undefined ? findResultList(parsed) : null;
-
+  const view = workflowResultView(resultText);
+  if (view.kind === "none") return null;
+  if (view.kind === "json") return <WorkflowJsonResult json={view.json} />;
   // No structured list to fan out — render the text inline. Wrapping a single
   // string in a "Workflow result" disclosure adds chrome without information.
-  if (!list) {
-    return <WorkflowPlainResult text={trimmed} parsed={parsed} />;
+  if (view.kind === "text") {
+    return (
+      <Surface variant="transparent" className={chatMessageSurfaceClass}>
+        <div className="min-w-0 leading-snug text-foreground">
+          <ItemMarkdown text={view.text} />
+        </div>
+      </Surface>
+    );
   }
-
-  const labelKey = list.labelKey ?? null;
-  const itemNoun = labelKey ? prettifyKey(labelKey) : "result";
-  const countLabel = `${list.items.length} ${list.items.length === 1 ? itemNoun : pluralize(itemNoun)}`;
   return (
     <WorkflowResultShell
       label={t`Workflow results`}
-      countLabel={countLabel}
+      countLabel={view.countLabel}
       isExpanded={isExpanded}
       onToggle={(next) => {
         setIsExpanded(next);
@@ -64,12 +64,12 @@ export const WorkflowResultGroup = memo(function WorkflowResultGroup({
       }}
     >
       <ul className="flex flex-col gap-1">
-        {list.items.map((item, index) => (
+        {view.list.items.map((item, index) => (
           <WorkflowResultRow
-            key={`${index}-${pickLabel(item, list.labelKey) ?? "row"}`}
+            key={`${index}-${pickLabel(item, view.list.labelKey) ?? "row"}`}
             item={item}
-            labelKey={list.labelKey}
-            detailKeys={list.detailKeys}
+            labelKey={view.list.labelKey}
+            detailKeys={view.list.detailKeys}
           />
         ))}
       </ul>
@@ -77,25 +77,11 @@ export const WorkflowResultGroup = memo(function WorkflowResultGroup({
   );
 });
 
-const TOOL_USE_ERROR_RE = /<tool_use_error>[\s\S]*?<\/tool_use_error>/i;
-
-function WorkflowPlainResult({ text, parsed }: { text: string; parsed: unknown | undefined }) {
-  // A parsed JSON value that wasn't a list — show it as a code block so users
-  // see the structure. Plain text (the common case: launch confirmation,
-  // status lines) goes through Markdown so links and code spans render.
-  if (parsed !== undefined && typeof parsed !== "string") {
-    return (
-      <pre className="w-full min-w-0 overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
-        {safeStringify(parsed, 2)}
-      </pre>
-    );
-  }
+function WorkflowJsonResult({ json }: { json: string }) {
   return (
-    <Surface variant="transparent" className={chatMessageSurfaceClass}>
-      <div className="min-w-0 leading-snug text-foreground">
-        <ItemMarkdown text={text} />
-      </div>
-    </Surface>
+    <pre className="w-full min-w-0 overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+      {json}
+    </pre>
   );
 }
 
@@ -156,7 +142,7 @@ function WorkflowResultRow({
   const [isExpanded, setIsExpanded] = useState(false);
   const actions = useChatPaneActions();
   const label = pickLabel(item, labelKey);
-  const detail = detailKeys.map((key) => item[key]).find(isNonEmptyString);
+  const detail = pickResultDetail(item, detailKeys);
   const otherKeys = Object.keys(item).filter(
     (key) => key !== labelKey && !detailKeys.includes(key) && item[key] !== undefined,
   );
@@ -225,139 +211,4 @@ function ResultJsonBlock({ value, compact = false }: { value: unknown; compact?:
       {text}
     </pre>
   );
-}
-
-interface ResultList {
-  items: Record<string, unknown>[];
-  labelKey: string | null;
-  detailKeys: string[];
-}
-
-/**
- * Find the first array-of-objects in the parsed result. Workflows usually
- * stash their output array at the root or under a nested key like
- * `findings`, `confirmedBugs`, `dimensionSummaries` — sometimes through an
- * outer wrapper (`{result: {findings: [...]}}`). Walk a few levels deep so
- * common wrapper shapes resolve.
- */
-function findResultList(value: unknown, depth = 0): ResultList | null {
-  if (depth > 3) return null;
-  if (Array.isArray(value)) return buildResultList(value);
-  if (!value || typeof value !== "object") return null;
-  const obj = value as Record<string, unknown>;
-  for (const key of Object.keys(obj)) {
-    const inner = obj[key];
-    if (Array.isArray(inner)) {
-      const built = buildResultList(inner);
-      if (built) return built;
-    }
-  }
-  // No array found at this level — recurse into nested objects.
-  for (const key of Object.keys(obj)) {
-    const inner = obj[key];
-    if (inner && typeof inner === "object" && !Array.isArray(inner)) {
-      const built = findResultList(inner, depth + 1);
-      if (built) return built;
-    }
-  }
-  return null;
-}
-
-function buildResultList(raw: unknown[]): ResultList | null {
-  const items: Record<string, unknown>[] = [];
-  for (const entry of raw) {
-    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
-      items.push(entry as Record<string, unknown>);
-    }
-  }
-  if (items.length === 0) return null;
-  const labelKey = pickLabelKey(items);
-  const detailKeys = pickDetailKeys(items);
-  return { items, labelKey, detailKeys };
-}
-
-const LABEL_PRIORITY = ["dimension", "area", "label", "title", "name", "key", "id", "category"];
-
-const DETAIL_PRIORITY = [
-  "summary",
-  "detail",
-  "description",
-  "message",
-  "reasoning",
-  "content",
-  "text",
-  "note",
-];
-
-function pickLabelKey(items: Record<string, unknown>[]): string | null {
-  for (const candidate of LABEL_PRIORITY) {
-    if (items.every((item) => isNonEmptyString(item[candidate]))) return candidate;
-  }
-  for (const candidate of LABEL_PRIORITY) {
-    if (items.some((item) => isNonEmptyString(item[candidate]))) return candidate;
-  }
-  return null;
-}
-
-function pickDetailKeys(items: Record<string, unknown>[]): string[] {
-  const out: string[] = [];
-  for (const candidate of DETAIL_PRIORITY) {
-    if (items.some((item) => isNonEmptyString(item[candidate]))) out.push(candidate);
-  }
-  return out;
-}
-
-function pickLabel(item: Record<string, unknown>, labelKey: string | null): string | undefined {
-  if (labelKey && isNonEmptyString(item[labelKey])) return item[labelKey];
-  for (const candidate of LABEL_PRIORITY) {
-    if (isNonEmptyString(item[candidate])) return item[candidate];
-  }
-  return undefined;
-}
-
-function prettifyKey(key: string): string {
-  const spaced = key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
-  return spaced.endsWith("s") ? spaced.slice(0, -1) : spaced;
-}
-
-function pluralize(noun: string): string {
-  if (/(?:s|x|z|ch|sh)$/i.test(noun)) return `${noun}es`;
-  if (/[^aeiou]y$/i.test(noun)) return `${noun.slice(0, -1)}ies`;
-  return `${noun}s`;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function tryParseJson(text: string): unknown | undefined {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return undefined;
-  }
-}
-
-function safeStringify(value: unknown, indent?: number): string {
-  try {
-    return JSON.stringify(value, null, indent);
-  } catch {
-    return String(value);
-  }
-}
-
-function summarizeObject(item: Record<string, unknown>): string {
-  const pairs = Object.entries(item)
-    .filter(([, value]) => value !== undefined)
-    .slice(0, 3)
-    .map(([key, value]) => {
-      const rendered =
-        typeof value === "string"
-          ? value
-          : typeof value === "number" || typeof value === "boolean"
-            ? String(value)
-            : safeStringify(value);
-      return `${key}: ${rendered}`;
-    });
-  return pairs.join(" · ");
 }

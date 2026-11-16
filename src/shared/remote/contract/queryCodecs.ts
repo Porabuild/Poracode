@@ -158,6 +158,11 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
     param("variant", "string", true),
   ],
   "attachment-upload": [param("threadId", "string", false), param("name", "string", false)],
+  "thread-transfer-upload": [
+    param("offset", "int", false),
+    param("total", "int", false),
+    param("sha256", "string", false),
+  ],
   "schedule-runs-read": [param("id", "string", false)],
   "automations-snapshot": [
     param("filter", "string", false),
@@ -173,6 +178,8 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   ],
   "pr-watch-read": [param("projectId", "string", false), param("prNumber", "int", false)],
   "thread-history": [
+    param("historyCache", "string", true),
+    param("historyRevision", "string", true),
     param("projection", "string", true),
     param("deferBodies", "string", true),
     param("reads", "string", true),
@@ -342,6 +349,8 @@ const decodedCatalogByteCapSchema = z.number().int().min(1);
 const decodedNoticesDeclarationSchema = z.literal(REMOTE_RUNTIME_HISTORY_NOTICES_DECLARATION);
 
 export const decodedThreadHistoryQuerySchema = z.object({
+  historyCache: z.literal("v1").optional(),
+  historyRevision: z.string().min(1).max(160).optional(),
   projection: z.literal(HISTORY_DETAILS_PROJECTION).optional(),
   deferBodies: z.literal(HISTORY_DEFER_FILE_CHANGE_BODIES).optional(),
   reads: decodedReadsCapabilitySchema.optional(),

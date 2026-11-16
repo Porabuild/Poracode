@@ -3,16 +3,11 @@ package com.poracode.app.ui.projects
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,7 +29,10 @@ import com.poracode.app.model.UpdateProject
 import com.poracode.app.session.projects.ProjectCommandOutcome
 import com.poracode.app.session.projects.ProjectOperationFailure
 import com.poracode.app.session.projects.ProjectSessionRuntime
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.launch
+import androidx.compose.material3.FilledTonalButton
 
 internal enum class ProjectIgnoreFilesChoice(val wireValue: Boolean?) {
     Inherit(null), Enabled(true), Disabled(false);
@@ -179,7 +177,7 @@ internal fun ProjectSearchSettingsSection(
                     )
                 }
                 if (row.locked) {
-                    Icon(Icons.Outlined.Lock, stringResource(R.string.projects_always_excluded))
+                    Icon(PoracodeIcons.Lock, stringResource(R.string.projects_always_excluded))
                 } else {
                     IconButton(
                         onClick = {
@@ -196,7 +194,7 @@ internal fun ProjectSearchSettingsSection(
                         },
                         enabled = enabled,
                     ) {
-                        Icon(Icons.Outlined.Delete, stringResource(R.string.projects_remove_pattern))
+                        Icon(PoracodeIcons.Delete, stringResource(R.string.projects_remove_pattern))
                     }
                 }
             }
@@ -206,7 +204,7 @@ internal fun ProjectSearchSettingsSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedTextField(
+            PoracodeTextField(
                 value = newPattern,
                 onValueChange = { newPattern = it },
                 label = { Text(stringResource(R.string.projects_add_pattern)) },
@@ -221,11 +219,11 @@ internal fun ProjectSearchSettingsSection(
                 },
                 enabled = enabled && newPattern.isNotBlank(),
             ) {
-                Icon(Icons.Outlined.Add, stringResource(R.string.projects_add_pattern))
+                Icon(PoracodeIcons.Add, stringResource(R.string.projects_add_pattern))
             }
         }
         ProjectFailureText(failure)
-        Button(
+        FilledTonalButton(
             onClick = {
                 localBusy = true
                 failure = null

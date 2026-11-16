@@ -7,6 +7,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.poracode.app.R
+import androidx.compose.material3.FilledTonalButton
 
 /**
  * Confirm dialogs for the thread screen's destructive actions. The screen
@@ -31,7 +32,7 @@ internal fun RichChatTruncateConfirmDialog(
             }
         },
         confirmButton = {
-            Button(enabled = enabled, onClick = onConfirm) {
+            FilledTonalButton(enabled = enabled, onClick = onConfirm) {
                 Text(stringResource(R.string.rich_chat_truncate))
             }
         },
@@ -54,7 +55,7 @@ internal fun RichChatRevertConfirmDialog(
             }
         },
         confirmButton = {
-            Button(enabled = enabled, onClick = onConfirm) {
+            FilledTonalButton(enabled = enabled, onClick = onConfirm) {
                 Text(stringResource(R.string.rich_chat_revert))
             }
         },
@@ -77,7 +78,7 @@ internal fun RichChatCloseThreadConfirmDialog(
             }
         },
         confirmButton = {
-            Button(enabled = enabled, onClick = onConfirm) {
+            FilledTonalButton(enabled = enabled, onClick = onConfirm) {
                 Text(stringResource(R.string.rich_chat_close_thread_action))
             }
         },

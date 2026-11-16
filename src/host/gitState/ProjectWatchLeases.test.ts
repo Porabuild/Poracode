@@ -72,10 +72,10 @@ describe("ProjectWatchLeases", () => {
         call: async (name, payload) => {
           if (name === "gitWatchProject") {
             const request = payload as { projectId: string; projectLocation: ProjectLocation };
-            watcher.watch(request.projectId, request.projectLocation);
+            await watcher.watch(request.projectId, request.projectLocation);
           } else if (name === "gitWatchWorktrees") {
             const request = payload as { projectId: string; worktreePaths: string[] };
-            watcher.watchWorktrees(request.projectId, request.worktreePaths);
+            await watcher.watchWorktrees(request.projectId, request.worktreePaths);
           } else {
             const request = payload as { projectId: string };
             await watcher.unwatch(request.projectId);

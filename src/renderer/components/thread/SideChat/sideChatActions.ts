@@ -4,8 +4,7 @@ import { type PromptSegment, type ThreadPresentationMode } from "@/shared/contra
 import { i18n } from "@/renderer/i18n/i18n";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { entityHost } from "@/renderer/state/entityHost";
 import { REMOTE_CONVERSATION_SNAPSHOTS_VERSION } from "@/shared/remote/protocol";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSideChatPanelStore } from "./sideChatPanelStore";
@@ -25,6 +24,7 @@ export function sideChatAvailable(
 }
 
 const opening = new Map<string, Promise<boolean>>();
+const snapshotCapableClients = new WeakSet<object>();
 
 /** The + menu reopens a retained conversation; /btw starts a fresh one. */
 export async function showSideChat(sourceThreadId: string): Promise<boolean> {
@@ -46,7 +46,7 @@ export async function openSideChat(
   sourceThreadId: string,
   prompt = "",
   segments?: PromptSegment[],
-  options?: { autoStart?: boolean },
+  options?: { autoStart?: boolean; clientSubmissionId?: string },
 ): Promise<boolean> {
   const existing = opening.get(sourceThreadId);
   if (existing) return false;
@@ -63,29 +63,36 @@ async function performOpen(
   sourceThreadId: string,
   prompt: string,
   segments?: PromptSegment[],
-  options?: { autoStart?: boolean },
+  options?: { autoStart?: boolean; clientSubmissionId?: string },
 ): Promise<boolean> {
   const source = useAppStore.getState().threads.find((thread) => thread.id === sourceThreadId);
   const open = readBridge().openSideChatPanel;
   if (!source || source.presentationMode !== "gui" || !open || !canOpenSideChat(sourceThreadId))
     return false;
-  const owner = remoteOwner(source);
-  if (owner) {
-    const supported = await useRemoteServersStore
-      .getState()
-      .withClient(
-        owner.desktopId,
-        async (client) =>
-          (await client.environment()).capabilities?.conversationSnapshots?.versions.includes(
-            REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
-          ) === true,
-      );
+  // The owning host (managed or paired) must advertise hidden-context
+  // snapshots; the same environment descriptor answers for both.
+  const host = entityHost(source);
+  if (host) {
+    const supported = await host.withClient(async (client) => {
+      if (typeof client === "object" && client !== null && snapshotCapableClients.has(client)) {
+        return true;
+      }
+      const ok =
+        (await client.environment()).capabilities?.conversationSnapshots?.versions.includes(
+          REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
+        ) === true;
+      if (ok && typeof client === "object" && client !== null) {
+        snapshotCapableClients.add(client);
+      }
+      return ok;
+    });
     if (!supported)
       throw new Error(i18n._(msg`Update the remote host to use side chat with hidden context.`));
   }
   const title = i18n._(msg`Side chat: ${source.title}`);
   const snapshot = structuredClone(source);
   await open({
+    ...(options?.clientSubmissionId ? { id: options.clientSubmissionId } : {}),
     source: snapshot,
     title,
     context: null,
@@ -105,7 +112,15 @@ export async function addSelectionToSideChat(
   if (!quote || !canOpenSideChat(sourceThreadId)) return false;
   const state = useSideChatPanelStore.getState();
   const existing = state.entries[sourceThreadId];
-  if (!existing) return openSideChat(sourceThreadId, quote, undefined, { autoStart: false });
+  if (!existing)
+    return openSideChat(
+      sourceThreadId,
+      quote,
+      [{ kind: "text", content: quote, selection: true }],
+      {
+        autoStart: false,
+      },
+    );
 
   if (existing.id && state.detachedIds.has(existing.id)) {
     await readBridge().openSideChatWindow?.({ ...existing, autoStart: false, appendText: quote });
@@ -115,6 +130,7 @@ export async function addSelectionToSideChat(
     await readBridge().bindSideChatThread?.({
       ...(existing.id ? { id: existing.id } : {}),
       prompt: existing.prompt,
+      ...(existing.segments ? { segments: existing.segments } : {}),
       ...(existing.selection ? { selection: existing.selection } : {}),
     });
   await readBridge().openSideChatPanel?.({ ...existing, autoStart: false, appendText: quote });

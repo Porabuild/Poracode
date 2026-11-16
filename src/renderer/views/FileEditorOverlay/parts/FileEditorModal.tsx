@@ -78,6 +78,7 @@ export function FileEditorModal() {
                     <div className={overlaySidebarColumnClass}>
                       <ProjectTreeView
                         rootContext={rootContext}
+                        visible={isOpen}
                         onSelectFile={(path) => {
                           void openFile(path, "modal", true).catch((error) => {
                             console.error("[file-editor] open failed:", error);

@@ -104,7 +104,9 @@ final class EnvironmentManagementGatingTests: XCTestCase {
     // MARK: - Localization catalog completeness
 
     private struct CatalogEntry: Decodable {
-        struct LocalizationUnit: Decodable { let stringUnit: StringUnit }
+        // Plural-variation keys carry `variations` instead of a flat stringUnit;
+        // they decode with nil here and are outside the prefixes this checks.
+        struct LocalizationUnit: Decodable { let stringUnit: StringUnit? }
         struct StringUnit: Decodable {
             let state: String
             let value: String
@@ -136,7 +138,7 @@ final class EnvironmentManagementGatingTests: XCTestCase {
             let missing = locales.subtracting(entry.localizations.keys)
             XCTAssertTrue(missing.isEmpty, "\(key) missing locales: \(missing.sorted())")
             for locale in locales {
-                let value = entry.localizations[locale]?.stringUnit.value ?? ""
+                let value = entry.localizations[locale]?.stringUnit?.value ?? ""
                 XCTAssertFalse(value.isEmpty, "\(key) empty for \(locale)")
             }
         }

@@ -5,7 +5,8 @@ import { threadSchema } from "@/shared/contracts";
 import { sideChatBootstrapSchema } from "@/shared/ipc/sideChat";
 
 // Device-local ownership format 1. It does not change thread or remote-wire formats.
-// Old bootstraps without a selection remain valid; absent files start empty.
+// Old bootstraps remain valid; optional text-chip metadata can be ignored because
+// the full unsent text remains in prompt. Absent files start empty.
 export const sideChatOwnershipSchema = z.object({
   version: z.literal(1),
   entries: z.array(

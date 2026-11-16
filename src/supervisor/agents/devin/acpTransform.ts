@@ -6,6 +6,7 @@ import {
   withAcpTopLevelToolCall,
 } from "../acp/subagentCoordinator";
 import {
+  PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY,
   PORACODE_ACP_SUBAGENT_STATUS_META_KEY,
   PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY,
 } from "../acp/canonicalMapping/subagents";
@@ -108,8 +109,54 @@ export function pickDevinSubagentCompletion(
   return fallback;
 }
 
+/**
+ * The shared completion marks its terminal update as detached activity, which
+ * closes open top-level content as that agent's reply. Devin sends no parent
+ * reply with a child result, so the open top-level content is the lead's live
+ * message or reasoning; closing it would split it mid-stream. The completion
+ * still reaches its detached card by tool call id.
+ */
+function withoutDetachedReplyClose(notification: SessionNotification): SessionNotification {
+  const update = notification.update as Record<string, unknown>;
+  const meta = { ...record(update._meta) };
+  if (!(PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY in meta)) return notification;
+  delete meta[PORACODE_ACP_DETACHED_SUBAGENT_ACTIVITY_META_KEY];
+  return {
+    ...notification,
+    update: { ...update, _meta: meta } as SessionNotification["update"],
+  };
+}
+
+/**
+ * Devin titles a launch from its partially streamed input ("Running  subagent
+ * …", "Running sub subagent X", "Running explore subagent X", then "Ran …").
+ * A running subagent's title is also its card's status line, so every streamed
+ * key would add another near-identical line. Use the subagent's own title once
+ * it is known; the first placeholder keeps the card named until then.
+ */
+function withDevinSubagentTitle(
+  notification: SessionNotification,
+  title: string | undefined,
+): SessionNotification {
+  const update = notification.update as Record<string, unknown>;
+  if (typeof update.title !== "string") return notification;
+  if (!title && update.sessionUpdate !== "tool_call_update") return notification;
+  const next: Record<string, unknown> = { ...update, title };
+  if (!title) delete next.title;
+  return { ...notification, update: next as SessionNotification["update"] };
+}
+
+export interface DevinAcpTransform {
+  (notification: SessionNotification): SessionNotification;
+  /**
+   * Whether a completion for this `run_subagent` call would end a background
+   * launch whose native agent has not been bound by `subagent_started` yet.
+   */
+  awaitsNativeStart(toolCallId: string): boolean;
+}
+
 /** Translate Cognition's separate call IDs and agent IDs at the provider boundary. */
-export function createDevinAcpTransform() {
+export function createDevinAcpTransform(): DevinAcpTransform {
   const subagents = createAcpSubagentCoordinator();
   const goalTransform = createDevinGoalTransform();
   const pending = new Map<
@@ -119,7 +166,8 @@ export function createDevinAcpTransform() {
   const callsByAgent = new Map<string, string>();
   const completed = new Set<string>();
   const contentMessageIds = new Map<string, string>();
-  return (notification: SessionNotification): SessionNotification => {
+  const isBound = (callId: string) => [...callsByAgent.values()].includes(callId);
+  const transform = (notification: SessionNotification): SessionNotification => {
     notification = annotateDevinCommandStatus(notification);
     notification = normalizeDevinToolCall(notification);
     notification = goalTransform(notification);
@@ -202,15 +250,17 @@ export function createDevinAcpTransform() {
       // replay, not a second result: pass it through untouched.
       if (!callId || completed.has(callId) || !subagents.getCall(callId)) return notification;
       boundedAdd(completed, callId);
-      return pickDevinSubagentCompletion(
-        subagents.complete({
-          sessionId: notification.sessionId,
-          toolCallId: callId,
-          status: finished.success === false ? "failed" : "completed",
-          ...(text(finished.summary) ? { result: text(finished.summary)! } : {}),
-          synthesizeResultProgress: true,
-        }),
-        notification,
+      return withoutDetachedReplyClose(
+        pickDevinSubagentCompletion(
+          subagents.complete({
+            sessionId: notification.sessionId,
+            toolCallId: callId,
+            status: finished.success === false ? "failed" : "completed",
+            ...(text(finished.summary) ? { result: text(finished.summary)! } : {}),
+            synthesizeResultProgress: true,
+          }),
+          notification,
+        ),
       );
     }
     if (id && meta["cognition.ai/inferenceToolName"] === "run_subagent" && !completed.has(id)) {
@@ -230,17 +280,18 @@ export function createDevinAcpTransform() {
           background: raw.is_background === true,
         });
       const isLaunchAcknowledgement =
-        descriptor.background &&
-        update.status === "completed" &&
-        [...callsByAgent.values()].includes(id);
+        descriptor.background && update.status === "completed" && isBound(id);
       // Without a unique native binding, keep the ordinary completion instead
       // of retaining an unresolvable detached task that would strand the turn.
-      const normalized = normalizeAcpSubagentToolCall(notification, {
-        rawInput: subagents.canonicalInput(id),
-        detached: descriptor.background,
-        keepOpen: isLaunchAcknowledgement,
-        omitContent: isLaunchAcknowledgement,
-      });
+      const normalized = withDevinSubagentTitle(
+        normalizeAcpSubagentToolCall(notification, {
+          rawInput: subagents.canonicalInput(id),
+          detached: descriptor.background,
+          keepOpen: isLaunchAcknowledgement,
+          omitContent: isLaunchAcknowledgement,
+        }),
+        text(descriptor.rawInput.title),
+      );
       const parentCall = parent ? callsByAgent.get(parent) : undefined;
       return parentCall
         ? withAcpSubagentParent(normalized, parentCall)
@@ -257,4 +308,10 @@ export function createDevinAcpTransform() {
       ? withAcpTopLevelToolCall(notification)
       : notification;
   };
+  const awaitsNativeStart = (toolCallId: string) =>
+    pending.has(toolCallId) &&
+    !isBound(toolCallId) &&
+    !completed.has(toolCallId) &&
+    subagents.getCall(toolCallId)?.background === true;
+  return Object.assign(transform, { awaitsNativeStart });
 }

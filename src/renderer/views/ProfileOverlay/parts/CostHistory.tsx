@@ -1,11 +1,71 @@
 import { useState } from "react";
-import { Disclosure } from "@heroui/react";
+import { Disclosure, Skeleton } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProfileCostStats, ProfileCostTotals } from "@/shared/contracts/costHistory";
-import { PixelLoader, Select } from "@/renderer/components/common";
+import { Select } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { formatCost } from "../format";
 import { CostTrend } from "./CostTrend";
+
+function CostHistorySkeleton() {
+  return (
+    <div className="@container flex min-w-0 flex-col gap-6" data-testid="profile-cost-skeleton">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-20 rounded-md bg-foreground/10" />
+          <Skeleton className="h-3.5 w-44 rounded bg-foreground/10" />
+        </div>
+        <Skeleton className="h-9 w-full rounded-xl bg-foreground/10 @min-[480px]:w-52" />
+      </div>
+      <div className="grid gap-6 rounded-xl border border-border/60 bg-surface-secondary/20 p-4 @min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @min-[640px]:p-5">
+        <div className="flex min-w-0 flex-col gap-4 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-border/40 @min-[640px]:pr-6">
+          <div className="space-y-2">
+            <Skeleton className="h-3.5 w-32 rounded bg-foreground/10" />
+            <Skeleton className="h-10 w-36 rounded-lg bg-foreground/10" />
+            <Skeleton className="h-3 w-40 rounded bg-foreground/10" />
+          </div>
+          <div className="space-y-2 border-t border-border/40 pt-3">
+            <Skeleton className="h-3 w-28 rounded bg-foreground/10" />
+            <Skeleton className="h-4 w-20 rounded bg-foreground/10" />
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-24 rounded bg-foreground/10" />
+            <Skeleton className="h-3 w-40 rounded bg-foreground/10" />
+          </div>
+          <Skeleton className="h-40 w-full rounded-lg bg-foreground/10 @min-[480px]:h-48" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-4 w-44 rounded bg-foreground/10" />
+        <div className="grid grid-cols-2 gap-3 @min-[480px]:grid-cols-3 @min-[880px]:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-lg border border-border/50 bg-surface-secondary/20 px-3 py-2.5"
+            >
+              <Skeleton className="h-3 w-16 rounded bg-foreground/10" />
+              <Skeleton className="mt-2 h-6 w-20 rounded bg-foreground/10" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-4 w-24 rounded bg-foreground/10" />
+        <div className="grid gap-3 @min-[480px]:grid-cols-2 @min-[800px]:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-border/50 bg-surface-secondary/15 p-3">
+              <Skeleton className="h-4 w-24 rounded bg-foreground/10" />
+              <Skeleton className="mt-3 h-5 w-20 rounded bg-foreground/10" />
+              <Skeleton className="mt-2 h-3 w-28 rounded bg-foreground/10" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function CostHistory({
   stats,
@@ -24,8 +84,11 @@ export function CostHistory({
   const [reportedCurrency, setReportedCurrency] = useState<string | null>(null);
   if (loading)
     return (
-      <div className="flex h-48 items-center justify-center">
-        <PixelLoader />
+      <div aria-busy="true">
+        <span role="status" className="sr-only">
+          <Trans>Loading</Trans>
+        </span>
+        <CostHistorySkeleton />
       </div>
     );
   if (!stats)

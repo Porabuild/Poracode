@@ -47,18 +47,31 @@ export function applySideChatPanel(
   }
 }
 
-/** Keep unsent panel text across hide/show without one IPC call per keystroke. */
+/** Keep unsent panel text and optimistic thread bindings across hide/show without one IPC call per keystroke. */
 export function updateSideChatPanelDraft(
   id: string | undefined,
   prompt: string,
   selection?: SideChatBootstrap["selection"],
+  segments?: SideChatBootstrap["segments"],
+  existingThreadId?: string,
 ): void {
-  const entry = useSideChatPanelStore.getState().entry;
+  const state = useSideChatPanelStore.getState();
+  const entry = state.entry;
   if (entry && entry.id === id) {
-    const next = { ...entry, prompt, autoStart: false, ...(selection ? { selection } : {}) };
+    if (existingThreadId && !releases.has(existingThreadId)) {
+      releases.set(existingThreadId, retainAuxiliaryThreadId(existingThreadId));
+    }
+    const next: SideChatBootstrap = {
+      ...entry,
+      prompt,
+      autoStart: false,
+      ...(selection ? { selection } : {}),
+      ...(segments ? { segments } : {}),
+      ...(existingThreadId ? { existingThreadId } : {}),
+    };
     useSideChatPanelStore.setState({
       entry: next,
-      entries: { ...useSideChatPanelStore.getState().entries, [entry.source.id]: next },
+      entries: { ...state.entries, [entry.source.id]: next },
     });
   }
 }

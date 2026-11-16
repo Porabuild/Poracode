@@ -8,6 +8,7 @@ enum class ProjectManagementDestination {
     Notes,
     PullRequests,
     GithubActions,
+    Git,
 }
 
 data class ProjectWorkspaceEntryPoint(
@@ -39,5 +40,9 @@ fun ProjectManagementDestination.workspaceEntryPoint(): ProjectWorkspaceEntryPoi
     ProjectManagementDestination.GithubActions -> ProjectWorkspaceEntryPoint(
         ProjectWorkspaceSection.Github,
         ProjectGithubSection.Actions,
+    )
+    ProjectManagementDestination.Git -> ProjectWorkspaceEntryPoint(
+        ProjectWorkspaceSection.Git,
+        ProjectGithubSection.PullRequests,
     )
 }

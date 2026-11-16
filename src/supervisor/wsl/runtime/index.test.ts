@@ -20,6 +20,7 @@ const pathExistsMock = vi.hoisted(() =>
 vi.mock("../../agents/base", () => ({
   batchWslCommandsAsync: batchWslCommandsAsyncMock,
   execInWsl: execInWslMock,
+  quotePosixShellArg: (value: string) => `'${value.replaceAll("'", "'\\''")}'`,
   resolveWslHomeDirectory: resolveWslHomeDirectoryMock,
   resolveWslHomeDirectoryAsync: resolveWslHomeDirectoryAsyncMock,
   getWslCommand: getWslCommandMock,
@@ -408,5 +409,77 @@ describe("resolveNodeForDistro single-flight", () => {
       "already cancelled",
     );
     expect(batchWslCommandsAsyncMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveDistroArch and markDistroBinaryExecutable", () => {
+  it("caches resolved distro architecture across repeated lookups", async () => {
+    setProbe("Ubuntu", [{ ok: true, stdout: "x86_64" }]);
+    const { resolveDistroArch } = await loadRuntime();
+
+    expect(await resolveDistroArch("Ubuntu")).toBe("x64");
+    expect(await resolveDistroArch("Ubuntu")).toBe("x64");
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("maps aarch64 to arm64 independently per distro", async () => {
+    batchWslCommandsAsyncMock.mockImplementation(async (distro) =>
+      distro === "Ubuntu-Arm"
+        ? [{ ok: true, stdout: "aarch64" }]
+        : [{ ok: true, stdout: "x86_64" }],
+    );
+    const { resolveDistroArch } = await loadRuntime();
+
+    expect(await resolveDistroArch("Ubuntu-Arm")).toBe("arm64");
+    expect(await resolveDistroArch("Ubuntu")).toBe("x64");
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("marks a staged Linux binary executable once and returns false on chmod failure", async () => {
+    setProbe(
+      "Ubuntu",
+      [{ ok: true, stdout: "ok" }],
+      [{ ok: false, stdout: "" }],
+      [{ ok: false, stdout: "" }],
+    );
+    const { markDistroBinaryExecutable } = await loadRuntime();
+
+    expect(await markDistroBinaryExecutable("Ubuntu", "/tmp/poracode-mcp/poracode-mcp-relay")).toBe(
+      true,
+    );
+    expect(await markDistroBinaryExecutable("Ubuntu", "/tmp/poracode-mcp/poracode-mcp-relay")).toBe(
+      true,
+    );
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(1);
+
+    // On win32, a failed bridge chmod retries once via bootstrap fallback.
+    expect(await markDistroBinaryExecutable("Ubuntu", "/tmp/poracode-mcp/missing-binary")).toBe(
+      false,
+    );
+  });
+
+  it("re-runs chmod when forced or invalidated after a /tmp re-stage without evicting siblings", async () => {
+    setProbe(
+      "Ubuntu",
+      [{ ok: true, stdout: "ok" }],
+      [{ ok: true, stdout: "ok" }],
+      [{ ok: true, stdout: "ok" }],
+      [{ ok: true, stdout: "ok" }],
+    );
+    const { invalidateDistroExecutableCache, markDistroBinaryExecutable } = await loadRuntime();
+    const stagedRelay = "/tmp/poracode-mcp-a/mcp-filter/poracode-mcp-relay";
+    const siblingRelay = "/tmp/poracode-mcp-b/mcp-filter/poracode-mcp-relay";
+
+    expect(await markDistroBinaryExecutable("Ubuntu", stagedRelay)).toBe(true);
+    expect(await markDistroBinaryExecutable("Ubuntu", siblingRelay)).toBe(true);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(2);
+
+    invalidateDistroExecutableCache("Ubuntu", "/tmp/poracode-mcp-a");
+    expect(await markDistroBinaryExecutable("Ubuntu", stagedRelay)).toBe(true);
+    expect(await markDistroBinaryExecutable("Ubuntu", siblingRelay)).toBe(true);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(3);
+
+    expect(await markDistroBinaryExecutable("Ubuntu", siblingRelay, { force: true })).toBe(true);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(4);
   });
 });

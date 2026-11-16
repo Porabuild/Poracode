@@ -1,6 +1,4 @@
-import { Link } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ExternalLink } from "lucide-react";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   Children,
@@ -19,7 +17,6 @@ import {
   type UrlTransform,
 } from "streamdown";
 import remarkGfm from "remark-gfm";
-import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import {
   resolveMarkdownImageUrl,
   rewriteMarkdownLocalImageUrls,
@@ -29,6 +26,8 @@ import { isChatDownloadSource } from "@/shared/chatFile";
 import { getProjectFsPath } from "@/shared/wsl";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
+import { ChatExternalLink } from "./ChatExternalLink";
+import { shouldResolveChatLinkTitle } from "./chatLinkLabel";
 import { CodeBlock } from "./CodeBlock";
 import { CopyTextButton } from "./CopyTextButton";
 import { MarkdownImage } from "./MarkdownImage";
@@ -39,7 +38,7 @@ import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
 import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
 import { normalizeHighlightLanguage } from "./languageDetect";
-import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
+import { parseChatPathRef, parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
 import { normalizeWindowsDrivePath } from "@/shared/pathUtils";
 import { chatRemarkMath, withChatMathRehype } from "@/renderer/markdown/mathPlugins";
 import { splitStreamdownMarkdownBlocks } from "@/renderer/markdown/streamdownBlockSplitter";
@@ -183,11 +182,11 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
             rootNames: rootNames ? [...rootNames].sort() : null,
           }),
           parsePathRef: (token: string) => {
-            const ref = parseProjectPathRef(token, { rootNames });
+            const ref = parseChatPathRef(token, rootNames);
             const projectLocation = actions?.projectLocation;
             if (ref || !projectLocation) return ref;
             const normalized = normalizeChatProjectPath(token, projectLocation);
-            return normalized === token ? null : parseProjectPathRef(normalized, { rootNames });
+            return normalized === token ? null : parseChatPathRef(normalized, rootNames);
           },
         },
       ],
@@ -549,30 +548,21 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
     return <MarkdownVideo src={href} name={flattenMdChildren(props.children)} />;
   }
 
-  // A recognized local artifact link becomes a download card before the
+  // A recognized local artifact link uses the file chip before the
   // project path/folder chip fallback gets a chance to claim it.
   if (isChatDownloadSource(href)) {
-    // The card shows the real basename; the link label stays out of the name.
+    // The chip shows the real basename; the link label stays out of the name.
     return <MarkdownFile src={href} />;
   }
 
   if (/^(https?|mailto):/i.test(href)) {
     return (
-      <Link
+      <ChatExternalLink
         href={href}
-        rel="noreferrer noopener"
-        className="text-[length:inherit] text-foreground no-underline hover:underline hover:decoration-1 underline-offset-2 [display:inline] [width:auto] [overflow-wrap:anywhere] [word-break:break-word]"
-        onClick={(event) => {
-          event.preventDefault();
-          openExternalWithFeedback(href);
-        }}
+        resolveTitle={shouldResolveChatLinkTitle(flattenMdChildren(props.children), href)}
       >
         {props.children}
-        <ExternalLink
-          className="ml-[0.2em] inline-block size-[0.85em] align-[-0.1em]"
-          aria-hidden
-        />
-      </Link>
+      </ChatExternalLink>
     );
   }
   if (actions?.projectLocation) {
@@ -609,7 +599,12 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
       );
     }
   }
-  if (href.startsWith("/") || href.startsWith("file:")) {
+  // Without a project, a relative path link has nothing to open; keep its label.
+  if (
+    href.startsWith("/") ||
+    href.startsWith("file:") ||
+    (!actions?.projectLocation && parseProjectPathRef(href))
+  ) {
     return <span>{props.children}</span>;
   }
   return (

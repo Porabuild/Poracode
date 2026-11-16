@@ -1,4 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
+import { PaneVisibility } from "@/renderer/paneVisibility";
+import { PanelActivity } from "@/renderer/components/layout/panelMotion";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -33,8 +35,8 @@ export function WorkflowAgentChat({
   location,
   fallback,
 }: WorkflowAgentChatProps) {
+  const visible = useContext(PaneVisibility);
   const syntheticThreadId = `wf-agent-chat:${agentId}`;
-  const entries = useAppStore((s) => selectVisibleThreadTimelineEntries(s, syntheticThreadId));
   // Deferred fallback: render nothing until the first read settles, so the
   // old boxed sections don't flash before the transcript-backed chat swaps in.
   const [settledAgentId, setSettledAgentId] = useState<string | null>(null);
@@ -74,15 +76,34 @@ export function WorkflowAgentChat({
     };
   }, [syntheticThreadId, transcriptDir, agentId, agentFinished, location]);
 
-  if (entries.length === 0) {
-    return settledAgentId === agentId ? fallback : null;
-  }
+  return (
+    <PanelActivity visible={visible}>
+      <WorkflowAgentTranscript
+        threadId={syntheticThreadId}
+        agentFinished={agentFinished}
+        fallback={settledAgentId === agentId ? fallback : null}
+      />
+    </PanelActivity>
+  );
+}
+
+function WorkflowAgentTranscript({
+  threadId,
+  agentFinished,
+  fallback,
+}: {
+  threadId: string;
+  agentFinished: boolean;
+  fallback: ReactNode;
+}) {
+  const entries = useAppStore((s) => selectVisibleThreadTimelineEntries(s, threadId));
+  if (entries.length === 0) return fallback;
   return (
     <div className="flex flex-col gap-1.5">
       {entries.map((entry, index) => (
         <ChatItemRow
           key={entry.id}
-          threadId={syntheticThreadId}
+          threadId={threadId}
           entry={entry}
           isLastEntry={!agentFinished && index === entries.length - 1}
           checkpointRevert={null}

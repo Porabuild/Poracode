@@ -190,6 +190,7 @@ struct AdvancedFormFlagView: View {
         isOn: Binding(get: { value == .on }, set: { value = $0 ? .on : .off })
       )
       .accessibilityIdentifier(flag.accessibilityIdentifier)
+      .poracodeSwitchStyle()
     }
   }
 }

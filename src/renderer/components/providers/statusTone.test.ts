@@ -26,4 +26,11 @@ describe("getStatusTone waiting for background work", () => {
       "working",
     );
   });
+
+  it("prioritizes unanswered questions over running or completed work", () => {
+    for (const status of ["working", "idle", "finished"] as const) {
+      expect(getStatusTone({ status, attention: "needs_reply", done: false })).toBe("attention");
+    }
+    expect(getStatusTone({ status: "error", attention: "needs_reply", done: false })).toBe("error");
+  });
 });

@@ -28,9 +28,19 @@
     }
   },
   "diskOverlayMcpConfig": {
-    "$note": "Private XDG_CONFIG_HOME overlay; stdio entries under mcpServers are proven (tools/list + tools/call in-turn). The documented disk shape for remote servers is {url, transport?: \"http\"|\"sse\", headers?: map} per tmp/devin/docs/cli/extensibility/mcp/configuration.md — the disk remote shape itself has not been turn-proven and must not be serialized for production until it is.",
+    "$note": "Private XDG_CONFIG_HOME overlay. devin 3000.12.28 (91c3aec41579), live 2026-11-08 (tmp/devin-http-probe/): the remote disk shape {url, transport:\"http\", headers?: map} is turn-proven — Devin sent the configured Authorization header (0 unauthorized requests), ran tools/list + tools/call inside a prompt turn (overlay-only-list.json), and opened exactly ONE MCP session when the overlay and session/new named the same server (overlay+session-list.json, deduplicated by name). With HTTP_PROXY/http_proxy pointed at an unreachable proxy Devin routed loopback MCP through it and failed to connect; adding NO_PROXY/no_proxy=127.0.0.1,localhost,::1 fixed it (overlay-only-call-http-proxy*.json) — the supervisor extends NO_PROXY for direct MCP endpoints at spawn. The disk SSE shape remains documented-only and unproven; sse transports are rejected rather than serialized.",
     "provenStdio": true,
-    "shape": { "mcpServers": { "<server name>": { "command": "<executable>", "args": ["<...>"] } } }
+    "provenHttp": true,
+    "shape": {
+      "mcpServers": {
+        "<stdio server>": { "command": "<executable>", "args": ["<...>"] },
+        "<http server>": {
+          "url": "http://127.0.0.1:<port>/mcp",
+          "transport": "http",
+          "headers": { "Authorization": "Bearer <token>" }
+        }
+      }
+    }
   },
   "sessionLockedError": {
     "$note": "Recorded -32015 on session/load while another live process holds the session; retryable, not a load failure. Closing the holder (lockHolderPid) releases the lock; after that a fresh-connection load succeeds (mcp-turn-e2.json scenario resumeLoad).",

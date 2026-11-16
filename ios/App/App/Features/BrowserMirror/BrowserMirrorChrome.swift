@@ -87,7 +87,7 @@
       .padding(.vertical, 7)
       .background(
         tab.isActive
-          ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.08),
+          ? Color.primary.opacity(0.18) : Color.secondary.opacity(0.08),
         in: Capsule()
       )
       .contextMenu {
@@ -136,7 +136,7 @@
             .onSubmit { navigate() }
             .onChange(of: isFocused) { _, value in isEditing = value }
             .accessibilityLabel(BrowserMirrorStrings.address)
-          BrowserMirrorToolbarButton(action: navigate) {
+          BrowserMirrorToolbarButton(action: navigate, onSurface: true) {
             Image(systemName: "arrow.right")
           }
           .disabled(!projection.canSubmitAddress || address.isEmpty)
@@ -203,9 +203,9 @@
       enabled: Bool,
       action: BrowserMirrorUIAction
     ) -> some View {
-      BrowserMirrorToolbarButton {
+      BrowserMirrorToolbarButton(action: {
         Task { await controller.perform(action) }
-      } label: {
+      }, onSurface: true) {
         Image(systemName: symbol)
           .frame(width: 24, height: 20)
       }

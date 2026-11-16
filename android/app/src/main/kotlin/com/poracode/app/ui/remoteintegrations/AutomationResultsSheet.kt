@@ -15,7 +15,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +32,7 @@ import com.poracode.app.R
 import com.poracode.app.model.remoteintegrations.ScheduleRun
 import com.poracode.app.model.remoteintegrations.ScheduleRunStatus
 import com.poracode.app.session.remoteintegrations.AutomationsController
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
@@ -102,7 +102,7 @@ internal fun AutomationResultsSheet(
                     }
                 }
             } else {
-                OutlinedTextField(search, { search = it }, modifier = Modifier.fillMaxWidth(),
+                PoracodeTextField(search, { search = it }, modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.automations_search_results)) }, singleLine = true)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("unread" to R.string.automations_unread, "all" to R.string.automations_all, "archived" to R.string.automations_archived).forEach { (id, label) ->

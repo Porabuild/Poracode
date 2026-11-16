@@ -33,7 +33,7 @@ struct AddHostSheet: View {
             Label(OnboardingStrings.scanAction, systemImage: "qrcode.viewfinder")
               .frame(maxWidth: .infinity)
           }
-          .buttonStyle(.borderedProminent)
+          .poracodeProminentButtonStyle()
           .controlSize(.large)
           .accessibilityIdentifier("native-e2e.add-host.scan")
           pairingLinkSection
@@ -62,7 +62,7 @@ struct AddHostSheet: View {
                 .frame(maxWidth: .infinity)
             }
           }
-          .poracodeProminentButtonStyle()
+          .poracodeGlassButtonStyle()
           .controlSize(.large)
           .disabled(isSubmitting)
           .accessibilityLabel(HostStrings.addHostAccessibility)
@@ -116,7 +116,7 @@ struct AddHostSheet: View {
         } label: {
           Text(hostBrowser?.isBrowsing == true ? HostStrings.stopDiscovering : HostStrings.discoverHosts)
         }
-        .buttonStyle(.bordered)
+        .poracodeGlassButtonStyle()
         .controlSize(.small)
         .accessibilityIdentifier("native-e2e.add-host.discover")
       }
@@ -150,7 +150,7 @@ struct AddHostSheet: View {
               }
               .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .buttonStyle(.bordered)
+            .poracodeGlassButtonStyle()
             .controlSize(.small)
           }
         }

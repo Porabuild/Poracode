@@ -40,6 +40,12 @@ export function isStaleBuildReloadPending(): boolean {
 export function reloadForStaleBuild(error: unknown): boolean {
   if (reloading) return true;
   if (hasElectronHostBridge() || !isStaleBuildChunkError(error)) return false;
+  // The document-level recovery also works before this module can be imported.
+  const recovery = new Event("poracode:recover-stale-build", { cancelable: true });
+  if (!window.dispatchEvent(recovery)) {
+    reloading = true;
+    return true;
+  }
   const now = Date.now();
   try {
     const last = Number(window.sessionStorage.getItem(RELOAD_MARKER_KEY));

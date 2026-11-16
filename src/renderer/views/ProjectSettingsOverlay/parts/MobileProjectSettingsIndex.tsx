@@ -1,6 +1,16 @@
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { Box, Brain, Cable, ChevronRight, GitFork, Play, Search, Settings2 } from "lucide-react";
+import {
+  Box,
+  Brain,
+  Cable,
+  ChevronRight,
+  GitFork,
+  Play,
+  Puzzle,
+  Search,
+  Settings2,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ProjectSettingsSection } from "./types";
 
@@ -39,6 +49,7 @@ export function MobileProjectSettingsIndex(props: {
     { id: "skills", icon: Box, label: t`Skills` },
     { id: "memory", icon: Brain, label: t`Memory` },
     { id: "mcp", icon: Cable, label: t`MCP Servers` },
+    { id: "plugins", icon: Puzzle, label: t`Plugins` },
     { id: "search", icon: Search, label: t`Search` },
   ];
 

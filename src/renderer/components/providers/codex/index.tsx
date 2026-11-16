@@ -154,18 +154,21 @@ function buildCodexPermissionControl(
     },
   );
   if (permissionPresets.length === 0) return null;
-  const current =
-    permissionPresets.find((preset) => isCodexPermissionPresetSelected(preset, config)) ??
-    permissionPresets[0]!;
+  const current = permissionPresets.find((preset) =>
+    isCodexPermissionPresetSelected(preset, config),
+  );
   return {
     iconKind: "permission",
-    options: permissionPresets.map((preset) => ({
-      id: preset.id,
-      label: i18n._(preset.label),
-      hint: i18n._(preset.hint),
-    })),
+    options: [
+      ...(!current ? [{ id: "custom-permissions", label: i18n._(msg`Custom`) }] : []),
+      ...permissionPresets.map((preset) => ({
+        id: preset.id,
+        label: i18n._(preset.label),
+        hint: i18n._(preset.hint),
+      })),
+    ],
     hideLabelOnWrap: true,
-    value: current.id,
+    value: current?.id ?? "custom-permissions",
     isDisabled,
     onChange: (value: string) => {
       const preset = permissionPresets.find((option) => option.id === value);

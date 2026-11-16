@@ -55,7 +55,7 @@ describe("crew role descriptions", () => {
         name: "Ship crew",
         policy: "crew-only",
         instructions:
-          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: spawns without a role are refused.",
+          "Spawn work with role=<id>; the role sets provider, model, reasoning and Fast. Crew only: use roles for automatic delegation. When the user explicitly requests other agents or models, omit role and pass user_requested=true with the requested selection; no crew change or additional confirmation is needed.",
         roles: [
           {
             role: "builder",
@@ -100,9 +100,10 @@ describe("crew role resolution", () => {
       { model: "different" },
       { reasoning: "low" },
       { fast: true },
+      { context_size: "1m" },
     ]) {
       expect(() => resolveCrewRoleSpawn({ role: "builder", ...selection }, crew, roster)).toThrow(
-        "role=builder sets provider, model, reasoning and Fast; omit them.",
+        "role=builder sets provider, model, reasoning, Fast and context length; omit them.",
       );
     }
     expect(
@@ -112,6 +113,21 @@ describe("crew role resolution", () => {
         roster,
       ),
     ).toBeDefined();
+    const wideCrew: ThreadCrewBinding = {
+      ...crew,
+      roles: [
+        {
+          ...crew.roles[0]!,
+          selection: { agentKind: "codex", model: "gpt-5.5", effort: "high", contextSize: "1m" },
+        },
+      ],
+    };
+    expect(
+      resolveCrewRoleSpawn({ role: "builder", context_size: "1m" }, wideCrew, roster),
+    ).toBeDefined();
+    expect(() =>
+      resolveCrewRoleSpawn({ role: "builder", context_size: "272k" }, wideCrew, roster),
+    ).toThrow("context length");
     expect(() => resolveCrewRoleSpawn({ role: "builder", fallbacks: [] }, crew, roster)).toThrow(
       "role=builder uses the role's own fallbacks; omit fallbacks.",
     );
@@ -119,9 +135,35 @@ describe("crew role resolution", () => {
 
   it("requires a role in crew-only mode and leaves crew-first unroled calls available", () => {
     expect(() => resolveCrewRoleSpawn({}, crew, roster)).toThrow(
-      "This thread's crew is Crew only: spawn with role=<id> (builder).",
+      "This thread's crew is Crew only: spawn with role=<id> (builder) for automatic delegation. If the user explicitly requested other agents or models, omit role and pass user_requested=true with their requested selection.",
     );
     expect(resolveCrewRoleSpawn({}, { ...crew, policy: "crew-first" }, roster)).toBeUndefined();
+  });
+
+  it("honors explicit user requests on existing v1 crews without changing role routing", () => {
+    expect(crew.version).toBe(1);
+    expect(
+      resolveCrewRoleSpawn(
+        { user_requested: true, provider: "claude", model: "sonnet-5" },
+        crew,
+        roster,
+      ),
+    ).toBeUndefined();
+    for (const user_requested of [undefined, false, "true", 1]) {
+      expect(() =>
+        resolveCrewRoleSpawn({ user_requested, provider: "claude" }, crew, roster),
+      ).toThrow("for automatic delegation");
+    }
+    expect(() =>
+      resolveCrewRoleSpawn(
+        { user_requested: true, role: "builder", model: "sonnet-5" },
+        crew,
+        roster,
+      ),
+    ).toThrow("role=builder sets provider");
+    expect(() =>
+      resolveCrewRoleSpawn({ user_requested: true, role: "missing" }, crew, roster),
+    ).toThrow("Unknown crew role");
   });
 
   it("promotes the first available fallback and retains the rest in order", () => {
@@ -217,5 +259,99 @@ describe("crew role resolution", () => {
     expect(crewListDescription(fastCrew, [noFast], [])).toMatchObject({
       crew: { roles: [{ available: false }] },
     });
+  });
+
+  it("explains missing provider/model, unsupported reasoning and unavailable Fast", () => {
+    const roleWith = (
+      selection: ThreadCrewBinding["roles"][number]["selection"],
+      fallbacks: ThreadCrewBinding["roles"][number]["fallbacks"] = [],
+    ): ThreadCrewBinding => ({
+      ...crew,
+      roles: [{ ...crew.roles[0]!, selection, fallbacks }],
+    });
+
+    expect(() =>
+      resolveCrewRoleSpawn(
+        { role: "builder" },
+        roleWith({ agentKind: "missing", model: "missing-model" }),
+        roster,
+      ),
+    ).toThrow("missing/missing-model: provider unavailable");
+    expect(() =>
+      resolveCrewRoleSpawn(
+        { role: "builder" },
+        roleWith({ agentKind: "codex", model: "missing-model" }),
+        roster,
+      ),
+    ).toThrow("codex/missing-model: model unavailable");
+
+    const invalidReasoning = roleWith({
+      agentKind: "codex",
+      model: "gpt-5.5",
+      effort: "max",
+    });
+    expect(() =>
+      resolveCrewRoleSpawn({ role: "builder" }, invalidReasoning, [
+        agent("codex", "gpt-5.5", ["low", "high"]),
+      ]),
+    ).toThrow('reasoning "max" is not supported (supported: low, high)');
+
+    const noReasoning = roleWith({ agentKind: "codex", model: "gpt-5.5", effort: "high" });
+    expect(() =>
+      resolveCrewRoleSpawn({ role: "builder" }, noReasoning, [agent("codex", "gpt-5.5", [])]),
+    ).toThrow('reasoning "high" is not supported (no reasoning controls)');
+
+    const fastRole = roleWith({ agentKind: "codex", model: "gpt-5.5", fast: true });
+    const noFast = {
+      ...agent("codex", "gpt-5.5"),
+      models: [{ ...agent("codex", "gpt-5.5").models[0]!, fast: { available: false } }],
+    };
+    expect(() => resolveCrewRoleSpawn({ role: "builder" }, fastRole, [noFast])).toThrow(
+      "codex/gpt-5.5: Fast unavailable",
+    );
+  });
+
+  it("selects a valid fallback while reporting the invalid primary", () => {
+    const invalidPrimary: ThreadCrewBinding = {
+      ...crew,
+      roles: [
+        {
+          ...crew.roles[0]!,
+          selection: { agentKind: "codex", model: "gpt-5.5", effort: "max" },
+          fallbacks: [{ agentKind: "claude", model: "sonnet-5", effort: "high" }],
+        },
+      ],
+    };
+    const resolved = resolveCrewRoleSpawn({ role: "builder" }, invalidPrimary, [
+      agent("codex", "gpt-5.5", ["low", "high"]),
+      agent("claude", "sonnet-5"),
+    ]);
+    expect(resolved?.args).toMatchObject({ provider: "claude", model: "sonnet-5" });
+    expect(resolved?.crewRole.optionIndices).toEqual([1]);
+  });
+
+  it("captures an immutable configured option snapshot before availability filtering", () => {
+    const mutable = structuredClone(crew);
+    const resolved = resolveCrewRoleSpawn(
+      { role: "builder", prompt: "Implement" },
+      mutable,
+      roster,
+    );
+    expect(resolved?.crewRole).toMatchObject({
+      selection: { provider: "codex", model: "gpt-5.5", effort: "high" },
+      fallbacks: [{ provider: "claude", model: "sonnet-5", effort: "high" }],
+      optionIndices: [0, 1],
+    });
+
+    mutable.roles[0]!.selection.model = "changed";
+    mutable.roles[0]!.fallbacks![0]!.effort = "low";
+    mutable.roles[0]!.fallbacks!.push({ agentKind: "codex", model: "gpt-5.5", effort: "low" });
+
+    expect(resolved?.crewRole).toMatchObject({
+      selection: { provider: "codex", model: "gpt-5.5", effort: "high" },
+      fallbacks: [{ provider: "claude", model: "sonnet-5", effort: "high" }],
+      optionIndices: [0, 1],
+    });
+    expect(resolved?.crewRole.fallbacks).toHaveLength(1);
   });
 });

@@ -11,6 +11,16 @@ export interface RuntimeItemReadOptions {
    * projection, not the reader's committed-only or fenced consistency.
    */
   includeStreams?: boolean;
+  /**
+   * Rehydrate externalized inline image stubs back to canonical inline strings
+   * (default: true). Set false for prose-only consumers such as FTS search.
+   */
+  rehydrateInlineImages?: boolean;
+  /**
+   * Preserve verified externalized inline image stubs + verified metadata for
+   * O(1) `RemoteImageRef` projection without reading `raw_bytes`.
+   */
+  preserveExternalizedImageStubs?: boolean;
 }
 
 /**
@@ -32,7 +42,15 @@ export function dbGetThreadRuntimeItemCommitted(
       )
       .get(threadId, itemId) as RuntimeTimelineItemRow | undefined;
     if (!row) return null;
-    return mapRuntimeItemRows(sqlite, threadId, [row], { includeStreams })[0]!;
+    return mapRuntimeItemRows(sqlite, threadId, [row], {
+      includeStreams,
+      ...(options.rehydrateInlineImages !== undefined
+        ? { rehydrateInlineImages: options.rehydrateInlineImages }
+        : {}),
+      ...(options.preserveExternalizedImageStubs !== undefined
+        ? { preserveExternalizedImageStubs: options.preserveExternalizedImageStubs }
+        : {}),
+    })[0]!;
   };
   return readRuntimeSnapshot(sqlite, read);
 }

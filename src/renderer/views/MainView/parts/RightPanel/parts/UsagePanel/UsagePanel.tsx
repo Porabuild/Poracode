@@ -1,4 +1,5 @@
 import { startTransition, useEffect, useRef, useState } from "react";
+import { PanelActivity } from "@/renderer/components/layout/panelMotion";
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, KeyboardSensor, PointerSensor, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
@@ -6,7 +7,11 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { RefreshCw, Settings2 } from "lucide-react";
 import { openUsageSettings } from "@/renderer/actions/panelActions";
-import { HostUsageStatus, useHostUsageView } from "@/renderer/components/providers/HostUsageView";
+import {
+  HostUsageStatus,
+  useHostUsageView,
+  useUsageClock,
+} from "@/renderer/components/providers/HostUsageView";
 import { HostUsageInfo } from "@/renderer/components/providers/HostUsageInfo";
 import { UsageProviderCardView } from "@/renderer/components/providers/UsageProviderCardView";
 import { useUsagePanelScope } from "@/renderer/components/providers/useUsagePanelScope";
@@ -14,11 +19,12 @@ import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
 import { readBridge } from "@/renderer/bridge";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { RemoteServerPicker } from "@/renderer/components/common/RemoteServerPicker";
+import { floatingBubblePillClass } from "@/renderer/components/layout/floatingGlass";
 import { MobilePageHeaderActions } from "@/renderer/components/layout/MobilePageHeaderActions";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import {
-  usageProvidersForAgentInstances,
   resolveDisplayedProviders,
+  resolveHostUsageProviders,
   separateCurrentUsageProvider,
   usageProviderIdForAgent,
 } from "@/renderer/components/providers/usageProviders";
@@ -53,9 +59,82 @@ function formatUpdatedAgo(fetchedAt: number, now: number, t: TranslateFn): strin
   return t(msg`${days}d ago`);
 }
 
-export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefined }) {
-  const { t } = useLingui();
+export function UsagePanel(props: {
+  onOpenUsageSettings?: (() => void) | undefined;
+  visible?: boolean;
+}) {
+  const visible = props.visible ?? true;
+  const nowTick = useUsageClock(visible);
   const compact = useCompactLayout();
+  const refreshVersion = useUsageScopeStore((s) => s.refreshVersion);
+  const {
+    remote: remoteView,
+    effectiveId: effectiveDesktopId,
+    remoteSession: browserRuntime,
+  } = useUsagePanelScope();
+  const hostView = useHostUsageView(
+    remoteView ? (effectiveDesktopId ?? "") : "",
+    refreshVersion,
+    remoteView && compact,
+    visible,
+  );
+  useEffect(
+    () => () => {
+      // Moving between docks must preserve the sidebar's pending reveal.
+      useUsageScopeStore.setState({ preferredProviderId: null });
+    },
+    [],
+  );
+  // Data ownership stays mounted: hiding this panel must not stop sidebar updates
+  // or invalidate shared host data and re-fetch it on every tab switch.
+  useEffect(() => {
+    if (remoteView) return;
+    let cancelled = false;
+    const usageRequest =
+      compact || refreshVersion > 0
+        ? readBridge().refreshProviderUsage({ force: true })
+        : readBridge().getProviderUsage({});
+    void usageRequest
+      .then((res) => {
+        if (!cancelled) useProviderUsageStore.getState().setSnapshots(res.snapshots);
+      })
+      .catch(() => undefined);
+    void readBridge()
+      .getUsageLoginState({})
+      .then((res) => {
+        if (!cancelled) useUsageLoginStateStore.getState().setAll(res.stored);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [compact, refreshVersion, remoteView]);
+  return (
+    <PanelActivity visible={visible}>
+      <UsagePanelContent
+        onOpenUsageSettings={props.onOpenUsageSettings}
+        compact={compact}
+        remoteView={remoteView}
+        effectiveDesktopId={effectiveDesktopId}
+        browserRuntime={browserRuntime}
+        hostView={hostView}
+        nowTick={nowTick}
+      />
+    </PanelActivity>
+  );
+}
+
+function UsagePanelContent(props: {
+  onOpenUsageSettings?: (() => void) | undefined;
+  compact: boolean;
+  remoteView: boolean;
+  effectiveDesktopId: string | null;
+  browserRuntime: boolean;
+  hostView: ReturnType<typeof useHostUsageView>;
+  nowTick: number;
+}) {
+  const { compact, remoteView, effectiveDesktopId, browserRuntime, hostView, nowTick } = props;
+  const { t } = useLingui();
   const providerOrder = useSharedSettings((s) => s.usage.providerOrder);
   const disabledProviders = useSharedSettings((s) => s.usage.disabledProviders);
   const collapsedProviders = useSharedSettings((s) => s.usage.collapsedProviders);
@@ -64,11 +143,10 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   const snapshots = useProviderUsageStore((s) => s.snapshots);
   const requestedDesktopId = useUsageScopeStore((s) => s.desktopId);
   const setRequestedDesktopId = useUsageScopeStore((s) => s.setDesktopId);
-  const refreshVersion = useUsageScopeStore((s) => s.refreshVersion);
   const preferredProviderId = useUsageScopeStore((s) => s.preferredProviderId);
+  const revealRequest = useUsageScopeStore((s) => s.revealRequest);
   const requestRefresh = useUsageScopeStore((s) => s.requestRefresh);
   const servers = useRemoteServersStore((s) => s.servers);
-  const [nowTick, setNowTick] = useState(() => Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const { setScrollContainer, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
@@ -81,33 +159,26 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
     disabledProviders,
     agentInstances,
   );
-  const {
-    remote: remoteView,
-    effectiveId: effectiveDesktopId,
-    remoteSession: browserRuntime,
-  } = useUsagePanelScope();
-
-  const hostView = useHostUsageView(
-    remoteView ? (effectiveDesktopId ?? "") : "",
-    refreshVersion,
-    remoteView && compact,
-  );
-  const localLabels = new Map(
-    usageProvidersForAgentInstances(undefined).map((provider) => [provider.id, provider.label]),
-  );
-  for (const agent of hostView.agents?.windows ?? []) localLabels.set(agent.kind, agent.label);
   const orderedProviders = remoteView
-    ? (hostView.canRead ? hostView.usage.snapshots : [])
-        .map((snapshot) => ({
-          id: snapshot.providerId,
-          label: localLabels.get(snapshot.providerId) ?? snapshot.providerId,
-        }))
-        .sort((a, b) => {
-          const rank = (id: string) =>
-            providerOrder.indexOf(id) < 0 ? providerOrder.length : providerOrder.indexOf(id);
-          return rank(a.id) - rank(b.id);
-        })
+    ? resolveHostUsageProviders(
+        hostView.canRead ? hostView.usage.snapshots : [],
+        providerOrder,
+        hostView.agents,
+      )
     : localProviders;
+  const revealAvailable = orderedProviders.some(
+    (provider) => provider.id === revealRequest?.providerId,
+  );
+  useEffect(() => {
+    if (!revealRequest || !revealAvailable) return;
+    const frame = requestAnimationFrame(() => {
+      const card = [
+        ...(contentRef.current?.querySelectorAll<HTMLElement>("[data-usage-provider-id]") ?? []),
+      ].find((element) => element.dataset.usageProviderId === revealRequest.providerId);
+      card?.scrollIntoView({ block: "nearest" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [revealRequest, revealAvailable]);
   const { current: currentProvider, rest: sortableProviders } = separateCurrentUsageProvider(
     orderedProviders,
     preferredProviderId
@@ -149,49 +220,6 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
       <UsageProviderCard key={provider.id} {...common} />
     );
   }
-
-  useEffect(
-    () => () => {
-      useUsageScopeStore.getState().setPreferredProviderId(null);
-    },
-    [],
-  );
-
-  // Hydrate from the selected machine. Compact pages intentionally request a
-  // live refresh whenever they open; docked desktop panels retain the cached
-  // read and their explicit refresh action.
-  // Alongside it, load the persistent "signed in" flags so the sign-in/out
-  // affordance reflects the stored session, not whatever the last fetch returned.
-  useEffect(() => {
-    if (remoteView) return;
-    let cancelled = false;
-    const usageRequest = compact
-      ? readBridge().refreshProviderUsage({ force: true })
-      : refreshVersion > 0
-        ? readBridge().refreshProviderUsage({ force: true })
-        : readBridge().getProviderUsage({});
-    void usageRequest
-      .then((res) => {
-        if (cancelled) return;
-        useProviderUsageStore.getState().setSnapshots(res.snapshots);
-      })
-      .catch(() => undefined);
-    void readBridge()
-      .getUsageLoginState({})
-      .then((res) => {
-        if (!cancelled) useUsageLoginStateStore.getState().setAll(res.stored);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [compact, refreshVersion, remoteView]);
-
-  // Keep the single "Updated …" label fresh without re-fetching.
-  useEffect(() => {
-    const interval = window.setInterval(() => setNowTick(Date.now()), 30_000);
-    return () => window.clearInterval(interval);
-  }, []);
 
   const lastUpdated = (() => {
     let max = 0;
@@ -310,7 +338,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
               includeLocal={!browserRuntime}
               onChange={setRequestedDesktopId}
               {...(lastUpdated > 0 ? { detail: formatUpdatedAgo(lastUpdated, nowTick, t) } : {})}
-              buttonClassName="pointer-events-auto h-7 min-h-7 max-w-[14rem] rounded-full border border-[color:var(--border)] bg-[var(--content-background)] px-2.5 shadow-sm"
+              buttonClassName={`${floatingBubblePillClass} pointer-events-auto max-w-[14rem] px-2.5`}
               opensUpward
             />
           ) : (

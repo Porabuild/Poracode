@@ -6,6 +6,11 @@ export function formatRelativeTime(iso: string): string {
   return `${Math.floor(deltaHours / 24)}d`;
 }
 
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 export function formatElapsed(totalSeconds: number): string {
   if (totalSeconds < 60) return `${totalSeconds}s`;
   const minutes = Math.floor(totalSeconds / 60);

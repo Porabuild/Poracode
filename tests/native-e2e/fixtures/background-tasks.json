@@ -1,0 +1,215 @@
+{
+  "threadId": "thread-fixture-001",
+  "actions": {
+    "output": "background-output.test.v1",
+    "stop": "background-stop.test.v1"
+  },
+  "output": {
+    "prefix": "background-task fixture output",
+    "emptyRunKey": "empty",
+    "truncatedRunKey": "truncated",
+    "truncatedTailLength": 16384,
+    "truncatedTotalBytes": 65536
+  },
+  "stages": {
+    "initial": {
+      "tasks": [
+        {
+          "taskId": "bg-command",
+          "kind": "command",
+          "category": "command",
+          "description": "Type check the fixture workspace",
+          "command": "pnpm -C fixture typecheck",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Compiling fixture package",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "command-handle" }
+          },
+          "outputAction": {
+            "id": "background-output.test.v1",
+            "payload": { "runKey": "one", "handle": "command-handle" }
+          }
+        },
+        {
+          "taskId": "bg-monitor",
+          "kind": "command",
+          "category": "monitor",
+          "description": "Watch the fixture server health",
+          "command": "node scripts/watch-health.mjs",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Watching 3 endpoints",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "monitor-handle" }
+          },
+          "outputAction": {
+            "id": "background-output.test.v1",
+            "payload": { "runKey": "one", "handle": "monitor-handle" }
+          }
+        },
+        {
+          "taskId": "bg-tool",
+          "kind": "other",
+          "category": "tool",
+          "description": "Index the fixture tool catalog",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Indexed 12 of 40 tools",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "tool-handle" }
+          }
+        }
+      ]
+    },
+    "progress": {
+      "tasks": [
+        {
+          "taskId": "bg-command",
+          "kind": "command",
+          "category": "command",
+          "description": "Type check the fixture workspace",
+          "command": "pnpm -C fixture typecheck",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Compiling fixture package",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "command-handle" }
+          },
+          "outputAction": {
+            "id": "background-output.test.v1",
+            "payload": { "runKey": "one", "handle": "command-handle" }
+          }
+        },
+        {
+          "taskId": "bg-monitor",
+          "kind": "command",
+          "category": "monitor",
+          "description": "Watch the fixture server health",
+          "command": "node scripts/watch-health.mjs",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000020000,
+          "progress": "Watching 3 endpoints: 1 degraded",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "monitor-handle" }
+          },
+          "outputAction": {
+            "id": "background-output.test.v1",
+            "payload": { "runKey": "one", "handle": "monitor-handle" }
+          }
+        },
+        {
+          "taskId": "bg-tool",
+          "kind": "other",
+          "category": "tool",
+          "description": "Index the fixture tool catalog",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Indexed 12 of 40 tools",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "tool-handle" }
+          }
+        }
+      ]
+    },
+    "categoryCommand": {
+      "tasks": [
+        {
+          "taskId": "bg-command",
+          "kind": "command",
+          "category": "command",
+          "description": "Type check the fixture workspace",
+          "command": "pnpm -C fixture typecheck",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Compiling fixture package",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "command-handle" }
+          },
+          "outputAction": {
+            "id": "background-output.test.v1",
+            "payload": { "runKey": "one", "handle": "command-handle" }
+          }
+        },
+        {
+          "taskId": "bg-monitor",
+          "kind": "command",
+          "category": "monitor",
+          "description": "Watch the fixture server health",
+          "command": "node scripts/watch-health.mjs --follow",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000020000,
+          "progress": "Watching 3 endpoints: 1 degraded",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "monitor-handle" }
+          },
+          "outputAction": {
+            "id": "background-output.test.v1",
+            "payload": { "runKey": "one", "handle": "monitor-handle" }
+          }
+        },
+        {
+          "taskId": "bg-tool",
+          "kind": "other",
+          "category": "workflow",
+          "description": "Index the fixture tool catalog",
+          "command": "node fixture/index-tools.mjs",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Indexed 12 of 40 tools",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "tool-handle" }
+          }
+        }
+      ]
+    },
+    "stopped": {
+      "tasks": [
+        {
+          "taskId": "bg-command",
+          "kind": "command",
+          "category": "command",
+          "description": "Type check the fixture workspace",
+          "command": "pnpm -C fixture typecheck",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Compiling fixture package",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "command-handle" }
+          },
+          "outputAction": {
+            "id": "background-output.test.v1",
+            "payload": { "runKey": "one", "handle": "command-handle" }
+          }
+        },
+        {
+          "taskId": "bg-tool",
+          "kind": "other",
+          "category": "workflow",
+          "description": "Index the fixture tool catalog",
+          "command": "node fixture/index-tools.mjs",
+          "startedAt": 1770000000000,
+          "lastProgressAt": 1770000010000,
+          "progress": "Indexed 12 of 40 tools",
+          "stopAction": {
+            "id": "background-stop.test.v1",
+            "payload": { "runKey": "one", "handle": "tool-handle" }
+          }
+        }
+      ]
+    },
+    "drained": {
+      "tasks": []
+    }
+  }
+}

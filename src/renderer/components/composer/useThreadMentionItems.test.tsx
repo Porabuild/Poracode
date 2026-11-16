@@ -1,7 +1,9 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import { remoteProjectId, remoteThreadId } from "@/renderer/state/remoteProjection";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import type { Project, Thread } from "@/shared/contracts";
@@ -43,6 +45,7 @@ describe("useThreadMentionItems", () => {
       disabledBuiltInMcpTools: {},
     });
     useWorkspaceStore.getState().setActiveWorkspaceId(null);
+    useRemoteServersStore.setState({ servers: [] });
     useAppStore.setState({
       projects: [makeProject("project-1"), makeProject("project-2")],
       threads: [],
@@ -67,6 +70,19 @@ describe("useThreadMentionItems", () => {
     act(() => {
       useAppStore.setState({
         pendingSteerByThreadId: { other: { id: "s", prompt: "p", stagedAt: 1 } },
+      });
+    });
+    expect(renders).toBe(rendersAfterMount);
+
+    // Volatile runtime transitions on background threads (status, attention,
+    // turn timing, slashCommands, sessionConfigOptions, usage) must NOT
+    // re-render the active composer's mention list.
+    act(() => {
+      useAppStore.getState().updateThreadRuntime("a", {
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: true,
+        slashCommands: [{ id: "review", label: "review", description: "Review" }],
       });
     });
     expect(renders).toBe(rendersAfterMount);
@@ -99,11 +115,13 @@ describe("useThreadMentionItems", () => {
       useThreadMentionItems({ kind: "project", projectId: "project-1" }, "new"),
     );
 
-    expect(hook.result.current.map((item) => item.threadId)).toEqual(["old"]);
+    expect(hook.result.current.map((item) => item.threadId)).toEqual(["old", "other-project"]);
+    expect(hook.result.current[0]?.projectName).toBeUndefined();
+    expect(hook.result.current[1]?.projectName).toBe("Project project-2");
     hook.unmount();
   });
 
-  it("hides Home threads partitioned into another workspace in project scope", () => {
+  it("deprioritizes Home threads partitioned into another workspace in project scope", () => {
     useSharedSettings.setState({
       workspaces: [
         {
@@ -117,9 +135,10 @@ describe("useThreadMentionItems", () => {
     });
     useWorkspaceStore.getState().setActiveWorkspaceId("ws-active");
     useAppStore.setState({
+      projects: [makeProject(HOME_PROJECT_ID)],
       threads: [
         makeThread({ id: "home-visible", projectId: HOME_PROJECT_ID }),
-        makeThread({ id: "home-hidden", projectId: HOME_PROJECT_ID, workspaceId: "ws-other" }),
+        makeThread({ id: "home-other", projectId: HOME_PROJECT_ID, workspaceId: "ws-other" }),
       ],
     });
 
@@ -127,9 +146,89 @@ describe("useThreadMentionItems", () => {
       useThreadMentionItems({ kind: "project", projectId: HOME_PROJECT_ID }),
     );
 
-    expect(hook.result.current.map((item) => item.threadId)).toEqual(["home-visible"]);
+    expect(hook.result.current.map((item) => item.threadId)).toEqual([
+      "home-visible",
+      "home-other",
+    ]);
+    expect(hook.result.current.every((item) => item.projectName === undefined)).toBe(true);
     hook.unmount();
   });
+
+  it.each(["project", "workspace"] as const)(
+    "includes other workspaces after local matches in %s scope and updates workspace priority",
+    (kind) => {
+      useSharedSettings.setState({
+        workspaces: [
+          { id: "ws-active", name: "Active", icon: "briefcase", createdAt: "2026-08-01" },
+          { id: "ws-other", name: "Other", icon: "rocket", createdAt: "2026-08-01" },
+        ],
+      });
+      useWorkspaceStore.getState().setActiveWorkspaceId("ws-active");
+      useAppStore.setState({
+        projects: [
+          { ...makeProject("project-1"), workspaceId: "ws-active" },
+          { ...makeProject("project-2"), workspaceId: "ws-active" },
+          { ...makeProject("project-3"), workspaceId: "ws-other" },
+          makeProject(HOME_PROJECT_ID),
+        ],
+        threads: [
+          makeThread({ id: "same-project", updatedAt: "2026-08-01" }),
+          makeThread({ id: "same-workspace", projectId: "project-2", updatedAt: "2026-08-02" }),
+          makeThread({
+            id: "other-workspace",
+            projectId: "project-3",
+            worktreePath: "/worktrees/other",
+            worktreeBranch: "feature/other",
+            updatedAt: "2026-08-30",
+          }),
+          makeThread({
+            id: "home-other-workspace",
+            projectId: HOME_PROJECT_ID,
+            workspaceId: "ws-other",
+            updatedAt: "2026-08-31",
+          }),
+          makeThread({ id: "archived-other", projectId: "project-3", archived: true }),
+          makeThread({ id: "orphan", projectId: "missing-project" }),
+        ],
+      });
+      const hook = renderHook(() =>
+        useThreadMentionItems(kind === "project" ? { kind, projectId: "project-1" } : { kind }),
+      );
+      expect(hook.result.current.map((item) => item.threadId)).toEqual([
+        ...(kind === "project"
+          ? ["same-project", "same-workspace"]
+          : ["same-workspace", "same-project"]),
+        "other-workspace",
+        "home-other-workspace",
+      ]);
+      expect(hook.result.current.find((item) => item.threadId === "other-workspace")).toMatchObject(
+        {
+          projectName: "Project project-3",
+          worktreeName: "feature/other",
+        },
+      );
+
+      act(() => useWorkspaceStore.getState().setActiveWorkspaceId("ws-other"));
+      expect(hook.result.current.map((item) => item.threadId)).toEqual([
+        ...(kind === "project" ? ["same-project"] : []),
+        "other-workspace",
+        "home-other-workspace",
+        "same-workspace",
+        ...(kind === "workspace" ? ["same-project"] : []),
+      ]);
+      act(() => {
+        useAppStore.setState((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === "project-3" ? { ...project, name: "Renamed project" } : project,
+          ),
+        }));
+      });
+      expect(
+        hook.result.current.find((item) => item.threadId === "other-workspace")?.projectName,
+      ).toBe("Renamed project");
+      hook.unmount();
+    },
+  );
 
   it("offers no mentions when the app-controls server or its read_thread tool is disabled", () => {
     useAppStore.setState({
@@ -275,5 +374,173 @@ describe("useThreadMentionItems", () => {
       "main-thread",
     ]);
     hook.unmount();
+  });
+
+  it("treats remote environment mirrors of Home and grouped projects as same-scope and labels their environment", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "env-mac",
+          desktopId: "desktop-mac",
+          label: "Poracode on MacBook",
+          endpoint: "http://127.0.0.1:4100/api/environments/mac/proxy",
+          accessToken: "token-1",
+          scopes: ["session:read"],
+          transport: {
+            kind: "environment",
+            environmentId: "mac",
+            managedHostDesktopId: "local-host",
+            childDesktopId: "desktop-mac",
+          },
+        },
+      ],
+    });
+    const remoteHomeId = remoteProjectId("env-mac", HOME_PROJECT_ID);
+    const remoteProject1Id = remoteProjectId("env-mac", "mac-p1");
+    useAppStore.setState({
+      projects: [
+        { ...makeProject(HOME_PROJECT_ID), name: HOME_PROJECT_NAME },
+        {
+          id: remoteHomeId,
+          name: HOME_PROJECT_NAME,
+          remoteServerId: "env-mac",
+          remoteId: HOME_PROJECT_ID,
+          location: { kind: "posix", path: "/Users/me", remoteServerId: "env-mac" },
+          createdAt: "2026-08-01T00:00:00.000Z",
+        },
+        makeProject("project-1"),
+        {
+          id: remoteProject1Id,
+          name: "Project project-1",
+          remoteServerId: "env-mac",
+          remoteId: "mac-p1",
+          location: { kind: "posix", path: "/Users/me/project-1", remoteServerId: "env-mac" },
+          createdAt: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        makeThread({
+          id: "local-home-older",
+          projectId: HOME_PROJECT_ID,
+          title: "Improve stuck Apocalypse Warlock build now",
+          updatedAt: "2026-08-26T12:00:00.000Z",
+        }),
+        makeThread({
+          id: remoteThreadId("env-mac", "lume-5001"),
+          remoteServerId: "env-mac",
+          remoteId: "lume-5001",
+          projectId: remoteHomeId,
+          title: "PR #5001: Prepare macOS Lume certification",
+          updatedAt: "2026-08-29T12:00:00.000Z",
+        }),
+        makeThread({
+          id: remoteThreadId("env-mac", "mac-repo-thread"),
+          remoteServerId: "env-mac",
+          remoteId: "mac-repo-thread",
+          projectId: remoteProject1Id,
+          title: "Remote repo check",
+          updatedAt: "2026-08-29T13:00:00.000Z",
+        }),
+      ],
+    });
+
+    let renders = 0;
+    const homeHook = renderHook(() => {
+      renders += 1;
+      return useThreadMentionItems({ kind: "project", projectId: HOME_PROJECT_ID });
+    });
+
+    expect(homeHook.result.current).toEqual([
+      {
+        threadId: remoteThreadId("env-mac", "lume-5001"),
+        title: "PR #5001: Prepare macOS Lume certification",
+        updatedAt: "2026-08-29T12:00:00.000Z",
+        environmentName: "MacBook",
+      },
+      {
+        threadId: "local-home-older",
+        title: "Improve stuck Apocalypse Warlock build now",
+        updatedAt: "2026-08-26T12:00:00.000Z",
+      },
+      {
+        threadId: remoteThreadId("env-mac", "mac-repo-thread"),
+        title: "Remote repo check",
+        updatedAt: "2026-08-29T13:00:00.000Z",
+        projectName: "Project project-1",
+        environmentName: "MacBook",
+      },
+    ]);
+
+    // Token rotation on the remote server record must not re-render consumers.
+    const rendersAfterMount = renders;
+    act(() => {
+      useRemoteServersStore.setState((state) => ({
+        servers: state.servers.map((server) => ({ ...server, accessToken: "rotated-token" })),
+      }));
+    });
+    expect(renders).toBe(rendersAfterMount);
+    homeHook.unmount();
+
+    const projectHook = renderHook(() =>
+      useThreadMentionItems({ kind: "project", projectId: "project-1" }),
+    );
+    expect(projectHook.result.current[0]).toEqual({
+      threadId: remoteThreadId("env-mac", "mac-repo-thread"),
+      title: "Remote repo check",
+      updatedAt: "2026-08-29T13:00:00.000Z",
+      environmentName: "MacBook",
+    });
+    expect(projectHook.result.current[1]).toMatchObject({
+      threadId: remoteThreadId("env-mac", "lume-5001"),
+      projectName: HOME_PROJECT_NAME,
+      environmentName: "MacBook",
+    });
+    projectHook.unmount();
+  });
+
+  it("does not let local desktop MCP settings hide mentions in a remote environment draft", () => {
+    const remoteProject = remoteProjectId("env-mac", "p1");
+    useSharedSettings.setState({ disabledBuiltInMcpServers: { "app-controls": true } });
+    useAppStore.setState({
+      projects: [
+        makeProject("project-1"),
+        {
+          id: remoteProject,
+          name: "Remote Project",
+          remoteServerId: "env-mac",
+          remoteId: "p1",
+          location: { kind: "posix", path: "/repo", remoteServerId: "env-mac" },
+          createdAt: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+      threads: [makeThread({ id: "local-1" })],
+    });
+
+    const remoteDraft = renderHook(() =>
+      useThreadMentionItems({ kind: "project", projectId: remoteProject }),
+    );
+    expect(remoteDraft.result.current).toHaveLength(1);
+    remoteDraft.unmount();
+
+    const remoteHomeDraft = renderHook(() =>
+      useThreadMentionItems({
+        kind: "workspace",
+        projectId: remoteProjectId("env-mac", HOME_PROJECT_ID),
+      }),
+    );
+    expect(remoteHomeDraft.result.current).toHaveLength(1);
+    remoteHomeDraft.unmount();
+
+    const localHomeDraft = renderHook(() =>
+      useThreadMentionItems({ kind: "workspace", projectId: HOME_PROJECT_ID }),
+    );
+    expect(localHomeDraft.result.current).toHaveLength(0);
+    localHomeDraft.unmount();
+
+    const remoteDisabledLive = renderHook(() =>
+      useThreadMentionItems({ kind: "project", projectId: remoteProject }, undefined, false),
+    );
+    expect(remoteDisabledLive.result.current).toHaveLength(0);
+    remoteDisabledLive.unmount();
   });
 });

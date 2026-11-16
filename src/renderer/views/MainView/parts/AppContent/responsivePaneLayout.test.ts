@@ -12,6 +12,36 @@ const desktopLayout: PaneLayout = {
 };
 
 describe("resolveResponsivePaneLayout", () => {
+  it("keeps a selected second pane through compact and desktop resizing", () => {
+    for (const compactLayout of [true, false, true]) {
+      const result = resolveResponsivePaneLayout({
+        fullPaneLayout: desktopLayout,
+        panes: ["gui-a", "draft:project-b"],
+        focusedPaneId: "draft:project-b",
+        compactLayout,
+      });
+      expect(result.paneLayout).toEqual(
+        compactLayout
+          ? { kind: "leaf", paneId: "draft:project-b", slotId: "slot-b" }
+          : desktopLayout,
+      );
+      expect(result.visiblePaneIds).toEqual(
+        compactLayout ? ["draft:project-b"] : ["gui-a", "draft:project-b"],
+      );
+    }
+  });
+
+  it.each([null, "removed-pane"])("uses a valid pane when focus is %s", (focusedPaneId) => {
+    const result = resolveResponsivePaneLayout({
+      fullPaneLayout: desktopLayout,
+      panes: ["gui-a", "draft:project-b"],
+      focusedPaneId,
+      compactLayout: true,
+    });
+    expect(result.visiblePaneIds).toEqual(["gui-a"]);
+    expect(result.hiddenCurrentPaneIds).toEqual(["draft:project-b"]);
+  });
+
   it("preserves the focused pane slot and keeps sibling panes mounted in compact layout", () => {
     const compact = resolveResponsivePaneLayout({
       fullPaneLayout: desktopLayout,

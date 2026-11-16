@@ -1,3 +1,14 @@
+import { captureTurnClientContext } from "@/renderer/components/composer/turnClientContext";
+import {
+  preserveDraftSubmission,
+  materializeDraftSegments,
+  dispatchDraftSubmission,
+  acceptDraftSubmission,
+  retireFailedDraftSubmission,
+  waitForClientSubmission,
+  type DraftSubmission,
+} from "@/renderer/actions/clientDraftSubmission";
+import { updateClientSubmission } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import type { RefObject } from "react";
 import { sideChatAvailable, openSideChat } from "./SideChat/sideChatActions";
 import { toast } from "@heroui/react";
@@ -21,9 +32,14 @@ import {
   setThreadPendingSteer,
   submitThreadInput,
 } from "@/renderer/actions/threadRuntimeActions";
+import {
+  beginOptimisticThreadInput,
+  type PreparedOptimisticThreadInput,
+} from "@/renderer/actions/optimisticThreadInput";
 import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildLcSelectorFence, buildSelectorPlainText } from "@/renderer/state/browserAttachInbox";
+import { bridgeThreadInputSegments } from "@/renderer/state/remoteProjection";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
 import type { MentionInputHandle } from "../composer/MentionInput";
@@ -47,6 +63,9 @@ import {
  */
 export interface ComposerSubmitContext {
   thread: Thread;
+  /** Sent by the resume button, not typed: a failure leaves the composer empty
+   * so the button stays for another try. */
+  resumesInterruptedTurn?: boolean;
   agentStatus: AgentStatus | undefined;
   presentationMode: ThreadPresentationMode;
   usesTerminalPresentation: boolean;
@@ -87,12 +106,16 @@ export interface ComposerSubmitContext {
  * commands, the optional pre-send approval denial, the pending-steer staging
  * path, and the clear-on-success / restore-on-failure composer bookkeeping.
  */
-export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSubmitContext): void {
+export function submitComposerPrompt(
+  segments: PromptSegment[],
+  ctx: ComposerSubmitContext,
+): Promise<void> | void {
   const { thread, agentStatus, attachments, mentionRef, usesTerminalPresentation } = ctx;
+  const currentAttachments = attachments.getDraftAttachments();
   const attachmentSegments = attachments.toSegments();
   // The `lc-selector` fence is parsed only by the GUI chat SelectorBadge; a
   // terminal-native agent reads raw text, so submit a plain sentence instead.
-  const selectorSegments: PromptSegment[] = attachments.attachments
+  const selectorSegments: PromptSegment[] = currentAttachments
     .filter((a) => a.selector && a.sourceUrl)
     .map((a) => ({
       kind: "text" as const,
@@ -110,11 +133,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     runtimeLabel: agentStatus?.capabilities.runtimeLabel,
     supportsSideChat: sideChatAvailable(thread.id, ctx.presentationMode),
   };
-  const boundSegments = bindLeadingSkillUnlessLocalAction(
-    segments,
-    ctx.availableCommands,
-    slashLookupContext,
-  );
+  const boundSegments = ctx.resumesInterruptedTurn
+    ? segments
+    : bindLeadingSkillUnlessLocalAction(segments, ctx.availableCommands, slashLookupContext);
   const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
   // Route side questions before approval denial, queueing or steering. The
@@ -123,59 +144,156 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     (segment) => segment.kind !== "text" || segment.content.trim().length > 0,
   );
   const sideAction =
-    leadingSegment?.kind === "text"
+    !ctx.resumesInterruptedTurn && leadingSegment?.kind === "text"
       ? resolveLocalSlashCommandAction(flattenSegments(boundSegments), slashLookupContext)
       : null;
   if (sideAction?.kind === "open-side-chat") {
+    if (sideAction.prompt && attachments.hasPendingUploads()) return;
     const draftAtSubmit = JSON.stringify(ctx.latestSegmentsRef.current);
-    const attachmentsAtSubmit = JSON.stringify(attachments.getAttachments());
+    const attachmentsAtSubmit = JSON.stringify(attachments.getDraftAttachments());
     const questionSegments = boundSegments.map((segment) =>
       segment === leadingSegment && segment.kind === "text"
         ? { ...segment, content: segment.content.replace(SIDE_CHAT_COMMAND_PREFIX, "") }
         : segment,
     );
     ctx.setIsSubmitting(true);
-    const opening = sideAction.prompt
-      ? openSideChat(thread.id, sideAction.prompt, [
-          ...attachmentSegments,
-          ...selectorSegments,
-          ...questionSegments,
-        ])
-      : openSideChat(thread.id);
-    void opening
+    let releasedSubmittingEarly = false;
+    let clearedParentEarly = false;
+    const clearParentComposer = () => {
+      if (
+        !ctx.isCurrentSession() ||
+        JSON.stringify(ctx.latestSegmentsRef.current) !== draftAtSubmit ||
+        JSON.stringify(attachments.getDraftAttachments()) !== attachmentsAtSubmit
+      )
+        return false;
+      mentionRef.current?.clear();
+      attachments.clearAll();
+      ctx.setPrompt("");
+      ctx.setHasContent(false);
+      ctx.latestSegmentsRef.current = [];
+      return true;
+    };
+    const run = async () => {
+      if (!sideAction.prompt) return openSideChat(thread.id);
+      const submission = await preserveDraftSubmission({
+        kind: "thread",
+        ownerId: thread.id,
+        target: thread,
+        content: { segments, attachments: attachments.getDraftAttachments() },
+        segments: [...attachmentSegments, ...selectorSegments, ...questionSegments],
+        intent: "side-chat",
+        configuration: { config: thread.config },
+      });
+      let opened = false;
+      let sideSurfaceOpened = false;
+      try {
+        const outgoing = await materializeDraftSegments(
+          thread,
+          submission.segments,
+          `draft-${submission.id}`,
+          submission.isTargetCurrent,
+        );
+        opened = await dispatchDraftSubmission(submission, async () => {
+          const didOpen = await openSideChat(thread.id, sideAction.prompt, outgoing, {
+            clientSubmissionId: submission.id,
+          });
+          if (didOpen) {
+            sideSurfaceOpened = true;
+            clearedParentEarly = clearParentComposer();
+            if (clearedParentEarly) {
+              useAppStore.getState().clearThreadDraftContent(thread.id);
+            }
+            if (ctx.isCurrentSession()) {
+              releasedSubmittingEarly = true;
+              ctx.setIsSubmitting(false);
+            }
+            await waitForClientSubmission(submission.id);
+          }
+          return didOpen;
+        });
+        if (!opened) {
+          if (
+            ctx.isCurrentSession() &&
+            JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
+            JSON.stringify(attachments.getDraftAttachments()) === attachmentsAtSubmit
+          ) {
+            await retireFailedDraftSubmission(submission.id);
+          } else {
+            await updateClientSubmission(submission.id, "failed");
+          }
+          return false;
+        }
+        await acceptDraftSubmission(submission, () => {
+          if (clearParentComposer()) {
+            useAppStore.getState().clearThreadDraftContent(thread.id);
+          }
+        });
+        return true;
+      } catch (error) {
+        if (!isRemoteCommandOutcomeUncertainError(error)) {
+          if (
+            (sideSurfaceOpened && clearedParentEarly) ||
+            (!opened &&
+              ctx.isCurrentSession() &&
+              JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
+              JSON.stringify(attachments.getDraftAttachments()) === attachmentsAtSubmit)
+          ) {
+            await retireFailedDraftSubmission(submission.id);
+          } else if (!opened) {
+            const { readClientSubmission } =
+              await import("@/renderer/state/composerDrafts/clientDraftDatabase");
+            if (
+              (await readClientSubmission(submission.id).catch(() => undefined))?.state ===
+              "prepared"
+            )
+              await updateClientSubmission(submission.id, "failed").catch(() => undefined);
+          }
+        }
+        // When the side surface already opened, SideChatThreadView owns the
+        // failed child row and its error item — do not also toast in the parent.
+        if (sideSurfaceOpened && !isRemoteCommandOutcomeUncertainError(error)) {
+          return false;
+        }
+        throw error;
+      }
+    };
+    return run()
       .then((opened) => {
         if (
-          opened &&
-          ctx.isCurrentSession() &&
-          JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
-          JSON.stringify(attachments.getAttachments()) === attachmentsAtSubmit
-        ) {
-          mentionRef.current?.clear();
-          if (sideAction.prompt) attachments.clearAll();
-          ctx.setPrompt("");
-          ctx.setHasContent(false);
-          ctx.latestSegmentsRef.current = [];
-          if (!sideAction.prompt && attachments.getAttachments().length > 0) {
-            useAppStore.getState().saveThreadDraftContent(thread.id, {
-              segments: [],
-              attachments: attachments.getAttachments().map(storableAttachment),
-            });
-          } else useAppStore.getState().clearThreadDraftContent(thread.id);
-        }
+          sideAction.prompt ||
+          !opened ||
+          !ctx.isCurrentSession() ||
+          JSON.stringify(ctx.latestSegmentsRef.current) !== draftAtSubmit
+        )
+          return;
+        mentionRef.current?.clear();
+        ctx.setPrompt("");
+        ctx.setHasContent(false);
+        ctx.latestSegmentsRef.current = [];
+        if (attachments.getDraftAttachments().length > 0)
+          useAppStore.getState().saveThreadDraftContent(thread.id, {
+            segments: [],
+            attachments: attachments.getDraftAttachments(),
+          });
+        else useAppStore.getState().clearThreadDraftContent(thread.id);
       })
-      .catch((error: unknown) => toast.danger(friendlyError(error)))
+      .catch((error: unknown) => {
+        toast.danger(friendlyError(error));
+      })
       .finally(() => {
-        if (ctx.isCurrentSession()) ctx.setIsSubmitting(false);
+        if (ctx.isCurrentSession() && !releasedSubmittingEarly) ctx.setIsSubmitting(false);
       });
-    return;
   }
+
   if (!hasSendablePromptContent(flat, allSegments) || !ctx.canSubmit) return;
   const clearComposerText = () => {
     ctx.setPrompt("");
     ctx.setHasContent(false);
     ctx.latestSegmentsRef.current = [];
   };
-  const localAction = resolveLocalActionUnlessSkill(allSegments, flat, slashLookupContext);
+  const localAction = ctx.resumesInterruptedTurn
+    ? null
+    : resolveLocalActionUnlessSkill(allSegments, flat, slashLookupContext);
   if (localAction?.kind === "set-mode") {
     changeThreadConfig(thread.id, { ...thread.config, mode: localAction.mode });
     mentionRef.current?.clear();
@@ -207,8 +325,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     clearComposerText();
     return;
   }
+  if (attachments.hasPendingUploads()) return;
   const submittedInputSegments = segments;
-  const submittedAttachments = attachments.attachments;
+  const submittedAttachments = currentAttachments;
   const clearSubmittedComposer = () => {
     mentionRef.current?.clear();
     mentionRef.current?.focus();
@@ -227,17 +346,37 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   // Capture now, before approval denial or focus waits: the context belongs
   // to the moment the user sent this message.
   // Observe a capture rejection immediately, even while focus/approval awaits.
-  const clientContextCapture = (async () => {
-    try {
-      return { context: await ctx.captureClientContext?.() };
-    } catch (error) {
-      return { error };
-    }
-  })();
+  const clientContextCapture = captureTurnClientContext(ctx.captureClientContext);
   let clearedBeforeSendSettled = false;
-  ctx.submittedRef.current = true;
-  useAppStore.getState().clearThreadDraftContent(thread.id);
   ctx.setIsSubmitting(true);
+  let submission: DraftSubmission | undefined;
+  let deliveryAccepted = false;
+  const intent = ctx.usesPendingSteerPath
+    ? ctx.followUpBehavior === "queue"
+      ? "queue"
+      : "steer"
+    : "send";
+  // Capture the revision synchronously at Send, before context/focus awaits.
+  const preservation = preserveDraftSubmission({
+    kind: "thread",
+    ownerId: thread.id,
+    target: thread,
+    content: {
+      segments: submittedInputSegments,
+      attachments: submittedAttachments.map(storableAttachment),
+    },
+    segments: allSegments,
+    intent,
+    configuration: { config: thread.config },
+  }).then(
+    (value) => ({ value }),
+    (error: unknown) => ({ error }),
+  );
+  let outgoing = allSegments;
+  const sameEditor = () =>
+    JSON.stringify(ctx.latestSegmentsRef.current) === JSON.stringify(submittedInputSegments) &&
+    JSON.stringify(attachments.getDraftAttachments()) ===
+      JSON.stringify(submittedAttachments.map(storableAttachment));
   if (!usesTerminalPresentation) {
     useAppStore
       .getState()
@@ -246,6 +385,8 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
         ctx.usesPendingSteerPath && ctx.followUpBehavior === "queue",
       );
   }
+  let preparedOptimisticInput: PreparedOptimisticThreadInput | undefined;
+  let handedOffOptimisticInput = false;
 
   let focusPromise = Promise.resolve();
   if (ctx.needsFocusBeforeInput) {
@@ -289,71 +430,142 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     if ("error" in captured) throw captured.error;
     const clientContext = captured.context;
     if (!ctx.usesPendingSteerPath) {
-      const outgoingSegments = allSegments.length > 0 ? allSegments : undefined;
-      await (ctx.onSubmitInput
-        ? ctx.onSubmitInput(flat, outgoingSegments)
-        : submitThreadInput(thread.id, flat, outgoingSegments, { clientContext }));
+      const outgoingSegments = outgoing.length > 0 ? outgoing : undefined;
+      if (ctx.onSubmitInput) {
+        await ctx.onSubmitInput(flat, outgoingSegments);
+      } else {
+        handedOffOptimisticInput = true;
+        try {
+          await submitThreadInput(thread.id, flat, outgoingSegments, { clientContext });
+        } finally {
+          preparedOptimisticInput?.releaseUnconsumed();
+        }
+      }
       return;
     }
     if (ctx.followUpBehavior === "queue") {
+      const wireSegments = bridgeThreadInputSegments(
+        thread,
+        outgoing.length > 0 ? outgoing : undefined,
+      );
       await readBridge().queueThreadFollowUp({
         threadId: thread.id,
         prompt: flat,
         config: thread.config,
-        ...(allSegments.length > 0 ? { segments: allSegments } : {}),
+        ...(wireSegments ? { segments: wireSegments } : {}),
         ...(clientContext ? { clientContext } : {}),
       });
     } else {
       await setThreadPendingSteer(
         thread,
         flat,
-        allSegments.length > 0 ? allSegments : undefined,
+        outgoing.length > 0 ? outgoing : undefined,
         clientContext,
       );
     }
     captureThreadPromptSubmitted(
       thread,
       flat,
-      allSegments.length > 0 ? allSegments : undefined,
+      outgoing.length > 0 ? outgoing : undefined,
       ctx.followUpBehavior === "queue" ? "follow_up" : "pending_steer",
     );
   };
 
-  if (!usesTerminalPresentation) {
-    clearSubmittedComposer();
-    clearedBeforeSendSettled = true;
-  }
-
-  void focusPromise
+  return focusPromise
     .then(async () => {
+      const preserved = await preservation;
+      if ("error" in preserved) throw preserved.error;
+      submission = preserved.value;
+      if (ctx.isCurrentSession()) ctx.submittedRef.current = true;
+      if (!usesTerminalPresentation && ctx.isCurrentSession() && sameEditor()) {
+        clearSubmittedComposer();
+        clearedBeforeSendSettled = true;
+      }
+      if (!usesTerminalPresentation && !ctx.usesPendingSteerPath && !ctx.onSubmitInput) {
+        preparedOptimisticInput = beginOptimisticThreadInput(thread, flat, allSegments);
+      }
       const captured = await clientContextCapture;
       if ("error" in captured) throw captured.error;
-      return denyPendingApproval();
+      outgoing = await materializeDraftSegments(
+        thread,
+        submission.segments,
+        `draft-${submission.id}`,
+        submission.isTargetCurrent,
+      );
+      await denyPendingApproval();
     })
-    .then(runSubmission)
     .then(() => {
-      if (!ctx.isCurrentSession()) return;
-      if (!clearedBeforeSendSettled) {
-        clearSubmittedComposer();
-      }
-      if (ctx.isCurrentSession()) ctx.onSubmitSuccess?.();
+      if (!submission) return;
+      return dispatchDraftSubmission(submission, runSubmission);
     })
-    .catch((error: unknown) => {
-      // Leave the prompt intact so the user can retry.
-      useAppStore.getState().saveThreadDraftContent(thread.id, {
-        segments: submittedInputSegments,
-        attachments: submittedAttachments.map(storableAttachment),
-      });
+    .then(async () => {
+      deliveryAccepted = true;
+      if (submission)
+        await acceptDraftSubmission(submission, () =>
+          useAppStore.getState().clearThreadDraftContent(thread.id),
+        );
+      if (!ctx.isCurrentSession()) return;
+      if (!clearedBeforeSendSettled && sameEditor()) clearSubmittedComposer();
+      if (
+        ctx.isCurrentSession() &&
+        ctx.latestSegmentsRef.current.length === 0 &&
+        attachments.getDraftAttachments().length === 0
+      )
+        ctx.onSubmitSuccess?.();
+    })
+    .catch(async (error: unknown) => {
+      if (!handedOffOptimisticInput) {
+        preparedOptimisticInput?.abortBeforeDispatch();
+      }
+      if (deliveryAccepted) {
+        toast.danger(friendlyError(error));
+        return;
+      }
+      if (submission) {
+        const { readClientSubmission } =
+          await import("@/renderer/state/composerDrafts/clientDraftDatabase");
+        if (
+          (await readClientSubmission(submission.id).catch(() => undefined))?.state === "prepared"
+        )
+          await updateClientSubmission(submission.id, "failed").catch(() => undefined);
+      }
+      if (ctx.resumesInterruptedTurn) {
+        if (!isRemoteCommandOutcomeUncertainError(error)) {
+          if (submission) await retireFailedDraftSubmission(submission.id);
+          toast.danger(friendlyError(error));
+        }
+        return;
+      }
       if (isRemoteCommandOutcomeUncertainError(error)) {
         // The command may have committed: the send action already reconciled
         // once and showed the localized uncertainty explanation. Keep the
-        // optimistic paint and the saved draft, but do not restore the
-        // composer — a blind resend could duplicate the effect.
+        // optimistic paint and the outbox recovery snapshot, but do not
+        // restore the composer — a blind resend could duplicate the effect.
         return;
       }
-      if (ctx.isCurrentSession()) {
-        restoreSubmittedComposer();
+      // Leave the prompt intact so the user can retry, and retire the outbox
+      // copy whenever the editor/draft already keeps this exact message.
+      const saved = useAppStore.getState().threadDraftContents[thread.id];
+      const keepSubmittedDraft =
+        !saved ||
+        sameEditor() ||
+        (ctx.isCurrentSession() &&
+          ctx.latestSegmentsRef.current.length === 0 &&
+          attachments.getDraftAttachments().length === 0);
+      if (keepSubmittedDraft) {
+        useAppStore.getState().saveThreadDraftContent(thread.id, {
+          segments: submittedInputSegments,
+          attachments: submittedAttachments.map(storableAttachment),
+        });
+        if (submission) await retireFailedDraftSubmission(submission.id);
       }
+      if (
+        ctx.isCurrentSession() &&
+        clearedBeforeSendSettled &&
+        ctx.latestSegmentsRef.current.length === 0 &&
+        attachments.getDraftAttachments().length === 0
+      )
+        restoreSubmittedComposer();
       toast.danger(friendlyError(error));
     })
     .finally(() => {

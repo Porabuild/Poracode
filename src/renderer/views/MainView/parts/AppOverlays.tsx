@@ -10,6 +10,7 @@ import {
 } from "@/renderer/analytics/useProductViewTracking";
 import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import {
+  DeferredAddRemoteFolderModal as PrewarmedAddRemoteFolderModal,
   DeferredBrowserHost as PrewarmedBrowserHost,
   DeferredCloneProjectModal as PrewarmedCloneProjectModal,
   DeferredCreateProjectModal as PrewarmedCreateProjectModal,
@@ -21,10 +22,12 @@ import {
   DeferredProjectSettingsOverlay,
   DeferredSettingsOverlay,
   DeferredThreadForkDialog,
+  DeferredMoveThreadDialog,
 } from "@/renderer/deferredFeatures";
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { useThreadForkStore } from "@/renderer/state/threadForkStore";
+import { useThreadTransferStore } from "@/renderer/state/threadTransferStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { selectPullRequestsOverlayVisible, usePanelStore } from "@/renderer/state/panelStore";
 
@@ -57,11 +60,13 @@ function useEverEnabled(active: boolean): boolean {
 export function AppOverlays() {
   const forkSourceThreadId = useThreadForkStore((state) => state.sourceThreadId);
   const forkThroughItemId = useThreadForkStore((state) => state.throughItemId);
+  const transferSourceThreadId = useThreadTransferStore((state) => state.sourceThreadId);
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((s) => s.mobileUtilityPage);
   const projects = useAppStore((s) => s.projects);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const projectSettingsId = usePanelStore((s) => s.projectSettingsId);
+  const projectSettingsSection = usePanelStore((s) => s.projectSettingsSection);
   const projectSettingsOverlayVisible =
     projectSettingsId !== null && !(compactLayout && mobileUtilityPage === "projectSettings");
   const gitOverlayOpen = usePanelStore((s) => s.gitOverlayOpen);
@@ -121,6 +126,14 @@ export function AppOverlays() {
           />
         </Suspense>
       ) : null}
+      {transferSourceThreadId ? (
+        <Suspense fallback={null}>
+          <DeferredMoveThreadDialog
+            key={transferSourceThreadId}
+            sourceThreadId={transferSourceThreadId}
+          />
+        </Suspense>
+      ) : null}
       <OverlayShell
         open={settingsOpen}
         instantEnter
@@ -141,7 +154,9 @@ export function AppOverlays() {
         {projectSettingsOverlayVisible && projectSettingsId && (
           <Suspense fallback={<OverlayLoader />}>
             <DeferredProjectSettingsOverlay
+              key={`${projectSettingsId}:${projectSettingsSection ?? ""}`}
               projectId={projectSettingsId}
+              initialSection={projectSettingsSection}
               onClose={() => usePanelStore.getState().closeProjectSettings()}
             />
           </Suspense>
@@ -267,6 +282,7 @@ export function AppOverlays() {
       <DeferredLoginTerminalOverlay />
       <DeferredCreateProjectModal />
       <DeferredCloneProjectModal />
+      <DeferredAddRemoteFolderModal />
     </>
   );
 }
@@ -322,6 +338,16 @@ function DeferredCloneProjectModal() {
   return enabled ? (
     <Suspense>
       <PrewarmedCloneProjectModal />
+    </Suspense>
+  ) : null;
+}
+
+function DeferredAddRemoteFolderModal() {
+  const open = usePanelStore((state) => state.remoteFolderPickerConnectionKey !== null);
+  const enabled = useEverEnabled(open);
+  return enabled ? (
+    <Suspense>
+      <PrewarmedAddRemoteFolderModal />
     </Suspense>
   ) : null;
 }

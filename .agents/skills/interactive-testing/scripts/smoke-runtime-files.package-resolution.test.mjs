@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { test } from "node:test";
 import { copyRuntimeDependencies } from "./smoke-runtime-files.mjs";
 
@@ -37,7 +37,7 @@ void test("copies a declared transitive npm package whose name is also a Node bu
     const target = await realpath(
       join(app, "node_modules", "fixture-outer", "node_modules", "punycode"),
     );
-    assert(target.startsWith((await realpath(app)) + "/"));
+    assert(target.startsWith((await realpath(app)) + sep));
     assert.equal(
       await readFile(join(target, "index.js"), "utf8"),
       "module.exports = 'declared npm package';\n",

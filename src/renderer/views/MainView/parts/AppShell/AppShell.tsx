@@ -17,6 +17,7 @@ import {
   hasNativeWindowChrome,
 } from "@/renderer/components/layout/windowChrome";
 import { useTwoRafReady } from "@/renderer/hooks/useTwoRafReady";
+import { useGlassOverlaySidebar } from "@/renderer/hooks/useGlassOverlaySidebar";
 import { useSidebarGlassActive } from "@/renderer/hooks/useGlassState";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
@@ -251,6 +252,7 @@ function ShellSidebarAside(props: {
   const effectiveIsCollapsed = forceSidebarExpanded ? false : isCollapsed;
   const effectiveClosingOverlay = forceSidebarExpanded ? false : closingOverlay;
   const effectiveIsOverlay = forceSidebarExpanded ? false : isOverlay;
+  useGlassOverlaySidebar(sidebarRef);
 
   // A translucent sidebar reads as its own glass edge, so the hard hairline
   // between it and the content looks heavy. Drop it (transparent, keeping the

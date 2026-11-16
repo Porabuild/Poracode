@@ -127,6 +127,12 @@ function highlightApi(): {
 export function setFindHighlights(ranges: readonly Range[], current: Range | null): void {
   const api = highlightApi();
   if (!api) return;
+  // Unmatched find rules avoid per-element custom-highlight style allocations
+  // during ordinary scrolling and streaming, while keeping the same paint.
+  document.documentElement.toggleAttribute(
+    "data-poracode-find-highlights",
+    ranges.length > 0 || current !== null,
+  );
   api.registry.set(FIND_HIGHLIGHT_NAME, new api.Highlight(...ranges));
   if (current) {
     const highlight = new api.Highlight(current) as { priority?: number };
@@ -138,6 +144,7 @@ export function setFindHighlights(ranges: readonly Range[], current: Range | nul
 }
 
 export function clearFindHighlights(): void {
+  document.documentElement.removeAttribute("data-poracode-find-highlights");
   const api = highlightApi();
   if (!api) return;
   api.registry.delete(FIND_HIGHLIGHT_NAME);

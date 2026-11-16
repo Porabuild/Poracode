@@ -79,6 +79,21 @@ function writeFixture() {
   );
   writeFileSync(join(agentPluginsDir, "codex", "plugin.json"), "{}\n");
   writeFileSync(join(wslHelpersDir, "README.md"), "helpers\n");
+  mkdirSync(join(wslHelpersDir, "mcp-relay", "darwin-universal"), { recursive: true });
+  mkdirSync(join(wslHelpersDir, "mcp-relay", "linux-x64"), { recursive: true });
+  writeFileSync(
+    join(wslHelpersDir, "mcp-relay", "darwin-universal", "poracode-mcp-relay"),
+    "mach-o\n",
+  );
+  writeFileSync(join(wslHelpersDir, "mcp-relay", "linux-x64", "poracode-mcp-relay"), "elf\n");
+  mkdirSync(join(wslHelpersDir, "git-helper", "darwin-universal"), { recursive: true });
+  mkdirSync(join(wslHelpersDir, "git-helper", "linux-x64"), { recursive: true });
+  writeFileSync(join(wslHelpersDir, "git-helper", "libgit2-COPYING.txt"), "libgit2 license\n");
+  writeFileSync(
+    join(wslHelpersDir, "git-helper", "darwin-universal", "poracode-git-helper"),
+    "mach-o\n",
+  );
+  writeFileSync(join(wslHelpersDir, "git-helper", "linux-x64", "poracode-git-helper"), "elf\n");
   writeFileSync(join(skillsDir, "demo", "SKILL.md"), "skill\n");
   writeFileSync(join(pluginsDir, "demo", "plugin.json"), "{}\n");
   writeFileSync(
@@ -246,6 +261,20 @@ void test("buildSshRuntimeArchive emits the loader manifest from the frozen clos
   assert.ok(existsSync(join(extract, "server.ssh-runtime-manifest.json")));
   assert.ok(existsSync(join(extract, "agent-plugins", "codex", "plugin.json")));
   assert.ok(existsSync(join(extract, "wsl-helpers", "README.md")));
+  // macOS relay builds stay out of the archive (unsigned Mach-O fails Apple
+  // notarization); other relay targets and helpers still ship.
+  assert.equal(existsSync(join(extract, "wsl-helpers", "mcp-relay", "darwin-universal")), false);
+  assert.ok(
+    existsSync(join(extract, "wsl-helpers", "mcp-relay", "linux-x64", "poracode-mcp-relay")),
+  );
+  assert.equal(existsSync(join(extract, "wsl-helpers", "git-helper", "darwin-universal")), false);
+  assert.equal(
+    readFileSync(join(extract, "wsl-helpers", "git-helper", "libgit2-COPYING.txt"), "utf8"),
+    "libgit2 license\n",
+  );
+  assert.ok(
+    existsSync(join(extract, "wsl-helpers", "git-helper", "linux-x64", "poracode-git-helper")),
+  );
   assert.ok(existsSync(join(extract, "skills", "demo", "SKILL.md")));
   assert.ok(existsSync(join(extract, "plugins", "demo", "plugin.json")));
   assert.ok(existsSync(join(extract, "npm-shrinkwrap.json")));

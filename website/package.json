@@ -12,15 +12,15 @@
     "lint": "bun lint ."
   },
   "dependencies": {
-    "@heroui/react": "3.2.4",
-    "@heroui/styles": "3.2.4",
+    "@heroui/react": "3.2.7",
+    "@heroui/styles": "3.2.7",
     "@upstash/redis": "^1.39.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.8.2",
     "@vercel/speed-insights": "^2.0.0",
     "lucide-react": "1.41.0",
     "motion": "13.2.0",
-    "next": "16.3.8",
+    "next": "16.4.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwindcss": "4.3.3",

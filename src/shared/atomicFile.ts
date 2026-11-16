@@ -1,14 +1,7 @@
-import {
-  closeSync,
-  fchmodSync,
-  mkdirSync,
-  openSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { closeSync, fchmodSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
+import { ensureDirectorySync } from "./ensureDirectory.ts";
 
 /**
  * Write through an exclusively created sibling file, then rename it into place.
@@ -28,7 +21,7 @@ export function writeFileAtomic(
     exactMode?: boolean;
   },
 ): void {
-  mkdirSync(dirname(filePath), { recursive: true });
+  ensureDirectorySync(dirname(filePath));
   const tmp = `${filePath}.${randomUUID()}.tmp`;
   let ownsTemporary = false;
   try {

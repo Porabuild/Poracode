@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { threadStatusSchema, type ThreadAttention, type ThreadStatus } from "./contracts";
+import { threadAttentionStatus } from "./threadAttention";
 
 export const userNotificationCategorySchema = z.enum(["done", "needsAttention", "error"]);
 export type UserNotificationCategory = z.infer<typeof userNotificationCategorySchema>;
@@ -24,18 +25,19 @@ export function classifyThreadNotification(
   oldStatus: ThreadStatus,
   newStatus: ThreadStatus,
   newAttention: ThreadAttention,
+  oldAttention: ThreadAttention = "none",
 ): UserNotificationCategory | null {
-  if (oldStatus === newStatus) return null;
-  if (newStatus === "error") return "error";
-  if (
-    newStatus === "needs_approval" ||
-    newStatus === "needs_reply" ||
-    newAttention === "needs_approval" ||
-    newAttention === "needs_reply"
-  ) {
-    return "needsAttention";
+  const previous = threadAttentionStatus(oldStatus, oldAttention);
+  const next = threadAttentionStatus(newStatus, newAttention);
+  if (next === "error") return previous === next ? null : "error";
+  if (next === "needs_approval" || next === "needs_reply") {
+    return previous === next ? null : "needsAttention";
   }
-  if (ACTIVE_STATUSES.has(oldStatus) && (newStatus === "idle" || newStatus === "finished")) {
+  if (
+    oldStatus !== newStatus &&
+    ACTIVE_STATUSES.has(oldStatus) &&
+    (newStatus === "idle" || newStatus === "finished")
+  ) {
     return "done";
   }
   return null;

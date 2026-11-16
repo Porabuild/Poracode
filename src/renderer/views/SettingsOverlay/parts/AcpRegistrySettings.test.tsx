@@ -8,6 +8,8 @@ import type {
   Project,
   AcpRegistryInstallTarget,
 } from "@/shared/contracts";
+import { useMachineSelectionStore } from "@/renderer/state/machineSelectionStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { resetAcpRegistryListingCache } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { getProviderManifests } from "@/renderer/components/providers/providerManifest";
@@ -67,6 +69,12 @@ const bridge = {
 const runAgentInstallCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => boolean>());
 const runAgentLoginCommandMock = vi.hoisted(() => vi.fn<(input: unknown) => boolean>());
 const resetDiscoveredAgentsMock = vi.hoisted(() => vi.fn<() => void>());
+const remoteClientMock = vi.hoisted(() => ({
+  endpoint: "https://conn-1.test",
+  callRemoteProcedure: vi.fn<(procedure: string, payload: unknown) => Promise<unknown>>(),
+  agentStatuses: vi.fn<() => Promise<unknown>>(),
+  agentSlashCommands: vi.fn<(kind: string) => Promise<{ kind: string; commands: never[] }>>(),
+}));
 
 vi.mock("@/renderer/state/agentStatusesStore", () => {
   const useAgentStatusesStore = (
@@ -80,8 +88,27 @@ vi.mock("@/renderer/state/agentStatusesStore", () => {
       ...statusesState,
       resetDiscoveredAgents: resetDiscoveredAgentsMock,
     });
-  useAgentStatusesStore.getState = () => ({ resetDiscoveredAgents: resetDiscoveredAgentsMock });
-  return { useAgentStatusesStore };
+  useAgentStatusesStore.getState = () => ({
+    ...statusesState,
+    resetDiscoveredAgents: resetDiscoveredAgentsMock,
+  });
+  return {
+    useAgentStatusesStore,
+    isDetectingAgentsForLocation: () => false,
+  };
+});
+
+vi.mock("@/renderer/state/remoteServersStore", async () => {
+  const { create } = await import("zustand");
+  const store = create(() => ({
+    servers: [] as unknown[],
+    runtime: {} as Record<string, unknown>,
+    withClient: async (
+      _desktopId: string,
+      invoke: (client: typeof remoteClientMock) => Promise<unknown>,
+    ) => invoke(remoteClientMock),
+  }));
+  return { useRemoteServersStore: store };
 });
 
 vi.mock("@/renderer/state/appStore", () => {
@@ -91,11 +118,14 @@ vi.mock("@/renderer/state/appStore", () => {
 });
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: typeof settingsState) => unknown) =>
-    selector(settingsState),
+  useSharedSettings: Object.assign(
+    (selector: (state: typeof settingsState) => unknown) => selector(settingsState),
+    { getState: () => settingsState },
+  ),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
+  isRemoteSession: () => false,
   isWindows: () => bridge.platform === "win32",
   isMac: () => bridge.platform === "darwin",
   readBridge: () => bridge,
@@ -392,6 +422,11 @@ function installedRecord(input: {
 describe("AcpRegistrySettings", () => {
   beforeEach(() => {
     resetAcpRegistryListingCache();
+    useMachineSelectionStore.setState({ selectedMachineId: "local" });
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    remoteClientMock.callRemoteProcedure.mockReset();
+    remoteClientMock.agentStatuses.mockReset();
+    remoteClientMock.agentSlashCommands.mockReset().mockResolvedValue({ kind: "", commands: [] });
     bridge.platform = "darwin";
     statusesState.agentStatuses = [];
     statusesState.wslAgentStatuses = [];
@@ -417,6 +452,10 @@ describe("AcpRegistrySettings", () => {
       );
     });
   });
+
+  const selectMachine = (machineId: string) => {
+    act(() => useMachineSelectionStore.getState().setSelectedMachine(machineId));
+  };
 
   it("loads the registry through one shared listing on mount", async () => {
     // listAcpRegistry runs the supervisor's registry auto-update sweep; the
@@ -1002,6 +1041,7 @@ describe("AcpRegistrySettings", () => {
       fromCache: false,
     });
     render(<AcpRegistrySettings />);
+    selectMachine("local/wsl:Ubuntu");
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
@@ -1221,7 +1261,12 @@ describe("AcpRegistrySettings", () => {
       expect(entries.get("opencode")?.installCommand(macProject)).toContain(
         "brew install anomalyco/tap/opencode",
       );
-      expect(entries.get("gemini")?.installCommand(macProject)).not.toContain("brew install");
+      const geminiMacInstall = entries.get("gemini")?.installCommand(macProject);
+      expect(geminiMacInstall).toContain("npm install -g @google/gemini-cli");
+      expect(geminiMacInstall).toContain("brew install gemini-cli");
+      expect(geminiMacInstall!.indexOf("npm install -g @google/gemini-cli")).toBeLessThan(
+        geminiMacInstall!.indexOf("brew install gemini-cli"),
+      );
       expect(entries.get("qwen")?.installCommand(macProject)).toContain("brew install qwen-code");
       expect(entries.get("copilot")?.installCommand(macProject)).toContain(
         "brew install --cask copilot-cli",
@@ -1361,16 +1406,13 @@ describe("AcpRegistrySettings", () => {
     appState.projects = [wslProject];
 
     render(<AcpRegistrySettings />);
+    selectMachine("local/wsl:Ubuntu");
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const codexCard = screen.getByText(/First-class Codex CLI integration/u).closest(".rounded-lg");
     expect(codexCard).toBeTruthy();
 
-    fireEvent.click(
-      within(codexCard as HTMLElement).getByRole("button", {
-        name: "Install in WSL: Ubuntu",
-      }),
-    );
+    fireEvent.click(within(codexCard as HTMLElement).getByRole("button", { name: "Install" }));
 
     await waitFor(() => {
       expect(runAgentInstallCommandMock).toHaveBeenCalledWith(
@@ -1407,13 +1449,24 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const codexCard = screen.getByText(/First-class Codex CLI integration/u).closest(".rounded-lg");
-    expect(codexCard).toBeTruthy();
-    expect(within(codexCard as HTMLElement).getByText("WSL (Ubuntu)")).toBeInTheDocument();
+    const localCodexCard = screen
+      .getByText(/First-class Codex CLI integration/u)
+      .closest(".rounded-lg");
+    expect(localCodexCard).toBeTruthy();
+    expect(within(localCodexCard as HTMLElement).queryByText("Detected")).toBeNull();
     expect(
-      within(codexCard as HTMLElement).queryByRole("button", {
-        name: "Install in WSL: Ubuntu",
-      }),
+      within(localCodexCard as HTMLElement).getByRole("button", { name: "Install" }),
+    ).toBeInTheDocument();
+
+    selectMachine("local/wsl:Ubuntu");
+
+    const wslCodexCard = screen
+      .getByText(/First-class Codex CLI integration/u)
+      .closest(".rounded-lg");
+    expect(wslCodexCard).toBeTruthy();
+    expect(within(wslCodexCard as HTMLElement).getByText("Detected")).toBeInTheDocument();
+    expect(
+      within(wslCodexCard as HTMLElement).queryByRole("button", { name: "Install" }),
     ).toBeNull();
   });
 
@@ -1437,8 +1490,15 @@ describe("AcpRegistrySettings", () => {
     await screen.findByRole("heading", { name: "Agent Registry" });
     const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
     expect(cursorCard).toBeTruthy();
-    expect(within(cursorCard as HTMLElement).getByText("(local)")).toBeInTheDocument();
-    expect(within(cursorCard as HTMLElement).getByText("WSL (Ubuntu)")).toBeInTheDocument();
+    expect(within(cursorCard as HTMLElement).getByText("Detected")).toBeInTheDocument();
+    expect(screen.queryByText("Cursor through ACP")).not.toBeInTheDocument();
+
+    selectMachine("local/wsl:Ubuntu");
+    const wslCursorCard = screen
+      .getByText(/First-class Cursor integration/u)
+      .closest(".rounded-lg");
+    expect(wslCursorCard).toBeTruthy();
+    expect(within(wslCursorCard as HTMLElement).getByText("Detected")).toBeInTheDocument();
     expect(screen.queryByText("Cursor through ACP")).not.toBeInTheDocument();
   });
 
@@ -1485,6 +1545,7 @@ describe("AcpRegistrySettings", () => {
     ];
 
     render(<AcpRegistrySettings />);
+    selectMachine("local/wsl:Ubuntu");
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const codexCard = screen.getByText(/First-class Codex CLI integration/u).closest(".rounded-lg");
@@ -1708,15 +1769,14 @@ describe("AcpRegistrySettings", () => {
     ];
 
     render(<AcpRegistrySettings />);
+    selectMachine("local/wsl:Ubuntu");
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
     expect(glmCard).toBeTruthy();
 
     await act(async () => {
-      fireEvent.click(
-        within(glmCard as HTMLElement).getByRole("button", { name: "Login WSL (Ubuntu)" }),
-      );
+      fireEvent.click(within(glmCard as HTMLElement).getByRole("button", { name: "Login" }));
     });
 
     expect(bridge.authenticateAcpAgent).toHaveBeenCalledWith({
@@ -1725,5 +1785,367 @@ describe("AcpRegistrySettings", () => {
       envKind: "wsl",
       wslDistro: "Ubuntu",
     });
+  });
+
+  it("fills the full viewport height without outer bottom padding and reserves scope-bar room inside the scroll area", async () => {
+    const { container, rerender } = render(<AcpRegistrySettings />);
+    await screen.findByRole("heading", { name: "Agent Registry" });
+
+    const root = container.firstElementChild as HTMLElement;
+    const inner = root.firstElementChild as HTMLElement;
+    const scrollArea = container.querySelector<HTMLElement>("[data-settings-scroll-area]");
+    expect(root).toHaveClass("h-full", "min-h-0");
+    expect(root).not.toHaveClass("pb-8");
+    expect(inner).toHaveClass("min-h-0", "flex-1");
+    expect(scrollArea).toHaveClass("min-h-0", "flex-1", "overflow-y-auto", "pb-8");
+    expect(scrollArea).not.toHaveClass("pb-20");
+
+    act(() => {
+      useRemoteServersStore.setState({
+        servers: [
+          {
+            connectionId: "conn-1",
+            desktopId: "conn-1",
+            label: "Studio",
+            endpoint: "https://conn-1.test",
+            accessToken: "token",
+            scopes: [],
+          },
+        ],
+      });
+    });
+    rerender(<AcpRegistrySettings />);
+
+    expect(scrollArea).toHaveClass("pb-20");
+    expect(scrollArea).not.toHaveClass("pb-8");
+  });
+
+  it("scopes ACP registry installs per machine and passes the selected WSL target", async () => {
+    bridge.platform = "win32";
+    appState.projects = [
+      makeProject({
+        id: "wsl-project",
+        name: "WSL Project",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/project",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+        },
+      }),
+    ];
+    settingsState.acpRegistryInstalledAgents = {
+      "glm-acp-agent": {
+        ...installedRecord({
+          id: "glm-acp-agent",
+          name: "GLM Agent",
+          version: "1.1.3",
+          adapterKind: "acp-generic:glm-acp-agent",
+        }),
+        installations: {
+          native: {
+            version: "1.1.3",
+            target: "windows-x86_64",
+            installedAt: new Date(0).toISOString(),
+          },
+        },
+      },
+    };
+
+    render(<AcpRegistrySettings />);
+    await screen.findByRole("heading", { name: "Agent Registry" });
+
+    // Native machine sees the Windows install as deletable.
+    const localGlmCard = screen.getByText("GLM through ACP").closest(".rounded-lg") as HTMLElement;
+    expect(within(localGlmCard).getByRole("button", { name: "Delete" })).toBeInTheDocument();
+
+    // Switching to WSL Ubuntu offers installing there instead of mirroring the Windows install.
+    selectMachine("local/wsl:Ubuntu");
+    const wslGlmCard = screen.getByText("GLM through ACP").closest(".rounded-lg") as HTMLElement;
+    expect(within(wslGlmCard).queryByRole("button", { name: "Delete" })).toBeNull();
+    fireEvent.click(within(wslGlmCard).getByRole("button", { name: "Install" }));
+
+    await waitFor(() => {
+      expect(bridge.installAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "glm-acp-agent",
+        target: { kind: "wsl", distro: "Ubuntu" },
+      });
+    });
+  });
+
+  it("scopes registry, detection, probes, installs, updates, auth, and deletes to the selected remote machine", async () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "conn-1",
+          desktopId: "conn-1",
+          label: "Studio",
+          endpoint: "https://conn-1.test",
+          accessToken: "token",
+          platform: "linux",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "conn-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [
+              makeStatus("codex", {
+                label: "Codex",
+                version: "0.140.0",
+                envKind: "posix",
+              }),
+              makeStatus("claude", {
+                label: "Claude Code",
+                installed: false,
+                envKind: "posix",
+              }),
+              makeStatus("acp-generic:glm-acp-agent", {
+                label: "GLM Agent",
+                version: "1.0.0",
+                authState: "missing",
+                authMethods: [{ id: "sso", name: "SSO" }],
+                envKind: "posix",
+              }),
+            ],
+            wsl: [],
+            updatedAt: new Date(0).toISOString(),
+          },
+        },
+      },
+    });
+    let glmUpdated = false;
+    remoteClientMock.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "listAcpRegistry") return registry;
+      if (procedure === "getLatestAgentVersion") return { source: "npm", version: "2.0.0" };
+      if (procedure === "updateAcpRegistryAgent") {
+        glmUpdated = true;
+        return { installed: [] };
+      }
+      if (procedure === "installAcpRegistryAgent") return { installed: [] };
+      if (procedure === "removeAcpRegistryAgent") return { installed: [] };
+      if (procedure === "authenticateAcpAgent") return undefined;
+      if (procedure === "refreshAgentStatuses") return { windows: [], wsl: [], fromCache: false };
+      throw new Error(`Unexpected procedure ${procedure}`);
+    });
+    remoteClientMock.agentStatuses.mockImplementation(async () => ({
+      windows: [
+        makeStatus("codex", { label: "Codex", version: "0.140.0", envKind: "posix" }),
+        makeStatus("acp-generic:glm-acp-agent", {
+          label: "GLM Agent",
+          version: glmUpdated ? "1.1.3" : "1.0.0",
+          ...(glmUpdated
+            ? {}
+            : { authState: "missing" as const, authMethods: [{ id: "sso", name: "SSO" }] }),
+          envKind: "posix",
+        }),
+      ],
+      wsl: [],
+      updatedAt: new Date(glmUpdated ? 2 : 1).toISOString(),
+    }));
+
+    render(<AcpRegistrySettings />);
+    selectMachine("remote:conn-1");
+
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("listAcpRegistry", {}),
+    );
+
+    const codexCard = screen
+      .getByText(/First-class Codex CLI integration/u)
+      .closest(".rounded-lg") as HTMLElement;
+    expect(within(codexCard).getByText("Detected")).toBeInTheDocument();
+    expect(within(codexCard).getByText("v0.140.0")).toBeInTheDocument();
+
+    // Uninstalled native providers probe the remote host and install using the
+    // remote machine's platform (Linux bash, not local macOS Homebrew) and host.
+    const claudeCard = screen
+      .getByText(/First-class Claude Code integration/u)
+      .closest(".rounded-lg") as HTMLElement;
+    expect(await within(claudeCard).findByText("v2.0.0")).toBeInTheDocument();
+    fireEvent.click(within(claudeCard).getByRole("button", { name: "Install" }));
+    const installInput = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
+      | {
+          project?: Project;
+          command: (project: Project) => string;
+          onCommandComplete: (code: number) => void;
+        }
+      | undefined;
+    expect(installInput?.project?.remoteServerId).toBe("conn-1");
+    expect(installInput?.project?.location).toEqual({
+      kind: "posix",
+      path: "~",
+      remoteServerId: "conn-1",
+    });
+    const linuxCommand = installInput!.command(installInput!.project!);
+    expect(linuxCommand).toContain("https://claude.ai/install.sh");
+    expect(linuxCommand).not.toContain("brew");
+    await act(async () => installInput?.onCommandComplete(0));
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("refreshAgentStatuses", {
+        wslDistros: [],
+        scope: { agentKinds: ["claude"] },
+      }),
+    );
+
+    // Outdated generic ACP agent on remote shows remote Update, Login, and Delete.
+    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg") as HTMLElement;
+    expect(within(glmCard).getByText("v1.0.0")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(within(glmCard).getByRole("button", { name: "Login" }));
+    });
+    expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("authenticateAcpAgent", {
+      agentKind: "acp-generic:glm-acp-agent",
+      methodId: "sso",
+      envKind: "posix",
+    });
+    expect(bridge.authenticateAcpAgent).not.toHaveBeenCalled();
+
+    fireEvent.click(within(glmCard).getByRole("button", { name: /Update to v1\.1\.3/u }));
+
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("updateAcpRegistryAgent", {
+        agentId: "glm-acp-agent",
+      }),
+    );
+    expect(settingsState.syncAcpRegistryInstalledAgents).not.toHaveBeenCalled();
+    expect(bridge.updateAcpRegistryAgent).not.toHaveBeenCalled();
+
+    const refreshedGlmCard = (await screen.findByText("GLM through ACP")).closest(
+      ".rounded-lg",
+    ) as HTMLElement;
+    fireEvent.click(await within(refreshedGlmCard).findByRole("button", { name: "Delete" }));
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("removeAcpRegistryAgent", {
+        agentId: "glm-acp-agent",
+      }),
+    );
+    expect(bridge.removeAcpRegistryAgent).not.toHaveBeenCalled();
+  });
+
+  it("installs ACP registry agents on a remote WSL machine with the matching target", async () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "conn-1",
+          desktopId: "conn-1",
+          label: "Studio",
+          endpoint: "https://conn-1.test",
+          accessToken: "token",
+          platform: "win32",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "conn-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [],
+            wsl: [
+              makeStatus("codex", {
+                label: "Codex",
+                installed: true,
+                envKind: "wsl",
+                envDistro: "Ubuntu",
+              }),
+            ],
+            updatedAt: new Date(0).toISOString(),
+          },
+        },
+      },
+    });
+    remoteClientMock.callRemoteProcedure.mockImplementation(async (procedure) => {
+      if (procedure === "listAcpRegistry") return registry;
+      if (procedure === "getLatestAgentVersion") return { source: "npm", version: "2.0.0" };
+      if (procedure === "installAcpRegistryAgent") return { installed: [] };
+      throw new Error(`Unexpected procedure ${procedure}`);
+    });
+    remoteClientMock.agentStatuses.mockResolvedValue({
+      windows: [],
+      wsl: [
+        makeStatus("codex", {
+          label: "Codex",
+          installed: true,
+          envKind: "wsl",
+          envDistro: "Ubuntu",
+        }),
+        makeStatus("acp-generic:glm-acp-agent", {
+          label: "GLM Agent",
+          version: "1.1.3",
+          envKind: "wsl",
+          envDistro: "Ubuntu",
+        }),
+      ],
+      updatedAt: new Date(1).toISOString(),
+    });
+
+    render(<AcpRegistrySettings />);
+    selectMachine("remote:conn-1/wsl:Ubuntu");
+
+    const glmCard = (await screen.findByText("GLM through ACP")).closest(
+      ".rounded-lg",
+    ) as HTMLElement;
+    fireEvent.click(within(glmCard).getByRole("button", { name: "Install" }));
+
+    await waitFor(() =>
+      expect(remoteClientMock.callRemoteProcedure).toHaveBeenCalledWith("installAcpRegistryAgent", {
+        agentId: "glm-acp-agent",
+        target: { kind: "wsl", distro: "Ubuntu" },
+      }),
+    );
+    expect(bridge.installAcpRegistryAgent).not.toHaveBeenCalled();
+    expect(settingsState.syncAcpRegistryInstalledAgents).not.toHaveBeenCalled();
+  });
+
+  it("shows an offline notice and disables remote installs, updates, deletes, and refresh when offline", async () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "conn-1",
+          desktopId: "conn-1",
+          label: "Studio",
+          endpoint: "https://conn-1.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+      runtime: {
+        "conn-1": {
+          status: "offline",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [
+              makeStatus("codex", {
+                label: "Codex",
+                version: "0.140.0",
+                envKind: "posix",
+              }),
+            ],
+            wsl: [],
+            updatedAt: new Date(0).toISOString(),
+          },
+        },
+      },
+    });
+
+    render(<AcpRegistrySettings />);
+    selectMachine("remote:conn-1");
+
+    expect(
+      await screen.findByText("Studio is offline. Showing last known status."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh registry" })).toBeDisabled();
+    const claudeCard = screen
+      .getByText(/First-class Claude Code integration/u)
+      .closest(".rounded-lg") as HTMLElement;
+    expect(within(claudeCard).getByRole("button", { name: "Install" })).toBeDisabled();
+    expect(remoteClientMock.callRemoteProcedure).not.toHaveBeenCalled();
   });
 });

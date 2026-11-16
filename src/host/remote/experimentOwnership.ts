@@ -332,12 +332,32 @@ function readCandidateOwnership(): CandidateOwnership[] {
   }
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const threadById = new Map(threads.map((thread) => [thread.id, thread]));
-  return activeCandidates.map(({ projectId, candidate }) => ({
-    threadId: candidate.threadId,
-    project: projectById.get(projectId),
-    worktreePath: candidate.worktreePath ?? threadById.get(candidate.threadId)?.worktreePath,
-    worktreeBranch: candidate.worktreeBranch,
-  }));
+  return activeCandidates.flatMap(({ projectId, candidate }) => {
+    const thread = threadById.get(candidate.threadId);
+    const recorded = {
+      threadId: candidate.threadId,
+      project: projectById.get(projectId),
+      worktreePath: candidate.worktreePath ?? thread?.worktreePath,
+      worktreeBranch: candidate.worktreeBranch,
+    };
+    // Frozen experiment intent and a repaired live link both retain custody.
+    if (
+      thread?.projectId === projectId &&
+      thread.worktreePath &&
+      (thread.worktreePath !== recorded.worktreePath ||
+        (thread.worktreeBranch && thread.worktreeBranch !== recorded.worktreeBranch))
+    ) {
+      return [
+        recorded,
+        {
+          ...recorded,
+          worktreePath: thread.worktreePath,
+          worktreeBranch: thread.worktreeBranch ?? recorded.worktreeBranch,
+        },
+      ];
+    }
+    return [recorded];
+  });
 }
 
 function isSameProject(ownership: CandidateOwnership, location: ProjectLocation): boolean {

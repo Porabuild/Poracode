@@ -25,6 +25,8 @@ import {
   readDatabaseAsync,
 } from "./asyncReads";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import { dbAppendUsageEvents } from "./usageEvents";
+import { getProfileCoreStats, getProfileTokenStats } from "../profile";
 import { callDatabaseRpc } from "./databaseRpc";
 import { dbSetState, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
 import {
@@ -143,6 +145,37 @@ function pool(path = workerPath, imagePreviews = false) {
 }
 
 describe("worker-backed SQLite reads", () => {
+  it("builds cold profile rollups off the owner from an upgraded database and appends incrementally", async () => {
+    const now = Date.now();
+    dbAppendUsageEvents([
+      { ts: now, kind: "turn", provider: "codex:work", value: 1000 },
+      // Legacy token rows remain valid after the profile loading upgrade.
+      { ts: now, kind: "tokens", provider: "codex:work", value: 500 },
+    ]);
+    enableAsyncDatabaseReads(dbPath, workerPath);
+    const prepare = vi.spyOn(getSqlite(), "prepare");
+    try {
+      const [core, tokens] = await Promise.all([
+        getProfileCoreStats({ utcOffsetMinutes: 0 }),
+        getProfileTokenStats({ utcOffsetMinutes: 0 }),
+      ]);
+      expect(core.totals.totalPrompts).toBe(1);
+      expect(tokens.lifetimeTokens).toBe(500);
+      expect(prepare.mock.calls.some(([sql]) => String(sql).includes("SELECT ts, kind"))).toBe(
+        false,
+      );
+
+      dbAppendUsageEvents([
+        { ts: now, kind: "turn", provider: "codex:work", value: 2000 },
+        { ts: now, kind: "tokens", provider: "codex:work", value: 700 },
+      ]);
+      expect((await getProfileCoreStats({ utcOffsetMinutes: 0 })).totals.totalPrompts).toBe(2);
+      expect((await getProfileTokenStats({ utcOffsetMinutes: 0 })).lifetimeTokens).toBe(1200);
+    } finally {
+      prepare.mockRestore();
+    }
+  });
+
   it("reads through an IPC process that never loads SQLite or image dependencies", async () => {
     const guard = join(directory, "control-dependencies.cjs");
     writeFileSync(
@@ -597,7 +630,7 @@ describe("worker-backed SQLite reads", () => {
     ).toEqual({ value: "999" });
   });
 
-  it("starts its workers before the first read when warmed", async () => {
+  it("starts a warm worker before the first read when warmed", async () => {
     // Each forked worker records its pid before loading the worker module.
     const spawns = join(directory, "spawns.txt");
     const recorder = join(directory, "record-spawn.cjs");
@@ -612,11 +645,55 @@ describe("worker-backed SQLite reads", () => {
     try {
       const reads = pool();
       reads.warm();
-      await vi.waitFor(() => expect(countSpawns()).toBe(2), { timeout: 10_000 });
+      await vi.waitFor(() => expect(countSpawns()).toBe(1), { timeout: 10_000 });
       expect(await reads.read("runtimeItems", ["thread-1"])).toEqual(
         dbReadThreadRuntimeItems("thread-1"),
       );
-      expect(countSpawns()).toBe(2);
+      expect(countSpawns()).toBe(1);
+    } finally {
+      if (previous === undefined) delete process.env.NODE_OPTIONS;
+      else process.env.NODE_OPTIONS = previous;
+    }
+  });
+
+  it("retires all workers once reads go quiet and scales up for a burst", async () => {
+    const spawns = join(directory, "spawns.txt");
+    const recorder = join(directory, "record-spawn.cjs");
+    writeFileSync(
+      recorder,
+      `if(require('node:worker_threads').isMainThread)require('node:fs').appendFileSync(${JSON.stringify(spawns)}, process.pid + '\\n');`,
+    );
+    const pids = () =>
+      existsSync(spawns) ? readFileSync(spawns, "utf8").trim().split("\n").map(Number) : [];
+    const alive = () =>
+      pids().filter((pid) => {
+        try {
+          process.kill(pid, 0);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    const previous = process.env.NODE_OPTIONS;
+    process.env.NODE_OPTIONS = `${previous ?? ""} --require=${JSON.stringify(recorder)}`;
+    try {
+      const reads = new AsyncDatabaseReads(dbPath, workerPath, false, 100);
+      pools.push(reads);
+      reads.warm();
+      await vi.waitFor(() => expect(pids()).toHaveLength(1), { timeout: 10_000 });
+      await vi.waitFor(() => expect(alive()).toHaveLength(0), { timeout: 10_000 });
+
+      const expected = dbReadThreadRuntimeItems("thread-1");
+      await expect(
+        Promise.all([
+          reads.read("runtimeItems", ["thread-1"]),
+          reads.read("runtimeItems", ["thread-1"]),
+        ]),
+      ).resolves.toEqual([expected, expected]);
+      await vi.waitFor(() => expect(pids()).toHaveLength(3), { timeout: 10_000 });
+      await vi.waitFor(() => expect(alive()).toHaveLength(0), { timeout: 10_000 });
+      expect(await reads.read("runtimeItems", ["thread-1"])).toEqual(expected);
+      expect(pids()).toHaveLength(4);
     } finally {
       if (previous === undefined) delete process.env.NODE_OPTIONS;
       else process.env.NODE_OPTIONS = previous;

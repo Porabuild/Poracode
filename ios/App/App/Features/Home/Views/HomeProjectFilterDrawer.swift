@@ -2,8 +2,6 @@ import SwiftUI
 
 struct HomeProjectFilterDrawer: View {
   @Environment(\.dismiss) private var dismiss
-  @Environment(\.colorScheme) private var colorScheme
-  @Environment(\.poracodeTheme) private var theme
 
   @Bindable var session: AppSession
   let options: [HomeProjectFilterOption]
@@ -30,7 +28,6 @@ struct HomeProjectFilterDrawer: View {
       List {
         HomeAllProjectsFilterRow(
           isSelected: selectedProjectIDs.isEmpty,
-          accent: palette.accent,
           select: selectAllProjects
         )
 
@@ -38,7 +35,6 @@ struct HomeProjectFilterDrawer: View {
           HomeProjectFilterRow(
             option: option,
             isSelected: selectedProjectIDs.isEmpty || selectedProjectIDs.contains(option.id),
-            accent: palette.accent,
             select: { toggle(option.id) },
             openActions: { projectActions = option }
           )
@@ -84,10 +80,6 @@ struct HomeProjectFilterDrawer: View {
       fallback: option.project
     )
     return HomeProjectActionsDrawer.preferredHeight(for: project)
-  }
-
-  private var palette: PoracodeThemeVariant {
-    theme.variant(for: colorScheme)
   }
 
   private static func filterPreferredHeight(optionCount: Int) -> CGFloat {

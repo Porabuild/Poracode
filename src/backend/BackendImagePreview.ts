@@ -21,7 +21,7 @@ export async function generateBackendImageCardVariant({
   const variant = await image
     .autoOrient()
     .resize({ width: 960, height: 960, fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 75 })
+    .webp({ quality: 75, effort: 2 })
     .toBuffer();
   return variant.length > 0 ? { data: variant, mime: "image/webp" } : null;
 }

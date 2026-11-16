@@ -88,16 +88,18 @@ internal fun launchHomeQuickCompose(
 internal fun homeQuickComposeAddWorktreeRequest(
     project: RemoteProject,
     branch: String,
+    transferChanges: Boolean = false,
 ): GitOperationRequest {
     val normalized = branch.trim()
     require(normalized.isNotEmpty()) { "branch must not be blank" }
     return GitRequests.create(
         GitProcedure.AddWorktree,
         project.location,
-        mapOf(
-            "branch" to JsonPrimitive(normalized),
-            "createBranch" to JsonPrimitive(true),
-        ),
+        buildMap {
+            put("branch", JsonPrimitive(normalized))
+            put("createBranch", JsonPrimitive(true))
+            if (transferChanges) put("transferChanges", JsonPrimitive(true))
+        },
     )
 }
 

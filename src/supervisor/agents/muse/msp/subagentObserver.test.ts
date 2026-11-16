@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { MuseSubagentObserver } from "./subagentObserver";
-import { MSP_SCHEMA_VERSION } from "./protocol";
+import { MSP_SCHEMA_VERSION, MspRpcError } from "./protocol";
 
 const mocks = vi.hoisted(() => ({
   spawn: vi.fn<typeof import("./client").spawnMuseServeHost>(),
@@ -35,10 +35,10 @@ const hosted = {
 } as unknown as Awaited<ReturnType<typeof import("./client").spawnMuseServeHost>>;
 const observers: MuseSubagentObserver[] = [];
 
-function setup() {
+function setup(owner?: Pick<import("./client").MuseMspClient, "request">) {
   const notifications = vi.fn<(method: string, params: Record<string, unknown>) => void>();
   const disconnected = vi.fn<() => void>();
-  const observer = new MuseSubagentObserver(location, options, notifications, disconnected);
+  const observer = new MuseSubagentObserver(location, options, notifications, disconnected, owner);
   observers.push(observer);
   return { observer, notifications, disconnected };
 }
@@ -183,4 +183,83 @@ describe("Muse child transcript observer", () => {
       after: "cursor-2",
     });
   });
+});
+
+it("uses native child views on the writer without opening an observer host", async () => {
+  const owner = {
+    request: vi.fn<typeof mocks.request>().mockResolvedValue({ viewCursor: "native" }),
+  };
+  const { observer } = setup(owner);
+  await observer.request("session/read", { sessionId: "child-1" });
+  await observer.request("view/subscribe", { sessionId: "child-1", after: "native" });
+  expect(owner.request.mock.calls.map(([method]) => method)).toEqual([
+    "session/read",
+    "view/subscribe",
+  ]);
+  expect(mocks.spawn).not.toHaveBeenCalled();
+  await observer.dispose();
+  expect(mocks.dispose).not.toHaveBeenCalled();
+});
+
+it("falls back only for older writer sessionNotFound refusals and keeps child routing stable", async () => {
+  const owner = {
+    request: vi
+      .fn<typeof mocks.request>()
+      .mockRejectedValue(
+        new MspRpcError("nested session not found", { code: -32000, kind: "sessionNotFound" }),
+      ),
+  };
+  const { observer } = setup(owner);
+  await observer.request("session/read", { sessionId: "child-1" });
+  await observer.request("view/subscribe", { sessionId: "child-1", after: "cursor-1" });
+  expect(owner.request).toHaveBeenCalledTimes(1);
+  expect(mocks.spawn).toHaveBeenCalledTimes(1);
+  expect(mocks.request).toHaveBeenCalledTimes(2);
+});
+
+it("does not hide unrelated owner failures behind an observer", async () => {
+  const owner = {
+    request: vi
+      .fn<typeof mocks.request>()
+      .mockRejectedValue(
+        new MspRpcError("session still in use", { code: -32000, kind: "sessionInUse" }),
+      ),
+  };
+  const { observer } = setup(owner);
+  await expect(observer.request("session/read", { sessionId: "child-1" })).rejects.toThrow(
+    "session still in use",
+  );
+  expect(mocks.spawn).not.toHaveBeenCalled();
+});
+
+it("does not spawn a fallback after disposal wins an owner-read race", async () => {
+  const reading = Promise.withResolvers<Record<string, unknown>>();
+  const owner = { request: vi.fn<typeof mocks.request>().mockReturnValue(reading.promise) };
+  const { observer } = setup(owner);
+  const pending = observer.request("session/read", { sessionId: "child-1" });
+  await observer.dispose();
+  reading.reject(new MspRpcError("not found", { code: -32000, kind: "sessionNotFound" }));
+  await expect(pending).rejects.toThrow("Muse transcript observer is closed.");
+  expect(mocks.spawn).not.toHaveBeenCalled();
+});
+
+it("keeps readable owner snapshots when only its live subscription is refused", async () => {
+  const refusal = new MspRpcError("subscription child not found", {
+    code: -32020,
+    kind: "sessionNotFound",
+  });
+  const owner = {
+    request: vi.fn<typeof mocks.request>().mockImplementation(async (method) => {
+      if (method === "view/subscribe") throw refusal;
+      return { viewCursor: "native" };
+    }),
+  };
+  const { observer } = setup(owner);
+  await observer.request("session/read", { sessionId: "child-1" });
+  await expect(
+    observer.request("view/subscribe", { sessionId: "child-1", after: "native" }),
+  ).rejects.toBe(refusal);
+  await observer.request("session/read", { sessionId: "child-1" });
+  expect(mocks.spawn).not.toHaveBeenCalled();
+  expect(owner.request).toHaveBeenCalledTimes(3);
 });

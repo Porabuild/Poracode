@@ -10,7 +10,7 @@ import type {
   StructuredSessionListener,
   StructuredSessionUpdate,
 } from "../base";
-import { CursorSdkSession } from "./sdkSession";
+import { CursorSdkSession, type CursorSdkSessionDependencies } from "./sdkSession";
 import type {
   CursorSdkWorkerAgentMessage,
   CursorSdkWorkerEvent,
@@ -183,12 +183,14 @@ export function recordingListener() {
 export async function createSession(
   worker = new FakeWorker(),
   inputOverrides: Partial<CreateStructuredSessionInput> = {},
+  dependencyOverrides: Partial<CursorSdkSessionDependencies> = {},
 ) {
   const spawnWorker = vi.fn<(input: unknown) => Promise<FakeWorker>>(async () => worker);
   let id = 0;
   const session = await CursorSdkSession.create(input(inputOverrides), {
     spawnWorker,
     newId: () => `id-${++id}`,
+    ...dependencyOverrides,
   });
   return { session, worker, spawnWorker };
 }
@@ -196,6 +198,7 @@ export async function createSession(
 export async function createSessionWithWorkers(
   workers: readonly FakeWorker[],
   inputOverrides: Partial<CreateStructuredSessionInput> = {},
+  dependencyOverrides: Partial<CursorSdkSessionDependencies> = {},
 ) {
   let workerIndex = 0;
   const spawnWorker = vi.fn<(input: unknown) => Promise<FakeWorker>>(async () => {
@@ -207,6 +210,7 @@ export async function createSessionWithWorkers(
   const session = await CursorSdkSession.create(input(inputOverrides), {
     spawnWorker,
     newId: () => `id-${++id}`,
+    ...dependencyOverrides,
   });
   return { session, spawnWorker };
 }

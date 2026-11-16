@@ -6,12 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Error
-import androidx.compose.material.icons.outlined.MarkChatUnread
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -27,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.push.RemoteUserNotificationBanner
 import com.poracode.app.push.RemoteUserNotificationCategory
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun RemoteUserNotificationBannerView(
@@ -62,10 +57,10 @@ internal fun RemoteUserNotificationBannerView(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
+            Icon(PoracodeIcons.KeyboardArrowRight, contentDescription = null)
             IconButton(onClick = onDismiss) {
                 Icon(
-                    Icons.Outlined.Close,
+                    PoracodeIcons.Close,
                     stringResource(R.string.remote_notification_dismiss),
                 )
             }
@@ -74,9 +69,9 @@ internal fun RemoteUserNotificationBannerView(
 }
 
 private fun RemoteUserNotificationCategory.icon(): ImageVector = when (this) {
-    RemoteUserNotificationCategory.Done -> Icons.Outlined.CheckCircle
-    RemoteUserNotificationCategory.NeedsAttention -> Icons.Outlined.MarkChatUnread
-    RemoteUserNotificationCategory.Error -> Icons.Outlined.Error
+    RemoteUserNotificationCategory.Done -> PoracodeIcons.CheckCircle
+    RemoteUserNotificationCategory.NeedsAttention -> PoracodeIcons.MarkChatUnread
+    RemoteUserNotificationCategory.Error -> PoracodeIcons.Error
 }
 
 @Composable

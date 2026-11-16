@@ -245,6 +245,31 @@ describe("RendererPerfDiagnostics", () => {
     expect(snapshot.observers.longTask).toMatchObject({ sampleCount: 1, skippedEntryCount: 2 });
   });
 
+  it("keeps attributed long animation frames in a bounded ring", () => {
+    const diagnostics = new RendererPerfDiagnostics({
+      now: () => 0,
+      longAnimationFrameCapacity: 2,
+    });
+    expect(diagnostics.snapshot().observers.longAnimationFrame?.status).toBe("not-installed");
+    diagnostics.recordLongAnimationFrameEntries([
+      { startTime: 1_000, duration: 90, scripts: [{ duration: 70, sourceFunctionName: "a" }] },
+      { startTime: 2_000, duration: "bad" },
+      { startTime: 3_000, duration: 120, blockingDuration: 70, scripts: [] },
+      { startTime: 4_000, duration: 226, blockingDuration: 176, scripts: [] },
+    ]);
+    diagnostics.markLongAnimationFrameObserver("supported");
+    const snapshot = diagnostics.snapshot();
+    expect(snapshot.recentLongAnimationFrames?.map((frame) => frame.startMs)).toEqual([
+      3_000, 4_000,
+    ]);
+    expect(snapshot.droppedLongAnimationFrames).toBe(1);
+    expect(snapshot.observers.longAnimationFrame).toEqual({
+      status: "supported",
+      sampleCount: 3,
+      skippedEntryCount: 1,
+    });
+  });
+
   it("validates direct record calls with the same adapter as observer entries", () => {
     const diagnostics = new RendererPerfDiagnostics({ now: () => 0 });
     diagnostics.recordEventTiming(Number.NaN, 1, 2);
@@ -268,6 +293,7 @@ describe("RendererPerfDiagnostics", () => {
         skippedEntryCount: 0,
       },
       longTask: { status: "not-installed", sampleCount: 0, skippedEntryCount: 0 },
+      longAnimationFrame: { status: "not-installed", sampleCount: 0, skippedEntryCount: 0 },
     });
   });
 

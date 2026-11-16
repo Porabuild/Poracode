@@ -75,6 +75,13 @@ export function createMuseAdapter(): AgentAdapter {
     spawnEnv: { wsl: { BROWSER: "/bin/true" } },
     // Neither MSP nor terminal MCP config can apply a stdio server cwd.
     mcpRequiresStdioCwdProxy: true,
+    // Native children eagerly expose MCP schemas. A malformed email pattern in
+    // one connected tool rejects every child model request with HTTP 400.
+    mcpRequiresPortableSchemaPatterns: true,
+    // Meta's ten-level schema budget includes the primitive/unconstrained leaf.
+    // The shared limiter counts containers, then leaves a placeholder below
+    // them, so ten containers still produce eleven levels and reject children.
+    mcpMaxSchemaDepth: 9,
     ...inheritBaseSpawnEnv(museDetectionSpec),
 
     async detectInstall(ctx) {

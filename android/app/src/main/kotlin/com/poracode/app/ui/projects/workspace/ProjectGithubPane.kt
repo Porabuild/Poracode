@@ -14,9 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -25,7 +22,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -56,6 +52,8 @@ import com.poracode.app.model.ProjectWorkspaceTarget
 import com.poracode.app.protocol.github.GithubProcedure
 import com.poracode.app.session.projects.GithubOperationsController
 import com.poracode.app.session.projects.GithubOperationsEntry
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.theme.PoracodeIcons
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -171,7 +169,12 @@ private fun GithubPullRequestsPane(
     }
     val rows = remember(entry.pullRequests) { entry.pullRequests.pullRequestRows() }
     val list: @Composable (Modifier) -> Unit = { modifier ->
-        LazyColumn(modifier) {
+        LazyColumn(
+            modifier,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                bottom = WorkspaceBottomBarClearance,
+            ),
+        ) {
             item("pr-actions") {
                 OutlinedButton(
                     onClick = { scope.launch {
@@ -236,7 +239,7 @@ private fun GithubPullRequestsPane(
                         }
                         if (row.reviewRequested) {
                             Icon(
-                                Icons.Outlined.RateReview,
+                                PoracodeIcons.RateReview,
                                 stringResource(R.string.github_review_requested),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
@@ -285,7 +288,12 @@ private fun GithubActionsPane(
     val runs = remember(entry.workflowRuns) { entry.workflowRuns.runRows() }
     LaunchedEffect(target, lease?.key, lease?.online, lease?.ready) { controller.refreshActions(target) }
     val list: @Composable (Modifier) -> Unit = { modifier ->
-        LazyColumn(modifier) {
+        LazyColumn(
+            modifier,
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                bottom = WorkspaceBottomBarClearance,
+            ),
+        ) {
             item("refresh") {
                 OutlinedButton(
                     onClick = { scope.launch { controller.refreshActions(target) } },
@@ -343,7 +351,12 @@ private fun GithubRepositoriesPane(
     val scope = rememberCoroutineScope()
     val accounts = remember(entry.accounts) { entry.accounts.arrayObjects("accounts") }
     val repos = remember(entry.repos) { entry.repos.arrayObjects("repos") }
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            bottom = WorkspaceBottomBarClearance,
+        ),
+    ) {
         item("discover") {
             OutlinedButton(
                 onClick = { scope.launch { controller.discoverAccounts(target) } },
@@ -413,7 +426,7 @@ private fun AdaptiveGithubSplit(
         Column(Modifier.fillMaxSize()) {
             IconButton(onClick = onBack) {
                 Icon(
-                    Icons.AutoMirrored.Outlined.ArrowBack,
+                    PoracodeIcons.ArrowBack,
                     contentDescription = stringResource(R.string.github_back_to_list),
                 )
             }

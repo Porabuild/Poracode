@@ -20,11 +20,11 @@ import type { DevinModelFamily } from "./models";
  * - Terminal (base capabilities): one descriptor per all-composite family
  *   with EVERY decoded catalog pair as a member and both common controls
  *   bound to the relation (`effort`/`fast` coordinates on each member).
- * - GUI (negotiated override): the SAME relation intersected with the live
- *   accepted menu — only accepted pair rows become members, no effort/Fast
- *   coordinates (`bindings: "config"` — the independent native thought-level
- *   and speed selects own those controls). The accepted inventory is never
- *   widened to catalog variants a session would refuse.
+ * - GUI (negotiated override): catalog tuples plus accepted pairs, with no
+ *   effort/Fast coordinates (`bindings: "config"` — the independent native
+ *   thought-level and speed selects own those controls). Shared projection
+ *   intersects the descriptor with the live accepted menu, so catalog-only
+ *   members never widen the inventory to values a session would refuse.
  *
  * Decoding is label- and catalog-vocabulary-driven and never parses the
  * opaque pair UID: the UID is stored verbatim as the member identity and is
@@ -331,13 +331,39 @@ export function devinTerminalFamilySelections(
   return selections;
 }
 
+/** GUI tuple identity: one lead+sidekick pair, with effort/Fast config-owned. */
+function guiPairKey(member: DecodedFamilyPair): string {
+  return JSON.stringify([member.lead.id, member.sidekick.id]);
+}
+
+interface GuiFamilyGroup {
+  family: DevinModelFamily;
+  /** One catalog pair per GUI tuple: Fast siblings collapse to one choice. */
+  catalogByTuple: Map<string, DecodedFamilyPair>;
+  /** Accepted rows in menu order, keyed by the same tuple identity. */
+  acceptedByTuple: Map<string, DecodedFamilyPair>;
+  invalid: boolean;
+}
+
 /**
- * The GUI relation: the composite relation INTERSECTED with the live accepted
- * menu. An accepted row joins through (a) the catalog's own mapping of its
- * UID, or (b) its native label parsed against the catalog vocabulary — a
- * future pair the catalog does not know yet stays decodable from its label.
- * Anything else (unknown UID, unreadable label, pair the session no longer
- * offers) stays raw fallback; the accepted inventory is never widened.
+ * The GUI relation: the CATALOG composite relation rebound to the independent
+ * native effort/Fast selects, plus accepted-only pairs decoded from their
+ * labels.
+ *
+ * The descriptor deliberately carries catalog pairs the detection probe did
+ * not accept: `capabilitiesForSessionConfig` intersects every relation with
+ * the LIVE accepted model values, so a model the agent adds after detection
+ * (for example a new SWE-2 Flash Fusion sidekick) still joins the family on
+ * the next session inventory instead of appearing only as a raw row. The
+ * accepted inventory is never widened — a catalog-only member disappears at
+ * projection time unless the current session advertises it.
+ *
+ * Fast and plain catalog siblings name the same GUI tuple because the
+ * independent native speed select owns the Fast bit. One catalog row per
+ * tuple seeds the relation; an accepted row for that tuple replaces it with
+ * the exact live UID (the only value a setter may push). Two accepted rows
+ * for the same tuple contradict that identity — the family descriptor is
+ * dropped whole rather than normalized from a partial table.
  */
 export function devinGuiFamilySelections(
   accepted: readonly { id: string; label: string }[],
@@ -347,8 +373,17 @@ export function devinGuiFamilySelections(
   const compositeFamilies = families.filter(isAllCompositeFamily);
   if (compositeFamilies.length === 0) return [];
   const vocabulary = familySelectionVocabulary(families);
-  const groups: Array<{ family: DevinModelFamily; members: DecodedFamilyPair[]; valid: boolean }> =
-    compositeFamilies.map((family) => ({ family, members: [], valid: true }));
+  const groups: GuiFamilyGroup[] = compositeFamilies.map((family) => {
+    const catalogByTuple = new Map<string, DecodedFamilyPair>();
+    for (const variant of family.variants) {
+      if (variant.composite === undefined) continue;
+      const decoded = decodeFamilyPairLabel(variant.id, variant.composite, vocabulary);
+      if (!decoded) continue;
+      const key = guiPairKey(decoded);
+      if (!catalogByTuple.has(key)) catalogByTuple.set(key, decoded);
+    }
+    return { family, catalogByTuple, acceptedByTuple: new Map(), invalid: false };
+  });
   const memberUids = new Set<string>();
   for (const row of accepted) {
     if (memberUids.has(row.id)) continue;
@@ -356,32 +391,39 @@ export function devinGuiFamilySelections(
     if (!decoded) continue;
     const group = groups.find((candidate) => candidate.family.label === decoded.familyLabel);
     if (!group) continue;
-    // A duplicate pair tuple collapses the relation's injectivity, and a
-    // repeated row id is a contradictory menu — the family descriptor is
-    // dropped whole rather than normalized from a partial table.
-    if (
-      !group.valid ||
-      group.members.some(
-        (member) =>
-          member.lead.id === decoded.member.lead.id &&
-          member.sidekick.id === decoded.member.sidekick.id,
-      )
-    ) {
-      group.valid = false;
-      group.members.length = 0;
+    const key = guiPairKey(decoded.member);
+    const existing = group.acceptedByTuple.get(key);
+    // Two distinct UIDs for one GUI tuple cannot both be its exact member.
+    if (existing && existing.uid !== row.id) {
+      group.invalid = true;
+      group.acceptedByTuple.clear();
       continue;
     }
+    if (!existing) group.acceptedByTuple.set(key, decoded.member);
     memberUids.add(row.id);
-    group.members.push(decoded.member);
   }
   const selections: ModelFamilySelection[] = [];
-  for (const { family, members, valid } of groups) {
-    if (!valid || members.length === 0) continue;
+  for (const { family, catalogByTuple, acceptedByTuple, invalid } of groups) {
+    if (invalid) continue;
+    const members: DecodedFamilyPair[] = [];
+    const seenUids = new Set<string>();
+    const push = (member: DecodedFamilyPair) => {
+      if (seenUids.has(member.uid)) return;
+      seenUids.add(member.uid);
+      members.push(member);
+    };
+    // Accepted order first: selector options and the default follow the live
+    // menu, while catalog-only tuples simply wait for a future inventory.
+    for (const member of acceptedByTuple.values()) push(member);
+    for (const [key, member] of catalogByTuple) {
+      if (acceptedByTuple.has(key)) continue;
+      push(member);
+    }
+    if (members.length === 0) continue;
     const selection = compileModelFamilySelection({
       label: family.label,
       bindings: { effort: "config", fast: "config" },
       selectors: pairSelectors(members),
-      // Accepted order: the default follows the live menu, never the catalog.
       members,
     });
     if (selection) selections.push(selection);

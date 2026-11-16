@@ -73,7 +73,9 @@ sealed interface RemotePairingDeepLinkDecision {
     /** Malformed / incomplete / duplicate fingerprint — leave the session alone. */
     data object Ignore : RemotePairingDeepLinkDecision
 
-    /** Enter pending confirmation (show the sanitized host only). */
+    /** A resolved external candidate. The caller decides whether confirmation
+     * is required (see [requiresBrowsableConfirmation]) and whether a live pair
+     * would be replaced. */
     data class Pending(val pending: RemotePairingPending) : RemotePairingDeepLinkDecision
 }
 
@@ -199,9 +201,14 @@ ${viewerScopes}
     fun extractPairingData(dataString: String?): String? =
         dataString?.trim()?.takeIf { it.isNotEmpty() }
 
-    /** An externally delivered link always requires explicit sanitized-host
-     * confirmation; it can never silently replace an existing pair. */
-    fun requiresBrowsableConfirmation(fromBrowsableIntent: Boolean): Boolean = fromBrowsableIntent
+    /** An externally delivered link requires explicit sanitized-host
+     * confirmation so it can never silently replace a live pair. A loopback
+     * endpoint cannot leave the device, so it pairs exactly like an in-app scan;
+     * callers must still confirm when an existing pair would be replaced. */
+    fun requiresBrowsableConfirmation(fromBrowsableIntent: Boolean, endpoint: String): Boolean {
+        if (!fromBrowsableIntent) return false
+        return !isLoopbackEndpoint(endpoint)
+    }
 
     private val maxHostDisplayCharacters: Int = ${spec.deepLink.hostDisplayFallbackMaxCharacters}
 
@@ -236,6 +243,14 @@ ${viewerScopes}
             host == "::1" ||
             host == "[::1]" ||
             host.endsWith(".localhost")
+    }
+
+    /** Whether the endpoint's host is a loopback address. A malformed value is
+     * not loopback, so it still asks for confirmation. */
+    private fun isLoopbackEndpoint(endpoint: String): Boolean {
+        val uri = runCatching { URI(endpoint) }.getOrNull() ?: return false
+        val host = uri.host ?: return false
+        return isLoopbackHostname(host)
     }
 
     /** Decide a resolved candidate without starting a network pair. Malformed

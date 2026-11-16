@@ -25,6 +25,7 @@ export type AgentDriverKind = z.infer<typeof agentDriverKindSchema>;
 export const CLAUDE_PROFILE_KIND_PREFIX = "claude:";
 export const CODEX_PROFILE_KIND_PREFIX = "codex:";
 export const CURSOR_PROFILE_KIND_PREFIX = "cursor:";
+export const GEMINI_PROFILE_KIND_PREFIX = "gemini:";
 
 export const agentInstanceIdSchema = z
   .string()
@@ -218,6 +219,23 @@ export function parseCodexProfileInstanceConfig(value: unknown): CodexProfileIns
   return codexProfileInstanceConfigSchema.parse(value ?? {});
 }
 
+// ── gemini profile driver config ────────────────────────────────────────
+
+export const geminiProfileInstanceConfigSchema = z.object({
+  /**
+   * Directory passed to Gemini CLI as `GEMINI_CLI_HOME` — the profile's own
+   * `.gemini/` directory holding OAuth credentials, settings, and sessions. A
+   * leading `~/` is resolved against the target runtime environment (native
+   * home or WSL home).
+   */
+  homeDir: z.string().min(1),
+});
+export type GeminiProfileInstanceConfig = z.infer<typeof geminiProfileInstanceConfigSchema>;
+
+export function parseGeminiProfileInstanceConfig(value: unknown): GeminiProfileInstanceConfig {
+  return geminiProfileInstanceConfigSchema.parse(value ?? {});
+}
+
 // Profile payload schemas are provider-agnostic and live in `agentProfiles.ts`
 // (`setProfileEnvironment`, `createProfile`). The per-provider helpers below are
 // only naming sugar over the shared `<driver>:<id>` kind shape.
@@ -256,6 +274,18 @@ export function isCursorProfileKind(kind: string): boolean {
 
 export function extractCursorProfileInstanceId(kind: string): string | undefined {
   return kindInstanceId(kind, CURSOR_PROFILE_KIND_PREFIX);
+}
+
+export function geminiProfileKind(instanceId: string): AgentDriverKind {
+  return prefixedKind(GEMINI_PROFILE_KIND_PREFIX, instanceId);
+}
+
+export function isGeminiProfileKind(kind: string): boolean {
+  return hasKindPrefix(kind, GEMINI_PROFILE_KIND_PREFIX);
+}
+
+export function extractGeminiProfileInstanceId(kind: string): string | undefined {
+  return kindInstanceId(kind, GEMINI_PROFILE_KIND_PREFIX);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { RemoteClientError } from "@/shared/remote/clientErrors";
 
 const sentry = vi.hoisted(() => {
   const scope = {
@@ -32,6 +33,20 @@ import {
 } from "./sentry";
 
 describe("renderer Sentry diagnostics", () => {
+  it("retains the safe remote classification without inferring the redacted server cause", () => {
+    const error = new RemoteClientError("Internal server error.", 500, "internal_error");
+    captureRendererException(error, { featureArea: "file-editor" });
+    const tags = sentry.scope.setTags.mock.lastCall![0];
+    expect(prepareRendererSentryEvent({ message: error.message, tags })).toMatchObject({
+      message: "Internal server error.",
+      tags: {
+        "poracode.cause_reason": "http",
+        "poracode.cause_code": "internal_error",
+        "poracode.http_status": "500",
+      },
+    });
+    expect(sentry.captureException).toHaveBeenCalledWith(error);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     sentry.isEnabled.mockReturnValue(true);

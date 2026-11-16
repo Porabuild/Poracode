@@ -48,6 +48,7 @@ enum RichChatControllerTestResponse<Value: Sendable>: Sendable {
 
 actor RichChatControllerGatewayFake: RichChatSessionGateway {
   private(set) var calls: [String] = []
+  private(set) var sentInputs: [RichChatSendInput] = []
   var historyResponse: RichChatControllerTestResponse<RemoteThreadSnapshot>?
   var pageResponse: RichChatControllerTestResponse<RemoteRuntimeItemsPage>?
   var binaryResponse: RichChatControllerTestResponse<RichChatBinaryPayload>?
@@ -212,7 +213,8 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
     return try sessionActionInvokeResponse.get()
   }
 
-  func sendRichInput(target _: RichChatThreadTarget, input _: RichChatSendInput) async throws {
+  func sendRichInput(target _: RichChatThreadTarget, input: RichChatSendInput) async throws {
+    sentInputs.append(input)
     try await mutation("send")
   }
 
@@ -510,7 +512,9 @@ enum RichChatControllerTestValues {
     items: [PersistedRuntimeItem] = [persistedItem(id: "history")],
     nextCursor: Int? = 4,
     followUpQueue: JSONValue? = nil,
-    followUpQueuePresent: Bool = false
+    followUpQueuePresent: Bool = false,
+    backgroundTasks: [JSONValue]? = nil,
+    backgroundTasksPresent: Bool = false
   ) -> RemoteThreadSnapshot {
     RemoteThreadSnapshot(
       snapshotSeq: sequence,
@@ -522,7 +526,9 @@ enum RichChatControllerTestValues {
       terminalScrollback: nil,
       updatedAt: "2026-08-12T00:00:00.000Z",
       followUpQueue: followUpQueue,
-      followUpQueuePresent: followUpQueuePresent
+      followUpQueuePresent: followUpQueuePresent,
+      backgroundTasks: backgroundTasks,
+      backgroundTasksPresent: backgroundTasksPresent
     )
   }
 }

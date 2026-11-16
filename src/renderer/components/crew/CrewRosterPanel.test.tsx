@@ -117,7 +117,7 @@ describe("CrewRosterPanel", () => {
     renderWithI18n(<CrewRosterPanel model={model} />);
 
     const policy = screen.getByRole("button", {
-      name: "Crew only: work goes only to this crew",
+      name: "Crew only: automatic delegation uses this crew; you can request other agents",
     });
     fireEvent.click(policy);
     expect(model.onBindingChange).toHaveBeenCalledWith(
@@ -242,6 +242,25 @@ describe("CrewRosterPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Edit crews in settings" }));
     expect(usePanelStore.getState().settingsSection).toBe("crews");
     expect(usePanelStore.getState().settingsAnchor).toBe("crews.crew-review");
+  });
+
+  it("lets a host surface take over the settings gear", () => {
+    const openSettingsSection = vi.fn<(section: string, anchor?: string) => void>();
+    const original = usePanelStore.getState().openSettingsSection;
+    usePanelStore.setState({ openSettingsSection } as never);
+    try {
+      const onEditInSettings = vi.fn<() => void>();
+      const onClose = vi.fn<() => void>();
+      renderWithI18n(<CrewRosterPanel model={makeModel({ onEditInSettings })} onClose={onClose} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Edit crews in settings" }));
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onEditInSettings).toHaveBeenCalledTimes(1);
+      expect(openSettingsSection).not.toHaveBeenCalled();
+    } finally {
+      usePanelStore.setState({ openSettingsSection: original } as never);
+    }
   });
 
   it("uses installed GUI model labels even when the provider is not a helper option", () => {

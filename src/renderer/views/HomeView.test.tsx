@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AgentStatus, Project, Thread } from "@/shared/contracts";
@@ -9,6 +9,8 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useWorkspaceStore } from "@/renderer/state/workspaceStore";
 import { projectRemoteProject, remoteProjectId } from "@/renderer/state/remoteProjection";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
+import { useGitStore } from "@/renderer/state/gitStore";
+import { useProjectGroupStore } from "@/renderer/state/projectGroups/projectGroupStore";
 import { HomeView } from "./HomeView";
 
 describe("HomeView", () => {
@@ -32,6 +34,8 @@ describe("HomeView", () => {
       discoveredAgents: [],
     });
     useRemoteServersStore.setState({ servers: [], runtime: {} });
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: {} });
+    useGitStore.setState({ statuses: {} });
   });
 
   it("does not show archived threads in recent threads", () => {
@@ -193,6 +197,91 @@ describe("HomeView", () => {
     expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "project-1" });
   });
 
+  it("lists a project on two paired machines once and filters threads from both", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        { desktopId: "mac", label: "Poracode on MacBook" },
+        { desktopId: "mac2", label: "Poracode on Mac mini" },
+      ],
+      runtime: {
+        mac: { status: "online", projects: [], threads: [] },
+        mac2: { status: "online", projects: [], threads: [] },
+      },
+    } as never);
+    useAppStore.setState({
+      projects: [
+        makeProject({
+          id: "on-mac",
+          name: "demo",
+          remoteServerId: "mac",
+          remoteId: "p1",
+          location: { kind: "posix", path: "/repo", remoteServerId: "mac" },
+        }),
+        makeProject({
+          id: "on-mac2",
+          name: "demo",
+          remoteServerId: "mac2",
+          remoteId: "p2",
+          location: { kind: "posix", path: "/repo", remoteServerId: "mac2" },
+        }),
+      ],
+      threads: [
+        makeThread({ id: "t1", title: "On MacBook", projectId: "on-mac" }),
+        makeThread({ id: "t2", title: "On Mac mini", projectId: "on-mac2" }),
+      ],
+    });
+
+    render(<HomeView />);
+
+    const rows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.includes("demo"));
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]!).getByRole("img", { name: "MacBook, Mac mini" })).toBeInTheDocument();
+    expect(within(rows[0]!).queryByText("MacBook")).toBeNull();
+    expect(within(rows[0]!).queryByText("Mac mini")).toBeNull();
+
+    fireEvent.click(rows[0]!);
+    expect(screen.getByText("On MacBook")).toBeInTheDocument();
+    expect(screen.getByText("On Mac mini")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New thread in demo" }));
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "on-mac" });
+  });
+
+  it("starts a new thread on a reachable machine, preferring the last one used", () => {
+    const servers = [
+      { desktopId: "mac", label: "Poracode on MacBook" },
+      { desktopId: "mac2", label: "Poracode on Mac mini" },
+    ];
+    const online = { status: "online", projects: [], threads: [] };
+    const offline = { status: "offline", projects: [], threads: [] };
+    useRemoteServersStore.setState({ servers, runtime: { mac: offline, mac2: online } } as never);
+    useAppStore.setState({
+      projects: ["mac", "mac2"].map((server) =>
+        makeProject({
+          id: `on-${server}`,
+          name: "demo",
+          remoteServerId: server,
+          remoteId: `p-${server}`,
+          location: { kind: "posix", path: "/repo", remoteServerId: server },
+        }),
+      ),
+      threads: [],
+    });
+
+    const { unmount } = render(<HomeView />);
+    fireEvent.click(screen.getByRole("button", { name: "New thread in demo" }));
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "on-mac2" });
+    unmount();
+
+    useRemoteServersStore.setState({ servers, runtime: { mac: online, mac2: online } } as never);
+    useProjectGroupStore.setState({ manualGroups: {}, lastUsedAt: { "on-mac": 1, "on-mac2": 2 } });
+    render(<HomeView />);
+    fireEvent.click(screen.getByRole("button", { name: "New thread in demo" }));
+    expect(useAppStore.getState().view).toEqual({ kind: "draft", projectId: "on-mac2" });
+  });
+
   it("marks WSL and remote workspaces and their thread tags", () => {
     useRemoteServersStore.setState({
       servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
@@ -237,7 +326,7 @@ describe("HomeView", () => {
     expect(remoteThread).toHaveTextContent("MacBook 16");
   });
 
-  it("lists each paired machine's Home and tags Home threads with their own machine", () => {
+  it("lists one Home row with every paired machine's Home and tags its threads", () => {
     useRemoteServersStore.setState({
       servers: [
         { desktopId: "desktop-1", label: "Poracode on MacBook 16" },
@@ -271,13 +360,91 @@ describe("HomeView", () => {
     const homeRows = screen
       .getAllByRole("button", { pressed: false })
       .filter((row) => row.textContent?.startsWith(HOME_PROJECT_NAME));
-    expect(homeRows).toHaveLength(2);
-    expect(homeRows[0]).toHaveTextContent("MacBook 16");
-    expect(homeRows[1]).toHaveTextContent("Studio PC");
+    expect(homeRows).toHaveLength(1);
+    expect(
+      within(homeRows[0]!).getByRole("img", { name: "MacBook 16, Studio PC" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Mac chat").closest("button")).toHaveTextContent("MacBook 16");
     expect(screen.getByText("Studio chat").closest("button")).toHaveTextContent("Studio PC");
   });
+
+  it("marks a project on paired machines with one connection marker", async () => {
+    seedDemoOnLocalAndMacBook();
+
+    render(<HomeView />);
+
+    const rows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.includes("demo"));
+    expect(rows).toHaveLength(1);
+    const row = rows[0]!;
+    const marker = within(row).getByRole("img", { name: "Local, MacBook" });
+    expect(within(row).queryByText("Local")).toBeNull();
+    expect(within(row).queryByText("MacBook")).toBeNull();
+    expect(row.querySelector(".lucide-monitor")).toBeNull();
+    expect(row.querySelector(".lucide-folder-open")).not.toBeNull();
+
+    fireEvent.pointerMove(document.body, { pointerType: "mouse" });
+    fireEvent.pointerEnter(marker, { pointerType: "mouse" });
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Local");
+    expect(tooltip).toHaveTextContent("C:\\repo");
+    expect(tooltip).toHaveTextContent("MacBook");
+    expect(tooltip).toHaveTextContent("/Users/me/demo");
+  });
+
+  it("opens connection details on keyboard focus and closes them on Escape", async () => {
+    seedDemoOnLocalAndMacBook();
+
+    render(<HomeView />);
+
+    const rows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.includes("demo"));
+    expect(rows).toHaveLength(1);
+    const row = rows[0]!;
+
+    fireEvent.keyDown(document.body, { key: "Tab" });
+    act(() => row.focus());
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent("/Users/me/demo");
+
+    fireEvent.keyDown(row, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull());
+  });
+
+  it("keeps environment paths out of the project row's accessible name", () => {
+    seedDemoOnLocalAndMacBook();
+
+    render(<HomeView />);
+
+    const rows = screen
+      .getAllByRole("button", { pressed: false })
+      .filter((row) => row.textContent?.includes("demo"));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).not.toHaveAccessibleName(/\/Users\/me\/demo/);
+  });
 });
+
+function seedDemoOnLocalAndMacBook() {
+  useRemoteServersStore.setState({
+    servers: [{ desktopId: "mac", label: "Poracode on MacBook" }],
+    runtime: { mac: { status: "online", projects: [], threads: [] } },
+  } as never);
+  useAppStore.setState({
+    projects: [
+      makeProject({ name: "demo" }),
+      makeProject({
+        id: "on-mac",
+        name: "demo",
+        remoteServerId: "mac",
+        remoteId: "p1",
+        location: { kind: "posix", path: "/Users/me/demo", remoteServerId: "mac" },
+      }),
+    ],
+    threads: [],
+  });
+}
 
 function makeProject(overrides?: Partial<Project>): Project {
   return {

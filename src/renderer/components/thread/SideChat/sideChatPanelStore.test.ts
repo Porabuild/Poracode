@@ -31,7 +31,7 @@ it.each([true, false])(
       mainWindow,
     );
     expect(useComposerInputInbox.getState().itemsByComposer["side-chat:entry"]).toEqual([
-      [{ kind: "text", content: "quote" }],
+      [{ kind: "text", content: "quote", selection: true }],
     ]);
   },
 );

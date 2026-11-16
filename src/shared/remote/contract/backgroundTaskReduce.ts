@@ -7,20 +7,37 @@ import {
   BACKGROUND_TASK_REDUCE_SPEC,
   validateBackgroundTaskReduceSpec,
   type BackgroundTaskReduceAction,
+  type BackgroundTaskReduceCategory,
   type BackgroundTaskReduceKind,
 } from "./backgroundTaskReduceSpec";
+
+/** Same shape for `stopAction` and `outputAction` (opaque id + payload). */
+export type BackgroundTaskAction = {
+  readonly id: string;
+  readonly payload: Readonly<Record<string, string>>;
+};
 
 export type BackgroundTaskIdentity = {
   readonly taskId: string;
   readonly kind: BackgroundTaskReduceKind;
+  /** Additive display class; absent on older producers (readers fall back to kind). */
+  readonly category?: BackgroundTaskReduceCategory | undefined;
   readonly description: string;
+  /** Additive, bounded launch command. */
+  readonly command?: string | undefined;
   readonly startedAt?: number | undefined;
   readonly lastProgressAt?: number | undefined;
   readonly progress?: string | undefined;
-  readonly stopAction?:
-    | { readonly id: string; readonly payload: Readonly<Record<string, string>> }
-    | undefined;
+  readonly stopAction?: BackgroundTaskAction | undefined;
+  readonly outputAction?: BackgroundTaskAction | undefined;
 };
+
+function actionsEqual(
+  left: BackgroundTaskAction | undefined,
+  right: BackgroundTaskAction | undefined,
+): boolean {
+  return left?.id === right?.id && actionPayloadsEqual(left?.payload, right?.payload);
+}
 
 export function backgroundTasksEqual(
   left: readonly BackgroundTaskIdentity[] | null | undefined,
@@ -33,12 +50,14 @@ export function backgroundTasksEqual(
     (task, index) =>
       task.taskId === right[index]!.taskId &&
       task.kind === right[index]!.kind &&
+      task.category === right[index]!.category &&
       task.description === right[index]!.description &&
+      task.command === right[index]!.command &&
       task.startedAt === right[index]!.startedAt &&
       task.lastProgressAt === right[index]!.lastProgressAt &&
       task.progress === right[index]!.progress &&
-      task.stopAction?.id === right[index]!.stopAction?.id &&
-      actionPayloadsEqual(task.stopAction?.payload, right[index]!.stopAction?.payload),
+      actionsEqual(task.stopAction, right[index]!.stopAction) &&
+      actionsEqual(task.outputAction, right[index]!.outputAction),
   );
 }
 

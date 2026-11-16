@@ -1,6 +1,9 @@
 import { machineIdForStatus, type MachineDescriptor } from "@/renderer/state/machines";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  useHostAgentStatusPools,
+  type HostAgentStatusPools,
+} from "@/renderer/hooks/useHostAgentStatuses";
+import { machineKey } from "@/shared/machines";
 import { agentStatusNeedsAuthAttention } from "@/shared/agentSelection";
 import type { AgentStatus } from "@/shared/contracts";
 
@@ -12,38 +15,30 @@ export interface MachineScopedStatuses {
 }
 
 /**
- * Buckets an agent's statuses by machine. Local machines read the local
- * status stores; remote machines read the paired host's already-collected
- * statuses. The attention list keeps cross-machine auth problems visible
+ * Buckets an agent's statuses by machine. Every machine reads the status pools
+ * of the host it lives on: this device's (or a remote client's bridge host's)
+ * own pools for local machines, the paired host's already-collected pools for
+ * remote ones. The attention list keeps cross-machine auth problems visible
  * while the page is scoped to one machine.
  */
 export function useMachineScopedStatuses(
   agentKind: string,
   machine: MachineDescriptor,
 ): MachineScopedStatuses {
-  const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
-  const wslAgentStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
-  const remoteRuntime = useRemoteServersStore((state) =>
-    machine.desktopId ? state.runtime[machine.desktopId] : undefined,
+  const localPools = useHostAgentStatusPools(undefined);
+  const machineHost = machine.ref.host === "remote" ? machine.ref.desktopId : undefined;
+  const machinePools = useHostAgentStatusPools(machineHost);
+
+  const ofKind = (pools: HostAgentStatusPools): AgentStatus[] =>
+    [...pools.windows, ...pools.wsl].filter((status) => status.kind === agentKind);
+  // A machine is one environment of its host; a host's statuses are bucketed
+  // by the environment they report, independent of which host reports them.
+  const machineEnvId = machineKey({ host: "local", env: machine.ref.env });
+  const scoped = ofKind(machinePools).filter(
+    (status) => machineIdForStatus(status) === machineEnvId,
   );
 
-  const localOfKind = [...agentStatuses, ...wslAgentStatuses].filter(
-    (status) => status.kind === agentKind,
-  );
-
-  let scoped: AgentStatus[];
-  if (machine.ref.host === "remote") {
-    const remote = remoteRuntime?.agentStatuses;
-    const source = machine.ref.env.kind === "wsl" ? (remote?.wsl ?? []) : (remote?.windows ?? []);
-    const distro = machine.wslDistro;
-    scoped = source.filter(
-      (status) =>
-        status.kind === agentKind && (distro === undefined || status.envDistro === distro),
-    );
-  } else {
-    scoped = localOfKind.filter((status) => machineIdForStatus(status) === machine.id);
-  }
-
+  const localOfKind = ofKind(localPools);
   const othersNeedingAttention = [
     ...new Set(
       localOfKind

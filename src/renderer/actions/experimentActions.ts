@@ -55,6 +55,9 @@ export interface LaunchExperimentInput {
   segments?: PromptSegment[];
   baseBranch: string;
   candidates: ExperimentCandidateSpec[];
+  /** Client-only staging hooks; never serialized into the host experiment. */
+  prepareSegments?: () => Promise<PromptSegment[]>;
+  onAccepted?: (experimentId: string) => Promise<void>;
 }
 
 function candidateLabel(spec: ExperimentCandidateSpec, agent: AgentStatus | undefined): string {
@@ -149,9 +152,10 @@ function generateExperimentTitleAsync(
 export async function launchExperiment(input: LaunchExperimentInput): Promise<string | null> {
   const project = useAppStore.getState().projects.find((item) => item.id === input.projectId);
   if (!project) return null;
-  // Experiments create git worktrees through the local bridge. A mirrored
-  // project's location only resolves on its host, so refusing up front keeps
-  // the failure honest instead of letting every candidate fail individually.
+  // Not a duplicated flow: the experiment store has one client authority, bound
+  // to the managed host's loopback session (`requireManagedExperimentAuthority`
+  // below), and no per-host projection of a paired host's experiments exists
+  // yet. Refuse up front instead of letting every candidate fail individually.
   if (project.remoteServerId) {
     toast.danger(
       i18n._(
@@ -197,6 +201,7 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     return null;
   }
 
+  if (input.prepareSegments) input = { ...input, segments: await input.prepareSegments() };
   const { agentStatuses, wslAgentStatuses } = useAgentStatusesStore.getState();
   const projectAgentStatuses = getProjectAgentStatuses(
     project.location,
@@ -495,6 +500,7 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     return experimentId;
   }
   const setupScript = project.scripts?.setupScript;
+  let confirmedLaunches = 0;
   await Promise.all(
     preparedThreads.map(async (thread, index) => {
       const candidate = prepared[index]!;
@@ -507,6 +513,8 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
           ...(input.segments ? { segments: input.segments } : {}),
           initialSize: DEFAULT_TERMINAL_SIZE,
         });
+        if (useAppStore.getState().threads.some((row) => row.id === thread.id && !row.archived))
+          confirmedLaunches++;
       } catch (error) {
         // A typed-uncertain start may have committed on the host: the launch
         // action already explained it once and ran the bounded authoritative
@@ -538,6 +546,8 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     outcome: startedCandidateCount === preparedThreads.length ? "started" : "partial",
   });
   void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
+  if (confirmedLaunches === plans.length && confirmedLaunches > 0)
+    await input.onAccepted?.(experimentId);
   return experimentId;
 }
 

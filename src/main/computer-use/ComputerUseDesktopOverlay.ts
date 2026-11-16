@@ -5,6 +5,7 @@ import {
 } from "@/host/computer-use/ComputerUseActivityTracker";
 import type { ComputerUseActivityEvent } from "@/host/computer-use/ComputerUseMcpIngress";
 import {
+  COMPUTER_USE_BADGE_BACKGROUND,
   COMPUTER_USE_OVERLAY_TITLE,
   OVERLAY_EXIT_URL,
   TAKEOVER_OVERLAY_URL,
@@ -55,6 +56,13 @@ interface OverlayWindow {
 
 export interface ComputerUseDesktopOverlayOptions {
   onExit(threadIds: string[]): void;
+  /**
+   * Every reduced activity state, including the `hidden` <-> non-hidden
+   * transitions. Lets side effects that follow session activity but are not
+   * overlay windows (the keep-awake policy) observe the same reduction
+   * instead of re-deriving it from raw events.
+   */
+  onActivityState?(state: ComputerUseActivityState): void;
 }
 
 export class ComputerUseDesktopOverlay {
@@ -74,6 +82,7 @@ export class ComputerUseDesktopOverlay {
       onChange: (state) => {
         this.state = state;
         this.applyState();
+        this.options.onActivityState?.(state);
       },
     });
   }
@@ -119,30 +128,28 @@ export class ComputerUseDesktopOverlay {
         continue;
       }
       const overlay = existing ?? this.createWindow(display);
-      // The takeover border frames the whole display. The badge is a chip
-      // anchored to the top of the work area, so it stays clear of the macOS
-      // menu bar and the focused app's title bar — and it is clickable, so the
-      // window hugs the chip rather than spanning the display.
-      overlay.window.setBounds(
-        this.state.level === "takeover" ? display.bounds : badgeBounds(display.workArea),
-      );
-      // The takeover border has nothing to click (Escape exits); the badge
-      // carries an exit button and must receive clicks.
-      overlay.window.setIgnoreMouseEvents(this.state.level !== "badge");
+      // Both background and takeover use the same chip anchored to the top of
+      // the work area, so it stays clear of the macOS menu bar and the focused
+      // app's title bar — and it carries an exit button, so the window hugs
+      // the chip and takes mouse events rather than spanning the display.
+      overlay.window.setBounds(badgeBounds(display.workArea));
       this.updateContent(overlay);
       if (overlay.loaded && !overlay.window.isVisible()) overlay.window.showInactive();
     }
   }
 
   private createWindow(display: Display): OverlayWindow {
+    // macOS only draws a native shadow for opaque windows.
+    const nativeChip = process.platform === "darwin";
     const window = new BrowserWindow({
-      ...display.bounds,
-      transparent: true,
-      backgroundColor: "#00000000",
+      ...badgeBounds(display.workArea),
+      transparent: !nativeChip,
+      backgroundColor: nativeChip ? COMPUTER_USE_BADGE_BACKGROUND : "#00000000",
       frame: false,
       focusable: false,
       fullscreenable: false,
-      hasShadow: false,
+      hasShadow: nativeChip,
+      ...(nativeChip ? { roundedCorners: true } : {}),
       maximizable: false,
       minimizable: false,
       movable: false,
@@ -160,7 +167,7 @@ export class ComputerUseDesktopOverlay {
     this.windows.set(display.id, overlay);
     window.setAlwaysOnTop(true, "screen-saver");
     window.setContentProtection(true);
-    window.setIgnoreMouseEvents(true);
+    window.setIgnoreMouseEvents(false);
     window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     // The badge's exit link opens this URL with target="_blank" purely to
     // reach this handler; nothing may actually open.
@@ -175,7 +182,8 @@ export class ComputerUseDesktopOverlay {
   }
 
   private updateContent(overlay: OverlayWindow): void {
-    const contentKey = `${this.state.level}:${this.state.badgeTarget ?? ""}`;
+    const contentKey =
+      this.state.level === "takeover" ? "takeover" : `badge:${this.state.badgeTarget ?? ""}`;
     if (overlay.contentKey === contentKey) return;
     overlay.contentKey = contentKey;
     overlay.loaded = false;

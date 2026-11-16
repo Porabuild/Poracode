@@ -1,16 +1,28 @@
 import { useId, useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { FileText, HelpCircle, ListChecks, Loader2, ShieldAlert } from "lucide-react";
+import {
+  FileText,
+  HelpCircle,
+  ListChecks,
+  Loader2,
+  MessageSquarePlus,
+  ShieldAlert,
+} from "lucide-react";
 import {
   asPermissionRequestDetails,
   type RequestOutcome,
   type ThreadServerRequestId,
 } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import { applyOptimisticRequestResolution } from "@/renderer/state/runtimeRequestActions";
 import type { OpenRuntimeRequest } from "@/renderer/state/slices/runtimeEventSlice";
-import { buildUserInputFormDismissResponse } from "@/shared/runtimeRequestForms";
+import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
+import {
+  buildUserInputFormDismissResponse,
+  findPlanRevisionOption,
+} from "@/shared/runtimeRequestForms";
 import { ItemMarkdown } from "../ChatPane/parts/items/ItemMarkdown";
 import { ThreadDockSection } from "../ThreadDockUI";
 import {
@@ -32,6 +44,8 @@ import {
   PermissionDetailsLine,
   PlanFileLine,
 } from "./parts/PermissionDetailsLine";
+import { PlanReviewModal } from "./parts/PlanReviewModal";
+import { clearPlanReviewDraft, usePlanReviewDraft } from "./planReviewDrafts";
 import { QuestionRows } from "./parts/QuestionRows";
 
 /** Titles longer than this are the command itself, not a label. */
@@ -52,6 +66,11 @@ interface ThreadRuntimeRequestPanelProps {
   }) => Promise<void>;
   onPlanApproved?: (optionId: string) => void;
   onOpenPlanFile?: ((path: string) => void) | undefined;
+  /**
+   * Sends the reviewed-plan feedback as the follow-up message after the plan
+   * review is answered with its keep-planning option. Absent = feedback off.
+   */
+  onSubmitPlanFeedback?: ((message: string) => Promise<void>) | undefined;
 }
 
 /**
@@ -67,13 +86,27 @@ interface ThreadRuntimeRequestPanelProps {
  * matching the existing renderer<->supervisor contract.
  */
 export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps) {
-  const { threadId, request, agentLabel, onResolve, onPlanApproved, onOpenPlanFile } = props;
+  const {
+    threadId,
+    request,
+    agentLabel,
+    onResolve,
+    onPlanApproved,
+    onOpenPlanFile,
+    onSubmitPlanFeedback,
+  } = props;
   const { t } = useLingui();
   const [pendingOutcome, setPendingOutcome] = useState<RequestOutcome | null>(null);
+  const [planReviewOpen, setPlanReviewOpen] = useState(false);
+  const planDraft = usePlanReviewDraft(threadId, request.requestId);
   const resolving = pendingOutcome !== null;
   const formId = useId();
 
-  function submitRaw(response: unknown, outcome: RequestOutcome) {
+  function submitRaw(
+    response: unknown,
+    outcome: RequestOutcome,
+    afterResolved?: () => Promise<void>,
+  ) {
     if (resolving) return;
     setPendingOutcome(outcome);
     const rollback = applyOptimisticRequestResolution(threadId, request, outcome);
@@ -85,12 +118,18 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         outcome,
         requestType: request.requestType,
       },
-    }).catch((err) => {
-      console.error("[chat] request resolution failed", err);
-      rollback();
-      toast.danger(friendlyError(err));
-      setPendingOutcome(null);
-    });
+    }).then(
+      () => {
+        clearPlanReviewDraft(threadId, request.requestId);
+        return afterResolved?.();
+      },
+      (err) => {
+        console.error("[chat] request resolution failed", err);
+        rollback();
+        toast.danger(friendlyError(err));
+        setPendingOutcome(null);
+      },
+    );
   }
 
   function decide(optionIds: readonly string[]) {
@@ -107,6 +146,26 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         ? { optionId: primaryOptionId }
         : { optionId: primaryOptionId, optionIds },
       outcome,
+    );
+  }
+
+  function requestPlanRevision(message: string) {
+    const revisionOption = findPlanRevisionOption(request);
+    if (!revisionOption || !onSubmitPlanFeedback) return;
+    submitRaw(
+      { optionId: revisionOption.optionId },
+      outcomeForSelection(request.requestType, revisionOption.optionId, true),
+      () =>
+        onSubmitPlanFeedback(message).catch((err: unknown) => {
+          // The send already reconciled and explained an uncertain outcome;
+          // the message may have landed, so do not queue a duplicate.
+          if (isRemoteCommandOutcomeUncertainError(err)) return;
+          // The plan review is already answered; keep the feedback as a
+          // composer draft so a failed send never loses it.
+          console.error("[chat] plan feedback send failed", err);
+          useComposerInputInbox.getState().enqueue(threadId, [{ kind: "text", content: message }]);
+          toast.danger(friendlyError(err));
+        }),
     );
   }
 
@@ -162,6 +221,30 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
     !!summary &&
     !!commandSubject &&
     summaryRepeatsSubject(summary, commandSubject);
+  // Plan text is only read for plan reviews, and review needs a way to answer
+  // with "keep planning" plus a sender for the follow-up.
+  const reviewablePlan =
+    onSubmitPlanFeedback && findPlanRevisionOption(request) ? planText : undefined;
+  const planReviewAction = reviewablePlan ? (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="@max-[44rem]:w-full"
+      onPress={() => setPlanReviewOpen(true)}
+    >
+      <MessageSquarePlus className="size-3.5" />
+      <Trans>Review plan</Trans>
+      {planDraft.notes.length > 0 ? (
+        // Draft count; aria-hidden keeps the button's accessible name stable.
+        <span
+          aria-hidden
+          className="min-w-4 rounded-full bg-accent/20 px-1 text-center text-[10px] leading-4 font-semibold text-accent tabular-nums"
+        >
+          {planDraft.notes.length}
+        </span>
+      ) : null}
+    </Button>
+  ) : null;
   const planFileAction =
     planFilePath && onOpenPlanFile ? (
       <Button
@@ -180,7 +263,14 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         options={options}
         requestType={request.requestType}
         isDisabled={resolving}
-        leadingAction={planFileAction}
+        leadingAction={
+          planReviewAction || planFileAction ? (
+            <>
+              {planReviewAction}
+              {planFileAction}
+            </>
+          ) : null
+        }
         showAllOptions
         stackOnNarrow={isPlanApproval}
         onSelect={(optionId) => decide([optionId])}
@@ -281,6 +371,22 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
           isDisabled={resolving}
           onSubmit={decide}
           multiSelect={request.payload.multiSelect === true}
+        />
+      ) : null}
+      {reviewablePlan ? (
+        <PlanReviewModal
+          plan={reviewablePlan}
+          isOpen={planReviewOpen}
+          isDisabled={resolving}
+          notes={planDraft.notes}
+          overall={planDraft.overall}
+          onNotesChange={planDraft.setNotes}
+          onOverallChange={planDraft.setOverall}
+          onClose={() => setPlanReviewOpen(false)}
+          onSubmit={(message) => {
+            setPlanReviewOpen(false);
+            requestPlanRevision(message);
+          }}
         />
       ) : null}
     </ThreadDockSection>

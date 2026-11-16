@@ -91,7 +91,11 @@ export function readGrokAuthFromWsl(): Promise<string | undefined> {
 }
 
 export function readGeminiCredsFromWsl(): Promise<string | undefined> {
-  return readFromAnyWslDistro("cat $HOME/.gemini/oauth_creds.json 2>/dev/null");
+  // Print only the first existing non-empty file in GEMINI_CLI_HOME > GEMINI_HOME > $HOME/.gemini
+  // order so multiple files never concatenate into invalid JSON.
+  return readFromAnyWslDistro(
+    "{ [ xy = x${GEMINI_CLI_HOME:+y} ] && [ -s ${GEMINI_CLI_HOME}/.gemini/oauth_creds.json ] && cat ${GEMINI_CLI_HOME}/.gemini/oauth_creds.json; } || { [ xy = x${GEMINI_HOME:+y} ] && [ -s ${GEMINI_HOME}/oauth_creds.json ] && cat ${GEMINI_HOME}/oauth_creds.json; } || cat $HOME/.gemini/oauth_creds.json 2>/dev/null",
+  );
 }
 
 export function readMuseAuthFromWsl(): Promise<string | undefined> {

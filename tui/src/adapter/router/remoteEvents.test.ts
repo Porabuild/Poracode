@@ -56,6 +56,7 @@ test("maps usage.spent, context.updated, and persisted occupancy to usage events
     boundedProjectListPage: async () => ({ projects: [project] }),
     boundedThreadListPage: async () => ({ page: { threads: [thread] } }),
     threadRuntimeItemsPage: async () => ({ items: [], nextCursor: null }),
+    threadCompletedTurns: async () => [],
     threadContextUsage: async () => ({ usedTokens: 42_000, maxTokens: 200_000 }),
   } as unknown as RemoteDesktopClient;
   const { value } = S.router(client);

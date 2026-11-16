@@ -76,9 +76,18 @@ describe("OpenCode request forms", () => {
       },
     });
     const form = formInfoForRequest(request);
+    expect(form?.title).toBe("Questions");
+    // The question text lives in the field description — never repeated as a
+    // form-level message the vendored UI would render a second time.
+    expect(form?.metadata?.message).toBeUndefined();
     expect(form?.fields.map((field) => field.key)).toEqual(["colors", "reason"]);
-    expect(form?.fields[0]).toMatchObject({ type: "multiselect", custom: true });
-    expect(form?.fields[1]).toMatchObject({ type: "string", required: true });
+    expect(form?.fields[0]).toMatchObject({
+      type: "multiselect",
+      custom: true,
+      description: "Which colors?",
+    });
+    expect(form?.fields[1]).toMatchObject({ type: "string", required: true, description: "Why?" });
+    expect(form?.fields[1]).not.toHaveProperty("custom");
     expect(
       formResponseForRequest(request, { colors: ["blue"], reason: "Because" }).response,
     ).toEqual({
@@ -87,6 +96,87 @@ describe("OpenCode request forms", () => {
     expect(formDismissalForRequest(request)).toEqual({
       response: { action: "cancel" },
       outcome: "cancelled",
+    });
+  });
+
+  it("titles a single userInputForm question by its distinct header and offers custom answers", () => {
+    const request = openRequest({
+      summary: "Which port should the dev server use?",
+      details: {
+        userInputForm: {
+          questions: [
+            {
+              id: "port",
+              header: "Default port",
+              question: "Which port should the dev server use?",
+              options: [
+                { optionId: "3000", label: "3000" },
+                { optionId: "8080", label: "8080" },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    const form = formInfoForRequest(request);
+    expect(form?.title).toBe("Default port");
+    expect(form?.metadata?.message).toBeUndefined();
+    expect(form?.fields[0]).toMatchObject({
+      title: "Default port",
+      description: "Which port should the dev server use?",
+      custom: true,
+    });
+    // A free-text answer the vendored form folds into the field value routes
+    // to customAnswers, matching what desktop sends for "Something else…".
+    expect(formResponseForRequest(request, { port: "4000" }).response).toEqual({
+      answers: { port: "4000" },
+    });
+    expect(formResponseForRequest(request, { port: "3000" }).response).toEqual({
+      answers: { port: "3000" },
+    });
+  });
+
+  it("titles a single userInputForm question 'Question' when the header repeats it", () => {
+    const request = openRequest({
+      summary: "Pick one",
+      details: {
+        userInputForm: {
+          // Providers without a distinct header (Kimi) repeat the question.
+          questions: [{ id: "q1", header: "Pick one?", question: "Pick one?" }],
+        },
+      },
+    });
+    const form = formInfoForRequest(request);
+    expect(form?.title).toBe("Question");
+    expect(form?.fields[0]).toMatchObject({ description: "Pick one?" });
+  });
+
+  it("routes free-text answers to customAnswers for the codex request shape", () => {
+    const request = openRequest({
+      summary: "Input requested",
+      details: {
+        codexUserInput: {
+          questions: [
+            {
+              id: "q0",
+              question: "Which option?",
+              options: [
+                { optionId: "continue", label: "Continue" },
+                { optionId: "stop", label: "Stop" },
+              ],
+            },
+          ],
+        },
+      },
+    });
+    const form = formInfoForRequest(request);
+    expect(form?.title).toBe("Question");
+    expect(form?.fields[0]).toMatchObject({ description: "Which option?", custom: true });
+    expect(formResponseForRequest(request, { q0: "continue" }).response).toEqual({
+      answers: { q0: { answers: ["continue"] } },
+    });
+    expect(formResponseForRequest(request, { q0: "something else entirely" }).response).toEqual({
+      answers: { q0: { answers: ["something else entirely"] } },
     });
   });
 

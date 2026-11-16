@@ -1,6 +1,6 @@
 ---
 name: mobile-apps
-description: Guides changes to Poracode's mobile clients — the compact mobile web/PWA layout, the native SwiftUI iOS app, and the native Jetpack Compose Android app. Use when a task mentions mobile, iOS, Android, PWA, compact layout, SwiftUI, Compose, pairing, push notifications, Live Activities, the remote-v3 contract, or UI that must stay in parity across mobile platforms.
+description: Guides changes to Poracode's mobile clients — the compact mobile web/PWA layout, the native SwiftUI iOS app, and the native Jetpack Compose Android app. Use when a task mentions mobile, iOS, Android, PWA, compact layout, SwiftUI, Compose, pairing, push notifications, Live Activities, the remote-v3 contract, or UI that must stay in parity across mobile platforms. Also use to assess mobile impact when implementing desktop or renderer client changes.
 ---
 
 # Mobile Apps — Poracode
@@ -12,7 +12,7 @@ vocabulary, and the remote-v3 wire contract, but not UI code:
 | ---------------- | ------------------------------------ | ----------------------------------------------------------- | --------------------------------- |
 | Mobile web / PWA | React, same renderer as desktop      | `src/renderer` (compact layout)                             | Poracode PWA patterns + HeroUI v3 |
 | iOS app          | Swift / SwiftUI, native (no WebView) | `ios/App` (`App`, `AppTests`, `PoracodeActivities` targets) | Apple HIG                         |
-| Android app      | Kotlin / Jetpack Compose             | `android/`                                                  | Material 3                        |
+| Android app      | Kotlin / Jetpack Compose             | `android/`                                                  | Poracode PWA language (Compose)   |
 
 The native apps do not embed the web renderer; they are independent apps
 speaking remote-v3 to a desktop or headless host. The mobile web client is a
@@ -48,18 +48,30 @@ Mobile building blocks: `src/renderer/components/mobileComposer/`; PWA plumbing
 ## Platform design languages
 
 Behavior and layout logic stay in parity; visual expression is idiomatic per
-platform. Never port web CSS to native, clone iOS styling on Android, or bring
-Material patterns to iOS. Before styling, read
+platform. iOS follows Apple HIG; Android renders the compact PWA's design
+language (tokens, Geist, lucide icons, page chrome) through its own Compose
+design system. Never port web CSS to native, clone iOS styling on Android, or
+bring Material patterns to iOS. Before styling, read
 [references/design.md](references/design.md) for the per-platform rules
 (neutral icon and menu color, bottom thumb-reachable actions and the shared
 components that implement them, drawers, tabs, density, and visual
 verification).
 
-## Feature parity is the default
+## Client coverage and feature parity
 
-When you add or change a feature, screen, flow, or interaction rule on one
-platform, the same capability lands on the other two mobile surfaces in each
-platform's idiom.
+Before implementing a client-side feature or fix, including desktop or renderer
+work, inspect its counterparts in Electron desktop, desktop browser, compact
+mobile browser/PWA, native iOS, and native Android. For each client, decide
+whether it needs an implementation, already inherits the change through shared
+code, or is unaffected. Check browser and installed PWA behavior separately when
+the change involves standalone mode, installation, offline use, or push.
+
+Shared capabilities such as chat, thread actions, permissions, and settings
+normally need matching behavior on all applicable clients in the same change,
+using each platform's idiom. A desktop window integration or a layout fix
+specific to one client may need no mobile counterpart. Respect explicit user
+scope; do not add placeholder implementations or edit unaffected clients just
+to touch every platform.
 
 1. Feature modules mirror by name: `ios/App/App/Features/<Name>` ↔
    `android/.../ui/<name>` (plus matching `Transport`/`transport` layers) ↔ the
@@ -69,9 +81,9 @@ platform's idiom.
    `unsupported-by-wire`) with evidence paths for every HTTP route and socket
    event per platform, and `native-parity.test.ts` fails on drift. Any
    wire-facing change updates the ledger in the same change.
-3. If the user scopes work to one platform, deliver that platform, mark the
-   others `planned` when wire-facing, and name the parity gap in the final
-   report.
+3. If the user scopes work to one platform, deliver that platform, mark
+   applicable deferred clients `planned` when wire-facing, and name the parity
+   gap in the final report.
 4. Genuine platform differences are recorded, not skipped — e.g. Live
    Activities exist only on iOS (`ios/App/PoracodeActivities/`); Android push is
    plain FCM notification messages. Use ledger dispositions or an explicit note.
@@ -107,7 +119,11 @@ information per tool call) in their own widgets.
    closed vocabulary of generic blocks (title, icon token, category, and
    sections such as diff, terminal output, key-value args, markdown, table,
    image) derived once in shared TS and sent over the wire, so each client
-   implements only the block vocabulary.
+   implements only the block vocabulary. The TUI transcript
+   (`tui/src/plugin/transcript`) already runs those renderer modules directly
+   through `tui/src/desktop/presentation.ts`, so keep them free of React and
+   app-store imports (name items with the type-only
+   `state/slices/runtimeChatItem.ts`).
 4. **A new tool-call kind** means: map it in the supervisor's canonical mapping,
    give it display metadata in the shared presentation layer, and add a shared
    fixture item. It never means a bespoke Swift or Kotlin card; if a client
@@ -153,6 +169,10 @@ information per tool call) in their own widgets.
 
 ## Verification
 
+- Verify each affected client and report the evidence per client. Shared
+  renderer code still needs checks in the affected desktop, compact, and PWA
+  presentations; an Electron check does not prove browser or native behavior.
+  Name unavailable platform checks explicitly.
 - Cross-platform E2E: `bun run native:e2e` (config `tests/native-e2e/`), with
   `native:e2e:mock-host` / `native:e2e:real-host` harnesses. Run it when the
   wire or session flows change.

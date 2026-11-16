@@ -12,7 +12,7 @@ struct RemoteIntegrationsUnavailableView: View {
     } actions: {
       if let retry {
         Button(RemoteIntegrationsStrings.retry, action: retry)
-          .remoteIntegrationsProminentButtonStyle()
+          .poracodeGlassButtonStyle()
       }
     }
   }
@@ -83,21 +83,7 @@ struct RemoteIntegrationsReadOnlyNotice: View {
 }
 
 extension View {
-  @ViewBuilder
   func remoteIntegrationsGlassSurface() -> some View {
-    if #available(iOS 26.0, *) {
-      glassEffect(.regular, in: .rect(cornerRadius: 16))
-    } else {
-      background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-  }
-
-  @ViewBuilder
-  func remoteIntegrationsProminentButtonStyle() -> some View {
-    if #available(iOS 26.0, *) {
-      buttonStyle(.glassProminent)
-    } else {
-      buttonStyle(.borderedProminent)
-    }
+    poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
   }
 }

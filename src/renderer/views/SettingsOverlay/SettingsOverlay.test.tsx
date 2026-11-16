@@ -13,11 +13,6 @@ const statusesState = {
   inFirstLaunchDiscovery: false,
 };
 
-const refreshAgentDiscoveryMock = vi.fn<(distros: string[]) => void>();
-vi.mock("@/renderer/actions/agentDiscoveryActions", () => ({
-  refreshAgentDiscovery: (distros: string[]) => refreshAgentDiscoveryMock(distros),
-}));
-
 const appState = {
   projects: [] as Project[],
   openSchedules: vi.fn<() => void>(),
@@ -250,7 +245,6 @@ describe("SettingsOverlay", () => {
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useSettingsHostStore.setState({ desktopId: null });
     __resetBrowserBridgeForTest();
-    refreshAgentDiscoveryMock.mockReset();
     usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
   });
 
@@ -510,6 +504,50 @@ describe("SettingsOverlay", () => {
     expect(screen.queryByTestId("machine-select")).toBeNull();
   });
 
+  it("keeps the archive machine picker outside the settings scroll area", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "mac",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+    });
+    usePanelStore.getState().openSettingsSection("archived");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const scrollArea = screen.getByText("Archived").closest("[data-settings-scroll-area]");
+    expect(scrollArea).toHaveClass("pb-20");
+    expect(scrollArea).not.toContainElement(screen.getByTestId("machine-select"));
+    expect(screen.getByRole("main")).toContainElement(screen.getByTestId("machine-select"));
+  });
+
+  it("shows the floating machine selector for Agent Registry when multiple machines exist", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "mac",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+    });
+    usePanelStore.getState().openSettingsSection("acpRegistry");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const main = screen.getByRole("main");
+    expect(within(main).getByText("Agent Registry Settings")).toBeInTheDocument();
+    expect(within(main).getByTestId("machine-select")).toBeInTheDocument();
+    expect(
+      screen.getByText("Agent Registry Settings").closest(".min-h-0.flex-1"),
+    ).not.toContainElement(screen.getByTestId("machine-select"));
+  });
+
   it("opens Schedules from the compact Desktop Settings index", () => {
     vi.stubGlobal(
       "matchMedia",
@@ -720,19 +758,11 @@ describe("SettingsOverlay", () => {
     expect(factoryButton.querySelector(".text-warning")).not.toBeNull();
   });
 
-  it("starts app-owned discovery with the project WSL environments", () => {
-    appState.projects = [
-      {
-        id: "project-1",
-        name: "demo",
-        disabled: false,
-        createdAt: new Date(0).toISOString(),
-        location: { kind: "wsl", distro: "Ubuntu", linuxPath: "/home/demo/project", uncPath: "" },
-      },
-    ];
+  it("keeps the refresh action out of the settings sidebar", () => {
     render(<SettingsOverlay onClose={() => undefined} />);
-    fireEvent.click(screen.getByRole("button", { name: "Refresh detected agents" }));
-    expect(refreshAgentDiscoveryMock).toHaveBeenCalledExactlyOnceWith(["Ubuntu"]);
+    expect(
+      screen.queryByRole("button", { name: "Refresh detected agents" }),
+    ).not.toBeInTheDocument();
   });
 
   it("searches across individual settings, not just sections", () => {
@@ -756,7 +786,7 @@ describe("SettingsOverlay", () => {
     });
 
     expect(
-      screen.getByText(/Keep the system awake while any agent is working/),
+      screen.getByText(/Keep the system awake while any selected condition applies/),
     ).toBeInTheDocument();
   });
 

@@ -360,6 +360,30 @@ function publishManagedLoopbackActivation(
   for (const listener of [...managedLoopbackActivationListeners]) listener(activation);
 }
 
+/**
+ * True only once the co-located loopback leg has lost its connection or failed
+ * bootstrap/recovery (distinct from initial startup while still connecting).
+ */
+let managedLoopbackOffline = false;
+const managedLoopbackOfflineListeners = new Set<(offline: boolean) => void>();
+
+export function isManagedLoopbackOffline(): boolean {
+  return managedLoopbackOffline;
+}
+
+export function subscribeManagedLoopbackOffline(listener: (offline: boolean) => void): () => void {
+  managedLoopbackOfflineListeners.add(listener);
+  return () => {
+    managedLoopbackOfflineListeners.delete(listener);
+  };
+}
+
+function setManagedLoopbackOffline(offline: boolean): void {
+  if (managedLoopbackOffline === offline) return;
+  managedLoopbackOffline = offline;
+  for (const listener of [...managedLoopbackOfflineListeners]) listener(offline);
+}
+
 /** Catalog-membership event types the managed root schedules a pass for. */
 export type ManagedLoopbackMembershipEventType =
   | "remote-threads-changed"
@@ -516,6 +540,7 @@ export function attachManagedLoopbackPreload(transport: PreloadIpcTransport): vo
     managedLoopback.intake?.dispose();
     managedLoopback.intake = null;
     intakeStartup.invalidate();
+    setManagedLoopbackOffline(false);
   }
   managedLoopback.transport = transport;
 }
@@ -606,6 +631,7 @@ export function startDesktopLoopbackEventIntake(): Promise<void> {
       managedLoopback.intake?.dispose();
       managedLoopback.intake = null;
       console.error(error);
+      setManagedLoopbackOffline(true);
       scheduleLoopbackDiscoveryRetry();
     }
   });
@@ -656,6 +682,7 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     console.warn(
       "[loopback] disposing the leg for a fresh bootstrap (new pairing credential + session)",
     );
+    setManagedLoopbackOffline(true);
     intake.dispose();
     managedLoopback.intake = null;
     intake = null;
@@ -674,14 +701,21 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
     ...(managedLoopbackTestSeams.preflightTimeoutMs !== undefined
       ? { preflightTimeoutMs: managedLoopbackTestSeams.preflightTimeoutMs }
       : {}),
-    readItemInterests: () => eventInterests.snapshotRendererEventInterests().runtimeThreadIds,
+    // This socket carries only the managed host's own threads; each paired
+    // host's socket carries its own.
+    readItemInterests: () =>
+      eventInterests
+        .snapshotRendererEventInterests()
+        .runtimeThreadIds.filter(eventInterests.isManagedHostEventInterest),
     subscribeItemInterests: (listener) => eventInterests.subscribeRendererEventInterests(listener),
     onItemInterestsTruncated: (droppedCount) => {
       if (!isCurrentIntake()) return;
       // Truthful window-local capacity state (A1): the thread surface shows the
       // overload with recovery guidance instead of a console-only warning, and
       // the state clears as soon as the wire carries every retained thread.
-      useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(droppedCount);
+      useLiveStreamCapacityStore
+        .getState()
+        .setDroppedRuntimeThreadCount(droppedCount, eventInterests.MANAGED_EVENT_INTEREST_WIRE);
     },
     onItemInterestsApplied: (threadIds) => {
       if (!isCurrentIntake()) return;
@@ -771,6 +805,7 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
           });
           void resolveManagedParentDescriptor(activation);
         }
+        setManagedLoopbackOffline(false);
         // Rebuilds synchronously start transcript hydration. Publish the
         // client and its authority first, so the initial read uses the bounded
         // history route instead of the separate legacy DB adapter reads.
@@ -779,9 +814,9 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
         feed.setManagedLoopbackTerminalLeg(false);
         transport.setLoopbackActive(false);
         registerManagedLoopbackProcedureHost(null);
-        publishManagedLoopbackActivation(null);
-        // The retired activation's notice capability is not inherited by a
-        // successor: a restarted leg proves it again from its own descriptor.
+        // The retired activation's authority/capability state must clear BEFORE
+        // publishing `null`, so activation listeners never copy a stale failed
+        // authority into the deactivated catalog status.
         const retiring = managedParentActivation;
         if (retiring) {
           forgetRuntimeHistoryNoticesCapability(managedLoopbackNoticeAuthority(retiring.seq));
@@ -793,6 +828,8 @@ async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean):
         managedParentActivationSeq += 1;
         clearManagedParentAuthority();
         clearManagedLoopbackOwnerRow();
+        publishManagedLoopbackActivation(null);
+        setManagedLoopbackOffline(true);
         // A4: deactivation is not an escalation signal. The intake retries
         // transport-class failures locally with the shared policy, and only a
         // rejected credential or an exhausted local budget calls back into
@@ -890,12 +927,13 @@ export function resetDesktopLoopbackIntakeForTest(): void {
   managedLoopback.intake = null;
   managedLoopback.transport = null;
   registerManagedLoopbackProcedureHost(null);
-  publishManagedLoopbackActivation(null);
   managedParentActivation = null;
   managedParentActivationSeq += 1;
   clearManagedParentAuthority();
-  resetLiveStreamCapacityStore();
   clearManagedLoopbackOwnerRow();
+  publishManagedLoopbackActivation(null);
+  setManagedLoopbackOffline(false);
+  resetLiveStreamCapacityStore();
   __resetBoundedCatalogChangesCapabilityForTest();
   // The feed module may never have loaded (no intake started): then the leg
   // was never armed either.

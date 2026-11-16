@@ -17,16 +17,18 @@ import { kimiThoughtLevelChoices, preferredKimiThoughtTier } from "./thoughtLeve
 import { ensureKimiWorkspaceTrust } from "./kimiTrust";
 import { nativeKimiHomePath, nativeKimiOAuthCredentialPath } from "./paths";
 
-// Kimi Code exposes three permission modes: manual (the CLI default), auto,
-// and yolo. Poracode starts fresh threads in auto mode.
-//   • default/manual → no flag
-//   • auto           → `--auto`
-//   • yolo           → `--yolo` (bypass — auto-approve everything)
-// The two auto-approve modes are mutually exclusive at launch.
-const KIMI_APPROVAL_POLICIES = [
+// Kimi's yolo mode asks when needed; auto is its most permissive mode. ACP
+// probes historically mapped yolo to "never", while the terminal uses "yolo".
+// Keep both persisted IDs on their original surfaces.
+const KIMI_TERMINAL_APPROVAL_POLICIES = [
   { id: "default", label: "Default" },
-  { id: "auto", label: "Auto Approve" },
-  { id: "yolo", label: "Bypass Approvals" },
+  { id: "yolo", label: "Ask When Needed" },
+  { id: "auto", label: "Never Ask" },
+] as const;
+const KIMI_GUI_APPROVAL_POLICIES = [
+  { id: "default", label: "Default" },
+  { id: "never", label: "Ask When Needed" },
+  { id: "auto", label: "Never Ask" },
 ] as const;
 
 // Models fill in from the ACP capabilities probe (k3 / kimi-for-coding /
@@ -37,7 +39,7 @@ export const kimiDefaultCapabilities: AgentCapability = {
   efforts: [],
   modelEfforts: {},
   modes: ["agent", "plan"],
-  approvalPolicies: [...KIMI_APPROVAL_POLICIES],
+  approvalPolicies: [...KIMI_TERMINAL_APPROVAL_POLICIES],
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
@@ -46,8 +48,18 @@ export const kimiDefaultCapabilities: AgentCapability = {
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "auto",
-  bypassPermissions: { approvalPolicy: "yolo" },
+  bypassPermissions: { approvalPolicy: "auto", preferDeclaredApprovalPolicy: true },
   settingDefs: [],
+  presentationCapabilities: {
+    gui: {
+      models: [],
+      efforts: [],
+      modelEfforts: {},
+      approvalPolicies: [...KIMI_GUI_APPROVAL_POLICIES],
+      defaultApprovalPolicy: "auto",
+      presentationMode: "gui",
+    },
+  },
 };
 
 export function buildKimiCommand(location: ProjectLocation, args: string[], wslExecPath?: string) {
@@ -71,9 +83,10 @@ export const kimiTerminalAuthMethod: AgentTerminalAuthMethod = {
  * Turn Kimi's `thought_level` selector into real effort tiers.
  *
  * Each model keeps the levels it actually offers (see thoughtLevels.ts for the
- * probed payloads): the `low`/`high`/`max` ladder for K3, and the lone untiered
- * `on` for K2.7 — which the composer renders as no picker at all, since there is
- * nothing to choose, while still giving the thread a level to send.
+ * probed payloads): the `low`/`high`/`max` ladder for K3, `off` / `on` for an
+ * external model with optional thinking, and the lone untiered `on` for K2.7
+ * and the other legacy managed aliases. A one-option list draws no picker,
+ * while still giving the thread a level to send.
  *
  * Kimi reports `currentValue: "on"` even for the tiered K3 models, so defaults
  * resolve through {@link preferredKimiThoughtTier} (`high`) rather than adopting
@@ -94,7 +107,7 @@ export function normalizeKimiProbeEfforts(probe: AcpProbeResult | undefined): {
     // `modelEfforts[model] ?? efforts`, so omitting a model makes it inherit the
     // global list — and that list holds only the levels of whichever model the
     // probe started on, which is whatever the Kimi CLI last persisted.
-    modelEfforts[modelId] = kimiThoughtLevelChoices(levels);
+    modelEfforts[modelId] = kimiThoughtLevelChoices(levels, modelId);
   }
   // Kimi's probed default (`on`) names no tier for the tiered models, so resolve
   // every model's default against the levels that model actually offers.
@@ -135,15 +148,28 @@ export function buildKimiProbeCapabilities(
     }
   }
 
-  return {
+  const modelCapabilities = {
     // 0.33.0 carries no model list on `initialize`; models arrive on
     // `session/new` configOptions, which the shared probe already maps.
     ...(probe?.models?.length ? { models: probe.models } : {}),
     ...normalizeKimiProbeEfforts(probe),
-    ...(probe?.modes?.length ? { modes: probe.modes } : {}),
-    ...(probe?.approvalPolicies?.length ? { approvalPolicies: probe.approvalPolicies } : {}),
-    ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
     ...contextCaps,
+  };
+  return {
+    ...modelCapabilities,
+    ...(probe?.modes?.length ? { modes: probe.modes } : {}),
+    ...(probe?.slashCommands?.length ? { slashCommands: probe.slashCommands } : {}),
+    presentationCapabilities: {
+      gui: {
+        models: [],
+        efforts: [],
+        modelEfforts: {},
+        ...modelCapabilities,
+        approvalPolicies: [...KIMI_GUI_APPROVAL_POLICIES],
+        defaultApprovalPolicy: "auto",
+        presentationMode: "gui",
+      },
+    },
     authMethods: [kimiTerminalAuthMethod],
     // Prefer the ACP-native auth signal (session/new succeeded → authenticated,
     // `auth_required` → missing); fall back to the credential files when the

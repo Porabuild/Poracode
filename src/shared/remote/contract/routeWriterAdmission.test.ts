@@ -68,6 +68,8 @@ const DECLARED_WRITER_ROUTES = [
   "thread-start-existing",
   "thread-steer-clear",
   "thread-steer-set",
+  "thread-transfer-command",
+  "thread-transfer-upload",
 ] as const;
 
 /** Bearer non-GET routes that must stay old-client-usable: read-class POSTs. */
@@ -92,7 +94,7 @@ const READ_CLASS_POST_ROUTES = [
 describe("route writer-generation admission declarations", () => {
   it("declares the direct writers and reads with new closed schedule variants", () => {
     const declared = REMOTE_HTTP_ROUTES.filter((route) => route.requiresCurrentProtocol);
-    expect(declared).toHaveLength(54);
+    expect(declared).toHaveLength(56);
     expect(declared.map((route) => route.id).sort()).toEqual([...DECLARED_WRITER_ROUTES].sort());
   });
 

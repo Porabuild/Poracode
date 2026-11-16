@@ -8,6 +8,7 @@ import {
   parseChangelogDocument,
   releasesSince,
 } from "./changelog";
+import { isDiscoverableFeatureId } from "./featureDiscovery";
 
 // The single source of truth lives in the website (served at /changelog.json).
 const rawDocument = JSON.parse(readFileSync("website/public/changelog.json", "utf8")) as unknown;
@@ -129,6 +130,27 @@ describe("changelog.json data integrity", () => {
       expect(release.summary.length).toBeGreaterThan(0);
       expect(release.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(release.changes.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("website/public/changelog.json news line fields", () => {
+  const changes = releases.flatMap((release) =>
+    release.changes.map((change) => ({ version: release.version, change })),
+  );
+
+  it("names only discovery features the app knows", () => {
+    for (const { version, change } of changes) {
+      if (change.feature === undefined) continue;
+      expect(isDiscoverableFeatureId(change.feature), `${version}: ${change.feature}`).toBe(true);
+    }
+  });
+
+  it("keeps headlines to one short line", () => {
+    for (const { version, change } of changes) {
+      if (change.headline === undefined) continue;
+      expect(change.headline.length, `${version}: ${change.headline}`).toBeLessThanOrEqual(70);
+      expect(change.headline.trim()).toBe(change.headline);
     }
   });
 });

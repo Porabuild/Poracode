@@ -13,7 +13,10 @@ import { useLingui } from "@lingui/react/macro";
 import type { Project, ProjectLocation, GitStatusResult } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
 import { refreshGitProject, refreshSinglePr } from "@/renderer/state/gitRefresh";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { BranchSelector } from "@/renderer/components/common";
@@ -75,11 +78,18 @@ export function GitReviewPanel(props: {
   const gitStatus = useGitStore((s) =>
     statusKey ? s.worktreeStatuses[statusKey] : s.statuses[project.id],
   ) as GitStatusResult | undefined;
+  const isPanelVisible = useIsPanelTabVisible("git");
+  const isOverlayOpen = usePanelStore((state) => state.gitOverlayOpen);
+  const compactLayout = useCompactLayout();
+  const compactChangesVisible = usePanelStore(
+    (state) => state.mobileUtilityPage === "workspace" && state.rightPanelTab !== "files",
+  );
+  const isVisible = isOverlayOpen || (compactLayout ? compactChangesVisible : isPanelVisible);
 
-  // One-shot mount fetch so the panel paints with live status even before the
-  // poll cycle runs. Effect-only store writes (no synchronous setState), keyed
-  // on the location pieces the call actually uses.
+  // Hydrate on mount or reveal: the dock keeps hidden tabs mounted while
+  // watcher refreshes keep only lightweight summaries current.
   useEffect(() => {
+    if (!isVisible) return;
     let cancelled = false;
     void readBridge()
       .getGitStatus({ projectLocation: effectiveLocation })
@@ -97,7 +107,7 @@ export function GitReviewPanel(props: {
     return () => {
       cancelled = true;
     };
-  }, [effectiveLocation, project.id, statusKey]);
+  }, [effectiveLocation, project.id, statusKey, isVisible]);
 
   function handleSelectFile(path: string | null, staged: boolean) {
     setSelectedFile(path);

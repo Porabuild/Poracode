@@ -2,12 +2,9 @@ package com.poracode.app.ui.thread
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -15,12 +12,13 @@ import com.poracode.app.R
 import com.poracode.app.session.HostPresentation
 import com.poracode.app.session.threads.ThreadLifecycleController
 import com.poracode.app.ui.components.EmptyStateView
-import com.poracode.app.ui.home.HomeThreadRow
+import com.poracode.app.ui.home.HomeThreadRowWithActions
 
 /**
  * Android counterpart of the iOS `ArchivedThreadsView` and the PWA archived-threads settings page:
- * the selected desktop stays authoritative, this pane only projects its snapshot and routes
- * restore/delete through the shared [ThreadLifecycleActions] menu.
+ * the selected desktop stays authoritative, this pane only projects its snapshot. Like Home rows,
+ * a long press opens the shared thread actions drawer (restore/delete included); rows carry no
+ * trailing overflow button.
  */
 @Composable
 internal fun ArchivedThreadsPane(
@@ -45,27 +43,15 @@ internal fun ArchivedThreadsPane(
     ) {
         items(threads.size, key = { threads[it].id }) { index ->
             val item = threads[index]
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                HomeThreadRow(
-                    item = item,
-                    grouped = false,
-                    gitSummary = null,
-                    selected = false,
-                    onClick = { onOpenThread(item.id) },
-                    modifier = Modifier.weight(1f),
-                )
-                ThreadLifecycleActions(
-                    thread = item.thread,
-                    projectLocation = item.project.location,
-                    controller = controller,
-                    enabled = canOperate,
-                    onThreadRemoved = {},
-                )
-            }
+            HomeThreadRowWithActions(
+                item = item,
+                grouped = false,
+                selected = false,
+                gitSummary = null,
+                lifecycleController = controller,
+                canOperateThreads = canOperate,
+                onClick = { onOpenThread(item.id) },
+            )
         }
     }
 }

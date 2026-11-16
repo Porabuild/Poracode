@@ -17,6 +17,8 @@ import com.poracode.app.ui.components.ProjectedModelFamilies
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.decodeFromJsonElement
 
 /** A capability option with a stable host-provided id and a human label. */
@@ -185,6 +187,16 @@ internal class HomeQuickComposeCatalog(
     fun applyFast(configuration: ThreadConfig, fast: Boolean): ThreadConfig =
         families.applyFastEdit(configuration, fast) ?: configuration
 
+    /** Membership-resolved label: a family member reads its family row label. */
+    fun modelLabel(modelId: String): String {
+        families.familyForModel(modelId)?.let { return it.family.label }
+        return models.firstOrNull { it.id == modelId }?.label ?: humanized(modelId)
+    }
+
+    fun effortLabel(modelId: String, effort: String): String =
+        effortOptions(modelId).firstOrNull { it.id == effort }?.label
+            ?: humanized(effort)
+
     /**
      * The family-derived display for the current selection — encoded
      * Effort/Fast read from the member, never written back — or null when no
@@ -284,7 +296,15 @@ internal class HomeQuickComposeCatalog(
             },
             workflows = launchWorkflows(base, base.model),
             mode = normalizeOptional(base.mode, modes),
-            approvalPolicy = normalizeOptional(base.approvalPolicy, approvalPolicies),
+            approvalPolicy = normalizeOptional(
+                base.approvalPolicy ?: (capabilities["bypassPermissions"] as? JsonObject)
+                    ?.get("preferDeclaredApprovalPolicy")
+                    ?.let { it as? JsonPrimitive }
+                    ?.booleanOrNull
+                    ?.takeIf { it }
+                    ?.let { capabilities["defaultApprovalPolicy"]?.stringOrNull() },
+                approvalPolicies,
+            ),
         )
     }
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="projects_manage_title">プロジェクトを管理</string>
+    <string name="projects_manage_title">プロジェクト</string>
     <string name="projects_add_title">プロジェクトを追加</string>
     <string name="projects_add_existing">既存を追加</string>
     <string name="projects_create_new">新規作成</string>

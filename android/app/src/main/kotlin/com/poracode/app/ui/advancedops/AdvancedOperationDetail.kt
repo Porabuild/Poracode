@@ -14,7 +14,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +34,9 @@ import com.poracode.app.model.RemoteProject
 import com.poracode.app.protocol.advancedops.AdvancedFileStatus
 import com.poracode.app.session.advancedops.AdvancedMutationOutcome
 import com.poracode.app.session.advancedops.AdvancedOpsProductionComposition
+import com.poracode.app.ui.components.PoracodeTextField
+import com.poracode.app.ui.components.PoracodeSwitch
+import androidx.compose.material3.FilledTonalButton
 
 @Composable
 internal fun AdvancedOperationDetail(
@@ -95,7 +97,7 @@ internal fun AdvancedOperationDetail(
         state.failure?.let { failure -> item { AdvancedFailureCard(failure) } }
         state.output?.let { output -> item { AdvancedOutputCard(output) } }
         item {
-            Button(
+            FilledTonalButton(
                 onClick = {
                     when (val parsed = draft.parse(action)) {
                         is AdvancedParseResult.Valid -> {
@@ -142,7 +144,7 @@ internal fun AdvancedOperationDetail(
                 )
             },
             confirmButton = {
-                Button(onClick = composition.controller::confirm) {
+                FilledTonalButton(onClick = composition.controller::confirm) {
                     Text(stringResource(R.string.advanced_ops_confirm))
                 }
             },
@@ -170,10 +172,10 @@ private fun AdvancedFieldInput(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(fieldLabel(field), modifier = Modifier.weight(1f))
-            Switch(checked = enabled, onCheckedChange = onFlag)
+            PoracodeSwitch(checked = enabled, onCheckedChange = onFlag)
         }
     } else {
-        OutlinedTextField(
+        PoracodeTextField(
             value = value,
             onValueChange = onText,
             label = { Text(fieldLabel(field)) },

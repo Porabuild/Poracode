@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, FileUp, MoreHorizontal, SlidersHorizontal, Square, X } from "lucide-react";
+import { ArrowUp, FileUp, MoreHorizontal, Play, SlidersHorizontal, Square, X } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -33,6 +33,7 @@ import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 import { modelFamilyMemberDisplay } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
 import { CrewRosterMenu } from "@/renderer/components/crew/CrewRosterMenu";
 import type { CrewRosterModel } from "@/renderer/components/crew/crewComposerModel";
+import { scheduleDetachedTransitionCleanup } from "@/renderer/utils/detachedTransitionCleanup";
 
 export type OptionMenuOption = string | { id: string; label: string; hint?: string };
 
@@ -277,6 +278,8 @@ export function ThreadComposer(props: {
   submitContent?: ReactNode;
   /** A caller-selected primary control, e.g. live voice on an empty composer. */
   submitControl?: ReactNode;
+  /** Takes the empty composer's send slot to pick a cut-off turn back up. */
+  resume?: { label: string; onPress: () => void } | undefined;
   submitVariant?: ButtonProps["variant"];
   submitDisabled: boolean;
   submitPending?: boolean;
@@ -285,6 +288,12 @@ export function ThreadComposer(props: {
   onPromptChange: (value: string) => void;
   onSubmit: () => void;
   onAttachFiles?: (paths: string[]) => void;
+  /**
+   * Receives OS files dropped on the composer when the owning host cannot read
+   * this machine's paths. Takes precedence over `onAttachFiles` for OS drops;
+   * project-tree drags still go to `onAttachFiles`.
+   */
+  onImportFiles?: (files: File[]) => void;
   attachmentDropScope?: "composer" | "panel";
   onStop?: (() => void) | undefined;
   controls: ComposerControl[];
@@ -308,6 +317,7 @@ export function ThreadComposer(props: {
     submitLabel,
     submitContent,
     submitControl,
+    resume,
     submitVariant,
     submitDisabled,
     submitPending = false,
@@ -316,6 +326,7 @@ export function ThreadComposer(props: {
     onPromptChange,
     onSubmit,
     onAttachFiles,
+    onImportFiles,
     attachmentDropScope = "composer",
     onStop,
     controls,
@@ -333,6 +344,13 @@ export function ThreadComposer(props: {
   const probeContainerRef = useRef<HTMLDivElement>(null);
   const editorHostRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+
+  useEffect(
+    () => () => {
+      scheduleDetachedTransitionCleanup();
+    },
+    [],
+  );
   const mobileComposer = compact && isCompactClientSurface();
   const mobileOverflowControls = mobileComposer
     ? controls
@@ -927,7 +945,7 @@ export function ThreadComposer(props: {
     if (onStop && submitDisabled) {
       return (
         <Tooltip delay={0}>
-          <Tooltip.Trigger>
+          <Tooltip.Trigger data-composer-send="">
             <Button
               isIconOnly
               aria-label={t`Stop response`}
@@ -945,6 +963,24 @@ export function ThreadComposer(props: {
           <Tooltip.Content>
             <Trans>Stop response</Trans>
           </Tooltip.Content>
+        </Tooltip>
+      );
+    }
+    if (resume) {
+      return (
+        <Tooltip delay={0}>
+          <Tooltip.Trigger data-composer-send="">
+            <Button
+              isIconOnly
+              aria-label={resume.label}
+              className="poracode-composer-send"
+              onPress={resume.onPress}
+              size="sm"
+            >
+              <Play className="size-3.5 fill-current" />
+            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content>{resume.label}</Tooltip.Content>
         </Tooltip>
       );
     }
@@ -967,18 +1003,24 @@ export function ThreadComposer(props: {
     );
   };
 
-  const canAttachFiles = onAttachFiles !== undefined;
+  const canAttachPaths = onAttachFiles !== undefined;
+  const canImportFiles = onImportFiles !== undefined;
   const attachDroppedFiles = useEffectEvent((paths: string[]) => onAttachFiles?.(paths));
+  const importDroppedFiles = useEffectEvent((files: File[]) => onImportFiles?.(files));
 
   useEffect(() => {
     const shell = shellRef.current;
-    if (!shell || !canAttachFiles || toolbarOnly) return;
+    if (!shell || (!canAttachPaths && !canImportFiles) || toolbarOnly) return;
     const target =
       (attachmentDropScope === "panel"
         ? shell.closest<HTMLElement>("[data-poracode-attachment-drop-target]")
         : null) ?? shell;
     let dragDepth = 0;
 
+    const hasAttachmentDragData = (dataTransfer: DataTransfer) =>
+      Array.from(dataTransfer.types).some(
+        (type) => type === "Files" || (canAttachPaths && type === COMPOSER_FILE_DRAG_TYPE),
+      );
     const reset = () => {
       dragDepth = 0;
       setAttachmentDropTarget(null);
@@ -1003,7 +1045,18 @@ export function ThreadComposer(props: {
       if (!event.dataTransfer || !hasAttachmentDragData(event.dataTransfer)) return;
       event.preventDefault();
       reset();
-      const paths = resolveAttachmentDropPaths(event.dataTransfer);
+      const projectFilePath = resolveProjectFileDropPath(event.dataTransfer);
+      if (projectFilePath !== undefined) {
+        if (projectFilePath) attachDroppedFiles([projectFilePath]);
+        return;
+      }
+      const files = Array.from(event.dataTransfer.files);
+      if (files.length === 0) return;
+      if (canImportFiles) {
+        importDroppedFiles(files);
+        return;
+      }
+      const paths = readBridge().getDroppedFilePaths(files);
       if (paths.length > 0) attachDroppedFiles(paths);
     };
 
@@ -1022,25 +1075,18 @@ export function ThreadComposer(props: {
       window.removeEventListener("blur", reset);
       reset();
     };
-  }, [attachmentDropScope, canAttachFiles, toolbarOnly]);
+  }, [attachmentDropScope, canAttachPaths, canImportFiles, toolbarOnly]);
 
-  function hasAttachmentDragData(dataTransfer: DataTransfer) {
-    return Array.from(dataTransfer.types).some(
-      (type) => type === "Files" || type === COMPOSER_FILE_DRAG_TYPE,
-    );
-  }
-
-  function resolveAttachmentDropPaths(dataTransfer: DataTransfer): string[] {
+  /** `undefined` when the drop is not a project-tree drag; `""` when its payload is unusable. */
+  function resolveProjectFileDropPath(dataTransfer: DataTransfer): string | undefined {
     const payload = dataTransfer.getData(COMPOSER_FILE_DRAG_TYPE);
-    if (payload) {
-      try {
-        const parsed = JSON.parse(payload) as { path?: unknown; type?: unknown };
-        return typeof parsed.path === "string" && parsed.type === "file" ? [parsed.path] : [];
-      } catch {
-        return [];
-      }
+    if (!payload) return undefined;
+    try {
+      const parsed = JSON.parse(payload) as { path?: unknown; type?: unknown };
+      return typeof parsed.path === "string" && parsed.type === "file" ? parsed.path : "";
+    } catch {
+      return "";
     }
-    return readBridge().getDroppedFilePaths(Array.from(dataTransfer.files));
   }
 
   const toolbar = (
@@ -1051,7 +1097,7 @@ export function ThreadComposer(props: {
         </div>
       )}
       {renderControls()}
-      <div className="flex shrink-0 items-end gap-1">
+      <div className="poracode-composer-actions flex shrink-0 items-end gap-1">
         {typeof afterControls === "function" ? afterControls(0) : afterControls}
         {renderSendButton()}
       </div>

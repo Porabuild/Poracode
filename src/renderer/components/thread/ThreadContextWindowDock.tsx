@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Gauge } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
+import { useHostAgentStatuses } from "@/renderer/hooks/useHostAgentStatuses";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useThread } from "@/renderer/state/useThread";
+import { useProject, useThread } from "@/renderer/state/useThread";
 import { ThreadContextUsageDetails } from "./ThreadContextDock";
 import { resolveThreadContextUsageSummary } from "./threadContextUsage";
 import { ThreadDockCollapseButton, ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
@@ -17,11 +18,17 @@ export function ThreadContextWindowDock({ threadId }: { threadId: string }) {
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(true);
   const thread = useThread(threadId);
+  const project = useProject(thread?.projectId);
+  const hostAgentStatuses = useHostAgentStatuses(
+    thread?.remoteServerId ?? project?.remoteServerId,
+    project?.location,
+  );
   const context = useAppStore((state) => state.runtimeContextByThread[threadId]);
   if (!thread) return null;
+  const agentStatus = hostAgentStatuses.find((status) => status.kind === thread.agentKind);
   const summary = resolveThreadContextUsageSummary({
     thread,
-    agentStatus: undefined,
+    agentStatus,
     reportedUsage: context,
   });
   return (

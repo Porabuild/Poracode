@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { resolveProviderHandoffStrategy, targetGuaranteesReadThreadTool } from "./providerHandoff";
 
 const reachable = {
-  isMirroredThread: false,
   readThreadToolEnabled: true,
   threadResolvedReadThreadTool: true,
   targetReadThreadToolGuaranteed: true,
@@ -29,17 +28,6 @@ describe("resolveProviderHandoffStrategy", () => {
         ...reachable,
         sourcePresentationMode: source,
         targetPresentationMode: target,
-      }),
-    ).toBe("context-file");
-  });
-
-  it("writes a context file for a mirrored thread, whose transcript lives on its host", () => {
-    expect(
-      resolveProviderHandoffStrategy({
-        ...reachable,
-        isMirroredThread: true,
-        sourcePresentationMode: "gui",
-        targetPresentationMode: "gui",
       }),
     ).toBe("context-file");
   });

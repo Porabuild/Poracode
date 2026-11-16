@@ -131,6 +131,30 @@ function createServer(overrides: Partial<RemoteAccessServerOptions> = {}): Remot
 }
 
 describe("bundled web client route precedence", () => {
+  it("serves the MCP App proxy with HTTP-enforced isolation before SPA fallback", async () => {
+    const info = await createServer().start();
+    const url = new URL("/mcp-apps/sandbox/v1", info.httpBaseUrl);
+    url.searchParams.set(
+      "csp",
+      JSON.stringify({
+        connectDomains: ["https://api.example.com", "https://bad.test; default-src *"],
+      }),
+    );
+    const response = await fetch(url);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-security-policy")).toContain("sandbox allow-scripts;");
+    expect(response.headers.get("content-security-policy")).toContain(
+      "connect-src https://api.example.com;",
+    );
+    expect(response.headers.get("content-security-policy")).not.toContain("bad.test");
+    expect(response.headers.get("permissions-policy")).toContain("camera=()");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const html = await response.text();
+    expect(html).toContain("event.source === inner.contentWindow && event.origin === 'null'");
+    expect(html).not.toContain(INDEX_MARKER);
+  });
+
   it("serves the bundled build instead of the pairing artifacts", async () => {
     const info = await createServer().start();
 

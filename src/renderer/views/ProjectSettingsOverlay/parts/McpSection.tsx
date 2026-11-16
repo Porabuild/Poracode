@@ -8,6 +8,7 @@ import { loadAuthoritativeProjectMcpServers } from "@/renderer/state/projectSett
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isHomeProject } from "@/shared/homeScope";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
+import { PROJECT_SETTINGS_SCROLL_CLASS, ProjectScopeHeading } from "./ProjectEnvironmentScope";
 
 export function McpSection(props: { projectId: string }) {
   const { t } = useLingui();
@@ -37,12 +38,13 @@ export function McpSection(props: { projectId: string }) {
     }));
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
+    <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
       <SettingsPage
         title={t`MCP Servers`}
         description={t`Workspace MCP servers override user servers with the same name and are added only when agents start in this project.`}
         bodyClassName="space-y-5"
       >
+        <ProjectScopeHeading projectId={project.id} scope="environment" />
         <McpServersManager
           sources={{
             user: {

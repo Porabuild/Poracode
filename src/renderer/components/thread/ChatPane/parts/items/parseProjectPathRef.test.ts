@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import { parseProjectPathRef } from "./parseProjectPathRef";
+import { parseChatPathRef, parseProjectPathRef } from "./parseProjectPathRef";
 
 describe("parseProjectPathRef", () => {
   it("recognizes a file path with extension", () => {
@@ -132,5 +132,32 @@ describe("parseProjectPathRef", () => {
         path: "/plan",
       });
     });
+  });
+});
+
+describe("parseChatPathRef", () => {
+  it.each(["10/month", "and/or", "24/7", "/plan", "src/foo/bar", "src/foo/"])(
+    "without root names, leaves prose folders as text: %s",
+    (token) => {
+      expect(parseChatPathRef(token, undefined)).toBeNull();
+    },
+  );
+
+  it("without root names, still recognizes files", () => {
+    expect(parseChatPathRef("src/main.ts:12", undefined)).toEqual({
+      kind: "file",
+      path: "src/main.ts",
+      line: 12,
+    });
+    expect(parseChatPathRef("README.md", undefined)).toEqual({
+      kind: "file",
+      path: "README.md",
+    });
+  });
+
+  it("with root names, keeps verified folders and rejects unverified ones", () => {
+    const rootNames = new Set(["src"]);
+    expect(parseChatPathRef("src/foo", rootNames)).toEqual({ kind: "folder", path: "src/foo" });
+    expect(parseChatPathRef("10/month", rootNames)).toBeNull();
   });
 });

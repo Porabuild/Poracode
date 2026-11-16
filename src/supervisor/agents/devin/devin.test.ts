@@ -1,13 +1,11 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const paths = vi.hoisted(() => ({ configRoot: "", dataRoot: "" }));
 const mocks = vi.hoisted(() => ({
-  probeAcpCapabilities: vi.fn<(command: string, args: string[]) => Promise<unknown>>(
-    async () => ({}),
-  ),
+  probeAcpCapabilities: vi.fn<typeof import("../acp").probeAcpCapabilities>(async () => ({})),
   loadDevinModelsForKey: vi.fn<(...args: unknown[]) => Promise<unknown[]>>(async () => []),
   provenIdentity: vi.fn<(...args: unknown[]) => Promise<string>>(async () => "identity"),
   readCredential: vi.fn<() => Promise<undefined>>(async () => undefined),
@@ -196,6 +194,61 @@ describe("Devin provider", () => {
     expect(adapter.capabilities.supportsOneShot).toBe(true);
     expect((await adapter.buildOneShotCommand?.("swe", undefined, "title"))?.stdin).toBe("");
   });
+  it.each([false, true])(
+    "negotiates fresh Windows account login in a disposable root (probe failure: %s)",
+    async (failProbe) => {
+      const base = await mkdtemp(join(tmpdir(), "devin-fresh-windows-"));
+      vi.stubEnv("APPDATA", base);
+      let probeRoot = "";
+      try {
+        mocks.probeAcpCapabilities.mockImplementationOnce(
+          async (_command, _args, _cwd, options) => {
+            probeRoot = options!.env!.APPDATA!;
+            expect(options?.sessionProbe).toBe("initialize-only");
+            expect(options?.env?.WINDSURF_API_KEY).toBe("");
+            expect(
+              (
+                await stat(join(options!.env!.USERPROFILE!, "AppData", "Roaming", "devin"))
+              ).isDirectory(),
+            ).toBe(true);
+            await expect(stat(join(base, "Poracode", "devin-accounts"))).rejects.toMatchObject({
+              code: "ENOENT",
+            });
+            if (failProbe) throw new Error("probe cancelled");
+            return { authMethods: [{ id: "browser-login", name: "Sign in" }] };
+          },
+        );
+        const spec = createDevinDetectionSpec({
+          instanceId: "fresh",
+          label: "Devin fresh",
+          auth: { kind: "isolated", ownerId: "fresh" },
+          runtimeTarget: "local",
+          configGeneration: "gen",
+        });
+        const detected = spec.capabilitiesProbe!({
+          location: { kind: "windows", path: "C:\\project" },
+          executablePath: "C:\\devin.exe",
+        });
+        const outcome = await detected.then(
+          (value) => ({ methods: value?.authMethods, error: undefined }),
+          (error: Error) => ({ methods: undefined, error: error.message }),
+        );
+        expect(outcome.error).toBe(failProbe ? "probe cancelled" : undefined);
+        expect(outcome.methods?.some((method) => method.id === "browser-login")).toBe(
+          failProbe ? undefined : true,
+        );
+        expect(probeRoot).not.toBe("");
+        await expect(stat(probeRoot)).rejects.toMatchObject({ code: "ENOENT" });
+        await expect(stat(join(base, "Poracode", "devin-accounts"))).rejects.toMatchObject({
+          code: "ENOENT",
+        });
+      } finally {
+        vi.unstubAllEnvs();
+        await rm(base, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("keeps login and logout available if ACP probing fails", () => {
     expect(buildDevinProbeCapabilities(undefined)).toMatchObject({
       authLogoutSupported: true,

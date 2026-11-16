@@ -19,10 +19,11 @@ import {
   readFileSync,
   readlinkSync,
   realpathSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import {
@@ -32,6 +33,74 @@ import {
 import { redactSecrets } from "./server-n1-qualification/redaction.mjs";
 import { installServerPrefix } from "./install-server-prefix.mjs";
 import { readServerArtifactMetadata } from "./server-artifact-metadata.mjs";
+import {
+  readStandaloneRuntimeMarker,
+  standaloneNodeExecutable,
+} from "./server-release-install.mjs";
+import { findExecutable } from "./ci-install-no-toolchain.mjs";
+
+/**
+ * The Node executable every spawned server/CLI step uses, and its PATH. A
+ * standalone qualification runs the release's bundled Node with a PATH that
+ * holds only that runtime directory, git and the system directories, proving
+ * the installed archive needs no host Node or npm.
+ */
+let childNode = process.execPath;
+let childPath = null;
+const POSIX_SYSTEM_DIRECTORIES = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"];
+
+export function standaloneQualificationPath(
+  runtimeDir,
+  env = process.env,
+  platform = process.platform,
+  gitDirectory = undefined,
+) {
+  const git = findExecutable("git", env.PATH ?? env.Path ?? "", { platform });
+  const gitDir = gitDirectory ?? (git ? dirname(git) : undefined);
+  if (platform === "win32") {
+    const systemRoot = env.SystemRoot ?? env.windir ?? "C:\\Windows";
+    // Terminal shells resolve through PATH like on a stock Windows profile.
+    return [
+      runtimeDir,
+      ...(gitDir ? [gitDir] : []),
+      `${systemRoot}\\System32`,
+      systemRoot,
+      `${systemRoot}\\System32\\Wbem`,
+      `${systemRoot}\\System32\\WindowsPowerShell\\v1.0`,
+    ].join(";");
+  }
+  const directories = [runtimeDir, ...POSIX_SYSTEM_DIRECTORIES];
+  if (gitDir && !directories.includes(gitDir)) directories.splice(1, 0, gitDir);
+  return directories.join(delimiter);
+}
+
+/**
+ * A directory exposing only git. A package-manager bin directory such as
+ * /opt/homebrew/bin often also holds node and npm, which must stay off PATH.
+ */
+function gitOnlyDirectory(env = process.env) {
+  const git = findExecutable("git", env.PATH ?? env.Path ?? "", { platform: process.platform });
+  if (!git || process.platform === "win32" || POSIX_SYSTEM_DIRECTORIES.includes(dirname(git))) {
+    return undefined;
+  }
+  const directory = mkdtempSync(join(tmpdir(), "poracode-qualify-git-"));
+  symlinkSync(realpathSync(git), join(directory, "git"));
+  return directory;
+}
+
+function configureStandaloneChildren(prefix) {
+  const releaseDir = realpathSync(join(prefix, "current"));
+  const marker = readStandaloneRuntimeMarker(releaseDir);
+  if (!marker) throw new Error(`${releaseDir} is not a standalone release (no standalone.json)`);
+  childNode = standaloneNodeExecutable(releaseDir, marker);
+  childPath = standaloneQualificationPath(
+    dirname(childNode),
+    process.env,
+    process.platform,
+    gitOnlyDirectory(),
+  );
+  return { releaseDir, marker };
+}
 
 function sha256File(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
@@ -203,8 +272,13 @@ const jsonRequest = (url, options) => requestJson(fetch, url, options);
 /** Environment for a spawned server/CLI step. `port === null` selects a
  * read-only one-shot command (doctor, pair) that must not touch a listener. */
 function serverEnv(profile, port) {
+  const env = { ...process.env };
+  if (childPath !== null) {
+    for (const key of Object.keys(env)) if (key.toLowerCase() === "path") delete env[key];
+    env.PATH = childPath;
+  }
   return {
-    ...process.env,
+    ...env,
     PORACODE_BASE_DIR: profile,
     PORACODE_HEADLESS_SERVER: "1",
     ...(port === null
@@ -214,7 +288,7 @@ function serverEnv(profile, port) {
 }
 
 function assertDoctorOk(entry, profile, label) {
-  const doctor = execFileSync(process.execPath, [entry, "doctor", "--json"], {
+  const doctor = execFileSync(childNode, [entry, "doctor", "--json"], {
     encoding: "utf8",
     env: serverEnv(profile, null),
   });
@@ -228,7 +302,7 @@ function assertDoctorOk(entry, profile, label) {
 /** Pair against the running daemon, exchange the credential, read describe. */
 async function pairAndAuthenticate(entry, profile, httpBase, doctorReport) {
   const protocolVersion = await readQualificationProtocolVersion(fetch, httpBase, doctorReport);
-  const pairingRaw = execFileSync(process.execPath, [entry, "pair", "--json"], {
+  const pairingRaw = execFileSync(childNode, [entry, "pair", "--json"], {
     encoding: "utf8",
     env: serverEnv(profile, null),
   });
@@ -328,7 +402,7 @@ function requestServerStop({ entry, profile, pid }) {
     process.kill(pid, "SIGTERM");
     return;
   }
-  const output = execFileSync(process.execPath, [entry, "stop"], {
+  const output = execFileSync(childNode, [entry, "stop"], {
     encoding: "utf8",
     env: serverEnv(profile, null),
     timeout: 60_000,
@@ -405,7 +479,7 @@ async function runUpgradePhase({ prefix, tarball, profile, port, httpBase, expec
   // The upgrade CLI respawns the daemon detached with this process's
   // environment, so it rebinds the same loopback port and profile.
   const upgradeStdout = execFileSync(
-    process.execPath,
+    childNode,
     [entry, "upgrade", "--from", tarball, "--prefix", prefix, "--json"],
     { encoding: "utf8", env: serverEnv(profile, port), stdio: ["ignore", "pipe", "pipe"] },
   );
@@ -440,6 +514,7 @@ export async function qualifyServerInstall(options) {
   const prefix = options.prefix;
   const entry = join(prefix, "current", "lib", "server.cjs");
   if (!existsSync(entry)) throw new Error(`installed server missing: ${entry}`);
+  const standalone = options.standalone === true ? configureStandaloneChildren(prefix) : null;
   const artifactMetadata =
     options.tarball && options.artifactPath
       ? assertArtifactIntegrity({
@@ -465,7 +540,7 @@ export async function qualifyServerInstall(options) {
 
   const port = await allocateLoopbackPort();
   const httpBase = `http://127.0.0.1:${port}`;
-  const child = spawn(process.execPath, [entry], {
+  const child = spawn(childNode, [entry], {
     env: serverEnv(profile, port),
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -574,8 +649,11 @@ export async function qualifyServerInstall(options) {
     ownerPhase: "stopped",
     writerAdmission,
     upgrade,
-    artifactVersion: artifactMetadata?.version ?? null,
+    artifactVersion: artifactMetadata?.version ?? standalone?.marker.version ?? null,
     webClient: artifactMetadata?.webClient ?? null,
+    standalone: standalone
+      ? { target: standalone.marker.target, node: childNode, path: childPath }
+      : null,
   };
 }
 
@@ -584,10 +662,11 @@ async function main() {
   let tarball = argv.find((_, i) => argv[i - 1] === "--tarball");
   let prefix = argv.find((_, i) => argv[i - 1] === "--prefix");
   let artifactPath = argv.find((_, i) => argv[i - 1] === "--artifact");
+  const standalone = argv.includes("--standalone");
   if (!tarball) {
     throw new Error(
       "Usage: server-install-qualification.mjs --tarball <file> [--prefix <dir>] " +
-        "[--artifact <server-artifact.json>]",
+        "[--artifact <server-artifact.json>] [--standalone]",
     );
   }
   tarball = resolve(tarball);
@@ -602,6 +681,7 @@ async function main() {
     tarball,
     expectedComputerUse: readExpectedComputerUse(),
     ...(artifactPath ? { artifactPath: resolve(artifactPath) } : {}),
+    ...(standalone ? { standalone: true } : {}),
   });
   process.stdout.write(
     `${JSON.stringify({
@@ -611,6 +691,7 @@ async function main() {
       upgrade: result.upgrade?.ok === true,
       artifactVersion: result.artifactVersion,
       webClientPresent: result.webClient?.present === true,
+      standalone: result.standalone,
     })}\n`,
   );
 }

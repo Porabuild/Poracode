@@ -1,0 +1,50 @@
+[graph]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "x86_64-unknown-linux-musl",
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "aarch64-pc-windows-msvc",
+  "x86_64-pc-windows-msvc",
+]
+all-features = true
+
+[licenses]
+confidence-threshold = 0.93
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-3-Clause",
+  "Zlib",
+  "Unicode-3.0",
+  "CC0-1.0",
+]
+
+[[licenses.exceptions]]
+name = "xxhash-rust"
+version = "=0.8.19"
+allow = ["BSL-1.0"]
+
+[[licenses.exceptions]]
+name = "inotify"
+version = "=0.11.5"
+allow = ["ISC"]
+
+[[licenses.exceptions]]
+name = "inotify-sys"
+version = "=0.1.8"
+allow = ["ISC"]
+
+[advisories]
+unmaintained = "workspace"
+unsound = "all"
+yanked = "deny"
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

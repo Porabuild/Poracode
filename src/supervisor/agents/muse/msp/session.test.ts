@@ -300,6 +300,59 @@ describe("MuseMspStructuredSession", () => {
     });
   });
 
+  it("delivers a snapshot-only reply before the native turn completes", async () => {
+    const { session, runtimeEvents, updates } = await createSession();
+    await session.openThread(config);
+    updates.length = 0;
+    runtimeEvents.length = 0;
+    const admitted = Promise.withResolvers<Record<string, unknown>>();
+    request.mockImplementation(async (method) => {
+      if (method === "turn/start") return admitted.promise;
+      return { status: "accepted" };
+    });
+
+    const start = session.startTurn("Reply with exactly SIDEKICK_OK.", config);
+    try {
+      await vi.waitFor(() => expect(request).toHaveBeenCalledWith("turn/start", expect.anything()));
+      // Applying config publishes an idle snapshot before command admission.
+      // Consumers must wait for the native turn's terminal event to settle it.
+      expect(updates[0]?.status).toBe("idle");
+      expect(runtimeEvents).not.toContainEqual(expect.objectContaining({ type: "turn.completed" }));
+      admitted.resolve({ turnId: "turn-1", status: "accepted", disposition: "started" });
+      await start;
+      notificationHandler?.("item/completed", {
+        sessionId: "session-1",
+        item: {
+          itemId: "assistant-1",
+          kind: "agentMessage",
+          status: "completed",
+          text: "SIDEKICK_OK",
+          revision: 1,
+        },
+      });
+      notificationHandler?.("turn/completed", {
+        sessionId: "session-1",
+        turnId: "turn-1",
+        terminal: "completed",
+      });
+
+      const text = runtimeEvents.findIndex(
+        (event) => event.type === "content.delta" && event.stream === "assistant_text",
+      );
+      expect(text).toBeGreaterThanOrEqual(0);
+      expect(runtimeEvents[text]).toMatchObject({ delta: "SIDEKICK_OK" });
+      expect(runtimeEvents.findIndex((event) => event.type === "item.completed")).toBeGreaterThan(
+        text,
+      );
+      expect(runtimeEvents.at(-1)).toMatchObject({ type: "turn.completed", state: "completed" });
+      expect(updates.at(-1)?.status).toBe("idle");
+    } finally {
+      admitted.resolve({ turnId: "turn-1", status: "accepted", disposition: "started" });
+      await start;
+      await session.dispose();
+    }
+  });
+
   it("delivers launch MCP servers in the session config once sessionMcp is granted", async () => {
     const mcpServers = appControlsMcpFixture();
     const { session } = await createSession({ mcpServers });

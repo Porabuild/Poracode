@@ -89,16 +89,6 @@ function sidebarSortGroup(listId: string): string {
  */
 export const FLAT_THREAD_LIST_SORT_GROUP = sidebarSortGroup(FLAT_THREAD_LIST_ID);
 
-/**
- * Whether a thread can move in the flat Manual order. A remote mirror's place
- * comes from its host: each snapshot puts that host's threads back in host
- * order after the local ones, and mirrors aren't persisted locally, so a move
- * would be lost.
- */
-export function canReorderInFlatList(thread: Thread): boolean {
-  return thread.remoteServerId === undefined;
-}
-
 const EMPTY_THREAD_ID_SET: ReadonlySet<string> = new Set();
 
 /**
@@ -120,7 +110,10 @@ export function sidebarDoneSectionKey(listId: string): string {
 }
 
 /** Pinned or attention-needing threads are never hidden behind "See more". */
-function threadIsProtected(thread: Thread, liveBackgroundThreadIds: ReadonlySet<string>): boolean {
+export function threadIsProtected(
+  thread: Thread,
+  liveBackgroundThreadIds: ReadonlySet<string>,
+): boolean {
   return (
     thread.starred ||
     isThreadTurnActive(thread.status) ||
@@ -147,7 +140,7 @@ function entryHasThread(entry: ThreadListEntry, threadIds: ReadonlySet<string>):
  * always kept; remaining slots fill in list order. Returns the kept set and the
  * count of items hidden behind "See more".
  */
-function selectVisible<T>(
+export function selectVisible<T>(
   items: T[],
   limit: number,
   isProtected: (item: T) => boolean,

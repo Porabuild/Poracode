@@ -6,6 +6,7 @@ describe("worktreeScriptShellId", () => {
     const fromNative = worktreeScriptShellId("project-1", "C:\\Worktrees\\Fix\\", true);
     const fromSlashes = worktreeScriptShellId("project-1", "c:/worktrees/fix", true);
     expect(fromNative).toBe(fromSlashes);
+    expect(fromNative).toBe("shell:worktree-setup:2fbe8f40");
     expect(fromNative.startsWith("shell:worktree-setup:")).toBe(true);
   });
 

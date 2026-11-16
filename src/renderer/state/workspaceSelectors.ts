@@ -10,7 +10,7 @@ import { isHomeProjectId } from "@/shared/homeScope";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useAppStore } from "./appStore";
 import { useSharedSettings } from "./sharedSettingsStore";
-import { useActiveWorkspaceId } from "./workspaceStore";
+import { useActiveWorkspaceId, useCompactWorkspaceFilter } from "./workspaceStore";
 
 /**
  * Workspace-id lookup cached on the identity of the settings array. The list
@@ -36,10 +36,17 @@ function workspaceIdSet(workspaces: readonly Workspace[]): ReadonlySet<string> {
 export function useWorkspaceProjectFilter(): (project: Project) => boolean {
   const knownWorkspaceIds = workspaceIdSet(useSharedSettings((state) => state.workspaces));
   const activeWorkspaceId = useActiveWorkspaceId();
+  const compactWorkspaceId = useCompactWorkspaceFilter();
   const compact = useCompactLayout();
-  // Compact navigation has no workspace switcher; every group stays reachable.
-  return (project) =>
-    compact || isProjectInWorkspace(project, activeWorkspaceId, knownWorkspaceIds);
+  return (project) => {
+    if (compact) {
+      return (
+        compactWorkspaceId === null ||
+        isProjectInWorkspace(project, compactWorkspaceId, knownWorkspaceIds)
+      );
+    }
+    return isProjectInWorkspace(project, activeWorkspaceId, knownWorkspaceIds);
+  };
 }
 
 /**
@@ -47,11 +54,22 @@ export function useWorkspaceProjectFilter(): (project: Project) => boolean {
  * threads can fail it — threads in real projects scope through their project
  * (see `isThreadInWorkspace` in `@/shared/contracts/workspace`).
  */
-export function useWorkspaceThreadFilter(): (thread: Thread) => boolean {
+export function useWorkspaceThreadFilter(): (
+  thread: Pick<Thread, "projectId" | "workspaceId">,
+) => boolean {
   const knownWorkspaceIds = workspaceIdSet(useSharedSettings((state) => state.workspaces));
   const activeWorkspaceId = useActiveWorkspaceId();
+  const compactWorkspaceId = useCompactWorkspaceFilter();
   const compact = useCompactLayout();
-  return (thread) => compact || isThreadInWorkspace(thread, activeWorkspaceId, knownWorkspaceIds);
+  return (thread) => {
+    if (compact) {
+      return (
+        compactWorkspaceId === null ||
+        isThreadInWorkspace(thread, compactWorkspaceId, knownWorkspaceIds)
+      );
+    }
+    return isThreadInWorkspace(thread, activeWorkspaceId, knownWorkspaceIds);
+  };
 }
 
 /** Ids of projects the active workspace shows, in store order. Excludes Home. */

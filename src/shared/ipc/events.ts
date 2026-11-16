@@ -15,9 +15,12 @@ import type {
   ThreadFollowUpQueueState,
   ThreadStatus,
   ThreadStatusSource,
+  ThreadTurnInterruption,
   UsageLoginConfirmationRequest,
   UsageLoginDeviceCode,
   UsageSnapshot,
+  ProjectLocation,
+  GithubPollingProblem,
 } from "../contracts";
 import type {
   BrowserDownloadInfo,
@@ -325,8 +328,14 @@ export type SupervisorEvent =
       slashCommands?: AgentSlashCommand[];
       /** Current session controls; null retires them, absence leaves older-host state alone. */
       sessionConfigOptions?: SessionConfigOptions | null;
+      /** Resumable cut-off turn; null clears it, absence leaves older-host state alone. */
+      interruptedTurn?: ThreadTurnInterruption | null;
+      /** Persist explicit Stop even while provider cancellation is still pending. */
+      turnStopRequested?: boolean;
       forceCloseActiveTurn?: boolean;
       threadStatusSource?: ThreadStatusSource;
+      /** Host-authoritative last-activity timestamp when emitted/persisted. */
+      updatedAt?: string;
     }
   | {
       type: "thread-pending-steer";
@@ -356,8 +365,19 @@ export type SupervisorEvent =
   | { type: "agent-status-updated"; status: AgentStatus }
   | { type: "provider-usage"; snapshot: UsageSnapshot }
   | { type: "provider-usage-all"; snapshots: UsageSnapshot[] }
-  | { type: "git-changed"; projectId: string }
-  | { type: "project-tree-changed"; projectId: string }
+  | { type: "git-changed"; projectId: string; worktreePath?: string }
+  | {
+      type: "github-polling-status";
+      projectLocation: ProjectLocation;
+      problem: GithubPollingProblem | null;
+    }
+  | {
+      type: "project-tree-changed";
+      projectId: string;
+      worktreePath?: string;
+      /** Absent on older hosts: conservatively refresh status as well as files. */
+      gitChanged?: boolean;
+    }
   | { type: "lsp-message"; sessionId: string; message: unknown }
   | {
       type: "lsp-status";
@@ -409,6 +429,7 @@ export type BrowserEvent =
 /** Emitted by the main process when a native app surface requests opening a thread. */
 export type ThreadOpenRequestedEvent = {
   threadId: string;
+  navigation?: import("./threadWindow").ThreadWindowNavigation;
   /** Present for OS notification clicks; omitted by tray and app-control opens. */
   source?: "notification";
 };

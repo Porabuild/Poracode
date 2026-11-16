@@ -15,9 +15,12 @@ import com.poracode.app.transport.RemoteEventSocketFactory
 import com.poracode.app.transport.RemoteEventSocket
 import com.poracode.app.transport.RemoteWebSocketClient
 import com.poracode.app.transport.TlsCertPinStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -103,6 +106,8 @@ class HostSessionController(
     private val beforeRemove: suspend (ClientConnectionId, SessionCredentials) -> Unit = { _, _ -> },
 ) {
     private val repository = repository as? MultiHostCredentialRepository
+    private val snapshotLock = Any()
+    private val hostSnapshotJobs = mutableMapOf<ClientConnectionId, Job>()
     private val capabilityRefresh = this.repository?.let {
         HostCapabilityRefresh(it, apiFactory, ioDispatcher, isForeground, hasEndpointPermission)
     }
@@ -130,7 +135,7 @@ class HostSessionController(
         }
         installSelected(credentials)
         warmSecondary(snapshot)
-        refreshHostSnapshots(snapshot)
+        scope.launch { refreshHostSnapshots(snapshot) }
         refreshSelectedCapabilities()
     }
 
@@ -174,7 +179,7 @@ class HostSessionController(
                 publish(snapshot)
                 installSelected(credentials)
                 warmSecondary(snapshot)
-                refreshHostSnapshots(snapshot)
+                scope.launch { refreshHostSnapshots(snapshot) }
                 refreshSelectedCapabilities()
             } catch (error: CancellationException) {
                 throw error
@@ -205,6 +210,7 @@ class HostSessionController(
                     repository.removeHost(connectionId, receipt)
                 }
                 if (!result.didApply || !owner.isCurrent(operation)) return@launch
+                cancelHostSnapshotJob(connectionId)
                 pool.forget(SessionPoolKey.Host(connectionId))
                 val snapshot = readCatalog() ?: return@launch
                 val selected = snapshot.selected ?: run {
@@ -224,7 +230,7 @@ class HostSessionController(
                 publish(snapshot)
                 installSelected(credentials)
                 warmSecondary(snapshot)
-                refreshHostSnapshots(snapshot)
+                scope.launch { refreshHostSnapshots(snapshot) }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -302,33 +308,63 @@ class HostSessionController(
         socket.start(seq ?: 0, epoch)
     }
 
-    /** Fetches non-selected host snapshots without opening extra live sockets. */
+    /**
+     * Fetches non-selected host snapshots concurrently with per-host coalescing
+     * so one offline/hanging host never stalls or duplicates online peers.
+     */
     suspend fun refreshHostSnapshots(snapshot: HostCatalogSnapshot? = null) {
         val repository = repository ?: return
         if (!isForeground()) return
         val current = snapshot ?: refreshCatalog() ?: return
-        current.hosts
+        val peers = current.hosts
             .filter { it.connectionId != current.selectedConnectionId }
             .filter { it.protocolVersion == ProtocolConstants.REMOTE_PROTOCOL_VERSION }
             .filter { hasEndpointPermission(it.httpBaseUrl) }
             .filter { "session:read" in it.scopes }
-            .forEach { host ->
+        if (peers.isEmpty()) return
+        coroutineScope {
+            peers.forEach { host ->
+                launch {
+                    refreshPeerHostSnapshot(repository, host)
+                }
+            }
+        }
+    }
+
+    private suspend fun refreshPeerHostSnapshot(
+        repository: MultiHostCredentialRepository,
+        host: HostRecord,
+    ) {
+        val existingJob = synchronized(snapshotLock) { hostSnapshotJobs[host.connectionId] }
+        if (existingJob != null && existingJob.isActive) {
+            existingJob.join()
+            return
+        }
+        val expectedBaseUrl = host.httpBaseUrl
+        lateinit var launched: Job
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            try {
                 val credentials = withContext(ioDispatcher) {
                     repository.credentialsFor(host.connectionId)
-                } ?: return@forEach
-                val remoteSnapshot = runCatching {
+                } ?: return@launch
+                if (credentials.profile.httpBaseUrl != expectedBaseUrl) return@launch
+                val remoteSnapshot = try {
                     withContext(ioDispatcher) {
                         apiFactory.create(
                             credentials.profile.httpBaseUrl,
                             credentials.accessToken,
                         ).snapshot()
                     }
-                }.getOrNull() ?: return@forEach
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    return@launch
+                }
                 updateState { currentState ->
-                    if (currentState.hostCatalog.hosts.none {
-                            it.connectionId == host.connectionId
-                        }
-                    ) {
+                    val currentRecord = currentState.hostCatalog.hosts.firstOrNull {
+                        it.connectionId == host.connectionId
+                    }
+                    if (currentRecord == null || currentRecord.httpBaseUrl != expectedBaseUrl) {
                         currentState
                     } else {
                         currentState.copy(
@@ -339,10 +375,44 @@ class HostSessionController(
                 }
                 val key = SessionPoolKey.Host(host.connectionId)
                 pool.updateCache(key, pool.cache(key).copy(snapshot = remoteSnapshot))
+            } finally {
+                synchronized(snapshotLock) {
+                    if (hostSnapshotJobs[host.connectionId] === launched) {
+                        hostSnapshotJobs.remove(host.connectionId)
+                    }
+                }
             }
+        }
+        launched = job
+        val activeToJoin = synchronized(snapshotLock) {
+            val active = hostSnapshotJobs[host.connectionId]
+            if (active != null && active.isActive) {
+                active
+            } else {
+                hostSnapshotJobs[host.connectionId] = job
+                null
+            }
+        }
+        if (activeToJoin != null) {
+            job.cancel()
+            activeToJoin.join()
+            return
+        }
+        job.start()
+        job.join()
+    }
+
+    private fun cancelHostSnapshotJob(connectionId: ClientConnectionId) {
+        synchronized(snapshotLock) {
+            hostSnapshotJobs.remove(connectionId)?.cancel()
+        }
     }
 
     fun onBackground() {
+        val jobsToCancel = synchronized(snapshotLock) {
+            hostSnapshotJobs.values.toList().also { hostSnapshotJobs.clear() }
+        }
+        jobsToCancel.forEach { it.cancel() }
         updateState { current ->
             current.copy(
                 hostCatalog = current.hostCatalog.copy(connectionStates = emptyMap()),

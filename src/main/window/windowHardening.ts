@@ -1,4 +1,4 @@
-import type { BrowserWindow, RenderProcessGoneDetails } from "electron";
+import type { BrowserWindow, RenderProcessGoneDetails, WebContents } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
 import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
@@ -6,6 +6,32 @@ import {
   DEVICE_PREVIEW_WINDOW_NAME,
   DEVICE_PREVIEW_WINDOW_URL,
 } from "@/shared/devicePreviewWindow";
+import { MCP_APP_SANDBOX_PATH } from "@/shared/mcpAppSandbox";
+import { isLoopbackCertificateHostname } from "../remote/loopbackCertificatePin";
+
+const managedMcpAppOrigins = new WeakMap<WebContents, string>();
+
+/** Accept only the host-owned endpoint returned by the authenticated bootstrap. */
+export function setManagedMcpAppSandboxEndpoint(
+  contents: WebContents,
+  endpoint: string | null,
+): void {
+  managedMcpAppOrigins.delete(contents);
+  if (!endpoint) return;
+  try {
+    const url = new URL(endpoint);
+    if (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      isLoopbackCertificateHostname(url.hostname) &&
+      !url.username &&
+      !url.password
+    ) {
+      managedMcpAppOrigins.set(contents, url.origin);
+    }
+  } catch {
+    // Malformed bootstrap endpoints cannot authorize frame navigation.
+  }
+}
 
 interface AppNavigationGuardOptions {
   isDev: boolean;
@@ -88,9 +114,21 @@ export function installAppNavigationGuards(
   }
   window.webContents.on("will-navigate", blockOffAppNavigation);
   window.webContents.on("will-redirect", blockOffAppNavigation);
-  // Block non-local subframe navigations in the privileged app renderer.
+  // Only the host-owned, CSP-sandboxed MCP proxy may load a network document.
   window.webContents.on("will-frame-navigate", (event) => {
     if (!event.isMainFrame && event.url !== "about:blank" && event.url !== "about:srcdoc") {
+      try {
+        const url = new URL(event.url);
+        if (
+          url.origin === managedMcpAppOrigins.get(window.webContents) &&
+          url.pathname === MCP_APP_SANDBOX_PATH &&
+          !url.username &&
+          !url.password
+        )
+          return;
+      } catch {
+        // Non-URL frame destinations remain blocked.
+      }
       event.preventDefault();
     }
   });

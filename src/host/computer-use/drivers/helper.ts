@@ -3,7 +3,15 @@ import { z } from "zod";
 import {
   COMPUTER_USE_HELPER_PROTOCOL_VERSION,
   computerUseHelperHelloSchema,
+  computerUseLockedUseBeginResultSchema,
+  computerUseLockedUseEndResultSchema,
+  computerUseLockedUseStatusSchema,
   type ComputerUseHelperHello,
+  type ComputerUseLockedUseBeginInput,
+  type ComputerUseLockedUseBeginResult,
+  type ComputerUseLockedUseEndInput,
+  type ComputerUseLockedUseEndResult,
+  type ComputerUseLockedUseStatus,
 } from "@/shared/contracts/computerUse";
 import type {
   ComputerUseApp,
@@ -88,6 +96,13 @@ export interface HelperComputerUseDriverOptions {
   spawn?: () => ChildProcessWithoutNullStreams;
   stateDir: string;
 }
+
+/**
+ * `locked_use_begin` (guard start, unlock wait) and `locked_use_end` (relock,
+ * guard stop) each take up to 30 s inside the helper; leave margin so a slow
+ * but healthy unlock is not mistaken for a hung helper and torn down.
+ */
+export const LOCKED_USE_REQUEST_TIMEOUT_MS = 45_000;
 
 export class HelperComputerUseDriver implements ComputerUseDriver {
   private readonly actions = new NativeActionLifetime();
@@ -210,6 +225,24 @@ export class HelperComputerUseDriver implements ComputerUseDriver {
     return this.callInteractive("set_element_value", input);
   }
 
+  async lockedUseBegin(
+    input: ComputerUseLockedUseBeginInput,
+  ): Promise<ComputerUseLockedUseBeginResult> {
+    return computerUseLockedUseBeginResultSchema.parse(
+      await this.call("locked_use_begin", input, { timeoutMs: LOCKED_USE_REQUEST_TIMEOUT_MS }),
+    );
+  }
+
+  async lockedUseEnd(input: ComputerUseLockedUseEndInput): Promise<ComputerUseLockedUseEndResult> {
+    return computerUseLockedUseEndResultSchema.parse(
+      await this.call("locked_use_end", input, { timeoutMs: LOCKED_USE_REQUEST_TIMEOUT_MS }),
+    );
+  }
+
+  async lockedUseStatus(): Promise<ComputerUseLockedUseStatus> {
+    return computerUseLockedUseStatusSchema.parse(await this.call("locked_use_status"));
+  }
+
   private async ensureHello(signal: AbortSignal): Promise<ComputerUseHelperHello> {
     signal.throwIfAborted();
     if (!this.helloPromise) {
@@ -263,11 +296,11 @@ export class HelperComputerUseDriver implements ComputerUseDriver {
     }
   }
 
-  private call<T>(action: string, input?: unknown): Promise<T> {
+  private call<T>(action: string, input?: unknown, options?: { timeoutMs?: number }): Promise<T> {
     return this.actions.run(async (signal) => {
       await this.ensureHello(signal);
       signal.throwIfAborted();
-      return await this.host.request<T>(action, input);
+      return await this.host.request<T>(action, input, options);
     });
   }
 

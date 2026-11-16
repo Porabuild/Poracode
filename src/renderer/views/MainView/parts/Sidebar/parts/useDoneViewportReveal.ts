@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from "react";
+import { isWorkspaceSwitchSettling } from "./workspaceSwitchSettling";
 
 /** The pinned Done section is capped at this share of the sidebar column. */
 export const DONE_SECTION_MAX_HEIGHT_PERCENT = 50;
@@ -28,6 +29,8 @@ export function useDoneViewportReveal(collapsed: boolean) {
     const column = section?.parentElement;
     if (collapsed || !viewport || !section || !column) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Switching workspaces can mount an already-open section; it did not open.
+    if (isWorkspaceSwitchSettling()) return;
     // Rows mounted by this commit still sit at their collapsed starting size,
     // so this is the height the section had before it opened.
     const from = viewport.getBoundingClientRect().height;

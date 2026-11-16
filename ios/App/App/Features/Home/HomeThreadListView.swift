@@ -4,6 +4,7 @@ struct HomeThreadListView: View {
   let entries: [HomeThreadListEntry]
   let openingThreadID: String?
   let gitSummary: (UnifiedThreadListItem) -> GitThreadSummary?
+  let agentLabel: (UnifiedThreadListItem) -> String?
   let hostIsOnline: (ClientConnectionID) -> Bool
   let open: (UnifiedThreadListItem) -> Void
   let openProject: (UnifiedThreadListItem) -> Void
@@ -128,6 +129,7 @@ struct HomeThreadListView: View {
         hostName: grouped ? nil : item.hostName,
         hostIsOnline: grouped ? nil : hostIsOnline(item.connectionID),
         gitSummary: grouped ? nil : gitSummary(item),
+        agentLabel: grouped ? nil : agentLabel(item),
         hasDraft: hasDraft(item),
         showsRelativeTime: true,
         isOpening: openingThreadID == item.id,

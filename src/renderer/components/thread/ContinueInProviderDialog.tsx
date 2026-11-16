@@ -13,20 +13,15 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
+import { resolveLaunchPluginOverrides } from "@/shared/contracts";
 import { Button } from "@/renderer/components/common/Button";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { readBridge } from "@/renderer/bridge";
-import type { ComposerControl } from "./ThreadComposer";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { ThreadComposer } from "./ThreadComposer";
 import { isPlanModeControl } from "../providers/composerControlBuilders";
-import {
-  appendProviderComposerControls,
-  buildModelPickerControls,
-  buildProviderModelMenuProviders,
-  resolveModelSelectionEdit,
-} from "./buildModelPickerControls";
-import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
+import { savedProviderTargetConfig, useProviderTargetSelection } from "./providerTargetSelection";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { openAttachmentLightbox } from "../composer/ImageLightbox";
 import { openPdfPreview } from "../pdf/openPdfPreview";
@@ -57,12 +52,31 @@ import {
   type ComposerCustomMcpItem,
   type ComposerMcpMenuItem,
 } from "../composer/ComposerAddMenu";
-import { openMcpServersSettings } from "@/renderer/actions/panelActions";
+import { openCrewsSettings, openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { getComputerUseScope } from "../composer/computerUseScope";
 import { composerCustomMcpItems } from "../composer/composerCustomMcpServers";
 import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
-import { canLeadCrew, threadCrewBinding } from "@/shared/crew";
+import {
+  canLeadCrew,
+  crewBindingFromSavedCrew,
+  threadCrewBinding,
+  type CrewMemberSelection,
+  type SavedCrew,
+  type ThreadCrewBinding,
+} from "@/shared/crew";
+import { applyCrewComposerControls } from "../crew/applyCrewComposerControls";
+import {
+  crewModelLabelOf,
+  crewPickerEntry,
+  crewSummary,
+  leadSelectionOf,
+  newCrewBinding,
+  savedCrewFor,
+} from "../crew/crewComposerModel";
+import { useCrewHelperOptions } from "../crew/crewHelperOptions";
+import { CREW_ROLE_TEMPLATE_DESCRIPTORS, DEFAULT_CREW_ROLE_ID } from "../crew/crewRoleTemplates";
+import { buildProviderModelMenuProviders } from "./buildModelPickerControls";
 import { ThreadCommandPanel } from "./ThreadCommandPanel";
 import {
   bindLeadingSkillUnlessLocalAction,
@@ -73,7 +87,7 @@ import {
 } from "./threadSlashCommands";
 import { slashCommandDisplayId } from "./slashCommandMatching";
 import { composerMcpConfig } from "../composer/carryOverMcpConfig";
-import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
+import { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import {
@@ -89,14 +103,9 @@ import {
   resolveInitialPresentationMode,
   supportsPresentation,
 } from "@/shared/continueProviderRanking";
-import { resolveSavedProviderDraftConfig, supportsUsableFastMode } from "./threadDraftViewHelpers";
-import { composerSelectionEvent, type ComposerSelectionOrigin } from "./composerSelectionMutation";
-import {
-  modelFamilyForModel,
-  resolveFamilyPresentationTransition,
-} from "@/shared/modelFamilySelection";
-import { applyThreadConfigMutation, type SelectionMutationEvent } from "@/shared/selectionBinding";
+import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { useAppStore } from "@/renderer/state/appStore";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   buildTranscriptContext,
@@ -115,6 +124,7 @@ import {
   preferredConfigPatch,
   resolveDefaultConfig,
   visibleCapabilities,
+  withoutLaunchSelection,
 } from "./continueTargetConfig";
 
 type Phase = "select" | "extracting" | "error";
@@ -142,7 +152,7 @@ export function ContinueInProviderDialog(props: {
   /** Thread-owner-aware file picker; remote panes pass one that uploads to the host. */
   pickFiles?: (() => Promise<string[] | null>) | undefined;
   /** Thread-owner-aware clipboard saver; remote panes upload pasted images to the host. */
-  saveClipboardImage?: SaveClipboardImage | undefined;
+
   onClose: () => void;
   onContinue: (
     targetAgentKind: string,
@@ -170,21 +180,9 @@ export function ContinueInProviderDialog(props: {
   // project's last-used one.
   const providerConfigs = useSharedSettings((s) => s.providerConfigs);
   const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
-
-  function savedConfigForAgent(
-    agent: AgentStatus,
-    presentationMode: ThreadPresentationMode,
-  ): Partial<ThreadConfig> | undefined {
-    return resolveSavedProviderDraftConfig(
-      agent.kind,
-      props.lastDraftConfig,
-      providerConfigs,
-      providerModelPreferences,
-      // Surface-aware restoration: a saved family member keeps its own
-      // carriers instead of the unscoped per-model preference overlay.
-      visibleCapabilities(agent, presentationMode, allHiddenModels),
-    );
-  }
+  const savedCrews = useSharedSettings((s) => s.crews);
+  const upsertCrew = useSharedSettings((s) => s.upsertCrew);
+  const helperOptions = useCrewHelperOptions();
 
   // Whether this thread's sessions get the app-controls `read_thread` tool —
   // the transcript-reading path a handoff hands to the incoming provider in
@@ -201,9 +199,10 @@ export function ContinueInProviderDialog(props: {
   const sourcePresentationMode =
     thread.presentationMode ?? sourceAgent?.capabilities.presentationMode ?? "terminal";
 
-  // Propose the provider the user actually reaches for most; `proposedRanking`
-  // feeds `preferredConfigPatch` below so the proposal carries the model the
-  // selection normally launches with.
+  // Propose the provider the user actually reaches for most. Ranking runs
+  // against the hidden-filtered surface the pickers display, so a hidden
+  // model can never be proposed; `proposedRanking` then feeds the initial
+  // config below when the provider has no saved last-selected model.
   const rankedTargets = rankContinueProviders(
     otherAgents,
     lastPresentationModeByAgent,
@@ -214,6 +213,7 @@ export function ContinueInProviderDialog(props: {
       crossagentRoutingOverrides,
       favoriteModels,
     }),
+    (agent, mode) => allHiddenModels[modelVisibilityKey(agent.kind, mode)],
   );
   const proposedAgent =
     otherAgents.find((a) => a.kind === rankedTargets[0]?.provider) ?? otherAgents[0];
@@ -224,7 +224,6 @@ export function ContinueInProviderDialog(props: {
     sourcePresentationMode,
   );
 
-  const [selectedKind, setSelectedKind] = useState<string>(proposedAgent?.kind ?? "");
   const [phase, setPhase] = useState<Phase>("select");
   const [errorMessage, setErrorMessage] = useState("");
   const [pendingIntent, setPendingIntent] = useState<ContinueIntent>("fork");
@@ -236,36 +235,90 @@ export function ContinueInProviderDialog(props: {
   // clips and offsets the fixed-position composer menus.
   const [mentionPortalRoot, setMentionPortalRoot] = useState<HTMLDivElement | null>(null);
   const attachments = useAttachments({
-    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+    source: { ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}) },
   });
-
-  const selectedAgent = otherAgents.find((a) => a.kind === selectedKind);
-  const sourceRuntimeStatus = sourceAgent
-    ? agentStatusForPresentation(sourceAgent, sourcePresentationMode, thread.sessionRef)
-    : undefined;
-  const [targetPresentationMode, setTargetPresentationMode] =
-    useState<ThreadPresentationMode>(proposedPresentationMode);
 
   // --- Target provider config ---
   // The MCP servers this task is already running with. They seed every target
   // config below, so switching providers does not silently drop the tools the
   // work depends on; the ones the target cannot honor are filtered out.
   const sourceMcpConfig = composerMcpConfig(thread.config);
-  const [targetConfig, setTargetConfig] = useState<ThreadConfig>(() =>
-    proposedAgent
-      ? resolveDefaultConfig(
-          visibleCapabilities(proposedAgent, proposedPresentationMode, allHiddenModels),
-          proposedPresentationMode,
-          {
-            ...savedConfigForAgent(proposedAgent, proposedPresentationMode),
-            ...preferredConfigPatch(proposedRanking),
-            ...sourceMcpConfig,
-          },
-          props.projectLocation,
-        )
-      : { model: "" },
-  );
+  const {
+    agentKind: selectedKind,
+    config: targetConfig,
+    presentationMode: targetPresentationMode,
+    agent: selectedAgent,
+    capabilities: selectedTargetCapabilities,
+    controls: targetControls,
+    handleProviderChange,
+    handlePresentationModeChange,
+    handleConfigPatch: handleTargetConfigPatch,
+  } = useProviderTargetSelection({
+    agents: otherAgents,
+    initialAgentKind: proposedAgent?.kind,
+    initialPresentationMode: proposedPresentationMode,
+    resolveInitialConfig: (agent, mode) => {
+      const saved = savedProviderTargetConfig(agent, mode, {
+        lastDraftConfig: props.lastDraftConfig,
+        providerConfigs,
+        providerModelPreferences,
+        hiddenModelsByAgent: allHiddenModels,
+      });
+      const capabilities = visibleCapabilities(agent, mode, allHiddenModels);
+      // The saved model arrives verbatim, without a check against this
+      // surface: it may have been hidden since, dropped from the catalog, or
+      // saved on the other presentation surface. It only takes precedence
+      // while the pickers can still offer it.
+      const savedModelUsable =
+        saved?.model !== undefined && capabilities.models.some((model) => model.id === saved.model);
+      return resolveDefaultConfig(
+        capabilities,
+        mode,
+        {
+          // The model the user last selected for this provider wins as a
+          // whole tuple, exactly as a new-thread draft opens. The ranking's
+          // most-used tuple only fills in when no usable selection is saved,
+          // together with the saved non-model fields: spreading both tuples
+          // would let the ranked model stomp the saved one or leak its effort.
+          ...(savedModelUsable
+            ? saved
+            : {
+                ...(agent.kind === proposedRanking?.provider
+                  ? preferredConfigPatch(proposedRanking)
+                  : {}),
+                ...withoutLaunchSelection(saved),
+              }),
+          ...sourceMcpConfig,
+        },
+        props.projectLocation,
+      );
+    },
+    projectLocation: props.projectLocation,
+    lastDraftConfig: props.lastDraftConfig,
+    providerConfigs,
+    providerModelPreferences,
+    hiddenModelsByAgent: allHiddenModels,
+    lastPresentationModeByAgent,
+    sourcePresentationMode,
+    setLastPresentationMode,
+  });
+  useAgentSlashCommandCatalog(thread.remoteServerId, selectedAgent?.kind, props.isOpen);
+  const sourceRuntimeStatus = sourceAgent
+    ? agentStatusForPresentation(sourceAgent, sourcePresentationMode, thread.sessionRef)
+    : undefined;
+
   const sourceCrew = threadCrewBinding(thread.config);
+  // The crew edited in this dialog: `undefined` leaves the source thread's crew
+  // carried over, `null` clears it, and a binding is a crew picked, built, or
+  // edited here. Once touched, submitting writes an explicit `crew: null` for a
+  // cleared crew instead of letting an in-place switch keep the source's.
+  const [crewEdit, setCrewEdit] = useState<ThreadCrewBinding | null | undefined>(undefined);
+  const crewTouched = crewEdit !== undefined;
+  const targetCrew = crewTouched ? (crewEdit ?? undefined) : sourceCrew;
+  const [crewOpenSignal, setCrewOpenSignal] = useState(0);
+  function commitTargetCrew(next: ThreadCrewBinding | undefined) {
+    setCrewEdit(next ?? null);
+  }
   const targetCanLeadCrew = Boolean(
     selectedAgent &&
     canLeadCrew(
@@ -273,185 +326,177 @@ export function ContinueInProviderDialog(props: {
       targetPresentationMode,
     ),
   );
-  const targetConfigForHandoff = sourceCrew
-    ? { ...targetConfig, crew: targetCanLeadCrew ? sourceCrew : null }
-    : targetConfig;
+  // The crew the continued thread will actually launch with: none when the
+  // target cannot lead one, so the crew stays behind. The roster, the picker's
+  // current crew, and the submitted config all follow this one value.
+  const launchCrew = targetCanLeadCrew ? targetCrew : undefined;
+  const targetConfigForHandoff =
+    sourceCrew || crewTouched ? { ...targetConfig, crew: launchCrew ?? null } : targetConfig;
 
-  // Every deliberate target edit lands through the shared selection mutation
-  // for the target owner: the event alone decides the binding, so a restored
-  // or carried record is never relabeled, and only a family event can mint.
-  function commitTargetSelection(
-    resolved: ThreadConfig,
-    agentKind: string,
-    presentationMode: ThreadPresentationMode,
-    event: SelectionMutationEvent,
-  ) {
-    const { selectionBinding: _resolvedRecord, ...next } = resolved;
-    setTargetConfig(
-      applyThreadConfigMutation({
-        previous: targetConfig,
-        next,
-        owner: { agentKind, presentationMode },
-        event,
-      }),
-    );
-  }
-
-  function handleProviderChange(
-    kind: string,
-    preferred?: Partial<ThreadConfig>,
-    selectionIntent?: ProviderModelSelectionIntent,
-  ) {
-    const agent = otherAgents.find((a) => a.kind === kind);
-    if (!agent) {
-      setSelectedKind(kind);
-      return;
-    }
-    const nextPresentationMode = supportsPresentation(agent, targetPresentationMode)
-      ? targetPresentationMode
-      : resolveInitialPresentationMode(agent, lastPresentationModeByAgent, sourcePresentationMode);
-    const capabilities = visibleCapabilities(agent, nextPresentationMode, allHiddenModels);
-    let saved = savedConfigForAgent(agent, nextPresentationMode);
-    let pick = preferred;
-    let relation: ReturnType<typeof modelFamilyForModel>;
-    // A pick onto a target family member resolves atomically on the target
-    // surface from no current member (shared UIDs across profiles must not
-    // retain the source member); only a family row may establish intent.
-    if (preferred?.model !== undefined && modelFamilyForModel(capabilities, preferred.model)) {
-      const { effort: _savedEffort, fast: _savedFast, ...savedBase } = saved ?? {};
-      const patch = resolveModelSelectionEdit(
-        capabilities,
-        { ...savedBase, model: "" },
-        selectionIntent === "family"
-          ? { kind: "family", model: preferred.model }
-          : { kind: "model", model: preferred.model },
-      );
-      if (patch === null) {
-        familyTransitionFailureToast();
-        return;
-      }
-      saved = savedBase;
-      pick = { ...patch, model: patch.model ?? preferred.model };
-      relation =
-        selectionIntent === "family" ? modelFamilyForModel(capabilities, pick.model) : undefined;
-    }
-    setSelectedKind(kind);
-    if (nextPresentationMode !== targetPresentationMode) {
-      setTargetPresentationMode(nextPresentationMode);
-    }
-    commitTargetSelection(
-      resolveDefaultConfig(
-        capabilities,
-        nextPresentationMode,
-        {
-          ...saved,
-          ...pick,
-          // Whatever is enabled right now — seeded from the source thread and
-          // possibly since toggled in this dialog — not the saved draft's.
-          ...composerMcpConfig(targetConfig),
-        },
-        props.projectLocation,
-      ),
-      agent.kind,
-      nextPresentationMode,
-      relation ? { type: "family-member-edit", relation } : { type: "owner-retarget" },
-    );
-  }
-
-  // A same-target pick into or out of a family relation resolves through the
-  // shared edit helper against the current target selection, exactly like the
-  // thread composer; anything else re-resolves the target from its defaults.
-  function handleModelPick(next: {
-    agentKind: string;
-    model: string;
-    selectionIntent?: ProviderModelSelectionIntent;
-  }) {
-    if (next.agentKind === selectedKind && selectedTargetCapabilities) {
-      const capabilities = selectedTargetCapabilities;
-      if (
-        (capabilities.modelFamilies?.length ?? 0) > 0 &&
-        (modelFamilyForModel(capabilities, next.model) ||
-          modelFamilyForModel(capabilities, targetConfig.model))
-      ) {
-        const family = next.selectionIntent === "family";
-        const patch = resolveModelSelectionEdit(
-          capabilities,
-          targetConfig,
-          family ? { kind: "family", model: next.model } : { kind: "model", model: next.model },
-        );
-        if (patch) {
-          handleTargetConfigPatch(
-            patch,
-            family ? { kind: "family-resolved" } : { kind: "raw-pick" },
-          );
-        }
-        return;
-      }
-    }
-    handleProviderChange(next.agentKind, { model: next.model }, next.selectionIntent);
-  }
-
-  const familyTransitionFailureToast = () =>
-    toast.danger(t`Can't use this model selection on that surface`);
-
-  function handlePresentationModeChange(next: ThreadPresentationMode) {
-    const nextAgent =
-      selectedAgent && supportsPresentation(selectedAgent, next)
-        ? selectedAgent
-        : otherAgents.find((agent) => supportsPresentation(agent, next));
-    if (!nextAgent) return;
-    const capabilities = visibleCapabilities(nextAgent, next, allHiddenModels);
-    // A family selection must prove its mapping onto the target surface before
-    // the mode commits; an unprovable mapping keeps surface and selection.
-    const transition =
-      nextAgent.kind === selectedKind && selectedTargetCapabilities
-        ? resolveFamilyPresentationTransition(
-            selectedTargetCapabilities,
-            capabilities,
-            targetConfig,
-          )
-        : undefined;
-    if (transition === null) {
-      familyTransitionFailureToast();
-      return;
-    }
-
-    setTargetPresentationMode(next);
-    setLastPresentationMode(nextAgent.kind, next);
-    if (nextAgent.kind !== selectedKind) setSelectedKind(nextAgent.kind);
-    const resolved = resolveDefaultConfig(
-      capabilities,
-      next,
-      {
-        ...savedConfigForAgent(nextAgent, next),
-        ...(nextAgent.kind === selectedKind ? targetConfig : composerMcpConfig(targetConfig)),
-        ...transition,
-      },
-      props.projectLocation,
-    );
-    const relation = transition ? modelFamilyForModel(capabilities, resolved.model) : undefined;
-    commitTargetSelection(
-      resolved,
-      nextAgent.kind,
-      next,
-      relation ? { type: "family-member-edit", relation } : { type: "owner-retarget" },
-    );
-  }
-
-  function handleTargetConfigPatch(patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) {
-    if (!selectedAgent || !selectedTargetCapabilities) return;
-    commitTargetSelection(
-      resolveDefaultConfig(
-        selectedTargetCapabilities,
+  // --- Crew selection (the same picker + roster the draft composer offers) ---
+  const roleTemplates = CREW_ROLE_TEMPLATE_DESCRIPTORS.map(({ brief, label, ...template }) => ({
+    ...template,
+    label: t(label),
+    ...(brief ? { brief: t(brief) } : {}),
+  }));
+  const crewLeadProviders = buildProviderModelMenuProviders(otherAgents, {
+    presentationMode: targetPresentationMode,
+    hiddenModelsByAgent: allHiddenModels,
+    filterAgent: (agent) =>
+      canLeadCrew(
+        capabilitiesForPresentation(agent.capabilities, targetPresentationMode),
         targetPresentationMode,
-        { ...targetConfig, ...patch },
-        props.projectLocation,
       ),
-      selectedAgent.kind,
-      targetPresentationMode,
-      composerSelectionEvent(patch, origin, selectedTargetCapabilities),
+  });
+  const targetLead = leadSelectionOf(selectedKind, targetConfig);
+  const crewsOffered = targetPresentationMode === "gui" || targetCanLeadCrew;
+  const defaultHelper = helperOptions.defaultSelectionFor(targetLead);
+  const modelLabelOf = (selection: CrewMemberSelection) =>
+    crewModelLabelOf(installedAgents, selection);
+  function leadFields(selection: CrewMemberSelection): Partial<ThreadConfig> {
+    return {
+      effort: selection.effort ?? "",
+      fast: selection.fast ?? false,
+      ...(selection.contextSize ? { contextSize: selection.contextSize } : {}),
+    };
+  }
+  function leadPatch(selection: CrewMemberSelection): Partial<ThreadConfig> {
+    return { model: selection.model, ...leadFields(selection) };
+  }
+  // The placeholder expressions are part of the Lingui message id, so they stay
+  // inline: this keeps the toast on the catalog entry the draft composer
+  // already ships translations for.
+  function warnLeadUnavailable(agentKind: string, provider: { label: string } | undefined) {
+    toast.warning(
+      t`${provider?.label ?? installedAgents.find((agent) => agent.kind === agentKind)?.label ?? agentKind} isn't available, so ${modelLabelOf(targetLead)} stays the lead.`,
     );
   }
+  function handleCrewChoice(choice: { crewId: string } | { newCrew: true }) {
+    // Same reasoning for `label`: the placeholder name is part of the message id.
+    const label = modelLabelOf(targetLead);
+    if ("newCrew" in choice) {
+      const sidekick = roleTemplates.find((template) => template.id === DEFAULT_CREW_ROLE_ID);
+      if (!defaultHelper || !sidekick) return;
+      commitTargetCrew(newCrewBinding(defaultHelper, sidekick));
+      // Open the roster for editing once it mounts: the crew control opens
+      // when the signal changes after its first commit, and React flushes
+      // this event's commit before the microtask runs.
+      queueMicrotask(() => setCrewOpenSignal((current) => current + 1));
+      return;
+    }
+    const saved = savedCrews.find((crew) => crew.id === choice.crewId);
+    if (!saved) return;
+    const binding = crewBindingFromSavedCrew(saved);
+    const target = crewLeadProviders.find((provider) => provider.kind === saved.lead.agentKind);
+    const targetModel = target?.capabilities.models.find(
+      (candidate) => candidate.id === saved.lead.model,
+    );
+    if (!target || !targetModel) {
+      // The crew's lead cannot continue this thread (unavailable, or the
+      // source provider itself, which this dialog never targets). Keep the
+      // crew under the current lead when it can lead one, like the draft.
+      if (!targetCanLeadCrew) {
+        toast.danger(t`${label} can't lead a crew. Pick another model first.`);
+        return;
+      }
+      commitTargetCrew(binding);
+      warnLeadUnavailable(saved.lead.agentKind, target);
+      return;
+    }
+    commitTargetCrew(binding);
+    handleProviderChange(saved.lead.agentKind, leadPatch(saved.lead));
+  }
+  const crewSection = crewsOffered
+    ? {
+        entries: savedCrews.map((crew) =>
+          crewPickerEntry(crew, helperOptions.modelLabelOf, {
+            lead: t`Lead`,
+            readOnly: t`Read-only`,
+          }),
+        ),
+        ...(launchCrew?.crewId ? { currentCrewId: launchCrew.crewId } : {}),
+        ...(launchCrew ? { current: { name: launchCrew.name ?? t`Crew` } } : {}),
+        canCreate: targetCanLeadCrew && defaultHelper !== undefined,
+        onSelect: handleCrewChoice,
+      }
+    : undefined;
+  function saveTargetCrew(crew: SavedCrew, binding: ThreadCrewBinding) {
+    upsertCrew(crew);
+    commitTargetCrew(binding);
+  }
+  const activeSavedCrew = savedCrewFor(launchCrew, savedCrews);
+  const crewRoster = launchCrew
+    ? {
+        binding: launchCrew,
+        lead: targetLead,
+        ...(activeSavedCrew ? { savedCrew: activeSavedCrew } : {}),
+        helperOptions,
+        roleTemplates,
+        leadProviders: crewLeadProviders,
+        ...(defaultHelper ? { defaultHelper } : {}),
+        summary: crewSummary(
+          modelLabelOf(targetLead),
+          launchCrew.roles,
+          helperOptions.modelLabelOf,
+        ),
+        isDraft: true,
+        isDisabled: false,
+        onBindingChange: (binding: ThreadCrewBinding) => commitTargetCrew(binding),
+        onLeadChange: (selection: CrewMemberSelection) => {
+          const kindChanged = selection.agentKind !== targetLead.agentKind;
+          if (kindChanged) {
+            // The roster's Reset hands back the saved crew's lead without
+            // going through `crewLeadProviders`. That lead can be the source
+            // provider (excluded from this dialog's targets) or an unavailable
+            // one; retargeting onto it would strand the dialog on an agent it
+            // does not offer, so keep the current lead.
+            const target = crewLeadProviders.find(
+              (provider) => provider.kind === selection.agentKind,
+            );
+            if (!target?.capabilities.models.some((model) => model.id === selection.model)) {
+              warnLeadUnavailable(selection.agentKind, target);
+              return;
+            }
+          }
+          if (kindChanged || selection.model !== targetLead.model) {
+            handleProviderChange(selection.agentKind, leadPatch(selection));
+          } else {
+            handleTargetConfigPatch(leadFields(selection));
+          }
+        },
+        onSaveToCrew: saveTargetCrew,
+        onSaveAsNewCrew: saveTargetCrew,
+        onEditInSettings: () => {
+          // Settings sit behind the modal — dismiss it first.
+          handleCancel();
+          openCrewsSettings(launchCrew.crewId);
+        },
+      }
+    : undefined;
+  // A thread that already ran with a crew keeps one: a plain pick only
+  // retargets its lead, as it did before crews could be picked here, so a
+  // roster edit or a swap to another crew can never drop it silently. A crew
+  // added to a plain thread is a selection like in the draft composer, so a
+  // plain pick leaves it. Crew picks bypass this handler: `handleCrewChoice`
+  // changes the lead directly.
+  const crewAwareControls = targetControls.map((control) =>
+    control.kind === "provider-model"
+      ? {
+          ...control,
+          onChange: (next: Parameters<typeof control.onChange>[0]) => {
+            if (targetCrew && !sourceCrew) commitTargetCrew(undefined);
+            control.onChange(next);
+          },
+        }
+      : control,
+  );
+  const dialogControls = crewSection
+    ? applyCrewComposerControls(crewAwareControls, {
+        crewSection,
+        ...(crewRoster ? { roster: crewRoster } : {}),
+        openSignal: crewOpenSignal,
+      })
+    : crewAwareControls;
 
   // --- Composer affordances (same set the normal composer offers) ---
   // The prompt typed here is the target provider's first turn, so it takes
@@ -463,15 +508,24 @@ export function ContinueInProviderDialog(props: {
   const [commandPanelPosition, setCommandPanelPosition] = useState<CommandPanelPosition | null>(
     null,
   );
+  const projectPluginOverrides = useAppStore(
+    (s) => s.projects.find((project) => project.id === thread.projectId)?.pluginOverrides,
+  );
+  const pluginOverrides = resolveLaunchPluginOverrides(
+    projectPluginOverrides,
+    thread.config.pluginOverrides,
+  );
   const { commands: skillCommands } = useSkillSlashCommandState(
     props.projectLocation,
     selectedKind,
     targetPresentationMode,
+    pluginOverrides,
   );
   const pluginMentions = usePluginMentionItems(
     props.projectLocation,
     selectedKind,
     targetPresentationMode,
+    pluginOverrides,
   );
   const threadMentions = useThreadMentionItems(
     {
@@ -490,39 +544,6 @@ export function ContinueInProviderDialog(props: {
   useResidentProjectMcpServers(threadProject);
   const projectCustomMcpServers = threadProject?.mcpServers;
 
-  const selectedTargetCapabilities = selectedAgent
-    ? visibleCapabilities(selectedAgent, targetPresentationMode, allHiddenModels)
-    : undefined;
-  const providerModelProviders = buildProviderModelMenuProviders(otherAgents, {
-    presentationMode: targetPresentationMode,
-    hiddenModelsByAgent: allHiddenModels,
-    filterAgent: (agent) => supportsPresentation(agent, targetPresentationMode),
-  });
-  const targetControls: ComposerControl[] = selectedAgent
-    ? appendProviderComposerControls(
-        buildModelPickerControls({
-          providers: providerModelProviders,
-          selectedAgentKind: selectedKind,
-          model: targetConfig.model,
-          ...(targetConfig.effort ? { effort: targetConfig.effort } : {}),
-          ...(targetConfig.contextSize ? { contextSize: targetConfig.contextSize } : {}),
-          ...(targetConfig.fast ? { fast: targetConfig.fast } : {}),
-          ...(targetConfig.thinking ? { thinking: targetConfig.thinking } : {}),
-          capabilities: selectedTargetCapabilities ?? selectedAgent.capabilities,
-          presentationMode: targetPresentationMode,
-          onProviderModelChange: handleModelPick,
-          onConfigPatch: handleTargetConfigPatch,
-        }),
-        {
-          agentKind: selectedKind,
-          capabilities: selectedTargetCapabilities ?? selectedAgent.capabilities,
-          config: targetConfig,
-          presentationMode: targetPresentationMode,
-          isDisabled: false,
-          onConfigChange: handleTargetConfigPatch,
-        },
-      )
-    : [];
   const targetCapabilities = selectedTargetCapabilities ?? selectedAgent?.capabilities;
   const slashLookupContext = {
     agentKind: selectedKind,
@@ -615,10 +636,12 @@ export function ContinueInProviderDialog(props: {
   // servers that are off can be turned on from the mention list (it patches the
   // target config); custom servers come from settings and are informational.
   const providerOwnsMcp = targetCapabilities ? providerOwnsMcpConfig(targetCapabilities) : false;
-  // Mirrored desktop threads launch from their host's settings. This renderer
-  // does not own that MCP snapshot, so showing or mutating its local controls
-  // would promise servers the host may not launch.
-  const mcpControlsAvailable = targetCapabilities !== undefined && !thread.remoteServerId;
+  // The MCP settings and server lists read here are this machine's. A thread
+  // on another host launches from that host's own settings, which this
+  // renderer does not own, so showing or mutating the local controls would
+  // promise servers the host may not launch.
+  const settingsOwnedHere = hostRunsOnThisMachine(thread);
+  const mcpControlsAvailable = targetCapabilities !== undefined && settingsOwnedHere;
   const mergedCustomMcpServers = mergeMcpServers(
     userCustomMcpServers,
     projectCustomMcpServers ?? [],
@@ -797,8 +820,12 @@ export function ContinueInProviderDialog(props: {
     return resolveProviderHandoffStrategy({
       sourcePresentationMode,
       targetPresentationMode,
-      isMirroredThread: thread.remoteServerId !== undefined,
-      readThreadToolEnabled: readThreadToolsEnabled,
+      // Local settings can veto the last session's launch snapshot. A paired
+      // host reports its own resolved tool availability; this machine's
+      // settings say nothing about whether that host can read its history.
+      readThreadToolEnabled: settingsOwnedHere
+        ? readThreadToolsEnabled
+        : threadMentionToolsAvailable,
       threadResolvedReadThreadTool: threadMentionToolsAvailable,
       targetReadThreadToolGuaranteed:
         targetCapabilities !== undefined &&
@@ -875,10 +902,9 @@ export function ContinueInProviderDialog(props: {
       return;
     }
 
-    if (!thread.sessionRef || thread.remoteServerId !== undefined) {
-      // Nothing stored and no session to extract from — or a mirrored thread,
-      // whose `extractContext` is a host-side procedure this renderer
-      // deliberately does not route. The new provider starts without context.
+    if (!thread.sessionRef) {
+      // Nothing stored and no session to extract from. The new provider starts
+      // without context.
       onContinue(
         selectedKind,
         targetConfigForHandoff,
@@ -945,7 +971,9 @@ export function ContinueInProviderDialog(props: {
 
   const canSubmit = Boolean(selectedKind && targetConfig.model) && !attachments.isUploading;
   const targetProviderFallback = t`the target provider`;
-  const sourceCrewName = sourceCrew?.name ?? t`Crew`;
+  // Named for the catalog entries the carry-over captions already ship with
+  // (the placeholder name is part of the Lingui message id).
+  const sourceCrewName = targetCrew?.name ?? t`Crew`;
   const targetProviderLabel = selectedAgent?.label ?? targetProviderFallback;
   const switchOpensNewThread = !continuesInPlace(sourcePresentationMode, targetPresentationMode);
 
@@ -980,11 +1008,13 @@ export function ContinueInProviderDialog(props: {
                         </Trans>
                       </p>
                     )}
-                    {sourceCrew ? (
+                    {targetCrew && !targetCanLeadCrew ? (
                       <p className="text-center text-xs text-muted">
-                        {targetCanLeadCrew
-                          ? t`${sourceCrewName} comes along.`
-                          : t`${sourceCrewName} stays behind: ${targetProviderLabel} can't lead a crew.`}
+                        {t`${sourceCrewName} stays behind: ${targetProviderLabel} can't lead a crew.`}
+                      </p>
+                    ) : launchCrew && !crewTouched ? (
+                      <p className="text-center text-xs text-muted">
+                        {t`${sourceCrewName} comes along.`}
                       </p>
                     ) : null}
                   </div>
@@ -1026,7 +1056,7 @@ export function ContinueInProviderDialog(props: {
                       compact
                       variant="draft"
                       hideSubmitButton
-                      controls={targetControls}
+                      controls={dialogControls}
                       toolbarLayoutKey={[
                         selectedKind,
                         targetPresentationMode,
@@ -1035,6 +1065,9 @@ export function ContinueInProviderDialog(props: {
                         targetConfig.contextSize ?? "",
                         targetConfig.fast ? "fast" : "normal",
                         targetConfig.thinking ? "thinking" : "standard",
+                        launchCrew
+                          ? `crew:${launchCrew.crewId ?? launchCrew.name ?? "custom"}:${launchCrew.roles.length}`
+                          : "no-crew",
                       ].join("|")}
                       attachmentBar={
                         <AttachmentBar
@@ -1047,7 +1080,7 @@ export function ContinueInProviderDialog(props: {
                             const idx = imageAttachments.findIndex((a) => a.id === att.id);
                             if (idx >= 0) openAttachmentLightbox(imageAttachments, idx);
                           }}
-                          onPreviewPdf={(att) => openPdfPreview(att.path)}
+                          onPreviewPdf={(att) => openPdfPreview(att)}
                         />
                       }
                       inputContent={
@@ -1072,7 +1105,7 @@ export function ContinueInProviderDialog(props: {
                           onTextChange={() => undefined}
                           onPasteImage={(file) => {
                             void attachments
-                              .addClipboardImage(file, `handoff:${thread.id}`)
+                              .addClipboardImage(file)
                               .catch((error: unknown) => toast.danger(friendlyError(error)));
                           }}
                           onInterceptKey={(e) => {

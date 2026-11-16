@@ -38,6 +38,7 @@
  */
 
 import type { SessionNotification } from "@agentclientprotocol/sdk";
+import { findSelectConfigOption } from "../acp/sessionConfig";
 import { findThoughtLevelConfigOption } from "../acp/thoughtLevel";
 import {
   createAcpSubagentCoordinator,
@@ -159,20 +160,20 @@ export function transformKimiAcpSessionUpdate(
 }
 
 /**
- * Strip the untiered `on` thought level out of a live `config_option_update`.
+ * Normalize the thought-level select on a live `config_option_update`.
  *
- * The session's config sync adopts the thought-level `currentValue` verbatim as
- * the thread's effort, and Kimi reports `on` even for the tiered K3 models —
- * which the capability probe deliberately does not surface as a tier. Without
- * this, a K3 thread's reasoning would read `On` while its picker offers only
- * `Low`/`High`/`Max`.
+ * Tiered models drop the untiered `on` placeholder. External models keep a
+ * real `off` / `on` pair. Legacy managed aliases collapse to `on`, so a stale
+ * `off` or a carried tier is not adopted. The session's config sync uses
+ * `currentValue` verbatim as the thread's effort.
  */
 function normalizeKimiConfigOptionUpdate(notification: SessionNotification): SessionNotification {
   const update = notification.update as { configOptions?: unknown };
   if (!Array.isArray(update.configOptions)) return notification;
   const thoughtLevel = findThoughtLevelConfigOption(update.configOptions);
   if (!thoughtLevel) return notification;
-  const normalized = normalizeKimiThoughtLevelOption(thoughtLevel);
+  const currentModel = findSelectConfigOption(update.configOptions, "model")?.currentValue;
+  const normalized = normalizeKimiThoughtLevelOption(thoughtLevel, currentModel);
   if (normalized === thoughtLevel) return notification;
   return {
     ...notification,

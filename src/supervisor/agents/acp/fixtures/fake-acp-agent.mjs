@@ -72,6 +72,8 @@ const sessionOpenMarker = env.FAKE_SESSION_OPEN_MARKER;
 const hangPrompt = env.FAKE_HANG_PROMPT === "1";
 const promptEditFiles = Number(env.FAKE_PROMPT_EDIT_FILES ?? 0);
 const promptEditFileBytes = Number(env.FAKE_PROMPT_EDIT_FILE_BYTES ?? 900_000);
+const promptUsageUpdates = JSON.parse(env.FAKE_PROMPT_USAGE_UPDATES ?? "[]");
+const promptResponseUsages = JSON.parse(env.FAKE_PROMPT_RESPONSE_USAGES ?? "[]");
 const backgroundHoldMs = Number(env.FAKE_BACKGROUND_HOLD_MS ?? 0);
 const promptMarker = env.FAKE_PROMPT_MARKER;
 const cancelMarker = env.FAKE_CANCEL_MARKER;
@@ -90,6 +92,7 @@ if (selfDestructMs > 0) {
 
 let currentModel = models[0];
 let pendingPromptId;
+let promptTurnIndex = 0;
 
 function send(message, callback) {
   process.stdout.write(`${JSON.stringify(message)}\n`, callback);
@@ -338,7 +341,21 @@ rl.on("line", (line) => {
         pendingPromptId = id;
         return;
       }
-      respond(id, { stopReason: "end_turn" });
+      {
+        const turnIndex = promptTurnIndex++;
+        const usageUpdate = promptUsageUpdates[turnIndex];
+        if (usageUpdate) {
+          notifySessionUpdate({
+            sessionUpdate: "usage_update",
+            ...usageUpdate,
+          });
+        }
+        const responseUsage = promptResponseUsages[turnIndex];
+        respond(id, {
+          stopReason: "end_turn",
+          ...(responseUsage ? { usage: responseUsage } : {}),
+        });
+      }
       return;
 
     case "session/cancel":

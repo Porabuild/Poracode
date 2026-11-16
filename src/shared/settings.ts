@@ -43,7 +43,7 @@ import { parseMachineKey } from "./machines";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { modelSelectionSchema } from "./selectionBinding.schemas.ts";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
-import { QWEN_DEFAULT_MODEL_ID, QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
+import { RETIRED_MODEL_REPLACEMENTS, retiredModelReplacement } from "./agents/retiredModels";
 import {
   ANTIGRAVITY_ACP_REGISTRY_ID,
   LEGACY_ANTIGRAVITY_ACP_KIND,
@@ -290,11 +290,50 @@ export const THREAD_DOCK_KINDS = [
   "agents",
   "backgroundTasks",
   "images",
+  "artifacts",
   "info",
   "context",
   "usage",
 ] as const;
 export type ThreadDockKind = (typeof THREAD_DOCK_KINDS)[number];
+
+/**
+ * Conditions under which the desktop host keeps the system or screen awake.
+ * Shared by `preventSleepWhen` and `preventScreenLockWhen`; an empty list means
+ * never. "working" covers any working thread (Computer Use threads included),
+ * "computer-use" an enabled or active Computer Use session on this host,
+ * "remote-access" enabled remote access, and "always" any time Poracode runs.
+ */
+export const KEEP_AWAKE_CONDITIONS = [
+  "working",
+  "computer-use",
+  "remote-access",
+  "always",
+] as const;
+export type KeepAwakeCondition = (typeof KEEP_AWAKE_CONDITIONS)[number];
+
+/** Removes duplicates and orders conditions canonically; "always" subsumes the rest. */
+export function normalizeKeepAwakeConditions(
+  conditions: readonly KeepAwakeCondition[],
+): KeepAwakeCondition[] {
+  if (conditions.includes("always")) return ["always"];
+  return KEEP_AWAKE_CONDITIONS.filter((condition) => conditions.includes(condition));
+}
+
+/**
+ * The pre-multiselect `preventSleep` enum. It is no longer a schema field, but
+ * files written by older releases still carry it, so it seeds
+ * `preventSleepWhen` once (its scopes were cumulative).
+ */
+const legacyPreventSleepSchema = z.enum(["while-working", "while-remote-access", "always"]);
+const LEGACY_PREVENT_SLEEP_CONDITIONS: Record<
+  z.infer<typeof legacyPreventSleepSchema>,
+  readonly KeepAwakeCondition[]
+> = {
+  "while-working": ["working"],
+  "while-remote-access": ["working", "remote-access"],
+  always: ["always"],
+};
 
 export function normalizeSidebarShortcutOrder(
   order: readonly SidebarShortcutId[],
@@ -308,6 +347,12 @@ export function normalizeSidebarShortcutOrder(
 
 export function normalizeThreadDocksOrder(order: readonly ThreadDockKind[]): ThreadDockKind[] {
   const normalized = [...new Set(order)];
+  // Compatibility: orders saved before the unversioned "artifacts" dock existed
+  // stay valid; insert it beside the old combined "images" section instead
+  // of appending it at the end. No settings version bump needed.
+  if (!normalized.includes("artifacts") && normalized.includes("images")) {
+    normalized.splice(normalized.indexOf("images") + 1, 0, "artifacts");
+  }
   // Compatibility: orders saved before the unversioned "info" dock existed
   // stay valid; insert it beside the old combined "context" section instead
   // of appending it at the end. No settings version bump needed.
@@ -505,12 +550,17 @@ export const sharedSettingsSchema = z.object({
   /** Base font size for the dev terminal panel. Auto-shrinks in narrow/short panes. */
   terminalPanelFontSize: z.number().int().min(8).max(20),
   /**
-   * When to prevent the OS from sleeping while Poracode is running.
-   * - "while-working": only while a thread is actively working
-   * - "while-remote-access": while remote access is enabled or a thread is working
-   * - "always": keep the machine awake whenever the app is running
+   * Conditions under which the desktop host prevents system sleep (the display
+   * may still turn off). Any matching condition applies; empty means never.
+   * Replaces the legacy `preventSleep` enum, which older releases still read.
    */
-  preventSleep: z.enum(["while-working", "while-remote-access", "always"]),
+  preventSleepWhen: z.array(z.enum(KEEP_AWAKE_CONDITIONS)),
+  /**
+   * Conditions under which the desktop host keeps the display awake, which
+   * also stops idle display sleep from triggering the OS idle screen lock.
+   * Manual lock, lid close, and enforced lock policies still apply.
+   */
+  preventScreenLockWhen: z.array(z.enum(KEEP_AWAKE_CONDITIONS)),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -564,6 +614,16 @@ export const sharedSettingsSchema = z.object({
    * and an in-app translucent fallback elsewhere. Default on.
    */
   sidebarTranslucency: z.boolean(),
+  /** Show the rotating news line below the full-page new-thread composer. */
+  newsLineEnabled: z.boolean(),
+  /** Include personal activity highlights (streaks, prompts, usage limits) in the news line. */
+  newsLineActivity: z.boolean(),
+  /**
+   * Community promotions the user opened or closed. Each id hides that
+   * promotion on every surface. Kept as plain strings so ids written by a
+   * newer app survive normalization instead of resetting the whole list.
+   */
+  dismissedPromotions: z.array(z.string().min(1).max(64)).max(32),
   /**
    * Per-appearance override for the translucent sidebar's frosting: the alpha
    * (0–100) of the `--sidebar-glass-tint` content-background mix. Higher is more
@@ -577,6 +637,17 @@ export const sharedSettingsSchema = z.object({
   }),
   /** Automatically show the terminal panel when running commands or creating worktrees. */
   autoShowTerminalPanel: z.boolean(),
+  /**
+   * Locked Computer Use (macOS): the user's intent to let an active Computer
+   * Use turn unlock this Mac behind an opaque guard. Installation status is
+   * derived from the system, never stored here, and turning this on does not
+   * install anything by itself: the desktop's local install call does. Not in
+   * the remote-editable subset, and agents cannot write it through
+   * app-controls.
+   */
+  computerUseLockedUse: z.boolean(),
+  // Additive opt-in: older settings files normalize to false.
+  computerUseLockedUseDimDisplay: z.boolean(),
   /**
    * Where git worktrees are created: under a global root (`global`) or nested in
    * each project at `<project>/.poracode/worktrees` (`project-relative`).
@@ -786,9 +857,6 @@ export const sharedSettingsSchema = z.object({
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
-/** When to prevent the OS from sleeping while Poracode is running. */
-export type PreventSleep = SharedSettings["preventSleep"];
-
 /** Browser element-picker delivery target for terminal-native (CLI) threads. */
 export type CliPickerTarget = SharedSettings["cliPickerTarget"];
 
@@ -866,7 +934,10 @@ export const defaultSharedSettings: SharedSettings = {
   agentTerminalFontSize: 12,
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
-  preventSleep: "while-remote-access",
+  // Matches the legacy "while-remote-access" default.
+  preventSleepWhen: ["working", "remote-access"],
+  // Never by default so the display can still turn off (see #922).
+  preventScreenLockWhen: [],
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,
@@ -881,8 +952,13 @@ export const defaultSharedSettings: SharedSettings = {
   sidebarHiddenShortcuts: ["githubActions"],
   sidebarShortcutOrder: [...SIDEBAR_SHORTCUT_IDS],
   sidebarTranslucency: true,
+  newsLineEnabled: true,
+  newsLineActivity: true,
+  dismissedPromotions: [],
   sidebarGlassTint: { light: null, dark: null },
   autoShowTerminalPanel: true,
+  computerUseLockedUse: false,
+  computerUseLockedUseDimDisplay: false,
   worktreeStorageMode: "global",
   worktreeBasePath: "",
   wslWorktreeBasePath: "",
@@ -989,40 +1065,69 @@ function normalizeObjectFromSchema<
   return normalized;
 }
 
-function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSettings {
-  const isRetiredQwenSelection = (agentKind: string, modelId: string) =>
-    agentKind === "qwen" && modelId === QWEN_RETIRED_PREVIEW_MODEL_ID;
-  const migrateUtilityModel = (provider: string, model: string) =>
-    isRetiredQwenSelection(provider, model) ? QWEN_DEFAULT_MODEL_ID : model;
-  const qwenProviderConfig = settings.providerConfigs.qwen;
-  const providerConfigs =
-    qwenProviderConfig?.model === QWEN_RETIRED_PREVIEW_MODEL_ID
-      ? {
-          ...settings.providerConfigs,
-          qwen: { ...qwenProviderConfig, model: QWEN_DEFAULT_MODEL_ID },
-        }
-      : settings.providerConfigs;
-  const qwenModelPreferences = settings.providerModelPreferences.qwen;
-  const retiredQwenModelPreference = qwenModelPreferences?.[QWEN_RETIRED_PREVIEW_MODEL_ID];
+/**
+ * Moves persisted selections of provider-retired models
+ * (`RETIRED_MODEL_REPLACEMENTS`) to their replacements. Recents and learned
+ * usage are derived, so their retired entries are discarded instead.
+ */
+function migrateRetiredModels(settings: SharedSettings): SharedSettings {
+  const replacementFor = (agentKind: string | undefined, modelId: string | undefined) =>
+    agentKind === undefined || modelId === undefined
+      ? undefined
+      : retiredModelReplacement(agentKind, modelId);
+  const isRetired = (agentKind: string | undefined, modelId: string | undefined) =>
+    replacementFor(agentKind, modelId) !== undefined;
+  const migrateModel = (agentKind: string, modelId: string) =>
+    replacementFor(agentKind, modelId) ?? modelId;
+
+  let providerConfigs = settings.providerConfigs;
   let providerModelPreferences = settings.providerModelPreferences;
-  if (qwenModelPreferences && retiredQwenModelPreference) {
-    const currentQwenModelPreferences = { ...qwenModelPreferences };
-    delete currentQwenModelPreferences[QWEN_RETIRED_PREVIEW_MODEL_ID];
-    providerModelPreferences = {
-      ...settings.providerModelPreferences,
-      qwen: {
-        ...currentQwenModelPreferences,
-        [QWEN_DEFAULT_MODEL_ID]:
-          currentQwenModelPreferences[QWEN_DEFAULT_MODEL_ID] ?? retiredQwenModelPreference,
-      },
-    };
+  const hiddenModels = { ...settings.hiddenModels };
+  for (const agentKind of Object.keys(RETIRED_MODEL_REPLACEMENTS)) {
+    const config = Object.hasOwn(providerConfigs, agentKind)
+      ? providerConfigs[agentKind]
+      : undefined;
+    const configReplacement =
+      config?.model === undefined ? undefined : replacementFor(agentKind, config.model);
+    if (config && configReplacement) {
+      providerConfigs = {
+        ...providerConfigs,
+        [agentKind]: { ...config, model: configReplacement },
+      };
+    }
+
+    const preferences = Object.hasOwn(providerModelPreferences, agentKind)
+      ? providerModelPreferences[agentKind]
+      : undefined;
+    let migratedPreferences: typeof preferences;
+    for (const [retiredId, replacementId] of Object.entries(
+      RETIRED_MODEL_REPLACEMENTS[agentKind]!,
+    )) {
+      const current = migratedPreferences ?? preferences;
+      const retiredPreference = current?.[retiredId];
+      if (!current || !retiredPreference) continue;
+      const next = { ...current };
+      delete next[retiredId];
+      next[replacementId] = next[replacementId] ?? retiredPreference;
+      migratedPreferences = next;
+    }
+    if (migratedPreferences) {
+      providerModelPreferences = { ...providerModelPreferences, [agentKind]: migratedPreferences };
+    }
+
+    const hidden = Object.hasOwn(hiddenModels, agentKind) ? hiddenModels[agentKind] : undefined;
+    if (hidden?.some((modelId) => isRetired(agentKind, modelId))) {
+      hiddenModels[agentKind] = [
+        ...new Set(hidden.map((modelId) => migrateModel(agentKind, modelId))),
+      ];
+    }
   }
 
   const seenFavorites = new Set<string>();
   const favoriteModels = settings.favoriteModels
     .map((entry) =>
-      isRetiredQwenSelection(entry.agentKind, entry.modelId)
-        ? { ...entry, modelId: QWEN_DEFAULT_MODEL_ID }
+      isRetired(entry.agentKind, entry.modelId)
+        ? { ...entry, modelId: migrateModel(entry.agentKind, entry.modelId) }
         : entry,
     )
     .filter((entry) => {
@@ -1032,38 +1137,24 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
       return true;
     });
 
-  const hiddenModels = { ...settings.hiddenModels };
-  if (hiddenModels.qwen?.includes(QWEN_RETIRED_PREVIEW_MODEL_ID)) {
-    hiddenModels.qwen = [
-      ...new Set(
-        hiddenModels.qwen.map((modelId) =>
-          modelId === QWEN_RETIRED_PREVIEW_MODEL_ID ? QWEN_DEFAULT_MODEL_ID : modelId,
-        ),
-      ),
-    ];
-  }
-
   return {
     ...settings,
     providerConfigs,
     providerModelPreferences,
     hiddenModels,
-    commitGenModel: migrateUtilityModel(settings.commitGenProvider, settings.commitGenModel),
-    titleGenModel: migrateUtilityModel(settings.titleGenProvider, settings.titleGenModel),
-    conflictResolverModel: migrateUtilityModel(
+    commitGenModel: migrateModel(settings.commitGenProvider, settings.commitGenModel),
+    titleGenModel: migrateModel(settings.titleGenProvider, settings.titleGenModel),
+    conflictResolverModel: migrateModel(
       settings.conflictResolverProvider,
       settings.conflictResolverModel,
     ),
-    experimentJudgeModel: migrateUtilityModel(
+    experimentJudgeModel: migrateModel(
       settings.experimentJudgeProvider,
       settings.experimentJudgeModel,
     ),
-    wslCommitGenModel: migrateUtilityModel(
-      settings.wslCommitGenProvider,
-      settings.wslCommitGenModel,
-    ),
-    wslTitleGenModel: migrateUtilityModel(settings.wslTitleGenProvider, settings.wslTitleGenModel),
-    wslConflictResolverModel: migrateUtilityModel(
+    wslCommitGenModel: migrateModel(settings.wslCommitGenProvider, settings.wslCommitGenModel),
+    wslTitleGenModel: migrateModel(settings.wslTitleGenProvider, settings.wslTitleGenModel),
+    wslConflictResolverModel: migrateModel(
       settings.wslConflictResolverProvider,
       settings.wslConflictResolverModel,
     ),
@@ -1071,36 +1162,33 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
     // Recents and learned usage are derived; discard retired entries instead of
     // letting them continue to influence the picker or Crossagents routing.
     recentModels: settings.recentModels.filter(
-      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+      (entry) => !isRetired(entry.agentKind, entry.modelId),
     ),
     agentSelectionUsage: settings.agentSelectionUsage.filter(
-      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+      (entry) => !isRetired(entry.agentKind, entry.modelId),
     ),
     crossagentSelectionUsage: settings.crossagentSelectionUsage.filter(
-      (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
+      (entry) => !isRetired(entry.agentKind, entry.modelId),
     ),
     crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map((entry) => {
-      const migratedFallbacks = entry.fallbacks?.map((fallback) =>
-        fallback.agentKind === "qwen" && fallback.modelId === QWEN_RETIRED_PREVIEW_MODEL_ID
-          ? { ...fallback, modelId: QWEN_DEFAULT_MODEL_ID }
-          : fallback,
-      );
+      const migratedFallbacks = entry.fallbacks?.map((fallback) => {
+        const replacement = replacementFor(fallback.agentKind, fallback.modelId);
+        return replacement === undefined ? fallback : { ...fallback, modelId: replacement };
+      });
+      const primaryReplacement = replacementFor(entry.agentKind, entry.modelId);
       const primary =
-        entry.agentKind === "qwen" && entry.modelId === QWEN_RETIRED_PREVIEW_MODEL_ID
-          ? { ...entry, modelId: QWEN_DEFAULT_MODEL_ID }
-          : entry;
+        primaryReplacement === undefined ? entry : { ...entry, modelId: primaryReplacement };
       return migratedFallbacks !== undefined
         ? { ...primary, fallbacks: migratedFallbacks }
         : primary;
     }),
-    crews: mapSavedCrewSelections(settings.crews, migrateCrewQwenSelection),
+    crews: mapSavedCrewSelections(settings.crews, migrateRetiredCrewSelection),
   };
 }
 
-function migrateCrewQwenSelection(selection: CrewMemberSelection): CrewMemberSelection {
-  return selection.agentKind === "qwen" && selection.model === QWEN_RETIRED_PREVIEW_MODEL_ID
-    ? { ...selection, model: QWEN_DEFAULT_MODEL_ID }
-    : selection;
+function migrateRetiredCrewSelection(selection: CrewMemberSelection): CrewMemberSelection {
+  const replacement = retiredModelReplacement(selection.agentKind, selection.model);
+  return replacement === undefined ? selection : { ...selection, model: replacement };
 }
 
 function mapSavedCrewSelections(
@@ -1771,6 +1859,35 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
   );
 }
 
+/**
+ * No SETTINGS_DOCUMENT_VERSION bump: `preventSleepWhen` and
+ * `preventScreenLockWhen` are additive, and older readers ignore and preserve
+ * them as unknown fields. A valid stored value
+ * always wins. Otherwise it is seeded from the legacy `preventSleep` enum,
+ * then from the older two sleep booleans. The legacy `preventSleep` key is
+ * neither rewritten nor removed: an older app that reads a newer file keeps
+ * the user's last pre-upgrade choice, which stays valid in its schema
+ * (an array in that field would make the older document reader refuse it).
+ */
+function migratePreventSleepWhen(
+  normalized: SharedSettings,
+  source: Record<string, unknown>,
+): KeepAwakeCondition[] {
+  // Stored lists round-trip as written (the settings CAS compares written and
+  // parsed list lengths); clients normalize before writing.
+  if (sharedSettingsSchema.shape.preventSleepWhen.safeParse(source.preventSleepWhen).success)
+    return normalized.preventSleepWhen;
+  const legacy = legacyPreventSleepSchema.safeParse(source.preventSleep);
+  if (legacy.success) return [...LEGACY_PREVENT_SLEEP_CONDITIONS[legacy.data]];
+  if ("preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source)
+    return [
+      ...LEGACY_PREVENT_SLEEP_CONDITIONS[
+        source.remoteAccessPreventSleep === true ? "while-remote-access" : "while-working"
+      ],
+    ];
+  return normalized.preventSleepWhen;
+}
+
 /** Applies existing migrations to validated values; object spreads retain private future fields. */
 export function migrateSharedSettingsValues(
   normalized: SharedSettings,
@@ -1781,25 +1898,13 @@ export function migrateSharedSettingsValues(
     source.prAutoMergeDefault === true ? "merge" : source.prWatchDefault === true ? "fix" : "off";
   // The removed computerUseKeepAwake field is ignored by schema normalization;
   // older files remain valid and computer use follows the shared sleep policy.
-  // Unversioned settings file: migrate the two legacy sleep booleans into
-  // the single `preventSleep` enum. An explicit valid value always wins.
-  const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(
-    source.preventSleep,
-  ).success;
-  const hasLegacyPreventSleepKeys =
-    "preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source;
-  const migratedPreventSleep =
-    !hasPreventSleep && hasLegacyPreventSleepKeys
-      ? source.remoteAccessPreventSleep === true
-        ? ("while-remote-access" as const)
-        : ("while-working" as const)
-      : normalized.preventSleep;
+  const preventSleepWhen = migratePreventSleepWhen(normalized, source);
   const usage = settingsUnknownRecordSchema.safeParse(source.usage);
   const disabledProviders = usage.success
     ? settingsStringListSchema.safeParse(usage.data.disabledProviders)
     : undefined;
   return migrateAntigravityAcpAliasState(
-    migrateRetiredQwenPreviewModel({
+    migrateRetiredModels({
       ...normalized,
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       // Older orders remain valid; normalization appends newly supported sections.
@@ -1816,7 +1921,7 @@ export function migrateSharedSettingsValues(
       prAutomationDefault: hasAutomationMode
         ? normalized.prAutomationDefault
         : legacyAutomationMode,
-      preventSleep: migratedPreventSleep,
+      preventSleepWhen,
       usage: {
         ...normalized.usage,
         disabledProviders: disabledProviders?.success ? disabledProviders.data : [],

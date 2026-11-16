@@ -3,6 +3,7 @@ import { Client } from "@modelcontextprotocol/client";
 import type { ResolvedMcpServer } from "@/shared/contracts";
 import { createUpstreamTransport } from "./mcpToolFilterProxy";
 import { materializeMcpAppResult } from "./mcpAppResult";
+import { isMcpToolVisibleTo } from "@/shared/mcpAppResources";
 
 export type BridgeToolResult = Awaited<ReturnType<Client["callTool"]>>;
 export type BridgeTool = Awaited<ReturnType<Client["listTools"]>>["tools"][number];
@@ -69,8 +70,7 @@ export async function registerMcpBridgeTools(
       const disabled = new Set(server.disabledTools ?? []);
       for (const tool of tools) {
         if (disabled.has(tool.name)) continue;
-        const ui = tool._meta?.ui as { visibility?: unknown } | undefined;
-        if (Array.isArray(ui?.visibility) && !ui.visibility.includes("model")) continue;
+        if (!isMcpToolVisibleTo(tool, "model")) continue;
         const dispose = options.register(server, tool, async (input, signal) => {
           const callOptions = { timeout: server.timeoutMs, ...(signal ? { signal } : {}) };
           const result = await client.callTool({ name: tool.name, arguments: input }, callOptions);

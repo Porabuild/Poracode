@@ -7,8 +7,8 @@ import {
   useWslDistroListStore,
 } from "@/renderer/state/machines";
 import { LOCAL_NATIVE_MACHINE_KEY } from "@/shared/machines";
-import { FloatingScopeBar } from "./FloatingScopeBar";
-import { MachineSelect } from "./MachineSelect";
+import { FloatingScopeBar } from "@/renderer/components/machineScope/FloatingScopeBar";
+import { MachineSelect } from "@/renderer/components/machineScope/MachineSelect";
 
 /**
  * Global machine scope for the Agents settings area: a floating pill docked

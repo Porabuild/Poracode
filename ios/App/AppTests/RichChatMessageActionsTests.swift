@@ -216,8 +216,51 @@ final class RichChatMessageActionsTests: XCTestCase {
       ]
     )
 
-    XCTAssertEqual(summary.activityCount, 1)
-    XCTAssertEqual(summary.reasoningCount, 1)
+    XCTAssertEqual(summary.segments.count, 2)
+    XCTAssertTrue(summary.segments.contains {
+      $0.category == .tool && $0.count == 1
+    })
+    XCTAssertTrue(summary.segments.contains {
+      $0.category == .thought && $0.count == 1
+    })
+  }
+
+  func testActivitySummaryAggregatesEditDiffCounts() {
+    let summary = RichChatActivityGroupSummary(
+      members: [
+        RichVisibleTimelineNode(item: editItem("edit-1", added: 10, removed: 2), children: []),
+        RichVisibleTimelineNode(item: editItem("edit-2", added: 20, removed: 4), children: []),
+      ]
+    )
+
+    let edit = summary.segments.first { $0.category == .edit }
+    XCTAssertEqual(edit?.count, 2)
+    XCTAssertEqual(edit?.added, 30)
+    XCTAssertEqual(edit?.removed, 6)
+    XCTAssertEqual(edit?.hasDiff, true)
+  }
+
+  func testActivitySummaryHidesEditDiffWhenAnyEditLacksASummary() {
+    let summary = RichChatActivityGroupSummary(
+      members: [
+        RichVisibleTimelineNode(item: editItem("edit-1", added: 10, removed: 2), children: []),
+        RichVisibleTimelineNode(item: item("edit-2", "file_change"), children: []),
+      ]
+    )
+
+    let edit = summary.segments.first { $0.category == .edit }
+    XCTAssertEqual(edit?.count, 2)
+    XCTAssertEqual(edit?.hasDiff, false)
+  }
+
+  func testActivitySummaryHidesZeroEditDiff() {
+    let summary = RichChatActivityGroupSummary(
+      members: [
+        RichVisibleTimelineNode(item: editItem("edit-1", added: 0, removed: 0), children: [])
+      ]
+    )
+
+    XCTAssertEqual(summary.segments.first { $0.category == .edit }?.hasDiff, false)
   }
 
   func testNativeSyntaxHighlightingMatchesThePWAJavaScriptTokenClasses() {
@@ -288,6 +331,22 @@ final class RichChatMessageActionsTests: XCTestCase {
       payload: nil,
       streams: [:],
       parentItemID: parentItemID
+    )
+  }
+
+  private func editItem(_ id: String, added: Int, removed: Int) -> RichRuntimeItem {
+    RichRuntimeItem(
+      id: id,
+      type: "file_change",
+      state: .completed,
+      payload: .object([
+        "diffSummary": .object([
+          "added": .number(Decimal(added)),
+          "removed": .number(Decimal(removed)),
+        ])
+      ]),
+      streams: [:],
+      parentItemID: nil
     )
   }
 

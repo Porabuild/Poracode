@@ -38,7 +38,6 @@ import {
 } from "@/host/profile";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
-import { requestLegacyDataMigration } from "@/host/legacyDataMigration";
 import {
   type CreateExperimentWorktreesPayload,
   type RemoteThreadCommand,
@@ -273,6 +272,9 @@ export class BackendDesktopServices {
         this.remote?.getServer()?.publishSupervisorEvent({ type: "remote-git-state", patch });
         options.emitNativeEvent({ type: "git-state-changed", patch });
       },
+      onForgeActivity: (event) => {
+        this.remote?.getServer()?.publishSupervisorEvent(event);
+      },
       onPrMerged: (watch) =>
         options.emitNativeEvent({
           type: "pr-watch-merged",
@@ -320,6 +322,8 @@ export class BackendDesktopServices {
           // B1: the desktop backend host owns the durable gap/notice store, so
           // the remote server advertises the capability and serves real state.
           runtimeHistoryGap: createRuntimeHistoryGapPort(host),
+          runThreadMutation: (threadId, operation) =>
+            supervisor.runThreadMutation(threadId, operation),
           revertCheckpoint: async (input) => {
             try {
               return await host.revertCheckpoint(input);
@@ -442,7 +446,7 @@ export class BackendDesktopServices {
           dbPath: initialize.dbPath,
         },
         resolveMcpLaunchSnapshot: (projectId) =>
-          resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
+          resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)),
       });
     } else this.administration = null;
   }
@@ -717,9 +721,9 @@ export class BackendDesktopServices {
         this.durable.prWatchService.syncAgent(payload as never);
         return undefined as BackendServiceResult<Name>;
       case "getProfileCoreStats":
-        return getProfileCoreStats(payload as never) as BackendServiceResult<Name>;
+        return getProfileCoreStats(payload as never) as Promise<BackendServiceResult<Name>>;
       case "getProfileTokenStats":
-        return getProfileTokenStats(payload as never) as BackendServiceResult<Name>;
+        return getProfileTokenStats(payload as never) as Promise<BackendServiceResult<Name>>;
       case "getProfileDevices":
         return getProfileDevicesResponse() as BackendServiceResult<Name>;
       case "getProfileIdentity":
@@ -729,8 +733,6 @@ export class BackendDesktopServices {
       case "updateStatusChanged":
         this.updateStatus = (payload as { status: RemoteHostUpdateStatus | null }).status;
         return undefined as BackendServiceResult<Name>;
-      case "requestLegacyDataMigration":
-        return requestLegacyDataMigration(payload as never) as BackendServiceResult<Name>;
     }
   }
 

@@ -30,7 +30,13 @@ export function AgentDiscoveryDoneButton(props: { onDone: () => void }) {
   }, [autoHideCancelled]);
 
   return (
-    <Button size="sm" variant="secondary" className="tabular-nums" onPress={props.onDone}>
+    <Button
+      size="sm"
+      variant="secondary"
+      data-discovery-primary-action=""
+      className="tabular-nums"
+      onPress={props.onDone}
+    >
       <Check className="size-3.5" />
       {autoHideCancelled ? <Trans>Done</Trans> : <Trans>Done ({remainingSeconds}s)</Trans>}
     </Button>

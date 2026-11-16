@@ -70,7 +70,7 @@ struct RichChatSessionActionReviseSheet: View {
           Text(RichChatSessionActionStrings.reviseInsert)
             .frame(maxWidth: .infinity)
         }
-        .poracodeProminentButtonStyle()
+        .poracodeGlassButtonStyle()
         .disabled(isDisabled)
         Button {
           onDiscard()
@@ -78,7 +78,7 @@ struct RichChatSessionActionReviseSheet: View {
           Text(RichChatSessionActionStrings.reviseDiscard)
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
+        .poracodeGlassButtonStyle()
       }
       .padding()
     }

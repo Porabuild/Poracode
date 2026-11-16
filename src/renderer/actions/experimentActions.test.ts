@@ -1,6 +1,5 @@
-import { generatePrSummaryPayloadSchema } from "@/shared/contracts/git";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  type PromptSegment,
   MAX_EXPERIMENT_PROMPT_LENGTH,
   experimentSchema,
   type Experiment,
@@ -8,6 +7,8 @@ import {
   type RemoteExperimentCommand,
   type Thread,
 } from "@/shared/contracts";
+import { generatePrSummaryPayloadSchema } from "@/shared/contracts/git";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RemoteClientError } from "@/shared/remote/client";
 import { hydrateManagedExperimentState } from "@/renderer/state/managedRootCatalog/rootExperimentAuthority";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -677,6 +678,69 @@ describe("experimentActions", () => {
     expect(mocks.bridge.gitAddWorktree).not.toHaveBeenCalled();
     expect(mocks.bridge.createExperimentWorktrees).not.toHaveBeenCalled();
     expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
+  });
+
+  it.each(["accepted", "partial", "uncertain"] as const)(
+    "settles the client receipt only after every candidate is confirmed (%s)",
+    async (outcome) => {
+      if (outcome === "partial")
+        mocks.performInitialThreadLaunch.mockRejectedValueOnce(new Error("provider refused"));
+      if (outcome === "uncertain")
+        mocks.performInitialThreadLaunch.mockRejectedValueOnce(
+          new RemoteClientError("unknown", 0, "network", { requestMayHaveCommitted: true }),
+        );
+      const wireSegments: PromptSegment[] = [
+        { kind: "attachment", path: "/host/image.png", mimeType: "image/png" },
+      ];
+      const prepareSegments = vi
+        .fn<() => Promise<PromptSegment[]>>()
+        .mockResolvedValue(wireSegments);
+      const onAccepted = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
+      const id = await launchExperiment({
+        projectId: project.id,
+        prompt: "Implement it",
+        baseBranch: "main",
+        segments: [{ kind: "attachment", path: "poracode-draft-asset:local/image.png" }],
+        candidates: [
+          { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+          { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+        ],
+        prepareSegments,
+        onAccepted,
+      });
+      expect(id).toBeTruthy();
+      expect(prepareSegments).toHaveBeenCalledOnce();
+      expect(prepareSegments.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.authority.sendExperimentCommand.mock.invocationCallOrder[0]!,
+      );
+      expect(useExperimentStore.getState().experiments[id!]?.segments).toEqual(wireSegments);
+      for (const [input] of mocks.performInitialThreadLaunch.mock.calls)
+        expect(input).toMatchObject({ segments: wireSegments });
+      expect(onAccepted.mock.calls).toEqual(outcome === "accepted" ? [[id]] : []);
+      const lastLaunch = Math.max(...mocks.performInitialThreadLaunch.mock.invocationCallOrder);
+      expect(onAccepted.mock.invocationCallOrder.every((order) => order > lastLaunch)).toBe(true);
+    },
+  );
+
+  it("does not prepare or retire a client submission refused during preflight", async () => {
+    const prepareSegments = vi.fn<() => Promise<PromptSegment[]>>();
+    const onAccepted = vi.fn<(id: string) => Promise<void>>();
+    expect(
+      await launchExperiment({
+        projectId: project.id,
+        prompt: "Implement it",
+        baseBranch: "missing",
+        candidates: [
+          { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+          { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+        ],
+        prepareSegments,
+        onAccepted,
+      }),
+    ).toBeNull();
+    expect(prepareSegments).not.toHaveBeenCalled();
+    expect(onAccepted).not.toHaveBeenCalled();
+    expect(mocks.authority.sendExperimentCommand).not.toHaveBeenCalled();
   });
 
   it("confirms the candidate worktree row update before launching candidates", async () => {

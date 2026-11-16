@@ -8,6 +8,7 @@ import type {
   ForgeRepository,
 } from "@/shared/contracts";
 import { resetGitStoreCache, summaryBackfillMissed, useGitStore } from "./gitStore";
+import { repoIdentityKey } from "@/shared/repoIdentity";
 
 const baseStatus: GitStatusResult = {
   isRepo: true,
@@ -150,6 +151,60 @@ describe("gitStore batch updates", () => {
     expect(localStorage.getItem("poracode-git-cache-v2")).toBeNull();
   });
 
+  it("clears worktree status without discarding PR or source data", () => {
+    const current = useGitStore.getState();
+    current.setWorktreeStatus("/wt/removed", baseStatus);
+    current.setPrData("/wt/removed", basePr);
+    current.setPrData("/wt/kept", basePr);
+    current.setWorktreeSourceInfo("/wt/removed", {
+      sourceBranch: "main",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    current.clearWorktreeStatus("/wt/removed");
+    const result = useGitStore.getState();
+    expect(result.worktreeStatuses["/wt/removed"]).toBeUndefined();
+    expect(result.prData["/wt/removed"]).toEqual(basePr);
+    expect(result.worktreeSourceInfo["/wt/removed"]).toEqual({
+      sourceBranch: "main",
+      commitsAhead: 1,
+      sourceAhead: 0,
+    });
+    expect(result.prData["/wt/kept"]).toEqual(basePr);
+  });
+
+  it.each(["setWorktrees", "setProjectSnapshot"] as const)(
+    "%s removes only worktrees previously owned by that catalog",
+    (method) => {
+      const removed = { ...baseWorktrees[0]!, path: "/wt/removed", isMain: false };
+      const kept = { ...removed, path: "/wt/kept" };
+      const current = useGitStore.getState();
+      current.setWorktrees("p1", [removed, kept]);
+      current.setWorktreeStatus(removed.path, baseStatus);
+      current.setWorktreeStatus(kept.path, baseStatus);
+      current.setPrData(removed.path, basePr);
+      current.setPrData(kept.path, basePr);
+      current.setWorktreeSourceInfo(removed.path, {
+        sourceBranch: "main",
+        commitsAhead: 1,
+        sourceAhead: 0,
+      });
+      current.setPrData("__branchname:p1:feature", basePr);
+      current.setRemoteWorktreeSummary("/remote/awaiting-catalog", baseStatus);
+      if (method === "setWorktrees") current.setWorktrees("p1", [kept]);
+      else current.setProjectSnapshot("p1", { worktrees: [kept] });
+      expect(useGitStore.getState().prData[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().worktreeStatuses[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().worktreeSourceInfo[removed.path]).toBeUndefined();
+      expect(useGitStore.getState().prData[kept.path]).toEqual(basePr);
+      expect(useGitStore.getState().worktreeStatuses[kept.path]).toEqual(baseStatus);
+      expect(useGitStore.getState().prData["__branchname:p1:feature"]).toEqual(basePr);
+      expect(useGitStore.getState().worktreeStatuses["/remote/awaiting-catalog"]).toEqual(
+        baseStatus,
+      );
+    },
+  );
+
   it("recomputes released v1 GitHub availability and repository caches without rewriting them", async () => {
     resetGitStoreCache();
     const previous = JSON.stringify({
@@ -170,6 +225,41 @@ describe("gitStore batch updates", () => {
     } finally {
       upgraded.resetGitStoreCache();
       localStorage.removeItem("poracode-git-cache-v1");
+      vi.resetModules();
+    }
+  });
+
+  it("migrates released v2 raw SSH statuses unconfirmed until a canonical refresh", async () => {
+    resetGitStoreCache();
+    const alias = {
+      ...baseStatus,
+      remoteInfo: { ...baseStatus.remoteInfo!, url: "git@github.com-personal:owner/repo.git" },
+    };
+    const resolvedSsh = {
+      ...baseStatus,
+      remoteInfo: { ...baseStatus.remoteInfo!, url: "ssh://git@github.com/owner/repo.git" },
+    };
+    localStorage.setItem(
+      "poracode-git-cache-v2",
+      JSON.stringify({ v: 2, ts: Date.now(), statuses: { p1: alias, p2: resolvedSsh } }),
+    );
+    vi.resetModules();
+    const upgraded = await import("./gitStore");
+    try {
+      expect(upgraded.useGitStore.getState().statuses).toEqual({ p1: alias, p2: resolvedSsh });
+      expect(repoIdentityKey(alias.remoteInfo)).toBeNull();
+      expect(repoIdentityKey(resolvedSsh.remoteInfo)).toBeNull();
+
+      const canonical = {
+        ...alias,
+        remoteInfo: { ...alias.remoteInfo!, url: "https://github.com/owner/repo.git" },
+      };
+      upgraded.useGitStore.getState().setProjectSnapshot("p1", { status: canonical });
+      expect(upgraded.useGitStore.getState().statuses.p1).toEqual(canonical);
+      expect(repoIdentityKey(canonical.remoteInfo)).toBe("https://github.com/owner/repo");
+      expect(repoIdentityKey(upgraded.useGitStore.getState().statuses.p2?.remoteInfo)).toBeNull();
+    } finally {
+      upgraded.resetGitStoreCache();
       vi.resetModules();
     }
   });
@@ -223,24 +313,29 @@ describe("gitStore batch updates", () => {
     expect(secondStatuses["/wt/b"]?.ahead).toBe(1);
   });
 
-  it("preserves matching full diff stats when a summary worktree status lands", () => {
-    useGitStore.getState().setWorktreeStatus("/wt/a", {
-      ...baseStatus,
-      unstaged: [
-        {
-          path: "src/changed.ts",
-          status: "M",
-          staged: false,
-          insertions: 8,
-          deletions: 2,
-        },
-      ],
-      totalInsertions: 8,
-      totalDeletions: 2,
-    });
+  it.each(["main", "worktree"] as const)(
+    "preserves matching full diff stats when a summary %s status lands",
+    (root) => {
+      const apply = (status: GitStatusResult) =>
+        root === "main"
+          ? useGitStore.getState().setStatus("p1", status)
+          : useGitStore.getState().setWorktreeStatuses({ "/wt/a": status });
+      apply({
+        ...baseStatus,
+        unstaged: [
+          {
+            path: "src/changed.ts",
+            status: "M",
+            staged: false,
+            insertions: 8,
+            deletions: 2,
+          },
+        ],
+        totalInsertions: 8,
+        totalDeletions: 2,
+      });
 
-    useGitStore.getState().setWorktreeStatuses({
-      "/wt/a": {
+      apply({
         detail: "summary",
         ...baseStatus,
         remoteInfo: null,
@@ -255,16 +350,20 @@ describe("gitStore batch updates", () => {
         ],
         totalInsertions: 0,
         totalDeletions: 0,
-      },
-    });
+      });
 
-    const status = useGitStore.getState().worktreeStatuses["/wt/a"]!;
-    expect(status.detail).toBe("summary");
-    expect(status.remoteInfo).toBe(baseStatus.remoteInfo);
-    expect(status.unstaged[0]).toMatchObject({ insertions: 8, deletions: 2 });
-    expect(status.totalInsertions).toBe(8);
-    expect(status.totalDeletions).toBe(2);
-  });
+      const status = (
+        root === "main"
+          ? useGitStore.getState().statuses.p1
+          : useGitStore.getState().worktreeStatuses["/wt/a"]
+      )!;
+      expect(status.detail).toBe("summary");
+      expect(status.remoteInfo).toBe(baseStatus.remoteInfo);
+      expect(status.unstaged[0]).toMatchObject({ insertions: 8, deletions: 2 });
+      expect(status.totalInsertions).toBe(8);
+      expect(status.totalDeletions).toBe(2);
+    },
+  );
 
   it("sums stats when staging a file that already has a staged entry (MM)", () => {
     const stagedM = {

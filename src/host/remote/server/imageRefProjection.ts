@@ -9,8 +9,20 @@ import {
 import { readImageDimensions } from "@/shared/imageDimensions";
 import { remoteImageRef, type RemoteImageRefValue } from "@/shared/remote";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
-import { dbGetThreadRuntimeItem, dbGetThreadRuntimeItemCommitted } from "@/host/db";
+import {
+  dbGetThreadRuntimeItem,
+  dbGetThreadRuntimeItemCommitted,
+  dbReadCommittedRuntimeItemImageBlob,
+  dbReadCommittedRuntimeItemImageRefMeta,
+  dbReadInlineImageBlobPreviewSource,
+} from "@/host/db";
+import { readVerifiedInlineImageRefs } from "@/host/db/runtimeInlineImages";
 import { canReadCommittedRuntimeItem } from "@/host/db/runtimePersistenceRuntime";
+import {
+  readCachedOrStoredCardVariant,
+  resolveCardVariant,
+  scheduleImageCardVariant,
+} from "./imageCardVariant";
 import { getCachedImagePreview, imagePreviewKey, scheduleImagePreview } from "./imagePreview";
 import { getCachedImageBytes, putCachedImageBytes } from "./imageBytesCache";
 
@@ -71,11 +83,37 @@ export function projectPayloadImageRefs(
   itemId: string,
   payload: unknown,
 ): { readonly payload: unknown; readonly omittedBytes: number } {
-  const locations = collectInlineImageLocationsDeep(payload);
-  if (locations.length === 0) return { payload, omittedBytes: 0 };
-
   let next = payload;
   let omittedBytes = 0;
+
+  const verifiedRefs = readVerifiedInlineImageRefs(payload);
+  if (verifiedRefs) {
+    for (const vRef of verifiedRefs.values()) {
+      const previewKey = `${imagePreviewKey(threadId, itemId, vRef.path)}\0${vRef.hash}`;
+      const preview = getCachedImagePreview(previewKey);
+      if (preview === undefined) {
+        scheduleExternalizedImagePreview(previewKey, vRef.bytes, vRef.hash);
+      }
+      scheduleExternalizedImageCardVariant(vRef.bytes, vRef.hash);
+      const ref: RemoteImageRefValue = {
+        threadId,
+        itemId,
+        path: vRef.path,
+        mime: vRef.mime,
+        bytes: vRef.bytes,
+        ...(vRef.width !== undefined && vRef.height !== undefined
+          ? { width: vRef.width, height: vRef.height }
+          : {}),
+        ...(preview ? { preview } : {}),
+      };
+      next = setAtPath(next, vRef.path, remoteImageRef(ref));
+      omittedBytes += vRef.bytes;
+    }
+  }
+
+  const locations = collectInlineImageLocationsDeep(next);
+  if (locations.length === 0 && omittedBytes === 0) return { payload, omittedBytes: 0 };
+
   for (const location of locations) {
     const bytes = Buffer.byteLength(location.value, "utf8");
     if (bytes < INLINE_IMAGE_REF_MIN_BYTES) continue;
@@ -99,6 +137,7 @@ export function projectPayloadImageRefs(
     next = setAtPath(next, location.path, remoteImageRef(ref));
     omittedBytes += bytes;
   }
+  if (omittedBytes === 0) return { payload, omittedBytes: 0 };
   return { payload: next, omittedBytes };
 }
 
@@ -143,9 +182,18 @@ export function resolveImageRef(
   // The coordinates come from a client, so a failed lookup must degrade to "no
   // such image" (404) rather than surfacing an internal error. This also keeps
   // the endpoint quiet on a host whose database is unavailable or mid-recovery.
+  try {
+    const direct = dbReadCommittedRuntimeItemImageBlob(threadId, itemId, path);
+    if (direct) return direct;
+  } catch {
+    return null;
+  }
   let item;
   try {
-    item = dbGetThreadRuntimeItemCommitted(threadId, itemId, { includeStreams: false });
+    item = dbGetThreadRuntimeItemCommitted(threadId, itemId, {
+      includeStreams: false,
+      rehydrateInlineImages: false,
+    });
   } catch {
     return null;
   }
@@ -179,6 +227,33 @@ export async function resolveImageRefAfterFence(
   return resolveImagePayload(item?.payload, path);
 }
 
+/**
+ * Resolves `?variant=card` for a reference, checking the persisted card-variant
+ * store by verified `blob_hash` before touching multi-MB `raw_bytes` in SQLite.
+ */
+export async function resolveImageRefCardVariantAfterFence(
+  threadId: string,
+  itemId: string,
+  path: InlineImagePath,
+): Promise<ResolvedRefImage | null> {
+  let blobVariantKey: string | undefined;
+  if (canReadCommittedRuntimeItem(threadId, itemId)) {
+    try {
+      const meta = dbReadCommittedRuntimeItemImageRefMeta(threadId, itemId, path);
+      if (meta) {
+        blobVariantKey = `blob:${meta.blobHash}`;
+        const fast = await readCachedOrStoredCardVariant(blobVariantKey);
+        if (fast) return fast;
+      }
+    } catch {
+      blobVariantKey = undefined;
+    }
+  }
+  const full = await resolveImageRefAfterFence(threadId, itemId, path);
+  if (!full) return null;
+  return resolveCardVariant(full, blobVariantKey);
+}
+
 function resolveImagePayload(payload: unknown, path: InlineImagePath): ResolvedRefImage | null {
   if (payload === undefined) return null;
   const value = readAtPath(payload, path);
@@ -205,6 +280,20 @@ function scheduleInlineImagePreview(
   classification: InlineImageClassification,
 ): void {
   scheduleImagePreview(key, sourceBytes, () => decodeInlineImage(value, classification));
+}
+
+function scheduleExternalizedImagePreview(
+  key: string,
+  sourceBytes: number,
+  blobHash: string,
+): void {
+  scheduleImagePreview(key, sourceBytes, () => dbReadInlineImageBlobPreviewSource(blobHash));
+}
+
+function scheduleExternalizedImageCardVariant(sourceBytes: number, blobHash: string): void {
+  scheduleImageCardVariant(`blob:${blobHash}`, sourceBytes, () =>
+    dbReadInlineImageBlobPreviewSource(blobHash),
+  );
 }
 
 /** Decodes an inline image string to raw bytes, or null when it is not one. */

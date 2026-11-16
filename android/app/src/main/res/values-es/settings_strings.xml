@@ -53,7 +53,7 @@
     <string name="settings_environment_windows">Windows</string>
     <string name="settings_environment_wsl">WSL</string>
     <string name="settings_agent_description">%1$s, %2$s, %3$s</string>
-    <string name="settings_usage_title">Uso de proveedores</string>
+    <string name="settings_usage_title">Uso</string>
     <string name="settings_usage_cached">Mostrando uso almacenado en caché.</string>
     <string name="settings_usage_empty">No hay datos de uso de proveedores disponibles.</string>
     <string name="settings_usage_empty_title">Sin datos de uso</string>
@@ -65,6 +65,12 @@
     <string name="settings_usage_quota_reached">Cuota alcanzada</string>
     <string name="settings_usage_unsupported">No compatible</string>
     <string name="settings_usage_meter_description">Uso de %1$s: %2$s</string>
+    <string name="settings_usage_pace_projected">≈%1$d%% para el restablecimiento</string>
+    <string name="settings_usage_pace_over">Por encima del ritmo — se agotará antes</string>
+    <string name="settings_usage_pace_ran_out">Agotado</string>
+    <string name="settings_usage_pace_ran_out_resets">Agotado · se restablece en %1$s</string>
+    <string name="settings_usage_pace_runs_out_in">Se agota en %1$s</string>
+    <string name="settings_usage_pace_runs_out_early">Se agota antes</string>
     <string name="settings_profile_identity">Identidad</string>
     <string name="settings_profile_identity_description">Este perfil se guarda en el escritorio seleccionado.</string>
     <string name="settings_profile_name">Nombre</string>
@@ -128,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">Tokens por proveedor</string>
     <string name="settings_profile_tokens_by_provider_empty">No hay datos de uso de tokens por proveedor disponibles.</string>
     <string name="settings_profile_provider_cost">Costo estimado</string>
+    <string name="settings_profile_trends">Reciente y tendencias</string>
+    <string name="settings_profile_yesterday">Ayer</string>
+    <string name="settings_profile_last_7d">Últimos 7 días</string>
+    <string name="settings_profile_avg_task_duration">Duración media de tarea</string>
+    <string name="settings_profile_prompt_cache_hit">Acierto de caché de prompts</string>
+    <string name="settings_profile_weekend_share">Cuota de fin de semana</string>
+    <string name="settings_profile_switched_provider">Cambio de proveedor</string>
+    <string name="settings_profile_switched_model">Cambio de modelo</string>
+    <string name="settings_profile_provider_less">%1$s bajó %2$d%% esta semana</string>
+    <string name="settings_profile_provider_more">%1$s subió %2$d%% esta semana</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s prompts</string>
 </resources>

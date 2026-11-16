@@ -44,6 +44,21 @@ describe("quickComposerSubmissionSchema", () => {
     expect(result.success ? null : result.error.issues[0]?.path).toEqual(["input", "prompt"]);
   });
 
+  it("preserves optional client receipts while retaining the released handoff shape", () => {
+    const legacy = { ...base, input: { ...base.input, prompt: "legacy" } };
+    expect(quickComposerSubmissionSchema.parse(legacy)).toEqual(legacy);
+    const current = {
+      ...base,
+      input: {
+        ...base.input,
+        prompt: "current",
+        threadId: "thread",
+        clientSubmissionId: "receipt",
+      },
+    };
+    expect(quickComposerSubmissionSchema.parse(current)).toEqual(current);
+  });
+
   it("accepts a plain text prompt", () => {
     const result = quickComposerSubmissionSchema.safeParse({
       ...base,

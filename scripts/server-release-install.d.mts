@@ -34,14 +34,43 @@ export declare function npmInstallRuntimeDependencies(
   },
 ): void;
 
+export declare const STANDALONE_RUNTIME_FILE: "standalone.json";
+export declare const STANDALONE_RUNTIME_KIND: "poracode-standalone-runtime";
+export declare const STANDALONE_RUNTIME_FORMAT_VERSION: 1;
+
+export declare class StandaloneRuntimeError extends Error {}
+
+export interface StandaloneRuntimeMarker {
+  readonly formatVersion: 1;
+  readonly kind: "poracode-standalone-runtime";
+  readonly version: string;
+  readonly target: string;
+  readonly node: { readonly version: string; readonly executable: string };
+  readonly [key: string]: unknown;
+}
+
+export declare function hostRuntimeTarget(): string;
+
+export declare function readStandaloneRuntimeMarker(
+  releaseDir: string,
+): StandaloneRuntimeMarker | null;
+
+export declare function standaloneNodeExecutable(
+  releaseDir: string,
+  marker: StandaloneRuntimeMarker,
+): string;
+
 export interface InstallServerReleaseOptions extends ExtractServerTarballOptions {
   readonly releaseDir: string;
   readonly skipNpmInstall?: boolean;
+  /** Test seam: the host target a standalone archive must match. */
+  readonly hostTarget?: string;
 }
 
 export declare function installServerRelease(options: InstallServerReleaseOptions): {
   readonly releaseDir: string;
   readonly overlayApplied: boolean;
+  readonly standalone: boolean;
 };
 
 export declare function writeCurrentSymlink(

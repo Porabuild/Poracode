@@ -7,6 +7,13 @@ import {
 } from "@/shared/contracts";
 import { defineSupervisorIpcHandlers, type SupervisorIpcHandlerMap } from "@/shared/ipc";
 import { getProjectFsPath } from "@/shared/wsl";
+import {
+  exportThreadTransferGit,
+  importThreadTransferGit,
+  inspectThreadTransferGit,
+  probeThreadTransferRepositories,
+  threadTransferGitHaves,
+} from "./git/threadTransferGit";
 import type { SupervisorRuntime } from "./supervisorRuntime";
 
 /**
@@ -59,6 +66,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     manageAgentCredentials: (payload) => registry.manageAgentCredentials(payload),
     manageModelProviders: (payload) => registry.manageModelProviders(payload),
     listWslDistros: () => registry.listWslDistros(),
+    resolveLinkMetadata: (payload) => runtime.resolveLinkMetadata(payload.url),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
     probeSelectedAgent: (payload) => registry.probeSelectedAgent(payload),
     cancelAgentDiscovery: () => registry.cancelAgentDiscovery(),
@@ -91,7 +99,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     getResourceAdmissionStatus: () => runtime.getResourceAdmissionStatus(),
     getTerminalShellSnapshots: () => threads.getTerminalShellSnapshots(),
     getAvailableWindowsShells: () => runtime.getAvailableWindowsShells(),
-    startThread: (payload) => threads.startThread(payload),
+    startThread: (payload) => threads.startThreadForIpc(payload),
     controlThreadExecution: (payload) => threads.controlThreadExecution(payload),
     reserveThreadExecution: (payload) => threads.reserveThreadExecution(payload),
     controlledThreadRequest: (payload) => threads.controlledThreadRequest(payload),
@@ -188,7 +196,10 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       return { ...result, message: payload.message };
     },
     gitInit: (payload) => git.init(payload.projectLocation),
-    gitAddRemote: (payload) => git.addRemote(payload.projectLocation, payload.remote, payload.url),
+    gitAddRemote: async (payload) => {
+      await git.addRemote(payload.projectLocation, payload.remote, payload.url);
+      reviews.invalidate(payload.projectLocation);
+    },
     evaluateScheduleCompletion: (payload) => generation.evaluateScheduleCompletion(payload),
     cancelScheduleCompletionEvaluation: ({ id }) =>
       generation.cancelScheduleCompletionEvaluation(id),
@@ -226,6 +237,11 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
         payload.ownerToken,
       ),
     gitRemoveWorktree: (payload) => runtime.gitRemoveWorktree(payload),
+    threadTransferInspectGit: (payload) => inspectThreadTransferGit(payload.projectLocation),
+    threadTransferRepoProbe: (payload) => probeThreadTransferRepositories(payload.projectLocations),
+    threadTransferGitHaves: (payload) => threadTransferGitHaves(payload.projectLocation),
+    threadTransferExportGit: (payload) => exportThreadTransferGit(payload),
+    threadTransferImportGit: (payload) => importThreadTransferGit(payload),
     gitPruneWorktrees: (payload) => runtime.gitPruneWorktrees(payload),
     gitDeleteBranch: (payload) =>
       payload.remote
@@ -289,10 +305,10 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     gitFinishMerge: (payload) =>
       git.finishMerge(payload.worktreeLocation, payload.reapplyStashCommit),
     gitWatchProject: async (payload) => {
-      runtime.projectWatcher.watch(payload.projectId, payload.projectLocation);
+      await runtime.projectWatcher.watch(payload.projectId, payload.projectLocation);
     },
     gitWatchWorktrees: async (payload) => {
-      runtime.projectWatcher.watchWorktrees(payload.projectId, payload.worktreePaths);
+      await runtime.projectWatcher.watchWorktrees(payload.projectId, payload.worktreePaths);
     },
     gitUnwatchProject: async (payload) => {
       await runtime.projectWatcher.unwatch(payload.projectId);
@@ -318,6 +334,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ghCheckAvailable: (payload) => reviews.checkAvailable(payload.projectLocation),
     ghCreatePr: (payload) => reviews.createPr(payload),
     ghGetPrForBranch: (payload) => reviews.getPrForBranch(payload),
+    ghPollPullRequests: (payload) => reviews.pollPullRequests(payload),
     ghListPrs: (payload) => reviews.listPrs(payload),
     ghListPullRequests: (payload) => reviews.listPullRequests(payload),
     ghListWorkflows: (payload) => github.listWorkflows(payload.projectLocation, payload.ghAccount),
@@ -412,6 +429,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     lspSendMessage: (payload) => lsp.sendMessage(payload),
     discoverExternalMcpServers: (payload) => externalMcpDiscovery.discover(payload),
     probeMcpServer: (payload) => mcpProbe.probe(payload),
+    controlMcpApp: (payload) => runtime.mcpAppsService.control(payload),
     beginMcpServerOauth: (payload) => mcpOAuth.begin(payload),
     controlMcpAuthentication: (payload) => runtime.mcpAuthenticationService.control(payload),
     waitMcpServerOauth: (payload) => mcpOAuth.wait(payload),

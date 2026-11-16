@@ -105,3 +105,43 @@ export function PaneDropRegistryProbe(props: {
   });
   return null;
 }
+
+export interface PaneRegistrySnapshot {
+  draggables: Array<{
+    id: string;
+    hasElement: boolean;
+    hasHandle: boolean;
+    elementConnected: boolean;
+  }>;
+  droppables: Array<{
+    id: string;
+    hasElement: boolean;
+    elementConnected: boolean;
+  }>;
+}
+
+export function PaneRegistrySnapshotProbe(props: {
+  snapshotRef: { current: () => PaneRegistrySnapshot };
+}) {
+  const manager = useDragDropManager();
+  const snapshotRef = props.snapshotRef;
+  useEffect(() => {
+    snapshotRef.current = () => ({
+      draggables: Array.from(manager?.registry.draggables.value ?? []).map((entry) => ({
+        id: String(entry.id),
+        hasElement: entry.element !== undefined,
+        hasHandle: entry.handle !== undefined,
+        elementConnected: Boolean(entry.element?.isConnected),
+      })),
+      droppables: Array.from(manager?.registry.droppables.value ?? []).map((entry) => ({
+        id: String(entry.id),
+        hasElement: entry.element !== undefined,
+        elementConnected: Boolean(entry.element?.isConnected),
+      })),
+    });
+    return () => {
+      snapshotRef.current = () => ({ draggables: [], droppables: [] });
+    };
+  });
+  return null;
+}

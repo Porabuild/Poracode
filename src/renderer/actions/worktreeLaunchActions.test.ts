@@ -52,7 +52,7 @@ describe("createWorktree", () => {
     bridge.gitAddWorktree.mockResolvedValue({ path: "C:\\shared-worktrees\\feature" });
   });
 
-  it("applies the shared creation payload for local projects", async () => {
+  it("places a project on this machine from this client's settings and the project's override", async () => {
     await createWorktree(project, {
       branch: "feature",
       startPoint: "main",
@@ -72,7 +72,7 @@ describe("createWorktree", () => {
     });
   });
 
-  it("does not send local placement settings to remote projects", async () => {
+  it("lets a paired host place the worktree from its own settings", async () => {
     await createWorktree(
       { ...project, remoteServerId: "desktop-1", remoteId: "project-1" },
       {

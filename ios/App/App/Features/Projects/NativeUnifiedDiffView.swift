@@ -209,7 +209,7 @@ struct NativeUnifiedDiffView: View {
         .foregroundColor(.secondary)
     case .hunk:
       Text(line.text)
-        .foregroundColor(.accentColor)
+        .foregroundColor(.primary)
     }
   }
 
@@ -238,7 +238,7 @@ struct NativeUnifiedDiffView: View {
 
   private func background(_ kind: NativeUnifiedDiffLineKind) -> Color {
     switch kind {
-    case .hunk: Color.accentColor.opacity(0.1)
+    case .hunk: Color.primary.opacity(0.1)
     case .addition: Color.green.opacity(0.09)
     case .deletion: Color.red.opacity(0.09)
     case .metadata, .context: .clear

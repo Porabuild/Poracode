@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GhListPullRequestsPayload,
   GhListPullRequestsResult,
+  GitStatusResult,
   Project,
   PullRequestSummary,
 } from "@/shared/contracts";
@@ -225,6 +226,85 @@ describe("usePullRequestListData", () => {
 
       expect(result.current.entries.map((entry) => entry.project.id)).toEqual(["checkout-b"]);
       expect(result.current.failures.map((failure) => failure.project.id)).toEqual(["checkout-a"]);
+    });
+  });
+
+  describe("one repository whose origin is known on every environment", () => {
+    const origin = {
+      remoteInfo: {
+        url: "https://github.com/owner/repo.git",
+        platform: "github",
+        owner: "owner",
+        repo: "repo",
+      },
+    } as GitStatusResult;
+
+    beforeEach(() => {
+      useRemoteServersStore.setState({
+        runtime: { "mac-online": runtime("online"), "mac-two": runtime("online") },
+      });
+      bridge.ghListPullRequests.mockResolvedValue({
+        pullRequests: [summary(1), summary(2)],
+        viewerLogin: "viewer",
+      });
+    });
+
+    it("asks one environment per repository and opens the review on the local one", async () => {
+      useAppStore.setState({
+        projects: [
+          project("mirror-a", "mac-online"),
+          project("local"),
+          project("mirror-b", "mac-two"),
+          project("unrelated"),
+        ],
+      });
+      useGitStore.setState({
+        statuses: {
+          "mirror-a": origin,
+          local: origin,
+          "mirror-b": origin,
+          unrelated: {
+            remoteInfo: {
+              url: "https://github.com/owner/other.git",
+              platform: "github",
+              owner: "owner",
+              repo: "other",
+            },
+          } as GitStatusResult,
+        },
+      });
+      bridge.ghListPullRequests.mockImplementation(async ({ projectLocation }) => ({
+        pullRequests: JSON.stringify(projectLocation).includes("unrelated")
+          ? [summary(3)]
+          : [summary(1), summary(2)],
+        viewerLogin: "viewer",
+      }));
+      const { result } = renderHook(() => usePullRequestListData({ state: "open" }));
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.projects.map((item) => item.id)).toEqual(["local", "unrelated"]);
+      expect(bridge.ghListPullRequests).toHaveBeenCalledTimes(2);
+      expect(result.current.entries.map((entry) => entry.project.id)).toEqual([
+        "local",
+        "local",
+        "unrelated",
+      ]);
+    });
+
+    it("lists reviews from the paired machine when the local copy is disabled", async () => {
+      useAppStore.setState({
+        projects: [{ ...project("local"), disabled: true }, project("mirror-a", "mac-online")],
+      });
+      useGitStore.setState({ statuses: { local: origin, "mirror-a": origin } });
+      const { result } = renderHook(() => usePullRequestListData({ state: "open" }));
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.entries.map((entry) => entry.project.id)).toEqual([
+        "mirror-a",
+        "mirror-a",
+      ]);
     });
   });
 });

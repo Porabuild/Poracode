@@ -4,6 +4,7 @@ import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
+import { runtimeThreadItemsChanged } from "@/renderer/state/runtimeItemChanges";
 import { currentProviderItemStart } from "./threadProviderEra";
 
 export type ThreadTodoStepStatus = PlanItemPayload["steps"][number]["status"];
@@ -45,15 +46,20 @@ export function selectThreadTodoDockState(
 ): ThreadTodoDockState | null {
   const itemIds = state.runtimeItemIdsByThread[threadId];
   const itemsById = state.runtimeItemsByIdByThread[threadId];
+  const itemsIndex = state.runtimeItemsByIdByThread;
   const cached = todoDockStateCache.get(threadId);
-  // The outer index changes on runtime updates even when an inner thread map
-  // is reused. Non-runtime updates can skip the search without retaining that
-  // outer snapshot or weakening plan/era invalidation.
+  const previousItemsIndex = cached?.itemsIndex.deref();
+  // Runtime snapshots replace the outer index even when this thread's inner
+  // map is untouched. Advance the weak key so the next commit can fast-hit.
   if (
     cached &&
     cached.itemIds === itemIds &&
-    cached.itemsIndex.deref() === state.runtimeItemsByIdByThread
+    previousItemsIndex !== undefined &&
+    !runtimeThreadItemsChanged(previousItemsIndex, itemsIndex, threadId)
   ) {
+    if (previousItemsIndex !== itemsIndex) {
+      cached.itemsIndex = new WeakRef(itemsIndex);
+    }
     return cached.result;
   }
   const latestPlanItem = selectLatestThreadPlanItem(itemIds, itemsById);
@@ -81,6 +87,54 @@ export function selectThreadTodoDockItem(
   const dockState = selectThreadTodoDockState(state, threadId);
   if (!dockState) return null;
   return state.runtimeItemsByIdByThread[threadId]?.[dockState.sourceItemId] ?? null;
+}
+
+export function clearThreadTodoDockStateCache(threadId: string): void {
+  todoDockStateCache.delete(threadId);
+}
+
+/**
+ * Current-era plan control IDs needed to keep `selectThreadTodoDockState` and
+ * in-place `item.updated` / `content.delta` plan mutations identical when
+ * older ordinary timeline history is trimmed out of the 6 MiB window.
+ */
+export function selectRetainedThreadPlanControlIds(
+  itemIds: readonly string[] | undefined,
+  itemsById: AppStoreState["runtimeItemsByIdByThread"][string] | undefined,
+): Set<string> {
+  const retained = new Set<string>();
+  if (!itemIds?.length || !itemsById) return retained;
+  const latestPlanItem = selectLatestThreadPlanItem(itemIds, itemsById);
+  if (latestPlanItem) retained.add(latestPlanItem.id);
+  const candidates = collectThreadPlanCandidates(itemIds, itemsById);
+  if (candidates.length === 0) return retained;
+  const lastIndex = candidates.length - 1;
+  retained.add(candidates[lastIndex]!.item.id);
+  const completedCounts = countCompletedSteps(candidates[lastIndex]!.dockState.steps);
+  let earliestNeededIndex = lastIndex;
+  for (let index = lastIndex - 1; index >= 0; index -= 1) {
+    if (
+      !arePlansCompatible(
+        candidates[index]!.dockState.steps,
+        candidates[index + 1]!.dockState.steps,
+      )
+    ) {
+      break;
+    }
+    const candidateCounts = countCompletedSteps(candidates[index]!.dockState.steps);
+    let contributesCompletedStep = false;
+    for (const [text, count] of candidateCounts) {
+      if (count > (completedCounts.get(text) ?? 0)) {
+        completedCounts.set(text, count);
+        contributesCompletedStep = true;
+      }
+    }
+    if (contributesCompletedStep) earliestNeededIndex = index;
+  }
+  for (let index = earliestNeededIndex; index <= lastIndex; index += 1) {
+    retained.add(candidates[index]!.item.id);
+  }
+  return retained;
 }
 
 export function getThreadTodoDockStateFromThreadItems(
@@ -251,15 +305,20 @@ function longestCommonStepSequenceLength(
   return lengths[nextTexts.length]![previousTexts.length]!;
 }
 
+function countCompletedSteps(steps: readonly ThreadTodoStep[]): Map<string, number> {
+  const completedCounts = new Map<string, number>();
+  for (const step of steps) {
+    if (step.status !== "completed") continue;
+    completedCounts.set(step.text, (completedCounts.get(step.text) ?? 0) + 1);
+  }
+  return completedCounts;
+}
+
 function carryForwardCompletedSteps(
   previousSteps: readonly ThreadTodoStep[],
   nextSteps: readonly ThreadTodoStep[],
 ): ReadonlyArray<ThreadTodoStep> {
-  const completedCounts = new Map<string, number>();
-  for (const step of previousSteps) {
-    if (step.status !== "completed") continue;
-    completedCounts.set(step.text, (completedCounts.get(step.text) ?? 0) + 1);
-  }
+  const completedCounts = countCompletedSteps(previousSteps);
   if (completedCounts.size === 0) return nextSteps;
 
   const seenCounts = new Map<string, number>();

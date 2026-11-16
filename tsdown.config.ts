@@ -136,11 +136,6 @@ export default defineConfig(
       ...shared,
     },
     {
-      entry: { legacyMigrationWorker: "src/backend/legacyMigrationWorker.ts" },
-      clean: false,
-      ...shared,
-    },
-    {
       entry: { preload: "src/main/preload.ts" },
       clean: false,
       ...shared,
@@ -151,6 +146,8 @@ export default defineConfig(
       entry: {
         supervisor: "src/supervisor/index.ts",
         wslStagingWorker: "src/supervisor/wsl/staging/worker.ts",
+        gitExecWorker: "src/supervisor/git/gitExecWorker.ts",
+        projectWatcherWorker: "src/supervisor/projectWatcherWorker.ts",
         ptyBroker: "src/supervisor/pty/ptyBroker.ts",
       },
       clean: false,
@@ -166,6 +163,7 @@ export default defineConfig(
       entry: {
         server: "src/server/cli.ts",
         databaseReadWorker: "src/host/db/databaseReadWorker.ts",
+        databaseWriteWorker: "src/host/db/databaseWriteWorker.ts",
         sessionExportWorker: "src/server/sessionExportWorker.ts",
       },
       clean: false,
@@ -247,6 +245,21 @@ export default defineConfig(
       entry: { piMcpExtension: "src/supervisor/agents/pi/mcpExtension.ts" },
       ...standaloneMcpOptions,
       target: "node22" as const,
+    },
+    {
+      // One process per relayed server per agent session: keep the MCP SDK and
+      // zod out of this bundle so each relay stays small.
+      entry: { mcpHttpRelayWorker: "src/supervisor/mcp/mcpHttpRelayWorker.ts" },
+      clean: false,
+      outDir: "dist/main",
+      platform: "node" as const,
+      format: "esm" as const,
+      target: "node22" as const,
+      sourcemap,
+      dts: false,
+      minify: isProd,
+      define: buildDefines,
+      deps,
     },
     {
       entry: { mcpStdioWorker: "src/supervisor/mcp/mcpStdioWorker.ts" },

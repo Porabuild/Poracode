@@ -5,11 +5,13 @@ export const PORACODE_WINDOW_KINDS = [
   "browserExtract",
   "quickComposer",
   "sideChat",
+  "thread",
 ] as const;
 export type PoracodeWindowKind = (typeof PORACODE_WINDOW_KINDS)[number];
 
 export const IPC_EVENT_CHANNELS = {
   sideChatWindowsChanged: createChannel("sideChatWindowsChanged"),
+  threadWindowsChanged: createChannel("threadWindowsChanged"),
   updateStatus: createChannel("updateStatus"),
   browserEvent: createChannel("browserEvent"),
   remoteThreadCommand: createChannel("remoteThreadCommand"),
@@ -41,6 +43,11 @@ export const IPC_WINDOW_CHANNELS = {
   sideChatBindThread: createChannel("sideChatBindThread"),
   sideChatThreadIds: createChannel("sideChatThreadIds"),
   sideChatReleased: createChannel("sideChatReleased"),
+  threadWindowOpen: createChannel("threadWindowOpen"),
+  threadWindowClose: createChannel("threadWindowClose"),
+  threadWindowNavigate: createChannel("threadWindowNavigate"),
+  threadWindowInfo: createChannel("threadWindowInfo"),
+  threadWindowIds: createChannel("threadWindowIds"),
   clientProcedureInvoke: createChannel("clientProcedureInvoke"),
   /** Off-main remote HTTP bridge admission (window-scoped native channel). */
   remoteHttpBridgeOpen: createChannel("remoteHttpBridgeOpen"),

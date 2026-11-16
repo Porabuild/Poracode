@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import { callerPluginOverrides } from "./pluginOverrides";
 import type { ProjectLocation, ScanSkillsPayload, SkillEntry } from "@/shared/contracts";
 import { requireProject, type AppControlsToolContext, type ToolDomain } from "./types";
 
@@ -68,9 +69,7 @@ export const skillTools: ToolDomain = {
     list_skills: async (args, ctx) => {
       const { projectId, query } = listArgsSchema.parse(args);
       const scope = projectId ? projectScope(ctx, projectId) : {};
-      const pluginOverrides = ctx.identity.threadId
-        ? ctx.getThread(ctx.identity.threadId)?.config.pluginOverrides
-        : undefined;
+      const pluginOverrides = callerPluginOverrides(ctx, projectId);
       const result = await ctx.supervisor.scanSkills({
         ...scope,
         ...(pluginOverrides ? { pluginOverrides } : {}),
@@ -92,9 +91,7 @@ export const skillTools: ToolDomain = {
     read_skill: async (args, ctx) => {
       const { skillId, projectId } = readArgsSchema.parse(args);
       const scope = projectId ? projectScope(ctx, projectId) : {};
-      const pluginOverrides = ctx.identity.threadId
-        ? ctx.getThread(ctx.identity.threadId)?.config.pluginOverrides
-        : undefined;
+      const pluginOverrides = callerPluginOverrides(ctx, projectId);
       const result = await ctx.supervisor.scanSkills({
         ...scope,
         ...(pluginOverrides ? { pluginOverrides } : {}),

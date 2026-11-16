@@ -1,9 +1,7 @@
 package com.poracode.app.ui.home
 
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,12 +10,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,18 +26,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.poracode.app.ui.richchat.RichChatSkillReference
 import com.poracode.app.ui.richchat.RichChatSlashCommandOption
-import com.poracode.app.ui.richchat.RichChatSlashSuggestions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.chat.RichPromptSegment
@@ -52,13 +48,16 @@ import com.poracode.app.session.projects.ProjectSessionRuntime
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.session.threads.ThreadSessionRuntime
 import com.poracode.app.ui.components.rememberCameraCapture
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
 import com.poracode.app.ui.richchat.AttachmentUiError
 import com.poracode.app.ui.richchat.RichChatMentionCatalog
-import com.poracode.app.ui.richchat.RichChatSuggestionList
 import com.poracode.app.ui.richchat.UploadedAttachment
 import com.poracode.app.ui.richchat.attachmentSaver
 import com.poracode.app.ui.richchat.promptSegmentsSaver
 import com.poracode.app.ui.richchat.uploadAttachmentForThread
+import com.poracode.app.ui.theme.PoracodeMetrics
+import com.poracode.app.ui.theme.PoracodeRadius
+import com.poracode.app.ui.theme.PoracodeTheme
 import java.util.UUID
 
 @Composable
@@ -114,6 +113,7 @@ internal fun HomeQuickComposeOverlay(
         mutableStateOf(emptyList<RichPromptSegment>())
     }
     var showingControls by remember { mutableStateOf(false) }
+    var showingAddMenu by remember { mutableStateOf(false) }
     var showingWorktrees by remember { mutableStateOf(false) }
     var showingCommands by remember { mutableStateOf(false) }
     var createdWorktree by remember { mutableStateOf<HomeQuickComposeWorktree?>(null) }
@@ -242,9 +242,9 @@ internal fun HomeQuickComposeOverlay(
         }
     }
 
-    BackHandler(onBack = onDismiss)
+    val backModifier = rememberPredictiveBackModifier(onBack = onDismiss)
     val scrimInteraction = remember { MutableInteractionSource() }
-    Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize().then(backModifier)) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -255,100 +255,106 @@ internal fun HomeQuickComposeOverlay(
                     onClick = onDismiss,
                 ),
         )
+        val colors = PoracodeTheme.colors
+        val paneTitleText = stringResource(R.string.home_new_thread)
+        val sheetShape = RoundedCornerShape(
+            topStart = PoracodeRadius.sheet,
+            topEnd = PoracodeRadius.sheet,
+        )
         androidx.compose.material3.Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .imePadding()
                 .navigationBarsPadding()
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            border = BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-            ),
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            tonalElevation = 6.dp,
+                .fillMaxWidth(),
+            shape = sheetShape,
+            color = colors.surface,
             shadowElevation = 18.dp,
         ) {
-            if (hasLaunchTarget) {
-                val project = checkNotNull(project)
+            Column(
+                modifier = Modifier.semantics {
+                    paneTitle = paneTitleText
+                },
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(colors.hairline),
+                )
                 Column(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.padding(
+                        horizontal = PoracodeMetrics.pageInline,
+                        vertical = 8.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    HomeQuickComposeHeader(onDismiss)
-                    HomeQuickComposeTargetSelectors(
-                        project = project,
-                        projects = projects,
-                        agents = agents,
-                        selectedAgent = selectedAgent,
-                        defaultAgentKind = defaults?.agentKind.orEmpty(),
-                        availableModes = availableModes,
-                        selectedMode = normalizedMode,
-                        onProjectSelected = {
-                            projectId = it
-                            selectedAgentKind = ""
-                            configurationSelectionKey = null
-                            failed = false
-                        },
-                        onAgentSelected = {
-                            selectedAgentKind = it
-                            configurationSelectionKey = null
-                            selectedSkill = null
-                            queuedMentionSegments = queuedMentionSegments.filterNot { it is RichPromptSegment.Skill }
-                        },
-                        onModeSelected = {
-                            selectedPresentationWireValue = it
-                            configurationSelectionKey = null
-                            selectedSkill = null
-                            queuedMentionSegments = queuedMentionSegments.filterNot { it is RichPromptSegment.Skill }
-                        },
-                    )
+                    if (hasLaunchTarget) {
+                        val project = checkNotNull(project)
+                        HomeQuickComposeChipRow(
+                            project = project,
+                            projects = projects,
+                            agents = agents,
+                            selectedAgent = selectedAgent,
+                            defaultAgentKind = defaults?.agentKind.orEmpty(),
+                            onProjectSelected = {
+                                projectId = it
+                                selectedAgentKind = ""
+                                configurationSelectionKey = null
+                                failed = false
+                            },
+                            onAgentSelected = {
+                                selectedAgentKind = it
+                                configurationSelectionKey = null
+                                selectedSkill = null
+                                queuedMentionSegments = queuedMentionSegments.filterNot { it is RichPromptSegment.Skill }
+                            },
+                            onDismiss = onDismiss,
+                        )
 
-                    val skillReference = RichChatSkillReference.atCaret(
-                        prompt, inputValue.selection.start, inputValue.selection.end,
-                    )
-                    val skillSuggestions = if (skillReference == null) emptyList() else slashCommands
-                        .mapNotNull { command ->
-                            command.skill?.takeIf { it.name.contains(skillReference.query, ignoreCase = true) }
-                                ?.let { skill ->
-                                    RichChatSlashCommandOption(command.id, skill.name, command.label, command.description, command.argumentHint, skill)
+                        val skillReference = RichChatSkillReference.atCaret(
+                            prompt, inputValue.selection.start, inputValue.selection.end,
+                        )
+                        val skillSuggestions = if (skillReference == null) emptyList() else slashCommands
+                            .mapNotNull { command ->
+                                command.skill?.takeIf { it.name.contains(skillReference.query, ignoreCase = true) }
+                                    ?.let { skill ->
+                                        RichChatSlashCommandOption(command.id, skill.name, command.label, command.description, command.argumentHint, skill)
+                                    }
+                            }.take(6)
+                        val modelSummary = selectedCatalog?.let { catalog ->
+                            buildList {
+                                catalog.modelLabel(configuration.model)
+                                    .takeIf { it.isNotBlank() }?.let(::add)
+                                catalog.displayEffort(configuration)?.let { effort ->
+                                    catalog.effortLabel(configuration.model, effort)
+                                        .takeIf { it.isNotBlank() }?.let(::add)
                                 }
-                        }.take(6)
-                    RichChatSlashSuggestions(skillSuggestions, onSelect = { option ->
-                        val reference = skillReference ?: return@RichChatSlashSuggestions
-                        option.skill?.let { skill ->
-                            if (queuedMentionSegments.none { it == skill }) queuedMentionSegments += skill
-                        }
-                        prompt = reference.removingToken(prompt)
-                        editorValue = TextFieldValue(prompt, TextRange(reference.start))
-                    })
-
-                    OutlinedTextField(
-                        value = inputValue,
-                        onValueChange = {
-                            editorValue = it
-                            prompt = it.text
-                            failed = false
-                            selectedSkill = selectedSkill?.takeIf { skill ->
-                                it.text.contains(skill.invocation)
-                            }
-                        },
-                        placeholder = { Text(stringResource(R.string.home_quick_compose_prompt)) },
-                        minLines = 3,
-                        maxLines = 7,
-                        shape = MaterialTheme.shapes.large,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                            .testTag("home_new_thread_prompt"),
-                    )
-
-                    if (mentionSuggestions.isNotEmpty()) {
-                        RichChatSuggestionList(
-                            options = mentionSuggestions,
-                            onSelect = { option ->
+                            }.joinToString(" · ")
+                        }?.ifBlank { null }
+                            ?: configuration.model.ifBlank { "default" }
+                        HomeQuickComposeInputCard(
+                            inputValue = inputValue,
+                            onPromptEdit = {
+                                editorValue = it
+                                prompt = it.text
+                                failed = false
+                                selectedSkill = selectedSkill?.takeIf { skill ->
+                                    it.text.contains(skill.invocation)
+                                }
+                            },
+                            focusRequester = focusRequester,
+                            skillSuggestions = skillSuggestions,
+                            onSkillSelect = { option ->
+                                val reference = skillReference ?: return@HomeQuickComposeInputCard
+                                option.skill?.let { skill ->
+                                    if (queuedMentionSegments.none { it == skill }) queuedMentionSegments += skill
+                                }
+                                prompt = reference.removingToken(prompt)
+                                editorValue = TextFieldValue(prompt, TextRange(reference.start))
+                            },
+                            mentionSuggestions = mentionSuggestions,
+                            onMentionSelect = { option ->
                                 option.mcpConfigKey?.let {
                                     configuration = RichChatMentionCatalog.enableMcp(it, configuration)
                                 }
@@ -357,79 +363,78 @@ internal fun HomeQuickComposeOverlay(
                                 }
                                 prompt = RichChatMentionCatalog.consumeTrailingMention(prompt)
                             },
+                            queuedMentionSegments = queuedMentionSegments,
+                            onRemoveMentionSegment = {
+                                queuedMentionSegments = queuedMentionSegments - it
+                            },
+                            attachments = attachments,
+                            onRemoveAttachment = { attachments -= it },
+                            selectedSkill = selectedSkill,
+                            modelSummary = modelSummary,
+                            providerLabel = selectedAgent?.let { it.label.ifBlank { it.kind } }
+                                ?: defaults?.agentKind.orEmpty(),
+                            controlsEnabled = selectedCatalog != null && state.canSessionOperate,
+                            onOpenControls = { showingControls = true },
+                            canOperate = state.canSessionOperate,
+                            busy = busy,
+                            uploading = uploading,
+                            canStart = (prompt.isNotBlank() || queuedMentionSegments.isNotEmpty() ||
+                                attachments.isNotEmpty()) && !busy && !uploading &&
+                                state.canSessionOperate,
+                            onOpenAddMenu = { showingAddMenu = true },
+                            onStart = {
+                                launchHomeQuickCompose(
+                                    scope = scope,
+                                    runtime = runtime,
+                                    project = project,
+                                    threadId = threadId,
+                                    defaults = defaults,
+                                    selectedAgent = selectedAgent,
+                                    catalog = selectedCatalog,
+                                    configuration = configuration,
+                                    prompt = prompt,
+                                    presentationMode = normalizedMode,
+                                    worktree = selectedWorktree,
+                                    skill = selectedSkill,
+                                    mentionSegments = queuedMentionSegments,
+                                    attachments = attachments,
+                                    onFailure = { failed = true },
+                                    onStarted = {
+                                        onDismiss()
+                                        onStarted(it)
+                                    },
+                                )
+                            },
                         )
-                    }
-
-                    if (queuedMentionSegments.isNotEmpty()) {
-                        HomeQuickComposeMentionChips(queuedMentionSegments) {
-                            queuedMentionSegments = queuedMentionSegments - it
-                        }
-                    }
-
-                    if (attachments.isNotEmpty()) {
-                        HomeQuickComposeAttachmentChips(attachments) { attachments -= it }
-                    }
-
-                    HomeQuickComposeContextChips(
-                        worktreeBranch = selectedWorktree?.branch,
-                        showControls = selectedCatalog != null,
-                        showCommands = slashCommands.isNotEmpty(),
-                        onPickWorktree = { showingWorktrees = true },
-                        onOpenControls = { showingControls = true },
-                        onOpenCommands = { showingCommands = true },
-                    )
-
-                    selectedSkill?.let { skill ->
-                        Text(
-                            skill.invocation,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                        HomeQuickComposeBranchRow(
+                            worktreeBranch = selectedWorktree?.branch,
+                            showCommands = slashCommands.isNotEmpty(),
+                            onPickWorktree = { showingWorktrees = true },
+                            onOpenCommands = { showingCommands = true },
                         )
+                        HomeQuickComposeErrors(failed, attachmentError)
+                    } else {
+                        Box(Modifier.padding(18.dp)) { HomeQuickComposeUnavailable(onDismiss) }
                     }
-                    HomeQuickComposeErrors(failed, attachmentError)
-
-                    HomeQuickComposeLaunchBar(
-                        agent = selectedAgent,
-                        defaultAgentKind = defaults?.agentKind.orEmpty(),
-                        model = configuration.model,
-                        canOperate = state.canSessionOperate,
-                        busy = busy,
-                        uploading = uploading,
-                        canStart = (prompt.isNotBlank() || queuedMentionSegments.isNotEmpty() ||
-                            attachments.isNotEmpty()) && !busy && !uploading &&
-                            state.canSessionOperate,
-                        onCaptureFromCamera = captureFromCamera,
-                        onPickAttachment = { attachmentLauncher.launch(arrayOf("*/*")) },
-                        onStart = {
-                            launchHomeQuickCompose(
-                                scope = scope,
-                                runtime = runtime,
-                                project = project,
-                                threadId = threadId,
-                                defaults = defaults,
-                                selectedAgent = selectedAgent,
-                                catalog = selectedCatalog,
-                                configuration = configuration,
-                                prompt = prompt,
-                                presentationMode = normalizedMode,
-                                worktree = selectedWorktree,
-                                skill = selectedSkill,
-                                mentionSegments = queuedMentionSegments,
-                                attachments = attachments,
-                                onFailure = { failed = true },
-                                onStarted = {
-                                    onDismiss()
-                                    onStarted(it)
-                                },
-                            )
-                        },
-                    )
                 }
-            } else {
-                Box(Modifier.padding(18.dp)) { HomeQuickComposeUnavailable(onDismiss) }
             }
         }
     }
+
+    HomeQuickComposeAddSheet(
+        showing = showingAddMenu,
+        canOperate = state.canSessionOperate,
+        uploading = uploading,
+        onDismiss = { showingAddMenu = false },
+        onAttach = {
+            showingAddMenu = false
+            attachmentLauncher.launch(arrayOf("*/*"))
+        },
+        onCamera = {
+            showingAddMenu = false
+            captureFromCamera()
+        },
+    )
 
     HomeQuickComposeSheetHost(
         showControls = showingControls,
@@ -437,6 +442,14 @@ internal fun HomeQuickComposeOverlay(
         showCommands = showingCommands,
         catalog = selectedCatalog,
         configuration = configuration,
+        availableModes = availableModes,
+        selectedMode = normalizedMode,
+        onModeSelected = {
+            selectedPresentationWireValue = it
+            configurationSelectionKey = null
+            selectedSkill = null
+            queuedMentionSegments = queuedMentionSegments.filterNot { it is RichPromptSegment.Skill }
+        },
         worktrees = (worktrees + listOfNotNull(createdWorktree)).distinctBy { it.path },
         currentBranch = currentBranch,
         selectedWorktree = selectedWorktree,

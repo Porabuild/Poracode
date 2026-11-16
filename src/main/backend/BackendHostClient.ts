@@ -29,6 +29,7 @@ import {
 } from "@/shared/backendHostProtocol";
 import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
+import { restoreBackendDiagnosticError } from "@/shared/diagnostics/backendDiagnosticError";
 import type { IpcQueueCapture, IpcQueueSample } from "@/shared/diagnostics/ipcQueueSample";
 import type {
   IpcProcedurePayload,
@@ -418,7 +419,10 @@ export class BackendHostClient {
         this.options.onNativeEvent?.(message.event);
         return;
       case "error":
-        this.options.reportError?.(new Error(message.message), message.tags);
+        this.options.reportError?.(
+          restoreBackendDiagnosticError(message.message, message.diagnostic),
+          message.tags,
+        );
     }
   }
 

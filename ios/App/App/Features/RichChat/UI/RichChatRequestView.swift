@@ -57,7 +57,7 @@ private struct RichChatRequestCard: View {
         Button(RichChatStrings.value("rich_chat_submit", "Submit")) {
           resolve(Array(selected))
         }
-        .buttonStyle(.borderedProminent)
+        .poracodeGlassButtonStyle()
         .disabled(!canResolve || selected.isEmpty || isResolving)
       } else {
         ViewThatFits(in: .horizontal) {
@@ -81,12 +81,12 @@ private struct RichChatRequestCard: View {
     ForEach(options, id: \.optionID) { option in
       if option.optionID == options.first?.optionID {
         Button(option.label) { resolve([option.optionID]) }
-          .buttonStyle(.borderedProminent)
+          .poracodeGlassButtonStyle()
           .disabled(!canResolve || isResolving)
           .accessibilityIdentifier("native-e2e.request.option.\(option.optionID)")
       } else {
         Button(option.label) { resolve([option.optionID]) }
-          .buttonStyle(.bordered)
+          .poracodeSurfaceButtonStyle()
           .disabled(!canResolve || isResolving)
           .accessibilityIdentifier("native-e2e.request.option.\(option.optionID)")
       }

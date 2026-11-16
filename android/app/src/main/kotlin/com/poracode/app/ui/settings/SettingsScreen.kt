@@ -1,19 +1,14 @@
 package com.poracode.app.ui.settings
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,8 +21,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.poracode.app.R
 import com.poracode.app.push.PushUiState
 import com.poracode.app.storage.DeviceSettingsPreferences
+import com.poracode.app.ui.components.PoracodeTopAppBar
+import com.poracode.app.ui.components.rememberPredictiveBackModifier
 import com.poracode.app.ui.components.rememberReducedMotion
 import com.poracode.app.ui.components.sharedAxisX
+import com.poracode.app.ui.theme.PoracodeIcons
 
 /** Material settings hierarchy: device index, selected desktop index, then detail. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,18 +103,18 @@ fun SettingsScreen(
         }
         routeName = (route.parent() ?: SettingsRoute.DeviceIndex).name
     }
-    BackHandler(onBack = navigateBack)
+    val backModifier = rememberPredictiveBackModifier(onBack = navigateBack)
     val reducedMotion = rememberReducedMotion()
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.then(backModifier),
         topBar = {
-            TopAppBar(
+            PoracodeTopAppBar(
                 title = { Text(settingsRouteTitle(route)) },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
                         Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
+                            PoracodeIcons.ArrowBack,
                             stringResource(R.string.settings_back),
                         )
                     }
@@ -141,7 +139,7 @@ fun SettingsScreen(
                                 else -> access.canRead
                             },
                         ) {
-                            Icon(Icons.Outlined.Refresh, stringResource(R.string.settings_refresh))
+                            Icon(PoracodeIcons.Refresh, stringResource(R.string.settings_refresh))
                         }
                     }
                 },

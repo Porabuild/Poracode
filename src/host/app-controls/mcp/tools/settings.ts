@@ -13,11 +13,15 @@ export { REDACTED_VALUE, redactMcpServer, restoreRedactedTransport };
  * with sealed API keys/tokens; profile secrets are edited only via the
  * dedicated encrypting path. `mcpServers` transport values carry secrets and a
  * deep-merged array write would clobber other servers' real (unredacted)
- * values — it is edited only through add/update/remove_mcp_server. The
+ * values — it is edited only through add/update/remove_mcp_server.
+ * `computerUseLockedUse` lets a Computer Use turn unlock the Mac, so an agent
+ * must never grant it to itself; only the user turns it on in Settings. The
  * remaining keys are supervisor-managed.
  */
 const PROTECTED_SETTINGS_KEYS: ReadonlySet<string> = new Set([
   "agentInstances",
+  "computerUseLockedUse",
+  "computerUseLockedUseDimDisplay",
   "acpRegistryInstalledAgents",
   "acpRegistryAutoInstallOptOuts",
   "agentHookSupport",

@@ -44,6 +44,7 @@ struct ProjectIntegrationsView: View {
               .onChange(of: server.enabled) {
                 save()
               }
+              .poracodeSwitchStyle()
             }
           }
           .listStyle(.insetGrouped)

@@ -5,6 +5,7 @@ import type { AppStoreState } from "@/renderer/state/appStore";
 import {
   areThreadTodoStepsEqual,
   getThreadTodoDockStateForItem,
+  selectRetainedThreadPlanControlIds,
   selectThreadTodoDockItem,
   selectThreadTodoDockState,
 } from "./threadTodoState";
@@ -378,5 +379,95 @@ describe("threadTodoState", () => {
     } as unknown as AppStoreState;
 
     expect(selectThreadTodoDockState(state, "t1")).toMatchObject({ sourceItemId: "plan-2" });
+  });
+
+  it("retains only current-era plan controls needed for carry-forward and empty streaming plans", () => {
+    const itemsById: AppStoreState["runtimeItemsByIdByThread"][string] = {
+      "pre-handoff-plan": {
+        id: "pre-handoff-plan",
+        type: "plan",
+        state: "updated",
+        payload: { steps: [{ step: "Step A", status: "completed" }] },
+        streams: {},
+      },
+      "handoff-1": {
+        id: "handoff-1",
+        type: "provider_handoff",
+        state: "completed",
+        payload: {
+          fromAgentKind: "claude",
+          toAgentKind: "codex",
+          at: "2026-08-30T00:00:00Z",
+        },
+        streams: {},
+      },
+      "incompatible-plan": {
+        id: "incompatible-plan",
+        type: "plan",
+        state: "updated",
+        payload: { steps: [{ step: "Unrelated task", status: "completed" }] },
+        streams: {},
+      },
+      "redundant-plan": {
+        id: "redundant-plan",
+        type: "plan",
+        state: "updated",
+        payload: {
+          steps: [
+            { step: "Step 1", status: "completed" },
+            { step: "Step 2", status: "pending" },
+          ],
+        },
+        streams: {},
+      },
+      "contributing-plan": {
+        id: "contributing-plan",
+        type: "plan",
+        state: "updated",
+        payload: {
+          steps: [
+            { step: "Step 1", status: "completed" },
+            { step: "Step 2", status: "completed" },
+            { step: "Step 3", status: "pending" },
+          ],
+        },
+        streams: {},
+      },
+      "latest-candidate": {
+        id: "latest-candidate",
+        type: "plan",
+        state: "updated",
+        payload: {
+          steps: [
+            { step: "Step 1", status: "pending" },
+            { step: "Step 2", status: "pending" },
+            { step: "Step 3", status: "in_progress" },
+          ],
+        },
+        streams: {},
+      },
+      "empty-streaming-plan": {
+        id: "empty-streaming-plan",
+        type: "plan",
+        state: "started",
+        payload: {},
+        streams: {},
+      },
+    };
+    const itemIds = [
+      "pre-handoff-plan",
+      "handoff-1",
+      "incompatible-plan",
+      "redundant-plan",
+      "contributing-plan",
+      "latest-candidate",
+      "empty-streaming-plan",
+    ];
+    const retained = selectRetainedThreadPlanControlIds(itemIds, itemsById);
+    expect([...retained]).toEqual([
+      "empty-streaming-plan",
+      "latest-candidate",
+      "contributing-plan",
+    ]);
   });
 });

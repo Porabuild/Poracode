@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="projects_manage_title">Gerenciar projetos</string>
+    <string name="projects_manage_title">Projetos</string>
     <string name="projects_add_title">Adicionar projeto</string>
     <string name="projects_add_existing">Adicionar existente</string>
     <string name="projects_create_new">Criar novo</string>

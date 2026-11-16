@@ -1,6 +1,7 @@
 import { Button } from "@heroui/react";
 import { useLayoutEffect, useRef } from "react";
 import { useLingui } from "@lingui/react/macro";
+import { useShallow } from "zustand/react/shallow";
 import type { MessageItemPayload } from "@/shared/contracts";
 import {
   floatingGlassBubbleClass,
@@ -11,16 +12,19 @@ import {
   compactInlinePieces,
   hasChipPiece,
   inlinePiecesFromContent,
+  inlinePiecesFromText,
 } from "@/renderer/components/promptChips/promptInlinePieces";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useChatFindStore } from "@/renderer/state/chatFindStore";
 import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice";
 import type { ChatTimelineEntry } from "./chatPaneSelectors";
 import { buildUserPromptPreview } from "./parts/items/userPromptText";
-import { findStickyPromptIndex } from "./stickyPromptTarget";
-import { useVisibleRowRange } from "./useVisibleRowRange";
+import { buildRailPrompts, selectUserPromptIndexes } from "./promptRailTarget";
+import { findStickyPromptIndex, type VisibleRowRange } from "./stickyPromptTarget";
+import { useThreadPromptIndex } from "./useThreadPromptIndex";
 
 const PROMPT_HANDOFF_GAP_PX = 8;
+const NO_PROMPT_INDEXES: number[] = [];
 
 interface StickyPromptProps {
   threadId: string;
@@ -28,7 +32,10 @@ interface StickyPromptProps {
   scrollElement: HTMLDivElement | null;
   /** False while the transcript is still hidden for its initial scroll. */
   isEnabled: boolean;
+  /** Rows overlapping the transcript viewport, measured once by the overlays. */
+  visibleRange: VisibleRowRange | null;
   onScrollToEntry: (index: number) => void;
+  onJumpToPrompt: (itemId: string) => void;
 }
 
 /**
@@ -42,13 +49,15 @@ export function StickyPrompt({
   entries,
   scrollElement,
   isEnabled,
+  visibleRange,
   onScrollToEntry,
+  onJumpToPrompt,
 }: StickyPromptProps) {
   const { t } = useLingui();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLDivElement>(null);
   const isFindOpen = useChatFindStore((state) => state.activeThreadId === threadId);
-  const firstVisibleIndex = useVisibleRowRange(scrollElement, entries)?.first ?? null;
+  const firstVisibleIndex = visibleRange?.first ?? null;
   const promptItemId = useAppStore((state) => {
     if (firstVisibleIndex === null) return null;
     const itemsById = state.runtimeItemsByIdByThread[threadId];
@@ -58,43 +67,86 @@ export function StickyPrompt({
     });
     return promptIndex === null ? null : (entries[promptIndex]?.id ?? null);
   });
+  const firstVisibleIsPrompt = useAppStore((state) => {
+    const entry = firstVisibleIndex === null ? undefined : entries[firstVisibleIndex];
+    return (
+      entry?.kind === "item" &&
+      state.runtimeItemsByIdByThread[threadId]?.[entry.id]?.type === "user_message"
+    );
+  });
+  const needsIndexedPrompt =
+    isEnabled &&
+    !isFindOpen &&
+    firstVisibleIndex !== null &&
+    !firstVisibleIsPrompt &&
+    !promptItemId;
+  const hostPromptIndex = useThreadPromptIndex(threadId, needsIndexedPrompt);
+  const loadedPromptIndexes = useAppStore(
+    useShallow((state) =>
+      needsIndexedPrompt ? selectUserPromptIndexes(state, threadId, entries) : NO_PROMPT_INDEXES,
+    ),
+  );
+  const indexedPrompt =
+    needsIndexedPrompt && hostPromptIndex
+      ? buildRailPrompts(hostPromptIndex, entries, loadedPromptIndexes).findLast(
+          (prompt) => prompt.loadedIndex === null,
+        )
+      : undefined;
+  const stickyItemId = promptItemId ?? indexedPrompt?.id ?? null;
   const promptItem = useAppStore((state) =>
     promptItemId === null ? undefined : state.runtimeItemsByIdByThread[threadId]?.[promptItemId],
   );
   const payload = promptItem
     ? getRuntimeItemPayload<MessageItemPayload>(promptItem, "user_message")
     : undefined;
-  const preview = payload ? buildUserPromptPreview(payload.content) : null;
+  const preview = payload
+    ? buildUserPromptPreview(payload.content)
+    : indexedPrompt
+      ? (buildUserPromptPreview([{ kind: "text", text: indexedPrompt.text }]) ?? t`Prompt`)
+      : null;
   const previewPieces = payload
     ? compactInlinePieces(inlinePiecesFromContent(payload.content))
-    : [];
+    : indexedPrompt
+      ? compactInlinePieces(inlinePiecesFromText(indexedPrompt.text))
+      : [];
 
   useLayoutEffect(() => {
-    if (!scrollElement || promptItemId === null || preview === null || !isEnabled || isFindOpen)
+    if (!scrollElement || stickyItemId === null || preview === null || !isEnabled || isFindOpen)
       return;
     const wrapper = wrapperRef.current;
     const bar = barRef.current;
     if (!wrapper || !bar) return;
-    const promptIndex = entries.findIndex((entry) => entry.id === promptItemId);
-    let observedRows = new Set<HTMLElement>();
+    const promptIndex = entries.findIndex((entry) => entry.id === stickyItemId);
+    let observedRows = new Map<HTMLElement, HTMLElement | null>();
+    let rowsChanged = true;
     const updatePosition = () => {
+      // Scrolling changes geometry, not row membership. Rediscover prompts
+      // only when virtual rows or prompt markers change.
+      if (rowsChanged) {
+        rowsChanged = false;
+        const rows = new Map(
+          [...scrollElement.querySelectorAll<HTMLElement>("[data-chat-virtual-row]")].map(
+            (row) => [row, row.querySelector<HTMLElement>("[data-user-message]")] as const,
+          ),
+        );
+        for (const row of observedRows.keys()) {
+          if (!rows.has(row)) observer.unobserve(row);
+        }
+        for (const row of rows.keys()) {
+          if (!observedRows.has(row)) observer.observe(row);
+        }
+        observedRows = rows;
+      }
       const stickyBottom =
         wrapper.getBoundingClientRect().top +
         Number.parseFloat(getComputedStyle(wrapper).paddingTop || "0") +
         bar.offsetHeight;
       let nextPromptTop = Number.POSITIVE_INFINITY;
-      const rows = new Set(scrollElement.querySelectorAll<HTMLElement>("[data-chat-virtual-row]"));
-      for (const row of observedRows) {
-        if (!rows.has(row)) observer.unobserve(row);
-      }
-      for (const row of rows) {
-        if (!observedRows.has(row)) observer.observe(row);
+      for (const [row, prompt] of observedRows) {
         const index = Number(row.dataset.index);
         if (index <= promptIndex || entries[index]?.id !== row.dataset.itemId) continue;
-        const prompt = row.querySelector<HTMLElement>("[data-user-message]");
         if (prompt) nextPromptTop = Math.min(nextPromptTop, prompt.getBoundingClientRect().top);
       }
-      observedRows = rows;
       bar.style.transform = `translateY(${Math.min(0, nextPromptTop - stickyBottom - PROMPT_HANDOFF_GAP_PX)}px)`;
     };
     let frame: number | null = null;
@@ -106,17 +158,39 @@ export function StickyPrompt({
       });
     };
     const observer = new ResizeObserver(schedule);
+    const markers = "[data-chat-virtual-row], [data-user-message]";
+    const containsMarker = (node: Node) =>
+      node instanceof Element && (node.matches(markers) || node.querySelector(markers) !== null);
+    const mutationObserver = new MutationObserver((records) => {
+      if (
+        !records.some(
+          (record) =>
+            record.type === "attributes" ||
+            [...record.addedNodes, ...record.removedNodes].some(containsMarker),
+        )
+      )
+        return;
+      rowsChanged = true;
+      schedule();
+    });
+    mutationObserver.observe(scrollElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-chat-virtual-row", "data-user-message", "data-index", "data-item-id"],
+    });
     observer.observe(scrollElement);
     updatePosition();
     scrollElement.addEventListener("scroll", schedule, { passive: true });
     return () => {
       scrollElement.removeEventListener("scroll", schedule);
       observer.disconnect();
+      mutationObserver.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [scrollElement, entries, promptItemId, preview, isEnabled, isFindOpen]);
+  }, [scrollElement, entries, stickyItemId, preview, isEnabled, isFindOpen]);
 
-  if (!isEnabled || isFindOpen || promptItemId === null || preview === null) return null;
+  if (!isEnabled || isFindOpen || stickyItemId === null || preview === null) return null;
 
   // The wrapper reserves the same scrollbar gutter as the transcript scroller,
   // so the bar spans exactly the rows' 920px column and covers the text below.
@@ -131,8 +205,9 @@ export function StickyPrompt({
           size="sm"
           aria-label={t`Scroll to prompt: ${preview}`}
           onPress={() => {
-            const index = entries.findIndex((entry) => entry.id === promptItemId);
+            const index = entries.findIndex((entry) => entry.id === stickyItemId);
             if (index >= 0) onScrollToEntry(index);
+            else onJumpToPrompt(stickyItemId);
           }}
           className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} pointer-events-auto h-7 w-full min-w-0 justify-start rounded-full px-3 text-muted transition-colors hover:text-foreground`}
         >

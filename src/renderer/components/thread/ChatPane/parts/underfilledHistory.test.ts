@@ -94,6 +94,54 @@ describe("underfilled history", () => {
     expect(onStartReached).toHaveBeenCalledTimes(2);
   });
 
+  it.each([true, false])(
+    "pauses the same tool group and permits explicit paging (layout before settle: %s)",
+    async (layoutBeforeSettle) => {
+      const trigger = createUnderfilledHistoryTrigger();
+      const page = Promise.withResolvers<boolean>();
+      const onStartReached = vi
+        .fn<HistoryStartReached>()
+        .mockReturnValueOnce(page.promise)
+        .mockResolvedValue(false);
+      trigger.measure({
+        ...measured("tool-5000", onStartReached),
+        oldestGroup: { headId: "tool-5000", tailId: "tool-9999" },
+      });
+      const older = {
+        ...measured("tool-0", onStartReached),
+        oldestGroup: { headId: "tool-0", tailId: "tool-9999" },
+      };
+      if (layoutBeforeSettle) trigger.measure(older);
+      page.resolve(true);
+      await page.promise;
+      if (!layoutBeforeSettle) trigger.measure(older);
+      for (let index = 0; index < 20; index++) trigger.measure(older);
+      expect(onStartReached).toHaveBeenCalledOnce();
+      expect(trigger.retry(older)).toBe(true);
+      expect(onStartReached).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each([
+    { name: "hidden child rows", headId: "tool-head", tailId: "tool-tail" },
+    { name: "a different visible group", headId: "older-head", tailId: "older-tail" },
+  ])("continues when a page supplies $name", async ({ headId, tailId }) => {
+    const trigger = createUnderfilledHistoryTrigger();
+    const page = Promise.withResolvers<boolean>();
+    const onStartReached = vi
+      .fn<HistoryStartReached>()
+      .mockReturnValueOnce(page.promise)
+      .mockResolvedValue(false);
+    trigger.measure({
+      ...measured("oldest", onStartReached),
+      oldestGroup: { headId: "tool-head", tailId: "tool-tail" },
+    });
+    trigger.measure({ ...measured("older", onStartReached), oldestGroup: { headId, tailId } });
+    page.resolve(true);
+    await page.promise;
+    expect(onStartReached).toHaveBeenCalledTimes(2);
+  });
+
   it.each([false, true])(
     "does not retry failed paging-state commits and permits one explicit retry (reject: %s)",
     async (reject) => {

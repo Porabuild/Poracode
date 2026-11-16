@@ -14,7 +14,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.app.ui.components.PoracodeTextField
+import androidx.compose.material3.FilledTonalButton
 
 /** Localized menu labels for the shared panel capabilities. */
 @Composable
@@ -112,7 +113,7 @@ private fun ReviseSuggestionReview(
         )
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = { onInsert(suggestion) }, enabled = enabled) {
+        FilledTonalButton(onClick = { onInsert(suggestion) }, enabled = enabled) {
             Text(stringResource(R.string.rich_chat_session_revise_insert))
         }
         OutlinedButton(onClick = onDiscard) {
@@ -141,21 +142,21 @@ private fun ReviseCommandForm(
             stringResource(R.string.rich_chat_session_action_revise),
             style = MaterialTheme.typography.titleMedium,
         )
-        OutlinedTextField(
+        PoracodeTextField(
             value = command,
             onValueChange = { command = it },
             label = { Text(stringResource(R.string.rich_chat_session_revise_command_field)) },
             enabled = enabled && !isPending,
             modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        PoracodeTextField(
             value = note,
             onValueChange = { note = it },
             label = { Text(stringResource(R.string.rich_chat_session_revise_note_field)) },
             enabled = enabled && !isPending,
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(
+        FilledTonalButton(
             onClick = { onSubmit(normalizedCommand, note.trim()) },
             enabled = enabled && !isPending && normalizedCommand.isNotEmpty(),
         ) {

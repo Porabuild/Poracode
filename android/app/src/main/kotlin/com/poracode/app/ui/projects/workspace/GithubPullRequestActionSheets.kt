@@ -13,7 +13,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -38,12 +37,15 @@ import com.poracode.app.model.GithubRequests
 import com.poracode.app.model.ProjectWorkspaceTarget
 import com.poracode.app.session.projects.GithubOperationsController
 import com.poracode.app.session.projects.ForgeReviewEntry
+import com.poracode.app.ui.components.PoracodeTextField
 import kotlinx.coroutines.launch
 import com.poracode.app.protocol.github.GithubProcedure
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonArray
+import com.poracode.app.ui.components.PoracodeSwitch
+import androidx.compose.material3.FilledTonalButton
 
 /** The three review mutations that need structured input, mirroring the iOS review action sheet. */
 internal enum class PullRequestActionSheet { Review, Comment, Merge }
@@ -128,7 +130,7 @@ internal fun PullRequestActionSheetHost(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(adminLabel)
-                        Switch(admin, null, Modifier.clearAndSetSemantics {})
+                        PoracodeSwitch(admin, null, Modifier.clearAndSetSemantics {})
                     }
                     }
                 }
@@ -137,7 +139,7 @@ internal fun PullRequestActionSheetHost(
                 TextButton(onDismiss, Modifier.weight(1f)) {
                     Text(stringResource(R.string.git_cancel))
                 }
-                Button(
+                FilledTonalButton(
                     onClick = {
                         submitting = true
                         scope.launch {
@@ -159,7 +161,7 @@ internal fun PullRequestActionSheetHost(
 
 @Composable
 private fun BodyEditor(value: String, onValueChange: (String) -> Unit) {
-    OutlinedTextField(
+    PoracodeTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(stringResource(R.string.github_body)) },
@@ -228,10 +230,10 @@ internal fun GithubCreatePullRequest(
     var branch by rememberSaveable(target.identity) { mutableStateOf("") }
     var base by rememberSaveable(target.identity) { mutableStateOf("") }
     Column(Modifier.padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.github_pr_title)) })
-        OutlinedTextField(branch, { branch = it }, label = { Text(stringResource(R.string.github_head_branch)) })
-        OutlinedTextField(base, { base = it }, label = { Text(stringResource(R.string.github_base_branch)) })
-        Button(
+        PoracodeTextField(title, { title = it }, label = { Text(stringResource(R.string.github_pr_title)) })
+        PoracodeTextField(branch, { branch = it }, label = { Text(stringResource(R.string.github_head_branch)) })
+        PoracodeTextField(base, { base = it }, label = { Text(stringResource(R.string.github_base_branch)) })
+        FilledTonalButton(
             onClick = {
                 scope.launch {
                     controller.execute(
@@ -265,7 +267,7 @@ internal fun ForgeCommentEditor(comment: PullRequestCommentRow, threadId: String
     var saving by remember(forge.source, forge.number, threadId, comment.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     if (editing) {
-        OutlinedTextField(draft, { draft = it }, enabled = !forge.mutating && !saving, label = { Text(stringResource(R.string.github_body)) }, modifier = Modifier.fillMaxWidth())
+        PoracodeTextField(draft, { draft = it }, enabled = !forge.mutating && !saving, label = { Text(stringResource(R.string.github_body)) }, modifier = Modifier.fillMaxWidth())
         Row {
             TextButton(onClick = {
                 saving = true

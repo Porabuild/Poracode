@@ -1,4 +1,10 @@
 import {
+  isClientDraftAsset,
+  retainClientDraftAsset,
+} from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import { DraftRecoveryNotice } from "@/renderer/components/composer/DraftRecoveryNotice";
+import { mergeDraftContent } from "@/renderer/state/projectReferences";
+import {
   useEffect,
   useEffectEvent,
   useId,
@@ -12,7 +18,9 @@ import { toast } from "@heroui/react";
 import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
+import { isThreadTurnActive, resolveLaunchPluginOverrides } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { sendTerminalInput } from "../terminal/terminalInputQueue";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
@@ -25,6 +33,7 @@ import {
   clearThreadPendingSteer,
 } from "@/renderer/actions/threadRuntimeActions";
 import { openMcpServersSettings } from "@/renderer/actions/panelActions";
+import { trackThreadAttachmentImport } from "@/renderer/actions/threadWindowActions";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
@@ -53,25 +62,20 @@ import {
 } from "../composer/MentionInput";
 import { useThreadMentionItems } from "../composer/useThreadMentionItems";
 import { useCrewMentionItems } from "../crew/useCrewMentionItems";
-import {
-  attachmentsFromPaths,
-  storableAttachment,
-  storableAttachments,
-  useAttachments,
-  type SaveClipboardImage,
-} from "../composer/useAttachments";
+import { attachmentsFromPaths, useAttachments } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
-import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
-import { usesBridgeThreadImages } from "@/renderer/components/thread/threadImageReadiness";
-import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
+import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
+import { useAttachmentImageAuthority } from "@/renderer/components/thread/threadImageAuthority";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
+import { peekPendingThreadLaunch } from "@/renderer/state/threadLaunchIntents";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
+import { useBrowserAttachInboxDrain } from "./useBrowserAttachInboxDrain";
 import {
+  drainComposerInputsInto,
   useComposerInputInbox,
   worktreeComposerInboxKey,
 } from "@/renderer/state/composerInputInbox";
@@ -116,6 +120,7 @@ import { hasReportedContextUsage, resolveThreadContextUsageSummary } from "./thr
 import { buildControls, type ActiveComposerCrewHandlers } from "./buildModelPickerControls";
 import { machineKeyForLocation } from "@/shared/machines";
 import { submitComposerPrompt } from "./threadComposerSubmit";
+import { selectThreadResumePlan } from "./threadResumeState";
 import {
   filterSlashCommands,
   handleSlashCommandPanelKeyDown,
@@ -131,7 +136,8 @@ import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import { selectPendingMessageReplyIds } from "./messageReplyForms";
 import { ThreadResumeUnavailableDock } from "./ThreadResumeUnavailableDock";
 import { ThreadHistoryNoticeDock, useVisibleThreadHistoryNotice } from "./ThreadHistoryNoticeDock";
-import { ThreadRemoteSyncDock, useThreadRemoteSyncWarning } from "./ThreadRemoteSyncDock";
+import { ThreadHostOfflineDock } from "./ThreadHostOfflineDock";
+import { useEntityHostOffline } from "@/renderer/hooks/useEntityHostReady";
 import { ThreadHistoryLoadFailureDock } from "./ThreadHistoryLoadFailureDock";
 import {
   usePluginMentionItems,
@@ -165,7 +171,8 @@ type ThreadComposerSectionProps = {
   /** Called after a send is accepted, including queued and steered sends. */
   onSubmitSuccess?: (() => void) | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
-  saveClipboardImage?: SaveClipboardImage | undefined;
+  importFiles?: ((files: readonly File[]) => Promise<string[]>) | undefined;
+
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
   /** Compact only: space the floating dock covers above the pane bottom. */
@@ -263,6 +270,7 @@ function ComposerAfterControls({ renderExtras, renderVoiceInput }: ComposerAfter
 }
 
 function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread: Thread }) {
+  useAgentSlashCommandCatalog(props.thread.remoteServerId, props.thread.agentKind);
   const implicitMcpServers = useImplicitMcpServers();
   const captureClientContext = useTurnClientContextCapture();
   const {
@@ -285,11 +293,23 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
   const compactLayout = useCompactLayout();
-  const isRemoteSurface = isRemoteSession();
-  const browserImageReadiness = useRemoteBridgeImageReadiness();
-  const docksPlacement = compactLayout ? requestedDocksPlacement : "right";
+  // Two independent facts. A browser client is a different kind of client: no
+  // native file paths, no desktop-internal event frames, its own input
+  // conventions. A thread on another host lives on a machine whose terminal,
+  // filesystem and settings this one does not share. Each use below names the
+  // one it depends on; `hostIsLocalToClient` is for what needs both absent.
+  const isBrowserClient = isRemoteSession();
+  const threadOnThisMachine = hostRunsOnThisMachine(thread);
+  const hostIsLocalToClient = threadOnThisMachine && !isBrowserClient;
+  const { importFiles } = props;
+  // Thread windows have no right panel to host the docks.
+  const docksPlacement =
+    readBridge().windowKind === "thread"
+      ? "composer"
+      : compactLayout
+        ? requestedDocksPlacement
+        : "right";
   const docksInComposer = docksPlacement === "composer";
-  const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
   const showVoiceInputButton = voiceInputEnabled;
   const mentionRef = useRef<MentionInputHandle>(null);
@@ -311,32 +331,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }, [thread.id, thread.status]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const attachments = useAttachments({
-    ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
+    onDraftChange: () => checkpointDraft(),
+    source: { ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}) },
   });
   // Remote-thread attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = thread.remoteServerId;
-  const remoteImageServer = useRemoteServersStore((state) =>
-    remoteDesktopId
-      ? state.servers.find(
-          (server) => (server.connectionId ?? server.desktopId) === remoteDesktopId,
-        )
-      : undefined,
-  );
-  const attachmentImageUrlForPath = remoteDesktopId
-    ? (path: string) =>
-        usesBridgeThreadImages(remoteDesktopId)
-          ? remoteBridgeLocalImageUrl(path)
-          : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
-    : undefined;
-  // Host-owned environment attachments resolve through the keyed readiness
-  // subscription; direct/ssh keep their synchronous endpoint URL.
-  const remoteImageReadiness =
-    remoteDesktopId && remoteImageServer
-      ? useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
-      : isRemoteSurface
-        ? browserImageReadiness
-        : undefined;
+  const { imageUrlForPath: attachmentImageUrlForPath, readiness: remoteImageReadiness } =
+    useAttachmentImageAuthority(remoteDesktopId);
   // Unsent composer content survives leaving this thread. The primary GUI pane
   // keeps this section mounted across thread switches; restore before paint
   // without exposing another thread's editor state.
@@ -344,10 +346,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const clearThreadDraftContent = useAppStore((s) => s.clearThreadDraftContent);
   // The MentionInput owns the live editor DOM; mirror its latest serialized
   // segments here for draft checkpoints without reading a detached editor.
-  // Attachments are synced every render below.
+  // Attachment changes checkpoint directly from the hook's live reference.
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
-  const attachmentsRef = useRef(attachments.attachments);
-  attachmentsRef.current = attachments.attachments;
   // True only while a real submit is in flight. Terminal/CLI threads clear the
   // composer *after* the send resolves (the synchronous pre-send clear below is
   // GUI-only), so skip checkpoints while the old text awaits acknowledgement.
@@ -380,22 +380,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }
   const preparedThreadIdRef = useRef<string | null>(null);
   const restoredThreadIdRef = useRef<string | null>(null);
-  const pendingPickedAttachments = useBrowserAttachInbox((s) => s.itemsByThread[thread.id]);
-  const addPickedRef = useRef(attachments.addPicked);
-  addPickedRef.current = attachments.addPicked;
-  useEffect(() => {
-    if (!pendingPickedAttachments || pendingPickedAttachments.length === 0) return;
-    const drained = useBrowserAttachInbox.getState().drain(thread.id);
-    for (const item of drained) {
-      addPickedRef.current({
-        path: item.attachmentPath,
-        name: item.attachmentName,
-        mimeType: item.mimeType,
-        selector: item.selector,
-        sourceUrl: item.sourceUrl,
-      });
-    }
-  }, [pendingPickedAttachments, thread.id]);
+  useBrowserAttachInboxDrain(thread.id, attachments.addPicked);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
   const commandListId = useId();
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
@@ -462,8 +447,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const launchCustomMcpNames = useAppStore(
     (s) => s.mcpLaunchCustomServerNamesByThreadId[thread.id],
   );
+  // The launch snapshot behind these names was resolved from this machine's
+  // settings, so it describes a provider-owned MCP set only when the thread's
+  // host is this machine.
   const customMcpServers = (
-    providerOwnsMcp && usesRemoteTransport ? [] : (launchCustomMcpNames ?? [])
+    providerOwnsMcp && !threadOnThisMachine ? [] : (launchCustomMcpNames ?? [])
   ).map((name) => ({
     id: name,
     name,
@@ -509,12 +497,25 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
+  const projectPluginOverrides = useAppStore(
+    (s) => s.projects.find((candidate) => candidate.id === thread.projectId)?.pluginOverrides,
+  );
+  const pluginOverrides = resolveLaunchPluginOverrides(
+    projectPluginOverrides,
+    thread.config.pluginOverrides,
+  );
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     projectLocation,
     thread.agentKind,
     presentationMode,
+    pluginOverrides,
   );
-  const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
+  const pluginMentions = usePluginMentionItems(
+    projectLocation,
+    thread.agentKind,
+    presentationMode,
+    pluginOverrides,
+  );
   // One row per tool: a plugin that wraps a built-in server replaces that
   // server's own mention instead of sitting next to an identical row, and only
   // while this thread actually carries that server.
@@ -567,7 +568,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     authState: effectiveAgentStatus?.authState,
     errorDockStates,
   });
-  const canShowRuntimeChrome = !usesTerminalPresentation || usesRemoteTransport;
+  // A terminal thread this client reaches directly draws its runtime chrome in
+  // its TUI; one on another host or seen from a browser has the composer show it.
+  const canShowRuntimeChrome = !usesTerminalPresentation || !hostIsLocalToClient;
   const isServerControlled =
     effectiveAgentStatus?.capabilities.liveInputMode === "server" || !usesTerminalPresentation;
   const isTerminalInput = effectiveAgentStatus?.capabilities.liveInputMode === "terminal";
@@ -578,9 +581,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !usesTerminalPresentation &&
     thread.sessionRef !== undefined &&
     thread.status === "working";
+  const hasPendingInitialLaunch =
+    !usesTerminalPresentation &&
+    thread.sessionRef === undefined &&
+    peekPendingThreadLaunch(thread.id) !== undefined;
   const canRecoverGuiInput =
     !usesTerminalPresentation &&
-    (thread.sessionRef !== undefined || thread.canResumeWithConfig) &&
+    (thread.sessionRef !== undefined || thread.canResumeWithConfig || hasPendingInitialLaunch) &&
     (thread.status === "inactive" || thread.status === "error");
   const canSubmitServerInput =
     isServerControlled &&
@@ -625,7 +632,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   });
   const showErrorInComposer =
     !hideInfoDocks &&
-    (!usesTerminalPresentation || usesRemoteTransport) &&
+    (!usesTerminalPresentation || !hostIsLocalToClient) &&
     errorDockStates.length > 0 &&
     !hasRuntimeAuthError;
   const hasActiveSubAgent =
@@ -640,10 +647,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     compactLayout || collapseTerminalComposerSetting,
   );
   const composerSectionRef = useRef<HTMLDivElement | null>(null);
-  const canCollapseComposer = compactLayout || (showTerminalComposer && !isRemoteSurface);
+  const canCollapseComposer = compactLayout || (showTerminalComposer && !isBrowserClient);
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
   const shouldAutoFocusComposer =
-    paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isRemoteSurface);
+    paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isBrowserClient);
   const setComposerUi = useComposerUiStore((s) => s.setComposerUi);
   const branchName = useGitStore(
     (s) =>
@@ -829,6 +836,21 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !authRequired &&
     !attachments.isUploading;
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
+  // A turn cut off by an error or a restart is picked back up from an empty
+  // composer, so nobody has to type "continue".
+  const resumePlan = useAppStore((s) =>
+    (thread.interruptedTurn || (thread.status === "error" && hasPendingInitialLaunch)) &&
+    !usesTerminalPresentation
+      ? selectThreadResumePlan(s, thread.id)
+      : null,
+  );
+  const canResume =
+    resumePlan !== null &&
+    canSubmit &&
+    !isThreadTurnActive(thread.status) &&
+    !hasContent &&
+    attachments.attachments.length === 0 &&
+    !threadVoiceActive;
   const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath =
@@ -860,16 +882,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     historyNotice && !usesTerminalPresentation ? (
       <ThreadHistoryNoticeDock threadId={thread.id} entry={historyNotice} />
     ) : null;
-  // Remote sync warnings used to sit above the transcript; every chat warning
-  // now lives in the composer's notice stack.
-  const remoteSyncWarning = useThreadRemoteSyncWarning(thread);
-  const showRemoteSyncWarning = remoteSyncWarning !== null && !usesTerminalPresentation;
+  // Every chat warning lives in the composer's notice stack, including a lost
+  // connection to the thread's host, whichever host that is.
+  const hostOffline = useEntityHostOffline(thread);
+  const showHostOfflineWarning = hostOffline && !usesTerminalPresentation;
   const composerNotices =
-    historyNoticeDock || historyLoadFailed || showRemoteSyncWarning || resumeUnavailableNotice ? (
+    historyNoticeDock || historyLoadFailed || showHostOfflineWarning || resumeUnavailableNotice ? (
       <>
         {historyNoticeDock}
         {historyLoadFailed ? <ThreadHistoryLoadFailureDock threadId={thread.id} /> : null}
-        {showRemoteSyncWarning ? <ThreadRemoteSyncDock thread={thread} /> : null}
+        {showHostOfflineWarning ? <ThreadHostOfflineDock /> : null}
         {resumeUnavailableNotice}
       </>
     ) : null;
@@ -927,8 +949,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     },
   });
 
-  function writeTerminalInput(data: string) {
-    return readBridge().writeTerminal({ threadId: thread.id, data });
+  function sendTerminalShortcut(data: string): void {
+    if (!sendTerminalInput(thread.id, data)) {
+      toast.danger(
+        t`Terminal input failed. Some input may not have reached the shell. Reopen the terminal before typing again.`,
+      );
+    }
   }
 
   function restoreComposerFocus() {
@@ -936,11 +962,16 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     useAppStore.getState().requestComposerFocus(thread.id);
   }
 
-  function submitPrompt(segments: PromptSegment[], behavior: FollowUpBehavior = followUpBehavior) {
+  function submitPrompt(
+    segments: PromptSegment[],
+    behavior: FollowUpBehavior = followUpBehavior,
+    resumesInterruptedTurn = false,
+  ) {
     if (attachments.hasPendingUploads()) return;
     const composerSession = composerSessionRef.current;
-    submitComposerPrompt(segments, {
+    void submitComposerPrompt(segments, {
       thread,
+      resumesInterruptedTurn,
       agentStatus: effectiveAgentStatus,
       presentationMode,
       usesTerminalPresentation,
@@ -975,6 +1006,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         }
       },
     });
+  }
+
+  function resumeInterruptedTurn() {
+    if (!resumePlan) return;
+    const content =
+      resumePlan.kind === "resend" ? resumePlan.prompt : t`Continue from where you left off.`;
+    submitPrompt([{ kind: "text", content }], followUpBehavior, true);
   }
 
   const handlePromptRecallKey = usePromptRecall({
@@ -1017,13 +1055,24 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     const composer = mentionRef.current;
     if (!composer || !revertedContent) return;
     const draft = revertedPromptToDraft(revertedContent, availableCommands);
-    const previousAttachments = attachments.getAttachments().map(storableAttachment);
+    const previousAttachments = attachments.getDraftAttachments();
+    const historyAssets = [
+      ...new Set(
+        [...previousAttachments, ...draft.attachments]
+          .map((attachment) => attachment.path)
+          .filter(isClientDraftAsset),
+      ),
+    ];
+    const historyLeases = historyAssets.map(retainClientDraftAsset);
     // Undoable, so Ctrl+Z brings back whatever the user had typed and attached
     // before the revert.
     composer.restoreFromSegments(draft.segments, {
       undoable: {
         undo: () => attachments.swap(draft.attachments, previousAttachments),
         redo: () => attachments.swap(previousAttachments, draft.attachments),
+        dispose: () => {
+          for (const release of historyLeases.splice(0)) release();
+        },
       },
     });
     latestSegmentsRef.current = draft.segments;
@@ -1065,6 +1114,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       attachments.restore(saved.attachments);
     }
     restoredThreadIdRef.current = thread.id;
+    checkpointDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/restore is keyed to the active thread and editor mount; attachment/editor methods are read from this render
   }, [editorMounted, thread.id]);
 
@@ -1078,17 +1128,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     ) {
       return;
     }
-    let composerHasContent = composer.serializeSegments().length > 0;
-    for (const key of [fallbackComposerInboxKey, thread.id]) {
-      const items = useComposerInputInbox.getState().drain(key);
-      for (const segments of items) {
-        const separator: PromptSegment[] = composerHasContent
-          ? [{ kind: "text", content: "\n\n" }]
-          : [];
-        composer.insertSegments([...separator, ...segments], { atEnd: true, focus: false });
-        composerHasContent = true;
-      }
-    }
+    drainComposerInputsInto(composer, [fallbackComposerInboxKey, thread.id]);
   }, [
     editorMounted,
     fallbackComposerInboxKey,
@@ -1109,27 +1149,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }, [compactLayout, collapseTerminalComposerSetting]);
 
   function checkpointDraft() {
-    if (restoredThreadIdRef.current !== thread.id || submittedRef.current) return;
+    if (restoredThreadIdRef.current !== thread.id) return;
     const content = {
       segments: latestSegmentsRef.current,
-      attachments: storableAttachments(attachmentsRef.current),
+      attachments: attachments.getDraftAttachments(),
     };
     if (isDraftContentNonEmpty(content)) saveThreadDraftContent(thread.id, content);
-    else clearThreadDraftContent(thread.id);
+    else if (!submittedRef.current) clearThreadDraftContent(thread.id);
   }
-
-  useEffect(() => {
-    // A thread switch clears/restores attachments in a layout effect. Wait for
-    // that commit before reading their live refs; never checkpoint the old pane.
-    let active = true;
-    queueMicrotask(() => {
-      if (active && composerSessionRef.current.threadId === thread.id) checkpointDraft();
-    });
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- checkpoint reads live refs for this composer session
-  }, [thread.id, attachments.attachments]);
 
   useEffect(() => {
     if (isComposerCollapsed) {
@@ -1214,7 +1241,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             keyboardKey={thread.id}
             scrimLabel={t`Collapse composer`}
             collapsedTapLabel={resumeUnavailableMessage ?? t`Send a message...`}
-            inputHasContent={hasContent}
+            // The collapsed pill pins its send slot only for typed prompts; the
+            // resume button needs the same pinned slot on an empty one.
+            inputHasContent={hasContent || canResume}
             expansionLocked={activeRuntimeRequest !== undefined}
             onDockHeightChange={(height, dock) => {
               const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
@@ -1240,6 +1269,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     agentStatus={agentStatus}
                     notice={composerNotices}
                     onRestoreComposerFocus={restoreComposerFocus}
+                    onSubmitInput={props.onSubmitInput}
                     {...(props.onOpenProjectRelativePath
                       ? {
                           onOpenPlanFile: (path: string) => props.onOpenProjectRelativePath?.(path),
@@ -1306,6 +1336,28 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         : "opacity 200ms cubic-bezier(0.16,1,0.3,1)",
                   }}
                 >
+                  <DraftRecoveryNotice
+                    kind="thread"
+                    ownerId={thread.id}
+                    pending={isSubmitting}
+                    onRestore={(saved, replace) => {
+                      const restored = replace
+                        ? saved
+                        : mergeDraftContent(
+                            {
+                              segments:
+                                mentionRef.current?.serializeSegments() ??
+                                latestSegmentsRef.current,
+                              attachments: attachments.getDraftAttachments(),
+                            },
+                            saved,
+                          );
+                      mentionRef.current?.restoreFromSegments(restored.segments);
+                      latestSegmentsRef.current = restored.segments;
+                      attachments.restore(restored.attachments);
+                      saveThreadDraftContent(thread.id, restored);
+                    }}
+                  />
                   <ThreadComposer
                     attachmentDropScope={usesTerminalPresentation ? "composer" : "panel"}
                     autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
@@ -1369,6 +1421,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             ? { onTodoDockRetire: props.onTodoDockRetire }
                             : {})}
                           onCancelPendingSteer={() => clearThreadPendingSteer(thread.id)}
+                          onSubmitInput={props.onSubmitInput}
                           {...(props.onOpenProjectRelativePath
                             ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
                             : {})}
@@ -1392,10 +1445,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               imageAttachments,
                               idx,
                               attachmentImageUrlForPath,
+                              remoteImageReadiness,
                             );
                           }
                         }}
-                        onPreviewPdf={(att) => openPdfPreview(att.path)}
+                        onPreviewPdf={(att) => openPdfPreview(att)}
                         {...(attachmentImageUrlForPath
                           ? { imageUrlForPath: attachmentImageUrlForPath }
                           : {})}
@@ -1450,7 +1504,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         onSubmit={submitPrompt}
                         onPasteImage={(file: File) => {
                           void attachments
-                            .addClipboardImage(file, thread.id)
+                            .addClipboardImage(file)
                             .catch((error: unknown) => toast.danger(friendlyError(error)));
                         }}
                         onInterceptKey={(e) => {
@@ -1500,9 +1554,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           if (showTerminalComposer) {
                             if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
                               e.preventDefault();
-                              void writeTerminalInput("\x1b[Z").catch((error: unknown) => {
-                                toast.danger(friendlyError(error));
-                              });
+                              sendTerminalShortcut("\x1b[Z");
                               return true;
                             }
                             if (
@@ -1512,9 +1564,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               e.key.toLowerCase() === "t"
                             ) {
                               e.preventDefault();
-                              void writeTerminalInput("\x14").catch((error: unknown) => {
-                                toast.danger(friendlyError(error));
-                              });
+                              sendTerminalShortcut("\x14");
                               return true;
                             }
                           }
@@ -1548,7 +1598,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     {...(!threadVoiceActive &&
                     !hasContent &&
                     attachments.attachments.length === 0 &&
-                    !usesRemoteTransport &&
+                    // The host reports voice-session end and error frames only to
+                    // the co-located desktop, so a session on another host (or in a
+                    // browser) could never be torn down by them.
+                    hostIsLocalToClient &&
                     !usesTerminalPresentation &&
                     showServerComposer &&
                     effectiveAgentStatus?.capabilities.liveVoice
@@ -1566,6 +1619,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           ),
                         }
                       : {})}
+                    resume={
+                      canResume
+                        ? {
+                            label:
+                              resumePlan.kind === "resend"
+                                ? t`Resend last message`
+                                : t`Resume response`,
+                            onPress: resumeInterruptedTurn,
+                          }
+                        : undefined
+                    }
                     onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
                     {...(() => {
                       const contextIndicator = showContextIndicator ? (
@@ -1607,18 +1671,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                                   projectLocation?.kind !== "wsl",
                                 onToggle: () => {},
                               }}
-                              showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
+                              showFileOption={hostIsLocalToClient || props.pickFiles !== undefined}
                               onPickFiles={() => {
                                 const originThreadId = thread.id;
-                                void (
-                                  props.pickFiles
+                                void trackThreadAttachmentImport(
+                                  originThreadId,
+                                  (props.pickFiles
                                     ? props.pickFiles()
                                     : readBridge().pickFiles({ attachmentThreadId: thread.id })
-                                )
-                                  .then((paths) => {
+                                  ).then((paths) => {
                                     if (paths) attachPickedFiles(originThreadId, paths);
-                                  })
-                                  .catch((error: unknown) => toast.danger(friendlyError(error)));
+                                  }),
+                                ).catch((error: unknown) => toast.danger(friendlyError(error)));
                               }}
                             />
                           )}
@@ -1661,7 +1725,22 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           };
                     })()}
                     onPromptChange={setPrompt}
-                    {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
+                    // Dropped files are paths on this machine; only a host that runs
+                    // here can read them.
+                    {...(hostIsLocalToClient ? { onAttachFiles: attachments.addFiles } : {})}
+                    {...(importFiles
+                      ? {
+                          onImportFiles: (files: File[]) => {
+                            const originThreadId = thread.id;
+                            void trackThreadAttachmentImport(
+                              originThreadId,
+                              importFiles(files).then((paths) =>
+                                attachPickedFiles(originThreadId, paths),
+                              ),
+                            ).catch((error: unknown) => toast.danger(friendlyError(error)));
+                          },
+                        }
+                      : {})}
                     onSubmit={() => {
                       const segments = mentionRef.current?.serializeSegments();
                       submitPrompt(

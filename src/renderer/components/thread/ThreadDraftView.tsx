@@ -1,3 +1,4 @@
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
@@ -20,10 +21,12 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import type { DraftContent } from "@/renderer/state/slices/types";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useAgentSlashCommandCatalog } from "@/renderer/hooks/useAgentSlashCommandCatalog";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
-import { dispatchManagedRootProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
+import { dispatchProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import {
   capabilitiesForPresentation,
   filterHiddenModels,
@@ -52,6 +55,7 @@ import {
   resolveFastValue,
   resolveInitialPresentationMode,
   resolveModelValue,
+  resolveApprovalPolicyValue,
   resolvePreferredAgentKind,
   resolveProviderDraftConfig,
   resolveProviderModelPreference,
@@ -71,10 +75,15 @@ import {
   type ThreadCrewBinding,
 } from "@/shared/crew";
 import { friendlyError } from "@/shared/messages";
+import { NewsLine } from "@/renderer/components/newsLine/NewsLine";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
-import { ThreadDraftComposerArea, type DraftStartInput } from "./ThreadDraftComposerArea";
-import type { SaveClipboardImage } from "../composer/useAttachments";
+import {
+  ThreadDraftComposerArea,
+  type DraftStartInput,
+  type DraftStartResult,
+} from "./ThreadDraftComposerArea";
 import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
 import {
   CREW_ROLE_TEMPLATE_DESCRIPTORS,
@@ -128,24 +137,51 @@ const COMPOSER_ANCHOR_MIN_TOP = 8;
  * stay put). Implemented by driving the height of a spacer above the block so
  * the input's top edge holds a fixed fraction of the container height.
  */
-function useStableComposerAnchor(opts: {
-  enabled: boolean;
-  containerRef: React.RefObject<HTMLDivElement | null>;
-  blockRef: React.RefObject<HTMLDivElement | null>;
-  spacerRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  const { enabled, containerRef, blockRef, spacerRef } = opts;
+function useStableComposerAnchor(enabled: boolean) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const blockRef = useRef<HTMLDivElement | null>(null);
+  const spacerRef = useRef<HTMLDivElement | null>(null);
   // Fraction of the container height where the input's top edge is pinned.
   // Captured once from the initial centered layout so window resizes keep the
   // composer at the same relative position.
   const anchorRatioRef = useRef<number | null>(null);
+  const activeBindingRef = useRef<{
+    container: HTMLDivElement;
+    block: HTMLDivElement;
+    spacer: HTMLDivElement;
+    observer: ResizeObserver;
+  } | null>(null);
 
+  // Re-bind whenever the anchor elements mount or remount (for example, when
+  // a remote host transitions through connecting/error and back to online
+  // while `enabled` stays true).
   useLayoutEffect(() => {
-    if (!enabled) return;
-    const container = containerRef.current;
-    const block = blockRef.current;
-    const spacer = spacerRef.current;
-    if (!container || !block || !spacer) return;
+    if (!enabled) {
+      anchorRatioRef.current = null;
+    }
+    const container = enabled ? containerRef.current : null;
+    const block = enabled ? blockRef.current : null;
+    const spacer = enabled ? spacerRef.current : null;
+    const active = activeBindingRef.current;
+
+    if (!container || !block || !spacer) {
+      if (active) {
+        active.observer.disconnect();
+        activeBindingRef.current = null;
+      }
+      return;
+    }
+    if (
+      active &&
+      active.container === container &&
+      active.block === block &&
+      active.spacer === spacer
+    ) {
+      return;
+    }
+
+    active?.observer.disconnect();
+    activeBindingRef.current = null;
 
     const apply = () => {
       const height = container.clientHeight;
@@ -158,18 +194,28 @@ function useStableComposerAnchor(opts: {
       // inserted above the input (command panel, attachments, docks).
       const aboveInput = inputTop - blockTop;
       const blockHeight = block.offsetHeight;
-
-      // Establish the anchor once from the initial (centered) layout: the line
-      // the input's top edge would sit on if the block were centered.
-      if (anchorRatioRef.current === null) {
-        const centeredInputOffset = (height - blockHeight) / 2 + aboveInput;
-        anchorRatioRef.current = clampNumber(centeredInputOffset / height, 0, 1);
-      }
-
-      const desiredInputOffset = Math.round(anchorRatioRef.current * height);
       const currentInputOffset = inputTop - containerTop;
       const currentSpacer = spacer.offsetHeight;
-      const maxSpacer = Math.max(COMPOSER_ANCHOR_MIN_TOP, height - blockHeight);
+
+      // Establish the anchor once from the initial (centered) layout: the line
+      // the input's top edge would sit on if the block were centered. Wait
+      // until the container actually has room to center so a temporarily
+      // cramped layout never freezes a top-clamped ratio.
+      const centeredInputOffset = (height - blockHeight) / 2 + aboveInput;
+      const centeredRatio = clampNumber(centeredInputOffset / height, 0, 1);
+      if (
+        anchorRatioRef.current === null &&
+        currentSpacer + (centeredInputOffset - currentInputOffset) > COMPOSER_ANCHOR_MIN_TOP
+      ) {
+        anchorRatioRef.current = centeredRatio;
+      }
+
+      const desiredInputOffset = Math.round((anchorRatioRef.current ?? centeredRatio) * height);
+      const styles = getComputedStyle(container);
+      const verticalPadding =
+        (Number.parseFloat(styles.paddingTop) || 0) +
+        (Number.parseFloat(styles.paddingBottom) || 0);
+      const maxSpacer = Math.max(COMPOSER_ANCHOR_MIN_TOP, height - verticalPadding - blockHeight);
       // Snap to whole pixels. A fractional spacer height (e.g. 443.5px) reads
       // back from offsetHeight rounded, so the next correction measures a stale
       // value and the input/toolbar drift by a sub-pixel each time the box
@@ -189,11 +235,20 @@ function useStableComposerAnchor(opts: {
     };
 
     apply();
-    const observer = new ResizeObserver(() => apply());
+    const observer = new ResizeObserver(apply);
     observer.observe(container);
     observer.observe(block);
-    return () => observer.disconnect();
-  }, [enabled, containerRef, blockRef, spacerRef]);
+    activeBindingRef.current = { container, block, spacer, observer };
+  });
+
+  useLayoutEffect(() => {
+    return () => {
+      activeBindingRef.current?.observer.disconnect();
+      activeBindingRef.current = null;
+    };
+  }, []);
+
+  return { containerRef, blockRef, spacerRef };
 }
 
 export function ThreadDraftView(props: {
@@ -207,6 +262,27 @@ export function ThreadDraftView(props: {
    */
   isDetectingAgents?: boolean;
   lastDraftConfig?: ProjectDraftConfig;
+  /** Isolated selection state (e.g. Side Chat) that does not mutate project/global defaults. */
+  draftSelection?: {
+    initial: {
+      agentKind: AgentStatus["kind"];
+      agentInstanceId?: string | undefined;
+      config: ThreadConfig;
+    };
+    onChange?: (selection: {
+      agentKind: AgentStatus["kind"];
+      agentInstanceId?: string | undefined;
+      config: ThreadConfig;
+    }) => void;
+  };
+  isolatedDraft?: {
+    composerId: string;
+    initialContent?: DraftContent;
+    onChange?: (content: DraftContent) => void;
+  };
+  composerVariant?: "draft" | "active";
+  submitLabel?: string;
+  hideHero?: boolean;
   compact?: boolean;
   /** Bottom-anchored embedded chat draft: structured providers, no workspace controls. */
   chatOnly?: boolean;
@@ -221,8 +297,15 @@ export function ThreadDraftView(props: {
   submitOnEnter?: boolean;
   /** Override mount autofocus for embedded draft-composer surfaces. */
   autoFocusComposer?: boolean;
+  /**
+   * True while this surface's submission is in flight. A pending submission
+   * must stay mounted through connection changes so its failure checkpoint can
+   * still recover the submitted editor content.
+   */
+  submissionPending?: boolean;
   pickFiles?: () => Promise<string[] | null>;
-  saveClipboardImage?: SaveClipboardImage;
+  importFiles?: (files: readonly File[]) => Promise<string[]>;
+
   paneAlign?: "left" | "center" | "right";
   showCloseButton?: boolean;
   isDragging?: boolean;
@@ -241,15 +324,33 @@ export function ThreadDraftView(props: {
   onClose?: (() => void) | undefined;
   dragHandleRef?: React.RefCallback<Element>;
   onProjectChange?: (projectId: string) => void;
-  onStart: (input: DraftStartInput) => void | Promise<void>;
+  onStart: (input: DraftStartInput) => DraftStartResult | Promise<DraftStartResult>;
 }) {
   const {
     project,
     agentStatuses,
-    lastDraftConfig,
+    lastDraftConfig: suppliedLastDraftConfig,
     onStart,
     headerNeedsTrafficLightPad = false,
   } = props;
+  const isIsolatedSelection = props.draftSelection !== undefined;
+  const isolatedSelectionRef = useRef(props.draftSelection);
+  isolatedSelectionRef.current = props.draftSelection;
+  const initialIsolatedSelection = props.draftSelection?.initial;
+  const isolatedLastDraftConfig = useMemo<ProjectDraftConfig | undefined>(
+    () =>
+      initialIsolatedSelection
+        ? {
+            ...initialIsolatedSelection.config,
+            agentKind: initialIsolatedSelection.agentKind,
+            worktreeMode: false,
+          }
+        : undefined,
+    [initialIsolatedSelection],
+  );
+  const lastDraftConfig: ProjectDraftConfig | undefined = isIsolatedSelection
+    ? isolatedLastDraftConfig
+    : (composerDraftStorage()?.selection("project", project.id) ?? suppliedLastDraftConfig);
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
@@ -257,6 +358,9 @@ export function ThreadDraftView(props: {
   const upsertCrew = useSharedSettings((s) => s.upsertCrew);
   const helperOptions = useCrewHelperOptions();
   const sharedSettingsHydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
+  const newsLineEnabled = useSharedSettings((s) => s.newsLineEnabled);
+  const draftVisit = useAppStore((s) => s.draftVisit);
+  const compactLayout = useCompactLayout();
   const isHomeScope = isHomeProject(project);
   const scopeLabel = isHomeScope ? HOME_PROJECT_NAME : undefined;
   const remoteConnection = useRemoteServersStore((state) => {
@@ -299,10 +403,32 @@ export function ThreadDraftView(props: {
     : preferredAgentKind;
   const selectedAgent =
     installedAgents.find((status) => status.kind === effectiveAgentKind) ?? installedAgents[0];
+  useAgentSlashCommandCatalog(project.remoteServerId, selectedAgent?.kind);
   // One complete draft config: own empty/false carriers, absence, and the
   // selection binding survive restore, edits, persistence, and launch. The
   // scalar reads below are display projections only.
   const [draftConfig, setDraftConfig] = useState<ProviderDraftConfig>(() => {
+    if (initialIsolatedSelection) {
+      const { crew: _crew, ...initialProviderConfig } = initialIsolatedSelection.config;
+      return {
+        model: initialProviderConfig.model ?? "",
+        effort: initialProviderConfig.effort ?? "",
+        ...(initialProviderConfig.contextSize !== undefined
+          ? { contextSize: initialProviderConfig.contextSize }
+          : {}),
+        ...(initialProviderConfig.fast !== undefined ? { fast: initialProviderConfig.fast } : {}),
+        ...(initialProviderConfig.thinking !== undefined
+          ? { thinking: initialProviderConfig.thinking }
+          : {}),
+        mode: initialProviderConfig.mode ?? "agent",
+        approvalPolicy: initialProviderConfig.approvalPolicy ?? "",
+        approvalsReviewer: initialProviderConfig.approvalsReviewer ?? "",
+        sandboxMode: initialProviderConfig.sandboxMode ?? "",
+        ...(initialProviderConfig.selectionBinding
+          ? { selectionBinding: initialProviderConfig.selectionBinding }
+          : {}),
+      };
+    }
     const initialContext =
       lastDraftConfig &&
       lastDraftConfig.agentKind === preferredAgentKind &&
@@ -441,7 +567,7 @@ export function ThreadDraftView(props: {
       const rememberedConfig: ProjectDraftConfig =
         nextDraftConfig.mode === "plan" ? { ...nextDraftConfig, mode: "agent" } : nextDraftConfig;
       updateProjectDraftConfigStore(projectId, rememberedConfig);
-      dispatchManagedRootProjectDraftConfig(projectId, rememberedConfig);
+      dispatchProjectDraftConfig(projectId, rememberedConfig);
     },
   );
   const updateProjectDraftConfig = updateProjectDraftConfigRef.current;
@@ -454,20 +580,25 @@ export function ThreadDraftView(props: {
   >({});
   const initialLastDraftConfigRef = useRef(lastDraftConfig);
   const hasLocalConfigEditRef = useRef(false);
+  const pendingClientSelectionRef = useRef<AgentStatus["kind"] | undefined>(undefined);
   const hasLocalContextEditRef = useRef(false);
   effectiveAgentKindRef.current = effectiveAgentKind;
   // Spread is required: the effects below mutate `providerConfigsRef.current[kind]`
   // in place to keep effort/model selections in sync mid-render. Assigning the
   // store reference directly would mutate Zustand state and skip subscribers.
-  providerConfigsRef.current = Object.fromEntries(
-    Object.entries(useSharedSettings.getState().providerConfigs).map(([kind, config]) => [
-      kind,
-      withoutDraftCrew(config),
-    ]),
-  );
-  providerModelPreferencesRef.current = {
-    ...useSharedSettings.getState().providerModelPreferences,
-  };
+  providerConfigsRef.current = isIsolatedSelection
+    ? {}
+    : Object.fromEntries(
+        Object.entries(useSharedSettings.getState().providerConfigs).map(([kind, config]) => [
+          kind,
+          withoutDraftCrew(config),
+        ]),
+      );
+  providerModelPreferencesRef.current = isIsolatedSelection
+    ? {}
+    : {
+        ...useSharedSettings.getState().providerModelPreferences,
+      };
 
   function persistProviderModelPreference(providerKind: string, config: ProviderDraftConfig) {
     const preference: ProviderModelPreference = {
@@ -487,6 +618,7 @@ export function ThreadDraftView(props: {
   function persistProviderConfig(providerKind: string, config: ProviderDraftConfig) {
     const providerConfig = withoutDraftCrew(config);
     providerConfigsRef.current[providerKind] = providerConfig;
+    if (isIsolatedSelection) return;
     if (!isHomeScope) {
       setProviderConfig(
         providerKind,
@@ -500,11 +632,32 @@ export function ThreadDraftView(props: {
     nextDraftConfig: ProjectDraftConfig,
     crew: ThreadCrewBinding | null | undefined = draftCrew,
     explicitlyCleared = draftCrewExplicitlyCleared,
+    persistClientSelection = false,
   ) {
-    updateProjectDraftConfig(
-      project.id,
-      projectDraftWithCrew(nextDraftConfig, crew, explicitlyCleared),
-    );
+    const selection = projectDraftWithCrew(nextDraftConfig, crew, explicitlyCleared);
+    if (props.draftSelection) {
+      const current = props.draftSelection;
+      const { agentKind: selectedKind, worktreeMode: _worktreeMode, ...configFields } = selection;
+      if (
+        (persistClientSelection || !current.initial.config.model) &&
+        (selectedKind !== current.initial.agentKind ||
+          !isThreadConfigEqual(configFields, current.initial.config))
+      ) {
+        current.onChange?.({
+          agentKind: selectedKind,
+          ...(selectedKind === current.initial.agentKind && current.initial.agentInstanceId
+            ? { agentInstanceId: current.initial.agentInstanceId }
+            : {}),
+          config: configFields,
+        });
+      }
+      return;
+    }
+    if (persistClientSelection) {
+      composerDraftStorage()?.saveSelection("project", project.id, selection);
+      pendingClientSelectionRef.current = undefined;
+    }
+    updateProjectDraftConfig(project.id, selection);
   }
 
   // The one commit for a complete draft selection: component state, the
@@ -515,6 +668,7 @@ export function ThreadDraftView(props: {
     kind: AgentStatus["kind"],
     config: ProviderDraftConfig,
     crewOverride?: ThreadCrewBinding | null,
+    persistClientSelection = true,
   ) {
     const crew = crewOverride === undefined ? draftCrew : crewOverride;
     const explicitlyCleared =
@@ -531,6 +685,7 @@ export function ThreadDraftView(props: {
       { ...providerConfig, agentKind: kind, worktreeMode: effectiveWorktreeMode },
       crew,
       explicitlyCleared,
+      persistClientSelection,
     );
   }
 
@@ -549,12 +704,13 @@ export function ThreadDraftView(props: {
         },
         binding,
         explicitlyCleared,
+        true,
       );
     }
   }
 
   useEffect(() => {
-    if (hasLocalConfigEditRef.current) return;
+    if (isIsolatedSelection || hasLocalConfigEditRef.current) return;
     const restoredCrew = draftCrewFromConfig(lastDraftConfig?.crew, savedCrews);
     const explicitlyCleared = lastDraftConfig?.crew === null;
     if (
@@ -565,7 +721,13 @@ export function ThreadDraftView(props: {
     }
     setDraftCrew(restoredCrew);
     setDraftCrewExplicitlyCleared(explicitlyCleared);
-  }, [draftCrew, draftCrewExplicitlyCleared, lastDraftConfig?.crew, savedCrews]);
+  }, [
+    draftCrew,
+    draftCrewExplicitlyCleared,
+    isIsolatedSelection,
+    lastDraftConfig?.crew,
+    savedCrews,
+  ]);
 
   const persistProviderConfigRef = useRef(persistProviderConfig);
   const persistProjectDraftConfigRef = useRef(persistProjectDraftConfig);
@@ -613,7 +775,8 @@ export function ThreadDraftView(props: {
       return;
     }
 
-    if (lastAppliedAgentKindRef.current === effectiveAgentKind) {
+    const explicitSelection = pendingClientSelectionRef.current === effectiveAgentKind;
+    if (lastAppliedAgentKindRef.current === effectiveAgentKind && !explicitSelection) {
       return;
     }
     // An empty catalog resolves the model to "". Committing that sets
@@ -623,22 +786,34 @@ export function ThreadDraftView(props: {
       return;
     }
 
-    const saved = resolveSavedProviderDraftConfig(
-      effectiveAgentKind,
-      lastDraftConfig,
-      isHomeScope ? {} : providerConfigsRef.current,
-      providerModelPreferencesRef.current,
-      // Surface-aware restoration: a saved family member keeps its own
-      // carriers; unscoped per-model preferences are never replayed onto it.
-      selectedAgentForConfig.capabilities,
-    );
+    const initialIsolated = isolatedSelectionRef.current?.initial;
+    const saved =
+      explicitSelection && lastAppliedAgentKindRef.current === effectiveAgentKind
+        ? draftConfig
+        : isIsolatedSelection
+          ? effectiveAgentKind === initialIsolated?.agentKind && initialIsolated
+            ? withoutDraftCrew(initialIsolated.config)
+            : providerConfigsRef.current[effectiveAgentKind]
+          : resolveSavedProviderDraftConfig(
+              effectiveAgentKind,
+              lastDraftConfig,
+              isHomeScope ? {} : providerConfigsRef.current,
+              providerModelPreferencesRef.current,
+              // Surface-aware restoration: a saved family member keeps its own
+              // carriers; unscoped per-model preferences are never replayed onto it.
+              selectedAgentForConfig.capabilities,
+            );
     // Persist per-provider config app-wide, last-used provider per project.
     commitDraftConfigRef.current(
       effectiveAgentKind,
       resolveProviderDraftConfig(selectedAgentForConfig, saved),
+      undefined,
+      explicitSelection,
     );
   }, [
+    draftConfig,
     effectiveAgentKind,
+    isIsolatedSelection,
     selectedAgentForConfig,
     project.id,
     lastDraftConfig,
@@ -736,7 +911,13 @@ export function ThreadDraftView(props: {
   ]);
 
   useEffect(() => {
-    if (!sharedSettingsHydrated || !selectedAgentForConfig || !effectiveAgentKind || !model) {
+    if (
+      isIsolatedSelection ||
+      !sharedSettingsHydrated ||
+      !selectedAgentForConfig ||
+      !effectiveAgentKind ||
+      !model
+    ) {
       return;
     }
     if (selectedAgentForConfig.capabilities.models.length === 0) return;
@@ -796,6 +977,7 @@ export function ThreadDraftView(props: {
       worktreeMode: effectiveWorktreeMode,
     });
   }, [
+    isIsolatedSelection,
     sharedSettingsHydrated,
     selectedAgentForConfig,
     effectiveAgentKind,
@@ -812,7 +994,7 @@ export function ThreadDraftView(props: {
   ]);
 
   useEffect(() => {
-    if (isHomeScope || !sharedSettingsHydrated) {
+    if (isIsolatedSelection || isHomeScope || !sharedSettingsHydrated) {
       return;
     }
     if (!selectedAgentForConfig || !effectiveAgentKind) {
@@ -935,6 +1117,7 @@ export function ThreadDraftView(props: {
       worktreeMode: effectiveWorktreeMode,
     });
   }, [
+    isIsolatedSelection,
     sharedSettingsHydrated,
     selectedAgentForConfig,
     effectiveAgentKind,
@@ -1140,6 +1323,7 @@ export function ThreadDraftView(props: {
       // Probe gap: resolving substitutes model "" and commitDraftConfig latches
       // lastApplied, so the saved model never returns. Keep the edit local.
       setDraftConfig((current) => ({ ...current, ...patch }));
+      pendingClientSelectionRef.current = selectedAgentForConfig.kind;
       return;
     }
     // A family member's own carrier presence is exact; ordinary models keep
@@ -1574,19 +1758,17 @@ export function ThreadDraftView(props: {
   // Stable centering for the full (non-compact) draft view: center once, then
   // pin the input's top edge so the composer no longer jumps when it grows.
   // Declared before the early returns below to keep hook order consistent.
-  const anchorContainerRef = useRef<HTMLDivElement>(null);
-  const anchorBlockRef = useRef<HTMLDivElement>(null);
-  const anchorSpacerRef = useRef<HTMLDivElement>(null);
-  useStableComposerAnchor({
-    // Agent detection can render the draft view before the composer DOM exists.
-    // Only arm the anchor once the selected-agent branch can actually mount it.
-    enabled: !props.compact && !props.quickComposer && !!selectedAgent,
+  // Agent detection can render the draft view before the composer DOM exists.
+  // Only arm the anchor once the selected-agent branch can actually mount it.
+  const {
     containerRef: anchorContainerRef,
     blockRef: anchorBlockRef,
     spacerRef: anchorSpacerRef,
-  });
+  } = useStableComposerAnchor(
+    !props.compact && !props.quickComposer && !props.chatOnly && !!selectedAgent,
+  );
 
-  if (remoteConnection === "connecting" && !hostUpdateRestarting) {
+  if (!props.submissionPending && remoteConnection === "connecting" && !hostUpdateRestarting) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <PixelLoader size="md" />
@@ -1596,7 +1778,12 @@ export function ThreadDraftView(props: {
       </div>
     );
   }
-  if (!hostUpdateRestarting && remoteConnection !== "local" && remoteConnection !== "online") {
+  if (
+    !props.submissionPending &&
+    !hostUpdateRestarting &&
+    remoteConnection !== "local" &&
+    remoteConnection !== "online"
+  ) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -1649,7 +1836,15 @@ export function ThreadDraftView(props: {
   const bodyPaddingClass = props.quickComposer
     ? ""
     : `${paddingClass} px-3 pb-2 ${props.compact ? "" : "pt-2"}`;
-  const blockMaxWidthClass = props.quickComposer ? "" : "max-w-[720px]";
+  const blockMaxWidthClass = props.quickComposer
+    ? ""
+    : props.hideHero
+      ? "max-w-[920px]"
+      : "max-w-[720px]";
+  // Wait for authoritative settings so an opted-out user never mounts (or fetches
+  // for) the line on defaults, and leave compact layouts to the composer alone.
+  const showNewsLine =
+    newsLineEnabled && sharedSettingsHydrated && !compactLayout && !props.chatOnly;
 
   const handlePresentationChange = (next: ThreadPresentationMode) => {
     // A deliberate switch while inside a family relation must prove an exact
@@ -1677,6 +1872,7 @@ export function ThreadDraftView(props: {
       if (!fallback) return;
       if (commitTransition(fallback)) return;
       retargetPresentation(next);
+      pendingClientSelectionRef.current = fallback.kind;
       setAgentKind(fallback.kind);
       return;
     }
@@ -1722,10 +1918,14 @@ export function ThreadDraftView(props: {
     },
     implicitMcpServers,
   );
+  const launchApprovalPolicy = selectedAgentForConfig?.capabilities.approvalPolicies.length
+    ? resolveApprovalPolicyValue(selectedAgentForConfig, approvalPolicy)
+    : approvalPolicy;
 
   return (
     <div
       ref={props.droppableRef}
+      data-draft-composer=""
       data-poracode-attachment-drop-target=""
       className={`relative flex ${rootSizeClass} flex-col ${props.isDragging ? "opacity-50" : ""}`}
     >
@@ -1748,9 +1948,13 @@ export function ThreadDraftView(props: {
         className={`${compactComposer ? alignClass : "mx-auto"} relative flex ${bodySizeClass} flex-col ${bodyPaddingClass}`}
       >
         {props.chatOnly ? (
-          <div className="flex min-h-0 flex-1 text-muted opacity-40">
-            <ThreadDraftHero compact />
-          </div>
+          props.hideHero ? (
+            <div className="min-h-0 flex-1" />
+          ) : (
+            <div className="flex min-h-0 flex-1 text-muted opacity-40">
+              <ThreadDraftHero compact />
+            </div>
+          )
         ) : props.quickComposer ? null : props.compact ? (
           <ThreadDraftHero compact={props.compact} />
         ) : (
@@ -1767,6 +1971,7 @@ export function ThreadDraftView(props: {
         {/* Composer block: centered initially, then anchored by the input's top edge. */}
         <div
           ref={compactComposer ? undefined : anchorBlockRef}
+          data-draft-composer-block=""
           className={`${compactComposer ? alignClass : "mx-auto shrink-0"} w-full ${blockMaxWidthClass} ${props.quickComposer ? "quick-composer-control-surface" : ""}`}
         >
           {props.chatOnly ? null : (
@@ -1787,8 +1992,10 @@ export function ThreadDraftView(props: {
           )}
           <ThreadDraftComposerArea
             project={project}
-            isRemote={project.remoteServerId !== undefined}
             {...(props.paneId ? { paneId: props.paneId } : {})}
+            {...(props.isolatedDraft ? { isolatedDraft: props.isolatedDraft } : {})}
+            {...(props.composerVariant ? { composerVariant: props.composerVariant } : {})}
+            {...(props.submitLabel ? { submitLabel: props.submitLabel } : {})}
             {...(props.restoreWorktreeSelectionToken !== undefined
               ? { restoreWorktreeSelectionToken: props.restoreWorktreeSelectionToken }
               : {})}
@@ -1802,7 +2009,7 @@ export function ThreadDraftView(props: {
                 ? { workflows: true }
                 : {}),
               ...(mode ? { mode } : {}),
-              ...(approvalPolicy ? { approvalPolicy } : {}),
+              ...(launchApprovalPolicy ? { approvalPolicy: launchApprovalPolicy } : {}),
               ...(approvalsReviewer ? { approvalsReviewer } : {}),
               ...(sandboxMode ? { sandboxMode } : {}),
               ...mcpConfig,
@@ -1825,7 +2032,8 @@ export function ThreadDraftView(props: {
               ? { autoFocus: props.autoFocusComposer }
               : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
-            {...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {})}
+            {...(props.importFiles ? { importFiles: props.importFiles } : {})}
+
             onConfigChange={onConfigPatch}
             onWorktreeModeChange={setWorktreeMode}
             onSwitchBranch={handleSwitchBranch}
@@ -1835,9 +2043,18 @@ export function ThreadDraftView(props: {
             onStart={onStart}
           />
         </div>
-        {/* Absorbs the slack below the anchored composer in the full draft view. */}
+        {/* Absorbs the slack below the anchored composer in the full draft view.
+            The news line lives here so it can never move the composer. */}
         {compactComposer ? null : (
-          <div aria-hidden data-draft-slack="" className="min-h-0 w-full flex-1" />
+          <div data-draft-slack="" className="flex min-h-0 w-full flex-1 flex-col items-center">
+            {showNewsLine ? (
+              <NewsLine
+                key={draftVisit}
+                visitKey={draftVisit}
+                className={`mt-3 w-full ${blockMaxWidthClass}`}
+              />
+            ) : null}
+          </div>
         )}
       </div>
     </div>

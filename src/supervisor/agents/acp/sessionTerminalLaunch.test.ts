@@ -1,4 +1,6 @@
 import { realpath, stat } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import * as base from "../base";
@@ -32,6 +34,86 @@ const wslProject: ProjectLocation = {
   linuxPath: "/home/demo/project",
   uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
 };
+
+const fishPath = ["/opt/homebrew/bin/fish", "/usr/bin/fish", "/usr/local/bin/fish"].find(
+  existsSync,
+);
+
+it.skipIf(!fishPath)("preserves script backslashes and quotes through real fish", () => {
+  const literal = String.raw`{"path":"C:\\Users\\demo","regex":"\\d+"}`;
+  const command = `cat <<'EOF'\n${literal}\nEOF\nprintf '%s' 'ends in slash\\'`;
+  const launch = buildAcpTerminalLaunch(
+    { kind: "posix", path: process.cwd() },
+    process.cwd(),
+    command,
+    [],
+    {},
+  );
+  // Test the exact script handed to the login shell, without user config.
+  const result = spawnSync(fishPath!, ["--no-config", "-c", launch.args.at(-1)!], {
+    encoding: "utf8",
+  });
+  expect(result.error).toBeUndefined();
+  expect(result.stderr).toBe("");
+  expect(result.status).toBe(0);
+  expect(result.stdout).toBe(`${literal}\nends in slash\\`);
+});
+
+it("keeps shell-line syntax out of the user's login shell", () => {
+  const shell = process.env.SHELL;
+  process.env.SHELL = "/usr/bin/fish";
+  try {
+    const command = "cat <<'EOF'\n$HOME `ignored` $(ignored)\nEOF";
+    const launch = buildAcpTerminalLaunch(
+      { kind: "posix", path: "/project" },
+      "/project/subdir",
+      command,
+      [],
+      { ACP_TEST: "request value" },
+    );
+    expect(launch.command).toBe("/usr/bin/fish");
+    expect(launch.args.at(-1)).toBe(
+      "exec /bin/bash -c 'cat <<'\\''EOF'\\''\n$HOME `ignored` $(ignored)\nEOF'",
+    );
+    expect(launch.cwd).toBe("/project/subdir");
+    expect(launch.env.ACP_TEST).toBe("request value");
+    const direct = buildAcpTerminalLaunch(
+      { kind: "posix", path: "/project" },
+      "/project/subdir",
+      "/usr/bin/fish",
+      ["-c", "echo explicitly selected shell"],
+      {},
+    );
+    expect(direct.command).toBe("/usr/bin/fish");
+    expect(direct.args).toEqual(["-c", "echo explicitly selected shell"]);
+  } finally {
+    if (shell === undefined) delete process.env.SHELL;
+    else process.env.SHELL = shell;
+  }
+});
+
+it("uses Bash for WSL shell lines even when the distro's login shell is fish", () => {
+  primeWslLaunchEnvironment("AcpFishFixture", { shellPath: "/usr/bin/fish", home: "/home/demo" });
+  const launch = buildAcpTerminalLaunch(
+    { ...wslProject, distro: "AcpFishFixture" },
+    "/home/demo/project",
+    "cat <<'EOF'\nheredoc\nEOF",
+    [],
+    { ACP_TEST: "it's literal" },
+  );
+  expect(launch.args).toEqual([
+    "-d",
+    "AcpFishFixture",
+    "--cd",
+    "/home/demo/project",
+    "--exec",
+    "/usr/bin/fish",
+    "-l",
+    "-i",
+    "-c",
+    "export TERM='xterm-256color'; export ACP_TEST='it'\\''s literal'; exec /bin/bash -c 'cat <<'\\''EOF'\\''\nheredoc\nEOF'",
+  ]);
+});
 
 it.each([
   {

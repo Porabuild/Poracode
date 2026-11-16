@@ -5,10 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CloudOff
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -22,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.session.projects.ProjectHostLease
 import com.poracode.app.session.projects.ProjectOperationFailure
+import com.poracode.app.ui.theme.PoracodeIcons
 
 @Composable
 internal fun ProjectAccessBanner(lease: ProjectHostLease?, access: ProjectUiAccess) {
@@ -44,7 +41,7 @@ internal fun ProjectAccessBanner(lease: ProjectHostLease?, access: ProjectUiAcce
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                if (!access.online) Icons.Outlined.CloudOff else Icons.Outlined.Lock,
+                if (!access.online) PoracodeIcons.CloudOff else PoracodeIcons.Lock,
                 contentDescription = null,
             )
             Text(message, style = MaterialTheme.typography.bodySmall)
@@ -95,7 +92,7 @@ internal fun SavingStatus(pending: Boolean, saving: Boolean, failed: Boolean) {
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (pending || saving) Icon(Icons.Outlined.Sync, contentDescription = null)
+        if (pending || saving) Icon(PoracodeIcons.Sync, contentDescription = null)
         Text(
             text,
             style = MaterialTheme.typography.labelMedium,

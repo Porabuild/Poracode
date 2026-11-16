@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DiagnosticError } from "@/shared/diagnostics/sentryPolicy";
 import { OpenCodeReadinessTimeoutError } from "../../agents/opencode/sdkServer";
 import type { SessionRuntime } from "../sessionTypes";
 
@@ -58,11 +59,31 @@ describe("StructuredFailureReporter", () => {
       expect.objectContaining({
         message: "Structured runtime transport failed.",
         name: "StructuredRuntimeDiagnosticError",
+        diagnosticCause: expect.objectContaining({
+          "poracode.cause_reason": "subprocess-exit",
+          "poracode.exit_code": "9",
+        }),
       }),
       expect.objectContaining({
         "poracode.feature_area": "structured-runtime-transport",
       }),
     );
+  });
+
+  it("preserves a parser defect's type without retaining its provider payload", () => {
+    new StructuredFailureReporter().capture(
+      createSession(),
+      new SyntaxError("private-prompt private-token"),
+    );
+    const diagnostic = captureSupervisorException.mock.calls[0]![0];
+    expect(diagnostic).toMatchObject({
+      diagnosticCause: {
+        "poracode.cause_reason": "unknown",
+        "poracode.cause_type": "syntax-error",
+      },
+    });
+    expect(JSON.stringify(diagnostic)).not.toContain("private");
+    expect(diagnostic).not.toHaveProperty("cause");
   });
 
   it.each([
@@ -122,6 +143,36 @@ describe("StructuredFailureReporter", () => {
     reporter.capture(session, new Error("provider response parser failed"));
 
     expect(captureSupervisorException).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, true])("honors expected diagnostic metadata through a cause: %s", (wrapped) => {
+    const reporter = new StructuredFailureReporter();
+    const session = createSession();
+    const error = new DiagnosticError("A provider session is already open.", {
+      failureClass: "expected-operational",
+      domain: "provider.session",
+      errorClass: "session-in-use",
+    });
+
+    reporter.capture(session, wrapped ? new Error("Restart failed.", { cause: error }) : error);
+
+    expect(captureSupervisorException).not.toHaveBeenCalled();
+    reporter.capture(session, new Error("An unrelated product failure."));
+    expect(captureSupervisorException).toHaveBeenCalledOnce();
+  });
+
+  it("keeps product-defect diagnostic metadata reportable", () => {
+    const reporter = new StructuredFailureReporter();
+    reporter.capture(
+      createSession(),
+      new DiagnosticError("Provider response parser failed.", {
+        failureClass: "product-defect",
+        domain: "provider.session",
+        errorClass: "response-parser-failed",
+      }),
+    );
+
+    expect(captureSupervisorException).toHaveBeenCalledOnce();
   });
 
   it("does not capture a typed OpenCode readiness timeout", () => {

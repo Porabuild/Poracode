@@ -19,6 +19,7 @@ import {
 interface PersistedState {
   servers: RemoteServerRecord[];
   marker: string;
+  homeThreadWorkspaceIds?: Record<string, string | null>;
 }
 
 function server(desktopId: string, accessToken: string): RemoteServerRecord {
@@ -131,6 +132,33 @@ describe("secure remote-server persistence", () => {
     expect((await storage.getItem("servers"))?.state.servers[0]?.accessToken).toBe(
       "browser-secret",
     );
+  });
+
+  it("commits a fresh pairing after a failed save without restoring the previous plaintext bearer", async () => {
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    await storage.getItem("servers");
+    const old = { ...server("web-1", "retired-plaintext"), platform: "win32" as const };
+    const other = server("other-host", "");
+    localStorage.setItem("servers", JSON.stringify(stateValue([old, other])));
+    await setDesktopToken("web-1", "fresh-bearer");
+    const fresh = server("web-1", "fresh-bearer");
+    const quotaFailure = vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+      throw new DOMException("Storage full", "QuotaExceededError");
+    });
+    await expect(storage.setItem("servers", stateValue([fresh]))).rejects.toThrow("Storage full");
+    quotaFailure.mockRestore();
+
+    await storage.commitPairing(fresh);
+    expect(localStorage.getItem("servers")).not.toContain("retired-plaintext");
+    __resetTokenVaultForTest();
+    const coldStorage = createSecureRemoteServersStorage<PersistedState>();
+    const restored = await coldStorage.getItem("servers");
+    expect(restored?.state.servers[0]).toMatchObject({
+      desktopId: "web-1",
+      accessToken: "fresh-bearer",
+    });
+    expect(restored?.state.servers[0]?.platform).toBeUndefined();
+    expect(restored?.state.servers[1]).toEqual(other);
   });
 
   it("encrypts browser bearer tokens outside localStorage and restores them", async () => {
@@ -389,6 +417,46 @@ describe("secure remote-server persistence", () => {
       (await createSecureRemoteServersStorage<PersistedState>().getItem("servers"))?.state.servers,
     ).toEqual([{ ...server("web-1", "token-2"), label: "Renamed" }]);
     expect(await getDesktopToken("legacy-1")).toBeNull();
+  });
+
+  it("merges Home thread filings written by different windows entry by entry", async () => {
+    const main = createSecureRemoteServersStorage<PersistedState>();
+    const sideChat = createSecureRemoteServersStorage<PersistedState>();
+    await main.setItem("servers", {
+      ...stateValue([server("web-1", "token-1")]),
+      state: {
+        servers: [server("web-1", "token-1")],
+        marker: "kept",
+        homeThreadWorkspaceIds: {},
+      },
+    });
+    await main.getItem("servers");
+    await sideChat.getItem("servers");
+
+    await main.setItem("servers", {
+      ...stateValue([server("web-1", "token-1")]),
+      state: {
+        servers: [server("web-1", "token-1")],
+        marker: "kept",
+        homeThreadWorkspaceIds: { "remote:d1:thread:t1": "client-work" },
+      },
+    });
+    // The second window persists from its older view, which never saw t1.
+    await sideChat.setItem("servers", {
+      ...stateValue([server("web-1", "token-1")]),
+      state: {
+        servers: [server("web-1", "token-1")],
+        marker: "kept",
+        homeThreadWorkspaceIds: { "remote:d1:thread:t2": null },
+      },
+    });
+
+    const restored = await createSecureRemoteServersStorage<PersistedState>().getItem("servers");
+    expect(restored?.state.homeThreadWorkspaceIds).toEqual({
+      "remote:d1:thread:t1": "client-work",
+      "remote:d1:thread:t2": null,
+    });
+    expect(restored?.state.servers).toEqual([server("web-1", "token-1")]);
   });
 
   it("keeps both windows' changes when encryption pauses one save", async () => {

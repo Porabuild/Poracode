@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="remote_notification_done">Abgeschlossen</string>
+    <string name="remote_notification_done">Fertig</string>
     <string name="remote_notification_needs_attention">Aufmerksamkeit erforderlich</string>
     <string name="remote_notification_error">Fehler</string>
     <string name="remote_notification_dismiss">Benachrichtigung schließen</string>
+    <string name="remote_notification_done_description">Der Thread ist beendet oder wartet auf Ihre Eingabe.</string>
+    <string name="remote_notification_needs_attention_description">Zustimmung oder Antwort Ihrerseits erforderlich.</string>
+    <string name="remote_notification_error_description">Der Agent hat einen Fehler festgestellt.</string>
 </resources>

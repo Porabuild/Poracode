@@ -1,6 +1,5 @@
 package com.poracode.app.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,28 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.outlined.Archive
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.ColorLens
-import androidx.compose.material.icons.outlined.Computer
-import androidx.compose.material.icons.outlined.Commit
-import androidx.compose.material.icons.outlined.CreateNewFolder
-import androidx.compose.material.icons.outlined.Dns
-import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PrivacyTip
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.SmartToy
-import androidx.compose.material.icons.outlined.SupportAgent
-import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -55,6 +32,11 @@ import com.poracode.app.R
 import com.poracode.app.storage.DeviceAppearanceMode
 import com.poracode.app.storage.DeviceSettingsPreferences
 import com.poracode.app.storage.DeviceSettingsState
+import com.poracode.app.ui.components.PoracodeNavRow
+import com.poracode.app.ui.components.PoracodeSectionLabel
+import com.poracode.app.ui.theme.PoracodeIcons
+import com.poracode.app.ui.theme.PoracodeMetrics
+import com.poracode.app.ui.components.PoracodeSwitch
 
 internal enum class SettingsRoute {
     DeviceIndex,
@@ -129,45 +111,45 @@ internal fun DeviceSettingsIndex(
     SettingsIndexList {
         SettingsIndexSection(R.string.settings_device_section)
         SettingsIndexRow(
-            Icons.Outlined.Info,
+            PoracodeIcons.Info,
             R.string.settings_device_general,
             R.string.settings_device_general_description,
         ) { onOpen(SettingsRoute.General) }
         SettingsIndexRow(
-            Icons.Outlined.ColorLens,
+            PoracodeIcons.ColorLens,
             R.string.settings_device_appearance,
             R.string.settings_device_appearance_description,
         ) { onOpen(SettingsRoute.Appearance) }
         SettingsIndexRow(
-            Icons.Outlined.Notifications,
+            PoracodeIcons.Notifications,
             R.string.settings_device_notifications,
             R.string.settings_device_notifications_description,
         ) { onOpen(SettingsRoute.Notifications) }
         SettingsIndexRow(
-            Icons.Outlined.Terminal,
+            PoracodeIcons.Terminal,
             R.string.settings_device_terminal,
             R.string.settings_device_terminal_description,
         ) { onOpen(SettingsRoute.Terminal) }
         SettingsIndexRow(
-            Icons.Outlined.Commit,
+            PoracodeIcons.Commit,
             R.string.settings_device_git,
             R.string.settings_device_git_description,
         ) { onOpen(SettingsRoute.Git) }
         SettingsIndexSection(R.string.settings_desktop_section)
         SettingsIndexRow(
-            Icons.Outlined.Computer,
+            PoracodeIcons.Computer,
             R.string.hosts_desktop_settings,
             R.string.settings_desktop_index_description,
         ) { onOpen(SettingsRoute.DesktopIndex) }
         SettingsIndexSection(R.string.settings_help_section)
         SettingsIndexRow(
-            Icons.Outlined.PrivacyTip,
+            PoracodeIcons.PrivacyTip,
             R.string.settings_privacy,
             R.string.settings_privacy_description,
             onOpenPrivacy,
         )
         SettingsIndexRow(
-            Icons.Outlined.SupportAgent,
+            PoracodeIcons.SupportAgent,
             R.string.settings_support,
             R.string.settings_support_description,
             onOpenSupport,
@@ -188,7 +170,7 @@ internal fun DesktopSettingsIndex(
 ) {
     SettingsIndexList {
         item {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Column(Modifier.padding(vertical = 4.dp)) {
                 Text(
                     host?.label ?: stringResource(R.string.settings_no_host),
                     style = MaterialTheme.typography.titleLarge,
@@ -199,59 +181,59 @@ internal fun DesktopSettingsIndex(
             }
         }
         SettingsIndexSection(R.string.settings_desktop_section)
-        SettingsIndexRow(Icons.Outlined.Computer, R.string.settings_host_title) {
+        SettingsIndexRow(PoracodeIcons.Computer, R.string.settings_host_title) {
             onOpen(SettingsRoute.Host)
         }
-        SettingsIndexRow(Icons.Outlined.Person, R.string.settings_profile_title) {
+        SettingsIndexRow(PoracodeIcons.Person, R.string.settings_profile_title) {
             onOpen(SettingsRoute.Profile)
         }
-        SettingsIndexRow(Icons.Outlined.BarChart, R.string.settings_usage_title) {
+        SettingsIndexRow(PoracodeIcons.BarChart, R.string.settings_usage_title) {
             onOpen(SettingsRoute.Usage)
         }
         SettingsIndexRow(
-            Icons.Outlined.Schedule,
+            PoracodeIcons.Schedule,
             R.string.remote_integrations_schedules,
             onClick = onOpenSchedules,
         )
         SettingsIndexRow(
-            Icons.Outlined.AutoAwesome,
+            PoracodeIcons.AutoAwesome,
             R.string.settings_generation_title,
             R.string.settings_generation_description,
         ) { onOpen(SettingsRoute.Preferences) }
-        SettingsIndexRow(Icons.Outlined.SmartToy, R.string.settings_agents_title) {
+        SettingsIndexRow(PoracodeIcons.SmartToy, R.string.settings_agents_title) {
             onOpen(SettingsRoute.Agents)
         }
         SettingsIndexRow(
-            Icons.Outlined.Extension,
+            PoracodeIcons.Extension,
             R.string.settings_integrations_title,
             onClick = onOpenIntegrations,
         )
         SettingsIndexRow(
-            Icons.Outlined.Extension,
+            PoracodeIcons.Extension,
             R.string.settings_global_mcp_title,
             R.string.settings_global_mcp_description,
         ) { onOpen(SettingsRoute.GlobalMcp) }
         if (environmentsAvailable) {
             SettingsIndexRow(
-                Icons.Outlined.Dns,
+                PoracodeIcons.Dns,
                 R.string.environments_settings_title,
                 R.string.environments_settings_description,
             ) { onOpenEnvironments() }
         }
         SettingsIndexSection(R.string.settings_configuration_section)
         SettingsIndexRow(
-            Icons.Outlined.Archive,
+            PoracodeIcons.Archive,
             R.string.archived_threads_title,
             R.string.archived_threads_description,
         ) { onOpen(SettingsRoute.ArchivedThreads) }
         SettingsIndexRow(
-            Icons.Outlined.CreateNewFolder,
+            PoracodeIcons.CreateNewFolder,
             R.string.settings_workspace_defaults,
             R.string.settings_workspace_defaults_description,
         ) { onOpen(SettingsRoute.Workspace) }
         SettingsIndexSection(R.string.settings_utilities_section)
-        SettingsIndexRow(Icons.Outlined.Public, R.string.browser_mirror_title, onClick = onOpenBrowser)
-        SettingsIndexRow(Icons.Outlined.Build, R.string.advanced_ops_title, onClick = onOpenAdvanced)
+        SettingsIndexRow(PoracodeIcons.Public, R.string.browser_mirror_title, onClick = onOpenBrowser)
+        SettingsIndexRow(PoracodeIcons.Build, R.string.advanced_ops_title, onClick = onOpenAdvanced)
     }
 }
 
@@ -283,45 +265,6 @@ internal fun DeviceGeneralPane(
         }
         item {
             HomeShortcutSettingsSection(state, preferences)
-        }
-    }
-}
-
-@Composable
-internal fun DeviceAppearancePane(
-    state: DeviceSettingsState,
-    preferences: DeviceSettingsPreferences,
-) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            SettingsCard {
-                DeviceAppearanceMode.entries.forEach { mode ->
-                    SettingsChoiceRow(
-                        label = stringResource(
-                            when (mode) {
-                                DeviceAppearanceMode.System -> R.string.settings_appearance_system
-                                DeviceAppearanceMode.Light -> R.string.settings_appearance_light
-                                DeviceAppearanceMode.Dark -> R.string.settings_appearance_dark
-                            },
-                        ),
-                        selected = state.appearanceMode == mode,
-                    ) { preferences.setAppearanceMode(mode) }
-                }
-                SettingsSwitchRow(
-                    label = stringResource(R.string.settings_dynamic_color),
-                    checked = state.dynamicColor,
-                    onChange = { preferences.setDynamicColor(it) },
-                )
-                SettingsStepperRow(
-                    stringResource(R.string.settings_chat_text_size),
-                    state.chatTextSizeSp,
-                    preferences::setChatTextSizeSp,
-                )
-            }
         }
     }
 }
@@ -387,6 +330,11 @@ internal fun SettingsChoiceRow(label: String, selected: Boolean, onClick: () -> 
             role = Role.RadioButton,
             onClick = onClick,
         ),
+        // Transparent so the row sits flat on its SettingsCard instead of
+        // painting a surface-colored box inside it.
+        colors = androidx.compose.material3.ListItemDefaults.colors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        ),
     )
 }
 
@@ -396,11 +344,21 @@ internal fun SettingsSwitchRow(
     checked: Boolean,
     onChange: (Boolean) -> Unit,
     enabled: Boolean = true,
+    description: String? = null,
 ) {
     ListItem(
         headlineContent = { Text(label) },
+        supportingContent = description?.let { text ->
+            {
+                Text(
+                    text,
+                    style = com.poracode.app.ui.theme.PoracodeTextStyles.rowDescription,
+                    color = com.poracode.app.ui.theme.PoracodeTheme.colors.muted,
+                )
+            }
+        },
         trailingContent = {
-            Switch(
+            PoracodeSwitch(
                 checked,
                 enabled = enabled,
                 onCheckedChange = null,
@@ -413,6 +371,9 @@ internal fun SettingsSwitchRow(
             role = Role.Switch,
             onValueChange = onChange,
         ),
+        colors = androidx.compose.material3.ListItemDefaults.colors(
+            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        ),
     )
 }
 
@@ -420,18 +381,22 @@ internal fun SettingsSwitchRow(
 private fun SettingsIndexList(content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit) {
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(vertical = 8.dp),
+        contentPadding = PaddingValues(
+            start = PoracodeMetrics.pageInline,
+            end = PoracodeMetrics.pageInline,
+            top = 8.dp,
+            bottom = 8.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
         content = content,
     )
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.SettingsIndexSection(title: Int) {
     item {
-        Text(
+        PoracodeSectionLabel(
             stringResource(title),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            Modifier.padding(vertical = 6.dp),
         )
     }
 }
@@ -443,14 +408,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.SettingsIndexRow(
     onClick: () -> Unit,
 ) {
     item {
-        ListItem(
-            headlineContent = { Text(stringResource(title)) },
-            supportingContent = description?.let { id -> { Text(stringResource(id)) } },
-            leadingContent = { Icon(icon, contentDescription = null) },
-            trailingContent = {
-                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null)
-            },
-            modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        PoracodeNavRow(
+            title = stringResource(title),
+            subtitle = description?.let { stringResource(it) },
+            icon = icon,
+            onClick = onClick,
         )
     }
 }

@@ -1,3 +1,4 @@
+import "@/renderer/testUtils/clientDraftDatabase";
 // @vitest-environment jsdom
 
 import type { ReactElement, ReactNode } from "react";
@@ -32,9 +33,14 @@ vi.mock("@/renderer/bridge", () => ({
 }));
 
 vi.mock("./ThreadComposer", () => ({
-  ThreadComposer: (props: { inputContent?: ReactNode }) => {
+  ThreadComposer: (props: { inputContent?: ReactNode; attachmentBar?: ReactNode }) => {
     composerSpy(props);
-    return <div data-testid="draft-composer">{props.inputContent}</div>;
+    return (
+      <div data-testid="draft-composer">
+        {props.attachmentBar}
+        {props.inputContent}
+      </div>
+    );
   },
 }));
 
@@ -126,6 +132,7 @@ type ComposerProps = {
   onAttachFiles?: (paths: string[]) => void;
   onPromptChange: (value: string) => void;
   onSubmit: () => void;
+  submitDisabled: boolean;
 };
 
 function currentComposerProps(): ComposerProps {
@@ -136,11 +143,15 @@ function currentComposerProps(): ComposerProps {
 
 function renderComposer(
   onStart: (input: DraftStartInput) => void | Promise<void> = () => {},
-  options: { paneId?: string; pickFiles?: () => Promise<string[] | null> } = {},
+  options: {
+    paneId?: string;
+    pickFiles?: () => Promise<string[] | null>;
+    isRemote?: boolean;
+  } = {},
 ) {
   return render(
     <ThreadDraftComposerArea
-      project={project}
+      project={options.isRemote ? { ...project, remoteServerId: "paired-host" } : project}
       {...(options.paneId ? { paneId: options.paneId } : {})}
       selectedAgent={agentStatus}
       controls={[]}
@@ -229,7 +240,9 @@ describe("draft live voice ownership", () => {
 
     act(() => currentComposerProps().onSubmit());
 
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({
       segments: [
         { kind: "attachment", path: "C:\\draft-note.txt", mimeType: "text/plain" },
@@ -277,7 +290,9 @@ describe("draft live voice ownership", () => {
     });
     act(() => currentComposerProps().onPromptChange("Review this attachment"));
     act(() => currentComposerProps().onSubmit());
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({
       segments: [{ kind: "attachment", path: item.attachmentPath, mimeType: item.mimeType }],
     });
@@ -314,7 +329,9 @@ describe("draft live voice ownership", () => {
       expect(screen.getByRole("textbox")).toHaveTextContent("queued from pane");
     });
     act(() => currentComposerProps().onSubmit());
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({
       prompt: "queued seed\n\nqueued from pane",
     });
@@ -348,7 +365,9 @@ describe("draft live voice ownership", () => {
     act(() => currentComposerProps().onPromptChange("Review this attachment"));
     act(() => currentComposerProps().onSubmit());
 
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({
       segments: [{ kind: "attachment", path: "C:\\picked\\notes.md", mimeType: "text/markdown" }],
     });
@@ -356,12 +375,12 @@ describe("draft live voice ownership", () => {
 
   it("keeps a delayed clipboard save pending and preserves its successful attachment", async () => {
     const permission = deferred<MediaStream>();
-    const save = deferred<string>();
+    const save = deferred<ArrayBuffer>();
     const track = { enabled: true, stop: vi.fn<() => void>(), onended: null };
     const stream = makeStream(track);
     const getUserMedia = vi.fn<() => Promise<MediaStream>>(() => permission.promise);
     vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
-    bridge.saveClipboardImage.mockReturnValue(save.promise);
+    bridge.saveClipboardImage.mockResolvedValue("C:\\voice-project\\saved-image.png");
     const onStart = vi.fn<(input: unknown) => void>();
 
     renderComposer(onStart);
@@ -370,6 +389,7 @@ describe("draft live voice ownership", () => {
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
 
     const file = new File([new Uint8Array([1, 2, 3])], "clipboard.png", { type: "image/png" });
+    vi.spyOn(file, "arrayBuffer").mockReturnValueOnce(save.promise);
     act(() => currentComposerProps().inputContent!.props.onPasteImage?.(file));
     expect(useLiveVoice.getState().phase).toBe("idle");
 
@@ -380,12 +400,15 @@ describe("draft live voice ownership", () => {
     expect(onStart).not.toHaveBeenCalled();
     expect(getUserMedia).toHaveBeenCalledOnce();
 
-    save.resolve("C:\\voice-project\\saved-image.png");
-    await waitFor(() => expect(currentComposerProps().submitControl).toBeUndefined());
+    expect(bridge.saveClipboardImage).not.toHaveBeenCalled();
+    save.resolve(new Uint8Array([1, 2, 3]).buffer);
+    await waitFor(() => expect(currentComposerProps().submitDisabled).toBe(false));
     act(() => currentComposerProps().onPromptChange("Review this attachment"));
     act(() => currentComposerProps().onSubmit());
 
-    expect(onStart).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledOnce();
+    });
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({
       segments: [
         { kind: "attachment", path: "C:\\voice-project\\saved-image.png", mimeType: "image/png" },
@@ -393,7 +416,7 @@ describe("draft live voice ownership", () => {
     });
   });
 
-  it("allows a voice retry after a clipboard save failure decrements pending work", async () => {
+  it("retains a failed image import and allows voice after explicit removal", async () => {
     const firstPermission = deferred<MediaStream>();
     const secondPermission = deferred<MediaStream>();
     const firstTrack = { enabled: true, stop: vi.fn<() => void>(), onended: null };
@@ -404,7 +427,6 @@ describe("draft live voice ownership", () => {
       .mockReturnValueOnce(secondPermission.promise);
     vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
     const saveError = new Error("save failed");
-    bridge.saveClipboardImage.mockRejectedValueOnce(saveError);
 
     renderComposer();
     await waitFor(() => expect(currentComposerProps().submitControl).toBeDefined());
@@ -412,9 +434,12 @@ describe("draft live voice ownership", () => {
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
 
     const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+    vi.spyOn(file, "arrayBuffer").mockRejectedValueOnce(saveError);
     act(() => currentComposerProps().inputContent!.props.onPasteImage?.(file));
     firstPermission.resolve(makeStream(firstTrack));
     await waitFor(() => expect(firstTrack.stop).toHaveBeenCalledOnce());
+    expect(currentComposerProps().submitControl).toBeUndefined();
+    fireEvent.click(await screen.findByRole("button", { name: "Remove Image 1.png" }));
     await waitFor(() => expect(currentComposerProps().submitControl).toBeDefined());
 
     act(() => currentComposerProps().submitControl!.props.onStart());
@@ -445,6 +470,21 @@ describe("draft live voice ownership", () => {
     expect(onStart.mock.calls[0]?.[0]).toMatchObject({ prompt: "", threadId: expect.any(String) });
     expect(onStart.mock.calls[0]?.[0]).not.toHaveProperty("segments");
     await waitFor(() => expect(bridge.connectThreadVoice).toHaveBeenCalledOnce());
+  });
+
+  it("offers live voice and local file drops only for a project whose host runs here", async () => {
+    const local = renderComposer();
+    await waitFor(() => expect(currentComposerProps().submitControl).toBeDefined());
+    expect(currentComposerProps().onAttachFiles).toBeDefined();
+    local.unmount();
+    composerSpy.mockClear();
+
+    // The host's voice-session frames reach only the co-located desktop, and a
+    // dropped file is a path on this machine.
+    renderComposer(() => {}, { isRemote: true });
+    await waitFor(() => expect(composerSpy).toHaveBeenCalled());
+    expect(currentComposerProps().submitControl).toBeUndefined();
+    expect(currentComposerProps().onAttachFiles).toBeUndefined();
   });
 
   it("releases an abandoned permission request when the draft unmounts", async () => {

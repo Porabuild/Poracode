@@ -13,8 +13,8 @@ const capabilities: AgentCapability = {
   modes: ["agent", "plan"],
   approvalPolicies: [
     { id: "default", label: "Default" },
-    { id: "auto", label: "Auto Approve" },
-    { id: "yolo", label: "Bypass Approvals" },
+    { id: "yolo", label: "Ask When Needed" },
+    { id: "auto", label: "Never Ask" },
   ],
   sandboxModes: [],
   supportsResume: true,

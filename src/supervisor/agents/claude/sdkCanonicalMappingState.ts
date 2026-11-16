@@ -92,6 +92,32 @@ export interface ToolItemState {
    * (which is otherwise swallowed by the subagent keepalive) is gone.
    */
   workflow?: ToolCallWorkflow;
+  /**
+   * The sub-agent task was registered in the foreground (`task_started`
+   * `is_backgrounded: false`): it still gets progress/correlation tracking, but
+   * its normal launch tool_result owns the close. A later
+   * `task_updated.patch.is_backgrounded: true` converts it to background
+   * behavior before that result arrives. Absent for older CLIs that omit the
+   * flag, which keeps the historical background keep-alive.
+   */
+  subAgentForeground?: boolean;
+  /**
+   * The row was settled as a result-delivery error because the task left the
+   * authoritative roster without a terminal notification. The state is kept so
+   * a late `task_notification` can replace that error with the real outcome;
+   * while set, lifecycle frames may enrich metadata but must not re-emit a
+   * running payload.
+   */
+  awaitingTaskReport?: boolean;
+  /**
+   * Resolved parent sub-agent row this forwarded child tool was registered
+   * under. Provider-private bookkeeping for one case: when the parent run is
+   * settled for a missing report (or superseded by a resumed owner), its
+   * ordinary child rows can never receive a result and must be completed as
+   * errors before the next turn resets the per-turn tracking. Children whose
+   * own sub-agent run is live (or awaiting a report) are never settled here.
+   */
+  subAgentParentItemId?: string;
 }
 
 export interface ClaudeMapperState {
@@ -187,14 +213,21 @@ export interface ClaudeMapperState {
    * session's CLI process (re)starts and let the next level repopulate it.
    *
    * This is the "is background work still running" signal that holds a
-   * goal open across a clean turn end — subagent tasks are also tracked here
-   * when the CLI emits the level, but the {@link activeSubAgentTaskToTool}
-   * edge maps remain the source of truth for those (older CLIs emit the edges
-   * without the level signal).
+   * goal open across a clean turn end. Once it exists it is authoritative:
+   * liveness/awaited checks use this level alone, never the
+   * {@link activeSubAgentTaskToTool} edge maps. CLIs that predate the level
+   * emit only the edges, and those remain the fallback until the first level
+   * arrives (see `hasLiveBackgroundWork` / `hasAwaitedBackgroundWork`).
    */
   liveBackgroundTaskIds?: Set<string>;
-  /** Launch-correlated task classes; a Monitor may otherwise look like a Bash task. */
-  backgroundTaskKinds?: Map<string, BackgroundTask["kind"]>;
+  /**
+   * Launch-correlated display classes, keyed by task id. A Monitor roster entry
+   * can look like a Bash task, and a task can be known from its launch tool
+   * before the roster lists it. Cleared whenever the CLI process is replaced.
+   */
+  backgroundTaskCategories?: Map<string, NonNullable<BackgroundTask["category"]>>;
+  /** Bounded launch commands (the tool's actual `input.command`), keyed by task id. */
+  backgroundTaskCommands?: Map<string, string>;
   /**
    * Fingerprint of the last `background_tasks.changed` event emitted, so the
    * level signal (which fires on every membership change, including sub-agent

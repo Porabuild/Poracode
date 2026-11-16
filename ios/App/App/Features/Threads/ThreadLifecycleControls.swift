@@ -14,34 +14,6 @@ struct ThreadRelaunchIntent: Identifiable {
   var prompt = ""
 }
 
-struct ThreadLifecycleActionMenu: View {
-  let thread: RemoteThread
-  let enabled: Bool
-  let isBusy: Bool
-  let perform: (ThreadLifecycleMenuAction) -> Void
-
-  var body: some View {
-    Menu {
-      ThreadLifecycleActionsContent(
-        thread: thread,
-        enabled: enabled,
-        isBusy: isBusy,
-        perform: perform
-      )
-    } label: {
-      if isBusy {
-        ProgressView()
-          .controlSize(.small)
-      } else {
-        Image(systemName: "ellipsis.circle")
-          .foregroundStyle(.secondary)
-      }
-    }
-    .disabled(!enabled || isBusy)
-    .accessibilityLabel(ThreadLifecycleStrings.actions)
-  }
-}
-
 /// Shared action content for toolbar menus and touch context menus. Keeping one
 /// definition prevents the compact Home list from drifting from project/thread pages.
 struct ThreadLifecycleActionsContent: View {
@@ -88,52 +60,79 @@ struct ThreadLifecycleActionsContent: View {
   }
 }
 
+/// The subset of primary lifecycle actions a surface wants to render. The
+/// compact Home menu shows all of them; the thread detail drawer pulls
+/// rename/done/pin into the shared PWA order and keeps the rest as extras.
+struct ThreadLifecyclePrimaryActions: OptionSet {
+  let rawValue: Int
+  static let rename = ThreadLifecyclePrimaryActions(rawValue: 1 << 0)
+  static let relaunch = ThreadLifecyclePrimaryActions(rawValue: 1 << 1)
+  static let pin = ThreadLifecyclePrimaryActions(rawValue: 1 << 2)
+  static let done = ThreadLifecyclePrimaryActions(rawValue: 1 << 3)
+  static let acknowledge = ThreadLifecyclePrimaryActions(rawValue: 1 << 4)
+  static let removeFromGroup = ThreadLifecyclePrimaryActions(rawValue: 1 << 5)
+  static let all: ThreadLifecyclePrimaryActions = [
+    .rename, .relaunch, .pin, .done, .acknowledge, .removeFromGroup,
+  ]
+}
+
 struct ThreadLifecyclePrimaryActionsContent: View {
   let thread: RemoteThread
   let perform: (ThreadLifecycleMenuAction) -> Void
+  var actions: ThreadLifecyclePrimaryActions = .all
 
   var body: some View {
     Group {
-      Button {
-        perform(.rename)
-      } label: {
-        PoracodeActionLabel(ThreadLifecycleStrings.rename, systemImage: "pencil")
+      if actions.contains(.rename) {
+        Button {
+          perform(.rename)
+        } label: {
+          PoracodeActionLabel(ThreadLifecycleStrings.rename, systemImage: "pencil")
+        }
+        .buttonStyle(.plain)
       }
-      .buttonStyle(.plain)
-      Button {
-        perform(.relaunch)
-      } label: {
-        PoracodeActionLabel(ThreadLifecycleStrings.relaunch, systemImage: "arrow.clockwise")
+      if actions.contains(.relaunch) {
+        Button {
+          perform(.relaunch)
+        } label: {
+          PoracodeActionLabel(ThreadLifecycleStrings.relaunch, systemImage: "arrow.clockwise")
+        }
+        .buttonStyle(.plain)
       }
-      .buttonStyle(.plain)
-      Button {
-        perform(.setPinned(!thread.isStarred))
-      } label: {
-        PoracodeActionLabel(
-          thread.isStarred ? ThreadLifecycleStrings.unpin : ThreadLifecycleStrings.pin,
-          systemImage: thread.isStarred ? "star.slash" : "star"
-        )
+      if actions.contains(.pin) {
+        Button {
+          perform(.setPinned(!thread.isStarred))
+        } label: {
+          PoracodeActionLabel(
+            thread.isStarred ? ThreadLifecycleStrings.unpin : ThreadLifecycleStrings.pin,
+            systemImage: thread.isStarred ? "star.slash" : "star"
+          )
+        }
+        .buttonStyle(.plain)
       }
-      .buttonStyle(.plain)
-      Button {
-        perform(.setDone(!thread.isDone))
-      } label: {
-        PoracodeActionLabel(
-          thread.isDone ? ThreadLifecycleStrings.markNotDone : ThreadLifecycleStrings.markDone,
-          systemImage: thread.isDone ? "circle" : "checkmark.circle"
-        )
+      if actions.contains(.done) {
+        Button {
+          perform(.setDone(!thread.isDone))
+        } label: {
+          PoracodeActionLabel(
+            thread.isDone ? ThreadLifecycleStrings.markNotDone : ThreadLifecycleStrings.markDone,
+            systemImage: thread.isDone ? "circle" : "checkmark.circle"
+          )
+        }
+        .buttonStyle(.plain)
       }
-      .buttonStyle(.plain)
-      Button {
-        perform(.acknowledge)
-      } label: {
-        PoracodeActionLabel(
-          ThreadLifecycleStrings.acknowledge,
-          systemImage: "checkmark.message"
-        )
+      if actions.contains(.acknowledge) {
+        Button {
+          perform(.acknowledge)
+        } label: {
+          PoracodeActionLabel(
+            ThreadLifecycleStrings.acknowledge,
+            systemImage: "checkmark.message"
+          )
+        }
+        .buttonStyle(.plain)
       }
-      .buttonStyle(.plain)
-      if thread.groupId != nil {
+      if actions.contains(.removeFromGroup), thread.groupId != nil {
         Button {
           perform(.removeFromGroup)
         } label: {
