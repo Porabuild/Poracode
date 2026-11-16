@@ -11,6 +11,7 @@ import {
 import { readBoundedHistoryTail } from "./boundedHistoryRegistry";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
 import { useAppStore } from "@/renderer/state/appStore";
+import { resetComposerDraftStorageForTest } from "@/renderer/state/composerDraftStorage";
 import { nativeVisualUiKey, useNativeVisualUiStore } from "@/renderer/state/nativeVisualUiStore";
 import {
   loadOlderThreadRuntimeItems,
@@ -349,6 +350,7 @@ async function flushAsyncWork(): Promise<void> {
 
 describe("boundedCatalogController", () => {
   beforeEach(() => {
+    resetComposerDraftStorageForTest();
     localStorage.clear();
     useNativeVisualUiStore.setState({ entries: new Map() });
     __resetRemoteServersStoreForTest();
@@ -363,6 +365,7 @@ describe("boundedCatalogController", () => {
   });
 
   afterEach(() => {
+    resetComposerDraftStorageForTest();
     vi.useRealTimers();
   });
 
@@ -1182,6 +1185,7 @@ const appDeleteThread = useAppStore.getState().deleteThread;
 
 describe("shell page after a confirmed removal", () => {
   beforeEach(() => {
+    resetComposerDraftStorageForTest();
     localStorage.clear();
     __resetRemoteServersStoreForTest();
     useAppStore.setState({ threads: [], projects: [] });
@@ -1195,6 +1199,7 @@ describe("shell page after a confirmed removal", () => {
   });
 
   afterEach(() => {
+    resetComposerDraftStorageForTest();
     useAppStore.setState({ deleteThread: appDeleteThread });
     __resetRemoteServersStoreForTest();
     vi.useRealTimers();
