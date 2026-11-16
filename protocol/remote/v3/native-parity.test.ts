@@ -59,7 +59,7 @@ const UI_DISPOSITIONS = [
 
 const EXPECTED_COUNTS = {
   httpRoutes: 121,
-  procedures: 173,
+  procedures: 179,
   webSocketClientMessages: 11,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 12,
@@ -286,10 +286,16 @@ const PLANNED_ABSENCE_TOKENS: Record<
       "resolveLinkMetadata",
       "listImportableSessions",
       "getLatestAgentVersion",
+      "resolveAgentAccount",
       "refreshAgentStatuses",
       "listAcpRegistry",
+      "installAcpRegistryAgent",
+      "removeAcpRegistryAgent",
       "updateAgentBinary",
       "updateAcpRegistryAgent",
+      "setAcpRegistryAgentAuth",
+      "authenticateAcpAgent",
+      "logoutAcpAgent",
     ].map((token) => [
       token,
       [

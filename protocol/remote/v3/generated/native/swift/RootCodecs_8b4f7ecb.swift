@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EAuthenticateAcpAgentU2ERequest: RemoteRootCodec<ProcedureauthenticateAcpAgentRequest_4245351a83> = .init(id: "procedure.authenticateAcpAgent.request", schema: RemoteSchemas.schema_4245351a830ce355)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EBeginMcpServerOauthU2ERequest: RemoteRootCodec<ProcedurebeginMcpServerOauthRequest_338293a42e> = .init(id: "procedure.beginMcpServerOauth.request", schema: RemoteSchemas.schema_338293a42e7115a2)
 }
 
@@ -442,8 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EGhCreatePrU2EResult: RemoteRootCodec<ProcedureforgeCreatePrResult_ea7fc856bb> = .init(id: "procedure.ghCreatePr.result", schema: RemoteSchemas.schema_ea7fc856bb9aa12e)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EGhDeleteWorkflowRunU2ERequest: RemoteRootCodec<ProcedureghCancelWorkflowRunRequest_eb12aad287> = .init(id: "procedure.ghDeleteWorkflowRun.request", schema: RemoteSchemas.schema_eb12aad2875e1908)
 }

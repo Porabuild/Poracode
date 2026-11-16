@@ -313,7 +313,9 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   );
   const remoteSession = isRemoteSession();
   const isMachineScopedSection =
-    activeSection === "agentsGeneral" || activeSection.startsWith("agents:");
+    activeSection === "agentsGeneral" ||
+    activeSection === "acpRegistry" ||
+    activeSection.startsWith("agents:");
   const scopeBar =
     activeSection === "archived" ? (
       <FloatingScopeBar>
@@ -381,8 +383,18 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
 
   const detailContent =
     activeSection === "acpRegistry" ? (
-      <div key={activeSection} className="relative h-full min-h-0">
-        {section}
+      <div className="relative flex h-full min-h-0 flex-col">
+        <div
+          key={
+            remoteSession && selectedDesktop
+              ? `${activeSection}:${remoteConnectionKey(selectedDesktop)}`
+              : activeSection
+          }
+          className="min-h-0 flex-1"
+        >
+          {section}
+        </div>
+        {!compactLayout ? scopeBar : null}
       </div>
     ) : compactLayout ? (
       <div

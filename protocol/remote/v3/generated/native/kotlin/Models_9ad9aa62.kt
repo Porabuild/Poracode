@@ -151,13 +151,6 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DCapabilities_d
 }
 
 @Serializable
-enum class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DEnvKind_9eed5c4959 {
-    @SerialName("windows") WINDOWS,
-    @SerialName("wsl") WSL,
-    @SerialName("posix") POSIX,
-}
-
-@Serializable
 data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DPresentationAuthStates_678d084ee2(
     @SerialName("gui") val gui: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthState_2363c4dd0a> = RemoteField.Missing,
     @SerialName("terminal") val terminal: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthState_2363c4dd0a> = RemoteField.Missing,

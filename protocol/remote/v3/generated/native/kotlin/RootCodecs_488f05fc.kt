@@ -5,6 +5,9 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.procedureU2EAuthenticateAcpAgentU2ERequest: RemoteRootCodec<ProcedureauthenticateAcpAgentRequest_4245351a83>
+    get() = RemoteRootCodec("procedure.authenticateAcpAgent.request", serializer<ProcedureauthenticateAcpAgentRequest_4245351a83>(), schema_4245351a830ce355)
+
 val RemoteRootCodecs.procedureU2EBeginMcpServerOauthU2ERequest: RemoteRootCodec<ProcedurebeginMcpServerOauthRequest_338293a42e>
     get() = RemoteRootCodec("procedure.beginMcpServerOauth.request", serializer<ProcedurebeginMcpServerOauthRequest_338293a42e>(), schema_338293a42e7115a2)
 
@@ -445,6 +448,3 @@ val RemoteRootCodecs.procedureU2EGhPostPrCommentU2ERequest: RemoteRootCodec<Proc
 
 val RemoteRootCodecs.procedureU2EGhPostPrCommentU2EResult: RemoteRootCodec<ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_cb95bf43ec>
     get() = RemoteRootCodec("procedure.ghPostPrComment.result", serializer<ProcedureforgeGetPrDetailsResultU2DDetailsU2DCommentsU2DItem_cb95bf43ec>(), schema_cb95bf43ec62db01)
-
-val RemoteRootCodecs.procedureU2EGhReopenPrU2ERequest: RemoteRootCodec<ProcedureghClosePrRequest_868bf1042a>
-    get() = RemoteRootCodec("procedure.ghReopenPr.request", serializer<ProcedureghClosePrRequest_868bf1042a>(), schema_868bf1042a1bbba1)

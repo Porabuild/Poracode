@@ -525,6 +525,29 @@ describe("SettingsOverlay", () => {
     expect(screen.getByRole("main")).toContainElement(screen.getByTestId("machine-select"));
   });
 
+  it("shows the floating machine selector for Agent Registry when multiple machines exist", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "mac",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: [],
+        },
+      ],
+    });
+    usePanelStore.getState().openSettingsSection("acpRegistry");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const main = screen.getByRole("main");
+    expect(within(main).getByText("Agent Registry Settings")).toBeInTheDocument();
+    expect(within(main).getByTestId("machine-select")).toBeInTheDocument();
+    expect(
+      screen.getByText("Agent Registry Settings").closest(".min-h-0.flex-1"),
+    ).not.toContainElement(screen.getByTestId("machine-select"));
+  });
+
   it("opens Schedules from the compact Desktop Settings index", () => {
     vi.stubGlobal(
       "matchMedia",

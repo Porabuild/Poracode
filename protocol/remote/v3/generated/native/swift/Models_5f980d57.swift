@@ -36,6 +36,23 @@ public struct ProceduresearchProjectTreeResult_ed3d977334: Codable, Sendable, Re
   }
 }
 
+public typealias ProceduresetAcpRegistryAgentAuthRequestU2DEnvironment_e1b513bc9f = [String: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b]
+
+public struct ProceduresetAcpRegistryAgentAuthRequest_abad7b87a3: Codable, Sendable, RemoteModelMetadata {
+  public var agentId: String
+  public var environment: ProceduresetAcpRegistryAgentAuthRequestU2DEnvironment_e1b513bc9f
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "agentId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "environment", typeName: "ProceduresetAcpRegistryAgentAuthRequestU2DEnvironment_e1b513bc9f", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case agentId = "agentId"
+    case environment = "environment"
+  }
+}
+
 public struct ProceduresetSkillEnabledRequest_38462ff398: Codable, Sendable, RemoteModelMetadata {
   public var absolutePath: String
   public var enabled: Bool
