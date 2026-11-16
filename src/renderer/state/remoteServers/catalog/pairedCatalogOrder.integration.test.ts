@@ -16,6 +16,7 @@ import {
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
 import { remoteProjectId, remoteThreadId } from "@/renderer/state/remoteProjection";
+import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import type { RemoteSocketLike } from "@/renderer/state/remoteServers/types";
 import {
   dispatchHostProjectReorder,
@@ -434,4 +435,129 @@ describe("paired bounded catalog manual order over the real fixture", () => {
     expect(useRemoteServersStore.getState().runtime[key]?.status).toBe("online");
     expect(liveSockets.length).toBe(1);
   }, 180_000);
+
+  it("keeps last-updated sidebar order aligned after live thread-state on threads beyond manual page 1 without 1s revert", async () => {
+    const sqlite = getSqlite();
+    sqlite
+      .prepare(
+        "INSERT INTO projects (id, name, location_kind, location_path, sort_order, created_at) VALUES ('p-many', 'Many', 'posix', '/tmp/p-many', 0, '2026-01-01T00:00:00.000Z')",
+      )
+      .run();
+    const insertThread = sqlite.prepare(
+      `INSERT INTO threads (id, project_id, title, agent_kind, config, status, attention, sort_order, created_at, updated_at)
+       VALUES (?, 'p-many', ?, 'claude', '{"model":"sonnet"}', 'idle', 'none', ?, '2026-01-01T00:00:00.000Z', ?)`,
+    );
+    sqlite.transaction(() => {
+      for (let index = 0; index < 110; index += 1) {
+        const second = String(index % 60).padStart(2, "0");
+        const minute = String(Math.floor(index / 60)).padStart(2, "0");
+        insertThread.run(
+          `t-${String(index).padStart(3, "0")}`,
+          `Thread ${index}`,
+          index,
+          `2026-01-01T00:${minute}:${second}.000Z`,
+        );
+      }
+    })();
+
+    const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "paired-updated-order", label: "Paired Updated Order" },
+      host: "127.0.0.1",
+      port: 0,
+      tls: null,
+      ownsSupervisorPersistence: true,
+      onEventInterestsChanged: vi.fn<() => void>(),
+      callSupervisor: (async (procedure: string) => {
+        if (procedure === "getAgentStatuses") return { windows: [], wsl: [] };
+        if (procedure === "dbGetLatestThreadGoalItem") return null;
+        if (procedure === "dbGetThreadContextUsage") return null;
+        if (procedure === "readTerminalScrollback") return "";
+        if (procedure === "readTerminalSize") return { cols: 80, rows: 24 };
+        if (procedure === "readThreadBackgroundTasks") return [];
+        if (procedure === "getThreadFollowUpQueue") return null;
+        return { ok: true };
+      }) as unknown as RemoteAccessServerOptions["callSupervisor"],
+      schedules: {
+        list: () => [],
+        runs: () => [],
+        create: () => {
+          throw new Error("not used");
+        },
+        update: () => {
+          throw new Error("not used");
+        },
+        delete: () => {},
+        runNow: () => {
+          throw new Error("not used");
+        },
+      },
+    });
+    servers.push(server);
+    await server.start();
+    const info = server.getInfo();
+    if (!info) throw new Error("fixture server not started");
+    const record = await useRemoteServersStore.getState().pairServer({
+      endpoint: info.localHttpBaseUrl,
+      token: server.issuePairingUrl("paired-updated-order"),
+    });
+    const key = record.connectionId ?? record.desktopId;
+
+    await vi.waitFor(
+      () => expect(useRemoteServersStore.getState().runtime[key]?.status).toBe("online"),
+      { timeout: 20_000 },
+    );
+    await useRemoteServersStore.getState().refreshServer(key);
+    await vi.waitFor(
+      () =>
+        expect(
+          useRemoteServersStore
+            .getState()
+            .runtime[key]?.threads.filter((thread) => thread.projectId === "p-many"),
+        ).toHaveLength(110),
+      { timeout: 20_000 },
+    );
+
+    const pManyId = remoteProjectId(key, "p-many");
+    const updatedOrderIds = () =>
+      buildSidebarProjectRows({
+        projectId: pManyId,
+        projectThreads: useAppStore
+          .getState()
+          .threads.filter((thread) => thread.projectId === pManyId),
+        sortMode: "updated",
+        collapsedWorktrees: {},
+        visibleLimit: 20,
+      }).flatMap((row) => (row.kind === "thread" ? [row.thread.remoteId ?? row.thread.id] : []));
+
+    expect(updatedOrderIds()[0]).toBe("t-109");
+
+    // An earlier manual-order thread (t-000 had the oldest updatedAt, while
+    // t-105 sits past page 1 of manual order) becomes active on the host.
+    server.publishSupervisorEvent({
+      type: "thread-state",
+      threadId: "t-105",
+      agentKind: "claude",
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+    });
+    server.publishSupervisorEvent({
+      type: "thread-state",
+      threadId: "t-105",
+      agentKind: "claude",
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    await vi.waitFor(() => expect(updatedOrderIds()[0]).toBe("t-105"), { timeout: 20_000 });
+
+    // Wait past the 600ms debounced refreshServer() window and force a page-1
+    // manual refresh: t-105 must remain #1 rather than reverting after ~1s.
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    await useRemoteServersStore.getState().refreshServer(key);
+    expect(updatedOrderIds()[0]).toBe("t-105");
+  }, 60_000);
 });

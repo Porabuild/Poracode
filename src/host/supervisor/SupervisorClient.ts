@@ -1022,7 +1022,13 @@ export class SupervisorClient {
       type,
       requestPayload,
       options.requestTimeoutMs ??
-        (type === "updateAgentBinary" ? AGENT_UPDATE_REQUEST_TIMEOUT_MS : REQUEST_TIMEOUT_MS),
+        (type === "updateAgentBinary" ||
+        type === "installAcpRegistryAgent" ||
+        type === "updateAcpRegistryAgent" ||
+        type === "removeAcpRegistryAgent" ||
+        type === "authenticateAcpAgent"
+          ? AGENT_UPDATE_REQUEST_TIMEOUT_MS
+          : REQUEST_TIMEOUT_MS),
     );
   }
 

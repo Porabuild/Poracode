@@ -7,6 +7,7 @@ import type {
   Project,
   RefreshAgentScopeEnv,
 } from "@/shared/contracts";
+import type { MachineDescriptor } from "@/renderer/state/machines";
 import { useAppStore } from "@/renderer/state/appStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { localEnvLabel } from "@/renderer/utils/machineLabels";
@@ -142,6 +143,117 @@ export function findProjectForStatus(
   }
   if (status.envKind === "windows") {
     return projects.find((project) => project.location.kind === "windows");
+  }
+  return undefined;
+}
+
+function projectRemoteOwnerId(project: Project): string | undefined {
+  return project.remoteServerId ?? project.location.remoteServerId;
+}
+
+/**
+ * Resolves a Project belonging to `machine` for home-rooted install/login
+ * shells. Returns a real matching project when one exists, or synthesizes a
+ * home-backed location pinned to `machine`'s host/OS/WSL distro when none does
+ * (or when other projects belong to a different host or environment).
+ */
+export function findProjectForMachine(
+  machine: MachineDescriptor,
+  projects: readonly Project[],
+  isLocalWindows: boolean,
+  machineStatuses: readonly AgentStatus[] = [],
+): Project | undefined {
+  if (machine.ref.host === "remote") {
+    const desktopId = machine.ref.desktopId;
+    const remoteProjects = projects.filter(
+      (project) => projectRemoteOwnerId(project) === desktopId,
+    );
+    if (machine.ref.env.kind === "wsl") {
+      const distro = machine.ref.env.distro;
+      const existing = remoteProjects.find(
+        (project) => project.location.kind === "wsl" && project.location.distro === distro,
+      );
+      if (existing) return existing;
+      return {
+        id: `__machine__:remote:${desktopId}:wsl:${distro}`,
+        name: distro,
+        disabled: false,
+        createdAt: new Date(0).toISOString(),
+        remoteServerId: desktopId,
+        location: {
+          kind: "wsl",
+          distro,
+          linuxPath: "~",
+          uncPath: `\\\\wsl.localhost\\${distro}`,
+          remoteServerId: desktopId,
+        },
+      };
+    }
+    const isRemoteWindows =
+      machine.platform === "win32" ||
+      machineStatuses.some((status) => status.envKind === "windows") ||
+      remoteProjects.some((project) => project.location.kind === "windows");
+    const targetKind = isRemoteWindows ? "windows" : "posix";
+    const existing = remoteProjects.find((project) => project.location.kind === targetKind);
+    if (existing) return existing;
+    return {
+      id: `__machine__:remote:${desktopId}:${targetKind}`,
+      name: machine.label,
+      disabled: false,
+      createdAt: new Date(0).toISOString(),
+      remoteServerId: desktopId,
+      location: isRemoteWindows
+        ? { kind: "windows", path: ".", remoteServerId: desktopId }
+        : { kind: "posix", path: "~", remoteServerId: desktopId },
+    };
+  }
+
+  const localProjects = projects.filter((project) => projectRemoteOwnerId(project) === undefined);
+  if (machine.ref.env.kind === "wsl") {
+    const distro = machine.ref.env.distro;
+    const existing = localProjects.find(
+      (project) => project.location.kind === "wsl" && project.location.distro === distro,
+    );
+    if (existing) return existing;
+    return {
+      id: `__machine__:wsl:${distro}`,
+      name: distro,
+      disabled: false,
+      createdAt: new Date(0).toISOString(),
+      location: {
+        kind: "wsl",
+        distro,
+        linuxPath: "~",
+        uncPath: `\\\\wsl.localhost\\${distro}`,
+      },
+    };
+  }
+
+  if (isLocalWindows) {
+    const existing = localProjects.find((project) => project.location.kind === "windows");
+    if (existing) return existing;
+    if (projects.length > 0) {
+      return {
+        id: "__machine__:windows",
+        name: "Windows",
+        disabled: false,
+        createdAt: new Date(0).toISOString(),
+        location: { kind: "windows", path: "." },
+      };
+    }
+    return undefined;
+  }
+
+  const existingPosix = localProjects.find((project) => project.location.kind === "posix");
+  if (existingPosix) return existingPosix;
+  if (projects.length > 0) {
+    return {
+      id: "__machine__:posix",
+      name: machine.label,
+      disabled: false,
+      createdAt: new Date(0).toISOString(),
+      location: { kind: "posix", path: "~" },
+    };
   }
   return undefined;
 }

@@ -13,7 +13,13 @@ import type {
   CreateProfilePayload,
   Project,
 } from "@/shared/contracts";
-import { isMac, isWindows, readBridge } from "@/renderer/bridge";
+import { isMac, isWindows } from "@/renderer/bridge";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  LOCAL_AGENT_MANAGEMENT_HOST,
+  type AgentManagementHost,
+} from "../../../components/providers/settings/agentManagementHost";
 import { claudeProfileSupport } from "../../../components/providers/settings/ClaudeProfileSettings";
 import { ClaudeAgentSettingsPanel } from "@/renderer/components/providers/claude/AgentSettingsPanel";
 import {
@@ -159,7 +165,10 @@ export interface NativeAgentRegistryEntry {
    * behind its language server). Called when the agent's settings page opens;
    * resolving `undefined` hides the account line.
    */
-  accountResolver?: (wslDistros: string[]) => Promise<AgentProviderMetadata | undefined>;
+  accountResolver?: (
+    wslDistros: string[],
+    host?: AgentManagementHost,
+  ) => Promise<AgentProviderMetadata | undefined>;
   /**
    * The provider keeps several profiles (extra accounts or configurations),
    * listed on its base settings page and reachable as `<driver>:<id>` agent
@@ -185,8 +194,21 @@ function isWslProject(project: Project): boolean {
   return project.location.kind === "wsl";
 }
 
+function resolveProjectPlatform(project: Project): "win32" | "darwin" | "linux" {
+  if (project.location.kind === "wsl") return "linux";
+  if (project.location.kind === "windows") return "win32";
+  const serverId = project.remoteServerId ?? project.location.remoteServerId;
+  if (serverId) {
+    const serverPlatform = useRemoteServersStore
+      .getState()
+      .servers.find((server) => remoteConnectionKey(server) === serverId)?.platform;
+    return serverPlatform ?? "linux";
+  }
+  return isWindows() ? "win32" : isMac() ? "darwin" : "linux";
+}
+
 function posixOrWindows(project: Project, posix: string, windows: string): string {
-  return isWslProject(project) || !isWindows() ? posix : windows;
+  return isWslProject(project) || resolveProjectPlatform(project) !== "win32" ? posix : windows;
 }
 
 function nativeInstallCommand(
@@ -194,8 +216,9 @@ function nativeInstallCommand(
   commands: { mac: string; posix: string; windows: string },
 ): string {
   if (isWslProject(project)) return commands.posix;
-  if (isWindows()) return commands.windows;
-  return isMac() ? commands.mac : commands.posix;
+  const platform = resolveProjectPlatform(project);
+  if (platform === "win32") return commands.windows;
+  return platform === "darwin" ? commands.mac : commands.posix;
 }
 
 export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
@@ -383,8 +406,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     runtimeSlots: antigravityRuntimeSlots,
     // Antigravity's signed-in account lives behind its language server (the
     // credential sits in the OS keyring), so it isn't in the detected status.
-    accountResolver: (wslDistros) =>
-      readBridge()
+    accountResolver: (wslDistros, host = LOCAL_AGENT_MANAGEMENT_HOST) =>
+      host
         .resolveAgentAccount({ agentKind: "antigravity", wslDistros })
         .then((result) => result.account),
   },

@@ -57,7 +57,7 @@ import {
 import { RemoteHttpError } from "../auth";
 import { mapFenceRefusal, mapPersistenceRefusal } from "./persistenceRefusals";
 import type { RemoteServerContext } from "./context";
-import { withPendingInterruptedTurn } from "./pendingInterruptedTurns";
+import { withPendingInterruptedTurn, withPendingThreadActivity } from "./pendingInterruptedTurns";
 import { readRuntimeHistoryNoticeForRead } from "./runtimeHistoryNoticeGate";
 import { CONVERSATION_SEARCH_VERSION } from "@/shared/conversationSearch";
 import { withStableUpdatedAt } from "./stableUpdatedAt";
@@ -254,7 +254,9 @@ function projectShellSnapshot(
     ctx.threadLiveReadState.retainThreads(knownThreadIds);
   }
   const threads = data.threads.map((thread) =>
-    withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+    withPendingThreadActivity(
+      withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+    ),
   );
   const summariesByThread = runtimeSummariesFor(threads, summaries);
   const gitSummariesByThread =
@@ -341,7 +343,9 @@ function projectThreadListPage(
 ): RemoteThreadListPage {
   return remoteThreadListPageSchema.parse({
     threads: page.threads.map((thread) =>
-      withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+      withPendingThreadActivity(
+        withPendingInterruptedTurn(ctx.sessionConfigInventory.enrichThreadRow(thread)),
+      ),
     ),
     runtimeSummariesByThread: runtimeSummariesFor(page.threads, page.summaries),
     gitSummariesByThread: gitSummariesFor(ctx, page.threads),

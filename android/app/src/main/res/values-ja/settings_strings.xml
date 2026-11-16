@@ -134,4 +134,16 @@
     <string name="settings_profile_tokens_by_provider">プロバイダー別トークン</string>
     <string name="settings_profile_tokens_by_provider_empty">プロバイダー別のトークン使用状況はありません。</string>
     <string name="settings_profile_provider_cost">推定コスト</string>
+    <string name="settings_profile_trends">最近とトレンド</string>
+    <string name="settings_profile_yesterday">昨日</string>
+    <string name="settings_profile_last_7d">過去 7 日間</string>
+    <string name="settings_profile_avg_task_duration">平均タスク時間</string>
+    <string name="settings_profile_prompt_cache_hit">プロンプトキャッシュ率</string>
+    <string name="settings_profile_weekend_share">週末の割合</string>
+    <string name="settings_profile_switched_provider">プロバイダー切替</string>
+    <string name="settings_profile_switched_model">モデル切替</string>
+    <string name="settings_profile_provider_less">今週 %1$s は %2$d%% 減</string>
+    <string name="settings_profile_provider_more">今週 %1$s は %2$d%% 増</string>
+    <string name="settings_profile_switched_from_to">%1$s → %2$s</string>
+    <string name="settings_profile_prompts_count">%1$s プロンプト</string>
 </resources>

@@ -517,6 +517,8 @@ export class SupervisorRuntime {
         threadCrewBinding(this.threadSessionManager.getThreadConfig(threadId)),
       resolveProviderSessionThreadId: (sessionId) =>
         this.threadSessionManager.getThreadIdByProviderSessionId(sessionId),
+      resolveProviderMcpThreadId: (metadata) =>
+        this.threadSessionManager.getThreadIdByProviderMcpMetadata(metadata),
       // User-configured routing guidance, read live from shared settings (the
       // cache invalidates on file change) so edits take effect on the next turn
       // without a supervisor restart. Empty/whitespace-only = no guidance.

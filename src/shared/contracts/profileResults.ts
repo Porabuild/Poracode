@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { profileCostStatsSchema } from "./costHistory";
+import { profileCostStatsSchema, usageMoneySchema } from "./costHistory";
 import type {
   ProfileCoreStats,
   ProfileDevicesResponse,
@@ -74,6 +74,11 @@ export const profileActiveHourSchema = z.object({
   count: safeNonNegInt,
 });
 
+export const profileHourBucketSchema = z.object({
+  hour: z.number().int().min(0).max(23),
+  count: safeNonNegInt,
+});
+
 export const profileInsightsSchema = z.object({
   topProvider: profileBreakdownEntrySchema.optional(),
   topModel: profileBreakdownEntrySchema.optional(),
@@ -107,6 +112,43 @@ export const profileAiActionSchema = z.object({
   topModel: z.string().optional(),
 });
 
+export const profilePeriodSnapshotSchema = z.object({
+  days: safeNonNegInt,
+  activeDays: safeNonNegInt,
+  threads: safeNonNegInt,
+  prompts: safeNonNegInt,
+  messages: safeNonNegInt,
+  goals: safeNonNegInt,
+  longestTaskMs: safeNonNegInt,
+  totalTurnMs: safeNonNegInt,
+  fastTurns: safeNonNegInt,
+  effortTurns: safeNonNegInt,
+  skillsUsed: safeNonNegInt,
+  workflowRuns: safeNonNegInt,
+  subagentRuns: safeNonNegInt,
+  mcpToolCalls: safeNonNegInt,
+  weekdayPrompts: safeNonNegInt,
+  weekendPrompts: safeNonNegInt,
+  providers: z.array(profileBreakdownEntrySchema),
+  models: z.array(profileBreakdownEntrySchema),
+  modes: z.array(profileBreakdownEntrySchema),
+  efforts: z.array(profileBreakdownEntrySchema),
+  hours: z.array(profileHourBucketSchema),
+  skills: z.array(profileSkillUsageSchema),
+  mcps: z.array(profileSkillUsageSchema),
+  aiActions: z.array(profileAiActionSchema),
+});
+
+export const profileRecentActivitySchema = z.object({
+  today: profilePeriodSnapshotSchema,
+  yesterday: profilePeriodSnapshotSchema,
+  last7d: profilePeriodSnapshotSchema,
+  prev7d: profilePeriodSnapshotSchema,
+  last30d: profilePeriodSnapshotSchema,
+  prev30d: profilePeriodSnapshotSchema,
+  windowHours: z.array(profileHourBucketSchema).optional(),
+});
+
 export const profileCoreStatsSchema = z.object({
   scope: profileStatScopeSchema,
   device: profileDeviceSchema,
@@ -124,6 +166,7 @@ export const profileCoreStatsSchema = z.object({
   mcps: z.array(profileSkillUsageSchema),
   aiActions: z.array(profileAiActionSchema),
   availableAccounts: z.array(profileAccountRefSchema),
+  recent: profileRecentActivitySchema.optional(),
 });
 
 export const profileTokenProviderSchema = z.object({
@@ -134,8 +177,30 @@ export const profileTokenProviderSchema = z.object({
   estimatedCostUsd: z.number().optional(),
 });
 
+export const profileTokenPeriodSnapshotSchema = z.object({
+  tokens: safeNonNegInt,
+  estimatedUsd: z.number().finite().nonnegative(),
+  observed: z.array(usageMoneySchema),
+  inputTokens: safeNonNegInt,
+  outputTokens: safeNonNegInt,
+  cacheReadTokens: safeNonNegInt,
+  cacheWriteTokens: safeNonNegInt,
+  providers: z.array(profileTokenProviderSchema),
+  models: z.array(profileBreakdownEntrySchema),
+});
+
+export const profileRecentTokenActivitySchema = z.object({
+  today: profileTokenPeriodSnapshotSchema,
+  yesterday: profileTokenPeriodSnapshotSchema,
+  last7d: profileTokenPeriodSnapshotSchema,
+  prev7d: profileTokenPeriodSnapshotSchema,
+  last30d: profileTokenPeriodSnapshotSchema,
+  prev30d: profileTokenPeriodSnapshotSchema,
+});
+
 export const profileTokenStatsSchema = z.object({
   costs: profileCostStatsSchema.optional(),
+  recent: profileRecentTokenActivitySchema.optional(),
   available: z.boolean(),
   scope: profileStatScopeSchema,
   device: profileDeviceSchema,

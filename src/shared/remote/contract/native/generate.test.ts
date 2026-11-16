@@ -102,23 +102,26 @@ describe("remote v3 native binding generator", () => {
         // with their request, query and result roots and structural types.
         // Optional agent-statuses `detecting` moves only the source hash.
         // Worktree creation adds an optional checkout-pool diagnostic and a longer client deadline.
-        sourceHash: "sha256:836d0849ffb2cd14c4b69c90ff627b49e168b0e88b7a72463bb8a9586bb47324",
-        manifestHash: "sha256:7c0092870265fb91d29e0ddeb13a062f93158483255e0ddf10c05575720488b1",
+        // Remote agent management exposes ACP install/remove/auth/logout/account resolution.
+        // Optional period activity snapshots (`recent`) on ProfileCoreStats and ProfileTokenStats
+        // add five structural types and move only the source hash while keeping older hosts valid.
+        sourceHash: "sha256:95c61030df1c62beff0f434e61059ec710d6533b4e1b688499e0c2164a0921a4",
+        manifestHash: "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3",
         counts: {
           routes: 121,
-          procedures: 173,
-          voidProcedureResults: 64,
-          jsonProcedureResults: 109,
+          procedures: 179,
+          voidProcedureResults: 66,
+          jsonProcedureResults: 113,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 569,
-          structuralTypes: 1353,
+          schemaRoots: 579,
+          structuralTypes: 1365,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 148,
-          kotlinFiles: 125,
+          swiftFiles: 149,
+          kotlinFiles: 127,
           stateMachines: 5,
         },
       });
@@ -392,7 +395,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(569);
+        expect(adapters).toHaveLength(579);
         expect(
           adapters
             .map((adapter) => adapter.id)

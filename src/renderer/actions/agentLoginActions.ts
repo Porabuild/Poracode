@@ -95,7 +95,10 @@ export function runAgentLoginCommand(input: {
   });
   const command =
     project.location.kind === "windows" ? `Clear-Host; ${loginCommand}` : `clear; ${loginCommand}`;
-  const stopOpeningUrls = interceptWslUrls ? watchUrlsInNativeBrowser(shellId) : undefined;
+  const remoteServerId = project.remoteServerId ?? project.location.remoteServerId;
+  const stopOpeningUrls = interceptWslUrls
+    ? watchUrlsInNativeBrowser(shellId, remoteServerId)
+    : undefined;
   const completionToken = createCompletionToken();
   const script = appendCompletionSignal(command, project, completionToken);
 
@@ -380,7 +383,10 @@ function isLoopbackUrl(text: string): boolean {
   }
 }
 
-function watchUrlsInNativeBrowser(shellId: string): (flushPending?: boolean) => void {
+function watchUrlsInNativeBrowser(
+  shellId: string,
+  remoteServerId?: string,
+): (flushPending?: boolean) => void {
   let buffer = "";
   let done = false;
   let flushTimer = 0;
@@ -421,11 +427,27 @@ function watchUrlsInNativeBrowser(shellId: string): (flushPending?: boolean) => 
     unsubscribe();
   }, 10 * 60_000);
 
-  unsubscribe = readBridge().onSupervisorEvent((event) => {
-    if (done || event.type !== "thread-output" || event.threadId !== shellId) return;
-    buffer = `${buffer}${stripAnsi(event.data).replace(/\r\n?/gu, "\n")}`.slice(-8192);
+  const consumeOutput = (data: string) => {
+    if (done) return;
+    buffer = `${buffer}${stripAnsi(data).replace(/\r\n?/gu, "\n")}`.slice(-8192);
     scheduleFlush();
-  });
+  };
+
+  unsubscribe = remoteServerId
+    ? watchRoutedTerminal(
+        shellId,
+        {
+          onOutput: consumeOutput,
+          onSnapshot: (snapshot) => consumeOutput(snapshot.data),
+          onReset: () => undefined,
+          onExited: () => undefined,
+        },
+        remoteServerId,
+      )
+    : readBridge().onSupervisorEvent((event) => {
+        if (done || event.type !== "thread-output" || event.threadId !== shellId) return;
+        consumeOutput(event.data);
+      });
 
   return (flushPending = false) => {
     if (done) return;

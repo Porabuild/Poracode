@@ -1,3 +1,5 @@
+import { readBridge } from "@/renderer/bridge";
+import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 import { rememberHistoryContentOmissions } from "../historyDelivery";
 import { handleAgentVisionServerMessage } from "@/renderer/browser/agentVisionStream";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
@@ -49,17 +51,41 @@ import {
 } from "./eventRouting";
 import { clearRemoteGitState, syncRemoteGitStatePatch } from "./gitState";
 import { syncRemoteGitSummaries } from "./gitSummaries";
-import { cachedThreadIds } from "./rowReuse";
+import { isRemoteProjectSynced } from "./projectSync";
+import { cachedThreadIds, reuseRow } from "./rowReuse";
 import { remoteConnectionKey } from "./types";
+
+function isMainWindowSurface(): boolean {
+  if (!hasAnyClientBridge()) return true;
+  const kind = readBridge()?.windowKind;
+  return kind === undefined || kind === "main";
+}
 
 export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void {
   const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss } = ctx;
   const connectionKey = remoteConnectionKey(server);
   let socketSequenceFloor = ctx.resumeCursor;
+  let readyReplayCeiling = -1;
   /** Epoch this socket's `ready` reported; undefined from hosts without one. */
   let socketEpoch: string | undefined;
   /** This socket's `ready` proved a restart under a bound cursor. */
   let socketEpochChanged = false;
+
+  const shouldForwardRemoteUserNotification = (seq: number, event: unknown): boolean => {
+    if (seq <= readyReplayCeiling) return false;
+    if (!isMainWindowSurface()) return false;
+    const threadId = (event as { threadId?: unknown }).threadId;
+    const excluded = get().excludedProjectIds?.[connectionKey];
+    if (typeof threadId === "string" && excluded && excluded.length > 0) {
+      const knownThread = get().runtime[connectionKey]?.threads.find(
+        (thread) => thread.id === threadId,
+      );
+      if (knownThread && !isRemoteProjectSynced(knownThread.projectId, excluded)) {
+        return false;
+      }
+    }
+    return true;
+  };
 
   ctx.dispatchForwardEvent = (forward, sequence, omittedRuntimeThreadIds): void => {
     for (const threadId of supervisorEventThreadIds(forward)) {
@@ -84,6 +110,75 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
           ...(event.branch ? { branch: event.branch } : {}),
           action: event.action,
         }),
+    });
+    syncRuntimeThreadAfterLiveEvent(forward);
+  };
+
+  const syncRuntimeThreadAfterLiveEvent = (forward: unknown): void => {
+    if (!forward || typeof forward !== "object") return;
+    const type = (forward as { type?: unknown }).type;
+    if (type !== "thread-state" && type !== "thread-exited") return;
+    const hostThreadId = (forward as { threadId?: unknown }).threadId;
+    if (typeof hostThreadId !== "string") return;
+    const appState = useAppStore.getState();
+    const viewId = remoteThreadId(connectionKey, hostThreadId);
+    const viewThread = appState.threads.find((thread) => thread.id === viewId);
+    if (!viewThread) return;
+    const hasPendingConfig = appState.pendingThreadConfigByThreadId[viewId] !== undefined;
+    ctx.set((state) => {
+      const current = state.runtime[connectionKey];
+      if (!current) return state;
+      const index = current.threads.findIndex((thread) => thread.id === hostThreadId);
+      if (index === -1) return state;
+      const existing = current.threads[index]!;
+      const nextThread = {
+        ...existing,
+        status: viewThread.status,
+        attention: viewThread.attention,
+        canResumeWithConfig: viewThread.canResumeWithConfig,
+        ...(hasPendingConfig ? {} : { config: viewThread.config }),
+        done: viewThread.done,
+        updatedAt: viewThread.updatedAt,
+        ...(viewThread.doneAt !== undefined ? { doneAt: viewThread.doneAt } : {}),
+        ...(viewThread.threadStatusSource !== undefined
+          ? { threadStatusSource: viewThread.threadStatusSource }
+          : {}),
+        ...(viewThread.sessionRef !== undefined ? { sessionRef: viewThread.sessionRef } : {}),
+        ...(viewThread.slashCommands !== undefined
+          ? { slashCommands: viewThread.slashCommands }
+          : {}),
+        ...(viewThread.sessionConfigOptions !== undefined
+          ? { sessionConfigOptions: viewThread.sessionConfigOptions }
+          : {}),
+        ...(viewThread.activeTurnStartedAt !== undefined
+          ? { activeTurnStartedAt: viewThread.activeTurnStartedAt }
+          : {}),
+        ...(viewThread.lastTurnStartedAt !== undefined
+          ? { lastTurnStartedAt: viewThread.lastTurnStartedAt }
+          : {}),
+        ...(viewThread.lastTurnEndedAt !== undefined
+          ? { lastTurnEndedAt: viewThread.lastTurnEndedAt }
+          : {}),
+        ...(viewThread.interruptedTurn !== undefined
+          ? { interruptedTurn: viewThread.interruptedTurn }
+          : {}),
+        ...(viewThread.status === "error" && viewThread.errorMessage !== undefined
+          ? { errorMessage: viewThread.errorMessage }
+          : {}),
+      };
+      if (viewThread.doneAt === undefined) delete nextThread.doneAt;
+      if (viewThread.threadStatusSource === undefined) delete nextThread.threadStatusSource;
+      if (viewThread.sessionConfigOptions === undefined) delete nextThread.sessionConfigOptions;
+      if (viewThread.activeTurnStartedAt === undefined) delete nextThread.activeTurnStartedAt;
+      if (viewThread.interruptedTurn === undefined) delete nextThread.interruptedTurn;
+      if (viewThread.status !== "error") delete nextThread.errorMessage;
+      const updated = reuseRow(existing, nextThread);
+      if (updated === existing) return state;
+      const threads = current.threads.slice();
+      threads[index] = updated;
+      return {
+        runtime: { ...state.runtime, [connectionKey]: { ...current, threads } },
+      };
     });
   };
 
@@ -160,6 +255,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
         return;
       }
       if (message.type === "ready") {
+        readyReplayCeiling = message.seq;
         noteReady(message.seq, message.epoch);
         return;
       }
@@ -243,6 +339,14 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
           releaseRemoteTerminal(terminalId);
         }
         let forward = filterRemoteThreadEvents(message.event, remoteThreadIds);
+        if (
+          forward !== null &&
+          typeof forward === "object" &&
+          (forward as { type?: unknown }).type === "remote-user-notification" &&
+          !shouldForwardRemoteUserNotification(message.seq, forward)
+        ) {
+          forward = null;
+        }
         if (forward !== null) {
           ctx.dispatchForwardEvent(forward, message.seq, message.omittedRuntimeThreadIds);
         } else if (
@@ -266,6 +370,14 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): void
               : undefined;
           if (typeof eventType === "string") {
             noteBoundedCatalogMembershipEvent(connectionKey, eventType);
+            if (
+              forward === null &&
+              (eventType === "thread-state" || eventType === "thread-exited")
+            ) {
+              // An event for a thread not yet loaded locally (beyond page 1 or
+              // newly created) needs an inventory pass, not just a page-1 refresh.
+              noteBoundedCatalogMembershipEvent(connectionKey, "remote-threads-changed");
+            }
           }
           // Debounced so a burst of events yields one snapshot GET.
           get().scheduleServerRefresh(connectionKey, {

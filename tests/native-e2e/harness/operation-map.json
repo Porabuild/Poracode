@@ -3,17 +3,21 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:98c8859920c908256f977beae0bc8e1fbf4a70d11d9468de6339ec443e6175e2",
-  "keyCount": 350,
+  "manifestHash": "sha256:9a5ee59a9cb11ae69141aed18868b97f83741c84b24abe31cfa64338290d8f51",
+  "keyCount": 356,
   "counts": {
     "route": 121,
-    "procedure": 173,
+    "procedure": 179,
     "ws-client": 11,
     "ws-server": 12,
     "replay": 17,
     "runtime": 16
   },
   "operations": {
+    "procedure:authenticateAcpAgent": {
+      "kind": "procedure",
+      "id": "authenticateAcpAgent"
+    },
     "procedure:beginMcpServerOauth": {
       "kind": "procedure",
       "id": "beginMcpServerOauth"
@@ -518,6 +522,10 @@
       "kind": "procedure",
       "id": "importSkills"
     },
+    "procedure:installAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "installAcpRegistryAgent"
+    },
     "procedure:installMarketplaceSkill": {
       "kind": "procedure",
       "id": "installMarketplaceSkill"
@@ -549,6 +557,10 @@
     "procedure:listThreadSessionActions": {
       "kind": "procedure",
       "id": "listThreadSessionActions"
+    },
+    "procedure:logoutAcpAgent": {
+      "kind": "procedure",
+      "id": "logoutAcpAgent"
     },
     "procedure:lspStart": {
       "kind": "procedure",
@@ -610,6 +622,10 @@
       "kind": "procedure",
       "id": "relocateProject"
     },
+    "procedure:removeAcpRegistryAgent": {
+      "kind": "procedure",
+      "id": "removeAcpRegistryAgent"
+    },
     "procedure:removeQueuedThreadFollowUp": {
       "kind": "procedure",
       "id": "removeQueuedThreadFollowUp"
@@ -621,6 +637,10 @@
     "procedure:reorderQueuedThreadFollowUp": {
       "kind": "procedure",
       "id": "reorderQueuedThreadFollowUp"
+    },
+    "procedure:resolveAgentAccount": {
+      "kind": "procedure",
+      "id": "resolveAgentAccount"
     },
     "procedure:resolveLinkMetadata": {
       "kind": "procedure",
@@ -653,6 +673,10 @@
     "procedure:searchProjectTree": {
       "kind": "procedure",
       "id": "searchProjectTree"
+    },
+    "procedure:setAcpRegistryAgentAuth": {
+      "kind": "procedure",
+      "id": "setAcpRegistryAgentAuth"
     },
     "procedure:setSkillEnabled": {
       "kind": "procedure",

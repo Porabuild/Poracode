@@ -258,6 +258,66 @@ describe("mergeProfileCoreStats", () => {
     ]);
     expect(merged.availableAccounts.map((a) => a.key)).toEqual(["claude:work", "codex:default"]);
   });
+
+  it("merges recent period snapshots and derives mostActiveHour from windowHours", () => {
+    const emptySnapshot = {
+      days: 7,
+      activeDays: 1,
+      threads: 1,
+      prompts: 2,
+      messages: 2,
+      goals: 0,
+      longestTaskMs: 1000,
+      totalTurnMs: 2000,
+      fastTurns: 1,
+      effortTurns: 1,
+      skillsUsed: 0,
+      workflowRuns: 0,
+      subagentRuns: 0,
+      mcpToolCalls: 0,
+      weekdayPrompts: 2,
+      weekendPrompts: 0,
+      providers: [{ key: "alpha", label: "Alpha", count: 2, percent: 100 }],
+      models: [],
+      modes: [{ key: "chat", label: "Chat", count: 1, percent: 100 }],
+      efforts: [{ key: "high", label: "High", count: 1, percent: 100 }],
+      hours: [{ hour: 21, count: 2 }],
+      skills: [],
+      mcps: [],
+      aiActions: [],
+    };
+    const devA = makeCore({
+      recent: {
+        today: { ...emptySnapshot, days: 1, prompts: 1 },
+        yesterday: { ...emptySnapshot, days: 1, prompts: 2 },
+        last7d: emptySnapshot,
+        prev7d: { ...emptySnapshot, prompts: 4 },
+        last30d: { ...emptySnapshot, days: 30, prompts: 6 },
+        prev30d: { ...emptySnapshot, days: 30, prompts: 0 },
+        windowHours: [
+          { hour: 10, count: 3 },
+          { hour: 21, count: 4 },
+        ],
+      },
+    });
+    const devB = makeCore({
+      device: makeDevice("dev-b", "Remote Box"),
+      recent: {
+        today: { ...emptySnapshot, days: 1, prompts: 2 },
+        yesterday: { ...emptySnapshot, days: 1, prompts: 3 },
+        last7d: { ...emptySnapshot, prompts: 3 },
+        prev7d: { ...emptySnapshot, prompts: 1 },
+        last30d: { ...emptySnapshot, days: 30, prompts: 4 },
+        prev30d: { ...emptySnapshot, days: 30, prompts: 0 },
+        windowHours: [{ hour: 21, count: 5 }],
+      },
+    });
+    const merged = mergeProfileCoreStats([devA, devB]);
+    expect(merged.insights.mostActiveHour).toEqual({ hour: 21, label: "9 PM", count: 9 });
+    expect(merged.recent?.yesterday.prompts).toBe(5);
+    expect(merged.recent?.last7d.prompts).toBe(5);
+    expect(merged.recent?.prev7d.prompts).toBe(5);
+  });
 });
 
 describe("mergeProfileTokenStats", () => {

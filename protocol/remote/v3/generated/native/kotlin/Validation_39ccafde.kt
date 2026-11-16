@@ -57,6 +57,10 @@ internal val schema_2c93150c89b253f9: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_247ec4acb49e6522, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_2cc17d220c2ecf6d: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("last30d", "last7d", "prev30d", "prev7d", "today", "yesterday"), properties = mapOf("last30d" to schema_745f2435a66ae299, "last7d" to schema_745f2435a66ae299, "prev30d" to schema_745f2435a66ae299, "prev7d" to schema_745f2435a66ae299, "today" to schema_745f2435a66ae299, "yesterday" to schema_745f2435a66ae299), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_2cfe911595ad978d: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("fromCursor", "generation", "toCursor", "version", "watchId"), properties = mapOf("fromCursor" to schema_56aa0e45cbdce0d0, "generation" to schema_36fea325bf1aca70, "toCursor" to schema_56aa0e45cbdce0d0, "version" to schema_7f9f5a0d72de0d9a, "watchId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP, semanticIds = listOf("terminal.cursor.output-range"))
 }

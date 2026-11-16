@@ -1,6 +1,45 @@
 {
   "$comment": "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
   "$defs": {
+    "procedure.authenticateAcpAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "envKind": {
+          "enum": [
+            "windows",
+            "wsl",
+            "posix"
+          ],
+          "type": "string"
+        },
+        "methodId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "wslDistro": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentKind",
+        "methodId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.authenticateAcpAgent.result": {
+      "$comment": "Void result omitted from /api/git/call JSON; never null.",
+      "x-poracode-semanticValidators": [
+        "void-result.omit-field"
+      ],
+      "x-poracode-wire": "omitted"
+    },
     "procedure.beginMcpServerOauth.request": {
       "$defs": {
         "__schema0": {
@@ -27108,6 +27147,167 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "procedure.installAcpRegistryAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "target": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "native",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "required": [
+        "agentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.installAcpRegistryAgent.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "installedAt": {
+              "type": "string"
+            },
+            "layoutVersion": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "target": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "target",
+            "installedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "installed": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "adapterKind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "installKind": {
+                "enum": [
+                  "first-class",
+                  "generic"
+                ],
+                "type": "string"
+              },
+              "installations": {
+                "additionalProperties": true,
+                "properties": {
+                  "native": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "wsl": {
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "installedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "version",
+              "installedAt",
+              "adapterKind",
+              "installKind"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "installed"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.installMarketplaceSkill.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -28165,6 +28365,40 @@
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
+    },
+    "procedure.logoutAcpAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "envKind": {
+          "enum": [
+            "windows",
+            "wsl",
+            "posix"
+          ],
+          "type": "string"
+        },
+        "wslDistro": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentKind"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.logoutAcpAgent.result": {
+      "$comment": "Void result omitted from /api/git/call JSON; never null.",
+      "x-poracode-semanticValidators": [
+        "void-result.omit-field"
+      ],
+      "x-poracode-wire": "omitted"
     },
     "procedure.lspStart.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -32234,6 +32468,130 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "procedure.removeAcpRegistryAgent.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "agentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.removeAcpRegistryAgent.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "installedAt": {
+              "type": "string"
+            },
+            "layoutVersion": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "target": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "target",
+            "installedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "installed": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "adapterKind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "installKind": {
+                "enum": [
+                  "first-class",
+                  "generic"
+                ],
+                "type": "string"
+              },
+              "installations": {
+                "additionalProperties": true,
+                "properties": {
+                  "native": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "wsl": {
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "installedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "version",
+              "installedAt",
+              "adapterKind",
+              "installKind"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "installed"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "procedure.removeQueuedThreadFollowUp.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -32410,6 +32768,83 @@
         "void-result.omit-field"
       ],
       "x-poracode-wire": "omitted"
+    },
+    "procedure.resolveAgentAccount.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentKind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "wslDistros": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "agentKind"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.resolveAgentAccount.result": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "account": {
+          "additionalProperties": true,
+          "properties": {
+            "authMethod": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "authenticatedAs": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "connectedProviders": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "detail": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "label": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "label"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "organization": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "plan": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
     },
     "procedure.resolveLinkMetadata.request": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -34178,6 +34613,141 @@
       },
       "required": [
         "entries"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.setAcpRegistryAgentAuth.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "agentId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "environment": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "propertyNames": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "agentId",
+        "environment"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "procedure.setAcpRegistryAgentAuth.result": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "installedAt": {
+              "type": "string"
+            },
+            "layoutVersion": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "target": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "target",
+            "installedAt"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "installed": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "adapterKind": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "icon": {
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "installKind": {
+                "enum": [
+                  "first-class",
+                  "generic"
+                ],
+                "type": "string"
+              },
+              "installations": {
+                "additionalProperties": true,
+                "properties": {
+                  "native": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "wsl": {
+                    "additionalProperties": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "propertyNames": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  }
+                },
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "installedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "version": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "version",
+              "installedAt",
+              "adapterKind",
+              "installKind"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "installed"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -53636,6 +54206,186 @@
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
+        },
+        "__schema4": {
+          "additionalProperties": true,
+          "properties": {
+            "count": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "label": {
+              "type": "string"
+            },
+            "topModel": {
+              "type": "string"
+            },
+            "topProvider": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "commit",
+                "pr",
+                "conflict"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "label",
+            "count"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema5": {
+          "additionalProperties": true,
+          "properties": {
+            "activeDays": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "aiActions": {
+              "items": {
+                "$ref": "#/$defs/__schema4"
+              },
+              "type": "array"
+            },
+            "days": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "effortTurns": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "efforts": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "type": "array"
+            },
+            "fastTurns": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "goals": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "hours": {
+              "items": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "type": "array"
+            },
+            "longestTaskMs": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "mcpToolCalls": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "mcps": {
+              "items": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "type": "array"
+            },
+            "messages": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "models": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "type": "array"
+            },
+            "modes": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "type": "array"
+            },
+            "prompts": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "providers": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "type": "array"
+            },
+            "skills": {
+              "items": {
+                "$ref": "#/$defs/__schema3"
+              },
+              "type": "array"
+            },
+            "skillsUsed": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "subagentRuns": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "threads": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "totalTurnMs": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "weekdayPrompts": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "weekendPrompts": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "workflowRuns": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "days",
+            "activeDays",
+            "threads",
+            "prompts",
+            "messages",
+            "goals",
+            "longestTaskMs",
+            "totalTurnMs",
+            "fastTurns",
+            "effortTurns",
+            "skillsUsed",
+            "workflowRuns",
+            "subagentRuns",
+            "mcpToolCalls",
+            "weekdayPrompts",
+            "weekendPrompts",
+            "providers",
+            "models",
+            "modes",
+            "efforts",
+            "hours",
+            "skills",
+            "mcps",
+            "aiActions"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema6": {
+          "additionalProperties": true,
+          "properties": {
+            "count": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "hour": {
+              "maximum": 23,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "hour",
+            "count"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -53649,36 +54399,7 @@
         },
         "aiActions": {
           "items": {
-            "additionalProperties": true,
-            "properties": {
-              "count": {
-                "$ref": "#/$defs/__schema1"
-              },
-              "label": {
-                "type": "string"
-              },
-              "topModel": {
-                "type": "string"
-              },
-              "topProvider": {
-                "type": "string"
-              },
-              "type": {
-                "enum": [
-                  "commit",
-                  "pr",
-                  "conflict"
-                ],
-                "type": "string"
-              }
-            },
-            "required": [
-              "type",
-              "label",
-              "count"
-            ],
-            "type": "object",
-            "x-poracode-unknownFields": "strip"
+            "$ref": "#/$defs/__schema4"
           },
           "type": "array"
         },
@@ -53919,6 +54640,45 @@
             "$ref": "#/$defs/__schema2"
           },
           "type": "array"
+        },
+        "recent": {
+          "additionalProperties": true,
+          "properties": {
+            "last30d": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "last7d": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "prev30d": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "prev7d": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "today": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "windowHours": {
+              "items": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "type": "array"
+            },
+            "yesterday": {
+              "$ref": "#/$defs/__schema5"
+            }
+          },
+          "required": [
+            "today",
+            "yesterday",
+            "last7d",
+            "prev7d",
+            "last30d",
+            "prev30d"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         },
         "scope": {
           "enum": [
@@ -54227,23 +54987,7 @@
             },
             "observed": {
               "items": {
-                "additionalProperties": true,
-                "properties": {
-                  "amount": {
-                    "minimum": 0,
-                    "type": "number"
-                  },
-                  "currency": {
-                    "pattern": "^[A-Z]{3}$",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "amount",
-                  "currency"
-                ],
-                "type": "object",
-                "x-poracode-unknownFields": "strip"
+                "$ref": "#/$defs/__schema2"
               },
               "type": "array"
             },
@@ -54283,6 +55027,25 @@
         "__schema2": {
           "additionalProperties": true,
           "properties": {
+            "amount": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "currency": {
+              "pattern": "^[A-Z]{3}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "amount",
+            "currency"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema3": {
+          "additionalProperties": true,
+          "properties": {
             "key": {
               "type": "string"
             },
@@ -54301,17 +55064,67 @@
           "type": "object",
           "x-poracode-unknownFields": "strip"
         },
-        "__schema3": {
-          "maximum": 9007199254740991,
-          "minimum": -9007199254740991,
-          "type": "integer"
-        },
         "__schema4": {
+          "additionalProperties": true,
+          "properties": {
+            "cacheReadTokens": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "cacheWriteTokens": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "estimatedUsd": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "inputTokens": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "models": {
+              "items": {
+                "$ref": "#/$defs/__schema7"
+              },
+              "type": "array"
+            },
+            "observed": {
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              },
+              "type": "array"
+            },
+            "outputTokens": {
+              "$ref": "#/$defs/__schema5"
+            },
+            "providers": {
+              "items": {
+                "$ref": "#/$defs/__schema6"
+              },
+              "type": "array"
+            },
+            "tokens": {
+              "$ref": "#/$defs/__schema5"
+            }
+          },
+          "required": [
+            "tokens",
+            "estimatedUsd",
+            "observed",
+            "inputTokens",
+            "outputTokens",
+            "cacheReadTokens",
+            "cacheWriteTokens",
+            "providers",
+            "models"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema5": {
           "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
-        "__schema5": {
+        "__schema6": {
           "additionalProperties": true,
           "properties": {
             "estimatedCostUsd": {
@@ -54327,7 +55140,7 @@
               "type": "string"
             },
             "tokens": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             }
           },
           "required": [
@@ -54338,6 +55151,36 @@
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
+        },
+        "__schema7": {
+          "additionalProperties": true,
+          "properties": {
+            "count": {
+              "type": "number"
+            },
+            "key": {
+              "type": "string"
+            },
+            "label": {
+              "type": "string"
+            },
+            "percent": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "key",
+            "label",
+            "count",
+            "percent"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema8": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer"
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -54345,7 +55188,7 @@
       "properties": {
         "accounts": {
           "items": {
-            "$ref": "#/$defs/__schema5"
+            "$ref": "#/$defs/__schema6"
           },
           "type": "array"
         },
@@ -54357,7 +55200,7 @@
           "properties": {
             "accounts": {
               "items": {
-                "$ref": "#/$defs/__schema2"
+                "$ref": "#/$defs/__schema3"
               },
               "type": "array"
             },
@@ -54383,7 +55226,7 @@
             },
             "models": {
               "items": {
-                "$ref": "#/$defs/__schema2"
+                "$ref": "#/$defs/__schema3"
               },
               "type": "array"
             },
@@ -54447,7 +55290,7 @@
             },
             "providers": {
               "items": {
-                "$ref": "#/$defs/__schema2"
+                "$ref": "#/$defs/__schema3"
               },
               "type": "array"
             },
@@ -54479,7 +55322,7 @@
               "type": "string"
             },
             "lastActiveAt": {
-              "$ref": "#/$defs/__schema3"
+              "$ref": "#/$defs/__schema8"
             },
             "platform": {
               "type": "string"
@@ -54494,36 +55337,14 @@
           "x-poracode-unknownFields": "strip"
         },
         "generatedAt": {
-          "$ref": "#/$defs/__schema3"
+          "$ref": "#/$defs/__schema8"
         },
         "lifetimeTokens": {
-          "$ref": "#/$defs/__schema4"
+          "$ref": "#/$defs/__schema5"
         },
         "models": {
           "items": {
-            "additionalProperties": true,
-            "properties": {
-              "count": {
-                "type": "number"
-              },
-              "key": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              },
-              "percent": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "key",
-              "label",
-              "count",
-              "percent"
-            ],
-            "type": "object",
-            "x-poracode-unknownFields": "strip"
+            "$ref": "#/$defs/__schema7"
           },
           "type": "array"
         },
@@ -54531,13 +55352,46 @@
           "type": "string"
         },
         "peakDayTokens": {
-          "$ref": "#/$defs/__schema4"
+          "$ref": "#/$defs/__schema5"
         },
         "providers": {
           "items": {
-            "$ref": "#/$defs/__schema5"
+            "$ref": "#/$defs/__schema6"
           },
           "type": "array"
+        },
+        "recent": {
+          "additionalProperties": true,
+          "properties": {
+            "last30d": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "last7d": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "prev30d": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "prev7d": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "today": {
+              "$ref": "#/$defs/__schema4"
+            },
+            "yesterday": {
+              "$ref": "#/$defs/__schema4"
+            }
+          },
+          "required": [
+            "today",
+            "yesterday",
+            "last7d",
+            "prev7d",
+            "last30d",
+            "prev30d"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
         },
         "scope": {
           "enum": [
@@ -54547,7 +55401,7 @@
           "type": "string"
         },
         "timezoneOffsetMinutes": {
-          "$ref": "#/$defs/__schema3"
+          "$ref": "#/$defs/__schema8"
         },
         "tokenHeatmap": {
           "additionalProperties": true,
@@ -54557,7 +55411,7 @@
                 "additionalProperties": true,
                 "properties": {
                   "count": {
-                    "$ref": "#/$defs/__schema4"
+                    "$ref": "#/$defs/__schema5"
                   },
                   "day": {
                     "type": "string"
@@ -54598,7 +55452,7 @@
               "type": "array"
             },
             "max": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             },
             "metric": {
               "enum": [
@@ -54608,7 +55462,7 @@
               "type": "string"
             },
             "windowDays": {
-              "$ref": "#/$defs/__schema4"
+              "$ref": "#/$defs/__schema5"
             }
           },
           "required": [
@@ -54627,7 +55481,7 @@
           "type": "array"
         },
         "windowDays": {
-          "$ref": "#/$defs/__schema4"
+          "$ref": "#/$defs/__schema5"
         }
       },
       "required": [
@@ -80677,16 +81531,16 @@
   "generatorVersion": 7,
   "inventory": {
     "blockedProcedureResults": [],
-    "jsonProcedureResults": 109,
-    "procedures": 173,
+    "jsonProcedureResults": 113,
+    "procedures": 179,
     "replayableEventTypes": 17,
     "routes": 121,
     "runtimeEventTypes": 16,
-    "voidProcedureResults": 64,
+    "voidProcedureResults": 66,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:7c0092870265fb91d29e0ddeb13a062f93158483255e0ddf10c05575720488b1",
+  "manifestHash": "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3",
   "protocolVersion": 14,
-  "sourceHash": "sha256:836d0849ffb2cd14c4b69c90ff627b49e168b0e88b7a72463bb8a9586bb47324"
+  "sourceHash": "sha256:95c61030df1c62beff0f434e61059ec710d6533b4e1b688499e0c2164a0921a4"
 }

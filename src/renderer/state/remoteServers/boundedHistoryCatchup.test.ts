@@ -12,7 +12,9 @@ import {
   setOlderThreadHistoryInvalidation,
 } from "../chatRuntimePersister";
 import { clearPendingRuntimeEvents } from "../remote";
-import { remoteProjectId } from "../remoteProjection";
+import { remoteProjectId, remoteThreadId } from "../remoteProjection";
+import type { UserNotification } from "@/shared/threadNotification";
+import type { PoracodeBridge } from "@/shared/ipc";
 import {
   canonicalText,
   connection,
@@ -61,6 +63,13 @@ vi.mock("@/renderer/state/gitRefresh", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/renderer/state/gitRefresh")>();
   return { ...actual, refreshPrAfterForgeActivity: gitRefreshMocks.refreshPrAfterForgeActivity };
 });
+
+const notificationMocks = vi.hoisted(() => ({
+  showUserNotification: vi.fn<(notification: UserNotification) => void>(),
+}));
+vi.mock("@/renderer/notifications", () => ({
+  showUserNotification: notificationMocks.showUserNotification,
+}));
 
 const original = useAppStore.getState();
 const server: RemoteServerRecord = {
@@ -150,6 +159,7 @@ function harness() {
       }),
     receiveEvent: (seq: number, event: unknown) =>
       socket.onmessage?.({ data: JSON.stringify({ type: "event", seq, event }) }),
+    receiveRaw: (message: unknown) => socket.onmessage?.({ data: JSON.stringify(message) }),
   };
 }
 
@@ -157,9 +167,11 @@ beforeEach(() => {
   useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
   __resetOpenRemoteThreadRequestSeqForTest();
   gitRefreshMocks.refreshPrAfterForgeActivity.mockReset();
+  notificationMocks.showUserNotification.mockReset();
 });
 
 afterEach(() => {
+  Reflect.deleteProperty(window, "poracode");
   remoteStore.state = null;
   clearPendingRuntimeEvents();
   forgetHistoryBaselines(remoteServerHostSession(connection));
@@ -241,5 +253,109 @@ it("maps a replayed forge-activity frame onto the paired project's checkout", ()
     projectId: remoteProjectId(connection, "host-p"),
     worktreePath: "/host/wt",
     action: "create",
+  });
+});
+
+it("forwards live remote-user-notification events with projected thread ids", () => {
+  const h = harness();
+  h.receiveRaw({ type: "ready", seq: 100 });
+  h.receiveEvent(101, {
+    type: "remote-user-notification",
+    threadId: "unlisted-remote-thread",
+    category: "done",
+    projectName: "Repo",
+    threadTitle: "Remote task",
+    status: "finished",
+  });
+
+  expect(notificationMocks.showUserNotification).toHaveBeenCalledExactlyOnceWith({
+    threadId: remoteThreadId(connection, "unlisted-remote-thread"),
+    category: "done",
+    projectName: "Repo",
+    threadTitle: "Remote task",
+    status: "finished",
+  });
+});
+
+it("suppresses replayed remote-user-notification frames while advancing seq", () => {
+  const h = harness();
+  h.receiveRaw({ type: "ready", seq: 102 });
+  h.receiveEvent(101, {
+    type: "remote-user-notification",
+    threadId: thread.id,
+    category: "done",
+    projectName: "Repo",
+    threadTitle: "Old replay",
+    status: "finished",
+  });
+  h.receiveEvent(102, {
+    type: "remote-user-notification",
+    threadId: thread.id,
+    category: "error",
+    projectName: "Repo",
+    threadTitle: "Boundary replay",
+    status: "error",
+  });
+  expect(notificationMocks.showUserNotification).not.toHaveBeenCalled();
+
+  h.receiveEvent(103, {
+    type: "remote-user-notification",
+    threadId: thread.id,
+    category: "needsAttention",
+    projectName: "Repo",
+    threadTitle: "Live alert",
+    status: "needs_approval",
+  });
+  expect(notificationMocks.showUserNotification).toHaveBeenCalledExactlyOnceWith({
+    threadId: viewThread,
+    category: "needsAttention",
+    projectName: "Repo",
+    threadTitle: "Live alert",
+    status: "needs_approval",
+  });
+});
+
+it("suppresses remote-user-notification in auxiliary windows and excluded projects", () => {
+  const h = harness();
+  h.receiveRaw({ type: "ready", seq: 100 });
+
+  window.poracode = { windowKind: "thread" } as unknown as PoracodeBridge;
+  h.receiveEvent(101, {
+    type: "remote-user-notification",
+    threadId: thread.id,
+    category: "done",
+    projectName: "Repo",
+    threadTitle: "Aux window",
+    status: "finished",
+  });
+  expect(notificationMocks.showUserNotification).not.toHaveBeenCalled();
+
+  window.poracode = { windowKind: "main" } as unknown as PoracodeBridge;
+  h.ctx.set({ excludedProjectIds: { [connection]: [thread.projectId] } });
+  h.receiveEvent(102, {
+    type: "remote-user-notification",
+    threadId: thread.id,
+    category: "done",
+    projectName: "Repo",
+    threadTitle: "Excluded project",
+    status: "finished",
+  });
+  expect(notificationMocks.showUserNotification).not.toHaveBeenCalled();
+
+  h.ctx.set({ excludedProjectIds: {} });
+  h.receiveEvent(103, {
+    type: "remote-user-notification",
+    threadId: thread.id,
+    category: "done",
+    projectName: "Repo",
+    threadTitle: "Synced project",
+    status: "finished",
+  });
+  expect(notificationMocks.showUserNotification).toHaveBeenCalledExactlyOnceWith({
+    threadId: viewThread,
+    category: "done",
+    projectName: "Repo",
+    threadTitle: "Synced project",
+    status: "finished",
   });
 });

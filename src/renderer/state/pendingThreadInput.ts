@@ -171,6 +171,7 @@ export function carryPendingThreadInput(
     ...incoming,
     status: resident.status,
     attention: resident.attention,
+    updatedAt: resident.updatedAt > incoming.updatedAt ? resident.updatedAt : incoming.updatedAt,
     activeTurnStartedAt: resident.activeTurnStartedAt,
     lastTurnStartedAt: resident.lastTurnStartedAt,
     lastTurnEndedAt: resident.lastTurnEndedAt,

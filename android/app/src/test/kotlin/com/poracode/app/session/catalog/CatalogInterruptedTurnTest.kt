@@ -86,6 +86,20 @@ class CatalogInterruptedTurnTest {
         assertNull(older.interruptedTurn)
     }
 
+    @Test
+    fun workingStateAdoptsHostUpdatedAtWithoutLocalClockDrift() {
+        val hostStamped = mutate(
+            """{"status":"working","attention":"working","updatedAt":"2026-10-29T00:30:00Z"}""",
+        )!!
+        assertEquals("2026-10-29T00:30:00Z", hostStamped.updatedAt)
+
+        // When a legacy host omits updatedAt and the device clock is behind,
+        // updatedAt never moves backwards.
+        val futureRow = row.copy(updatedAt = "2026-10-29T05:00:00Z")
+        val legacy = mutate("""{"status":"working","attention":"working"}""", futureRow)!!
+        assertEquals("2026-10-29T05:00:00Z", legacy.updatedAt)
+    }
+
     private fun decode(extra: String?): RemoteThread = RemoteJson.decodeFromString(
         RemoteThread.serializer(),
         """

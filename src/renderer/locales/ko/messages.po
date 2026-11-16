@@ -89,6 +89,11 @@ msgstr "{0, plural, one {내용 없이 나열된 파일 #개} other {내용 없�
 msgid "{0, plural, one {# file} other {# files}}"
 msgstr "{0, plural, one {# 파일} other {# 파일}}"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0, plural, one {# highlight} other {# highlights}}"
+msgstr "{0, plural, one {하이라이트 #개} other {하이라이트 #개}}"
+
 #. placeholder {0}: groupRows.length
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "{0, plural, one {# MCP server} other {# MCP servers}}"
@@ -518,6 +523,12 @@ msgstr "{0}, 실행 중"
 msgid "{0}: {stateLabel}"
 msgstr "{0}: {stateLabel}"
 
+#. placeholder {0}: currentPeriod.activeDays
+#. placeholder {1}: currentPeriod.days
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}/{1} active days"
+msgstr "{0}/{1} 활동일"
+
 #. placeholder {0}: selectedRows.length
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: importableRows.length
@@ -526,6 +537,11 @@ msgstr "{0}: {stateLabel}"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "{0}/{1} selected"
 msgstr "{0}/{1}개 선택됨"
+
+#. placeholder {0}: insights.fastModePercent
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{0}% fast"
+msgstr "{0}% 고속"
 
 #. placeholder {0}: summary.percent
 #: src/renderer/components/thread/ThreadContextDock.tsx
@@ -561,6 +577,10 @@ msgstr "{agentLead}가 계속하려면 입력이 필요합니다."
 msgid "{commentCount, plural, one {# comment} other {# comments}}"
 msgstr "{commentCount, plural, other {댓글 #개}}"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{commits} commits"
+msgstr "커밋 {commits}개"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 #~ msgstr "{commitsCount, plural, one {커밋 #개} other {커밋 #개}}"
@@ -570,6 +590,10 @@ msgstr "{commentCount, plural, other {댓글 #개}}"
 #~ msgid "{completedSteps} of {0} steps"
 #~ msgstr "{completedSteps}/{0}단계 완료"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{conflicts} conflicts"
+msgstr "충돌 {conflicts}건"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #~ msgid "{conversationCount, plural, one {# comment or review} other {# comments & reviews}}"
 #~ msgstr "{conversationCount, plural, one {댓글 또는 리뷰 #개} other {댓글 및 리뷰 #개}}"
@@ -578,11 +602,27 @@ msgstr "{commentCount, plural, other {댓글 #개}}"
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# 에이전트 발견됨} other {# 에이전트 발견됨}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week"
+msgstr "이번 주 서브에이전트 실행 {count, plural, one {#회} other {#회}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (-{deltaPercent}%)"
+msgstr "이번 주 서브에이전트 실행 {count, plural, one {#회} other {#회}} (-{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# subagent run} other {# subagent runs}} this week (+{deltaPercent}%)"
+msgstr "이번 주 서브에이전트 실행 {count, plural, one {#회} other {#회}} (+{deltaPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
+msgstr "이번 주 워크플로 실행 {count, plural, one {#회} other {#회}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
 msgstr "{current, plural, other {#일}} 연속 · 최고 기록 {longest}일"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best streak yet"
 msgstr "{current, plural, other {#일}} 연속 · 지금까지 최고 기록"
 
@@ -776,6 +816,10 @@ msgstr "{0}개 중 {passed}개 통과"
 msgid "{percent}% full"
 msgstr "{percent}% 가득 참"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{percent}% of your threads this week used {modeLabel} mode"
+msgstr "이번 주 스레드의 {percent}%가 {modeLabel} 모드를 사용했습니다"
+
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
 msgid "{percent}% used"
 msgstr "{percent}% 사용됨"
@@ -801,13 +845,17 @@ msgstr "{targetLabel}의 {projectName}은(는) Git 저장소가 아니므로 코
 msgid "{projectName} Settings"
 msgstr "{projectName} 설정"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week"
 msgstr "이번 주 프롬프트 {prompts, plural, other {#개}}"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "{prompts, plural, one {# prompt} other {# prompts}} this week · busiest on {weekday}"
 msgstr "이번 주 프롬프트 {prompts, plural, other {#개}} · {weekday}에 가장 활발"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{promptsText} total prompts across {threadsText} threads"
+msgstr "{threadsText}개 스레드에서 총 {promptsText}개 프롬프트"
 
 #: src/renderer/components/providers/codex/manifest.ts
 #: src/renderer/components/providers/usageProviders.ts
@@ -825,6 +873,10 @@ msgstr "{provider}에서는 원샷 생성을 지원하지 않습니다"
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "{provider} does not support text-only one-shot generation"
 #~ msgstr "{provider}에서는 텍스트 전용 원샷 생성을 지원하지 않습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "{prs} PRs"
+msgstr "PR {prs}개"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "{remaining, plural, one {# open} other {# open}}"
@@ -935,6 +987,10 @@ msgstr "{totalCount}개 중 {visibleCount}개 표시"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #~ msgid "{visibleSidebarShortcutCount}/{0} selected"
 #~ msgstr "{visibleSidebarShortcutCount}/{0}개 선택됨"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "{weekdayPct}% Mon–Fri"
+msgstr "{weekdayPct}% 월–금"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "@cursor/sdk is not installed."
@@ -1071,7 +1127,15 @@ msgstr "<0/>님이 리뷰 스레드를 시작했습니다"
 msgid "<0/>% Full"
 msgstr "<0/>% 가득 참"
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envA}</0> leaned {providerA} while <1>{envB}</1> leaned {providerB} this week"
+msgstr "이번 주 <0>{envA}</0>는 {providerA}, <1>{envB}</1>는 {providerB} 비중이 높았습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "<0>{envLabel}</0> ran {percent}% of your prompts this week"
+msgstr "이번 주 프롬프트의 {percent}%가 <0>{envLabel}</0>에서 실행되었습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "<0>{label}</0> handles {percent}% of your prompts"
 msgstr "<0>{label}</0>이(가) 프롬프트의 {percent}%를 처리합니다"
 
@@ -1412,6 +1476,10 @@ msgstr "포트 {0} 작업"
 msgid "Active"
 msgstr "활성"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Active {activeDays} of the last {totalDays} days"
+msgstr "최근 {totalDays}일 중 {activeDays}일 활동"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Active forwards"
 msgstr "활성 포워딩"
@@ -1419,6 +1487,10 @@ msgstr "활성 포워딩"
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 msgid "Active today"
 msgstr "오늘 활동함"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Active yesterday"
+msgstr "어제 활동함"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/ActivityFeed.tsx
@@ -1435,9 +1507,23 @@ msgstr "활동 하이라이트"
 msgid "Activity insights"
 msgstr "활동 인사이트"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is down {percent}% this week · {current} vs {previous} prompts"
+msgstr "이번 주 활동이 {percent}% 감소했습니다 · {current} vs {previous} 프롬프트"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity is up {percent}% this week · {current} vs {previous} prompts"
+msgstr "이번 주 활동이 {percent}% 증가했습니다 · {current} vs {previous} 프롬프트"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Activity metric"
 msgstr "활동 지표"
+
+#. placeholder {0}: f.envLabel
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Activity on <0>{0}</0> jumped {1}% this week"
+msgstr "이번 주 <0>{0}</0> 활동이 {1}% 급증했습니다"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
@@ -1887,6 +1973,10 @@ msgstr "에이전트는 위임된 작업을 작업 태그로 분류합니다. �
 #~ msgid "Agents classify delegated work with task tags. Matching learned routes rank first, followed by global Crossagents usage, favorites, normal agent usage, and built-in order."
 #~ msgstr "에이전트는 위임된 작업을 작업 태그로 분류합니다. 일치하는 학습된 경로가 먼저 순위에 오르고, 전체 Crossagents 사용량, 즐겨찾기, 일반 에이전트 사용량, 기본 순서가 이어집니다."
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Agents shipped {summary} this week"
+msgstr "이번 주 에이전트가 {summary}를 완료했습니다"
+
 #: src/renderer/components/providers/antigravity/index.tsx
 msgid "agy CLI"
 msgstr "agy CLI"
@@ -2037,6 +2127,7 @@ msgid "All threads in Done will be permanently deleted."
 msgstr "완료 섹션의 모든 스레드가 영구적으로 삭제됩니다."
 
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "모든 작업 영역"
@@ -2746,6 +2837,15 @@ msgstr "아바타 색상"
 msgid "Avatar color {color}"
 msgstr "아바타 색상 {color}"
 
+#. placeholder {0}: formatDuration(avgTurnMs)
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "avg {0}"
+msgstr "평균 {0}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Avg task duration"
+msgstr "평균 작업 시간"
+
 #: src/renderer/views/PullRequestsOverlay/summary/RailMergeStatus.tsx
 msgid "Awaiting a required review."
 msgstr "필수 리뷰를 기다리는 중입니다."
@@ -3222,6 +3322,10 @@ msgstr "비즈니스 및 금융"
 #: src/renderer/components/plugins/pluginCategories.ts
 msgid "Business and operations"
 msgstr "비즈니스 및 운영"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Busy day yesterday · {prompts} prompts ({multiplier}x your daily average)"
+msgstr "어제 바쁜 하루 · {prompts}개 프롬프트 (일평균의 {multiplier}배)"
 
 #: src/renderer/views/PrReviewOverlay/parts/PrMetaRow.tsx
 #~ msgid "by <0>{author}</0>"
@@ -6683,22 +6787,23 @@ msgstr "이 기기에서 에이전트 감지"
 #~ msgstr "프로젝트 파일에서 감지"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "감지됨"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "감지됨 <0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "감지됨 <0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "<0>(로컬)</0> 감지됨"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "<0>(로컬)</0> 감지됨"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "<0>{0}</0> 감지됨"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "<0>{0}</0> 감지됨"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -7399,6 +7504,10 @@ msgstr "각 저장소 항목은 1–512자여야 하며 제어 문자를 포함�
 msgid "Earlier text"
 msgstr "이전 텍스트"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
+msgstr "아침형: 최근 프롬프트의 {percent}%가 오전 10시 전에 시작되었습니다"
+
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7879,6 +7988,10 @@ msgstr "추정에는 정확한 모델 ID의 표준 API 속도에 해당하는 �
 msgid "Evaluate the result after every iteration."
 msgstr "각 반복 후 결과를 평가합니다."
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Evening builder: {percent}% of your recent prompts ran 6–10 PM"
+msgstr "저녁형: 최근 프롬프트의 {percent}%가 오후 6~10시에 실행되었습니다"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Event"
 msgstr "이벤트"
@@ -8338,6 +8451,14 @@ msgstr "이 조합에서는 빠른 모드를 사용할 수 없습니다"
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Fast mode"
 msgstr "고속 모드"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode powered {percent}% of your turns this week"
+msgstr "이번 주 턴의 {percent}%에서 고속 모드를 사용했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Fast mode ran on {percent}% of turns this week (was {prevPercent}%)"
+msgstr "이번 주 고속 모드 비율 {percent}% (지난주 {prevPercent}%)"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Fastest (Whisper tiny)"
@@ -10224,8 +10345,8 @@ msgid "Install and restart"
 msgstr "설치 후 다시 시작"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "원격 기기에서는 설치와 로그인을 아직 사용할 수 없습니다."
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "원격 기기에서는 설치와 로그인을 아직 사용할 수 없습니다."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10319,8 +10440,8 @@ msgstr "{executionHost}에 GitHub CLI (gh)를 설치한 후 다시 시도하세�
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "{0}에 설치"
+#~ msgid "Install in {0}"
+#~ msgstr "{0}에 설치"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10344,8 +10465,8 @@ msgstr "기본 공급자를 먼저 설치하십시오. 추가 프로토콜 에�
 #~ msgstr "{env}에 설치"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Windows에 설치"
+#~ msgid "Install on Windows"
+#~ msgstr "Windows에 설치"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -10756,6 +10877,14 @@ msgstr "크게"
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 msgid "Largest"
 msgstr "크기 큰 순"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 30 days"
+msgstr "최근 30일"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Last 7 days"
+msgstr "최근 7일"
 
 #. placeholder {0}: formatSessionTime(session.lastConnectedAt)
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11239,8 +11368,8 @@ msgid "Loading…"
 msgstr "로드 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "로컬"
+#~ msgid "local"
+#~ msgstr "로컬"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11337,8 +11466,8 @@ msgstr "로그인"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "로그인 {0}"
+#~ msgid "Login {0}"
+#~ msgstr "로그인 {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -12367,6 +12496,10 @@ msgstr "가장 많이 사용한 제공자"
 msgid "Most used reasoning"
 msgstr "가장 많이 사용한 추론 강도"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Most-used MCP this week: <0>{name}</0> ({count, plural, one {# call} other {# calls}})"
+msgstr "이번 주 최다 사용 MCP: <0>{name}</0> ({count, plural, one {#회} other {#회}})"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Motion"
 msgstr "동작"
@@ -12923,6 +13056,10 @@ msgstr "다음에 보낸 메시지"
 msgid "Next tab"
 msgstr "다음 탭"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Night owl: {percent}% of your recent prompts ran after 10 PM"
+msgstr "올빼미형: 최근 프롬프트의 {percent}%가 밤 10시 이후에 실행되었습니다"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "No active browser tab"
 msgstr "활성 브라우저 탭이 없습니다."
@@ -13395,6 +13532,10 @@ msgstr "아직 프로젝트가 없습니다."
 #: src/renderer/components/providers/codex/index.tsx
 msgid "No prompts"
 msgstr "프롬프트 없음"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "No prompts yesterday"
+msgstr "어제 프롬프트 없음"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "No providers are being tracked."
@@ -14501,6 +14642,18 @@ msgstr "이 작업의 출력을 사용할 수 없습니다."
 msgid "Over pace — runs out early"
 msgstr "사용 속도 초과 — 조기 소진"
 
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% less"
+msgstr "최근 30일간 <0>{0}</0> 사용이 {1}% 줄었습니다"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Over the last 30 days you used <0>{0}</0> {1}% more"
+msgstr "최근 30일간 <0>{0}</0> 사용이 {1}% 늘었습니다"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanReviewModal.tsx
 msgid "Overall feedback"
 msgstr "전체 피드백"
@@ -14870,6 +15023,11 @@ msgstr "이 Mac을 직접 잠금 해제할 때까지 일시 중지됨"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "PDF 미리보기는 브라우저에서 열립니다."
+
+#. placeholder {0}: insights.mostActiveHour.label
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Peak {0}"
+msgstr "피크 {0}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 msgid "peak day"
@@ -15764,20 +15922,44 @@ msgstr "{0}의 프로젝트가 {1}(으)로 이동합니다. 삭제되는 프로�
 msgid "Promoting this profile into the owned data root…"
 msgstr "이 프로필을 전용 데이터 루트로 이전하는 중…"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompt"
+msgstr "프롬프트"
+
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
 msgid "Prompt"
 msgstr "프롬프트"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Prompt cache hit"
+msgstr "프롬프트 캐시 적중률"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompt caching covered {percent}% of your input tokens this week"
+msgstr "이번 주 입력 토큰의 {percent}%를 프롬프트 캐시가 처리했습니다"
+
 #: src/renderer/components/thread/ChatPane/ChatPromptRail.tsx
 msgid "Prompt navigation"
 msgstr "프롬프트 탐색"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "prompts"
+msgstr "프롬프트"
 
 #: src/renderer/components/providers/codex/index.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 msgid "Prompts"
 msgstr "프롬프트"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts dipped {percent}% over the last 30 days"
+msgstr "최근 30일간 프롬프트가 {percent}% 감소했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Prompts rose {percent}% over the last 30 days"
+msgstr "최근 30일간 프롬프트가 {percent}% 증가했습니다"
 
 #: src/renderer/components/thread/ChatPane/parts/items/PlanProposal.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -18945,6 +19127,11 @@ msgstr "에이전트 검색 표시"
 msgid "Show all"
 msgstr "모두 표시"
 
+#. placeholder {0}: facts.length
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show all {0} insights"
+msgstr "인사이트 {0}개 모두 보기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "Show bookmark bar"
 msgstr "북마크 막대 표시"
@@ -19010,6 +19197,10 @@ msgstr "예상 비용 표시"
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
 msgid "Show fewer"
 msgstr "간략히 보기"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Show fewer insights"
+msgstr "인사이트 접기"
 
 #: src/renderer/views/PullRequestsOverlay/changes/ChangesToolbar.tsx
 msgid "Show file tree"
@@ -19468,6 +19659,14 @@ msgstr "크기 작은 순"
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Snapshots"
 msgstr "스냅샷"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "오늘 현재까지: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "So far today: {prompts, plural, one {# prompt} other {# prompts}} · mostly {topProvider}"
+msgstr "오늘 현재까지: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}} · 주로 {topProvider}"
 
 #. placeholder {0}: index + 1
 #. placeholder {0}: winnerOrdinal + 1
@@ -20413,6 +20612,18 @@ msgstr "작업 출력"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Task tags"
 msgstr "작업 태그"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week"
+msgstr "이번 주 평균 작업 시간은 {duration}였습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% faster than last week"
+msgstr "이번 주 작업 평균 {duration} · 지난주보다 {deltaPercent}% 빠름"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Tasks averaged {duration} this week · {deltaPercent}% longer than last week"
+msgstr "이번 주 작업 평균 {duration} · 지난주보다 {deltaPercent}% 김"
 
 #: src/renderer/components/newsLine/featureCatalog.ts
 msgid "Teach your agents reusable procedures with skills"
@@ -21949,6 +22160,42 @@ msgstr "이 버전의 Muse Code는 세션 목표를 지원하지 않습니다. M
 msgid "This visual is too large. Showing source only."
 msgstr "이 시각화는 너무 큽니다. 소스만 표시합니다."
 
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% less"
+msgstr "이번 주 <0>{0}</0> 실행이 {1}% 줄었습니다"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you ran <0>{0}</0> {1}% more"
+msgstr "이번 주 <0>{0}</0> 실행이 {1}% 늘었습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1>"
+msgstr "이번 주 <0>{fromLabel}</0>에서 <1>{toLabel}</1>(으)로 전환했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you switched from <0>{fromLabel}</0> to <1>{toLabel}</1> ({toPercent}%)"
+msgstr "이번 주 <0>{fromLabel}</0>에서 <1>{toLabel}</1>(으)로 전환 ({toPercent}%)"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% less"
+msgstr "이번 주 <0>{0}</0> 사용이 {1}% 줄었습니다"
+
+#. placeholder {0}: f.provider
+#. placeholder {1}: f.percent
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week you used <0>{0}</0> {1}% more"
+msgstr "이번 주 <0>{0}</0> 사용이 {1}% 늘었습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "This week's usage equals ~{cost} at API rates"
+msgstr "이번 주 사용량은 API 요금 기준 약 {cost}입니다"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
 #~ msgstr "스레드와 해당 워크트리가 영구적으로 삭제됩니다."
@@ -22219,9 +22466,21 @@ msgstr "파일 트리 패널 표시 전환"
 msgid "Toggle Work or Plan"
 msgstr "작업 또는 계획 전환"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is down {percent}% this week ({compact})"
+msgstr "이번 주 토큰 사용량이 {percent}% 감소했습니다 ({compact})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Token usage is up {percent}% this week ({compact})"
+msgstr "이번 주 토큰 사용량이 {percent}% 증가했습니다 ({compact})"
+
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
 msgid "Token usage unavailable for: {unavailableLabels}"
 msgstr "토큰 사용량을 사용할 수 없음: {unavailableLabels}"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "tokens"
+msgstr "토큰"
 
 #: src/renderer/views/ProfileOverlay/parts/ActivitySection.tsx
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
@@ -22269,6 +22528,10 @@ msgstr "도구 검색"
 #: src/mobile/views/DesktopWorkspacePanel.tsx
 #~ msgid "Tools"
 #~ msgstr "도구"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Top skill this week: <0>{name}</0> ({count, plural, one {# run} other {# runs}})"
+msgstr "이번 주 인기 스킬: <0>{name}</0> ({count, plural, one {#회} other {#회}})"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Total installs"
@@ -24083,6 +24346,10 @@ msgstr "웹사이트"
 msgid "Website origin"
 msgstr "웹사이트 출처"
 
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekday steady: {percent}% of your recent prompts ran Mon–Fri"
+msgstr "평일 집중: 최근 프롬프트의 {percent}%가 월~금에 실행되었습니다"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekdays"
 msgstr "평일"
@@ -24094,6 +24361,10 @@ msgstr "평일 {time}"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Weekdays at 8:00 AM"
 msgstr "평일 오전 8:00"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
+msgstr "주말 빌더: 최근 프롬프트의 {percent}%가 주말에 실행되었습니다"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Weekly"
@@ -24215,7 +24486,6 @@ msgstr "이 환경에서 실행됩니다:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24250,6 +24520,10 @@ msgstr "작업"
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 msgid "Work in the current checkout"
 msgstr "현재 체크아웃에서 작업"
+
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Work rhythm"
+msgstr "작업 리듬"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Work with the pages and signed-in sessions already open in Chrome."
@@ -24349,6 +24623,7 @@ msgstr "작업 중…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -24478,7 +24753,6 @@ msgstr "변경에 대한 테스트를 작성해 실행하고, 보고된 버그�
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "가이드를 작성 중입니다. 이 검토를 떠났다가 준비되면 돌아올 수 있습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24491,8 +24765,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24514,22 +24788,72 @@ msgstr "소스 제어용 WSL 브리지를 사용할 수 없습니다."
 #~ msgstr "WSL 사용자"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL: {distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL: {distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"
 msgstr "예"
 
+#: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
+msgid "Yesterday"
+msgstr "어제"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday <0>{model}</0> handled {percent}% of your prompts"
+msgstr "어제 <0>{model}</0>이(가) 프롬프트의 {percent}%를 처리했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens"
+msgstr "어제 {compact} 토큰을 사용했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday you used {compact} tokens (~{cost})"
+msgstr "어제 {compact} 토큰을 사용했습니다 (~{cost})"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}}"
+msgstr "어제: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}}"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · {compactTokens} tokens"
+msgstr "어제: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}} · {compactTokens} 토큰"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Yesterday: {prompts, plural, one {# prompt} other {# prompts}} · led by {topProvider} ({topProviderPercent}%)"
+msgstr "어제: {prompts, plural, one {프롬프트 #개} other {프롬프트 #개}} · {topProvider} ({topProviderPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments this week"
+msgstr "이번 주 연결된 {count}개 환경에서 작업했습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You coded across {count} connected environments yesterday"
+msgstr "어제 연결된 {count}개 환경에서 작업했습니다"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "You have an unfinished review on the source host. Submit or discard it there before submitting this one."
 msgstr "소스 호스트에 완료되지 않은 리뷰가 있습니다. 이 리뷰를 제출하기 전에 해당 리뷰를 제출하거나 삭제하세요."
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You leaned into {modeLabel} mode this week ({percent}% vs {prevPercent}%)"
+msgstr "이번 주 {modeLabel} 모드 비중이 늘었습니다 ({percent}% vs {prevPercent}%)"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You ran {percent}% of turns with {effort} reasoning this week"
+msgstr "이번 주 턴의 {percent}%를 {effort} 추론으로 실행했습니다"
+
+#. placeholder {0}: f.model
+#. placeholder {1}: f.prompts
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "You started using <0>{0}</0> this week · {1, plural, one {# prompt} other {# prompts}}"
+msgstr "이번 주부터 <0>{0}</0> 사용 시작 · {1, plural, one {프롬프트 #개} other {프롬프트 #개}}"
 
 #: src/renderer/views/SchedulesView/parts/TriagePanel.tsx
 msgid "You’re all caught up."
 msgstr "모두 확인했습니다."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "You're most active around {hourLabel}"
 msgstr "{hourLabel}쯤 가장 활발합니다"
 
@@ -24565,9 +24889,13 @@ msgstr "로컬 변경 사항이 스태시에 저장되어 있으며 이 병합�
 msgid "Your local changes were stashed and will be re-applied once the merge is resolved."
 msgstr "로컬 변경 사항이 스태시에 저장되었으며 병합이 해결되면 다시 적용됩니다."
 
-#: src/renderer/components/newsLine/useInsightItems.tsx
+#: src/renderer/components/newsLine/insightContent.tsx
 msgid "Your longest task ran {duration}"
 msgstr "가장 긴 작업은 {duration} 동안 실행되었습니다"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your longest task yesterday ran {duration}"
+msgstr "어제 가장 긴 작업은 {duration}였습니다"
 
 #: src/renderer/views/PullRequestsOverlay/chat/usePrAskChatSession.ts
 msgid "Your message was not sent: the chat thread is no longer available."
@@ -24576,6 +24904,10 @@ msgstr "메시지가 전송되지 않았습니다. 채팅 스레드를 더 이�
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Your name"
 msgstr "이름"
+
+#: src/renderer/components/newsLine/insightContent.tsx
+msgid "Your peak coding hour shifted from {fromLabel} to {toLabel} this week"
+msgstr "이번 주 최고 집중 시간대가 {fromLabel}에서 {toLabel}(으)로 이동했습니다"
 
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 #~ msgid "Your pick"

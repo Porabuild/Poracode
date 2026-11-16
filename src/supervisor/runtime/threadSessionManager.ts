@@ -474,6 +474,28 @@ export class ThreadSessionManager {
     return undefined;
   }
 
+  /** Provider parsers cannot route calls to a different adapter's sessions. */
+  getThreadIdByProviderMcpMetadata(
+    metadata: Readonly<Record<string, unknown>>,
+  ): string | undefined {
+    let threadId: string | undefined;
+    for (const session of this.sessions.values()) {
+      if (session.adapter.capabilities.crossagentMcpRouting !== "provider-session") continue;
+      const sessionId = session.adapter.readMcpSessionId?.(metadata);
+      if (
+        !sessionId ||
+        (session.sessionRef?.providerSessionId !== sessionId &&
+          !session.structuredSession?.ownsProviderSession?.(sessionId))
+      ) {
+        continue;
+      }
+      // Ambiguous metadata must never select a parent by iteration order.
+      if (threadId !== undefined && threadId !== session.threadId) return undefined;
+      threadId = session.threadId;
+    }
+    return threadId;
+  }
+
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
     return [...this.sessions.values()].map((session) => ({
       threadId: session.threadId,

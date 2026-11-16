@@ -334,6 +334,8 @@ export type SupervisorEvent =
       turnStopRequested?: boolean;
       forceCloseActiveTurn?: boolean;
       threadStatusSource?: ThreadStatusSource;
+      /** Host-authoritative last-activity timestamp when emitted/persisted. */
+      updatedAt?: string;
     }
   | {
       type: "thread-pending-steer";

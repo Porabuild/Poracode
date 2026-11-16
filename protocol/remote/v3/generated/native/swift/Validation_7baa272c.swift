@@ -25,6 +25,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_f27f5fbb460b4424 = RemoteSchema(type: "object", required: Set(["activeDays", "aiActions", "days", "effortTurns", "efforts", "fastTurns", "goals", "hours", "longestTaskMs", "mcpToolCalls", "mcps", "messages", "models", "modes", "prompts", "providers", "skills", "skillsUsed", "subagentRuns", "threads", "totalTurnMs", "weekdayPrompts", "weekendPrompts", "workflowRuns"]), properties: ["activeDays": RemoteSchemas.schema_56aa0e45cbdce0d0, "aiActions": RemoteSchemas.schema_62392c6d6ccb4368, "days": RemoteSchemas.schema_56aa0e45cbdce0d0, "effortTurns": RemoteSchemas.schema_56aa0e45cbdce0d0, "efforts": RemoteSchemas.schema_195974ed118a4217, "fastTurns": RemoteSchemas.schema_56aa0e45cbdce0d0, "goals": RemoteSchemas.schema_56aa0e45cbdce0d0, "hours": RemoteSchemas.schema_8d9ba30ef23e1585, "longestTaskMs": RemoteSchemas.schema_56aa0e45cbdce0d0, "mcpToolCalls": RemoteSchemas.schema_56aa0e45cbdce0d0, "mcps": RemoteSchemas.schema_8c71be0e7fdf9e1a, "messages": RemoteSchemas.schema_56aa0e45cbdce0d0, "models": RemoteSchemas.schema_195974ed118a4217, "modes": RemoteSchemas.schema_195974ed118a4217, "prompts": RemoteSchemas.schema_56aa0e45cbdce0d0, "providers": RemoteSchemas.schema_195974ed118a4217, "skills": RemoteSchemas.schema_8c71be0e7fdf9e1a, "skillsUsed": RemoteSchemas.schema_56aa0e45cbdce0d0, "subagentRuns": RemoteSchemas.schema_56aa0e45cbdce0d0, "threads": RemoteSchemas.schema_56aa0e45cbdce0d0, "totalTurnMs": RemoteSchemas.schema_56aa0e45cbdce0d0, "weekdayPrompts": RemoteSchemas.schema_56aa0e45cbdce0d0, "weekendPrompts": RemoteSchemas.schema_56aa0e45cbdce0d0, "workflowRuns": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_f2b9759b60404656 = RemoteSchema(type: "object", properties: ["force": RemoteSchemas.schema_feeb8bb50144d96d, "providerIds": RemoteSchemas.schema_0f732b9fceb2c6ac], additionalAllowed: true, unknownPolicy: .strip)
 }
 

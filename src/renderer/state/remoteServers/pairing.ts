@@ -368,6 +368,9 @@ export function createPairingActions(deps: PairingActionDeps) {
     forgetHistoryBaselines(remoteServerHostSession(connectionId));
     syncDesktopBrowserBridgeClient(get());
     await startRemoteServerEventStream(record, terminalCapabilitiesFromEnvironment(environment));
+    if (snapshot.threadsNextCursor) {
+      void get().refreshServer(connectionId, { includeAgentStatuses: false });
+    }
     checkHostUpdateInBackground(record);
     return record;
   };

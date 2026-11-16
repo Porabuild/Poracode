@@ -1372,6 +1372,11 @@
       "scope": "session:read"
     },
     {
+      "name": "resolveAgentAccount",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
       "name": "refreshAgentStatuses",
       "owner": "desktop",
       "scope": "session:operate",
@@ -1379,6 +1384,18 @@
     },
     {
       "name": "listAcpRegistry",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "installAcpRegistryAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "removeAcpRegistryAgent",
       "owner": "desktop",
       "scope": "session:operate",
       "timeout": "long"
@@ -1394,6 +1411,22 @@
       "owner": "desktop",
       "scope": "session:operate",
       "timeout": "long"
+    },
+    {
+      "name": "setAcpRegistryAgentAuth",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
+      "name": "authenticateAcpAgent",
+      "owner": "desktop",
+      "scope": "session:operate",
+      "timeout": "long"
+    },
+    {
+      "name": "logoutAcpAgent",
+      "owner": "desktop",
+      "scope": "session:operate"
     },
     {
       "name": "listThreadSessionActions",

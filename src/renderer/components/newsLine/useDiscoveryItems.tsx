@@ -7,15 +7,13 @@ import { newFeaturesFromChangelog, pickDiscoveries } from "./featureDiscoveryPic
 import { seededRandom } from "./newsPlaylist";
 import { NEWS_ICON_CLASS, type NewsItem } from "./newsTypes";
 
-/** Features suggested per visit. */
-const DISCOVERIES_PER_VISIT = 2;
 const ICON_CLASS = `${NEWS_ICON_CLASS} text-accent`;
 
 /**
  * "Not tried yet" suggestions from the feature catalog. Features introduced by
  * a recent release note (`feature` on a changelog change) lead, using that
- * note's headline. Choices are fixed for the visit; using or closing a
- * feature removes it live.
+ * note's headline. All eligible suggestions feed the infinite stream; using or
+ * closing a feature removes it live.
  */
 export function useDiscoveryItems(options: {
   seed: number;
@@ -36,7 +34,7 @@ export function useDiscoveryItems(options: {
     hidden,
     newFeatures: newFeaturesFromChangelog(releases, appVersion, visitStartedAt),
     now: visitStartedAt,
-    count: DISCOVERIES_PER_VISIT,
+    count: FEATURE_CATALOG.length,
     random: seededRandom(seed ^ 0x27d4eb2f),
   });
 
@@ -46,6 +44,9 @@ export function useDiscoveryItems(options: {
     return {
       id: `discover:${feature.id}`,
       kind: "discovery",
+      category: "discovery",
+      subject: feature.id,
+      weight: newIn ? 1.6 : 1,
       icon: <Icon className={ICON_CLASS} />,
       content: newIn ? (
         <>

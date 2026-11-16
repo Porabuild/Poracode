@@ -146,6 +146,74 @@ struct SettingsProfileAccount: Codable, Equatable, Sendable {
   let label: String
 }
 
+struct SettingsProfileHourBucket: Codable, Equatable, Sendable {
+  let hour: Int64
+  let count: Int64
+}
+
+struct SettingsProfilePeriodSnapshot: Codable, Equatable, Sendable {
+  let days: Int64
+  let activeDays: Int64
+  let threads: Int64
+  let prompts: Int64
+  let messages: Int64
+  let goals: Int64
+  let longestTaskMs: Int64
+  let totalTurnMs: Int64
+  let fastTurns: Int64
+  let effortTurns: Int64
+  let skillsUsed: Int64
+  let workflowRuns: Int64
+  let subagentRuns: Int64
+  let mcpToolCalls: Int64
+  let weekdayPrompts: Int64
+  let weekendPrompts: Int64
+  let providers: [SettingsProfileBreakdown]
+  let models: [SettingsProfileBreakdown]
+  let modes: [SettingsProfileBreakdown]
+  let efforts: [SettingsProfileBreakdown]
+  let hours: [SettingsProfileHourBucket]
+  let skills: [SettingsProfileSkillUsage]
+  let mcps: [SettingsProfileSkillUsage]
+  let aiActions: [SettingsProfileAIAction]
+}
+
+struct SettingsProfileRecentActivity: Codable, Equatable, Sendable {
+  let today: SettingsProfilePeriodSnapshot
+  let yesterday: SettingsProfilePeriodSnapshot
+  let last7d: SettingsProfilePeriodSnapshot
+  let prev7d: SettingsProfilePeriodSnapshot
+  let last30d: SettingsProfilePeriodSnapshot
+  let prev30d: SettingsProfilePeriodSnapshot
+  let windowHours: [SettingsProfileHourBucket]?
+}
+
+struct SettingsProfileMoney: Codable, Equatable, Sendable {
+  let amount: Double
+  let currency: String
+}
+
+struct SettingsProfileTokenPeriodSnapshot: Codable, Equatable, Sendable {
+  let tokens: Int64
+  let estimatedUsd: Double
+  let observed: [SettingsProfileMoney]
+  let inputTokens: Int64
+  let outputTokens: Int64
+  let cacheReadTokens: Int64
+  let cacheWriteTokens: Int64
+  let providers: [SettingsProfileTokenProvider]
+  let models: [SettingsProfileBreakdown]
+}
+
+struct SettingsProfileRecentTokenActivity: Codable, Equatable, Sendable {
+  let today: SettingsProfileTokenPeriodSnapshot
+  let yesterday: SettingsProfileTokenPeriodSnapshot
+  let last7d: SettingsProfileTokenPeriodSnapshot
+  let prev7d: SettingsProfileTokenPeriodSnapshot
+  let last30d: SettingsProfileTokenPeriodSnapshot
+  let prev30d: SettingsProfileTokenPeriodSnapshot
+}
+
 struct SettingsProfileCoreStats: Codable, Equatable, Sendable {
   let scope: SettingsProfileScope
   let device: SettingsProfileDevice
@@ -163,6 +231,7 @@ struct SettingsProfileCoreStats: Codable, Equatable, Sendable {
   let mcps: [SettingsProfileSkillUsage]
   let aiActions: [SettingsProfileAIAction]
   let availableAccounts: [SettingsProfileAccount]
+  let recent: SettingsProfileRecentActivity?
 }
 
 struct SettingsProfileTokenProvider: Codable, Equatable, Sendable {
@@ -188,4 +257,5 @@ struct SettingsProfileTokenStats: Codable, Equatable, Sendable {
   let models: [SettingsProfileBreakdown]
   let tokenHeatmap: SettingsProfileHeatmap
   let unavailableProviders: [String]
+  let recent: SettingsProfileRecentTokenActivity?
 }

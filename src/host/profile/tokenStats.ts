@@ -2,7 +2,9 @@ import { emptyCostTotals } from "@/shared/profile/costTotals";
 import {
   baseAgentKind,
   type ProfileBreakdownEntry,
+  type ProfileRecentTokenActivity,
   type ProfileStatsRequest,
+  type ProfileTokenPeriodSnapshot,
   type ProfileTokenProvider,
   type ProfileTokenStats,
 } from "@/shared/contracts";
@@ -45,6 +47,135 @@ import {
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+interface TokenPeriodAccumulator {
+  startIndex: number;
+  endIndex: number;
+  tokens: number;
+  estimatedUsd: number;
+  observed: Map<string, number>;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  perProvider: Map<string, number>;
+  perModel: Map<string, number>;
+}
+
+function createTokenPeriodAccumulator(
+  startIndex: number,
+  endIndex: number,
+): TokenPeriodAccumulator {
+  return {
+    startIndex,
+    endIndex,
+    tokens: 0,
+    estimatedUsd: 0,
+    observed: new Map(),
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    perProvider: new Map(),
+    perModel: new Map(),
+  };
+}
+
+function addTokenTotalsToPeriod(
+  acc: TokenPeriodAccumulator,
+  dayIndex: number,
+  provider: string | null,
+  tokenModelKey: string,
+  totals: ProfileCostTotals,
+): void {
+  if (dayIndex < acc.startIndex || dayIndex > acc.endIndex) return;
+  if (totals.tokens > 0) {
+    acc.tokens += totals.tokens;
+    if (provider) {
+      const base = baseAgentKind(provider);
+      acc.perProvider.set(base, (acc.perProvider.get(base) ?? 0) + totals.tokens);
+    }
+    if (tokenModelKey) {
+      acc.perModel.set(tokenModelKey, (acc.perModel.get(tokenModelKey) ?? 0) + totals.tokens);
+    }
+  }
+  acc.estimatedUsd += totals.estimatedUsd;
+  acc.inputTokens += totals.categories.input;
+  acc.outputTokens += totals.categories.output;
+  acc.cacheReadTokens += totals.categories.cacheRead;
+  acc.cacheWriteTokens += totals.categories.cacheWrite;
+  for (const money of totals.observed) {
+    acc.observed.set(money.currency, (acc.observed.get(money.currency) ?? 0) + money.amount);
+  }
+}
+
+function addTokenSampleToPeriod(acc: TokenPeriodAccumulator, sample: RecentTokenSample): void {
+  if (sample.dayIndex < acc.startIndex || sample.dayIndex > acc.endIndex) return;
+  if (sample.value > 0) {
+    acc.tokens += sample.value;
+    if (sample.provider) {
+      const base = baseAgentKind(sample.provider);
+      acc.perProvider.set(base, (acc.perProvider.get(base) ?? 0) + sample.value);
+    }
+    if (sample.tokenModelKey) {
+      acc.perModel.set(
+        sample.tokenModelKey,
+        (acc.perModel.get(sample.tokenModelKey) ?? 0) + sample.value,
+      );
+    }
+  }
+  const details = sample.costDetails;
+  if (details?.estimate) acc.estimatedUsd += details.estimate.amount;
+  if (details?.tokens) {
+    acc.inputTokens += details.tokens.input;
+    acc.outputTokens += details.tokens.output;
+    acc.cacheReadTokens += details.tokens.cacheRead;
+    acc.cacheWriteTokens += details.tokens.cacheWrite;
+  }
+  if (details?.observed) {
+    acc.observed.set(
+      details.observed.currency,
+      (acc.observed.get(details.observed.currency) ?? 0) + details.observed.amount,
+    );
+  }
+}
+
+function finalizeTokenPeriodSnapshot(acc: TokenPeriodAccumulator): ProfileTokenPeriodSnapshot {
+  const providers: ProfileTokenProvider[] = [...acc.perProvider.entries()]
+    .filter(([, tokens]) => tokens > 0)
+    .map(([provider, tokens]) => ({
+      provider,
+      label: providerLabel(provider),
+      tokens,
+      percent: acc.tokens > 0 ? round1((tokens / acc.tokens) * 100) : 0,
+    }))
+    .sort((a, b) => b.tokens - a.tokens);
+
+  const models: ProfileBreakdownEntry[] = [...acc.perModel.entries()]
+    .map(([key, tokens]) => ({
+      key,
+      label: modelLabel(key),
+      count: tokens,
+      percent: acc.tokens > 0 ? round1((tokens / acc.tokens) * 100) : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const observed = [...acc.observed.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([currency, amount]) => ({ currency, amount }));
+
+  return {
+    tokens: acc.tokens,
+    estimatedUsd: acc.estimatedUsd,
+    observed,
+    inputTokens: acc.inputTokens,
+    outputTokens: acc.outputTokens,
+    cacheReadTokens: acc.cacheReadTokens,
+    cacheWriteTokens: acc.cacheWriteTokens,
+    providers,
+    models,
+  };
 }
 
 function emptyTokenStats(
@@ -460,6 +591,21 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
   const windowDays = statsWindowDays(req.window);
   const startDayIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;
   const costAggregator = createProfileCostAggregator(req, todayIndex);
+  const recentCutoff = todayIndex - 59;
+  const periodToday = createTokenPeriodAccumulator(todayIndex, todayIndex);
+  const periodYesterday = createTokenPeriodAccumulator(todayIndex - 1, todayIndex - 1);
+  const periodLast7d = createTokenPeriodAccumulator(todayIndex - 6, todayIndex);
+  const periodPrev7d = createTokenPeriodAccumulator(todayIndex - 13, todayIndex - 7);
+  const periodLast30d = createTokenPeriodAccumulator(todayIndex - 29, todayIndex);
+  const periodPrev30d = createTokenPeriodAccumulator(todayIndex - 59, todayIndex - 30);
+  const recentAccumulators = [
+    periodToday,
+    periodYesterday,
+    periodLast7d,
+    periodPrev7d,
+    periodLast30d,
+    periodPrev30d,
+  ];
 
   const accumulatePositiveTokens = (
     dayIndex: number,
@@ -483,6 +629,17 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
   for (const bucket of rollup.bucketMap.values()) {
     // Scope to the selected account (exact account-kind match) when filtering.
     if (req.provider && bucket.provider !== req.provider) continue;
+    if (bucket.dayIndex >= recentCutoff && bucket.dayIndex <= todayIndex) {
+      for (const acc of recentAccumulators) {
+        addTokenTotalsToPeriod(
+          acc,
+          bucket.dayIndex,
+          bucket.provider,
+          bucket.tokenModelKey,
+          bucket.totals,
+        );
+      }
+    }
     if (
       startDayIndex !== undefined &&
       (bucket.dayIndex < startDayIndex || bucket.dayIndex > todayIndex)
@@ -511,6 +668,11 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     if (sample.ts > nowMs) {
       validUntil = Math.min(validUntil, sample.ts);
       continue;
+    }
+    if (sample.dayIndex >= recentCutoff && sample.dayIndex <= todayIndex) {
+      for (const acc of recentAccumulators) {
+        addTokenSampleToPeriod(acc, sample);
+      }
     }
     if (
       startDayIndex !== undefined &&
@@ -575,8 +737,18 @@ export function computeProfileTokenStats(req: ProfileStatsRequest): ProfileToken
     }))
     .sort((a, b) => b.count - a.count);
 
+  const recent: ProfileRecentTokenActivity = {
+    today: finalizeTokenPeriodSnapshot(periodToday),
+    yesterday: finalizeTokenPeriodSnapshot(periodYesterday),
+    last7d: finalizeTokenPeriodSnapshot(periodLast7d),
+    prev7d: finalizeTokenPeriodSnapshot(periodPrev7d),
+    last30d: finalizeTokenPeriodSnapshot(periodLast30d),
+    prev30d: finalizeTokenPeriodSnapshot(periodPrev30d),
+  };
+
   const result: ProfileTokenStats = {
     costs: costAggregator.finish(),
+    recent,
     available: lifetimeTokens > 0,
     scope: req.scope ?? "device",
     device: currentDevice,
