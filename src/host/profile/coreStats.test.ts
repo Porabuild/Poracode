@@ -5,8 +5,10 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase, getSqlite, initDatabase } from "../db/connection";
-import { dbAppendUsageEvents } from "../db/usageEvents";
+import { dbAppendUsageEvents, dbQueryUsageEventsBounds } from "../db/usageEvents";
 import { computeProfileCoreStats } from "./coreStats";
+import { setProfileIdentity } from "./identity";
+import { getProfileCoreStats, getProfileTokenStats } from "./index";
 
 const serverNativeBinding = join(process.cwd(), "dist", "server-native", "better_sqlite3.node");
 let nativeBindingEnv: string | undefined;
@@ -51,6 +53,33 @@ describe("computeProfileCoreStats (real sqlite)", () => {
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     vi.restoreAllMocks();
+  });
+
+  it("seeks usage bounds without scanning historical events", () => {
+    const sqlite = getSqlite();
+    const prepare = vi.spyOn(sqlite, "prepare");
+    expect(dbQueryUsageEventsBounds()).toEqual({ minId: 0, maxId: 0 });
+    const boundsSql = prepare.mock.calls[0]![0];
+    const plan = sqlite.prepare(`EXPLAIN QUERY PLAN ${boundsSql}`).all() as { detail: string }[];
+    expect(plan.filter((row) => row.detail.includes("SEARCH usage_events"))).toHaveLength(2);
+    expect(plan.some((row) => row.detail.includes("SCAN usage_events"))).toBe(false);
+  });
+
+  it("reuses completed results across clients with different timezones", async () => {
+    dbAppendUsageEvents([{ ts: Date.now(), kind: "turn", provider: "codex", value: 1000 }]);
+    const requests = [{ utcOffsetMinutes: 0 }, { utcOffsetMinutes: 120 }];
+    for (const req of requests) {
+      await getProfileCoreStats(req);
+      await getProfileTokenStats(req);
+    }
+    const prepare = vi.spyOn(getSqlite(), "prepare");
+    for (const req of requests) {
+      await getProfileCoreStats(req);
+      await getProfileTokenStats(req);
+    }
+    expect(prepare.mock.calls.some(([sql]) => String(sql).includes("FROM usage_events"))).toBe(
+      false,
+    );
   });
 
   it("streams core activity without reading cost_details or scanning token payloads", () => {
@@ -168,5 +197,64 @@ describe("computeProfileCoreStats (real sqlite)", () => {
       "codex:personal",
       "token-only:acct",
     ]);
+  });
+
+  it("updates incrementally on new usage_events without rescanning historical rows or on identity edits", async () => {
+    const now = Date.parse("2026-10-17T14:30:00Z");
+    vi.spyOn(Date, "now").mockReturnValue(now);
+
+    dbAppendUsageEvents([
+      { ts: now, kind: "thread_started", provider: "claude:work", mode: "chat" },
+      { ts: now, kind: "turn", provider: "claude:work", model: "claude-sonnet-4-6", value: 1000 },
+      {
+        ts: now,
+        kind: "tokens_v2",
+        provider: "claude:work",
+        model: "claude-sonnet-4-6",
+        value: 500,
+      },
+    ]);
+
+    const first = await getProfileCoreStats({ utcOffsetMinutes: 0, window: "7d" });
+    expect(first.totals.totalPrompts).toBe(1);
+    const firstTokens = await getProfileTokenStats({ utcOffsetMinutes: 0, window: "7d" });
+    expect(firstTokens.lifetimeTokens).toBe(500);
+
+    // Edit identity — must update without re-scanning usage_events.
+    const prepare = vi.spyOn(getSqlite(), "prepare");
+    setProfileIdentity({
+      name: "Grace Hopper",
+      handle: "grace",
+      avatarColor: "oklch(0.6 0.14 295)",
+    });
+    const afterIdentity = await getProfileCoreStats({ utcOffsetMinutes: 0, window: "7d" });
+    expect(afterIdentity.identity.name).toBe("Grace Hopper");
+    expect(afterIdentity.totals.totalPrompts).toBe(1);
+    expect(
+      prepare.mock.calls.some(([sql]) => String(sql).includes("usage_events WHERE id <=")),
+    ).toBe(false);
+
+    // Append incremental events — only reads id > lastRowId.
+    prepare.mockClear();
+    dbAppendUsageEvents([
+      { ts: now, kind: "turn", provider: "codex:personal", model: "gpt-5.3-codex", value: 2000 },
+      {
+        ts: now,
+        kind: "tokens_v2",
+        provider: "codex:personal",
+        model: "gpt-5.3-codex",
+        value: 700,
+      },
+    ]);
+    const second = await getProfileCoreStats({ utcOffsetMinutes: 0, window: "7d" });
+    const secondTokens = await getProfileTokenStats({ utcOffsetMinutes: 0, window: "7d" });
+
+    expect(second.totals.totalPrompts).toBe(2);
+    expect(second.availableAccounts.map((a) => a.key)).toEqual(["claude:work", "codex:personal"]);
+    expect(secondTokens.lifetimeTokens).toBe(1200);
+    expect(
+      prepare.mock.calls.some(([sql]) => String(sql).includes("WHERE id > ? AND id <= ?")),
+    ).toBe(true);
+    expect(prepare.mock.calls.some(([sql]) => String(sql).includes("WHERE id <= ?"))).toBe(false);
   });
 });

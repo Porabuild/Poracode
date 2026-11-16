@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
+import { Skeleton } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ProfileCoreStats, ProfileStatsWindow, ProfileTokenStats } from "@/shared/contracts";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { formatCompact, formatDayLabel, formatDuration } from "../format";
 
-function Skeleton() {
-  return <div className="h-6 w-14 animate-pulse rounded-md bg-foreground/10" />;
+function ValueSkeleton() {
+  return <Skeleton className="h-6 w-14 rounded-md bg-foreground/10" />;
 }
 
 /**
@@ -42,26 +43,30 @@ function unavailableProviderLabel(key: string, tokens: ProfileTokenStats): strin
 }
 
 export function StatStrip(props: {
-  core: ProfileCoreStats;
+  core: ProfileCoreStats | null;
+  coreLoading?: boolean;
   tokens: ProfileTokenStats | null;
   tokensLoading: boolean;
   window: ProfileStatsWindow;
+  streaksAvailable?: boolean;
+  peakAvailable?: boolean;
 }) {
   const { t } = useLingui();
-  const { core, tokens, tokensLoading, window } = props;
-  const totals = core.totals;
-  const pending = tokensLoading && !tokens;
+  const { core, coreLoading = false, tokens, tokensLoading, window } = props;
+  const totals = core?.totals;
+  const corePending = coreLoading && !totals;
+  const tokensPending = tokensLoading && !tokens;
 
-  const lifetime = pending ? (
-    <Skeleton />
+  const lifetime = tokensPending ? (
+    <ValueSkeleton />
   ) : tokens?.available ? (
     formatCompact(tokens.lifetimeTokens)
   ) : (
     "-"
   );
-  const peak = pending ? (
-    <Skeleton />
-  ) : tokens?.available ? (
+  const peak = tokensPending ? (
+    <ValueSkeleton />
+  ) : tokens?.available && props.peakAvailable !== false ? (
     formatCompact(tokens.peakDayTokens)
   ) : (
     "-"
@@ -78,11 +83,38 @@ export function StatStrip(props: {
         <Tile
           value={peak}
           label={t`Peak day`}
-          {...(tokens?.peakDay ? { sub: formatDayLabel(tokens.peakDay) } : {})}
+          {...(tokens?.peakDay && props.peakAvailable !== false
+            ? { sub: formatDayLabel(tokens.peakDay) }
+            : {})}
         />
-        <Tile value={formatDuration(totals.longestTaskMs)} label={t`Longest task`} />
-        <Tile value={formatDaysLabel(totals.currentStreakDays, t)} label={t`Current streak`} />
-        <Tile value={formatDaysLabel(totals.longestStreakDays, t)} label={t`Longest streak`} />
+        <Tile
+          value={corePending || !totals ? <ValueSkeleton /> : formatDuration(totals.longestTaskMs)}
+          label={t`Longest task`}
+        />
+        <Tile
+          value={
+            corePending || !totals ? (
+              <ValueSkeleton />
+            ) : props.streaksAvailable === false ? (
+              "-"
+            ) : (
+              formatDaysLabel(totals.currentStreakDays, t)
+            )
+          }
+          label={t`Current streak`}
+        />
+        <Tile
+          value={
+            corePending || !totals ? (
+              <ValueSkeleton />
+            ) : props.streaksAvailable === false ? (
+              "-"
+            ) : (
+              formatDaysLabel(totals.longestStreakDays, t)
+            )
+          }
+          label={t`Longest streak`}
+        />
       </div>
       {tokens && tokens.unavailableProviders.length > 0 ? (
         <p className="text-center text-[10px] text-muted/60">

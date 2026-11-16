@@ -39,11 +39,6 @@ export interface UsageEventRow {
   costDetails?: UsageCostRecord;
 }
 
-export interface UsageAccountCountRow {
-  provider: string;
-  count: number;
-}
-
 export interface CoreUsageEventRow {
   ts: number;
   kind: string;
@@ -242,34 +237,65 @@ export function dbAppendUsageEvents(events: readonly UsageEventInput[]): void {
   bumpProfileDataGeneration();
 }
 
-/**
- * Distinct non-empty account/provider values ordered by descending event count
- * (breaking ties by first-seen row id) without decoding `cost_details` or
- * materializing rows in JavaScript.
- */
-export function dbQueryUsageAccountCounts(): UsageAccountCountRow[] {
+export interface UsageEventsBounds {
+  minId: number;
+  maxId: number;
+}
+
+export interface UsageAccountAggregateRow {
+  provider: string;
+  count: number;
+  firstId: number;
+}
+
+export function dbQueryUsageEventsBounds(): UsageEventsBounds {
   const sqlite = getSqlite();
   return sqlite
     .prepare(
-      "SELECT provider, COUNT(*) AS count FROM usage_events WHERE provider IS NOT NULL AND provider != '' GROUP BY provider ORDER BY count DESC, MIN(id) ASC",
+      // Combining MIN and MAX in one aggregate scans the entire table. Separate
+      // scalar queries let SQLite seek each end of the primary key instead.
+      "SELECT COALESCE((SELECT MIN(id) FROM usage_events), 0) AS minId, COALESCE((SELECT MAX(id) FROM usage_events), 0) AS maxId",
     )
-    .all() as UsageAccountCountRow[];
+    .get() as UsageEventsBounds;
 }
 
-/**
- * Streams only non-token profile activity rows via `idx_usage_events_kind`,
- * skipping `tokens`/`tokens_v2` rows and never reading `cost_details`.
- */
-export function* dbIterateCoreUsageEvents(provider?: string): IterableIterator<CoreUsageEventRow> {
+export function dbQueryUsageAccountCountsUpTo(maxId: number): UsageAccountAggregateRow[] {
   const sqlite = getSqlite();
-  const stmt = provider
-    ? sqlite.prepare(
-        `SELECT ts, kind, provider, model, mode, fast, effort, name, value FROM usage_events WHERE kind IN (${CORE_USAGE_EVENT_KINDS_SQL}) AND provider = ?`,
-      )
-    : sqlite.prepare(
-        `SELECT ts, kind, provider, model, mode, fast, effort, name, value FROM usage_events WHERE kind IN (${CORE_USAGE_EVENT_KINDS_SQL})`,
-      );
-  const iter = (provider ? stmt.iterate(provider) : stmt.iterate()) as IterableIterator<{
+  return sqlite
+    .prepare(
+      "SELECT provider, COUNT(*) AS count, MIN(id) AS firstId FROM usage_events WHERE id <= ? AND provider IS NOT NULL AND provider != '' GROUP BY provider",
+    )
+    .all(maxId) as UsageAccountAggregateRow[];
+}
+
+export function dbIterateUsageAccountRowsInRange(
+  afterId: number,
+  maxId: number,
+): IterableIterator<{ id: number; provider: string }> {
+  const sqlite = getSqlite();
+  return sqlite
+    .prepare(
+      "SELECT id, provider FROM usage_events WHERE id > ? AND id <= ? AND provider IS NOT NULL AND provider != ''",
+    )
+    .iterate(afterId, maxId) as IterableIterator<{ id: number; provider: string }>;
+}
+
+export function* dbIterateCoreUsageEventsInRange(
+  afterId: number,
+  maxId: number,
+): IterableIterator<CoreUsageEventRow> {
+  const sqlite = getSqlite();
+  const stmt =
+    afterId > 0
+      ? sqlite.prepare(
+          `SELECT ts, kind, provider, model, mode, fast, effort, name, value FROM usage_events WHERE kind IN (${CORE_USAGE_EVENT_KINDS_SQL}) AND id > ? AND id <= ?`,
+        )
+      : sqlite.prepare(
+          `SELECT ts, kind, provider, model, mode, fast, effort, name, value FROM usage_events WHERE kind IN (${CORE_USAGE_EVENT_KINDS_SQL}) AND id <= ?`,
+        );
+  const iter = (
+    afterId > 0 ? stmt.iterate(afterId, maxId) : stmt.iterate(maxId)
+  ) as IterableIterator<{
     ts: number;
     kind: string;
     provider: string | null;
@@ -295,22 +321,29 @@ export function* dbIterateCoreUsageEvents(provider?: string): IterableIterator<C
   }
 }
 
-/**
- * Streams the minimal column projection needed for token/cost rollups and
- * exact-telemetry coverage checks without allocating a full-table JS array.
- */
-export function dbIterateTokenUsageScanRows(): IterableIterator<TokenUsageScanRow> {
+export function dbIterateTokenUsageScanRowsInRange(
+  afterId: number,
+  maxId: number,
+): IterableIterator<TokenUsageScanRow> {
   const sqlite = getSqlite();
+  if (afterId > 0) {
+    return sqlite
+      .prepare(
+        "SELECT ts, kind, provider, model, value, cost_details FROM usage_events WHERE id > ? AND id <= ?",
+      )
+      .iterate(afterId, maxId) as IterableIterator<TokenUsageScanRow>;
+  }
   return sqlite
-    .prepare("SELECT ts, kind, provider, model, value, cost_details FROM usage_events")
-    .iterate() as IterableIterator<TokenUsageScanRow>;
+    .prepare(
+      "SELECT ts, kind, provider, model, value, cost_details FROM usage_events WHERE id <= ?",
+    )
+    .iterate(maxId) as IterableIterator<TokenUsageScanRow>;
 }
 
 /**
  * Direct full-row reader retained for unit tests and mock barrels. Never caches
  * full-table `UsageEventRow[]` in module memory; production profile stats use
- * `dbQueryUsageAccountCounts`, `dbIterateCoreUsageEvents`, and
- * `dbIterateTokenUsageScanRows`.
+ * the ranged core/token readers above.
  */
 export function dbGetAllUsageEvents(): UsageEventRow[] {
   const sqlite = getSqlite();

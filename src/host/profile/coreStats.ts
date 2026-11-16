@@ -1,3 +1,4 @@
+import { computeStreaks } from "@/shared/profile/activity";
 import {
   baseAgentKind,
   type AiActionType,
@@ -11,9 +12,12 @@ import {
   type ProfileTotals,
 } from "@/shared/contracts";
 import { getProfileDataGeneration } from "../db";
+import { getProfileUsageResetGeneration } from "../db/connection";
 import {
-  dbIterateCoreUsageEvents,
-  dbQueryUsageAccountCounts,
+  dbIterateCoreUsageEventsInRange,
+  dbIterateUsageAccountRowsInRange,
+  dbQueryUsageAccountCountsUpTo,
+  dbQueryUsageEventsBounds,
   type CoreUsageEventRow,
 } from "../db/usageEvents";
 import {
@@ -81,29 +85,14 @@ function topKey(map: Map<string, number>): string | undefined {
   return bestKey;
 }
 
-function computeStreaks(
-  activeDayIndices: Set<number>,
-  todayIndex: number,
-): { current: number; longest: number } {
-  if (activeDayIndices.size === 0) return { current: 0, longest: 0 };
-  const sorted = [...activeDayIndices].sort((a, b) => a - b);
-  let longest = 1;
-  let run = 1;
-  for (let i = 1; i < sorted.length; i++) {
-    run = sorted[i] === sorted[i - 1]! + 1 ? run + 1 : 1;
-    if (run > longest) longest = run;
+function addCount<K>(map: Map<K, number>, key: K, delta: number): void {
+  map.set(key, (map.get(key) ?? 0) + delta);
+}
+
+function mergeCountMap(target: Map<string, number>, source: Map<string, number>): void {
+  for (const [key, value] of source) {
+    target.set(key, (target.get(key) ?? 0) + value);
   }
-  let anchor = activeDayIndices.has(todayIndex)
-    ? todayIndex
-    : activeDayIndices.has(todayIndex - 1)
-      ? todayIndex - 1
-      : null;
-  let current = 0;
-  while (anchor !== null && activeDayIndices.has(anchor)) {
-    current++;
-    anchor--;
-  }
-  return { current, longest };
 }
 
 const AI_ACTION_LABELS: Record<AiActionType, string> = {
@@ -127,8 +116,21 @@ function accumulateAiActionRow(byType: AiActionAccumulator, row: CoreUsageEventR
     byType.set(type, entry);
   }
   entry.count += 1;
-  if (row.provider) entry.providers.set(row.provider, (entry.providers.get(row.provider) ?? 0) + 1);
-  if (row.model) entry.models.set(row.model, (entry.models.get(row.model) ?? 0) + 1);
+  if (row.provider) addCount(entry.providers, row.provider, 1);
+  if (row.model) addCount(entry.models, row.model, 1);
+}
+
+function mergeAiActions(target: AiActionAccumulator, source: AiActionAccumulator): void {
+  for (const [type, srcEntry] of source) {
+    let entry = target.get(type);
+    if (!entry) {
+      entry = { count: 0, providers: new Map(), models: new Map() };
+      target.set(type, entry);
+    }
+    entry.count += srcEntry.count;
+    mergeCountMap(entry.providers, srcEntry.providers);
+    mergeCountMap(entry.models, srcEntry.models);
+  }
 }
 
 function finalizeAiActions(byType: AiActionAccumulator): ProfileAiAction[] {
@@ -166,6 +168,266 @@ function topSkillsByCount(
     .sort((a, b) => b[1] - a[1])
     .slice(0, MAX_SKILLS)
     .map(([name, runCount]) => ({ name, displayName: display(name), kind, runCount }));
+}
+
+// -- Incremental core rollup ------------------------------------------
+
+interface CoreDailyProviderBucket {
+  dayIndex: number;
+  provider: string | null;
+  totalThreads: number;
+  modeCounts: Map<string, number>;
+  messagesSent: number;
+  goalsSet: number;
+  totalTurns: number;
+  longestTaskMs: number;
+  hourCounts: Map<number, number>;
+  modelCounts: Map<string, number>;
+  fastTurns: number;
+  effortTurns: number;
+  effortCounts: Map<string, number>;
+  skillCounts: Map<string, number>;
+  totalSkillsUsed: number;
+  workflowRuns: number;
+  subagentRuns: number;
+  mcpToolCalls: number;
+  mcpCounts: Map<string, number>;
+  aiActions: AiActionAccumulator;
+}
+
+function emptyDailyBucket(dayIndex: number, provider: string | null): CoreDailyProviderBucket {
+  return {
+    dayIndex,
+    provider,
+    totalThreads: 0,
+    modeCounts: new Map(),
+    messagesSent: 0,
+    goalsSet: 0,
+    totalTurns: 0,
+    longestTaskMs: 0,
+    hourCounts: new Map(),
+    modelCounts: new Map(),
+    fastTurns: 0,
+    effortTurns: 0,
+    effortCounts: new Map(),
+    skillCounts: new Map(),
+    totalSkillsUsed: 0,
+    workflowRuns: 0,
+    subagentRuns: 0,
+    mcpToolCalls: 0,
+    mcpCounts: new Map(),
+    aiActions: new Map(),
+  };
+}
+
+export interface CoreRollupSnapshot {
+  offset: number;
+  firstRowId: number;
+  lastRowId: number;
+  accountStats: Array<[string, { count: number; firstId: number }]>;
+  buckets: CoreDailyProviderBucket[];
+}
+
+interface CoreRollupCache {
+  resetGeneration: number;
+  offset: number;
+  firstRowId: number;
+  lastRowId: number;
+  accountStats: Map<string, { count: number; firstId: number }>;
+  buckets: Map<string, CoreDailyProviderBucket>;
+}
+
+let coreRollupCache: CoreRollupCache | undefined;
+
+export function hasWarmCoreRollup(offset: number, resetGeneration: number): boolean {
+  return (
+    coreRollupCache !== undefined &&
+    coreRollupCache.resetGeneration === resetGeneration &&
+    coreRollupCache.offset === offset
+  );
+}
+
+export function installCoreRollupSnapshotIfCold(
+  snapshot: CoreRollupSnapshot,
+  resetGeneration: number,
+): void {
+  if (
+    getProfileUsageResetGeneration() === resetGeneration &&
+    !hasWarmCoreRollup(snapshot.offset, resetGeneration)
+  ) {
+    coreRollupCache = cacheFromCoreSnapshot(snapshot, resetGeneration);
+  }
+}
+
+function applyCoreEventRows(
+  buckets: Map<string, CoreDailyProviderBucket>,
+  rows: Iterable<CoreUsageEventRow>,
+  offset: number,
+): void {
+  for (const row of rows) {
+    const dayIndex = localDayIndex(row.ts, offset);
+    const key = `${dayIndex}\0${row.provider ?? ""}\0${row.provider === null ? "0" : "1"}`;
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = emptyDailyBucket(dayIndex, row.provider);
+      buckets.set(key, bucket);
+    }
+
+    switch (row.kind) {
+      case "thread_started": {
+        bucket.totalThreads++;
+        const mode = row.mode === "chat" ? "chat" : "cli";
+        addCount(bucket.modeCounts, mode, 1);
+        break;
+      }
+      case "message": {
+        bucket.messagesSent++;
+        break;
+      }
+      case "goal": {
+        bucket.goalsSet++;
+        break;
+      }
+      case "turn": {
+        bucket.totalTurns++;
+        if (row.value > bucket.longestTaskMs) bucket.longestTaskMs = row.value;
+        addCount(bucket.hourCounts, localHour(row.ts, offset), 1);
+        if (row.model) {
+          addCount(bucket.modelCounts, modelKey(row.provider, row.model), 1);
+        }
+        if (row.fast) bucket.fastTurns++;
+        if (row.effort) {
+          bucket.effortTurns++;
+          addCount(bucket.effortCounts, row.effort, 1);
+        }
+        break;
+      }
+      case "skill": {
+        const name = row.name?.trim();
+        if (!name || name.toLowerCase() === "skill") break;
+        addCount(bucket.skillCounts, name, 1);
+        bucket.totalSkillsUsed++;
+        break;
+      }
+      case "workflow": {
+        bucket.workflowRuns++;
+        break;
+      }
+      case "subagent": {
+        if ((row.name ?? "").trim().toLowerCase() === "workflow") bucket.workflowRuns++;
+        else bucket.subagentRuns++;
+        break;
+      }
+      case "mcp": {
+        const name = row.name?.trim();
+        if (!name || isGenericMcpName(name) || isGenericMcpName(mcpServerLabel(name))) break;
+        bucket.mcpToolCalls++;
+        if (name.toLowerCase() === "codex_apps") break;
+        addCount(bucket.mcpCounts, name, 1);
+        break;
+      }
+      default: {
+        accumulateAiActionRow(bucket.aiActions, row);
+        break;
+      }
+    }
+  }
+}
+
+function buildCoreRollupInRange(
+  offset: number,
+  resetGeneration: number,
+  existing?: CoreRollupCache,
+): CoreRollupCache {
+  const bounds = dbQueryUsageEventsBounds();
+  const canAppend =
+    existing !== undefined &&
+    existing.resetGeneration === resetGeneration &&
+    existing.offset === offset &&
+    bounds.maxId >= existing.lastRowId &&
+    !(existing.firstRowId > 0 && bounds.minId > 0 && bounds.minId !== existing.firstRowId) &&
+    !(existing.lastRowId > 0 && bounds.maxId === 0);
+
+  if (canAppend && bounds.maxId === existing.lastRowId) {
+    return existing;
+  }
+
+  if (canAppend) {
+    if (bounds.maxId > existing.lastRowId) {
+      for (const row of dbIterateUsageAccountRowsInRange(existing.lastRowId, bounds.maxId)) {
+        const prev = existing.accountStats.get(row.provider);
+        if (prev) {
+          prev.count += 1;
+        } else {
+          existing.accountStats.set(row.provider, { count: 1, firstId: row.id });
+        }
+      }
+      applyCoreEventRows(
+        existing.buckets,
+        dbIterateCoreUsageEventsInRange(existing.lastRowId, bounds.maxId),
+        offset,
+      );
+      if (existing.firstRowId === 0 && bounds.minId > 0) {
+        existing.firstRowId = bounds.minId;
+      }
+      existing.lastRowId = bounds.maxId;
+    }
+    return existing;
+  }
+
+  const accountStats = new Map<string, { count: number; firstId: number }>();
+  const buckets = new Map<string, CoreDailyProviderBucket>();
+  if (bounds.maxId > 0) {
+    for (const row of dbQueryUsageAccountCountsUpTo(bounds.maxId)) {
+      accountStats.set(row.provider, { count: row.count, firstId: row.firstId });
+    }
+    applyCoreEventRows(buckets, dbIterateCoreUsageEventsInRange(0, bounds.maxId), offset);
+  }
+  return {
+    resetGeneration,
+    offset,
+    firstRowId: bounds.minId,
+    lastRowId: bounds.maxId,
+    accountStats,
+    buckets,
+  };
+}
+
+/** Cold worker-safe snapshot builder (runs inside AsyncDatabaseReads or inline). */
+export function buildCoreRollupSnapshot(offset: number): CoreRollupSnapshot {
+  const rollup = buildCoreRollupInRange(offset, getProfileUsageResetGeneration());
+  return {
+    offset: rollup.offset,
+    firstRowId: rollup.firstRowId,
+    lastRowId: rollup.lastRowId,
+    accountStats: [...rollup.accountStats.entries()],
+    buckets: [...rollup.buckets.values()],
+  };
+}
+
+function cacheFromCoreSnapshot(
+  snapshot: CoreRollupSnapshot,
+  resetGeneration: number,
+): CoreRollupCache {
+  const buckets = new Map<string, CoreDailyProviderBucket>();
+  for (const bucket of snapshot.buckets) {
+    const key = `${bucket.dayIndex}\0${bucket.provider ?? ""}\0${bucket.provider === null ? "0" : "1"}`;
+    buckets.set(key, bucket);
+  }
+  return {
+    resetGeneration,
+    offset: snapshot.offset,
+    firstRowId: snapshot.firstRowId,
+    lastRowId: snapshot.lastRowId,
+    accountStats: new Map(snapshot.accountStats),
+    buckets,
+  };
+}
+
+function getOrUpdateCoreRollupSync(offset: number): CoreRollupCache {
+  const resetGeneration = getProfileUsageResetGeneration();
+  coreRollupCache = buildCoreRollupInRange(offset, resetGeneration, coreRollupCache);
+  return coreRollupCache;
 }
 
 // -- Entry point ------------------------------------------------------
@@ -219,49 +481,29 @@ function emptyCoreStats(
 
 interface CoreCacheEntry {
   generation: number;
+  maxId: number;
   result: ProfileCoreStats;
 }
 let coreCacheGeneration = -1;
 const coreCache = new Map<string, CoreCacheEntry>();
 
-export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreStats {
+function assembleCoreStatsFromRollup(
+  rollup: CoreRollupCache,
+  currentDevice: ProfileDevice,
+  req: ProfileStatsRequest,
+  generatedAt: number,
+  todayIndex: number,
+): ProfileCoreStats {
   const offset = req.utcOffsetMinutes;
-  const generatedAt = Date.now();
-  const todayIndex = localDayIndex(generatedAt, offset);
-
-  const generation = getProfileDataGeneration();
-  if (coreCacheGeneration !== generation) {
-    coreCache.clear();
-    coreCacheGeneration = generation;
-  }
-  const cacheKey = `${offset}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
-  const cached = coreCache.get(cacheKey);
-  if (cached && cached.generation === generation) return cached.result;
-
-  const currentDevice = recordCurrentDevice();
-  const targetDeviceId =
-    req.scope === "all" ? currentDevice.id : (req.deviceId ?? currentDevice.id);
-  if (targetDeviceId !== currentDevice.id) {
-    const empty = emptyCoreStats(
-      resolveProfileDevice(targetDeviceId),
-      req,
-      generatedAt,
-      todayIndex,
-    );
-    coreCache.set(cacheKey, { generation, result: empty });
-    return empty;
-  }
 
   // The account picker lists every account ever seen, independent of the active
   // filter, so selecting one account doesn't collapse the picker to itself.
-  // When SQLite is open, query account counts and stream only non-token core
-  // events directly so `tokens`/`tokens_v2` rows and `cost_details` JSON are
-  // never loaded or retained in memory.
-  const availableAccounts = dbQueryUsageAccountCounts().map(({ provider }) => ({
-    key: provider,
-    label: accountLabel(provider),
-  }));
-  const coreRowStream = dbIterateCoreUsageEvents(req.provider);
+  const availableAccounts = [...rollup.accountStats.entries()]
+    .sort((a, b) => b[1].count - a[1].count || a[1].firstId - b[1].firstId)
+    .map(([provider]) => ({
+      key: provider,
+      label: accountLabel(provider),
+    }));
 
   const windowDays = statsWindowDays(req.window);
   const startIndex = windowDays ? windowStartIndex(todayIndex, windowDays) : undefined;
@@ -292,87 +534,44 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
 
   const aiActionsByType: AiActionAccumulator = new Map();
 
-  for (const row of coreRowStream) {
-    let rowDayIndex: number | undefined;
-    if (startIndex !== undefined) {
-      rowDayIndex = localDayIndex(row.ts, offset);
-      if (rowDayIndex < startIndex || rowDayIndex > todayIndex) continue;
+  for (const bucket of rollup.buckets.values()) {
+    if (req.provider && bucket.provider !== req.provider) continue;
+    if (
+      startIndex !== undefined &&
+      (bucket.dayIndex < startIndex || bucket.dayIndex > todayIndex)
+    ) {
+      continue;
     }
 
-    switch (row.kind) {
-      case "thread_started": {
-        totalThreads++;
-        const mode = row.mode === "chat" ? "chat" : "cli";
-        modeCounts.set(mode, (modeCounts.get(mode) ?? 0) + 1);
-        break;
+    totalThreads += bucket.totalThreads;
+    mergeCountMap(modeCounts, bucket.modeCounts);
+    messagesSent += bucket.messagesSent;
+    goalsSet += bucket.goalsSet;
+    if (bucket.totalTurns > 0) {
+      totalTurns += bucket.totalTurns;
+      if (bucket.longestTaskMs > longestTaskMs) longestTaskMs = bucket.longestTaskMs;
+      const day = dayKeyFromIndex(bucket.dayIndex);
+      addCount(countsByDay, day, bucket.totalTurns);
+      activeDayIndices.add(bucket.dayIndex);
+      for (const [hour, count] of bucket.hourCounts) {
+        hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + count);
       }
-      case "message": {
-        messagesSent++;
-        break;
+      if (bucket.provider) {
+        addCount(providerCounts, baseAgentKind(bucket.provider), bucket.totalTurns);
+        addCount(accountCounts, bucket.provider, bucket.totalTurns);
       }
-      case "goal": {
-        goalsSet++;
-        break;
-      }
-      case "turn": {
-        totalTurns++;
-        if (row.value > longestTaskMs) longestTaskMs = row.value;
-        const dayIndex = rowDayIndex ?? localDayIndex(row.ts, offset);
-        const day = dayKeyFromIndex(dayIndex);
-        countsByDay.set(day, (countsByDay.get(day) ?? 0) + 1);
-        activeDayIndices.add(dayIndex);
-        const hour = localHour(row.ts, offset);
-        hourCounts.set(hour, (hourCounts.get(hour) ?? 0) + 1);
-        if (row.provider) {
-          const base = baseAgentKind(row.provider);
-          providerCounts.set(base, (providerCounts.get(base) ?? 0) + 1);
-          accountCounts.set(row.provider, (accountCounts.get(row.provider) ?? 0) + 1);
-        }
-        if (row.model) {
-          const key = modelKey(row.provider, row.model);
-          modelCounts.set(key, (modelCounts.get(key) ?? 0) + 1);
-        }
-        if (row.fast) fastTurns++;
-        if (row.effort) {
-          effortTurns++;
-          effortCounts.set(row.effort, (effortCounts.get(row.effort) ?? 0) + 1);
-        }
-        break;
-      }
-      case "skill": {
-        const name = row.name?.trim();
-        if (!name || name.toLowerCase() === "skill") break;
-        skillCounts.set(name, (skillCounts.get(name) ?? 0) + 1);
-        totalSkillsUsed++;
-        break;
-      }
-      case "workflow": {
-        workflowRuns++;
-        break;
-      }
-      case "subagent": {
-        // Legacy rows recorded before workflows got their own kind still arrive as
-        // subagents named "workflow" - re-bucket those into the workflow count.
-        if ((row.name ?? "").trim().toLowerCase() === "workflow") workflowRuns++;
-        else subagentRuns++;
-        break;
-      }
-      case "mcp": {
-        const name = row.name?.trim();
-        if (!name || isGenericMcpName(name) || isGenericMcpName(mcpServerLabel(name))) break;
-        mcpToolCalls++;
-        // New Codex events are unwrapped to the inner app at the provider boundary.
-        // Historical rows only retained this aggregate wrapper, so do not present
-        // it as if it were an MCP server alongside the real app names.
-        if (name.toLowerCase() === "codex_apps") break;
-        mcpCounts.set(name, (mcpCounts.get(name) ?? 0) + 1);
-        break;
-      }
-      default: {
-        accumulateAiActionRow(aiActionsByType, row);
-        break;
-      }
+      mergeCountMap(modelCounts, bucket.modelCounts);
+      fastTurns += bucket.fastTurns;
+      effortTurns += bucket.effortTurns;
+      mergeCountMap(effortCounts, bucket.effortCounts);
     }
+    mergeCountMap(skillCounts, bucket.skillCounts);
+    totalSkillsUsed += bucket.totalSkillsUsed;
+    workflowRuns += bucket.workflowRuns;
+    subagentRuns += bucket.subagentRuns;
+    mcpToolCalls += bucket.mcpToolCalls;
+    mergeCountMap(mcpCounts, bucket.mcpCounts);
+    mergeAiActions(aiActionsByType, bucket.aiActions);
   }
 
   const modes = rank(modeCounts, (m) => (m === "chat" ? "Chat" : "CLI"), totalThreads);
@@ -428,7 +627,7 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     mcpToolCalls,
   };
 
-  const result: ProfileCoreStats = {
+  return {
     scope: req.scope ?? "device",
     device: currentDevice,
     generatedAt,
@@ -446,6 +645,53 @@ export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreSt
     aiActions: finalizeAiActions(aiActionsByType),
     availableAccounts,
   };
-  coreCache.set(cacheKey, { generation, result });
+}
+
+function coreResultKey(req: ProfileStatsRequest, todayIndex: number): string {
+  return `${req.utcOffsetMinutes}|${todayIndex}|${req.scope ?? "device"}|${req.deviceId ?? "current"}|${req.provider ?? "all"}|${req.window ?? "all"}`;
+}
+
+export function getCachedProfileCoreStats(req: ProfileStatsRequest): ProfileCoreStats | undefined {
+  const cached = coreCache.get(coreResultKey(req, localDayIndex(Date.now(), req.utcOffsetMinutes)));
+  return cached?.generation === getProfileDataGeneration() ? cached.result : undefined;
+}
+
+export function computeProfileCoreStats(req: ProfileStatsRequest): ProfileCoreStats {
+  const existing = getCachedProfileCoreStats(req);
+  if (existing) return existing;
+  const offset = req.utcOffsetMinutes;
+  const generatedAt = Date.now();
+  const todayIndex = localDayIndex(generatedAt, offset);
+
+  const generation = getProfileDataGeneration();
+  if (coreCacheGeneration !== generation) {
+    coreCache.clear();
+    coreCacheGeneration = generation;
+  }
+  const cacheKey = coreResultKey(req, todayIndex);
+  const currentDevice = recordCurrentDevice();
+  const targetDeviceId =
+    req.scope === "all" ? currentDevice.id : (req.deviceId ?? currentDevice.id);
+  if (targetDeviceId !== currentDevice.id) {
+    const cached = coreCache.get(cacheKey);
+    if (cached && cached.generation === generation) return cached.result;
+    const empty = emptyCoreStats(
+      resolveProfileDevice(targetDeviceId),
+      req,
+      generatedAt,
+      todayIndex,
+    );
+    coreCache.set(cacheKey, { generation, maxId: 0, result: empty });
+    return empty;
+  }
+
+  const rollup = getOrUpdateCoreRollupSync(offset);
+  const cached = coreCache.get(cacheKey);
+  if (cached && cached.generation === generation && cached.maxId === rollup.lastRowId) {
+    return cached.result;
+  }
+
+  const result = assembleCoreStatsFromRollup(rollup, currentDevice, req, generatedAt, todayIndex);
+  coreCache.set(cacheKey, { generation, maxId: rollup.lastRowId, result });
   return result;
 }

@@ -33,6 +33,8 @@ import {
   type CatalogReadProjection,
   type CatalogReadNegotiation,
 } from "../remote/server/catalogPageBuilders";
+import { buildCoreRollupSnapshot } from "../profile/coreStats";
+import { buildTokenRollupSnapshot } from "../profile/tokenStats";
 
 /** Only committed, read-only operations belong here. The host owns fences and writes. */
 export const databaseReadOperations = {
@@ -81,6 +83,8 @@ export const databaseReadOperations = {
   contextUsage: dbGetThreadContextUsage,
   tokenUsage: dbGetThreadTokenUsage,
   runtimeSnapshot: readCommittedRuntimeSnapshot,
+  profileCoreRollup: buildCoreRollupSnapshot,
+  profileTokenRollup: buildTokenRollupSnapshot,
 };
 
 export type DatabaseReadOperation = keyof typeof databaseReadOperations;

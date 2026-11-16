@@ -238,14 +238,17 @@ vi.mock("@/host/db", () => {
 
 vi.mock("@/host/db/usageEvents", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/host/db/usageEvents")>()),
-  dbQueryUsageAccountCounts: vi.fn<
-    typeof import("@/host/db/usageEvents").dbQueryUsageAccountCounts
-  >(() => []),
-  dbIterateCoreUsageEvents: vi.fn<typeof import("@/host/db/usageEvents").dbIterateCoreUsageEvents>(
-    () => [][Symbol.iterator](),
+  dbQueryUsageEventsBounds: vi.fn<typeof import("@/host/db/usageEvents").dbQueryUsageEventsBounds>(
+    () => ({ minId: 0, maxId: 0 }),
   ),
-  dbIterateTokenUsageScanRows: vi.fn<
-    typeof import("@/host/db/usageEvents").dbIterateTokenUsageScanRows
+  dbQueryUsageAccountCountsUpTo: vi.fn<
+    typeof import("@/host/db/usageEvents").dbQueryUsageAccountCountsUpTo
+  >(() => []),
+  dbIterateCoreUsageEventsInRange: vi.fn<
+    typeof import("@/host/db/usageEvents").dbIterateCoreUsageEventsInRange
+  >(() => [][Symbol.iterator]()),
+  dbIterateTokenUsageScanRowsInRange: vi.fn<
+    typeof import("@/host/db/usageEvents").dbIterateTokenUsageScanRowsInRange
   >(() => [][Symbol.iterator]()),
 }));
 
