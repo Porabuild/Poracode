@@ -634,7 +634,7 @@ describe("classifyGitProcess", () => {
     [["ls-files", "--others"], "short"],
     [["branch", "--format=x"], "short"],
     [["worktree", "list", "--porcelain"], "short"],
-    [["worktree", "add", "/tmp/wt"], "short"],
+    [["worktree", "add", "/tmp/wt"], "checkout"],
     [["commit-tree", "abc"], "short"],
     [["commit-tree"], "short"],
     [["clone", "url"], "long"],
@@ -655,6 +655,71 @@ describe("classifyGitProcess", () => {
     expect(classifyGitProcess(args)).toBe(expected);
   });
 
+  it("keeps status batches and stash recovery available during slow checkouts", async () => {
+    vi.useFakeTimers();
+    const scheduler = createGitProcessAdmissionScheduler({
+      shortPermits: 8,
+      longPermits: 1,
+      checkoutPermits: 2,
+      checkoutWaitTimeoutMs: 60_000,
+    });
+    const first = await scheduler.admit(classifyGitProcess(["worktree", "add", "/one"]));
+    const second = await scheduler.admit(classifyGitProcess(["worktree", "add", "/two"]));
+    const third = scheduler.admit(classifyGitProcess(["worktree", "add", "/three"]));
+    const thirdResult = third.then(
+      (ticket) => ({ ticket }),
+      (error: unknown) => ({ error }),
+    );
+    const status = scheduler.admit("short", { units: 8, environment: "wsl" }).then(
+      (ticket) => ({ ticket }),
+      (error: unknown) => ({ error }),
+    );
+    const stash = scheduler.admit(classifyGitProcess(["stash", "apply"])).then(
+      (ticket) => ({ ticket }),
+      (error: unknown) => ({ error }),
+    );
+
+    await vi.advanceTimersByTimeAsync(16_000);
+    const checkoutUsage = scheduler.usage().checkout;
+    first.release();
+    const [result, statusResult, stashResult] = await Promise.all([thirdResult, status, stash]);
+    if ("ticket" in statusResult) statusResult.ticket.release();
+    if ("ticket" in stashResult) stashResult.ticket.release();
+    second.release();
+    if ("ticket" in result) result.ticket.release();
+
+    expect(checkoutUsage).toMatchObject({ active: 2, queued: 1 });
+    expect(result).toHaveProperty("ticket");
+    expect(statusResult).toHaveProperty("ticket");
+    expect(stashResult).toHaveProperty("ticket");
+    expect(scheduler.usage().short.active).toBe(0);
+    expect(scheduler.usage().long.active).toBe(0);
+    expect(scheduler.usage().checkout.active).toBe(0);
+  });
+
+  it("bounds checkout admission separately from ordinary Git work", async () => {
+    vi.useFakeTimers();
+    const scheduler = createGitProcessAdmissionScheduler({
+      checkoutPermits: 1,
+      checkoutWaitTimeoutMs: 60_000,
+    });
+    const first = await scheduler.admit("checkout");
+    const second = scheduler.admit("checkout").then(
+      () => "admitted",
+      (error: unknown) => error,
+    );
+
+    await vi.advanceTimersByTimeAsync(10_001);
+    expect(scheduler.usage().checkout.queued).toBe(1);
+    await vi.advanceTimersByTimeAsync(49_999);
+    const result = await second;
+    first.release();
+    expect(result).toMatchObject({
+      code: GIT_ADMISSION_WAIT_TIMEOUT_CODE,
+      details: { gitClass: "checkout", retryAfterMs: 60_000 },
+    });
+  });
+
   it("falls back to short for empty or option-only argv", () => {
     expect(classifyGitProcess([])).toBe("short");
     expect(classifyGitProcess(["--version"])).toBe("short");
@@ -664,8 +729,10 @@ describe("classifyGitProcess", () => {
     expect(GIT_PROCESS_ADMISSION_DEFAULT_POLICY).toEqual({
       shortPermits: 8,
       longPermits: 2,
+      checkoutPermits: 2,
       maxQueuedEntries: 64,
       admissionWaitTimeoutMs: 10_000,
+      checkoutWaitTimeoutMs: 60_000,
     });
   });
 });

@@ -101,8 +101,9 @@ describe("remote v3 native binding generator", () => {
         // Thread transfer adds two operate-scoped routes (command and raw upload)
         // with their request, query and result roots and structural types.
         // Optional agent-statuses `detecting` moves only the source hash.
-        sourceHash: "sha256:0094e6ced1dd80f7b16bb2f1d7503e12b004232afef1d5e97c568b94341b35ed",
-        manifestHash: "sha256:3e7df7fb4e1730e3551ebb8438ac97c73f845d8caa8170ab81dbd2bcc7efec9d",
+        // Worktree creation adds an optional checkout-pool diagnostic and a longer client deadline.
+        sourceHash: "sha256:836d0849ffb2cd14c4b69c90ff627b49e168b0e88b7a72463bb8a9586bb47324",
+        manifestHash: "sha256:7c0092870265fb91d29e0ddeb13a062f93158483255e0ddf10c05575720488b1",
         counts: {
           routes: 121,
           procedures: 173,
@@ -116,8 +117,8 @@ describe("remote v3 native binding generator", () => {
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 149,
-          kotlinFiles: 126,
+          swiftFiles: 148,
+          kotlinFiles: 125,
           stateMachines: 5,
         },
       });

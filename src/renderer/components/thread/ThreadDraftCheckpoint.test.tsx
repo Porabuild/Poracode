@@ -122,7 +122,7 @@ it("restores text and attachments without inventing a new draft revision", async
   second.unmount();
 });
 
-it("retires the submission outbox copy and never shows recovery controls after a failed draft launch", async () => {
+it("keeps an uncertain draft launch visible and blocks retry until its saved copy is discarded", async () => {
   const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
   try {
     const onStart = vi
@@ -134,17 +134,26 @@ it("retires the submission outbox copy and never shows recovery controls after a
     const first = form(onStart);
     fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
     await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
-    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
-    expect(screen.queryByRole("status")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
+    await waitFor(async () =>
+      expect(await listClientSubmissions()).toEqual([
+        expect.objectContaining({ state: "uncertain" }),
+      ]),
+    );
+    expect(await screen.findByRole("button", { name: "Restore a copy" })).toBeVisible();
     const before = composerDraftStorage()!.currentIdentity("project", project.id);
     first.unmount();
     const second = form(onStart);
     expect(composerDraftStorage()!.currentIdentity("project", project.id)).toEqual(before);
-    expect(screen.queryByRole("status")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
+    expect(await screen.findByRole("button", { name: "Discard saved copy" })).toBeVisible();
+    report.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+    await waitFor(() => expect(report).toHaveBeenCalled());
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(await listClientSubmissions()).toEqual([
+      expect.objectContaining({ state: "uncertain" }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Discard saved copy" }));
+    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
     fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
     await waitFor(() => expect(onStart).toHaveBeenCalledTimes(2));
     await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
@@ -199,7 +208,11 @@ it("captures browser focus before attachment preparation and keeps it out of rec
     await act(async () => {
       rejectStart(new RemoteClientError("Unknown delivery", 409, "command_outcome_uncertain"));
     });
-    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+    await waitFor(async () =>
+      expect(await listClientSubmissions()).toEqual([
+        expect.objectContaining({ state: "uncertain" }),
+      ]),
+    );
     view.unmount();
   } finally {
     materialize.mockRestore();

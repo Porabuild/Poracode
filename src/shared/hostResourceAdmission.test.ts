@@ -225,9 +225,20 @@ describe("git process admission diagnostics schema", () => {
     expect(gitProcessAdmissionDiagnosticsSchema.parse(legacyReport)).toEqual(legacyReport);
   });
 
+  it("keeps a checkout-pool report readable by the previous schema", () => {
+    const oldReader = gitProcessAdmissionDiagnosticsSchema.omit({ checkout: true });
+    expect(
+      oldReader.parse({
+        ...legacyReport,
+        checkout: { limit: 2, active: 1, queued: 0, maxActive: 1 },
+      }),
+    ).toEqual(legacyReport);
+  });
+
   it("accepts and preserves the additive timing, slow-fetch and environment fields", () => {
     const report = {
       ...legacyReport,
+      checkout: { limit: 2, active: 0, queued: 0, maxActive: 0 },
       short: {
         ...legacyReport.short,
         queueWaitMs: 0,

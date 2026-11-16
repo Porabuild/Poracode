@@ -16,6 +16,7 @@ import {
   classifyGitProcess,
   firstGitSubcommandToken,
   gitProcessAdmissionUsage,
+  type GitProcessAdmissionTicket,
   type GitProcessClass,
 } from "./gitProcessAdmission";
 import { disposeGitExecWorker, execGitOnWorkerThread } from "./gitExecWorkerClient";
@@ -78,6 +79,10 @@ export const GIT_CLONE_TIMEOUT = 600_000;
 // Operations that invoke user-defined hooks (pre-commit lint/typecheck/test, etc.).
 // Generous bound so common hook chains complete; still finite so a hung hook can't pin the UI forever.
 export const GIT_HOOK_TIMEOUT = 300_000;
+// Adding a worktree checks out every tracked file and can invoke post-checkout
+// hooks. Keep its Git deadline below the long remote request budget so the
+// caller normally receives the result instead of abandoning a live checkout.
+export const GIT_WORKTREE_ADD_TIMEOUT = 240_000;
 // Removing a worktree deletes its whole checkout from disk. Worktrees can carry
 // multi-gigabyte ignored trees (node_modules, build output), and killing git
 // mid-delete leaves a half-removed husk that later removals refuse to touch.
@@ -217,6 +222,30 @@ export async function execGit(
   } finally {
     ticket.release();
   }
+}
+
+/** Reserve checkout capacity before stashing or preparing an owned branch. */
+export function reserveWorktreeCheckout(
+  location: ProjectLocation,
+): Promise<GitProcessAdmissionTicket> {
+  return admitGitProcess("checkout", { environment: location.kind, subcommand: "worktree" });
+}
+
+/** Execute the one worktree-add command covered by a caller-owned reservation. */
+export function execGitWithCheckoutReservation(
+  location: ProjectLocation,
+  args: string[],
+  ticket: GitProcessAdmissionTicket,
+  timeout: number,
+): Promise<string> {
+  if (
+    ticket.gitClass !== "checkout" ||
+    ticket.units !== 1 ||
+    classifyGitProcess(args) !== "checkout"
+  ) {
+    throw new TypeError("A worktree checkout requires its checkout admission reservation.");
+  }
+  return execGitAdmitted(location, args, { timeout });
 }
 
 async function execGitAdmitted(

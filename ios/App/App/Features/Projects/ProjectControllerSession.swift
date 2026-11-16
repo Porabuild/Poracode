@@ -62,6 +62,7 @@ extension ProjectOperationFailure {
         return .authorizationMissingScope(missingScope)
       }
       if statusCode == 403 { return .authorizationDenied }
+      if statusCode == 429, code == "git_repository_busy" { return .busy }
       return .rejected(statusCode: statusCode, code: code)
     case .ambiguousOutcome:
       return .ambiguousOutcome

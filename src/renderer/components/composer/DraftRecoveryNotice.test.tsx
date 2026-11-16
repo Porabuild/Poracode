@@ -152,29 +152,27 @@ describe("submission recovery", () => {
     expect(screen.getByRole("button", { name: "Discard saved copy" })).toBeVisible();
   });
 
-  it("ignores launch submissions on project drafts while surfacing local-checkpoint conflicts", async () => {
-    await preserveClientSubmission({
-      formatVersion: 1,
-      id: crypto.randomUUID(),
-      draftId: "draft-project",
-      scope: '["project","p"]',
-      revision: 1,
-      target: '["managed","p"]',
-      fingerprint: "launch",
-      content: { recoveryContent: content },
-      state: "uncertain",
-      assets: [],
-    });
-    const view = render(
-      <DraftRecoveryNotice kind="project" ownerId="p" pending={false} onRestore={() => {}} />,
-    );
-    await act(async () => Promise.resolve());
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-
-    await act(async () => {
+  it.each(["uncertain", "dispatching"] as const)(
+    "shows %s project launches for explicit recovery and still surfaces checkpoint conflicts",
+    async (state) => {
+      const launchId = crypto.randomUUID();
       await preserveClientSubmission({
         formatVersion: 1,
-        id: crypto.randomUUID(),
+        id: launchId,
+        draftId: "draft-project",
+        scope: '["project","p"]',
+        revision: 1,
+        target: '["managed","p"]',
+        fingerprint: "launch",
+        content: { intent: "launch", recoveryContent: content },
+        state,
+        assets: [],
+      });
+      // IndexedDB sorts this checkpoint after the UUID launch ID. It must not
+      // hide the uncertain launch even though both have the same project scope.
+      await preserveClientSubmission({
+        formatVersion: 1,
+        id: "z-checkpoint",
         draftId: "draft-conflict",
         scope: '["project","p"]',
         revision: 2,
@@ -184,8 +182,14 @@ describe("submission recovery", () => {
         state: "failed",
         assets: [],
       });
-    });
-    expect(await screen.findByRole("button", { name: "Restore" })).toBeVisible();
-    view.unmount();
-  });
+      const view = render(
+        <DraftRecoveryNotice kind="project" ownerId="p" pending={false} onRestore={() => {}} />,
+      );
+      expect(await screen.findByRole("button", { name: "Restore a copy" })).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "Discard saved copy" }));
+      await waitFor(async () => expect(await readClientSubmission(launchId)).toBeUndefined());
+      expect(await screen.findByRole("button", { name: "Restore" })).toBeVisible();
+      view.unmount();
+    },
+  );
 });

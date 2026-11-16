@@ -345,7 +345,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EMetricsU2EResponse: RemoteRootCodec<RoutemetricsResponse_f983f1aded> = .init(id: "route.metrics.response", schema: RemoteSchemas.schema_f983f1aded87bea9)
+  static let routeU2EMetricsU2EResponse: RemoteRootCodec<RoutemetricsResponse_e9b9e3e75f> = .init(id: "route.metrics.response", schema: RemoteSchemas.schema_e9b9e3e75ffe2b01)
 }
 
 public extension RemoteRootCodecs {

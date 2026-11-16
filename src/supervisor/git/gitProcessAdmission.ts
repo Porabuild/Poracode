@@ -21,6 +21,8 @@
  *   machinery) and `worktree remove|prune`. A separate finite pool so a
  *   stalled long operation can never consume the short-read permits; the
  *   short pool cannot evict long permits either.
+ * - `checkout`: `worktree add`. A separate pool keeps slow checkouts from
+ *   blocking status batches or the stash commands needed to restore changes.
  *
  * Sizing (documented derivation, not an imported constant): the fixed project
  * snapshot uses seven commands, while worktree status batches grow with the
@@ -28,7 +30,7 @@
  * the current class limit. `shortPermits: 8` admits the seven-command snapshot
  * plus one concurrent read and is at least the four-read POSIX status fanout.
  * `longPermits: 2` gives interactive headroom (a clone plus a push) while
- * staying finite.
+ * staying finite. `checkoutPermits: 2` bounds concurrent checkouts independently.
  *
  * Invariants:
  * - Bounded both ways: active work is capped per class and the queue is
@@ -40,10 +42,9 @@
  *   batch is deliberate fairness, not a leak.
  * - One entry per request, `units` weighted: a WSL batch is one queue entry
  *   that consumes `commands.length` permits, so concurrent batches cannot
- *   multiply the effective process allowance. No nested acquisition exists:
- *   every call site holds at most one ticket at a time, so waiting for units
- *   cannot deadlock against its own holders (holders always settle — every
- *   Git command has a finite execution timeout).
+ *   multiply the effective process allowance. A worktree creation may reserve
+ *   checkout capacity while it runs prerequisite short or long commands. Those
+ *   classes never acquire checkout capacity while held, so there is no cycle.
  * - A batch whose `units` can never fit a class limit (`units > permits`) is
  *   refused immediately instead of waiting forever.
  * - Admission wait has its own bounded deadline
@@ -88,17 +89,21 @@ export {
   type GitProcessAdmissionRefusalCode,
 } from "@/shared/gitProcessAdmission";
 
-export type GitProcessClass = "short" | "long";
+export type GitProcessClass = "short" | "long" | "checkout";
 
 export interface GitProcessAdmissionPolicy {
   /** Concurrent permit units for `short` Git processes. */
   shortPermits: number;
   /** Concurrent permit units for `long` Git processes. */
   longPermits: number;
-  /** Maximum queued entries across both classes. */
+  /** Concurrent permit units for worktree checkouts. */
+  checkoutPermits: number;
+  /** Maximum queued entries across all classes. */
   maxQueuedEntries: number;
   /** Bounded admission wait deadline; unrelated to command execution timeouts. */
   admissionWaitTimeoutMs: number;
+  /** Worktree checkouts may wait longer behind another checkout. */
+  checkoutWaitTimeoutMs: number;
 }
 
 /**
@@ -110,8 +115,10 @@ export const GIT_PROCESS_ADMISSION_DEFAULT_POLICY: Readonly<GitProcessAdmissionP
   Object.freeze({
     shortPermits: 8,
     longPermits: 2,
+    checkoutPermits: 2,
     maxQueuedEntries: 64,
     admissionWaitTimeoutMs: 10_000,
+    checkoutWaitTimeoutMs: 60_000,
   });
 
 /**
@@ -197,6 +204,7 @@ export function classifyGitProcess(args: readonly string[]): GitProcessClass {
   if (!sub) return "short";
   if (sub.token === "worktree") {
     const action = firstSubcommandToken(args.slice(sub.next));
+    if (action?.token === "add") return "checkout";
     return action && LONG_GIT_WORKTREE_SUBCOMMANDS.has(action.token) ? "long" : "short";
   }
   return LONG_GIT_SUBCOMMANDS.has(sub.token) ? "long" : "short";
@@ -250,6 +258,7 @@ export interface GitProcessAdmissionClassUsage extends GitProcessAdmissionClassD
 export interface GitProcessAdmissionUsage extends GitProcessAdmissionDiagnostics {
   short: GitProcessAdmissionClassUsage;
   long: GitProcessAdmissionClassUsage;
+  checkout: GitProcessAdmissionClassUsage;
   slowFetches: number;
   environments: Record<GitProcessAdmissionEnvironment, GitProcessAdmissionEnvironmentUsage>;
 }
@@ -340,6 +349,16 @@ export class GitProcessAdmissionScheduler {
         maxExecutionMs: 0,
         queue: [],
       },
+      checkout: {
+        limit: this.policy.checkoutPermits,
+        active: 0,
+        maxActive: 0,
+        queueWaitMs: 0,
+        maxQueueWaitMs: 0,
+        executionMs: 0,
+        maxExecutionMs: 0,
+        queue: [],
+      },
     };
     this.environments = emptyEnvironmentUsage();
     this.counts = {
@@ -369,16 +388,20 @@ export class GitProcessAdmissionScheduler {
     if (
       !isPositiveInt(next.shortPermits) ||
       !isPositiveInt(next.longPermits) ||
+      !isPositiveInt(next.checkoutPermits) ||
       !isPositiveInt(next.maxQueuedEntries) ||
-      !isPositiveInt(next.admissionWaitTimeoutMs)
+      !isPositiveInt(next.admissionWaitTimeoutMs) ||
+      !isPositiveInt(next.checkoutWaitTimeoutMs)
     ) {
       throw new TypeError("Git process admission policy values must be positive integers.");
     }
     this.policy = next;
     this.pools.short.limit = next.shortPermits;
     this.pools.long.limit = next.longPermits;
+    this.pools.checkout.limit = next.checkoutPermits;
     this.pump("short");
     this.pump("long");
+    this.pump("checkout");
   }
 
   /**
@@ -414,6 +437,7 @@ export class GitProcessAdmissionScheduler {
       this.counts.queueFullRefusals += 1;
       throw this.refusal(GIT_ADMISSION_QUEUE_FULL_CODE, gitClass, units);
     }
+    const waitTimeoutMs = this.waitTimeout(gitClass);
     return await new Promise<GitProcessAdmissionTicket>((settle, fail) => {
       const entry: QueueEntry = {
         gitClass,
@@ -427,8 +451,8 @@ export class GitProcessAdmissionScheduler {
           this.removeQueued(gitClass, entry);
           this.pump(gitClass);
           this.counts.waitTimeoutRefusals += 1;
-          fail(this.refusal(GIT_ADMISSION_WAIT_TIMEOUT_CODE, gitClass, units));
-        }, this.policy.admissionWaitTimeoutMs),
+          fail(this.refusal(GIT_ADMISSION_WAIT_TIMEOUT_CODE, gitClass, units, waitTimeoutMs));
+        }, waitTimeoutMs),
         settle,
         fail,
       };
@@ -456,6 +480,7 @@ export class GitProcessAdmissionScheduler {
     return {
       short: this.classUsage("short"),
       long: this.classUsage("long"),
+      checkout: this.classUsage("checkout"),
       ...this.counts,
       environments: {
         posix: { ...this.environments.posix },
@@ -468,7 +493,7 @@ export class GitProcessAdmissionScheduler {
   /** Process-local test reset: drops pending waiters (rejected as cancelled). */
   resetForTests(): void {
     this.generation += 1;
-    for (const gitClass of ["short", "long"] as const) {
+    for (const gitClass of ["short", "long", "checkout"] as const) {
       const pool = this.pools[gitClass];
       for (const entry of pool.queue.splice(0)) {
         clearTimeout(entry.timer);
@@ -594,13 +619,24 @@ export class GitProcessAdmissionScheduler {
   }
 
   private queuedEntryCount(): number {
-    return this.pools.short.queue.length + this.pools.long.queue.length;
+    return (
+      this.pools.short.queue.length +
+      this.pools.long.queue.length +
+      this.pools.checkout.queue.length
+    );
+  }
+
+  private waitTimeout(gitClass: GitProcessClass): number {
+    return gitClass === "checkout"
+      ? this.policy.checkoutWaitTimeoutMs
+      : this.policy.admissionWaitTimeoutMs;
   }
 
   private refusal(
     code: typeof GIT_ADMISSION_QUEUE_FULL_CODE | typeof GIT_ADMISSION_WAIT_TIMEOUT_CODE,
     gitClass: GitProcessClass,
     units: number,
+    waitTimeoutMs = this.waitTimeout(gitClass),
   ): GitProcessAdmissionError {
     const pool = this.pools[gitClass];
     const details: GitProcessAdmissionRefusalDetails = {
@@ -609,12 +645,12 @@ export class GitProcessAdmissionScheduler {
       limit: pool.limit,
       active: pool.active,
       queued: pool.queue.length,
-      retryAfterMs: this.policy.admissionWaitTimeoutMs,
+      retryAfterMs: waitTimeoutMs,
     };
     const reason =
       code === GIT_ADMISSION_QUEUE_FULL_CODE
         ? `Git ${gitClass} admission queue is full or the request can never fit`
-        : `Git ${gitClass} admission wait exceeded the ${this.policy.admissionWaitTimeoutMs}ms deadline`;
+        : `Git ${gitClass} admission wait exceeded the ${waitTimeoutMs}ms deadline`;
     return new GitProcessAdmissionError(
       code,
       details,
@@ -632,7 +668,7 @@ export class GitProcessAdmissionScheduler {
         limit: pool.limit,
         active: pool.active,
         queued: pool.queue.length,
-        retryAfterMs: this.policy.admissionWaitTimeoutMs,
+        retryAfterMs: this.waitTimeout(gitClass),
       },
       `Git ${gitClass} admission was cancelled before spawn (units ${units}).`,
     );

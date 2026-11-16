@@ -49,10 +49,6 @@ internal val schema_f802abb4a32bbf85: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("agent-vision-unwatch")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_f80bf20556c43632: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("admitted", "cancellations", "long", "queueFullRefusals", "short", "waitTimeoutRefusals"), properties = mapOf("admitted" to schema_56aa0e45cbdce0d0, "cancellations" to schema_56aa0e45cbdce0d0, "environments" to schema_2f4c1755c2d3a402, "long" to schema_164937b9a51028fa, "queueFullRefusals" to schema_56aa0e45cbdce0d0, "short" to schema_164937b9a51028fa, "slowFetches" to schema_56aa0e45cbdce0d0, "waitTimeoutRefusals" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_f86171557f2ff456: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_11f20430355ec49c, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

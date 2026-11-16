@@ -671,6 +671,7 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   overloaded: "remote.server.busy",
   principal_busy: "remote.server.busy",
   settings_overloaded: "remote.server.busy",
+  git_repository_busy: "remote.server.busy",
 };
 
 function remoteErrorMessageKey(error: unknown): MessageKey | undefined {

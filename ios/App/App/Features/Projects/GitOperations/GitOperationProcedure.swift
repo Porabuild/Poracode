@@ -61,7 +61,7 @@ extension GitOperationProcedure {
   static let metadata: [GitOperationMetadata] = [
     entry(.gitAbortMerge, .operate, .worktreeLocation, .json),
     entry(.gitAddRemote, .operate, .projectLocation, .omitted),
-    entry(.gitAddWorktree, .operate, .projectLocation, .json),
+    entry(.gitAddWorktree, .operate, .projectLocation, .json, long: true),
     entry(.gitCommit, .operate, .projectLocation, .json, long: true),
     entry(.gitDeleteBranch, .operate, .projectLocation, .omitted),
     entry(.gitFetch, .operate, .projectLocation, .omitted, long: true),

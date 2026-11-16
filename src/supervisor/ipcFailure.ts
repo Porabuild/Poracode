@@ -13,6 +13,10 @@ import {
   isThreadSessionAbsenceRefusal,
 } from "@/shared/threadSessionRefusal";
 import { THREAD_WORKSPACE_RUNTIME_REQUEST } from "@/shared/threadWorkspaceRuntimeProtocol";
+import {
+  gitProcessAdmissionRetryAfterMsOf,
+  isGitProcessAdmissionRefusal,
+} from "@/shared/gitProcessAdmission";
 import { captureSupervisorIpcFailure } from "./diagnostics/sentry";
 import { isGitProcessAdmissionError } from "./git/gitProcessAdmission";
 import { unwrapConfirmedIpcThreadLaunchFailure } from "./runtime/threadSession/unpublishedStartFailure";
@@ -45,7 +49,7 @@ export function handleSupervisorIpcFailure(
       errorCode: THREAD_SESSION_ABSENCE_REFUSAL_CODE,
     };
   }
-  if (!isHostResourceAdmissionRefusal(rawError) && !isGitProcessAdmissionError(rawError)) {
+  if (!isHostResourceAdmissionRefusal(rawError) && !isGitProcessAdmissionRefusal(rawError)) {
     if (
       (operation === "startThread" &&
         (confirmedLaunchFailure || isThreadLaunchFailedRefusal(rawError))) ||
@@ -63,7 +67,7 @@ export function handleSupervisorIpcFailure(
   const errorCode = (rawError as { code: HostResourceAdmissionRefusalCode | string }).code;
   const retryAfterMs = isGitProcessAdmissionError(rawError)
     ? rawError.details.retryAfterMs
-    : hostResourceRetryAfterMsOf(rawError);
+    : (gitProcessAdmissionRetryAfterMsOf(rawError) ?? hostResourceRetryAfterMsOf(rawError));
   return {
     replyTo,
     ok: false,

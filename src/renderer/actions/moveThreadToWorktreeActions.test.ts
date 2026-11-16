@@ -236,6 +236,24 @@ describe("moveThreadToWorktree", () => {
     expect(mocks.toast.danger).toHaveBeenCalledWith("checkout failed");
   });
 
+  it.each([false, true])(
+    "does not resume the source while worktree creation is uncertain (withChanges=%s)",
+    async (withChanges) => {
+      mocks.appState.threads = [thread("idle")];
+      mocks.createWorktree.mockRejectedValue(
+        new RemoteClientError("response lost", 0, "timeout", { requestPhase: "dispatched" }),
+      );
+
+      await moveThreadToWorktree("thread-1", withChanges);
+
+      expect(mocks.unloadStoredThread).toHaveBeenCalledOnce();
+      expect(mocks.reopenStoredThread).not.toHaveBeenCalled();
+      expect(mocks.setThreadWorktree).not.toHaveBeenCalled();
+      expect(mocks.notifyUncertain).toHaveBeenCalledOnce();
+      expect(mocks.toast.danger).not.toHaveBeenCalled();
+    },
+  );
+
   it("preserves a newly created worktree if stopping the source runtime fails", async () => {
     mocks.appState.threads = [thread("idle")];
     mocks.unloadStoredThread.mockRejectedValue(new Error("close failed"));

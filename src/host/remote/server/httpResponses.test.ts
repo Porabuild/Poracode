@@ -9,6 +9,7 @@ import { RemoteHttpError } from "../auth";
 import { writeError } from "./httpResponses";
 import {
   GIT_ADMISSION_QUEUE_FULL_CODE,
+  GIT_REPOSITORY_BUSY_CODE,
   GitProcessAdmissionRefusalError,
 } from "@/shared/gitProcessAdmission";
 
@@ -94,6 +95,18 @@ describe("writeError host-resource-admission mapping", () => {
       code: GIT_ADMISSION_QUEUE_FULL_CODE,
       message: "Git work is temporarily unavailable. Retry the operation.",
     });
+  });
+
+  it("reports a repository queue refusal as a definite retryable 429", () => {
+    const result = write(
+      new GitProcessAdmissionRefusalError("Repository busy", {
+        code: GIT_REPOSITORY_BUSY_CODE,
+        retryAfterMs: 240_000,
+      }),
+    );
+    expect(result.status).toBe(429);
+    expect(result.headers.get("retry-after")).toBe("240");
+    expect(result.body.error.code).toBe(GIT_REPOSITORY_BUSY_CODE);
   });
 
   it("leaves the existing RemoteHttpError behavior intact", () => {

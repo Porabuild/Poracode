@@ -50977,6 +50977,9 @@
                   "minimum": 0,
                   "type": "integer"
                 },
+                "checkout": {
+                  "$ref": "#/$defs/__schema1"
+                },
                 "environments": {
                   "additionalProperties": true,
                   "properties": {
@@ -80683,7 +80686,7 @@
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:3e7df7fb4e1730e3551ebb8438ac97c73f845d8caa8170ab81dbd2bcc7efec9d",
+  "manifestHash": "sha256:7c0092870265fb91d29e0ddeb13a062f93158483255e0ddf10c05575720488b1",
   "protocolVersion": 14,
-  "sourceHash": "sha256:0094e6ced1dd80f7b16bb2f1d7503e12b004232afef1d5e97c568b94341b35ed"
+  "sourceHash": "sha256:836d0849ffb2cd14c4b69c90ff627b49e168b0e88b7a72463bb8a9586bb47324"
 }

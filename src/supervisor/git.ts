@@ -27,6 +27,10 @@ import type {
   RemoveExperimentWorktreesResult,
 } from "@/shared/contracts";
 import { countUnifiedDiffStats } from "@/shared/lineUnifiedDiff";
+import {
+  GIT_REPOSITORY_BUSY_CODE,
+  GitProcessAdmissionRefusalError,
+} from "@/shared/gitProcessAdmission";
 import { msg } from "@/shared/messages";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import {
@@ -63,6 +67,7 @@ import type { WslBridgeClient } from "./wsl/bridge/client";
 
 const GIT_WORKTREE_STATUS_CONCURRENCY = 4;
 const EXPERIMENT_SNAPSHOT_CONCURRENCY = 4;
+const WORKTREE_REPOSITORY_WAIT_TIMEOUT_MS = 240_000;
 
 export interface CapturedExperimentSnapshot extends CaptureExperimentSnapshotResult {
   candidates: Array<CaptureExperimentSnapshotResult["candidates"][number] & { diff: string }>;
@@ -107,6 +112,7 @@ export class GitService {
   private async withRepositoryMutation<T>(
     location: ProjectLocation,
     operation: () => Promise<T>,
+    waitTimeoutMs?: number,
   ): Promise<T> {
     const key = getLocationIdentity(location);
     const previous = this.repositoryMutationTails.get(key) ?? Promise.resolve();
@@ -116,14 +122,42 @@ export class GitService {
     });
     const tail = previous.catch(() => undefined).then(() => current);
     this.repositoryMutationTails.set(key, tail);
-    await previous.catch(() => undefined);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let acquired = false;
     try {
+      const ready = previous.catch(() => undefined);
+      if (waitTimeoutMs === undefined) {
+        await ready;
+      } else {
+        await Promise.race([
+          ready,
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(
+              () =>
+                reject(
+                  new GitProcessAdmissionRefusalError(
+                    "Git work is temporarily unavailable. Retry the operation.",
+                    { code: GIT_REPOSITORY_BUSY_CODE, retryAfterMs: waitTimeoutMs },
+                  ),
+                ),
+              waitTimeoutMs,
+            );
+          }),
+        ]);
+      }
+      if (timer) clearTimeout(timer);
+      acquired = true;
       return await this.withStatusInvalidation(location, operation);
     } finally {
+      if (timer) clearTimeout(timer);
       release();
-      if (this.repositoryMutationTails.get(key) === tail) {
-        this.repositoryMutationTails.delete(key);
-      }
+      const removeTail = () => {
+        if (this.repositoryMutationTails.get(key) === tail)
+          this.repositoryMutationTails.delete(key);
+      };
+      // A timed-out waiter must not let later mutations bypass its predecessor.
+      if (acquired) removeTail();
+      else void tail.then(removeTail);
     }
   }
 
@@ -568,20 +602,23 @@ export class GitService {
     sourceBranch?: string,
     ownerToken?: string,
   ): Promise<GitAddWorktreeResult> {
-    return this.withRepositoryMutation(location, () =>
-      this.worktreeService.addWorktree(
-        location,
-        path,
-        branch,
-        createBranch,
-        startPoint,
-        copyIgnoredPatterns,
-        transferUncommitted,
-        keepChangesInSource,
-        worktreePlacement,
-        sourceBranch,
-        ownerToken,
-      ),
+    return this.withRepositoryMutation(
+      location,
+      () =>
+        this.worktreeService.addWorktree(
+          location,
+          path,
+          branch,
+          createBranch,
+          startPoint,
+          copyIgnoredPatterns,
+          transferUncommitted,
+          keepChangesInSource,
+          worktreePlacement,
+          sourceBranch,
+          ownerToken,
+        ),
+      WORKTREE_REPOSITORY_WAIT_TIMEOUT_MS,
     );
   }
 

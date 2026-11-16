@@ -554,7 +554,11 @@ async function startThreadFromDraftPending(
           canResumeWithConfig: false,
         });
       }
-      toast.danger(message);
+      if (isRemoteCommandOutcomeUncertainError(error)) {
+        notifyThreadCommandOutcomeUncertain();
+      } else {
+        toast.danger(message);
+      }
       markDraftLaunchErrorNotified(error);
       throw error;
     }

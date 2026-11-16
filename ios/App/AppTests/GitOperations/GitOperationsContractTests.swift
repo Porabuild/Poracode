@@ -27,6 +27,7 @@ final class GitOperationsContractTests: XCTestCase {
   }
 
   func testMetadataExactlyMatchesGeneratedManifest() {
+    XCTAssertTrue(GitOperationProcedure.gitAddWorktree.metadata.isLongRunning)
     XCTAssertEqual(GitOperationProcedure.allCases.count, 29)
     XCTAssertEqual(GitOperationProcedure.metadata.count, 29)
     XCTAssertEqual(GitOperationProcedure.metadata.filter { $0.scope == .read }.count, 5)

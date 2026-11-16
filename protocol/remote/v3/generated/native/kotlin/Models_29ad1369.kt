@@ -6,14 +6,14 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
-data class RoutemetricsResponse_f983f1aded(
-    @SerialName("hostResourceAdmission") val hostResourceAdmission: RemoteField<RoutemetricsResponseU2DHostResourceAdmission_710b6ecb78> = RemoteField.Missing,
+data class RoutemetricsResponse_e9b9e3e75f(
+    @SerialName("hostResourceAdmission") val hostResourceAdmission: RemoteField<RoutemetricsResponseU2DHostResourceAdmission_dffaae3821> = RemoteField.Missing,
     @SerialName("process") val process: RoutemetricsResponseU2DProcess_9f6e05a566,
     @SerialName("remote") val remote: RoutemetricsResponseU2DRemote_99cf08bb5d,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("hostResourceAdmission", "RoutemetricsResponseU2DHostResourceAdmission_710b6ecb78", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("hostResourceAdmission", "RoutemetricsResponseU2DHostResourceAdmission_dffaae3821", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("process", "RoutemetricsResponseU2DProcess_9f6e05a566", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("remote", "RoutemetricsResponseU2DRemote_99cf08bb5d", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())

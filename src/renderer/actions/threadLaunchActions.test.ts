@@ -765,6 +765,26 @@ describe("startThreadFromDraft host transport", () => {
     expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
   });
 
+  it("warns when remote worktree creation may have completed without a response", async () => {
+    mocks.appState.projects = [remoteProject];
+    mocks.createWorktree.mockRejectedValue(
+      new RemoteClientError("response lost", 0, "timeout", { requestPhase: "dispatched" }),
+    );
+
+    await expect(
+      startThreadFromDraft(remoteProject, {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build remotely",
+        worktreeBranch: "feature",
+        worktreeIsNewBranch: true,
+      }),
+    ).rejects.toThrow("response lost");
+
+    expect(mocks.notifyThreadCommandOutcomeUncertain).toHaveBeenCalledOnce();
+    expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
+  });
+
   it("removes a new worktree if its optimistic thread was deleted while provisioning", async () => {
     let resolveWorktree!: (result: { path: string; changesTransferred?: boolean }) => void;
     mocks.createWorktree.mockReturnValue(

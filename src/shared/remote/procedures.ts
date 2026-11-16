@@ -198,7 +198,9 @@ export const REMOTE_PROCEDURE_SPECS = {
   gitSyncRebase: longRunning(operate("projectLocation")),
   gitSwitchBranch: operate("projectLocation"),
   gitDeleteBranch: operate("projectLocation"),
-  gitAddWorktree: operate("projectLocation"),
+  // The timeout is client-side guidance only; the request and result remain
+  // compatible with hosts and clients predating this metadata.
+  gitAddWorktree: mutating(longRunning(operate("projectLocation"))),
   gitRemoveWorktree: operate("projectLocation"),
   gitPruneWorktrees: operate("projectLocation"),
   gitMergeToSource: longRunning(operate("projectLocation")),
