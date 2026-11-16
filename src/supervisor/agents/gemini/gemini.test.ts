@@ -194,7 +194,8 @@ describe("createGeminiAdapter ACP env configuration", () => {
     const posixCmd = await adapter.buildAcpAuthCommand?.({ envKind: "posix" });
     const winCmd = await adapter.buildAcpAuthCommand?.({ envKind: "windows" });
 
-    expect(posixCmd?.args).toContain("--acp");
+    expect(posixCmd?.args.join(" ")).toContain("--acp");
+    expect(posixCmd?.args.join(" ")).toContain("--skip-trust");
     expect(posixCmd?.env).toMatchObject({ GEMINI_PTY_INFO: "child_process" });
     expect(winCmd?.env).toMatchObject({ GEMINI_PTY_INFO: "child_process" });
   });
