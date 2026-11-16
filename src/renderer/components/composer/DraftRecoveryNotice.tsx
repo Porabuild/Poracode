@@ -1,5 +1,6 @@
 import {
   matchesSubmissionRecoveryContent,
+  isUncertainProjectLaunch,
   parseSubmissionRecoveryContent,
 } from "@/renderer/actions/clientDraftSubmission";
 import { clientDraftPersistenceError } from "@/renderer/state/composerDrafts/persistenceError";
@@ -44,13 +45,20 @@ export function DraftRecoveryNotice(props: {
     const refresh = () => {
       const generation = ++refreshGeneration;
       const identity = composerDraftStorage()?.currentIdentity(props.kind, props.ownerId);
-      void listClientSubmissionsForDraft(
-        JSON.stringify([props.kind, props.ownerId]),
-        identity?.draftId,
+      const visibleProjectRecord = (candidate: ClientDraftSubmission) =>
+        candidate.target === "local-checkpoint" || isUncertainProjectLaunch(candidate);
+      const list = (predicate?: (candidate: ClientDraftSubmission) => boolean) =>
+        listClientSubmissionsForDraft(scope, identity?.draftId, predicate);
+      // Each indexed lookup returns its first matching record. Look up launches
+      // separately so a checkpoint cannot hide an unresolved host mutation.
+      const pendingRecords =
         props.kind === "project"
-          ? (candidate) => candidate.target === "local-checkpoint"
-          : undefined,
-      )
+          ? Promise.all([
+              list((candidate) => candidate.target === "local-checkpoint"),
+              list(isUncertainProjectLaunch),
+            ]).then(([checkpoints, launches]) => [...checkpoints, ...launches])
+          : list();
+      void pendingRecords
         .then((records) => {
           if (!active || refreshGeneration !== generation) return;
           setRecord(
@@ -58,7 +66,7 @@ export function DraftRecoveryNotice(props: {
               (candidate) =>
                 (candidate.scope === JSON.stringify([props.kind, props.ownerId]) ||
                   candidate.draftId === identity?.draftId) &&
-                (props.kind !== "project" || candidate.target === "local-checkpoint") &&
+                (props.kind !== "project" || visibleProjectRecord(candidate)) &&
                 (candidate.state === "failed" ||
                   candidate.state === "uncertain" ||
                   candidate.state === "prepared" ||
@@ -76,12 +84,14 @@ export function DraftRecoveryNotice(props: {
       unsubscribe();
       window.removeEventListener("focus", refresh);
     };
-  }, [props.kind, props.ownerId]);
+  }, [props.kind, props.ownerId, scope]);
   const identity = composerDraftStorage()?.currentIdentity(props.kind, props.ownerId);
   if (
     !record ||
     props.pending ||
-    (props.kind === "project" && record.target !== "local-checkpoint") ||
+    (props.kind === "project" &&
+      record.target !== "local-checkpoint" &&
+      !isUncertainProjectLaunch(record)) ||
     (record.scope !== scope && record.draftId !== identity?.draftId)
   )
     return null;

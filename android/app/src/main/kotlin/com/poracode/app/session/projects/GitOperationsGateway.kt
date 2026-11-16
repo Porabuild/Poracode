@@ -172,4 +172,5 @@ private val SAFE_GIT_ERROR_CODES = setOf(
     "invalid_response",
     "request_failed",
     "not_modified",
+    "git_repository_busy",
 )

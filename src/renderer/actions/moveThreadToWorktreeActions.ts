@@ -119,6 +119,12 @@ export async function moveThreadToWorktree(threadId: string, withChanges: boolea
       toast.success(i18n._(msg`Moved the thread to a new worktree on "${branch}".`));
     }
   } catch (error) {
+    // A lost checkout response can leave the host moving source changes.
+    // Do not restart the thread in that source while the result is unknown.
+    if (isRemoteCommandOutcomeUncertainError(error)) {
+      notifyThreadCommandOutcomeUncertain();
+      return;
+    }
     if (unloaded && !assigned) reopenStoredThread(threadId);
     toast.danger(friendlyError(error));
   } finally {

@@ -3,6 +3,10 @@ import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
 import { clientDraftPersistenceError } from "@/renderer/state/composerDrafts/persistenceError";
 import { getRemoteBridgeClient } from "@/renderer/browser/remoteBridge";
 import { RemoteClientError } from "@/shared/remote/clientErrors";
+import {
+  THREAD_START_REMOTE_REQUEST_TIMEOUT_MS,
+  WORKTREE_ADD_REMOTE_REQUEST_TIMEOUT_MS,
+} from "@/shared/remote/clientTypes";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { Project, PromptSegment, Thread } from "@/shared/contracts";
@@ -365,11 +369,21 @@ export async function settleClientSubmission(
   }
 }
 
+/** A project launch may have created a worktree or started a thread on the host. */
+export function isUncertainProjectLaunch(record: ClientDraftSubmission): boolean {
+  return (
+    (record.state === "uncertain" || record.state === "dispatching") &&
+    (record.content as { intent?: unknown } | null)?.intent === "launch"
+  );
+}
+
 export async function retireFailedDraftSubmission(id: string | undefined): Promise<void> {
   if (!id || typeof indexedDB === "undefined") return;
   const record = await readClientSubmission(id).catch(() => undefined);
-  if (!record || record.state === "accepted") return;
-  if (await discardClientSubmission(id, true).catch(() => false)) {
+  if (!record || record.state === "accepted" || isUncertainProjectLaunch(record)) return;
+  // Retire even a claimed definite failure, but preserve a receipt whose
+  // state changed in another window between this read and the transaction.
+  if (await discardClientSubmission(id, true, undefined, record.state).catch(() => false)) {
     queueClientDraftAssetReclamation(record.assets);
   }
 }
@@ -419,8 +433,12 @@ export function wasDraftLaunchErrorNotified(error: unknown): boolean {
   return typeof error === "object" && error !== null && notifiedDraftLaunchErrors.has(error);
 }
 
+/** Worktree provisioning and provider startup are consecutive host operations. */
+export const WORKTREE_LAUNCH_RECEIPT_TIMEOUT_MS =
+  WORKTREE_ADD_REMOTE_REQUEST_TIMEOUT_MS + THREAD_START_REMOTE_REQUEST_TIMEOUT_MS + 60_000;
+
 /** A native handoff is not a launch receipt. Quick Composer waits for its worker. */
-export async function waitForClientSubmission(id: string): Promise<void> {
+export async function waitForClientSubmission(id: string, timeoutMs = 10 * 60_000): Promise<void> {
   const uncertain = (cause?: unknown) =>
     new RemoteClientError(
       i18n._(
@@ -476,7 +494,7 @@ export async function waitForClientSubmission(id: string): Promise<void> {
     };
     // Subscribe before reading so a receipt racing with the first read is observed.
     const unsubscribe = subscribeClientDraftSubmissions(refresh);
-    const deadline = setTimeout(() => finish(uncertain()), 10 * 60_000);
+    const deadline = setTimeout(() => finish(uncertain()), timeoutMs);
     // Notifications are advisory: older or restricted clients may not broadcast.
     const fallback = setInterval(refresh, 1000);
     refresh();

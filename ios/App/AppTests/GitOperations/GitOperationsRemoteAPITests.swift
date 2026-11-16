@@ -19,6 +19,7 @@ final class GitOperationsRemoteAPITests: XCTestCase {
     let request = try XCTUnwrap(GitOperationsURLProtocol.requests.first)
     XCTAssertEqual(request.url?.path, "/prefix/api/git/call")
     XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.timeoutInterval, 60)
     XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer secret")
     let body = try XCTUnwrap(GitOperationsURLProtocol.bodies.first ?? nil)
     let envelope = try XCTUnwrap(
@@ -32,6 +33,21 @@ final class GitOperationsRemoteAPITests: XCTestCase {
       location["uncPath"] as? String,
       #"\\wsl.localhost\Ubuntu-24.04\home\dev\repo"#
     )
+  }
+
+  func testWorktreeCheckoutUsesLongRequestDeadline() async throws {
+    GitOperationsURLProtocol.responses = [
+      .http(200, Data(#"{"result":{"path":"/repo/checkout"}}"#.utf8))
+    ]
+    let result = try await makeClient().remoteGitOperation(
+      .gitAddWorktree(.init(projectLocation: GitOperationsSamples.posix, branch: "feature"))
+    )
+    XCTAssertEqual(result, .addWorktree(.init(path: "/repo/checkout")))
+    let request = try XCTUnwrap(GitOperationsURLProtocol.requests.first)
+    XCTAssertEqual(request.timeoutInterval, 660)
+    let configuration = URLSessionConfiguration.ephemeral
+    StreamingHTTPBody.configureTimeouts(configuration, request: request, resourceTimeout: 660)
+    XCTAssertEqual(configuration.timeoutIntervalForResource, 660)
   }
 
   func testMutationTransportAndMalformedDeliveryAreAmbiguousWithoutRetry() async {

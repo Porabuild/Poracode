@@ -49,6 +49,18 @@ enum BoundedResponseReader {
 /// Cancellation-aware streaming fetch that receives body data in URLSession chunks
 /// and enforces `maxBytes` before the next chunk is retained.
 enum StreamingHTTPBody {
+    static func configureTimeouts(
+        _ configuration: URLSessionConfiguration,
+        request: URLRequest,
+        resourceTimeout: TimeInterval?
+    ) {
+        configuration.timeoutIntervalForRequest = request.timeoutInterval
+        configuration.timeoutIntervalForResource = min(
+            resourceTimeout ?? configuration.timeoutIntervalForResource,
+            RemoteSocketPolicy.streamingBodyResourceTimeoutSeconds
+        )
+    }
+
     static func perform(
         session: URLSession,
         request: URLRequest,
@@ -101,14 +113,10 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
         // Dedicated session so this object is the data delegate for chunk callbacks.
         let config = (baseSession.configuration.copy() as? URLSessionConfiguration)
             ?? URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = request.timeoutInterval
         // WS7: requestInterval is an idle timer reset by every chunk, and the
         // system resource default is 7 days — a stalled slow-drip stream would
         // hold the load open indefinitely. Cap it with a real ceiling.
-        config.timeoutIntervalForResource = min(
-            resourceTimeout ?? config.timeoutIntervalForResource,
-            RemoteSocketPolicy.streamingBodyResourceTimeoutSeconds
-        )
+        StreamingHTTPBody.configureTimeouts(config, request: request, resourceTimeout: resourceTimeout)
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         privateSession = session
         let task = session.dataTask(with: request)

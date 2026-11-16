@@ -7,12 +7,15 @@ import {
   stageClientDraftAsset,
   listClientSubmissions,
   readClientSubmission,
+  claimClientSubmission,
+  updateClientSubmission,
 } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import {
   preserveDraftSubmission,
   materializeDraftSegments,
   dispatchDraftSubmission,
   acceptDraftSubmission,
+  retireFailedDraftSubmission,
 } from "./clientDraftSubmission";
 
 const fixture = vi.hoisted(() => ({
@@ -103,6 +106,7 @@ describe("explicit draft submission", () => {
       });
     });
     await expect(dispatchDraftSubmission(submission, send)).rejects.toThrow("response lost");
+    await retireFailedDraftSubmission(submission.id);
     await expect(preserve("submitted", { branch: "generated-again" })).rejects.toThrow("confirm");
     expect(send).toHaveBeenCalledOnce();
     expect(await readClientSubmission(submission.id)).toMatchObject({ state: "uncertain" });
@@ -119,6 +123,24 @@ describe("explicit draft submission", () => {
     expect(retry.checkpoint.draftId).toBe(first.checkpoint.draftId);
     expect(retry.checkpoint.revision).toBe(first.checkpoint.revision);
     expect(await listClientSubmissions()).toEqual([expect.objectContaining({ id: retry.id })]);
+  });
+
+  it("retires a claimed submission after a definite failure so the draft can be retried", async () => {
+    const submission = await preserve();
+    await claimClientSubmission(submission.id);
+    await updateClientSubmission(submission.id, "failed");
+    await retireFailedDraftSubmission(submission.id);
+    expect(await readClientSubmission(submission.id)).toBeUndefined();
+    const retry = await preserve();
+    expect(retry.checkpoint.draftId).toBe(submission.checkpoint.draftId);
+  });
+
+  it("keeps an in-flight project launch if its outcome could not be recorded", async () => {
+    const submission = await preserve();
+    await claimClientSubmission(submission.id);
+    await retireFailedDraftSubmission(submission.id);
+    expect(await readClientSubmission(submission.id)).toMatchObject({ state: "dispatching" });
+    await expect(preserve()).rejects.toThrow("confirm");
   });
 
   it("refuses a replaced target immediately before dispatch", async () => {

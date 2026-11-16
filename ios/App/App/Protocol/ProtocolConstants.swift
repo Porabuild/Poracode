@@ -87,7 +87,7 @@ enum RemoteSocketPolicy {
     /// IDLE timer reset by every chunk, so a slow-drip/stalled stream could
     /// hold a load open indefinitely against the 7-day resource default.
     /// Generous for real transfers on a shaped link, but finite.
-    static let streamingBodyResourceTimeoutSeconds: Double = 600
+    static let streamingBodyResourceTimeoutSeconds: Double = 660
     static let healthPingIntervalMs: Double = 25_000
     static let healthPingTimeoutMs: Double = 5_000
     /// A pong deadline that fires later than this was delayed (a stalled or

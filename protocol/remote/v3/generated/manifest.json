@@ -1964,7 +1964,8 @@
     {
       "name": "gitAddWorktree",
       "owner": "projectLocation",
-      "scope": "session:operate"
+      "scope": "session:operate",
+      "timeout": "long"
     },
     {
       "name": "gitRemoveWorktree",

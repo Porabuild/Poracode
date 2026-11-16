@@ -1,6 +1,7 @@
 import {
   acceptClientSubmissionById,
   waitForClientSubmission,
+  WORKTREE_LAUNCH_RECEIPT_TIMEOUT_MS,
 } from "@/renderer/actions/clientDraftSubmission";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button, toast } from "@heroui/react";
@@ -214,7 +215,14 @@ export function QuickComposerOverlay() {
     try {
       await readBridge().submitQuickComposer({ projectId: project.id, input });
       if (input.clientSubmissionId) {
-        await waitForClientSubmission(input.clientSubmissionId);
+        if (input.worktreeBranch && !input.existingWorktreePath) {
+          await waitForClientSubmission(
+            input.clientSubmissionId,
+            WORKTREE_LAUNCH_RECEIPT_TIMEOUT_MS,
+          );
+        } else {
+          await waitForClientSubmission(input.clientSubmissionId);
+        }
         await acceptClientSubmissionById(input.clientSubmissionId, () =>
           useAppStore.getState().clearDraftContent(project.id),
         );

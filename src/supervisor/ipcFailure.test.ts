@@ -15,6 +15,10 @@ import {
 } from "./runtime/hostResourceAdmission";
 import { handleSupervisorIpcFailure } from "./ipcFailure";
 import { GIT_ADMISSION_QUEUE_FULL_CODE, GitProcessAdmissionError } from "./git/gitProcessAdmission";
+import {
+  GIT_REPOSITORY_BUSY_CODE,
+  GitProcessAdmissionRefusalError,
+} from "@/shared/gitProcessAdmission";
 import { classifySupervisorIpcFailure } from "./diagnostics/sentry";
 
 describe("handleSupervisorIpcFailure", () => {
@@ -101,6 +105,20 @@ describe("handleSupervisorIpcFailure", () => {
       error: error.message,
       errorCode: GIT_ADMISSION_QUEUE_FULL_CODE,
       retryAfterMs: 500,
+    });
+  });
+
+  it("carries a repository queue refusal without losing its retry hint", () => {
+    const error = new GitProcessAdmissionRefusalError("Repository busy", {
+      code: GIT_REPOSITORY_BUSY_CODE,
+      retryAfterMs: 240_000,
+    });
+    expect(handleSupervisorIpcFailure(error, "gitAddWorktree", "request-busy", () => {})).toEqual({
+      replyTo: "request-busy",
+      ok: false,
+      error: error.message,
+      errorCode: GIT_REPOSITORY_BUSY_CODE,
+      retryAfterMs: 240_000,
     });
   });
 
