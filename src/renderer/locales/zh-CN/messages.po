@@ -2037,6 +2037,7 @@ msgid "All threads in Done will be permanently deleted."
 msgstr "“完成”中的所有线程都将永久删除。"
 
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "所有工作区"
@@ -6681,22 +6682,23 @@ msgstr "在此设备上检测代理"
 #~ msgstr "从项目文件检测"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "已检测到"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "检测到<0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "检测到<0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "检测到<0>（本地）</0>"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "检测到<0>（本地）</0>"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "检测到 <0>{0}</0>"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "检测到 <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -10184,8 +10186,8 @@ msgid "Install and restart"
 msgstr "安装并重启"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "远程设备暂不支持安装和登录。"
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "远程设备暂不支持安装和登录。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10279,8 +10281,8 @@ msgstr "在 {executionHost} 上安装 GitHub CLI (gh)，然后重试。"
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "在 {0} 中安装"
+#~ msgid "Install in {0}"
+#~ msgstr "在 {0} 中安装"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10304,8 +10306,8 @@ msgstr "首先安装原生提供程序；使用 ACP 作为附加协议代理。"
 #~ msgstr "安装到 {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "在 Windows 上安装"
+#~ msgid "Install on Windows"
+#~ msgstr "在 Windows 上安装"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -11199,8 +11201,8 @@ msgid "Loading…"
 msgstr "加载中..."
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "本地"
+#~ msgid "local"
+#~ msgstr "本地"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11297,8 +11299,8 @@ msgstr "登录"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "登录{0}"
+#~ msgid "Login {0}"
+#~ msgstr "登录{0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -24146,7 +24148,6 @@ msgstr "将在这个环境运行："
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24280,6 +24281,7 @@ msgstr "工作…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -24409,7 +24411,6 @@ msgstr "为改动编写并运行测试，复现已报告的缺陷，并为每个
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "正在编写指南。你可以离开此审查，待指南就绪后再返回。"
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24422,8 +24423,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL（{0}）"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL（{0}）"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24445,8 +24446,8 @@ msgstr "用于源代码管理的 WSL 桥接不可用。"
 #~ msgstr "WSL 用户"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL：{distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL：{distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"

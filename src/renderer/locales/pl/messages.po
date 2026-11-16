@@ -2037,6 +2037,7 @@ msgid "All threads in Done will be permanently deleted."
 msgstr "Wszystkie wątki w sekcji Gotowe zostaną trwale usunięte."
 
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Wszystkie obszary robocze"
@@ -6681,22 +6682,23 @@ msgstr "Wykryj agentów na tym komputerze"
 #~ msgstr "Wykryj z plików projektu"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "Wykryto"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "Wykryto <0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "Wykryto <0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "Wykryto <0>(lokalnie)</0>"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "Wykryto <0>(lokalnie)</0>"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "Wykryto <0>{0}</0>"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "Wykryto <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -10184,8 +10186,8 @@ msgid "Install and restart"
 msgstr "Zainstaluj i uruchom ponownie"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "Instalacja i logowanie nie są jeszcze dostępne na zdalnych komputerach."
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "Instalacja i logowanie nie są jeszcze dostępne na zdalnych komputerach."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10279,8 +10281,8 @@ msgstr "Zainstaluj GitHub CLI (gh) na {executionHost}, a następnie spróbuj pon
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "Zainstaluj w {0}"
+#~ msgid "Install in {0}"
+#~ msgstr "Zainstaluj w {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10304,8 +10306,8 @@ msgstr "Najpierw zainstaluj natywnych dostawców; użyj ACP dla dodatkowych agen
 #~ msgstr "Zainstaluj: {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Zainstaluj w systemie Windows"
+#~ msgid "Install on Windows"
+#~ msgstr "Zainstaluj w systemie Windows"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -11199,8 +11201,8 @@ msgid "Loading…"
 msgstr "Ładowanie…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "lokalny"
+#~ msgid "local"
+#~ msgstr "lokalny"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11297,8 +11299,8 @@ msgstr "Zaloguj się"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "Zaloguj się {0}"
+#~ msgid "Login {0}"
+#~ msgstr "Zaloguj się {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -24147,7 +24149,6 @@ msgstr "Będzie działać w tym środowisku:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24281,6 +24282,7 @@ msgstr "Pracuję…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -24410,7 +24412,6 @@ msgstr "Pisze i uruchamia testy zmiany, odtwarza zgłoszone błędy i podaje ka�
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "Trwa pisanie przewodnika. Możesz opuścić ten przegląd i wrócić, gdy będzie gotowy."
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24423,8 +24424,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24446,8 +24447,8 @@ msgstr "Most WSL jest niedostępny dla kontroli źródeł."
 #~ msgstr "Użytkownik WSL"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL: {distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL: {distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"

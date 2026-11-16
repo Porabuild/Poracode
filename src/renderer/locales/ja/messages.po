@@ -2036,6 +2036,7 @@ msgid "All threads in Done will be permanently deleted."
 msgstr "「完了」のすべてのスレッドが完全に削除されます。"
 
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "すべてのワークスペース"
@@ -6680,22 +6681,23 @@ msgstr "このマシンでエージェントを検出"
 #~ msgstr "プロジェクトファイルから検出"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "検出済み"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "<0>({0})</0> を検出しました"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "<0>({0})</0> を検出しました"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "<0>(ローカル)</0>が検出されました"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "<0>(ローカル)</0>が検出されました"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "<0>{0}</0> を検出しました"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "<0>{0}</0> を検出しました"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -10183,8 +10185,8 @@ msgid "Install and restart"
 msgstr "インストールして再起動"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "リモートマシンでのインストールとサインインはまだ利用できません。"
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "リモートマシンでのインストールとサインインはまだ利用できません。"
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10278,8 +10280,8 @@ msgstr "{executionHost} に GitHub CLI (gh) をインストールしてから再
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "{0} にインストール"
+#~ msgid "Install in {0}"
+#~ msgstr "{0} にインストール"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10303,8 +10305,8 @@ msgstr "最初にネイティブプロバイダーをインストールします
 #~ msgstr "{env} にインストール"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Windows にインストールする"
+#~ msgid "Install on Windows"
+#~ msgstr "Windows にインストールする"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -11198,8 +11200,8 @@ msgid "Loading…"
 msgstr "読み込み中…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "ローカル"
+#~ msgid "local"
+#~ msgstr "ローカル"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11296,8 +11298,8 @@ msgstr "ログイン"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "ログイン{0}"
+#~ msgid "Login {0}"
+#~ msgstr "ログイン{0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -24145,7 +24147,6 @@ msgstr "この環境で実行されます:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24279,6 +24280,7 @@ msgstr "実行中…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -24408,7 +24410,6 @@ msgstr "変更のテストを書いて実行し、報告されたバグを再現
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "ガイドを作成しています。このレビューを離れ、準備ができてから戻ることができます。"
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24421,8 +24422,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24444,8 +24445,8 @@ msgstr "ソース管理用の WSL ブリッジを利用できません。"
 #~ msgstr "WSL ユーザー"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL：{distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL：{distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"

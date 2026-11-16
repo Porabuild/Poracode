@@ -320,7 +320,7 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
       try {
         await pairServer({ endpoint: pairingEndpoint, token: pairingSource });
         intentState.current = commitDirectPair(intentState.current, pairingEndpoint, pairingToken);
-        await connectAll();
+        void connectAll();
         props.onClose();
       } catch (cause) {
         intentState.current = failDirectPair(intentState.current, pairingEndpoint, pairingToken);

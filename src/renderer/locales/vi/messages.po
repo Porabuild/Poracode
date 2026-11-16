@@ -2037,6 +2037,7 @@ msgid "All threads in Done will be permanently deleted."
 msgstr "Tất cả luồng trong mục Xong sẽ bị xóa vĩnh viễn."
 
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "All workspaces"
 msgstr "Tất cả không gian làm việc"
@@ -6681,22 +6682,23 @@ msgstr "Phát hiện agent trên máy này"
 #~ msgstr "Phát hiện từ tệp dự án"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Detected"
 msgstr "Đã phát hiện"
 
 #. placeholder {0}: detectionScopeLabel(status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>({0})</0>"
-msgstr "Đã phát hiện <0>({0})</0>"
+#~ msgid "Detected <0>({0})</0>"
+#~ msgstr "Đã phát hiện <0>({0})</0>"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>(local)</0>"
-msgstr "Đã phát hiện <0>(cục bộ)</0>"
+#~ msgid "Detected <0>(local)</0>"
+#~ msgstr "Đã phát hiện <0>(cục bộ)</0>"
 
 #. placeholder {0}: status.envDistro ? `WSL (${status.envDistro})` : "WSL"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Detected <0>{0}</0>"
-msgstr "Đã phát hiện <0>{0}</0>"
+#~ msgid "Detected <0>{0}</0>"
+#~ msgstr "Đã phát hiện <0>{0}</0>"
 
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
@@ -10184,8 +10186,8 @@ msgid "Install and restart"
 msgstr "Cài đặt và khởi động lại"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeRows.tsx
-msgid "Install and sign-in are not yet available on remote machines."
-msgstr "Cài đặt và đăng nhập chưa khả dụng trên máy từ xa."
+#~ msgid "Install and sign-in are not yet available on remote machines."
+#~ msgstr "Cài đặt và đăng nhập chưa khả dụng trên máy từ xa."
 
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "Install Android SDK Emulator and platform-tools, then create an AVD."
@@ -10279,8 +10281,8 @@ msgstr "Cài đặt GitHub CLI (gh) trên {executionHost}, rồi thử lại."
 
 #. placeholder {0}: target.label
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install in {0}"
-msgstr "Cài đặt trong {0}"
+#~ msgid "Install in {0}"
+#~ msgstr "Cài đặt trong {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #~ msgid "Install in WSL: {distro}"
@@ -10304,8 +10306,8 @@ msgstr "Cài đặt nhà cung cấp gốc trước; sử dụng ACP cho các tá
 #~ msgstr "Cài đặt trên {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Install on Windows"
-msgstr "Cài đặt trên Windows"
+#~ msgid "Install on Windows"
+#~ msgstr "Cài đặt trên Windows"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 msgid "Install OpenCode 2 to manage its plugins."
@@ -11199,8 +11201,8 @@ msgid "Loading…"
 msgstr "Đang tải…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "local"
-msgstr "cục bộ"
+#~ msgid "local"
+#~ msgstr "cục bộ"
 
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/components/common/RemoteServerPicker.tsx
@@ -11297,8 +11299,8 @@ msgstr "Đăng nhập"
 
 #. placeholder {0}: detectionScopeLabel(entry.status)
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "Login {0}"
-msgstr "Đăng nhập {0}"
+#~ msgid "Login {0}"
+#~ msgstr "Đăng nhập {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -24147,7 +24149,6 @@ msgstr "Sẽ chạy trong môi trường này:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
@@ -24281,6 +24282,7 @@ msgstr "Đang làm việc…"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/thread/ThreadDetailsDocks.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Workspace"
@@ -24410,7 +24412,6 @@ msgstr "Viết và chạy kiểm thử cho thay đổi, tái hiện lỗi đư�
 msgid "Writing guide. You can leave this review and return when it is ready."
 msgstr "Đang viết hướng dẫn. Bạn có thể rời phần đánh giá này và quay lại khi hướng dẫn sẵn sàng."
 
-#: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
@@ -24423,8 +24424,8 @@ msgstr "WSL · {0}"
 
 #. placeholder {0}: status.envDistro
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL ({0})"
-msgstr "WSL ({0})"
+#~ msgid "WSL ({0})"
+#~ msgstr "WSL ({0})"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
@@ -24446,8 +24447,8 @@ msgstr "Cầu nối WSL không khả dụng cho quản lý mã nguồn."
 #~ msgstr "Người dùng WSL"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-msgid "WSL: {distro}"
-msgstr "WSL: {distro}"
+#~ msgid "WSL: {distro}"
+#~ msgstr "WSL: {distro}"
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredElicitationField.tsx
 msgid "Yes"

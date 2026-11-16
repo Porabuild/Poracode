@@ -638,7 +638,7 @@ function DesktopRemoteServersSettings() {
         endpoint: normalizePairingEndpoint(parsed.host ?? parsed.url.toString()),
         token: pairingUrl,
       });
-      await connectAll();
+      void connectAll();
       setPairingUrl("");
       setAdding(null);
     });

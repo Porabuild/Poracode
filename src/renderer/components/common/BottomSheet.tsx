@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import { Modal } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { SheetGrabber, useSheetGrabber } from "./useSheetGrabber";
@@ -7,6 +15,17 @@ import { useMobileSheetLayer } from "./mobileSheetStack";
 
 /** Must match the shared sheet/backdrop exit keyframes in styles.css. */
 export const BOTTOM_SHEET_EXIT_MS = 200;
+
+function SheetRevealLatch(props: {
+  readonly isEntering: boolean;
+  readonly setEntered: Dispatch<SetStateAction<boolean>>;
+}) {
+  const { isEntering, setEntered } = props;
+  useLayoutEffect(() => {
+    if (isEntering) setEntered(true);
+  }, [isEntering, setEntered]);
+  return null;
+}
 
 export function BottomSheet(props: {
   readonly label: string;
@@ -31,6 +50,7 @@ export function BottomSheet(props: {
   const requestedOpen = props.isOpen ?? true;
   const [rendered, setRendered] = useState(requestedOpen);
   const [internalClosing, setInternalClosing] = useState(false);
+  const [entered, setEntered] = useState(false);
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closing = Boolean(props.closing || internalClosing);
   const layer = useMobileSheetLayer(rendered);
@@ -128,12 +148,17 @@ export function BottomSheet(props: {
     };
   }, [rendered]);
 
+  if (!rendered && entered) {
+    setEntered(false);
+  }
+
   if (!rendered) return null;
 
   return (
     <Modal.Backdrop
       isOpen
       className="m-sheet-backdrop"
+      data-entered={entered || undefined}
       data-closing={closing || undefined}
       data-covered={layer.covered || undefined}
       data-nested={layer.nested || undefined}
@@ -141,21 +166,26 @@ export function BottomSheet(props: {
         if (!open) requestClose();
       }}
     >
-      <Modal.Container className="contents">
-        <Modal.Dialog className="contents" aria-label={props.label}>
-          <div
-            ref={sheetRef}
-            className={`m-sheet${props.sheetClassName ? ` ${props.sheetClassName}` : ""}`}
-            data-expanded={expanded || undefined}
-            data-full-screen={props.fullScreen || undefined}
-            data-dragging={dragging || undefined}
-          >
-            <Modal.CloseTrigger aria-label={props.closeLabel ?? t`Close`} className="sr-only" />
-            <SheetGrabber handlers={grabberHandlers} />
-            {body}
-          </div>
-        </Modal.Dialog>
-      </Modal.Container>
+      {({ isEntering }) => (
+        <>
+          <SheetRevealLatch isEntering={isEntering} setEntered={setEntered} />
+          <Modal.Container className="contents">
+            <Modal.Dialog className="contents" aria-label={props.label}>
+              <div
+                ref={sheetRef}
+                className={`m-sheet${props.sheetClassName ? ` ${props.sheetClassName}` : ""}`}
+                data-expanded={expanded || undefined}
+                data-full-screen={props.fullScreen || undefined}
+                data-dragging={dragging || undefined}
+              >
+                <Modal.CloseTrigger aria-label={props.closeLabel ?? t`Close`} className="sr-only" />
+                <SheetGrabber handlers={grabberHandlers} />
+                {body}
+              </div>
+            </Modal.Dialog>
+          </Modal.Container>
+        </>
+      )}
     </Modal.Backdrop>
   );
 }

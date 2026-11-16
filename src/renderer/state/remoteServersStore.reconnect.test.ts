@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, GitStatusResult, Project } from "@/shared/contracts";
 import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { PORACODE_REMOTE_PROTOCOL_VERSION, type RemoteGitSummaries } from "@/shared/remote";
-import { RemoteDesktopClient } from "@/shared/remote/client";
+import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
 import { REMOTE_HTTP_BRIDGE_VERSION } from "@/shared/remote/httpBridgeProtocol";
 import { hostServiceCapabilities } from "@/shared/hostControlProtocol";
 import { useAppStore } from "./appStore";
@@ -141,6 +141,7 @@ function makeSocket(): RemoteSocketLike {
 }
 
 function makeClient(opts?: {
+  environment?: RemoteDesktopClient["environment"];
   agentStatuses?: RemoteDesktopClient["agentStatuses"];
   boundedShellSnapshot?: RemoteDesktopClient["boundedShellSnapshot"];
 }): RemoteDesktopClient {
@@ -154,23 +155,25 @@ function makeClient(opts?: {
       expiresAt: "2099-01-01T00:00:00.000Z",
       scopes: ["session:read", "projects:manage"],
     }),
-    environment: async () => ({
-      protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
-      hostMode: "desktop",
-      desktopId: "d1",
-      label: "Server One",
-      appVersion: "1.0",
-      auth: {
-        policy: "remote-reachable",
-        bootstrapMethods: ["one-time-token"],
-        sessionMethods: ["bearer-access-token"],
-        scopes: ["session:read", "projects:manage"],
-      },
-      endpoints: {
-        httpBaseUrl: "http://192.168.1.9:38987/",
-        wsBaseUrl: "ws://192.168.1.9:38987/",
-      },
-    }),
+    environment:
+      opts?.environment ??
+      (async () => ({
+        protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+        hostMode: "desktop",
+        desktopId: "d1",
+        label: "Server One",
+        appVersion: "1.0",
+        auth: {
+          policy: "remote-reachable",
+          bootstrapMethods: ["one-time-token"],
+          sessionMethods: ["bearer-access-token"],
+          scopes: ["session:read", "projects:manage"],
+        },
+        endpoints: {
+          httpBaseUrl: "http://192.168.1.9:38987/",
+          wsBaseUrl: "ws://192.168.1.9:38987/",
+        },
+      })),
     agentStatuses:
       opts?.agentStatuses ?? (async () => ({ windows: [], wsl: [], updatedAt: "now" })),
     agentSlashCommands: async (kind: string) => ({ kind, commands: [] }),
@@ -451,5 +454,69 @@ describe("useRemoteServersStore reconnect recovery", () => {
 
     await useRemoteServersStore.getState().refreshServer("d1");
     expect(useGitStore.getState().statuses[projectId]?.behind).toBe(1);
+  });
+
+  it("keeps an online server independent of a hanging offline server across verify and connectAll", async () => {
+    const offlineGate = Promise.withResolvers<never>();
+    const onlineSockets: Array<RemoteSocketLike & { send?: (data: string) => void }> = [];
+    const onlineClient = makeClient();
+    const offlineEnvironment = vi.fn<RemoteDesktopClient["environment"]>(() => offlineGate.promise);
+    const offlineClient = makeClient({
+      environment: offlineEnvironment,
+      boundedShellSnapshot: () => offlineGate.promise,
+    });
+    useRemoteServersStore
+      .getState()
+      .setClientFactory((endpoint) =>
+        endpoint.includes("d1.test") ? onlineClient : offlineClient,
+      );
+    useRemoteServersStore.getState().setSocketFactory((url) => {
+      const socket = { ...makeSocket(), readyState: 1, send: vi.fn<(data: string) => void>() };
+      if (url.includes("d1.test") || onlineSockets.length < 3) onlineSockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Online Host",
+          endpoint: "http://d1.test/",
+          accessToken: "tok-1",
+          scopes: ["session:read"],
+        },
+        {
+          desktopId: "d2",
+          label: "Offline Host",
+          endpoint: "http://d2.test/",
+          accessToken: "tok-2",
+          scopes: ["session:read"],
+        },
+      ],
+    });
+
+    const initialConnect = useRemoteServersStore.getState().connectAll();
+    await vi.waitFor(() => {
+      expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+    });
+    expect(useRemoteServersStore.getState().runtime.d2?.status).toBe("connecting");
+    expect(onlineSockets).toHaveLength(1);
+
+    // Simulate d1's WebSocket dropping while d2 is still hanging on a network timeout.
+    onlineSockets[0]?.onclose?.();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("connecting");
+
+    // Re-verifying connections (or reopening Connections settings) must reconnect d1
+    // immediately instead of coalescing onto d2's stuck pass and leaving d1 in connecting.
+    void useRemoteServersStore.getState().verifyConnections();
+    await vi.waitFor(() => {
+      expect(onlineSockets).toHaveLength(2);
+      expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+    });
+
+    offlineGate.reject(new RemoteClientError("Timed out", 0, "timeout"));
+    await initialConnect;
+    expect(useRemoteServersStore.getState().runtime.d2?.status).toBe("offline");
+    // Failed initial refresh defers socket retry rather than firing a second blocking probe.
+    expect(offlineEnvironment).toHaveBeenCalledTimes(1);
   });
 });

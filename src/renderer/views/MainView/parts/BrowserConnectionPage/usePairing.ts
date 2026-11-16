@@ -66,7 +66,7 @@ export function usePairing() {
       try {
         await pairServer({ endpoint, token: pairingSource });
         intentState.current = commitDirectPair(intentState.current, endpoint, token);
-        await connectAll();
+        void connectAll();
       } catch (cause) {
         intentState.current = failDirectPair(intentState.current, endpoint, token);
         throw cause;
