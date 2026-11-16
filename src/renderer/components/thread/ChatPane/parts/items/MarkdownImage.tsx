@@ -53,6 +53,7 @@ export function MarkdownImage({ alt, className, src, width, height }: MarkdownIm
         alt: typeof alt === "string" ? alt : "",
         width,
         height,
+        dimensionKey: canonicalSrc,
       })}
       className="not-prose my-2"
       isBlock

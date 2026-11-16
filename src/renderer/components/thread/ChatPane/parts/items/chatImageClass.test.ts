@@ -3,6 +3,7 @@ import {
   chatInlineImageClass,
   chatInlineImageMaxHeight,
   reserveInlineImageSlot,
+  resolveInlineImageDimensions,
 } from "./chatImageClass";
 
 describe("reserveInlineImageSlot", () => {
@@ -35,5 +36,32 @@ describe("reserveInlineImageSlot", () => {
     expect(chatInlineImageClass).toBe(
       `block max-h-[${chatInlineImageMaxHeight}] w-auto max-w-full object-contain`,
     );
+  });
+});
+
+describe("resolveInlineImageDimensions", () => {
+  it("preserves full-resolution metadata when downscaled variant shares the same aspect ratio", () => {
+    expect(resolveInlineImageDimensions(2360, 1640, 960, 667)).toEqual({
+      width: 2360,
+      height: 1640,
+    });
+  });
+
+  it("transposes pre-upgrade unrotated metadata when EXIF-oriented pixels load", () => {
+    expect(resolveInlineImageDimensions(1640, 2360, 960, 667)).toEqual({
+      width: 2360,
+      height: 1640,
+    });
+  });
+
+  it("falls back to natural dimensions when source metadata is missing or mismatched", () => {
+    expect(resolveInlineImageDimensions(undefined, undefined, 960, 540)).toEqual({
+      width: 960,
+      height: 540,
+    });
+    expect(resolveInlineImageDimensions(800, 600, 1200, 400)).toEqual({
+      width: 1200,
+      height: 400,
+    });
   });
 });

@@ -36,6 +36,38 @@ export function dbReadCommittedRuntimeItemImageBlob(
   });
 }
 
+export function dbReadCommittedRuntimeItemImageRefMeta(
+  threadId: string,
+  itemId: string,
+  path: InlineImagePath,
+): { readonly blobHash: string; readonly mime: string; readonly bytes: number } | null {
+  const sqlite = getSqlite();
+  return readRuntimeSnapshot(sqlite, () => {
+    const pathJson = JSON.stringify(path);
+    const row = sqlite
+      .prepare(
+        `SELECT r.blob_hash, i.payload
+         FROM thread_runtime_item_image_refs r
+         JOIN thread_runtime_items i ON i.thread_id = r.thread_id AND i.item_id = r.item_id
+         WHERE r.thread_id = ? AND r.item_id = ? AND r.path_json = ?
+           AND EXISTS (
+             SELECT 1 FROM runtime_inline_image_blobs b WHERE b.blob_hash = r.blob_hash
+           )`,
+      )
+      .get(threadId, itemId, pathJson) as
+      | {
+          blob_hash: string;
+          payload: string | null;
+        }
+      | undefined;
+    if (!row || !row.payload) return null;
+    const parsed = safeParse(row.payload);
+    const stub = readAtInlineImagePath(parsed, path);
+    if (!isPersistedInlineImageStub(stub) || stub.hash !== row.blob_hash) return null;
+    return { blobHash: stub.hash, mime: stub.mime, bytes: stub.bytes };
+  });
+}
+
 export function dbReadInlineImageBlobPreviewSource(
   blobHash: string,
 ): { readonly data: Buffer; readonly mime: string } | null {

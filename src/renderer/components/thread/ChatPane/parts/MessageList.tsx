@@ -43,6 +43,11 @@ import { useRevertedPromptStore } from "../../revertedPrompt";
 import { ThreadForkBoundary, ThreadForkTurnAction } from "../../ThreadForkControls";
 import { ChatItemRow } from "./items/ChatItemRow";
 import { ToolCallEntranceScope } from "./items/toolCallEntrance";
+import {
+  getCachedInlineImageDimensions,
+  inlineImageDimensionCacheKey,
+  resolveInlineImageDimensions,
+} from "./items/chatImageClass";
 import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
@@ -843,7 +848,16 @@ function getFixedTimelineEntrySize(
     unresolvedImageRefUrl,
     { pendingAsPlaceholder: true },
   );
-  if (!source?.width || !source.height) return undefined;
+  if (!source) return undefined;
+  const dimensionKey = inlineImageDimensionCacheKey(source);
+  const cached = dimensionKey ? getCachedInlineImageDimensions(dimensionKey) : undefined;
+  const dimensions = resolveInlineImageDimensions(
+    source.width,
+    source.height,
+    cached?.width,
+    cached?.height,
+  );
+  if (!dimensions) return undefined;
   // ImageView keeps an unresolved host-held reference as a reserved card only
   // under remote image readiness. Without it (the right-panel subagent
   // transcript mounts outside ChatPane's actions) the row can fall back to the
@@ -860,9 +874,9 @@ function getFixedTimelineEntrySize(
   );
   const availableWidth = Math.max(0, Math.min(listWidth, 920) - INLINE_IMAGE_HORIZONTAL_CHROME_PX);
   const renderedHeight = Math.min(
-    source.height,
+    dimensions.height,
     maxHeight,
-    (availableWidth * source.height) / source.width,
+    (availableWidth * dimensions.height) / dimensions.width,
   );
   return Math.round(renderedHeight + INLINE_IMAGE_ROW_CHROME_PX);
 }

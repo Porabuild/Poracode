@@ -13,10 +13,16 @@ import {
   dbGetThreadRuntimeItem,
   dbGetThreadRuntimeItemCommitted,
   dbReadCommittedRuntimeItemImageBlob,
+  dbReadCommittedRuntimeItemImageRefMeta,
   dbReadInlineImageBlobPreviewSource,
 } from "@/host/db";
 import { readVerifiedInlineImageRefs } from "@/host/db/runtimeInlineImages";
 import { canReadCommittedRuntimeItem } from "@/host/db/runtimePersistenceRuntime";
+import {
+  readCachedOrStoredCardVariant,
+  resolveCardVariant,
+  scheduleImageCardVariant,
+} from "./imageCardVariant";
 import { getCachedImagePreview, imagePreviewKey, scheduleImagePreview } from "./imagePreview";
 import { getCachedImageBytes, putCachedImageBytes } from "./imageBytesCache";
 
@@ -88,6 +94,7 @@ export function projectPayloadImageRefs(
       if (preview === undefined) {
         scheduleExternalizedImagePreview(previewKey, vRef.bytes, vRef.hash);
       }
+      scheduleExternalizedImageCardVariant(vRef.bytes, vRef.hash);
       const ref: RemoteImageRefValue = {
         threadId,
         itemId,
@@ -220,6 +227,33 @@ export async function resolveImageRefAfterFence(
   return resolveImagePayload(item?.payload, path);
 }
 
+/**
+ * Resolves `?variant=card` for a reference, checking the persisted card-variant
+ * store by verified `blob_hash` before touching multi-MB `raw_bytes` in SQLite.
+ */
+export async function resolveImageRefCardVariantAfterFence(
+  threadId: string,
+  itemId: string,
+  path: InlineImagePath,
+): Promise<ResolvedRefImage | null> {
+  let blobVariantKey: string | undefined;
+  if (canReadCommittedRuntimeItem(threadId, itemId)) {
+    try {
+      const meta = dbReadCommittedRuntimeItemImageRefMeta(threadId, itemId, path);
+      if (meta) {
+        blobVariantKey = `blob:${meta.blobHash}`;
+        const fast = await readCachedOrStoredCardVariant(blobVariantKey);
+        if (fast) return fast;
+      }
+    } catch {
+      blobVariantKey = undefined;
+    }
+  }
+  const full = await resolveImageRefAfterFence(threadId, itemId, path);
+  if (!full) return null;
+  return resolveCardVariant(full, blobVariantKey);
+}
+
 function resolveImagePayload(payload: unknown, path: InlineImagePath): ResolvedRefImage | null {
   if (payload === undefined) return null;
   const value = readAtPath(payload, path);
@@ -254,6 +288,12 @@ function scheduleExternalizedImagePreview(
   blobHash: string,
 ): void {
   scheduleImagePreview(key, sourceBytes, () => dbReadInlineImageBlobPreviewSource(blobHash));
+}
+
+function scheduleExternalizedImageCardVariant(sourceBytes: number, blobHash: string): void {
+  scheduleImageCardVariant(`blob:${blobHash}`, sourceBytes, () =>
+    dbReadInlineImageBlobPreviewSource(blobHash),
+  );
 }
 
 /** Decodes an inline image string to raw bytes, or null when it is not one. */

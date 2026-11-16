@@ -321,5 +321,6 @@ export {
 export { dbMeasureLegacyHistoryCharge, dbMeasureLegacySnapshotCharge } from "./db/legacyReadCharge";
 export {
   dbReadCommittedRuntimeItemImageBlob,
+  dbReadCommittedRuntimeItemImageRefMeta,
   dbReadInlineImageBlobPreviewSource,
 } from "./db/runtimeInlineImageReads";

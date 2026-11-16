@@ -37,7 +37,10 @@ import {
   setImagePreviewGenerator,
   setImagePreviewStoreDir,
 } from "@/host/remote/server/imagePreview";
-import { setImageCardVariantGenerator } from "@/host/remote/server/imageCardVariant";
+import {
+  setImageCardVariantGenerator,
+  setImageCardVariantStoreDir,
+} from "@/host/remote/server/imageCardVariant";
 import {
   createPortForwarding,
   type PortForwarding,
@@ -258,17 +261,25 @@ export async function performDesktopRemoteAccessStart(
     attempt.coordinator = coordinator;
     refs.pushCoordinator = coordinator;
     setImagePreviewGenerator(options.imagePreviewGenerator ?? null);
-    // Previews persist as a derived, disposable file cache so the first
-    // thread open after a restart shows the blurred stand-in instead of an
-    // empty box. Warming is optional and must not hold the listener open.
-    attempt.previewStorePromise = setImagePreviewStoreDir(
-      options.imagePreviewGenerator
-        ? join(resolvePoracodePaths(options.paths.baseDir).cacheDir, "image-previews-v1")
-        : null,
-    ).catch((error: unknown) => {
-      options.reportError(error, { "poracode.feature_area": "remote-access" });
-    });
     setImageCardVariantGenerator(options.imageCardVariantGenerator ?? null);
+    const cacheDir = resolvePoracodePaths(options.paths.baseDir).cacheDir;
+    // Previews and downscaled card variants persist as derived, disposable
+    // file caches so the first thread open after a restart serves blurred
+    // stand-ins and pre-encoded WebP card variants without re-decoding multi-MB
+    // source images. Warming is optional and must not hold the listener open.
+    attempt.previewStorePromise = Promise.all([
+      setImagePreviewStoreDir(
+        options.imagePreviewGenerator ? join(cacheDir, "image-previews-v1") : null,
+      ),
+      setImageCardVariantStoreDir(
+        options.imageCardVariantGenerator ? join(cacheDir, "image-card-variants-v1") : null,
+      ),
+    ]).then(
+      () => undefined,
+      (error: unknown) => {
+        options.reportError(error, { "poracode.feature_area": "remote-access" });
+      },
+    );
     const server: RemoteAccessServer = new RemoteAccessServer({
       ...(options.deviceWorkspace ? { deviceWorkspace: options.deviceWorkspace } : {}),
       ...(options.readAgentVision ? { readAgentVision: options.readAgentVision } : {}),
