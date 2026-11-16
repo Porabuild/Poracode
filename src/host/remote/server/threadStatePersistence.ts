@@ -91,6 +91,12 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
       : event.status === "working" && thread.status !== "working"
         ? null
         : undefined;
+  const nextUpdatedAt =
+    event.updatedAt !== undefined && event.updatedAt > thread.updatedAt
+      ? event.updatedAt
+      : event.status === "working" && thread.status !== "working" && nowIso > thread.updatedAt
+        ? nowIso
+        : thread.updatedAt;
   dbUpsertThread(
     {
       ...thread,
@@ -104,7 +110,7 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
         : {}),
       ...(event.errorMessage !== undefined ? { errorMessage: event.errorMessage } : {}),
       ...(event.slashCommands !== undefined ? { slashCommands: event.slashCommands } : {}),
-      ...(event.status === "working" && thread.status !== "working" ? { updatedAt: nowIso } : {}),
+      updatedAt: nextUpdatedAt,
       ...turnTiming,
     },
     sortOrderForThread(dbGetThreads(), event.threadId),

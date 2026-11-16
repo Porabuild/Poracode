@@ -681,4 +681,32 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
     ).resolves.toEqual({ threadId: "t1" });
     expect(receiptRow("start-launch-failed-2")?.state).toBe("completed");
   });
+
+  it("persists updated_at when sending input or steering an already-working thread without re-bumping on replay", async () => {
+    dbUpsertProject(
+      {
+        id: "p1",
+        name: "Managed",
+        location: { kind: "posix", path: "/tmp/p1" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      0,
+    );
+    const oldUpdatedAt = "2026-01-01T00:00:00.000Z";
+    dbUpsertThread(
+      { ...testThread(), id: "t1", projectId: "p1", status: "working", updatedAt: oldUpdatedAt },
+      0,
+    );
+
+    const first = await send("send-touch-1", {});
+    expect(first.status).toBe(200);
+    const afterSend = dbGetThread("t1")?.updatedAt;
+    expect(afterSend).toBeDefined();
+    expect(afterSend! > oldUpdatedAt).toBe(true);
+
+    // Replaying the same command id returns the frozen receipt without touching again.
+    const replay = await send("send-touch-1", {});
+    expect(replay.status).toBe(200);
+    expect(dbGetThread("t1")?.updatedAt).toBe(afterSend);
+  });
 });

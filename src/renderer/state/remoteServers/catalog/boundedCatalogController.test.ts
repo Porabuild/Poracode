@@ -1305,4 +1305,49 @@ describe("shell page after a confirmed removal", () => {
         .sort(),
     ).toEqual(["t1", "t2", "t3"]);
   });
+
+  it("does not overwrite a live row outside page 1 when a later bounded shell page omits it", async () => {
+    const page1 = Array.from({ length: 2 }, (_, index) => threadRow(`p1-${index}`));
+    const tail = { ...threadRow("tail-row"), updatedAt: "2026-01-01T00:00:00.000Z" };
+    const host = makeBoundedHost({
+      rows: [...page1, tail],
+      pageSize: 2,
+    });
+    installServer(host.client);
+    await useRemoteServersStore.getState().refreshServer("d1");
+    await vi.waitFor(() =>
+      expect(useRemoteServersStore.getState().runtime.d1?.threads).toHaveLength(3),
+    );
+
+    // Live thread-state bumped the tail row in useAppStore (simulating a
+    // newer host timestamp while runtime.d1 still holds the cached copy).
+    const viewId = remoteThreadId("d1", "tail-row");
+    const liveUpdatedAt = "2026-11-16T12:00:00.000Z";
+    useAppStore.getState().updateThreadRuntime(viewId, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: true,
+      updatedAt: liveUpdatedAt,
+    });
+
+    // A page-1-only shell refresh (snapshotSeq >= appliedSeq, omitting tail-row)
+    // must not clobber tail-row in useAppStore with the stale cached copy.
+    installBoundedCatalogShellPage(
+      "d1",
+      {
+        snapshotSeq: 99,
+        projects: [proj],
+        threads: page1,
+        runtimeSummariesByThread: {},
+        reads: "bounded-v1",
+        threadsNextCursor: "tp1.0",
+        projectsNextCursor: null,
+        updatedAt: "now",
+      },
+      boundedCatalogRemovalMark(),
+    );
+
+    const resident = useAppStore.getState().threads.find((row) => row.id === viewId);
+    expect(resident).toMatchObject({ status: "working", updatedAt: liveUpdatedAt });
+  });
 });

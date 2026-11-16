@@ -840,4 +840,23 @@ describe("working state during prompt admission", () => {
     });
     expect(currentThread().status).toBe("idle");
   });
+
+  it("retains the optimistic updatedAt jump across a pre-admission catalog refresh", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-10T14:00:00.000Z"));
+    const sendGate = deferred();
+    const sending = performThreadInputSubmit({
+      thread: idle,
+      prompt: "jump to top",
+      transport: { sendThreadInput: () => sendGate.promise },
+    });
+    expect(currentThread().updatedAt).toBe("2026-05-10T14:00:00.000Z");
+
+    applyRootCatalogThreadRows([idle], new Set());
+    expect(currentThread().updatedAt).toBe("2026-05-10T14:00:00.000Z");
+
+    sendGate.resolve();
+    await sending;
+    vi.useRealTimers();
+  });
 });

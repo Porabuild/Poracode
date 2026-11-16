@@ -181,6 +181,9 @@ async function performThreadInputSubmitPending(
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
     });
   };
+  const updatedAtBeforeSend =
+    useAppStore.getState().threads.find((row) => row.id === thread.id)?.updatedAt ??
+    thread.updatedAt;
   try {
     if (optimisticUserMessageItemId && input.captureCheckpoint) {
       await input.captureCheckpoint(optimisticUserMessageItemId);
@@ -246,7 +249,10 @@ async function performThreadInputSubmitPending(
       }
       // The relaunch captures its own prompt-submitted event.
       markDelivery("accepted");
-      store.touchThread(thread.id);
+      const currentAfterResume = useAppStore.getState().threads.find((row) => row.id === thread.id);
+      if ((currentAfterResume?.updatedAt ?? thread.updatedAt) === updatedAtBeforeSend) {
+        store.touchThread(thread.id);
+      }
       return;
     }
     // Admission must settle before the rollback notifies store subscribers.
@@ -263,7 +269,10 @@ async function performThreadInputSubmitPending(
     await reconcileThreadCommandOutcome(thread);
   }
   captureThreadPromptSubmitted(thread, prompt, segments);
-  store.touchThread(thread.id);
+  const currentAfterSend = useAppStore.getState().threads.find((row) => row.id === thread.id);
+  if ((currentAfterSend?.updatedAt ?? thread.updatedAt) === updatedAtBeforeSend) {
+    store.touchThread(thread.id);
+  }
 }
 
 /**

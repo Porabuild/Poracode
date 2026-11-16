@@ -205,8 +205,17 @@ internal object CatalogStore {
         val interruptedTurnPresent = event.containsKey("interruptedTurn")
         val interruptedTurn = event.stringValue("interruptedTurn")
         val statedSessionRef = decodeSessionRef(event["sessionRef"])
+        val hostUpdatedAt = event.stringValue("updatedAt")?.takeIf { it.isNotEmpty() }
         return mutation@{ row ->
             if (agentKind != null && agentKind != row.agentKind) return@mutation null
+            val nextUpdatedAt = when {
+                hostUpdatedAt != null &&
+                    ((status == "working" && row.status != "working") ||
+                        (status == "working" && hostUpdatedAt > row.updatedAt)) ->
+                    maxOf(hostUpdatedAt, row.updatedAt)
+                status == "working" && row.status != "working" -> maxOf(nowIso, row.updatedAt)
+                else -> row.updatedAt
+            }
             row.copy(
                 sessionRef = foldSessionRef(row.sessionRef, statedSessionRef),
                 status = status,
@@ -224,7 +233,7 @@ internal object CatalogStore {
                     status == "working" && row.status != "working" -> null
                     else -> row.interruptedTurn
                 },
-                updatedAt = if (status == "working" && row.status != "working") nowIso else row.updatedAt,
+                updatedAt = nextUpdatedAt,
             )
         }
     }
