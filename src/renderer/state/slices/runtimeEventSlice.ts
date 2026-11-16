@@ -212,6 +212,7 @@ export interface RuntimeEventSlice {
     count: number,
     preserveIds?: ReadonlySet<string>,
   ): void;
+  removeThreadRuntimeItem(threadId: string, itemId: string): void;
   /** Drop an inactive transcript projection without deleting its SQLite rows. */
   evictThreadRuntimeItems(threadId: string): void;
   /** Replace the completed-turn list wholesale (bounded-window cap/drop). */
@@ -549,6 +550,31 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set, ge
             ...itemIds.slice(startIndex, endIndex).filter((id) => preserveIds?.has(id)),
             ...itemIds.slice(endIndex),
           ],
+        },
+        runtimeItemsByIdByThread: {
+          ...state.runtimeItemsByIdByThread,
+          [threadId]: nextItemsById,
+        },
+        runtimeStructuralVersionByThread: {
+          ...state.runtimeStructuralVersionByThread,
+          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        },
+      };
+    }),
+
+  removeThreadRuntimeItem: (threadId, itemId) =>
+    set((state) => {
+      const itemIds = state.runtimeItemIdsByThread[threadId];
+      const itemsById = state.runtimeItemsByIdByThread[threadId];
+      if (!itemIds || !itemsById?.[itemId]) return {};
+      const { [itemId]: _removed, ...nextItemsById } = itemsById;
+      invalidateThreadPromptIndex(threadId);
+      clearRuntimeStructuralChangeHint(threadId);
+      forgetThreadGalleryCache(threadId);
+      return {
+        runtimeItemIdsByThread: {
+          ...state.runtimeItemIdsByThread,
+          [threadId]: itemIds.filter((id) => id !== itemId),
         },
         runtimeItemsByIdByThread: {
           ...state.runtimeItemsByIdByThread,

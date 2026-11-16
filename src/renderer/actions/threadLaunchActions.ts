@@ -29,7 +29,12 @@ import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contra
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
-import { buildPromptContentBlocks, hasSendablePromptContent } from "@/shared/promptContent";
+import { hasSendablePromptContent } from "@/shared/promptContent";
+import {
+  allocateInitialUserMessageItemId,
+  appendOptimisticInitialUserMessage,
+} from "./optimisticThreadInput";
+export { appendOptimisticInitialUserMessage } from "./optimisticThreadInput";
 import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
 import type {
@@ -759,50 +764,4 @@ export function markThreadLaunchFailed(threadId: string, error: unknown): void {
     // Preserve that earned recovery path instead of clearing it locally.
     canResumeWithConfig: thread?.canResumeWithConfig === true && thread.sessionRef !== undefined,
   });
-}
-
-/**
- * Paint the user's first message for a launch that has not reached the
- * supervisor yet, so the chat shows what was sent instead of a bare working
- * row. The supervisor reuses the returned id for its own canonical
- * `user_message`, and the store's per-id dedupe drops the duplicate.
- */
-export function appendOptimisticInitialUserMessage(
-  thread: Thread,
-  prompt: string,
-  segments?: PromptSegment[],
-): string | undefined {
-  const itemId = allocateInitialUserMessageItemId(thread, prompt, segments);
-  if (!itemId) return undefined;
-
-  useAppStore.getState().requestChatScrollToPrompt(thread.id);
-  useAppStore.getState().applyRuntimeEvent(thread.id, {
-    type: "item.started",
-    threadId: thread.id,
-    itemId,
-    itemType: "user_message",
-    payload: { content: buildPromptContentBlocks(prompt, segments) },
-  });
-  useAppStore.getState().applyRuntimeEvent(thread.id, {
-    type: "item.completed",
-    threadId: thread.id,
-    itemId,
-  });
-  return itemId;
-}
-
-function allocateInitialUserMessageItemId(
-  thread: Thread,
-  prompt: string,
-  segments?: PromptSegment[],
-): string | undefined {
-  const presentation = thread.presentationMode ?? "terminal";
-  if (
-    presentation !== "gui" ||
-    !hasSendablePromptContent(prompt, segments) ||
-    thread.sessionRef !== undefined
-  ) {
-    return undefined;
-  }
-  return `user-${crypto.randomUUID()}`;
 }
