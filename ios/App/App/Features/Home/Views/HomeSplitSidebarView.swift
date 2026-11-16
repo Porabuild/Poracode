@@ -102,8 +102,13 @@ struct HomeSplitSidebarView<ThreadContent: View, FilterControl: View, MoreContro
       VStack(spacing: 8) {
         workspaceControl()
         ViewThatFits(in: .horizontal) {
-          footerStrip(shortcuts: shortcuts)
+          footerStrip(shortcuts: Array(shortcuts.prefix(6)))
+          footerStrip(shortcuts: Array(shortcuts.prefix(5)))
+          footerStrip(shortcuts: Array(shortcuts.prefix(4)))
+          footerStrip(shortcuts: Array(shortcuts.prefix(3)))
           footerStrip(shortcuts: Array(shortcuts.prefix(2)))
+          footerStrip(shortcuts: Array(shortcuts.prefix(1)))
+          footerStrip(shortcuts: [])
         }
       }
       .padding(.horizontal, 12)

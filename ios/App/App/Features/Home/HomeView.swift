@@ -321,6 +321,7 @@ struct HomeView: View {
         case .pullRequests: openSidebarSheet(.pullRequests)
         case .githubActions: openSidebarSheet(.githubActions)
         case .schedules: openSidebarSheet(.schedules)
+        case .settings(let destination): openSidebarSheet(.settingsDestination(destination))
         }
       },
       openProjects: { openSidebarSheet(.projectManagement) },
@@ -471,7 +472,7 @@ struct HomeView: View {
     case .search, .connections, .workspaces:
       sheetContent(for: destination)
         .poracodeFormSheetSizing()
-    case .more, .projectManagement, .terminal, .usage, .settings, .pullRequests, .githubActions, .schedules,
+    case .more, .projectManagement, .terminal, .usage, .settings, .settingsDestination, .pullRequests, .githubActions, .schedules,
       .remoteIntegrations, .browserMirror, .portForwarding:
       sheetContent(for: destination)
         .poracodePageSheetSizing()
@@ -537,6 +538,8 @@ struct HomeView: View {
       SettingsSessionView(session: session, initialRoute: .usage)
     case .settings:
       SettingsSessionView(session: session)
+    case .settingsDestination(let destination):
+      SettingsSessionView(session: session, destination: destination)
     case .remoteIntegrations:
       RemoteIntegrationsSessionView(session: session)
     case .browserMirror:

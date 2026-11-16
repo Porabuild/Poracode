@@ -18,6 +18,7 @@ enum HomeSheetDestination: Identifiable, Hashable, Sendable {
   case terminal
   case usage
   case settings
+  case settingsDestination(DeviceSettingsDestination)
   case remoteIntegrations
   case browserMirror
   /// Carries the lease that was current when the entry was tapped, so the
@@ -37,6 +38,7 @@ enum HomeSheetDestination: Identifiable, Hashable, Sendable {
     case .terminal: "terminal"
     case .usage: "usage"
     case .settings: "settings"
+    case .settingsDestination(let destination): "settings:\(destination.rawValue)"
     case .remoteIntegrations: "remoteIntegrations"
     case .browserMirror: "browserMirror"
     case .portForwarding(let lease):

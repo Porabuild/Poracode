@@ -1,0 +1,58 @@
+{
+  "core": ["pullRequests", "githubActions", "schedules"],
+  "remoteSettings": [
+    "profile",
+    "workspaces",
+    "general",
+    "appearance",
+    "audio",
+    "notifications",
+    "terminal",
+    "git",
+    "worktrees",
+    "agentsGeneral",
+    "ai",
+    "crews",
+    "usage",
+    "import",
+    "remoteServers",
+    "changelog"
+  ],
+  "expectedIDs": [
+    "pullRequests",
+    "githubActions",
+    "schedules",
+    "settings:profile",
+    "settings:workspaces",
+    "settings:general",
+    "settings:appearance",
+    "settings:audio",
+    "settings:notifications",
+    "settings:terminal",
+    "settings:git",
+    "settings:worktrees",
+    "settings:agentsGeneral",
+    "settings:ai",
+    "settings:crews",
+    "settings:usage",
+    "settings:import",
+    "settings:remoteServers",
+    "settings:changelog"
+  ],
+  "defaultVisible": ["pullRequests", "schedules"],
+  "previousV1": {
+    "hidden": ["pullRequests", "future"],
+    "order": ["schedules", "schedules", "future"]
+  },
+  "futureV1": {
+    "hidden": ["settings:future-panel", "future-action", "pullRequests"],
+    "order": [
+      "settings:future-panel",
+      "schedules",
+      "settings:audio",
+      "pullRequests",
+      "settings:future-panel",
+      "githubActions"
+    ]
+  }
+}

@@ -124,9 +124,9 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertTrue(more.contains(".poracodeDrawerListStyle()"))
 
     for destination in [
-      "SettingsMoreRouteView(session: session, route: .profile)",
-      "SettingsMoreRouteView(session: session, route: .usage)",
-      "HostSwitcherView(session: session)",
+      "DeviceSettingsDestinationView(session: session, destination: .profile)",
+      "DeviceSettingsDestinationView(session: session, destination: .usage)",
+      "DeviceSettingsDestinationView(session: session, destination: .connections)",
       "HomeProjectsView(session: session)",
       "BrowserMirrorSessionView(session: session, embeddedInNavigationStack: true)",
       "SettingsMoreIndexView(session: session)",
@@ -143,9 +143,14 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
     XCTAssertFalse(settingsComposition.contains("if route == .usage"), "Every host-owned settings route exposes its connection scope")
     XCTAssertTrue(settingsComposition.contains("HostSelectionMenu(session: session)"))
 
-    let deviceSettings = try Self.source("App/Features/Settings/UI/DeviceSettingsView.swift")
-    XCTAssertTrue(deviceSettings.contains("GitSettingsView(session: session)"))
-    XCTAssertTrue(deviceSettings.contains("SettingsGitView(composition: composition"))
+    let destinations = try Self.source("App/Features/Settings/UI/DeviceSettingsDestination.swift")
+    XCTAssertTrue(destinations.contains("GitSettingsView(session: session)"))
+    XCTAssertTrue(destinations.contains("SettingsMoreRouteView(session: session, route: .profile)"))
+    XCTAssertTrue(destinations.contains("SettingsMoreRouteView(session: session, route: .usage)"))
+    XCTAssertTrue(destinations.contains("HostSwitcherView(session: session)"))
+    XCTAssertFalse(destinations.contains("NavigationStack"))
+    let gitSettings = try Self.source("App/Features/Settings/UI/GitSettingsView.swift")
+    XCTAssertTrue(gitSettings.contains("SettingsGitView(composition: composition"))
   }
 
   func testHomeProjectActionsPushInsideOneNativeDrawerStack() throws {

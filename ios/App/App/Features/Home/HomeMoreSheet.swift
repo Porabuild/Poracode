@@ -15,6 +15,8 @@ struct HomeMoreSheet: View {
   @Binding var isRefreshing: Bool
 
   var body: some View {
+    let preferences = shortcutPreferences
+    let visibleShortcuts = Set(preferences.visible)
     NavigationStack {
       List {
         Section {
@@ -28,22 +30,28 @@ struct HomeMoreSheet: View {
             .pickerStyle(.menu)
             .accessibilityIdentifier("native-e2e.more.workspace")
           }
-          NavigationLink {
-            SettingsMoreRouteView(session: session, route: .profile)
-          } label: {
-            HomeMoreLabel(SettingsUIStrings.profileTitle, systemImage: "person.crop.circle")
+          if !visibleShortcuts.contains(.settings(.profile)) {
+            NavigationLink {
+              DeviceSettingsDestinationView(session: session, destination: .profile)
+            } label: {
+              HomeMoreLabel(SettingsUIStrings.profileTitle, systemImage: "person.crop.circle")
+            }
           }
-          NavigationLink {
-            SettingsMoreRouteView(session: session, route: .usage)
-          } label: {
-            HomeMoreLabel(SettingsUIStrings.usageTitle, systemImage: "chart.bar.xaxis")
+          if !visibleShortcuts.contains(.settings(.usage)) {
+            NavigationLink {
+              DeviceSettingsDestinationView(session: session, destination: .usage)
+            } label: {
+              HomeMoreLabel(SettingsUIStrings.usageTitle, systemImage: "chart.bar.xaxis")
+            }
           }
-          NavigationLink {
-            HostSwitcherView(session: session)
-          } label: {
-            HomeMoreLabel(HomeStrings.connections, systemImage: "server.rack")
+          if !visibleShortcuts.contains(.settings(.connections)) {
+            NavigationLink {
+              DeviceSettingsDestinationView(session: session, destination: .connections)
+            } label: {
+              HomeMoreLabel(HomeStrings.connections, systemImage: "server.rack")
+            }
+            .accessibilityIdentifier("native-e2e.more.connections")
           }
-          .accessibilityIdentifier("native-e2e.more.connections")
           NavigationLink {
             HomeProjectsView(session: session)
           } label: {
@@ -67,8 +75,9 @@ struct HomeMoreSheet: View {
           } label: {
             HomeMoreLabel(ProjectManagementStrings.notes, systemImage: "note.text")
           }
-          ForEach(shortcutPreferences.visible) { shortcut in
+          ForEach(preferences.moreEntries) { shortcut in
             shortcutDestination(shortcut)
+              .accessibilityIdentifier("native-e2e.more.shortcut.\(shortcut.rawValue)")
           }
           NavigationLink {
             HomeTerminalProjectsView(session: session)
@@ -150,6 +159,13 @@ struct HomeMoreSheet: View {
       } label: {
         HomeMoreLabel(shortcut.title, systemImage: shortcut.systemImage)
       }
+    case .settings(let destination):
+      NavigationLink {
+        DeviceSettingsDestinationView(session: session, destination: destination)
+      } label: {
+        HomeMoreLabel(shortcut.title, systemImage: shortcut.systemImage)
+      }
+      .disabled(destination.requiresSelectedHost && session.currentSettingsHostSelection == nil)
     }
   }
 }

@@ -70,20 +70,35 @@ struct SettingsSessionView: View {
   @Environment(\.dismiss) private var dismiss
   @Bindable var session: AppSession
   private let gateway: any SettingsSessionGateway
-  private let initialRoute: SettingsScreenRoute?
+  private let initialPage: InitialPage
+
+  private enum InitialPage {
+    case index
+    case hostRoute(SettingsScreenRoute)
+    case destination(DeviceSettingsDestination)
+  }
 
   init(session: AppSession, initialRoute: SettingsScreenRoute? = nil) {
     self.session = session
-    self.initialRoute = initialRoute
+    initialPage = initialRoute.map(InitialPage.hostRoute) ?? .index
+    gateway = session.makeSettingsSessionGateway()
+  }
+
+  init(session: AppSession, destination: DeviceSettingsDestination) {
+    self.session = session
+    initialPage = .destination(destination)
     gateway = session.makeSettingsSessionGateway()
   }
 
   var body: some View {
     NavigationStack {
       Group {
-        if let initialRoute {
-          SettingsMoreRouteView(session: session, route: initialRoute)
-        } else {
+        switch initialPage {
+        case .hostRoute(let route):
+          SettingsMoreRouteView(session: session, route: route)
+        case .destination(let destination):
+          DeviceSettingsDestinationView(session: session, destination: destination)
+        case .index:
           DeviceSettingsView(
             session: session,
             selection: session.currentSettingsHostSelection,
@@ -94,6 +109,7 @@ struct SettingsSessionView: View {
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
           Button(SettingsUIStrings.done) { dismiss() }
+            .accessibilityIdentifier("native-e2e.settings.close")
         }
       }
     }

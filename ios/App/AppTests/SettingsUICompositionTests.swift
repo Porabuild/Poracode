@@ -7,15 +7,15 @@ import XCTest
 final class SettingsUICompositionTests: XCTestCase {
   func testHomeShortcutPreferencesMatchPWADefaultsAndNormalizeStoredValues() {
     XCTAssertTrue(HomeShortcutPreferences.storageKey.hasSuffix(".v1"))
-    XCTAssertEqual(HomeShortcutPreferences.default.hidden, [.githubActions])
+    XCTAssertEqual(HomeShortcutPreferences.default.hidden.intersection(Set(HomeShortcutID.core)), [.githubActions])
     XCTAssertEqual(HomeShortcutPreferences.default.visible, [.pullRequests, .schedules])
 
     let decoded = HomeShortcutPreferences(
       storageValue:
         #"{"hidden":["pullRequests","future"],"order":["schedules","schedules","future"]}"#
     )
-    XCTAssertEqual(decoded.hidden, [.pullRequests])
-    XCTAssertEqual(decoded.order, [.schedules, .pullRequests, .githubActions])
+    XCTAssertEqual(decoded.hidden.intersection(Set(HomeShortcutID.core)), [.pullRequests])
+    XCTAssertEqual(Array(decoded.order.prefix(3)), [.schedules, .pullRequests, .githubActions])
     XCTAssertEqual(decoded.visible, [.schedules, .githubActions])
   }
 
@@ -24,7 +24,7 @@ final class SettingsUICompositionTests: XCTestCase {
     preferences.setVisible(true, for: .githubActions)
     preferences.move(fromOffsets: IndexSet(integer: 2), toOffset: 0)
 
-    XCTAssertEqual(preferences.order, [.schedules, .pullRequests, .githubActions])
+    XCTAssertEqual(Array(preferences.order.prefix(3)), [.schedules, .pullRequests, .githubActions])
     XCTAssertEqual(HomeShortcutPreferences(storageValue: preferences.encoded), preferences)
     XCTAssertEqual(HomeShortcutPreferences(storageValue: "not-json"), .default)
   }
