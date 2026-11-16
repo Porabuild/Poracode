@@ -7,17 +7,21 @@ import {
   claudeProfileKind,
   codexProfileKind,
   cursorProfileKind,
+  geminiProfileKind,
   extractAcpGenericInstanceId,
   extractClaudeProfileInstanceId,
   extractCodexProfileInstanceId,
   extractCursorProfileInstanceId,
+  extractGeminiProfileInstanceId,
   isAcpGenericKind,
   isClaudeProfileKind,
   isCodexProfileKind,
   isCursorProfileKind,
+  isGeminiProfileKind,
   parseAcpGenericInstanceConfig,
   parseClaudeProfileInstanceConfig,
   parseCodexProfileInstanceConfig,
+  parseGeminiProfileInstanceConfig,
 } from "./agentInstance";
 
 /**
@@ -155,6 +159,28 @@ describe("Codex profile instance helpers", () => {
     expect(extractCodexProfileInstanceId("codex:work")).toBe("work");
     expect(extractCodexProfileInstanceId("claude:work")).toBeUndefined();
     expect(baseAgentKind(codexProfileKind("work"))).toBe("codex");
+  });
+});
+
+describe("Gemini profile instance helpers", () => {
+  it("parses a Gemini profile home directory", () => {
+    expect(parseGeminiProfileInstanceConfig({ homeDir: "~/.gemini-work" })).toEqual({
+      homeDir: "~/.gemini-work",
+    });
+  });
+
+  it("rejects an empty Gemini profile home directory", () => {
+    expect(() => parseGeminiProfileInstanceConfig({ homeDir: "" })).toThrow(Error);
+    expect(() => parseGeminiProfileInstanceConfig({})).toThrow(Error);
+  });
+
+  it("maps profile ids to synthetic Gemini provider kinds", () => {
+    expect(geminiProfileKind("work")).toBe("gemini:work");
+    expect(isGeminiProfileKind("gemini:work")).toBe(true);
+    expect(isGeminiProfileKind("gemini")).toBe(false);
+    expect(extractGeminiProfileInstanceId("gemini:work")).toBe("work");
+    expect(extractGeminiProfileInstanceId("claude:work")).toBeUndefined();
+    expect(baseAgentKind(geminiProfileKind("work"))).toBe("gemini");
   });
 });
 

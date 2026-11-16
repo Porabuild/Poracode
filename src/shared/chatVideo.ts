@@ -1,4 +1,4 @@
-import { mimeForPath } from "./promptContent";
+import { fileNameFromPath, mimeForPath } from "./promptContent";
 import type { CanonicalItemType } from "./contracts";
 
 export interface ChatVideoSource {
@@ -25,8 +25,37 @@ export function completedToolVideoSources(item: {
     ].includes(item.type)
   )
     return [];
-  const payload = item.payload as { status?: unknown; result?: unknown } | undefined;
-  return payload?.status === "success" ? readToolVideoSources(payload.result) : [];
+  const payload = item.payload as
+    | { status?: unknown; result?: unknown; kind?: unknown; locations?: unknown }
+    | undefined;
+  if (payload?.status !== "success") return [];
+  const resultVideos = readToolVideoSources(payload.result);
+  if (resultVideos.length > 0) return resultVideos;
+  if (
+    item.type !== "tool_call" ||
+    typeof payload.kind !== "string" ||
+    payload.kind.trim().toLowerCase() !== "read" ||
+    !Array.isArray(payload.locations)
+  ) {
+    return [];
+  }
+  const locationVideos: ChatVideoSource[] = [];
+  const seen = new Set<string>();
+  for (const entry of payload.locations) {
+    if (!entry || typeof entry !== "object") continue;
+    const path = (entry as { path?: unknown }).path;
+    if (typeof path !== "string") continue;
+    const trimmed = path.trim();
+    const mimeType = mimeForPath(trimmed);
+    if (!trimmed || seen.has(trimmed) || !isChatVideoSource(trimmed, mimeType)) continue;
+    seen.add(trimmed);
+    locationVideos.push({
+      src: trimmed,
+      name: fileNameFromPath(trimmed),
+      ...(mimeType ? { mimeType } : {}),
+    });
+  }
+  return locationVideos;
 }
 
 export function isVideoPath(path: string, mimeType?: string): boolean {

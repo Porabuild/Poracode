@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { geminiQuotaGroup, parseGeminiUsage } from "./gemini";
+import { describe, expect, it, vi } from "vitest";
+import type { HostPort } from "../host";
+import {
+  GEMINI_LOAD_ENDPOINT,
+  GEMINI_QUOTA_ENDPOINT,
+  collectGemini,
+  geminiQuotaGroup,
+  parseGeminiUsage,
+} from "./gemini";
 
 const NOW = 1_717_000_000_000;
 
@@ -60,10 +67,94 @@ describe("parseGeminiUsage", () => {
     expect(pro?.usedPercent).toBeCloseTo(80); // most-constrained across versions: 1 - 0.2
   });
 
+  it("prefers paidTier and parses availableCredits as AI credits", () => {
+    const snap = parseGeminiUsage(
+      {
+        currentTier: { id: "free-tier" },
+        paidTier: {
+          id: "g1-pro-tier",
+          name: "Google AI Pro",
+          availableCredits: [
+            { creditType: "GOOGLE_ONE_AI", creditAmount: "1200.5" },
+            { creditType: "BONUS", creditAmount: 300 },
+          ],
+        },
+      },
+      undefined,
+      NOW,
+    );
+    expect(snap.plan).toBe("Google AI Pro");
+    expect(snap.credits).toEqual({ balance: 1500.5, label: "AI credits" });
+  });
+
   it("returns a plan-only snapshot when quota is unparseable", () => {
     const snap = parseGeminiUsage({ currentTier: { id: "standard-tier" } }, undefined, NOW);
     expect(snap.plan).toBe("Gemini Code Assist (Standard)");
     expect(snap.windows).toHaveLength(0);
+  });
+});
+
+describe("collectGemini", () => {
+  it("refreshes the token once on 401/403 and retries loadCodeAssist", async () => {
+    const refreshOAuthToken = vi.fn<() => Promise<{ accessToken: string; refreshToken: string }>>(
+      async () => ({
+        accessToken: "fresh-token",
+        refreshToken: "refresh-1",
+      }),
+    );
+    const request = vi.fn<
+      (input: {
+        url: string;
+        headers?: Record<string, string>;
+      }) => Promise<{ status: number; headers: Record<string, string>; body: string }>
+    >(async ({ url, headers }) => {
+      if (url === GEMINI_LOAD_ENDPOINT && headers?.Authorization === "Bearer stale-token") {
+        return { status: 401, headers: {}, body: "" };
+      }
+      if (url === GEMINI_LOAD_ENDPOINT && headers?.Authorization === "Bearer fresh-token") {
+        return {
+          status: 200,
+          headers: {},
+          body: JSON.stringify({ currentTier: { id: "free-tier" } }),
+        };
+      }
+      if (url === GEMINI_QUOTA_ENDPOINT) {
+        return { status: 200, headers: {}, body: JSON.stringify({ buckets: [] }) };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const host: HostPort = {
+      http: { request },
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: async () => ({ accessToken: "stale-token", refreshToken: "refresh-1" }),
+        refreshOAuthToken,
+        getSecret: async () => undefined,
+      },
+    };
+
+    const snap = await collectGemini(host);
+    expect(refreshOAuthToken).toHaveBeenCalledTimes(1);
+    expect(snap.status).toBe("ok");
+    expect(snap.plan).toBe("Gemini (Free)");
+  });
+
+  it("degrades to auth-missing when refresh cannot recover from 403", async () => {
+    const host: HostPort = {
+      http: {
+        request: async () => ({ status: 403, headers: {}, body: "" }),
+      },
+      now: () => NOW,
+      credentials: {
+        getOAuthToken: async () => ({ accessToken: "stale-token" }),
+        refreshOAuthToken: async () => undefined,
+        getSecret: async () => undefined,
+      },
+    };
+
+    const snap = await collectGemini(host);
+    expect(snap.status).toBe("auth-missing");
+    expect(snap.error).toBe("token rejected (403)");
   });
 });
 

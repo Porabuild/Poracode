@@ -1,7 +1,15 @@
 import { randomUUID } from "node:crypto";
+import { join, posix } from "node:path";
 
-import type { AgentCapability, ProjectLocation, PromptSegment } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  AgentInstanceConfig,
+  ProjectLocation,
+  PromptSegment,
+} from "@/shared/contracts";
+import { geminiProfileKind, parseGeminiProfileInstanceConfig } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
+import { wslLinuxToHostFsPath } from "@/shared/wsl";
 import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import { createAcpStructuredSession } from "../acp";
 import {
@@ -19,10 +27,14 @@ import {
   type AgentLaunchOptions,
   type Awaitable,
   type CreateStructuredSessionInput,
+  type StructuredSessionHandle,
   type TerminalStatusHint,
 } from "../base";
+import { resolveNativeTildePath } from "../base/sessionFs";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
+import { resolveGeminiEmptyResponseError, resolveGeminiPromptErrorReason } from "./acpErrors";
+import { createGeminiAcpSessionTransform, normalizeGeminiPermissionRequest } from "./acpTransform";
 import { buildGeminiArgs } from "./argv";
 import { defaultGeminiCapabilities, geminiDetectionSpec } from "./detection";
 import {
@@ -34,10 +46,12 @@ import {
   syncGeminiLaunchMcpSettings,
   uninstallGeminiPlugin,
 } from "./plugin/install";
-import { detectGeminiInvalidSessionRef } from "./session";
+import { createGeminiProfileContext, type GeminiAdapterOptions } from "./profiles";
+import { detectGeminiInvalidSessionRef, waitForGeminiResumeArtifact } from "./session";
+import { createGeminiSessionImport } from "./sessionImport";
 import { detectGeminiOscTitleStatus } from "./terminal";
 
-export { detectGeminiInvalidSessionRef } from "./session";
+export { detectGeminiInvalidSessionRef, waitForGeminiResumeArtifact } from "./session";
 
 const GEMINI_PLUGIN_VERSION = readBundledGeminiPluginVersion();
 
@@ -84,20 +98,44 @@ async function prepareGeminiLaunchMcpSettings(
   };
 }
 
-export function createGeminiAdapter(): AgentAdapter {
+/**
+ * A profile is a second Gemini CLI account or configuration: its own
+ * `GEMINI_CLI_HOME` (credentials, settings, sessions, skills) with host-level
+ * API-key/ADC/base-URL env vars blanked so profiles never silently run on host
+ * credentials.
+ */
+export function createGeminiProfileAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  const cfg = parseGeminiProfileInstanceConfig(instance.config);
+  const profileLabel = instance.displayName ?? instance.id;
+  return createGeminiAdapter({
+    kind: geminiProfileKind(instance.id),
+    label: `Gemini ${profileLabel}`,
+    profileId: instance.id,
+    homeDir: cfg.homeDir,
+  });
+}
+
+export function createGeminiAdapter(options: GeminiAdapterOptions = {}): AgentAdapter {
   let capabilities: AgentCapability = defaultGeminiCapabilities;
+  const kind = options.kind ?? geminiDetectionSpec.kind;
+  const label = options.label ?? geminiDetectionSpec.label;
+  const nativeHomeDir =
+    options.homeDir !== undefined ? resolveNativeTildePath(options.homeDir) : undefined;
+  const { profileEnv, detectionSpec } = createGeminiProfileContext(options);
 
   return {
-    kind: geminiDetectionSpec.kind,
-    label: geminiDetectionSpec.label,
+    kind,
+    label,
     binary: geminiDetectionSpec.binary,
+    sessionImport: createGeminiSessionImport(nativeHomeDir),
     skillSupport: {
       roots: [
         {
           id: "gemini",
-          label: geminiDetectionSpec.label,
+          label,
           globalPath: ".gemini/skills",
           projectPath: ".gemini/skills",
+          ...(options.homeDir ? { globalBasePath: options.homeDir } : {}),
           globalOverride: { env: "GEMINI_CLI_HOME", path: ".gemini/skills" },
         },
         {
@@ -152,57 +190,134 @@ export function createGeminiAdapter(): AgentAdapter {
       await uninstallGeminiPlugin(ctx);
     },
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, geminiDetectionSpec);
+      const location = detectProbeLocation(ctx);
+      const env = await profileEnv(location);
+      const status = await detectAgentInstall(
+        ctx,
+        env ? { ...detectionSpec, probeEnv: env } : detectionSpec,
+      );
       capabilities = status.capabilities;
-      return status;
+      return { ...status, kind, label };
     },
 
     async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
-      const launchSettings = await prepareGeminiLaunchMcpSettings(location, launchOptions);
+      const [launchSettings, env] = await Promise.all([
+        prepareGeminiLaunchMcpSettings(location, launchOptions),
+        profileEnv(location),
+      ]);
       // Pre-assign the session UUID via --session-id so we know it before
       // spawn. Avoids racing post-spawn discovery against one-shot `gemini -p`
       // calls (title gen, commit-msg, PR summary) that also create entries in
       // --list-sessions and would otherwise be picked as "the new session".
       const assignedId = randomUUID();
       const args = buildGeminiArgs(config, prompt, undefined, assignedId);
+      const mergedEnv =
+        env || launchSettings?.env ? { ...(env ?? {}), ...(launchSettings?.env ?? {}) } : undefined;
       return {
         binary: "gemini",
         args,
-        ...(launchSettings ? { env: launchSettings.env, cleanup: launchSettings.cleanup } : {}),
+        ...(mergedEnv ? { env: mergedEnv } : {}),
+        ...(launchSettings?.cleanup ? { cleanup: launchSettings.cleanup } : {}),
         sessionRef: createKnownSessionRef(assignedId),
       };
     },
 
     async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      const launchSettings = await prepareGeminiLaunchMcpSettings(location, launchOptions);
+      const [launchSettings, env] = await Promise.all([
+        prepareGeminiLaunchMcpSettings(location, launchOptions),
+        profileEnv(location),
+      ]);
       const args = buildGeminiArgs(config, prompt, sessionRef.providerSessionId);
+      const mergedEnv =
+        env || launchSettings?.env ? { ...(env ?? {}), ...(launchSettings?.env ?? {}) } : undefined;
       return {
         binary: "gemini",
         args,
-        ...(launchSettings ? { env: launchSettings.env, cleanup: launchSettings.cleanup } : {}),
+        ...(mergedEnv ? { env: mergedEnv } : {}),
+        ...(launchSettings?.cleanup ? { cleanup: launchSettings.cleanup } : {}),
       };
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
       await prepareAgentLocationEnvironment(input.projectLocation);
+      const profEnv = await profileEnv(input.projectLocation);
+      const profileConfigDir = profEnv?.GEMINI_CLI_HOME
+        ? input.projectLocation.kind === "wsl"
+          ? wslLinuxToHostFsPath(
+              input.projectLocation.distro,
+              posix.join(profEnv.GEMINI_CLI_HOME, ".gemini"),
+            )
+          : join(profEnv.GEMINI_CLI_HOME, ".gemini")
+        : undefined;
+      // Force non-interactive shell execution in ACP mode on all platforms:
+      // Gemini CLI leaves `interactive=true` under `--acp`, and if
+      // `enableInteractiveShell` is active its shell tool populates `ansiOutput`
+      // arrays that `toToolCallContent` drops -> empty shell output.
+      const commandEnv: Record<string, string> = {
+        ...(profEnv ?? {}),
+        GEMINI_PTY_INFO: "child_process",
+        ...(input.env ?? {}),
+      };
+      const transformOptions = {
+        projectLocation: input.projectLocation,
+        ...(profileConfigDir ? { profileConfigDir } : {}),
+      };
+      const effectiveInput: CreateStructuredSessionInput = {
+        ...input,
+        env: commandEnv,
+        acpSessionUpdateTransform: createGeminiAcpSessionTransform(transformOptions),
+        acpEmptyResponseErrorResolver: resolveGeminiEmptyResponseError,
+      };
       const command = buildAgentCommand(
         input.projectLocation,
         "gemini",
         ["--acp", "--skip-trust"],
         resolveAgentBinaryPath(input.projectLocation, "gemini"),
-        input.projectLocation.kind === "windows" ? { GEMINI_PTY_INFO: "child_process" } : undefined,
+        commandEnv,
       );
-      return createAcpStructuredSession(command, input);
+      const session: StructuredSessionHandle | undefined = createAcpStructuredSession(
+        command,
+        effectiveInput,
+        {
+          promptErrorReason: resolveGeminiPromptErrorReason,
+          permissionRequestTransform: (request) =>
+            normalizeGeminiPermissionRequest(request, transformOptions),
+          behavior: {
+            promptUsageCounterKind: "per-call",
+            promptUsageReportsContext: false,
+          },
+        },
+      );
+      if (!session) return undefined;
+
+      session.ensureResumeArtifacts = async () => {
+        const sessionId =
+          session.getSessionRef?.()?.providerSessionId ?? input.sessionRef?.providerSessionId;
+        if (!sessionId) return;
+        await waitForGeminiResumeArtifact(sessionId, {
+          projectLocation: input.projectLocation,
+          env: {
+            ...(effectiveInput.baseSpawnEnv ?? {}),
+            ...(effectiveInput.env ?? {}),
+          },
+        });
+      };
+      return session;
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
       await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
+      const profEnv = await profileEnv(location);
+      const env: Record<string, string> = {
+        ...(profEnv ?? {}),
+        GEMINI_PTY_INFO: "child_process",
+      };
       return buildAgentCommand(
         location,
         "gemini",
         ["--acp", "--skip-trust"],
         resolveAgentBinaryPath(location, "gemini"),
-        location.kind === "windows" ? { GEMINI_PTY_INFO: "child_process" } : undefined,
+        env,
       );
     },
 
@@ -232,9 +347,9 @@ export function createGeminiAdapter(): AgentAdapter {
     shouldApplyTerminalStatusWhileHookActive: geminiHookActiveTerminalFallback,
     detectInvalidSessionRef: detectGeminiInvalidSessionRef,
 
-    defaultOneShotModel: "gemini-2.5-flash",
+    defaultOneShotModel: "gemini-3.8-flash",
 
-    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+    async buildOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
       const selection = resolveCheckedOneShotBuilderSelection(
         { model, effort, fast },
         oneShotOptions,
@@ -249,10 +364,16 @@ export function createGeminiAdapter(): AgentAdapter {
         fast: { inactive: [false] },
       });
       if (!prompt) return undefined;
-      return { command: "gemini", args: ["-p", prompt, "--model", model], stdin: "" };
+      const env = location ? await profileEnv(location) : undefined;
+      return {
+        command: "gemini",
+        args: ["-p", prompt, "--model", model, "--skip-trust"],
+        stdin: "",
+        ...(env ? { env } : {}),
+      };
     },
-    buildContextExtractionCommand(sessionRef, _location, model, options) {
-      const selection = resolveCheckedOneShotResumeSelection(model, options);
+    async buildContextExtractionCommand(sessionRef, location, model, extractionOptions) {
+      const selection = resolveCheckedOneShotResumeSelection(model, extractionOptions);
       // Same provider policy as the one-shot lane: only the model maps here,
       // so meaningful effort/Fast (and any thinking/context carrier) refuse
       // before the command is built.
@@ -260,6 +381,7 @@ export function createGeminiAdapter(): AgentAdapter {
         effort: { inactive: [""] },
         fast: { inactive: [false] },
       });
+      const env = await profileEnv(location);
       return {
         command: "gemini",
         args: [
@@ -268,9 +390,11 @@ export function createGeminiAdapter(): AgentAdapter {
           "--resume",
           sessionRef.providerSessionId,
           "--model",
-          model ?? "gemini-2.5-flash",
+          model ?? "gemini-3.8-flash",
+          "--skip-trust",
         ],
         stdin: "",
+        ...(env ? { env } : {}),
       };
     },
   };

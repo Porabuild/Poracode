@@ -13,8 +13,6 @@ import { captureAcpConfigApplicationOwner } from "./sessionConfigOwnership";
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
-import { homedir } from "node:os";
 import { isDeepStrictEqual } from "node:util";
 import { Readable, Writable } from "node:stream";
 import {
@@ -2429,44 +2427,6 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private isExpectedTransportExit(code: number | null): boolean {
     return this.isDisposed || code === 0;
-  }
-
-  // ── Resume artifacts ──────────────────────────────────────────
-
-  /**
-   * Wait for the session file to appear on disk.
-   *
-   * Called by the runtime AFTER `startTurn` fires the initial prompt.
-   * Gemini's ACP mode persists the session to disk during prompt processing.
-   * The TUI needs this file to exist before `--resume <id>` will work.
-   *
-   * Polls `~/.gemini/tmp/<project>/chats/` for a file containing the session UUID.
-   */
-  async ensureResumeArtifacts(): Promise<void> {
-    if (!this.sessionId) return;
-
-    const projectName = basename(this.cwd);
-    const chatsDir = join(homedir(), ".gemini", "tmp", projectName, "chats");
-    const uuid8 = this.sessionId.split("-")[0] ?? this.sessionId.slice(0, 8);
-
-    console.log("[acp] waiting for session file (uuid prefix: %s)...", uuid8);
-
-    const deadline = Date.now() + 15_000;
-    while (Date.now() < deadline) {
-      try {
-        const { readdirSync } = await import("node:fs");
-        const files = readdirSync(chatsDir);
-        const match = files.find((f) => f.includes(uuid8) && f.endsWith(".json"));
-        if (match) {
-          console.log("[acp] session file found:", join(chatsDir, match));
-          return;
-        }
-      } catch {
-        // Directory may not exist yet
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
-    console.log("[acp] session file not found after timeout, proceeding anyway");
   }
 
   // ── Internal handlers ────────────────────────────────────────

@@ -3567,6 +3567,7 @@ msgid "Change context size to {contextLabel}?"
 msgstr "Alterar o tamanho do contexto para {contextLabel}?"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "Alterar home"
 
@@ -3575,6 +3576,7 @@ msgid "Change order"
 msgstr "Alterar ordem"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change profile home?"
 msgstr "Alterar o home do perfil?"
 
@@ -9096,6 +9098,43 @@ msgstr "Jogos e diversão"
 msgid "Gemini"
 msgstr "Gemini"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini {0} profile saved."
+msgstr "Perfil do Gemini {0} salvo."
+
+#: src/renderer/components/providers/gemini/manifest.ts
+msgid "Gemini {profile}"
+msgstr "Gemini {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini authentication failed. Sign in again or verify your API key in settings."
+msgstr "Falha na autenticação do Gemini. Entre novamente ou verifique sua chave de API nas configurações."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini did not return a response because the output was filtered or blocked."
+msgstr "O Gemini não retornou uma resposta porque a saída foi filtrada ou bloqueada."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini ended the turn without returning a response. Check authentication or quota and try again."
+msgstr "O Gemini encerrou o turno sem retornar uma resposta. Verifique a autenticação ou a cota e tente novamente."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile home directory"
+msgstr "Diretório home do perfil do Gemini"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile name"
+msgstr "Nome do perfil do Gemini"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini quota or rate limit was exceeded. Wait and try again, or switch models."
+msgstr "A cota ou o limite de taxa do Gemini foi excedido. Aguarde e tente novamente ou mude de modelo."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini runs this profile with GEMINI_CLI_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "O Gemini executa este perfil com GEMINI_CLI_HOME apontando para o diretório abaixo. Use Login acima para conectar este perfil à sua própria conta."
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -9676,6 +9715,7 @@ msgid "Home"
 msgstr "Página inicial"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Home directory"
 msgstr "Diretório home"
 
@@ -12633,6 +12673,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -12836,6 +12877,10 @@ msgstr "Nova pasta"
 #: src/mobile/views/useFileTree.ts
 #~ msgid "New folder name"
 #~ msgstr "Nome da nova pasta"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "New Gemini profile home directory"
+msgstr "Diretório home do novo perfil do Gemini"
 
 #: src/renderer/components/newsLine/useDiscoveryItems.tsx
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
@@ -15734,6 +15779,7 @@ msgstr "Perfil {displayName} adicionado."
 #~ msgstr "Chave de API do perfil"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "Home do perfil"
 
@@ -16953,6 +16999,10 @@ msgstr "Remover {profileName} exclui a chave de API salva. Os tópicos que usam 
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
 msgstr "Remover {profileName} o retira do Poracode. Seu diretório home e as credenciais do Codex nele permanecem no disco."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
+msgstr "Remover {profileName} o retira do Poracode. Seu diretório home e as credenciais do Gemini nele permanecem no disco."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Remover {profileName} descarta suas configurações do Poracode — variáveis de ambiente, modelos e esforço. O diretório de configuração e as credenciais do Claude nele permanecem no disco."
@@ -17847,6 +17897,10 @@ msgstr "Execute uma tarefa agendada para ver seus resultados aqui."
 msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
 msgstr "Execute uma segunda conta do Codex a partir do seu próprio CODEX_HOME. Cada perfil entra separadamente e mantém suas próprias sessões."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Run a second Gemini account from its own GEMINI_CLI_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "Execute uma segunda conta do Gemini a partir do seu próprio GEMINI_CLI_HOME. Cada perfil entra separadamente e mantém suas próprias sessões."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -18044,6 +18098,7 @@ msgstr "Saturação e brilho"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
@@ -18124,6 +18179,10 @@ msgstr "Salvar perfil da Devin"
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "Salvar arquivo"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Save Gemini profile"
+msgstr "Salvar perfil do Gemini"
 
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
@@ -21427,6 +21486,10 @@ msgstr "O servidor de origem retornou uma resposta inválida. Atualize a integra
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "O túnel SSH alcançou um servidor Poracode incompatível."
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "The stored configuration is invalid. Saving below replaces it with what this form holds."
+msgstr "A configuração armazenada é inválida. Salvar abaixo a substitui pelo que este formulário contém."
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "A configuração armazenada é inválida. Os valores armazenados são mantidos; salvar abaixo os substitui pelo que este formulário contém."
@@ -21865,6 +21928,7 @@ msgid "This plugin's skills could not be read."
 msgstr "Não foi possível ler as skills deste plugin."
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
 msgstr "Este perfil já tem tópicos. As sessões deles ficam no diretório home atual, então não poderão ser retomadas depois que você alterá-lo."
 
@@ -22874,6 +22938,10 @@ msgstr "Não foi possível atualizar os perfis do Claude."
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Unable to refresh Codex profiles."
 msgstr "Não foi possível atualizar os perfis do Codex."
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+#~ msgid "Unable to refresh Gemini profiles."
+#~ msgstr "Não foi possível atualizar os perfis do Gemini."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

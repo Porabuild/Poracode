@@ -279,6 +279,16 @@ const messages = {
   "sessionImport.inProgress": "This session is already being imported.",
   "sessionImport.changedOnDisk": "This session changed on disk. Refresh the list and try again.",
 
+  // ── Gemini ────────────────────────────────────────────────
+  "gemini.emptyResponse":
+    "Gemini ended the turn without returning a response. Check authentication or quota and try again.",
+  "gemini.authFailed":
+    "Gemini authentication failed. Sign in again or verify your API key in settings.",
+  "gemini.quotaExceeded":
+    "Gemini quota or rate limit was exceeded. Wait and try again, or switch models.",
+  "gemini.responseBlocked":
+    "Gemini did not return a response because the output was filtered or blocked.",
+
   // ── Kimi Code ─────────────────────────────────────────────
   "kimi.credentialsLocked":
     "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",

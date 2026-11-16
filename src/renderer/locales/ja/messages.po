@@ -3566,6 +3566,7 @@ msgid "Change context size to {contextLabel}?"
 msgstr "コンテキストサイズを {contextLabel} に変更しますか?"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change home"
 msgstr "ホームを変更"
 
@@ -3574,6 +3575,7 @@ msgid "Change order"
 msgstr "並び順を変更"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Change profile home?"
 msgstr "プロファイルのホームを変更しますか？"
 
@@ -9095,6 +9097,43 @@ msgstr "ゲームと遊び"
 msgid "Gemini"
 msgstr "Gemini"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini {0} profile saved."
+msgstr "Gemini {0} プロファイルが保存されました。"
+
+#: src/renderer/components/providers/gemini/manifest.ts
+msgid "Gemini {profile}"
+msgstr "Gemini {profile}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini authentication failed. Sign in again or verify your API key in settings."
+msgstr "Gemini の認証に失敗しました。再度サインインするか、設定で API キーを確認してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini did not return a response because the output was filtered or blocked."
+msgstr "出力がフィルタリングまたはブロックされたため、Gemini は応答を返しませんでした。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini ended the turn without returning a response. Check authentication or quota and try again."
+msgstr "Gemini は応答を返さずにターンを終了しました。認証またはクォータを確認して再試行してください。"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile home directory"
+msgstr "Gemini プロファイルのホームディレクトリ"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini profile name"
+msgstr "Gemini プロファイル名"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Gemini quota or rate limit was exceeded. Wait and try again, or switch models."
+msgstr "Gemini のクォータまたはレート制限を超過しました。しばらく待ってから再試行するか、モデルを切り替えてください。"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Gemini runs this profile with GEMINI_CLI_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Gemini はこのプロファイルを、GEMINI_CLI_HOME を下記のディレクトリに設定して実行します。上の「ログイン」で、このプロファイルを専用のアカウントにサインインさせてください。"
+
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
@@ -9675,6 +9714,7 @@ msgid "Home"
 msgstr "ホーム"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Home directory"
 msgstr "ホームディレクトリ"
 
@@ -12631,6 +12671,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -12834,6 +12875,10 @@ msgstr "新しいフォルダー"
 #: src/mobile/views/useFileTree.ts
 #~ msgid "New folder name"
 #~ msgstr "新規フォルダー名"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "New Gemini profile home directory"
+msgstr "新しい Gemini プロファイルのホームディレクトリ"
 
 #: src/renderer/components/newsLine/useDiscoveryItems.tsx
 #: src/renderer/components/newsLine/useNewsLineItems.tsx
@@ -15732,6 +15777,7 @@ msgstr "プロファイル {displayName} を追加しました。"
 #~ msgstr "プロファイルのAPIキー"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "Profile home"
 msgstr "プロファイルのホーム"
 
@@ -16951,6 +16997,10 @@ msgstr "{profileName} を削除すると、保存されたAPIキーも削除さ�
 msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
 msgstr "{profileName} を削除すると Poracode から取り除かれます。ホームディレクトリとその中の Codex 認証情報はディスクに残ります。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Gemini credentials inside it stay on disk."
+msgstr "{profileName} を削除すると Poracode から取り除かれます。ホームディレクトリとその中の Gemini 認証情報はディスクに残ります。"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName} を削除すると、Poracodeの設定（環境変数、モデル、Effort）が失われます。設定ディレクトリとその中のClaude認証情報はディスクに残ります。"
@@ -17845,6 +17895,10 @@ msgstr "スケジュールを実行すると、ここに結果が表示されま
 msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
 msgstr "独自の CODEX_HOME から 2 つ目の Codex アカウントを実行します。各プロファイルは個別にサインインし、独自のセッションを保持します。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Run a second Gemini account from its own GEMINI_CLI_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "独自の GEMINI_CLI_HOME から 2 つ目の Gemini アカウントを実行します。各プロファイルは個別にサインインし、独自のセッションを保持します。"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -18042,6 +18096,7 @@ msgstr "彩度と明度"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/codex/profileSettings.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
@@ -18122,6 +18177,10 @@ msgstr "Devin プロファイルを保存"
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "ファイルの保存"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "Save Gemini profile"
+msgstr "Gemini プロファイルを保存"
 
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
@@ -21425,6 +21484,10 @@ msgstr "ソースホストから無効な応答が返されました。連携を
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "SSH トンネルは互換性のない Poracode サーバーに接続しました。"
 
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+msgid "The stored configuration is invalid. Saving below replaces it with what this form holds."
+msgstr "保存済みの設定は無効です。下で保存するとこのフォームの内容で置き換えられます。"
+
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "保存済みの設定は無効です。保存済みの値は保持され、下で保存するとこのフォームの内容で置き換えられます。"
@@ -21863,6 +21926,7 @@ msgid "This plugin's skills could not be read."
 msgstr "このプラグインのスキルを読み取れませんでした。"
 
 #: src/renderer/components/providers/codex/profileSettings.tsx
+#: src/renderer/components/providers/gemini/profileSettings.tsx
 msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
 msgstr "このプロファイルにはすでにスレッドがあります。セッションは現在のホームディレクトリに残るため、変更後は再開できなくなります。"
 
@@ -22872,6 +22936,10 @@ msgstr "Claude プロファイルを更新できません。"
 #: src/renderer/components/providers/codex/profileSettings.tsx
 msgid "Unable to refresh Codex profiles."
 msgstr "Codex プロファイルを更新できません。"
+
+#: src/renderer/components/providers/gemini/profileSettings.tsx
+#~ msgid "Unable to refresh Gemini profiles."
+#~ msgstr "Gemini プロファイルを更新できません。"
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

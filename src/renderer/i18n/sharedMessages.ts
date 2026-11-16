@@ -553,6 +553,19 @@ export const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> =
   "sessionImport.changedOnDisk": msg({
     message: "This session changed on disk. Refresh the list and try again.",
   }),
+  "gemini.emptyResponse": msg({
+    message:
+      "Gemini ended the turn without returning a response. Check authentication or quota and try again.",
+  }),
+  "gemini.authFailed": msg({
+    message: "Gemini authentication failed. Sign in again or verify your API key in settings.",
+  }),
+  "gemini.quotaExceeded": msg({
+    message: "Gemini quota or rate limit was exceeded. Wait and try again, or switch models.",
+  }),
+  "gemini.responseBlocked": msg({
+    message: "Gemini did not return a response because the output was filtered or blocked.",
+  }),
   "kimi.credentialsLocked": msg({
     message:
       "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",

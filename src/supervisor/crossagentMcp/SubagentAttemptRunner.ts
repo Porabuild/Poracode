@@ -1,6 +1,7 @@
 import type { ProjectLocation, RuntimeEvent, SessionRef } from "@/shared/contracts";
 import { toError } from "@/shared/errorMessage";
 import {
+  primeProjectShellEnv,
   resolveAgentProjectLocation,
   type StructuredSessionHandle,
 } from "@/supervisor/agents/base";
@@ -178,6 +179,9 @@ export class SubagentAttemptRunner {
         state.plan.projectLocation,
         attempt.config.executionEnvironment,
       );
+      if (projectLocation.kind !== "wsl") {
+        await primeProjectShellEnv(projectLocation.path);
+      }
       if (!this.isActive(state, resources, callbacks)) return;
       if (attempt.execution === "one-shot") {
         await this.runOneShot(state, resources, attemptIndex, attempt, projectLocation, callbacks);

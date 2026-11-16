@@ -340,7 +340,7 @@ function optionalString<K extends string>(
   return value ? ({ [key]: value } as Record<K, string>) : {};
 }
 
-function plainRecord(value: unknown): Record<string, unknown> {
+export function plainRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
@@ -349,6 +349,13 @@ function plainRecord(value: unknown): Record<string, unknown> {
 function readString(record: Record<string, unknown>, key: string): string | undefined {
   const value = record[key];
   return typeof value === "string" ? value : undefined;
+}
+
+export function readNonEmptyString(
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  return nonEmpty(readString(record, key));
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
