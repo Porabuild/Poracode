@@ -79,6 +79,17 @@ export class AcpConfigSelectionError extends Error {
   }
 }
 
+/** A settled write whose authoritative echo still reports a different selection. */
+class AcpConfigOptionMismatchError extends Error {
+  constructor(
+    readonly configId: string,
+    readonly value: string,
+  ) {
+    super("The session did not confirm the requested config option");
+    this.name = "AcpConfigOptionMismatchError";
+  }
+}
+
 type ConfigOptionUpdateWaiter = {
   configId: string;
   value: string;
@@ -295,9 +306,45 @@ export class AcpSessionConfigSync {
     // so the lock — not the prompt flag — is what keeps a menu write from
     // interleaving mid-push. Queues behind a write already in flight rather
     // than racing a second mutation.
-    return this.configWrites.runExclusive(() =>
-      this.applyTurnConfigLocked(sessionId, nextConfig, previousConfig, assertCurrent),
-    );
+    return this.configWrites.runExclusive(async () => {
+      try {
+        return await this.applyTurnConfigLocked(
+          sessionId,
+          nextConfig,
+          previousConfig,
+          assertCurrent,
+        );
+      } catch (error) {
+        assertCurrent();
+        if (
+          !(error instanceof AcpConfigSelectionError) ||
+          !(error.cause instanceof AcpConfigOptionMismatchError)
+        ) {
+          throw error;
+        }
+        const model = findSelectConfigOption(this.currentConfigOptions, "model");
+        // Retry only a definite model mismatch after a settled write, while
+        // the exact requested value remains advertised. A rejected RPC, an
+        // unknown outcome, a missing inventory, or an expired owner must never
+        // cause a blind second mutation. The same writer covers both attempts.
+        if (
+          model?.id !== error.cause.configId ||
+          !model.currentValue ||
+          !listSelectConfigOptionValues(this.currentConfigOptions, "model").includes(
+            error.cause.value,
+          )
+        ) {
+          throw error;
+        }
+        console.log("[acp] model selection not confirmed; reapplying the requested config once");
+        return this.applyTurnConfigLocked(
+          sessionId,
+          nextConfig,
+          error.confirmedConfig ?? previousConfig,
+          assertCurrent,
+        );
+      }
+    });
   }
 
   private async applyTurnConfigLocked(
@@ -574,6 +621,22 @@ export class AcpSessionConfigSync {
     }
 
     assertCurrent();
+    if (this.behavior.strictConfigSelection && nextConfig.model) {
+      try {
+        // Dependent setters can replace the whole inventory, including the
+        // model. Verify the resolved selection again before admitting a prompt
+        // instead of accepting an earlier model acknowledgement that went stale.
+        const model = this.resolveModelConfig(nextConfig, this.currentConfigOptions);
+        if (!model) {
+          throw new Error("The session did not advertise the requested model selection");
+        }
+        if (!this.configOptionMatches(model.configId, model.value)) {
+          throw new AcpConfigOptionMismatchError(model.configId, model.value);
+        }
+      } catch (error) {
+        reject(error);
+      }
+    }
     return nextConfig;
   }
 
@@ -653,7 +716,7 @@ export class AcpSessionConfigSync {
           throw new Error("The session's configuration reply could not be normalized.");
         }
         if (this.behavior.strictConfigSelection && !this.configOptionMatches(configId, value)) {
-          throw new Error("The session did not confirm the requested config option");
+          throw new AcpConfigOptionMismatchError(configId, value);
         }
         return;
       }
