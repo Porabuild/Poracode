@@ -13,6 +13,21 @@ enum PoracodeKeyboardViewport {
 }
 
 extension View {
+  /// Use a presentation's live UIKit guide when a flexible page inherits a
+  /// retained SwiftUI keyboard region after pairing and rotation. Forms whose
+  /// parent already sizes to the keyboard keep their existing avoidance.
+  @ViewBuilder
+  func poracodeUseKeyboardLayoutGuide() -> some View {
+    if #available(iOS 26.0, *) {
+      // Reset the proposal outside the guide's padding so content cannot
+      // expand back through the reserved keyboard space.
+      poracodeAvoidKeyboard()
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+    } else {
+      self
+    }
+  }
+
   /// Only the focused composer moves; the workspace keeps its full viewport.
   func poracodeAvoidKeyboard(isActive: Bool = true, reservesSpace: Bool = true,
     availableHeightChanged: @escaping (CGFloat) -> Void = { _ in }) -> some View {

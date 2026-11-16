@@ -42,6 +42,7 @@ struct SettingsAgentsView: View {
         environment: presentation.wsl
       )
     }
+    .accessibilityIdentifier("native-e2e.settings.agents.list")
     .listStyle(.insetGrouped)
     .poracodeReadableListMargins(740)
     .refreshable {
@@ -58,6 +59,7 @@ struct SettingsAgentsView: View {
         .accessibilityIdentifier("native-e2e.settings.agents.discover")
       }
     }
+    .poracodeUseKeyboardLayoutGuide()
     .toolbar {
       if installedAgents.count > 1 {
         EditButton().disabled(composition.isMutating || session.composerPreferences.incompatible

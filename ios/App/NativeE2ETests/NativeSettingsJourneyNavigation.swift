@@ -1,6 +1,36 @@
 import XCTest
 
 extension NativeFamilyJourneyUITests {
+  func assertNativePageActionAtLowerEdge(_ action: XCUIElement, pageID: String, name: String) throws {
+    let page = app.descendants(matching: .any).matching(identifier: pageID).firstMatch
+    XCTAssertTrue(page.exists)
+    let actionFrame = action.frame, pageFrame = page.frame, appFrame = app.frame
+    let keyboard = app.keyboards.firstMatch
+    let keyboardFrame = keyboard.exists ? keyboard.frame : nil
+    func rect(_ frame: CGRect) -> [String: Double] {
+      ["x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height]
+    }
+    var geometry: [String: Any] = [
+      "app": rect(appFrame), "page": rect(pageFrame), "action": rect(actionFrame),
+      "keyboardVisible": keyboardFrame != nil,
+    ]
+    if let keyboardFrame { geometry["keyboard"] = rect(keyboardFrame) }
+    let data = try JSONSerialization.data(withJSONObject: geometry, options: [.prettyPrinted, .sortedKeys])
+    let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+    attachment.name = "page-action-\(name)"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+    XCTAssertTrue(action.isHittable)
+    XCTAssertGreaterThanOrEqual(actionFrame.height, 44)
+    if let keyboardFrame {
+      XCTAssertLessThanOrEqual(actionFrame.maxY, keyboardFrame.minY,
+        "Page actions must remain above the visible keyboard")
+    } else {
+      XCTAssertGreaterThan(actionFrame.midY, appFrame.maxY - appFrame.height * 0.2,
+        "A page action with no keyboard must remain in the lower portion of the sheet")
+    }
+  }
+
   func openNativeModelsSettings() throws {
     let more = app.buttons.matching(NSPredicate(format: "identifier IN %@", [
       "native-e2e.session-menu", "native-e2e.sidebar.more-tools",

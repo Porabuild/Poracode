@@ -23,7 +23,11 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(open.waitForExistence(timeout: 10)); open.tap()
     let search = app.searchFields.firstMatch
     XCTAssertTrue(search.waitForExistence(timeout: 10))
+    try assertNativePageActionAtLowerEdge(app.buttons["native-e2e.settings.models.actions"],
+      pageID: "native-e2e.settings.models.list", name: "models-initial")
     searchModels("pro-fast")
+    let keyboard = app.keyboards.firstMatch
+    XCTAssertTrue(keyboard.waitForExistence(timeout: 5), "Exercise avoidance with the software keyboard visible")
     let family = app.buttons["native-e2e.settings.models.row.family-fixture:pro"]
     XCTAssertTrue(family.waitForExistence(timeout: 5))
     do {
@@ -38,6 +42,9 @@ extension NativeFamilyJourneyUITests {
     }
     XCTAssertTrue(family.isHittable)
     XCTAssertGreaterThanOrEqual(family.frame.height, 44)
+    XCTAssertLessThanOrEqual(family.frame.maxY, keyboard.frame.minY)
+    try assertNativePageActionAtLowerEdge(app.buttons["native-e2e.settings.models.actions"],
+      pageID: "native-e2e.settings.models.list", name: "models-keyboard")
     modelVisibilityProof("keyboard-search-results")
     family.tap()
     try await poll { family.value as? String == "Hidden" && family.isEnabled }
@@ -45,12 +52,14 @@ extension NativeFamilyJourneyUITests {
     family.tap()
     try await poll { family.value as? String == "Visible" && family.isEnabled }
     try dismissModelVisibilitySearch()
+    try await poll { !self.app.keyboards.firstMatch.exists }
     let count = app.descendants(matching: .any).matching(identifier: "native-e2e.settings.models.count").firstMatch
     let list = app.descendants(matching: .any).matching(identifier: "native-e2e.settings.models.list").firstMatch
     for _ in 0..<4 where !count.exists { list.swipeDown() }
     XCTAssertTrue(count.waitForExistence(timeout: 5))
     let total = try XCTUnwrap(modelVisibilityCount(count).last)
     let actions = app.buttons["native-e2e.settings.models.actions"]
+    try assertNativePageActionAtLowerEdge(actions, pageID: "native-e2e.settings.models.list", name: "models-search-dismissed")
     XCTAssertTrue(actions.isHittable); actions.tap(); app.buttons["Hide all"].tap()
     try await poll { self.modelVisibilityCount(count) == [0, total] && actions.isEnabled }
     actions.tap(); app.buttons["Show all"].tap()
@@ -147,13 +156,18 @@ extension NativeFamilyJourneyUITests {
       let end = start.withOffset(.init(dx: 0, dy: max(-limit, min(limit, distance))))
       start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.1)
     }
-    XCTAssertTrue(element.isHittable)
+    let hittable = element.isHittable
+    if !hittable {
+      let keyboard = app.keyboards.firstMatch
+      print("Model reveal failure: element=\(element.frame), list=\(list.frame), search=\(app.searchFields.firstMatch.frame), keyboard=\(keyboard.exists ? keyboard.frame : .zero), actions=\(app.buttons["native-e2e.settings.models.actions"].frame)")
+      modelVisibilityProof("reveal-failure")
+    }
+    XCTAssertTrue(hittable)
   }
 
   private func dismissModelVisibilitySearch() throws {
-    // Current iOS names its circular search-dismissal control "close";
-    // earlier systems use the standard Cancel action.
-    let actions = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "close"]))
+    // Native search uses Cancel, Close or close across these presentations.
+    let actions = app.buttons.matching(NSPredicate(format: "label IN %@", ["Cancel", "Close", "close"]))
     if let button = actions.allElementsBoundByIndex.first(where: \.isHittable) {
       button.tap()
     } else {

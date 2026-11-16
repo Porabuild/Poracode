@@ -42,7 +42,8 @@ struct SettingsModelVisibilityView: View {
       .accessibilityIdentifier("native-e2e.settings.models.list")
       .poracodeDrawerListStyle()
       .poracodeReadableListMargins(740)
-      .searchable(text: $search, prompt: Text(ModelVisibilityStrings.search))
+      .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always),
+        prompt: Text(ModelVisibilityStrings.search))
       .navigationTitle(SettingsUIStrings.visibleModels)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
@@ -63,6 +64,7 @@ struct SettingsModelVisibilityView: View {
           if controller.isSaving { ProgressView().padding() }
         }
       }
+      .poracodeUseKeyboardLayoutGuide()
       .overlay(alignment: .bottom) {
         if controller.composition.mutationFailure != nil || controller.composition.mutationNotice == .ambiguousRefreshFailed {
           SettingsMutationBanner(notice: controller.composition.mutationNotice,
