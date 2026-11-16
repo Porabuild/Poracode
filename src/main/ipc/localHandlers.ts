@@ -368,6 +368,7 @@ export function createLocalIpcHandlers(
     dbGetThreadTokenUsage: (payload) => callDatabase("dbGetThreadTokenUsage", payload),
     dbGetProjectNotes: (payload) => callDatabase("dbGetProjectNotes", payload),
     dbSetProjectNotes: (payload) => callDatabase("dbSetProjectNotes", payload),
+    memoryCommand: (payload) => callDatabase("memoryCommand", payload),
     getAutomationsSnapshot: (payload) => callService("getAutomationsSnapshot", payload),
     getScheduleRunInbox: (payload) => callService("getScheduleRunInbox", payload),
     updateScheduleRunState: (payload) => callService("updateScheduleRunState", payload),

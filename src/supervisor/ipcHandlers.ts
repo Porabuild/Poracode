@@ -194,6 +194,7 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       generation.cancelScheduleCompletionEvaluation(id),
     generateCommitMessage: (payload) => generation.generateCommitMessage(payload),
     generateTitle: (payload) => generation.generateTitle(payload),
+    generateMemoryText: (payload) => generation.generateMemoryText(payload),
     generatePrSummary: (payload) => generation.generatePrSummary(payload),
     createExperimentWorktrees: (payload) => git.createExperimentWorktrees(payload),
     removeExperimentWorktrees: (payload) => runtime.removeExperimentWorktrees(payload),

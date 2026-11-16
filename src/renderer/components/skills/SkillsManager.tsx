@@ -25,6 +25,7 @@ import { SkillImportModal } from "./SkillImportModal";
 import { SkillMarketplaceModal } from "./SkillMarketplaceModal";
 import { SkillViewModal } from "./SkillViewModal";
 import { groupSkills } from "./skillGrouping";
+import { MemorySkillSuggestions } from "./MemorySkillSuggestions";
 import { hostGlobalScopeLabel, resolveSkillTarget, skillTargetRequest } from "./skillTargets";
 import { useSkills } from "./useSkills";
 import {
@@ -401,6 +402,7 @@ export function SkillsManager(props: {
           provider copies. Its files are preserved so you can enable it again.
         </Trans>
       </p>
+      <MemorySkillSuggestions />
 
       {error ? (
         <div

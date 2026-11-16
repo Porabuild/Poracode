@@ -16,6 +16,7 @@ import type {
   ForgeWritePrReviewGuidePayload,
   ForgeRepository,
 } from "@/shared/contracts";
+import type { GenerateMemoryTextPayload, GenerateMemoryTextResult } from "@/shared/memory";
 import { evaluateScheduleCompletion } from "../scheduleCompletionEvaluator";
 import { generateCommitMessage } from "../commitMessageGenerator";
 import {
@@ -24,6 +25,8 @@ import {
 } from "../contextExtractor";
 import { generatePrSummary } from "../prSummaryGenerator";
 import { generateTitle } from "../titleGenerator";
+import { runOneShotPromptWithFallback } from "../oneShotPromptRunner";
+import { resolveOneShotSelection } from "../agents/base";
 import { judgeExperiment } from "../experimentJudge";
 import { generateReviewGuide } from "../reviewGuideGenerator";
 import type { ReviewGuideSnapshot } from "../forges/reviewGuides";
@@ -114,6 +117,24 @@ export class GenerationService {
         ),
       ),
     };
+  }
+
+  async generateMemoryText(payload: GenerateMemoryTextPayload): Promise<GenerateMemoryTextResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    const selection = resolveOneShotSelection(adapter, payload.selection, () => {
+      return new Error(`No default one-shot model configured for ${adapter.label}`);
+    });
+    const text = await this.withHelperLease("memory", () =>
+      runOneShotPromptWithFallback({
+        location: payload.projectLocation,
+        adapter,
+        selection,
+        timeoutMs: 45_000,
+        logTag: "memory",
+        attempts: [{ level: "memory", buildPrompt: () => payload.prompt }],
+      }),
+    );
+    return { text };
   }
 
   async generatePrSummary(payload: GeneratePrSummaryPayload): Promise<GeneratePrSummaryResult> {

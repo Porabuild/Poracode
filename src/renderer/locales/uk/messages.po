@@ -325,6 +325,13 @@ msgstr "{0} вийшов із системи."
 msgid "{0} MB download"
 msgstr "Завантаження: {0} МБ"
 
+#. placeholder {0}: status.entryCount
+#. placeholder {1}: status.pendingCandidates
+#. placeholder {2}: status.suggestionCount
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "{0} memories · {1} waiting · {2} skill suggestions"
+msgstr "{0} спогадів · {1} очікують · {2} запропонованих навичок"
+
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "{0} models"
@@ -556,6 +563,14 @@ msgstr "{commentCount, plural, one {# коментар} few {# коментар�
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {Знайдено # агент} few {Знайдено # агенти} many {Знайдено # агентів} other {Знайдено # агентів}}"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} saved"
+msgstr "збережено: {count}"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} waiting"
+msgstr "очікує: {count}"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
@@ -1070,6 +1085,11 @@ msgstr "Один із кандидатів більше не перебуває 
 msgid "A Cursor profile with this name already exists."
 msgstr "Профіль Cursor із таким іменем уже існує."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A delete never waits on a model. Text is saved first, then read later."
+msgstr "Видалення не чекає на модель. Текст спочатку зберігається, потім читається."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "A device failed to start."
 msgstr "Не вдалося запустити пристрій."
@@ -1328,6 +1348,7 @@ msgstr "Метрика активності"
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1342,6 +1363,10 @@ msgstr "Додати {0}"
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Додати локальний проєкт"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Add a memory"
+msgstr "Додати спогад"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Add a password or import one from another browser."
@@ -1623,6 +1648,14 @@ msgstr "Додаткові налаштування"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Оголосіть власний базовий URL, наприклад зворотний проксі або тунель. Залиште порожнім для автоматичного режиму."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (2 min)"
+msgstr "Після завершення ходу (2 хв)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (90 sec)"
+msgstr "Після завершення ходу (90 с)"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -1961,6 +1994,10 @@ msgstr "Застосовується завжди"
 msgid "Always excluded"
 msgstr "Завжди виключено"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Always use bun"
+msgstr "Завжди використовувати bun"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Amber"
 msgstr "Бурштиновий"
@@ -2134,6 +2171,7 @@ msgstr "Застосувати пресет провайдера"
 msgid "Approval or reply required from you."
 msgstr "Потрібне ваше підтвердження або відповідь."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 msgid "Approve"
 msgstr "Схвалити"
@@ -2296,6 +2334,11 @@ msgstr "Запитання недоступні: жоден агент не мо
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Поставити запитання"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Ask sessions not to write a separate provider memory on top of this one."
+msgstr "Просити сеанси не писати окрему пам'ять провайдера поверх цієї."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
@@ -3102,6 +3145,7 @@ msgstr "Цей вибір моделі не можна використовув�
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3235,6 +3279,11 @@ msgstr "Елементи керування захопленням та вигл
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Capture audio from this device."
 msgstr "Запис аудіо з цього пристрою."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture new notes after turns finish."
+msgstr "Запам'ятовувати нові нотатки після ходу."
 
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
@@ -5299,6 +5348,10 @@ msgstr "Не вдалося встановити {0}."
 msgid "Couldn't list repositories."
 msgstr "Не вдалося отримати список репозиторіїв."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't load memory."
+msgstr "Не вдалося завантажити пам'ять."
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
@@ -5361,6 +5414,7 @@ msgid "Couldn't start the camera"
 msgstr "Не вдалося запустити камеру"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
 msgstr "Не вдалося оновити навичку."
 
@@ -5838,6 +5892,15 @@ msgstr "Власне контекстне вікно"
 msgid "Custom endpoint"
 msgstr "Власна кінцева точка"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Custom idle delay"
+msgstr "Власна пауза"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Custom idle minutes"
+msgstr "Власні хвилини простою"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
 msgstr "власний шлях"
@@ -6014,6 +6077,7 @@ msgstr "Делегуйте роботу іншим ШІ-агентам."
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -6225,6 +6289,7 @@ msgid "Describe what the agent should do"
 msgstr "Опишіть, що має зробити агент"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 msgid "Description"
 msgstr "Опис"
@@ -6676,6 +6741,7 @@ msgid "Discovery complete"
 msgstr "Пошук завершено"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6777,6 +6843,11 @@ msgstr "Завершено ({doneCount})"
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 msgid "Done ({remainingSeconds}s)"
 msgstr "Завершено ({remainingSeconds}с)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Done, archive, unload, and delete still capture immediately when allowed."
+msgstr "Завершення, архів, вивантаження й видалення й далі запам'ятовують одразу, якщо це дозволено."
 
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
 msgid "Download {fileName}"
@@ -6893,6 +6964,15 @@ msgstr "Перетягніть для зміни порядку; подвійн�
 msgid "Draggable model"
 msgstr "Модель для перетягування"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream now"
+msgstr "Упорядкувати зараз"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream schedule"
+msgstr "Розклад упорядкування"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -6965,12 +7045,15 @@ msgid "Earlier text"
 msgstr "Попередній текст"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Редагувати"
@@ -7071,6 +7154,10 @@ msgstr "Змінити заголовок"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "Змінити:"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Edited by you"
+msgstr "Змінено вами"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -7459,6 +7546,10 @@ msgstr "Кожні {every} год."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every {every} minutes"
 msgstr "Кожні {every} хв."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Every 3 days"
+msgstr "Кожні 3 дні"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
@@ -9434,6 +9525,11 @@ msgstr "Неактивно"
 msgid "Include in sync"
 msgstr "Додати до синхронізації"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include memory when a thread starts."
+msgstr "Додавати пам'ять на старті треду."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
 msgstr "Ураховує першу спробу."
@@ -10220,6 +10316,16 @@ msgstr "Основна модель + Допоміжна модель"
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
 #~ msgstr "Ціни основної та допоміжної моделей наведено за 1 млн токенів кожної моделі. Діапазони охоплюють варіанти моделі."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Learn from chats"
+msgstr "Вчитися з чатів"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Learn from this thread"
+msgstr "Вчитися з цього треду"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
 #~ msgstr "Вивчена пам'ять маршрутизації"
@@ -10839,6 +10945,10 @@ msgstr "Кероване встановлення Hex недоступне на 
 msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
 msgstr "Кероване встановлення недоступне на цьому хості. Використовуйте сумісний зовнішній рушій Hex або виберіть вбудовану транскрипцію."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Managed on this host"
+msgstr "Керується на цьому хості"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
 #~ msgstr "Керовані навички"
@@ -10847,6 +10957,10 @@ msgstr "Кероване встановлення недоступне на ць
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Manual connection"
 msgstr "Ручне підключення"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manual only"
+msgstr "Лише вручну"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -11143,6 +11257,24 @@ msgstr "mcp.json вказує версію Agent Plugins, яку ця збірк
 msgid "Medium"
 msgstr "Середній"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memories"
+msgstr "Спогади"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
+msgid "Memory"
+msgstr "Пам'ять"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Memory settings"
+msgstr "Налаштування пам'яті"
+
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMergeAction.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeControls.tsx
 msgid "Merge"
@@ -11155,6 +11287,11 @@ msgstr "Злити зміни {crownedLabel} у {mergeTarget}?"
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "Злити та видалити"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Merge and retire notes. Skipped when nothing new was captured."
+msgstr "Об'єднує й прибирає нотатки. Пропускається, якщо нового немає."
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -11758,6 +11895,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
@@ -11862,6 +12000,10 @@ msgstr "Потребує відповіді"
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Нейтрально"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Never capture deleted threads"
+msgstr "Не запам'ятовувати видалені треди"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -12458,6 +12600,10 @@ msgstr "Немає серверів MCP, що відповідають пошу�
 msgid "No MCP tools used yet."
 msgstr "Інструменти MCP ще не використовувалися."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "No memories yet."
+msgstr "Спогадів ще немає."
+
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
 msgstr "Повідомлень поки немає"
@@ -12901,6 +13047,7 @@ msgstr "Спостережено"
 msgid "off"
 msgstr "вимк"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -12945,6 +13092,7 @@ msgstr "Спочатку старі"
 msgid "on"
 msgstr "увімк"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "У день"
@@ -12962,6 +13110,10 @@ msgstr "На початку години"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "Один раз: {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Once per day"
+msgstr "Раз на день"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One Header: value pair per line"
@@ -12989,6 +13141,14 @@ msgstr "Одноразовий токен сполучення"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Онлайн"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only on archive or done"
+msgstr "Лише під час архівації або завершення"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only when a thread is done or archived"
+msgstr "Лише коли тред завершено або архівовано"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -14278,6 +14438,10 @@ msgstr "Можливо, Poracode очікує збережені дані або
 msgid "Poracode only"
 msgstr "Лише в Poracode"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
+msgstr "Poracode пам'ятає вподобання й виправлення між провайдерами. Запис починається після ходу. Щоденний прохід їх об'єднує. Навички з повторюваної роботи лишаються пропозиціями, доки ви їх не схвалите."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "Маніфест середовища виконання Poracode SSH відсутній або недійсний: {path}"
@@ -14412,6 +14576,11 @@ msgstr "Заголовок PR (залиште порожнім для автоґ
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "Збій хука pre-commit"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prefer Poracode memory"
+msgstr "Надавати перевагу пам'яті Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Preferred routing order"
@@ -15876,6 +16045,11 @@ msgstr "Зміну порядку скасовано."
 msgid "Repeat"
 msgstr "Повторювати"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Repeated workflows appear in Settings → Skills for you to edit and approve."
+msgstr "Повторювані сценарії з'являються в Налаштуваннях → Навички, щоб ви їх змінили й схвалили."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Report a bug or suggest an idea."
 msgstr "Повідомте про помилку або запропонуйте ідею."
@@ -16773,6 +16947,7 @@ msgstr "Насиченість та яскравість"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -16787,6 +16962,7 @@ msgstr "Насиченість та яскравість"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -16853,6 +17029,10 @@ msgstr "Зберегти файл"
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "Зберегти зображення"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Save learnings before deleting"
+msgstr "Зберігати висновки перед видаленням"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
@@ -17650,6 +17830,10 @@ msgstr "Спільні"
 msgid "Shared login owner"
 msgstr "Власник спільного входу"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Shared notes across providers"
+msgstr "Спільні нотатки для всіх провайдерів"
+
 #. placeholder {0}: owner.displayName ?? owner.id
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shares {0}"
@@ -18005,9 +18189,7 @@ msgstr "Увійдіть на спареному настільному комп
 msgid "Sign in required"
 msgstr "Потрібен вхід"
 
-#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
-#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "Увійти в {0}"
@@ -18867,6 +19049,11 @@ msgstr "Рахунок за підписку"
 msgid "Succeeded"
 msgstr "Успішно"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Suggest skills"
+msgstr "Пропонувати навички"
+
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "Suggested command — review before use"
 msgstr "Запропонована команда — перегляньте перед використанням"
@@ -18875,6 +19062,7 @@ msgstr "Запропонована команда — перегляньте п�
 msgid "Suggested command inserted into the composer."
 msgstr "Запропоновану команду вставлено в композер."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "Пропозиції"
@@ -19670,6 +19858,10 @@ msgstr "Конфігурація сервера MCP недопустима аб�
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "Сервер MCP недопустимий."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "The memory catalog is edited on the desktop that owns this host."
+msgstr "Каталог пам'яті редагується на комп'ютері, якому належить цей хост."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 #~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
@@ -22025,6 +22217,12 @@ msgstr "Використовувати перегляд наживо"
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Використовуйте малі латинські літери, цифри та дефіси."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use memory"
+msgstr "Використовувати пам'ять"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -22392,6 +22590,11 @@ msgstr "Дочекайтеся завершення запуску треда, �
 msgid "Wait for the thread to finish starting."
 msgstr "Зачекайте, поки тред завершить запуск."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Wait this long after a turn finishes."
+msgstr "Чекати стільки після завершення ходу."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "Очікування"
@@ -22531,6 +22734,7 @@ msgid "Weekdays at 8:00 AM"
 msgstr "У будні о 8:00"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Weekly"
 msgstr "Щотижня"
 
@@ -22581,6 +22785,11 @@ msgstr "Що нового"
 msgid "What's new in Poracode, newest first."
 msgstr "Що нового в Poracode, спочатку найновіші."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When a thread is deleted"
+msgstr "Коли тред видаляють"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "Коли увімкнено, пошук враховує записи <0>.gitignore</0>."
@@ -22593,6 +22802,11 @@ msgstr "Коли посилання відкриваються у вкладці
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "When off, suppress notifications from terminal threads whose status comes from the OSC fallback (no CLI hook plugin)."
 msgstr "Коли вимкнено, придушувати сповіщення від термінальних тредів, статус яких надходить із резервного механізму OSC (без плагіна хуків CLI)."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When to capture"
+msgstr "Коли запам'ятовувати"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

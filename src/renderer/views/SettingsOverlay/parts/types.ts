@@ -18,6 +18,7 @@ export type SettingsSection =
   | "shortcuts"
   | "agents"
   | "skills"
+  | "memory"
   | "mcpServers"
   | "plugins"
   | "crews"

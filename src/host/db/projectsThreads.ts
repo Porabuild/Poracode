@@ -4,6 +4,7 @@ import { getSqlite } from "./connection";
 import { dbAssertNoRunningCheckpointRevert } from "./checkpointRevertOperations";
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
+import { notifyMemoryThreadDeleting } from "./memoryDeleteHook";
 import { notifyThreadsDeleted } from "./deletedThreadNotifications";
 import type { CatalogIntentCommittedSignal } from "./catalogIntents";
 import {
@@ -386,6 +387,7 @@ export function dbDeleteThread(threadId: string): void {
   // would let the revert's file-restore phase run into a deleted project, so
   // the delete refuses loudly until the operation settles.
   dbAssertNoRunningCheckpointRevert([threadId]);
+  notifyMemoryThreadDeleting(threadId);
   getSqlite().prepare("DELETE FROM threads WHERE id = ?").run(threadId);
   // The single-statement delete has committed; announce it so the composition's
   // reclaimer can retire the thread's attachment directory. A later bookkeeping
@@ -410,6 +412,7 @@ export function dbDeleteProject(projectId: string): void {
   // Same custody rule as dbDeleteProject's per-thread counterpart: any thread
   // of the project with a running revert blocks the whole project deletion.
   dbAssertNoRunningCheckpointRevert(threadIds);
+  for (const threadId of threadIds) notifyMemoryThreadDeleting(threadId);
   // Notes are not foreign-key cascaded. A failure in either deletion must
   // retain the rows backing pending canonical events until a successful retry.
   sqlite.transaction(() => {

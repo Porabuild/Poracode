@@ -1067,6 +1067,93 @@ export const DATABASE_MIGRATIONS = [
       addColumnIfMissing(sqlite, "projects", "pinned_branches", "TEXT");
     },
   },
+  {
+    version: 70,
+    name: "poracode memory",
+    // Additive tables. Older builds refuse this schema version, so they never
+    // read the tables. Dropping them on a code rollback loses only memory rows,
+    // which that older build did not own.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS memory_entries (
+          id TEXT PRIMARY KEY,
+          scope TEXT NOT NULL,
+          project_id TEXT,
+          category TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          body TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          polarity TEXT NOT NULL,
+          quote TEXT,
+          locked_by_user INTEGER NOT NULL DEFAULT 0,
+          pinned INTEGER NOT NULL DEFAULT 0,
+          archived INTEGER NOT NULL DEFAULT 0,
+          usage_count INTEGER NOT NULL DEFAULT 0,
+          last_used_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          source TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_memory_entries_scope
+          ON memory_entries (scope, project_id, archived);
+        CREATE TABLE IF NOT EXISTS memory_candidates (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT,
+          project_id TEXT,
+          scope TEXT NOT NULL,
+          category TEXT NOT NULL,
+          statement TEXT NOT NULL,
+          quote TEXT,
+          polarity TEXT NOT NULL,
+          confidence REAL NOT NULL,
+          explicit INTEGER NOT NULL DEFAULT 0,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_capture_spool (
+          id TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL,
+          project_id TEXT,
+          text TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_thread_state (
+          thread_id TEXT PRIMARY KEY,
+          mode TEXT NOT NULL DEFAULT 'learn',
+          cursor INTEGER NOT NULL DEFAULT -1,
+          next_attempt_at TEXT,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_dream_runs (
+          id TEXT PRIMARY KEY,
+          scope_key TEXT NOT NULL,
+          started_at TEXT NOT NULL,
+          finished_at TEXT,
+          report_json TEXT NOT NULL,
+          undo_json TEXT,
+          undone INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS memory_skill_suggestions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          body TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          availability TEXT NOT NULL,
+          why TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS memory_meta (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -1256,6 +1343,9 @@ const REQUIRED_COLUMNS = {
     "candidate_json",
     "state",
   ],
+  memory_entries: ["id", "scope", "summary", "confidence", "locked_by_user", "archived"],
+  memory_capture_spool: ["id", "thread_id", "text"],
+  memory_thread_state: ["thread_id", "mode", "cursor"],
   projects: [
     "id",
     "name",

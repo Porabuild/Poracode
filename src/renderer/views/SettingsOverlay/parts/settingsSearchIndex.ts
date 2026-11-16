@@ -547,6 +547,65 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     keywords: "glob hide ignore file mention exclude pattern filter",
   },
 
+  // Memory
+  {
+    section: "memory",
+    anchor: "memory.enabled",
+    title: msg`Use memory`,
+    description: msg`Include memory when a thread starts.`,
+    keywords: "memory recall remember preferences injection session start enabled",
+  },
+  {
+    section: "memory",
+    anchor: "memory.learning",
+    title: msg`Learn from chats`,
+    description: msg`Capture new notes after turns finish.`,
+    keywords: "memory learn capture notes idle turn finish",
+  },
+  {
+    section: "memory",
+    anchor: "memory.captureTiming",
+    title: msg`When to capture`,
+    description: msg`Done, archive, unload, and delete still capture immediately when allowed.`,
+    keywords: "memory capture timing settle idle archive done",
+  },
+  {
+    section: "memory",
+    anchor: "memory.captureCustomMinutes",
+    title: msg`Custom idle minutes`,
+    description: msg`Wait this long after a turn finishes.`,
+    keywords: "memory custom delay minutes idle settle",
+    conditional: true,
+  },
+  {
+    section: "memory",
+    anchor: "memory.deletePolicy",
+    title: msg`When a thread is deleted`,
+    description: msg`A delete never waits on a model. Text is saved first, then read later.`,
+    keywords: "memory delete forget spool archive",
+  },
+  {
+    section: "memory",
+    anchor: "memory.dreamCadence",
+    title: msg`Dream schedule`,
+    description: msg`Merge and retire notes. Skipped when nothing new was captured.`,
+    keywords: "memory dream merge daily weekly consolidate",
+  },
+  {
+    section: "memory",
+    anchor: "memory.suggestSkills",
+    title: msg`Suggest skills`,
+    description: msg`Repeated workflows appear in Settings → Skills for you to edit and approve.`,
+    keywords: "memory skill suggestion approve workflow",
+  },
+  {
+    section: "memory",
+    anchor: "memory.suppressNative",
+    title: msg`Prefer Poracode memory`,
+    description: msg`Ask sessions not to write a separate provider memory on top of this one.`,
+    keywords: "memory native provider suppress duplicate",
+  },
+
   // Skills
   {
     section: "skills",

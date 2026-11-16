@@ -33,6 +33,7 @@ import { COMPUTER_USE_MCP_ID } from "./composerMcpServers";
 import type { ComposerMcpServerDescriptor } from "./composerMcpServers";
 import type { ProviderSessionMenuAction } from "../providers/providerSessionControls";
 import { ComposerSessionActionsMenu } from "./ComposerSessionActionsMenu";
+import { MemoryDesktopSubmenu, MemoryMenuButton, MemoryMenuPanel } from "./MemoryAddMenu";
 import type { ComposerControl } from "../thread/ThreadComposer";
 import {
   ComposerMcpServersMobileList,
@@ -56,7 +57,7 @@ export type ComposerMcpMenuItem = {
 const EMPTY_PLUGIN_LABELS: Readonly<Record<string, string>> = {};
 
 /** Mobile sheet drill-in target: the root list swaps to a sub-list in place. */
-type MobileView = "root" | "plugins" | "mcp" | "session";
+type MobileView = "root" | "plugins" | "mcp" | "session" | "memory";
 
 export function ComposerAddMenu(props: {
   /** First-party plugin MCP servers, listed under "Plugins". */
@@ -102,6 +103,8 @@ export function ComposerAddMenu(props: {
    */
   pluginLabels?: Readonly<Record<string, string>>;
   sessionActions?: readonly ProviderSessionMenuAction[];
+  /** When set, the memory menu can turn learning off for this thread. */
+  threadId?: string;
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse, experiment } = props;
   const customMcpServers = props.customMcpServers ?? [];
@@ -137,17 +140,6 @@ export function ComposerAddMenu(props: {
     visiblePlugins.filter((server) => server.enabled).length +
     (showComputerUse && computerUse.enabled ? 1 : 0);
   const enabledMcpServerCount = customMcpServers.filter((server) => server.enabled).length;
-
-  if (
-    !showFileOption &&
-    !hasPluginsMenu &&
-    !hasMcpServersMenu &&
-    !experiment &&
-    !props.planControl &&
-    !sessionActions.length &&
-    !props.onOpenSideChat
-  )
-    return null;
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -258,6 +250,10 @@ export function ComposerAddMenu(props: {
           {props.planControl.isSelected ? <Check className="size-4 shrink-0" aria-hidden /> : null}
         </button>
       ) : null}
+      <MemoryMenuButton
+        {...(props.threadId ? { threadId: props.threadId } : {})}
+        onOpen={() => setMobileView("memory")}
+      />
       {experiment ? (
         <button
           type="button"
@@ -407,6 +403,12 @@ export function ComposerAddMenu(props: {
             onBack={() => setMobileView("root")}
             onManaged={closeMenu}
           />
+        ) : mobileView === "memory" ? (
+          <MemoryMenuPanel
+            {...(props.threadId ? { threadId: props.threadId } : {})}
+            onBack={() => setMobileView("root")}
+            onClose={closeMenu}
+          />
         ) : (
           mobileRootList
         )}
@@ -501,6 +503,11 @@ export function ComposerAddMenu(props: {
           (hasPluginsMenu || hasMcpServersMenu) ? (
             <Separator />
           ) : null}
+          <MemoryDesktopSubmenu
+            {...(props.threadId ? { threadId: props.threadId } : {})}
+            {...(stackSubmenus ? { stackClassName: stackedPopoverClassName } : {})}
+            onClose={closeMenu}
+          />
           {hasPluginsMenu ? (
             <Dropdown.SubmenuTrigger>
               <Dropdown.Item id="plugins" textValue={t`Plugins`}>

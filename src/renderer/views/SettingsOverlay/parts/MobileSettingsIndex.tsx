@@ -16,6 +16,7 @@ import {
   Settings2,
   ShieldCheck,
   Sparkles,
+  Brain,
   TerminalSquare,
   UsersRound,
   type LucideIcon,
@@ -100,6 +101,13 @@ export function MobileSettingsIndex(props: {
         label: t`AI Helpers`,
         hint: t`Title, commit, and conflict models`,
         onPress: () => props.onOpenSection("ai"),
+      },
+      {
+        key: "memory",
+        icon: Brain,
+        label: t`Memory`,
+        hint: t`Shared notes across providers`,
+        onPress: () => props.onOpenSection("memory"),
       },
       {
         key: "agentsGeneral",

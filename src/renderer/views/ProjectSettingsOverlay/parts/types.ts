@@ -3,5 +3,6 @@ export type ProjectSettingsSection =
   | "worktrees"
   | "actions"
   | "skills"
+  | "memory"
   | "mcp"
   | "search";

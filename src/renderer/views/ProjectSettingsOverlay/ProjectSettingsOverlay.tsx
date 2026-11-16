@@ -12,6 +12,7 @@ import { ActionsSection } from "./parts/ActionsSection";
 import { SearchSection } from "./parts/SearchSection";
 import { McpSection } from "./parts/McpSection";
 import { SkillsSection } from "./parts/SkillsSection";
+import { MemorySettings } from "@/renderer/views/SettingsOverlay/parts/MemorySettings";
 import type { ProjectSettingsSection } from "./parts/types";
 
 export { resolveActionIcon } from "@/renderer/utils/actionIcons";
@@ -54,9 +55,11 @@ export function ProjectSettingsOverlay(props: { projectId: string; onClose: () =
           ? t`Actions`
           : activeSection === "skills"
             ? t`Skills`
-            : activeSection === "mcp"
-              ? t`MCP Servers`
-              : t`Search`;
+            : activeSection === "memory"
+              ? t`Memory`
+              : activeSection === "mcp"
+                ? t`MCP Servers`
+                : t`Search`;
 
   const sectionContent =
     activeSection === "general" ? (
@@ -67,6 +70,10 @@ export function ProjectSettingsOverlay(props: { projectId: string; onClose: () =
       <ActionsSection projectId={projectId} />
     ) : activeSection === "skills" ? (
       <SkillsSection projectId={projectId} />
+    ) : activeSection === "memory" ? (
+      <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
+        <MemorySettings projectId={projectId} />
+      </div>
     ) : activeSection === "mcp" ? (
       <McpSection projectId={projectId} />
     ) : activeSection === "search" ? (

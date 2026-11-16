@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultMemorySettings, memorySettingsSchema } from "./memory";
 import {
   settingsStringListSchema,
   settingsUnknownRecordSchema,
@@ -777,6 +778,11 @@ export const sharedSettingsSchema = z.object({
    * mention); this is the global guidance text shared across every such thread.
    */
   crossagentRoutingGuide: z.string(),
+  /**
+   * Shared memory controls. Missing on older settings files; defaults keep
+   * learning on. Older builds preserve the object without reading it.
+   */
+  memory: memorySettingsSchema.default(defaultMemorySettings),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -945,6 +951,7 @@ export const defaultSharedSettings: SharedSettings = {
   },
   hostResourceAdmission: { ...DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS },
   crossagentRoutingGuide: "",
+  memory: defaultMemorySettings,
 };
 
 function parseSettingOrDefault<T>(schema: z.ZodType<T>, value: unknown, fallback: T): T {

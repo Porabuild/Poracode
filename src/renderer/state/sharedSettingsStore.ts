@@ -31,6 +31,7 @@ import {
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
+import { memorySettingsSchema, type MemorySettings } from "@/shared/memory";
 import {
   isThreadConfigCrewEqual,
   MAX_SAVED_CREWS,
@@ -106,6 +107,7 @@ interface SharedSettingsState extends SharedSettings {
     effort: string,
     fast: boolean,
   ) => void;
+  setMemorySettings: (patch: Partial<MemorySettings>) => void;
   setConflictResolverPresentationMode: (mode: ThreadPresentationMode) => void;
   setWslCommitGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
   setWslTitleGenConfig: (provider: string, model: string, effort: string, fast: boolean) => void;
@@ -555,6 +557,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
       experimentJudgeEffort,
       experimentJudgeFast,
     });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setMemorySettings: (patch) => {
+    const memory = memorySettingsSchema.parse({ ...get().memory, ...patch });
+    set({ memory });
     persistSettings(selectSharedSettings(get()));
   },
   setConflictResolverPresentationMode: (conflictResolverPresentationMode) => {
@@ -1334,6 +1341,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     experimentJudgeModel: state.experimentJudgeModel,
     experimentJudgeEffort: state.experimentJudgeEffort,
     experimentJudgeFast: state.experimentJudgeFast,
+    memory: state.memory,
     conflictResolverPresentationMode: state.conflictResolverPresentationMode,
     wslCommitGenProvider: state.wslCommitGenProvider,
     wslCommitGenModel: state.wslCommitGenModel,

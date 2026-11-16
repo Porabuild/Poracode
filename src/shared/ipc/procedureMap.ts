@@ -18,6 +18,7 @@ import { scheduleProcedures } from "./procedures/schedules";
 import { skillProcedures } from "./procedures/skills";
 import { projectTreeProcedures } from "./procedures/projectTree";
 import { sessionImportProcedures } from "./procedures/sessionImport";
+import { memoryProcedures } from "./procedures/memory";
 import { settingsProcedures } from "./procedures/settings";
 import { sshProcedures } from "./procedures/ssh";
 import { threadProcedures } from "./procedures/thread";
@@ -53,6 +54,7 @@ export const groupedIpcProcedures = {
   agentCredentials: agentCredentialProcedures,
   modelProviders: modelProviderProcedures,
   sessionImport: sessionImportProcedures,
+  memory: memoryProcedures,
 } as const;
 
 export const ipcProcedureMap = {
@@ -82,6 +84,7 @@ export const ipcProcedureMap = {
   ...agentCredentialProcedures,
   ...modelProviderProcedures,
   ...sessionImportProcedures,
+  ...memoryProcedures,
 } as const;
 
 export type IpcProcedureMap = typeof ipcProcedureMap;
@@ -251,6 +254,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbGetThreadTokenUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
+  "memoryCommand",
   "getUpdateStatus",
   "checkForUpdate",
   "startUpdateDownload",

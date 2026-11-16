@@ -51,6 +51,15 @@ import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/setting
 import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
 import { observeSupervisorSettingsEditsEvent } from "./BackendSupervisorSettingsEdits";
 import { runThreadHousekeeping } from "./ThreadHousekeepingService";
+import {
+  handleMemoryCommand,
+  installMemoryDeleteHook,
+  runMemoryCapturePass,
+  setMemoryModelCaller,
+} from "@/host/memory/runtime";
+import { setMemorySettingsReader } from "@/host/memory/settingsReader";
+import { memoryDreamIntervalMs } from "@/shared/memory";
+import { dbCountPendingCandidates, dbMemoryMeta } from "@/host/db/memoryStore";
 
 export interface BackendDurableServicesOptions {
   appVersion: string;
@@ -133,6 +142,7 @@ export class BackendDurableServices {
   private housekeepingCancelled = false;
   /** Settled-or-in-flight boot sweep, joined by {@link dispose}. */
   private housekeepingRun: Promise<void> | null = null;
+  private memoryTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
     this.deviceWorkspace = new DeviceWorkspaceService(
@@ -366,6 +376,71 @@ export class BackendDurableServices {
     } else {
       this.attachmentReclaim = null;
     }
+    setMemorySettingsReader(() => this.options.getSharedSettings().memory);
+    installMemoryDeleteHook();
+    setMemoryModelCaller({
+      complete: (input) => this.completeMemoryPrompt(input),
+    });
+  }
+
+  private async completeMemoryPrompt(input: {
+    projectId: string | null;
+    purpose: "capture" | "dream";
+    prompt: string;
+  }): Promise<string> {
+    const settings = this.options.getSharedSettings().memory;
+    const provider = input.purpose === "dream" ? settings.dreamProvider : settings.captureProvider;
+    const model = input.purpose === "dream" ? settings.dreamModel : settings.captureModel;
+    const effort = input.purpose === "dream" ? settings.dreamEffort : settings.captureEffort;
+    const fast = input.purpose === "dream" ? settings.dreamFast : settings.captureFast;
+    const project = input.projectId ? dbGetProject(input.projectId) : dbGetProjects()[0];
+    if (!project) throw new Error("No project is available for a memory model call.");
+    const statuses = await this.options.supervisor.call("getAgentStatuses", { wslDistros: [] });
+    const agents = statuses.windows.filter(
+      (agent) => agent.installed !== false && agent.capabilities.supportsOneShot === true,
+    );
+    const preferred = ["claude", "codex", "gemini", "cursor"];
+    const agentKind =
+      provider !== "auto"
+        ? agents.find((agent) => agent.kind === provider)?.kind
+        : (preferred
+            .map((kind) => agents.find((agent) => agent.kind === kind)?.kind)
+            .find((kind) => kind !== undefined) ?? agents[0]?.kind);
+    if (!agentKind) throw new Error("No one-shot agent is available for memory.");
+    const result = await this.options.supervisor.call("generateMemoryText", {
+      projectLocation: project.location,
+      agentKind,
+      prompt: input.prompt,
+      ...(model
+        ? {
+            selection: {
+              model,
+              ...(effort ? { effort } : {}),
+              fast,
+            },
+          }
+        : {}),
+    });
+    return result.text;
+  }
+
+  private startMemory(): void {
+    const tick = () => {
+      if (this.disposed) return;
+      void runMemoryCapturePass().catch((error: unknown) => this.options.reportError?.(error));
+      void this.maybeDream().catch((error: unknown) => this.options.reportError?.(error));
+    };
+    this.memoryTimer = setInterval(tick, 20_000);
+    this.memoryTimer.unref?.();
+  }
+
+  private async maybeDream(): Promise<void> {
+    const settings = this.options.getSharedSettings().memory;
+    const interval = memoryDreamIntervalMs(settings);
+    if (!settings.learning || !interval || dbCountPendingCandidates() === 0) return;
+    const last = dbMemoryMeta("lastDreamAt");
+    if (last && Date.now() - Date.parse(last) < interval) return;
+    await handleMemoryCommand({ action: "dream" });
   }
 
   getSupervisorExtraEnv(): Record<string, string> {
@@ -407,6 +482,7 @@ export class BackendDurableServices {
   startBackgroundServices(): void {
     if (this.disposed || this.backgroundStarted) return;
     this.backgroundStarted = true;
+    this.startMemory();
     this.scheduleService.start();
     this.prWatchService.start();
     this.gitStateService.start();
@@ -508,6 +584,10 @@ export class BackendDurableServices {
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
     this.disposed = true;
+    if (this.memoryTimer) {
+      clearInterval(this.memoryTimer);
+      this.memoryTimer = null;
+    }
     // H4: cancel the sweep synchronously, before any join starts, and join its
     // in-flight operation in the same shutdown barrier. The composition stops
     // the supervisor concurrently, so a held retirement call settles promptly

@@ -6,6 +6,7 @@ import {
 import {
   closeDatabase,
   dbGetThread,
+  dbFindProjectByLocation,
   dbGetProject,
   dbMarkLiveThreadsInactive,
   dbTruncateThreadRuntimeAfter,
@@ -45,6 +46,7 @@ import {
   isInheritedThreadForkItem,
   readThreadForkInitialInstructions,
 } from "@/host/db/threadForks";
+import { launchMemoryInstructions } from "@/host/memory/runtime";
 import { HostDataFence } from "@/backend/ownership/hostDataFence";
 import {
   persistSupervisorEvent,
@@ -276,9 +278,21 @@ export class BackendHostCore {
           if (typeof threadId === "string" && threadId.length > 0) {
             armRuntimeThreadForLaunch(threadId);
           }
-          const initialInstructions = threadId
+          const forkInstructions = threadId
             ? readThreadForkInitialInstructions(threadId)
             : undefined;
+          const projectId = threadId
+            ? dbGetThread(threadId)?.projectId
+            : dbFindProjectByLocation(prepared.projectLocation)?.id;
+          let memoryInstructions: string | undefined;
+          try {
+            memoryInstructions = launchMemoryInstructions(threadId, projectId);
+          } catch (error) {
+            console.error("[memory] launch instructions skipped:", error);
+          }
+          const initialInstructions = [forkInstructions, memoryInstructions]
+            .filter((part): part is string => typeof part === "string" && part.length > 0)
+            .join("\n\n");
           return initialInstructions ? { ...prepared, initialInstructions } : prepared;
         },
         // Only the owning host database supplies grant-bearing launch intent.

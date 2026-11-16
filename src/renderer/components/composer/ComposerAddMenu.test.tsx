@@ -1,8 +1,10 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import type { MemoryStatus } from "@/shared/memory";
 import { Pencil } from "lucide-react";
 import { ComposerAddMenu } from "./ComposerAddMenu";
+import { memoryStatusLabel } from "./MemoryAddMenu";
 import {
   browserMcpServer,
   chromeMcpServer,
@@ -240,16 +242,16 @@ describe("ComposerAddMenu", () => {
     expect(screen.getByText("Browser")).toBeInTheDocument();
   });
 
-  it("renders nothing when no add actions are available", () => {
-    const { container } = render(
+  it("shows memory when the composer has no other add actions", () => {
+    render(
       <ComposerAddMenu mcpServers={[]} showFileOption={false} onPickFiles={vi.fn<() => void>()} />,
     );
-
-    expect(container).toBeEmptyDOMElement();
+    openMenu();
+    expect(screen.getByText("Memory")).toBeInTheDocument();
   });
 
-  it("renders nothing when the only MCP server is not visible", () => {
-    const { container } = render(
+  it("shows memory when the only MCP server is hidden", () => {
+    render(
       <ComposerAddMenu
         mcpServers={[
           {
@@ -264,7 +266,8 @@ describe("ComposerAddMenu", () => {
       />,
     );
 
-    expect(container).toBeEmptyDOMElement();
+    openMenu();
+    expect(screen.getByText("Memory")).toBeInTheDocument();
   });
 
   it("shows the count of enabled servers on the parent row", () => {
@@ -817,5 +820,47 @@ describe("ComposerAddMenu", () => {
         name: "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it",
       }),
     ).toBeInTheDocument();
+  });
+});
+
+const memoryStatusFixture: MemoryStatus = {
+  enabled: true,
+  learning: true,
+  captureTiming: "settle-2m",
+  pendingCandidates: 0,
+  entryCount: 4,
+  suggestionCount: 1,
+  lastDreamAt: null,
+  lastDreamSummary: null,
+  threadMode: "learn",
+};
+
+describe("memoryStatusLabel", () => {
+  const labels = {
+    off: "Off",
+    on: "On",
+    waiting: (count: number) => `${count} waiting`,
+    saved: (count: number) => `${count} saved`,
+  };
+
+  it("shows that memory is off before any catalog status", () => {
+    expect(memoryStatusLabel(memoryStatusFixture, false, labels)).toBe("Off");
+  });
+
+  it("shows how many notes are waiting to be merged", () => {
+    expect(memoryStatusLabel({ ...memoryStatusFixture, pendingCandidates: 2 }, true, labels)).toBe(
+      "2 waiting",
+    );
+  });
+
+  it("shows the latest dream summary when nothing is waiting", () => {
+    expect(
+      memoryStatusLabel({ ...memoryStatusFixture, lastDreamSummary: "Promoted 1." }, true, labels),
+    ).toBe("Promoted 1.");
+  });
+
+  it("shows the saved count when memory is on and quiet", () => {
+    expect(memoryStatusLabel(undefined, true, labels)).toBe("On");
+    expect(memoryStatusLabel(memoryStatusFixture, true, labels)).toBe("4 saved");
   });
 });

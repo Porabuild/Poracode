@@ -325,6 +325,13 @@ msgstr "{0} desconectado."
 msgid "{0} MB download"
 msgstr "download {0} MB"
 
+#. placeholder {0}: status.entryCount
+#. placeholder {1}: status.pendingCandidates
+#. placeholder {2}: status.suggestionCount
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "{0} memories · {1} waiting · {2} skill suggestions"
+msgstr "{0} memórias · {1} aguardando · {2} skills sugeridos"
+
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "{0} models"
@@ -556,6 +563,14 @@ msgstr "{commentCount, plural, one {# comentário} other {# comentários}}"
 #: src/renderer/components/thread/AgentDiscoveryOverlay.tsx
 #~ msgid "{count, plural, one {# agent found} other {# agents found}}"
 #~ msgstr "{count, plural, one {# agente encontrado} other {# agentes encontrados}}"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} saved"
+msgstr "{count} salvas"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} waiting"
+msgstr "{count} aguardando"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/StatStrip.tsx
@@ -1070,6 +1085,11 @@ msgstr "Um candidato não está mais na ramificação do experimento."
 msgid "A Cursor profile with this name already exists."
 msgstr "Já existe um perfil do Cursor com este nome."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A delete never waits on a model. Text is saved first, then read later."
+msgstr "Excluir nunca espera um modelo. O texto é salvo primeiro e lido depois."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "A device failed to start."
 msgstr "Não foi possível iniciar um dispositivo."
@@ -1328,6 +1348,7 @@ msgstr "Métrica de atividade"
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1342,6 +1363,10 @@ msgstr "Adicionar {0}"
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Adicione um projeto local"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Add a memory"
+msgstr "Adicionar memória"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Add a password or import one from another browser."
@@ -1623,6 +1648,14 @@ msgstr "Configurações avançadas"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Anuncie uma URL base personalizada, por exemplo, um proxy reverso ou túnel. Deixe em branco para automático."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (2 min)"
+msgstr "Depois que o turno assenta (2 min)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (90 sec)"
+msgstr "Depois que o turno assenta (90 s)"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -1961,6 +1994,10 @@ msgstr "Sempre aplicada"
 msgid "Always excluded"
 msgstr "Sempre excluído"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Always use bun"
+msgstr "Sempre usar bun"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Amber"
 msgstr "Âmbar"
@@ -2134,6 +2171,7 @@ msgstr "Aplicar predefinição de provedor"
 msgid "Approval or reply required from you."
 msgstr "Aprovação ou resposta exigida de você."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 msgid "Approve"
 msgstr "Aprovar"
@@ -2296,6 +2334,11 @@ msgstr "Perguntar indisponível: nenhum agente pode iniciar um chat para este pr
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Faça uma pergunta"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Ask sessions not to write a separate provider memory on top of this one."
+msgstr "Pedir às sessões que não gravem outra memória do provedor por cima desta."
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Associated worktrees with no remaining threads will also be removed."
@@ -3102,6 +3145,7 @@ msgstr "Não é possível usar esta seleção de modelo nesta interface"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3235,6 +3279,11 @@ msgstr "Controles de captura e visualização"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Capture audio from this device."
 msgstr "Capture áudio deste dispositivo."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture new notes after turns finish."
+msgstr "Capturar notas novas quando um turno termina."
 
 #. placeholder {0}: totals.categorizedTokens.toLocaleString(locale)
 #. placeholder {1}: totals.tokens.toLocaleString(locale)
@@ -5299,6 +5348,10 @@ msgstr "Não foi possível instalar {0}."
 msgid "Couldn't list repositories."
 msgstr "Não foi possível listar os repositórios."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't load memory."
+msgstr "Não foi possível carregar a memória."
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
@@ -5361,6 +5414,7 @@ msgid "Couldn't start the camera"
 msgstr "Não foi possível iniciar a câmera"
 
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
 msgstr "Não foi possível atualizar a skill."
 
@@ -5838,6 +5892,15 @@ msgstr "Janela de contexto personalizada"
 msgid "Custom endpoint"
 msgstr "Endpoint personalizado"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Custom idle delay"
+msgstr "Espera personalizada"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Custom idle minutes"
+msgstr "Minutos de espera personalizados"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
 msgstr "caminho personalizado"
@@ -6014,6 +6077,7 @@ msgstr "Delegue o trabalho a outros agentes de IA."
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -6225,6 +6289,7 @@ msgid "Describe what the agent should do"
 msgstr "Descreva o que o agente deve fazer"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 msgid "Description"
 msgstr "Descrição"
@@ -6676,6 +6741,7 @@ msgid "Discovery complete"
 msgstr "Descoberta concluída"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -6777,6 +6843,11 @@ msgstr "Concluído ({doneCount})"
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 msgid "Done ({remainingSeconds}s)"
 msgstr "Concluído ({remainingSeconds}s)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Done, archive, unload, and delete still capture immediately when allowed."
+msgstr "Concluir, arquivar, descarregar e excluir ainda capturam na hora quando permitido."
 
 #: src/renderer/components/thread/ChatPane/parts/items/MarkdownFile.tsx
 msgid "Download {fileName}"
@@ -6893,6 +6964,15 @@ msgstr "Arraste para reordenar; clique duas vezes para editar"
 msgid "Draggable model"
 msgstr "Modelo arrastável"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream now"
+msgstr "Organizar agora"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream schedule"
+msgstr "Agenda da organização"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -6965,12 +7045,15 @@ msgid "Earlier text"
 msgstr "Texto anterior"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Editar"
@@ -7071,6 +7154,10 @@ msgstr "Editar título"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "Editar:"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Edited by you"
+msgstr "Editado por você"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -7459,6 +7546,10 @@ msgstr "A cada {every} horas"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every {every} minutes"
 msgstr "A cada {every} minutos"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Every 3 days"
+msgstr "A cada 3 dias"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
@@ -9434,6 +9525,11 @@ msgstr "Inativo"
 msgid "Include in sync"
 msgstr "Incluir na sincronização"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include memory when a thread starts."
+msgstr "Incluir a memória quando uma conversa começa."
+
 #: src/renderer/views/SchedulesView/parts/ScheduleExecutionSection.tsx
 msgid "Includes the first attempt."
 msgstr "Inclui a primeira tentativa."
@@ -10220,6 +10316,16 @@ msgstr "Principal + Auxiliar"
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
 #~ msgstr "Os preços de Principal e Auxiliar são por 1 milhão de tokens de cada modelo. Os intervalos abrangem as variantes do modelo."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Learn from chats"
+msgstr "Aprender com os chats"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Learn from this thread"
+msgstr "Aprender com esta conversa"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
 #~ msgstr "Memória de roteamento aprendida"
@@ -10839,6 +10945,10 @@ msgstr "A instalação gerenciada do Hex não está disponível neste host."
 msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in backend."
 msgstr "A instalação gerenciada não está disponível neste host. Use um mecanismo Hex externo compatível ou o backend integrado."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Managed on this host"
+msgstr "Gerenciado neste host"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
 #~ msgstr "Skills gerenciadas"
@@ -10847,6 +10957,10 @@ msgstr "A instalação gerenciada não está disponível neste host. Use um meca
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Manual connection"
 msgstr "Conexão manual"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manual only"
+msgstr "Somente manual"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -11143,6 +11257,24 @@ msgstr "mcp.json aponta para uma versão do Agent Plugins que esta build não su
 msgid "Medium"
 msgstr "Médio"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memories"
+msgstr "Memórias"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
+msgid "Memory"
+msgstr "Memória"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Memory settings"
+msgstr "Ajustes de memória"
+
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMergeAction.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeControls.tsx
 msgid "Merge"
@@ -11155,6 +11287,11 @@ msgstr "Mesclar as alterações de {crownedLabel} em {mergeTarget}?"
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "Mesclar e remover"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Merge and retire notes. Skipped when nothing new was captured."
+msgstr "Une e aposenta notas. É ignorado quando nada novo foi capturado."
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -11758,6 +11895,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
@@ -11862,6 +12000,10 @@ msgstr "Precisa de resposta"
 #: src/renderer/utils/prStatus.ts
 msgid "Neutral"
 msgstr "Neutro"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Never capture deleted threads"
+msgstr "Nunca capturar conversas excluídas"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -12458,6 +12600,10 @@ msgstr "Nenhum servidor MCP corresponde à sua pesquisa."
 msgid "No MCP tools used yet."
 msgstr "Nenhuma ferramenta MCP usada ainda."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "No memories yet."
+msgstr "Ainda não há memórias."
+
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
 msgstr "Nenhuma mensagem ainda"
@@ -12901,6 +13047,7 @@ msgstr "Observado"
 msgid "off"
 msgstr "desligado"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -12945,6 +13092,7 @@ msgstr "Mais antigos primeiro"
 msgid "on"
 msgstr "ativado"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
 msgstr "Em"
@@ -12962,6 +13110,10 @@ msgstr "Na hora exata"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "Uma vez em {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Once per day"
+msgstr "Uma vez por dia"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One Header: value pair per line"
@@ -12989,6 +13141,14 @@ msgstr "Token de pareamento de uso único"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Online"
 msgstr "Online"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only on archive or done"
+msgstr "Somente ao arquivar ou concluir"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only when a thread is done or archived"
+msgstr "Somente quando a conversa estiver concluída ou arquivada"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -14278,6 +14438,10 @@ msgstr "O Poracode pode estar aguardando dados salvos ou um serviço em segundo 
 msgid "Poracode only"
 msgstr "Somente no Poracode"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
+msgstr "O Poracode lembra preferências e correções entre provedores. A captura começa quando um turno termina. Uma passagem diária as une. Skills aprendidos de trabalho repetido ficam como sugestões até você aprovar."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "O manifesto de runtime SSH do Poracode está ausente ou é inválido: {path}"
@@ -14412,6 +14576,11 @@ msgstr "Título PR (deixe em branco para gerar automaticamente)"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "Falha no gancho de pré-confirmação"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prefer Poracode memory"
+msgstr "Preferir a memória do Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Preferred routing order"
@@ -15876,6 +16045,11 @@ msgstr "Reordenação cancelada."
 msgid "Repeat"
 msgstr "Repetir"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Repeated workflows appear in Settings → Skills for you to edit and approve."
+msgstr "Fluxos repetidos aparecem em Ajustes → Skills para você editar e aprovar."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Report a bug or suggest an idea."
 msgstr "Relate um bug ou sugira uma ideia."
@@ -16773,6 +16947,7 @@ msgstr "Saturação e brilho"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
@@ -16787,6 +16962,7 @@ msgstr "Saturação e brilho"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -16853,6 +17029,10 @@ msgstr "Salvar arquivo"
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "Salvar imagem"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Save learnings before deleting"
+msgstr "Salvar o que foi aprendido antes de excluir"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
@@ -17650,6 +17830,10 @@ msgstr "Compartilhadas"
 msgid "Shared login owner"
 msgstr "Proprietário do login compartilhado"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Shared notes across providers"
+msgstr "Notas compartilhadas entre provedores"
+
 #. placeholder {0}: owner.displayName ?? owner.id
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shares {0}"
@@ -18005,12 +18189,10 @@ msgstr "Entre no desktop pareado e depois atualize este status."
 msgid "Sign in required"
 msgstr "É necessário fazer login"
 
-#. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
-#: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
-msgstr "Iniciar sessão em {0}"
+msgstr "Iniciar sessão na Devin {0}"
 
 #: src/renderer/components/providers/fx/FxProviderSettings.tsx
 msgid "Sign in to the AI backends fx can use, and sign out of them here."
@@ -18867,6 +19049,11 @@ msgstr "Fatura de assinatura"
 msgid "Succeeded"
 msgstr "Bem-sucedida"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Suggest skills"
+msgstr "Sugerir skills"
+
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "Suggested command — review before use"
 msgstr "Comando sugerido — revise antes de usar"
@@ -18875,6 +19062,7 @@ msgstr "Comando sugerido — revise antes de usar"
 msgid "Suggested command inserted into the composer."
 msgstr "Comando sugerido inserido no composer."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "Sugestões"
@@ -19670,6 +19858,10 @@ msgstr "A configuração do servidor MCP é inválida ou usa um nome reservado."
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "O servidor MCP é inválido."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "The memory catalog is edited on the desktop that owns this host."
+msgstr "O catálogo de memória é editado no desktop que possui este host."
 
 #: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
 #~ msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
@@ -22025,6 +22217,12 @@ msgstr "Usar prévia ao vivo"
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Use letras minúsculas, números e hífens."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use memory"
+msgstr "Usar memória"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -22392,6 +22590,11 @@ msgstr "Aguarde o tópico terminar de iniciar antes de movê-lo para uma árvore
 msgid "Wait for the thread to finish starting."
 msgstr "Aguarde o tópico terminar de iniciar."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Wait this long after a turn finishes."
+msgstr "Esperar este tempo depois que um turno termina."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "Aguardando"
@@ -22531,6 +22734,7 @@ msgid "Weekdays at 8:00 AM"
 msgstr "Dias úteis às 8:00"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Weekly"
 msgstr "Semanalmente"
 
@@ -22581,6 +22785,11 @@ msgstr "Novidades"
 msgid "What's new in Poracode, newest first."
 msgstr "Novidades no Poracode, das mais recentes primeiro."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When a thread is deleted"
+msgstr "Quando uma conversa é excluída"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "Quando ativada, a pesquisa respeita as entradas <0>.gitignore</0>."
@@ -22593,6 +22802,11 @@ msgstr "Quando os links são abertos em uma guia do navegador Poracode, escolha 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "When off, suppress notifications from terminal threads whose status comes from the OSC fallback (no CLI hook plugin)."
 msgstr "Quando desativado, suprime notificações de tópicos de terminal cujo status vem do fallback OSC (sem plug-in de gancho CLI)."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When to capture"
+msgstr "Quando capturar"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
