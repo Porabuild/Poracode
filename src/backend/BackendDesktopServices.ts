@@ -721,9 +721,9 @@ export class BackendDesktopServices {
         this.durable.prWatchService.syncAgent(payload as never);
         return undefined as BackendServiceResult<Name>;
       case "getProfileCoreStats":
-        return getProfileCoreStats(payload as never) as BackendServiceResult<Name>;
+        return getProfileCoreStats(payload as never) as Promise<BackendServiceResult<Name>>;
       case "getProfileTokenStats":
-        return getProfileTokenStats(payload as never) as BackendServiceResult<Name>;
+        return getProfileTokenStats(payload as never) as Promise<BackendServiceResult<Name>>;
       case "getProfileDevices":
         return getProfileDevicesResponse() as BackendServiceResult<Name>;
       case "getProfileIdentity":

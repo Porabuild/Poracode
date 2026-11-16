@@ -6,6 +6,7 @@
 
 export {
   getProfileDataGeneration,
+  getProfileUsageResetGeneration,
   bumpProfileDataGeneration,
   initDatabase,
   closeDatabase,
@@ -177,16 +178,19 @@ export {
   CORE_USAGE_EVENT_KINDS,
   dbAppendUsageEvents,
   dbGetAllUsageEvents,
-  dbIterateCoreUsageEvents,
-  dbIterateTokenUsageScanRows,
-  dbQueryUsageAccountCounts,
+  dbIterateCoreUsageEventsInRange,
+  dbIterateTokenUsageScanRowsInRange,
+  dbIterateUsageAccountRowsInRange,
+  dbQueryUsageAccountCountsUpTo,
+  dbQueryUsageEventsBounds,
   parseUsageCostRecord,
 } from "./db/usageEvents";
 export type {
   CoreUsageEventRow,
   TokenUsageScanRow,
-  UsageAccountCountRow,
+  UsageAccountAggregateRow,
   UsageEventRow,
+  UsageEventsBounds,
 } from "./db/usageEvents";
 
 export {

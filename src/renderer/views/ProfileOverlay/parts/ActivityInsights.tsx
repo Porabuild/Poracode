@@ -1,3 +1,4 @@
+import { Skeleton } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { ProfileCoreStats } from "@/shared/contracts";
 
@@ -10,10 +11,45 @@ function Row(props: { label: string; value: string }) {
   );
 }
 
-export function ActivityInsights(props: { core: ProfileCoreStats; className?: string }) {
-  const { t } = useLingui();
-  const { insights, totals } = props.core;
+function SkeletonRow() {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2">
+      <Skeleton className="h-4 w-32 rounded bg-foreground/10" />
+      <Skeleton className="h-4 w-14 rounded bg-foreground/10" />
+    </div>
+  );
+}
 
+export function ActivityInsights(props: {
+  core: ProfileCoreStats | null;
+  loading?: boolean;
+  className?: string;
+  skillsAvailable?: boolean;
+}) {
+  const { t } = useLingui();
+  const { core, loading = false, className = "" } = props;
+
+  if (loading || !core) {
+    return (
+      <section className={`flex flex-col gap-1 ${className}`}>
+        <h2 className="mb-1 text-sm font-semibold text-foreground">{t`Activity insights`}</h2>
+        <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
+          <div className="divide-y divide-separator">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+          <div className="divide-y divide-separator">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const { insights, totals } = core;
   const reasoning = insights.topReasoning
     ? `${insights.topReasoning.label} - ${insights.topReasoning.percent}%`
     : "-";
@@ -28,7 +64,10 @@ export function ActivityInsights(props: { core: ProfileCoreStats; className?: st
     { label: t`Most active hour`, value: activeHour },
     { label: t`Messages sent`, value: totals.messagesSent.toLocaleString() },
     { label: t`Goals set`, value: totals.goalsSet.toLocaleString() },
-    { label: t`Skills explored`, value: String(insights.skillsExplored) },
+    {
+      label: t`Skills explored`,
+      value: props.skillsAvailable === false ? "-" : String(insights.skillsExplored),
+    },
     { label: t`Skill runs`, value: insights.totalSkillsUsed.toLocaleString() },
     { label: t`Workflow runs`, value: insights.workflowRuns.toLocaleString() },
     { label: t`Subagent runs`, value: insights.subagentRuns.toLocaleString() },
@@ -43,7 +82,7 @@ export function ActivityInsights(props: { core: ProfileCoreStats; className?: st
   ];
 
   return (
-    <section className={`flex flex-col gap-1 ${props.className ?? ""}`}>
+    <section className={`flex flex-col gap-1 ${className}`}>
       <h2 className="mb-1 text-sm font-semibold text-foreground">{t`Activity insights`}</h2>
       <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
         {groups.map((group) => (

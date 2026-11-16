@@ -24,8 +24,12 @@ let _sqlite: InstanceType<typeof Database> | undefined;
  * turns) does NOT churn the cache during active sessions.
  */
 let _profileDataGeneration = 0;
+let _profileUsageResetGeneration = 0;
 export function getProfileDataGeneration(): number {
   return _profileDataGeneration;
+}
+export function getProfileUsageResetGeneration(): number {
+  return _profileUsageResetGeneration;
 }
 export function bumpProfileDataGeneration(): void {
   _profileDataGeneration++;
@@ -66,6 +70,7 @@ export function initReadOnlyDatabase(dbPath: string): void {
     assertConversationSearchReady(sqlite);
     _sqlite = sqlite;
     _profileDataGeneration++;
+    _profileUsageResetGeneration++;
   } catch (error) {
     sqlite.close();
     throw error;
@@ -117,6 +122,7 @@ export function initDatabase(
   const previousSqlite = _sqlite;
   _sqlite = sqlite;
   _profileDataGeneration++;
+  _profileUsageResetGeneration++;
 
   if (options.schemaMode === "validate") {
     console.log("[db] validated");
@@ -380,6 +386,7 @@ export function initDatabase(
 export function attachEditableDatabaseHandle(sqlite: InstanceType<typeof Database>): void {
   _sqlite = sqlite;
   _profileDataGeneration++;
+  _profileUsageResetGeneration++;
 }
 
 export interface DatabaseSpaceReclamationResult {
@@ -463,4 +470,5 @@ export function closeDatabase() {
   }
   _sqlite = undefined;
   _profileDataGeneration++;
+  _profileUsageResetGeneration++;
 }

@@ -58,6 +58,12 @@ vi.mock("@/renderer/views/ProfileOverlay/useProfileData", () => ({
           lastActiveAt: Date.now(),
         },
       ],
+      identity: {
+        name: "Ada Lovelace",
+        handle: "ada",
+        avatarColor: "oklch(0.62 0.11 245)",
+        plan: "Local",
+      },
       currentDeviceId: "dev-1",
       selection,
       setSelection,

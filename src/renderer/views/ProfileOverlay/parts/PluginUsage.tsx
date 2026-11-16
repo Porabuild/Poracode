@@ -1,3 +1,4 @@
+import { Skeleton } from "@heroui/react";
 import { Bot, Plug, Sparkles, Wrench } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ProfileSkillUsage } from "@/shared/contracts";
@@ -9,20 +10,40 @@ function iconFor(kind: ProfileSkillUsage["kind"]) {
   return Sparkles;
 }
 
+function SkeletonRow() {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2">
+      <span className="flex items-center gap-2">
+        <Skeleton className="size-3.5 rounded bg-foreground/10" />
+        <Skeleton className="h-4 w-28 rounded bg-foreground/10" />
+      </span>
+      <Skeleton className="h-4 w-12 rounded bg-foreground/10" />
+    </div>
+  );
+}
+
 export function PluginUsage(props: {
   items: ProfileSkillUsage[];
   title?: string;
   emptyText?: string;
+  loading?: boolean;
+  loadingRows?: number;
 }) {
   const { t } = useLingui();
-  const { items, title, emptyText } = props;
+  const { items, title, emptyText, loading = false, loadingRows = 4 } = props;
   const heading = title ?? t`Most used plugins`;
   const empty = emptyText ?? t`Nothing tracked yet. It'll appear here as you use it.`;
 
   return (
     <section className="flex flex-col gap-1">
       <h2 className="mb-1 text-sm font-semibold text-foreground">{heading}</h2>
-      {items.length === 0 ? (
+      {loading && items.length === 0 ? (
+        <div className="divide-y divide-separator">
+          {Array.from({ length: loadingRows }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
         <p className="py-2 text-sm text-muted">{empty}</p>
       ) : (
         <div className="divide-y divide-separator">
