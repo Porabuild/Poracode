@@ -13,12 +13,16 @@ import {
 import { mapMuseGoalMetadata } from "./goal";
 import { mintMspCommandId } from "./uuidv7";
 import { museSubagentPayload, type MuseSubagentIdentity } from "./subagentMapping";
+import { museWorkflowPayload } from "./workflow";
 
 export type MuseMspItem = Record<string, unknown>;
 
 export interface MuseMspItemMapperState {
   readonly threadId: string;
+  readonly onToolCompleted?: ((itemId: string, item: MuseMspItem) => void) | undefined;
   readonly startedItemIds: Set<string>;
+  readonly knownItemIds: Set<string>;
+  readonly backgroundItemIds: Set<string>;
   readonly itemKinds: Map<string, string>;
   readonly itemAliases: Map<string, string>;
   readonly optimisticUserItemIds: Set<string>;
@@ -31,10 +35,16 @@ export interface MuseMspItemMapperState {
   goalCreatedAt?: number | undefined;
 }
 
-export function createMuseMspItemMapperState(threadId: string): MuseMspItemMapperState {
+export function createMuseMspItemMapperState(
+  threadId: string,
+  onToolCompleted?: (itemId: string, item: MuseMspItem) => void,
+): MuseMspItemMapperState {
   return {
     threadId,
+    onToolCompleted,
     startedItemIds: new Set(),
+    knownItemIds: new Set(),
+    backgroundItemIds: new Set(),
     itemKinds: new Map(),
     itemAliases: new Map(),
     optimisticUserItemIds: new Set(),
@@ -54,17 +64,35 @@ export function aliasMuseMspItem(
   if (options.optimisticUserMessage !== false) state.optimisticUserItemIds.add(providerItemId);
 }
 
-export function completeOpenMuseMspItems(state: MuseMspItemMapperState): RuntimeEvent[] {
+export function completeOpenMuseMspItems(
+  state: MuseMspItemMapperState,
+  includeBackground = false,
+): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
   for (const itemId of state.startedItemIds) {
+    if (state.backgroundItemIds.has(itemId)) {
+      if (!includeBackground) continue;
+      events.push({
+        type: "item.updated",
+        threadId: state.threadId,
+        itemId,
+        payload: {
+          status: "error",
+          ...(state.itemKinds.get(itemId) === "workflow" ? { subAgentStatus: "cancelled" } : {}),
+        },
+      });
+      state.backgroundItemIds.delete(itemId);
+    }
     events.push({
       type: "item.completed",
       threadId: state.threadId,
       itemId,
     });
+    state.startedItemIds.delete(itemId);
   }
-  state.startedItemIds.clear();
-  state.itemKinds.clear();
+  for (const itemId of state.itemKinds.keys()) {
+    if (!state.backgroundItemIds.has(itemId)) state.itemKinds.delete(itemId);
+  }
   state.itemAliases.clear();
   state.optimisticUserItemIds.clear();
   state.streamedItemIds.clear();
@@ -88,10 +116,12 @@ function numberValue(value: unknown): number | undefined {
 }
 
 function toolKind(name: string): "read" | "edit" | "search" | "execute" | "fetch" | "other" {
+  if (["subagent_status", "subagent_wait", "subagent_read_result"].includes(name)) return "read";
+  if (name === "web_search") return "search";
   if (/^(read|ls|glob|list)/i.test(name)) return "read";
   if (/^(edit|write|apply|patch)/i.test(name)) return "edit";
   if (/^(grep|find|search)/i.test(name)) return "search";
-  if (/^(bash|exec|shell|command)/i.test(name)) return "execute";
+  if (/^(bash|powershell|pwsh|exec|shell|command)/i.test(name)) return "execute";
   if (/^(fetch|web|http)/i.test(name)) return "fetch";
   return "other";
 }
@@ -124,9 +154,10 @@ function emitItemLifecycle(
   phase: "started" | "updated" | "completed",
 ): RuntimeEvent[] {
   const events: RuntimeEvent[] = [];
-  const isStarted = state.startedItemIds.has(itemId);
+  const isKnown = state.knownItemIds.has(itemId);
+  state.knownItemIds.add(itemId);
 
-  if (phase === "started" || (!isStarted && phase !== "completed")) {
+  if (!isKnown && phase !== "completed") {
     state.startedItemIds.add(itemId);
     events.push({
       type: "item.started",
@@ -138,7 +169,8 @@ function emitItemLifecycle(
     return events;
   }
 
-  if (phase === "updated") {
+  if (phase !== "completed") {
+    state.startedItemIds.add(itemId);
     events.push({
       type: "item.updated",
       threadId: state.threadId,
@@ -148,7 +180,7 @@ function emitItemLifecycle(
     return events;
   }
 
-  if (!isStarted) {
+  if (!isKnown) {
     state.startedItemIds.add(itemId);
     events.push({
       type: "item.started",
@@ -166,6 +198,7 @@ function emitItemLifecycle(
     });
   }
   state.startedItemIds.delete(itemId);
+  state.backgroundItemIds.delete(itemId);
   events.push({
     type: "item.completed",
     threadId: state.threadId,
@@ -254,7 +287,7 @@ export function mapMuseMspItem(
     const args = parseJsonArgs(item["args"] ?? item["input"]);
     const kindClass = toolKind(name);
     const rawStatus = stringValue(item["status"]);
-    const status: ToolCallPayload["status"] =
+    let status: ToolCallPayload["status"] =
       rawStatus === "completed" || rawStatus === "success"
         ? "success"
         : rawStatus && rawStatus !== "inProgress"
@@ -262,10 +295,23 @@ export function mapMuseMspItem(
           : phase === "completed"
             ? "success"
             : "running";
-    const result = stringValue(item["visibleOutput"]);
+    const result = stringValue(item["visibleOutput"]) ?? stringValue(item["failureReason"]);
+    if (
+      status === "success" &&
+      (name.startsWith("subagent_") || name === "work_stop" || name === "workflow") &&
+      parseJsonArgs(result)["status"] === "rejected"
+    )
+      status = "error";
+    if (item["background"] === true || name === "monitor") state.backgroundItemIds.add(itemId);
+    const labels = parseJsonArgs(item["displayLabel"]);
+    const title =
+      stringValue(
+        labels[status === "running" ? "active" : status === "success" ? "done" : "neutral"],
+      ) ?? stringValue(item["bashTitle"]);
 
     const payload: ToolCallPayload = {
       name,
+      ...(title ? { title } : {}),
       kind: kindClass,
       args,
       status,
@@ -279,13 +325,62 @@ export function mapMuseMspItem(
       ),
     };
 
-    return emitItemLifecycle(
+    const lifecycle = emitItemLifecycle(
       state,
       itemId,
       "tool_call",
       payload as unknown as Record<string, unknown>,
       phase,
     );
+    if (phase === "completed") state.onToolCompleted?.(itemId, item);
+    return lifecycle;
+  }
+
+  if (kind === "workflow") {
+    state.backgroundItemIds.add(itemId);
+    return emitItemLifecycle(
+      state,
+      itemId,
+      "tool_call",
+      museWorkflowPayload(item) as unknown as Record<string, unknown>,
+      phase,
+    );
+  }
+
+  if (kind === "userShell") {
+    const exitCode = numberValue(item["exitCode"]);
+    const durationMs = numberValue(item["durationMs"]);
+    const status =
+      item["status"] === "inProgress"
+        ? "running"
+        : item["status"] === "completed" && (exitCode === undefined || exitCode === 0)
+          ? "success"
+          : "error";
+    const lifecycle = emitItemLifecycle(
+      state,
+      itemId,
+      "command_execution",
+      {
+        command: stringValue(item["commandText"]) ?? "",
+        status,
+        ...(exitCode !== undefined ? { exitCode } : {}),
+        ...(durationMs !== undefined ? { durationMs } : {}),
+      },
+      phase,
+    );
+    const output = stringValue(item["visibleOutput"]);
+    if (output && !state.streamedItemIds.has(itemId)) {
+      const completedIndex = lifecycle.findIndex((event) => event.type === "item.completed");
+      lifecycle.splice(completedIndex < 0 ? lifecycle.length : completedIndex, 0, {
+        type: "content.delta",
+        threadId: state.threadId,
+        itemId,
+        stream: "command_output",
+        delta: output,
+      });
+      state.streamedItemIds.add(itemId);
+    }
+    return lifecycle;
   }
 
   if (kind === "compaction") {
@@ -316,19 +411,30 @@ export function mapMuseMspItem(
     stringValue(item["fallbackText"]) ??
     stringValue(item["title"]) ??
     stringValue(item["description"]) ??
-    "Activity";
+    kind;
   const dynamicStatus =
     item["status"] === "completed"
       ? "success"
       : item["status"] === "inProgress"
         ? "running"
         : "error";
+  const result =
+    item["visibleOutput"] ??
+    item["text"] ??
+    item["finalSummary"] ??
+    item["message"] ??
+    item["result"];
 
   return emitItemLifecycle(
     state,
     itemId,
     "dynamic_tool_call",
-    { title: fallbackTitle, status: dynamicStatus },
+    {
+      name: kind,
+      title: fallbackTitle,
+      status: dynamicStatus,
+      ...(result !== undefined ? { result } : {}),
+    },
     phase,
   );
 }

@@ -64,8 +64,10 @@ import {
 } from "./localCommands";
 import { buildMuseTurnInput } from "./turnInput";
 import { buildMuseMspMcpServers } from "../mcpLaunch";
-import { MuseSubagentTranscripts } from "./subagentTranscripts";
+import { MuseSubagentTranscripts, museHistoryItems } from "./subagentTranscripts";
 import { MuseSubagentObserver } from "./subagentObserver";
+import { MuseMspToolOutputs } from "./toolOutputs";
+import { isMuseSubagentRun } from "./subagentMapping";
 import { msg } from "@/shared/messages";
 import { isFullBypassApprovalPolicy } from "@/shared/agents/unrestrictedPermissions";
 
@@ -146,6 +148,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   readonly launchOptions;
   private listener: StructuredSessionListener = NOOP_LISTENER;
   private readonly mapper;
+  private readonly toolOutputs;
   private readonly subagents;
   private readonly subagentObserver;
   private readonly planAggregator;
@@ -189,7 +192,12 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     this.currentConfig = input.config;
     const mcpServers = buildMuseMspMcpServers(input.mcpServers ?? []);
     this.sessionMcpServers = Object.keys(mcpServers).length > 0 ? mcpServers : undefined;
-    this.mapper = createMuseMspItemMapperState(input.threadId);
+    this.toolOutputs = new MuseMspToolOutputs(input.projectLocation, input.threadId, (event) => {
+      if (!this.disposed && !this.transportCloseReported) this.emit(event);
+    });
+    this.mapper = createMuseMspItemMapperState(input.threadId, (itemId, item) => {
+      if (this.sessionId) void this.toolOutputs.observe(this.sessionId, itemId, item);
+    });
     this.subagentObserver = new MuseSubagentObserver(
       input.projectLocation,
       observerOptions,
@@ -202,6 +210,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       this.subagentObserver,
       this.mapper,
       (events) => this.emitMany(events),
+      this.toolOutputs,
     );
     this.planAggregator = createPlanAggregator(input.threadId, "muse-plan");
     this.approvalDecisions = new MuseMspApprovalDecisions(
@@ -300,6 +309,29 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     const sessionId = stringValue(session?.["sessionId"]);
     if (!sessionId) throw new Error("Muse MSP did not return a session id.");
     this.sessionId = sessionId;
+    this.toolOutputs.open(sessionId, session?.["path"]);
+    if (resumeId) {
+      for (const item of museHistoryItems(result)) {
+        const itemId = stringValue(item["itemId"]);
+        if (itemId) void this.toolOutputs.observe(sessionId, itemId, item);
+        const name = stringValue(item["tool"]);
+        if (itemId && name?.startsWith("subagent_") && !isMuseSubagentRun(name)) {
+          for (const event of this.subagents.mapItem(
+            item,
+            item["status"] === "inProgress" ? "updated" : "completed",
+          )) {
+            if (event.type === "item.started" || event.type === "item.updated") {
+              this.emit({
+                type: "item.updated",
+                threadId: this.input.threadId,
+                itemId,
+                payload: event.payload,
+              });
+            }
+          }
+        }
+      }
+    }
     this.ownedSessionIds.add(sessionId);
     this.usageScopeFresh = !resumeId;
     this.activeTurnId = stringValue(session?.["activeTurnId"]);
@@ -749,6 +781,8 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   }
 
   private async releaseHostOnce(): Promise<void> {
+    this.toolOutputs.dispose();
+    this.emitMany(completeOpenMuseMspItems(this.mapper, true));
     this.emitMany(this.subagents.dispose());
     const stops = await Promise.allSettled([
       stopMuseServeHost(this.input.projectLocation, this.child, this.client, this.hostCookie),

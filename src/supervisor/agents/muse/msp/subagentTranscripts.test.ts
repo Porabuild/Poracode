@@ -132,6 +132,145 @@ describe("Muse subagent owner-log discovery", () => {
 });
 
 describe("Muse subagent transcripts", () => {
+  it("repairs a previous release's generic workflow row from its retained snapshot", () => {
+    const { manager, events } = setup();
+    manager.open(
+      "root",
+      history([
+        {
+          itemId: "workflow-old",
+          kind: "workflow",
+          status: "completed",
+          entryId: "Fixture",
+          finalSummary: '{"result":"WORKFLOW_DONE"}',
+          children: [],
+        },
+      ]),
+    );
+    const rendered = renderEvents([
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "workflow-old",
+        itemType: "dynamic_tool_call",
+        payload: { title: "Workflow: Fixture", status: "success" },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "workflow-old" },
+      ...events,
+    ]);
+    expect(rendered?.["workflow-old"]).toMatchObject({
+      type: "dynamic_tool_call",
+      payload: {
+        name: "workflow",
+        isSubAgent: true,
+        subAgentStatus: "completed",
+        result: { summary: { result: "WORKFLOW_DONE" } },
+      },
+    });
+  });
+
+  it("preserves a rejected cancellation without attaching or replacing it with the child's result", async () => {
+    const { manager, events } = setup();
+    manager.mapItem(spawn(), "completed");
+    manager.open("root", {});
+    await manager.sync();
+    const rejected = '{"status":"rejected","reason":"not_stoppable"}';
+    const cancel = manager.mapItem(
+      {
+        itemId: "cancel-1",
+        kind: "toolCall",
+        tool: "subagent_cancel",
+        status: "completed",
+        args: '{"subagent_id":"agent-1"}',
+        visibleOutput: rejected,
+      },
+      "completed",
+    );
+    expect(cancel[0]).toMatchObject({
+      payload: {
+        name: "subagent_cancel",
+        status: "error",
+        result: rejected,
+        isSubAgent: false,
+        isSubAgentResume: false,
+      },
+    });
+    expect(cancel.some((event) => event.type === "item.started" && event.parentItemId)).toBe(false);
+    events.length = 0;
+    manager.mapItem(
+      {
+        kind: "subagent",
+        itemId: "native-child",
+        subagentId: "agent-1",
+        childSessionId: "child-1",
+        status: "completed",
+        result: { text: "CHILD_DONE" },
+      },
+      "completed",
+    );
+    await manager.sync();
+    expect(
+      events.some((event) => event.type === "item.updated" && event.itemId === "cancel-1"),
+    ).toBe(false);
+  });
+
+  it("attaches workflow children without letting a finished sibling settle the workflow", async () => {
+    const { manager, events, request } = setup();
+    readSessionFileText.mockResolvedValue(
+      binding("wf-child-1", "session-a") + binding("wf-child-2", "session-b"),
+    );
+    request.mockImplementation(async (method, params) =>
+      method === "session/read"
+        ? history([
+            {
+              ...message,
+              itemId: `message-${params?.["sessionId"]}`,
+              status: "completed",
+              text: String(params?.["sessionId"]),
+            },
+          ])
+        : {},
+    );
+    manager.open("root", {});
+    const workflow = {
+      itemId: "workflow-1",
+      kind: "workflow",
+      status: "inProgress",
+      entryId: "Fixture",
+      children: [
+        { childId: "wf-child-1", status: "completed" },
+        { childId: "wf-child-2", status: "running" },
+      ],
+    };
+    events.push(...manager.mapItem(workflow, "started"));
+    await manager.sync();
+    expect(manager.owns("session-a")).toBe(true);
+    expect(manager.owns("session-b")).toBe(true);
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemId: "workflow-1/session-a/message-session-a",
+        parentItemId: "workflow-1",
+      }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemId: "workflow-1/session-b/message-session-b",
+        parentItemId: "workflow-1",
+      }),
+    );
+    expect(
+      events.some((event) => event.type === "item.completed" && event.itemId === "workflow-1"),
+    ).toBe(false);
+    expect(
+      manager.mapItem(
+        { ...workflow, status: "completed", finalSummary: "WORKFLOW_DONE" },
+        "completed",
+      ),
+    ).toContainEqual(expect.objectContaining({ type: "item.completed", itemId: "workflow-1" }));
+  });
+
   it("keeps an admitted launch running, loads child history, then subscribes at the read cursor", async () => {
     const { manager, events, request } = setup();
     const launch = manager.mapItem(spawn(), "completed");
@@ -221,7 +360,7 @@ describe("Muse subagent transcripts", () => {
     ]);
   });
 
-  it("gives a companion invocation its own history and live stream without repeating old revisions", async () => {
+  it("gives a follow-up invocation its own history and live stream without repeating old revisions", async () => {
     const { manager, events } = setup();
     manager.mapItem(spawn(), "completed");
     manager.open("root", {});
@@ -236,7 +375,7 @@ describe("Muse subagent transcripts", () => {
       itemId: "result-1",
       kind: "toolCall",
       status: "inProgress",
-      tool: "subagent_read_result",
+      tool: "subagent_send_message",
       args: '{"subagent_id":"agent-1"}',
     };
     const replay = manager.mapItem(companion, "started");
@@ -463,7 +602,7 @@ describe("Muse subagent transcripts", () => {
       {
         itemId: "wait-1",
         kind: "toolCall",
-        tool: "subagent_wait",
+        tool: "subagent_send_message",
         status: "inProgress",
         args: { subagent_id: "agent-1" },
       },
@@ -536,51 +675,63 @@ describe("Muse subagent transcripts", () => {
     );
   });
 
-  it.each([
-    { errorKind: undefined, status: "success", subAgentStatus: "completed" },
-    { errorKind: "api_error", status: "error", subAgentStatus: "failed" },
-    { errorKind: "cancelled", status: "error", subAgentStatus: "cancelled" },
-  ])("drains a resultReady child's history before settling $subAgentStatus", async (result) => {
-    const { manager, events, request } = setup();
-    readSessionFileText.mockResolvedValue(undefined);
-    request.mockResolvedValue(history([{ ...message, status: "completed" }]));
-    manager.open(
-      "root",
-      history([
-        spawn(),
-        {
-          itemId: "native-1",
-          kind: "subagent",
-          subagentId: "agent-1",
-          childSessionId: "child-1",
-          status: "inProgress",
-          controlStatus: "resultReady",
-          result: { summary: "Done", ...(result.errorKind ? { errorKind: result.errorKind } : {}) },
-        },
-      ]),
-    );
-    await vi.advanceTimersByTimeAsync(0);
-    expect(request.mock.calls.map(([method]) => method)).toEqual(["session/read"]);
-    expect(events).toContainEqual(
-      expect.objectContaining({
-        type: "item.updated",
-        itemId: "spawn-1",
-        payload: expect.objectContaining({
-          status: result.status,
-          subAgentStatus: result.subAgentStatus,
+  it.each(
+    [
+      { errorKind: undefined, status: "success", subAgentStatus: "completed" },
+      { errorKind: "api_error", status: "error", subAgentStatus: "failed" },
+      { errorKind: "cancelled", status: "error", subAgentStatus: "cancelled" },
+    ].flatMap((result) => [
+      { ...result, nativeStatus: "inProgress" },
+      { ...result, nativeStatus: "failed", reason: "crash_inferred" },
+    ]),
+  )(
+    "drains a $nativeStatus resultReady child's history before settling $subAgentStatus",
+    async (result) => {
+      const { manager, events, request } = setup();
+      readSessionFileText.mockResolvedValue(undefined);
+      request.mockResolvedValue(history([{ ...message, status: "completed" }]));
+      manager.open(
+        "root",
+        history([
+          spawn(),
+          {
+            itemId: "native-1",
+            kind: "subagent",
+            subagentId: "agent-1",
+            childSessionId: "child-1",
+            status: result.nativeStatus,
+            ...("reason" in result ? { reason: result.reason } : {}),
+            controlStatus: "resultReady",
+            result: {
+              summary: "Done",
+              ...(result.errorKind ? { errorKind: result.errorKind } : {}),
+            },
+          },
+        ]),
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(request.mock.calls.map(([method]) => method)).toEqual(["session/read"]);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "item.updated",
+          itemId: "spawn-1",
+          payload: expect.objectContaining({
+            status: result.status,
+            subAgentStatus: result.subAgentStatus,
+          }),
         }),
-      }),
-    );
-    const child = events.findIndex(
-      (event) => event.type === "item.started" && event.parentItemId === "spawn-1",
-    );
-    const complete = events.findIndex(
-      (event) => event.type === "item.completed" && event.itemId === "spawn-1",
-    );
-    expect(child).toBeGreaterThan(-1);
-    expect(complete).toBeGreaterThan(child);
-    expect(vi.getTimerCount()).toBe(0);
-  });
+      );
+      const child = events.findIndex(
+        (event) => event.type === "item.started" && event.parentItemId === "spawn-1",
+      );
+      const complete = events.findIndex(
+        (event) => event.type === "item.completed" && event.itemId === "spawn-1",
+      );
+      expect(child).toBeGreaterThan(-1);
+      expect(complete).toBeGreaterThan(child);
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
 
   it("does not let a previous attempt's pending subscribe mark a rebound child subscribed", async () => {
     const { manager, events, request } = setup();
