@@ -29,6 +29,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_7d35bc9ac5ba82b5 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_28f26b87e53ebaef, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_7d62681c6488867d = RemoteSchema(type: "string", minLength: 1, maxLength: 64, unknownPolicy: .strip)
 }
 
@@ -70,6 +74,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_7ee0d4255fd8c330 = RemoteSchema(type: "string", literals: [.string("unknown")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_7ef1b245d5a87556 = RemoteSchema(type: "object", required: Set(["promoted", "retired", "suggested"]), properties: ["promoted": RemoteSchemas.schema_56aa0e45cbdce0d0, "retired": RemoteSchemas.schema_56aa0e45cbdce0d0, "suggested": RemoteSchemas.schema_56aa0e45cbdce0d0], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

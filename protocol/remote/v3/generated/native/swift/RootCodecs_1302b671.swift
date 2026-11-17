@@ -81,7 +81,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_ced7436778> = .init(id: "procedure.refreshAgentStatuses.result", schema: RemoteSchemas.schema_ced7436778cf748d)
+  static let procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_8c4b8eeb10> = .init(id: "procedure.refreshAgentStatuses.result", schema: RemoteSchemas.schema_8c4b8eeb107b4505)
 }
 
 public extension RemoteRootCodecs {
@@ -285,7 +285,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_68b4b3341e> = .init(id: "route.agent-statuses.response", schema: RemoteSchemas.schema_68b4b3341e5ced85)
+  static let routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_0170ad7cfc> = .init(id: "route.agent-statuses.response", schema: RemoteSchemas.schema_0170ad7cfc4d502b)
 }
 
 public extension RemoteRootCodecs {

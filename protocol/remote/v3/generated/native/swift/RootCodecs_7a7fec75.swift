@@ -133,7 +133,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_fddbefe96f> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_fddbefe96f496566)
+  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_b663d07542> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_b663d07542f97cab)
 }
 
 public extension RemoteRootCodecs {
@@ -237,7 +237,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_fddbefe96f> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_fddbefe96f496566)
+  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_b663d07542> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_b663d07542f97cab)
 }
 
 public extension RemoteRootCodecs {
@@ -342,6 +342,22 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EMcpU2DSettingsU2DReadU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DCommandResponse_e761211b82> = .init(id: "route.mcp-settings-read.response", schema: RemoteSchemas.schema_e761211b82c40573)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DCatalogU2ERequest: RemoteRootCodec<RoutememoryU2DCatalogRequest_0eb986e669> = .init(id: "route.memory-catalog.request", schema: RemoteSchemas.schema_0eb986e669e438e8)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DCatalogU2EResponse: RemoteRootCodec<RoutememoryU2DCatalogResponse_d2a9e452ab> = .init(id: "route.memory-catalog.response", schema: RemoteSchemas.schema_d2a9e452ab6ec4b9)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DSyncU2ERequest: RemoteRootCodec<RoutememoryU2DSyncRequest_e391f3a6d9> = .init(id: "route.memory-sync.request", schema: RemoteSchemas.schema_e391f3a6d93daf46)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DSyncU2EResponse: RemoteRootCodec<RoutememoryU2DSyncResponse_ac0baafa13> = .init(id: "route.memory-sync.response", schema: RemoteSchemas.schema_ac0baafa13683390)
 }
 
 public extension RemoteRootCodecs {

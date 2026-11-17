@@ -43,6 +43,7 @@ export const kimiDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 45,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

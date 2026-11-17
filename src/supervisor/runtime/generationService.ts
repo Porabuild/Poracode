@@ -16,6 +16,7 @@ import type {
   ForgeWritePrReviewGuidePayload,
   ForgeRepository,
 } from "@/shared/contracts";
+import type { GenerateMemoryTextPayload, GenerateMemoryTextResult } from "@/shared/memory";
 import { evaluateScheduleCompletion } from "../scheduleCompletionEvaluator";
 import { generateCommitMessage } from "../commitMessageGenerator";
 import {
@@ -24,6 +25,11 @@ import {
 } from "../contextExtractor";
 import { generatePrSummary } from "../prSummaryGenerator";
 import { generateTitle } from "../titleGenerator";
+import {
+  runOneShotPromptWithFallback,
+  runTextOnlyOneShotPromptWithFallback,
+} from "../oneShotPromptRunner";
+import { resolveOneShotSelection } from "../agents/base";
 import { judgeExperiment } from "../experimentJudge";
 import { generateReviewGuide } from "../reviewGuideGenerator";
 import type { ReviewGuideSnapshot } from "../forges/reviewGuides";
@@ -114,6 +120,34 @@ export class GenerationService {
         ),
       ),
     };
+  }
+
+  async generateMemoryText(payload: GenerateMemoryTextPayload): Promise<GenerateMemoryTextResult> {
+    const adapter = this.requireAdapter(payload.agentKind);
+    const selection = resolveOneShotSelection(adapter, payload.selection, () => {
+      return new Error(`No default one-shot model configured for ${adapter.label}`);
+    });
+    const textOnly = adapter.capabilities.supportsTextOnlyOneShot === true;
+    const run = textOnly ? runTextOnlyOneShotPromptWithFallback : runOneShotPromptWithFallback;
+    const attempts =
+      payload.prompt.length > 20_000
+        ? [
+            { level: "memory", buildPrompt: () => payload.prompt },
+            { level: "memory-compact", buildPrompt: () => payload.prompt.slice(0, 18_000) },
+          ]
+        : [{ level: "memory", buildPrompt: () => payload.prompt }];
+    const text = await this.withHelperLease("memory", () =>
+      run({
+        location: payload.projectLocation,
+        adapter,
+        selection,
+        isolateCwd: !textOnly,
+        timeoutMs: 60_000,
+        logTag: "memory",
+        attempts,
+      }),
+    );
+    return { text };
   }
 
   async generatePrSummary(payload: GeneratePrSummaryPayload): Promise<GeneratePrSummaryResult> {

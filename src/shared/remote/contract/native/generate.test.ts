@@ -110,23 +110,24 @@ describe("remote v3 native binding generator", () => {
         // regenerate both authority hashes and the native mirrors.
         // The additive device-adopt-session route (renderer adoption of an
         // agent-opened lease) does the same.
-        sourceHash: "sha256:dea293c0371c68f146817c37bafb757a2549811cd70d3761df04e45471423f04",
-        manifestHash: "sha256:eb340b611a44d8ed977b61c2f327ca9ce32ca733d02b2c5f25d26d1b03dae48c",
+        // Memory sync and catalog management are additive operator routes.
+        sourceHash: "sha256:ab496ba0e3caa8f4b82c9ac7ec0850e6363b744887c3e541ff2b098a8b9279b9",
+        manifestHash: "sha256:b344d1b59078a545149fd8f2ff0e8416da8b99eb0464bfb98006661e67907712",
         counts: {
-          routes: 123,
+          routes: 125,
           procedures: 179,
           voidProcedureResults: 66,
           jsonProcedureResults: 113,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 582,
-          structuralTypes: 1373,
+          schemaRoots: 586,
+          structuralTypes: 1403,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 152,
-          kotlinFiles: 128,
+          swiftFiles: 155,
+          kotlinFiles: 132,
           stateMachines: 5,
         },
       });
@@ -400,7 +401,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(582);
+        expect(adapters).toHaveLength(586);
         expect(
           adapters
             .map((adapter) => adapter.id)

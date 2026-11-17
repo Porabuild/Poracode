@@ -85,6 +85,7 @@ vi.mock("./BackendDurableServices", () => ({
     }
     getSupervisorExtraEnv = () => ({});
     startBackgroundServices = vi.fn<() => void>(() => {});
+    observeMemorySettings = () => {};
     observeSupervisorEvent = () => {};
     handleSupervisorReset = vi.fn<() => void>();
     handleSupervisorStarted = vi.fn<() => void>();

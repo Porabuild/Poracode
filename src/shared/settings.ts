@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultMemorySettings, memorySettingsSchema } from "./memory";
 import {
   settingsStringListSchema,
   settingsUnknownRecordSchema,
@@ -848,6 +849,11 @@ export const sharedSettingsSchema = z.object({
    * mention); this is the global guidance text shared across every such thread.
    */
   crossagentRoutingGuide: z.string(),
+  /**
+   * Shared memory controls. Opt-in (`enabled: false` by default) and
+   * per-field normalized so future enum additions never discard the object.
+   */
+  memory: memorySettingsSchema.default(defaultMemorySettings),
 });
 export type SharedSettings = z.infer<typeof sharedSettingsSchema>;
 
@@ -1021,6 +1027,7 @@ export const defaultSharedSettings: SharedSettings = {
   },
   hostResourceAdmission: { ...DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS },
   crossagentRoutingGuide: "",
+  memory: defaultMemorySettings,
 };
 
 function parseSettingOrDefault<T>(schema: z.ZodType<T>, value: unknown, fallback: T): T {
@@ -1847,6 +1854,11 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       ...normalized,
       machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       crews: normalizeSavedCrews(parsed.data.crews),
+      memory: normalizeObjectFromSchema(
+        memorySettingsSchema.shape,
+        defaultMemorySettings,
+        parsed.data.memory,
+      ),
     },
     parsed.data,
   );

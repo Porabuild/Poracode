@@ -353,6 +353,13 @@ msgstr "{0} đã đăng xuất."
 msgid "{0} MB download"
 msgstr "{0} MB"
 
+#. placeholder {0}: status.entryCount
+#. placeholder {1}: status.pendingCandidates
+#. placeholder {2}: status.suggestionCount
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "{0} memories · {1} waiting · {2} skill suggestions"
+msgstr "{0} ký ức · {1} đang chờ · {2} kỹ năng được gợi ý"
+
 #. placeholder {0}: capabilities.models.length
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "{0} models"
@@ -627,6 +634,14 @@ msgstr "{count, plural, one {# lượt chạy subagent} other {# lượt chạy 
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "{count, plural, one {# workflow run} other {# workflow runs}} this week"
 msgstr "{count, plural, one {# lượt chạy workflow} other {# lượt chạy workflow}} tuần này"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} saved"
+msgstr "đã lưu {count}"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "{count} waiting"
+msgstr "{count} đang chờ"
 
 #: src/renderer/components/newsLine/insightContent.tsx
 msgid "{current, plural, one {# day} other {# days}} in a row · your best is {longest}"
@@ -1237,6 +1252,11 @@ msgstr "Một ứng viên không còn ở nhánh thử nghiệm của mình."
 msgid "A Cursor profile with this name already exists."
 msgstr "Đã có hồ sơ Cursor trùng tên này."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A delete never waits on a model. Text is saved first, then read later."
+msgstr "Xóa không chờ mô hình. Văn bản được lưu trước, rồi đọc sau."
+
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 msgid "A device failed to start."
 msgstr "Không thể khởi động thiết bị."
@@ -1540,6 +1560,7 @@ msgstr "Hoạt động trên <0>{0}</0> tăng {1}% tuần này"
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -1554,6 +1575,10 @@ msgstr "Thêm {0}"
 #: src/renderer/commands/registry.ts
 msgid "Add a local project"
 msgstr "Thêm một dự án cục bộ"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Add a memory"
+msgstr "Thêm ký ức"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserPasswordsPage.tsx
 msgid "Add a password or import one from another browser."
@@ -1853,6 +1878,14 @@ msgstr "Cài đặt nâng cao"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. Để trống để dùng tự động."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (2 min)"
+msgstr "Sau khi lượt ổn định (2 phút)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "After the turn settles (90 sec)"
+msgstr "Sau khi lượt ổn định (90 giây)"
 
 #: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
@@ -2210,6 +2243,10 @@ msgstr "Luôn áp dụng"
 msgid "Always excluded"
 msgstr "Luôn bị loại trừ"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Always use bun"
+msgstr "Luôn dùng bun"
+
 #: src/renderer/utils/projectIconColors.ts
 msgid "Amber"
 msgstr "Hồ phách"
@@ -2391,6 +2428,7 @@ msgstr "Áp dụng cấu hình nhà cung cấp"
 msgid "Approval or reply required from you."
 msgstr "Cần có sự phê duyệt hoặc trả lời từ bạn."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/SubmitReviewPopover.tsx
 msgid "Approve"
 msgstr "Phê duyệt"
@@ -2557,6 +2595,11 @@ msgstr "Không thể hỏi: không có tác nhân nào có thể bắt đầu cu
 #: src/renderer/views/WelcomeOverlay.tsx
 msgid "Ask Question"
 msgstr "Đặt câu hỏi"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Ask sessions not to write a separate provider memory on top of this one."
+msgstr "Nhờ phiên không ghi thêm bộ nhớ riêng của nhà cung cấp lên trên bộ nhớ này."
 
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Ask When Needed"
@@ -2869,6 +2912,7 @@ msgstr "Đang chờ xem xét"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
@@ -3416,6 +3460,8 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
@@ -3453,6 +3499,7 @@ msgstr "Không thể dùng lựa chọn mô hình này trong giao diện này"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -3551,6 +3598,16 @@ msgstr "Điều khiển chụp và xem"
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Capture audio from this device."
 msgstr "Ghi lại âm thanh từ thiết bị này."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "Mô hình ghi"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture new notes after turns finish."
+msgstr "Ghi chú mới sau khi lượt kết thúc."
 
 #: src/renderer/components/newsLine/NewsLine.tsx
 msgid "carousel"
@@ -5763,6 +5820,11 @@ msgstr "Không thể cài đặt {0}."
 msgid "Couldn't list repositories."
 msgstr "Không thể liệt kê các kho lưu trữ."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Couldn't load memory."
+msgstr "Không tải được bộ nhớ."
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
@@ -5824,7 +5886,13 @@ msgstr "Không thể quét cấu hình máy chủ MCP."
 msgid "Couldn't start the camera"
 msgstr "Không thể khởi động camera"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Couldn't update memory mode for this thread."
+msgstr "Không thể đổi chế độ ghi nhớ cho luồng này."
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
 msgstr "Không thể cập nhật skill."
 
@@ -6368,6 +6436,15 @@ msgstr "Cửa sổ ngữ cảnh tùy chỉnh"
 msgid "Custom endpoint"
 msgstr "Điểm cuối tùy chỉnh"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Custom idle delay"
+msgstr "Thời gian chờ tùy chỉnh"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Custom idle minutes"
+msgstr "Số phút chờ tùy chỉnh"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "custom path"
 msgstr "đường dẫn tùy chỉnh"
@@ -6544,6 +6621,7 @@ msgstr "Giao việc cho các tác nhân AI khác."
 #: src/renderer/views/SettingsOverlay/parts/CrewsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -6755,6 +6833,7 @@ msgid "Describe what the agent should do"
 msgstr "Mô tả việc tác nhân cần làm"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 msgid "Description"
 msgstr "Mô tả"
@@ -7227,6 +7306,7 @@ msgid "Discovery complete"
 msgstr "Đã khám phá xong"
 
 #: src/renderer/components/composer/VoiceInputFeedback.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHistoryNoticeDock.tsx
@@ -7337,6 +7417,11 @@ msgstr "Xong ({doneCount})"
 #: src/renderer/components/thread/AgentDiscoveryDoneButton.tsx
 msgid "Done ({remainingSeconds}s)"
 msgstr "Xong ({remainingSeconds} giây)"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Done, archive, unload, and delete still capture immediately when allowed."
+msgstr "Xong, lưu trữ, dỡ và xóa vẫn ghi ngay khi được phép."
 
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFilePathChip.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
@@ -7476,6 +7561,20 @@ msgstr "Kéo để sắp xếp lại; nhấp đúp để chỉnh sửa"
 msgid "Draggable model"
 msgstr "Mô hình có thể kéo"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "Mô hình sắp xếp"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Dream now"
+msgstr "Sắp xếp ngay"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream schedule"
+msgstr "Lịch sắp xếp"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
@@ -7552,12 +7651,15 @@ msgid "Early bird: {percent}% of your recent prompts started before 10 AM"
 msgstr "Dậy sớm: {percent}% prompt gần đây bắt đầu trước 10 giờ sáng"
 
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 #: src/renderer/views/PullRequestsOverlay/parts/PrCommentBody.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Chỉnh sửa"
@@ -7659,6 +7761,10 @@ msgstr "Chỉnh sửa tiêu đề"
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "Chỉnh sửa:"
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Edited by you"
+msgstr "Bạn đã sửa"
 
 #: src/renderer/commands/registry.ts
 #: src/renderer/commands/shortcutCatalog.ts
@@ -8062,6 +8168,10 @@ msgstr "Mỗi {every} giờ"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every {every} minutes"
 msgstr "Mỗi {every} phút"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Every 3 days"
+msgstr "Mỗi 3 ngày"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Every day at {time}"
@@ -10185,6 +10295,11 @@ msgstr "Không hoạt động"
 msgid "Include in sync"
 msgstr "Thêm vào đồng bộ hóa"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Include memory when a thread starts."
+msgstr "Đưa bộ nhớ vào khi chuỗi bắt đầu."
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Include your streaks, prompt counts, and usage limits in the news line."
@@ -11051,6 +11166,16 @@ msgstr "Mô hình chính + Mô hình phụ"
 #~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
 #~ msgstr "Giá của mô hình chính và mô hình phụ được tính cho mỗi 1 triệu token của từng mô hình. Khoảng giá bao gồm các biến thể mô hình."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Learn from chats"
+msgstr "Học từ cuộc trò chuyện"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Learn from this thread"
+msgstr "Học từ chuỗi này"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
 #~ msgstr "Bộ nhớ định tuyến đã học"
@@ -11438,6 +11563,7 @@ msgstr "Đang tải:"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/PrReadOnlyNotice.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Loading…"
@@ -11668,6 +11794,10 @@ msgstr "Quản lý"
 msgid "Manage MCP servers"
 msgstr "Quản lý máy chủ MCP"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manage memories"
+msgstr "Quản lý ký ức"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
 #~ msgstr "Quản lý gói bằng trình quản lý plugin gốc của OpenCode. Các thay đổi áp dụng toàn cục trong môi trường đã chọn, bao gồm plugin terminal."
@@ -11779,6 +11909,10 @@ msgstr "Cài đặt Hex được quản lý không khả dụng trên máy chủ
 msgid "Managed installation is not available on this host. Use a compatible external Hex engine or the built-in engine."
 msgstr "Cài đặt được quản lý không khả dụng trên máy chủ này. Hãy dùng công cụ Hex bên ngoài tương thích hoặc công cụ tích hợp."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Managed on this host"
+msgstr "Được quản lý trên máy chủ này"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 #~ msgid "Managed skills"
 #~ msgstr "Skill được quản lý"
@@ -11787,6 +11921,10 @@ msgstr "Cài đặt được quản lý không khả dụng trên máy chủ nà
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Manual connection"
 msgstr "Kết nối thủ công"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Manual only"
+msgstr "Chỉ thủ công"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/sortMode.ts
 msgid "Manual order"
@@ -12089,6 +12227,34 @@ msgstr "Đa phương tiện"
 msgid "Medium"
 msgstr "Trung bình"
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Memories"
+msgstr "Ký ức"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/MobileProjectSettingsIndex.tsx
+#: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
+msgid "Memory"
+msgstr "Bộ nhớ"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Memory actions"
+msgstr "Thao tác bộ nhớ"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory catalog management is unavailable on this connection."
+msgstr "Không thể quản lý danh mục ký ức trên kết nối này."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory settings"
+msgstr "Cài đặt bộ nhớ"
+
 #: src/renderer/views/PullRequestsOverlay/compact/PrCompactMergeAction.tsx
 #: src/renderer/views/PullRequestsOverlay/detail/header/PrMergeControls.tsx
 msgid "Merge"
@@ -12101,6 +12267,11 @@ msgstr "Hợp nhất các thay đổi của {crownedLabel} vào {mergeTarget}?"
 #: src/renderer/views/MainView/parts/Sidebar/parts/useWorktreeActions.ts
 msgid "Merge & Remove"
 msgstr "Hợp nhất & Xóa"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Merge and retire notes. Skipped when nothing new was captured."
+msgstr "Gộp và loại ghi chú. Bỏ qua khi không có gì mới."
 
 #. placeholder {0}: props.candidateNumber
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
@@ -12752,6 +12923,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/providers/gemini/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
@@ -12860,6 +13032,10 @@ msgstr "Không bao giờ"
 #: src/renderer/components/providers/kimi/index.tsx
 msgid "Never Ask"
 msgstr "Không bao giờ hỏi"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Never capture deleted threads"
+msgstr "Không ghi các chuỗi đã xóa"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "New"
@@ -13504,6 +13680,10 @@ msgstr "Không có máy chủ MCP nào khớp với tìm kiếm."
 msgid "No MCP tools used yet."
 msgstr "Chưa dùng công cụ MCP nào."
 
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "No memories yet."
+msgstr "Chưa có ký ức."
+
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 msgid "No messages yet"
 msgstr "Chưa có tin nhắn nào"
@@ -13659,6 +13839,7 @@ msgstr "Không tìm thấy kho lưu trữ nào."
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Không có kết quả"
@@ -13973,6 +14154,7 @@ msgstr "Đã quan sát"
 msgid "off"
 msgstr "tắt"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/git/PrAutomationSlider.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/RemoteAccessSidebarIcon.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
@@ -14019,6 +14201,7 @@ msgstr "Cũ nhất trước"
 msgid "on"
 msgstr "trên"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/PluginsSection.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "On"
@@ -14037,6 +14220,10 @@ msgstr "Đúng đầu giờ"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Once on {0}"
 msgstr "Một lần vào {0}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Once per day"
+msgstr "Mỗi ngày một lần"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "One Header: value pair per line"
@@ -14071,6 +14258,10 @@ msgstr "Trực tuyến"
 msgid "Only chat threads can move to another machine."
 msgstr "Chỉ có thể chuyển luồng trò chuyện sang máy khác."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only on archive or done"
+msgstr "Chỉ khi lưu trữ hoặc đánh dấu xong"
+
 #: src/renderer/components/thread/MoveThreadDialog.tsx
 msgid "Only the conversation moves: this folder isn't a Git repository."
 msgstr "Chỉ cuộc trò chuyện được chuyển: thư mục này không phải là kho Git."
@@ -14079,6 +14270,10 @@ msgstr "Chỉ cuộc trò chuyện được chuyển: thư mục này không ph�
 #: src/renderer/components/thread/ThreadBackgroundTaskRow.tsx
 msgid "Only the end of the output is shown ({0} bytes)."
 msgstr "Chỉ hiển thị phần cuối của đầu ra ({0} byte)."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Only when a thread is done or archived"
+msgstr "Chỉ khi chuỗi đã xong hoặc được lưu trữ"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "Only when unfocused"
@@ -15258,6 +15453,7 @@ msgstr "Ghim {0} lên đầu"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Pin to top"
 msgstr "Ghim lên đầu"
 
@@ -15273,6 +15469,7 @@ msgstr "Hồng"
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Pinned"
 msgstr "Đã ghim"
 
@@ -15505,6 +15702,10 @@ msgstr "Poracode trên X"
 msgid "Poracode only"
 msgstr "Chỉ Poracode"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Poracode remembers preferences and corrections across providers. Capture runs after a turn finishes. A daily pass merges them. Skills learned from repeated work stay as suggestions until you approve them."
+msgstr "Poracode nhớ sở thích và chỉnh sửa giữa các nhà cung cấp. Việc ghi bắt đầu khi lượt kết thúc. Một lượt mỗi ngày sẽ gộp chúng. Kỹ năng học từ công việc lặp lại vẫn là gợi ý cho đến khi bạn duyệt."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode SSH runtime manifest is missing or invalid: {path}"
 msgstr "Tệp kê khai thời gian chạy SSH của Poracode bị thiếu hoặc không hợp lệ: {path}"
@@ -15644,6 +15845,11 @@ msgstr "Tiêu đề PR (để trống để tự động tạo)"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pre-commit hook failed"
 msgstr "Hook pre-commit không thành công"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Prefer Poracode memory"
+msgstr "Ưu tiên bộ nhớ Poracode"
 
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 #~ msgid "Preferred routing order"
@@ -16006,6 +16212,10 @@ msgstr "Các dự án trong {0} sẽ chuyển sang {1}. Không dự án nào b�
 #: src/mobile/setupEmptyState.tsx
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "Dự án nằm trên máy tính đã kết nối. Hãy thêm một dự án trước khi bắt đầu luồng."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Promoted {promoted}. Suggested {suggested} skills."
+msgstr "Đã lưu {promoted} ghi chú. Đã đề xuất {suggested} kỹ năng."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Promoting this profile into the owned data root…"
@@ -17221,6 +17431,11 @@ msgstr "Sửa chữa"
 msgid "Repeat"
 msgstr "Lặp lại"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Repeated workflows appear in Settings → Skills for you to edit and approve."
+msgstr "Quy trình lặp lại hiện trong Cài đặt → Kỹ năng để bạn sửa và duyệt."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Report a bug or suggest an idea."
 msgstr "Báo lỗi hoặc đề xuất ý tưởng."
@@ -17311,6 +17526,7 @@ msgstr "đặt lại"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Đặt lại"
 
@@ -18189,6 +18405,7 @@ msgstr "Độ bão hòa và độ sáng"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/PlanCommentCard.tsx
@@ -18204,6 +18421,7 @@ msgstr "Độ bão hòa và độ sáng"
 #: src/renderer/views/PullRequestsOverlay/parts/PrEditSheet.tsx
 #: src/renderer/views/PullRequestsOverlay/summary/DescriptionCard.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -18274,6 +18492,10 @@ msgstr "Lưu hồ sơ Gemini"
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "Lưu hình ảnh"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Save learnings before deleting"
+msgstr "Lưu điều đã học trước khi xóa"
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
@@ -18566,6 +18788,10 @@ msgstr "Tìm kiếm máy chủ MCP"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Search MCP servers..."
 msgstr "Tìm kiếm máy chủ MCP..."
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Search memories"
+msgstr "Tìm kiếm ký ức"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx
@@ -19125,6 +19351,11 @@ msgstr "Chia sẻ"
 #~ msgid "Share another profile's isolated login"
 #~ msgstr "Dùng chung đăng nhập riêng của hồ sơ khác"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "Chia sẻ ghi chú chung và ghi chú dự án đã liên kết với các máy đã ghép nối và WSL. Thư mục chưa liên kết vẫn tách riêng."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Chia sẻ hoạt động của bạn"
@@ -19136,6 +19367,10 @@ msgstr "Dùng chung"
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Shared login owner"
 msgstr "Chủ sở hữu đăng nhập dùng chung"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
+msgid "Shared notes across providers"
+msgstr "Ghi chú dùng chung giữa các nhà cung cấp"
 
 #. placeholder {0}: owner.displayName ?? owner.id
 #: src/renderer/components/providers/devin/profileSettings.tsx
@@ -19641,6 +19876,10 @@ msgstr "Skill"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill availability"
 msgstr "Phạm vi khả dụng của skill"
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+msgid "Skill instructions"
+msgstr "Hướng dẫn kỹ năng"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill marketplace source"
@@ -20415,6 +20654,11 @@ msgstr "Hóa đơn thuê bao"
 msgid "Succeeded"
 msgstr "Thành công"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Suggest skills"
+msgstr "Gợi ý kỹ năng"
+
 #: src/renderer/components/providers/devin/sessionActionDialog.tsx
 msgid "Suggested command — review before use"
 msgstr "Lệnh được đề xuất — xem xét trước khi dùng"
@@ -20423,6 +20667,7 @@ msgstr "Lệnh được đề xuất — xem xét trước khi dùng"
 msgid "Suggested command inserted into the composer."
 msgstr "Đã chèn lệnh đề xuất vào bộ soạn."
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "Gợi ý"
@@ -20579,9 +20824,18 @@ msgstr "Đồng bộ hóa (Rebase)"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "Đồng bộ hóa ↓{behind} ↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "Đồng bộ giữa các môi trường"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "Đồng bộ hóa không thành công: {detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "Đồng bộ ngay"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"
@@ -20592,6 +20846,7 @@ msgstr "Tùy chọn đồng bộ hóa"
 #~ msgstr "Đồng bộ với desktop"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Syncing…"
 msgstr "Đang đồng bộ…"
 
@@ -21022,6 +21277,11 @@ msgstr "Các ứng viên chưa thực hiện thay đổi nào."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "Các thay đổi quá lớn để chuyển ({size}). Hãy commit hoặc bỏ qua các tệp lớn trước."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "Mô hình rẻ nhất của nhà cung cấp được đánh giá cao nhất đọc lượt đã kết thúc. Bạn có thể chọn bất kỳ mô hình nào."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "Không thể khôi phục điểm kiểm tra."
@@ -21292,6 +21552,10 @@ msgstr "Cấu hình máy chủ MCP không hợp lệ hoặc sử dụng tên dà
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "Máy chủ MCP không hợp lệ."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#~ msgid "The memory catalog is edited on the desktop that owns this host."
+#~ msgstr "Danh mục bộ nhớ được sửa trên máy tính sở hữu máy chủ này."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The move expired. Start it again."
@@ -21584,6 +21848,11 @@ msgstr "Cấu hình đã lưu không hợp lệ. Lưu bên dưới sẽ thay th�
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Cấu hình đã lưu không hợp lệ. Các giá trị đã lưu được giữ lại; lưu bên dưới sẽ thay thế chúng bằng nội dung của biểu mẫu này."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "Mô hình mạnh nhất của nhà cung cấp được đánh giá cao nhất gộp các ghi chú. Bạn có thể chọn bất kỳ mô hình nào."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
@@ -23280,6 +23549,10 @@ msgstr "Nhà cung cấp và mô hình bị bỏ chọn sẽ không được dùn
 #~ msgid "Unchecked providers and models are skipped by Crossagents only."
 #~ msgstr "Nhà cung cấp và mô hình không được chọn chỉ bị Crossagents bỏ qua."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undo"
+msgstr "Hoàn tác"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
 msgstr "Bỏ nhóm"
@@ -23380,6 +23653,7 @@ msgstr "Không phân giai đoạn:"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Unpin"
 msgstr "Bỏ ghim"
 
@@ -23906,6 +24180,12 @@ msgstr "Dùng bản xem trước trực tiếp"
 msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Dùng chữ thường, chữ số và dấu gạch nối."
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Use memory"
+msgstr "Dùng bộ nhớ"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
@@ -24307,6 +24587,11 @@ msgstr "Đợi luồng khởi động xong trước khi chuyển nó sang cây l
 msgid "Wait for the thread to finish starting."
 msgstr "Chờ cho luồng khởi động xong."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Wait this long after a turn finishes."
+msgstr "Chờ bấy lâu sau khi lượt kết thúc."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Waiting"
 msgstr "Đang chờ"
@@ -24458,6 +24743,7 @@ msgid "Weekend builder: {percent}% of your recent prompts ran on weekends"
 msgstr "Làm cuối tuần: {percent}% prompt gần đây chạy vào cuối tuần"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Weekly"
 msgstr "Hằng tuần"
 
@@ -24509,6 +24795,11 @@ msgstr "Có gì mới"
 msgid "What's new in Poracode, newest first."
 msgstr "Có gì mới trong Poracode, mới nhất trước."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When a thread is deleted"
+msgstr "Khi một chuỗi bị xóa"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
 msgid "When enabled, search respects <0>.gitignore</0> entries."
 msgstr "Khi được bật, tìm kiếm sẽ tôn trọng các mục nhập <0>.gitignore</0>."
@@ -24521,6 +24812,11 @@ msgstr "Khi các liên kết mở trong tab trình duyệt Poracode, hãy chọn
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 msgid "When off, suppress notifications from terminal threads whose status comes from the OSC fallback (no CLI hook plugin)."
 msgstr "Khi tắt, hãy chặn thông báo từ các luồng đầu cuối có trạng thái đến từ dự phòng OSC (không có plugin hook CLI)."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "When to capture"
+msgstr "Khi nào ghi lại"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

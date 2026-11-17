@@ -20,6 +20,7 @@ import { scheduleTools } from "./tools/schedules";
 import { searchTools } from "./tools/search";
 import { settingsTools } from "./tools/settings";
 import { skillTools } from "./tools/skills";
+import { memoryTools } from "./tools/memory";
 import { threadTools } from "./tools/threads";
 import { usageTools } from "./tools/usage";
 import { workspaceTools } from "./tools/workspaces";
@@ -67,7 +68,8 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "(get_usage), cross-app search (search), and app info (get_app_info). You can also read a " +
   "running workspace terminal panes and their scrollback, queue steer guidance, stage composer " +
   "input, or roll back turns; " +
-  "read project files (list/read/find); list installed CLI agents; and notify the user or check " +
+  "read project files (list/read/find); list installed CLI agents; search shared memory " +
+  "(search_memory); and notify the user or check " +
   "for app updates. You can also drive a project's git (status/diff/stage/commit/branch/sync and " +
   "worktree list/merge/remove), its GitHub pull requests via the gh CLI (list/get/create/comment/" +
   "merge/update), the user's configured MCP servers (list/probe/add/update/remove — MCP servers " +
@@ -133,6 +135,7 @@ const DOMAINS: readonly ToolDomain[] = [
   reviewTools,
   mcpServerTools,
   skillTools,
+  memoryTools,
 ];
 
 export const TOOLS: readonly StreamableHttpMcpToolSpec[] = DOMAINS.flatMap(

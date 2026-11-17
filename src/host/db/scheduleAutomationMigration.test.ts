@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runDatabaseMigrations } from "./migrations";
+import { LATEST_SCHEMA_VERSION, runDatabaseMigrations } from "./migrations";
 import {
   createSchema53PayloadOriginDatabase,
   migrateSchema53FixtureThrough,
@@ -27,7 +27,7 @@ describe("schema 58 schedule upgrade", () => {
       runDatabaseMigrations(sqlite, 58);
       expect(
         sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-      ).toEqual({ value: "75" });
+      ).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
       expect(
         sqlite
           .prepare(

@@ -1,4 +1,12 @@
 import { z } from "zod";
+import {
+  memorySyncResponseSchema,
+  remoteMemoryCatalogResultSchema,
+  type MemorySyncResponse,
+  type MemorySyncState,
+  type RemoteMemoryCatalogCommand,
+  type RemoteMemoryCatalogResult,
+} from "../memory";
 import { agentVisionResponseSchema, type AgentVision } from "../agentVision";
 import {
   remoteHostDescribeSchema,
@@ -466,6 +474,25 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       "settings",
     );
     return result.settings;
+  }
+
+  async memoryCatalog(command: RemoteMemoryCatalogCommand): Promise<RemoteMemoryCatalogResult> {
+    const result = parseResponse(
+      remoteMemoryCatalogResultSchema,
+      await this.requestJson("/api/memory/catalog", { method: "POST", body: command }),
+      "memory catalog",
+    );
+    if (result.action !== command.action)
+      throw new Error("Memory catalog response mismatched its request.");
+    return result;
+  }
+
+  async memorySync(state: MemorySyncState): Promise<MemorySyncResponse> {
+    return parseResponse(
+      memorySyncResponseSchema,
+      await this.requestJson("/api/memory/sync", { method: "POST", body: state }),
+      "memory sync",
+    );
   }
 
   async uploadAttachment(input: {

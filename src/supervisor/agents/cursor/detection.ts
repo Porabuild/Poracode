@@ -51,6 +51,7 @@ export const cursorDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 80,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

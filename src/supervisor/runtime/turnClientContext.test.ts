@@ -142,6 +142,12 @@ describe("structuredTurnTextOptions", () => {
     expect(
       structuredTurnTextOptions({ ...placing, slashCommands }, { ...turn, prompt: "/compact" }),
     ).toEqual(text);
+    const withMemory = structuredTurnTextOptions(
+      { ...placing, pendingInitialInstructions: "<poracode_memory>\n- rule\n</poracode_memory>" },
+      { prompt: "/review" },
+    );
+    expect(withMemory.turnContext).toContain("<poracode_memory>");
+    expect(withMemory.inlineInstructions).toBeUndefined();
   });
 
   it("leaves an advertised provider command and its arguments untouched", () => {

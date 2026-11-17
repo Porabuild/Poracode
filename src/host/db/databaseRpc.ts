@@ -27,6 +27,7 @@ import {
   dbUpsertThread,
 } from "@/host/db";
 import type { BackendDatabaseCall } from "@/shared/backendHostProtocol";
+import { handleMemoryCommand } from "@/host/memory/runtime";
 import { readDatabaseAsync } from "./asyncReads";
 
 /**
@@ -120,6 +121,8 @@ export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknow
       );
     case "dbSetProjectNotes":
       return dbSetProjectNotes(call.payload);
+    case "memoryCommand":
+      return handleMemoryCommand(call.payload);
     case "getScheduleRuns":
       return readDatabaseAsync("scheduleRuns", [call.payload.id], () =>
         dbListScheduleRuns(call.payload.id),

@@ -52,7 +52,11 @@ import {
   type ComposerCustomMcpItem,
   type ComposerMcpMenuItem,
 } from "../composer/ComposerAddMenu";
-import { openCrewsSettings, openMcpServersSettings } from "@/renderer/actions/panelActions";
+import {
+  openCrewsSettings,
+  openMcpServersSettings,
+  openMemorySettings,
+} from "@/renderer/actions/panelActions";
 import { getComputerUseScope } from "../composer/computerUseScope";
 import { composerCustomMcpItems } from "../composer/composerCustomMcpServers";
 import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
@@ -1143,6 +1147,11 @@ export function ContinueInProviderDialog(props: {
                             // Settings sit behind the modal — dismiss it first.
                             handleCancel();
                             openMcpServersSettings();
+                          }}
+                          onManageMemory={() => {
+                            // Settings sit behind the modal — dismiss it first.
+                            handleCancel();
+                            openMemorySettings();
                           }}
                           pluginLabels={composerPluginLabels}
                           {...(providerOwnsMcp && mcpControlsAvailable

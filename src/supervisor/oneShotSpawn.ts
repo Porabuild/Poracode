@@ -39,7 +39,7 @@ export interface OneShotSpecOptions {
  * keeping every other field (distro, kind) intact. WSL must stay a Linux path
  * inside the distro; native uses the OS temp dir.
  */
-function isolatedCwdLocation(location: ProjectLocation): ProjectLocation {
+export function isolatedCwdLocation(location: ProjectLocation): ProjectLocation {
   if (location.kind === "wsl") {
     return { ...location, linuxPath: "/tmp" };
   }

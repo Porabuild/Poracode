@@ -177,6 +177,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_28f26b87e53ebaef = RemoteSchema(type: "string", literals: [.string("learn"), .string("recall"), .string("incognito")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_290453f28a433311 = RemoteSchema(type: "object", required: Set(["kind", "tabId", "url"]), properties: ["kind": RemoteSchemas.schema_9063020a6c5ad8b3, "tabId": RemoteSchemas.schema_36fea325bf1aca70, "url": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -194,6 +198,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_29b52750e42441f8 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_7e8114c3dda52277, RemoteSchemas.schema_b305c5dcc2d06cc2, RemoteSchemas.schema_f6a941e10f9feb27, RemoteSchemas.schema_38c5e1151393f6bd, RemoteSchemas.schema_3c594c99571d82f9], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_29dd431b6bfc4cee = RemoteSchema(type: "object", required: Set(["deletedAt", "id", "projectId", "scope"]), properties: ["deletedAt": RemoteSchemas.schema_36fea325bf1aca70, "id": RemoteSchemas.schema_36fea325bf1aca70, "projectId": RemoteSchemas.schema_df704162f3d15808, "repoKey": RemoteSchemas.schema_df704162f3d15808, "scope": RemoteSchemas.schema_ac6ea0fc110d7efb], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

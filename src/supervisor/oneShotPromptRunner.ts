@@ -8,7 +8,7 @@ import {
   type AgentAdapter,
   type CommandSpec,
 } from "./agents/base";
-import { prepareOneShot } from "./oneShotSpawn";
+import { isolatedCwdLocation, prepareOneShot } from "./oneShotSpawn";
 
 // Spawn returns these errno codes when the OS rejects the argv length:
 // - ENAMETOOLONG: macOS / Windows (via libuv mapping)
@@ -73,6 +73,8 @@ export interface RunOneShotPromptOptions {
   selection: ModelSelection;
   /** Let structured runtimes expose read/search/list tools in the isolated workspace. */
   readOnlyWorkspace?: boolean | undefined;
+  /** Run inside a throwaway scratch cwd instead of the project repository. */
+  isolateCwd?: boolean | undefined;
   timeoutMs: number;
   signal?: AbortSignal;
   /** Tag for log lines, e.g. "commit-gen", "pr-summary-gen". */
@@ -135,11 +137,12 @@ async function runOneShotPromptWithFallbackImpl(
   }
 
   const useSdkPath = typeof runOneShot === "function";
-  const executionLocation = await resolveAgentProjectLocation(
+  const baseLocation = await resolveAgentProjectLocation(
     options.location,
     undefined,
     options.signal,
   );
+  const executionLocation = options.isolateCwd ? isolatedCwdLocation(baseLocation) : baseLocation;
   // The legacy positional ABI is a checked projection of the one selection:
   // derived exactly once here, before any attempt, and passed alongside the
   // full selection on every attempt so both builder lanes always agree.
@@ -207,7 +210,11 @@ async function runOneShotPromptWithFallbackImpl(
     // model may inspect. Preserve it even for adapters that normally move
     // utility one-shots to the OS temp root for session-cache isolation.
     const baseCommand =
-      options.readOnlyWorkspace && cmd.isolateCwd ? { ...cmd, isolateCwd: false } : cmd;
+      options.readOnlyWorkspace && cmd.isolateCwd
+        ? { ...cmd, isolateCwd: false }
+        : options.isolateCwd && !cmd.isolateCwd
+          ? { ...cmd, isolateCwd: true }
+          : cmd;
     // Every Poracode-made spawn of this CLI carries the provider's base env
     // (updater/telemetry opt-outs); a command-specific `env` wins on conflict.
     const effectiveCommand = withCommandBaseSpawnEnv(baseCommand, options.adapter.baseSpawnEnv);

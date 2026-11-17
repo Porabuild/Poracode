@@ -1663,6 +1663,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               onManageMcpServers={openMcpServersSettings}
                               pluginLabels={composerPluginLabels}
                               readOnly
+                              {...(thread.id ? { threadId: thread.id } : {})}
                               computerUse={{
                                 enabled: effectiveMcpConfig?.computerUse === true,
                                 visible:

@@ -165,6 +165,8 @@ export interface RemoteServerRecord {
    * and never implies anything about raw TCP forwarding.
    */
   readonly browserForwardAvailable?: boolean;
+  /** Memory catalog v1 advertised by this connection's last host descriptor. */
+  readonly memoryCatalogAvailable?: boolean;
   /** Absent on records persisted before transport metadata existed. */
   readonly transport?:
     | { readonly kind: "direct" }

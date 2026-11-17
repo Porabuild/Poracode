@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import { runDatabaseMigrations } from "./migrations";
+import { LATEST_SCHEMA_VERSION, runDatabaseMigrations } from "./migrations";
 import {
   createSchema53PayloadOriginDatabase,
   migrateSchema53FixtureThrough,
@@ -44,7 +44,7 @@ it("upgrades the historical schema57 without rewriting rows and indexes goal hit
     db.prepare("SELECT * FROM thread_runtime_items ORDER BY thread_id, position").all(),
   ).toEqual(before);
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "75",
+    value: String(LATEST_SCHEMA_VERSION),
   });
   const query =
     "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? AND type = 'goal' ORDER BY position DESC LIMIT 1";

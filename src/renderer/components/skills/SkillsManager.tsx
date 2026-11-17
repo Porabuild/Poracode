@@ -19,12 +19,14 @@ import {
 } from "@/renderer/components/mcp/McpProjectDestinationDropdown";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
+import { projectHostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { runRendererAction, useRendererActionStore } from "@/renderer/state/rendererActionStore";
 import { SkillImportModal } from "./SkillImportModal";
 import { SkillMarketplaceModal } from "./SkillMarketplaceModal";
 import { SkillViewModal } from "./SkillViewModal";
 import { groupSkills } from "./skillGrouping";
+import { MemorySkillSuggestions } from "./MemorySkillSuggestions";
 import { hostGlobalScopeLabel, resolveSkillTarget, skillTargetRequest } from "./skillTargets";
 import { useSkills } from "./useSkills";
 import {
@@ -250,6 +252,7 @@ export function SkillsManager(props: {
           {...(target.project ? { projectLocation: target.project.location } : {})}
           {...(target.wslDistro ? { wslDistro: target.wslDistro } : {})}
           onClose={() => setViewingSkill(undefined)}
+          onSaved={() => void reload()}
         />
       ) : null}
       <ConfirmDialog
@@ -401,6 +404,12 @@ export function SkillsManager(props: {
           provider copies. Its files are preserved so you can enable it again.
         </Trans>
       </p>
+      {!target.wslDistro && (!target.project || projectHostRunsOnThisMachine(target.project)) ? (
+        <MemorySkillSuggestions
+          {...(target.project ? { projectId: target.project.id } : {})}
+          onApproved={() => void reload()}
+        />
+      ) : null}
 
       {error ? (
         <div

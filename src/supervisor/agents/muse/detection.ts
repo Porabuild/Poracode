@@ -78,6 +78,7 @@ export const museDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 47,
   supportsDirectInput: true,
   // Muse's model routes reject image content carried in the session history
   // ("retained media history is unsupported"), so MSP turn input references

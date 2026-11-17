@@ -11,6 +11,7 @@ import {
   defaultSharedSettings,
   type SharedSettings,
 } from "@/shared/settings";
+import { defaultMemorySettings } from "@/shared/memory";
 import {
   applyAgentSecretSetting,
   applyCreateProfile,
@@ -266,6 +267,7 @@ describe("sharedSettingsFile", () => {
         maxActiveGenerationHelpers: 0,
       },
       crossagentRoutingGuide: "",
+      memory: defaultMemorySettings,
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
@@ -439,6 +441,7 @@ describe("sharedSettingsFile", () => {
         maxActiveGenerationHelpers: 0,
       },
       crossagentRoutingGuide: "",
+      memory: defaultMemorySettings,
     });
     expect(readFileSync(settingsPath, "utf8")).toContain('"themeMode": "dark"');
   });

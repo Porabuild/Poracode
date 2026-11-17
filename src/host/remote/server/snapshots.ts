@@ -12,6 +12,7 @@ import { readCommittedRuntimeSnapshot } from "@/host/db/runtimeSnapshotRead";
 import { HISTORY_DETAILS_VERSION } from "@/shared/remote/historyPresentation";
 import { THREAD_HISTORY_RESUME_VERSION } from "@/shared/remote/historyResume";
 import { THREAD_TRANSFER_VERSION } from "@/shared/threadTransfer";
+import { REMOTE_MEMORY_CATALOG_VERSION } from "@/shared/memory";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_CATALOG_MUTATIONS_VERSION,
@@ -191,6 +192,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       conversationSnapshots: { versions: [REMOTE_CONVERSATION_SNAPSHOTS_VERSION] },
       threadForks: { versions: [1] },
       sessionImport: { versions: [1] },
+      memoryCatalog: { versions: [REMOTE_MEMORY_CATALOG_VERSION] },
       // Every composition serves the transfer routes over its own database,
       // attachment root and supervisor, so the capability is unconditional.
       threadTransfer: { versions: [THREAD_TRANSFER_VERSION] },

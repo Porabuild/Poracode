@@ -57,6 +57,7 @@ export const claudeCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 20,
   supportsReadOnlyOneShotWorkspace: true,
   supportsTextOnlyOneShot: true,
   supportsDirectInput: true,

@@ -4,6 +4,7 @@ import type Database from "better-sqlite3";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
   DATABASE_MIGRATIONS,
+  LATEST_SCHEMA_VERSION,
   describeMigrationRollbackPolicy,
   runDatabaseMigrations,
 } from "./migrations";
@@ -62,7 +63,7 @@ it("advances the actual historical schema-56 prefix without backfilling selectio
   });
   runDatabaseMigrations(db, 57);
   expect(db.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()).toEqual({
-    value: "75",
+    value: String(LATEST_SCHEMA_VERSION),
   });
   expect(db.prepare("SELECT * FROM threads ORDER BY id").all()).toStrictEqual(
     (beforeThreads as Record<string, unknown>[]).map((row) => ({

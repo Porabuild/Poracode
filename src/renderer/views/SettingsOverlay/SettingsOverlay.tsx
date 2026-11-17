@@ -40,6 +40,7 @@ import {
   type ArchivedThreadsScopeProps,
 } from "./parts/ArchivedThreadsMachinePicker";
 import { ChangelogSettings } from "./parts/ChangelogSettings";
+import { MemorySettings } from "./parts/MemorySettings";
 import { AboutSettings } from "./parts/AboutSettings";
 import { DevSettings } from "./parts/DevSettings";
 import { McpServersSettings } from "./parts/McpServersSettings";
@@ -65,6 +66,7 @@ const DESKTOP_MOBILE_SECTIONS = new Set<SettingsSection>([
   "profile",
   "usage",
   "ai",
+  "memory",
   "agentsGeneral",
   "archived",
 ]);
@@ -88,6 +90,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   agents: () => <AgentSettingsEmpty />,
   agentsGeneral: () => <AgentsGeneralSettings />,
   skills: () => <SkillsSettings />,
+  memory: () => <MemorySettings />,
   mcpServers: () => <McpServersSettings />,
   plugins: () => <PluginsSettings />,
   crews: () => <CrewsSettings />,
@@ -108,6 +111,7 @@ const MACHINE_BACKED_SECTIONS = new Set<SettingsSection>([
   "acpRegistry",
   "ai",
   "skills",
+  "memory",
   "mcpServers",
   "usage",
   "import",
@@ -120,6 +124,7 @@ const HOST_SCOPED_SECTIONS = new Set<SettingsSection>([
   "worktrees",
   "ai",
   "skills",
+  "memory",
   "mcpServers",
   "usage",
   "crews",
@@ -348,7 +353,10 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     archiveScope,
   );
   const showMobileDesktopPicker =
-    compactLayout && remoteSession && selectedDesktop !== undefined && mobileScreen === "desktop";
+    compactLayout &&
+    remoteSession &&
+    selectedDesktop !== undefined &&
+    (mobileScreen === "desktop" || (mobileScreen === "detail" && activeSection === "memory"));
   const openSchedules = useAppStore((state) => state.openSchedules);
   const detailTitle = (() => {
     if (activeSection === "agentsGeneral") return t`Agents`;

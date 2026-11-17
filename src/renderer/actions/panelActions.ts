@@ -123,6 +123,10 @@ export function openMcpServersSettings(): void {
   usePanelStore.getState().openSettingsSection("mcpServers");
 }
 
+export function openMemorySettings(): void {
+  usePanelStore.getState().openSettingsSection("memory");
+}
+
 export function openCrewsSettings(crewId?: string): void {
   usePanelStore.getState().openSettingsSection("crews", crewId ? `crews.${crewId}` : undefined);
 }

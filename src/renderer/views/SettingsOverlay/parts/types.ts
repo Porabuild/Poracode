@@ -19,6 +19,7 @@ export const SETTINGS_SECTIONS = [
   "shortcuts",
   "agents",
   "skills",
+  "memory",
   "mcpServers",
   "plugins",
   "crews",

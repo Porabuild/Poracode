@@ -47,7 +47,8 @@ import type { SupervisorClient } from "@/host/supervisor/SupervisorClient";
 import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
 import type { PrData, PrDetails, PrWatch, RemoteThreadCommand } from "@/shared/contracts";
 import { isThreadTurnActive } from "@/shared/contracts";
-import type { GitStatePatch } from "@/shared/gitState";
+import { gitProjectKey, type GitStatePatch } from "@/shared/gitState";
+import { repoIdentityKey } from "@/shared/repoIdentity";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import type { SharedSettings } from "@/shared/settings";
@@ -55,6 +56,26 @@ import type { SettingsMutationResult, SettingsOwnerEdit } from "@/shared/setting
 import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
 import { observeSupervisorSettingsEditsEvent } from "./BackendSupervisorSettingsEdits";
 import { runThreadHousekeeping } from "./ThreadHousekeepingService";
+import {
+  handleMemoryCommand,
+  installMemoryDeleteHook,
+  runMemoryCapturePass,
+  setMemoryModelCaller,
+} from "@/host/memory/runtime";
+import { setMemoryRepoKeyReader } from "@/host/memory/repoKeyReader";
+import { setMemorySettingsReader } from "@/host/memory/settingsReader";
+import { defaultMemorySettings, memoryDreamIntervalMs } from "@/shared/memory";
+import {
+  collectMemoryModelCandidates,
+  isEligibleMemoryOneShotAgent,
+  pickMemoryModel,
+  type MemoryModelCandidate,
+} from "@/shared/memoryModelChoice";
+import {
+  dbCountPendingCandidates,
+  dbMemoryMeta,
+  dbStartMemoryCapture,
+} from "@/host/db/memoryStore";
 
 export interface BackendDurableServicesOptions {
   appVersion: string;
@@ -140,8 +161,13 @@ export class BackendDurableServices {
   private housekeepingCancelled = false;
   /** Settled-or-in-flight boot sweep, joined by {@link dispose}. */
   private housekeepingRun: Promise<void> | null = null;
+  private memoryTimer: ReturnType<typeof setInterval> | null = null;
+  private memoryPass: Promise<void> | null = null;
+  private memoryWasEnabled: boolean;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
+    const memory = options.getSharedSettings()?.memory;
+    this.memoryWasEnabled = Boolean(memory?.enabled && memory.learning);
     this.deviceWorkspace = new DeviceWorkspaceService(
       (id) => {
         const thread = dbGetThread(id);
@@ -389,6 +415,146 @@ export class BackendDurableServices {
     } else {
       this.attachmentReclaim = null;
     }
+    setMemorySettingsReader(
+      () => this.options.getSharedSettings()?.memory ?? defaultMemorySettings,
+    );
+    setMemoryRepoKeyReader((projectId) =>
+      repoIdentityKey(
+        this.gitStateService.getSnapshot().projects[
+          gitProjectKey({ hostId: this.options.hostId, projectId })
+        ]?.status?.remoteInfo,
+      ),
+    );
+    installMemoryDeleteHook();
+    setMemoryModelCaller({
+      complete: (input) => this.completeMemoryPrompt(input),
+    });
+  }
+
+  private async completeMemoryPrompt(input: {
+    projectId: string | null;
+    purpose: "capture" | "dream";
+    prompt: string;
+  }): Promise<string> {
+    if (this.disposed) throw new Error("Backend durable services are shutting down.");
+    const shared = this.options.getSharedSettings();
+    const settings = shared?.memory ?? defaultMemorySettings;
+    const provider = input.purpose === "dream" ? settings.dreamProvider : settings.captureProvider;
+    const model = input.purpose === "dream" ? settings.dreamModel : settings.captureModel;
+    const effort = input.purpose === "dream" ? settings.dreamEffort : settings.captureEffort;
+    const fast = input.purpose === "dream" ? settings.dreamFast : settings.captureFast;
+    const project = (input.projectId ? dbGetProject(input.projectId) : null) ?? dbGetProjects()[0];
+    if (!project) throw new Error("No project is available for a memory model call.");
+    const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
+    const wslDistros = wslDistro ? [wslDistro] : [];
+    const statuses = await this.options.supervisor.call("getAgentStatuses", { wslDistros });
+    if (this.disposed) throw new Error("Backend durable services are shutting down.");
+    const rawPool = wslDistro
+      ? statuses.wsl.filter((agent) => agent.envDistro === wslDistro)
+      : statuses.windows;
+    const disabled = new Set(shared?.disabledAgents ?? []);
+    const hiddenModels = shared?.hiddenModels ?? {};
+    const agents = rawPool.filter((agent) => isEligibleMemoryOneShotAgent(agent, disabled));
+    const candidates = collectMemoryModelCandidates(agents, {
+      hiddenModelsByAgent: hiddenModels,
+      explicitProvider: provider,
+      explicitModel: model,
+    });
+    const role = input.purpose === "dream" ? "dream" : "capture";
+    const attempts: MemoryModelCandidate[] = [];
+    if (provider !== "auto") {
+      const scoped = candidates.filter((candidate) => candidate.agentKind === provider);
+      const explicit =
+        model && scoped.some((candidate) => candidate.model === model)
+          ? scoped.find((candidate) => candidate.model === model)
+          : undefined;
+      const chosen = explicit ?? pickMemoryModel(scoped, role);
+      if (chosen) attempts.push(chosen);
+    } else {
+      const remaining = [...candidates];
+      const triedProviders = new Set<string>();
+      while (remaining.length > 0) {
+        const next = pickMemoryModel(remaining, role);
+        if (!next) break;
+        attempts.push(next);
+        triedProviders.add(next.agentKind);
+        for (let i = remaining.length - 1; i >= 0; i -= 1) {
+          if (triedProviders.has(remaining[i]!.agentKind)) remaining.splice(i, 1);
+        }
+      }
+    }
+    if (attempts.length === 0) throw new Error("No one-shot agent is available for memory.");
+    let lastError: unknown;
+    for (const chosen of attempts) {
+      if (this.disposed) throw new Error("Backend durable services are shutting down.");
+      const startedAt = Date.now();
+      try {
+        const result = await this.options.supervisor.call("generateMemoryText", {
+          projectLocation: project.location,
+          agentKind: chosen.agentKind,
+          prompt: input.prompt,
+          selection: {
+            model: chosen.model,
+            ...(effort ? { effort } : {}),
+            ...(fast ? { fast } : {}),
+          },
+        });
+        console.info(
+          `[memory] ${input.purpose} completed via ${chosen.agentKind}/${chosen.model} in ${Date.now() - startedAt}ms`,
+        );
+        return result.text;
+      } catch (error) {
+        lastError = error;
+        console.warn(
+          `[memory] ${input.purpose} failed via ${chosen.agentKind}/${chosen.model} after ${Date.now() - startedAt}ms:`,
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  observeMemorySettings(settings: SharedSettings | undefined): void {
+    const enabled = Boolean(settings?.memory?.enabled && settings.memory.learning);
+    if (enabled && (!this.memoryWasEnabled || !dbMemoryMeta("captureCutoffAt"))) {
+      dbStartMemoryCapture(new Date().toISOString());
+    }
+    this.memoryWasEnabled = enabled;
+  }
+
+  private startMemory(): void {
+    const tick = () => {
+      if (this.disposed || this.memoryPass) return;
+      this.memoryPass = (async () => {
+        this.observeMemorySettings(this.options.getSharedSettings() ?? undefined);
+        if (!this.memoryWasEnabled) return;
+        const result = await runMemoryCapturePass();
+        if (this.disposed) return;
+        if (result.captured > 0 || result.spooled > 0) {
+          console.info(`[memory] pass captured=${result.captured} spooled=${result.spooled}`);
+        }
+        await this.maybeDream();
+      })()
+        .catch((error: unknown) => {
+          if (!this.disposed) this.options.reportError?.(error);
+        })
+        .finally(() => {
+          this.memoryPass = null;
+        });
+    };
+    this.memoryTimer = setInterval(tick, 20_000);
+    this.memoryTimer.unref?.();
+  }
+
+  private async maybeDream(): Promise<void> {
+    if (this.disposed) return;
+    const settings = this.options.getSharedSettings()?.memory ?? defaultMemorySettings;
+    const interval = memoryDreamIntervalMs(settings);
+    if (!settings.enabled || !settings.learning || !interval || dbCountPendingCandidates() === 0)
+      return;
+    const last = dbMemoryMeta("lastDreamAt");
+    if (last && Date.now() - Date.parse(last) < interval) return;
+    await handleMemoryCommand({ action: "dream" });
   }
 
   getSupervisorExtraEnv(): Record<string, string> {
@@ -430,6 +596,7 @@ export class BackendDurableServices {
   startBackgroundServices(): void {
     if (this.disposed || this.backgroundStarted) return;
     this.backgroundStarted = true;
+    this.startMemory();
     this.scheduleService.start();
     this.prWatchService.start();
     this.gitStateService.start();
@@ -532,6 +699,10 @@ export class BackendDurableServices {
   dispose(): Promise<void> {
     if (this.disposal) return this.disposal;
     this.disposed = true;
+    if (this.memoryTimer) {
+      clearInterval(this.memoryTimer);
+      this.memoryTimer = null;
+    }
     // H4: cancel the sweep synchronously, before any join starts, and join its
     // in-flight operation in the same shutdown barrier. The composition stops
     // the supervisor concurrently, so a held retirement call settles promptly
@@ -543,6 +714,7 @@ export class BackendDurableServices {
     // The composition stops the supervisor concurrently while keeping SQLite open.
     void joinRuntimeShutdown(
       [
+        () => this.memoryPass ?? Promise.resolve(),
         () => this.housekeepingRun?.then(() => undefined),
         () => {
           // Unsubscribe first so a late commit can no longer enqueue work.

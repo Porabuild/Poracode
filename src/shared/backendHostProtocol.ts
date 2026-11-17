@@ -136,6 +136,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbGetThreadTokenUsage",
   "dbGetProjectNotes",
   "dbSetProjectNotes",
+  "memoryCommand",
   "getScheduleRuns",
   "appendUsageEvents",
 ] as const;

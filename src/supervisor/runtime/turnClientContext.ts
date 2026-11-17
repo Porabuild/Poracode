@@ -166,7 +166,14 @@ export function structuredTurnTextOptions(
   const crewBrief = invokesCommand ? undefined : crewBriefForTurn(target, turn);
   const editNudge =
     invokesCommand || delivery.steersRunningTurn ? undefined : crewEditNudgeForTurn(target, turn);
-  const turnInstructions = joinInstructions(inheritedInstructions, turn.inlineInstructions);
+  const placesTurnContext = target?.structuredSession?.placesTurnContext === true;
+  // Providers with `placesTurnContext` treat `inlineInstructions` as "inlined
+  // fallback for a non-native skill", which overrides leading slash skills.
+  // Keep inherited startup context (fork history / shared memory) in
+  // `turnContext` there so native slash skills stay intact on the first turn.
+  const turnInstructions = placesTurnContext
+    ? turn.inlineInstructions
+    : joinInstructions(inheritedInstructions, turn.inlineInstructions);
   const onPromptSubmitted =
     target && (inheritedInstructions || crewBrief || editNudge)
       ? () => {
@@ -186,12 +193,13 @@ export function structuredTurnTextOptions(
       : undefined;
   const admission = onPromptSubmitted ? { onPromptSubmitted } : {};
   const turnContextWithCrew = joinInstructions(
+    placesTurnContext ? inheritedInstructions : undefined,
     turn.turnContext,
     invokesCommand ? undefined : target?.mcpAppContext?.(),
     crewBrief?.text,
     editNudge?.text,
   );
-  if (target?.structuredSession?.placesTurnContext) {
+  if (placesTurnContext) {
     return {
       ...admission,
       ...(turnInstructions ? { inlineInstructions: turnInstructions } : {}),

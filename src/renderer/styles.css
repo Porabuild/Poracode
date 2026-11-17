@@ -1053,6 +1053,28 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   font-size: 0.75rem;
 }
 
+/* Keep shared single-line inputs and buttons on the same responsive size scale. */
+@layer components {
+  .button--sm,
+  .input[data-control-size="sm"] {
+    @apply h-9 md:h-8;
+  }
+
+  .button--md,
+  .input[data-control-size="md"] {
+    @apply h-10 md:h-9;
+  }
+
+  .button--lg,
+  .input[data-control-size="lg"] {
+    @apply h-11 md:h-10;
+  }
+
+  .input[data-control-size] {
+    padding-block: 0;
+  }
+}
+
 /* Small icon + label buttons. HeroUI gives button icons a -2px inline margin
    (sized for its 16-20px icons and gap-2), which eats half of the compact
    gap-1 our small buttons use. Its inherited `normal`-ish line box (~17px at
@@ -2806,7 +2828,7 @@ html[data-compact-layout]
   padding-bottom: calc(10rem + env(safe-area-inset-bottom));
 }
 
-html[data-compact-layout] [data-slot="button"] {
+html[data-compact-layout] :is([data-slot="button"], .input[data-control-size]) {
   min-height: var(--m-tap-min);
 }
 
@@ -3276,7 +3298,10 @@ html[data-compact-layout] .m-utility-floating-actions > * {
   pointer-events: auto;
 }
 
-html[data-compact-layout] .m-machine-scoped-content > div:first-child > .m-page {
+html[data-compact-layout]
+  .m-machine-scoped-content
+  > div:first-child
+  > :is(.m-page, .m-settings__body) {
   padding-bottom: var(--m-floating-dock-clearance);
   scroll-padding-bottom: var(--m-floating-dock-clearance);
 }

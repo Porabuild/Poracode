@@ -11,17 +11,43 @@ function skillMarkdownBody(content: string): string {
   return content.replace(/^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/u, "").trimStart();
 }
 
+function viewProjectLocation(
+  skillPath: string,
+  platform: string,
+  projectLocation: ProjectLocation | undefined,
+  wslDistro: string | undefined,
+): ProjectLocation {
+  if (projectLocation) return projectLocation;
+  if (wslDistro) {
+    return {
+      kind: "wsl",
+      distro: wslDistro,
+      linuxPath: "/",
+      uncPath: toWslUncPath(wslDistro, "/"),
+    };
+  }
+  return platform === "win32"
+    ? { kind: "windows", path: skillPath }
+    : { kind: "posix", path: skillPath };
+}
+
 export function SkillViewModal(props: {
   skill: SkillEntry;
   displayName: string;
   projectLocation?: ProjectLocation;
   wslDistro?: string;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
   const { t } = useLingui();
   const [content, setContent] = useState<string>();
+  const [modifiedAtMs, setModifiedAtMs] = useState<number>();
   const [error, setError] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [raw, setRaw] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState("");
 
   // Reload when the viewed skill (or its source location) changes; the
   // content/error/raw reset happens during render, the file read stays in the
@@ -36,25 +62,23 @@ export function SkillViewModal(props: {
   if (prevSkillContentKey !== skillContentKey) {
     setPrevSkillContentKey(skillContentKey);
     setContent(undefined);
+    setModifiedAtMs(undefined);
     setError(false);
+    setSaveError(false);
     setRaw(false);
+    setEditing(false);
+    setDraft("");
   }
 
   useEffect(() => {
     let active = true;
     const bridge = readBridge();
-    const projectLocation: ProjectLocation =
-      props.projectLocation ??
-      (props.wslDistro
-        ? {
-            kind: "wsl",
-            distro: props.wslDistro,
-            linuxPath: "/",
-            uncPath: toWslUncPath(props.wslDistro, "/"),
-          }
-        : bridge.platform === "win32"
-          ? { kind: "windows", path: props.skill.absolutePath }
-          : { kind: "posix", path: props.skill.absolutePath });
+    const projectLocation = viewProjectLocation(
+      props.skill.absolutePath,
+      bridge.platform,
+      props.projectLocation,
+      props.wslDistro,
+    );
     void bridge
       .readExternalFile({
         projectLocation,
@@ -65,6 +89,7 @@ export function SkillViewModal(props: {
           if (!active) return;
           if (result.status === "ready" && result.content !== undefined) {
             setContent(result.content);
+            if (typeof result.modifiedAtMs === "number") setModifiedAtMs(result.modifiedAtMs);
           } else {
             setError(true);
           }
@@ -77,6 +102,34 @@ export function SkillViewModal(props: {
       active = false;
     };
   }, [props.projectLocation, props.skill.absolutePath, props.skill.skillFilePath, props.wslDistro]);
+
+  async function save() {
+    if (saving || content === undefined || modifiedAtMs === undefined) return;
+    setSaving(true);
+    const bridge = readBridge();
+    try {
+      const result = await bridge.writeExternalFile({
+        projectLocation: viewProjectLocation(
+          props.skill.absolutePath,
+          bridge.platform,
+          props.projectLocation,
+          props.wslDistro,
+        ),
+        absolutePath: props.skill.skillFilePath,
+        content: draft,
+        baseModifiedAtMs: modifiedAtMs,
+      });
+      setContent(draft);
+      setModifiedAtMs(result.modifiedAtMs);
+      setEditing(false);
+      setSaveError(false);
+      props.onSaved?.();
+    } catch {
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <Modal.Backdrop isOpen onOpenChange={(open) => !open && props.onClose()}>
@@ -99,6 +152,13 @@ export function SkillViewModal(props: {
                 <PixelLoader size="xs" />
                 <Trans>Loading skill…</Trans>
               </div>
+            ) : editing ? (
+              <textarea
+                aria-label={props.displayName}
+                className="h-full w-full resize-none bg-transparent p-5 font-mono text-xs leading-5 text-foreground outline-none"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+              />
             ) : raw ? (
               <pre className="h-full overflow-auto whitespace-pre-wrap break-words p-5 font-mono text-xs leading-5 text-foreground">
                 {content}
@@ -108,9 +168,50 @@ export function SkillViewModal(props: {
             )}
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="ghost" onPress={() => setRaw((current) => !current)}>
-              {raw ? <Trans>View rendered</Trans> : <Trans>View raw</Trans>}
-            </Button>
+            {saveError ? (
+              <p className="mr-auto text-xs text-danger">
+                <Trans>Couldn't update the skill.</Trans>
+              </p>
+            ) : null}
+            {editing ? (
+              <>
+                <Button
+                  variant="ghost"
+                  isDisabled={saving}
+                  onPress={() => {
+                    setSaveError(false);
+                    setEditing(false);
+                  }}
+                >
+                  <Trans>Cancel</Trans>
+                </Button>
+                <Button
+                  variant="tertiary"
+                  isDisabled={saving || modifiedAtMs === undefined}
+                  onPress={() => void save()}
+                >
+                  <Trans>Save</Trans>
+                </Button>
+              </>
+            ) : (
+              <>
+                {props.skill.mutable && content !== undefined ? (
+                  <Button
+                    variant="ghost"
+                    onPress={() => {
+                      setDraft(content);
+                      setSaveError(false);
+                      setEditing(true);
+                    }}
+                  >
+                    <Trans>Edit</Trans>
+                  </Button>
+                ) : null}
+                <Button variant="ghost" onPress={() => setRaw((current) => !current)}>
+                  {raw ? <Trans>View rendered</Trans> : <Trans>View raw</Trans>}
+                </Button>
+              </>
+            )}
             <Button slot="close" variant="ghost" aria-label={t`Close`}>
               <Trans>Close</Trans>
             </Button>
