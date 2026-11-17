@@ -14,6 +14,10 @@ const selection = {
 
 // Additive v1 procedure. Chunks keep every request below the existing 1 MiB
 // JSON transport limit; random job IDs are owner credentials, never listed.
+// Begin also preloads verified models; older clients can still upload immediately.
+// supportsWait opts into capture-time begin (a five-minute recording lease) and
+// the additive wait action. Older hosts omit it, so clients begin their upload
+// after recording; older clients ignore it. Helper reuse is host-local, not persisted.
 export const hexVoiceRequestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("setup") }),
   z.object({ action: z.literal("install") }),
@@ -34,6 +38,7 @@ export const hexVoiceRequestSchema = z.discriminatedUnion("action", [
   }),
   z.object({ action: z.literal("finish"), id }),
   z.object({ action: z.literal("status"), id }),
+  z.object({ action: z.literal("wait"), id }),
   z.object({ action: z.literal("cancel"), id }),
 ]);
 
@@ -93,6 +98,7 @@ export const hexVoiceJobSchema = z.object({
   phase: z.enum(["uploading", "preparing", "loading", "transcribing", "done"]),
   progress: z.number().min(0).max(100).optional(),
   transcript: z.string().optional(),
+  supportsWait: z.literal(true).optional(),
 });
 
 export const hexVoiceResponseSchema = z.discriminatedUnion("kind", [

@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 14
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 7
-  public static let sourceHash = "sha256:95c61030df1c62beff0f434e61059ec710d6533b4e1b688499e0c2164a0921a4"
+  public static let sourceHash = "sha256:f70b234db720367a33363312d141fa5636a76aa789ee0102f8d4cb44617f1c49"
   public static let manifestHash = "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -262,7 +262,7 @@ public enum RemoteContractMetadata {
     .init(name: "gitWatchProject", scope: "session:operate", owner: "projectLocation", resultKind: "omitted", requestType: "ProceduregitWatchProjectRequest_da482300f3", resultType: "RemoteUnit"),
     .init(name: "gitWatchWorktrees", scope: "session:operate", owner: "project", resultKind: "omitted", requestType: "ProceduregitWatchWorktreesRequest_8b52512d7a", resultType: "RemoteUnit"),
     .init(name: "gitWorktreeStatusBatch", scope: "session:read", owner: "projectLocation", resultKind: "json", requestType: "ProceduregitWorktreeStatusBatchRequest_a6f98c7f48", resultType: "ProceduregitWorktreeStatusBatchResult_1b23732705"),
-    .init(name: "hexVoice", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurehexVoiceRequest_2ae8d538fe", resultType: "ProcedurehexVoiceResult_46060d35e2"),
+    .init(name: "hexVoice", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedurehexVoiceRequest_f14fd28613", resultType: "ProcedurehexVoiceResult_49ffdcc76e"),
     .init(name: "importSkills", scope: "session:operate", owner: "skillLocations", resultKind: "json", requestType: "ProcedureimportSkillsRequest_8a62b43ffe", resultType: "ProcedureimportSkillsResult_82088d0ad1"),
     .init(name: "installAcpRegistryAgent", scope: "session:operate", owner: "desktop", resultKind: "json", requestType: "ProcedureinstallAcpRegistryAgentRequest_e484765a09", resultType: "ProcedureinstallAcpRegistryAgentResult_4e9b40f602"),
     .init(name: "installMarketplaceSkill", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedureinstallMarketplaceSkillRequest_0093611cbb", resultType: "ProcedureinstallMarketplaceSkillResult_d6e0ba68c8"),

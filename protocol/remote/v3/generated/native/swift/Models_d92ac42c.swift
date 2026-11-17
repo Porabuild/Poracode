@@ -72,16 +72,18 @@ public enum ProcedurehexVoiceResultU2DOptionU2D3U2DJobU2DPhase_38efdc386b: Strin
   case `done` = "done"
 }
 
-public struct ProcedurehexVoiceResultU2DOptionU2D3U2DJob_398001902e: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedurehexVoiceResultU2DOptionU2D3U2DJob_e8296209cb: Codable, Sendable, RemoteModelMetadata {
   public var id: String
   public var phase: ProcedurehexVoiceResultU2DOptionU2D3U2DJobU2DPhase_38efdc386b
   public var progress: RemoteField<Double> = .missing
+  public var supportsWait: RemoteField<ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DRolesU2DItemU2DNoEdits_d2dd3595e1> = .missing
   public var transcript: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
     .init(wireName: "phase", typeName: "ProcedurehexVoiceResultU2DOptionU2D3U2DJobU2DPhase_38efdc386b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "progress", typeName: "Double", required: false, nullable: false, minimum: 0, maximum: 100, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "supportsWait", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DCrewU2DOptionU2D1U2DOptionU2D1U2DRolesU2DItemU2DNoEdits_d2dd3595e1", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "transcript", typeName: "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
@@ -89,6 +91,7 @@ public struct ProcedurehexVoiceResultU2DOptionU2D3U2DJob_398001902e: Codable, Se
     case id = "id"
     case phase = "phase"
     case progress = "progress"
+    case supportsWait = "supportsWait"
     case transcript = "transcript"
   }
 }
@@ -97,12 +100,12 @@ public enum ProcedurehexVoiceResultU2DOptionU2D3U2DKind_c297cb4b3f: String, Coda
   case `job` = "job"
 }
 
-public struct ProcedurehexVoiceResultU2DOptionU2D3_e6b4674777: Codable, Sendable, RemoteModelMetadata {
-  public var job: ProcedurehexVoiceResultU2DOptionU2D3U2DJob_398001902e
+public struct ProcedurehexVoiceResultU2DOptionU2D3_d129d1b0ee: Codable, Sendable, RemoteModelMetadata {
+  public var job: ProcedurehexVoiceResultU2DOptionU2D3U2DJob_e8296209cb
   public var kind: ProcedurehexVoiceResultU2DOptionU2D3U2DKind_c297cb4b3f
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "job", typeName: "ProcedurehexVoiceResultU2DOptionU2D3U2DJob_398001902e", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "job", typeName: "ProcedurehexVoiceResultU2DOptionU2D3U2DJob_e8296209cb", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "kind", typeName: "ProcedurehexVoiceResultU2DOptionU2D3U2DKind_c297cb4b3f", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []

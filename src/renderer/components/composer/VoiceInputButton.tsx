@@ -25,7 +25,11 @@ import {
 } from "@/renderer/speech/dictation";
 import { HEX_VOICE_MAX_SECONDS } from "@/shared/contracts/hexVoice";
 import type { VoiceTranscriptionProgress } from "@/renderer/speech/voiceTranscriptionWorker";
-import { createHexVoiceSession, HexVoiceError } from "@/renderer/speech/hexVoice";
+import {
+  createHexVoiceSession,
+  HexVoiceError,
+  type HexVoiceSession,
+} from "@/renderer/speech/hexVoice";
 import type { HexVoiceJob } from "@/shared/contracts/hexVoice";
 import { VoiceInputFeedback, type VoiceInputFailure } from "./VoiceInputFeedback";
 
@@ -120,12 +124,15 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
     const captureRef = useRef<AudioCapture | null>(null);
     const disposedRef = useRef(false);
     const transcriptionAbortRef = useRef<AbortController | null>(null);
+    const hexSessionRef = useRef<HexVoiceSession | null>(null);
 
     useEffect(() => {
       disposedRef.current = false;
       return () => {
         disposedRef.current = true;
         transcriptionAbortRef.current?.abort();
+        void hexSessionRef.current?.cancel();
+        hexSessionRef.current = null;
         retryRef.current = null;
         stopAudioCapture(captureRef);
       };
@@ -167,6 +174,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
 
     async function transcribeSamples(samples: Float32Array, options: DictationOptions) {
       if (samples.length === 0) {
+        void options.hexSession?.cancel();
         toast.danger(t`No speech detected.`);
         onTranscriptCancel?.();
         setState("idle");
@@ -249,12 +257,10 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
         context = createAudioContext();
         if (options.backend === "hex") {
           options.hexSession = createHexVoiceSession();
-          await options.hexSession.checkReady(
-            options.hexModel,
-            options.language,
-            startingAbort.signal,
-          );
+          hexSessionRef.current = options.hexSession;
+          await options.hexSession.begin(options.hexModel, options.language, startingAbort.signal);
           if (disposedRef.current || startingAbort.signal.aborted) {
+            await options.hexSession.cancel();
             void context.close();
             return;
           }
@@ -334,6 +340,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
       } catch (error) {
         stream?.getTracks().forEach((track) => track.stop());
         void context?.close();
+        await options.hexSession?.cancel();
         transcriptionAbortRef.current = null;
         if (!disposedRef.current) {
           setState("idle");

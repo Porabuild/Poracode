@@ -19,7 +19,8 @@ const mocks = vi.hoisted(() => ({
   subscribeProgress: vi.fn<(...args: unknown[]) => () => void>(() => () => {}),
   transcribe: vi.fn<(...args: unknown[]) => Promise<string>>(),
   warmup: vi.fn<(...args: unknown[]) => void>(),
-  checkReady: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  begin: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  cancel: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
@@ -35,7 +36,7 @@ vi.mock("@/renderer/speech/dictation", () => ({
   warmupDictation: mocks.warmup,
 }));
 vi.mock("@/renderer/speech/hexVoice", () => ({
-  createHexVoiceSession: () => ({ checkReady: mocks.checkReady }),
+  createHexVoiceSession: () => ({ begin: mocks.begin, cancel: mocks.cancel }),
   HexVoiceError: class extends Error {},
 }));
 vi.mock("./voiceError", () => ({
@@ -82,7 +83,8 @@ beforeEach(() => {
   mocks.subscribeProgress.mockReturnValue(() => {});
   mocks.prepareAudio.mockReturnValue(new Float32Array([0.25]));
   mocks.transcribe.mockResolvedValue("native transcript");
-  mocks.checkReady.mockResolvedValue(undefined);
+  mocks.begin.mockResolvedValue(undefined);
+  mocks.cancel.mockResolvedValue(undefined);
   track = { stop: vi.fn<() => void>() };
   const stream = { getTracks: () => [track] } as unknown as MediaStream;
   getUserMedia = vi.fn<() => Promise<MediaStream>>(async () => stream);
@@ -109,8 +111,8 @@ describe("VoiceInputButton", () => {
       expect(screen.getByRole("button", { name: "Stop voice input" })).toBeInTheDocument(),
     );
     expect(getUserMedia).toHaveBeenCalledOnce();
-    expect(mocks.checkReady).toHaveBeenCalledWith("parakeet_v3", "fr", expect.any(AbortSignal));
-    expect(mocks.checkReady.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(mocks.begin).toHaveBeenCalledWith("parakeet_v3", "fr", expect.any(AbortSignal));
+    expect(mocks.begin.mock.invocationCallOrder[0]).toBeLessThan(
       getUserMedia.mock.invocationCallOrder[0]!,
     );
     expect(mocks.warmup).toHaveBeenCalledWith(
@@ -134,7 +136,7 @@ describe("VoiceInputButton", () => {
   });
 
   it("shows a setup action without opening the microphone when Hex is not ready", async () => {
-    mocks.checkReady.mockRejectedValue(new HexVoiceError("not_ready"));
+    mocks.begin.mockRejectedValue(new HexVoiceError("not_ready"));
     render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
     fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
     await screen.findByRole("button", { name: "Audio settings" });
@@ -155,6 +157,54 @@ describe("VoiceInputButton", () => {
     await waitFor(() => expect(onTranscript).toHaveBeenCalledWith("native transcript"));
     expect(mocks.transcribe.mock.calls[1]![1]).toBe(originalOptions);
     expect(getUserMedia).toHaveBeenCalledOnce();
+  });
+
+  it("releases the preloaded job when microphone permission is refused", async () => {
+    getUserMedia.mockRejectedValue(new DOMException("permission denied", "NotAllowedError"));
+    render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    await waitFor(() => expect(mocks.cancel).toHaveBeenCalled());
+    expect(mocks.transcribe).not.toHaveBeenCalled();
+  });
+
+  it("releases the preloaded job when capture unmounts", async () => {
+    const view = render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    await screen.findByRole("button", { name: "Stop voice input" });
+    view.unmount();
+    expect(mocks.cancel).toHaveBeenCalledTimes(1);
+    expect(track.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the microphone before awaiting host cleanup after capture setup fails", async () => {
+    let finishCancellation!: () => void;
+    mocks.cancel.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishCancellation = resolve;
+        }),
+    );
+    const createSource = vi
+      .spyOn(FakeAudioContext.prototype, "createMediaStreamSource")
+      .mockImplementationOnce(() => {
+        throw new Error("capture setup failed");
+      });
+    render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    await waitFor(() => expect(mocks.cancel).toHaveBeenCalledTimes(1));
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    finishCancellation();
+    createSource.mockRestore();
+    await screen.findByRole("button", { name: "Start voice input" });
+  });
+
+  it("releases an empty recording without starting transcription", async () => {
+    mocks.prepareAudio.mockReturnValue(new Float32Array());
+    render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stop voice input" }));
+    await waitFor(() => expect(mocks.cancel).toHaveBeenCalled());
+    expect(mocks.transcribe).not.toHaveBeenCalled();
   });
 
   it("cancels transcription and never inserts a late result", async () => {

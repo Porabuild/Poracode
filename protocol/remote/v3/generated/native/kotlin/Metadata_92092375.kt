@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:95c61030df1c62beff0f434e61059ec710d6533b4e1b688499e0c2164a0921a4"
+    const val sourceHash = "sha256:f70b234db720367a33363312d141fa5636a76aa789ee0102f8d4cb44617f1c49"
     const val manifestHash = "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -267,7 +267,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("gitWatchProject", "session:operate", "projectLocation", "omitted", "ProceduregitWatchProjectRequest_da482300f3", "RemoteUnit"),
         RemoteProcedureDescriptor("gitWatchWorktrees", "session:operate", "project", "omitted", "ProceduregitWatchWorktreesRequest_8b52512d7a", "RemoteUnit"),
         RemoteProcedureDescriptor("gitWorktreeStatusBatch", "session:read", "projectLocation", "json", "ProceduregitWorktreeStatusBatchRequest_a6f98c7f48", "ProceduregitWorktreeStatusBatchResult_1b23732705"),
-        RemoteProcedureDescriptor("hexVoice", "session:operate", "desktop", "json", "ProcedurehexVoiceRequest_2ae8d538fe", "ProcedurehexVoiceResult_46060d35e2"),
+        RemoteProcedureDescriptor("hexVoice", "session:operate", "desktop", "json", "ProcedurehexVoiceRequest_f14fd28613", "ProcedurehexVoiceResult_49ffdcc76e"),
         RemoteProcedureDescriptor("importSkills", "session:operate", "skillLocations", "json", "ProcedureimportSkillsRequest_8a62b43ffe", "ProcedureimportSkillsResult_82088d0ad1"),
         RemoteProcedureDescriptor("installAcpRegistryAgent", "session:operate", "desktop", "json", "ProcedureinstallAcpRegistryAgentRequest_e484765a09", "ProcedureinstallAcpRegistryAgentResult_4e9b40f602"),
         RemoteProcedureDescriptor("installMarketplaceSkill", "session:operate", "optionalProjectLocation", "json", "ProcedureinstallMarketplaceSkillRequest_0093611cbb", "ProcedureinstallMarketplaceSkillResult_d6e0ba68c8"),

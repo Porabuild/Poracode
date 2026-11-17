@@ -119,7 +119,8 @@ export interface HexVoiceSession {
   list(language: string): Promise<HexVoiceModel[]>;
   prepare(model: string, language: string): Promise<void>;
   cancelPreparation(id: string): Promise<void>;
-  checkReady(model: string, language: string, signal: AbortSignal): Promise<void>;
+  begin(model: string, language: string, signal: AbortSignal): Promise<void>;
+  cancel(): Promise<void>;
   transcribe(samples: Float32Array, options: HexVoiceTranscriptionOptions): Promise<string>;
 }
 
@@ -135,6 +136,7 @@ function jobResult(result: HexVoiceResponse, id: string): HexVoiceJob {
 
 export function createHexVoiceSession(client = getRemoteBridgeClient()): HexVoiceSession {
   const call = captureHostCall(client);
+  let capture: { id: string; model: string; language: string } | undefined;
   const list = async (language: string): Promise<HexVoiceModel[]> => {
     const result = await call({ action: "list", language });
     if (result.kind !== "catalog") throw new HexVoiceError("failed");
@@ -152,38 +154,42 @@ export function createHexVoiceSession(client = getRemoteBridgeClient()): HexVoic
     const result = await call({ action: "cancel", id });
     if (result.kind !== "cancelled") throw new HexVoiceError("failed");
   };
-  const checkReady = async (
-    model: string,
-    language: string,
-    signal: AbortSignal,
-  ): Promise<void> => {
+  const cancel = async (): Promise<void> => {
+    const current = capture;
+    capture = undefined;
+    if (current) await call({ action: "cancel", id: current.id }).catch(() => {});
+  };
+  const begin = async (model: string, language: string, signal: AbortSignal): Promise<void> => {
     const boundedSignal = AbortSignal.any([signal, AbortSignal.timeout(20_000)]);
     if (boundedSignal.aborted) {
       throw new HexVoiceError(signal.aborted ? "cancelled" : "timeout");
     }
+    await cancel();
+    const current = { id: crypto.randomUUID(), model, language };
+    capture = current;
     let abortListener: (() => void) | undefined;
     try {
-      const models = await Promise.race([
-        list(language),
+      const result = await Promise.race([
+        call({ action: "begin", ...current }).then(async (response) => {
+          if (boundedSignal.aborted || capture !== current) {
+            await call({ action: "cancel", id: current.id }).catch(() => {});
+          }
+          return response;
+        }),
         new Promise<never>((_, reject) => {
           abortListener = () => reject(new HexVoiceError(signal.aborted ? "cancelled" : "timeout"));
           boundedSignal.addEventListener("abort", abortListener, { once: true });
           if (boundedSignal.aborted) abortListener();
         }),
       ]);
-      if (boundedSignal.aborted) {
-        throw new HexVoiceError(signal.aborted ? "cancelled" : "timeout");
+      if (boundedSignal.aborted || capture !== current) {
+        throw new HexVoiceError(signal.aborted || capture !== current ? "cancelled" : "timeout");
       }
-      const selected = models.find((candidate) => candidate.id === model);
-      if (
-        !selected ||
-        !selected.installed ||
-        !selected.verified ||
-        !selected.languages.some((candidate) => candidate.toLowerCase() === language.toLowerCase())
-      ) {
-        throw new HexVoiceError("not_ready");
-      }
+      const job = jobResult(result, current.id);
+      if (!job.supportsWait) await cancel();
     } catch (error) {
+      if (capture === current) capture = undefined;
+      await call({ action: "cancel", id: current.id }).catch(() => {});
       if (error instanceof HexVoiceError) throw error;
       throw new HexVoiceError(
         boundedSignal.aborted ? (signal.aborted ? "cancelled" : "timeout") : "failed",
@@ -196,8 +202,19 @@ export function createHexVoiceSession(client = getRemoteBridgeClient()): HexVoic
     samples: Float32Array,
     options: HexVoiceTranscriptionOptions,
   ): Promise<string> => {
-    await checkReady(options.model, options.language, options.signal);
-    return runTrackedJob(call, options, encodeVoiceWav(samples));
+    const current = capture;
+    capture = undefined;
+    let audio: Uint8Array;
+    try {
+      if (current && (current.model !== options.model || current.language !== options.language)) {
+        throw new HexVoiceError("invalid_request");
+      }
+      audio = encodeVoiceWav(samples);
+    } catch (error) {
+      if (current) await call({ action: "cancel", id: current.id }).catch(() => {});
+      throw error;
+    }
+    return runTrackedJob(call, options, audio, current?.id);
   };
   return Object.freeze({
     setup,
@@ -207,7 +224,8 @@ export function createHexVoiceSession(client = getRemoteBridgeClient()): HexVoic
     list,
     prepare,
     cancelPreparation,
-    checkReady,
+    begin,
+    cancel,
     transcribe,
   });
 }
@@ -216,8 +234,9 @@ async function runTrackedJob(
   call: HexVoiceCall,
   options: HexVoiceTranscriptionOptions,
   audio?: Uint8Array,
+  captureId?: string,
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = captureId ?? crypto.randomUUID();
   const signal = audio
     ? AbortSignal.any([options.signal, AbortSignal.timeout(240_000)])
     : AbortSignal.any([options.signal, AbortSignal.timeout(1_260_000)]);
@@ -230,12 +249,14 @@ async function runTrackedJob(
   };
   try {
     check();
-    let result = await call({
-      action: audio ? "begin" : "prepare",
-      id,
-      model: options.model,
-      language: options.language,
-    });
+    let result: HexVoiceResponse = captureId
+      ? { kind: "job", job: { id, phase: "uploading" } }
+      : await call({
+          action: audio ? "begin" : "prepare",
+          id,
+          model: options.model,
+          language: options.language,
+        });
     check();
     options.onProgress?.(jobResult(result, id));
     if (audio) {
@@ -243,7 +264,9 @@ async function runTrackedJob(
         check();
         const chunk = audio.subarray(offset, offset + HEX_VOICE_CHUNK_BYTES);
         let binary = "";
-        for (const byte of chunk) binary += String.fromCharCode(byte);
+        for (let index = 0; index < chunk.length; index += 0x8000) {
+          binary += String.fromCharCode(...chunk.subarray(index, index + 0x8000));
+        }
         const end = offset + chunk.length;
         jobResult(await call({ action: "append", id, offset, audioBase64: btoa(binary) }), id);
         options.onProgress?.({
@@ -260,8 +283,12 @@ async function runTrackedJob(
       if (result.kind !== "job" || result.job.id !== id) throw new HexVoiceError("failed");
       options.onProgress?.(result.job);
       if (result.job.phase === "done") return result.job.transcript ?? "";
-      await delay(signal);
-      result = await call({ action: "status", id });
+      if (result.job.supportsWait) {
+        result = await call({ action: "wait", id });
+      } else {
+        await delay(signal);
+        result = await call({ action: "status", id });
+      }
     }
   } catch (error) {
     check();

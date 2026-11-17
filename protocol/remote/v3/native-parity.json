@@ -5128,7 +5128,7 @@
             "note": "Native Android voice capture and Hex transport are outside the current scope."
           }
         },
-        "note": "The additive procedure is available to the shared renderer; native clients do not yet invoke its host-side transcription operations."
+        "note": "Generated codecs include the additive supportsWait capability and wait action for host dictation. Native clients do not yet invoke Hex capture or transcription; the shared renderer uses this procedure."
       },
       {
         "id": "getProviderUsage",
