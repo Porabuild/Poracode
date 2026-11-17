@@ -4,6 +4,8 @@ import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contract
 import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import {
+  getPrimedPosixEnv,
+  getProjectShellEnv,
   readWslLoginShellCommandOutputAsync,
   type CapabilitiesProbeResult,
   type DetectProbeCtx,
@@ -14,6 +16,7 @@ import { resolveFastModeCachePath } from "./fastModeCache";
 import { resolveFastAvailability } from "./fastModeProbe";
 import { claudeCapabilitiesFromCliVersion, claudeCapabilitiesFromSdkModels } from "./models";
 import { AsyncPromptQueue } from "./promptQueue";
+import { claudeSdkCliParityDefaults } from "./sdkCliParity";
 import { spawnClaudeProbeProcess } from "./sdkProbeProcess";
 
 export { claudeCapabilitiesFromCliVersion } from "./models";
@@ -136,6 +139,13 @@ async function probeClaudeSdkPartialNative(
     signal?.addEventListener("abort", abortFromParent, { once: true });
     const timer = setTimeout(() => abort.abort(), timeoutMs);
     const queue = new AsyncPromptQueue();
+    const cwd = process.platform === "win32" ? (process.env.USERPROFILE ?? process.cwd()) : "/tmp";
+    // Match the session: the artifact default yields to the user's shell env
+    // (the Windows probe spawn layers it under this env; posix reads the
+    // primed login env) as well as to inherited and profile values.
+    const parityDefaults = claudeSdkCliParityDefaults(
+      process.platform === "win32" ? getProjectShellEnv(cwd) : getPrimedPosixEnv(),
+    );
     try {
       const q = query({
         prompt: queue,
@@ -143,8 +153,8 @@ async function probeClaudeSdkPartialNative(
           abortController: abort,
           pathToClaudeCodeExecutable: executablePath,
           persistSession: false,
-          cwd: process.platform === "win32" ? (process.env.USERPROFILE ?? process.cwd()) : "/tmp",
-          ...(envOverrides ? { env: { ...process.env, ...envOverrides } } : {}),
+          cwd,
+          env: { ...parityDefaults, ...process.env, ...envOverrides },
           settingSources: ["user", "project", "local"],
           allowedTools: [],
           stderr: () => {},

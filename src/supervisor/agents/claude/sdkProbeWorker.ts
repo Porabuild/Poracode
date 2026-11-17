@@ -11,6 +11,7 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
 import { AsyncPromptQueue } from "./promptQueue";
 import { resolveFastAvailability } from "./fastModeProbe";
+import { CLAUDE_SDK_CLI_PARITY_ENV } from "./sdkCliParity";
 import { spawnClaudeProbeProcess } from "./sdkProbeProcess";
 import { claudeCapabilitiesFromSdkModels } from "./models";
 
@@ -73,6 +74,8 @@ async function main() {
         pathToClaudeCodeExecutable: claudePath,
         persistSession: false,
         cwd: "/tmp",
+        // Defaults under the distro login env, so a value set there still wins.
+        env: { ...CLAUDE_SDK_CLI_PARITY_ENV, ...process.env },
         settingSources: ["user", "project", "local"],
         allowedTools: [],
         stderr: () => {},

@@ -34,6 +34,7 @@ const mockBinaryResolver = vi.hoisted(() => ({
 }));
 
 const mockBase = vi.hoisted(() => ({
+  getProjectShellEnv: vi.fn<(cwd: string) => Record<string, string> | undefined>(),
   getWslProjectShellEnv:
     vi.fn<(distro: string, cwd: string) => Record<string, string> | undefined>(),
   primeWslProjectShellEnv:
@@ -54,6 +55,8 @@ vi.mock("../base", async () => {
   const actual = await vi.importActual<typeof import("../base")>("../base");
   return {
     ...actual,
+    getProjectShellEnv: (cwd: string) =>
+      mockBase.getProjectShellEnv(cwd) ?? actual.getProjectShellEnv(cwd),
     getWslProjectShellEnv: mockBase.getWslProjectShellEnv,
     primeWslProjectShellEnv: mockBase.primeWslProjectShellEnv,
   };
@@ -1014,6 +1017,38 @@ describe("ClaudeSdkSession", () => {
     expect(resumedQuery.runtime.close).not.toHaveBeenCalled();
 
     await session.dispose();
+  });
+
+  it("lets the WSL and Windows shell env the spawn layers under win over the artifact default", async () => {
+    const launch = async (location: ProjectLocation) => {
+      mockSdk.query.mockReturnValue(createFakeQuery().runtime);
+      const session = await ClaudeSdkSession.create({
+        threadId: "thread-claude-cli-parity",
+        projectLocation: location,
+        config,
+        presentationMode: "gui",
+      });
+      session.setListener({
+        onRuntimeEvent: () => {},
+        onUpdate: () => {},
+        onError: () => {},
+        onClose: () => {},
+      });
+      await session.openThread(config);
+      const env = (
+        mockSdk.query.mock.calls.at(-1)![0] as { options: { env: Record<string, unknown> } }
+      ).options.env;
+      await session.dispose();
+      return env.CLAUDE_CODE_ARTIFACT;
+    };
+
+    expect(await launch(wslProjectLocation)).toBe("1");
+    mockBase.primeWslProjectShellEnv.mockResolvedValueOnce({ CLAUDE_CODE_ARTIFACT: "0" });
+    expect(await launch(wslProjectLocation)).toBeUndefined();
+
+    expect(await launch(projectLocation)).toBe("1");
+    mockBase.getProjectShellEnv.mockReturnValueOnce({ CLAUDE_CODE_ARTIFACT: "0" });
+    expect(await launch(projectLocation)).toBeUndefined();
   });
 
   it("spawns WSL GUI sessions directly via wsl.exe without a login shell", async () => {
