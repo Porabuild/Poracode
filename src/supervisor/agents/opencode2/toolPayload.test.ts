@@ -40,4 +40,15 @@ describe("OpenCode 2 plugin tool classification", () => {
     expect(readOpenCode2String({ command: "   ", cmd: "ls" }, "command", "cmd")).toBe("ls");
     expect(readOpenCode2String({ command: "   " }, "command", "cmd")).toBeUndefined();
   });
+
+  it("populates diffSummary on file_change payloads", () => {
+    const item = createOpenCode2ToolItem("edit-1", "edit");
+    item.input = { filePath: "src/a.ts", oldString: "old\n", newString: "new\nextra\n" };
+    item.status = "success";
+    expect(openCode2ToolPayload(item)).toMatchObject({
+      name: "edit",
+      path: "src/a.ts",
+      diffSummary: { added: 2, removed: 1 },
+    });
+  });
 });

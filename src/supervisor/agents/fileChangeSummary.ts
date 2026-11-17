@@ -1,6 +1,6 @@
 import type { FileChangePayload } from "@/shared/contracts";
 import { extractLeadingPath } from "@/shared/extractLeadingPath";
-import { countLineChangeStats } from "@/shared/lineUnifiedDiff";
+import { countLineChangeStats, readLineCountDiffSummary } from "@/shared/lineUnifiedDiff";
 
 type DiffSummary = NonNullable<FileChangePayload["diffSummary"]>;
 
@@ -40,12 +40,35 @@ function readDiffSummaryInner(source: unknown): DiffSummary | undefined {
     readDiffSummaryRecord(record.diffSummary) ??
     readDiffSummaryRecord(record.diff_summary) ??
     readStructuredChangesDiffSummary(record.changes) ??
+    readFirstPatchTextDiffSummary(
+      record,
+      "diffString",
+      "diff_string",
+      "unifiedDiff",
+      "unified_diff",
+      "diff",
+      "patchText",
+      "patch_text",
+      "patch",
+      "patchContent",
+      "patch_content",
+    ) ??
+    readReplacementDiffSummary(record) ??
+    readMultiEditDiffSummary(record.edits) ??
     readCreatedContentDiffSummary(record) ??
-    readPatchTextDiffSummary(record.patchText) ??
-    readPatchTextDiffSummary(record.patch_text) ??
-    readPatchTextDiffSummary(record.patch) ??
     readDiffSummaryRecord(record)
   );
+}
+
+function readFirstPatchTextDiffSummary(
+  record: Record<string, unknown>,
+  ...keys: string[]
+): DiffSummary | undefined {
+  for (const key of keys) {
+    const summary = readPatchTextDiffSummary(record[key]);
+    if (summary) return summary;
+  }
+  return undefined;
 }
 
 function readDiffSummaryRecord(source: unknown): DiffSummary | undefined {
@@ -53,7 +76,8 @@ function readDiffSummaryRecord(source: unknown): DiffSummary | undefined {
   const record = source as Record<string, unknown>;
   const added = readCount(record.added ?? record.additions);
   const removed = readCount(record.removed ?? record.deletions);
-  return added !== undefined && removed !== undefined ? { added, removed } : undefined;
+  if (added !== undefined && removed !== undefined) return { added, removed };
+  return readLineCountDiffSummary(record);
 }
 
 function readCount(value: unknown): number | undefined {
@@ -77,6 +101,8 @@ function readFileChangePathInner(source: unknown): string | undefined {
       readPatchTextPath(record.patchText) ??
       readPatchTextPath(record.patch_text) ??
       readPatchTextPath(record.patch) ??
+      readPatchTextPath(record.patchContent) ??
+      readPatchTextPath(record.patch_content) ??
       readFileChangePathInner(record.args) ??
       readFileChangePathInner(record.input) ??
       readFileChangePathInner(record.rawInput) ??
@@ -195,10 +221,45 @@ function readStructuredChangesDiffSummary(changes: unknown): DiffSummary | undef
   return sawDiff ? { added, removed } : undefined;
 }
 
+function readReplacementDiffSummary(record: Record<string, unknown>): DiffSummary | undefined {
+  const oldText =
+    readRawString(record.oldText) ??
+    readRawString(record.oldString) ??
+    readRawString(record.old_string) ??
+    readRawString(record.old_text);
+  const newText =
+    readRawString(record.newText) ??
+    readRawString(record.newString) ??
+    readRawString(record.new_string) ??
+    readRawString(record.new_text);
+  if (oldText === undefined || newText === undefined) return undefined;
+  return countLineChangeStats(oldText, newText);
+}
+
+function readMultiEditDiffSummary(edits: unknown): DiffSummary | undefined {
+  if (!Array.isArray(edits) || edits.length === 0) return undefined;
+  let added = 0;
+  let removed = 0;
+  let sawEdit = false;
+  for (const edit of edits) {
+    if (!edit || typeof edit !== "object") continue;
+    const summary = readReplacementDiffSummary(edit as Record<string, unknown>);
+    if (!summary) continue;
+    sawEdit = true;
+    added += summary.added;
+    removed += summary.removed;
+  }
+  return sawEdit ? { added, removed } : undefined;
+}
+
+function readRawString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
 function readCreatedContentDiffSummary(record: Record<string, unknown>): DiffSummary | undefined {
   if (!readPathField(record)) return undefined;
-  const content = record.content;
-  if (typeof content !== "string") return undefined;
+  const content = readRawString(record.content) ?? readRawString(record.fileText);
+  if (content === undefined) return undefined;
   const { added } = countLineChangeStats("", content);
   return added > 0 ? { added, removed: 0 } : undefined;
 }

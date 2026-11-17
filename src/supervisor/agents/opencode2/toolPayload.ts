@@ -11,6 +11,7 @@
 import type { CanonicalItemType } from "@/shared/contracts";
 import { isChatVideoSource } from "@/shared/chatVideo";
 import { readNonNegativeInteger } from "../contextUsage";
+import { readDiffSummary } from "../fileChangeSummary";
 import { readOpenCode2Number, readOpenCode2Record, readOpenCode2String } from "./readers";
 
 export interface OpenCode2ToolItemState {
@@ -91,12 +92,14 @@ export function openCode2ToolPayload(tool: OpenCode2ToolItemState): Record<strin
     };
   }
   if (tool.itemType === "file_change") {
+    const diffSummary = tool.status === "error" ? undefined : readDiffSummary(tool.result, input);
     return {
       ...base,
       // Edit/write tools overwrite their result title with a human summary,
       // so the row anchors on the tool name like OpenCode 1 does.
       name: tool.name,
       path: readOpenCode2String(input, "filePath", "file_path", "path") ?? "",
+      ...(diffSummary ? { diffSummary } : {}),
     };
   }
   if (tool.itemType === "web_search") {

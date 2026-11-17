@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   extractAcpAddedFileText,
+  extractAcpCreateContent,
   extractAcpDiffResultPart,
   extractAcpDiffSummary,
   extractAcpPatchTargetPath,
@@ -442,6 +443,58 @@ describe("acpToolPayload", () => {
     expect(part.text).toContain("@@ -201,5 +201,5 @@");
     expect(part.text).not.toContain("@@ -1 +1 @@");
     expect(extractAcpDiffSummary(payload)).toEqual({ added: 3, removed: 3 });
+  });
+
+  it("extracts diffs and summaries from Cursor SDK result.diffString, line counts, oldText/newText, edits, and write fileText", () => {
+    const diffStringPayload = {
+      path: "src/shared/settings.ts",
+      args: { path: "src/shared/settings.ts" },
+      result: { diffString: "@@ -1 +1,2 @@\n-old\n+new\n+added\n" },
+    };
+    expect(extractAcpDiffSummary(diffStringPayload)).toEqual({ added: 2, removed: 1 });
+    expect(extractAcpDiffResultPart(diffStringPayload)).toMatchObject({
+      language: "diff",
+    });
+
+    expect(
+      extractAcpDiffSummary({
+        path: "src/shared/settings.ts",
+        status: "success",
+        args: { path: "src/shared/settings.ts" },
+        result: { linesAdded: 12, linesRemoved: 5 },
+      }),
+    ).toEqual({ added: 12, removed: 5 });
+
+    expect(
+      extractAcpDiffSummary({
+        path: "src/shared/settings.ts",
+        args: { path: "src/shared/settings.ts", oldText: "keep\na\n", newText: "keep\nb\nc\n" },
+      }),
+    ).toEqual({ added: 2, removed: 1 });
+
+    expect(
+      extractAcpDiffSummary({
+        path: "src/shared/settings.ts",
+        args: {
+          path: "src/shared/settings.ts",
+          edits: [
+            { oldText: "one\n", newText: "two\n" },
+            { oldText: "three\n", newText: "three\nfour\n" },
+          ],
+        },
+      }),
+    ).toEqual({ added: 2, removed: 1 });
+
+    const writePayload = {
+      name: "write",
+      path: "src/shared/new.ts",
+      changeKind: "create",
+      args: { path: "src/shared/new.ts", fileText: "export const x = 1;\nexport const y = 2;\n" },
+    };
+    expect(extractAcpCreateContent(writePayload)).toBe(
+      "export const x = 1;\nexport const y = 2;\n",
+    );
+    expect(extractAcpDiffSummary(writePayload)).toEqual({ added: 2, removed: 0 });
   });
 });
 // @vitest-environment node

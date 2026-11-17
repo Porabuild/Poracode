@@ -32,7 +32,8 @@ export function toolPayload(
   }
   if (tool.itemType === "file_change") {
     const path = readFileChangePath(tool.input) ?? "";
-    const diffSummary = readDiffSummary(tool.input, result);
+    const diffSummary =
+      status === "error" ? undefined : readDiffSummary(tool.fileChangeMetadata, result, tool.input);
     return {
       name: tool.toolName,
       path,

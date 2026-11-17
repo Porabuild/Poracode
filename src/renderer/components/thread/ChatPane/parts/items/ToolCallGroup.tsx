@@ -51,8 +51,8 @@ import { GroupSummarySection } from "./GroupSummarySection";
 import { useToolCallWindowShift } from "./useToolCallWindowShift";
 import { ToolCallEnterRow, useRememberToolCallItems } from "./toolCallEntrance";
 import {
-  extractAcpAddedFileText,
   extractAcpArgsPart,
+  extractAcpCreateContent,
   extractAcpDiffSummary,
   extractAcpDiffResultPart,
   readAcpContentEditTexts,
@@ -837,7 +837,7 @@ function getFileChangeRow(item: RuntimeChatItem, isExpanded: boolean): InlineRow
   const payload = getRuntimeItemPayload<FileChangePayload>(item, "file_change");
   if (!payload) return null;
   const isCreate = payload.changeKind === "create";
-  const createContent = isCreate ? extractCreateContent(payload) : undefined;
+  const createContent = isCreate ? extractAcpCreateContent(payload) : undefined;
   const diffPart = !isCreate ? extractAcpDiffResultPart(payload) : undefined;
   const diffText = diffPart?.text || undefined;
   const contentEdit = readAcpContentEditTexts(payload);
@@ -930,19 +930,6 @@ function hasAuxFields(payload: unknown): boolean {
   if (!payload || typeof payload !== "object") return false;
   const p = payload as Record<string, unknown>;
   return p.args !== undefined || p.result !== undefined;
-}
-
-function extractCreateContent(payload: unknown): string | undefined {
-  if (!payload || typeof payload !== "object") return undefined;
-  const path = readPayloadString(payload, "path");
-  if (path) {
-    const patchContent = extractAcpAddedFileText(payload, path);
-    if (patchContent !== undefined) return patchContent;
-  }
-  const args = (payload as Record<string, unknown>).args;
-  if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
-  const content = (args as Record<string, unknown>).content;
-  return typeof content === "string" && content.length > 0 ? content : undefined;
 }
 
 function readPayloadString(payload: unknown, key: string): string | undefined {
