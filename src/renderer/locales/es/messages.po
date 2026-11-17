@@ -3588,6 +3588,11 @@ msgstr "Capture audio desde este dispositivo."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "Modelo de captura"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Capture new notes after turns finish."
 msgstr "Capturar notas nuevas cuando termina un turno."
 
@@ -7503,6 +7508,11 @@ msgstr "Arrastra para reordenar; doble clic para editar"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Draggable model"
 msgstr "Modelo que se puede arrastrar"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "Modelo de sueño"
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Dream now"
@@ -17396,6 +17406,7 @@ msgstr "restablecer"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Restablecer"
 
@@ -21119,6 +21130,11 @@ msgstr "Los candidatos aún no han realizado ningún cambio."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "Los cambios son demasiado grandes para moverlos ({size}). Confirma o ignora primero los archivos grandes."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "El modelo más barato del proveedor mejor valorado lee un turno terminado. Puedes elegir cualquier modelo."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "No se pudo restaurar el punto de control."
@@ -21685,6 +21701,11 @@ msgstr "La configuración almacenada no es válida. Guardar abajo la reemplaza p
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "La configuración almacenada es inválida. Los valores almacenados se conservan; guardar abajo los reemplaza por lo que contiene este formulario."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "El modelo más potente del proveedor mejor valorado une las notas. Puedes elegir cualquier modelo."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."

@@ -48,6 +48,7 @@ export const grokDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 40,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

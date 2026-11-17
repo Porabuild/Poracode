@@ -588,6 +588,20 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "memory",
+    anchor: "memory.captureModel",
+    title: msg`Capture model`,
+    description: msg`The cheapest model from the highest-rated provider reads a finished turn. You can choose any model.`,
+    keywords: "memory model cheap capture provider selector",
+  },
+  {
+    section: "memory",
+    anchor: "memory.dreamModel",
+    title: msg`Dream model`,
+    description: msg`The strongest model from the highest-rated provider merges notes. You can choose any model.`,
+    keywords: "memory model best dream merge provider selector",
+  },
+  {
+    section: "memory",
     anchor: "memory.captureTiming",
     title: msg`When to capture`,
     description: msg`Done, archive, unload, and delete still capture immediately when allowed.`,

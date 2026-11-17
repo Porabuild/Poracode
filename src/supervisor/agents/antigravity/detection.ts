@@ -43,6 +43,7 @@ export const defaultAntigravityCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 50,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

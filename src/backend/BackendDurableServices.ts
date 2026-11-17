@@ -62,7 +62,8 @@ import {
   setMemoryModelCaller,
 } from "@/host/memory/runtime";
 import { setMemorySettingsReader } from "@/host/memory/settingsReader";
-import { memoryDreamIntervalMs } from "@/shared/memory";
+import { defaultMemorySettings, memoryDreamIntervalMs } from "@/shared/memory";
+import { pickMemoryModel, type MemoryModelCandidate } from "@/shared/memoryModelChoice";
 import { dbCountPendingCandidates, dbMemoryMeta } from "@/host/db/memoryStore";
 
 export interface BackendDurableServicesOptions {
@@ -400,7 +401,9 @@ export class BackendDurableServices {
     } else {
       this.attachmentReclaim = null;
     }
-    setMemorySettingsReader(() => this.options.getSharedSettings().memory);
+    setMemorySettingsReader(
+      () => this.options.getSharedSettings()?.memory ?? defaultMemorySettings,
+    );
     installMemoryDeleteHook();
     setMemoryModelCaller({
       complete: (input) => this.completeMemoryPrompt(input),
@@ -412,35 +415,88 @@ export class BackendDurableServices {
     purpose: "capture" | "dream";
     prompt: string;
   }): Promise<string> {
-    const settings = this.options.getSharedSettings().memory;
+    const shared = this.options.getSharedSettings();
+    const settings = shared?.memory ?? defaultMemorySettings;
     const provider = input.purpose === "dream" ? settings.dreamProvider : settings.captureProvider;
     const model = input.purpose === "dream" ? settings.dreamModel : settings.captureModel;
     const effort = input.purpose === "dream" ? settings.dreamEffort : settings.captureEffort;
     const fast = input.purpose === "dream" ? settings.dreamFast : settings.captureFast;
     const project = input.projectId ? dbGetProject(input.projectId) : dbGetProjects()[0];
     if (!project) throw new Error("No project is available for a memory model call.");
-    const statuses = await this.options.supervisor.call("getAgentStatuses", { wslDistros: [] });
-    const agents = statuses.windows.filter(
-      (agent) => agent.installed !== false && agent.capabilities.supportsOneShot === true,
+    const wslDistros = project.location.kind === "wsl" ? [project.location.distro] : [];
+    const statuses = await this.options.supervisor.call("getAgentStatuses", { wslDistros });
+    const rawPool =
+      project.location.kind === "wsl"
+        ? statuses.wsl.filter(
+            (agent) =>
+              project.location.kind === "wsl" && agent.envDistro === project.location.distro,
+          )
+        : statuses.windows;
+    const disabled = new Set(shared?.disabledAgents ?? []);
+    const hiddenModels = shared?.hiddenModels ?? {};
+    const agents = rawPool.filter(
+      (agent) =>
+        agent.installed !== false &&
+        agent.authState !== "missing" &&
+        !disabled.has(agent.kind) &&
+        agent.capabilities.supportsOneShot === true &&
+        agent.capabilities.models.length > 0,
     );
-    const agentKind =
-      provider !== "auto" ? agents.find((agent) => agent.kind === provider)?.kind : agents[0]?.kind;
-    if (!agentKind) throw new Error("No one-shot agent is available for memory.");
-    const result = await this.options.supervisor.call("generateMemoryText", {
-      projectLocation: project.location,
-      agentKind,
-      prompt: input.prompt,
-      ...(model
-        ? {
-            selection: {
-              model,
-              ...(effort ? { effort } : {}),
-              fast,
-            },
-          }
-        : {}),
+    const candidates: MemoryModelCandidate[] = agents.flatMap((agent) => {
+      const hidden = new Set(hiddenModels[agent.kind] ?? []);
+      const models = agent.capabilities.models.filter(
+        (entry) => !hidden.has(entry.id) || (provider === agent.kind && model === entry.id),
+      );
+      return (models.length > 0 ? models : agent.capabilities.models).map((entry) => ({
+        agentKind: agent.kind,
+        model: entry.id,
+        label: entry.label ?? entry.id,
+        rank: agent.capabilities.utilityRank ?? Number.MAX_SAFE_INTEGER,
+      }));
     });
-    return result.text;
+    const role = input.purpose === "dream" ? "dream" : "capture";
+    const attempts: MemoryModelCandidate[] = [];
+    if (provider !== "auto") {
+      const scoped = candidates.filter((candidate) => candidate.agentKind === provider);
+      const explicit =
+        model && scoped.some((candidate) => candidate.model === model)
+          ? scoped.find((candidate) => candidate.model === model)
+          : undefined;
+      const chosen = explicit ?? pickMemoryModel(scoped, role);
+      if (chosen) attempts.push(chosen);
+    } else {
+      const remaining = [...candidates];
+      const triedProviders = new Set<string>();
+      while (remaining.length > 0) {
+        const next = pickMemoryModel(remaining, role);
+        if (!next) break;
+        attempts.push(next);
+        triedProviders.add(next.agentKind);
+        for (let i = remaining.length - 1; i >= 0; i -= 1) {
+          if (triedProviders.has(remaining[i]!.agentKind)) remaining.splice(i, 1);
+        }
+      }
+    }
+    if (attempts.length === 0) throw new Error("No one-shot agent is available for memory.");
+    let lastError: unknown;
+    for (const chosen of attempts) {
+      try {
+        const result = await this.options.supervisor.call("generateMemoryText", {
+          projectLocation: project.location,
+          agentKind: chosen.agentKind,
+          prompt: input.prompt,
+          selection: {
+            model: chosen.model,
+            ...(effort ? { effort } : {}),
+            ...(fast ? { fast } : {}),
+          },
+        });
+        return result.text;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
   }
 
   private startMemory(): void {
@@ -460,7 +516,7 @@ export class BackendDurableServices {
   }
 
   private async maybeDream(): Promise<void> {
-    const settings = this.options.getSharedSettings().memory;
+    const settings = this.options.getSharedSettings()?.memory ?? defaultMemorySettings;
     const interval = memoryDreamIntervalMs(settings);
     if (!settings.learning || !interval || dbCountPendingCandidates() === 0) return;
     const last = dbMemoryMeta("lastDreamAt");

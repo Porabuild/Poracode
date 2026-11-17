@@ -434,6 +434,7 @@ export class SpawnPipeline {
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
     let pendingCrewBriefDelivered: string | undefined;
+    let pendingInitialInstructions = payload.initialInstructions;
     payload = { ...payload, ...snapshotWorkspaceStart(payload), threadId: payload.threadId };
     const adapter = this.requireAdapter(payload.agentKind);
     assertWorkspaceLaunchSupported(payload.workspaceScope, adapter, payload.presentationMode);
@@ -994,25 +995,35 @@ export class SpawnPipeline {
       !shouldQueueInitialPrompt &&
       structuredSession?.startTurn
     ) {
-      const initialTextOptions = structuredTurnTextOptions(
-        {
-          structuredSession,
-          slashCommands: ctx.sessions.get(payload.threadId)?.slashCommands,
-          config: runtimeConfig,
-          launchConfig,
-          mcpLaunchSnapshot,
-          adapter,
-          presentationMode: requestedPresentation,
-          crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
-          crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
-          onCrewBriefDelivered: (fingerprint) => {
-            pendingCrewBriefDelivered = fingerprint;
-            const active = ctx.sessions.get(payload.threadId);
-            if (active) active.crewBriefDelivered = fingerprint;
-          },
+      const initialTarget = {
+        structuredSession,
+        slashCommands: ctx.sessions.get(payload.threadId)?.slashCommands,
+        config: runtimeConfig,
+        launchConfig,
+        mcpLaunchSnapshot,
+        adapter,
+        presentationMode: requestedPresentation,
+        ...(pendingInitialInstructions ? { pendingInitialInstructions } : {}),
+        onInitialInstructionsApplied: () => {
+          pendingInitialInstructions = undefined;
+          const active = ctx.sessions.get(payload.threadId);
+          if (active && active.pendingInitialInstructions === payload.initialInstructions) {
+            active.pendingInitialInstructions = undefined;
+            active.onInitialInstructionsApplied?.();
+          }
         },
-        { ...initialTurnText, config: launchConfig },
-      );
+        crossagentsMcpAttached: hasCrossagentsMcp(resolvedMcpServers),
+        crossagentsMcpAvailable: ctx.options.crossagentMcp !== undefined,
+        onCrewBriefDelivered: (fingerprint: string) => {
+          pendingCrewBriefDelivered = fingerprint;
+          const active = ctx.sessions.get(payload.threadId);
+          if (active) active.crewBriefDelivered = fingerprint;
+        },
+      };
+      const initialTextOptions = structuredTurnTextOptions(initialTarget, {
+        ...initialTurnText,
+        config: launchConfig,
+      });
       if (payload.attemptOutcome) payload.attemptOutcome.launchTurnDispatched = true;
       void structuredSession
         .startTurn(
@@ -1134,6 +1145,9 @@ export class SpawnPipeline {
         command,
         ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
         ...(keepStructuredSession ? { structuredSession } : {}),
+        ...(keepStructuredSession && pendingInitialInstructions
+          ? { initialInstructions: pendingInitialInstructions }
+          : {}),
         ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
         ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
         mcpLaunchSnapshot,

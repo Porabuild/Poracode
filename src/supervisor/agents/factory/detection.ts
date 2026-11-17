@@ -33,6 +33,7 @@ export const factoryDefaultCapabilities: AgentCapability = {
   bypassPermissions: { approvalPolicy: "auto-high" },
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 100,
   supportsDirectInput: true,
   liveInputMode: "server",
   presentationMode: "gui",

@@ -3588,6 +3588,11 @@ msgstr "Ghi lại âm thanh từ thiết bị này."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "Mô hình ghi"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Capture new notes after turns finish."
 msgstr "Ghi chú mới sau khi lượt kết thúc."
 
@@ -7503,6 +7508,11 @@ msgstr "Kéo để sắp xếp lại; nhấp đúp để chỉnh sửa"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Draggable model"
 msgstr "Mô hình có thể kéo"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "Mô hình sắp xếp"
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Dream now"
@@ -17396,6 +17406,7 @@ msgstr "đặt lại"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Đặt lại"
 
@@ -21119,6 +21130,11 @@ msgstr "Các ứng viên chưa thực hiện thay đổi nào."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "Các thay đổi quá lớn để chuyển ({size}). Hãy commit hoặc bỏ qua các tệp lớn trước."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "Mô hình rẻ nhất của nhà cung cấp được đánh giá cao nhất đọc lượt đã kết thúc. Bạn có thể chọn bất kỳ mô hình nào."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "Không thể khôi phục điểm kiểm tra."
@@ -21685,6 +21701,11 @@ msgstr "Cấu hình đã lưu không hợp lệ. Lưu bên dưới sẽ thay th�
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Cấu hình đã lưu không hợp lệ. Các giá trị đã lưu được giữ lại; lưu bên dưới sẽ thay thế chúng bằng nội dung của biểu mẫu này."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "Mô hình mạnh nhất của nhà cung cấp được đánh giá cao nhất gộp các ghi chú. Bạn có thể chọn bất kỳ mô hình nào."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."

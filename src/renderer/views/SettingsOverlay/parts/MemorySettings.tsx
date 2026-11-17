@@ -1,8 +1,11 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useState, type ReactNode } from "react";
 import { NumberField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
-import { Button, Select, ToggleSwitch } from "@/renderer/components/common";
+import { Button, ProviderModelMenu, Select, ToggleSwitch } from "@/renderer/components/common";
+import { buildProviderModelMenuProviders } from "@/renderer/components/thread/buildModelPickerControls";
+import { getProviderUtilityRank } from "@/renderer/components/providers/providerManifest";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type {
   MemoryCaptureTiming,
@@ -11,12 +14,84 @@ import type {
   MemoryEntry,
   MemoryStatus,
 } from "@/shared/memory";
+import { pickMemoryModel, type MemoryModelCandidate } from "@/shared/memoryModelChoice";
+import type { ProviderModelMenuProvider } from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
 import { SettingRow, SettingsPage } from "./SettingsForm";
+
+function memoryModelCandidates(
+  providers: readonly ProviderModelMenuProvider[],
+): MemoryModelCandidate[] {
+  return providers.flatMap((provider) =>
+    provider.capabilities.models.map((model) => ({
+      agentKind: provider.kind,
+      model: model.id,
+      label: model.label ?? model.id,
+      rank: provider.capabilities.utilityRank ?? getProviderUtilityRank(provider.kind),
+    })),
+  );
+}
+
+function MemoryModelPicker(props: {
+  anchorId: string;
+  title: string;
+  description: ReactNode;
+  purpose: "capture" | "dream";
+  provider: string;
+  model: string;
+  providers: readonly ProviderModelMenuProvider[];
+  onChange: (agentKind: string, model: string) => void;
+  onReset: () => void;
+}) {
+  const candidates = memoryModelCandidates(props.providers);
+  const scoped =
+    props.provider === "auto"
+      ? candidates
+      : candidates.filter((candidate) => candidate.agentKind === props.provider);
+  const fallback = pickMemoryModel(scoped.length > 0 ? scoped : candidates, props.purpose);
+  const agentKind = props.model && props.provider !== "auto" ? props.provider : fallback?.agentKind;
+  const model = props.model || fallback?.model;
+  const customized = props.provider !== "auto" || props.model !== "";
+  if (!agentKind || !model || props.providers.length === 0) return null;
+  return (
+    <SettingRow anchorId={props.anchorId} title={props.title} description={props.description}>
+      <div className="flex items-center gap-2">
+        {customized ? (
+          <Button size="sm" variant="ghost" onPress={props.onReset}>
+            <Trans>Reset</Trans>
+          </Button>
+        ) : null}
+        <ProviderModelMenu
+          triggerAppearance="field"
+          menuLabel={props.title}
+          providers={[...props.providers]}
+          currentAgentKind={agentKind}
+          currentModel={model}
+          onChange={(next) => props.onChange(next.agentKind, next.model)}
+        />
+      </div>
+    </SettingRow>
+  );
+}
 
 export function MemorySettings(props: { projectId?: string }) {
   const { t } = useLingui();
   const memory = useSharedSettings((state) => state.memory);
+  const disabledAgents = useSharedSettings((state) => state.disabledAgents);
+  const hiddenModels = useSharedSettings((state) => state.hiddenModels);
   const setMemorySettings = useSharedSettings((state) => state.setMemorySettings);
+  const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
+  const wslAgentStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
+  const isEligible = (agent: (typeof agentStatuses)[number]) =>
+    agent.installed &&
+    agent.authState !== "missing" &&
+    !disabledAgents.includes(agent.kind) &&
+    agent.capabilities.supportsOneShot === true &&
+    agent.capabilities.models.length > 0;
+  const hostOneShot = agentStatuses.filter(isEligible);
+  const oneShotAgents = hostOneShot.length > 0 ? hostOneShot : wslAgentStatuses.filter(isEligible);
+  const modelProviders = buildProviderModelMenuProviders(oneShotAgents, {
+    hiddenModelsByAgent: hiddenModels,
+  });
   const remote = isRemoteSession();
   const [status, setStatus] = useState<MemoryStatus | undefined>();
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
@@ -140,6 +215,74 @@ export function MemorySettings(props: { projectId?: string }) {
           onChange={(selected) => startTransition(() => setMemorySettings({ learning: selected }))}
         />
       </SettingRow>
+      <MemoryModelPicker
+        anchorId="memory.captureModel"
+        title={t`Capture model`}
+        description={
+          <Trans>
+            The cheapest model from the highest-rated provider reads a finished turn. You can choose
+            any model.
+          </Trans>
+        }
+        purpose="capture"
+        provider={memory.captureProvider}
+        model={memory.captureModel}
+        providers={modelProviders}
+        onChange={(agentKind, model) =>
+          startTransition(() =>
+            setMemorySettings({
+              captureProvider: agentKind,
+              captureModel: model,
+              captureEffort: "",
+              captureFast: false,
+            }),
+          )
+        }
+        onReset={() =>
+          startTransition(() =>
+            setMemorySettings({
+              captureProvider: "auto",
+              captureModel: "",
+              captureEffort: "",
+              captureFast: false,
+            }),
+          )
+        }
+      />
+      <MemoryModelPicker
+        anchorId="memory.dreamModel"
+        title={t`Dream model`}
+        description={
+          <Trans>
+            The strongest model from the highest-rated provider merges notes. You can choose any
+            model.
+          </Trans>
+        }
+        purpose="dream"
+        provider={memory.dreamProvider}
+        model={memory.dreamModel}
+        providers={modelProviders}
+        onChange={(agentKind, model) =>
+          startTransition(() =>
+            setMemorySettings({
+              dreamProvider: agentKind,
+              dreamModel: model,
+              dreamEffort: "",
+              dreamFast: false,
+            }),
+          )
+        }
+        onReset={() =>
+          startTransition(() =>
+            setMemorySettings({
+              dreamProvider: "auto",
+              dreamModel: "",
+              dreamEffort: "",
+              dreamFast: false,
+            }),
+          )
+        }
+      />
       <SettingRow
         anchorId="memory.captureTiming"
         title={t`When to capture`}

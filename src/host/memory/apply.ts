@@ -149,14 +149,21 @@ export interface DreamOutcome {
   candidateIds: string[];
 }
 
-/** Rule-based consolidation. Locked entries are left unchanged. */
-export function dreamMemories(settings: MemorySettings, now: string): DreamOutcome {
+/** Rule-based consolidation, optionally enriched by the dream model. Locked entries stay untouched. */
+export function dreamMemories(
+  settings: MemorySettings,
+  now: string,
+  consolidated: readonly MemoryObservation[] = [],
+): DreamOutcome {
   const pending = dbListPendingCandidates();
   const restore: MemoryEntry[] = [];
   const createdIds: string[] = [];
   const suggestionIds: string[] = [];
   const candidateIds: string[] = [];
   let promoted = 0;
+  const knownProjects = new Set(
+    pending.map((candidate) => candidate.projectId).filter((id): id is string => Boolean(id)),
+  );
   const groups = new Map<string, MemoryCandidateRow[]>();
   for (const candidate of pending) {
     const key = `${candidate.scope}\0${candidate.projectId ?? ""}\0${statementKey(candidate.statement)}`;
@@ -164,11 +171,46 @@ export function dreamMemories(settings: MemorySettings, now: string): DreamOutco
     group.push(candidate);
     groups.set(key, group);
   }
+  const seenConsolidated = new Set<string>();
+  for (const observation of consolidated) {
+    const scope =
+      observation.scope === "project" &&
+      observation.projectId &&
+      knownProjects.has(observation.projectId)
+        ? "project"
+        : "global";
+    const projectId = scope === "project" ? (observation.projectId ?? null) : null;
+    const key = `${scope}\0${projectId ?? ""}\0${statementKey(observation.statement)}`;
+    if (!statementKey(observation.statement) || seenConsolidated.has(key)) continue;
+    seenConsolidated.add(key);
+    const existingList = dbListMemoryEntries(projectId ?? undefined);
+    if (existingList.some((entry) => conflictsWith(observation, entry))) continue;
+    const existing = existingList.find(
+      (entry) =>
+        entry.scope === scope &&
+        statementKey(entry.summary) === statementKey(observation.statement),
+    );
+    if (existing?.lockedByUser) continue;
+    if (existing && !restore.some((item) => item.id === existing.id)) restore.push(existing);
+    const entry = entryFromObservation(existing, observation, scope, projectId, 0.85, now);
+    entry.source = "dream";
+    if (!existing) createdIds.push(entry.id);
+    dbUpsertMemoryEntry(entry);
+    promoted += 1;
+  }
   for (const group of groups.values()) {
     const strongest = group.reduce((best, item) =>
       item.confidence > best.confidence ? item : best,
     );
+    const groupKey = `${strongest.scope}\0${strongest.projectId ?? ""}\0${statementKey(strongest.statement)}`;
     const promote = strongest.explicit || strongest.confidence >= 0.7 || group.length >= 2;
+    if (seenConsolidated.has(groupKey) || (consolidated.length > 0 && !promote)) {
+      for (const item of group) {
+        dbSetCandidateStatus(item.id, "promoted");
+        candidateIds.push(item.id);
+      }
+      continue;
+    }
     if (!promote) continue;
     const existing = dbListMemoryEntries(strongest.projectId ?? undefined).find(
       (entry) =>
@@ -179,7 +221,7 @@ export function dreamMemories(settings: MemorySettings, now: string): DreamOutco
       for (const item of group) dbSetCandidateStatus(item.id, "kept");
       continue;
     }
-    if (existing) restore.push(existing);
+    if (existing && !restore.some((item) => item.id === existing.id)) restore.push(existing);
     const entry = entryFromObservation(
       existing,
       {
@@ -196,7 +238,7 @@ export function dreamMemories(settings: MemorySettings, now: string): DreamOutco
       now,
     );
     entry.source = "dream";
-    if (!existing) createdIds.push(entry.id);
+    if (!existing && !createdIds.includes(entry.id)) createdIds.push(entry.id);
     dbUpsertMemoryEntry(entry);
     for (const item of group) {
       dbSetCandidateStatus(item.id, "promoted");

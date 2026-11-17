@@ -46,6 +46,7 @@ export const devinDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 48,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

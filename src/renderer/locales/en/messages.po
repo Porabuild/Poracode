@@ -3597,6 +3597,11 @@ msgstr "Capture audio from this device."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "Capture model"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Capture new notes after turns finish."
 msgstr "Capture new notes after turns finish."
 
@@ -7512,6 +7517,11 @@ msgstr "Drag to reorder; double-click to edit"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Draggable model"
 msgstr "Draggable model"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "Dream model"
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Dream now"
@@ -17405,6 +17415,7 @@ msgstr "reset"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Reset"
 
@@ -21128,6 +21139,11 @@ msgstr "The candidates have not made any changes yet."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "The changes are too large to move ({size}). Commit or ignore large files first."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "The checkpoint could not be restored."
@@ -21694,6 +21710,11 @@ msgstr "The stored configuration is invalid. Saving below replaces it with what 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "The strongest model from the highest-rated provider merges notes. You can choose any model."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."

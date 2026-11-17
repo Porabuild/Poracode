@@ -69,17 +69,27 @@ describe("memory logic", () => {
     ).toBe(true);
   });
 
-  it("reads user and assistant lines and drops tool noise", () => {
+  it("reads user and assistant lines, ignores metadata fields, and drops tool noise", () => {
     const text = transcriptFromItems([
       {
         position: 1,
         type: "user_message",
-        payload: JSON.stringify({ text: "Always run bun test" }),
+        payload: JSON.stringify({
+          content: [
+            { kind: "text", text: "Always run bun test" },
+            { kind: "file", path: "/secret/never-use-this-path" },
+          ],
+        }),
       },
       { position: 2, type: "tool_call", payload: JSON.stringify({ text: "secret output" }) },
     ]);
-    expect(text).toContain("Always run bun test");
+    expect(text).toBe("User: Always run bun test");
+    expect(text).not.toContain("never-use-this-path");
     expect(text).not.toContain("secret output");
+  });
+
+  it("does not turn a question into a preference", () => {
+    expect(observationsFromUserLines("User: Do you always use bun?")).toEqual([]);
   });
 
   it("parses model observations and renders a bounded prompt", () => {

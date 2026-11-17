@@ -304,11 +304,11 @@ export class BackendHostCore {
           const forkInstructions = threadId
             ? readThreadForkInitialInstructions(threadId)
             : undefined;
-          const projectId = threadId
-            ? dbGetThread(threadId)?.projectId
-            : dbFindProjectByLocation(prepared.projectLocation)?.id;
           let memoryInstructions: string | undefined;
           try {
+            const projectId = threadId
+              ? dbGetThread(threadId)?.projectId
+              : dbFindProjectByLocation(prepared.projectLocation)?.id;
             memoryInstructions = launchMemoryInstructions(threadId, projectId);
           } catch (error) {
             console.error("[memory] launch instructions skipped:", error);

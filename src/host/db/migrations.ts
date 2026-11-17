@@ -1222,7 +1222,7 @@ export const DATABASE_MIGRATIONS = [
         CREATE TABLE IF NOT EXISTS memory_thread_state (
           thread_id TEXT PRIMARY KEY,
           mode TEXT NOT NULL DEFAULT 'learn',
-          cursor INTEGER NOT NULL DEFAULT -1,
+          last_item_position INTEGER NOT NULL DEFAULT -1,
           next_attempt_at TEXT,
           updated_at TEXT NOT NULL
         );
@@ -1457,7 +1457,7 @@ const REQUIRED_COLUMNS = {
   ],
   memory_entries: ["id", "scope", "summary", "confidence", "locked_by_user", "archived"],
   memory_capture_spool: ["id", "thread_id", "text"],
-  memory_thread_state: ["thread_id", "mode", "cursor"],
+  memory_thread_state: ["thread_id", "mode", "last_item_position"],
   projects: [
     "id",
     "name",

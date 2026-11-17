@@ -151,4 +151,61 @@ describe("memory store", () => {
     }>;
     expect(saved.find((item) => item.summary === "Always use bun")?.lockedByUser).toBe(true);
   });
+
+  it("runs the dream model when available and cleanly undoes promotions and suggestions", async () => {
+    const { setMemoryModelCaller } = await import("./runtime");
+    const { dbInsertMemoryCandidate } = await import("@/host/db/memoryStore");
+    const calls: string[] = [];
+    setMemoryModelCaller({
+      complete: async (input) => {
+        calls.push(input.purpose);
+        return JSON.stringify({
+          observations: [
+            {
+              scope: "global",
+              category: "feedback",
+              statement: "Keep PR summaries concise",
+              quote: null,
+              polarity: "positive",
+              explicit: true,
+            },
+          ],
+        });
+      },
+    });
+    try {
+      for (let index = 0; index < 3; index += 1) {
+        dbInsertMemoryCandidate({
+          id: `dream-c-${index}`,
+          threadId: null,
+          projectId: null,
+          scope: "global",
+          category: "feedback",
+          statement: "Keep PR summaries concise",
+          quote: null,
+          polarity: "positive",
+          confidence: 0.5,
+          explicit: false,
+          status: "pending",
+          createdAt: "2026-11-16T00:00:00.000Z",
+        });
+      }
+      const result = (await handleMemoryCommand({ action: "dream" })) as {
+        report: string;
+        runId: string;
+      };
+      expect(calls).toEqual(["dream"]);
+      expect(
+        ((await handleMemoryCommand({ action: "list" })) as Array<{ summary: string }>).some(
+          (item) => item.summary === "Keep PR summaries concise",
+        ),
+      ).toBe(true);
+      expect(await handleMemoryCommand({ action: "suggestions" })).toHaveLength(1);
+      await handleMemoryCommand({ action: "undo", runId: result.runId });
+      expect(await handleMemoryCommand({ action: "list" })).toEqual([]);
+      expect(await handleMemoryCommand({ action: "suggestions" })).toEqual([]);
+    } finally {
+      setMemoryModelCaller(undefined);
+    }
+  });
 });

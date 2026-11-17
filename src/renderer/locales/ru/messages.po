@@ -3588,6 +3588,11 @@ msgstr "Запись аудио с этого устройства."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "Модель записи"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Capture new notes after turns finish."
 msgstr "Запоминать новые заметки после хода."
 
@@ -7503,6 +7508,11 @@ msgstr "Перетащите для изменения порядка; двой�
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Draggable model"
 msgstr "Перетаскиваемая модель"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "Модель упорядочивания"
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Dream now"
@@ -17396,6 +17406,7 @@ msgstr "сброс"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Сбросить"
 
@@ -21119,6 +21130,11 @@ msgstr "Кандидаты пока не внесли изменений."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "Изменения слишком велики для переноса ({size}). Сначала закоммитьте или добавьте в игнор большие файлы."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "Самая дешёвая модель провайдера с лучшим рейтингом читает завершённый ход. Можно выбрать любую модель."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "Не удалось восстановить контрольную точку."
@@ -21685,6 +21701,11 @@ msgstr "Сохраненная конфигурация недопустима. 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Сохраненная конфигурация недопустима. Сохраненные значения остаются; сохранение ниже заменит их тем, что содержит эта форма."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "Самая сильная модель провайдера с лучшим рейтингом объединяет заметки. Можно выбрать любую модель."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."

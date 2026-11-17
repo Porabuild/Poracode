@@ -90,6 +90,7 @@ vi.mock("@/host/db", async () => ({
   dbTruncateThreadRuntimeAfter: mocks.dbTruncateThreadRuntimeAfter,
   dbGetThread: mocks.dbGetThread,
   dbGetProject: mocks.dbGetProject,
+  dbFindProjectByLocation: vi.fn<() => undefined>(),
   dbHasThreadRuntimeItem: mocks.dbHasThreadRuntimeItem,
   dbClaimCheckpointRevertOperation: mocks.dbClaimCheckpointRevertOperation,
   dbGetCheckpointRevertOperation: mocks.dbGetCheckpointRevertOperation,

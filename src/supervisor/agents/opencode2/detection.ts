@@ -40,6 +40,7 @@ export const opencode2DefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 71,
   supportsTextOnlyOneShot: true,
   reportsSkillCatalog: true,
   supportsDirectInput: true,

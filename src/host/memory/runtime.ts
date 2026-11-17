@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { dbGetProject, dbGetThread, dbGetThreads } from "@/host/db/projectsThreads";
+import { dbGetProject, dbGetThread } from "@/host/db/projectsThreads";
 import { setMemoryThreadDeleteHook } from "@/host/db/memoryDeleteHook";
 import {
   dbCountMemoryEntries,
@@ -21,6 +21,8 @@ import {
   dbListMemoryEntries,
   dbListMemorySpool,
   dbListMemorySuggestions,
+  dbListPendingCandidates,
+  dbListThreadsWithPendingMemoryItems,
   dbMarkMemoryDreamUndone,
   dbReadMemoryTranscript,
   dbSetCandidateStatus,
@@ -42,6 +44,7 @@ import {
 } from "@/shared/memory";
 import { dreamMemories, rememberObservations, userMemoryEntry } from "./apply";
 import {
+  MEMORY_DREAM_PROMPT,
   MEMORY_EXTRACT_PROMPT,
   observationsFromUserLines,
   parseModelObservations,
@@ -63,6 +66,10 @@ let modelCaller: MemoryModelCaller | undefined;
 
 export function setMemoryModelCaller(caller: MemoryModelCaller | undefined): void {
   modelCaller = caller;
+}
+
+export function getMemoryModelCaller(): MemoryModelCaller | undefined {
+  return modelCaller;
 }
 
 export function spoolThreadBeforeDelete(threadId: string): void {
@@ -163,7 +170,40 @@ function memoryStatus(threadId: string | undefined): MemoryStatus {
 
 async function runDream(now: string): Promise<{ report: string; runId: string }> {
   const settings = readMemorySettings();
-  const outcome = dreamMemories(settings, now);
+  let consolidated: ReturnType<typeof parseModelObservations> = [];
+  const pending = dbListPendingCandidates();
+  if (modelCaller && pending.length > 0) {
+    try {
+      const existing = dbListMemoryEntries()
+        .slice(0, 60)
+        .map((entry) => ({
+          scope: entry.scope,
+          projectId: entry.projectId,
+          category: entry.category,
+          summary: redactSecrets(entry.summary),
+          polarity: entry.polarity,
+          lockedByUser: entry.lockedByUser,
+        }));
+      const candidates = pending.slice(0, 120).map((item) => ({
+        scope: item.scope,
+        projectId: item.projectId,
+        category: item.category,
+        statement: redactSecrets(item.statement),
+        polarity: item.polarity,
+        confidence: item.confidence,
+        explicit: item.explicit,
+      }));
+      const raw = await modelCaller.complete({
+        projectId: pending.find((item) => item.projectId)?.projectId ?? null,
+        purpose: "dream",
+        prompt: `${MEMORY_DREAM_PROMPT}\n\nExisting:\n${JSON.stringify(existing)}\n\nPending:\n${JSON.stringify(candidates)}`,
+      });
+      consolidated = parseModelObservations(raw);
+    } catch (error) {
+      console.error("[memory] dream model skipped:", error);
+    }
+  }
+  const outcome = dreamMemories(settings, now, consolidated);
   const runId = randomUUID();
   dbInsertMemoryDreamRun({
     id: runId,
@@ -306,9 +346,10 @@ async function captureOnce(nowMs: number): Promise<{ captured: number; spooled: 
     dbDeleteMemorySpool(spool.id);
   }
   const settle = memorySettleMs(settings);
-  for (const thread of dbGetThreads()) {
+  for (const threadId of dbListThreadsWithPendingMemoryItems()) {
     if (!settings.learning) break;
-    if (thread.parentThreadId) continue;
+    const thread = dbGetThread(threadId);
+    if (!thread || thread.parentThreadId) continue;
     const state = dbGetMemoryThreadState(thread.id);
     if (state.mode !== "learn") continue;
     if (state.nextAttemptAt && Date.parse(state.nextAttemptAt) > nowMs) continue;
@@ -365,7 +406,11 @@ async function ingestText(input: {
 }): Promise<void> {
   const deterministic = observationsFromUserLines(input.text);
   let modelObservations: ReturnType<typeof observationsFromUserLines> = [];
-  if (modelCaller && input.text.length > 400) {
+  if (
+    modelCaller !== undefined &&
+    /^user:\s+\S/im.test(input.text) &&
+    (input.text.length > 400 || (deterministic.length === 0 && input.text.length >= 80))
+  ) {
     try {
       const raw = await modelCaller.complete({
         projectId: input.projectId,

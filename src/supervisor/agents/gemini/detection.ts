@@ -64,6 +64,7 @@ export const defaultGeminiCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 30,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

@@ -3587,6 +3587,11 @@ msgstr "このデバイスからオーディオをキャプチャします。"
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "記録モデル"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Capture new notes after turns finish."
 msgstr "ターン終了後に新しいメモを取り込む。"
 
@@ -7502,6 +7507,11 @@ msgstr "ドラッグして並べ替えます。ダブルクリックして編集
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Draggable model"
 msgstr "ドラッグ可能なモデル"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "整理モデル"
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Dream now"
@@ -17394,6 +17404,7 @@ msgstr "リセット"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "リセット"
 
@@ -21117,6 +21128,11 @@ msgstr "候補はまだ変更を加えていません。"
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "変更が大きすぎて移動できません ({size})。先に大きなファイルをコミットするか無視してください。"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "評価が最も高いプロバイダーの最安モデルが、終わったターンを読みます。どのモデルでも選べます。"
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "チェックポイントを復元できませんでした。"
@@ -21683,6 +21699,11 @@ msgstr "保存済みの設定は無効です。下で保存するとこのフォ
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "保存済みの設定は無効です。保存済みの値は保持され、下で保存するとこのフォームの内容で置き換えられます。"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "評価が最も高いプロバイダーの最強モデルがメモをまとめます。どのモデルでも選べます。"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."

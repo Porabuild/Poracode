@@ -29,6 +29,7 @@ export const qoderDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 37,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

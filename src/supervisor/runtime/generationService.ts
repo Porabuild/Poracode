@@ -25,7 +25,10 @@ import {
 } from "../contextExtractor";
 import { generatePrSummary } from "../prSummaryGenerator";
 import { generateTitle } from "../titleGenerator";
-import { runOneShotPromptWithFallback } from "../oneShotPromptRunner";
+import {
+  runOneShotPromptWithFallback,
+  runTextOnlyOneShotPromptWithFallback,
+} from "../oneShotPromptRunner";
 import { resolveOneShotSelection } from "../agents/base";
 import { judgeExperiment } from "../experimentJudge";
 import { generateReviewGuide } from "../reviewGuideGenerator";
@@ -124,8 +127,12 @@ export class GenerationService {
     const selection = resolveOneShotSelection(adapter, payload.selection, () => {
       return new Error(`No default one-shot model configured for ${adapter.label}`);
     });
+    const run =
+      adapter.capabilities.supportsTextOnlyOneShot === true
+        ? runTextOnlyOneShotPromptWithFallback
+        : runOneShotPromptWithFallback;
     const text = await this.withHelperLease("memory", () =>
-      runOneShotPromptWithFallback({
+      run({
         location: payload.projectLocation,
         adapter,
         selection,

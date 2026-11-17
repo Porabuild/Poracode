@@ -267,12 +267,14 @@ export function dbGetMemoryThreadState(threadId: string): {
   nextAttemptAt: string | null;
 } {
   const row = getSqlite()
-    .prepare("SELECT mode, cursor, next_attempt_at FROM memory_thread_state WHERE thread_id = ?")
+    .prepare(
+      "SELECT mode, last_item_position, next_attempt_at FROM memory_thread_state WHERE thread_id = ?",
+    )
     .get(threadId) as
-    | { mode: MemoryThreadMode; cursor: number; next_attempt_at: string | null }
+    | { mode: MemoryThreadMode; last_item_position: number; next_attempt_at: string | null }
     | undefined;
   return row
-    ? { mode: row.mode, cursor: row.cursor, nextAttemptAt: row.next_attempt_at }
+    ? { mode: row.mode, cursor: row.last_item_position, nextAttemptAt: row.next_attempt_at }
     : { mode: "learn", cursor: -1, nextAttemptAt: null };
 }
 
@@ -286,11 +288,11 @@ export function dbSetMemoryThreadState(input: {
   const current = dbGetMemoryThreadState(input.threadId);
   getSqlite()
     .prepare(
-      `INSERT INTO memory_thread_state (thread_id, mode, cursor, next_attempt_at, updated_at)
+      `INSERT INTO memory_thread_state (thread_id, mode, last_item_position, next_attempt_at, updated_at)
        VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(thread_id) DO UPDATE SET
          mode = excluded.mode,
-         cursor = excluded.cursor,
+         last_item_position = excluded.last_item_position,
          next_attempt_at = excluded.next_attempt_at,
          updated_at = excluded.updated_at`,
     )
@@ -308,9 +310,29 @@ export function dbReadMemoryTranscript(threadId: string, afterPosition: number):
     .prepare(
       `SELECT position, type, payload FROM thread_runtime_items
        WHERE thread_id = ? AND position > ?
+         AND type IN ('user_message', 'assistant_message')
        ORDER BY position ASC`,
     )
     .all(threadId, afterPosition) as TranscriptItem[];
+}
+
+export function dbListThreadsWithPendingMemoryItems(): string[] {
+  const rows = getSqlite()
+    .prepare(
+      `SELECT t.id AS id
+       FROM threads t
+       LEFT JOIN memory_thread_state s ON s.thread_id = t.id
+       WHERE t.parent_thread_id IS NULL
+         AND COALESCE(s.mode, 'learn') = 'learn'
+         AND EXISTS (
+           SELECT 1 FROM thread_runtime_items i
+           WHERE i.thread_id = t.id
+             AND i.position > COALESCE(s.last_item_position, -1)
+             AND i.type IN ('user_message', 'assistant_message')
+         )`,
+    )
+    .all() as Array<{ id: string }>;
+  return rows.map((row) => row.id);
 }
 
 export function dbMemoryMeta(key: string): string | null {

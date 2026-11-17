@@ -49,6 +49,7 @@ export const opencodeDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 70,
   supportsDirectInput: true,
   liveInputMode: "terminal",
   presentationMode: "terminal",

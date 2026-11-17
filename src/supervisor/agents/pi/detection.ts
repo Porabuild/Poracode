@@ -67,6 +67,7 @@ export const piDefaultCapabilities: AgentCapability = {
   sandboxModes: [],
   supportsResume: true,
   supportsOneShot: true,
+  utilityRank: 75,
   supportsTextOnlyOneShot: true,
   supportsDirectInput: true,
   liveInputMode: "terminal",

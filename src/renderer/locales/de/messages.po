@@ -3588,6 +3588,11 @@ msgstr "Audio von diesem Gerät aufnehmen."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "Erfassungsmodell"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Capture new notes after turns finish."
 msgstr "Neue Notizen aufnehmen, nachdem ein Zug fertig ist."
 
@@ -7503,6 +7508,11 @@ msgstr "Zum Neuanordnen ziehen; Doppelklicken Sie zum Bearbeiten"
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Draggable model"
 msgstr "Verschiebbares Modell"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "Traummodell"
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Dream now"
@@ -17396,6 +17406,7 @@ msgstr "zurückgesetzt"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Zurücksetzen"
 
@@ -21119,6 +21130,11 @@ msgstr "Die Kandidaten haben noch keine Änderungen vorgenommen."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "Die Änderungen sind zu groß zum Verschieben ({size}). Committe oder ignoriere große Dateien zuerst."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "Das günstigste Modell des am besten bewerteten Anbieters liest einen beendeten Zug. Du kannst jedes Modell wählen."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "Der Kontrollpunkt konnte nicht wiederhergestellt werden."
@@ -21685,6 +21701,11 @@ msgstr "Die gespeicherte Konfiguration ist ungültig. Durch das Speichern unten 
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Die gespeicherte Konfiguration ist ungültig. Die gespeicherten Werte bleiben erhalten; das Speichern unten ersetzt sie durch die Inhalte dieses Formulars."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "Das stärkste Modell des am besten bewerteten Anbieters führt die Notizen zusammen. Du kannst jedes Modell wählen."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."

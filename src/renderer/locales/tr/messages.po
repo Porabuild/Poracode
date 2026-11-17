@@ -3588,6 +3588,11 @@ msgstr "Bu cihazdan ses yakalayın."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Capture model"
+msgstr "Yakalama modeli"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Capture new notes after turns finish."
 msgstr "Tur bitince yeni notları kaydet."
 
@@ -7503,6 +7508,11 @@ msgstr "Yeniden sıralamak için sürükleyin; düzenlemek için çift tıklayı
 #: src/renderer/components/common/ProviderModelMenu/parts/ModelMenuRow.tsx
 msgid "Draggable model"
 msgstr "Sürüklenebilir model"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Dream model"
+msgstr "Düzenleme modeli"
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Dream now"
@@ -17396,6 +17406,7 @@ msgstr "sıfırlama"
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 #: src/renderer/components/providers/settings/ProviderContextWindowSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Reset"
 msgstr "Sıfırla"
 
@@ -21119,6 +21130,11 @@ msgstr "Adaylar henüz herhangi bir değişiklik yapmadı."
 msgid "The changes are too large to move ({size}). Commit or ignore large files first."
 msgstr "Değişiklikler taşınamayacak kadar büyük ({size}). Önce büyük dosyaları commit edin veya yok sayın."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The cheapest model from the highest-rated provider reads a finished turn. You can choose any model."
+msgstr "En yüksek puanlı sağlayıcının en ucuz modeli biten turu okur. Herhangi bir modeli seçebilirsiniz."
+
 #: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
 msgid "The checkpoint could not be restored."
 msgstr "Kontrol noktası geri yüklenemedi."
@@ -21685,6 +21701,11 @@ msgstr "Kayıtlı yapılandırma geçersiz. Aşağıda kaydetmek onu bu formun i
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 msgstr "Kayıtlı yapılandırma geçersiz. Kayıtlı değerler korunur; aşağıda kaydetmek onları bu formun içerdiği değerlerle değiştirir."
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "The strongest model from the highest-rated provider merges notes. You can choose any model."
+msgstr "En yüksek puanlı sağlayıcının en güçlü modeli notları birleştirir. Herhangi bir modeli seçebilirsiniz."
 
 #: src/renderer/components/providers/settings/CodexAdvancedSettings.tsx
 msgid "The sub-agent settings need Codex 0.145 or newer. They are ignored until Codex is updated."
