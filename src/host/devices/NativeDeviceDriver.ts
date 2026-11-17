@@ -131,6 +131,10 @@ export class NativeDeviceDriver implements DeviceDriver {
   // iOS has no boot-id source, so a foldable's control boot identity is
   // minted per observed boot and dropped once the device is seen stopped.
   private readonly iosBootIds = new Map<string, string>();
+  // The hinge helper only learns the angle after a fold is sent through it;
+  // a fresh hub generation's config omits hingeAngle entirely. Remember the
+  // last angle this driver folded to so pose reads stay accurate.
+  private readonly foldAngles = new Map<string, number>();
   // Installed runtimes change only through Xcode, so the Duo-runtime probe
   // is memoized per driver lifetime instead of spawning simctl per discover.
   private duoRuntimeCache: { value: string | null } | null = null;
@@ -144,6 +148,7 @@ export class NativeDeviceDriver implements DeviceDriver {
   private iosBootId(udid: string, booted: boolean): string | undefined {
     if (!booted) {
       this.iosBootIds.delete(udid);
+      this.foldAngles.delete(udid);
       return undefined;
     }
     let bootId = this.iosBootIds.get(udid);
@@ -634,8 +639,14 @@ export class NativeDeviceDriver implements DeviceDriver {
       const deadline = Date.now() + 15_000;
       let hingeAngle: number | undefined;
       for (;;) {
-        const config = await helper.readConfig(signal);
-        hingeAngle = config.hingeAngle;
+        // A config read can fail while the helper is still coming up; the
+        // hinge ack already confirmed the fold, so treat that as unknown
+        // angle instead of failing a fold that physically landed.
+        const config = await helper.readConfig(signal).catch(() => {
+          signal.throwIfAborted();
+          return undefined;
+        });
+        hingeAngle = config?.hingeAngle;
         if (hingeAngle === undefined || hingeAngle === control.angle) break;
         if (Date.now() >= deadline)
           throw new DeviceWorkspaceError(
@@ -657,9 +668,11 @@ export class NativeDeviceDriver implements DeviceDriver {
         signal.throwIfAborted();
         displays = await this.foldableDisplaysFor(entry.nativeId, signal);
       }
+      const settledAngle = hingeAngle ?? control.angle;
+      this.foldAngles.set(entry.nativeId, settledAngle);
       return {
         version: 1,
-        hingeAngle: hingeAngle ?? control.angle,
+        hingeAngle: settledAngle,
         activeDisplay: displays.activeDisplay,
       };
     } finally {
@@ -686,9 +699,11 @@ export class NativeDeviceDriver implements DeviceDriver {
         await helper.release();
       }
     }
+    if (hingeAngle !== undefined) this.foldAngles.set(udid, hingeAngle);
+    const knownAngle = hingeAngle ?? this.foldAngles.get(udid);
     return {
       version: 1,
-      ...(hingeAngle !== undefined ? { hingeAngle } : {}),
+      ...(knownAngle !== undefined ? { hingeAngle: knownAngle } : {}),
       activeDisplay: displays.activeDisplay,
     };
   }

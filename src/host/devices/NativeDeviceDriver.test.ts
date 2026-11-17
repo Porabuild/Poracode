@@ -605,6 +605,7 @@ describe("iPhone Duo foldable support", () => {
       duoRuntime?: boolean;
       foldFails?: boolean;
       displayLagReads?: number;
+      helperKnowsAngle?: boolean;
     } = {},
   ) {
     Object.defineProperty(process, "platform", { ...originalPlatform, value: "darwin" });
@@ -623,7 +624,9 @@ describe("iPhone Duo foldable support", () => {
         height: 2853,
         screenId: 3,
         supportsHingeAngle: true,
-        hingeAngle: state.angle,
+        // A fresh helper generation omits hingeAngle until a fold is sent
+        // through it; the driver must fall back to the angle it folded to.
+        ...((options.helperKnowsAngle ?? true) ? { hingeAngle: state.angle } : {}),
       })),
       setHingeAngle,
       release: vi.fn<() => Promise<void>>(async () => {}),
@@ -805,6 +808,28 @@ describe("iPhone Duo foldable support", () => {
     }
     // The lit panel lags the hinge on real hardware; the fold result must
     // wait for the panel switch instead of reporting the pre-fold panel.
+    // A fresh helper generation never reports hingeAngle; reads must fall
+    // back to the angle this driver last folded to.
+    const forgetful = duoFixture({ helperKnowsAngle: false });
+    try {
+      const inventory = await forgetful.driver.discover(forgetful.signal);
+      const bootId = inventory.devices.find((device) => device.id === `ios:${duoUdid}`)!.controls!
+        .bootId;
+      await expect(
+        forgetful.driver.control(`ios:${duoUdid}`, { type: "read" }, bootId, forgetful.signal),
+      ).resolves.toEqual({ version: 1, activeDisplay: "inner" });
+      await forgetful.driver.control(
+        `ios:${duoUdid}`,
+        { type: "fold", angle: 180 },
+        bootId,
+        forgetful.signal,
+      );
+      await expect(
+        forgetful.driver.control(`ios:${duoUdid}`, { type: "read" }, bootId, forgetful.signal),
+      ).resolves.toEqual({ version: 1, hingeAngle: 180, activeDisplay: "inner" });
+    } finally {
+      await forgetful.driver.dispose();
+    }
     const lagging = duoFixture({ displayLagReads: 2 });
     try {
       const inventory = await lagging.driver.discover(lagging.signal);

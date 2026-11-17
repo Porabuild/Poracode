@@ -21,8 +21,10 @@ async function helperFixture(ackOk: boolean) {
       response.setHeader("content-type", "application/json");
       response.end(
         JSON.stringify({
-          width: 2007,
-          height: 2853,
+          // Pre-stream helpers report 0x0; the fold channel must still read
+          // the config instead of rejecting the whole payload.
+          width: 0,
+          height: 0,
           screenId: 3,
           supportsHingeAngle: true,
           // Fractional mid-animation angle: the vendor boundary must accept

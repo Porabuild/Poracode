@@ -614,7 +614,7 @@ export function DeviceWorkspace({
     ? foldDisplayLabel
       ? `${foldPoseLabel} · ${foldDisplayLabel}`
       : foldPoseLabel
-    : null;
+    : foldDisplayLabel;
   const foldButtons = [
     { angle: 0, label: t`Closed`, Icon: Smartphone },
     { angle: 90, label: t`Half open`, Icon: FoldVertical },

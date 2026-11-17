@@ -1262,6 +1262,21 @@ describe("device workspace UI", () => {
     );
   });
 
+  it("labels the active display before any hinge angle is known", async () => {
+    setupDuo();
+    // A fresh helper generation cannot report the angle yet; the pose label
+    // falls back to the lit display instead of staying blank.
+    mocks.deviceAction.mockImplementation(async (...args: unknown[]) => {
+      const control = (args[2] as { control?: { type: string } }).control;
+      return control ? { controls: { version: 1, activeDisplay: "outer" } } : {};
+    });
+    render(<Workspace />);
+    await attachControl();
+    await waitFor(() =>
+      expect(screen.getByTestId("device-fold-pose").textContent).toBe("Outer display"),
+    );
+  });
+
   it("hides fold controls when fold is not advertised", async () => {
     setup();
     render(<Workspace />);

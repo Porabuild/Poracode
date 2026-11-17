@@ -18,7 +18,14 @@ const hingeAckSchema = z.object({
   error: z.string().optional(),
 });
 
-export type DeviceFoldHelperConfig = z.infer<typeof devicePreviewIosConfigSchema>;
+// A helper that has not streamed yet reports a 0x0 config (and no hinge
+// angle until a fold is sent through it); the fold channel only needs the
+// hinge fields, so it accepts the pre-stream shape the preview rejects.
+const foldHelperConfigSchema = devicePreviewIosConfigSchema.extend({
+  width: z.int().min(0).max(16384),
+  height: z.int().min(0).max(16384),
+});
+export type DeviceFoldHelperConfig = z.infer<typeof foldHelperConfigSchema>;
 
 export interface DeviceFoldHelperHandle {
   readConfig(signal: AbortSignal): Promise<DeviceFoldHelperConfig>;
@@ -54,7 +61,7 @@ async function readHelperConfig(
     const value: unknown = JSON.parse(
       new TextDecoder().decode(await readBoundedResponseBody(response, 128 * 1024)),
     );
-    const config = devicePreviewIosConfigSchema.safeParse(value);
+    const config = foldHelperConfigSchema.safeParse(value);
     if (!config.success) throw foldFailed("The foldable preview helper returned no config.");
     // Mid-animation configs can carry fractional angles; fold consumers
     // compare whole degrees.
