@@ -127,6 +127,8 @@ struct SideChatContentView: View {
       Button(SideChatStrings.newChat, systemImage: "square.and.pencil", action: newChat)
       Button(SideChatStrings.close, systemImage: "xmark.bubble", role: .destructive) { confirmsClose = true }
     } label: { headerIcon(HomeStrings.more, symbol: "ellipsis") }
+    .foregroundStyle(.secondary)
+    .tint(.secondary)
     .accessibilityLabel(HomeStrings.more)
     .accessibilityIdentifier("native-e2e.side-chat.more")
   }
