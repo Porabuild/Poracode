@@ -5,6 +5,51 @@ import XCTest
 
 @MainActor
 final class RichChatTerminalControllerTests: XCTestCase {
+  func testLatestViewportWaitsForAnInFlightCommandInsteadOfBeingDroppedAsBusy() async {
+    let write = RichChatControllerTestBarrier()
+    let resized = expectation(description: "Latest viewport reaches the host after input")
+    let gateway = TerminalControllerGateway(writeBarrier: write, onResize: { resized.fulfill() })
+    let controller = RichChatTerminalController(gateway: gateway)
+    controller.activate(access: Self.access(), threadID: "thread-1")
+    await controller.watch(terminalID: "thread-1")
+    let input = Task { await controller.write("printf 'a\\nb'\n") }
+    await write.waitUntilReached()
+
+    // A wrapped command clears: the output gains rows while the write still
+    // owns the operation. Only the final geometry needs to reach the PTY.
+    controller.resize(.init(columns: 80, rows: 10))
+    controller.resize(.init(columns: 80, rows: 20))
+    controller.resize(.init(columns: 80, rows: 30))
+    XCTAssertEqual(controller.state.operation, .input)
+    XCTAssertNil(controller.state.failure)
+    await write.release()
+    await input.value
+    await fulfillment(of: [resized], timeout: 5)
+    let sizes = await gateway.resizeSizes()
+    XCTAssertEqual(sizes, [.init(columns: 80, rows: 30)])
+    XCTAssertNil(controller.state.failure)
+  }
+
+  func testReplacingAWatchDropsItsQueuedViewportWithoutCancellingUserInput() async {
+    let write = RichChatControllerTestBarrier()
+    let unexpected = expectation(description: "Retired watch must not resize")
+    unexpected.isInverted = true
+    let gateway = TerminalControllerGateway(writeBarrier: write, onResize: { unexpected.fulfill() })
+    let controller = RichChatTerminalController(gateway: gateway)
+    controller.activate(access: Self.access(), threadID: "thread-1")
+    await controller.watch(terminalID: "thread-1")
+    let input = Task { await controller.write("pwd\n") }
+    await write.waitUntilReached()
+    controller.resize(.init(columns: 90, rows: 40))
+    await Task.yield()
+    await controller.watch(terminalID: "thread-1")
+    await write.release()
+    await input.value
+    await fulfillment(of: [unexpected], timeout: 0.2)
+    let cancelled = await gateway.inputWasCancelled()
+    XCTAssertFalse(cancelled, "Cancelling an obsolete resize cannot cancel an independent command")
+  }
+
   func testGapInstallsFreshWatchBaselineWithNewWatchIdentity() async {
     let replacementWatch = RichChatControllerTestBarrier()
     let gateway = TerminalControllerGateway(secondWatchBarrier: replacementWatch)
@@ -213,13 +258,21 @@ actor TerminalControllerGateway: RichChatTerminalGateway {
   private var stops = 0
   private let writeFailure: RichChatGatewayError?
   private let secondWatchBarrier: RichChatControllerTestBarrier?
+  private let writeBarrier: RichChatControllerTestBarrier?
+  private let onResize: (@Sendable () -> Void)?
+  private var sizes: [RichChatTerminalSize] = []
+  private var cancelledInput = false
 
   init(
     writeFailure: RichChatGatewayError? = nil,
-    secondWatchBarrier: RichChatControllerTestBarrier? = nil
+    secondWatchBarrier: RichChatControllerTestBarrier? = nil,
+    writeBarrier: RichChatControllerTestBarrier? = nil,
+    onResize: (@Sendable () -> Void)? = nil
   ) {
     self.writeFailure = writeFailure
     self.secondWatchBarrier = secondWatchBarrier
+    self.writeBarrier = writeBarrier
+    self.onResize = onResize
   }
 
   func watchRichTerminal(
@@ -238,12 +291,17 @@ actor TerminalControllerGateway: RichChatTerminalGateway {
   func unwatchRichTerminal(target _: RichChatThreadTarget, terminalID _: String) {}
   func startRichTerminal(target _: RichChatThreadTarget, input _: RichChatTerminalStartInput) {}
 
-  func writeRichTerminal(target _: RichChatThreadTarget, data _: String) throws {
+  func writeRichTerminal(target _: RichChatThreadTarget, data _: String) async throws {
     writes += 1
+    await writeBarrier?.suspend()
+    cancelledInput = Task.isCancelled
     if let writeFailure { throw writeFailure }
   }
 
-  func resizeRichTerminal(target _: RichChatThreadTarget, size _: RichChatTerminalSize) {}
+  func resizeRichTerminal(target _: RichChatThreadTarget, size: RichChatTerminalSize) {
+    sizes.append(size)
+    onResize?()
+  }
   func closeRichTerminal(target _: RichChatThreadTarget) {}
 
   func stopRichTerminalTransport(target _: RichChatThreadTarget) {
@@ -253,4 +311,6 @@ actor TerminalControllerGateway: RichChatTerminalGateway {
   func watchIDs() -> [String] { watches }
   func writeCount() -> Int { writes }
   func stopCount() -> Int { stops }
+  func resizeSizes() -> [RichChatTerminalSize] { sizes }
+  func inputWasCancelled() -> Bool { cancelledInput }
 }

@@ -6,9 +6,13 @@ struct TerminalSettingsView: View {
     PoracodeTerminalTextSize.defaultValue
   @AppStorage(PoracodeTerminalTextSize.projectStorageKey) private var projectTerminalTextSize =
     PoracodeTerminalTextSizeRole.project.initialValue()
+  @AppStorage(TerminalFontPreference.storageKey) private var fontName = TerminalFontPreference.storedName()
+  @State private var showsFontPicker = false
+  @ScaledMetric(relativeTo: .body) private var fontPreviewSize: CGFloat = 17
 
   var body: some View {
     List {
+      fontSection
       Section {
         textSizeControl(
           value: $agentTerminalTextSize,
@@ -33,6 +37,58 @@ struct TerminalSettingsView: View {
     .poracodeReadableListMargins(740)
     .navigationTitle(SettingsUIStrings.terminalTitle)
     .navigationBarTitleDisplayMode(.inline)
+    .sheet(isPresented: $showsFontPicker) {
+      TerminalFontPicker { selected in
+        if let selected { fontName = selected }
+        showsFontPicker = false
+      }
+      .poracodeFormSheetSizing()
+      .nativeCommands(identity: "terminal-font-picker", blocksParentActions: true)
+    }
+  }
+
+  private var fontSection: some View {
+    Section {
+      Button { fontName = TerminalFontPreference.defaultValue } label: {
+        HStack {
+          Text(TerminalStrings.defaultFont)
+          Spacer()
+          if fontName.isEmpty { Image(systemName: "checkmark").foregroundStyle(.secondary) }
+        }
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityAddTraits(fontName.isEmpty ? .isSelected : [])
+      .accessibilityIdentifier("native-e2e.terminal.font.default")
+      Button { showsFontPicker = true } label: {
+        HStack {
+          Text(TerminalStrings.chooseFont)
+          Spacer(minLength: 8)
+          if !fontName.isEmpty {
+            Text(verbatim: TerminalFontPreference.displayName(fontName)).foregroundStyle(.secondary).lineLimit(1)
+            Image(systemName: "checkmark").foregroundStyle(.secondary)
+          }
+        }
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityAddTraits(fontName.isEmpty ? [] : .isSelected)
+      .accessibilityIdentifier("native-e2e.terminal.font.choose")
+      Text(verbatim: "Aa Bb 0123456789")
+        .font(Font(TerminalFontPreference.font(named: fontName,
+          pointSize: fontPreviewSize)))
+        .accessibilityLabel(TerminalStrings.fontPreview)
+        .accessibilityIdentifier("native-e2e.terminal.font.preview")
+    } header: {
+      Text(TerminalStrings.fontTitle)
+    } footer: {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(TerminalStrings.fontDescription)
+        if !fontName.isEmpty, TerminalFontPreference.availableFont(named: fontName, pointSize: 13) == nil {
+          Text(TerminalStrings.fontUnavailable).accessibilityIdentifier("native-e2e.terminal.font.unavailable")
+        }
+      }
+    }
   }
 
   private func textSizeControl(

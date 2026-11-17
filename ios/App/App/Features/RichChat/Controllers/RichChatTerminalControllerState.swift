@@ -46,6 +46,52 @@ struct RichChatTerminalControllerState: Equatable, Sendable {
   /// Set by an accepted `thread-exited` for the watched terminal; cleared by a
   /// restart, a fresh activation, or backgrounding.
   var exit: RichChatTerminalExit?
+
+  /// Seed the new watch from the same durable position used by cursor-sync v2
+  /// resume, so a resumed suffix appends rather than replacing retained output.
+  /// The transport negotiates down to v1 when the host does not support v2.
+  mutating func beginWatch(terminalID: String, watchID: String) -> RichChatTerminalWatchResume? {
+    let retained = cursor
+    self.terminalID = terminalID
+    self.watchID = watchID
+    cursor = RichChatTerminalWatchPolicy.seedFromRetained(retained, watchID: watchID)
+    lifecycle = .starting
+    connectionState = .connecting
+    failure = nil
+    requiresAuthoritativeRefresh = false
+    return RichChatTerminalWatchPolicy.resumeFromRetained(retained)
+  }
+
+  mutating func clearWatch() {
+    terminalID = nil
+    watchID = nil
+    cursor = nil
+    lifecycle = .inactive
+    connectionState = .idle
+  }
+
+  mutating func enterBackground() {
+    clearWatch()
+    exit = nil
+    operation = nil
+  }
+
+  mutating func applyConnection(_ connection: RichChatTerminalConnectionState) {
+    connectionState = connection
+    switch connection {
+    case .idle:
+      if terminalID != nil { lifecycle = .inactive }
+    case .connecting, .reconnecting:
+      lifecycle = .starting
+      failure = nil
+    case .watching:
+      lifecycle = .watching
+      failure = nil
+    case .failed(let retryable):
+      lifecycle = .watchFailed(retryable: retryable)
+      failure = .transport
+    }
+  }
 }
 
 /// Request validation and retry classification shared by the terminal controller

@@ -29,7 +29,7 @@ enum TerminalInputAvailability: Equatable, Sendable {
 /// on Return instead of inserting, and grows to four lines before scrolling.
 struct TerminalCommandField: UIViewRepresentable {
   @Binding var text: String
-  let pointSize: CGFloat
+  let font: UIFont
   let isDisabled: Bool
   let accessibilityLabel: String
   let onSubmit: () -> Void
@@ -42,7 +42,7 @@ struct TerminalCommandField: UIViewRepresentable {
     let view = TerminalCommandTextView()
     view.accessibilityLabel = accessibilityLabel
     view.accessibilityIdentifier = "native-e2e.terminal.input"
-    view.font = TerminalTextAttributes.font(pointSize: pointSize)
+    view.font = font
     view.isEditable = !isDisabled
     view.alpha = isDisabled ? 0.55 : 1
     view.text = text
@@ -53,8 +53,8 @@ struct TerminalCommandField: UIViewRepresentable {
   func updateUIView(_ view: TerminalCommandTextView, context: Context) {
     context.coordinator.parent = self
     view.accessibilityLabel = accessibilityLabel
-    if view.font?.pointSize != pointSize {
-      view.font = TerminalTextAttributes.font(pointSize: pointSize)
+    if view.font != font {
+      view.font = font
       view.invalidateIntrinsicContentSize()
     }
     let editable = !isDisabled

@@ -21,6 +21,8 @@ final class RichChatTerminalController {
   private let streamTask = RichChatControllerTaskSlot()
   private let resyncTask = RichChatControllerTaskSlot()
   private let operationTask = RichChatControllerTaskSlot()
+  private let resizeTask = RichChatControllerTaskSlot()
+  private var pendingResize: RichChatTerminalSize?
   private var revision: UInt64 = 0
   private var isBackgrounded = false
 
@@ -74,13 +76,7 @@ final class RichChatTerminalController {
     cancelOwnedWork()
     revision &+= 1
     isBackgrounded = true
-    state.terminalID = nil
-    state.watchID = nil
-    state.cursor = nil
-    state.exit = nil
-    state.lifecycle = .inactive
-    state.connectionState = .idle
-    state.operation = nil
+    state.enterBackground()
     if let target {
       Task { [gateway] in await gateway.stopRichTerminalTransport(target: target) }
     }
@@ -110,6 +106,7 @@ final class RichChatTerminalController {
       let terminalID = state.terminalID
     else { return false }
     // Any in-flight watch or pending rebaseline belongs to the dead generation.
+    cancelResize()
     watchTask.cancel()
     resyncTask.cancel()
     state.watchID = nil
@@ -149,6 +146,7 @@ final class RichChatTerminalController {
     else { return false }
     // A pending rebaseline would re-open a terminal the host just reported gone.
     resyncTask.cancel()
+    cancelResize()
     state.exit = RichChatTerminalExit(terminalID: terminalID, exitCode: exitCode)
     return true
   }
@@ -177,22 +175,9 @@ final class RichChatTerminalController {
       return
     }
     watchTask.cancel()
-    state.terminalID = terminalID
-    state.watchID = watchID
+    cancelResize()
     resetQueryResponder()
-    // Request cursor-sync v2 with the retained durable position as resume
-    // (only with a durable generation); the transport negotiates down to v1
-    // on hosts that do not advertise v2. The new watch's cursor is seeded
-    // from the same retained position so a served resume suffix (or the
-    // up-to-date marker) APPENDS — a bare watching cursor here would make
-    // the suffix REPLACE the retained transcript.
-    let retained = state.cursor
-    let resume = RichChatTerminalWatchPolicy.resumeFromRetained(retained)
-    state.cursor = RichChatTerminalWatchPolicy.seedFromRetained(retained, watchID: watchID)
-    state.lifecycle = .starting
-    state.connectionState = .connecting
-    state.failure = nil
-    state.requiresAuthoritativeRefresh = false
+    let resume = state.beginWatch(terminalID: terminalID, watchID: watchID)
     do {
       try await ensureEventStream(context)
     } catch is CancellationError {
@@ -322,14 +307,31 @@ final class RichChatTerminalController {
     }
   }
 
-  func resize(_ size: RichChatTerminalSize) async {
+  /// Geometry is latest-value intent, not a user command. Keep one pending
+  /// viewport while input is in flight and drain it under the same host/watch.
+  func resize(_ size: RichChatTerminalSize) {
     guard RichChatTerminalWatchPolicy.isValidSize(size) else {
       state.failure = .invalidRequest
       return
     }
-    guard state.lifecycle == .watching else { return }
-    await runOperation(.resize) { gateway, target in
-      try await gateway.resizeRichTerminal(target: target, size: size)
+    guard state.lifecycle == .watching, state.exit == nil,
+      let context = context(capability: .terminalOperate), let watchID = state.watchID else { return }
+    pendingResize = size
+    guard !resizeTask.isRunning else { return }
+    resizeTask.launch { [weak self] in
+      guard let self else { return }
+      while !Task.isCancelled, self.owns(context), self.state.watchID == watchID,
+        self.state.lifecycle == .watching, self.state.exit == nil {
+        if self.state.operation != nil {
+          await self.operationTask.join()
+          continue
+        }
+        guard let next = self.pendingResize else { return }
+        self.pendingResize = nil
+        await self.runOperation(.resize) { gateway, target in
+          try await gateway.resizeRichTerminal(target: target, size: next)
+        }
+      }
     }
   }
 
@@ -425,18 +427,21 @@ final class RichChatTerminalController {
   }
 
   private func clearWatch() {
-    state.terminalID = nil
-    state.watchID = nil
-    state.cursor = nil
-    state.lifecycle = .inactive
-    state.connectionState = .idle
+    cancelResize()
+    state.clearWatch()
   }
 
   private func cancelOwnedWork() {
+    cancelResize()
     watchTask.cancel()
     streamTask.cancel()
     resyncTask.cancel()
     operationTask.cancel()
+  }
+
+  private func cancelResize() {
+    pendingResize = nil
+    resizeTask.cancel()
   }
 
   private func ensureEventStream(_ context: Context) async throws {
@@ -461,20 +466,7 @@ final class RichChatTerminalController {
     case .frame(let frame):
       await receive(frame, target: target)
     case .connection(let connection):
-      state.connectionState = connection
-      switch connection {
-      case .idle:
-        if state.terminalID != nil { state.lifecycle = .inactive }
-      case .connecting, .reconnecting:
-        state.lifecycle = .starting
-        state.failure = nil
-      case .watching:
-        state.lifecycle = .watching
-        state.failure = nil
-      case .failed(let retryable):
-        state.lifecycle = .watchFailed(retryable: retryable)
-        state.failure = .transport
-      }
+      state.applyConnection(connection)
     }
   }
 

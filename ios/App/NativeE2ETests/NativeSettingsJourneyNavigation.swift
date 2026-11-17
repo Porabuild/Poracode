@@ -61,6 +61,19 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(settings.isHittable); settings.tap()
   }
 
+  func openNativeSettingsPage(_ identifier: String) throws {
+    try openNativeSettings()
+    let page = app.buttons[identifier]
+    if !page.exists || !page.isHittable {
+      let index = try XCTUnwrap(app.collectionViews.allElementsBoundByIndex.enumerated().first { _, list in
+        list.buttons["native-e2e.settings.profile"].exists || list.buttons[identifier].exists
+      }?.offset)
+      let list = app.collectionViews.element(boundBy: index)
+      for _ in 0..<6 where !page.exists || !page.isHittable { list.swipeUp() }
+    }
+    XCTAssertTrue(page.exists); XCTAssertTrue(page.isHittable); page.tap()
+  }
+
   func closeNativeModelsSettings() throws {
     app.navigationBars["Models"].buttons["Settings"].tap()
     app.navigationBars["Settings"].buttons["More"].tap()

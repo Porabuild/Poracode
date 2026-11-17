@@ -616,6 +616,8 @@
 		A2E000000000000000000002 /* TerminalQueryResponderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E000000000000000000002 /* TerminalQueryResponderTests.swift */; };
 		D47D0529D24A4C2AACCE9012 /* TerminalUnicodeWidth.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */; };
 		A20000000000000000000003 /* TerminalTextSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* TerminalTextSurface.swift */; };
+		D13898C3CE0031A72787E795 /* TerminalFontPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24837F327592D0CDE723490 /* TerminalFontPicker.swift */; };
+		E21D0AA707099ED8CACB36B6 /* TerminalFontPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81E05D0498CCB6AB90F1347 /* TerminalFontPreference.swift */; };
 		A20000000000000000000004 /* TerminalStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* TerminalStrings.swift */; };
 		A20000000000000000000005 /* RichTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* RichTerminalView.swift */; };
 		CE1000000000000000000001 /* TerminalCommandField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2000000000000000000001 /* TerminalCommandField.swift */; };
@@ -627,6 +629,7 @@
 		A20000000000000000000006 /* Terminal.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* Terminal.xcstrings */; };
 		D47D0529D24A4C2AACCE9014 /* TerminalUnicodeLicense.txt in Resources */ = {isa = PBXBuildFile; fileRef = D47D0529D24A4C2AACCE9013 /* TerminalUnicodeLicense.txt */; };
 		A20000000000000000000007 /* TerminalANSIParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000007 /* TerminalANSIParserTests.swift */; };
+		6F77047EC23D6177235AC302 /* TerminalFontPreferenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACEC947B2B92F37597A30BA /* TerminalFontPreferenceTests.swift */; };
 		A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* RichChatTerminalTransportTests.swift */; };
 		A91000000000000000000002 /* TerminalBaselineAssemblerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */; };
 		A91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift */; };
@@ -944,6 +947,7 @@
 		6F518E90BF04BD90F3DEDEB4 /* HomeNewsFormattingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F826E17E7545F7D39E59E97 /* HomeNewsFormattingTests.swift */; };
 		F09BFCD4861557DA27478D2E /* NativeNewsJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED46851893176FF60AAFA26A /* NativeNewsJourneyUITests.swift */; };
 		479D4E5DAD4B307C3FA4DF00 /* NativeCustomThemeJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2321998C3EFE9359F28478FA /* NativeCustomThemeJourneyUITests.swift */; };
+		F244A6EF0EFF1353DE473CFA /* NativeTerminalFontJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAB119C254276DBD19B42A05 /* NativeTerminalFontJourneyUITests.swift */; };
 		F295C67BB7ED4AD385D314E4 /* NativeHistoryPerformanceJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51F9E77E4D8247A089E3A2C3 /* NativeHistoryPerformanceJourneyUITests.swift */; };
 /* End PBXBuildFile section */
 
@@ -1598,6 +1602,8 @@
 		B2E000000000000000000002 /* TerminalQueryResponderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalQueryResponderTests.swift; sourceTree = "<group>"; };
 		D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalUnicodeWidth.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* TerminalTextSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTextSurface.swift; sourceTree = "<group>"; };
+		F24837F327592D0CDE723490 /* TerminalFontPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalFontPicker.swift; sourceTree = "<group>"; };
+		E81E05D0498CCB6AB90F1347 /* TerminalFontPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalFontPreference.swift; sourceTree = "<group>"; };
 		B20000000000000000000004 /* TerminalStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStrings.swift; sourceTree = "<group>"; };
 		B20000000000000000000005 /* RichTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTerminalView.swift; sourceTree = "<group>"; };
 		CE2000000000000000000001 /* TerminalCommandField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalCommandField.swift; sourceTree = "<group>"; };
@@ -1609,6 +1615,7 @@
 		B20000000000000000000006 /* Terminal.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Terminal.xcstrings; sourceTree = "<group>"; };
 		D47D0529D24A4C2AACCE9013 /* TerminalUnicodeLicense.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = TerminalUnicodeLicense.txt; sourceTree = "<group>"; };
 		B20000000000000000000007 /* TerminalANSIParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalANSIParserTests.swift; sourceTree = "<group>"; };
+		1ACEC947B2B92F37597A30BA /* TerminalFontPreferenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalFontPreferenceTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000008 /* RichChatTerminalTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalTransportTests.swift; sourceTree = "<group>"; };
 		B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalBaselineAssemblerTests.swift; sourceTree = "<group>"; };
 		B91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeBackgroundTasksReduceTests.swift; sourceTree = "<group>"; };
@@ -1925,6 +1932,7 @@
 		4F826E17E7545F7D39E59E97 /* HomeNewsFormattingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeNewsFormattingTests.swift; sourceTree = "<group>"; };
 		ED46851893176FF60AAFA26A /* NativeNewsJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNewsJourneyUITests.swift; sourceTree = "<group>"; };
 		2321998C3EFE9359F28478FA /* NativeCustomThemeJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCustomThemeJourneyUITests.swift; sourceTree = "<group>"; };
+		BAB119C254276DBD19B42A05 /* NativeTerminalFontJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeTerminalFontJourneyUITests.swift; sourceTree = "<group>"; };
 		51F9E77E4D8247A089E3A2C3 /* NativeHistoryPerformanceJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeHistoryPerformanceJourneyUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -2623,6 +2631,8 @@
 				B2E000000000000000000001 /* TerminalQueryResponder.swift */,
 				D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */,
 				B20000000000000000000003 /* TerminalTextSurface.swift */,
+				F24837F327592D0CDE723490 /* TerminalFontPicker.swift */,
+				E81E05D0498CCB6AB90F1347 /* TerminalFontPreference.swift */,
 				B20000000000000000000004 /* TerminalStrings.swift */,
 				B20000000000000000000005 /* RichTerminalView.swift */,
 				CE2000000000000000000001 /* TerminalCommandField.swift */,
@@ -3197,6 +3207,7 @@
 				B100000000000000000000ED /* ThreadLifecycleControllerTests.swift */,
 				B100000000000000000000FC /* SettingsUICompositionTests.swift */,
 				B20000000000000000000007 /* TerminalANSIParserTests.swift */,
+				1ACEC947B2B92F37597A30BA /* TerminalFontPreferenceTests.swift */,
 				B2E000000000000000000002 /* TerminalQueryResponderTests.swift */,
 				B20000000000000000000008 /* RichChatTerminalTransportTests.swift */,
 				B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */,
@@ -3293,6 +3304,7 @@
 				BA0FB75D12D9C4B9AAD84B96 /* NativeKeyboardJourneyUITests.swift */,
 				ED46851893176FF60AAFA26A /* NativeNewsJourneyUITests.swift */,
 				2321998C3EFE9359F28478FA /* NativeCustomThemeJourneyUITests.swift */,
+				BAB119C254276DBD19B42A05 /* NativeTerminalFontJourneyUITests.swift */,
 				51F9E77E4D8247A089E3A2C3 /* NativeHistoryPerformanceJourneyUITests.swift */,
 				D88575CB59C93BEFD8B78AA2 /* NativeSettingsJourneyNavigation.swift */,
 				F6C3F082F304A12618C79213 /* NativeModelVisibilityJourneyUITests.swift */,
@@ -3824,6 +3836,7 @@
 				D8888DC9F3E0D1700E551888 /* NativeKeyboardJourneyUITests.swift in Sources */,
 				F09BFCD4861557DA27478D2E /* NativeNewsJourneyUITests.swift in Sources */,
 				479D4E5DAD4B307C3FA4DF00 /* NativeCustomThemeJourneyUITests.swift in Sources */,
+				F244A6EF0EFF1353DE473CFA /* NativeTerminalFontJourneyUITests.swift in Sources */,
 				F295C67BB7ED4AD385D314E4 /* NativeHistoryPerformanceJourneyUITests.swift in Sources */,
 				900219A9BAFA6614694824A4 /* NativeSettingsJourneyNavigation.swift in Sources */,
 				B6E9C7D424D3BE1BA4466377 /* NativeModelVisibilityJourneyUITests.swift in Sources */,
@@ -4470,6 +4483,8 @@
 				A2E000000000000000000001 /* TerminalQueryResponder.swift in Sources */,
 				D47D0529D24A4C2AACCE9012 /* TerminalUnicodeWidth.swift in Sources */,
 				A20000000000000000000003 /* TerminalTextSurface.swift in Sources */,
+				D13898C3CE0031A72787E795 /* TerminalFontPicker.swift in Sources */,
+				E21D0AA707099ED8CACB36B6 /* TerminalFontPreference.swift in Sources */,
 				A20000000000000000000004 /* TerminalStrings.swift in Sources */,
 				A20000000000000000000005 /* RichTerminalView.swift in Sources */,
 				CE1000000000000000000001 /* TerminalCommandField.swift in Sources */,
@@ -4723,6 +4738,7 @@
 				A100000000000000000000ED /* ThreadLifecycleControllerTests.swift in Sources */,
 				A100000000000000000000FC /* SettingsUICompositionTests.swift in Sources */,
 				A20000000000000000000007 /* TerminalANSIParserTests.swift in Sources */,
+				6F77047EC23D6177235AC302 /* TerminalFontPreferenceTests.swift in Sources */,
 				A2E000000000000000000002 /* TerminalQueryResponderTests.swift in Sources */,
 				A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */,
 				A91000000000000000000002 /* TerminalBaselineAssemblerTests.swift in Sources */,

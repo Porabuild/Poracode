@@ -251,7 +251,7 @@ final class TerminalCommandFieldTests: XCTestCase {
   ) -> TerminalCommandField {
     TerminalCommandField(
       text: text,
-      pointSize: 13,
+      font: TerminalTextAttributes.font(pointSize: 13),
       isDisabled: isDisabled,
       accessibilityLabel: "Terminal input",
       onSubmit: onSubmit

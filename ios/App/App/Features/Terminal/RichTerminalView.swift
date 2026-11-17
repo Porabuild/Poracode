@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RichTerminalView: View {
   let controller: RichChatTerminalController
@@ -11,7 +12,9 @@ struct RichTerminalView: View {
   @State private var resizeTask: Task<Void, Never>?
   @State private var showsCloseConfirmation = false
   @AppStorage private var storedTextSize: Int
+  @AppStorage(TerminalFontPreference.storageKey) private var storedFontName = TerminalFontPreference.storedName()
   @ScaledMetric(relativeTo: .body) private var dynamicTypeScale: CGFloat = 1
+  @State private var outputBounds: CGSize = .zero
 
   init(
     controller: RichChatTerminalController,
@@ -29,36 +32,37 @@ struct RichTerminalView: View {
   }
 
   var body: some View {
-    GeometryReader { proxy in
-      VStack(spacing: 0) {
-        statusBar
-        ZStack {
-          terminalBackground
-          TerminalTextSurface(
-            transcript: controller.state.cursor?.transcript ?? "",
-            accessibilityLabel: TerminalStrings.output,
-            fontSize: terminalPointSize,
-            onRawKeyInput: { value in
-              guard acceptsRawKeyInput else { return }
-              sendControl(value)
-            }
-          )
-          if controller.state.cursor?.transcript.isEmpty != false {
-            Text(TerminalStrings.empty)
-              .font(.system(size: terminalPointSize, design: .monospaced))
-              .foregroundStyle(.secondary)
-              .allowsHitTesting(false)
+    let font = TerminalFontPreference.font(named: storedFontName, pointSize: terminalPointSize)
+    VStack(spacing: 0) {
+      statusBar
+      ZStack {
+        terminalBackground
+        TerminalTextSurface(
+          transcript: controller.state.cursor?.transcript ?? "",
+          accessibilityLabel: TerminalStrings.output,
+          font: font,
+          onRawKeyInput: { value in
+            guard acceptsRawKeyInput else { return }
+            sendControl(value)
           }
+        )
+        if controller.state.cursor?.transcript.isEmpty != false {
+          Text(TerminalStrings.empty)
+            .font(Font(font))
+            .foregroundStyle(.secondary)
+            .allowsHitTesting(false)
         }
-        Divider().overlay(Color.white.opacity(0.12))
-        inputBar
       }
-      .onAppear { scheduleResize(for: proxy.size) }
-      .onChange(of: proxy.size) { _, size in scheduleResize(for: size) }
-      .onChange(of: terminalPointSize) { scheduleResize(for: proxy.size, force: true) }
-      .onChange(of: controller.state.lifecycle) { _, lifecycle in
-        if lifecycle == .watching { scheduleResize(for: proxy.size, force: true) }
+      .onGeometryChange(for: CGSize.self) { $0.size } action: { size in
+        outputBounds = size
+        scheduleResize(for: size, font: font)
       }
+      Divider().overlay(Color.white.opacity(0.12))
+      inputBar(font: font)
+    }
+    .onChange(of: font) { scheduleResize(for: outputBounds, font: font) }
+    .onChange(of: controller.state.lifecycle) { _, lifecycle in
+      if lifecycle == .watching { scheduleResize(for: outputBounds, font: font, force: true) }
     }
     .background(terminalBackground.ignoresSafeArea())
     .environment(\.colorScheme, .dark)
@@ -119,7 +123,7 @@ struct RichTerminalView: View {
     .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
   }
 
-  private var inputBar: some View {
+  private func inputBar(font: UIFont) -> some View {
     VStack(alignment: .leading, spacing: 8) {
       // "Read-only" names an access problem, so it is claimed only while the
       // transport is live. A lost host connection is an availability problem
@@ -133,7 +137,7 @@ struct RichTerminalView: View {
       HStack(alignment: .bottom, spacing: 8) {
         TerminalCommandField(
           text: $input,
-          pointSize: terminalPointSize,
+          font: font,
           isDisabled: availability != .operable,
           accessibilityLabel: TerminalStrings.input,
           onSubmit: sendCommand
@@ -141,7 +145,7 @@ struct RichTerminalView: View {
         .overlay(alignment: .topLeading) {
           if input.isEmpty {
             Text(TerminalStrings.inputPlaceholder)
-              .font(.system(size: terminalPointSize, design: .monospaced))
+              .font(Font(font))
               .foregroundStyle(.tertiary)
               .padding(.top, TerminalCommandFieldLayout.verticalInset)
               .allowsHitTesting(false)
@@ -221,8 +225,7 @@ struct RichTerminalView: View {
     Task { await controller.write(value) }
   }
 
-  private func scheduleResize(for bounds: CGSize, force: Bool = false) {
-    let font = TerminalTextAttributes.font(pointSize: terminalPointSize)
+  private func scheduleResize(for bounds: CGSize, font: UIFont, force: Bool = false) {
     guard let next = TerminalViewportMetrics.size(for: bounds, font: font),
       force || next != viewportSize
     else {
@@ -235,7 +238,7 @@ struct RichTerminalView: View {
         if !force { try await Task.sleep(for: .milliseconds(180)) }
         try Task.checkCancellation()
       } catch { return }
-      await controller.resize(
+      controller.resize(
         RichChatTerminalSize(columns: next.columns, rows: next.rows)
       )
     }

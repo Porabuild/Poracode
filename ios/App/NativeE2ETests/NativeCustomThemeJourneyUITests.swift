@@ -188,16 +188,7 @@ extension NativeFamilyJourneyUITests {
   }
 
   private func openCustomThemes() throws {
-    try openNativeSettings()
-    let appearance = app.buttons["native-e2e.settings.appearance"]
-    if !appearance.exists || !appearance.isHittable {
-      let index = try XCTUnwrap(app.collectionViews.allElementsBoundByIndex.enumerated().first { _, list in
-        list.buttons["native-e2e.settings.profile"].exists || list.buttons["native-e2e.settings.appearance"].exists
-      }?.offset)
-      let list = app.collectionViews.element(boundBy: index)
-      for _ in 0..<6 where !appearance.exists || !appearance.isHittable { list.swipeUp() }
-    }
-    XCTAssertTrue(appearance.exists); XCTAssertTrue(appearance.isHittable); appearance.tap()
+    try openNativeSettingsPage("native-e2e.settings.appearance")
     let custom = app.buttons["native-e2e.settings.custom-themes"]
     XCTAssertTrue(custom.waitForExistence(timeout: 10)); custom.tap()
     XCTAssertTrue(app.buttons["native-e2e.theme.create"].waitForExistence(timeout: 10))
