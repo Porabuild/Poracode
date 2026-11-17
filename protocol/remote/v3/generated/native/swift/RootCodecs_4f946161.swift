@@ -353,11 +353,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EHexVoiceU2ERequest: RemoteRootCodec<ProcedurehexVoiceRequest_2ae8d538fe> = .init(id: "procedure.hexVoice.request", schema: RemoteSchemas.schema_2ae8d538fe55c35d)
+  static let procedureU2EHexVoiceU2ERequest: RemoteRootCodec<ProcedurehexVoiceRequest_f14fd28613> = .init(id: "procedure.hexVoice.request", schema: RemoteSchemas.schema_f14fd28613a2da14)
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EHexVoiceU2EResult: RemoteRootCodec<ProcedurehexVoiceResult_46060d35e2> = .init(id: "procedure.hexVoice.result", schema: RemoteSchemas.schema_46060d35e2ab13d1)
+  static let procedureU2EHexVoiceU2EResult: RemoteRootCodec<ProcedurehexVoiceResult_49ffdcc76e> = .init(id: "procedure.hexVoice.result", schema: RemoteSchemas.schema_49ffdcc76ea977dd)
 }
 
 public extension RemoteRootCodecs {

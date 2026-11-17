@@ -169,10 +169,6 @@ internal val schema_45f37b4e852ad753: RemoteSchema by lazy {
     RemoteSchema(unionKind = "oneOf", options = listOf(schema_045e333a691dd990, schema_aafcd63530265fa8, schema_c133c6f7b7129d49), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_46060d35e2ab13d1: RemoteSchema by lazy {
-    RemoteSchema(unionKind = "oneOf", options = listOf(schema_1a747af71da81871, schema_a04ed367065645a0, schema_e6b4674777255816, schema_fc3e1f61a45e621e, schema_812ec408f30828f2), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_464dbc5abe96a4c9: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("account", "forge", "host", "repository", "version"), properties = mapOf("account" to schema_c2bb40b82b330cd4, "forge" to schema_eaed3cfbf46d5d81, "host" to schema_2365fa95161a3294, "repository" to schema_36fea325bf1aca70, "version" to schema_7f9f5a0d72de0d9a), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT, semanticIds = listOf("forge.watch.scope-identity"))
 }
@@ -307,6 +303,10 @@ internal val schema_499c88c1c549e934: RemoteSchema by lazy {
 
 internal val schema_49f72e8cc565067e: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("set-worktree")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_49ffdcc76ea977dd: RemoteSchema by lazy {
+    RemoteSchema(unionKind = "oneOf", options = listOf(schema_1a747af71da81871, schema_a04ed367065645a0, schema_d129d1b0ee9ecb9f, schema_fc3e1f61a45e621e, schema_812ec408f30828f2), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_4a10e57442c165ec: RemoteSchema by lazy {

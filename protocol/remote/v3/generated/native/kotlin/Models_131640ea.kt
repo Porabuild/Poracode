@@ -24,7 +24,25 @@ data class ProcedurehexVoiceRequestU2DOptionU2D10_313744588c(
 }
 
 @Serializable
-data class ProcedurehexVoiceRequestU2DOptionU2D11_27790e6c42(
+enum class ProcedurehexVoiceRequestU2DOptionU2D11U2DAction_20dba249c2 {
+    @SerialName("wait") WAIT,
+}
+
+@Serializable
+data class ProcedurehexVoiceRequestU2DOptionU2D11_cf78c688ea(
+    @SerialName("action") val action: ProcedurehexVoiceRequestU2DOptionU2D11U2DAction_20dba249c2,
+    @SerialName("id") val id: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("action", "ProcedurehexVoiceRequestU2DOptionU2D11U2DAction_20dba249c2", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedurehexVoiceRequestU2DOptionU2D12_27790e6c42(
     @SerialName("action") val action: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5U2DType_482c928271,
     @SerialName("id") val id: String,
 ) {
@@ -202,25 +220,26 @@ data class ProcedurehexVoiceRequestU2DOptionU2D9_5ffdb22692(
     }
 }
 
-@Serializable(with = ProcedurehexVoiceRequest_2ae8d538fe.Serializer::class)
-sealed interface ProcedurehexVoiceRequest_2ae8d538fe {
-    data class Option1(val value: ProcedurehexVoiceRequestU2DOptionU2D1_929ff57e13) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option2(val value: ProcedurehexVoiceRequestU2DOptionU2D2_fee1e07039) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option3(val value: ProcedurehexVoiceRequestU2DOptionU2D3_475f45061f) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option4(val value: ProcedurehexVoiceRequestU2DOptionU2D4_297655ba91) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option5(val value: ProcedurehexVoiceRequestU2DOptionU2D5_0aacda6901) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option6(val value: ProcedurehexVoiceRequestU2DOptionU2D6_f8fde013f7) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option7(val value: ProcedurehexVoiceRequestU2DOptionU2D7_9501e4a8a7) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option8(val value: ProcedurehexVoiceRequestU2DOptionU2D8_5a9666a2c5) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option9(val value: ProcedurehexVoiceRequestU2DOptionU2D9_5ffdb22692) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option10(val value: ProcedurehexVoiceRequestU2DOptionU2D10_313744588c) : ProcedurehexVoiceRequest_2ae8d538fe
-    data class Option11(val value: ProcedurehexVoiceRequestU2DOptionU2D11_27790e6c42) : ProcedurehexVoiceRequest_2ae8d538fe
-    object Serializer : KSerializer<ProcedurehexVoiceRequest_2ae8d538fe> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedurehexVoiceRequest_2ae8d538fe")
-        override fun deserialize(decoder: Decoder): ProcedurehexVoiceRequest_2ae8d538fe {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedurehexVoiceRequest_2ae8d538fe supports JSON only")
+@Serializable(with = ProcedurehexVoiceRequest_f14fd28613.Serializer::class)
+sealed interface ProcedurehexVoiceRequest_f14fd28613 {
+    data class Option1(val value: ProcedurehexVoiceRequestU2DOptionU2D1_929ff57e13) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option2(val value: ProcedurehexVoiceRequestU2DOptionU2D2_fee1e07039) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option3(val value: ProcedurehexVoiceRequestU2DOptionU2D3_475f45061f) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option4(val value: ProcedurehexVoiceRequestU2DOptionU2D4_297655ba91) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option5(val value: ProcedurehexVoiceRequestU2DOptionU2D5_0aacda6901) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option6(val value: ProcedurehexVoiceRequestU2DOptionU2D6_f8fde013f7) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option7(val value: ProcedurehexVoiceRequestU2DOptionU2D7_9501e4a8a7) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option8(val value: ProcedurehexVoiceRequestU2DOptionU2D8_5a9666a2c5) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option9(val value: ProcedurehexVoiceRequestU2DOptionU2D9_5ffdb22692) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option10(val value: ProcedurehexVoiceRequestU2DOptionU2D10_313744588c) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option11(val value: ProcedurehexVoiceRequestU2DOptionU2D11_cf78c688ea) : ProcedurehexVoiceRequest_f14fd28613
+    data class Option12(val value: ProcedurehexVoiceRequestU2DOptionU2D12_27790e6c42) : ProcedurehexVoiceRequest_f14fd28613
+    object Serializer : KSerializer<ProcedurehexVoiceRequest_f14fd28613> {
+        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("ProcedurehexVoiceRequest_f14fd28613")
+        override fun deserialize(decoder: Decoder): ProcedurehexVoiceRequest_f14fd28613 {
+            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("ProcedurehexVoiceRequest_f14fd28613 supports JSON only")
             val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<ProcedurehexVoiceRequest_2ae8d538fe>>()
+            val matches = mutableListOf<RemoteUnionMatch<ProcedurehexVoiceRequest_f14fd28613>>()
             RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("setup")))) { Option1(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D1_929ff57e13>(element)) }
             RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("install")))) { Option2(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D2_fee1e07039>(element)) }
             RemoteUnionCodec.tryOption(matches, 3, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("cancel_install")))) { Option3(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D3_475f45061f>(element)) }
@@ -231,11 +250,12 @@ sealed interface ProcedurehexVoiceRequest_2ae8d538fe {
             RemoteUnionCodec.tryOption(matches, 8, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("append")))) { Option8(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D8_5a9666a2c5>(element)) }
             RemoteUnionCodec.tryOption(matches, 9, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("finish")))) { Option9(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D9_5ffdb22692>(element)) }
             RemoteUnionCodec.tryOption(matches, 10, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("status")))) { Option10(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D10_313744588c>(element)) }
-            RemoteUnionCodec.tryOption(matches, 11, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("cancel")))) { Option11(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D11_27790e6c42>(element)) }
-            return RemoteUnionCodec.single("ProcedurehexVoiceRequest_2ae8d538fe", matches)
+            RemoteUnionCodec.tryOption(matches, 11, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("wait")))) { Option11(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D11_cf78c688ea>(element)) }
+            RemoteUnionCodec.tryOption(matches, 12, RemoteUnionCodec.matchesProperty(element, "action", listOf(JsonPrimitive("cancel")))) { Option12(jsonDecoder.json.decodeFromJsonElement<ProcedurehexVoiceRequestU2DOptionU2D12_27790e6c42>(element)) }
+            return RemoteUnionCodec.single("ProcedurehexVoiceRequest_f14fd28613", matches)
         }
-        override fun serialize(encoder: Encoder, value: ProcedurehexVoiceRequest_2ae8d538fe) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedurehexVoiceRequest_2ae8d538fe supports JSON only")
+        override fun serialize(encoder: Encoder, value: ProcedurehexVoiceRequest_f14fd28613) {
+            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("ProcedurehexVoiceRequest_f14fd28613 supports JSON only")
             val element = when (value) {
                 is Option1 -> jsonEncoder.json.encodeToJsonElement<ProcedurehexVoiceRequestU2DOptionU2D1_929ff57e13>(value.value)
                 is Option2 -> jsonEncoder.json.encodeToJsonElement<ProcedurehexVoiceRequestU2DOptionU2D2_fee1e07039>(value.value)
@@ -247,7 +267,8 @@ sealed interface ProcedurehexVoiceRequest_2ae8d538fe {
                 is Option8 -> jsonEncoder.json.encodeToJsonElement<ProcedurehexVoiceRequestU2DOptionU2D8_5a9666a2c5>(value.value)
                 is Option9 -> jsonEncoder.json.encodeToJsonElement<ProcedurehexVoiceRequestU2DOptionU2D9_5ffdb22692>(value.value)
                 is Option10 -> jsonEncoder.json.encodeToJsonElement<ProcedurehexVoiceRequestU2DOptionU2D10_313744588c>(value.value)
-                is Option11 -> jsonEncoder.json.encodeToJsonElement<ProcedurehexVoiceRequestU2DOptionU2D11_27790e6c42>(value.value)
+                is Option11 -> jsonEncoder.json.encodeToJsonElement<ProcedurehexVoiceRequestU2DOptionU2D11_cf78c688ea>(value.value)
+                is Option12 -> jsonEncoder.json.encodeToJsonElement<ProcedurehexVoiceRequestU2DOptionU2D12_27790e6c42>(value.value)
             }
             jsonEncoder.encodeJsonElement(element)
         }

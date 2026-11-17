@@ -97,10 +97,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_398001902e262d65 = RemoteSchema(type: "object", required: Set(["id", "phase"]), properties: ["id": RemoteSchemas.schema_d855999aed5e6438, "phase": RemoteSchemas.schema_38efdc386b3577e7, "progress": RemoteSchemas.schema_a581e67cd137ad59, "transcript": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_3994629a32a97c9b = RemoteSchema(type: "object", required: Set(["workflows"]), properties: ["workflows": RemoteSchemas.schema_030ab3973aced8b3], additionalAllowed: true, unknownPolicy: .strip)
 }
 
