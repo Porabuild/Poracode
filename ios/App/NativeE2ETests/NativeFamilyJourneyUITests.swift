@@ -377,13 +377,13 @@ final class NativeFamilyJourneyUITests: XCTestCase {
         try await poll { !self.app.keyboards.firstMatch.exists }
       }
     }
-    XCUIDevice.shared.orientation = .landscapeLeft
-    try await poll { self.app.frame.width > self.app.frame.height && self.app.keyboards.firstMatch.exists }
+    try await rotateIPadJourney(to: .landscapeLeft)
+    try await poll { self.app.keyboards.firstMatch.exists }
     try await poll { prompt.isHittable && close.isHittable }
     XCTAssertEqual(prompt.value as? String, "Keep this draft above the keyboard")
     XCTAssertLessThanOrEqual(send.frame.maxY, app.keyboards.firstMatch.frame.minY + 4)
     let landscape = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-    landscape.name = "home-keyboard-visible-landscape"; landscape.lifetime = .keepAlways; add(landscape)
+    landscape.name = "home-keyboard-visible-retained"; landscape.lifetime = .keepAlways; add(landscape)
     close.tap()
   }
 
@@ -420,8 +420,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     openNewThreadModelPicker()
     let choice = app.buttons["native-e2e.new-thread-crew.native-review"]
     XCTAssertTrue(choice.waitForExistence(timeout: 10)); choice.tap()
-    XCUIDevice.shared.orientation = .landscapeLeft
-    try await poll { self.app.frame.width > self.app.frame.height }
+    try await rotateIPadJourney(to: .landscapeLeft)
     XCTAssertEqual(prompt.value as? String, "Keep the saved Crew selection")
     let crew = app.buttons["native-e2e.composer.crew"]
     let combined = app.buttons["native-e2e.composer-selectors.combined"]
@@ -462,8 +461,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let brief = app.textFields["native-e2e.crew.role-brief"]
     XCTAssertTrue(brief.waitForExistence(timeout: 5))
     replaceCrewField(brief, with: "Preserve this live roster edit")
-    XCUIDevice.shared.orientation = .landscapeLeft
-    try await poll { self.app.frame.width > self.app.frame.height }
+    try await rotateIPadJourney(to: .landscapeLeft)
     XCTAssertTrue(brief.waitForExistence(timeout: 10))
     XCTAssertEqual(brief.value as? String, "Preserve this live roster edit")
     app.navigationBars["Reviewer"].buttons.element(boundBy: 0).tap()
@@ -474,7 +472,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     scrollToCrewRole("reviewer").tap()
     XCTAssertEqual(brief.value as? String, "Preserve this live roster edit")
     let proof = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-    proof.name = "crew-live-roster-retained-after-rotation"; proof.lifetime = .keepAlways; add(proof)
+    proof.name = "crew-live-roster-retained"; proof.lifetime = .keepAlways; add(proof)
     app.navigationBars["Reviewer"].buttons.element(boundBy: 0).tap()
     app.buttons["native-e2e.crew.cancel"].tap()
     if collapsed.isHittable { collapsed.tap() }
@@ -541,8 +539,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     _ = try await control(path: "/v1/checkpoints/side-chat-ready", method: "POST")
     try await pairAndOpenFixtureThread()
     if app.frame.width >= 600 {
-      XCUIDevice.shared.orientation = .landscapeLeft
-      try await poll { self.app.frame.width > self.app.frame.height }
+      try await rotateIPadJourney(to: .landscapeLeft)
     }
     app.staticTexts["Fixture response"].press(forDuration: 1)
     let ask = app.buttons["Ask in side chat"]
@@ -650,9 +647,8 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     editor.tap()
     let unsent = "Keep this reply across the panel and sheet"
     editor.typeText(unsent)
-    for orientation in [UIDeviceOrientation.landscapeLeft, .portrait] {
-      XCUIDevice.shared.orientation = orientation
-      try await poll { orientation.isLandscape ? self.app.frame.width > self.app.frame.height : self.app.frame.height > self.app.frame.width }
+    for orientation in journeyOrientations {
+      try await rotateIPadJourney(to: orientation)
       let collapsed = surface.buttons["native-e2e.composer-collapsed"]
       if collapsed.waitForExistence(timeout: 2), collapsed.isHittable { collapsed.tap() }
       XCTAssertTrue(editor.waitForExistence(timeout: 10))
@@ -705,8 +701,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     try await pairAndOpenFixtureThread()
     let wide = app.frame.width >= 600
     if wide {
-      XCUIDevice.shared.orientation = .landscapeLeft
-      try await poll { self.app.frame.width > self.app.frame.height }
+      try await rotateIPadJourney(to: .landscapeLeft)
     }
     let parentComposer = app.buttons["native-e2e.composer-collapsed"]
     XCTAssertTrue(parentComposer.waitForExistence(timeout: 10))
@@ -773,8 +768,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     _ = try await control(path: "/v1/checkpoints/thread-timing-ready", method: "POST")
     try await pairAndOpenFixtureThread(expectedResponse: "The first change is complete.")
     if app.frame.width >= 600 {
-      XCUIDevice.shared.orientation = .landscapeLeft
-      try await poll { self.app.frame.width > self.app.frame.height }
+      try await rotateIPadJourney(to: .landscapeLeft)
     }
     XCTAssertTrue(app.staticTexts["Review the first change"].waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["Inspect the related files"].exists)
@@ -905,26 +899,24 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let draft = "Draft follows display changes"
     prompt.typeText(draft)
     XCTAssertEqual(prompt.value as? String, draft)
-    XCUIDevice.shared.orientation = .landscapeLeft
-    try await poll { self.app.frame.width > self.app.frame.height }
+    try await rotateIPadJourney(to: .landscapeLeft)
     XCTAssertTrue(prompt.waitForExistence(timeout: 10))
     XCTAssertEqual(prompt.value as? String, draft)
-    XCUIDevice.shared.orientation = .portrait
-    try await poll { self.app.frame.height > self.app.frame.width }
+    try await rotateIPadJourney(to: .portrait)
     XCTAssertTrue(prompt.waitForExistence(timeout: 10))
     XCTAssertEqual(prompt.value as? String, draft)
     let proof = XCTAttachment(screenshot: app.screenshot())
-    proof.name = "new-thread-draft-after-layout-transitions"
+    proof.name = "new-thread-draft-retained"
     proof.lifetime = .keepAlways
     add(proof)
   }
 
   func testNewThreadSelectorsPreserveChoicesAndOfferOtherProviders() async throws {
     try XCTSkipIf(peerMode == .real, "This journey uses synthetic capability inventories.")
-    XCUIDevice.shared.orientation = .landscapeLeft
+    XCUIDevice.shared.orientation = .portrait
     _ = try await control(path: "/v1/reset", method: "POST")
     try await pairUntilHome()
-    try await poll { self.app.frame.width > self.app.frame.height }
+    try await rotateIPadJourney(to: .landscapeLeft)
     _ = try await control(path: "/v1/checkpoints/composer-controls-ready", method: "POST")
     let create = app.buttons.matching(NSPredicate(format: "identifier IN %@", [
       "native-e2e.split-empty-new-task", "native-e2e.split-new-thread", "native-e2e.new-thread",
@@ -984,11 +976,10 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     }
     try await assertNewThreadSelections()
     let wide = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-    wide.name = "new-thread-controls-landscape"
+    wide.name = "new-thread-controls-retained"
     wide.lifetime = .keepAlways
     add(wide)
-    XCUIDevice.shared.orientation = .portrait
-    try await poll { self.app.frame.height > self.app.frame.width }
+    try await rotateIPadJourney(to: .portrait)
     XCTAssertTrue(prompt.waitForExistence(timeout: 10))
     XCTAssertEqual(prompt.value as? String, text)
     try await assertNewThreadSelections()
@@ -1072,9 +1063,8 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       XCTAssertEqual(fast.value as? String, "1")
       app.buttons["Done"].tap()
     }
-    for landscape in [true, false] {
-      XCUIDevice.shared.orientation = landscape ? .landscapeLeft : .portrait
-      try await poll { landscape ? self.app.frame.width > self.app.frame.height : self.app.frame.height > self.app.frame.width }
+    for landscape in (usesRotatingWindowFrames ? [true, false] : [false]) {
+      try await rotateIPadJourney(to: landscape ? .landscapeLeft : .portrait)
       XCTAssertTrue(prompt.waitForExistence(timeout: 10))
       try await poll {
         if combined.exists && combined.isHittable {
@@ -1129,12 +1119,11 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     create.tap()
     XCTAssertTrue(prompt.waitForExistence(timeout: 10))
     try await poll { self.newThreadPlanSelected }
-    XCUIDevice.shared.orientation = .landscapeLeft
-    try await poll { self.app.frame.width > self.app.frame.height }
+    try await rotateIPadJourney(to: .landscapeLeft)
     XCTAssertTrue(prompt.waitForExistence(timeout: 10))
     try await poll { self.newThreadPlanSelected }
     let active = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-    active.name = "new-thread-plan-landscape"
+    active.name = "new-thread-plan-retained"
     active.lifetime = .keepAlways
     add(active)
     app.buttons["native-e2e.new-thread-add"].tap()
@@ -1149,8 +1138,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCTAssertTrue(app.buttons["native-e2e.new-thread-photo-picker"].waitForExistence(timeout: 5))
     XCTAssertTrue(app.buttons["native-e2e.new-thread-screenshot-picker"].exists)
     XCTAssertTrue(app.buttons["native-e2e.new-thread-camera"].exists)
-    XCUIDevice.shared.orientation = .portrait
-    try await poll { self.app.frame.height > self.app.frame.width }
+    try await rotateIPadJourney(to: .portrait)
     XCTAssertTrue(app.buttons["native-e2e.new-thread-photo-picker"].waitForExistence(timeout: 5),
       "Resizing the workspace must keep the open photo sublevel")
     let photos = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
@@ -1188,9 +1176,11 @@ final class NativeFamilyJourneyUITests: XCTestCase {
 
   func testDraftOpenedOverAThreadStaysVisibleWhenTheLayoutCollapses() async throws {
     try XCTSkipIf(peerMode == .real, "This journey uses a synthetic project and does not start a provider.")
-    XCUIDevice.shared.orientation = .landscapeLeft
+    XCUIDevice.shared.orientation = .portrait
     _ = try await control(path: "/v1/reset", method: "POST")
     try await pairAndOpenFixtureThread()
+    try XCTSkipUnless(usesRotatingWindowFrames, "This collapse regression uses an iPad rotation profile; Duo display transitions are qualified separately.")
+    try await rotateIPadJourney(to: .landscapeLeft)
     let create = app.buttons["native-e2e.split-new-thread"]
     XCTAssertTrue(create.waitForExistence(timeout: 10))
     create.tap()
@@ -1200,8 +1190,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let draft = "Draft stays in front of the conversation"
     prompt.typeText(draft)
     XCTAssertEqual(prompt.value as? String, draft)
-    XCUIDevice.shared.orientation = .portrait
-    try await poll { self.app.frame.height > self.app.frame.width }
+    try await rotateIPadJourney(to: .portrait)
     XCTAssertTrue(prompt.waitForExistence(timeout: 10))
     XCTAssertEqual(prompt.value as? String, draft)
     app.buttons["native-e2e.new-thread-close"].tap()

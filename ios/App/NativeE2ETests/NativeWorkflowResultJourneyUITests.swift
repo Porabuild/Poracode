@@ -22,10 +22,10 @@ extension NativeFamilyJourneyUITests {
     let field = app.textViews["native-e2e.tool-body-field.body:workflow-fixture-launch:0:0.2"].firstMatch
     XCTAssertTrue(field.waitForExistence(timeout: 5)); XCTAssertEqual(field.value as? String, "false")
     workflowProof("workflow-results-parent-portrait")
-    XCUIDevice.shared.orientation = .landscapeLeft
+    try await rotateIPadJourney(to: .landscapeLeft)
     XCTAssertTrue(row.waitForExistence(timeout: 5)); XCTAssertEqual(row.value as? String, "Expanded")
     XCTAssertEqual(field.value as? String, "false")
-    workflowProof("workflow-results-parent-landscape")
+    workflowProof("workflow-results-parent-retained")
     let tool = app.buttons["native-e2e.tool-details.workflow-fixture-launch"].firstMatch
     XCTAssertTrue(tool.waitForExistence(timeout: 5)); tool.tap()
     let open = app.buttons["native-e2e.workflow-open.workflow-fixture-launch"].firstMatch
@@ -46,7 +46,7 @@ extension NativeFamilyJourneyUITests {
     let agentField = app.textViews["native-e2e.tool-body-field.body:agent-results:0:0.2"].firstMatch
     for _ in 0..<3 where !agentField.exists { timeline.swipeUp() }
     XCTAssertTrue(agentField.waitForExistence(timeout: 5)); XCTAssertEqual(agentField.value as? String, "false")
-    workflowProof("workflow-results-agent-landscape")
+    workflowProof("workflow-results-agent-retained")
     XCUIDevice.shared.orientation = .portrait
     XCTAssertTrue(agentRow.waitForExistence(timeout: 5)); XCTAssertEqual(agentRow.value as? String, "Expanded")
     XCTAssertEqual(agentField.value as? String, "false")

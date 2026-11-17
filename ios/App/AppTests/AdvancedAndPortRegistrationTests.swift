@@ -14,6 +14,16 @@ final class AdvancedAndPortRegistrationTests: XCTestCase {
 
   // MARK: - Source registration
 
+  func testBuiltAppKeepsPhonesPortraitAndIPadAdaptive() throws {
+    let data = try Data(contentsOf: Bundle.main.bundleURL.appendingPathComponent("Info.plist"))
+    let info = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+    XCTAssertEqual(info["UISupportedInterfaceOrientations"] as? [String], ["UIInterfaceOrientationPortrait"])
+    XCTAssertEqual(Set(try XCTUnwrap(info["UISupportedInterfaceOrientations~ipad"] as? [String])), [
+      "UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown",
+      "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight",
+    ])
+  }
+
   func testEveryAdvancedProductionSourceIsCompiledIntoTheAppTarget() throws {
     let project = try Self.project()
     for name in try Self.swiftFileNames(

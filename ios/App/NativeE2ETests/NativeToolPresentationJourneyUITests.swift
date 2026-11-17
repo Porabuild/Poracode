@@ -74,7 +74,7 @@ extension NativeFamilyJourneyUITests {
       XCTAssertGreaterThanOrEqual((command.frame.height * scale).rounded(), (32 * scale).rounded())
       XCTAssertLessThanOrEqual(command.frame.height, 36, "Phone tool rows must not reserve oversized blank gaps")
     }
-    XCUIDevice.shared.orientation = isPad ? .portrait : .landscapeLeft
+    try await rotateIPadJourney(to: isPad ? .portrait : .landscapeLeft)
     scrollTranscript(up: true)
     scrollTranscript(up: false)
     XCTAssertTrue((output.value as? String ?? "").contains("END OF COMPLETE COMMAND OUTPUT"))
@@ -117,7 +117,7 @@ extension NativeFamilyJourneyUITests {
     scrollTranscript(up: true)
     scrollTranscript(up: false)
     try await waitForToolResult(body, text: "Live finding: all three layouts verified.")
-    toolPresentationProof("tool-live-result-after-rotation")
+    toolPresentationProof("tool-live-result-retained")
     tapVisibleToolHeader("native-e2e.tool-details.tool-result")
     let collapsed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in !body.exists }, object: app)
     XCTAssertEqual(XCTWaiter.wait(for: [collapsed], timeout: 5), .completed,

@@ -3,7 +3,11 @@ import XCTest
 extension NativeFamilyJourneyUITests {
   func testPairingValidationHasSpaceAfterInputsAndBeforeTheAction() throws {
     defer { XCUIDevice.shared.orientation = .portrait }
-    for orientation in [UIDeviceOrientation.portrait, .landscapeLeft] {
+    XCUIDevice.shared.orientation = .portrait
+    app.launch()
+    let orientations = journeyOrientations
+    app.terminate()
+    for orientation in orientations {
       // Each size starts without keyboard focus inherited from the preceding size.
       XCUIDevice.shared.orientation = orientation
       app.launch()

@@ -54,24 +54,22 @@ extension NativeFamilyJourneyUITests {
     let surface = try await prepareSideChatVoiceQuestion()
     let question = surface.textViews["native-e2e.new-thread-prompt"]
     try configureVoiceBackend("Hex · Host engine", prepareHost: true)
-    if startingAt != .portrait {
-      XCUIDevice.shared.orientation = startingAt
-      try await poll { self.app.frame.width > self.app.frame.height }
+    if startingAt != .portrait && usesRotatingWindowFrames {
+      try await rotateIPadJourney(to: startingAt)
       XCTAssertTrue(question.waitForExistence(timeout: 10))
     }
     app.buttons["native-e2e.voice.start"].tap()
     let stop = app.buttons["native-e2e.voice.stop"]
     XCTAssertTrue(stop.waitForExistence(timeout: 10))
-    for orientation in orientations {
-      XCUIDevice.shared.orientation = orientation
-      try await poll { orientation.isLandscape ? self.app.frame.width > self.app.frame.height : self.app.frame.height > self.app.frame.width }
+    for orientation in (usesRotatingWindowFrames ? orientations : [.portrait]) {
+      try await rotateIPadJourney(to: orientation)
       XCTAssertTrue(stop.waitForExistence(timeout: 10), "Recording must keep its side-chat owner while the workspace adapts")
       sideChatVoiceProof(orientation.isLandscape ? "side-chat-recording-landscape" : "side-chat-recording-portrait")
     }
     stop.tap()
     let insert = app.buttons["native-e2e.voice.insert"]
     let ready = insert.waitForExistence(timeout: 15)
-    sideChatVoiceProof("side-chat-review-after-rotation")
+    sideChatVoiceProof("side-chat-review-retained")
     XCTAssertTrue(ready); insert.tap()
     XCTAssertTrue(question.waitForExistence(timeout: 10))
     XCTAssertEqual(question.value as? String, "Side question Fixture host transcript")

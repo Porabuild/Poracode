@@ -59,14 +59,14 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(inspectOutput.waitForExistence(timeout: 5))
     XCTAssertEqual(inspectOutput.value as? String, "Workspace checks passed\n")
     workflowProof("workflow-viewer-agent-portrait")
-    XCUIDevice.shared.orientation = .landscapeLeft
+    try await rotateIPadJourney(to: .landscapeLeft)
     XCTAssertTrue(app.navigationBars["source"].waitForExistence(timeout: 5))
     XCTAssertEqual(inspectOutput.value as? String, "Workspace checks passed\n")
     let reply = app.staticTexts["Inspect agent full transcript"]
     let agentTimeline = app.collectionViews["native-e2e.workflow-agent-detail"]
     for _ in 0..<3 where !reply.exists { agentTimeline.swipeUp() }
     XCTAssertTrue(reply.waitForExistence(timeout: 5))
-    workflowProof("workflow-viewer-agent-landscape")
+    workflowProof("workflow-viewer-agent-retained")
     let phase = app.descendants(matching: .any).matching(identifier: "native-e2e.workflow-phase").firstMatch
     if !phase.isHittable {
       let back = app.navigationBars.buttons["Workflow"].firstMatch
@@ -121,9 +121,9 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(app.staticTexts["Verify the workspace in the background"].waitForExistence(timeout: 5))
     workflowProof("workflow-active-details")
     app.buttons["Done"].firstMatch.tap()
-    XCUIDevice.shared.orientation = .landscapeLeft
+    try await rotateIPadJourney(to: .landscapeLeft)
     try await waitForWorkflow { workflow.exists && workflow.isHittable }
-    workflowProof("workflow-active-landscape")
+    workflowProof("workflow-active-retained")
     _ = try await control(path: "/v1/checkpoints/workflow-liveness-completed", method: "POST")
     try await waitForWorkflow {
       status.exists && (status.value as? String)?.contains("Finished") == true && !workflow.exists

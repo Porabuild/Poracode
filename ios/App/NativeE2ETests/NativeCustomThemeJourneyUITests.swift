@@ -10,11 +10,8 @@ extension NativeFamilyJourneyUITests {
     replaceThemeField(name, with: "RetainedThemeName")
     let save = app.buttons["native-e2e.theme.save"]
 
-    for orientation: UIDeviceOrientation in [.landscapeLeft, .portrait] {
-      XCUIDevice.shared.orientation = orientation
-      try await poll { orientation == .portrait
-        ? self.app.frame.height > self.app.frame.width
-        : self.app.frame.width > self.app.frame.height }
+    for orientation in journeyOrientations {
+      try await rotateIPadJourney(to: orientation)
       let list = try themeEditorList(containing: name)
       try await poll {
         self.app.keyboards.firstMatch.exists
@@ -35,8 +32,7 @@ extension NativeFamilyJourneyUITests {
     let background = app.textFields["native-e2e.theme.hex.light.bg"]
     try revealThemeElement(background)
     replaceThemeField(background, with: "#abcdef")
-    XCUIDevice.shared.orientation = .landscapeLeft
-    try await poll { self.app.frame.width > self.app.frame.height }
+    try await rotateIPadJourney(to: .landscapeLeft)
     let list = try themeEditorList(containing: background)
     try await poll {
       self.app.keyboards.firstMatch.exists
@@ -47,7 +43,7 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(app.keyboards.firstMatch.exists)
     XCTAssertTrue(themeEditorViewport(try themeEditorList(containing: background)).contains(background.frame),
       "Rotation must also keep the active color field visible")
-    customThemeProof("focused-color-landscape")
+    customThemeProof("focused-color-retained")
     app.navigationBars["Custom theme"].buttons["Cancel"].tap()
   }
 
@@ -135,17 +131,11 @@ extension NativeFamilyJourneyUITests {
     XCTAssertLessThanOrEqual(save.frame.maxY, app.keyboards.firstMatch.frame.minY)
     customThemeProof("editor-light-keyboard")
 
-    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .portrait : .landscapeLeft
-    try await poll {
-      UIDevice.current.userInterfaceIdiom == .pad
-        ? self.app.frame.height > self.app.frame.width
-        : self.app.frame.width > self.app.frame.height
-    }
+    try await rotateIPadJourney(to: UIDevice.current.userInterfaceIdiom == .pad ? .portrait : .landscapeLeft)
     XCTAssertEqual(background.value as? String, "#f0e8dd")
     XCTAssertLessThanOrEqual(save.frame.maxY, app.keyboards.firstMatch.frame.minY)
-    customThemeProof("editor-rotated-keyboard")
-    XCUIDevice.shared.orientation = .portrait
-    try await poll { self.app.frame.height > self.app.frame.width }
+    customThemeProof("editor-retained-keyboard")
+    try await rotateIPadJourney(to: .portrait)
     save.tap()
     let row = themeRow("Native Theme Check")
     XCTAssertTrue(row.waitForExistence(timeout: 10))

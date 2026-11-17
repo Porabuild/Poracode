@@ -85,7 +85,7 @@ extension NativeFamilyJourneyUITests {
     XCTAssertTrue(microphone.waitForExistence(timeout: 5)); microphone.tap()
     let stop = app.buttons["native-e2e.voice.stop"]
     XCTAssertTrue(stop.waitForExistence(timeout: 10))
-    XCUIDevice.shared.orientation = .landscapeLeft
+    try await rotateIPadJourney(to: .landscapeLeft)
     XCTAssertTrue(stop.waitForExistence(timeout: 10), "Recording must survive an adaptive layout change")
     XCUIDevice.shared.orientation = .portrait
     XCTAssertTrue(stop.waitForExistence(timeout: 10)); stop.tap()
