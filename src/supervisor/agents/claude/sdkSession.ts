@@ -101,6 +101,7 @@ import {
 import { canDeferClaudeMcpConnections, ClaudeSdkMcpServers } from "./sdkMcp";
 import { claudeSdkNativeChromeArgs } from "./nativeChrome";
 import { mapClaudeElicitationRequest, normalizeClaudeElicitationResponse } from "./sdkElicitation";
+import { claudeSdkCliParityDefaults } from "./sdkCliParity";
 import { claudeSdkSettingsEnv } from "./sdkSettings";
 import { buildSdkUserMessage } from "./sdkPrompt";
 import {
@@ -1288,9 +1289,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           : undefined;
       const sdk = await import("@anthropic-ai/claude-agent-sdk");
       const { query } = sdk;
-      if (wslPrime) {
-        await wslPrime;
-      }
+      const wslShellEnv = wslPrime ? await wslPrime : undefined;
       const permissionMode = basePermissionModeForConfig(this.currentConfig);
       const contextSize = this.currentConfig.contextSize;
       const contextWindow = resolveClaudeContextWindowTokens(contextSize);
@@ -1308,15 +1307,27 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
             getPrimedPosixEnv() ??
             (process.env as Record<string, string>))
           : undefined;
+      // CLI parity defaults go first so inherited, settings, and profile values
+      // win, and yield to the shell env the spawn layers this env over.
+      const launchLocation = this.input.projectLocation;
+      const parityDefaults = claudeSdkCliParityDefaults(
+        launchLocation.kind === "wsl"
+          ? wslShellEnv
+          : launchLocation.kind === "windows"
+            ? getProjectShellEnv(launchLocation.path)
+            : undefined,
+      );
       const env =
-        this.input.projectLocation.kind === "wsl"
+        launchLocation.kind === "wsl"
           ? {
+              ...parityDefaults,
               CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
               BROWSER: "/bin/true",
               ...claudeSdkSettingsEnv(this.input.projectLocation, this.input.agentSettings),
               ...(this.input.env ?? {}),
             }
           : {
+              ...parityDefaults,
               ...(posixEnv ?? process.env),
               CLAUDE_AGENT_SDK_CLIENT_APP: "poracode",
               ...claudeSdkSettingsEnv(this.input.projectLocation, this.input.agentSettings),

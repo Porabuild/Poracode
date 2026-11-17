@@ -366,6 +366,32 @@ describe("Claude SDK probe process handling", () => {
     expect(result?.modelContextSizes?.["claude-fable-5-1"]).toEqual(["400k", "512k", "1m"]);
   });
 
+  it("opts the probe into the CLI's artifact commands unless the env or profile opts out", async () => {
+    mockSdk.query.mockReturnValue(createProbeQuery());
+    await probeClaudeCapabilities({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "claude",
+    });
+    mockSdk.query.mockReturnValue(createProbeQuery());
+    await probeClaudeCapabilities(
+      { location: { kind: "posix", path: "/tmp" }, executablePath: "claude" },
+      { env: { CLAUDE_CODE_ARTIFACT: "0", FOO: "bar" } },
+    );
+    vi.stubEnv("CLAUDE_CODE_ARTIFACT", "0");
+    mockSdk.query.mockReturnValue(createProbeQuery());
+    await probeClaudeCapabilities({
+      location: { kind: "posix", path: "/tmp" },
+      executablePath: "claude",
+    });
+
+    const envs = mockSdk.query.mock.calls.map(
+      (call) => (call[0] as { options: { env?: Record<string, string | undefined> } }).options.env,
+    );
+    expect(envs[0]?.CLAUDE_CODE_ARTIFACT).toBe("1");
+    expect(envs[1]).toMatchObject({ CLAUDE_CODE_ARTIFACT: "0", FOO: "bar" });
+    expect(envs[2]?.CLAUDE_CODE_ARTIFACT).toBe("0");
+  });
+
   it("contains probe-owned stdin EPIPE from the Claude SDK child", async () => {
     Object.defineProperty(process, "platform", { value: "linux", configurable: true });
     mockSdk.query.mockImplementation((input: unknown) => {
