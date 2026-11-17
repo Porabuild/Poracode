@@ -110,6 +110,7 @@ export function DeviceWorkspace({
   const [controlState, setControlState] = useState<DeviceControlState | null>(null);
   const [foldingAngle, setFoldingAngle] = useState<number | null>(null);
   const [dragAngle, setDragAngle] = useState<number | null>(null);
+  const [sliderTooltipOpen, setSliderTooltipOpen] = useState(false);
   const controlStateRef = useRef<DeviceControlState | null>(null);
   const [confirmPowerOff, setConfirmPowerOff] = useState(false);
   const [contentHost] = useState(() => document.createElement("div"));
@@ -1176,9 +1177,10 @@ export function DeviceWorkspace({
                   role="group"
                   aria-label={t`Fold controls`}
                   data-testid="device-controls-fold"
-                  className="flex flex-wrap items-center gap-1.5"
+                  data-pose={foldPose ?? undefined}
+                  className="flex items-center gap-3"
                 >
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {foldButtons.map(({ angle, label, Icon }) => (
                       <Tooltip key={angle}>
                         <Tooltip.Trigger tabIndex={-1} role="none">
@@ -1194,39 +1196,47 @@ export function DeviceWorkspace({
                             <Icon className="size-4" />
                           </Button>
                         </Tooltip.Trigger>
-                        <Tooltip.Content>{label}</Tooltip.Content>
+                        <Tooltip.Content>
+                          {effectiveHingeAngle === angle && foldPose ? foldPose : label}
+                        </Tooltip.Content>
                       </Tooltip>
                     ))}
                   </div>
-                  <Slider
-                    aria-label={t`Hinge angle`}
-                    data-testid="device-fold-slider"
-                    className="w-24 shrink-0"
-                    isDisabled={!canFold}
-                    minValue={0}
-                    maxValue={180}
-                    step={1}
-                    value={effectiveHingeAngle ?? 0}
-                    onChange={(value) =>
-                      setDragAngle(Array.isArray(value) ? (value[0] ?? 0) : value)
-                    }
-                    onChangeEnd={(value) => {
-                      const next = Array.isArray(value) ? (value[0] ?? 0) : value;
-                      setDragAngle(null);
-                      applyControl({ type: "fold", angle: next });
-                    }}
+                  <Tooltip
+                    delay={0}
+                    isOpen={canFold && (dragAngle !== null || sliderTooltipOpen)}
+                    onOpenChange={setSliderTooltipOpen}
                   >
-                    <Slider.Track className="h-1.5 rounded-full bg-foreground/15">
-                      <Slider.Fill className="bg-accent" />
-                      <Slider.Thumb className="size-3.5 border-0 bg-accent shadow-sm after:bg-white" />
-                    </Slider.Track>
-                  </Slider>
+                    <Tooltip.Trigger tabIndex={-1} role="none" className="w-28 shrink-0">
+                      <Slider
+                        aria-label={t`Hinge angle`}
+                        aria-valuetext={foldPose ?? undefined}
+                        data-testid="device-fold-slider"
+                        className="w-full"
+                        isDisabled={!canFold}
+                        minValue={0}
+                        maxValue={180}
+                        step={1}
+                        value={effectiveHingeAngle ?? 0}
+                        onChange={(value) =>
+                          setDragAngle(Array.isArray(value) ? (value[0] ?? 0) : value)
+                        }
+                        onChangeEnd={(value) => {
+                          const next = Array.isArray(value) ? (value[0] ?? 0) : value;
+                          setDragAngle(null);
+                          applyControl({ type: "fold", angle: next });
+                        }}
+                      >
+                        <Slider.Track className="h-1.5 rounded-full border-x-[0.4375rem] border-x-transparent bg-foreground/15 data-[fill-start=true]:border-s-foreground/35 data-[fill-end=true]:border-e-foreground/35">
+                          <Slider.Fill className="bg-foreground/35" />
+                          <Slider.Thumb className="size-3.5 rounded-full border-0 bg-foreground/75 shadow-sm after:size-2 after:rounded-full after:bg-background" />
+                        </Slider.Track>
+                      </Slider>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>{foldPose ?? t`Hinge angle`}</Tooltip.Content>
+                  </Tooltip>
                   {foldPose ? (
-                    <span
-                      data-testid="device-fold-pose"
-                      aria-live="polite"
-                      className="min-w-0 truncate text-[11px] text-muted tabular-nums"
-                    >
+                    <span data-testid="device-fold-pose" aria-live="polite" className="sr-only">
                       {foldPose}
                     </span>
                   ) : null}

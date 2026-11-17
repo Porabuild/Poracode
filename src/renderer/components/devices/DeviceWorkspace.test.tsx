@@ -1218,8 +1218,18 @@ describe("device workspace UI", () => {
     const slider = screen.getByRole("slider", { name: "Hinge angle" }) as HTMLInputElement;
     expect(slider.min).toBe("0");
     expect(slider.max).toBe("180");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    fireEvent.keyDown(document.body, { key: "Tab" });
+    act(() => slider.focus());
+    await waitFor(() =>
+      expect(screen.getByRole("tooltip").textContent).toBe("Closed · Outer display"),
+    );
     fireEvent.change(slider, { target: { value: "65" } });
     expect(screen.getByTestId("device-fold-pose").textContent).toBe("65° · Outer display");
+    expect(screen.getByTestId("device-fold-pose").className).toContain("sr-only");
+    await waitFor(() =>
+      expect(screen.getByRole("tooltip").textContent).toBe("65° · Outer display"),
+    );
     fireEvent.keyUp(slider);
     fireEvent.blur(slider);
   });
