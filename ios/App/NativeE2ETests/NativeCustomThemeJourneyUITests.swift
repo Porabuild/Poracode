@@ -1,0 +1,205 @@
+import UIKit
+import XCTest
+
+extension NativeFamilyJourneyUITests {
+  func testCustomThemePortableFileExportsAndImportsThroughNativeFiles() async throws {
+    try await prepareCustomThemeJourney()
+    try openCustomThemes()
+    app.buttons["native-e2e.theme.create"].tap()
+    let name = app.textFields["native-e2e.theme.name"]
+    replaceThemeField(name, with: "Portable Theme Check")
+    app.buttons["native-e2e.theme.export"].tap()
+    customThemeLayout("file-export")
+    let local = app.staticTexts.matching(NSPredicate(format: "label IN %@", ["On My iPad", "On My iPhone"])).firstMatch
+    if local.waitForExistence(timeout: 3), local.isHittable { local.tap() }
+    let export = app.buttons.matching(NSPredicate(format: "label IN %@", ["Export", "Save", "Move"])).firstMatch
+    XCTAssertTrue(export.waitForExistence(timeout: 10)); export.tap()
+    let replace = app.alerts.buttons["Replace"]
+    if replace.waitForExistence(timeout: 2) { replace.tap() }
+    XCTAssertTrue(app.buttons["native-e2e.theme.save"].waitForExistence(timeout: 10))
+    app.navigationBars["Custom theme"].buttons["Cancel"].tap()
+    XCTAssertFalse(themeRow("Portable Theme Check").exists, "Export must not save or apply a draft")
+    app.buttons["native-e2e.theme.import"].tap()
+    customThemeLayout("file-import")
+    let file = app.staticTexts.matching(NSPredicate(format: "label IN %@", ["poracode-theme", "poracode-theme.json"])).firstMatch
+    if !file.exists {
+      let browse = app.buttons["Browse"].firstMatch
+      if browse.exists, browse.isHittable { browse.tap() }
+      if local.exists, local.isHittable { local.tap() }
+    }
+    XCTAssertTrue(file.waitForExistence(timeout: 10))
+    let tile = app.cells.matching(NSPredicate(format: "identifier BEGINSWITH %@", "poracode-theme.json")).firstMatch
+    XCTAssertTrue(tile.waitForExistence(timeout: 10)); XCTAssertTrue(tile.isEnabled)
+    tile.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25)).tap()
+    customThemeLayout("file-import-selected")
+    let open = app.buttons["Open"].firstMatch
+    if open.exists, open.isHittable { open.tap() }
+    XCTAssertTrue(name.waitForExistence(timeout: 10))
+    XCTAssertEqual(name.value as? String, "Portable Theme Check")
+    customThemeProof("imported-portable-file")
+    app.buttons["native-e2e.theme.save"].tap()
+    let row = themeRow("Portable Theme Check")
+    XCTAssertTrue(row.waitForExistence(timeout: 10)); XCTAssertTrue(row.isSelected)
+  }
+
+  func testCustomThemeHexInputsRemainReadableAtAccessibilitySizeAndTrimPastedValues() async throws {
+    app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+    try await prepareCustomThemeJourney()
+    try openCustomThemes()
+    app.buttons["native-e2e.theme.create"].tap()
+    let name = app.textFields["native-e2e.theme.name"]
+    replaceThemeField(name, with: "A")
+    name.typeText(String(repeating: "b", count: 80))
+    XCTAssertEqual((name.value as? String)?.unicodeScalars.count, 80)
+    let background = app.textFields["native-e2e.theme.hex.light.bg"]
+    try revealThemeElement(background)
+    XCTAssertGreaterThan(background.frame.height, 44, "Accessibility text must grow beyond the ordinary row height")
+    XCTAssertTrue(app.frame.contains(background.frame))
+    replaceThemeField(background, with: "#abc")
+    background.typeText(" ")
+    XCTAssertEqual(background.value as? String, "#abc")
+    XCTAssertTrue(app.buttons["native-e2e.theme.save"].isEnabled)
+    customThemeProof("accessibility-hex-editor")
+  }
+
+  func testCustomThemeEditsValidateRetainAcrossRotationAndPersistAfterRelaunch() async throws {
+    try await prepareCustomThemeJourney()
+    try openCustomThemes()
+    app.buttons["native-e2e.theme.create"].tap()
+    let name = app.textFields["native-e2e.theme.name"]
+    XCTAssertTrue(name.waitForExistence(timeout: 10))
+    replaceThemeField(name, with: "Cancelled theme")
+    app.navigationBars["Custom theme"].buttons["Cancel"].tap()
+    XCTAssertFalse(app.buttons.containing(.staticText, identifier: "Cancelled theme").firstMatch.exists)
+
+    app.buttons["native-e2e.theme.create"].tap()
+    replaceThemeField(name, with: "Native Theme Check")
+    customThemeLayout("named-editor")
+    let background = app.textFields["native-e2e.theme.hex.light.bg"]
+    try revealThemeElement(background)
+    replaceThemeField(background, with: "invalid")
+    let save = app.buttons["native-e2e.theme.save"]
+    XCTAssertFalse(save.isEnabled, "Invalid colors must never be persisted or applied")
+    replaceThemeField(background, with: "#f0e8dd")
+    XCTAssertTrue(save.isEnabled)
+    XCTAssertTrue(app.keyboards.firstMatch.exists)
+    XCTAssertLessThanOrEqual(save.frame.maxY, app.keyboards.firstMatch.frame.minY)
+    customThemeProof("editor-light-keyboard")
+
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .portrait : .landscapeLeft
+    try await poll {
+      UIDevice.current.userInterfaceIdiom == .pad
+        ? self.app.frame.height > self.app.frame.width
+        : self.app.frame.width > self.app.frame.height
+    }
+    XCTAssertEqual(background.value as? String, "#f0e8dd")
+    XCTAssertLessThanOrEqual(save.frame.maxY, app.keyboards.firstMatch.frame.minY)
+    customThemeProof("editor-rotated-keyboard")
+    XCUIDevice.shared.orientation = .portrait
+    try await poll { self.app.frame.height > self.app.frame.width }
+    save.tap()
+    let row = themeRow("Native Theme Check")
+    XCTAssertTrue(row.waitForExistence(timeout: 10))
+    XCTAssertTrue(row.isSelected)
+    customThemeProof("saved-selected-theme")
+
+    app.terminate()
+    app.launchArguments.removeAll { $0 == "-native-e2e-custom-themes-fresh-state" }
+    try await pairUntilHome()
+    try openCustomThemes()
+    XCTAssertTrue(row.waitForExistence(timeout: 10))
+    XCTAssertTrue(row.isSelected)
+    row.press(forDuration: 1.1)
+    app.buttons["Edit theme"].firstMatch.tap()
+    XCTAssertEqual(name.value as? String, "Native Theme Check")
+    try revealThemeElement(background)
+    XCTAssertEqual(background.value as? String, "#f0e8dd")
+    customThemeProof("restored-editor")
+    app.navigationBars["Custom theme"].buttons["Cancel"].tap()
+    row.press(forDuration: 1.1)
+    app.buttons["Delete theme"].firstMatch.tap()
+    let delete = app.buttons["Delete"].firstMatch
+    XCTAssertTrue(delete.waitForExistence(timeout: 5)); delete.tap()
+    try await poll { !row.exists }
+    customThemeProof("deleted-theme")
+  }
+
+  private func prepareCustomThemeJourney() async throws {
+    try XCTSkipIf(ProcessInfo.processInfo.environment["NATIVE_E2E_PEER_MODE"] == "real",
+      "This journey uses disposable device settings and the controlled pairing peer.")
+    _ = try await control(path: "/v1/reset", method: "POST")
+    app.launchArguments += ["-native-e2e-custom-themes-fresh-state", "-AppleInterfaceStyle", "Light",
+      "-ios.appearance.mode", "light"]
+    XCUIDevice.shared.orientation = .portrait
+    try await pairUntilHome()
+    if UIDevice.current.userInterfaceIdiom == .pad {
+      XCUIDevice.shared.orientation = .landscapeLeft
+      try await poll { self.app.frame.width > self.app.frame.height }
+    }
+  }
+
+  private func openCustomThemes() throws {
+    try openNativeSettings()
+    app.buttons["native-e2e.settings.appearance"].tap()
+    let custom = app.buttons["native-e2e.settings.custom-themes"]
+    XCTAssertTrue(custom.waitForExistence(timeout: 10)); custom.tap()
+    XCTAssertTrue(app.buttons["native-e2e.theme.create"].waitForExistence(timeout: 10))
+  }
+
+  private func themeRow(_ label: String) -> XCUIElement {
+    app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@",
+      "native-e2e.theme.row.", label)).firstMatch
+  }
+
+  private func revealThemeElement(_ element: XCUIElement) throws {
+    let index = try XCTUnwrap(app.collectionViews.allElementsBoundByIndex.enumerated().first { _, list in
+      list.textFields["native-e2e.theme.name"].exists || list.textFields[element.identifier].exists
+    }?.offset)
+    let list = app.collectionViews.element(boundBy: index)
+    func visibleViewport() -> CGRect {
+      var viewport = list.frame.intersection(app.frame)
+      if app.keyboards.firstMatch.exists {
+        viewport.size.height = min(viewport.maxY, app.keyboards.firstMatch.frame.minY) - viewport.minY
+      }
+      let save = app.buttons["native-e2e.theme.save"]
+      if save.exists { viewport.size.height = min(viewport.maxY, save.frame.minY - 8) - viewport.minY }
+      return viewport
+    }
+    for _ in 0..<6 where !element.isHittable || !visibleViewport().contains(element.frame) {
+      let viewport = visibleViewport()
+      XCTAssertGreaterThan(viewport.height, 60)
+      let origin = list.coordinate(withNormalizedOffset: .zero)
+      let down = !element.frame.isEmpty && element.frame.minY < viewport.minY
+      let startY = viewport.minY + viewport.height * (down ? 0.25 : 0.75)
+      let endY = viewport.minY + viewport.height * (down ? 0.75 : 0.25)
+      origin.withOffset(CGVector(dx: viewport.midX - list.frame.minX, dy: startY - list.frame.minY))
+        .press(forDuration: 0.05, thenDragTo: origin.withOffset(CGVector(
+          dx: viewport.midX - list.frame.minX, dy: endY - list.frame.minY)))
+    }
+    if !element.isHittable { customThemeLayout("unreachable-hex") }
+    XCTAssertTrue(element.isHittable)
+    XCTAssertTrue(visibleViewport().contains(element.frame), "The full editor must be above the keyboard and floating actions")
+  }
+
+  /// These are short, single-line native fields. Tap beyond the displayed
+  /// value to place the caret at its end before deleting the existing text.
+  private func replaceThemeField(_ field: XCUIElement, with text: String) {
+    XCTAssertEqual(field.elementType, .textField)
+    XCTAssertTrue(field.waitForExistence(timeout: 10))
+    let old = field.value as? String ?? ""
+    field.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
+    field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: old.utf16.count) + text)
+    XCTAssertEqual(field.value as? String, text)
+  }
+
+  private func customThemeProof(_ name: String) {
+    let proof = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    proof.name = "custom-theme-\(name)"; proof.lifetime = .keepAlways; add(proof)
+  }
+
+  private func customThemeLayout(_ name: String) {
+    customThemeProof(name)
+    let layout = XCTAttachment(string: app.debugDescription)
+    layout.name = "custom-theme-layout-\(name)"; layout.lifetime = .keepAlways; add(layout)
+  }
+}

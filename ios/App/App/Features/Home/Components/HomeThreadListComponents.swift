@@ -126,6 +126,7 @@ struct HomeWorktreeRail: View {
 struct HomeThreadButtonStyle: ButtonStyle {
   let surface: Color
   var isSelected: Bool = false
+  var selectedFill: Color? = nil
 
   @Environment(\.colorScheme) private var colorScheme
 
@@ -135,7 +136,7 @@ struct HomeThreadButtonStyle: ButtonStyle {
       if configuration.isPressed {
         Color.primary.opacity(0.12)
       } else if isSelected {
-        Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.085)
+        selectedFill ?? Color.primary.opacity(colorScheme == .dark ? 0.14 : 0.085)
       } else {
         surface
       }

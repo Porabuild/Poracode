@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AppearanceSettingsView: View {
+  @State private var customThemes = CustomThemeStore.shared
   @AppStorage(PoracodeThemePreset.storageKey) private var selectedThemeID =
     PoracodeThemePreset.defaultID
   @AppStorage(PoracodeAppearanceMode.storageKey) private var appearanceModeID =
@@ -20,6 +21,22 @@ struct AppearanceSettingsView: View {
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+      }
+      .listRowBackground(activeTheme.variant(for: colorScheme).surface)
+
+      Section {
+        NavigationLink {
+          CustomThemeSettingsView(store: customThemes)
+        } label: {
+          HStack {
+            CustomThemeStrings.text("Custom theme")
+            Spacer(minLength: 8)
+            if let active = customThemes.themes.first(where: { $0.id == selectedThemeID }) {
+              Text(verbatim: active.document.label).foregroundStyle(.secondary).lineLimit(1)
+            }
+          }
+        }
+        .accessibilityIdentifier("native-e2e.settings.custom-themes")
       }
       .listRowBackground(activeTheme.variant(for: colorScheme).surface)
 
@@ -105,7 +122,7 @@ struct AppearanceSettingsView: View {
   }
 }
 
-private struct ThemeSwatch: View {
+struct ThemeSwatch: View {
   let variant: PoracodeThemeVariant
 
   var body: some View {

@@ -143,7 +143,8 @@ struct HomeThreadListView: View {
       )
       .padding(.horizontal, HomeThreadRowMetrics.horizontalInset)
     }
-    .buttonStyle(HomeThreadButtonStyle(surface: palette.surface, isSelected: isSelected))
+    .buttonStyle(HomeThreadButtonStyle(surface: palette.surface, isSelected: isSelected,
+      selectedFill: palette.sidebarRowActiveHex.map { Color(poracodeHex: $0) }))
     .contextMenu {
       Button(RichChatStrings.closeThread, systemImage: "xmark.circle") {
         lifecycle.requestClose(item)

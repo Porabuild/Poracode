@@ -16,6 +16,7 @@ enum HomeNewsNavigation {
       case "workspaces": return .workspaces
       case "voice-input": return .settingsDestination(.audio)
       case "session-import": return .settingsDestination(.sessionImport)
+      case "custom-themes": return .settingsDestination(.appearance)
       case "browser": return .browserMirror
       case "ai-git": return project.map(HomeSheetDestination.newsProjectGit)
       default: return nil

@@ -14,6 +14,12 @@ import Foundation
 
     static func applyIfRequested() {
       guard ProcessInfo.processInfo.arguments.contains(launchArgument) else { return }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-custom-themes-fresh-state") {
+        UserDefaults.standard.removeObject(forKey: CustomThemeStore.storageKey)
+        if UserDefaults.standard.string(forKey: PoracodeThemePreset.storageKey)?.hasPrefix("custom:") == true {
+          UserDefaults.standard.removeObject(forKey: PoracodeThemePreset.storageKey)
+        }
+      }
       if ProcessInfo.processInfo.arguments.contains("-native-e2e-news-fresh-state") {
         for key in [HomeNewsMemoryStore.storageKey, HomeNewsPreferences.enabledKey, HomeNewsPreferences.activityKey] {
           UserDefaults.standard.removeObject(forKey: key)

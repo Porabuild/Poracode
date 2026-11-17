@@ -209,6 +209,8 @@ struct RichChatAdaptiveComposer<Summary: View, Leading: View, Configuration: Vie
 }
 
 struct RichChatComposerTextInput: UIViewRepresentable {
+  @Environment(\.poracodeTheme) private var theme
+  @Environment(\.colorScheme) private var colorScheme
   @Binding var text: String
   @Binding var selection: NSRange?
   @Binding var focused: Bool
@@ -252,6 +254,7 @@ struct RichChatComposerTextInput: UIViewRepresentable {
       label.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor),
     ])
     context.coordinator.placeholder = label
+    Self.applyPalette(theme.variant(for: colorScheme), to: view, placeholder: label)
     return view
   }
 
@@ -266,7 +269,13 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     if view.font != font { view.font = font }
     context.coordinator.placeholder?.font = font
     context.coordinator.placeholder?.text = placeholder
+    Self.applyPalette(theme.variant(for: colorScheme), to: view, placeholder: context.coordinator.placeholder)
     context.coordinator.scheduleViewUpdate(view)
+  }
+
+  static func applyPalette(_ palette: PoracodeThemeVariant, to view: RichChatComposerTextView, placeholder: UILabel?) {
+    view.textColor = UIColor(palette.foreground)
+    placeholder?.textColor = palette.mutedHex.map { UIColor(Color(poracodeHex: $0)) } ?? .placeholderText
   }
 
   static func dismantleUIView(_ view: RichChatComposerTextView, coordinator: Coordinator) {

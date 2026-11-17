@@ -48,6 +48,7 @@ extension HomeQuickComposeView {
     context.mcpServers = data?.mcpServers ?? 0
     context.workspaces = workspace.preferences.workspaces.count
     context.remoteServers = session.state.hosts.count
+    context.customThemes = CustomThemeStore.shared.themes.count
     context.readyAgents = session.state.replay.agentStatuses.ordered.filter { $0.installed && $0.authState == .authenticated }.count
     for server in ["chrome", "computer_use", "browser", "crossagents"] {
       if (data?.stats?.mcps ?? []).contains(where: { row in
@@ -67,7 +68,7 @@ extension HomeQuickComposeView {
 
   func newsCanOpenFeature(_ id: String) -> Bool {
     switch id {
-    case "crews", "worktrees", "schedules", "pull-requests", "workspaces", "voice-input", "session-import": return true
+    case "crews", "worktrees", "schedules", "pull-requests", "workspaces", "voice-input", "session-import", "custom-themes": return true
     case "browser": return session.currentBrowserMirrorAccess != nil
     case "skills": return skillPickerContext != nil
     case "crossagents":
@@ -77,7 +78,6 @@ extension HomeQuickComposeView {
         presentation: draft.presentationMode, location: project.location).contains { $0.plugin == .crossagents }
     case "mcp-servers", "plugins": return selectedProject != nil && selectedAgent != nil
     case "ai-git": return selectedProject != nil
-    // Native theme creation is not implemented yet. Do not advertise an inert CTA.
     default: return false
     }
   }

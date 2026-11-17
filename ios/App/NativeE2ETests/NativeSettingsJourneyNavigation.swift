@@ -42,12 +42,18 @@ extension NativeFamilyJourneyUITests {
     let more = app.buttons.matching(NSPredicate(format: "identifier IN %@", [
       "native-e2e.session-menu", "native-e2e.sidebar.more-tools",
     ])).firstMatch
-    if !more.isHittable { app.buttons["native-e2e.sidebar-toggle"].tap() }
+    if more.frame.isEmpty || !app.frame.intersects(more.frame) || !more.isHittable {
+      app.buttons["native-e2e.sidebar-toggle"].tap()
+    }
     XCTAssertTrue(more.waitForExistence(timeout: 10)); more.tap()
     let settings = app.buttons["Settings"].firstMatch
     if !settings.isHittable {
-      let lists = [app.collectionViews, app.tables, app.scrollViews].map {
-        $0.containing(.button, identifier: "native-e2e.more.connections").firstMatch
+      // Keep a stable container query. The Connections row may be recycled
+      // once a large-text list scrolls, so it cannot remain the query anchor.
+      let lists = [app.collectionViews, app.tables, app.scrollViews].flatMap { query in
+        query.allElementsBoundByIndex.enumerated().compactMap { index, element in
+          element.buttons["native-e2e.more.connections"].exists ? query.element(boundBy: index) : nil
+        }
       }
       let list = try XCTUnwrap(lists.first(where: \.exists))
       for _ in 0..<4 where !settings.isHittable { list.swipeUp() }

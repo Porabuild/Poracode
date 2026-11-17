@@ -346,7 +346,8 @@ struct HomeView: View {
       }
     )
     .background {
-      if colorScheme == .dark { palette.sidebar.ignoresSafeArea() }
+      if let authored = palette.sidebarPanelHex { Color(poracodeHex: authored).ignoresSafeArea() }
+      else if colorScheme == .dark { palette.sidebar.ignoresSafeArea() }
     }
   }
 

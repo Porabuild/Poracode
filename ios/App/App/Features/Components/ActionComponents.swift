@@ -174,20 +174,14 @@ extension View {
   /// Collapsed controls use Liquid Glass. Expanded text editors use standard
   /// material, keeping UIKit text and controls in the foreground instead of
   /// sending an empty background shape to a glass container above them.
-  @ViewBuilder
   func poracodeNativeComposerSurface<S: InsettableShape>(
     in shape: S,
     borderOpacity: Double = 0.1,
     borderWidth: CGFloat = 0.5,
     interactive: Bool = false
   ) -> some View {
-    if #available(iOS 26.0, *), interactive {
-      glassEffect(.regular.interactive(), in: shape)
-    } else {
-      background(.regularMaterial, in: shape)
-        .overlay(shape.stroke(Color.primary.opacity(borderOpacity), lineWidth: borderWidth))
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
-    }
+    modifier(PoracodeNativeComposerThemeSurface(shape: shape, borderOpacity: borderOpacity,
+      borderWidth: borderWidth, interactive: interactive))
   }
 
   /// Native Liquid Glass for floating bubbles on iOS 26, with a material
@@ -208,6 +202,32 @@ extension View {
     } else {
       background(.regularMaterial, in: shape)
         .overlay(shape.stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+    }
+  }
+}
+
+private struct PoracodeNativeComposerThemeSurface<S: InsettableShape>: ViewModifier {
+  @Environment(\.poracodeTheme) private var theme
+  @Environment(\.colorScheme) private var colorScheme
+  let shape: S
+  let borderOpacity: Double
+  let borderWidth: CGFloat
+  let interactive: Bool
+
+  private var authoredFill: Color? { theme.variant(for: colorScheme).composerHex.map { Color(poracodeHex: $0) } }
+
+  @available(iOS 26.0, *) private var glass: Glass {
+    if let authoredFill { return .regular.tint(authoredFill) }
+    return .regular
+  }
+
+  @ViewBuilder func body(content: Content) -> some View {
+    if #available(iOS 26.0, *), interactive {
+      content.glassEffect(glass.interactive(), in: shape)
+    } else {
+      content.background(authoredFill.map(AnyShapeStyle.init) ?? AnyShapeStyle(.regularMaterial), in: shape)
+        .overlay(shape.stroke(Color.primary.opacity(borderOpacity), lineWidth: borderWidth))
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
     }
   }
 }

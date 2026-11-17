@@ -40,6 +40,11 @@ struct PoracodeThemeVariant: Sendable {
   let sidebarHex: String
   let contentHex: String
   var tertiarySurfaceHex: String? = nil
+  var accentForegroundHex: String? = nil
+  var composerHex: String? = nil
+  var sidebarPanelHex: String? = nil
+  var sidebarRowActiveHex: String? = nil
+  var mutedHex: String? = nil
 
   var background: Color { Color(poracodeHex: backgroundHex) }
   var surface: Color { Color(poracodeHex: surfaceHex) }
@@ -58,7 +63,7 @@ struct PoracodeThemeVariant: Sendable {
 /// CSS `color-mix(in oklab, ...)`, used by the PWA's derived theme surfaces.
 /// Keep the calculation at palette creation so every supported iOS version
 /// uses the same color space, including iOS 17 where Color.mix is unavailable.
-private enum PoracodeThemeColorMix {
+enum PoracodeThemeColorMix {
   static func mix(_ first: String, _ second: String, amount: Double) -> String {
     guard let a = lab(first), let b = lab(second) else { return first }
     let t = min(1, max(0, amount))
@@ -224,6 +229,7 @@ extension EnvironmentValues {
 }
 
 struct PoracodeThemeRoot<Content: View>: View {
+  @State private var customThemes = CustomThemeStore.shared
   @AppStorage(PoracodeThemePreset.storageKey) private var selectedThemeID =
     PoracodeThemePreset.defaultID
   @AppStorage(PoracodeAppearanceMode.storageKey) private var appearanceModeID =
@@ -234,7 +240,8 @@ struct PoracodeThemeRoot<Content: View>: View {
 
   var body: some View {
     let mode = PoracodeAppearanceMode.resolve(appearanceModeID)
-    let theme = PoracodeThemePreset.resolve(selectedThemeID)
+    let authored = customThemes.themes.first { $0.id == selectedThemeID }
+    let theme = authored?.nativePreset ?? PoracodeThemePreset.resolve(selectedThemeID)
     let resolvedColorScheme = mode.preferredColorScheme ?? systemColorScheme
 
     ZStack {
@@ -245,6 +252,11 @@ struct PoracodeThemeRoot<Content: View>: View {
     .scrollContentBackground(.hidden)
     .environment(\.poracodeTheme, theme)
     .environment(\.poracodeAccent, theme.variant(for: resolvedColorScheme).accent)
+    .environment(\.poracodeAccentForeground, authored.flatMap { _ in
+      theme.variant(for: resolvedColorScheme).accentForegroundHex.map { Color(poracodeHex: $0) }
+    })
+    .foregroundStyle(authored == nil ? Color.primary : theme.variant(for: resolvedColorScheme).foreground,
+      authored.flatMap { _ in theme.variant(for: resolvedColorScheme).mutedHex }.map { Color(poracodeHex: $0) } ?? Color.secondary)
     .tint(Color.primary)
     .preferredColorScheme(mode.preferredColorScheme)
   }
@@ -355,7 +367,7 @@ extension View {
 }
 
 extension Color {
-  fileprivate init(poracodeHex value: String) {
+  init(poracodeHex value: String) {
     let hex = value.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
     guard hex.count == 6, let rgb = UInt64(hex, radix: 16) else {
       self = .accentColor
