@@ -522,8 +522,15 @@ export function DeviceWorkspace({
       }),
     )
       .then((result) => {
-        if (result.controls && sessionRef.current?.id === current.id)
-          setControlState(result.controls);
+        if (!result.controls || sessionRef.current?.id !== current.id) return;
+        const controls = result.controls;
+        // A read that could not reach the hinge helper omits hingeAngle;
+        // keep the last known angle instead of blanking the pose label.
+        setControlState((previous) =>
+          controls.hingeAngle === undefined && previous?.hingeAngle !== undefined
+            ? { ...controls, hingeAngle: previous.hingeAngle }
+            : controls,
+        );
       })
       .catch(() => {})
       .finally(() => {

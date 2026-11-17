@@ -130,10 +130,12 @@ export class DeviceHubRuntime {
       const forget = () => {
         if (this.startedIosHelpers.get(key) === started) this.startedIosHelpers.delete(key);
       };
-      // Forget once settled, not only on failure: if the per-UDID helper
-      // later dies while the hub process lives, the next acquire re-POSTs
-      // the idempotent start instead of trusting a stale cached success.
-      void started.then(forget, forget);
+      // Forget only on failure: re-POSTing start for a running helper
+      // restarts it, which makes its config endpoint flap for every
+      // consumer that acquires afterwards (observed live: pose reads
+      // failing in a loop). A dead helper surfaces as a typed error from
+      // the consumer instead of a silent restart here.
+      void started.catch(forget);
       hub.signal.addEventListener("abort", forget, { once: true });
     }
     signal.throwIfAborted();
