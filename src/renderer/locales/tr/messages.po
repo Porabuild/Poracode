@@ -13797,6 +13797,7 @@ msgstr "Hiçbir depo bulunamadı."
 #: src/renderer/commands/EverythingSearchResults.tsx
 #: src/renderer/components/find/FindBar.tsx
 #: src/renderer/sidebar/ChatSidebarHeader.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Sonuç yok"
@@ -18741,6 +18742,10 @@ msgstr "MCP sunucularında ara"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Search MCP servers..."
 msgstr "MCP sunucularında ara..."
+
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
+msgid "Search memories"
+msgstr "Anıları ara"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderModelVisibilityPopover.tsx

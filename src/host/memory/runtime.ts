@@ -146,7 +146,7 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
       });
       if (entry.summary.length === 0) throw new Error("Memory text is empty.");
       dbUpsertMemoryEntry(entry);
-      return entry;
+      return dbGetMemoryEntry(entry.id);
     }
     case "delete":
       dbDeleteMemoryEntry(command.id, now, true);

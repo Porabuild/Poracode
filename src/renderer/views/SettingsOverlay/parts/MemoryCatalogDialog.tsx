@@ -1,12 +1,25 @@
 import { useEffect, useRef, useState, type Ref } from "react";
 import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Check, Ellipsis, Pencil, Pin, PinOff, Trash2, X, type LucideIcon } from "lucide-react";
+import {
+  Check,
+  Ellipsis,
+  Pencil,
+  Pin,
+  PinOff,
+  Plus,
+  Search,
+  Trash2,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { Button, type ButtonProps } from "@/renderer/components/common";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { Input } from "@/renderer/components/common/Input";
+import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
 import { SidebarButton, sidebarRowClass } from "@/renderer/components/common/SidebarButton";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { runMemoryCatalogCommand } from "@/renderer/state/memoryCatalog";
 import { syncMemoryAcrossEnvironments } from "@/renderer/state/memorySync";
@@ -193,6 +206,8 @@ export function MemoryCatalogDialog(props: {
   const { t } = useLingui();
   const compact = useCompactLayout();
   const [entries, setEntries] = useState<MemoryEntry[] | undefined>();
+  const [query, setQuery] = useState("");
+  const [mobileAction, setMobileAction] = useState<"search" | "add" | null>(null);
   const [draft, setDraft] = useState("");
   const [adding, setAdding] = useState(false);
   const [editTarget, setEditTarget] = useState<{ id: string; editing: boolean } | null>(null);
@@ -200,7 +215,14 @@ export function MemoryCatalogDialog(props: {
   const [error, setError] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
   const editingId = editTarget?.editing ? editTarget.id : null;
+  const searchTerm = query.trim().toLowerCase();
+  const visibleEntries = searchTerm
+    ? entries?.filter((entry) =>
+        `${entry.summary}\n${entry.body}`.toLowerCase().includes(searchTerm),
+      )
+    : entries;
 
   useEffect(() => {
     let active = true;
@@ -221,6 +243,10 @@ export function MemoryCatalogDialog(props: {
     if (editTarget?.editing) editInputRef.current?.focus();
     else if (editTarget) editButtonRef.current?.focus();
   }, [editTarget]);
+
+  useEffect(() => {
+    if (compact && mobileAction) mobileInputRef.current?.focus();
+  }, [compact, mobileAction]);
 
   function finishEditing() {
     setEditTarget((current) => (current ? { ...current, editing: false } : null));
@@ -261,6 +287,8 @@ export function MemoryCatalogDialog(props: {
     })
       .then(() => {
         setDraft((current) => (current === draft ? "" : current));
+        setQuery("");
+        setMobileAction((current) => (current === "add" ? null : current));
         return refreshAfterChange();
       })
       .catch(() => setError(true))
@@ -312,6 +340,49 @@ export function MemoryCatalogDialog(props: {
       .catch(() => setError(true));
   }
 
+  const searchInput = (
+    <Input
+      ref={compact ? mobileInputRef : undefined}
+      aria-label={t`Search memories`}
+      type="search"
+      size="sm"
+      className="w-full"
+      placeholder={t`Search memories`}
+      value={query}
+      onChange={(event) => setQuery(event.target.value)}
+      onKeyDown={(event) => {
+        if (compact && event.key === "Enter") setMobileAction(null);
+      }}
+    />
+  );
+  const addForm = (
+    <form
+      className="flex items-center gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        addDraftMemory();
+      }}
+    >
+      <Input
+        ref={compact ? mobileInputRef : undefined}
+        aria-label={t`Add a memory`}
+        size="sm"
+        className="min-w-0 flex-1"
+        value={draft}
+        placeholder={t`Always use bun`}
+        onChange={(event) => setDraft(event.target.value)}
+      />
+      <Button
+        type="submit"
+        size="sm"
+        variant="tertiary"
+        isDisabled={adding || draft.trim().length === 0}
+      >
+        <Trans>Add</Trans>
+      </Button>
+    </form>
+  );
+
   return (
     <Modal.Backdrop isOpen onOpenChange={(open) => !open && props.onClose()}>
       <Modal.Container placement="center" scroll="inside" size="lg">
@@ -322,36 +393,20 @@ export function MemoryCatalogDialog(props: {
               <Trans>Memories</Trans>
             </Modal.Heading>
           </Modal.Header>
-          <Modal.Body className="space-y-3 p-4">
+          <Modal.Body
+            className={`space-y-3 p-4 ${compact ? "pb-[var(--m-floating-dock-clearance)]" : ""}`}
+          >
             {error && (
               <p className="text-xs text-danger" role="alert">
                 <Trans>Couldn't load memory.</Trans>
               </p>
             )}
-            <div className="flex items-center gap-2">
-              <Input
-                aria-label={t`Add a memory`}
-                size="sm"
-                className="min-w-0 flex-1"
-                value={draft}
-                placeholder={t`Always use bun`}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addDraftMemory();
-                  }
-                }}
-              />
-              <Button
-                size="sm"
-                variant="tertiary"
-                isDisabled={adding || draft.trim().length === 0}
-                onPress={addDraftMemory}
-              >
-                <Trans>Add</Trans>
-              </Button>
-            </div>
+            {!compact && (
+              <>
+                {searchInput}
+                {addForm}
+              </>
+            )}
             {entries === undefined ? (
               error ? null : (
                 <p className="px-2 py-3 text-sm text-muted" role="status">
@@ -362,9 +417,13 @@ export function MemoryCatalogDialog(props: {
               <p className="px-2 py-3 text-sm text-muted">
                 <Trans>No memories yet.</Trans>
               </p>
+            ) : visibleEntries?.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-muted" role="status">
+                <Trans>No results</Trans>
+              </p>
             ) : (
               <ul className="space-y-0.5">
-                {entries.map((entry) => (
+                {visibleEntries?.map((entry) => (
                   <MemoryCatalogRow
                     key={entry.id}
                     entry={entry}
@@ -401,6 +460,54 @@ export function MemoryCatalogDialog(props: {
               </ul>
             )}
           </Modal.Body>
+          {compact && (
+            <MobileMachineToolbar
+              leading={
+                <MobileCircleButton
+                  aria-label={t`Search memories`}
+                  aria-haspopup="dialog"
+                  aria-expanded={mobileAction === "search"}
+                  onPress={() => setMobileAction("search")}
+                >
+                  <Search className="size-5" />
+                </MobileCircleButton>
+              }
+              trailing={
+                <MobileCircleButton
+                  aria-label={t`Add a memory`}
+                  aria-haspopup="dialog"
+                  aria-expanded={mobileAction === "add"}
+                  onPress={() => {
+                    setError(false);
+                    setMobileAction("add");
+                  }}
+                >
+                  <Plus className="size-5" />
+                </MobileCircleButton>
+              }
+            />
+          )}
+          {compact && mobileAction && (
+            <BottomSheet
+              label={mobileAction === "search" ? t`Search memories` : t`Add a memory`}
+              onClose={() => setMobileAction(null)}
+            >
+              <div className="px-1 pb-2 pt-1">
+                {mobileAction === "search" ? (
+                  searchInput
+                ) : (
+                  <>
+                    {error && (
+                      <p className="mb-2 text-xs text-danger" role="alert">
+                        <Trans>Couldn't load memory.</Trans>
+                      </p>
+                    )}
+                    {addForm}
+                  </>
+                )}
+              </div>
+            </BottomSheet>
+          )}
         </Modal.Dialog>
       </Modal.Container>
     </Modal.Backdrop>

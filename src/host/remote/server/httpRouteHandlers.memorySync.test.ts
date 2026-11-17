@@ -180,6 +180,16 @@ describe.skipIf(!sqliteAvailable)("remote memory routes", () => {
       },
     );
     expect(await client.memoryCatalog({ action: "list" })).toEqual({ action: "list", result: [] });
+
+    const standaloneNote = await client.memoryCatalog({
+      action: "save",
+      entry: { ...entry, projectId: "other-project" },
+    });
+    expect(standaloneNote).toMatchObject({ action: "save", result: { repoKey: null } });
+    expect(await client.memoryCatalog({ action: "list", projectId: "other-project" })).toEqual({
+      action: "list",
+      result: [standaloneNote.result],
+    });
   });
 
   it("denies a viewer access to memory catalog operations", async () => {

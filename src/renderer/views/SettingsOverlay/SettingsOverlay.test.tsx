@@ -303,6 +303,23 @@ describe("SettingsOverlay", () => {
     expect(within(dialog).getByRole("button", { name: "Edit" })).toHaveFocus();
   });
 
+  it("filters the memory catalog by summary and body", async () => {
+    bridgeState.memoryCommand.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+      { id: "memory-1", scope: "global", summary: "Use bun", body: "Use bun for checks" },
+      { id: "memory-2", scope: "project", summary: "Use SQLite", body: "Keep a local ledger" },
+    ]);
+    render(<MemorySettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
+    const dialog = within(await screen.findByRole("dialog", { name: "Memories" }));
+    expect(await dialog.findByText("Use bun")).toBeInTheDocument();
+    const search = dialog.getByRole("searchbox", { name: "Search memories" });
+    fireEvent.change(search, { target: { value: "LEDGER" } });
+    expect(dialog.getByText("Use SQLite")).toBeInTheDocument();
+    expect(dialog.queryByText("Use bun")).toBeNull();
+    fireEvent.change(search, { target: { value: "something else" } });
+    expect(dialog.getByText("No results")).toBeInTheDocument();
+  });
+
   it("manages a projected project's catalog on its owning connection", async () => {
     const projectId = "remote:owner-b:project:project-b";
     appState.projects = [
