@@ -5,8 +5,8 @@ import type { MemoryObservation } from "./logic";
 import {
   dbGetMemoryEntry,
   dbInsertMemoryCandidate,
-  dbListMemoryEntries,
   dbListPendingCandidates,
+  dbListScopedMemoryEntries,
   dbSetCandidateStatus,
   dbUpsertMemoryEntry,
   dbUpsertMemorySuggestion,
@@ -30,15 +30,18 @@ export function rememberObservations(input: {
   let saved = 0;
   let candidates = 0;
   let conflicts = 0;
-  const existing = dbListMemoryEntries(input.projectId ?? undefined);
+  const existing = dbListScopedMemoryEntries(
+    input.projectId,
+    input.projectId ? isHomeProjectId(input.projectId) : true,
+  );
   const handled = new Set(existing.map((entry) => `${entry.scope}:${statementKey(entry.summary)}`));
   for (const observation of input.observations) {
-    const scope =
-      observation.scope === "project" && input.projectId && !isHomeProjectId(input.projectId)
-        ? "project"
-        : observation.scope === "project"
-          ? "global"
-          : observation.scope;
+    const wantsProject = observation.scope === "project" || observation.category === "project";
+    if (wantsProject && (!input.projectId || isHomeProjectId(input.projectId))) {
+      // Never leak project architecture/codebase facts into global memory when no project owns the note.
+      continue;
+    }
+    const scope: MemoryEntry["scope"] = wantsProject ? "project" : "global";
     const projectId = scope === "project" ? input.projectId : null;
     const key = `${scope}:${statementKey(observation.statement)}`;
     if (handled.has(key)) continue;
@@ -173,17 +176,19 @@ export function dreamMemories(
   }
   const seenConsolidated = new Set<string>();
   for (const observation of consolidated) {
-    const scope =
-      observation.scope === "project" &&
-      observation.projectId &&
-      knownProjects.has(observation.projectId)
-        ? "project"
-        : "global";
+    const wantsProject = observation.scope === "project" || observation.category === "project";
+    if (wantsProject && (!observation.projectId || !knownProjects.has(observation.projectId))) {
+      continue;
+    }
+    const scope: MemoryEntry["scope"] = wantsProject ? "project" : "global";
     const projectId = scope === "project" ? (observation.projectId ?? null) : null;
     const key = `${scope}\0${projectId ?? ""}\0${statementKey(observation.statement)}`;
     if (!statementKey(observation.statement) || seenConsolidated.has(key)) continue;
     seenConsolidated.add(key);
-    const existingList = dbListMemoryEntries(projectId ?? undefined);
+    const existingList = dbListScopedMemoryEntries(
+      projectId,
+      projectId ? isHomeProjectId(projectId) : true,
+    );
     if (existingList.some((entry) => conflictsWith(observation, entry))) continue;
     const existing = existingList.find(
       (entry) =>
@@ -212,7 +217,10 @@ export function dreamMemories(
       continue;
     }
     if (!promote) continue;
-    const existing = dbListMemoryEntries(strongest.projectId ?? undefined).find(
+    const existing = dbListScopedMemoryEntries(
+      strongest.projectId,
+      strongest.projectId ? isHomeProjectId(strongest.projectId) : true,
+    ).find(
       (entry) =>
         entry.scope === strongest.scope &&
         statementKey(entry.summary) === statementKey(strongest.statement),

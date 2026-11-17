@@ -58,13 +58,38 @@ export function dbListMemoryEntries(projectId?: string): MemoryEntry[] {
       ? getSqlite()
           .prepare(
             `SELECT * FROM memory_entries
-             WHERE archived = 0 AND (scope = 'global' OR project_id = ?)
+             WHERE archived = 0 AND (scope = 'global' OR (scope = 'project' AND project_id = ?))
              ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
           )
           .all(projectId)
       : getSqlite()
           .prepare(
             `SELECT * FROM memory_entries WHERE archived = 0
+             ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
+          )
+          .all()
+  ) as EntryRow[];
+  return rows.map(mapEntry);
+}
+
+/** Strict runtime scope: global notes only unless a non-Home project is active. */
+export function dbListScopedMemoryEntries(
+  projectId?: string | null,
+  includeHome = false,
+): MemoryEntry[] {
+  const rows = (
+    projectId && !includeHome
+      ? getSqlite()
+          .prepare(
+            `SELECT * FROM memory_entries
+             WHERE archived = 0 AND (scope = 'global' OR (scope = 'project' AND project_id = ?))
+             ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
+          )
+          .all(projectId)
+      : getSqlite()
+          .prepare(
+            `SELECT * FROM memory_entries
+             WHERE archived = 0 AND scope = 'global'
              ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
           )
           .all()

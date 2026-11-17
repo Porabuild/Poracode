@@ -88,6 +88,13 @@ describe("memory logic", () => {
     expect(text).not.toContain("secret output");
   });
 
+  it("marks architecture and repo rules as project-scoped instead of global", () => {
+    const [observation] = observationsFromUserLines(
+      "User: We use PostgreSQL with Drizzle in this repo",
+    );
+    expect(observation).toMatchObject({ scope: "project", category: "project" });
+  });
+
   it("does not turn a question into a preference", () => {
     expect(observationsFromUserLines("User: Do you always use bun?")).toEqual([]);
   });

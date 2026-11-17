@@ -22,6 +22,7 @@ import {
   dbListMemorySpool,
   dbListMemorySuggestions,
   dbListPendingCandidates,
+  dbListScopedMemoryEntries,
   dbListThreadsWithPendingMemoryItems,
   dbMarkMemoryDreamUndone,
   dbReadMemoryTranscript,
@@ -103,7 +104,10 @@ export function launchMemoryInstructions(
     const mode = dbGetMemoryThreadState(threadId).mode;
     if (mode === "incognito") return undefined;
   }
-  const entries = dbListMemoryEntries(projectId);
+  const entries = dbListScopedMemoryEntries(
+    projectId,
+    projectId ? isHomeProjectId(projectId) : true,
+  );
   return renderMemoryPrompt(entries, settings, Date.now());
 }
 
@@ -112,9 +116,11 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
   const now = new Date().toISOString();
   switch (command.action) {
     case "status":
-      return memoryStatus(command.threadId);
+      return memoryStatus(command.threadId, command.projectId);
     case "list":
-      return dbListMemoryEntries(command.projectId);
+      return command.projectId
+        ? dbListScopedMemoryEntries(command.projectId, isHomeProjectId(command.projectId))
+        : dbListMemoryEntries();
     case "save": {
       const entry = userMemoryEntry({
         ...(command.entry.id ? { id: command.entry.id } : {}),
@@ -151,16 +157,19 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
   }
 }
 
-function memoryStatus(threadId: string | undefined): MemoryStatus {
+function memoryStatus(threadId: string | undefined, projectId: string | undefined): MemoryStatus {
   const settings = readMemorySettings();
   const dream = dbLatestMemoryDream();
   const mode: MemoryThreadMode | null = threadId ? dbGetMemoryThreadState(threadId).mode : null;
+  const entryCount = projectId
+    ? dbListScopedMemoryEntries(projectId, isHomeProjectId(projectId)).length
+    : dbCountMemoryEntries();
   return {
     enabled: settings.enabled,
     learning: settings.learning,
     captureTiming: settings.captureTiming,
     pendingCandidates: dbCountPendingCandidates(),
-    entryCount: dbCountMemoryEntries(),
+    entryCount,
     suggestionCount: dbCountOpenSuggestions(),
     lastDreamAt: dream.finishedAt,
     lastDreamSummary: dream.report,
@@ -438,9 +447,7 @@ export function memorySearch(query: string, projectId?: string): MemoryEntry[] {
   if (!readMemorySettings().enabled) return [];
   const needle = query.trim().toLowerCase();
   if (!needle) return [];
-  const rows = projectId
-    ? dbListMemoryEntries(projectId)
-    : dbListMemoryEntries().filter((entry) => entry.scope === "global");
+  const rows = dbListScopedMemoryEntries(projectId, projectId ? isHomeProjectId(projectId) : true);
   const matches = rows.filter((entry) =>
     `${entry.summary}\n${entry.body}\n${entry.quote ?? ""}`.toLowerCase().includes(needle),
   );

@@ -208,4 +208,46 @@ describe("memory store", () => {
       setMemoryModelCaller(undefined);
     }
   });
+
+  it("isolates project memories from other projects and home threads", async () => {
+    const { memorySearch } = await import("./runtime");
+    await handleMemoryCommand({
+      action: "save",
+      entry: {
+        scope: "global",
+        category: "user",
+        summary: "Always use concise commit messages",
+        body: "Always use concise commit messages",
+        polarity: "positive",
+        pinned: false,
+      },
+    });
+    await handleMemoryCommand({
+      action: "save",
+      entry: {
+        scope: "project",
+        projectId: "project-1",
+        category: "project",
+        summary: "Project 1 uses an event-sourced ledger",
+        body: "Project 1 uses an event-sourced ledger",
+        polarity: "fact",
+        pinned: false,
+      },
+    });
+
+    const p1Launch = launchMemoryInstructions(undefined, "project-1");
+    const p2Launch = launchMemoryInstructions(undefined, "project-2");
+    const homeLaunch = launchMemoryInstructions(undefined, undefined);
+
+    expect(p1Launch).toContain("Always use concise commit messages");
+    expect(p1Launch).toContain("Project 1 uses an event-sourced ledger");
+    expect(p2Launch).toContain("Always use concise commit messages");
+    expect(p2Launch).not.toContain("Project 1 uses an event-sourced ledger");
+    expect(homeLaunch).toContain("Always use concise commit messages");
+    expect(homeLaunch).not.toContain("Project 1 uses an event-sourced ledger");
+
+    expect(memorySearch("ledger", "project-1")).toHaveLength(1);
+    expect(memorySearch("ledger", "project-2")).toHaveLength(0);
+    expect(memorySearch("ledger", undefined)).toHaveLength(0);
+  });
 });
