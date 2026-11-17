@@ -1105,8 +1105,8 @@ export class CursorSdkSession implements StructuredSessionHandle {
       });
     } else if (status === "cancelled" || !this.steering.hasPending) {
       // Stop needs a settled acknowledgement to retire the shared watchdog.
-      // A fresh-generation steer is still awaiting acceptance; its direct-input
-      // reservation keeps queued work behind the replacement start.
+      // A fresh-generation steer remains retained and rechecks the active run
+      // before delivering at this boundary, including a competing direct start.
       this.emitUpdate({ status: "idle", attention: "none" });
     }
     this.scheduleIdleReapIfIdle();
