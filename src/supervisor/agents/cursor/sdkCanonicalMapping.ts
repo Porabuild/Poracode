@@ -26,7 +26,7 @@ import {
   mapCursorSdkRawToolUpdate,
   mapCursorSdkShellOutputDelta,
 } from "./sdkCanonicalToolMapping";
-import { normalizeCursorSdkUsage } from "./sdkCanonicalToolPayload";
+import { cursorSdkUsageCategories, normalizeCursorSdkUsage } from "./sdkCanonicalToolPayload";
 import type {
   CursorSdkAssistantMessage,
   CursorSdkInteractionUpdate,
@@ -197,6 +197,13 @@ export function mapCursorSdkInteractionUpdate(
       if (update.usage) events.push(...mapUsage(state, update.usage, "raw"));
       return events;
     }
+    case "model-call-completed":
+      // 1.4.0 emits per-model-call tokens here (`inputTokens` is inclusive of
+      // cache reads/writes). `turn-ended`/`usage` carry the turn total for
+      // `usage.spent`, and `sdkContextUsage.ts` reads `ConversationTokenDetails`
+      // for context occupancy. Leave open thinking items intact until
+      // `thinking-completed` or `step-completed`.
+      return [];
     case "user-message-appended":
       return mapUserEcho(update.userMessage.text, state);
     case "summary-started": {
@@ -594,7 +601,11 @@ function mapUsage(
   usage: CursorSdkTokenUsage | Omit<CursorSdkTokenUsage, "totalTokens">,
   source: "raw" | "normalized",
 ): RuntimeEvent[] {
-  const normalized = normalizeCursorSdkUsage(usage);
+  const normalized = normalizeCursorSdkUsage(usage, {
+    ...(state.inclusiveInputTokens !== undefined
+      ? { inclusiveInputTokens: state.inclusiveInputTokens }
+      : {}),
+  });
   const fingerprint = usageFingerprint(normalized);
   // Each source waits for its counterpart's identical delivery: a match cancels
   // the queued peer entry, otherwise this delivery queues for its own echo.
@@ -612,6 +623,7 @@ function mapUsage(
   state.usageSequence += 1;
   const runId = state.currentRunId ?? state.currentTurnId ?? state.threadId;
   const sampleId = `${runId}:turn-${state.usageSequence}`;
+  const tokens = cursorSdkUsageCategories(normalized, state.inclusiveInputTokens);
   // Cursor documents this as per-turn spend, which can aggregate several
   // model/tool-loop calls. It is not current context-window occupancy.
   return [
@@ -621,6 +633,7 @@ function mapUsage(
       usage: {
         counterKind: "per-call",
         counter: normalized.totalTokens,
+        ...(tokens ? { tokens } : {}),
         scopeId: state.agentId ?? runId,
         epoch: 0,
         sampleId,
@@ -655,13 +668,15 @@ function finishCursorSdkRun(
 }
 
 function usageFingerprint(usage: ReturnType<typeof normalizeCursorSdkUsage>): string {
+  // Exclude `totalTokens` so raw `turn-ended` (which omits `totalTokens`) and
+  // normalized `usage` (which carries SDK-computed `totalTokens`) always match
+  // across both 1.0.x and 1.1.0–1.4.0+ accounting formulas.
   return [
     usage.inputTokens,
     usage.outputTokens,
     usage.cacheReadTokens,
     usage.cacheWriteTokens,
     usage.reasoningTokens ?? "",
-    usage.totalTokens,
   ].join(":");
 }
 

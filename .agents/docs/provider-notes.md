@@ -56,6 +56,46 @@ from a later response, and rejects at turn end, Stop, restart or close, because
 Claude Code drops hook context when a tool result ends the turn. The attachment
 stays off the SDK stream and out of the session import.
 
+## Cursor
+
+Structured Chat supports both ACP (`cursor-agent acp`) and the user-installed
+`@cursor/sdk` local runtime (`>=1.0.38 <2.0.0`, audited across `1.2.0`,
+`1.3.0`, `1.3.1`, and `1.4.0`; live model/network calls require explicit
+approval).
+
+- **Token accounting & `model-call-completed` (`sdkProtocol.ts`, `sdkCanonicalMapping.ts`, `sdkCanonicalToolPayload.ts`):**
+  `@cursor/sdk` `1.1.0`–`1.4.0` reports `inputTokens` inclusively of
+  `cacheReadTokens` and `cacheWriteTokens` (`totalTokens = inputTokens +
+  outputTokens`), whereas `1.0.38`–`1.0.40` counted uncached `inputTokens`.
+  Worker protocol v7 returns `InitializeResult.sdkVersion` from both
+  discovered and explicit-entry manifests so `CursorSdkSession` sets
+  `inclusiveInputTokens`, computes `turn-ended` totals and disjoint
+  `usage.spent.tokens` categories accurately, and fingerprints usage without
+  `totalTokens` so raw `turn-ended` and normalized `usage` echoes deduplicate
+  across all supported versions. `1.4.0` also enables `emitModelCallUsage: true`
+  and streams `model-call-completed` deltas per model step; `sdkCanonicalMapping.ts`
+  treats it as a no-op so it never double-counts spend, overwrites SQLite
+  `ConversationTokenDetails` context occupancy, or closes `thinking` before
+  `thinking-completed`.
+- **Local steering (`sdkSteering.ts`, `sdkWorker.ts`):** `1.4.0` widened
+  `SteerAckOutcome` with `{ outcome: "queued", run? }` for cloud runs, while
+  local `LocalRun.steer` still resolves only `"complete_delivered"` or
+  `"revert_to_followup"`. The worker continues rejecting unexpected non-string
+  outcomes as `module_api_incompatible` instead of resending a server-queued
+  run.
+- **SQLite & platform binary lookup (`sdkWorkerRuntime.ts`, `sdkContextUsage.ts`):**
+  `1.4.0` `sqlite.js` adds `model_max_mode` and `result_json` columns to `runs`,
+  keeping `agents.latest_checkpoint_ref_json`, `blobs.data`, and
+  `ConversationState.token_details` compatible. `1.4.0`
+  `platform-package-locator` walks `sdkModuleDir` after `process.argv[1]`,
+  preserving `anchorProcessArgvAtSdk`.
+- **Unsupported/internal `1.3.0`–`1.4.0` surfaces:** `hostMcpBridgeUrls` is
+  `@internal` for Cursor's own hosts relaying Cursor team MCP servers under a
+  Cloud Agent Allowlist and is omitted; `sdk_local_mcp_admin_tool_limits` and
+  `1.4.0` plan-mode non-markdown edit refusals surface as ordinary tool error
+  results, and `FeatureUnavailableError` / proxy error codes map through
+  `CursorSdkWorkerDiagnostics`.
+
 ## Devin
 
 - Exec input streams after the call opens, and commands run in Poracode-hosted

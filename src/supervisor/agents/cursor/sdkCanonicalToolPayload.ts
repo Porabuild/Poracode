@@ -7,6 +7,7 @@
  */
 
 import type { CanonicalItemType, ToolCallProgress } from "@/shared/contracts";
+import type { UsageTokenCategories } from "@/shared/contracts/costHistory";
 import { normalizeInlineImageDataUrl } from "@/shared/inlineImagePayload";
 import {
   classifyFileChangeKind,
@@ -15,6 +16,7 @@ import {
 } from "../fileChangeKind";
 import { readDiffSummary, readFileChangePath, readStringField } from "../fileChangeSummary";
 import type { CursorSdkToolItem } from "./sdkCanonicalMappingState";
+import { parseCursorSdkVersion } from "./sdkLoaderSupport";
 import type { CursorSdkRawToolCall, CursorSdkTokenUsage } from "./sdkProtocol";
 
 export interface CursorSdkToolDescriptor {
@@ -202,8 +204,22 @@ export function safeCursorSdkFingerprint(value: unknown): string {
   }
 }
 
+/**
+ * `@cursor/sdk` 1.1.0+ (verified through 1.4.0) counts `inputTokens`
+ * inclusively of `cacheReadTokens` and `cacheWriteTokens`; 1.0.38–1.0.40
+ * counted uncached input separately.
+ */
+export function isCursorSdkInclusiveInputVersion(version: string | undefined): boolean | undefined {
+  if (!version || version === "unknown") return undefined;
+  const parsed = parseCursorSdkVersion(version);
+  if (!parsed) return undefined;
+  const [major, minor] = parsed;
+  return major > 1 || (major === 1 && minor >= 1);
+}
+
 export function normalizeCursorSdkUsage(
   usage: CursorSdkTokenUsage | Omit<CursorSdkTokenUsage, "totalTokens">,
+  options?: { inclusiveInputTokens?: boolean },
 ): Required<Omit<CursorSdkTokenUsage, "reasoningTokens">> & { reasoningTokens?: number } {
   const inputTokens = nonNegativeInteger(usage.inputTokens);
   const outputTokens = nonNegativeInteger(usage.outputTokens);
@@ -214,7 +230,9 @@ export function normalizeCursorSdkUsage(
   const totalTokens =
     "totalTokens" in usage && typeof usage.totalTokens === "number"
       ? nonNegativeInteger(usage.totalTokens)
-      : inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
+      : options?.inclusiveInputTokens
+        ? inputTokens + outputTokens
+        : inputTokens + outputTokens + cacheReadTokens + cacheWriteTokens;
   return {
     inputTokens,
     outputTokens,
@@ -223,6 +241,34 @@ export function normalizeCursorSdkUsage(
     totalTokens,
     ...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
   };
+}
+
+/**
+ * Derive disjoint consumption buckets (`input` excludes cache reads/writes,
+ * `output` includes reasoning) only when the accounting basis is verified and
+ * the buckets sum exactly to `usage.totalTokens`.
+ */
+export function cursorSdkUsageCategories(
+  usage: ReturnType<typeof normalizeCursorSdkUsage>,
+  inclusiveInputTokens: boolean | undefined,
+): UsageTokenCategories | undefined {
+  if (inclusiveInputTokens === undefined) return undefined;
+  const cacheTotal = usage.cacheReadTokens + usage.cacheWriteTokens;
+  const input = inclusiveInputTokens ? usage.inputTokens - cacheTotal : usage.inputTokens;
+  if (input < 0) return undefined;
+  const categories: UsageTokenCategories = {
+    input,
+    output: usage.outputTokens,
+    cacheRead: usage.cacheReadTokens,
+    cacheWrite: usage.cacheWriteTokens,
+  };
+  if (
+    categories.input + categories.output + categories.cacheRead + categories.cacheWrite !==
+    usage.totalTokens
+  ) {
+    return undefined;
+  }
+  return categories;
 }
 
 function planSteps(
