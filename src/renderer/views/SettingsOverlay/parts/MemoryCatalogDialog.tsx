@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
+import { Check, Pencil, Pin, PinOff, Trash2, X, type LucideIcon } from "lucide-react";
 import { readBridge } from "@/renderer/bridge";
-import { Button } from "@/renderer/components/common";
+import { Button, type ButtonProps } from "@/renderer/components/common";
 import { Input } from "@/renderer/components/common/Input";
 import { sidebarRowClass } from "@/renderer/components/common/SidebarButton";
 import { syncMemoryAcrossEnvironments } from "@/renderer/state/memorySync";
@@ -10,6 +11,28 @@ import type { MemoryEntry } from "@/shared/memory";
 
 function readCatalog(projectId: string | undefined) {
   return readBridge().memoryCommand({ action: "list", ...(projectId ? { projectId } : {}) });
+}
+
+function MemoryActionButton({
+  icon: Icon,
+  label,
+  ...props
+}: Pick<ButtonProps, "ref" | "variant" | "isDisabled" | "onPress"> & {
+  icon: LucideIcon;
+  label: string;
+}) {
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      {...props}
+      aria-label={label}
+      className="max-md:aspect-square max-md:w-auto max-md:px-0"
+    >
+      <Icon className="size-3.5 md:hidden" aria-hidden="true" />
+      <span className="hidden md:inline">{label}</span>
+    </Button>
+  );
 }
 
 export function MemoryCatalogDialog(props: {
@@ -190,11 +213,8 @@ export function MemoryCatalogDialog(props: {
             ) : (
               <ul className="space-y-0.5">
                 {entries.map((entry) => (
-                  <li
-                    key={entry.id}
-                    className={`${sidebarRowClass()} flex-col !items-start sm:flex-row sm:!items-center`}
-                  >
-                    <div className="w-full min-w-0 flex-1">
+                  <li key={entry.id} className={sidebarRowClass()}>
+                    <div className="min-w-0 flex-1">
                       {editingId === entry.id ? (
                         <Input
                           ref={editInputRef}
@@ -216,7 +236,10 @@ export function MemoryCatalogDialog(props: {
                           }}
                         />
                       ) : (
-                        <p className="text-sm font-medium break-words text-foreground">
+                        <p
+                          className="truncate text-sm font-medium text-foreground"
+                          title={entry.summary}
+                        >
                           {entry.summary}
                         </p>
                       )}
@@ -226,42 +249,39 @@ export function MemoryCatalogDialog(props: {
                         {entry.lockedByUser ? ` · ${t`Edited by you`}` : ""}
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                       {editingId === entry.id ? (
                         <>
-                          <Button
-                            size="sm"
+                          <MemoryActionButton
+                            icon={Check}
+                            label={t`Save`}
                             variant="tertiary"
                             isDisabled={editDraft.trim().length === 0}
                             onPress={() => saveEdit(entry)}
-                          >
-                            <Trans>Save</Trans>
-                          </Button>
-                          <Button size="sm" variant="ghost" onPress={finishEditing}>
-                            <Trans>Cancel</Trans>
-                          </Button>
+                          />
+                          <MemoryActionButton icon={X} label={t`Cancel`} onPress={finishEditing} />
                         </>
                       ) : (
                         <>
-                          <Button size="sm" variant="ghost" onPress={() => togglePin(entry)}>
-                            {entry.pinned ? <Trans>Unpin</Trans> : <Trans>Pin to top</Trans>}
-                          </Button>
-                          <Button
+                          <MemoryActionButton
+                            icon={entry.pinned ? PinOff : Pin}
+                            label={entry.pinned ? t`Unpin` : t`Pin to top`}
+                            onPress={() => togglePin(entry)}
+                          />
+                          <MemoryActionButton
                             ref={editTarget?.id === entry.id ? editButtonRef : undefined}
-                            size="sm"
-                            variant="ghost"
+                            icon={Pencil}
+                            label={t`Edit`}
                             onPress={() => {
                               setEditTarget({ id: entry.id, editing: true });
                               setEditDraft(entry.summary);
                             }}
-                          >
-                            <Trans>Edit</Trans>
-                          </Button>
+                          />
                         </>
                       )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      <MemoryActionButton
+                        icon={Trash2}
+                        label={t`Delete`}
                         onPress={() => {
                           setError(false);
                           void readBridge()
@@ -269,9 +289,7 @@ export function MemoryCatalogDialog(props: {
                             .then(refreshAfterChange)
                             .catch(() => setError(true));
                         }}
-                      >
-                        <Trans>Delete</Trans>
-                      </Button>
+                      />
                     </div>
                   </li>
                 ))}
