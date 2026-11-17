@@ -54,6 +54,13 @@ vi.mock("@heroui/react", () => {
     Trigger: Wrapper,
     Content: Wrapper,
   });
+  const Popover = Object.assign(Wrapper, {
+    Trigger: Wrapper,
+    Content: Wrapper,
+    Dialog: Wrapper,
+    Heading: Wrapper,
+    Arrow: () => null,
+  });
 
   return {
     Button,
@@ -61,6 +68,7 @@ vi.mock("@heroui/react", () => {
     Dropdown,
     Label: Wrapper,
     Link: Wrapper,
+    Popover,
     Separator: () => null,
     ToggleButton: Button,
     Tooltip,
@@ -164,7 +172,10 @@ describe("PrSection", () => {
     expect(branch).not.toHaveTextContent("Target branch");
     expect(screen.getByText("+51")).toBeInTheDocument();
     expect(screen.getByText("−7")).toBeInTheDocument();
-    expect(screen.getByText("2/3").parentElement).toHaveTextContent("Checks: 2/3");
+    const checksTrigger = screen.getByRole("button", { name: "Checks: 2 of 3 passed" });
+    expect(checksTrigger.querySelector("svg")).not.toBeNull();
+    expect(checksTrigger).not.toHaveTextContent("2/3");
+    expect(screen.getByText("2/3")).toBeInTheDocument();
     expect(screen.getByText("Lint").parentElement).toHaveTextContent("46s · Passed");
     expect(screen.getByText("Test").parentElement).toHaveTextContent("Running");
     expect(onRefreshPr).not.toHaveBeenCalled();

@@ -274,6 +274,11 @@ msgstr "{0} kimlik bilgileri kaydedildi."
 msgid "{0} devices"
 msgstr "{0} cihaz"
 
+#. placeholder {0}: summary.failed
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "{0} failed"
+msgstr "{0} başarısız"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "{0} hooks installed for {envName}."
@@ -431,6 +436,11 @@ msgstr "{0} bu profilin yalıtılmış girişini paylaşıyor ve başka bir sahi
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 msgstr "{0} bu profilin yalıtılmış girişini paylaşıyor. Önce onları başka bir sahipe taşıyın — ana makine, girişsiz bırakan değişiklikleri reddeder."
+
+#. placeholder {0}: summary.skipped
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "{0} skipped"
+msgstr "{0} atlandı"
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
@@ -3823,7 +3833,7 @@ msgstr "Kontrol ediliyor…"
 msgid "Checkout is unavailable while this review is read-only"
 msgstr "Bu inceleme salt okunurken checkout kullanılamaz"
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
 #: src/renderer/views/PullRequestsOverlay/list/prListSheetSections.ts
 #: src/renderer/views/PullRequestsOverlay/summary/RailChecks.tsx
@@ -3848,6 +3858,34 @@ msgstr "Kontroller beklemede"
 #: src/renderer/views/PullRequestsOverlay/list/PrListRow.tsx
 msgid "Checks running"
 msgstr "Kontroller çalışıyor"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed"
+msgstr "Kontroller: {1} kontrolden {0} tanesi başarılı"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#. placeholder {2}: summary.failed
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed, {2} failed"
+msgstr "Kontroller: {1} kontrolden {0} tanesi başarılı, {2} başarısız"
+
+#. placeholder {0}: summary.passed
+#. placeholder {1}: summary.relevantTotal
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} of {1} passed, estimated end {endTimeText}"
+msgstr "Kontroller: {1} kontrolden {0} tanesi başarılı, tahmini bitiş {endTimeText}"
+
+#. placeholder {0}: summary.skipped
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: {0} skipped"
+msgstr "Kontroller: {0} atlandı"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Checks: none reported"
+msgstr "Kontroller: bildirilmedi"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Choose a completed turn to fork from."
@@ -7972,6 +8010,10 @@ msgstr "Hata · Temsilci bir hatayla karşılaştı"
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 msgid "Errors"
 msgstr "Hatalar"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Est. end {endTimeText} (~{remainingText} left)"
+msgstr "Tahm. bitiş {endTimeText} (~{remainingText} kaldı)"
 
 #: src/renderer/components/thread/ThreadSpendDetails.tsx
 msgid "Estimated at list prices."
@@ -13212,7 +13254,7 @@ msgstr "Henüz değişiklik yok"
 msgid "No chat response is available for experiment candidate {threadId}."
 msgstr "{threadId} deney adayı için kullanılabilir sohbet yanıtı yok."
 
-#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
 msgid "No checks reported for this PR."
 msgstr "Bu PR için herhangi bir kontrol raporlanmadı."
 
@@ -15573,6 +15615,10 @@ msgstr "PR otomasyonu: Otomatik düzelt"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation: Auto Merge"
 msgstr "PR otomasyonu: Otomatik birleştir"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "PR checks"
+msgstr "PR kontrolleri"
 
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/GitBadge.tsx
@@ -20607,6 +20653,10 @@ msgstr "Ana modelin devrettiği her uygulamalı görevi üstlenir: keşfeder, d�
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #~ msgid "Takes over the desktop while the agent clicks or types"
 #~ msgstr "Ajan tıklarken veya yazarken masaüstünü kontrol eder"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrChecksIndicator.tsx
+msgid "Taking longer than average"
+msgstr "Ortalamadan uzun sürüyor"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
