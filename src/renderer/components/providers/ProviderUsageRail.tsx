@@ -15,6 +15,7 @@ import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common
 import { RemoteServerPicker } from "@/renderer/components/common/RemoteServerPicker";
 import { useProviderUsage, useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { ProviderUsageCircle } from "./ProviderUsageCircle";
@@ -370,7 +371,12 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
   const scope = useUsagePanelScope();
   const connectionId = scope.remote ? (scope.effectiveId ?? "") : null;
   const view = useHostUsageView(connectionId ?? "", 0, false, showInSidebar);
-  const servers = useRemoteServersStore((s) => s.servers);
+  const showEnvironment = useRemoteServersStore((s) =>
+    scope.remoteSession
+      ? s.servers.length > 0
+      : scope.remote ||
+        s.servers.some((server) => s.runtime[remoteConnectionKey(server)]?.status === "online"),
+  );
   const setDesktopId = useUsageScopeStore((s) => s.setDesktopId);
 
   useProviderUsageHydration(showInSidebar && !scope.remote);
@@ -401,7 +407,6 @@ export function ProviderUsageRail(props: { orientation?: "row" | "column" }) {
         : eligible[i]),
   );
 
-  const showEnvironment = servers.length > 0;
   if (!showInSidebar || (providers.length === 0 && !showEnvironment)) return null;
   const environmentSelector = showEnvironment ? (
     <RemoteServerPicker

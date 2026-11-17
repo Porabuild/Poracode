@@ -144,6 +144,33 @@ describe("sidebar host usage", () => {
     expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
   });
 
+  it.each(["row", "column"] as const)(
+    "shows the %s environment dropdown only while a remote is online on Local",
+    (orientation) => {
+      session.remote = false;
+      useRemoteServersStore.setState({
+        runtime: { pc: { status: "offline", projects: [], threads: [] } },
+      });
+      render(<ProviderUsageRail orientation={orientation} />);
+      expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Codex usage — open usage panel" })).toBeVisible();
+
+      act(() => {
+        useRemoteServersStore.setState({
+          runtime: { pc: { status: "online", projects: [], threads: [] } },
+        });
+      });
+      expect(screen.getByRole("button", { name: "Connections" })).toHaveAttribute("title", "Local");
+
+      act(() => {
+        useRemoteServersStore.setState({
+          runtime: { pc: { status: "offline", projects: [], threads: [] } },
+        });
+      });
+      expect(screen.queryByRole("button", { name: "Connections" })).toBeNull();
+    },
+  );
+
   it("switches environment through the name dropdown and keeps account data separate", async () => {
     seed("pc", 30);
     seed("laptop", 70, "gemini");
