@@ -58,7 +58,7 @@ it("applies home-scope permission preparation before a direct steer", async () =
         sandboxMode: "danger-full-access",
       },
       undefined,
-      { userMessageItemId: expect.any(String) },
+      { userMessageItemId: expect.any(String), onPromptSubmitted: expect.any(Function) },
     );
   } finally {
     finish();

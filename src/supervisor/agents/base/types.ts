@@ -118,7 +118,7 @@ export interface StartTurnOptions {
   userMessageItemId?: string;
   /** Canonical reply metadata to preserve when echoing the user's message. */
   questionAnswer?: QuestionAnswerItemPayload;
-  /** Called only after the provider accepts the outgoing prompt. */
+  /** Called after the provider accepts the prompt, including a retained follow-up. */
   onPromptSubmitted?: () => void;
   /**
    * Portable-skills fallback: inline SKILL.md instructions for invoked skills
@@ -202,8 +202,12 @@ export interface StructuredSessionHandle {
    * path. When no turn is in flight, implementations fall back to `startTurn`
    * semantics so turn accounting stays correct.
    *
-   * Resolving this promise acknowledges input acceptance. If an accepted input
-   * awaits a subsequent turn inside the provider, keep status `working` across
+   * Resolving this promise or calling `onPromptSubmitted` acknowledges input
+   * acceptance. The callback can acknowledge a retained follow-up before this
+   * promise settles; later failures still belong to the runtime. Existing
+   * handles without the callback keep their promise-based acceptance contract.
+   * If an accepted input awaits a subsequent turn inside the provider, keep
+   * status `working` across
    * the preceding turn's completion and emit `turn.started` for the new reply.
    * Do not report `idle` until that accepted work finishes: runtime schedulers
    * use settled status to decide when another ordinary startTurn is safe.

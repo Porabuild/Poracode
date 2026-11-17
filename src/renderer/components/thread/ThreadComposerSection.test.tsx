@@ -3190,7 +3190,9 @@ describe("ThreadComposerSection", () => {
       deliver.mockImplementationOnce(async () => {
         inFlight = await listClientSubmissions();
       });
-      renderComposer({ thread: { ...guiThread, status: "working", attention: "working" } });
+      const { unmount } = renderComposer({
+        thread: { ...guiThread, status: "working", attention: "working" },
+      });
       typeComposerText(screen.getByRole("textbox"), "handled by the host");
       fireEvent.click(screen.getByText("send"));
       await waitFor(() =>
@@ -3201,6 +3203,13 @@ describe("ThreadComposerSection", () => {
       await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
       expect(inFlight).toEqual([expect.objectContaining({ state: "dispatching" })]);
       expect(screen.queryByRole("button", { name: "Discard saved copy" })).toBeNull();
+      expect(screen.getByRole("textbox").textContent).toBe("");
+      unmount();
+      expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+      renderComposer({ thread: { ...guiThread, status: "working", attention: "working" } });
+      expect(screen.getByRole("textbox").textContent).toBe("");
+      expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+      expect(toastDangerSpy).not.toHaveBeenCalled();
     },
   );
 

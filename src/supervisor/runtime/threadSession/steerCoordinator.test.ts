@@ -81,13 +81,14 @@ function createHarness(
   });
   const emitOptimisticUserMessage = vi.fn<() => string>(() => "user-optimistic");
   const noteDirectSteerCompletedWithoutTurn = vi.fn<() => void>();
+  const failStructuredSession = vi.fn<(session: SessionRuntime, error: unknown) => void>();
   const coordinator = new SteerCoordinator({
     emit: (event) => events.push(event),
     sessions,
     interruptStructuredTurn,
     startStructuredTurn,
     emitOptimisticUserMessage,
-    failStructuredSession: vi.fn<(session: SessionRuntime, error: unknown) => void>(),
+    failStructuredSession,
     noteDirectSteerCompletedWithoutTurn,
     resolveSkillTurnInjection: vi.fn<
       (
@@ -107,10 +108,12 @@ function createHarness(
     events,
     interruptStructuredTurn,
     emitOptimisticUserMessage,
+    failStructuredSession,
     noteDirectSteerCompletedWithoutTurn,
     order,
     prepareSteerInterrupt,
     session,
+    sessions,
     startStructuredTurn,
     turn,
   };
@@ -228,6 +231,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     );
     expect(steerTurn).toHaveBeenCalledWith("ordinary steer", { model: "model-2" }, undefined, {
       userMessageItemId: "user-optimistic",
+      onPromptSubmitted: expect.any(Function),
     });
   });
 
@@ -254,7 +258,11 @@ describe("SteerCoordinator interrupt-backed steering", () => {
       "Which scope?\nFocused",
       { model: "model-2" },
       undefined,
-      { userMessageItemId: "user-optimistic", questionAnswer },
+      {
+        userMessageItemId: "user-optimistic",
+        questionAnswer,
+        onPromptSubmitted: expect.any(Function),
+      },
     );
   });
 
@@ -284,6 +292,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     // Exact options: no "Last turn…" reminder rides on the steer.
     expect(steerTurn).toHaveBeenCalledWith("also cover b.ts", config, undefined, {
       userMessageItemId: "user-optimistic",
+      onPromptSubmitted: expect.any(Function),
     });
     expect(harness.session.crewLeadEditedFiles).toBe(true);
   });
@@ -441,7 +450,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
       "[thread mention] Source",
       { model: "model-2" },
       [...effectiveSegments],
-      { userMessageItemId: "user-optimistic" },
+      { userMessageItemId: "user-optimistic", onPromptSubmitted: expect.any(Function) },
     );
   });
 
@@ -468,6 +477,36 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     );
     expect(steerTurn).toHaveBeenCalledWith("queued native steer", { model: "model-2" }, undefined, {
       userMessageItemId: "user-queued",
+      onPromptSubmitted: expect.any(Function),
     });
   });
+
+  it.each([false, true])(
+    "reports a late steer failure after acceptance only for the current session (replaced=%s)",
+    async (replaced) => {
+      const harness = createHarness();
+      const completion = Promise.withResolvers<void>();
+      harness.session.structuredSession!.steerTurn = (_prompt, _config, _segments, options) => {
+        options?.onPromptSubmitted?.();
+        return completion.promise;
+      };
+      harness.session.pendingInitialInstructions = "retained guidance";
+
+      await harness.coordinator.steerStructuredTurn(harness.session, harness.turn);
+      expect(harness.session.pendingInitialInstructions).toBeUndefined();
+      expect(harness.failStructuredSession).not.toHaveBeenCalled();
+      if (replaced) {
+        harness.sessions.set(harness.session.threadId, {
+          ...harness.session,
+          instanceId: "replacement",
+        });
+      }
+      const error = new Error("provider delivery failed after acceptance");
+      completion.reject(error);
+      await Promise.resolve();
+      expect(harness.failStructuredSession.mock.calls).toEqual(
+        replaced ? [] : [[harness.session, error]],
+      );
+    },
+  );
 });

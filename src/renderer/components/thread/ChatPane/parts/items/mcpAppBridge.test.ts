@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { waitFor } from "@testing-library/react";
-import { McpAppFrameTransport, mountMcpApp } from "@/shared/mcpApps/viewBridge";
+import { loadMcpAppSandbox, McpAppFrameTransport, mountMcpApp } from "@/shared/mcpApps/viewBridge";
 import type { ControlMcpAppPayload, ControlMcpAppResult } from "@/shared/contracts/mcpApps";
 
 const app = {
@@ -11,9 +11,28 @@ const app = {
 };
 const owners: AbortController[] = [];
 afterEach(() => {
+  vi.unstubAllGlobals();
   for (const owner of owners.splice(0)) owner.abort();
   document.body.replaceChildren();
   vi.restoreAllMocks();
+});
+
+describe("MCP App sandbox loading", () => {
+  it.each([
+    ["file:", "file://", "null"],
+    ["file:", "null", "null"],
+    ["http:", "http://localhost:3100", "http://localhost:3100"],
+    ["https:", "https://app.poracode.com", "https://app.poracode.com"],
+  ])("uses the message origin for a %s parent reporting %s", (protocol, origin, expected) => {
+    const frame = document.createElement("iframe");
+    vi.stubGlobal("window", { location: { protocol, origin } });
+
+    loadMcpAppSandbox(frame, "http://localhost:4400", {});
+    expect(new URLSearchParams(new URL(frame.src).hash.slice(1)).get("parent")).toBe(expected);
+
+    loadMcpAppSandbox(frame, "http://localhost:4400", {}, true);
+    expect(frame.srcdoc).toContain(`const parentOrigin = ${JSON.stringify(expected)};`);
+  });
 });
 
 function frameFixture() {

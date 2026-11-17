@@ -26,10 +26,8 @@ import { tmpdir } from "node:os";
 import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
-import {
-  jsonRequest as requestJson,
-  readQualificationProtocolVersion,
-} from "./qualification-http.mjs";
+import { jsonRequest as requestJson, readQualificationEnvironment } from "./qualification-http.mjs";
+import { runOneThreadTurn } from "./qualification-terminal.mjs";
 import { redactSecrets } from "./server-n1-qualification/redaction.mjs";
 import { installServerPrefix } from "./install-server-prefix.mjs";
 import { readServerArtifactMetadata } from "./server-artifact-metadata.mjs";
@@ -219,54 +217,6 @@ function waitForText(stream, needle, timeoutMs) {
   });
 }
 
-function startPtyWatch({ wsUrl, shellId }) {
-  const ws = new WebSocket(wsUrl);
-  let buf = "";
-  const opened = new Promise((resolveOpened, reject) => {
-    ws.addEventListener("open", () => {
-      ws.send(JSON.stringify({ type: "terminal-watch", id: shellId }));
-      resolveOpened();
-    });
-    ws.addEventListener("error", reject);
-  });
-  return {
-    opened,
-    waitFor(needle, timeoutMs) {
-      return new Promise((resolveFrame, reject) => {
-        const timer = setTimeout(
-          () => reject(new Error(`timed out waiting for PTY echo ${needle}`)),
-          timeoutMs,
-        );
-        const onMessage = (event) => {
-          let frame;
-          try {
-            frame = JSON.parse(String(event.data));
-          } catch {
-            return;
-          }
-          if (frame?.type === "terminal-output" && typeof frame.data === "string") {
-            buf += frame.data;
-            if (buf.includes(needle)) {
-              clearTimeout(timer);
-              ws.removeEventListener("message", onMessage);
-              resolveFrame(true);
-            }
-          }
-        };
-        if (buf.includes(needle)) {
-          clearTimeout(timer);
-          resolveFrame(true);
-          return;
-        }
-        ws.addEventListener("message", onMessage);
-      });
-    },
-    close() {
-      ws.close();
-    },
-  };
-}
-
 const jsonRequest = (url, options) => requestJson(fetch, url, options);
 
 /** Environment for a spawned server/CLI step. `port === null` selects a
@@ -301,7 +251,8 @@ function assertDoctorOk(entry, profile, label) {
 
 /** Pair against the running daemon, exchange the credential, read describe. */
 async function pairAndAuthenticate(entry, profile, httpBase, doctorReport) {
-  const protocolVersion = await readQualificationProtocolVersion(fetch, httpBase, doctorReport);
+  const descriptor = await readQualificationEnvironment(fetch, httpBase, doctorReport);
+  const protocolVersion = descriptor.protocolVersion;
   const pairingRaw = execFileSync(childNode, [entry, "pair", "--json"], {
     encoding: "utf8",
     env: serverEnv(profile, null),
@@ -338,6 +289,7 @@ async function pairAndAuthenticate(entry, profile, httpBase, doctorReport) {
   return {
     token: token.body.accessToken,
     protocolVersion,
+    descriptor,
     capabilities: describeRes.body?.capabilities ?? {},
   };
 }
@@ -433,39 +385,7 @@ async function stopChild(child, { entry, profile }) {
  * only exists in the command's OUTPUT because node performs the arithmetic.
  * Windows terminals submit with a carriage return, as a real keyboard does.
  */
-export function terminalTurnInput(platform = process.platform) {
-  const command = `node -e "console.log('pty-'+(128+64)+'-turn')"`;
-  return `${command}${platform === "win32" ? "\r" : "\n"}`;
-}
-
-/** Send one terminal-thread turn and assert its EFFECT comes back (V6 D.1).
- * The needle only exists in the command's OUTPUT — the shell must execute the
- * arithmetic — so the echoed input can never satisfy the wait. */
-async function runOneThreadTurn({ httpBase, token, protocolVersion, shellId, ticket }) {
-  const watch = startPtyWatch({
-    wsUrl: `ws://127.0.0.1:${new URL(httpBase).port}/ws?ticket=${encodeURIComponent(ticket)}`,
-    shellId,
-  });
-  await watch.opened;
-  try {
-    await Promise.all([
-      watch.waitFor("pty-192-turn", 20_000),
-      (async () => {
-        const written = await jsonRequest(`${httpBase}/api/threads/${shellId}/terminal/write`, {
-          method: "POST",
-          token,
-          protocolVersion,
-          body: { data: terminalTurnInput() },
-        });
-        if (written.status !== 200) {
-          throw new Error(`terminal/write ${written.status}: ${JSON.stringify(written.body)}`);
-        }
-      })(),
-    ]);
-  } finally {
-    watch.close();
-  }
-}
+export { terminalTurnInput } from "./qualification-terminal.mjs";
 
 /**
  * Upgrade the running-install prefix from the tarball just installed (V6 D.4),
@@ -550,7 +470,7 @@ export async function qualifyServerInstall(options) {
   child.stderr.on("data", (chunk) => logs.push(chunk.toString("utf8")));
   try {
     await waitForText(child.stdout, "listening at:", 60_000);
-    const { token, protocolVersion, capabilities } = await pairAndAuthenticate(
+    const { token, protocolVersion, descriptor, capabilities } = await pairAndAuthenticate(
       entry,
       profile,
       httpBase,
@@ -622,6 +542,7 @@ export async function qualifyServerInstall(options) {
       protocolVersion,
       shellId,
       ticket: ticket.body.ticket,
+      descriptor,
     });
   } finally {
     await stopChild(child, { entry, profile });
