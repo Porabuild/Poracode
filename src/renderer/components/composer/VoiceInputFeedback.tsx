@@ -52,10 +52,7 @@ export function VoiceInputFeedback({
           {t`Voice input needs attention`}
         </Tooltip.Content>
       </Tooltip>
-      <Popover.Content
-        placement="top end"
-        className={`${floatingGlassSurfaceClass} w-80 max-w-[calc(100vw-2rem)] rounded-4xl p-0`}
-      >
+      <Popover.Content placement="top end" className="w-80 max-w-[calc(100vw-2rem)] p-0">
         <Popover.Dialog className="p-3 normal-case tracking-normal">
           <Popover.Heading className="text-sm font-medium text-foreground">
             <Trans>Voice input needs attention</Trans>
