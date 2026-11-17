@@ -6,7 +6,7 @@ import {
   DEVICE_PREVIEW_WINDOW_URL,
 } from "@/shared/devicePreviewWindow";
 import type { ConnectionStatus } from "@expo/hub-client";
-import { Button, Dropdown, Input, Label, Modal, Tooltip } from "@heroui/react";
+import { Button, Dropdown, Input, Label, Modal, Slider, Tooltip } from "@heroui/react";
 import {
   ArrowLeft,
   ArrowUp,
@@ -109,6 +109,7 @@ export function DeviceWorkspace({
   const [toolsOpen, setToolsOpen] = useState(false);
   const [controlState, setControlState] = useState<DeviceControlState | null>(null);
   const [foldingAngle, setFoldingAngle] = useState<number | null>(null);
+  const [dragAngle, setDragAngle] = useState<number | null>(null);
   const controlStateRef = useRef<DeviceControlState | null>(null);
   const [confirmPowerOff, setConfirmPowerOff] = useState(false);
   const [contentHost] = useState(() => document.createElement("div"));
@@ -209,6 +210,7 @@ export function DeviceWorkspace({
     controlStateRef.current = null;
     setControlState(null);
     setFoldingAngle(null);
+    setDragAngle(null);
     setConfirmPowerOff(false);
     setLiveClientStatus("idle");
     setLivePressButton(null);
@@ -618,7 +620,7 @@ export function DeviceWorkspace({
   // the input surface (idb) that taps and keys ride on.
   const canFold = visible && session?.access === "control" && !busy;
   const hingeAngle = controlState?.hingeAngle;
-  const effectiveHingeAngle = foldingAngle ?? hingeAngle;
+  const effectiveHingeAngle = dragAngle ?? foldingAngle ?? hingeAngle;
   const foldPoseLabel =
     effectiveHingeAngle === undefined
       ? null
@@ -1042,6 +1044,7 @@ export function DeviceWorkspace({
                       framed={framed || depth}
                       foldable={Boolean(session.device.foldable)}
                       hingeAngle={effectiveHingeAngle}
+                      dragging={dragAngle !== null}
                       folding={foldingAngle !== null}
                       onStatusChange={setLiveClientStatus}
                       onLivePressButtonChange={(pressButton) =>
@@ -1172,31 +1175,56 @@ export function DeviceWorkspace({
                   role="group"
                   aria-label={t`Fold controls`}
                   data-testid="device-controls-fold"
-                  className="flex items-center gap-1"
+                  className="flex flex-wrap items-center gap-1.5"
                 >
-                  {foldButtons.map(({ angle, label, Icon }) => (
-                    <Tooltip key={angle}>
-                      <Tooltip.Trigger tabIndex={-1} role="none">
-                        <Button
-                          size="sm"
-                          isIconOnly
-                          variant={effectiveHingeAngle === angle ? "secondary" : "ghost"}
-                          aria-label={label}
-                          aria-pressed={effectiveHingeAngle === angle}
-                          isDisabled={!canFold}
-                          onPress={() => applyControl({ type: "fold", angle })}
-                        >
-                          <Icon className="size-4" />
-                        </Button>
-                      </Tooltip.Trigger>
-                      <Tooltip.Content>{label}</Tooltip.Content>
-                    </Tooltip>
-                  ))}
+                  <div className="flex items-center gap-1">
+                    {foldButtons.map(({ angle, label, Icon }) => (
+                      <Tooltip key={angle}>
+                        <Tooltip.Trigger tabIndex={-1} role="none">
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            variant={effectiveHingeAngle === angle ? "secondary" : "ghost"}
+                            aria-label={label}
+                            aria-pressed={effectiveHingeAngle === angle}
+                            isDisabled={!canFold}
+                            onPress={() => applyControl({ type: "fold", angle })}
+                          >
+                            <Icon className="size-4" />
+                          </Button>
+                        </Tooltip.Trigger>
+                        <Tooltip.Content>{label}</Tooltip.Content>
+                      </Tooltip>
+                    ))}
+                  </div>
+                  <Slider
+                    aria-label={t`Hinge angle`}
+                    data-testid="device-fold-slider"
+                    className="w-24 shrink-0"
+                    isDisabled={!canFold}
+                    minValue={0}
+                    maxValue={180}
+                    step={1}
+                    value={effectiveHingeAngle ?? 0}
+                    onChange={(value) =>
+                      setDragAngle(Array.isArray(value) ? (value[0] ?? 0) : value)
+                    }
+                    onChangeEnd={(value) => {
+                      const next = Array.isArray(value) ? (value[0] ?? 0) : value;
+                      setDragAngle(null);
+                      applyControl({ type: "fold", angle: next });
+                    }}
+                  >
+                    <Slider.Track className="h-1.5 rounded-full bg-foreground/15">
+                      <Slider.Fill className="bg-accent" />
+                      <Slider.Thumb className="size-3.5 border-0 bg-accent shadow-sm after:bg-white" />
+                    </Slider.Track>
+                  </Slider>
                   {foldPose ? (
                     <span
                       data-testid="device-fold-pose"
                       aria-live="polite"
-                      className="ml-1 truncate text-[11px] text-muted"
+                      className="min-w-0 truncate text-[11px] text-muted tabular-nums"
                     >
                       {foldPose}
                     </span>

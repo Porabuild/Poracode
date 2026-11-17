@@ -9724,6 +9724,10 @@ msgstr "Ukryj zmiany białych znaków"
 msgid "High"
 msgstr "Wysoki"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Kąt zawiasu"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Historia"

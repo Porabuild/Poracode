@@ -9733,6 +9733,10 @@ msgstr "Hide whitespace changes"
 msgid "High"
 msgstr "High"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Hinge angle"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "History"

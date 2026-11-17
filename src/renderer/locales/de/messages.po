@@ -9724,6 +9724,10 @@ msgstr "Whitespace-Änderungen ausblenden"
 msgid "High"
 msgstr "Hoch"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Scharnierwinkel"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Verlauf"

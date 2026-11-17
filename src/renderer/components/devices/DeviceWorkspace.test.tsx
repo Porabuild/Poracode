@@ -1214,6 +1214,14 @@ describe("device workspace UI", () => {
     await waitFor(() =>
       expect(screen.getByTestId("device-fold-pose").textContent).toBe("Closed · Outer display"),
     );
+
+    const slider = screen.getByRole("slider", { name: "Hinge angle" }) as HTMLInputElement;
+    expect(slider.min).toBe("0");
+    expect(slider.max).toBe("180");
+    fireEvent.change(slider, { target: { value: "65" } });
+    expect(screen.getByTestId("device-fold-pose").textContent).toBe("65° · Outer display");
+    fireEvent.keyUp(slider);
+    fireEvent.blur(slider);
   });
 
   it("refreshes the pose when the shared session is folded outside the panel", async () => {

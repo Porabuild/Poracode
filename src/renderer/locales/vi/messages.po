@@ -9724,6 +9724,10 @@ msgstr "Ẩn thay đổi khoảng trắng"
 msgid "High"
 msgstr "Cao"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Góc bản lề"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Lịch sử"

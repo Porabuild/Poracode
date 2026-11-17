@@ -660,13 +660,15 @@ export class NativeDeviceDriver implements DeviceDriver {
       // The lit panel switches after the hinge reports its angle, so poll
       // displays too; reporting the pre-fold panel misleads callers. On
       // timeout report the actual panel — the fold itself has landed.
-      const expectedDisplay = control.angle === 0 ? "outer" : "inner";
+      const expectedDisplay = control.angle === 0 ? "outer" : control.angle >= 45 ? "inner" : null;
       const displayDeadline = Date.now() + 15_000;
       let displays = await this.foldableDisplaysFor(entry.nativeId, signal);
-      while (displays.activeDisplay !== expectedDisplay && Date.now() < displayDeadline) {
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        signal.throwIfAborted();
-        displays = await this.foldableDisplaysFor(entry.nativeId, signal);
+      if (expectedDisplay !== null) {
+        while (displays.activeDisplay !== expectedDisplay && Date.now() < displayDeadline) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          signal.throwIfAborted();
+          displays = await this.foldableDisplaysFor(entry.nativeId, signal);
+        }
       }
       const settledAngle = hingeAngle ?? control.angle;
       this.foldAngles.set(entry.nativeId, settledAngle);

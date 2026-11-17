@@ -9724,6 +9724,10 @@ msgstr "Ocultar mudanças de espaço em branco"
 msgid "High"
 msgstr "Alto"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Ângulo da dobradiça"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Histórico"

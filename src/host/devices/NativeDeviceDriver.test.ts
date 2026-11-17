@@ -951,6 +951,17 @@ describe("iPhone Duo foldable support", () => {
         inactive.driver.control(`ios:${duoUdid}`, { type: "read" }, bootId, inactive.signal),
       ).resolves.toEqual({ version: 1, hingeAngle: 90, activeDisplay: "inner" });
       expect(inactive.foldRuntime.acquireHelper).toHaveBeenCalledTimes(1);
+
+      // Intermediate angles (< 45°) return the actual display without waiting
+      // 15s for an inner display switch that depends on hinge hysteresis.
+      await expect(
+        inactive.driver.control(
+          `ios:${duoUdid}`,
+          { type: "fold", angle: 15 },
+          bootId,
+          inactive.signal,
+        ),
+      ).resolves.toEqual({ version: 1, hingeAngle: 15, activeDisplay: "inner" });
     } finally {
       await inactive.driver.dispose();
     }

@@ -9724,6 +9724,10 @@ msgstr "Masquer les modifications d'espaces"
 msgid "High"
 msgstr "Élevé"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Angle de charnière"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Historique"

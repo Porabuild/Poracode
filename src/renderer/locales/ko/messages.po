@@ -9724,6 +9724,10 @@ msgstr "공백 변경 숨기기"
 msgid "High"
 msgstr "높음"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "힌지 각도"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "기록"

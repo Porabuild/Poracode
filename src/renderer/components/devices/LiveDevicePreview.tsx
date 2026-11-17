@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   type ConnectionStatus,
   DeviceClientProvider,
@@ -8,6 +8,7 @@ import {
   useDeviceScreenClient,
 } from "@expo/hub-client";
 import { useLingui } from "@lingui/react/macro";
+import { FoldableBookOverlay, useAnimatedHingeAngle } from "./FoldableBookOverlay";
 import type { DeviceLivePreviewState } from "./useDeviceLivePreview";
 
 function Screen({
@@ -15,6 +16,7 @@ function Screen({
   framed = false,
   foldable = false,
   hingeAngle,
+  dragging = false,
   folding = false,
   onStatusChange,
   onLivePressButtonChange,
@@ -23,6 +25,7 @@ function Screen({
   framed?: boolean;
   foldable?: boolean;
   hingeAngle?: number | undefined;
+  dragging?: boolean;
   folding?: boolean;
   onStatusChange?: (status: ConnectionStatus) => void;
   onLivePressButtonChange?: (pressButton: ((button: "recents") => void) | null) => void;
@@ -67,51 +70,54 @@ function Screen({
         : client.status === "connecting"
           ? t`Connecting to the device…`
           : t`Waiting for the device…`;
+  const containerRef = useRef<HTMLDivElement>(null);
   const size = displayScreen(client.screen);
   const width = size?.width ?? 9;
   const height = size?.height ?? 16;
-  const halfOpen = foldable && hingeAngle !== undefined && hingeAngle > 0 && hingeAngle < 180;
+  const animatedAngle = useAnimatedHingeAngle(hingeAngle, dragging);
+  const bookOpen =
+    foldable &&
+    animatedAngle !== undefined &&
+    animatedAngle > 0 &&
+    animatedAngle < 180 &&
+    client.status === "streaming";
   return (
     <div
+      ref={containerRef}
       data-testid="device-live-preview"
       data-frame={framed ? "framed" : "flat"}
       data-hinge-angle={hingeAngle}
       data-folding={folding ? "true" : undefined}
-      className={`relative max-h-full w-full max-w-full overflow-hidden bg-black transition-[max-width,aspect-ratio,transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none [&_[role=application]:focus-visible]:ring-2 [&_[role=application]:focus-visible]:ring-inset [&_[role=application]:focus-visible]:ring-accent ${
-        framed ? "rounded-[18px] border-2 border-white/15 p-1 shadow-sm" : "rounded-lg"
+      className={`relative max-h-full w-full max-w-full transition-[max-width,aspect-ratio] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none [&_[role=application]:focus-visible]:ring-2 [&_[role=application]:focus-visible]:ring-inset [&_[role=application]:focus-visible]:ring-accent ${
+        bookOpen
+          ? "overflow-visible bg-transparent"
+          : framed
+            ? "overflow-hidden rounded-[18px] border-2 border-white/15 bg-black p-1 shadow-sm"
+            : "overflow-hidden rounded-lg bg-black"
       }`}
       style={{
         aspectRatio: `${width}/${height}`,
         maxWidth: `min(100%, calc(100cqh * ${width} / ${height}))`,
-        transform: halfOpen
-          ? "perspective(1200px) scaleX(0.95) scaleY(0.985)"
-          : folding
-            ? "perspective(1200px) scale(0.97)"
-            : "perspective(1200px) scale(1)",
       }}
     >
-      <DeviceScreen
-        client={gated}
-        interactive={control}
-        ariaLabel={
-          control
-            ? t`Interactive device preview. Tab moves to the next control; Escape closes the workspace.`
-            : t`Live device preview, view only`
-        }
-        statusLabel={status}
-        borderRadius={framed ? 14 : 8}
-      />
-      {foldable ? (
-        <div
-          aria-hidden="true"
-          data-testid="device-fold-crease"
-          className={`pointer-events-none absolute inset-y-0 left-1/2 w-8 -translate-x-1/2 transition-opacity duration-300 motion-reduce:transition-none ${
-            halfOpen || folding ? "opacity-100" : "opacity-0"
-          }`}
-          style={{
-            background:
-              "linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.22) 45%, rgba(255,255,255,0.16) 50%, rgba(0,0,0,0.26) 55%, transparent 100%)",
-          }}
+      <div className={bookOpen ? "h-full w-full opacity-0" : "h-full w-full"}>
+        <DeviceScreen
+          client={gated}
+          interactive={control}
+          ariaLabel={
+            control
+              ? t`Interactive device preview. Tab moves to the next control; Escape closes the workspace.`
+              : t`Live device preview, view only`
+          }
+          statusLabel={status}
+          borderRadius={framed ? 14 : 8}
+        />
+      </div>
+      {bookOpen ? (
+        <FoldableBookOverlay
+          sourceContainerRef={containerRef}
+          angle={animatedAngle}
+          orientation={client.screen?.orientation}
         />
       ) : null}
     </div>
@@ -124,6 +130,7 @@ export function LiveDevicePreview({
   framed = false,
   foldable = false,
   hingeAngle,
+  dragging = false,
   folding = false,
   onStatusChange,
   onLivePressButtonChange,
@@ -133,6 +140,7 @@ export function LiveDevicePreview({
   framed?: boolean;
   foldable?: boolean;
   hingeAngle?: number | undefined;
+  dragging?: boolean;
   folding?: boolean;
   onStatusChange?: (status: ConnectionStatus) => void;
   onLivePressButtonChange?: (pressButton: ((button: "recents") => void) | null) => void;
@@ -155,6 +163,7 @@ export function LiveDevicePreview({
         framed={framed}
         foldable={foldable}
         hingeAngle={hingeAngle}
+        dragging={dragging}
         folding={folding}
         {...(onStatusChange ? { onStatusChange } : {})}
         {...(onLivePressButtonChange ? { onLivePressButtonChange } : {})}

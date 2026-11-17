@@ -9724,6 +9724,10 @@ msgstr "Boşluk değişikliklerini gizle"
 msgid "High"
 msgstr "Yüksek"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Menteşe açısı"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Geçmiş"

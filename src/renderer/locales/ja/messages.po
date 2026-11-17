@@ -9723,6 +9723,10 @@ msgstr "空白の変更を非表示"
 msgid "High"
 msgstr "高"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "ヒンジ角度"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "履歴"

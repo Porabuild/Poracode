@@ -9724,6 +9724,10 @@ msgstr "隐藏空白变更"
 msgid "High"
 msgstr "高"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "铰链角度"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "历史记录"

@@ -9724,6 +9724,10 @@ msgstr "Сховати зміни пробілів"
 msgid "High"
 msgstr "Високий"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Кут шарніра"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
 msgstr "Історія"
