@@ -16498,8 +16498,8 @@ msgid "Recording"
 msgstr "녹음 중"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "5분마다 녹음이 자동으로 중지됩니다."
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "5분마다 녹음이 자동으로 중지됩니다."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."
