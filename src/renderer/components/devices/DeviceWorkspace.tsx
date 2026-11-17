@@ -1043,6 +1043,7 @@ export function DeviceWorkspace({
                       control={canInput}
                       framed={framed || depth}
                       foldable={Boolean(session.device.foldable)}
+                      activeDisplay={controlState?.activeDisplay}
                       hingeAngle={effectiveHingeAngle}
                       dragging={dragAngle !== null}
                       folding={foldingAngle !== null}

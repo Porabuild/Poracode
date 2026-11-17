@@ -15,6 +15,7 @@ function Screen({
   control,
   framed = false,
   foldable = false,
+  activeDisplay,
   hingeAngle,
   dragging = false,
   folding = false,
@@ -24,6 +25,7 @@ function Screen({
   control: boolean;
   framed?: boolean;
   foldable?: boolean;
+  activeDisplay?: "outer" | "inner" | undefined;
   hingeAngle?: number | undefined;
   dragging?: boolean;
   folding?: boolean;
@@ -77,6 +79,7 @@ function Screen({
   const animatedAngle = useAnimatedHingeAngle(hingeAngle, dragging);
   const bookOpen =
     foldable &&
+    activeDisplay === "inner" &&
     animatedAngle !== undefined &&
     animatedAngle > 0 &&
     animatedAngle < 180 &&
@@ -129,6 +132,7 @@ export function LiveDevicePreview({
   control,
   framed = false,
   foldable = false,
+  activeDisplay,
   hingeAngle,
   dragging = false,
   folding = false,
@@ -139,6 +143,7 @@ export function LiveDevicePreview({
   control: boolean;
   framed?: boolean;
   foldable?: boolean;
+  activeDisplay?: "outer" | "inner" | undefined;
   hingeAngle?: number | undefined;
   dragging?: boolean;
   folding?: boolean;
@@ -162,6 +167,7 @@ export function LiveDevicePreview({
         control={control}
         framed={framed}
         foldable={foldable}
+        activeDisplay={activeDisplay}
         hingeAngle={hingeAngle}
         dragging={dragging}
         folding={folding}
