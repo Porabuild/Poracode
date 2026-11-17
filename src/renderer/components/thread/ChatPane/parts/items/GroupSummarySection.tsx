@@ -18,7 +18,7 @@ export function GroupSummarySection({
   const diffLabel = formatDiffSummaryLabel(section.diffSummary, { animated: true });
   return (
     <span className="flex shrink-0 items-center gap-1">
-      <section.Icon className="size-3" />
+      <section.Icon className="size-3 shrink-0 text-[color:var(--muted)]" />
       <code className="font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)]">
         <AnimatedNumber value={section.count} />{" "}
         {/* A text mask around NumberFlow's shadow DOM can paint the label off
