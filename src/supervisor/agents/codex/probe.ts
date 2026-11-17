@@ -112,15 +112,15 @@ const PREFERRED_CODEX_DEFAULT_MODEL = "gpt-5.5";
  * Build a human-friendly label from a Codex model entry.
  *
  * When the server returns a `displayName` that looks like a raw model ID
- * (e.g. "gpt-5.4-mini", "GPT-5.4-Mini"), strip the "gpt-" prefix and
+ * (e.g. "gpt-5.4-mini", "GPT-5.4 Mini"), strip the "gpt-" prefix and
  * title-case dash-separated segments so the UI shows "5.4 Mini".
  *
  * If the `displayName` is meaningfully different from the `id`, use it
  * as-is (the server provided a curated label).
  */
 export function humanizeCodexModelName(id: string, displayName: string): string {
-  // If the displayName differs from the id in more than just casing, trust it
-  if (displayName.toLowerCase() !== id.toLowerCase()) {
+  // Casing and spaces between segments do not make a curated label.
+  if (displayName.trim().toLowerCase().replace(/\s+/g, "-") !== id.toLowerCase()) {
     return displayName;
   }
 
