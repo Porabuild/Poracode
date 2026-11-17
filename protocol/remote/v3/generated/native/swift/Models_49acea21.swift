@@ -126,7 +126,26 @@ public struct ProcedurehexVoiceRequestU2DOptionU2D10_313744588c: Codable, Sendab
   }
 }
 
-public struct ProcedurehexVoiceRequestU2DOptionU2D11_27790e6c42: Codable, Sendable, RemoteModelMetadata {
+public enum ProcedurehexVoiceRequestU2DOptionU2D11U2DAction_20dba249c2: String, Codable, Sendable {
+  case `wait` = "wait"
+}
+
+public struct ProcedurehexVoiceRequestU2DOptionU2D11_cf78c688ea: Codable, Sendable, RemoteModelMetadata {
+  public var action: ProcedurehexVoiceRequestU2DOptionU2D11U2DAction_20dba249c2
+  public var id: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "action", typeName: "ProcedurehexVoiceRequestU2DOptionU2D11U2DAction_20dba249c2", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format: "uuid", semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case action = "action"
+    case id = "id"
+  }
+}
+
+public struct ProcedurehexVoiceRequestU2DOptionU2D12_27790e6c42: Codable, Sendable, RemoteModelMetadata {
   public var action: ProcedurecontrolMcpAppRequestU2DActionU2DOptionU2D5U2DType_482c928271
   public var id: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
@@ -318,7 +337,7 @@ public struct ProcedurehexVoiceRequestU2DOptionU2D9_5ffdb22692: Codable, Sendabl
   }
 }
 
-public enum ProcedurehexVoiceRequest_2ae8d538fe: Codable, Sendable {
+public enum ProcedurehexVoiceRequest_f14fd28613: Codable, Sendable {
   case option1(ProcedurehexVoiceRequestU2DOptionU2D1_929ff57e13)
   case option2(ProcedurehexVoiceRequestU2DOptionU2D2_fee1e07039)
   case option3(ProcedurehexVoiceRequestU2DOptionU2D3_475f45061f)
@@ -329,10 +348,11 @@ public enum ProcedurehexVoiceRequest_2ae8d538fe: Codable, Sendable {
   case option8(ProcedurehexVoiceRequestU2DOptionU2D8_5a9666a2c5)
   case option9(ProcedurehexVoiceRequestU2DOptionU2D9_5ffdb22692)
   case option10(ProcedurehexVoiceRequestU2DOptionU2D10_313744588c)
-  case option11(ProcedurehexVoiceRequestU2DOptionU2D11_27790e6c42)
+  case option11(ProcedurehexVoiceRequestU2DOptionU2D11_cf78c688ea)
+  case option12(ProcedurehexVoiceRequestU2DOptionU2D12_27790e6c42)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, ProcedurehexVoiceRequest_2ae8d538fe)] = []
+    var matches: [(Int, ProcedurehexVoiceRequest_f14fd28613)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "action", literals: [.string("setup")]), let value = try? container.decode(ProcedurehexVoiceRequestU2DOptionU2D1_929ff57e13.self) {
       matches.append((1, .option1(value)))
     }
@@ -363,12 +383,15 @@ public enum ProcedurehexVoiceRequest_2ae8d538fe: Codable, Sendable {
     if RemoteUnionProbe.matchesProperty(decoder, property: "action", literals: [.string("status")]), let value = try? container.decode(ProcedurehexVoiceRequestU2DOptionU2D10_313744588c.self) {
       matches.append((10, .option10(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "action", literals: [.string("cancel")]), let value = try? container.decode(ProcedurehexVoiceRequestU2DOptionU2D11_27790e6c42.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "action", literals: [.string("wait")]), let value = try? container.decode(ProcedurehexVoiceRequestU2DOptionU2D11_cf78c688ea.self) {
       matches.append((11, .option11(value)))
     }
+    if RemoteUnionProbe.matchesProperty(decoder, property: "action", literals: [.string("cancel")]), let value = try? container.decode(ProcedurehexVoiceRequestU2DOptionU2D12_27790e6c42.self) {
+      matches.append((12, .option12(value)))
+    }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched ProcedurehexVoiceRequest_2ae8d538fe" : "Ambiguous union ProcedurehexVoiceRequest_2ae8d538fe matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(ProcedurehexVoiceRequest_2ae8d538fe.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched ProcedurehexVoiceRequest_f14fd28613" : "Ambiguous union ProcedurehexVoiceRequest_f14fd28613 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(ProcedurehexVoiceRequest_f14fd28613.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -386,6 +409,7 @@ public enum ProcedurehexVoiceRequest_2ae8d538fe: Codable, Sendable {
     case .option9(let value): try container.encode(value)
     case .option10(let value): try container.encode(value)
     case .option11(let value): try container.encode(value)
+    case .option12(let value): try container.encode(value)
     }
   }
 }

@@ -4562,6 +4562,7 @@ msgstr "关闭工作流"
 msgid "Close workflows panel"
 msgstr "关闭工作流面板"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -5904,6 +5905,10 @@ msgstr "创建文件"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "创建分支"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "创建 iPhone Duo"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -8971,6 +8976,15 @@ msgstr "聚焦应用内浏览器地址栏"
 msgid "Focus window"
 msgstr "切换到窗口"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "折叠控制"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "可折叠"
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
@@ -9001,6 +9015,10 @@ msgstr "存放所有工作树的文件夹。提示：在此使用 Dev Drive 可�
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "存放此项目工作树的文件夹。重置以使用全局设置。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "此主机上无法折叠。"
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -9556,6 +9574,10 @@ msgstr "指南步骤"
 msgid "Guide writer"
 msgstr "指南编写代理"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "半开"
+
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
 msgstr "移交给其他负责人…"
@@ -9802,6 +9824,10 @@ msgstr "隐藏空白变更"
 #: src/renderer/components/common/effortLabel.ts
 msgid "High"
 msgstr "高"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "铰链角度"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
@@ -10302,6 +10328,10 @@ msgstr "初始重试延迟（秒）"
 msgid "Initialize Repository"
 msgstr "初始化存储库"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "内屏"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "输入"
@@ -10355,8 +10385,8 @@ msgid "Inspect"
 msgstr "检查"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "检查并控制连接到此对话的模拟器或仿真器。"
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "检查并控制连接到此对话的模拟器或仿真器。"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10783,6 +10813,10 @@ msgstr "iPhone 15 Pro"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "此主机上不可用 iPhone Duo。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
@@ -14194,6 +14228,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "你只能编辑此拉取请求中自己的评论。"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -14649,6 +14684,10 @@ msgstr "以仅查看方式打开"
 msgid "Open with control"
 msgstr "以控制方式打开"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "在面板中打开、检查和控制 iOS 模拟器（包括可折叠的 iPhone Duo）和 Android 模拟器。"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14794,6 +14833,10 @@ msgstr "已过时"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "已过时：此草稿创建后拉取请求已发生更改。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "外屏"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
@@ -16676,8 +16719,8 @@ msgid "Recording"
 msgstr "录音"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "录音在五分钟后自动停止。"
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "录音在五分钟后自动停止。"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."

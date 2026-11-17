@@ -5,6 +5,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { DeviceSession } from "@/shared/deviceWorkspace";
 import { RemoteClientError } from "@/shared/remote/client";
 import { DeviceWorkspace } from "./DeviceWorkspace";
+import { useAgentDevicePanelAutoOpen } from "./useAgentDevicePanelAutoOpen";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { PANEL_EXIT_DURATION_MS } from "@/renderer/components/layout/panelMotion";
@@ -20,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   deviceFrame: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   inspectDevice: vi.fn<() => Promise<unknown>>(),
   deviceAction: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({})),
+  createDuoDevice: vi.fn<() => Promise<unknown>>(),
+  adoptDeviceSession: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => null),
   openDevicePreview: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   closeDevicePreview: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
   devicePreviewBaseUrl: () => "https://device-fixture.example/bound-preview",
@@ -128,6 +131,7 @@ function setup() {
   });
   mocks.inspectDevice.mockResolvedValue({ text: "<hierarchy/>" });
   mocks.deviceAction.mockResolvedValue({});
+  mocks.adoptDeviceSession.mockResolvedValue(null);
   mocks.closeDevicePreview.mockResolvedValue();
 }
 
@@ -202,6 +206,66 @@ async function openDeviceWithControl() {
 
 async function attachControl() {
   await openDeviceWithControl();
+}
+
+const duoDevice = {
+  id: "ios:duo",
+  name: "iPhone Duo",
+  platform: "ios",
+  state: "running",
+  input: true,
+  accessibility: true,
+  foldable: true,
+  controls: {
+    version: 1,
+    bootId: "11111111-1111-4111-8111-111111111111",
+    actions: ["read", "fold"],
+  },
+} as const;
+
+/** Foldable inventory + attach, with the host reporting the last fold on read. */
+function setupDuo() {
+  setup();
+  let hingeAngle = 0;
+  const controls = () => ({
+    controls: {
+      version: 1,
+      hingeAngle,
+      activeDisplay: hingeAngle === 0 ? "outer" : "inner",
+    },
+  });
+  mocks.deviceInventory.mockResolvedValue({
+    version: 1,
+    generation,
+    platforms: [
+      {
+        platform: "ios",
+        status: "ready",
+        foldableRuntimeAvailable: true,
+        foldableDeviceExists: true,
+      },
+    ],
+    devices: [duoDevice],
+  });
+  mocks.attachDevice.mockImplementation(async (_threadId, input) => ({
+    version: 1,
+    id: "lease-1",
+    generation,
+    threadId: "host-thread",
+    device: duoDevice,
+    expiresAt: Date.now() + 60000,
+    ...(input as Pick<DeviceSession, "access" | "agentAccess">),
+  }));
+  mocks.deviceAction.mockImplementation(async (...args: unknown[]) => {
+    const control = (args[2] as { control?: { type: string; angle?: number } }).control;
+    if (control?.type === "fold") hingeAngle = control.angle ?? hingeAngle;
+    return control ? controls() : {};
+  });
+  return {
+    setHingeAngle(angle: number) {
+      hingeAngle = angle;
+    },
+  };
 }
 
 async function reattach() {
@@ -1106,5 +1170,372 @@ describe("device workspace UI", () => {
     const fallbackButtons = screen.getAllByRole("button", { name: "Use snapshots" });
     fireEvent.click(fallbackButtons[fallbackButtons.length - 1]!);
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
+  it("folds from the controls under the device and labels the current pose", async () => {
+    setupDuo();
+    render(<Workspace />);
+    expect(await screen.findByText(/Foldable/)).toBeTruthy();
+    await attachControl();
+    expect(screen.getByTestId("device-controls-fold")).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.getByTestId("device-fold-pose").textContent).toBe("Closed · Outer display"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() =>
+      expect(mocks.deviceAction).toHaveBeenCalledWith("host-thread", "lease-1", {
+        kind: "control",
+        version: 1,
+        control: { type: "fold", angle: 180 },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("device-fold-pose").textContent).toBe("Open · Inner display"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Half open" }));
+    await waitFor(() =>
+      expect(mocks.deviceAction).toHaveBeenCalledWith("host-thread", "lease-1", {
+        kind: "control",
+        version: 1,
+        control: { type: "fold", angle: 90 },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("device-fold-pose").textContent).toBe("Half open · Inner display"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Closed" }));
+    await waitFor(() =>
+      expect(mocks.deviceAction).toHaveBeenCalledWith("host-thread", "lease-1", {
+        kind: "control",
+        version: 1,
+        control: { type: "fold", angle: 0 },
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("device-fold-pose").textContent).toBe("Closed · Outer display"),
+    );
+
+    const slider = screen.getByRole("slider", { name: "Hinge angle" }) as HTMLInputElement;
+    expect(slider.min).toBe("0");
+    expect(slider.max).toBe("180");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    fireEvent.keyDown(document.body, { key: "Tab" });
+    act(() => slider.focus());
+    await waitFor(() =>
+      expect(screen.getByRole("tooltip").textContent).toBe("Closed · Outer display"),
+    );
+    fireEvent.change(slider, { target: { value: "65" } });
+    expect(screen.getByTestId("device-fold-pose").textContent).toBe("65° · Outer display");
+    expect(screen.getByTestId("device-fold-pose").className).toContain("sr-only");
+    await waitFor(() =>
+      expect(screen.getByRole("tooltip").textContent).toBe("65° · Outer display"),
+    );
+    fireEvent.keyUp(slider);
+    fireEvent.blur(slider);
+  });
+
+  it("refreshes the pose when the shared session is folded outside the panel", async () => {
+    const duo = setupDuo();
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      render(<Workspace />);
+      await attachControl();
+      await waitFor(() =>
+        expect(screen.getByTestId("device-fold-pose").textContent).toBe("Closed · Outer display"),
+      );
+      // The agent folds the same session; the periodic quiet re-read must
+      // pick it up without a panel interaction or re-attach.
+      duo.setHingeAngle(180);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(screen.getByTestId("device-fold-pose").textContent).toBe("Open · Inner display");
+    expect(screen.getByTestId("device-fold-pose").getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("explains when a foldable device has no fold controls on this host", async () => {
+    setup();
+    mocks.deviceInventory.mockResolvedValue({
+      version: 1,
+      generation,
+      platforms: [{ platform: "ios", status: "ready" }],
+      devices: [{ ...duoDevice, controls: undefined }],
+    });
+    mocks.attachDevice.mockImplementation(async (_threadId, input) => ({
+      version: 1,
+      id: "lease-1",
+      generation,
+      threadId: "host-thread",
+      device: { ...duoDevice, controls: undefined },
+      expiresAt: Date.now() + 60000,
+      ...(input as Pick<DeviceSession, "access" | "agentAccess">),
+    }));
+    render(<Workspace />);
+    await attachControl();
+    expect(screen.queryByTestId("device-controls-fold")).toBeNull();
+    expect(screen.getByTestId("device-fold-unavailable").textContent).toContain(
+      "Folding is unavailable on this host.",
+    );
+  });
+
+  it("labels the active display before any hinge angle is known", async () => {
+    setupDuo();
+    // A fresh helper generation cannot report the angle yet; the pose label
+    // falls back to the lit display instead of staying blank.
+    mocks.deviceAction.mockImplementation(async (...args: unknown[]) => {
+      const control = (args[2] as { control?: { type: string } }).control;
+      return control ? { controls: { version: 1, activeDisplay: "outer" } } : {};
+    });
+    render(<Workspace />);
+    await attachControl();
+    await waitFor(() =>
+      expect(screen.getByTestId("device-fold-pose").textContent).toBe("Outer display"),
+    );
+  });
+
+  it("hides fold controls when fold is not advertised", async () => {
+    setup();
+    render(<Workspace />);
+    await attachControl();
+    expect(screen.queryByTestId("device-controls-fold")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open" })).toBeNull();
+  });
+
+  it("disables fold controls in a view-only session without reading pose", async () => {
+    setupDuo();
+    render(<Workspace />);
+    fireEvent.click(await screen.findByText("iPhone Duo"));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Home" })).toHaveProperty("disabled", true),
+    );
+    expect(screen.getByRole("button", { name: "Open" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Closed" })).toHaveProperty("disabled", true);
+    expect(screen.queryByTestId("device-fold-pose")).toBeNull();
+    expect(mocks.deviceAction).not.toHaveBeenCalled();
+  });
+
+  it("keeps the live preview connected across folds without tearing down the stream", async () => {
+    setupDuo();
+    mocks.environment.mockResolvedValue({
+      capabilities: {
+        deviceWorkspace: { versions: [1], livePreview: { versions: [1], modes: ["h264"] } },
+      },
+    });
+    let previews = 0;
+    mocks.openDevicePreview.mockImplementation(async () => ({
+      version: 1,
+      id: `preview-${++previews}`,
+      sessionId: "lease-1",
+      generation,
+      platform: "ios",
+      clientDeviceId: "ios-duo-fixture",
+      access: "control",
+      mode: "h264",
+      expiresAt: Date.now() + 60000,
+    }));
+    render(<Workspace />);
+    await attachControl();
+    expect(await screen.findByRole("button", { name: "Fixture live input" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+    expect(mocks.openDevicePreview).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() =>
+      expect(screen.getByTestId("device-fold-pose").textContent).toBe("Open · Inner display"),
+    );
+    expect(mocks.openDevicePreview).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("button", { name: "Fixture live input" })).toBeTruthy();
+    expect(screen.queryByTestId("device-live-error")).toBeNull();
+  });
+
+  it("creates an iPhone Duo when a Duo runtime is installed but no device exists", async () => {
+    setup();
+    mocks.deviceInventory.mockResolvedValue({
+      version: 1,
+      generation,
+      platforms: [
+        {
+          platform: "ios",
+          status: "ready",
+          foldableRuntimeAvailable: true,
+          foldableDeviceExists: false,
+        },
+      ],
+      devices: [],
+    });
+    mocks.createDuoDevice.mockResolvedValue({
+      version: 1,
+      generation,
+      platforms: [
+        {
+          platform: "ios",
+          status: "ready",
+          foldableRuntimeAvailable: true,
+          foldableDeviceExists: true,
+        },
+      ],
+      devices: [duoDevice],
+    });
+    render(<Workspace />);
+    fireEvent.click(await screen.findByRole("button", { name: /Create iPhone Duo/ }));
+    await waitFor(() => expect(mocks.createDuoDevice).toHaveBeenCalledOnce());
+    expect(await screen.findByText("iPhone Duo")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Create iPhone Duo/ })).toBeNull();
+  });
+
+  it("shows the Duo diagnostic instead of creation when no Duo runtime is installed", async () => {
+    setup();
+    mocks.deviceInventory.mockResolvedValue({
+      version: 1,
+      generation,
+      platforms: [
+        {
+          platform: "ios",
+          status: "ready",
+          diagnostic:
+            "iPhone Duo needs Xcode 27.1 or newer with its own iOS runtime, installed from Xcode Settings > Components.",
+          foldableRuntimeAvailable: false,
+          foldableDeviceExists: false,
+        },
+      ],
+      devices: [],
+    });
+    render(<Workspace />);
+    expect(await screen.findByText("iPhone Duo is unavailable on this host.")).toBeTruthy();
+    expect(screen.getByText(/Xcode Settings > Components/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Create iPhone Duo/ })).toBeNull();
+  });
+
+  it("renders a device opened by the agent without a local attach and detaches it", async () => {
+    setup();
+    let agentLeaseLive = true;
+    mocks.adoptDeviceSession.mockImplementation(async () =>
+      agentLeaseLive
+        ? {
+            version: 1,
+            id: "agent-lease-1",
+            generation,
+            threadId: "host-thread",
+            device,
+            access: "control",
+            agentAccess: "control",
+            expiresAt: Date.now() + 60000,
+          }
+        : null,
+    );
+    mocks.detachDevice.mockImplementation(async () => {
+      agentLeaseLive = false;
+    });
+    render(<Workspace />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Detach" })).toBeTruthy());
+    expect(mocks.attachDevice).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Home" })).toHaveProperty("disabled", false),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Detach" }));
+    await waitFor(() =>
+      expect(mocks.detachDevice).toHaveBeenCalledWith("host-thread", "agent-lease-1"),
+    );
+    expect(await screen.findByRole("button", { name: "Refresh devices" })).toBeTruthy();
+  });
+
+  it("updates pose when an external fold switches the active display without tearing down live preview", async () => {
+    const duo = setupDuo();
+    mocks.environment.mockResolvedValue({
+      capabilities: {
+        deviceWorkspace: { versions: [1], livePreview: { versions: [1], modes: ["h264"] } },
+      },
+    });
+    let previews = 0;
+    mocks.openDevicePreview.mockImplementation(async () => ({
+      version: 1,
+      id: `preview-${++previews}`,
+      sessionId: "lease-1",
+      generation,
+      platform: "ios",
+      clientDeviceId: "ios-duo-fixture",
+      access: "control",
+      mode: "h264",
+      expiresAt: Date.now() + 60000,
+    }));
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      render(<Workspace />);
+      await attachControl();
+      await waitFor(() => expect(mocks.openDevicePreview).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(screen.getByTestId("device-fold-pose").textContent).toBe("Closed · Outer display"),
+      );
+      duo.setHingeAngle(180);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(screen.getByTestId("device-fold-pose").textContent).toBe("Open · Inner display");
+    expect(mocks.openDevicePreview).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto-opens the Devices panel and adopts the session when a working thread opens a device", async () => {
+    setupDuo();
+    const agentSession: DeviceSession = {
+      version: 1,
+      id: "agent-auto-1",
+      generation,
+      threadId: "host-thread",
+      device: {
+        ...duoDevice,
+        controls: { ...duoDevice.controls, actions: [...duoDevice.controls.actions] },
+      },
+      access: "control",
+      agentAccess: "control",
+      expiresAt: Date.now() + 60000,
+    };
+    mocks.adoptDeviceSession.mockResolvedValue(agentSession);
+    useAppStore.setState({
+      view: { kind: "thread", panes: ["local-thread"] },
+      focusedPaneId: "local-thread",
+      threads: [
+        {
+          id: "local-thread",
+          projectId: "proj-1",
+          title: "Test",
+          agentKind: "claude",
+          status: "working",
+          createdAt: 1,
+          updatedAt: 1,
+        } as never,
+      ],
+    });
+    usePanelStore.setState({
+      deviceWorkspaceThreadId: null,
+      rightPanelTab: "git",
+      pendingAdoptedDeviceSession: null,
+    });
+    function Harness() {
+      const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null);
+      useAgentDevicePanelAutoOpen(true);
+      const openThread = usePanelStore((s) => s.deviceWorkspaceThreadId);
+      return (
+        <div>
+          <div ref={setActionsTarget} />
+          {openThread ? (
+            <DeviceWorkspace threadId={openThread} visible actionsTarget={actionsTarget} />
+          ) : null}
+        </div>
+      );
+    }
+    render(<Harness />);
+    await waitFor(() =>
+      expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("local-thread"),
+    );
+    expect(usePanelStore.getState().rightPanelTab).toBe("devices");
+    expect(await screen.findByRole("button", { name: "Detach" })).toBeTruthy();
+    expect(await screen.findByTestId("device-controls-fold")).toBeTruthy();
   });
 });

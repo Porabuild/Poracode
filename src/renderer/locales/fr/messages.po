@@ -4562,6 +4562,7 @@ msgstr "Fermer les workflows"
 msgid "Close workflows panel"
 msgstr "Fermer le panneau des workflows"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -5904,6 +5905,10 @@ msgstr "Créer un fichier"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "Créer une branche"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "Créer un iPhone Duo"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -8971,6 +8976,15 @@ msgstr "Accéder à la barre d'adresse du navigateur dans l'application"
 msgid "Focus window"
 msgstr "Activer la fenêtre"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "Commandes de pliage"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "Pliable"
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
@@ -9001,6 +9015,10 @@ msgstr "Dossier qui contient tous les arbres de travail. Astuce : un Dev Drive i
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Dossier qui contient les arbres de travail de ce projet. Réinitialisez pour utiliser le paramètre global."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "Le pliage n’est pas disponible sur cet hôte."
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -9556,6 +9574,10 @@ msgstr "Étapes du guide"
 msgid "Guide writer"
 msgstr "Rédacteur du guide"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "Entrouvert"
+
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
 msgstr "Passer à un autre responsable…"
@@ -9802,6 +9824,10 @@ msgstr "Masquer les modifications d'espaces"
 #: src/renderer/components/common/effortLabel.ts
 msgid "High"
 msgstr "Élevé"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Angle de charnière"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
@@ -10302,6 +10328,10 @@ msgstr "Délai initial avant nouvelle tentative en secondes"
 msgid "Initialize Repository"
 msgstr "Initialiser le dépôt"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "Écran intérieur"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "Entrée"
@@ -10355,8 +10385,8 @@ msgid "Inspect"
 msgstr "Inspecter"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "Inspectez et contrôlez le simulateur ou l’émulateur connecté à ce fil."
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "Inspectez et contrôlez le simulateur ou l’émulateur connecté à ce fil."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10783,6 +10813,10 @@ msgstr "iPhone 15 Pro"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "iPhone Duo n’est pas disponible sur cet hôte."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
@@ -14194,6 +14228,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "Vous ne pouvez modifier que vos propres commentaires sur cette demande de fusion."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -14649,6 +14684,10 @@ msgstr "Ouvrir en consultation seule"
 msgid "Open with control"
 msgstr "Ouvrir pour contrôler"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "Ouvrir, inspecter et contrôler les simulateurs iOS (y compris l’iPhone Duo pliable) et les émulateurs Android dans le panneau."
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14794,6 +14833,10 @@ msgstr "Obsolète"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "Obsolète : la pull request a changé après la rédaction de ceci."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "Écran extérieur"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
@@ -16676,8 +16719,8 @@ msgid "Recording"
 msgstr "enregistrement"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "L'enregistrement s'arrête automatiquement au bout de cinq minutes."
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "L'enregistrement s'arrête automatiquement au bout de cinq minutes."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."

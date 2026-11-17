@@ -105,24 +105,29 @@ describe("remote v3 native binding generator", () => {
         // Remote agent management exposes ACP install/remove/auth/logout/account resolution.
         // Optional period activity snapshots (`recent`) on ProfileCoreStats and ProfileTokenStats
         // add five structural types and move only the source hash while keeping older hosts valid.
+        // Hex completion waiting adds two structural types and one Swift shard.
+        // The additive device-create-duo route and optional foldable fields
+        // regenerate both authority hashes and the native mirrors.
+        // The additive device-adopt-session route (renderer adoption of an
+        // agent-opened lease) does the same.
         // Cross-environment memory sync adds one operate-scoped route and its request/response roots.
-        sourceHash: "sha256:b1cb84520565813d9b5177faa0a06faf76181902e3365086acea65911bef701d",
-        manifestHash: "sha256:a37dd28dab3224e0f0d21dcfb84bee0103a0dd08e3a01cfd23f304e2e2bb5221",
+        sourceHash: "sha256:eb74df5bd3469525ea0a6dec504af7bab256c521a04a9c6e19f84928670f4fe5",
+        manifestHash: "sha256:c77ded8053e44afa1792ddf07f3d229c964ea77b121277fb54b39febaab33334",
         counts: {
-          routes: 122,
+          routes: 124,
           procedures: 179,
           voidProcedureResults: 66,
           jsonProcedureResults: 113,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 581,
-          structuralTypes: 1372,
+          schemaRoots: 584,
+          structuralTypes: 1380,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 151,
-          kotlinFiles: 128,
+          swiftFiles: 152,
+          kotlinFiles: 129,
           stateMachines: 5,
         },
       });
@@ -396,7 +401,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(581);
+        expect(adapters).toHaveLength(584);
         expect(
           adapters
             .map((adapter) => adapter.id)

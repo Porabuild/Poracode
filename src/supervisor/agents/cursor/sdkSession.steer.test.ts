@@ -25,6 +25,73 @@ async function running(worker = new FakeWorker()) {
 }
 
 describe("Cursor SDK native steering", () => {
+  it("acknowledges retained inputs in order before a slow steering reply or run completion", async () => {
+    const { session, worker, recorded, completion } = await running();
+    const acknowledgement = deferred<CursorSdkWorkerSteerResult>();
+    worker.steer.mockReturnValueOnce(acknowledgement.promise);
+    const admitted: string[] = [];
+    const first = session.steerTurn("first input", baseConfig, undefined, {
+      userMessageItemId: "first-steer",
+      onPromptSubmitted: () => admitted.push("first"),
+    });
+    const second = session.steerTurn("new effort", { ...baseConfig, effort: "medium" }, undefined, {
+      userMessageItemId: "second-steer",
+      onPromptSubmitted: () => admitted.push("second"),
+    });
+    try {
+      await vi.waitFor(() => expect(admitted).toEqual(["first", "second"]));
+      expect(worker.start).toHaveBeenCalledOnce();
+      expect(worker.steer).toHaveBeenCalledOnce();
+      expect(recorded.updates.at(-1)?.status).toBe("working");
+      expect(
+        recorded.events.flatMap((event) =>
+          event.type === "item.started" && event.itemType === "user_message" ? [event.itemId] : [],
+        ),
+      ).toEqual(["first-steer", "second-steer"]);
+
+      acknowledgement.resolve("complete_delivered");
+      await first;
+      worker.start.mockResolvedValueOnce({ runId: "run-2" });
+      worker.emit(resultEvent());
+      await Promise.all([completion, second]);
+      expect(admitted).toEqual(["first", "second"]);
+      expect(worker.start.mock.calls.map(([input]) => input.message)).toEqual([
+        "initial",
+        "new effort",
+      ]);
+      worker.emit(resultEvent("finished", "run-2"));
+    } finally {
+      acknowledgement.resolve("complete_delivered");
+      await session.dispose();
+      await Promise.allSettled([first, second, completion]);
+    }
+  });
+
+  it("rejects preparation failure without acknowledging or waiting for earlier delivery", async () => {
+    const { session, worker, completion } = await running();
+    const acknowledgement = deferred<CursorSdkWorkerSteerResult>();
+    worker.steer.mockReturnValueOnce(acknowledgement.promise);
+    const first = session.steerTurn("pending input", baseConfig);
+    await vi.waitFor(() => expect(worker.steer).toHaveBeenCalledOnce());
+    const onPromptSubmitted = vi.fn<() => void>();
+    try {
+      await expect(
+        session.steerTurn(
+          "missing image",
+          baseConfig,
+          [{ kind: "attachment", path: "tmp/nonexistent-steer-image.png", mimeType: "image/png" }],
+          { onPromptSubmitted },
+        ),
+      ).rejects.toThrow("ENOENT");
+      expect(onPromptSubmitted).not.toHaveBeenCalled();
+      expect(worker.start).toHaveBeenCalledOnce();
+    } finally {
+      acknowledgement.resolve("complete_delivered");
+      await session.dispose();
+      await Promise.allSettled([first, completion]);
+    }
+  });
+
   it.each(["stop", "force-complete"])(
     "acknowledges %s after run completion while a steer is still pending",
     async (action) => {

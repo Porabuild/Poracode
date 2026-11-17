@@ -45,6 +45,7 @@ export const DEVICE_PREVIEW_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, PreviewR
         body,
         signal,
       );
+      call.ctx.options.deviceWorkspace!.renew(...owner(call));
       return preview.current();
     }),
   "device-preview-renew": (call) =>

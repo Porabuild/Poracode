@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:bf05192c043bfd54047e65c538b7b0a19f83f29b04e44f68227852cb22eabcd8",
-  "keyCount": 357,
+  "manifestHash": "sha256:c9146c937f578c37d8ac490db666fe60847e89caeaa5002f4deee9bce9b2ff10",
+  "keyCount": 359,
   "counts": {
-    "route": 122,
+    "route": 124,
     "procedure": 179,
     "ws-client": 11,
     "ws-server": 12,
@@ -834,9 +834,17 @@
       "kind": "route",
       "id": "device-action"
     },
+    "route:device-adopt-session": {
+      "kind": "route",
+      "id": "device-adopt-session"
+    },
     "route:device-attach": {
       "kind": "route",
       "id": "device-attach"
+    },
+    "route:device-create-duo": {
+      "kind": "route",
+      "id": "device-create-duo"
     },
     "route:device-detach": {
       "kind": "route",

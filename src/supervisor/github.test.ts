@@ -1972,7 +1972,9 @@ on:
         workflows: [{ id: 11, name: "CI", path: ".github/workflows/ci.yml", state: "active" }],
       });
       expect(execFileAsyncMock).toHaveBeenCalledTimes(1);
-      expect(envOf(execFileAsyncMock.mock.calls[0]!)?.GH_TOKEN).toBeUndefined();
+      // The default account inherits the caller's token, if any. Compare the
+      // values without printing a real token when the assertion fails.
+      expect(envOf(execFileAsyncMock.mock.calls[0]!)?.GH_TOKEN === process.env.GH_TOKEN).toBe(true);
     });
 
     it("detects the account that sees the repo when the active account 404s", async () => {

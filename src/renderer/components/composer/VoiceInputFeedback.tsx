@@ -1,8 +1,9 @@
-import { Popover } from "@heroui/react";
+import { Popover, Tooltip } from "@heroui/react";
 import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 import { usePanelStore } from "@/renderer/state/panelStore";
 
 export interface VoiceInputFailure {
@@ -23,23 +24,40 @@ export function VoiceInputFeedback({
 }) {
   const { t } = useLingui();
   const [open, setOpen] = useState(true);
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && !failure.canRetry) {
+      onDiscard();
+      return;
+    }
+    setOpen(nextOpen);
+  };
   return (
-    <Popover isOpen={open} onOpenChange={setOpen}>
-      <Button
-        isIconOnly
-        aria-label={t`Voice input needs attention`}
-        size="sm"
-        variant="ghost"
-        className="text-danger"
-      >
-        <AlertCircle className="size-4" />
-      </Button>
-      <Popover.Content placement="top" className="w-80 max-w-[calc(100vw-2rem)] p-3">
-        <Popover.Dialog>
-          <Popover.Heading className="text-sm font-medium">
+    <Popover isOpen={open} onOpenChange={handleOpenChange}>
+      <Tooltip delay={300} isDisabled={open}>
+        <Tooltip.Trigger tabIndex={-1} role="none" className="inline-flex">
+          <Button
+            isIconOnly
+            aria-label={t`Voice input needs attention`}
+            size="sm"
+            variant="ghost"
+            className="poracode-composer-menu min-w-9 px-2 text-danger"
+          >
+            <AlertCircle className="size-4" />
+          </Button>
+        </Tooltip.Trigger>
+        <Tooltip.Content
+          placement="top"
+          className={`${floatingGlassSurfaceClass} pointer-events-none rounded-4xl px-2.5 py-1.5 text-xs font-normal`}
+        >
+          {t`Voice input needs attention`}
+        </Tooltip.Content>
+      </Tooltip>
+      <Popover.Content placement="top end" className="w-80 max-w-[calc(100vw-2rem)] p-0">
+        <Popover.Dialog className="p-3 normal-case tracking-normal">
+          <Popover.Heading className="text-sm font-medium text-foreground">
             <Trans>Voice input needs attention</Trans>
           </Popover.Heading>
-          <p role="alert" className="mt-2 text-xs text-muted">
+          <p role="alert" className="mt-1 text-xs text-muted">
             {failure.message}
           </p>
           {failure.canRetry && (
@@ -59,6 +77,7 @@ export function VoiceInputFeedback({
             <Button
               size="sm"
               variant="ghost"
+              className="text-muted"
               onPress={() => {
                 setOpen(false);
                 usePanelStore.getState().openSettingsSection("audio");
@@ -66,7 +85,7 @@ export function VoiceInputFeedback({
             >
               <Trans>Audio settings</Trans>
             </Button>
-            <Button size="sm" variant="ghost" onPress={onDiscard}>
+            <Button size="sm" variant="ghost" className="text-muted" onPress={onDiscard}>
               {failure.canRetry ? t`Discard recording` : t`Dismiss`}
             </Button>
           </div>

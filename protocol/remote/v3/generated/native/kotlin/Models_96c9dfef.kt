@@ -442,6 +442,6 @@ data class RoutedeviceU2DActionRequestU2DOptionU2D5_a36830c34a(
 }
 
 @Serializable
-enum class RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D10U2DType_bd9ee7d624 {
-    @SerialName("launchApp") LAUNCHAPP,
+enum class RoutedeviceU2DActionRequestU2DOptionU2D6U2DKind_6c7cb6fb41 {
+    @SerialName("fold") FOLD,
 }

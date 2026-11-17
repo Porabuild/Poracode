@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Button, Spinner, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Download } from "lucide-react";
+import { RemoteClientError } from "@/shared/remote/client";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
@@ -19,14 +20,18 @@ export function RemoteHostUpdateDock({ desktopId }: { readonly desktopId: string
     status?.type === "checking" ||
     status?.type === "update-available" ||
     status?.type === "downloading";
+  const shouldRefresh =
+    isOnline && !busy && !restartingVersion && (isUpdating || status?.type === "downloaded");
 
   useEffect(() => {
-    if (!isUpdating) return;
-    const timer = setInterval(() => {
+    if (!shouldRefresh) return;
+    const refresh = () => {
       void getHostUpdateState(desktopId).catch(() => undefined);
-    }, 1_000);
+    };
+    refresh();
+    const timer = setInterval(refresh, isUpdating ? 1_000 : 10_000);
     return () => clearInterval(timer);
-  }, [desktopId, getHostUpdateState, isUpdating]);
+  }, [desktopId, getHostUpdateState, isUpdating, shouldRefresh]);
 
   if (
     !restartingVersion &&
@@ -51,7 +56,13 @@ export function RemoteHostUpdateDock({ desktopId }: { readonly desktopId: string
 
   const install = () =>
     run(async () => {
-      await installHostUpdate(desktopId);
+      try {
+        await installHostUpdate(desktopId);
+      } catch (caught) {
+        // The store clears the stale offer when the host has no pending update.
+        if (caught instanceof RemoteClientError && caught.code === "host_update_not_ready") return;
+        throw caught;
+      }
       toast.success(t`The host is restarting to install the update.`);
     });
 

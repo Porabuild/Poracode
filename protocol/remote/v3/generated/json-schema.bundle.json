@@ -26626,6 +26626,24 @@
           "additionalProperties": true,
           "properties": {
             "action": {
+              "const": "wait",
+              "type": "string"
+            },
+            "id": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "action",
+            "id"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "action": {
               "const": "cancel",
               "type": "string"
             },
@@ -26914,6 +26932,10 @@
                   "maximum": 100,
                   "minimum": 0,
                   "type": "number"
+                },
+                "supportsWait": {
+                  "const": true,
+                  "type": "boolean"
                 },
                 "transcript": {
                   "type": "string"
@@ -42231,6 +42253,11 @@
           "type": "number"
         },
         "__schema1": {
+          "maximum": 180,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "__schema2": {
           "maxLength": 255,
           "minLength": 3,
           "pattern": "^[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+$",
@@ -42363,6 +42390,24 @@
           },
           "required": [
             "kind"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "reject"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "angle": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "kind": {
+              "const": "fold",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "angle"
           ],
           "type": "object",
           "x-poracode-unknownFields": "reject"
@@ -42522,7 +42567,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "applicationId": {
-                      "$ref": "#/$defs/__schema1"
+                      "$ref": "#/$defs/__schema2"
                     },
                     "decision": {
                       "enum": [
@@ -42583,7 +42628,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "applicationId": {
-                      "$ref": "#/$defs/__schema1"
+                      "$ref": "#/$defs/__schema2"
                     },
                     "type": {
                       "const": "launchApp",
@@ -42607,6 +42652,24 @@
                   },
                   "required": [
                     "type"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "reject"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "angle": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "type": {
+                      "const": "fold",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "angle"
                   ],
                   "type": "object",
                   "x-poracode-unknownFields": "reject"
@@ -42639,6 +42702,13 @@
         "controls": {
           "additionalProperties": true,
           "properties": {
+            "activeDisplay": {
+              "enum": [
+                "outer",
+                "inner"
+              ],
+              "type": "string"
+            },
             "appearance": {
               "enum": [
                 "light",
@@ -42651,6 +42721,11 @@
               "exclusiveMinimum": 0,
               "maximum": 10,
               "type": "number"
+            },
+            "hingeAngle": {
+              "maximum": 180,
+              "minimum": 0,
+              "type": "integer"
             },
             "networkEnabled": {
               "type": "boolean"
@@ -42681,6 +42756,187 @@
       "required": [
         "version",
         "delivered"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.device-adopt-session.path": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "threadId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "threadId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.device-adopt-session.response": {
+      "$defs": {
+        "__schema0": {
+          "enum": [
+            "read",
+            "appearance",
+            "textSize",
+            "orientation",
+            "reduceMotion",
+            "network",
+            "location",
+            "permission",
+            "openUrl",
+            "launchApp",
+            "powerOff",
+            "fold"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "session": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "access": {
+                  "enum": [
+                    "view",
+                    "control"
+                  ],
+                  "type": "string"
+                },
+                "agentAccess": {
+                  "enum": [
+                    "none",
+                    "view",
+                    "control"
+                  ],
+                  "type": "string"
+                },
+                "device": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "accessibility": {
+                      "type": "boolean"
+                    },
+                    "controls": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "actions": {
+                          "items": {
+                            "$ref": "#/$defs/__schema0"
+                          },
+                          "maxItems": 16,
+                          "type": "array"
+                        },
+                        "bootId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "version": {
+                          "const": 1,
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "bootId",
+                        "actions"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "foldable": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "maxLength": 256,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "input": {
+                      "type": "boolean"
+                    },
+                    "name": {
+                      "maxLength": 256,
+                      "type": "string"
+                    },
+                    "platform": {
+                      "enum": [
+                        "ios",
+                        "android"
+                      ],
+                      "type": "string"
+                    },
+                    "state": {
+                      "enum": [
+                        "running",
+                        "stopped",
+                        "starting"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "platform",
+                    "name",
+                    "state",
+                    "input",
+                    "accessibility"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
+                "expiresAt": {
+                  "type": "number"
+                },
+                "generation": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "threadId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "version",
+                "generation",
+                "id",
+                "threadId",
+                "device",
+                "access",
+                "agentAccess",
+                "expiresAt"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "session"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -42758,7 +43014,8 @@
             "permission",
             "openUrl",
             "launchApp",
-            "powerOff"
+            "powerOff",
+            "fold"
           ],
           "type": "string"
         }
@@ -42814,6 +43071,9 @@
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
+            },
+            "foldable": {
+              "type": "boolean"
             },
             "id": {
               "maxLength": 256,
@@ -42885,6 +43145,176 @@
         "access",
         "agentAccess",
         "expiresAt"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.device-create-duo.response": {
+      "$defs": {
+        "__schema0": {
+          "additionalProperties": true,
+          "properties": {
+            "diagnostic": {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            "foldableDeviceExists": {
+              "type": "boolean"
+            },
+            "foldableRuntimeAvailable": {
+              "type": "boolean"
+            },
+            "platform": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "status": {
+              "enum": [
+                "ready",
+                "unsupported_host",
+                "missing_sdk",
+                "missing_xcode",
+                "missing_idb",
+                "unavailable"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "platform",
+            "status"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema1": {
+          "enum": [
+            "ios",
+            "android"
+          ],
+          "type": "string"
+        },
+        "__schema2": {
+          "additionalProperties": true,
+          "properties": {
+            "accessibility": {
+              "type": "boolean"
+            },
+            "controls": {
+              "additionalProperties": true,
+              "properties": {
+                "actions": {
+                  "items": {
+                    "$ref": "#/$defs/__schema3"
+                  },
+                  "maxItems": 16,
+                  "type": "array"
+                },
+                "bootId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "version": {
+                  "const": 1,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "version",
+                "bootId",
+                "actions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            "foldable": {
+              "type": "boolean"
+            },
+            "id": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "input": {
+              "type": "boolean"
+            },
+            "name": {
+              "maxLength": 256,
+              "type": "string"
+            },
+            "platform": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "state": {
+              "enum": [
+                "running",
+                "stopped",
+                "starting"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "platform",
+            "name",
+            "state",
+            "input",
+            "accessibility"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema3": {
+          "enum": [
+            "read",
+            "appearance",
+            "textSize",
+            "orientation",
+            "reduceMotion",
+            "network",
+            "location",
+            "permission",
+            "openUrl",
+            "launchApp",
+            "powerOff",
+            "fold"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "devices": {
+          "items": {
+            "$ref": "#/$defs/__schema2"
+          },
+          "maxItems": 128,
+          "type": "array"
+        },
+        "generation": {
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+          "type": "string"
+        },
+        "platforms": {
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "maxItems": 2,
+          "type": "array"
+        },
+        "version": {
+          "const": 1,
+          "type": "number"
+        }
+      },
+      "required": [
+        "version",
+        "generation",
+        "platforms",
+        "devices"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -43048,6 +43478,12 @@
               "maxLength": 2000,
               "type": "string"
             },
+            "foldableDeviceExists": {
+              "type": "boolean"
+            },
+            "foldableRuntimeAvailable": {
+              "type": "boolean"
+            },
             "platform": {
               "$ref": "#/$defs/__schema1"
             },
@@ -43111,6 +43547,9 @@
               "type": "object",
               "x-poracode-unknownFields": "strip"
             },
+            "foldable": {
+              "type": "boolean"
+            },
             "id": {
               "maxLength": 256,
               "minLength": 1,
@@ -43158,7 +43597,8 @@
             "permission",
             "openUrl",
             "launchApp",
-            "powerOff"
+            "powerOff",
+            "fold"
           ],
           "type": "string"
         }
@@ -43581,6 +44021,11 @@
         "height": {
           "$ref": "#/$defs/__schema0"
         },
+        "hingeAngle": {
+          "maximum": 180,
+          "minimum": 0,
+          "type": "number"
+        },
         "inputUnavailable": {
           "type": "boolean"
         },
@@ -43592,6 +44037,14 @@
             "landscape_right"
           ],
           "type": "string"
+        },
+        "screenId": {
+          "maximum": 64,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "supportsHingeAngle": {
+          "type": "boolean"
         },
         "width": {
           "$ref": "#/$defs/__schema0"
@@ -81974,13 +82427,13 @@
     "jsonProcedureResults": 113,
     "procedures": 179,
     "replayableEventTypes": 17,
-    "routes": 122,
+    "routes": 124,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 66,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:a37dd28dab3224e0f0d21dcfb84bee0103a0dd08e3a01cfd23f304e2e2bb5221",
+  "manifestHash": "sha256:c77ded8053e44afa1792ddf07f3d229c964ea77b121277fb54b39febaab33334",
   "protocolVersion": 14,
-  "sourceHash": "sha256:b1cb84520565813d9b5177faa0a06faf76181902e3365086acea65911bef701d"
+  "sourceHash": "sha256:eb74df5bd3469525ea0a6dec504af7bab256c521a04a9c6e19f84928670f4fe5"
 }

@@ -3,6 +3,7 @@ import type { ProjectSettingsSection } from "./projectSettings/sections";
 import { create } from "zustand";
 import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
+import type { DeviceSession } from "@/shared/deviceWorkspace";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
 import {
   commitPanelPersistMigration,
@@ -163,6 +164,7 @@ interface PanelState {
   notesPanelOpen: boolean;
   deviceWorkspaceThreadId: string | null;
   deviceWorkspaceDetached: boolean;
+  pendingAdoptedDeviceSession: { threadId: string; session: DeviceSession } | null;
   portsPanelOpen: boolean;
   sideChatPanelOpen: boolean;
   /**
@@ -231,6 +233,8 @@ interface PanelState {
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
   setDeviceWorkspaceThreadId: (threadId: string | null) => void;
+  openAdoptedDeviceWorkspace: (threadId: string, session: DeviceSession) => void;
+  consumePendingAdoptedDeviceSession: (threadId: string) => DeviceSession | null;
   setDeviceWorkspaceDetached: (detached: boolean) => void;
   setPortsPanelOpen: (v: boolean) => void;
   openPortsPanel: () => void;
@@ -349,7 +353,7 @@ function sanitizeRailOffset(value: number): number {
   return Math.max(0, Math.round(value));
 }
 
-export const usePanelStore = create<PanelState>()((set) => ({
+export const usePanelStore = create<PanelState>()((set, get) => ({
   gitReviewContext: initialPersisted
     ? (initialPersisted.gitReviewContext ?? null)
     : loadInitialGitContext(),
@@ -373,6 +377,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   notesPanelOpen: false,
   deviceWorkspaceThreadId: null,
   deviceWorkspaceDetached: false,
+  pendingAdoptedDeviceSession: null,
   portsPanelOpen: false,
   sideChatPanelOpen: false,
   threadDocksPanelOpen: false,
@@ -653,11 +658,25 @@ export const usePanelStore = create<PanelState>()((set) => ({
         : {
             deviceWorkspaceThreadId: threadId,
             deviceWorkspaceDetached: false,
+            ...(threadId === null ? { pendingAdoptedDeviceSession: null } : {}),
             ...(threadId !== null
               ? { rightPanelTab: "devices" as const }
               : releaseClosedTab(state, "devices")),
           },
     ),
+  openAdoptedDeviceWorkspace: (threadId, session) =>
+    set({
+      deviceWorkspaceThreadId: threadId,
+      deviceWorkspaceDetached: false,
+      rightPanelTab: "devices" as const,
+      pendingAdoptedDeviceSession: { threadId, session },
+    }),
+  consumePendingAdoptedDeviceSession: (threadId) => {
+    const pending = get().pendingAdoptedDeviceSession;
+    if (!pending || pending.threadId !== threadId) return null;
+    set({ pendingAdoptedDeviceSession: null });
+    return pending.session;
+  },
   setDeviceWorkspaceDetached: (detached) =>
     set((state) =>
       state.deviceWorkspaceThreadId === null

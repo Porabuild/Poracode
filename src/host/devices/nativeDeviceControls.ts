@@ -148,5 +148,11 @@ export async function runAndroidDeviceControl(
     case "powerOff":
       await run(["emu", "kill"]);
       return;
+    case "fold":
+      throw new DeviceWorkspaceError(
+        "device_control_unavailable",
+        "Fold is not available for this device.",
+        501,
+      );
   }
 }

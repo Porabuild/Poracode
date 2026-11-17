@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 
 type ExecGitFn = typeof import("../git/exec").execGit;
@@ -48,6 +48,9 @@ describe("forge and git poller coalescing", () => {
   beforeEach(() => {
     execGitMock.mockReset();
     execFileAsyncMock.mockReset();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("coalesces concurrent ForgeConnections.resolve bursts, caches within TTL, and isolates source mutations", async () => {
@@ -168,6 +171,9 @@ describe("forge and git poller coalescing", () => {
   });
 
   it("coalesces concurrent GitStatusService.getStatus and getStatusSummary calls into single git batches", async () => {
+    // This case measures calls to the mocked Git CLI, not the native helper.
+    vi.stubEnv("PORACODE_GIT_HELPER_BIN", "");
+    vi.stubEnv("PORACODE_DISABLE_GIT_HELPER", "1");
     let statusCalls = 0;
     let summaryCalls = 0;
     execGitMock.mockImplementation(async (_loc: ProjectLocation, args: readonly string[]) => {

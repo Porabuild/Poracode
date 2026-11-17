@@ -161,6 +161,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
   ],
   "app-controls": [
     "list_devices",
+    "open_device",
     "screenshot_device",
     "inspect_device",
     "control_device",

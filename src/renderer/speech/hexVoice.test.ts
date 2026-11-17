@@ -57,8 +57,9 @@ beforeEach(() => {
       kind: "job",
       job: {
         id: request.id,
+        supportsWait: true,
         phase:
-          request.action === "finish" || request.action === "status"
+          request.action === "finish" || request.action === "status" || request.action === "wait"
             ? "done"
             : request.action === "prepare"
               ? "preparing"
@@ -94,7 +95,7 @@ describe("Hex client audio", () => {
     );
     expect(
       originalHost.callRemoteProcedure.mock.calls.map(([, request]) => request.action),
-    ).toEqual(["list", "begin", "append", "finish", "cancel"]);
+    ).toEqual(["begin", "append", "finish", "cancel"]);
     expect(nextHost.callRemoteProcedure).not.toHaveBeenCalled();
   });
 
@@ -104,6 +105,136 @@ describe("Hex client audio", () => {
       code: "disconnected",
     });
     expect(call).not.toHaveBeenCalled();
+  });
+
+  it("uses the capture job for upload without a second begin or readiness round trip", async () => {
+    const session = createHexVoiceSession();
+    await session.begin("parakeet_v3", "ru", new AbortController().signal);
+    const begun = call.mock.calls[0]![0];
+    if (begun.action !== "begin") throw new Error("expected begin");
+    await expect(session.transcribe(new Float32Array([0.5]), selection())).resolves.toBe(
+      "recognized words",
+    );
+    expect(call.mock.calls.map(([request]) => request.action)).toEqual([
+      "begin",
+      "append",
+      "finish",
+      "cancel",
+    ]);
+    expect(call.mock.calls.every(([request]) => "id" in request && request.id === begun.id)).toBe(
+      true,
+    );
+  });
+
+  it("cancels an abandoned capture and permits a fresh recording", async () => {
+    const session = createHexVoiceSession();
+    await session.begin("parakeet_v3", "ru", new AbortController().signal);
+    await session.cancel();
+    await session.transcribe(new Float32Array([0.5]), selection());
+    expect(call.mock.calls.map(([request]) => request.action)).toEqual([
+      "begin",
+      "cancel",
+      "begin",
+      "append",
+      "finish",
+      "cancel",
+    ]);
+  });
+
+  it("does not hold a legacy host's short upload lease while recording", async () => {
+    vi.useFakeTimers();
+    const original = call.getMockImplementation()!;
+    call.mockImplementation(async (request) => {
+      const response = await original(request);
+      if (response.kind !== "job") return response;
+      const job = { ...response.job };
+      delete job.supportsWait;
+      return { kind: "job", job };
+    });
+    const session = createHexVoiceSession();
+    await session.begin("parakeet_v3", "ru", new AbortController().signal);
+    expect(call.mock.calls.map(([request]) => request.action)).toEqual(["begin", "cancel"]);
+    await vi.advanceTimersByTimeAsync(70_000);
+    await expect(session.transcribe(new Float32Array([0.5]), selection())).resolves.toBe(
+      "recognized words",
+    );
+    expect(call.mock.calls.map(([request]) => request.action)).toEqual([
+      "begin",
+      "cancel",
+      "begin",
+      "append",
+      "finish",
+      "cancel",
+    ]);
+  });
+
+  it("cleans up a begin that arrives after its caller has cancelled", async () => {
+    let resolve!: (response: HexVoiceResponse) => void;
+    call.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    const session = createHexVoiceSession();
+    const abort = new AbortController();
+    const starting = session.begin("parakeet_v3", "ru", abort.signal);
+    await vi.waitFor(() => expect(resolve).toBeTypeOf("function"));
+    const begun = call.mock.calls[0]![0];
+    if (begun.action !== "begin") throw new Error("expected begin");
+    abort.abort();
+    await expect(starting).rejects.toMatchObject({ code: "cancelled" });
+    const cancelledBeforeResponse = call.mock.calls.length;
+    resolve({ kind: "job", job: { id: begun.id, phase: "uploading" } });
+    await vi.waitFor(() => expect(call.mock.calls.length).toBeGreaterThan(cancelledBeforeResponse));
+    expect(call.mock.calls.at(-1)![0]).toEqual({ action: "cancel", id: begun.id });
+  });
+
+  it("preserves the legacy host's status polling cadence", async () => {
+    vi.useFakeTimers();
+    const original = call.getMockImplementation()!;
+    call.mockImplementation(async (request) =>
+      request.action === "finish"
+        ? { kind: "job", job: { id: request.id, phase: "transcribing" } }
+        : request.action === "status"
+          ? { kind: "job", job: { id: request.id, phase: "done", transcript: "fast words" } }
+          : original(request),
+    );
+    const operation = transcribeHexVoice(new Float32Array([0.5]), selection());
+    await vi.advanceTimersByTimeAsync(399);
+    expect(call.mock.calls.some(([request]) => request.action === "status")).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(operation).resolves.toBe("fast words");
+  });
+
+  it("awaits host completion without a renderer timer when the host advertises support", async () => {
+    vi.useFakeTimers();
+    const original = call.getMockImplementation()!;
+    call.mockImplementation(async (request) =>
+      request.action === "finish"
+        ? { kind: "job", job: { id: request.id, phase: "transcribing", supportsWait: true } }
+        : request.action === "wait"
+          ? {
+              kind: "job",
+              job: {
+                id: request.id,
+                phase: "done",
+                transcript: "host completion",
+                supportsWait: true,
+              },
+            }
+          : original(request),
+    );
+    await expect(transcribeHexVoice(new Float32Array([0.5]), selection())).resolves.toBe(
+      "host completion",
+    );
+    expect(call.mock.calls.map(([request]) => request.action)).toEqual([
+      "begin",
+      "append",
+      "finish",
+      "wait",
+      "cancel",
+    ]);
   });
 
   it("binds a session to the host selected before capture", async () => {
@@ -128,25 +259,12 @@ describe("Hex client audio", () => {
     expect(nextHost.callRemoteProcedure).not.toHaveBeenCalled();
   });
 
-  it("checks verified installation and language without preparing or downloading", async () => {
-    call.mockImplementationOnce(async () => ({
-      kind: "catalog",
-      models: [
-        {
-          id: "parakeet_v3",
-          name: "Parakeet v3",
-          installed: false,
-          verified: false,
-          downloadBytes: 10,
-          languages: ["ru"],
-          supportsLanguageDetection: false,
-        },
-      ],
-    }));
+  it("surfaces the host readiness check before capture without a redundant catalog call", async () => {
+    call.mockResolvedValueOnce({ kind: "error", code: "not_ready" });
     await expect(
-      createHexVoiceSession().checkReady("parakeet_v3", "ru", new AbortController().signal),
+      createHexVoiceSession().begin("parakeet_v3", "ru", new AbortController().signal),
     ).rejects.toMatchObject({ code: "not_ready" });
-    expect(call.mock.calls.map(([request]) => request.action)).toEqual(["list"]);
+    expect(call.mock.calls.map(([request]) => request.action)).toEqual(["begin", "cancel"]);
   });
 
   it("encodes bounded mono PCM16 WAV and rejects invalid samples", () => {
@@ -171,8 +289,7 @@ describe("Hex client audio", () => {
     const samples = new Float32Array(HEX_VOICE_CHUNK_BYTES).fill(0.25);
     await expect(transcribeHexVoice(samples, selection())).resolves.toBe("recognized words");
     const requests = call.mock.calls.map(([request]) => request);
-    expect(requests[0]?.action).toBe("list");
-    expect(requests[1]).toMatchObject({ action: "begin", model: "parakeet_v3", language: "ru" });
+    expect(requests[0]).toMatchObject({ action: "begin", model: "parakeet_v3", language: "ru" });
     const uploads = requests.filter((request) => request.action === "append");
     expect(uploads.map((request) => request.offset)).toEqual([
       0,
@@ -209,20 +326,6 @@ describe("Hex client audio", () => {
 
   it("cancels the same owner job even when aborted during begin", async () => {
     let resolve!: (response: HexVoiceResponse) => void;
-    call.mockImplementationOnce(async () => ({
-      kind: "catalog",
-      models: [
-        {
-          id: "parakeet_v3",
-          name: "Parakeet v3",
-          installed: true,
-          verified: true,
-          downloadBytes: null,
-          languages: ["ru"],
-          supportsLanguageDetection: false,
-        },
-      ],
-    }));
     call.mockImplementationOnce(
       () =>
         new Promise((done) => {
@@ -234,8 +337,8 @@ describe("Hex client audio", () => {
       ...selection(),
       signal: abort.signal,
     });
-    await vi.waitFor(() => expect(call.mock.calls.length).toBeGreaterThan(1));
-    const request = call.mock.calls[1]![0];
+    await vi.waitFor(() => expect(call.mock.calls.length).toBeGreaterThan(0));
+    const request = call.mock.calls[0]![0];
     if (request.action !== "begin") throw new Error("expected begin");
     abort.abort();
     resolve({ kind: "job", job: { id: request.id, phase: "uploading" } });
@@ -253,20 +356,6 @@ describe("Hex client audio", () => {
         milliseconds === 240_000 ? audioDeadline.signal : originalTimeout(milliseconds),
       );
     let resolveBegin!: (response: HexVoiceResponse) => void;
-    call.mockImplementationOnce(async () => ({
-      kind: "catalog",
-      models: [
-        {
-          id: "parakeet_v3",
-          name: "Parakeet v3",
-          installed: true,
-          verified: true,
-          downloadBytes: null,
-          languages: ["ru"],
-          supportsLanguageDetection: false,
-        },
-      ],
-    }));
     call.mockImplementationOnce(
       () =>
         new Promise((resolve) => {

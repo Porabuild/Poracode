@@ -35,6 +35,7 @@ import {
   startCursorSdkTurn,
   type CursorSdkMapperState,
 } from "./sdkCanonicalMapping";
+import { isCursorSdkInclusiveInputVersion } from "./sdkCanonicalToolPayload";
 import { readCursorSdkContextUsage } from "./sdkContextUsage";
 import { isCursorSdkSummarizeCommand } from "./sdkSummarizeCommand";
 import {
@@ -428,6 +429,10 @@ export class CursorSdkSession implements StructuredSessionHandle {
         ]
       : undefined;
     this.mapperState.agentId = initialized.agentId;
+    const inclusiveInputTokens = isCursorSdkInclusiveInputVersion(initialized.sdkVersion);
+    if (inclusiveInputTokens !== undefined) {
+      this.mapperState.inclusiveInputTokens = inclusiveInputTokens;
+    }
     const initializedModel = initialized.model?.id ?? createOptions.model?.id;
     if (initializedModel) this.mapperState.model = initializedModel;
     const prefixedId = cursorSdkSessionId(initialized.agentId);
@@ -887,6 +892,12 @@ export class CursorSdkSession implements StructuredSessionHandle {
         this.supportsSummarize = initialized.supportsSummarize === true;
       }
       this.mapperState.agentId = initialized.agentId;
+      const inclusiveInputTokens = isCursorSdkInclusiveInputVersion(initialized.sdkVersion);
+      if (inclusiveInputTokens !== undefined) {
+        this.mapperState.inclusiveInputTokens = inclusiveInputTokens;
+      } else {
+        delete this.mapperState.inclusiveInputTokens;
+      }
       this.stateRoot = initialized.stateRoot;
       const initializedModel = initialized.model?.id ?? createOptions.model?.id;
       if (initializedModel) this.mapperState.model = initializedModel;
@@ -1105,8 +1116,8 @@ export class CursorSdkSession implements StructuredSessionHandle {
       });
     } else if (status === "cancelled" || !this.steering.hasPending) {
       // Stop needs a settled acknowledgement to retire the shared watchdog.
-      // A fresh-generation steer is still awaiting acceptance; its direct-input
-      // reservation keeps queued work behind the replacement start.
+      // A fresh-generation steer remains retained and rechecks the active run
+      // before delivering at this boundary, including a competing direct start.
       this.emitUpdate({ status: "idle", attention: "none" });
     }
     this.scheduleIdleReapIfIdle();

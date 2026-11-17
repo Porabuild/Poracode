@@ -87,6 +87,8 @@ export function loadMcpAppSandbox(
   csp: McpAppCsp,
   inlineSandbox = false,
 ): void {
+  // Electron reports file:// here, but postMessage serializes file origins as null.
+  const parentOrigin = window.location.protocol === "file:" ? "null" : window.location.origin;
   if (inlineSandbox) {
     // Native shells have no host DOM, storage, or credentials. The fixed
     // script remains outside the app frame; a leading meta policy constrains
@@ -100,13 +102,13 @@ export function loadMcpAppSandbox(
       `<head><meta http-equiv="Content-Security-Policy" content="${policy}">`,
     ).replace(
       "new URLSearchParams(location.hash.slice(1)).get('parent')",
-      JSON.stringify(window.location.origin),
+      JSON.stringify(parentOrigin),
     );
     frame.srcdoc = proxy;
   } else {
     const url = new URL(MCP_APP_SANDBOX_PATH, endpoint);
     url.searchParams.set("csp", JSON.stringify(csp));
-    url.hash = new URLSearchParams({ parent: window.location.origin }).toString();
+    url.hash = new URLSearchParams({ parent: parentOrigin }).toString();
     frame.src = url.href;
   }
 }

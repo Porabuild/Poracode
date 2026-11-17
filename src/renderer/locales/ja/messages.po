@@ -4561,6 +4561,7 @@ msgstr "ワークフローを閉じる"
 msgid "Close workflows panel"
 msgstr "ワークフローパネルを閉じる"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -5903,6 +5904,10 @@ msgstr "ファイルの作成"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "分岐を作成"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "iPhone Duoを作成"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -8970,6 +8975,15 @@ msgstr "組み込みブラウザのアドレスバーをフォーカス"
 msgid "Focus window"
 msgstr "ウィンドウに切り替え"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "折りたたみ操作"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "折りたたみ式"
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
@@ -9000,6 +9014,10 @@ msgstr "すべてのワークツリーを格納するフォルダー。ヒント
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "このプロジェクトのワークツリーを格納するフォルダー。リセットするとグローバル設定が使用されます。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "このホストでは折りたたみを利用できません。"
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -9555,6 +9573,10 @@ msgstr "ガイドのステップ"
 msgid "Guide writer"
 msgstr "ガイド作成エージェント"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "半開き"
+
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
 msgstr "別のリードに引き継ぐ…"
@@ -9801,6 +9823,10 @@ msgstr "空白の変更を非表示"
 #: src/renderer/components/common/effortLabel.ts
 msgid "High"
 msgstr "高"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "ヒンジ角度"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
@@ -10301,6 +10327,10 @@ msgstr "初回の再試行遅延（秒）"
 msgid "Initialize Repository"
 msgstr "リポジトリの初期化"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "内側ディスプレイ"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "入力"
@@ -10354,8 +10384,8 @@ msgid "Inspect"
 msgstr "検査"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "このスレッドに接続されたシミュレーターまたはエミュレーターを検査・操作します。"
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "このスレッドに接続されたシミュレーターまたはエミュレーターを検査・操作します。"
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10782,6 +10812,10 @@ msgstr "iPhone 15 Pro"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "このホストでは iPhone Duo を利用できません。"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
@@ -14193,6 +14227,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "このプルリクエストでは自分のコメントのみ編集できます。"
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -14648,6 +14683,10 @@ msgstr "閲覧のみで開く"
 msgid "Open with control"
 msgstr "操作して開く"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "パネルで iOS シミュレータ（折りたたみ式 iPhone Duo を含む）と Android エミュレータを開き、確認し、操作します。"
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14793,6 +14832,10 @@ msgstr "古い内容"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "古い内容: この下書きの作成後にプルリクエストが変更されました。"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "外側ディスプレイ"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
@@ -16675,8 +16718,8 @@ msgid "Recording"
 msgstr "録音"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "録画は 5 分で自動的に停止します。"
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "録画は 5 分で自動的に停止します。"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."

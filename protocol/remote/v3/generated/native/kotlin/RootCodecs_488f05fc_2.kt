@@ -161,11 +161,11 @@ val RemoteRootCodecs.procedureU2EGitWorktreeStatusBatchU2ERequest: RemoteRootCod
 val RemoteRootCodecs.procedureU2EGitWorktreeStatusBatchU2EResult: RemoteRootCodec<ProceduregitWorktreeStatusBatchResult_1b23732705>
     get() = RemoteRootCodec("procedure.gitWorktreeStatusBatch.result", serializer<ProceduregitWorktreeStatusBatchResult_1b23732705>(), schema_1b2373270569d6e5)
 
-val RemoteRootCodecs.procedureU2EHexVoiceU2ERequest: RemoteRootCodec<ProcedurehexVoiceRequest_2ae8d538fe>
-    get() = RemoteRootCodec("procedure.hexVoice.request", serializer<ProcedurehexVoiceRequest_2ae8d538fe>(), schema_2ae8d538fe55c35d)
+val RemoteRootCodecs.procedureU2EHexVoiceU2ERequest: RemoteRootCodec<ProcedurehexVoiceRequest_f14fd28613>
+    get() = RemoteRootCodec("procedure.hexVoice.request", serializer<ProcedurehexVoiceRequest_f14fd28613>(), schema_f14fd28613a2da14)
 
-val RemoteRootCodecs.procedureU2EHexVoiceU2EResult: RemoteRootCodec<ProcedurehexVoiceResult_46060d35e2>
-    get() = RemoteRootCodec("procedure.hexVoice.result", serializer<ProcedurehexVoiceResult_46060d35e2>(), schema_46060d35e2ab13d1)
+val RemoteRootCodecs.procedureU2EHexVoiceU2EResult: RemoteRootCodec<ProcedurehexVoiceResult_49ffdcc76e>
+    get() = RemoteRootCodec("procedure.hexVoice.result", serializer<ProcedurehexVoiceResult_49ffdcc76e>(), schema_49ffdcc76ea977dd)
 
 val RemoteRootCodecs.procedureU2EImportSkillsU2ERequest: RemoteRootCodec<ProcedureimportSkillsRequest_8a62b43ffe>
     get() = RemoteRootCodec("procedure.importSkills.request", serializer<ProcedureimportSkillsRequest_8a62b43ffe>(), schema_8a62b43ffe3b4668)

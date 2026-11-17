@@ -327,7 +327,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
           wsl: [],
         }),
       );
-      expect(STATUS_CACHE_VERSION).toBe(81);
+      expect(STATUS_CACHE_VERSION).toBe(82);
       expect(service.getCachedCapabilities("codex")).toBeUndefined();
     },
   );

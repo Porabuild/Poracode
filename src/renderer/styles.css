@@ -5001,6 +5001,51 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
   width: 2.25rem;
 }
 
+.poracode-voice-recording__ring {
+  position: absolute;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--danger) 22%, transparent);
+  animation: poracode-voice-ring-pulse 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.poracode-voice-recording__icon {
+  animation: poracode-voice-icon-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes poracode-voice-ring-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes poracode-voice-icon-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(0.88);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poracode-voice-recording__ring,
+  .poracode-voice-recording__icon {
+    animation: none;
+  }
+}
+
 /* ── Mention Input (contentEditable) ──────────────────────── */
 
 .poracode-mention-input {

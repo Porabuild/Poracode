@@ -4562,6 +4562,7 @@ msgstr "Закрити робочі процеси"
 msgid "Close workflows panel"
 msgstr "Закрити панель робочих процесів"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -5904,6 +5905,10 @@ msgstr "Створити файл"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "Створити відгалуження"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "Створити iPhone Duo"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -8971,6 +8976,15 @@ msgstr "Встановити фокус на адресний рядок бра�
 msgid "Focus window"
 msgstr "Перейти до вікна"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "Керування складанням"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "Складний"
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
@@ -9001,6 +9015,10 @@ msgstr "Папка, у якій зберігаються всі worktree. Пор
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Папка, у якій зберігаються worktree цього проєкту. Скиньте, щоб використовувати глобальне налаштування."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "Складання недоступне на цьому хості."
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -9556,6 +9574,10 @@ msgstr "Етапи посібника"
 msgid "Guide writer"
 msgstr "Автор посібника"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "Напіввідкрито"
+
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
 msgstr "Передати іншому лідеру…"
@@ -9802,6 +9824,10 @@ msgstr "Сховати зміни пробілів"
 #: src/renderer/components/common/effortLabel.ts
 msgid "High"
 msgstr "Високий"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Кут шарніра"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
@@ -10302,6 +10328,10 @@ msgstr "Початкова затримка повтору в секундах"
 msgid "Initialize Repository"
 msgstr "Ініціалізувати репозиторій"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "Внутрішній екран"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "Вхід"
@@ -10355,8 +10385,8 @@ msgid "Inspect"
 msgstr "Дослідити"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "Перевіряйте та керуйте симулятором або емулятором, підключеним до цього чату."
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "Перевіряйте та керуйте симулятором або емулятором, підключеним до цього чату."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10783,6 +10813,10 @@ msgstr "iPhone 15 Pro"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "iPhone Duo недоступний на цьому хості."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
@@ -14195,6 +14229,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "У цьому запиті на злиття можна редагувати лише власні коментарі."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -14650,6 +14685,10 @@ msgstr "Відкрити лише для перегляду"
 msgid "Open with control"
 msgstr "Відкрити з керуванням"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "Відкривайте, перевіряйте та керуйте симуляторами iOS (зокрема складаним iPhone Duo) й емуляторами Android у панелі."
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14795,6 +14834,10 @@ msgstr "Застаріле"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "Застаріло: pull request змінився після створення цієї чернетки."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "Зовнішній екран"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
@@ -16677,8 +16720,8 @@ msgid "Recording"
 msgstr "Запис"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "Запис автоматично зупиниться через п’ять хвилин."
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "Запис автоматично зупиниться через п’ять хвилин."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."

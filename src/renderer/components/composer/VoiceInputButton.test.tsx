@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
@@ -19,7 +19,8 @@ const mocks = vi.hoisted(() => ({
   subscribeProgress: vi.fn<(...args: unknown[]) => () => void>(() => () => {}),
   transcribe: vi.fn<(...args: unknown[]) => Promise<string>>(),
   warmup: vi.fn<(...args: unknown[]) => void>(),
-  checkReady: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  begin: vi.fn<(...args: unknown[]) => Promise<void>>(),
+  cancel: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
@@ -35,7 +36,7 @@ vi.mock("@/renderer/speech/dictation", () => ({
   warmupDictation: mocks.warmup,
 }));
 vi.mock("@/renderer/speech/hexVoice", () => ({
-  createHexVoiceSession: () => ({ checkReady: mocks.checkReady }),
+  createHexVoiceSession: () => ({ begin: mocks.begin, cancel: mocks.cancel }),
   HexVoiceError: class extends Error {},
 }));
 vi.mock("./voiceError", () => ({
@@ -82,7 +83,8 @@ beforeEach(() => {
   mocks.subscribeProgress.mockReturnValue(() => {});
   mocks.prepareAudio.mockReturnValue(new Float32Array([0.25]));
   mocks.transcribe.mockResolvedValue("native transcript");
-  mocks.checkReady.mockResolvedValue(undefined);
+  mocks.begin.mockResolvedValue(undefined);
+  mocks.cancel.mockResolvedValue(undefined);
   track = { stop: vi.fn<() => void>() };
   const stream = { getTracks: () => [track] } as unknown as MediaStream;
   getUserMedia = vi.fn<() => Promise<MediaStream>>(async () => stream);
@@ -109,8 +111,8 @@ describe("VoiceInputButton", () => {
       expect(screen.getByRole("button", { name: "Stop voice input" })).toBeInTheDocument(),
     );
     expect(getUserMedia).toHaveBeenCalledOnce();
-    expect(mocks.checkReady).toHaveBeenCalledWith("parakeet_v3", "fr", expect.any(AbortSignal));
-    expect(mocks.checkReady.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(mocks.begin).toHaveBeenCalledWith("parakeet_v3", "fr", expect.any(AbortSignal));
+    expect(mocks.begin.mock.invocationCallOrder[0]).toBeLessThan(
       getUserMedia.mock.invocationCallOrder[0]!,
     );
     expect(mocks.warmup).toHaveBeenCalledWith(
@@ -134,7 +136,7 @@ describe("VoiceInputButton", () => {
   });
 
   it("shows a setup action without opening the microphone when Hex is not ready", async () => {
-    mocks.checkReady.mockRejectedValue(new HexVoiceError("not_ready"));
+    mocks.begin.mockRejectedValue(new HexVoiceError("not_ready"));
     render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
     fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
     await screen.findByRole("button", { name: "Audio settings" });
@@ -157,6 +159,54 @@ describe("VoiceInputButton", () => {
     expect(getUserMedia).toHaveBeenCalledOnce();
   });
 
+  it("releases the preloaded job when microphone permission is refused", async () => {
+    getUserMedia.mockRejectedValue(new DOMException("permission denied", "NotAllowedError"));
+    render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    await waitFor(() => expect(mocks.cancel).toHaveBeenCalled());
+    expect(mocks.transcribe).not.toHaveBeenCalled();
+  });
+
+  it("releases the preloaded job when capture unmounts", async () => {
+    const view = render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    await screen.findByRole("button", { name: "Stop voice input" });
+    view.unmount();
+    expect(mocks.cancel).toHaveBeenCalledTimes(1);
+    expect(track.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the microphone before awaiting host cleanup after capture setup fails", async () => {
+    let finishCancellation!: () => void;
+    mocks.cancel.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishCancellation = resolve;
+        }),
+    );
+    const createSource = vi
+      .spyOn(FakeAudioContext.prototype, "createMediaStreamSource")
+      .mockImplementationOnce(() => {
+        throw new Error("capture setup failed");
+      });
+    render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    await waitFor(() => expect(mocks.cancel).toHaveBeenCalledTimes(1));
+    expect(track.stop).toHaveBeenCalledTimes(1);
+    finishCancellation();
+    createSource.mockRestore();
+    await screen.findByRole("button", { name: "Start voice input" });
+  });
+
+  it("releases an empty recording without starting transcription", async () => {
+    mocks.prepareAudio.mockReturnValue(new Float32Array());
+    render(<VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stop voice input" }));
+    await waitFor(() => expect(mocks.cancel).toHaveBeenCalled());
+    expect(mocks.transcribe).not.toHaveBeenCalled();
+  });
+
   it("cancels transcription and never inserts a late result", async () => {
     let resolve!: (text: string) => void;
     mocks.transcribe.mockReturnValueOnce(
@@ -174,5 +224,83 @@ describe("VoiceInputButton", () => {
     resolve("late result");
     await screen.findByRole("button", { name: "Start voice input" });
     expect(onTranscript).not.toHaveBeenCalled();
+  });
+
+  it("shows recording and transcription statuses in an auto-open tooltip with animated icons and no inline label", async () => {
+    let resolveTranscribe!: (text: string) => void;
+    let onProgressCallback: ((progress: { phase: string }) => void) | undefined;
+    mocks.transcribe.mockImplementationOnce((_samples, _options, callbacks) => {
+      onProgressCallback = (callbacks as { onProgress?: (progress: { phase: string }) => void })
+        ?.onProgress;
+      return new Promise<string>((done) => {
+        resolveTranscribe = done;
+      });
+    });
+
+    const onTranscript = vi.fn<(transcript: string) => void>();
+    const { container } = render(<VoiceInputButton onTranscript={onTranscript} />);
+    const root = container.firstElementChild as HTMLElement;
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(root.querySelectorAll("button")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    const stopButton = await screen.findByRole("button", { name: "Stop voice input" });
+
+    // Recording state: single button, animated recording icon, no inline timer label, auto-open tooltip.
+    expect(root.querySelectorAll("button")).toHaveLength(1);
+    expect(stopButton.querySelector(".poracode-voice-recording__ring")).toBeInTheDocument();
+    expect(stopButton.querySelector(".poracode-voice-recording__icon")).toBeInTheDocument();
+    expect(root.textContent).toBe("");
+    const recordingTooltip = await screen.findByRole("tooltip");
+    expect(recordingTooltip).toHaveTextContent("Recording");
+    expect(recordingTooltip).toHaveTextContent("0:00");
+
+    fireEvent.click(stopButton);
+    const cancelButton = await screen.findByRole("button", { name: "Cancel transcription" });
+
+    // Transcribing state: single button, animated loader, no inline status text, auto-open tooltip.
+    expect(root.querySelectorAll("button")).toHaveLength(1);
+    expect(cancelButton.querySelector(".poracode-pixel-loader")).toBeInTheDocument();
+    expect(root.textContent).toBe("");
+    const transcribingTooltip = await screen.findByRole("tooltip");
+    expect(transcribingTooltip.textContent).toBe("Transcribing voice");
+
+    act(() => {
+      onProgressCallback?.({ phase: "uploading" });
+    });
+    await waitFor(() => expect(screen.getByRole("tooltip").textContent).toBe("Uploading audio…"));
+
+    act(() => {
+      onProgressCallback?.({ phase: "loading" });
+    });
+    await waitFor(() => expect(screen.getByRole("tooltip").textContent).toBe("Loading model…"));
+
+    act(() => {
+      resolveTranscribe("hello world");
+    });
+    await screen.findByRole("button", { name: "Start voice input" });
+    await waitFor(() => expect(screen.queryByRole("tooltip")).not.toBeInTheDocument());
+    expect(onTranscript).toHaveBeenCalledWith("hello world");
+  });
+
+  it("keeps failure feedback anchored to the single button without adding an inline sibling button", async () => {
+    mocks.transcribe.mockRejectedValueOnce(new Error("Connection lost"));
+    const { container } = render(
+      <VoiceInputButton onTranscript={vi.fn<(transcript: string) => void>()} />,
+    );
+    const root = container.firstElementChild as HTMLElement;
+
+    fireEvent.click(screen.getByRole("button", { name: "Start voice input" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stop voice input" }));
+
+    await screen.findByRole("button", { name: "Retry transcription" });
+    const buttons = root.querySelectorAll("button");
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAttribute("aria-label", "Voice input needs attention");
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard recording" }));
+    await screen.findByRole("button", { name: "Start voice input" });
+    expect(root.querySelectorAll("button")).toHaveLength(1);
   });
 });

@@ -1,10 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
-  static let schema_edaad5a427ee5ae6 = RemoteSchema(type: "object", required: Set(["actions", "bootId", "version"]), properties: ["actions": RemoteSchemas.schema_135288c0feeec2fc, "bootId": RemoteSchemas.schema_d855999aed5e6438, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_edbbbb70d0bea172 = RemoteSchema(type: "object", properties: ["approvalPolicy": RemoteSchemas.schema_bf0b727f7b1c6d07, "preferDeclaredApprovalPolicy": RemoteSchemas.schema_feeb8bb50144d96d, "sandboxMode": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -81,6 +77,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_f0ec1e30fb464ad3 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_96593ec86640027a, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_f0f815c9ec0e3b5a = RemoteSchema(type: "string", literals: [.string("small"), .string("standard"), .string("large"), .string("extraLarge")], unknownPolicy: .strip)
 }
 
@@ -90,6 +90,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_f145218b6dee66b6 = RemoteSchema(type: "object", required: Set(["code", "message"]), properties: ["authScheme": RemoteSchemas.schema_2d52ff1140653b18, "code": RemoteSchemas.schema_e527c3ee29cd639b, "message": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_f14fd28613a2da14 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_929ff57e1355048a, RemoteSchemas.schema_fee1e07039137fc5, RemoteSchemas.schema_475f45061f4eecab, RemoteSchemas.schema_297655ba91f41fa6, RemoteSchemas.schema_0aacda6901eb566b, RemoteSchemas.schema_f8fde013f784c33d, RemoteSchemas.schema_9501e4a8a718d07b, RemoteSchemas.schema_5a9666a2c52a802f, RemoteSchemas.schema_5ffdb22692f97bf9, RemoteSchemas.schema_313744588ce712ec, RemoteSchemas.schema_cf78c688ea7d3e66, RemoteSchemas.schema_27790e6c4216ae5b], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

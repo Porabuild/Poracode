@@ -4,7 +4,9 @@ import { z } from "zod";
 // package, client adaptation or layout invalidates the disposable artifact.
 // Artifact 2 omits macOS native simulator payloads on other platforms.
 export const DEVICE_HUB_ARTIFACT_VERSION = 2 as const;
-export const DEVICE_HUB_CLIENT_ADAPTER_VERSION = 1 as const;
+// Adapter 2 adds the streamed-frame guard to the AVCC fallback timeout: a
+// preview that already decoded frames no longer errors when the timer fires.
+export const DEVICE_HUB_CLIENT_ADAPTER_VERSION = 2 as const;
 export const DEVICE_HUB_VERSION = "0.15.3";
 export const DEVICE_HUB_CLIENT_VERSION = "1.5.0";
 export const DEVICE_HUB_SOURCE_COMMIT = "42918bc8e66021da5a983aaa09b43365e58c3dce";
@@ -13,7 +15,7 @@ export const DEVICE_HUB_PACKAGE_INTEGRITY =
 export const DEVICE_HUB_CLIENT_INTEGRITY =
   "sha512-viMiTybFWoxNShOw0C/78Ky479Hhl+cKysNv0ZPUN+F8n8lI8ECTFs+CCKQA3LI8En/ASFIuaaunD+1JUk6ipw==";
 export const DEVICE_HUB_CLIENT_PATCH_SHA256 =
-  "4ce62299dbaf6ee08233da9df25a5bdb7054e9fa798834a9d925cf866c14800a";
+  "7aa33622912ae03c70034b9ff9f2dfca70250415d4ac6db78a57b1ecb1294251";
 export const DEVICE_HUB_ENTRY = "node_modules/expo-device-hub/dist/server/cli.mjs";
 export const DEVICE_HUB_BOOTSTRAP = "bootstrap.mjs";
 export const DEVICE_HUB_LOCKFILE = "package-lock.json";
@@ -49,7 +51,12 @@ export const DEVICE_HUB_QUALIFIED_TARGETS: readonly {
   arch: string;
   runtimeAbi: string;
   platforms: readonly ("android" | "ios")[];
-}[] = [{ platform: "win32", arch: "x64", runtimeAbi: "149", platforms: ["android"] }];
+}[] = [
+  { platform: "win32", arch: "x64", runtimeAbi: "149", platforms: ["android"] },
+  // serve-sim from the pinned hub is verified on Apple-silicon macOS against
+  // CoreSimulator, including the foldable hinge channel.
+  { platform: "darwin", arch: "arm64", runtimeAbi: "149", platforms: ["ios"] },
+];
 
 const relativeFile = z
   .string()

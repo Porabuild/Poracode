@@ -1,7 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { McpServer } from "@/shared/contracts";
 import { probeMcpServer } from "./probeMcpServer";
@@ -401,24 +399,21 @@ describe("probeMcpServer", () => {
   });
 
   it("times out and terminates an unresponsive stdio server", async () => {
-    const directory = mkdtempSync(join(tmpdir(), "poracode-mcp-probe-"));
-    const pidFile = join(directory, "pid.txt");
-    const script = String.raw`
-      require("node:fs").writeFileSync(process.argv[1], String(process.pid));
-      process.stdin.resume();
-    `;
+    const start = vi.spyOn(StdioClientTransport.prototype, "start");
     try {
-      const result = await probeMcpServer(stdioServer(script, [pidFile], 100), environment);
+      const pending = probeMcpServer(stdioServer("process.stdin.resume()", [], 100), environment);
+      const transport = start.mock.contexts[0] as StdioClientTransport | undefined;
+      const pid = transport?.pid;
+      const result = await pending;
       expect(result).toMatchObject({ status: "unavailable", error: { code: "timeout" } });
-
-      const pid = Number(readFileSync(pidFile, "utf8"));
+      expect(pid).toEqual(expect.any(Number));
       // Termination is signalled, not awaited: under load the OS can take a
       // moment to reap the server after the probe has already resolved.
       await vi.waitFor(
         () => {
           let alive = true;
           try {
-            process.kill(pid, 0);
+            process.kill(pid!, 0);
           } catch {
             alive = false;
           }
@@ -427,7 +422,7 @@ describe("probeMcpServer", () => {
         { timeout: 5_000, interval: 25 },
       );
     } finally {
-      rmSync(directory, { recursive: true, force: true });
+      start.mockRestore();
     }
   });
 });

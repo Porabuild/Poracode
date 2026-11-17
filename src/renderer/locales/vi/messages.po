@@ -4562,6 +4562,7 @@ msgstr "Đóng quy trình làm việc"
 msgid "Close workflows panel"
 msgstr "Đóng bảng quy trình làm việc"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -5904,6 +5905,10 @@ msgstr "Tạo tập tin"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "Tạo nhánh"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "Tạo iPhone Duo"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -8971,6 +8976,15 @@ msgstr "Tập trung vào thanh địa chỉ của trình duyệt tích hợp"
 msgid "Focus window"
 msgstr "Chuyển đến cửa sổ"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "Điều khiển gập"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "Màn hình gập"
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
@@ -9001,6 +9015,10 @@ msgstr "Thư mục chứa tất cả các cây làm việc. Mẹo: một Dev Dri
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Thư mục chứa các cây làm việc của dự án này. Đặt lại để dùng thiết lập toàn cục."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "Không thể gập trên máy chủ này."
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -9556,6 +9574,10 @@ msgstr "Các bước hướng dẫn"
 msgid "Guide writer"
 msgstr "Tác nhân viết hướng dẫn"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "Mở một nửa"
+
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
 msgstr "Chuyển giao cho trưởng nhóm khác…"
@@ -9802,6 +9824,10 @@ msgstr "Ẩn thay đổi khoảng trắng"
 #: src/renderer/components/common/effortLabel.ts
 msgid "High"
 msgstr "Cao"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Hinge angle"
+msgstr "Góc bản lề"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserMenu.tsx
 msgid "History"
@@ -10302,6 +10328,10 @@ msgstr "Độ trễ thử lại ban đầu tính bằng giây"
 msgid "Initialize Repository"
 msgstr "Khởi tạo kho lưu trữ"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "Màn hình trong"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "Đầu vào"
@@ -10355,8 +10385,8 @@ msgid "Inspect"
 msgstr "Kiểm tra"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "Kiểm tra và điều khiển trình mô phỏng hoặc giả lập được kết nối với luồng này."
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "Kiểm tra và điều khiển trình mô phỏng hoặc giả lập được kết nối với luồng này."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10783,6 +10813,10 @@ msgstr "iPhone 15 Pro"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "iPhone Duo không khả dụng trên máy chủ này."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
@@ -14195,6 +14229,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "Bạn chỉ có thể sửa bình luận của mình trong yêu cầu hợp nhất này."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -14650,6 +14685,10 @@ msgstr "Mở chỉ xem"
 msgid "Open with control"
 msgstr "Mở với điều khiển"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "Mở, kiểm tra và điều khiển Trình mô phỏng iOS (bao gồm iPhone Duo có thể gập) và Trình giả lập Android trong bảng điều khiển."
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14795,6 +14834,10 @@ msgstr "Đã lỗi thời"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "Đã lỗi thời: pull request đã thay đổi sau khi bản nháp này được tạo."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "Màn hình ngoài"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"
@@ -16677,8 +16720,8 @@ msgid "Recording"
 msgstr "Ghi âm"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "Quá trình ghi tự động dừng sau năm phút."
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "Quá trình ghi tự động dừng sau năm phút."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."

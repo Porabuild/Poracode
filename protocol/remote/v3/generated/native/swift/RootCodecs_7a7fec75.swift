@@ -29,7 +29,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DPreviewU2DIosU2DConfigU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DIosU2DConfigResponse_e6f95dbaa3> = .init(id: "route.device-preview-ios-config.response", schema: RemoteSchemas.schema_e6f95dbaa32318b7)
+  static let routeU2EDeviceU2DPreviewU2DIosU2DConfigU2EResponse: RemoteRootCodec<RoutedeviceU2DPreviewU2DIosU2DConfigResponse_5da869818b> = .init(id: "route.device-preview-ios-config.response", schema: RemoteSchemas.schema_5da869818be88063)
 }
 
 public extension RemoteRootCodecs {
