@@ -26,6 +26,39 @@ function enqueue(harness: Harness, event: RuntimeEvent): void {
 }
 
 describe("native steer feedback", () => {
+  it.each(["sendThreadInput", "setPendingSteer"] as const)(
+    "acknowledges %s when input is accepted while the provider promise remains pending",
+    async (method) => {
+      const harness = createFollowUpQueueHarness();
+      const { manager, session, steerTurn } = harness;
+      session.status = "working";
+      const completion = Promise.withResolvers<void>();
+      steerTurn.mockImplementationOnce((_prompt, _config, _segments, options) => {
+        options?.onPromptSubmitted?.();
+        return completion.promise;
+      });
+      try {
+        await manager[method]({
+          threadId: session.threadId,
+          prompt: "accepted during a long-running turn",
+          config: session.config,
+        });
+        expect(steerTurn).toHaveBeenCalledOnce();
+        expect(session.status).toBe("working");
+        expect(
+          emittedEvents(harness).filter(
+            (event) => event.type === "item.started" && event.itemType === "user_message",
+          ),
+        ).toHaveLength(1);
+        expect(emittedEvents(harness).some((event) => event.type === "turn.completed")).toBe(false);
+      } finally {
+        completion.resolve();
+        harness.finish();
+        await manager.dispose();
+      }
+    },
+  );
+
   it("publishes ordinary feedback immediately behind buffered events without releasing child history", async () => {
     const harness = createFollowUpQueueHarness();
     const { session, manager, steerTurn } = harness;

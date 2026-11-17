@@ -31,6 +31,7 @@ interface CursorSdkSteeringDriver {
  * input that the SDK already accepted. Run completion remains authoritative. */
 export class CursorSdkSteering {
   private controller = new AbortController();
+  private preparationTail: Promise<void> = Promise.resolve();
   private tail: Promise<void> = Promise.resolve();
   private readonly pending = new Set<symbol>();
 
@@ -43,26 +44,54 @@ export class CursorSdkSteering {
   enqueue(input: CursorSdkSteerInput): Promise<void> {
     const token = Symbol();
     const signal = this.controller.signal;
+    const { onPromptSubmitted, ...deliveryOptions } = input.options;
+    const deliveryInput = { ...input, options: deliveryOptions };
     this.pending.add(token);
-    const delivery = this.tail.then(() => this.deliver(input, signal));
-    this.tail = delivery.catch(() => {});
-    return delivery.finally(() => {
-      if (this.pending.delete(token) && !this.hasPending) this.driver.drained();
+    // Retain prepared inputs independently of delivery. A run may take minutes
+    // to accept a steer or finish before a config/image follow-up can start.
+    // That wait must not keep an already-accepted composer submission open.
+    const prepared = this.preparationTail.then(async () => {
+      if (signal.aborted) return;
+      const message = await this.driver.buildMessage(input).catch((error: unknown) => {
+        if (!signal.aborted) throw error;
+      });
+      if (signal.aborted) return;
+      if (message === undefined) return;
+      this.driver.paintMessage(input);
+      onPromptSubmitted?.();
+      return message;
     });
+    this.preparationTail = prepared.then(
+      () => {},
+      () => {},
+    );
+    const delivery = this.tail.then(async () => {
+      const message = await prepared;
+      if (message !== undefined) await this.deliver(deliveryInput, message, signal);
+    });
+    this.tail = delivery.catch(() => {});
+    // Preparation failures reject promptly even behind a long-running delivery.
+    return Promise.all([prepared, delivery])
+      .then(() => {})
+      .finally(() => {
+        if (this.pending.delete(token) && !this.hasPending) this.driver.drained();
+      });
   }
 
   cancel(): void {
     this.controller.abort();
     this.controller = new AbortController();
     this.pending.clear();
+    this.preparationTail = Promise.resolve();
     this.tail = Promise.resolve();
   }
 
-  private async deliver(input: CursorSdkSteerInput, signal: AbortSignal): Promise<void> {
+  private async deliver(
+    input: CursorSdkSteerInput,
+    message: string | CursorSdkUserMessage,
+    signal: AbortSignal,
+  ): Promise<void> {
     if (signal.aborted) return;
-    const message = await this.driver.buildMessage(input);
-    if (signal.aborted) return;
-    this.driver.paintMessage(input);
     let run = this.driver.activeRun();
     while (run) {
       if (!(await waitUnlessCancelled(run.ready, signal))) return;

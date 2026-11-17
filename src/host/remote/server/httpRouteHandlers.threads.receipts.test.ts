@@ -7,6 +7,8 @@ import {
   REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
 } from "@/shared/remote";
 import type { Project } from "@/shared/contracts";
+import { sendThreadInputPayloadSchema, setPendingSteerPayloadSchema } from "@/shared/contracts";
+import { createFollowUpQueueHarness } from "@/supervisor/runtime/threadSessionManager.followUpQueueTestHarness";
 import {
   remoteMutationMayHaveCommitted,
   RemoteClientError,
@@ -126,6 +128,61 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
         ...body,
       }),
     });
+
+  it("acknowledges concurrent clients' accepted inputs without waiting for provider completion", async () => {
+    const harness = createFollowUpQueueHarness();
+    const { manager, session, steerTurn } = harness;
+    session.status = "working";
+    const completion = Promise.withResolvers<void>();
+    steerTurn.mockImplementation((_prompt, _config, _segments, options) => {
+      options?.onPromptSubmitted?.();
+      return completion.promise;
+    });
+    callSupervisor.mockImplementation(async (procedure, payload) => {
+      if (procedure === "sendThreadInput")
+        await manager.sendThreadInput(sendThreadInputPayloadSchema.parse(payload));
+      if (procedure === "setPendingSteer")
+        await manager.setPendingSteer(setPendingSteerPayloadSchema.parse(payload));
+      return undefined as never;
+    });
+    // Existing clients send the same payload and consume the same response;
+    // the provider's admission callback never crosses HTTP or a persisted row.
+    const first = new RemoteDesktopClient(info.httpBaseUrl, token);
+    const second = new RemoteDesktopClient(info.httpBaseUrl, token);
+    const sends = Promise.all([
+      first.sendThreadInput({
+        threadId: session.threadId,
+        prompt: "first client input",
+        config: session.config,
+      }),
+      second.setPendingSteer({
+        threadId: session.threadId,
+        prompt: "second client input",
+        config: session.config,
+      }),
+    ]);
+    let accepted = false;
+    void sends.then(
+      () => {
+        accepted = true;
+      },
+      () => {},
+    );
+    try {
+      await vi.waitFor(() => expect(accepted).toBe(true));
+      await sends;
+      expect(steerTurn.mock.calls.map(([prompt]) => prompt).sort()).toEqual([
+        "first client input",
+        "second client input",
+      ]);
+      expect(session.status).toBe("working");
+    } finally {
+      completion.resolve();
+      await sends.catch(() => {});
+      harness.finish();
+      await manager.dispose();
+    }
+  });
 
   it("binds the principal and body digest, replays its own result, and conflicts on reuse", async () => {
     const commandId = "send-cmd-1";
