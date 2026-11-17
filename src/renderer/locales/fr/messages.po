@@ -16497,8 +16497,8 @@ msgid "Recording"
 msgstr "enregistrement"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "L'enregistrement s'arrête automatiquement au bout de cinq minutes."
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "L'enregistrement s'arrête automatiquement au bout de cinq minutes."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."
