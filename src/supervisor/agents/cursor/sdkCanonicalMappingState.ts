@@ -73,6 +73,12 @@ export interface CursorSdkMapperState {
   pendingRawSummaryStatuses: Array<"running" | "completed" | "error">;
   terminalRunIds: Set<string>;
   emittedErrors: Set<string>;
+  /**
+   * True when `@cursor/sdk` >= 1.1.0 (verified through 1.4.0), where
+   * `inputTokens` includes `cacheReadTokens` and `cacheWriteTokens`.
+   * False for 1.0.38–1.0.40 where `inputTokens` is uncached input.
+   */
+  inclusiveInputTokens?: boolean;
   usageSequence: number;
   pendingRawUsageFingerprints: string[];
   pendingNormalizedUsageFingerprints: string[];

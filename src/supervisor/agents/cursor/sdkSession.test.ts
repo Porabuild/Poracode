@@ -1354,4 +1354,195 @@ describe("Cursor SDK summarize command", () => {
     await delivery;
     await session.dispose();
   });
+
+  it("uses 1.4.0 inclusive input accounting without double-counting cached turn-ended/usage pairs", async () => {
+    const worker = new FakeWorker();
+    worker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      model: { id: "composer" },
+      sdkVersion: "1.4.0",
+    });
+    const { session } = await createSession(worker);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+
+    const turn = session.startTurn("check 1.4.0 usage", baseConfig);
+    await vi.waitFor(() => expect(worker.start).toHaveBeenCalledOnce());
+    const usage = {
+      inputTokens: 1_000,
+      outputTokens: 50,
+      cacheReadTokens: 800,
+      cacheWriteTokens: 100,
+      reasoningTokens: 20,
+    };
+    worker.emit({
+      type: "delta",
+      requestId: "request-1",
+      runId: "run-1",
+      update: { type: "thinking-delta", text: "Thinking" },
+    });
+    worker.emit({
+      type: "delta",
+      requestId: "request-1",
+      runId: "run-1",
+      update: { type: "model-call-completed", modelCallId: "mc-1", usage },
+    });
+    worker.emit({
+      type: "delta",
+      requestId: "request-1",
+      runId: "run-1",
+      update: { type: "thinking-completed", thinkingDurationMs: 120 },
+    });
+    worker.emit({
+      type: "delta",
+      requestId: "request-1",
+      runId: "run-1",
+      update: { type: "turn-ended", usage },
+    });
+    worker.emit({
+      type: "message",
+      requestId: "request-1",
+      runId: "run-1",
+      message: {
+        type: "usage",
+        agent_id: "agent-1",
+        run_id: "run-1",
+        usage: { ...usage, totalTokens: 1_050 },
+      },
+    });
+    worker.emit(resultEvent());
+    await turn;
+
+    const spent = recorded.events.filter((event) => event.type === "usage.spent");
+    expect(spent).toHaveLength(1);
+    expect(spent[0]).toMatchObject({
+      type: "usage.spent",
+      usage: {
+        counter: 1_050,
+        tokens: { input: 100, output: 50, cacheRead: 800, cacheWrite: 100 },
+      },
+    });
+    expect(recorded.events.some((event) => event.type === "context.updated")).toBe(false);
+    expect(recorded.events).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        payload: { summary: "Thinking", durationMs: 120 },
+      }),
+    );
+    await session.dispose();
+  });
+
+  it("preserves pre-1.1.0 uncached input accounting when sdkVersion is 1.0.38", async () => {
+    const worker = new FakeWorker();
+    worker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      model: { id: "composer" },
+      sdkVersion: "1.0.38",
+    });
+    const { session } = await createSession(worker);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+
+    const turn = session.startTurn("check 1.0.38 usage", baseConfig);
+    await vi.waitFor(() => expect(worker.start).toHaveBeenCalledOnce());
+    const usage = {
+      inputTokens: 100,
+      outputTokens: 50,
+      cacheReadTokens: 800,
+      cacheWriteTokens: 100,
+    };
+    worker.emit({
+      type: "delta",
+      requestId: "request-1",
+      runId: "run-1",
+      update: { type: "turn-ended", usage },
+    });
+    worker.emit({
+      type: "message",
+      requestId: "request-1",
+      runId: "run-1",
+      message: {
+        type: "usage",
+        agent_id: "agent-1",
+        run_id: "run-1",
+        usage: { ...usage, totalTokens: 1_050 },
+      },
+    });
+    worker.emit(resultEvent());
+    await turn;
+
+    const spent = recorded.events.filter((event) => event.type === "usage.spent");
+    expect(spent).toHaveLength(1);
+    expect(spent[0]).toMatchObject({
+      type: "usage.spent",
+      usage: {
+        counter: 1_050,
+        tokens: { input: 100, output: 50, cacheRead: 800, cacheWrite: 100 },
+      },
+    });
+    await session.dispose();
+  });
+
+  it("clears inclusiveInputTokens during worker replacement when the new worker omits sdkVersion", async () => {
+    const firstWorker = new FakeWorker();
+    firstWorker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      model: { id: "composer" },
+      sdkVersion: "1.4.0",
+    });
+    const secondWorker = new FakeWorker();
+    secondWorker.initialize.mockResolvedValue({
+      agentId: "agent-1",
+      model: { id: "composer" },
+    });
+    const { session } = await createSessionWithWorkers([firstWorker, secondWorker]);
+    const recorded = recordingListener();
+    session.setListener(recorded.listener);
+    await session.activate();
+    await session.openThread(baseConfig);
+
+    const turn = session.startTurn("replace worker with unknown version", {
+      ...baseConfig,
+      approvalPolicy: "never",
+    });
+    await vi.waitFor(() => expect(secondWorker.start).toHaveBeenCalledOnce());
+    const usage = {
+      inputTokens: 120,
+      outputTokens: 30,
+      cacheReadTokens: 80,
+      cacheWriteTokens: 20,
+    };
+    secondWorker.emit({
+      type: "delta",
+      requestId: "request-1",
+      runId: "run-1",
+      update: { type: "turn-ended", usage },
+    });
+    secondWorker.emit({
+      type: "message",
+      requestId: "request-1",
+      runId: "run-1",
+      message: {
+        type: "usage",
+        agent_id: "agent-1",
+        run_id: "run-1",
+        usage: { ...usage, totalTokens: 150 },
+      },
+    });
+    secondWorker.emit(resultEvent());
+    await turn;
+
+    const spent = recorded.events.filter((event) => event.type === "usage.spent");
+    expect(spent).toHaveLength(1);
+    const spentEvent = spent[0];
+    expect(spentEvent).toMatchObject({ type: "usage.spent", usage: { counter: 250 } });
+    expect(
+      spentEvent && "usage" in spentEvent ? spentEvent.usage.tokens : "missing",
+    ).toBeUndefined();
+    await session.dispose();
+  });
 });

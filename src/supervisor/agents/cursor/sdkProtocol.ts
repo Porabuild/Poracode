@@ -1,5 +1,5 @@
 /**
- * Structural public-protocol types for `@cursor/sdk` (verified through 1.2.0).
+ * Structural public-protocol types for `@cursor/sdk` (verified through 1.4.0).
  *
  * Poracode deliberately does not import the optional SDK package from its
  * provider boundary. Keeping the small, stable event envelopes here lets the
@@ -206,6 +206,16 @@ export interface CursorSdkTurnEndedUpdate {
   usage?: Omit<CursorSdkTokenUsage, "totalTokens">;
 }
 
+/**
+ * 1.4.0: one model call's tokens, sent when the call finishes. `inputTokens`
+ * includes cache reads and writes; `turn-ended` carries the turn total.
+ */
+export interface CursorSdkModelCallCompletedUpdate {
+  type: "model-call-completed";
+  modelCallId: string;
+  usage: Omit<CursorSdkTokenUsage, "totalTokens">;
+}
+
 export interface CursorSdkUserMessageAppendedUpdate {
   type: "user-message-appended";
   userMessage: {
@@ -269,6 +279,7 @@ export type CursorSdkInteractionUpdate =
   | CursorSdkToolRequestsListedUpdate
   | CursorSdkStepCompletedUpdate
   | CursorSdkTurnEndedUpdate
+  | CursorSdkModelCallCompletedUpdate
   | CursorSdkUserMessageAppendedUpdate
   | CursorSdkSummaryUpdate
   | CursorSdkSummaryStartedUpdate

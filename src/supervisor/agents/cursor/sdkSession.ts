@@ -35,6 +35,7 @@ import {
   startCursorSdkTurn,
   type CursorSdkMapperState,
 } from "./sdkCanonicalMapping";
+import { isCursorSdkInclusiveInputVersion } from "./sdkCanonicalToolPayload";
 import { readCursorSdkContextUsage } from "./sdkContextUsage";
 import { isCursorSdkSummarizeCommand } from "./sdkSummarizeCommand";
 import {
@@ -428,6 +429,10 @@ export class CursorSdkSession implements StructuredSessionHandle {
         ]
       : undefined;
     this.mapperState.agentId = initialized.agentId;
+    const inclusiveInputTokens = isCursorSdkInclusiveInputVersion(initialized.sdkVersion);
+    if (inclusiveInputTokens !== undefined) {
+      this.mapperState.inclusiveInputTokens = inclusiveInputTokens;
+    }
     const initializedModel = initialized.model?.id ?? createOptions.model?.id;
     if (initializedModel) this.mapperState.model = initializedModel;
     const prefixedId = cursorSdkSessionId(initialized.agentId);
@@ -887,6 +892,12 @@ export class CursorSdkSession implements StructuredSessionHandle {
         this.supportsSummarize = initialized.supportsSummarize === true;
       }
       this.mapperState.agentId = initialized.agentId;
+      const inclusiveInputTokens = isCursorSdkInclusiveInputVersion(initialized.sdkVersion);
+      if (inclusiveInputTokens !== undefined) {
+        this.mapperState.inclusiveInputTokens = inclusiveInputTokens;
+      } else {
+        delete this.mapperState.inclusiveInputTokens;
+      }
       this.stateRoot = initialized.stateRoot;
       const initializedModel = initialized.model?.id ?? createOptions.model?.id;
       if (initializedModel) this.mapperState.model = initializedModel;
