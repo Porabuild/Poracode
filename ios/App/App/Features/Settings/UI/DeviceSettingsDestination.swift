@@ -3,6 +3,7 @@ import SwiftUI
 /// Remote PWA Settings destinations, using native pages and exact-host gateways.
 enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
   case profile, workspaces, general, appearance, audio, notifications
+  case shortcuts
   case terminal, git, worktrees
   case models = "agentsGeneral"
   case aiHelpers = "ai"
@@ -11,7 +12,7 @@ enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
   case connections = "remoteServers"
   case changelog
 
-  static let personal: [Self] = [.profile, .workspaces, .general, .appearance, .audio, .notifications]
+  static let personal: [Self] = [.profile, .workspaces, .general, .shortcuts, .appearance, .audio, .notifications]
   static let workspace: [Self] = [.terminal, .git, .worktrees]
   static let agents: [Self] = [.models, .aiHelpers, .crews, .usage, .sessionImport]
 
@@ -20,6 +21,7 @@ enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
     case .profile: SettingsUIStrings.profileTitle
     case .workspaces: HomeStrings.workspaces
     case .general: SettingsUIStrings.generalTitle
+    case .shortcuts: NativeShortcutStrings.title
     case .appearance: SettingsUIStrings.appearanceTitle
     case .audio: VoiceStrings.audio
     case .notifications: SettingsUIStrings.notificationsTitle
@@ -41,6 +43,7 @@ enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
     case .profile: "person.crop.circle"
     case .workspaces: "square.stack.3d.up"
     case .general: "gearshape"
+    case .shortcuts: "keyboard"
     case .appearance: "circle.lefthalf.filled"
     case .audio: "mic"
     case .notifications: "bell"
@@ -60,6 +63,7 @@ enum DeviceSettingsDestination: String, CaseIterable, Hashable, Sendable {
   var description: String? {
     switch self {
     case .general: SettingsUIStrings.generalDescription
+    case .shortcuts: NativeShortcutStrings.summary
     case .appearance: SettingsUIStrings.appearanceDescription
     case .audio: VoiceStrings.description
     case .notifications: SettingsUIStrings.notificationsDescription
@@ -87,6 +91,7 @@ struct DeviceSettingsDestinationView: View {
     case .profile: SettingsMoreRouteView(session: session, route: .profile)
     case .workspaces: HomeWorkspaceSettingsView(session: session)
     case .general: GeneralSettingsView()
+    case .shortcuts: NativeShortcutSettingsView()
     case .appearance: AppearanceSettingsView()
     case .audio: AudioSettingsView(session: session)
     case .notifications: NotificationSettingsView()

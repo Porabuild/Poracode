@@ -83,7 +83,8 @@ extension HomeQuickComposeView {
         selection: $draft.promptSelection,
         focused: $draft.promptFocused,
         lineLimit: isCompactHeight ? 1...2 : 1...5,
-        placeholder: launchSeed?.promptPlaceholder ?? HomeStrings.quickComposePrompt
+        placeholder: launchSeed?.promptPlaceholder ?? HomeStrings.quickComposePrompt,
+        keyboardOwnerID: presentationID
       )
       .foregroundStyle(.primary)
       .frame(
@@ -157,7 +158,7 @@ extension HomeQuickComposeView {
         .init(lease: $0.lease, conversationID: draft.threadID)
       }, text: $draft.prompt, selection: $draft.promptSelection,
         isEnabled: session.canOperate && !draft.lifecycle.isBusy, visualSize: 38,
-        prepareToRecord: { draft.promptFocused = false })
+        prepareToRecord: { draft.promptFocused = false }, keyboardOwnerID: presentationID, stateOwnerID: ObjectIdentifier(draft))
     } trailing: {
       reservedStartButton
     }

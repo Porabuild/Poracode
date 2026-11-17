@@ -29,6 +29,9 @@ import Foundation
       if ProcessInfo.processInfo.arguments.contains("-native-e2e-shortcuts-fresh-preferences") {
         UserDefaults.standard.removeObject(forKey: HomeShortcutPreferences.storageKey)
       }
+      if ProcessInfo.processInfo.arguments.contains("-native-e2e-keybindings-fresh-preferences") {
+        UserDefaults.standard.removeObject(forKey: NativeKeybindingStore.storageKey)
+      }
       if ProcessInfo.processInfo.arguments.contains("-native-e2e-changelog-fresh-cache") {
         try? FileManager.default.removeItem(at: ChangelogDiskCache.defaultDirectory)
       }

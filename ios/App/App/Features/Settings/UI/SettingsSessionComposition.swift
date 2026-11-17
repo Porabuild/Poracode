@@ -107,7 +107,7 @@ struct SettingsSessionView: View {
         }
       }
       .toolbar {
-        ToolbarItem(placement: .cancellationAction) {
+        ToolbarItem(placement: .topBarTrailing) {
           Button(SettingsUIStrings.done) { dismiss() }
             .accessibilityIdentifier("native-e2e.settings.close")
         }

@@ -44,6 +44,7 @@ struct RichChatComposerView: View {
   var sideQuestion: ((String) async -> Bool)?
   var crewContext: RichChatCrewComposerContext?
   var controlsDestination: Binding<RichChatComposerControlsPresentation?>?
+  var stateOwnerID: ObjectIdentifier? = nil
   var isConnectingHost = false
 
   @State private var importing = false
@@ -52,6 +53,9 @@ struct RichChatComposerView: View {
   @State var localControlsPresented: RichChatComposerControlsPresentation?
   @State private var showsSkillPicker = false
   @State private var draftSelection: NSRange?
+  @State private var keyboardOwnerID = UUID()
+  @State var restorePromptAfterControls = false
+  @State private var keyboardFocusRequest: UInt64 = 0
 
   var body: some View {
     VStack(spacing: 6) {
@@ -86,27 +90,18 @@ struct RichChatComposerView: View {
     .padding(.leading, 16)
     .padding(.trailing, 8)
     .padding(.bottom, 8)
-    .sheet(item: controlsBinding) { presentation in
-      if presentation == .crew {
-        crewRosterSheet.poracodeFormSheetSizing()
-      } else {
-        RichChatComposerControlsSheet(
-          configuration: $configuration,
-          agentStatus: agentStatus,
-          presentationMode: .gui,
-          sessionConfigOptions: sessionConfigOptions,
-          hiddenModels: hiddenModels,
-          hasStartedSession: hasStartedSession, bindingsReadOnly: true,
-          agentInstanceID: agentInstanceID
-        )
-        .poracodeFormSheetSizing()
-      }
+    .modifier(NativeComposerCommands(ownerID: keyboardOwnerID, configuration: $configuration, catalog: slashCommandCatalog,
+      enabled: canOperate && canConfigure && agentStatus != nil,
+      chooseModel: openKeyboardModelPicker, stateOwnerID: stateOwnerID))
+    .sheet(item: controlsBinding, onDismiss: {
+      guard restorePromptAfterControls else { return }
+      restorePromptAfterControls = false
+      if composerExpanded && canOperate { keyboardFocusRequest &+= 1 }
+    }) { presentation in
+      composerControlsSheet(presentation)
     }
     .sheet(isPresented: $showsSkillPicker) {
-      if let skillPickerContext {
-        RichChatComposerSkillPicker(context: skillPickerContext, selection: $skills)
-          .poracodeFormSheetSizing()
-      }
+      composerSkillsSheet
     }
     .onAppear { fileMentionController.update(draft: draft) }
     .onChange(of: draft) { _, value in fileMentionController.update(draft: value) }
@@ -124,6 +119,8 @@ struct RichChatComposerView: View {
       text: $draft,
       selection: $draftSelection,
       isExpanded: $composerExpanded, controlsVisible: controlsPresented != nil || voiceHost?.request?.controller.owner == voiceOwner,
+      keyboardOwnerID: keyboardOwnerID,
+      keyboardFocusRequest: keyboardFocusRequest,
       hasPrompt: hasPrompt,
       hasTrailingAction: canSend || isTurnActive || controller.state.isSending || resume != nil,
       placeholder: placeholder,
@@ -147,7 +144,7 @@ struct RichChatComposerView: View {
       composerSelectors()
     } voice: {
       ComposerVoiceButton(owner: voiceOwner, text: $draft, selection: $draftSelection,
-        isEnabled: canOperate && !controller.state.isSending)
+        isEnabled: canOperate && !controller.state.isSending, keyboardOwnerID: keyboardOwnerID, stateOwnerID: stateOwnerID)
     } trailing: {
       RichChatComposerTrailingAction(
         hasPrompt: canSend,

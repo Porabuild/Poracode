@@ -21,6 +21,7 @@ struct HomeQuickComposeView: View {
   @Bindable var draft: HomeQuickComposeState
   @State var presentationID = UUID()
   @State private var composerAvailableHeight: CGFloat = 0
+  @State private var restorePromptAfterSelector = false
 
   init(session: AppSession, isExpanded: Binding<Bool>, draft: HomeQuickComposeState, showsContextHeader: Bool = true,
     onNewsAction: ((HomeNewsCardAction) -> Void)?, onStarted: @escaping (String) -> Void
@@ -83,6 +84,10 @@ struct HomeQuickComposeView: View {
 
   var body: some View {
     composerSurface
+      .modifier(NativeComposerCommands(ownerID: presentationID, configuration: composerControlsBinding, catalog: composerControlsCatalog,
+        enabled: ownsCurrentConnection && isCurrentPresentation && session.canOperate && selectedAgent != nil
+          && !draft.lifecycle.isBusy && !draft.preparingWorktree,
+        chooseModel: { restorePromptAfterSelector = true; draft.selector = .model }, stateOwnerID: ObjectIdentifier(draft)))
       .modifier(ComposerVoiceHost(session: session))
       // Home already owns a bottom inset. Translate its editor without
       // growing that inset again when the keyboard covers it.
@@ -164,8 +169,15 @@ struct HomeQuickComposeView: View {
         }
         .ignoresSafeArea()
       }
-      .sheet(item: $draft.selector) { destination in
+      .sheet(item: $draft.selector, onDismiss: {
+        guard restorePromptAfterSelector else { return }
+        restorePromptAfterSelector = false
+        if isCurrentPresentation && ownsCurrentConnection && isExpanded && session.canOperate {
+          draft.promptFocused = true
+        }
+      }) { destination in
         selectorSheet(destination)
+          .nativeCommands(identity: "home-composer-selector:\(destination)", blocksParentActions: true)
           .poracodeFormSheetSizing()
           .presentationDetents(destination.detents)
           .presentationDragIndicator(.visible)

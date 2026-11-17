@@ -173,6 +173,7 @@ struct HomeView: View {
     }
     .sheet(item: $sheetDestination, onDismiss: restoreSheetHost) { destination in
       sizedSheetContent(for: destination)
+        .nativeCommands(identity: "home-sheet:\(destination.id)", priority: 1000, blocksParentActions: true)
     }
     .confirmationDialog(
       routes.pendingHostSwitch.map { NotificationRouteStrings.hostSwitchTitle($0.hostLabel) }
@@ -213,6 +214,14 @@ struct HomeView: View {
     .modifier(WorkflowViewerPresentationHost())
     .modifier(ComposerVoiceHost(session: session))
     .environment(\.homeWorkspaceSelection, $storedWorkspaceID)
+    .modifier(NativeHomeCommands(
+      identity: selectedThread?.id.rawValue ?? selectedProject?.id.rawValue ?? "home",
+      allowsActions: sheetDestination == nil, hasProject: !projectFilterOptions.isEmpty,
+      hasThread: selectedThread != nil, draftView: composerExpanded,
+      canStartThread: session.canOperate && !composerExpanded,
+      openSettings: { openSidebarSheet(.settings) }, toggleSidebar: toggleHomeSidebar,
+      newThread: { startSplitComposer(initialProjectID: keyboardProjectID) }
+    ))
     .homeThreadLifecyclePresentation(threadLifecycle)
     .overlay(alignment: .bottom) {
       if let error = session.globalError {
@@ -378,10 +387,7 @@ struct HomeView: View {
         .toolbar {
           ToolbarItem(placement: .topBarLeading) {
             PoracodeToolbarIconButton(title: HomeStrings.toggleSidebar, systemImage: "sidebar.left") {
-              if horizontalSizeClass == .compact {
-                preferredCompactColumn = preferredCompactColumn == .detail ? .sidebar : .detail
-              } else if layout.usesOverlaySidebar { isOverlaySidebarVisible.toggle() }
-              else { isDockedSidebarVisible.toggle() }
+              toggleHomeSidebar()
             }
             .accessibilityIdentifier("native-e2e.sidebar-toggle")
           }
@@ -976,6 +982,22 @@ struct HomeView: View {
     } else {
       composerExpanded = false
     }
+  }
+
+  private var keyboardProjectID: String? {
+    if let parts = selectedProject?.id.decode(), parts.connectionId == session.selectedConnectionId { return parts.remoteId }
+    if let parts = selectedThread?.id.decode(), parts.connectionId == session.selectedConnectionId {
+      return session.richChatThread(id: parts.remoteId)?.projectId
+    }
+    return nil
+  }
+
+  private func toggleHomeSidebar() {
+    if !currentLayout.isSplit { path = NavigationPath(); return }
+    if horizontalSizeClass == .compact {
+      preferredCompactColumn = preferredCompactColumn == .detail ? .sidebar : .detail
+    } else if currentLayout.usesOverlaySidebar { isOverlaySidebarVisible.toggle() }
+    else { isDockedSidebarVisible.toggle() }
   }
 }
 

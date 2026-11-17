@@ -101,6 +101,8 @@ struct RichChatAdaptiveComposer<Summary: View, Leading: View, Configuration: Vie
   @Binding var selection: NSRange?
   @Binding var isExpanded: Bool
   var controlsVisible = false
+  var keyboardOwnerID: UUID? = nil
+  var keyboardFocusRequest: UInt64 = 0
   let hasPrompt: Bool
   let hasTrailingAction: Bool
   var placeholder: String = RichChatStrings.message
@@ -161,6 +163,9 @@ struct RichChatAdaptiveComposer<Summary: View, Leading: View, Configuration: Vie
     .preference(key: PoracodeComposerFocusPreferenceKey.self, value: isExpanded && focused && !controlsVisible)
     .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: isExpanded)
     .onChange(of: controlsVisible) { _, visible in if visible { focused = false } }
+    .onChange(of: keyboardFocusRequest) { _, _ in
+      if isExpanded && !controlsVisible { focused = true }
+    }
     .task(id: isExpanded) {
       if isExpanded && !controlsVisible {
         await Task.yield()
@@ -199,7 +204,8 @@ struct RichChatAdaptiveComposer<Summary: View, Leading: View, Configuration: Vie
       lineLimit: lineLimit,
       placeholder: placeholder,
       pointSize: PoracodeChatTextRole.body.pointSize(for: storedTextSize),
-      submit: submit
+      submit: submit,
+      keyboardOwnerID: keyboardOwnerID
     )
     .padding(.horizontal, 4)
     .padding(.vertical, 7)
@@ -218,6 +224,7 @@ struct RichChatComposerTextInput: UIViewRepresentable {
   let placeholder: String
   var pointSize: CGFloat = 17
   var submit: (() -> Void)?
+  var keyboardOwnerID: UUID? = nil
 
   static func makeEditor(pointSize: CGFloat) -> RichChatComposerTextView {
     let view = RichChatComposerTextView()
@@ -240,6 +247,7 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     view.delegate = context.coordinator
     view.accessibilityLabel = placeholder
     view.text = text
+    view.keyboardOwnerID = keyboardOwnerID
     let label = UILabel()
     label.text = placeholder
     label.isHidden = !text.isEmpty
@@ -265,6 +273,10 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     context.coordinator.updating = true
     defer { context.coordinator.updating = false }
     view.submit = submit
+    if view.keyboardOwnerID != keyboardOwnerID {
+      view.keyboardOwnerID = keyboardOwnerID
+      if view.isFirstResponder { view.notifyNativeCommandFocusChanged() }
+    }
     let font = UIFontMetrics(forTextStyle: .body).scaledFont(for: .systemFont(ofSize: pointSize))
     if view.font != font { view.font = font }
     context.coordinator.placeholder?.font = font
@@ -362,8 +374,10 @@ struct RichChatComposerTextInput: UIViewRepresentable {
   }
 }
 
-final class RichChatComposerTextView: UITextView {
+final class RichChatComposerTextView: NativeFocusReportingTextView {
   var submit: (() -> Void)?
+  var keyboardOwnerID: UUID?
+
 
   override var keyCommands: [UIKeyCommand]? {
     guard submit != nil, markedTextRange == nil else { return super.keyCommands }

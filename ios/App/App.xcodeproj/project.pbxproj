@@ -195,6 +195,8 @@
 		A1000000000000000000000C /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* AppSession.swift */; };
 		A1000000000000000000000D /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* StateViews.swift */; };
 		A1000000000000000000000E /* GlassHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* GlassHelpers.swift */; };
+		7847973F2C15653DD3AE2529 /* JavaScriptString.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABF1C0F3AF583DEBDA0BAE5E /* JavaScriptString.swift */; };
+		D229809955058C18E76001B1 /* NativeInputFocus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FF1DFD19544F0B7F441406D /* NativeInputFocus.swift */; };
 		PG2000000000000000000001 /* PoracodeGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = PG1000000000000000000001 /* PoracodeGlass.swift */; };
 		PG2000000000000000000002 /* PoracodeGlassTabs.swift in Sources */ = {isa = PBXBuildFile; fileRef = PG1000000000000000000002 /* PoracodeGlassTabs.swift */; };
 		PG2000000000000000000003 /* PoracodeButtonStyles.swift in Sources */ = {isa = PBXBuildFile; fileRef = PG1000000000000000000003 /* PoracodeButtonStyles.swift */; };
@@ -466,6 +468,7 @@
 		A100000000000000000000B9 /* RichChatGoalSteerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000B9 /* RichChatGoalSteerView.swift */; };
 		A100000000000000000000BA /* RichChatCheckpointView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BA /* RichChatCheckpointView.swift */; };
 		A100000000000000000000BB /* RichChatComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BB /* RichChatComposerView.swift */; };
+		D62F4079547195C2ACD4DD35 /* RichChatComposerSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = C08A97FFBF7A9B05ADF6C3EF /* RichChatComposerSheets.swift */; };
 		CC1100000000000000000001 /* RichChatComposerContextBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2100000000000000000001 /* RichChatComposerContextBar.swift */; };
 		C4E0C4E0C4E0C4E0C4E0C4E0 /* RichChatCrewPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */; };
 		D71000000000000000000003 /* RichChatComposerConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72000000000000000000003 /* RichChatComposerConfiguration.swift */; };
@@ -506,6 +509,7 @@
 		BA1100000000000000000001 /* RichChatBackgroundTaskControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */; };
 		A100000000000000000000BD /* RichChatThreadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000BD /* RichChatThreadView.swift */; };
 		PC1100000000000000000001 /* RichChatResponsiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = PC2100000000000000000001 /* RichChatResponsiveLayout.swift */; };
+		CBC07702527BF9013D443707 /* RichChatTerminalSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD9123E5B83A8DE20069AD5 /* RichChatTerminalSurface.swift */; };
 		PV1100000000000000000001 /* RichChatTranscriptSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV2100000000000000000001 /* RichChatTranscriptSurface.swift */; };
 		PV1200000000000000000001 /* RichChatThreadComposerSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */; };
 		PA1100000000000000000001 /* RichChatThreadDraftState.swift in Sources */ = {isa = PBXBuildFile; fileRef = PA2100000000000000000001 /* RichChatThreadDraftState.swift */; };
@@ -918,10 +922,15 @@
 		20E7C64A23C8FDBFFB6C2BC0 /* DeviceSettingsDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66D8DE5CF485CF23F25B355F /* DeviceSettingsDestination.swift */; };
 		B52EA5D7654CB5946E20C7C1 /* HomeShortcutSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0CBFB30FCFADBD8DE9A1C7B /* HomeShortcutSettingsView.swift */; };
 		9B78CC9D5AEE9275E2C4039C /* NativeShortcutJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F42946D48F635DDA54BD9AC6 /* NativeShortcutJourneyUITests.swift */; };
+		D8888DC9F3E0D1700E551888 /* NativeKeyboardJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA0FB75D12D9C4B9AAD84B96 /* NativeKeyboardJourneyUITests.swift */; };
 		21DEC88C768FA0EA52923201 /* HomeNewsRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA69E1AC9C6F9A1E6B82EECD /* HomeNewsRulesTests.swift */; };
 		CEA38CA5018F87D99EB31D3D /* CustomThemeStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3F17C91E4E5675FD27E2F6 /* CustomThemeStoreTests.swift */; };
 		62619E0D0FD4F03781CAFF5B /* CustomThemeDocumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4223D2311AD53CE91B222AF /* CustomThemeDocumentTests.swift */; };
 		671BE5642DDF811A50A34E73 /* NativeRecentHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A53D0E29D92F4EF64967BCD /* NativeRecentHistoryTests.swift */; };
+		D20E90487B5662C31B8D85D6 /* NativeKeybindingStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A972DEA99DCE73F3AEAD552 /* NativeKeybindingStoreTests.swift */; };
+		368409A11026CAA5B82DFF3F /* NativeCommandRegistryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C27316F3DDB26C845142D95 /* NativeCommandRegistryTests.swift */; };
+		A926D00D0AA54A7220EE92FD /* NativeComposerCommandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C64FBD707C5657E32B2FDF8 /* NativeComposerCommandTests.swift */; };
+		3AEB3B3DDA63A289F77E8792 /* NativeKeyboardCompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F670DFE314F763B1D02B946 /* NativeKeyboardCompatibilityTests.swift */; };
 		245B607C032AC36E15F904A8 /* HomeNewsMemoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D964D72069EA4684D71D36 /* HomeNewsMemoryTests.swift */; };
 		31069AD26BC829B677D69363 /* PublicJSONClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E81B232983678FF5AAA11690 /* PublicJSONClient.swift */; };
 		9692ECA86BDCE42DAFE5A274 /* VersionedJSONCacheFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB6CDD74AA252963A6500C5A /* VersionedJSONCacheFile.swift */; };
@@ -1168,6 +1177,8 @@
 		B1000000000000000000000C /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
 		B1000000000000000000000D /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
 		B1000000000000000000000E /* GlassHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassHelpers.swift; sourceTree = "<group>"; };
+		ABF1C0F3AF583DEBDA0BAE5E /* JavaScriptString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JavaScriptString.swift; sourceTree = "<group>"; };
+		5FF1DFD19544F0B7F441406D /* NativeInputFocus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeInputFocus.swift; sourceTree = "<group>"; };
 		PG1000000000000000000001 /* PoracodeGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeGlass.swift; sourceTree = "<group>"; };
 		PG1000000000000000000002 /* PoracodeGlassTabs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeGlassTabs.swift; sourceTree = "<group>"; };
 		PG1000000000000000000003 /* PoracodeButtonStyles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeButtonStyles.swift; sourceTree = "<group>"; };
@@ -1437,6 +1448,7 @@
 		B100000000000000000000B9 /* RichChatGoalSteerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatGoalSteerView.swift; sourceTree = "<group>"; };
 		B100000000000000000000BA /* RichChatCheckpointView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatCheckpointView.swift; sourceTree = "<group>"; };
 		B100000000000000000000BB /* RichChatComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerView.swift; sourceTree = "<group>"; };
+		C08A97FFBF7A9B05ADF6C3EF /* RichChatComposerSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerSheets.swift; sourceTree = "<group>"; };
 		CC2100000000000000000001 /* RichChatComposerContextBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerContextBar.swift; sourceTree = "<group>"; };
 		C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatCrewPresentation.swift; sourceTree = "<group>"; };
 		D72000000000000000000003 /* RichChatComposerConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatComposerConfiguration.swift; sourceTree = "<group>"; };
@@ -1477,6 +1489,7 @@
 		BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatBackgroundTaskControls.swift; sourceTree = "<group>"; };
 		B100000000000000000000BD /* RichChatThreadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadView.swift; sourceTree = "<group>"; };
 		PC2100000000000000000001 /* RichChatResponsiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/RichChatResponsiveLayout.swift; sourceTree = "<group>"; };
+		8DD9123E5B83A8DE20069AD5 /* RichChatTerminalSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RichChatTerminalSurface.swift; sourceTree = "<group>"; };
 		PV2100000000000000000001 /* RichChatTranscriptSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RichChatTranscriptSurface.swift; sourceTree = "<group>"; };
 		PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/RichChatThreadComposerSurface.swift; sourceTree = "<group>"; };
 		PA2100000000000000000001 /* RichChatThreadDraftState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/RichChatThreadDraftState.swift; sourceTree = "<group>"; };
@@ -1888,10 +1901,15 @@
 		66D8DE5CF485CF23F25B355F /* DeviceSettingsDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceSettingsDestination.swift; sourceTree = "<group>"; };
 		A0CBFB30FCFADBD8DE9A1C7B /* HomeShortcutSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeShortcutSettingsView.swift; sourceTree = "<group>"; };
 		F42946D48F635DDA54BD9AC6 /* NativeShortcutJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeShortcutJourneyUITests.swift; sourceTree = "<group>"; };
+		BA0FB75D12D9C4B9AAD84B96 /* NativeKeyboardJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeKeyboardJourneyUITests.swift; sourceTree = "<group>"; };
 		FA69E1AC9C6F9A1E6B82EECD /* HomeNewsRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeNewsRulesTests.swift; sourceTree = "<group>"; };
 		5B3F17C91E4E5675FD27E2F6 /* CustomThemeStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomThemeStoreTests.swift; sourceTree = "<group>"; };
 		C4223D2311AD53CE91B222AF /* CustomThemeDocumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomThemeDocumentTests.swift; sourceTree = "<group>"; };
 		9A53D0E29D92F4EF64967BCD /* NativeRecentHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRecentHistoryTests.swift; sourceTree = "<group>"; };
+		6A972DEA99DCE73F3AEAD552 /* NativeKeybindingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeKeybindingStoreTests.swift; sourceTree = "<group>"; };
+		1C27316F3DDB26C845142D95 /* NativeCommandRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCommandRegistryTests.swift; sourceTree = "<group>"; };
+		6C64FBD707C5657E32B2FDF8 /* NativeComposerCommandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeComposerCommandTests.swift; sourceTree = "<group>"; };
+		4F670DFE314F763B1D02B946 /* NativeKeyboardCompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeKeyboardCompatibilityTests.swift; sourceTree = "<group>"; };
 		C8D964D72069EA4684D71D36 /* HomeNewsMemoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeNewsMemoryTests.swift; sourceTree = "<group>"; };
 		E81B232983678FF5AAA11690 /* PublicJSONClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PublicJSONClient.swift; sourceTree = "<group>"; };
 		CB6CDD74AA252963A6500C5A /* VersionedJSONCacheFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionedJSONCacheFile.swift; sourceTree = "<group>"; };
@@ -1990,6 +2008,11 @@
 		034B8734B9E0A8D6BE2692EB /* CustomThemes */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = App/Features/CustomThemes;
+			sourceTree = "<group>";
+		};
+		43CF89BABBE8E339042778A7 /* KeyboardShortcuts */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = App/Features/KeyboardShortcuts;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -2208,6 +2231,7 @@
 				4F7C84434FFDC92ADDDE1E4F /* Changelog */,
 				BE48D8714369193AE7C6D9BA /* HomeNews */,
 				034B8734B9E0A8D6BE2692EB /* CustomThemes */,
+				43CF89BABBE8E339042778A7 /* KeyboardShortcuts */,
 				CB8370CC21E24A8348B5554B /* SessionImportTransport */,
 				F06FF8279A40988D991ABF9D /* SessionImport */,
 				B10000000000000000000072 /* native-bindings.json */,
@@ -2690,6 +2714,7 @@
 				SB1000000000000000000007 /* RichChatSessionActionStrings.swift */,
 				SB1000000000000000000008 /* RichChatSessionActionForms.swift */,
 				SB1000000000000000000009 /* RichChatSessionActionListings.swift */,
+				C08A97FFBF7A9B05ADF6C3EF /* RichChatComposerSheets.swift */,
 				CC2100000000000000000001 /* RichChatComposerContextBar.swift */,
 				C4E1C4E1C4E1C4E1C4E1C4E1 /* RichChatCrewPresentation.swift */,
 				D72000000000000000000003 /* RichChatComposerConfiguration.swift */,
@@ -2715,6 +2740,7 @@
 				BC1100000000000000000001 /* RichChatBackgroundTaskControls.swift */,
 				B100000000000000000000BD /* RichChatThreadView.swift */,
 				PC2100000000000000000001 /* RichChatResponsiveLayout.swift */,
+				8DD9123E5B83A8DE20069AD5 /* RichChatTerminalSurface.swift */,
 				PV2100000000000000000001 /* RichChatTranscriptSurface.swift */,
 				PV2200000000000000000001 /* RichChatThreadComposerSurface.swift */,
 				PA2100000000000000000001 /* RichChatThreadDraftState.swift */,
@@ -2869,6 +2895,8 @@
 			children = (
 				B1000000000000000000000D /* StateViews.swift */,
 				B1000000000000000000000E /* GlassHelpers.swift */,
+				ABF1C0F3AF583DEBDA0BAE5E /* JavaScriptString.swift */,
+				5FF1DFD19544F0B7F441406D /* NativeInputFocus.swift */,
 				PG1000000000000000000001 /* PoracodeGlass.swift */,
 				81BDB4A61CD7748F079AAD0A /* PoracodeKeyboardAvoidance.swift */,
 				PG1000000000000000000002 /* PoracodeGlassTabs.swift */,
@@ -3212,6 +3240,10 @@
 				5B3F17C91E4E5675FD27E2F6 /* CustomThemeStoreTests.swift */,
 				C4223D2311AD53CE91B222AF /* CustomThemeDocumentTests.swift */,
 				9A53D0E29D92F4EF64967BCD /* NativeRecentHistoryTests.swift */,
+				6A972DEA99DCE73F3AEAD552 /* NativeKeybindingStoreTests.swift */,
+				1C27316F3DDB26C845142D95 /* NativeCommandRegistryTests.swift */,
+				6C64FBD707C5657E32B2FDF8 /* NativeComposerCommandTests.swift */,
+				4F670DFE314F763B1D02B946 /* NativeKeyboardCompatibilityTests.swift */,
 				4F826E17E7545F7D39E59E97 /* HomeNewsFormattingTests.swift */,
 				4EEFC69731EB67D0D6E9FD65 /* HomeNewsHostDataTests.swift */,
 				B40822D7603932AF9C3E2370 /* HomeNewsFeedStoreTests.swift */,
@@ -3252,6 +3284,7 @@
 				A7E5CA1B92C444B034B2D419 /* NativeAgentDiscoveryJourneyUITests.swift */,
 				10C17BD2983640AC8C09A97E /* NativeChangelogJourneyUITests.swift */,
 				F42946D48F635DDA54BD9AC6 /* NativeShortcutJourneyUITests.swift */,
+				BA0FB75D12D9C4B9AAD84B96 /* NativeKeyboardJourneyUITests.swift */,
 				ED46851893176FF60AAFA26A /* NativeNewsJourneyUITests.swift */,
 				2321998C3EFE9359F28478FA /* NativeCustomThemeJourneyUITests.swift */,
 				51F9E77E4D8247A089E3A2C3 /* NativeHistoryPerformanceJourneyUITests.swift */,
@@ -3589,6 +3622,7 @@
 				4F7C84434FFDC92ADDDE1E4F /* Changelog */,
 				BE48D8714369193AE7C6D9BA /* HomeNews */,
 				034B8734B9E0A8D6BE2692EB /* CustomThemes */,
+				43CF89BABBE8E339042778A7 /* KeyboardShortcuts */,
 				F30000000000000000000001 /* RichChatNotices */,
 				CB8370CC21E24A8348B5554B /* SessionImportTransport */,
 				F06FF8279A40988D991ABF9D /* SessionImport */,
@@ -3781,6 +3815,7 @@
 				5B8320AB250508D8A6F31340 /* NativeAgentDiscoveryJourneyUITests.swift in Sources */,
 				A6654A7B895925C292A1349B /* NativeChangelogJourneyUITests.swift in Sources */,
 				9B78CC9D5AEE9275E2C4039C /* NativeShortcutJourneyUITests.swift in Sources */,
+				D8888DC9F3E0D1700E551888 /* NativeKeyboardJourneyUITests.swift in Sources */,
 				F09BFCD4861557DA27478D2E /* NativeNewsJourneyUITests.swift in Sources */,
 				479D4E5DAD4B307C3FA4DF00 /* NativeCustomThemeJourneyUITests.swift in Sources */,
 				F295C67BB7ED4AD385D314E4 /* NativeHistoryPerformanceJourneyUITests.swift in Sources */,
@@ -4036,6 +4071,8 @@
 				A1000000000000000000000C /* AppSession.swift in Sources */,
 				A1000000000000000000000D /* StateViews.swift in Sources */,
 				A1000000000000000000000E /* GlassHelpers.swift in Sources */,
+				7847973F2C15653DD3AE2529 /* JavaScriptString.swift in Sources */,
+				D229809955058C18E76001B1 /* NativeInputFocus.swift in Sources */,
 				PG2000000000000000000001 /* PoracodeGlass.swift in Sources */,
 				D262F8F45F4FD817FD5AE5E8 /* PoracodeKeyboardAvoidance.swift in Sources */,
 				PG2000000000000000000002 /* PoracodeGlassTabs.swift in Sources */,
@@ -4259,6 +4296,7 @@
 				A100000000000000000000B9 /* RichChatGoalSteerView.swift in Sources */,
 				A100000000000000000000BA /* RichChatCheckpointView.swift in Sources */,
 				A100000000000000000000BB /* RichChatComposerView.swift in Sources */,
+				D62F4079547195C2ACD4DD35 /* RichChatComposerSheets.swift in Sources */,
 				CC1100000000000000000001 /* RichChatComposerContextBar.swift in Sources */,
 				C4E0C4E0C4E0C4E0C4E0C4E0 /* RichChatCrewPresentation.swift in Sources */,
 				D71000000000000000000003 /* RichChatComposerConfiguration.swift in Sources */,
@@ -4291,6 +4329,7 @@
 				BA1100000000000000000001 /* RichChatBackgroundTaskControls.swift in Sources */,
 				A100000000000000000000BD /* RichChatThreadView.swift in Sources */,
 				PC1100000000000000000001 /* RichChatResponsiveLayout.swift in Sources */,
+				CBC07702527BF9013D443707 /* RichChatTerminalSurface.swift in Sources */,
 				PV1100000000000000000001 /* RichChatTranscriptSurface.swift in Sources */,
 				PV1200000000000000000001 /* RichChatThreadComposerSurface.swift in Sources */,
 				PA1100000000000000000001 /* RichChatThreadDraftState.swift in Sources */,
@@ -4565,6 +4604,10 @@
 				CEA38CA5018F87D99EB31D3D /* CustomThemeStoreTests.swift in Sources */,
 				62619E0D0FD4F03781CAFF5B /* CustomThemeDocumentTests.swift in Sources */,
 				671BE5642DDF811A50A34E73 /* NativeRecentHistoryTests.swift in Sources */,
+				D20E90487B5662C31B8D85D6 /* NativeKeybindingStoreTests.swift in Sources */,
+				368409A11026CAA5B82DFF3F /* NativeCommandRegistryTests.swift in Sources */,
+				A926D00D0AA54A7220EE92FD /* NativeComposerCommandTests.swift in Sources */,
+				3AEB3B3DDA63A289F77E8792 /* NativeKeyboardCompatibilityTests.swift in Sources */,
 				6F518E90BF04BD90F3DEDEB4 /* HomeNewsFormattingTests.swift in Sources */,
 				C76782FB3CBF01E815E9E098 /* HomeNewsHostDataTests.swift in Sources */,
 				2233F42C358B0F5558F252E4 /* HomeNewsFeedStoreTests.swift in Sources */,

@@ -200,14 +200,13 @@ struct RichChatComposerSelectors: View {
 
   private var modelMenu: some View {
     Menu {
-      let selected = selectedModelRow
+      let selected = catalog.selectedModelRow(for: configuration)
       ForEach(catalog.modelSections()) { section in
         Section {
           ForEach(section.options) { option in
             Button {
               var next = configuration
-              if catalog.isProjectedFamilyRow(option.id) { catalog.applyFamilyRowSelection(option.id, to: &next) }
-              else { catalog.applyExactModelSelection(option.id, to: &next) }
+              catalog.applyModelRowSelection(option.id, to: &next)
               propose(next)
             } label: {
               if selected == option.id { Label(option.label, systemImage: "checkmark") }
@@ -222,13 +221,6 @@ struct RichChatComposerSelectors: View {
     .accessibilityLabel(HomeStrings.model)
     .accessibilityValue(catalog.modelLabel(configuration.model))
     .accessibilityIdentifier("native-e2e.composer.model")
-  }
-
-  private var selectedModelRow: String {
-    guard let family = ModelFamilies.family(for: configuration.model, in: catalog.capabilities, accepted: catalog.familyAcceptedIDs) else { return configuration.model }
-    return catalog.models.first { option in
-      catalog.isProjectedFamilyRow(option.id) && family.members.contains { $0.model == option.id }
-    }?.id ?? configuration.model
   }
 
   private var effortMenu: some View {
@@ -287,6 +279,7 @@ struct RichChatComposerSelectors: View {
     .accessibilityValue(fast ? ProjectSettingsStrings.enabled : ProjectSettingsStrings.disabled)
     .accessibilityAddTraits(fast ? .isSelected : [])
     .accessibilityIdentifier("native-e2e.composer.fast")
+    .disabled(!catalog.canEditFast(configuration))
     .help(HomeStrings.fast)
   }
 

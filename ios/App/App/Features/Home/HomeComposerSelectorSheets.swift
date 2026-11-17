@@ -149,11 +149,7 @@ extension HomeQuickComposeView {
       let catalog = composerControlsCatalog
       // Pinning an implicit default provider is not a provider change. A
       // same-provider model edit must retain permissions, context and skills.
-      if catalog.isProjectedFamilyRow(model.modelID) {
-        catalog.applyFamilyRowSelection(model.modelID, to: &next)
-      } else {
-        catalog.applyExactModelSelection(model.modelID, to: &next)
-      }
+      catalog.applyModelRowSelection(model.modelID, to: &next)
       draft.selectAgent(agent.kind, preservingContext: true)
       applyComposerControls(next, persist: false)
     } else {
@@ -171,8 +167,7 @@ extension HomeQuickComposeView {
         configuration: configuration, hiddenModels: draft.hiddenModels,
         agentInstanceID: instanceID,
         modelPreferences: preferences)
-      if catalog.isProjectedFamilyRow(model.modelID) { catalog.applyFamilyRowSelection(model.modelID, to: &configuration) }
-      else { catalog.applyExactModelSelection(model.modelID, to: &configuration) }
+      catalog.applyModelRowSelection(model.modelID, to: &configuration)
       guard !configuration.model.isEmpty else { return }
       draft.selectAgent(agent.kind)
       draft.configuredConfiguration = ThreadLaunchConfiguration(configuration)

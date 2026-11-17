@@ -3,6 +3,7 @@ import SwiftUI
 enum RichChatComposerControlsPresentation: String, Identifiable {
   case controls
   case crew
+  case models
   var id: String { rawValue }
 }
 

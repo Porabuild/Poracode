@@ -29,6 +29,18 @@
     override var canBecomeFirstResponder: Bool { true }
     var hasText: Bool { true }
 
+    override func becomeFirstResponder() -> Bool {
+      let accepted = super.becomeFirstResponder()
+      if accepted { notifyNativeCommandFocusChanged() }
+      return accepted
+    }
+
+    override func resignFirstResponder() -> Bool {
+      let accepted = super.resignFirstResponder()
+      if accepted { notifyNativeCommandFocusChanged() }
+      return accepted
+    }
+
     override init(frame: CGRect) {
       super.init(frame: frame)
       isAccessibilityElement = true

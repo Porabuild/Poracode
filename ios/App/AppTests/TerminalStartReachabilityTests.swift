@@ -241,7 +241,10 @@ final class TerminalStartReachabilityTests: XCTestCase {
     let pageState = try Self.source(
       "App/Features/RichChat/UI/Pages/RichChatThreadPageState.swift"
     )
-    XCTAssertTrue(thread.contains("RichTerminalView("))
+    XCTAssertTrue(thread.contains("RichChatTerminalSurface("))
+    let terminalSurface = try Self.source("App/Features/RichChat/UI/Views/RichChatTerminalSurface.swift")
+    XCTAssertTrue(terminalSurface.contains("RichTerminalView("))
+    XCTAssertTrue(terminalSurface.contains("if isConnectingHost"))
     XCTAssertTrue(
       pageState.contains("ThreadPresentationFilter.isTerminalPresentation(thread.presentationMode)")
     )

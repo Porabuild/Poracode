@@ -796,10 +796,12 @@ final class RichChatComposerFamilyControlsTests: XCTestCase {
 
   func testComposerSourcesWireTheFamilyEditCallbacks() throws {
     let configuration = try Self.source("App/Features/RichChat/UI/RichChatComposerConfigurationFields.swift")
+    let familyControls = try Self.source("App/Features/RichChat/UI/RichChatComposerFamilyControls.swift")
     XCTAssertTrue(
-      configuration.contains("catalog.isProjectedFamilyRow(model)")
-        && configuration.contains("catalog.applyFamilyRowSelection(model, to: &draft)")
-        && configuration.contains("catalog.applyExactModelSelection(model, to: &draft)"),
+      configuration.contains("catalog.applyModelRowSelection(model, to: &draft)")
+        && familyControls.contains("if isProjectedFamilyRow(modelID)")
+        && familyControls.contains("applyFamilyRowSelection(modelID, to: &configuration)")
+        && familyControls.contains("applyExactModelSelection(modelID, to: &configuration)"),
       "the model binding dispatches the row's own family/exact intent")
     XCTAssertTrue(
       configuration.contains("catalog.applySelectorEdit(selectorID: control.id, value: $0, to: &draft)"),

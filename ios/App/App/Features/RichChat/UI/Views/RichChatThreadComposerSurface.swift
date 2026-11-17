@@ -73,6 +73,7 @@ struct RichChatThreadComposerSurface: View {
       sideQuestion: sideQuestion,
       crewContext: crewContext,
       controlsDestination: $state.composerControlDestination,
+      stateOwnerID: ObjectIdentifier(state),
       isConnectingHost: isConnectingHost
     )
   }

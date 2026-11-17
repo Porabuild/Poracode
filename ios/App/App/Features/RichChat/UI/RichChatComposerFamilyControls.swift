@@ -63,6 +63,21 @@ extension RichChatComposerControlCatalog {
       .contains { $0.model == modelID }
   }
 
+  func applyModelRowSelection(_ modelID: String, to configuration: inout ThreadConfig) {
+    if isProjectedFamilyRow(modelID) { applyFamilyRowSelection(modelID, to: &configuration) }
+    else { applyExactModelSelection(modelID, to: &configuration) }
+  }
+
+  /// Encoded family members express Fast through their model relation;
+  /// ordinary Fast also respects the provider's temporary disable reason.
+  func canEditFast(_ configuration: ThreadConfig) -> Bool {
+    guard supportsFast(configuration.model) else { return false }
+    if ModelFamilies.family(for: configuration.model, in: capabilities, accepted: familyAcceptedIDs)?.bindings.fast == .model {
+      return true
+    }
+    return capabilities["fastDisabledReason"]?.stringValue?.isEmpty != false
+  }
+
   /// Projected family-row pick: inside the family the current member is
   /// retained, otherwise the declared default is adopted atomically (inert
   /// encoded seeds; config-bound carriers untouched).

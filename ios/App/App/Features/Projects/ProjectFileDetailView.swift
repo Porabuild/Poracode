@@ -87,6 +87,7 @@ struct ProjectFileDetailView: View {
 
   private var editableContent: some View {
     TextEditor(text: $editor.draft)
+      .focusedValue(\.nativeCommandFocus, .init(role: .editor, isTextInput: true))
       .font(.system(.body, design: .monospaced))
       .textInputAutocapitalization(.never)
       .autocorrectionDisabled()

@@ -91,6 +91,7 @@ struct RichChatComposerConfigurationFields: View {
         if supportsFast {
           Toggle(HomeStrings.fast, isOn: fastBinding)
           .poracodeSwitchStyle()
+          .disabled(!catalog.canEditFast(draft))
           .accessibilityIdentifier("native-e2e.composer-controls.fast")
         }
         if supportsThinking {
@@ -180,11 +181,7 @@ struct RichChatComposerConfigurationFields: View {
         // The row's own origin carries the intent: the projected family row
         // retains/adopts through the relation; every exact row selects that
         // exact UID.
-        if catalog.isProjectedFamilyRow(model) {
-          catalog.applyFamilyRowSelection(model, to: &draft)
-        } else {
-          catalog.applyExactModelSelection(model, to: &draft)
-        }
+        catalog.applyModelRowSelection(model, to: &draft)
       }
     )
   }

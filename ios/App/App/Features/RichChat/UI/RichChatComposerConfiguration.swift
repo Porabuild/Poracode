@@ -204,6 +204,15 @@ struct RichChatComposerControlCatalog {
       ?? modelID
   }
 
+  func selectedModelRow(for configuration: ThreadConfig) -> String {
+    guard let family = ModelFamilies.family(for: configuration.model, in: capabilities, accepted: familyAcceptedIDs) else {
+      return configuration.model
+    }
+    return models.first { option in
+      isProjectedFamilyRow(option.id) && family.members.contains { $0.model == option.id }
+    }?.id ?? configuration.model
+  }
+
   /// The accepted id authority for family projection: the live negotiated
   /// model values while a live menu is active, otherwise the raw models.
   var familyAcceptedIDs: Set<String>? {

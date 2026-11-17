@@ -124,8 +124,9 @@ struct TerminalCommandField: UIViewRepresentable {
 /// keypress and a paste reach the delegate as a `"\n"` replacement — only
 /// the flag tells them apart), and an intrinsic height that follows wrapped
 /// content.
-final class TerminalCommandTextView: UITextView {
+final class TerminalCommandTextView: NativeFocusReportingTextView {
   var isPasting = false
+
 
   override init(frame: CGRect, textContainer: NSTextContainer?) {
     super.init(frame: frame, textContainer: textContainer)

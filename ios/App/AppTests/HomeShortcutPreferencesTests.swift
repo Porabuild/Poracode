@@ -15,9 +15,9 @@ final class HomeShortcutPreferencesTests: XCTestCase {
   func testCatalogMatchesTheRemotePWAAndExistingStringIdentifiersRoundTrip() throws {
     let fixture = try fixture()
     XCTAssertEqual(HomeShortcutID.core.map(\.rawValue), fixture.core)
-    XCTAssertEqual(DeviceSettingsDestination.allCases.map(\.rawValue), fixture.remoteSettings)
-    XCTAssertEqual(HomeShortcutID.allCases.map(\.rawValue), fixture.expectedIDs)
-    XCTAssertEqual(Set(HomeShortcutID.allCases.map(\.rawValue)).count, 19)
+    XCTAssertEqual(DeviceSettingsDestination.allCases.filter { $0 != .shortcuts }.map(\.rawValue), fixture.remoteSettings)
+    XCTAssertEqual(HomeShortcutID.allCases.filter { $0 != .settings(.shortcuts) }.map(\.rawValue), fixture.expectedIDs)
+    XCTAssertEqual(Set(HomeShortcutID.allCases.map(\.rawValue)), Set(fixture.expectedIDs + ["settings:shortcuts"]))
     for shortcut in HomeShortcutID.allCases {
       let encoded = try JSONEncoder().encode(shortcut)
       XCTAssertEqual(try JSONDecoder().decode(String.self, from: encoded), shortcut.rawValue)
@@ -72,6 +72,17 @@ final class HomeShortcutPreferencesTests: XCTestCase {
     XCTAssertEqual(Set(identities).count, DeviceSettingsDestination.allCases.count)
     XCTAssertFalse(identities.contains(HomeSheetDestination.settings.id))
     XCTAssertEqual(HomeSheetDestination.settingsDestination(.models).id, "settings:agentsGeneral")
+  }
+
+  func testNativeKeyboardPinIsAdditiveAndSurvivesTheV1StringReader() throws {
+    var preferences = HomeShortcutPreferences.default
+    XCTAssertFalse(preferences.visible.contains(.settings(.shortcuts)))
+    preferences.setVisible(true, for: .settings(.shortcuts))
+    let oldReader = try JSONDecoder().decode(Payload.self, from: Data(preferences.encoded.utf8))
+    XCTAssertTrue(oldReader.order.contains("settings:shortcuts"))
+    XCTAssertFalse(oldReader.hidden.contains("settings:shortcuts"))
+    let oldWritten = try JSONEncoder().encode(oldReader)
+    XCTAssertTrue(HomeShortcutPreferences(storageValue: String(decoding: oldWritten, as: UTF8.self)).visible.contains(.settings(.shortcuts)))
   }
 
   func testMalformedV1DataRecoversWithoutChangingTheDefaultPins() {

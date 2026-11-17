@@ -81,6 +81,7 @@ struct VoiceInputSheet: View {
         }
       }
     }
+    .nativeCommands(identity: "voice-input", blocksParentActions: true)
     .statusBarHidden(false)
     .poracodeFormSheetSizing()
     .presentationDetents([.large])

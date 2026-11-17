@@ -614,7 +614,9 @@ final class RichChatComposerParityTests: XCTestCase {
     )
     let context = try Self.source("App/Features/RichChat/UI/RichChatComposerContextBar.swift")
 
-    XCTAssertTrue(composer.contains("RichChatComposerControlsSheet("))
+    let sheets = try Self.source("App/Features/RichChat/UI/RichChatComposerSheets.swift")
+    XCTAssertTrue(composer.contains("composerControlsSheet(presentation)"))
+    XCTAssertTrue(sheets.contains("RichChatComposerControlsSheet("))
     XCTAssertTrue(composer.contains("configuration.richChatObject"))
     XCTAssertTrue(composer.contains("slashCommandPanel"))
     XCTAssertTrue(composer.contains(#"draft = "/\(command.displayID) ""#))
@@ -1201,7 +1203,9 @@ final class RichChatComposerParityTests: XCTestCase {
     let controller = try Self.source("App/Features/SettingsIntegrations/SkillsController.swift")
     let draftStore = try Self.source("App/Features/RichChat/RichChatComposerDraftStore.swift")
 
-    XCTAssertTrue(composer.contains("RichChatComposerSkillPicker("))
+    let sheets = try Self.source("App/Features/RichChat/UI/RichChatComposerSheets.swift")
+    XCTAssertTrue(composer.contains("composerSkillsSheet"))
+    XCTAssertTrue(sheets.contains("RichChatComposerSkillPicker("))
     XCTAssertTrue(
       composer.contains(
         "queuedSegments + skills.map(\\.segment) + mcps.map(\\.segment)"
@@ -1322,7 +1326,8 @@ final class RichChatComposerParityTests: XCTestCase {
     // its access level is not part of the compatible-provider behavior.
     XCTAssertTrue(support.contains("func launchModel("))
     XCTAssertTrue(support.contains("presentationMode: presentationMode"))
-    XCTAssertTrue(actions.contains("let launchAgentKind = selectedAgent?.kind"))
+    XCTAssertTrue(actions.contains("let launchAgent = selectedAgent"))
+    XCTAssertTrue(actions.contains("let launchAgentKind = launchAgent.kind"))
     XCTAssertTrue(actions.contains("agentKind: launchAgentKind"))
   }
 

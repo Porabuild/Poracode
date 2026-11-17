@@ -207,6 +207,16 @@ beside the file named earlier in the same row.
 
 Android paths above are relative to `android/app/src/main/kotlin/com/poracode/app/`. iOS preference types: `ProjectSyncPreferences`, `AIContentLanguagePreference`, `PoracodeChatTextSize` (`AppTheme.swift`), `PoracodeTerminalTextSize` (`TerminalTextSurface.swift`), `NotificationDeliveryPreference` and `NotificationAlertPreference` (`NotificationPermissionController.swift`), `GitHubPullRequestCreationMode`, `GitHubWorkflowPinPreferences`, and `CustomThemeStore` (`Features/CustomThemes/CustomThemeStore.swift`, first device-local envelope version 1; opaque/future records and corrupt/future envelopes are preserved; portable files retain the PWA authoring version 1).
 
+Native keyboard bindings use the device-owned `NativeKeybindingStore.storageKey`
+`com.poracode.keyboard-shortcuts.v1` and `NativeKeybindingDocument.version` 1.
+The document accepts the released PWA v1 shape, migrates only the legacy
+`thread.search.open` identifier, and retains additive fields, platform overrides,
+conditions, arguments and ordering. Corrupt or future-version bytes stay unchanged
+and disable editing until an explicit reset. Native defaults adapt reserved system Settings, minimization and focus-traversal
+chords without rewriting imported documents. This adds no host
+setting or wire boundary; compatibility is pinned by
+`client-keyboard-shortcuts.json` and the native store/compatibility tests.
+
 ### Native public release-feed cache
 
 `ios/App/App/Features/Changelog/ChangelogDiskCache.swift` owns the first native

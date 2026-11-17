@@ -153,28 +153,13 @@ struct ComposerVoiceButton: View {
   var visualSize: CGFloat = 32
   var prepareToRecord: () -> Void = {}
   var inserted: () -> Void = {}
+  var keyboardOwnerID: UUID? = nil
+  var stateOwnerID: ObjectIdentifier? = nil
 
   var body: some View {
     if preferences.value.showButton, let owner, let host, let session = host.session {
       Button {
-        guard isEnabled, !preferences.incompatible,
-          session.currentRichChatAccess?.lease == owner.lease else { return }
-        prepareToRecord()
-        let snapshot = VoiceDraftSnapshot(text: text, selection: selection)
-        let hex = VoiceHexTranscriber(gateway: session.makeVoiceHexGateway(lease: owner.lease))
-        let transcriber = ComposerVoiceTranscriber(local: WhisperVoiceTranscriber(), hex: hex)
-        let controller = VoiceInputController(owner: owner, options: preferences.value, recorder: VoiceCaptureFactory.make(),
-          transcriber: transcriber, currentOwner: { [weak host, weak session] in
-            guard let host, let session, let access = session.currentRichChatAccess, access.controllerGate(.sessionOperate) == nil,
-              host.owns(owner) else { return nil }
-            return .init(lease: access.lease, conversationID: owner.conversationID)
-          })
-        let textBinding = $text, selectionBinding = $selection, didInsert = inserted
-        host.request = ComposerVoiceRequest(controller: controller) { spoken in
-          let result = snapshot.inserting(spoken, into: textBinding.wrappedValue)
-          textBinding.wrappedValue = result.text; selectionBinding.wrappedValue = result.selection
-          didInsert()
-        }
+        startRecording(owner: owner, host: host, session: session)
       } label: {
         Image(systemName: "mic")
           .font(.system(size: 15, weight: .medium))
@@ -187,6 +172,34 @@ struct ComposerVoiceButton: View {
       .accessibilityLabel(VoiceStrings.start)
       .accessibilityIdentifier("native-e2e.voice.start")
       .preference(key: ComposerVoiceOwners.self, value: [owner])
+      .nativeCommands(identity: "voice:\(owner.lease.connectionID.rawValue):\(owner.lease.generation):\(owner.conversationID)",
+        focusOwnerID: keyboardOwnerID, revision: stateOwnerID, actions: [
+          "composer.start-dictation": .init(enabled: keyboardOwnerID != nil && isEnabled
+            && !preferences.incompatible && host.request == nil) { _ in
+            startRecording(owner: owner, host: host, session: session)
+          },
+        ])
+    }
+  }
+
+  private func startRecording(owner: VoiceInputOwner, host: ComposerVoiceState, session: AppSession) {
+    guard isEnabled, preferences.value.showButton, !preferences.incompatible, host.request == nil,
+      session.currentRichChatAccess?.lease == owner.lease else { return }
+    prepareToRecord()
+    let snapshot = VoiceDraftSnapshot(text: text, selection: selection)
+    let hex = VoiceHexTranscriber(gateway: session.makeVoiceHexGateway(lease: owner.lease))
+    let transcriber = ComposerVoiceTranscriber(local: WhisperVoiceTranscriber(), hex: hex)
+    let controller = VoiceInputController(owner: owner, options: preferences.value, recorder: VoiceCaptureFactory.make(),
+      transcriber: transcriber, currentOwner: { [weak host, weak session] in
+        guard let host, let session, let access = session.currentRichChatAccess, access.controllerGate(.sessionOperate) == nil,
+          host.owns(owner) else { return nil }
+        return .init(lease: access.lease, conversationID: owner.conversationID)
+      })
+    let textBinding = $text, selectionBinding = $selection, didInsert = inserted
+    host.request = ComposerVoiceRequest(controller: controller) { spoken in
+      let result = snapshot.inserting(spoken, into: textBinding.wrappedValue)
+      textBinding.wrappedValue = result.text; selectionBinding.wrappedValue = result.selection
+      didInsert()
     }
   }
 }

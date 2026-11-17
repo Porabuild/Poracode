@@ -238,16 +238,8 @@ struct RichChatThreadView: View {
     ) {
       EmptyView()
     } transcript: {
-      if session.phase == .connecting {
-        LoadingStateView(message: ProjectWorkspaceStrings.connecting)
-          .accessibilityIdentifier("native-e2e.thread-connecting")
-      } else {
-        RichTerminalView(
-          controller: suite.terminal,
-          terminalID: threadID,
-          canOperate: pageState.canOperateTerminal
-        )
-      }
+      RichChatTerminalSurface(controller: suite.terminal, terminalID: threadID,
+        canOperate: pageState.canOperateTerminal, isConnectingHost: session.phase == .connecting)
     } sidebar: {
       inspector
     } compactDock: {

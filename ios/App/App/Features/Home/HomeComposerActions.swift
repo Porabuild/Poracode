@@ -61,7 +61,7 @@ extension HomeQuickComposeView {
       .joined(separator: " ")
     let text = typedText.isEmpty ? launchSeed?.defaultPrompt ?? mentionPrompt : typedText
     guard ownsCurrentConnection, RichPromptSegment.isSendable(prompt: text, segments: draft.additionalSegments) || !draft.attachments.isEmpty,
-      let project = selectedProject, let defaults,
+      let project = selectedProject, let launchAgent = selectedAgent,
       let configuration = effectiveConfiguration,
       let settings = draft.tools.document.document,
       let target = session.threadLifecycleTarget(threadID: draft.threadID)
@@ -85,7 +85,7 @@ extension HomeQuickComposeView {
       + additional
     let separatedContext = contextSegments.flatMap { [$0, ThreadPromptSegment.text(content: " ")] }
     let segments = separatedContext + textSegments + attachmentSegments
-    let launchAgentKind = selectedAgent?.kind ?? defaults.agentKind
+    let launchAgentKind = launchAgent.kind
     let launchAgentInstanceID = composerAgentInstanceID
     Task {
       let worktree: (path: String, branch: String, isNew: Bool)?
