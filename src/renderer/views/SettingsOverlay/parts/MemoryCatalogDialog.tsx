@@ -3,6 +3,8 @@ import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { Button } from "@/renderer/components/common";
+import { Input } from "@/renderer/components/common/Input";
+import { sidebarRowClass } from "@/renderer/components/common/SidebarButton";
 import { syncMemoryAcrossEnvironments } from "@/renderer/state/memorySync";
 import type { MemoryEntry } from "@/shared/memory";
 
@@ -152,9 +154,9 @@ export function MemoryCatalogDialog(props: {
               </p>
             )}
             <div className="flex items-center gap-2">
-              <input
+              <Input
                 aria-label={t`Add a memory`}
-                className="min-w-0 flex-1 rounded-lg border border-[var(--hairline)] bg-transparent px-3 py-2 text-sm"
+                className="min-w-0 flex-1"
                 value={draft}
                 placeholder={t`Always use bun`}
                 onChange={(event) => setDraft(event.target.value)}
@@ -174,30 +176,30 @@ export function MemoryCatalogDialog(props: {
                 <Trans>Add</Trans>
               </Button>
             </div>
-            <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
-              {entries === undefined ? (
-                error ? null : (
-                  <p className="px-3 py-4 text-sm text-muted" role="status">
-                    <Trans>Loading…</Trans>
-                  </p>
-                )
-              ) : entries.length === 0 ? (
-                <p className="px-3 py-4 text-sm text-muted">
-                  <Trans>No memories yet.</Trans>
+            {entries === undefined ? (
+              error ? null : (
+                <p className="px-2 py-3 text-sm text-muted" role="status">
+                  <Trans>Loading…</Trans>
                 </p>
-              ) : (
-                entries.map((entry) => (
-                  <div
+              )
+            ) : entries.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-muted">
+                <Trans>No memories yet.</Trans>
+              </p>
+            ) : (
+              <ul className="space-y-0.5">
+                {entries.map((entry) => (
+                  <li
                     key={entry.id}
-                    className="flex flex-col gap-2 border-b border-[var(--hairline)] px-3 py-2 last:border-b-0 sm:flex-row sm:items-center"
+                    className={`${sidebarRowClass()} flex-col !items-start sm:flex-row sm:!items-center`}
                   >
-                    <div className="min-w-0 flex-1">
+                    <div className="w-full min-w-0 flex-1">
                       {editingId === entry.id ? (
-                        <input
+                        <Input
                           ref={editInputRef}
                           aria-label={t`Edit`}
                           data-overlay-escape-owner=""
-                          className="w-full rounded-lg border border-[var(--hairline)] bg-transparent px-2 py-1 text-sm"
+                          className="w-full"
                           value={editDraft}
                           onChange={(event) => setEditDraft(event.target.value)}
                           onKeyDown={(event) => {
@@ -212,9 +214,11 @@ export function MemoryCatalogDialog(props: {
                           }}
                         />
                       ) : (
-                        <p className="text-sm break-words text-foreground">{entry.summary}</p>
+                        <p className="text-sm font-medium break-words text-foreground">
+                          {entry.summary}
+                        </p>
                       )}
-                      <p className="truncate text-xs text-muted">
+                      <p className="truncate text-[11px] text-muted">
                         {entry.category} · {entry.scope}
                         {entry.pinned ? ` · ${t`Pinned`}` : ""}
                         {entry.lockedByUser ? ` · ${t`Edited by you`}` : ""}
@@ -267,10 +271,10 @@ export function MemoryCatalogDialog(props: {
                         <Trans>Delete</Trans>
                       </Button>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Modal.Body>
         </Modal.Dialog>
       </Modal.Container>
