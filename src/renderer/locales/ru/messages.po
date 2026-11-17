@@ -2902,6 +2902,7 @@ msgstr "Ожидание проверки"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
@@ -3449,6 +3450,7 @@ msgstr "Этот выбор модели нельзя использовать �
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
@@ -3487,6 +3489,7 @@ msgstr "Этот выбор модели нельзя использовать �
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5844,6 +5847,11 @@ msgstr "Не удалось просканировать конфигураци�
 msgid "Couldn't start the camera"
 msgstr "Не удалось запустить камеру"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Couldn't update memory mode for this thread."
+msgstr "Не удалось изменить режим памяти для этой ветки."
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
@@ -12186,6 +12194,11 @@ msgid "Memory"
 msgstr "Память"
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Memory actions"
+msgstr "Действия с памятью"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Memory settings"
 msgstr "Настройки памяти"
 
@@ -15386,6 +15399,7 @@ msgstr "Закрепить {0} вверху"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Pin to top"
 msgstr "Закрепить вверху"
 
@@ -15401,6 +15415,7 @@ msgstr "Розовый"
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Pinned"
 msgstr "Закреплено"
 
@@ -16139,6 +16154,10 @@ msgstr "Проекты из {0} перейдут в {1}. Ни один прое�
 #: src/mobile/setupEmptyState.tsx
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "Проекты находятся на подключенном компьютере. Добавьте проект, прежде чем начать тред."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Promoted {promoted}. Suggested {suggested} skills."
+msgstr "Добавлено заметок: {promoted}. Предложено навыков: {suggested}."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Promoting this profile into the owned data root…"
@@ -19796,6 +19815,10 @@ msgstr "Навык"
 msgid "Skill availability"
 msgstr "Доступность навыка"
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+msgid "Skill instructions"
+msgstr "Инструкции навыка"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill marketplace source"
 msgstr "Источник маркетплейса навыков"
@@ -20761,6 +20784,7 @@ msgstr "Параметры синхронизации"
 #~ msgstr "Синхронизировать с десктопом"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Syncing…"
 msgstr "Синхронизация…"
 
@@ -23459,6 +23483,10 @@ msgstr "Провайдеры и модели без отметки исключ�
 #~ msgid "Unchecked providers and models are skipped by Crossagents only."
 #~ msgstr "Неотмеченные провайдеры и модели пропускаются только Crossagents."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undo"
+msgstr "Отменить"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
 msgstr "Разгруппировать"
@@ -23559,6 +23587,7 @@ msgstr "Без фазы:"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Unpin"
 msgstr "Открепить"
 

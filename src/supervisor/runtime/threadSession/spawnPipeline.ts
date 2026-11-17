@@ -139,6 +139,7 @@ export interface SpawnThreadInput {
   initialSize: TerminalSize;
   launchPrompt: string;
   initialInstructions?: string;
+  initialInstructionsApplied?: boolean;
   command?: CommandSpec;
   /**
    * Extra env injected into the agent PTY (merged on top of agentEnv +
@@ -988,6 +989,7 @@ export class SpawnPipeline {
       return { threadId: payload.threadId };
     }
 
+    let initialInstructionsApplied = false;
     if (
       !payload.sessionRef &&
       useStructuredFlow &&
@@ -1006,6 +1008,7 @@ export class SpawnPipeline {
         ...(pendingInitialInstructions ? { pendingInitialInstructions } : {}),
         onInitialInstructionsApplied: () => {
           pendingInitialInstructions = undefined;
+          initialInstructionsApplied = true;
           const active = ctx.sessions.get(payload.threadId);
           if (active && active.pendingInitialInstructions === payload.initialInstructions) {
             active.pendingInitialInstructions = undefined;
@@ -1148,6 +1151,7 @@ export class SpawnPipeline {
         ...(keepStructuredSession && pendingInitialInstructions
           ? { initialInstructions: pendingInitialInstructions }
           : {}),
+        ...(initialInstructionsApplied ? { initialInstructionsApplied: true } : {}),
         ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
         ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
         mcpLaunchSnapshot,
@@ -1714,6 +1718,7 @@ export class SpawnPipeline {
     const session: SessionRuntime = {
       instanceId: randomUUID(),
       threadId: input.threadId,
+      ...(input.initialInstructionsApplied ? { initialInstructionsApplied: true } : {}),
       ...(ctx.options.mcpApps
         ? { mcpAppContext: () => ctx.options.mcpApps!.modelContext(input.threadId) }
         : {}),

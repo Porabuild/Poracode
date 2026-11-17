@@ -19,6 +19,7 @@ import {
 } from "@/renderer/components/mcp/McpProjectDestinationDropdown";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
+import { projectHostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { runRendererAction, useRendererActionStore } from "@/renderer/state/rendererActionStore";
 import { SkillImportModal } from "./SkillImportModal";
@@ -403,7 +404,12 @@ export function SkillsManager(props: {
           provider copies. Its files are preserved so you can enable it again.
         </Trans>
       </p>
-      <MemorySkillSuggestions {...(target.project ? { projectId: target.project.id } : {})} />
+      {!target.wslDistro && (!target.project || projectHostRunsOnThisMachine(target.project)) ? (
+        <MemorySkillSuggestions
+          {...(target.project ? { projectId: target.project.id } : {})}
+          onApproved={() => void reload()}
+        />
+      ) : null}
 
       {error ? (
         <div

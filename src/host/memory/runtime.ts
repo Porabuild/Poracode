@@ -22,14 +22,14 @@ import {
   dbListMemorySpool,
   dbListMemorySuggestions,
   dbListPendingCandidates,
-  dbListScopedMemoryEntries,
   dbListThreadsWithPendingMemoryItems,
   dbMarkMemoryDreamUndone,
+  dbMemoryMeta,
   dbReadMemoryTranscript,
   dbSetCandidateStatus,
   dbSetMemoryThreadState,
   dbSpoolMemoryCapture,
-  dbTouchMemoryUsage,
+  dbTouchMemoryEntries,
   dbUpsertMemoryEntry,
   dbUpsertMemorySuggestion,
 } from "@/host/db/memoryStore";
@@ -43,18 +43,23 @@ import {
   type MemoryStatus,
   type MemoryThreadMode,
 } from "@/shared/memory";
-import { dreamMemories, rememberObservations, userMemoryEntry } from "./apply";
+import {
+  dreamMemories,
+  listScopedMemoryEntriesForProject,
+  rememberObservations,
+  userMemoryEntry,
+} from "./apply";
 import {
   MEMORY_DREAM_PROMPT,
   MEMORY_EXTRACT_PROMPT,
   observationsFromUserLines,
+  parseDreamConsolidation,
   parseModelObservations,
   redactSecrets,
-  renderMemoryPrompt,
+  renderMemoryPromptWithIds,
   transcriptFromItems,
 } from "./logic";
 import { readMemorySettings } from "./settingsReader";
-import { readMemoryRepoKey } from "./repoKeyReader";
 import { exportMemorySyncState, mergeMemorySyncState } from "./sync";
 
 export interface MemoryModelCaller {
@@ -96,20 +101,23 @@ export function installMemoryDeleteHook(): void {
   setMemoryThreadDeleteHook(spoolThreadBeforeDelete);
 }
 
-export function launchMemoryInstructions(
+export function prepareLaunchMemory(
   threadId: string | undefined,
   projectId: string | undefined,
-): string | undefined {
+): { instructions: string; entryIds: string[] } | undefined {
   const settings = readMemorySettings();
   if (!settings.enabled) return undefined;
   if (threadId) {
     const mode = dbGetMemoryThreadState(threadId).mode;
     if (mode === "incognito") return undefined;
   }
-  const isHome = projectId ? isHomeProjectId(projectId) : true;
-  const repoKey = !isHome ? readMemoryRepoKey(projectId) : null;
-  const entries = dbListScopedMemoryEntries(projectId, isHome, repoKey);
-  return renderMemoryPrompt(entries, settings, Date.now());
+  const entries = listScopedMemoryEntriesForProject(projectId);
+  const rendered = renderMemoryPromptWithIds(entries, settings, Date.now());
+  return rendered ? { instructions: rendered.prompt, entryIds: rendered.entryIds } : undefined;
+}
+
+export function recordMemoryUsage(entryIds: readonly string[]): void {
+  dbTouchMemoryEntries(entryIds, new Date().toISOString());
 }
 
 export async function handleMemoryCommand(payload: MemoryCommandPayload): Promise<unknown> {
@@ -118,15 +126,10 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
   switch (command.action) {
     case "status":
       return memoryStatus(command.threadId, command.projectId);
-    case "list": {
-      if (!command.projectId) return dbListMemoryEntries();
-      const isHome = isHomeProjectId(command.projectId);
-      return dbListScopedMemoryEntries(
-        command.projectId,
-        isHome,
-        !isHome ? readMemoryRepoKey(command.projectId) : null,
-      );
-    }
+    case "list":
+      return command.projectId
+        ? listScopedMemoryEntriesForProject(command.projectId)
+        : dbListMemoryEntries();
     case "save": {
       const entry = userMemoryEntry({
         ...(command.entry.id ? { id: command.entry.id } : {}),
@@ -152,15 +155,18 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
       dbSetMemoryThreadState({ threadId: command.threadId, mode: command.mode, updatedAt: now });
       return { mode: command.mode };
     case "dream":
-      return runDream(now);
+      return runDream(now, true);
     case "undo":
       return undoDream(command.runId);
     case "suggestions":
       return dbListMemorySuggestions(command.projectId);
     case "suggestion":
       return decideSuggestion(command, now);
-    case "sync-export":
+    case "sync-export": {
+      const settings = readMemorySettings();
+      if (!settings.enabled || !settings.syncEnabled) return { entries: [], tombstones: [] };
       return exportMemorySyncState(command.projectRepoKeys);
+    }
     case "sync-merge": {
       const settings = readMemorySettings();
       if (!settings.enabled || !settings.syncEnabled) {
@@ -169,8 +175,6 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
       const merged = mergeMemorySyncState(command.state, command.projectRepoKeys);
       return { synced: true, ...merged };
     }
-    default:
-      return { ok: false };
   }
 }
 
@@ -178,10 +182,8 @@ function memoryStatus(threadId: string | undefined, projectId: string | undefine
   const settings = readMemorySettings();
   const dream = dbLatestMemoryDream();
   const mode: MemoryThreadMode | null = threadId ? dbGetMemoryThreadState(threadId).mode : null;
-  const isHome = projectId ? isHomeProjectId(projectId) : true;
   const entryCount = projectId
-    ? dbListScopedMemoryEntries(projectId, isHome, !isHome ? readMemoryRepoKey(projectId) : null)
-        .length
+    ? listScopedMemoryEntriesForProject(projectId).length
     : dbCountMemoryEntries();
   return {
     enabled: settings.enabled,
@@ -193,46 +195,61 @@ function memoryStatus(threadId: string | undefined, projectId: string | undefine
     suggestionCount: dbCountOpenSuggestions(),
     lastDreamAt: dream.finishedAt,
     lastDreamSummary: dream.report,
+    lastDreamRunId: dream.id,
+    lastDreamCounts: dream.counts,
     threadMode: mode,
   };
 }
 
-async function runDream(now: string): Promise<{ report: string; runId: string }> {
+async function runDream(now: string, manual = false): Promise<{ report: string; runId: string }> {
   const settings = readMemorySettings();
   let consolidated: ReturnType<typeof parseModelObservations> = [];
+  let retireIds: string[] = [];
   const pending = dbListPendingCandidates();
-  if (modelCaller && pending.length > 0) {
+  const existingEntries = dbListMemoryEntries();
+  if (modelCaller && (pending.length > 0 || (manual && existingEntries.length >= 2))) {
     try {
-      const existing = dbListMemoryEntries()
-        .slice(0, 60)
-        .map((entry) => ({
-          scope: entry.scope,
-          projectId: entry.projectId,
-          category: entry.category,
-          summary: redactSecrets(entry.summary),
-          polarity: entry.polarity,
-          lockedByUser: entry.lockedByUser,
-        }));
-      const candidates = pending.slice(0, 120).map((item) => ({
+      const existing = existingEntries.slice(0, 30).map((entry) => ({
+        id: entry.id,
+        scope: entry.scope,
+        projectId: entry.projectId,
+        repoKey: entry.repoKey ?? null,
+        category: entry.category,
+        summary: redactSecrets(entry.summary).slice(0, 220),
+        polarity: entry.polarity,
+        lockedByUser: entry.lockedByUser,
+        pinned: entry.pinned,
+      }));
+      const candidates = pending.slice(0, 60).map((item) => ({
         scope: item.scope,
         projectId: item.projectId,
         category: item.category,
-        statement: redactSecrets(item.statement),
+        statement: redactSecrets(item.statement).slice(0, 220),
         polarity: item.polarity,
         confidence: item.confidence,
         explicit: item.explicit,
       }));
+      const candidateProjectId =
+        pending
+          .map((item) => item.projectId)
+          .find((id): id is string => Boolean(id && dbGetProject(id))) ??
+        existingEntries
+          .map((entry) => entry.projectId)
+          .find((id): id is string => Boolean(id && dbGetProject(id))) ??
+        null;
       const raw = await modelCaller.complete({
-        projectId: pending.find((item) => item.projectId)?.projectId ?? null,
+        projectId: candidateProjectId,
         purpose: "dream",
         prompt: `${MEMORY_DREAM_PROMPT}\n\nExisting:\n${JSON.stringify(existing)}\n\nPending:\n${JSON.stringify(candidates)}`,
       });
-      consolidated = parseModelObservations(raw);
+      const parsed = parseDreamConsolidation(raw);
+      consolidated = parsed.observations;
+      retireIds = parsed.retireIds.filter((id) => existing.some((entry) => entry.id === id));
     } catch (error) {
       console.error("[memory] dream model skipped:", error);
     }
   }
-  const outcome = dreamMemories(settings, now, consolidated);
+  const outcome = dreamMemories(settings, now, consolidated, retireIds);
   const runId = randomUUID();
   dbInsertMemoryDreamRun({
     id: runId,
@@ -260,17 +277,18 @@ function undoDream(runId: string): { ok: boolean } {
     suggestionIds?: string[];
     candidateIds?: string[];
   };
+  const now = new Date().toISOString();
   const changedAfterDream = (updatedAt: string | undefined, locked: boolean | undefined) =>
     locked === true && updatedAt !== undefined && updatedAt > run.startedAt;
   for (const id of snapshot.createdIds ?? []) {
     const current = dbGetMemoryEntry(id);
     if (changedAfterDream(current?.updatedAt, current?.lockedByUser)) continue;
-    dbDeleteMemoryEntry(id, run.startedAt, false);
+    dbDeleteMemoryEntry(id, now, true);
   }
   for (const entry of snapshot.restore ?? []) {
     const current = dbGetMemoryEntry(entry.id);
     if (changedAfterDream(current?.updatedAt, current?.lockedByUser)) continue;
-    dbUpsertMemoryEntry(entry);
+    dbUpsertMemoryEntry({ ...entry, updatedAt: now });
   }
   for (const id of snapshot.suggestionIds ?? []) dbDeleteMemorySuggestion(id);
   for (const id of snapshot.candidateIds ?? []) dbSetCandidateStatus(id, "pending");
@@ -364,7 +382,7 @@ async function captureOnce(nowMs: number): Promise<{ captured: number; spooled: 
   let captured = 0;
   let spooled = 0;
   for (const spool of dbListMemorySpool()) {
-    if (settings.learning && settings.deletePolicy === "spool") {
+    if (settings.deletePolicy === "spool") {
       await ingestText({
         text: spool.text,
         threadId: spool.threadId,
@@ -376,8 +394,11 @@ async function captureOnce(nowMs: number): Promise<{ captured: number; spooled: 
     dbDeleteMemorySpool(spool.id);
   }
   const settle = memorySettleMs(settings);
+  const cutoffRaw = dbMemoryMeta("captureCutoffAt");
+  const cutoffMs = cutoffRaw ? Date.parse(cutoffRaw) : Number.NaN;
+  const maxBatch = modelCaller ? 5 : 25;
   for (const threadId of dbListThreadsWithPendingMemoryItems()) {
-    if (!settings.learning) break;
+    if (captured >= maxBatch) break;
     const thread = dbGetThread(threadId);
     if (!thread || thread.parentThreadId) continue;
     const state = dbGetMemoryThreadState(thread.id);
@@ -390,6 +411,20 @@ async function captureOnce(nowMs: number): Promise<{ captured: number; spooled: 
       thread.status === "finished" ||
       thread.status === "inactive";
     if (!closed) continue;
+    if (Number.isFinite(cutoffMs)) {
+      const activityAt = Date.parse(thread.lastTurnEndedAt ?? thread.updatedAt);
+      if (Number.isFinite(activityAt) && activityAt < cutoffMs) {
+        const items = dbReadMemoryTranscript(thread.id, state.cursor);
+        if (items.length > 0) {
+          dbSetMemoryThreadState({
+            threadId: thread.id,
+            cursor: items[items.length - 1]!.position,
+            updatedAt: new Date(nowMs).toISOString(),
+          });
+        }
+        continue;
+      }
+    }
     if (settle !== null && !thread.done && !thread.archived) {
       const ended = thread.lastTurnEndedAt ? Date.parse(thread.lastTurnEndedAt) : Number.NaN;
       if (!Number.isFinite(ended) || nowMs - ended < settle) continue;
@@ -435,25 +470,28 @@ async function ingestText(input: {
   nowMs: number;
 }): Promise<void> {
   const deterministic = observationsFromUserLines(input.text);
-  let modelObservations: ReturnType<typeof observationsFromUserLines> = [];
-  if (
-    modelCaller !== undefined &&
-    /^user:\s+\S/im.test(input.text) &&
-    (input.text.length > 400 || (deterministic.length === 0 && input.text.length >= 80))
-  ) {
+  const userText = input.text
+    .split(/\n+/)
+    .map((line) => /^user:\s*(.*)$/i.exec(line.trim())?.[1]?.trim() ?? "")
+    .filter(Boolean)
+    .join(" ");
+  const singleCrispRule =
+    deterministic.length === 1 && userText.length <= 140 && !/[.!?]\s+\S/.test(userText);
+  let observations = deterministic;
+  if (modelCaller !== undefined && userText.length >= 16 && !singleCrispRule) {
     try {
       const raw = await modelCaller.complete({
         projectId: input.projectId,
         purpose: "capture",
         prompt: `${MEMORY_EXTRACT_PROMPT}\n\n${input.text}`,
       });
-      modelObservations = parseModelObservations(raw);
+      observations = parseModelObservations(raw);
     } catch (error) {
       console.error("[memory] model capture skipped:", error);
     }
   }
   rememberObservations({
-    observations: [...deterministic, ...modelObservations].map((observation) => ({
+    observations: observations.map((observation) => ({
       ...observation,
       statement: redactSecrets(observation.statement),
       quote: observation.quote ? redactSecrets(observation.quote) : null,
@@ -468,16 +506,14 @@ export function memorySearch(query: string, projectId?: string): MemoryEntry[] {
   if (!readMemorySettings().enabled) return [];
   const needle = query.trim().toLowerCase();
   if (!needle) return [];
-  const isHome = projectId ? isHomeProjectId(projectId) : true;
-  const rows = dbListScopedMemoryEntries(
-    projectId,
-    isHome,
-    !isHome ? readMemoryRepoKey(projectId) : null,
-  );
+  const rows = listScopedMemoryEntriesForProject(projectId);
   const matches = rows.filter((entry) =>
     `${entry.summary}\n${entry.body}\n${entry.quote ?? ""}`.toLowerCase().includes(needle),
   );
-  const at = new Date().toISOString();
-  for (const entry of matches.slice(0, 8)) dbTouchMemoryUsage(entry.id, at);
-  return matches.slice(0, 8);
+  const top = matches.slice(0, 8);
+  dbTouchMemoryEntries(
+    top.map((entry) => entry.id),
+    new Date().toISOString(),
+  );
+  return top;
 }

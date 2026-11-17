@@ -71,4 +71,13 @@ describe("MemorySkillSuggestions", () => {
     });
     expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
   });
+
+  it("lets the user cancel editing a suggested skill", async () => {
+    render(<MemorySkillSuggestions />);
+    expect(await screen.findByText("review-diff")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByRole("textbox", { name: "Skill instructions" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("textbox", { name: "Skill instructions" })).not.toBeInTheDocument();
+  });
 });

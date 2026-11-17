@@ -110,8 +110,8 @@ describe("remote v3 native binding generator", () => {
         // regenerate both authority hashes and the native mirrors.
         // The additive device-adopt-session route (renderer adoption of an
         // agent-opened lease) does the same.
-        // Cross-environment memory sync adds one operate-scoped route and its request/response roots.
-        sourceHash: "sha256:eb74df5bd3469525ea0a6dec504af7bab256c521a04a9c6e19f84928670f4fe5",
+        // Memory sync adds one operate-scoped route. Settings optionally carry memory preferences.
+        sourceHash: "sha256:103810e43d7d7253ef5768f1f8799ff35e63066eeee863ad78af14929266570a",
         manifestHash: "sha256:c77ded8053e44afa1792ddf07f3d229c964ea77b121277fb54b39febaab33334",
         counts: {
           routes: 124,
@@ -122,12 +122,12 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 584,
-          structuralTypes: 1380,
+          structuralTypes: 1385,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 152,
-          kotlinFiles: 129,
+          swiftFiles: 153,
+          kotlinFiles: 130,
           stateMachines: 5,
         },
       });

@@ -5,8 +5,18 @@
  */
 export type ModelTier = "fast-cheap" | "balanced" | "max-capability";
 
-const FAST_CHEAP_KEYWORDS = ["haiku", "mini", "nano", "lite", "flash", "small", "spark", "fast"];
-const MAX_CAPABILITY_KEYWORDS = ["opus", "fable", "pro", "max", "ultra", "big"];
+const FAST_CHEAP_KEYWORDS = [
+  "haiku",
+  "mini",
+  "nano",
+  "lite",
+  "flash",
+  "small",
+  "spark",
+  "fast",
+  "luna",
+];
+const MAX_CAPABILITY_KEYWORDS = ["opus", "fable", "pro", "max", "ultra", "big", "terra", "astra"];
 
 /** Whether `keyword` appears in `haystack` as a whole word (not as a substring of a larger word). */
 function hasWholeWordMatch(haystack: string, keyword: string): boolean {

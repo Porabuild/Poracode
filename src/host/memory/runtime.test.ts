@@ -10,11 +10,15 @@ import { setMemorySettingsReader } from "./settingsReader";
 import {
   handleMemoryCommand,
   installMemoryDeleteHook,
-  launchMemoryInstructions,
+  prepareLaunchMemory,
+  recordMemoryUsage,
   runMemoryCapturePass,
 } from "./runtime";
 import { defaultMemorySettings } from "@/shared/memory";
 import type { Thread } from "@/shared/contracts";
+
+const launchMemoryInstructions = (threadId: string | undefined, projectId: string | undefined) =>
+  prepareLaunchMemory(threadId, projectId)?.instructions;
 
 const thread = (id: string, patch: Partial<Thread> = {}): Thread =>
   ({
@@ -213,6 +217,7 @@ describe("memory store", () => {
 
   it("isolates project memories from other projects and home threads", async () => {
     const { memorySearch } = await import("./runtime");
+    const { memoryTools } = await import("@/host/app-controls/mcp/tools/memory");
     await handleMemoryCommand({
       action: "save",
       entry: {
@@ -251,6 +256,59 @@ describe("memory store", () => {
     expect(memorySearch("ledger", "project-1")).toHaveLength(1);
     expect(memorySearch("ledger", "project-2")).toHaveLength(0);
     expect(memorySearch("ledger", undefined)).toHaveLength(0);
+
+    const caller = thread("search-caller", { projectId: "project-2" });
+    const context = {
+      identity: { threadId: caller.id },
+      getThread: () => caller,
+      deviceWorkspace: { authorizeAgent: () => {} },
+    } as unknown as Parameters<(typeof memoryTools.handlers)[string]>[1];
+    const search = memoryTools.handlers.search_memory!;
+    await expect(search({ query: "ledger", projectId: "project-1" }, context)).rejects.toThrow(
+      "calling thread's project",
+    );
+    await expect(search({ query: "concise" }, context)).resolves.toEqual({
+      entries: [expect.objectContaining({ scope: "global" })],
+    });
+    await expect(search({ query: "ledger" }, context)).resolves.toEqual({ entries: [] });
+  });
+
+  it("rejects a Dream observation that pairs a project with another project's repository", async () => {
+    const { dreamMemories } = await import("./apply");
+    const repoKey = "github.com/acme/project-1";
+    setMemoryRepoKeyReader((id) => `github.com/acme/${id}`);
+    for (const projectId of ["project-1", "project-2"]) {
+      await handleMemoryCommand({
+        action: "save",
+        entry: {
+          scope: "project",
+          projectId,
+          category: "project",
+          summary: `Architecture of ${projectId}`,
+          body: `Architecture of ${projectId}`,
+          polarity: "fact",
+          pinned: false,
+        },
+      });
+    }
+    const latest = dreamMemories(defaultMemorySettings, "2026-11-17T01:00:00.000Z", [
+      {
+        scope: "project",
+        projectId: "project-2",
+        repoKey,
+        category: "project",
+        statement: "Wrong project architecture",
+        polarity: "fact",
+        quote: null,
+        explicit: true,
+      },
+    ]);
+    expect(latest.promoted).toBe(0);
+    for (const projectId of ["project-1", "project-2"]) {
+      expect(launchMemoryInstructions(undefined, projectId)).not.toContain(
+        "Wrong project architecture",
+      );
+    }
   });
 
   it("stays opt-in by default (no capture, spool, or injection when disabled)", async () => {
@@ -400,5 +458,213 @@ describe("memory store", () => {
     expect(wslPrompt).toContain("Prefer short answers");
     expect(wslPrompt).toContain("Linux CI uses Ubuntu 24");
     expect(wslPrompt).not.toContain("Uses bun test runner");
+  });
+
+  it("skips pre-opt-in historical turns behind captureCutoffAt while capturing newer ones", async () => {
+    const { dbSetMemoryMeta } = await import("@/host/db/memoryStore");
+    dbSetMemoryMeta("captureCutoffAt", "2026-11-17T00:00:00.000Z");
+    dbUpsertThread(
+      thread("thread-old", {
+        done: true,
+        lastTurnEndedAt: "2026-11-16T23:59:00.000Z",
+        updatedAt: "2026-11-16T23:59:00.000Z",
+      }),
+      0,
+    );
+    dbUpsertThread(
+      thread("thread-new", {
+        done: true,
+        lastTurnEndedAt: "2026-11-17T00:01:00.000Z",
+        updatedAt: "2026-11-17T00:01:00.000Z",
+      }),
+      1,
+    );
+    getSqlite()
+      .prepare(
+        `INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state, payload)
+         VALUES ('thread-old', 'item-old', 0, 'user_message', 'completed', ?),
+                ('thread-new', 'item-new', 0, 'user_message', 'completed', ?)`,
+      )
+      .run(
+        JSON.stringify({ text: "Always ignore legacy" }),
+        JSON.stringify({ text: "Always use fresh rules" }),
+      );
+
+    const report = await runMemoryCapturePass(Date.parse("2026-11-17T00:05:00.000Z"));
+    expect(report.captured).toBe(1);
+    const listed = (await handleMemoryCommand({ action: "list" })) as Array<{ summary: string }>;
+    expect(listed.map((entry) => entry.summary)).toEqual(["Always use fresh rules"]);
+  });
+
+  it("retains the opt-in boundary on restart when an old thread gets another turn", async () => {
+    const { dbStartMemoryCapture } = await import("@/host/db/memoryStore");
+    const threadId = "thread-resumed";
+    dbUpsertThread(thread(threadId), 0);
+    const insertMessage = (position: number, text: string) =>
+      getSqlite()
+        .prepare(
+          `INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state, payload)
+           VALUES (?, ?, ?, 'user_message', 'completed', ?)`,
+        )
+        .run(threadId, `u${position}`, position, JSON.stringify({ text }));
+    insertMessage(0, "Always ignore legacy rules");
+    dbStartMemoryCapture("2026-11-17T00:00:00.000Z");
+    closeDatabase();
+    initDatabase(join(dir, "state.sqlite"));
+    dbUpsertThread(thread(threadId, { lastTurnEndedAt: "2026-11-17T00:01:00.000Z" }), 0);
+    insertMessage(1, "Always use fresh rules");
+    await runMemoryCapturePass(Date.parse("2026-11-17T00:05:00.000Z"));
+    expect(await handleMemoryCommand({ action: "list" })).toEqual([
+      expect.objectContaining({ summary: "Always use fresh rules" }),
+    ]);
+  });
+
+  it("hydrates streamed assistant replies and uses the capture model on subtle/multi-rule turns", async () => {
+    const { setMemoryModelCaller } = await import("./runtime");
+    const prompts: string[] = [];
+    setMemoryModelCaller({
+      complete: async (input) => {
+        prompts.push(input.prompt);
+        return JSON.stringify({
+          observations: [
+            {
+              scope: "project",
+              category: "project",
+              statement: "Staging server listens on port 4180",
+              quote: "staging server listens on port 4180",
+              polarity: "fact",
+              explicit: true,
+            },
+            {
+              scope: "global",
+              category: "feedback",
+              statement: "Start PR feedback with the root cause",
+              quote: "start with the root cause",
+              polarity: "positive",
+              explicit: true,
+            },
+          ],
+        });
+      },
+    });
+    try {
+      const { writeItemStreams } = await import("@/host/db/runtimeStreamStore");
+      dbUpsertThread(thread("thread-stream"), 0);
+      getSqlite()
+        .prepare(
+          `INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state, payload)
+           VALUES ('thread-stream', 'u1', 0, 'user_message', 'completed', ?),
+                  ('thread-stream', 'a1', 1, 'assistant_message', 'completed', NULL)`,
+        )
+        .run(
+          JSON.stringify({
+            text: "For context, our staging server listens on port 4180. Also always start PR feedback with the root cause. Do not run tools.",
+          }),
+        );
+      getSqlite().transaction(() => {
+        writeItemStreams(getSqlite(), "thread-stream", "a1", { assistant_text: "OK_CLEAN" });
+      })();
+
+      await runMemoryCapturePass(Date.parse("2026-11-16T00:05:00.000Z"));
+      expect(prompts).toHaveLength(1);
+      expect(prompts[0]).toContain("Assistant: OK_CLEAN");
+
+      const prepared = prepareLaunchMemory(undefined, "project-1");
+      const p1 = prepared?.instructions;
+      const p2 = launchMemoryInstructions(undefined, "project-2");
+      expect(p1).toContain("Staging server listens on port 4180");
+      expect(p1).toContain("Start PR feedback with the root cause");
+      expect(p2).toContain("Start PR feedback with the root cause");
+      expect(p2).not.toContain("Staging server listens on port 4180");
+
+      recordMemoryUsage(prepared?.entryIds ?? []);
+      const entries = (await handleMemoryCommand({ action: "list" })) as Array<{
+        usageCount: number;
+      }>;
+      expect(entries.some((entry) => entry.usageCount > 0)).toBe(true);
+    } finally {
+      setMemoryModelCaller(undefined);
+    }
+  });
+
+  it("lets manual dream consolidate existing entries, retire bloated ones, and undo cleanly", async () => {
+    const { setMemoryModelCaller } = await import("./runtime");
+    const { dbUpsertMemoryEntry } = await import("@/host/db/memoryStore");
+    dbUpsertMemoryEntry({
+      id: "bloated-1",
+      scope: "project",
+      projectId: "project-1",
+      category: "project",
+      summary: "Long bloated prompt with test and port info",
+      body: "Long bloated prompt with test and port info",
+      confidence: 0.75,
+      polarity: "fact",
+      quote: null,
+      lockedByUser: false,
+      pinned: false,
+      archived: false,
+      usageCount: 0,
+      lastUsedAt: null,
+      createdAt: "2026-11-16T00:00:00.000Z",
+      updatedAt: "2026-11-16T00:00:00.000Z",
+      source: "learned",
+    });
+    dbUpsertMemoryEntry({
+      id: "dup-2",
+      scope: "project",
+      projectId: "project-1",
+      category: "project",
+      summary: "Staging port is 4180",
+      body: "Staging port is 4180",
+      confidence: 0.75,
+      polarity: "fact",
+      quote: null,
+      lockedByUser: false,
+      pinned: false,
+      archived: false,
+      usageCount: 0,
+      lastUsedAt: null,
+      createdAt: "2026-11-16T00:00:00.000Z",
+      updatedAt: "2026-11-16T00:00:00.000Z",
+      source: "learned",
+    });
+    setMemoryModelCaller({
+      complete: async () =>
+        JSON.stringify({
+          observations: [
+            {
+              scope: "project",
+              projectId: "project-1",
+              category: "project",
+              statement: "Staging runs on port 4180",
+              quote: null,
+              polarity: "fact",
+              explicit: true,
+            },
+          ],
+          retireIds: ["bloated-1", "dup-2"],
+        }),
+    });
+    try {
+      const result = (await handleMemoryCommand({ action: "dream" })) as {
+        runId: string;
+        report: string;
+      };
+      expect(result.report).toContain("Retired 2");
+      const status = (await handleMemoryCommand({ action: "status" })) as {
+        lastDreamRunId?: string | null;
+      };
+      expect(status.lastDreamRunId).toBe(result.runId);
+      const afterDream = (await handleMemoryCommand({ action: "list" })) as Array<{
+        summary: string;
+      }>;
+      expect(afterDream.map((entry) => entry.summary)).toEqual(["Staging runs on port 4180"]);
+
+      await handleMemoryCommand({ action: "undo", runId: result.runId });
+      const afterUndo = (await handleMemoryCommand({ action: "list" })) as Array<{ id: string }>;
+      expect(afterUndo.map((entry) => entry.id).sort()).toEqual(["bloated-1", "dup-2"]);
+    } finally {
+      setMemoryModelCaller(undefined);
+    }
   });
 });

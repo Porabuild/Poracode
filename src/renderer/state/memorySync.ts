@@ -44,7 +44,7 @@ async function runSync(options?: {
 }): Promise<{ syncedHosts: number; changed: boolean }> {
   if (isRemoteSession()) return { syncedHosts: 0, changed: false };
   const memory = useSharedSettings.getState().memory;
-  if (!memory.enabled || (!memory.syncEnabled && !options?.force)) {
+  if (!memory.enabled || !memory.syncEnabled) {
     return { syncedHosts: 0, changed: false };
   }
 
@@ -63,6 +63,8 @@ async function runSync(options?: {
 
   let syncedHosts = 0;
   let changed = false;
+  let failedHosts = 0;
+  let lastError: unknown;
   const syncedKeys: string[] = [];
 
   for (const key of onlineKeys) {
@@ -82,9 +84,14 @@ async function runSync(options?: {
         changed = true;
         localState = merged.state;
       }
-    } catch {
-      // Older or offline paired hosts are skipped without disrupting local work.
+    } catch (error) {
+      failedHosts += 1;
+      lastError = error;
     }
+  }
+
+  if (options?.force && failedHosts > 0 && syncedHosts === 0) {
+    throw lastError instanceof Error ? lastError : new Error("Failed to sync with paired hosts.");
   }
 
   if (changed && syncedKeys.length > 1) {
@@ -110,7 +117,9 @@ export function installMemoryEnvironmentAutoSync(): () => void {
     if (timer !== undefined) window.clearTimeout(timer);
     timer = window.setTimeout(() => {
       timer = undefined;
-      void syncMemoryAcrossEnvironments();
+      void syncMemoryAcrossEnvironments().catch((error: unknown) => {
+        console.warn("[memory] automatic sync failed", error);
+      });
     }, delayMs);
   };
 
@@ -137,9 +146,7 @@ export function installMemoryEnvironmentAutoSync(): () => void {
     wasEnabled = active;
   });
 
-  const interval = window.setInterval(() => {
-    void syncMemoryAcrossEnvironments();
-  }, 300_000);
+  const interval = window.setInterval(() => schedule(0), 300_000);
 
   return () => {
     if (timer !== undefined) window.clearTimeout(timer);

@@ -175,7 +175,14 @@ export function SkillViewModal(props: {
             ) : null}
             {editing ? (
               <>
-                <Button variant="ghost" onPress={() => setEditing(false)}>
+                <Button
+                  variant="ghost"
+                  isDisabled={saving}
+                  onPress={() => {
+                    setSaveError(false);
+                    setEditing(false);
+                  }}
+                >
                   <Trans>Cancel</Trans>
                 </Button>
                 <Button

@@ -9,6 +9,8 @@ import type {
   MemoryTombstone,
 } from "@/shared/memory";
 import { getSqlite } from "@/host/db/connection";
+import { readRuntimeSnapshot } from "@/host/db/runtimeReadSnapshot";
+import { mapRuntimeItemRows, type RuntimeTimelineItemRow } from "@/host/db/runtimeTimelineReads";
 import type { TranscriptItem } from "@/host/memory/logic";
 
 interface EntryRow {
@@ -55,25 +57,13 @@ function mapEntry(row: EntryRow): MemoryEntry {
   };
 }
 
-export function dbListMemoryEntries(projectId?: string, repoKey?: string | null): MemoryEntry[] {
-  const rows = (
-    projectId
-      ? getSqlite()
-          .prepare(
-            `SELECT * FROM memory_entries
-             WHERE archived = 0 AND (
-               scope = 'global' OR (scope = 'project' AND (project_id = ? OR (? IS NOT NULL AND repo_key = ?)))
-             )
-             ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
-          )
-          .all(projectId, repoKey ?? null, repoKey ?? null)
-      : getSqlite()
-          .prepare(
-            `SELECT * FROM memory_entries WHERE archived = 0
-             ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
-          )
-          .all()
-  ) as EntryRow[];
+export function dbListMemoryEntries(): MemoryEntry[] {
+  const rows = getSqlite()
+    .prepare(
+      `SELECT * FROM memory_entries WHERE archived = 0
+       ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
+    )
+    .all() as EntryRow[];
   return rows.map(mapEntry);
 }
 
@@ -87,23 +77,29 @@ export function dbListAllMemoryEntriesForSync(): MemoryEntry[] {
   return rows.map(mapEntry);
 }
 
-/** Strict runtime scope: global notes only unless a non-Home project is active. */
+/** Strict runtime scope: global notes only unless a non-Home project or repoKey is active. */
 export function dbListScopedMemoryEntries(
   projectId?: string | null,
   includeHome = false,
   repoKey?: string | null,
 ): MemoryEntry[] {
+  const hasProject = Boolean(projectId && !includeHome);
+  const effectiveProjectId = hasProject ? projectId! : null;
   const rows = (
-    projectId && !includeHome
+    hasProject || repoKey
       ? getSqlite()
           .prepare(
             `SELECT * FROM memory_entries
              WHERE archived = 0 AND (
-               scope = 'global' OR (scope = 'project' AND (project_id = ? OR (? IS NOT NULL AND repo_key = ?)))
+               scope = 'global' OR (
+                 scope = 'project' AND (
+                   (? IS NOT NULL AND project_id = ?) OR (? IS NOT NULL AND repo_key = ?)
+                 )
+               )
              )
              ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
           )
-          .all(projectId, repoKey ?? null, repoKey ?? null)
+          .all(effectiveProjectId, effectiveProjectId, repoKey ?? null, repoKey ?? null)
       : getSqlite()
           .prepare(
             `SELECT * FROM memory_entries
@@ -230,12 +226,14 @@ export function dbUpsertMemoryTombstone(tombstone: MemoryTombstone): void {
     );
 }
 
-export function dbTouchMemoryUsage(id: string, at: string): void {
+export function dbTouchMemoryEntries(ids: readonly string[], at: string): void {
+  if (ids.length === 0) return;
+  const placeholders = ids.map(() => "?").join(",");
   getSqlite()
     .prepare(
-      "UPDATE memory_entries SET usage_count = usage_count + 1, last_used_at = ? WHERE id = ?",
+      `UPDATE memory_entries SET usage_count = usage_count + 1, last_used_at = ? WHERE id IN (${placeholders})`,
     )
-    .run(at, id);
+    .run(at, ...ids);
 }
 
 export function dbCountMemoryEntries(): number {
@@ -414,14 +412,32 @@ export function dbSetMemoryThreadState(input: {
 }
 
 export function dbReadMemoryTranscript(threadId: string, afterPosition: number): TranscriptItem[] {
-  return getSqlite()
-    .prepare(
-      `SELECT position, type, payload FROM thread_runtime_items
-       WHERE thread_id = ? AND position > ?
-         AND type IN ('user_message', 'assistant_message')
-       ORDER BY position ASC`,
-    )
-    .all(threadId, afterPosition) as TranscriptItem[];
+  const sqlite = getSqlite();
+  return readRuntimeSnapshot(sqlite, () => {
+    const rows = sqlite
+      .prepare(
+        `SELECT item_id, position, type, state, payload, streams, parent_item_id
+         FROM thread_runtime_items
+         WHERE thread_id = ? AND position > ?
+           AND parent_item_id IS NULL
+           AND type IN ('user_message', 'assistant_message')
+         ORDER BY position ASC`,
+      )
+      .all(threadId, afterPosition) as Array<RuntimeTimelineItemRow & { position: number }>;
+    if (rows.length === 0) return [];
+    const hydrated = mapRuntimeItemRows(sqlite, threadId, rows, {
+      rehydrateInlineImages: false,
+    });
+    return rows.map((row, index) => {
+      const streamText = hydrated[index]?.streams?.assistant_text;
+      return {
+        position: row.position,
+        type: row.type,
+        payload: row.payload,
+        ...(typeof streamText === "string" && streamText.length > 0 ? { streamText } : {}),
+      };
+    });
+  });
 }
 
 export function dbListThreadsWithPendingMemoryItems(): string[] {
@@ -436,6 +452,7 @@ export function dbListThreadsWithPendingMemoryItems(): string[] {
            SELECT 1 FROM thread_runtime_items i
            WHERE i.thread_id = t.id
              AND i.position > COALESCE(s.last_item_position, -1)
+             AND i.parent_item_id IS NULL
              AND i.type IN ('user_message', 'assistant_message')
          )`,
     )
@@ -459,6 +476,27 @@ export function dbSetMemoryMeta(key: string, value: string): void {
     .run(key, value);
 }
 
+export function dbStartMemoryCapture(now: string): void {
+  const sqlite = getSqlite();
+  sqlite
+    .transaction(() => {
+      sqlite
+        .prepare(
+          `INSERT INTO memory_thread_state (thread_id, mode, last_item_position, updated_at)
+       SELECT thread_id, 'learn', MAX(position), ? FROM thread_runtime_items
+       WHERE parent_item_id IS NULL AND type IN ('user_message', 'assistant_message')
+       GROUP BY thread_id
+       ON CONFLICT(thread_id) DO UPDATE SET
+         last_item_position = MAX(last_item_position, excluded.last_item_position),
+         next_attempt_at = NULL,
+         updated_at = excluded.updated_at`,
+        )
+        .run(now);
+      dbSetMemoryMeta("captureCutoffAt", now);
+    })
+    .immediate();
+}
+
 export interface MemoryDreamRun {
   id: string;
   startedAt: string;
@@ -477,14 +515,44 @@ export function dbInsertMemoryDreamRun(run: MemoryDreamRun): void {
     .run(run.id, run.startedAt, run.finishedAt, run.report, run.undo, run.undone ? 1 : 0);
 }
 
-export function dbLatestMemoryDream(): { finishedAt: string | null; report: string | null } {
+export interface DreamCounts {
+  promoted: number;
+  suggested: number;
+  retired: number;
+}
+
+function parseDreamCounts(report: string | null): DreamCounts | null {
+  if (!report) return null;
+  const promotedMatch = /\bPromoted\s+(\d+)/i.exec(report);
+  const suggestedMatch = /\bSuggested\s+(\d+)/i.exec(report);
+  const retiredMatch = /\bRetired\s+(\d+)/i.exec(report);
+  if (!promotedMatch && !suggestedMatch && !retiredMatch) return null;
+  return {
+    promoted: Number(promotedMatch?.[1] ?? 0),
+    suggested: Number(suggestedMatch?.[1] ?? 0),
+    retired: Number(retiredMatch?.[1] ?? 0),
+  };
+}
+
+export function dbLatestMemoryDream(): {
+  id: string | null;
+  finishedAt: string | null;
+  report: string | null;
+  counts: DreamCounts | null;
+} {
   const row = getSqlite()
     .prepare(
-      `SELECT finished_at, report_json FROM memory_dream_runs
+      `SELECT id, finished_at, report_json FROM memory_dream_runs
        WHERE undone = 0 ORDER BY started_at DESC LIMIT 1`,
     )
-    .get() as { finished_at: string | null; report_json: string } | undefined;
-  return { finishedAt: row?.finished_at ?? null, report: row?.report_json ?? null };
+    .get() as { id: string; finished_at: string | null; report_json: string } | undefined;
+  const report = row?.report_json ?? null;
+  return {
+    id: row?.id ?? null,
+    finishedAt: row?.finished_at ?? null,
+    report,
+    counts: parseDreamCounts(report),
+  };
 }
 
 export function dbGetMemoryDreamRun(id: string): MemoryDreamRun | undefined {

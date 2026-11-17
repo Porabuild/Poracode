@@ -148,8 +148,10 @@ export class BackendDesktopServices {
         }
       : undefined;
     const settingsNotifications: BackendSettingsNotifications = {
-      onChanged: (settings) =>
-        options.emitNativeEvent({ type: "shared-settings-changed", settings }),
+      onChanged: (settings) => {
+        this.durable.observeMemorySettings(settings);
+        options.emitNativeEvent({ type: "shared-settings-changed", settings });
+      },
       reportError: options.reportError,
     };
     this.settings = createBackendSettingsAccess({

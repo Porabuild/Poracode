@@ -39,6 +39,7 @@ const DECLARED_WRITER_ROUTES = [
   "host-update-install",
   "mcp-settings-command",
   "mcp-settings-operation",
+  "memory-sync",
   "port-enter",
   "port-forward",
   "port-unforward",
@@ -96,7 +97,7 @@ const READ_CLASS_POST_ROUTES = [
 describe("route writer-generation admission declarations", () => {
   it("declares the direct writers and reads with new closed schedule variants", () => {
     const declared = REMOTE_HTTP_ROUTES.filter((route) => route.requiresCurrentProtocol);
-    expect(declared).toHaveLength(58);
+    expect(declared).toHaveLength(59);
     expect(declared.map((route) => route.id).sort()).toEqual([...DECLARED_WRITER_ROUTES].sort());
   });
 

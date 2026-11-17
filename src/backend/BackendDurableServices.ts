@@ -65,8 +65,17 @@ import {
 import { setMemoryRepoKeyReader } from "@/host/memory/repoKeyReader";
 import { setMemorySettingsReader } from "@/host/memory/settingsReader";
 import { defaultMemorySettings, memoryDreamIntervalMs } from "@/shared/memory";
-import { pickMemoryModel, type MemoryModelCandidate } from "@/shared/memoryModelChoice";
-import { dbCountPendingCandidates, dbMemoryMeta } from "@/host/db/memoryStore";
+import {
+  collectMemoryModelCandidates,
+  isEligibleMemoryOneShotAgent,
+  pickMemoryModel,
+  type MemoryModelCandidate,
+} from "@/shared/memoryModelChoice";
+import {
+  dbCountPendingCandidates,
+  dbMemoryMeta,
+  dbStartMemoryCapture,
+} from "@/host/db/memoryStore";
 
 export interface BackendDurableServicesOptions {
   appVersion: string;
@@ -154,8 +163,11 @@ export class BackendDurableServices {
   private housekeepingRun: Promise<void> | null = null;
   private memoryTimer: ReturnType<typeof setInterval> | null = null;
   private memoryPass: Promise<void> | null = null;
+  private memoryWasEnabled: boolean;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
+    const memory = options.getSharedSettings()?.memory;
+    this.memoryWasEnabled = Boolean(memory?.enabled && memory.learning);
     this.deviceWorkspace = new DeviceWorkspaceService(
       (id) => {
         const thread = dbGetThread(id);
@@ -424,44 +436,29 @@ export class BackendDurableServices {
     purpose: "capture" | "dream";
     prompt: string;
   }): Promise<string> {
+    if (this.disposed) throw new Error("Backend durable services are shutting down.");
     const shared = this.options.getSharedSettings();
     const settings = shared?.memory ?? defaultMemorySettings;
     const provider = input.purpose === "dream" ? settings.dreamProvider : settings.captureProvider;
     const model = input.purpose === "dream" ? settings.dreamModel : settings.captureModel;
     const effort = input.purpose === "dream" ? settings.dreamEffort : settings.captureEffort;
     const fast = input.purpose === "dream" ? settings.dreamFast : settings.captureFast;
-    const project = input.projectId ? dbGetProject(input.projectId) : dbGetProjects()[0];
+    const project = (input.projectId ? dbGetProject(input.projectId) : null) ?? dbGetProjects()[0];
     if (!project) throw new Error("No project is available for a memory model call.");
-    const wslDistros = project.location.kind === "wsl" ? [project.location.distro] : [];
+    const wslDistro = project.location.kind === "wsl" ? project.location.distro : undefined;
+    const wslDistros = wslDistro ? [wslDistro] : [];
     const statuses = await this.options.supervisor.call("getAgentStatuses", { wslDistros });
-    const rawPool =
-      project.location.kind === "wsl"
-        ? statuses.wsl.filter(
-            (agent) =>
-              project.location.kind === "wsl" && agent.envDistro === project.location.distro,
-          )
-        : statuses.windows;
+    if (this.disposed) throw new Error("Backend durable services are shutting down.");
+    const rawPool = wslDistro
+      ? statuses.wsl.filter((agent) => agent.envDistro === wslDistro)
+      : statuses.windows;
     const disabled = new Set(shared?.disabledAgents ?? []);
     const hiddenModels = shared?.hiddenModels ?? {};
-    const agents = rawPool.filter(
-      (agent) =>
-        agent.installed !== false &&
-        agent.authState !== "missing" &&
-        !disabled.has(agent.kind) &&
-        agent.capabilities.supportsOneShot === true &&
-        agent.capabilities.models.length > 0,
-    );
-    const candidates: MemoryModelCandidate[] = agents.flatMap((agent) => {
-      const hidden = new Set(hiddenModels[agent.kind] ?? []);
-      const models = agent.capabilities.models.filter(
-        (entry) => !hidden.has(entry.id) || (provider === agent.kind && model === entry.id),
-      );
-      return (models.length > 0 ? models : agent.capabilities.models).map((entry) => ({
-        agentKind: agent.kind,
-        model: entry.id,
-        label: entry.label ?? entry.id,
-        rank: agent.capabilities.utilityRank ?? Number.MAX_SAFE_INTEGER,
-      }));
+    const agents = rawPool.filter((agent) => isEligibleMemoryOneShotAgent(agent, disabled));
+    const candidates = collectMemoryModelCandidates(agents, {
+      hiddenModelsByAgent: hiddenModels,
+      explicitProvider: provider,
+      explicitModel: model,
     });
     const role = input.purpose === "dream" ? "dream" : "capture";
     const attempts: MemoryModelCandidate[] = [];
@@ -489,6 +486,8 @@ export class BackendDurableServices {
     if (attempts.length === 0) throw new Error("No one-shot agent is available for memory.");
     let lastError: unknown;
     for (const chosen of attempts) {
+      if (this.disposed) throw new Error("Backend durable services are shutting down.");
+      const startedAt = Date.now();
       try {
         const result = await this.options.supervisor.call("generateMemoryText", {
           projectLocation: project.location,
@@ -500,22 +499,45 @@ export class BackendDurableServices {
             ...(fast ? { fast } : {}),
           },
         });
+        console.info(
+          `[memory] ${input.purpose} completed via ${chosen.agentKind}/${chosen.model} in ${Date.now() - startedAt}ms`,
+        );
         return result.text;
       } catch (error) {
         lastError = error;
+        console.warn(
+          `[memory] ${input.purpose} failed via ${chosen.agentKind}/${chosen.model} after ${Date.now() - startedAt}ms:`,
+          error instanceof Error ? error.message : String(error),
+        );
       }
     }
     throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  observeMemorySettings(settings: SharedSettings | undefined): void {
+    const enabled = Boolean(settings?.memory?.enabled && settings.memory.learning);
+    if (enabled && (!this.memoryWasEnabled || !dbMemoryMeta("captureCutoffAt"))) {
+      dbStartMemoryCapture(new Date().toISOString());
+    }
+    this.memoryWasEnabled = enabled;
   }
 
   private startMemory(): void {
     const tick = () => {
       if (this.disposed || this.memoryPass) return;
       this.memoryPass = (async () => {
-        await runMemoryCapturePass();
+        this.observeMemorySettings(this.options.getSharedSettings() ?? undefined);
+        if (!this.memoryWasEnabled) return;
+        const result = await runMemoryCapturePass();
+        if (this.disposed) return;
+        if (result.captured > 0 || result.spooled > 0) {
+          console.info(`[memory] pass captured=${result.captured} spooled=${result.spooled}`);
+        }
         await this.maybeDream();
       })()
-        .catch((error: unknown) => this.options.reportError?.(error))
+        .catch((error: unknown) => {
+          if (!this.disposed) this.options.reportError?.(error);
+        })
         .finally(() => {
           this.memoryPass = null;
         });
@@ -525,6 +547,7 @@ export class BackendDurableServices {
   }
 
   private async maybeDream(): Promise<void> {
+    if (this.disposed) return;
     const settings = this.options.getSharedSettings()?.memory ?? defaultMemorySettings;
     const interval = memoryDreamIntervalMs(settings);
     if (!settings.enabled || !settings.learning || !interval || dbCountPendingCandidates() === 0)
@@ -691,6 +714,7 @@ export class BackendDurableServices {
     // The composition stops the supervisor concurrently while keeping SQLite open.
     void joinRuntimeShutdown(
       [
+        () => this.memoryPass ?? Promise.resolve(),
         () => this.housekeepingRun?.then(() => undefined),
         () => {
           // Unsubscribe first so a late commit can no longer enqueue work.

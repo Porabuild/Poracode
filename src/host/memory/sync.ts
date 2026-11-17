@@ -1,3 +1,4 @@
+import { getSqlite } from "@/host/db/connection";
 import { dbGetProjects } from "@/host/db/projectsThreads";
 import {
   dbDeleteMemoryEntry,
@@ -31,6 +32,7 @@ export function exportMemorySyncState(
   const entries: MemoryEntry[] = [];
   for (const entry of dbListAllMemoryEntriesForSync()) {
     if (entry.scope === "global") {
+      if (entry.category === "project") continue;
       entries.push({ ...entry, projectId: null, repoKey: null });
       continue;
     }
@@ -61,78 +63,109 @@ function incomingWins(incoming: MemoryEntry, existing: MemoryEntry): boolean {
   if (incoming.updatedAt !== existing.updatedAt) {
     return incoming.updatedAt > existing.updatedAt;
   }
-  return incoming.lockedByUser && !existing.lockedByUser;
+  if (incoming.lockedByUser !== existing.lockedByUser) {
+    return incoming.lockedByUser && !existing.lockedByUser;
+  }
+  // Deterministic tie-break ensures peers converge on a single canonical entry id.
+  return incoming.id < existing.id;
 }
 
 export function mergeMemorySyncState(
   incoming: MemorySyncState,
   projectRepoKeys?: Readonly<Record<string, string>>,
 ): { changed: boolean; state: MemorySyncState } {
-  let changed = false;
-  const localProjectByRepoKey = new Map<string, string>();
-  for (const project of dbGetProjects()) {
-    const repoKey = resolveRepoKey(project.id, projectRepoKeys);
-    if (repoKey && !localProjectByRepoKey.has(repoKey)) {
-      localProjectByRepoKey.set(repoKey, project.id);
-    }
-  }
-
-  for (const tombstone of incoming.tombstones) {
-    if (tombstone.scope === "project" && !tombstone.repoKey) continue;
-    const local = dbGetMemoryEntry(tombstone.id);
-    if (local) {
-      if (tombstone.deletedAt >= local.updatedAt) {
-        dbDeleteMemoryEntry(tombstone.id, tombstone.deletedAt, true);
-        changed = true;
+  return getSqlite()
+    .transaction(() => {
+      let changed = false;
+      const localProjectByRepoKey = new Map<string, string>();
+      for (const project of dbGetProjects()) {
+        const repoKey = resolveRepoKey(project.id, projectRepoKeys);
+        if (repoKey && !localProjectByRepoKey.has(repoKey)) {
+          localProjectByRepoKey.set(repoKey, project.id);
+        }
       }
-      continue;
-    }
-    dbUpsertMemoryTombstone(tombstone);
-  }
 
-  const localTombstones = new Map(dbListMemoryTombstones().map((item) => [item.id, item]));
-  const localEntries = dbListAllMemoryEntriesForSync();
-  const bySemanticKey = new Map<string, MemoryEntry>();
-  for (const local of localEntries) {
-    const repoKey =
-      local.scope === "project"
-        ? (local.repoKey ?? resolveRepoKey(local.projectId, projectRepoKeys))
-        : null;
-    if (local.scope === "project" && !repoKey) continue;
-    bySemanticKey.set(`${local.scope}\0${repoKey ?? ""}\0${statementKey(local.summary)}`, local);
-  }
+      for (const tombstone of incoming.tombstones) {
+        if (tombstone.scope === "project" && !tombstone.repoKey) continue;
+        const local = dbGetMemoryEntry(tombstone.id);
+        if (local) {
+          if (
+            local.scope !== tombstone.scope ||
+            (local.scope === "project" &&
+              (local.repoKey ?? resolveRepoKey(local.projectId, projectRepoKeys)) !==
+                tombstone.repoKey)
+          )
+            continue;
+          if (tombstone.deletedAt >= local.updatedAt) {
+            dbDeleteMemoryEntry(tombstone.id, tombstone.deletedAt, true);
+            changed = true;
+          }
+          continue;
+        }
+        dbUpsertMemoryTombstone(tombstone);
+      }
 
-  for (const entry of incoming.entries) {
-    if (entry.scope === "project" && !entry.repoKey) continue;
-    const tombstone = localTombstones.get(entry.id);
-    if (tombstone && tombstone.deletedAt >= entry.updatedAt) continue;
+      const localTombstones = new Map(dbListMemoryTombstones().map((item) => [item.id, item]));
+      const localEntries = dbListAllMemoryEntriesForSync();
+      const bySemanticKey = new Map<string, MemoryEntry>();
+      for (const local of localEntries) {
+        const repoKey =
+          local.scope === "project"
+            ? (local.repoKey ?? resolveRepoKey(local.projectId, projectRepoKeys))
+            : null;
+        if (local.scope === "project" && !repoKey) continue;
+        const semanticKey = `${local.scope}\0${repoKey ?? ""}\0${statementKey(local.summary)}`;
+        const prev = bySemanticKey.get(semanticKey);
+        if (!prev || (prev.archived && !local.archived)) {
+          bySemanticKey.set(semanticKey, local);
+        }
+      }
 
-    const semanticKey = `${entry.scope}\0${entry.scope === "project" ? (entry.repoKey ?? "") : ""}\0${statementKey(entry.summary)}`;
-    const existing = dbGetMemoryEntry(entry.id) ?? bySemanticKey.get(semanticKey);
-    const projectId =
-      entry.scope === "project" && entry.repoKey
-        ? (localProjectByRepoKey.get(entry.repoKey) ?? existing?.projectId ?? null)
-        : null;
-    const normalized: MemoryEntry = {
-      ...entry,
-      projectId,
-      repoKey: entry.scope === "project" ? (entry.repoKey ?? null) : null,
-    };
+      for (const entry of incoming.entries) {
+        if (entry.scope === "project" && !entry.repoKey) continue;
+        if (entry.scope === "global" && entry.category === "project") continue;
+        const tombstone = localTombstones.get(entry.id);
+        if (tombstone && tombstone.deletedAt >= entry.updatedAt) continue;
 
-    if (!existing) {
-      dbUpsertMemoryEntry(normalized);
-      bySemanticKey.set(semanticKey, normalized);
-      changed = true;
-      continue;
-    }
+        const semanticKey = `${entry.scope}\0${entry.scope === "project" ? (entry.repoKey ?? "") : ""}\0${statementKey(entry.summary)}`;
+        const existingById = dbGetMemoryEntry(entry.id);
+        if (
+          existingById &&
+          (existingById.scope !== entry.scope ||
+            (entry.scope === "project" &&
+              (existingById.repoKey ?? resolveRepoKey(existingById.projectId, projectRepoKeys)) !==
+                entry.repoKey))
+        )
+          continue;
+        const existing = existingById ?? bySemanticKey.get(semanticKey);
+        const projectId =
+          entry.scope === "project" && entry.repoKey
+            ? (localProjectByRepoKey.get(entry.repoKey) ?? null)
+            : null;
+        const normalized: MemoryEntry = {
+          ...entry,
+          projectId,
+          repoKey: entry.scope === "project" ? (entry.repoKey ?? null) : null,
+        };
 
-    if (incomingWins(normalized, existing)) {
-      const merged = { ...normalized, id: existing.id };
-      dbUpsertMemoryEntry(merged);
-      bySemanticKey.set(semanticKey, merged);
-      changed = true;
-    }
-  }
+        if (!existing) {
+          dbUpsertMemoryEntry(normalized);
+          bySemanticKey.set(semanticKey, normalized);
+          changed = true;
+          continue;
+        }
 
-  return { changed, state: exportMemorySyncState(projectRepoKeys) };
+        if (incomingWins(normalized, existing)) {
+          if (existing.id !== normalized.id) {
+            dbDeleteMemoryEntry(existing.id, existing.updatedAt, true);
+          }
+          dbUpsertMemoryEntry(normalized);
+          bySemanticKey.set(semanticKey, normalized);
+          changed = true;
+        }
+      }
+
+      return { changed, state: exportMemorySyncState(projectRepoKeys) };
+    })
+    .immediate();
 }

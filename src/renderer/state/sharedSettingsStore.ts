@@ -568,7 +568,15 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     persistSettings(selectSharedSettings(get()));
   },
   setMemorySettings: (patch) => {
-    const memory = memorySettingsSchema.parse({ ...get().memory, ...patch });
+    const current = get().memory;
+    const memory = memorySettingsSchema.parse({ ...current, ...patch });
+    if (
+      (Object.keys(memory) as Array<keyof typeof memory>).every(
+        (key) => current[key] === memory[key],
+      )
+    ) {
+      return;
+    }
     set({ memory });
     persistSettings(selectSharedSettings(get()));
   },

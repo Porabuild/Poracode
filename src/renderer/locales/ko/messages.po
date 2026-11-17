@@ -2902,6 +2902,7 @@ msgstr "검토 대기 중"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
@@ -3449,6 +3450,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
@@ -3487,6 +3489,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5844,6 +5847,11 @@ msgstr "MCP 서버 구성을 스캔할 수 없습니다."
 msgid "Couldn't start the camera"
 msgstr "카메라를 시작할 수 없습니다"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Couldn't update memory mode for this thread."
+msgstr "이 스레드의 메모리 모드를 변경하지 못했습니다."
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
@@ -12186,6 +12194,11 @@ msgid "Memory"
 msgstr "메모리"
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Memory actions"
+msgstr "메모리 작업"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Memory settings"
 msgstr "메모리 설정"
 
@@ -15386,6 +15399,7 @@ msgstr "{0}을(를) 맨 위에 고정"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Pin to top"
 msgstr "상단에 고정"
 
@@ -15401,6 +15415,7 @@ msgstr "분통"
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Pinned"
 msgstr "고정됨"
 
@@ -16139,6 +16154,10 @@ msgstr "{0}의 프로젝트가 {1}(으)로 이동합니다. 삭제되는 프로�
 #: src/mobile/setupEmptyState.tsx
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "프로젝트는 연결된 데스크톱에 있습니다. 스레드를 시작하기 전에 프로젝트를 추가하세요."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Promoted {promoted}. Suggested {suggested} skills."
+msgstr "{promoted}개의 메모를 반영했습니다. {suggested}개의 스킬을 제안했습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Promoting this profile into the owned data root…"
@@ -19796,6 +19815,10 @@ msgstr "스킬"
 msgid "Skill availability"
 msgstr "스킬 사용 범위"
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+msgid "Skill instructions"
+msgstr "스킬 지침"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill marketplace source"
 msgstr "스킬 마켓플레이스 소스"
@@ -20761,6 +20784,7 @@ msgstr "동기화 옵션"
 #~ msgstr "데스크톱과 동기화"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Syncing…"
 msgstr "동기화 중…"
 
@@ -23459,6 +23483,10 @@ msgstr "선택 해제한 공급자와 모델은 Crossagents 자동 라우팅에�
 #~ msgid "Unchecked providers and models are skipped by Crossagents only."
 #~ msgstr "선택 해제된 제공자와 모델은 Crossagents에서만 건너뜁니다."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undo"
+msgstr "실행 취소"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
 msgstr "그룹 해제"
@@ -23559,6 +23587,7 @@ msgstr "단계 미지정:"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Unpin"
 msgstr "고정 해제"
 

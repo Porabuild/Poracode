@@ -127,18 +127,24 @@ export class GenerationService {
     const selection = resolveOneShotSelection(adapter, payload.selection, () => {
       return new Error(`No default one-shot model configured for ${adapter.label}`);
     });
-    const run =
-      adapter.capabilities.supportsTextOnlyOneShot === true
-        ? runTextOnlyOneShotPromptWithFallback
-        : runOneShotPromptWithFallback;
+    const textOnly = adapter.capabilities.supportsTextOnlyOneShot === true;
+    const run = textOnly ? runTextOnlyOneShotPromptWithFallback : runOneShotPromptWithFallback;
+    const attempts =
+      payload.prompt.length > 20_000
+        ? [
+            { level: "memory", buildPrompt: () => payload.prompt },
+            { level: "memory-compact", buildPrompt: () => payload.prompt.slice(0, 18_000) },
+          ]
+        : [{ level: "memory", buildPrompt: () => payload.prompt }];
     const text = await this.withHelperLease("memory", () =>
       run({
         location: payload.projectLocation,
         adapter,
         selection,
-        timeoutMs: 45_000,
+        isolateCwd: !textOnly,
+        timeoutMs: 60_000,
         logTag: "memory",
-        attempts: [{ level: "memory", buildPrompt: () => payload.prompt }],
+        attempts,
       }),
     );
     return { text };

@@ -850,8 +850,8 @@ export const sharedSettingsSchema = z.object({
    */
   crossagentRoutingGuide: z.string(),
   /**
-   * Shared memory controls. Missing on older settings files; defaults keep
-   * learning on. Older builds preserve the object without reading it.
+   * Shared memory controls. Opt-in (`enabled: false` by default) and
+   * per-field normalized so future enum additions never discard the object.
    */
   memory: memorySettingsSchema.default(defaultMemorySettings),
 });
@@ -1854,6 +1854,11 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       ...normalized,
       machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       crews: normalizeSavedCrews(parsed.data.crews),
+      memory: normalizeObjectFromSchema(
+        memorySettingsSchema.shape,
+        defaultMemorySettings,
+        parsed.data.memory,
+      ),
     },
     parsed.data,
   );

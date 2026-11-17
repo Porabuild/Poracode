@@ -212,7 +212,8 @@ function splitBearerRoutes() {
  */
 // Run triage/cancellation and device actions each add one operator-only route.
 // Duo creation adds one more operator-only route; viewers must not create devices.
-const EXPECTED_MUTATING_ROUTE_COUNT = 62;
+// Memory sync is operator-only because it merges into the host catalog.
+const EXPECTED_MUTATING_ROUTE_COUNT = 63;
 // 21 pre-B4 + the three additive B4 read routes (project-list,
 // catalog-membership, thread-turns) + B1 thread-runtime-gap + the experiment
 // state read, plus file-media mint/release/renew (owned read grants only), all

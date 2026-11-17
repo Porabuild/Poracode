@@ -2902,6 +2902,7 @@ msgstr "Examen en attente"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 #: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+#: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
@@ -3449,6 +3450,7 @@ msgstr "Cette sélection de modèle ne peut pas être utilisée dans cette inter
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/ConversationSearchJump.tsx
@@ -3487,6 +3489,7 @@ msgstr "Cette sélection de modèle ne peut pas être utilisée dans cette inter
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/HexSetupDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5844,6 +5847,11 @@ msgstr "Impossible d’analyser les configurations des serveurs MCP."
 msgid "Couldn't start the camera"
 msgstr "Impossible de démarrer la caméra"
 
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Couldn't update memory mode for this thread."
+msgstr "Impossible de modifier le mode de mémoire de cette conversation."
+
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't update the skill."
@@ -12186,6 +12194,11 @@ msgid "Memory"
 msgstr "Mémoire"
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Memory actions"
+msgstr "Actions de mémoire"
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Memory settings"
 msgstr "Réglages de la mémoire"
 
@@ -15385,6 +15398,7 @@ msgstr "Épingler {0} en haut"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Pin to top"
 msgstr "Épingler en haut"
 
@@ -15400,6 +15414,7 @@ msgstr "Rose"
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Pinned"
 msgstr "Épinglé"
 
@@ -16138,6 +16153,10 @@ msgstr "Les projets de {0} sont déplacés vers {1}. Aucun projet n'est supprim�
 #: src/mobile/setupEmptyState.tsx
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "Les projets se trouvent sur le bureau connecté. Ajoutez-en un avant de démarrer un fil."
+
+#: src/renderer/components/composer/MemoryAddMenu.tsx
+msgid "Promoted {promoted}. Suggested {suggested} skills."
+msgstr "{promoted} notes intégrées. {suggested} compétences suggérées."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Promoting this profile into the owned data root…"
@@ -19795,6 +19814,10 @@ msgstr "Compétence"
 msgid "Skill availability"
 msgstr "Disponibilité de la compétence"
 
+#: src/renderer/components/skills/MemorySkillSuggestions.tsx
+msgid "Skill instructions"
+msgstr "Instructions de la skill"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Skill marketplace source"
 msgstr "Source de la marketplace de skills"
@@ -20760,6 +20783,7 @@ msgstr "Options de synchronisation"
 #~ msgstr "Synchroniser avec l'ordinateur"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Syncing…"
 msgstr "Synchronisation…"
 
@@ -23458,6 +23482,10 @@ msgstr "Les fournisseurs et modèles non sélectionnés sont exclus du routage a
 #~ msgid "Unchecked providers and models are skipped by Crossagents only."
 #~ msgstr "Les fournisseurs et modèles décochés sont ignorés uniquement par Crossagents."
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Undo"
+msgstr "Annuler"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Ungroup"
 msgstr "Dissocier"
@@ -23558,6 +23586,7 @@ msgstr "Sans phase :"
 #: src/renderer/components/common/BranchSelector/parts/BranchListBox.tsx
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "Unpin"
 msgstr "Désépingler"
 

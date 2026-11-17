@@ -9,6 +9,10 @@ internal val schema_51fc061b3ecc735c: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("newLocation", "projectId"), properties = mapOf("newLocation" to schema_080f9cc154af9e27, "projectId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_51fc9e063590d3e3: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("daily"), JsonPrimitive("3d"), JsonPrimitive("weekly"), JsonPrimitive("manual")), defaultValue = JsonPrimitive("daily"), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_522013c70826ee65: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("unavailable"), JsonPrimitive("busy"), JsonPrimitive("invalid_request"), JsonPrimitive("not_ready"), JsonPrimitive("failed"), JsonPrimitive("cancelled"), JsonPrimitive("timeout"), JsonPrimitive("disconnected"), JsonPrimitive("incompatible"), JsonPrimitive("unsupported"), JsonPrimitive("download_failed"), JsonPrimitive("integrity"), JsonPrimitive("permission_denied")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

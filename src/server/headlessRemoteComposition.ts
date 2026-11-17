@@ -503,7 +503,10 @@ export async function composeHeadlessRemoteHost(
       readProject: dbGetProject,
       writeProject: dbUpdateProject,
       projectsChanged: publishHeadlessProjectsChanged,
-      settingsCommitted: (settings) => hostServices.applyBrowserAllowFlags(settings),
+      settingsCommitted: (settings) => {
+        durableServices?.observeMemorySettings(settings);
+        hostServices.applyBrowserAllowFlags(settings);
+      },
       ...(options.reportError ? { reportError: options.reportError } : {}),
     });
     const settings = settingsAuthority;

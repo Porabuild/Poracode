@@ -64395,6 +64395,140 @@
               },
               "type": "object"
             },
+            "memory": {
+              "additionalProperties": true,
+              "properties": {
+                "archiveUnusedDays": {
+                  "default": 60,
+                  "maximum": 3650,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "captureCustomMinutes": {
+                  "default": 10,
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "captureEffort": {
+                  "default": "",
+                  "type": "string"
+                },
+                "captureFast": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "captureModel": {
+                  "default": "",
+                  "type": "string"
+                },
+                "captureProvider": {
+                  "default": "auto",
+                  "type": "string"
+                },
+                "captureTiming": {
+                  "default": "settle-2m",
+                  "enum": [
+                    "settle-2m",
+                    "settle-90s",
+                    "custom",
+                    "lifecycle"
+                  ],
+                  "type": "string"
+                },
+                "deletePolicy": {
+                  "default": "spool",
+                  "enum": [
+                    "spool",
+                    "lifecycle",
+                    "never"
+                  ],
+                  "type": "string"
+                },
+                "dreamCadence": {
+                  "default": "daily",
+                  "enum": [
+                    "daily",
+                    "3d",
+                    "weekly",
+                    "manual"
+                  ],
+                  "type": "string"
+                },
+                "dreamEffort": {
+                  "default": "",
+                  "type": "string"
+                },
+                "dreamFast": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "dreamModel": {
+                  "default": "",
+                  "type": "string"
+                },
+                "dreamProvider": {
+                  "default": "auto",
+                  "type": "string"
+                },
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "learning": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "sessionTokenBudget": {
+                  "default": 2000,
+                  "maximum": 8000,
+                  "minimum": 200,
+                  "type": "integer"
+                },
+                "skillThreshold": {
+                  "default": 3,
+                  "maximum": 20,
+                  "minimum": 2,
+                  "type": "integer"
+                },
+                "suggestSkills": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "suppressNative": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "syncEnabled": {
+                  "default": true,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "enabled",
+                "learning",
+                "syncEnabled",
+                "captureTiming",
+                "captureCustomMinutes",
+                "deletePolicy",
+                "dreamCadence",
+                "suggestSkills",
+                "skillThreshold",
+                "sessionTokenBudget",
+                "archiveUnusedDays",
+                "suppressNative",
+                "captureProvider",
+                "captureModel",
+                "captureEffort",
+                "captureFast",
+                "dreamProvider",
+                "dreamModel",
+                "dreamEffort",
+                "dreamFast"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "prAutomationDefault": {
               "enum": [
                 "off",
@@ -65126,6 +65260,118 @@
           },
           "type": "object"
         },
+        "memory": {
+          "additionalProperties": true,
+          "properties": {
+            "archiveUnusedDays": {
+              "default": 60,
+              "maximum": 3650,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "captureCustomMinutes": {
+              "default": 10,
+              "maximum": 240,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "captureEffort": {
+              "default": "",
+              "type": "string"
+            },
+            "captureFast": {
+              "default": false,
+              "type": "boolean"
+            },
+            "captureModel": {
+              "default": "",
+              "type": "string"
+            },
+            "captureProvider": {
+              "default": "auto",
+              "type": "string"
+            },
+            "captureTiming": {
+              "default": "settle-2m",
+              "enum": [
+                "settle-2m",
+                "settle-90s",
+                "custom",
+                "lifecycle"
+              ],
+              "type": "string"
+            },
+            "deletePolicy": {
+              "default": "spool",
+              "enum": [
+                "spool",
+                "lifecycle",
+                "never"
+              ],
+              "type": "string"
+            },
+            "dreamCadence": {
+              "default": "daily",
+              "enum": [
+                "daily",
+                "3d",
+                "weekly",
+                "manual"
+              ],
+              "type": "string"
+            },
+            "dreamEffort": {
+              "default": "",
+              "type": "string"
+            },
+            "dreamFast": {
+              "default": false,
+              "type": "boolean"
+            },
+            "dreamModel": {
+              "default": "",
+              "type": "string"
+            },
+            "dreamProvider": {
+              "default": "auto",
+              "type": "string"
+            },
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            },
+            "learning": {
+              "default": true,
+              "type": "boolean"
+            },
+            "sessionTokenBudget": {
+              "default": 2000,
+              "maximum": 8000,
+              "minimum": 200,
+              "type": "integer"
+            },
+            "skillThreshold": {
+              "default": 3,
+              "maximum": 20,
+              "minimum": 2,
+              "type": "integer"
+            },
+            "suggestSkills": {
+              "default": true,
+              "type": "boolean"
+            },
+            "suppressNative": {
+              "default": false,
+              "type": "boolean"
+            },
+            "syncEnabled": {
+              "default": true,
+              "type": "boolean"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
         "prAutomationDefault": {
           "enum": [
             "off",
@@ -65805,6 +66051,140 @@
                 "type": "string"
               },
               "type": "object"
+            },
+            "memory": {
+              "additionalProperties": true,
+              "properties": {
+                "archiveUnusedDays": {
+                  "default": 60,
+                  "maximum": 3650,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "captureCustomMinutes": {
+                  "default": 10,
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "captureEffort": {
+                  "default": "",
+                  "type": "string"
+                },
+                "captureFast": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "captureModel": {
+                  "default": "",
+                  "type": "string"
+                },
+                "captureProvider": {
+                  "default": "auto",
+                  "type": "string"
+                },
+                "captureTiming": {
+                  "default": "settle-2m",
+                  "enum": [
+                    "settle-2m",
+                    "settle-90s",
+                    "custom",
+                    "lifecycle"
+                  ],
+                  "type": "string"
+                },
+                "deletePolicy": {
+                  "default": "spool",
+                  "enum": [
+                    "spool",
+                    "lifecycle",
+                    "never"
+                  ],
+                  "type": "string"
+                },
+                "dreamCadence": {
+                  "default": "daily",
+                  "enum": [
+                    "daily",
+                    "3d",
+                    "weekly",
+                    "manual"
+                  ],
+                  "type": "string"
+                },
+                "dreamEffort": {
+                  "default": "",
+                  "type": "string"
+                },
+                "dreamFast": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "dreamModel": {
+                  "default": "",
+                  "type": "string"
+                },
+                "dreamProvider": {
+                  "default": "auto",
+                  "type": "string"
+                },
+                "enabled": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "learning": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "sessionTokenBudget": {
+                  "default": 2000,
+                  "maximum": 8000,
+                  "minimum": 200,
+                  "type": "integer"
+                },
+                "skillThreshold": {
+                  "default": 3,
+                  "maximum": 20,
+                  "minimum": 2,
+                  "type": "integer"
+                },
+                "suggestSkills": {
+                  "default": true,
+                  "type": "boolean"
+                },
+                "suppressNative": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "syncEnabled": {
+                  "default": true,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "enabled",
+                "learning",
+                "syncEnabled",
+                "captureTiming",
+                "captureCustomMinutes",
+                "deletePolicy",
+                "dreamCadence",
+                "suggestSkills",
+                "skillThreshold",
+                "sessionTokenBudget",
+                "archiveUnusedDays",
+                "suppressNative",
+                "captureProvider",
+                "captureModel",
+                "captureEffort",
+                "captureFast",
+                "dreamProvider",
+                "dreamModel",
+                "dreamEffort",
+                "dreamFast"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
             },
             "prAutomationDefault": {
               "enum": [
@@ -82435,5 +82815,5 @@
   },
   "manifestHash": "sha256:c77ded8053e44afa1792ddf07f3d229c964ea77b121277fb54b39febaab33334",
   "protocolVersion": 14,
-  "sourceHash": "sha256:eb74df5bd3469525ea0a6dec504af7bab256c521a04a9c6e19f84928670f4fe5"
+  "sourceHash": "sha256:103810e43d7d7253ef5768f1f8799ff35e63066eeee863ad78af14929266570a"
 }

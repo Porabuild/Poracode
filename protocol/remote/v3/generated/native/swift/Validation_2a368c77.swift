@@ -5,6 +5,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_51fc9e063590d3e3 = RemoteSchema(type: "string", literals: [.string("daily"), .string("3d"), .string("weekly"), .string("manual")], defaultValue: .string("daily"), unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_522013c70826ee65 = RemoteSchema(type: "string", literals: [.string("unavailable"), .string("busy"), .string("invalid_request"), .string("not_ready"), .string("failed"), .string("cancelled"), .string("timeout"), .string("disconnected"), .string("incompatible"), .string("unsupported"), .string("download_failed"), .string("integrity"), .string("permission_denied")], unknownPolicy: .strip)
 }
 

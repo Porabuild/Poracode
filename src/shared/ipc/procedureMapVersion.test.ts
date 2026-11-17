@@ -143,13 +143,15 @@ import { isRemoteProcedure } from "../remote/procedures";
 const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:33c7cbfa7f7f3db692bbce4db2377b5a50f1beec400f2d4a93d12cada6eb5f23`;
 
 describe("IPC procedure map versioning", () => {
-  it("preserves the previous map while keeping port termination off remote transports", () => {
+  it("preserves the pre-ports map while keeping port termination off remote transports", () => {
     const previous = ipcProcedureMapFingerprint()
       .split("\n")
-      .filter((line) => !/^(listLocalPorts|closeLocalPort):/.test(line))
+      .filter(
+        (line) => !/^(listLocalPorts|closeLocalPort|memoryCommand|generateMemoryText):/.test(line),
+      )
       .join("\n");
     expect(createHash("sha256").update(previous).digest("hex")).toBe(
-      "a2c572172f6f5209bc32f7c23b592344d918e5f198e389f23e0ca53044ef0aac",
+      "e7d56779b0a1910e7bf1b1e1a877255af172c66dec31b92512f223dc7250f2c9",
     );
     for (const name of ["listLocalPorts", "closeLocalPort"] as const) {
       expect(ipcProcedureMap[name].transport).toBe("main-local");
@@ -165,6 +167,20 @@ describe("IPC procedure map versioning", () => {
       schema.safeParse({ port: 3000, address: "127.0.0.1", pid: 1234, processStartedAt: "old" })
         .success,
     ).toBe(true);
+  });
+
+  it("preserves the pre-memory map while keeping memory procedures off remote transports", () => {
+    const previous = ipcProcedureMapFingerprint()
+      .split("\n")
+      .filter((line) => !/^(memoryCommand|generateMemoryText):/.test(line))
+      .join("\n");
+    expect(createHash("sha256").update(previous).digest("hex")).toBe(
+      "faa92559ca82d8af9dd1a5c87e7832d9000b326519f2ee986ec4b05727bf47c1",
+    );
+    expect(ipcProcedureMap.memoryCommand.transport).toBe("main-local");
+    expect(ipcProcedureMap.generateMemoryText.transport).toBe("supervisor");
+    expect(isRemoteProcedure("memoryCommand")).toBe(false);
+    expect(isRemoteProcedure("generateMemoryText")).toBe(false);
   });
   it("routes Hex voice through the supervisor as an additive procedure", () => {
     expect(ipcProcedureMap.hexVoice.transport).toBe("supervisor");

@@ -69,6 +69,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_df5d50a7515a4b30 = RemoteSchema(type: "object", required: Set(["archiveUnusedDays", "captureCustomMinutes", "captureEffort", "captureFast", "captureModel", "captureProvider", "captureTiming", "deletePolicy", "dreamCadence", "dreamEffort", "dreamFast", "dreamModel", "dreamProvider", "enabled", "learning", "sessionTokenBudget", "skillThreshold", "suggestSkills", "suppressNative", "syncEnabled"]), properties: ["archiveUnusedDays": RemoteSchemas.schema_d0bd9c5c0fa9bf37, "captureCustomMinutes": RemoteSchemas.schema_8db449fef3c951c4, "captureEffort": RemoteSchemas.schema_38d1a07d3b9b1c82, "captureFast": RemoteSchemas.schema_f8b6dd8128e8bfe0, "captureModel": RemoteSchemas.schema_38d1a07d3b9b1c82, "captureProvider": RemoteSchemas.schema_39f6d5287a718cd5, "captureTiming": RemoteSchemas.schema_b0eed3c52a70f213, "deletePolicy": RemoteSchemas.schema_b5556f3ec1f82cb8, "dreamCadence": RemoteSchemas.schema_51fc9e063590d3e3, "dreamEffort": RemoteSchemas.schema_38d1a07d3b9b1c82, "dreamFast": RemoteSchemas.schema_f8b6dd8128e8bfe0, "dreamModel": RemoteSchemas.schema_38d1a07d3b9b1c82, "dreamProvider": RemoteSchemas.schema_39f6d5287a718cd5, "enabled": RemoteSchemas.schema_f8b6dd8128e8bfe0, "learning": RemoteSchemas.schema_a6ba34cd39bf30c5, "sessionTokenBudget": RemoteSchemas.schema_0579a31094a2b8a7, "skillThreshold": RemoteSchemas.schema_0013f55d4acc3d55, "suggestSkills": RemoteSchemas.schema_a6ba34cd39bf30c5, "suppressNative": RemoteSchemas.schema_f8b6dd8128e8bfe0, "syncEnabled": RemoteSchemas.schema_a6ba34cd39bf30c5], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_df704162f3d15808 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_36fea325bf1aca70, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
 }
 
@@ -442,8 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_ed3d9773342dac2c = RemoteSchema(type: "object", required: Set(["entries"]), properties: ["entries": RemoteSchemas.schema_bdb4eecbb625c500], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_ed8928e1a85aa112 = RemoteSchema(type: "string", literals: [.string("managed"), .string("external")], unknownPolicy: .strip)
 }

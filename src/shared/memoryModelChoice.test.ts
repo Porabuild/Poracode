@@ -30,4 +30,15 @@ describe("pickMemoryModel", () => {
       model: "alpha-opus",
     });
   });
+
+  it("preserves newest-first catalog order within a tier instead of sorting alphabetically", () => {
+    const ordered: MemoryModelCandidate[] = [
+      { agentKind: "claude", model: "claude-fable-5-2", label: "Fable 5.2", rank: 20 },
+      { agentKind: "claude", model: "claude-fable-5-1", label: "Fable 5.1", rank: 20 },
+      { agentKind: "claude", model: "claude-haiku-4-5-20251001", label: "Haiku 4.5", rank: 20 },
+      { agentKind: "claude", model: "haiku", label: "Haiku", rank: 20 },
+    ];
+    expect(pickMemoryModel(ordered, "dream")?.model).toBe("claude-fable-5-2");
+    expect(pickMemoryModel(ordered, "capture")?.model).toBe("claude-haiku-4-5-20251001");
+  });
 });

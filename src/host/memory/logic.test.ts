@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   conflictsWith,
   observationsFromUserLines,
+  parseDreamConsolidation,
   parseModelObservations,
   redactSecrets,
   renderMemoryPrompt,
@@ -117,5 +118,51 @@ describe("memory logic", () => {
 
   it("redacts a bearer token", () => {
     expect(redactSecrets("Authorization: Bearer abcdefghijklmnop")).toContain("[REDACTED]");
+  });
+
+  it("rejects multi-question prompts and one-off turn directives in deterministic capture", () => {
+    expect(
+      observationsFromUserLines(
+        "User: Without running tools, answer: 1) What test command should we use? 2) Port? If you don't know, reply UNKNOWN.",
+      ),
+    ).toEqual([]);
+    expect(observationsFromUserLines("User: Do not run tools. Reply only with OK_TAUGHT.")).toEqual(
+      [],
+    );
+  });
+
+  it("reads streamed assistant text when payload is null and avoids duplicating payload text", () => {
+    const streamed = transcriptFromItems([
+      { position: 0, type: "user_message", payload: JSON.stringify({ text: "Hi" }) },
+      { position: 1, type: "assistant_message", payload: null, streamText: "Streamed reply" },
+      {
+        position: 2,
+        type: "assistant_message",
+        payload: JSON.stringify({ content: [{ kind: "text", text: "Payload reply" }] }),
+        streamText: "Payload reply",
+      },
+    ]);
+    expect(streamed).toBe("User: Hi\nAssistant: Streamed reply\nAssistant: Payload reply");
+  });
+
+  it("parses retireIds alongside consolidated dream observations", () => {
+    const parsed = parseDreamConsolidation(
+      JSON.stringify({
+        observations: [
+          {
+            scope: "project",
+            projectId: "p1",
+            category: "project",
+            statement: "Staging server runs on port 4180",
+            quote: null,
+            polarity: "fact",
+            explicit: true,
+          },
+        ],
+        retireIds: ["old-bloated-1"],
+      }),
+    );
+    expect(parsed.observations).toHaveLength(1);
+    expect(parsed.retireIds).toEqual(["old-bloated-1"]);
   });
 });

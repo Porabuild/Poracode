@@ -3,11 +3,11 @@ import { agentKindSchema, projectLocationSchema } from "./contracts/common";
 import { modelSelectionSchema } from "./selectionBinding.schemas";
 
 /**
- * Poracode memory document. Settings live in the shared settings file
- * (unknown fields are preserved by older builds; missing `memory` fills these
- * defaults). Memory rows live in SQLite migration 77, which older builds
- * refuse because the schema version moved forward. No settings-document
- * version bump: old readers keep the object and new readers default it.
+ * Poracode memory settings & contracts. Settings live in the shared settings
+ * file (per-field normalized with opt-in `enabled: false` by default). Memory
+ * rows live in SQLite migrations 76–77, which older builds refuse because the
+ * schema version moved forward. No settings-document version bump: missing
+ * fields default safely via per-field normalization.
  */
 export const memoryCaptureTimingSchema = z.enum(["settle-2m", "settle-90s", "custom", "lifecycle"]);
 export type MemoryCaptureTiming = z.infer<typeof memoryCaptureTimingSchema>;
@@ -124,6 +124,15 @@ export const memoryStatusSchema = z.object({
   suggestionCount: z.number().int().nonnegative(),
   lastDreamAt: z.string().nullable(),
   lastDreamSummary: z.string().nullable(),
+  lastDreamRunId: z.string().nullable().optional(),
+  lastDreamCounts: z
+    .object({
+      promoted: z.number().int().nonnegative(),
+      suggested: z.number().int().nonnegative(),
+      retired: z.number().int().nonnegative(),
+    })
+    .nullable()
+    .optional(),
   threadMode: memoryThreadModeSchema.nullable(),
 });
 export type MemoryStatus = z.infer<typeof memoryStatusSchema>;
@@ -137,7 +146,6 @@ export const memoryCommandPayloadSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("list"),
     projectId: z.string().min(1).optional(),
-    includeArchived: z.boolean().optional(),
   }),
   z.object({
     action: z.literal("save"),

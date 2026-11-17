@@ -350,6 +350,7 @@ export const remoteSettingsWireSchema = remoteSettingsWireBaseSchema.extend({
   followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
   searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
   searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
+  memory: sharedSettingsSchema.shape.memory.removeDefault().optional(),
 });
 
 export const settingsReadResultWireSchema = z.object({

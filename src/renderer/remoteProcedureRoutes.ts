@@ -271,6 +271,10 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   removeCrossagentRoutingOverride: "local-shell: this device's routing override decision",
   updateCrossagentMemoryEntryTags: "local-shell: this device's memory catalog",
   removeCrossagentMemoryEntry: "local-shell: this device's memory catalog",
+  memoryCommand:
+    "local-shell: this host's local memory catalog; cross-host sync uses POST /api/memory/sync",
+  generateMemoryText:
+    "local-shell: host-owned background capture/dream one-shot generation on this machine",
 
   // Desktop browser panel — the WebContentsView tab strip of this window
   browserGetState: "local-shell: this desktop window's browser tab strip",

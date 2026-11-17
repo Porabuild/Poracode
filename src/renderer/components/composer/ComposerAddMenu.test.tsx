@@ -863,5 +863,12 @@ describe("memoryStatusLabel", () => {
   it("shows the saved count when memory is on and quiet", () => {
     expect(memoryStatusLabel(undefined, true, labels)).toBe("On");
     expect(memoryStatusLabel(memoryStatusFixture, true, labels)).toBe("4 saved");
+    expect(
+      memoryStatusLabel(
+        { ...memoryStatusFixture, lastDreamSummary: "Promoted 0. Suggested 0 skills." },
+        true,
+        labels,
+      ),
+    ).toBe("4 saved");
   });
 });

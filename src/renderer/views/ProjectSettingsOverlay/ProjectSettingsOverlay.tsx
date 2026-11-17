@@ -3,6 +3,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { useAppStore } from "@/renderer/state/appStore";
+import { openMemorySettings } from "@/renderer/actions/panelActions";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
 import { MobileProjectSettingsIndex } from "./parts/MobileProjectSettingsIndex";
@@ -91,7 +92,13 @@ export function ProjectSettingsOverlay(props: {
       <SkillsSection projectId={projectId} />
     ) : activeSection === "memory" ? (
       <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
-        <MemorySettings projectId={projectId} />
+        <MemorySettings
+          projectId={projectId}
+          onOpenGlobalSettings={() => {
+            onClose();
+            openMemorySettings();
+          }}
+        />
       </div>
     ) : activeSection === "mcp" ? (
       <McpSection projectId={projectId} />

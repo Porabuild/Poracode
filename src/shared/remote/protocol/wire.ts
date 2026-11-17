@@ -126,6 +126,7 @@ export const remoteSettingsSchema = sharedSettingsSchema
     searchExclude: true,
     prAutomationDefault: true,
     prMergeMethod: true,
+    memory: true,
   })
   .extend({
     agentSettings: remoteAgentSettingsSchema,
@@ -139,6 +140,7 @@ export const remoteSettingsSchema = sharedSettingsSchema
     searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
     searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
     followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
+    memory: sharedSettingsSchema.shape.memory.removeDefault().optional(),
   });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 
@@ -160,6 +162,7 @@ export const remoteSettingsPatchSchema = remoteSettingsSchema
     // particular, an unrelated edit must not inject the legacy default.
     followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional(),
     crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
+    memory: sharedSettingsSchema.shape.memory.removeDefault().optional(),
   });
 export type RemoteSettingsPatch = z.infer<typeof remoteSettingsPatchSchema>;
 

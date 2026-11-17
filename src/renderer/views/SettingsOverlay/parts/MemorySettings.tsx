@@ -40,6 +40,7 @@ function MemoryModelPicker(props: {
   provider: string;
   model: string;
   providers: readonly ProviderModelMenuProvider[];
+  isDisabled?: boolean;
   onChange: (agentKind: string, model: string) => void;
   onReset: () => void;
 }) {
@@ -54,10 +55,20 @@ function MemoryModelPicker(props: {
   const customized = props.provider !== "auto" || props.model !== "";
   if (!agentKind || !model || props.providers.length === 0) return null;
   return (
-    <SettingRow anchorId={props.anchorId} title={props.title} description={props.description}>
+    <SettingRow
+      anchorId={props.anchorId}
+      title={props.title}
+      description={props.description}
+      className={props.isDisabled ? "opacity-55 transition-opacity" : "transition-opacity"}
+    >
       <div className="flex items-center gap-2">
         {customized ? (
-          <Button size="sm" variant="ghost" onPress={props.onReset}>
+          <Button
+            size="sm"
+            variant="ghost"
+            isDisabled={props.isDisabled ?? false}
+            onPress={props.onReset}
+          >
             <Trans>Reset</Trans>
           </Button>
         ) : null}
@@ -67,6 +78,7 @@ function MemoryModelPicker(props: {
           providers={[...props.providers]}
           currentAgentKind={agentKind}
           currentModel={model}
+          isDisabled={props.isDisabled ?? false}
           onChange={(next) => props.onChange(next.agentKind, next.model)}
         />
       </div>
@@ -74,7 +86,7 @@ function MemoryModelPicker(props: {
   );
 }
 
-export function MemorySettings(props: { projectId?: string }) {
+export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings?: () => void }) {
   const { t } = useLingui();
   const memory = useSharedSettings((state) => state.memory);
   const disabledAgents = useSharedSettings((state) => state.disabledAgents);
@@ -92,13 +104,23 @@ export function MemorySettings(props: { projectId?: string }) {
   const oneShotAgents = hostOneShot.length > 0 ? hostOneShot : wslAgentStatuses.filter(isEligible);
   const modelProviders = buildProviderModelMenuProviders(oneShotAgents, {
     hiddenModelsByAgent: hiddenModels,
+  }).map((provider) => {
+    if (provider.capabilities.models.length > 0) return provider;
+    const raw = oneShotAgents.find((agent) => agent.kind === provider.kind);
+    return raw ? { ...provider, capabilities: raw.capabilities } : provider;
   });
   const remote = isRemoteSession();
+  const childDisabled = !memory.enabled;
+  const childRowClass = childDisabled ? "opacity-55 transition-opacity" : "transition-opacity";
   const [status, setStatus] = useState<MemoryStatus | undefined>();
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
   const [draft, setDraft] = useState("");
+  const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [dreaming, setDreaming] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -162,14 +184,66 @@ export function MemorySettings(props: { projectId?: string }) {
   }
 
   function syncAfterChange() {
-    void syncMemoryAcrossEnvironments().then((result) => {
-      if (result.changed) void reload();
-    });
+    void syncMemoryAcrossEnvironments()
+      .then((result) => (result.changed ? reload() : undefined))
+      .catch(() => setError(true));
+  }
+
+  function addDraftMemory() {
+    const summary = draft.trim();
+    if (summary.length === 0 || adding) return;
+    setAdding(true);
+    setError(false);
+    void readBridge()
+      .memoryCommand({
+        action: "save",
+        entry: {
+          scope: props.projectId ? "project" : "global",
+          ...(props.projectId ? { projectId: props.projectId } : {}),
+          category: "user",
+          summary,
+          body: summary,
+          polarity: "positive",
+          pinned: false,
+        },
+      })
+      .then(() => {
+        setDraft((current) => (current === draft ? "" : current));
+        syncAfterChange();
+        return reload();
+      })
+      .catch(() => setError(true))
+      .finally(() => setAdding(false));
+  }
+
+  function togglePin(entry: MemoryEntry) {
+    setError(false);
+    void readBridge()
+      .memoryCommand({
+        action: "save",
+        entry: {
+          id: entry.id,
+          scope: entry.scope,
+          projectId: entry.projectId,
+          category: entry.category,
+          summary: entry.summary,
+          body: entry.body,
+          polarity: entry.polarity,
+          pinned: !entry.pinned,
+          quote: entry.quote,
+        },
+      })
+      .then(() => {
+        syncAfterChange();
+        return reload();
+      })
+      .catch(() => setError(true));
   }
 
   function saveEdit(entry: MemoryEntry) {
     const summary = editDraft.trim();
     if (summary.length === 0) return;
+    setError(false);
     void readBridge()
       .memoryCommand({
         action: "save",
@@ -204,222 +278,264 @@ export function MemorySettings(props: { projectId?: string }) {
         </Trans>
       }
     >
-      <SettingRow
-        anchorId="memory.enabled"
-        title={t`Use memory`}
-        description={<Trans>Include memory when a thread starts.</Trans>}
-      >
-        <ToggleSwitch
-          aria-label={t`Use memory`}
-          isSelected={memory.enabled}
-          onChange={(selected) => startTransition(() => setMemorySettings({ enabled: selected }))}
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="memory.learning"
-        title={t`Learn from chats`}
-        description={<Trans>Capture new notes after turns finish.</Trans>}
-      >
-        <ToggleSwitch
-          aria-label={t`Learn from chats`}
-          isSelected={memory.learning}
-          onChange={(selected) => startTransition(() => setMemorySettings({ learning: selected }))}
-        />
-      </SettingRow>
-      <MemoryModelPicker
-        anchorId="memory.captureModel"
-        title={t`Capture model`}
-        description={
-          <Trans>
-            The cheapest model from the highest-rated provider reads a finished turn. You can choose
-            any model.
-          </Trans>
-        }
-        purpose="capture"
-        provider={memory.captureProvider}
-        model={memory.captureModel}
-        providers={modelProviders}
-        onChange={(agentKind, model) =>
-          startTransition(() =>
-            setMemorySettings({
-              captureProvider: agentKind,
-              captureModel: model,
-              captureEffort: "",
-              captureFast: false,
-            }),
-          )
-        }
-        onReset={() =>
-          startTransition(() =>
-            setMemorySettings({
-              captureProvider: "auto",
-              captureModel: "",
-              captureEffort: "",
-              captureFast: false,
-            }),
-          )
-        }
-      />
-      <MemoryModelPicker
-        anchorId="memory.dreamModel"
-        title={t`Dream model`}
-        description={
-          <Trans>
-            The strongest model from the highest-rated provider merges notes. You can choose any
-            model.
-          </Trans>
-        }
-        purpose="dream"
-        provider={memory.dreamProvider}
-        model={memory.dreamModel}
-        providers={modelProviders}
-        onChange={(agentKind, model) =>
-          startTransition(() =>
-            setMemorySettings({
-              dreamProvider: agentKind,
-              dreamModel: model,
-              dreamEffort: "",
-              dreamFast: false,
-            }),
-          )
-        }
-        onReset={() =>
-          startTransition(() =>
-            setMemorySettings({
-              dreamProvider: "auto",
-              dreamModel: "",
-              dreamEffort: "",
-              dreamFast: false,
-            }),
-          )
-        }
-      />
-      <SettingRow
-        anchorId="memory.captureTiming"
-        title={t`When to capture`}
-        description={
-          <Trans>Done, archive, unload, and delete still capture immediately when allowed.</Trans>
-        }
-      >
-        <Select
-          aria-label={t`When to capture`}
-          className="w-[240px] shrink-0"
-          options={timingOptions}
-          value={memory.captureTiming}
-          onChange={(value) =>
-            startTransition(() =>
-              setMemorySettings({ captureTiming: value as MemoryCaptureTiming }),
-            )
-          }
-        />
-      </SettingRow>
-      {memory.captureTiming === "custom" ? (
-        <SettingRow
-          anchorId="memory.captureCustomMinutes"
-          title={t`Custom idle minutes`}
-          description={<Trans>Wait this long after a turn finishes.</Trans>}
-        >
-          <NumberField
-            aria-label={t`Custom idle minutes`}
-            className="w-[160px] shrink-0"
-            minValue={1}
-            maxValue={240}
-            value={memory.captureCustomMinutes}
-            onChange={(value) => {
-              if (value === undefined || Number.isNaN(value)) return;
-              startTransition(() =>
-                setMemorySettings({ captureCustomMinutes: Math.max(1, Math.floor(value)) }),
-              );
-            }}
+      {props.onOpenGlobalSettings ? (
+        <Button size="sm" variant="tertiary" onPress={props.onOpenGlobalSettings}>
+          <Trans>Memory settings</Trans>
+        </Button>
+      ) : (
+        <>
+          <SettingRow
+            anchorId="memory.enabled"
+            title={t`Use memory`}
+            description={<Trans>Include memory when a thread starts.</Trans>}
           >
-            <NumberField.Group>
-              <NumberField.DecrementButton />
-              <NumberField.Input />
-              <NumberField.IncrementButton />
-            </NumberField.Group>
-          </NumberField>
-        </SettingRow>
-      ) : null}
-      <SettingRow
-        anchorId="memory.deletePolicy"
-        title={t`When a thread is deleted`}
-        description={
-          <Trans>A delete never waits on a model. Text is saved first, then read later.</Trans>
-        }
-      >
-        <Select
-          aria-label={t`When a thread is deleted`}
-          className="w-[240px] shrink-0"
-          options={deleteOptions}
-          value={memory.deletePolicy}
-          onChange={(value) =>
-            startTransition(() => setMemorySettings({ deletePolicy: value as MemoryDeletePolicy }))
-          }
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="memory.dreamCadence"
-        title={t`Dream schedule`}
-        description={<Trans>Merge and retire notes. Skipped when nothing new was captured.</Trans>}
-      >
-        <Select
-          aria-label={t`Dream schedule`}
-          className="w-[240px] shrink-0"
-          options={dreamOptions}
-          value={memory.dreamCadence}
-          onChange={(value) =>
-            startTransition(() => setMemorySettings({ dreamCadence: value as MemoryDreamCadence }))
-          }
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="memory.suggestSkills"
-        title={t`Suggest skills`}
-        description={
-          <Trans>Repeated workflows appear in Settings → Skills for you to edit and approve.</Trans>
-        }
-      >
-        <ToggleSwitch
-          aria-label={t`Suggest skills`}
-          isSelected={memory.suggestSkills}
-          onChange={(selected) =>
-            startTransition(() => setMemorySettings({ suggestSkills: selected }))
-          }
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="memory.suppressNative"
-        title={t`Prefer Poracode memory`}
-        description={
-          <Trans>Ask sessions not to write a separate provider memory on top of this one.</Trans>
-        }
-      >
-        <ToggleSwitch
-          aria-label={t`Prefer Poracode memory`}
-          isSelected={memory.suppressNative}
-          onChange={(selected) =>
-            startTransition(() => setMemorySettings({ suppressNative: selected }))
-          }
-        />
-      </SettingRow>
-      <SettingRow
-        anchorId="memory.syncEnabled"
-        title={t`Sync across environments`}
-        description={
-          <Trans>
-            Share global and linked-project notes with paired computers and WSL. Unlinked folders
-            stay separate.
-          </Trans>
-        }
-      >
-        <ToggleSwitch
-          aria-label={t`Sync across environments`}
-          isSelected={memory.syncEnabled}
-          onChange={(selected) =>
-            startTransition(() => setMemorySettings({ syncEnabled: selected }))
-          }
-        />
-      </SettingRow>
+            <ToggleSwitch
+              aria-label={t`Use memory`}
+              isSelected={memory.enabled}
+              onChange={(selected) =>
+                startTransition(() => setMemorySettings({ enabled: selected }))
+              }
+            />
+          </SettingRow>
+          <SettingRow
+            anchorId="memory.learning"
+            title={t`Learn from chats`}
+            description={<Trans>Capture new notes after turns finish.</Trans>}
+            className={childRowClass}
+          >
+            <ToggleSwitch
+              aria-label={t`Learn from chats`}
+              isSelected={memory.learning}
+              isDisabled={childDisabled}
+              onChange={(selected) =>
+                startTransition(() => setMemorySettings({ learning: selected }))
+              }
+            />
+          </SettingRow>
+          <MemoryModelPicker
+            anchorId="memory.captureModel"
+            title={t`Capture model`}
+            description={
+              <Trans>
+                The cheapest model from the highest-rated provider reads a finished turn. You can
+                choose any model.
+              </Trans>
+            }
+            purpose="capture"
+            provider={memory.captureProvider}
+            model={memory.captureModel}
+            providers={modelProviders}
+            isDisabled={childDisabled}
+            onChange={(agentKind, model) =>
+              startTransition(() =>
+                setMemorySettings({
+                  captureProvider: agentKind,
+                  captureModel: model,
+                  captureEffort: "",
+                  captureFast: false,
+                }),
+              )
+            }
+            onReset={() =>
+              startTransition(() =>
+                setMemorySettings({
+                  captureProvider: "auto",
+                  captureModel: "",
+                  captureEffort: "",
+                  captureFast: false,
+                }),
+              )
+            }
+          />
+          <MemoryModelPicker
+            anchorId="memory.dreamModel"
+            title={t`Dream model`}
+            description={
+              <Trans>
+                The strongest model from the highest-rated provider merges notes. You can choose any
+                model.
+              </Trans>
+            }
+            purpose="dream"
+            provider={memory.dreamProvider}
+            model={memory.dreamModel}
+            providers={modelProviders}
+            isDisabled={childDisabled}
+            onChange={(agentKind, model) =>
+              startTransition(() =>
+                setMemorySettings({
+                  dreamProvider: agentKind,
+                  dreamModel: model,
+                  dreamEffort: "",
+                  dreamFast: false,
+                }),
+              )
+            }
+            onReset={() =>
+              startTransition(() =>
+                setMemorySettings({
+                  dreamProvider: "auto",
+                  dreamModel: "",
+                  dreamEffort: "",
+                  dreamFast: false,
+                }),
+              )
+            }
+          />
+          <SettingRow
+            anchorId="memory.captureTiming"
+            title={t`When to capture`}
+            description={
+              <Trans>
+                Done, archive, unload, and delete still capture immediately when allowed.
+              </Trans>
+            }
+            className={childRowClass}
+          >
+            <Select
+              aria-label={t`When to capture`}
+              className="w-[240px] shrink-0"
+              options={timingOptions}
+              value={memory.captureTiming}
+              isDisabled={childDisabled}
+              onChange={(value) =>
+                startTransition(() =>
+                  setMemorySettings({ captureTiming: value as MemoryCaptureTiming }),
+                )
+              }
+            />
+          </SettingRow>
+          {memory.captureTiming === "custom" ? (
+            <SettingRow
+              anchorId="memory.captureCustomMinutes"
+              title={t`Custom idle minutes`}
+              description={<Trans>Wait this long after a turn finishes.</Trans>}
+              className={childRowClass}
+            >
+              <NumberField
+                aria-label={t`Custom idle minutes`}
+                className="w-[160px] shrink-0"
+                minValue={1}
+                maxValue={240}
+                value={memory.captureCustomMinutes}
+                isDisabled={childDisabled}
+                onChange={(value) => {
+                  if (value === undefined || Number.isNaN(value)) return;
+                  startTransition(() =>
+                    setMemorySettings({ captureCustomMinutes: Math.max(1, Math.floor(value)) }),
+                  );
+                }}
+              >
+                <NumberField.Group>
+                  <NumberField.DecrementButton />
+                  <NumberField.Input />
+                  <NumberField.IncrementButton />
+                </NumberField.Group>
+              </NumberField>
+            </SettingRow>
+          ) : null}
+          <SettingRow
+            anchorId="memory.deletePolicy"
+            title={t`When a thread is deleted`}
+            description={
+              <Trans>A delete never waits on a model. Text is saved first, then read later.</Trans>
+            }
+            className={childRowClass}
+          >
+            <Select
+              aria-label={t`When a thread is deleted`}
+              className="w-[240px] shrink-0"
+              options={deleteOptions}
+              value={memory.deletePolicy}
+              isDisabled={childDisabled}
+              onChange={(value) =>
+                startTransition(() =>
+                  setMemorySettings({ deletePolicy: value as MemoryDeletePolicy }),
+                )
+              }
+            />
+          </SettingRow>
+          <SettingRow
+            anchorId="memory.dreamCadence"
+            title={t`Dream schedule`}
+            description={
+              <Trans>Merge and retire notes. Skipped when nothing new was captured.</Trans>
+            }
+            className={childRowClass}
+          >
+            <Select
+              aria-label={t`Dream schedule`}
+              className="w-[240px] shrink-0"
+              options={dreamOptions}
+              value={memory.dreamCadence}
+              isDisabled={childDisabled}
+              onChange={(value) =>
+                startTransition(() =>
+                  setMemorySettings({ dreamCadence: value as MemoryDreamCadence }),
+                )
+              }
+            />
+          </SettingRow>
+          <SettingRow
+            anchorId="memory.suggestSkills"
+            title={t`Suggest skills`}
+            description={
+              <Trans>
+                Repeated workflows appear in Settings → Skills for you to edit and approve.
+              </Trans>
+            }
+            className={childRowClass}
+          >
+            <ToggleSwitch
+              aria-label={t`Suggest skills`}
+              isSelected={memory.suggestSkills}
+              isDisabled={childDisabled}
+              onChange={(selected) =>
+                startTransition(() => setMemorySettings({ suggestSkills: selected }))
+              }
+            />
+          </SettingRow>
+          <SettingRow
+            anchorId="memory.suppressNative"
+            title={t`Prefer Poracode memory`}
+            description={
+              <Trans>
+                Ask sessions not to write a separate provider memory on top of this one.
+              </Trans>
+            }
+            className={childRowClass}
+          >
+            <ToggleSwitch
+              aria-label={t`Prefer Poracode memory`}
+              isSelected={memory.suppressNative}
+              isDisabled={childDisabled}
+              onChange={(selected) =>
+                startTransition(() => setMemorySettings({ suppressNative: selected }))
+              }
+            />
+          </SettingRow>
+          <SettingRow
+            anchorId="memory.syncEnabled"
+            title={t`Sync across environments`}
+            description={
+              <Trans>
+                Share global and linked-project notes with paired computers and WSL. Unlinked
+                folders stay separate.
+              </Trans>
+            }
+            className={childRowClass}
+          >
+            <ToggleSwitch
+              aria-label={t`Sync across environments`}
+              isSelected={memory.syncEnabled}
+              isDisabled={childDisabled}
+              onChange={(selected) =>
+                startTransition(() => setMemorySettings({ syncEnabled: selected }))
+              }
+            />
+          </SettingRow>
+        </>
+      )}
       {remote ? (
         <p className="text-xs text-muted">
           <Trans>The memory catalog is edited on the desktop that owns this host.</Trans>
@@ -430,34 +546,67 @@ export function MemorySettings(props: { projectId?: string }) {
             <p className="text-sm font-medium text-foreground">
               <Trans>Memories</Trans>
             </p>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onPress={() => {
-                  void syncMemoryAcrossEnvironments({ force: true })
-                    .then(() => reload())
-                    .catch(() => setError(true));
-                }}
-              >
-                <Trans>Sync now</Trans>
-              </Button>
-              <Button
-                size="sm"
-                variant="tertiary"
-                onPress={() => {
-                  void readBridge()
-                    .memoryCommand({ action: "dream" })
-                    .then(() => {
-                      syncAfterChange();
-                      return reload();
-                    })
-                    .catch(() => setError(true));
-                }}
-              >
-                <Trans>Dream now</Trans>
-              </Button>
-            </div>
+            {!props.projectId ? (
+              <div className="flex items-center gap-2">
+                {status?.lastDreamRunId ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    isDisabled={undoing || dreaming}
+                    onPress={() => {
+                      const runId = status.lastDreamRunId;
+                      if (!runId) return;
+                      setUndoing(true);
+                      setError(false);
+                      void readBridge()
+                        .memoryCommand({ action: "undo", runId })
+                        .then(() => {
+                          syncAfterChange();
+                          return reload();
+                        })
+                        .catch(() => setError(true))
+                        .finally(() => setUndoing(false));
+                    }}
+                  >
+                    <Trans>Undo</Trans>
+                  </Button>
+                ) : null}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  isDisabled={childDisabled || !memory.syncEnabled || syncing}
+                  onPress={() => {
+                    setSyncing(true);
+                    setError(false);
+                    void syncMemoryAcrossEnvironments({ force: true })
+                      .then(() => reload())
+                      .catch(() => setError(true))
+                      .finally(() => setSyncing(false));
+                  }}
+                >
+                  {syncing ? <Trans>Syncing…</Trans> : <Trans>Sync now</Trans>}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="tertiary"
+                  isDisabled={childDisabled || dreaming || undoing}
+                  onPress={() => {
+                    setDreaming(true);
+                    setError(false);
+                    void readBridge()
+                      .memoryCommand({ action: "dream" })
+                      .then(() => {
+                        syncAfterChange();
+                        return reload();
+                      })
+                      .catch(() => setError(true))
+                      .finally(() => setDreaming(false));
+                  }}
+                >
+                  <Trans>Dream now</Trans>
+                </Button>
+              </div>
+            ) : null}
           </div>
           {status ? (
             <p className="text-xs text-muted">
@@ -477,33 +626,18 @@ export function MemorySettings(props: { projectId?: string }) {
               value={draft}
               placeholder={t`Always use bun`}
               onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addDraftMemory();
+                }
+              }}
             />
             <Button
               size="sm"
               variant="tertiary"
-              isDisabled={draft.trim().length === 0}
-              onPress={() => {
-                const summary = draft.trim();
-                setDraft("");
-                void readBridge()
-                  .memoryCommand({
-                    action: "save",
-                    entry: {
-                      scope: props.projectId ? "project" : "global",
-                      ...(props.projectId ? { projectId: props.projectId } : {}),
-                      category: "user",
-                      summary,
-                      body: summary,
-                      polarity: "positive",
-                      pinned: false,
-                    },
-                  })
-                  .then(() => {
-                    syncAfterChange();
-                    return reload();
-                  })
-                  .catch(() => setError(true));
-              }}
+              isDisabled={adding || draft.trim().length === 0}
+              onPress={addDraftMemory}
             >
               <Trans>Add</Trans>
             </Button>
@@ -517,7 +651,7 @@ export function MemorySettings(props: { projectId?: string }) {
               entries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center gap-3 border-b border-[var(--hairline)] px-3 py-2 last:border-b-0"
+                  className="flex items-center gap-2 border-b border-[var(--hairline)] px-3 py-2 last:border-b-0"
                 >
                   <div className="min-w-0 flex-1">
                     {editingId === entry.id ? (
@@ -526,40 +660,61 @@ export function MemorySettings(props: { projectId?: string }) {
                         className="w-full rounded-lg border border-[var(--hairline)] bg-transparent px-2 py-1 text-sm"
                         value={editDraft}
                         onChange={(event) => setEditDraft(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            saveEdit(entry);
+                          } else if (event.key === "Escape") {
+                            event.preventDefault();
+                            setEditingId(null);
+                          }
+                        }}
                       />
                     ) : (
                       <p className="truncate text-sm text-foreground">{entry.summary}</p>
                     )}
                     <p className="truncate text-xs text-muted">
                       {entry.category} · {entry.scope}
+                      {entry.pinned ? ` · ${t`Pinned`}` : ""}
                       {entry.lockedByUser ? ` · ${t`Edited by you`}` : ""}
                     </p>
                   </div>
                   {editingId === entry.id ? (
-                    <Button
-                      size="sm"
-                      variant="tertiary"
-                      isDisabled={editDraft.trim().length === 0}
-                      onPress={() => saveEdit(entry)}
-                    >
-                      <Trans>Save</Trans>
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        variant="tertiary"
+                        isDisabled={editDraft.trim().length === 0}
+                        onPress={() => saveEdit(entry)}
+                      >
+                        <Trans>Save</Trans>
+                      </Button>
+                      <Button size="sm" variant="ghost" onPress={() => setEditingId(null)}>
+                        <Trans>Cancel</Trans>
+                      </Button>
+                    </>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onPress={() => {
-                        setEditingId(entry.id);
-                        setEditDraft(entry.summary);
-                      }}
-                    >
-                      <Trans>Edit</Trans>
-                    </Button>
+                    <>
+                      <Button size="sm" variant="ghost" onPress={() => togglePin(entry)}>
+                        {entry.pinned ? <Trans>Unpin</Trans> : <Trans>Pin to top</Trans>}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() => {
+                          setEditingId(entry.id);
+                          setEditDraft(entry.summary);
+                        }}
+                      >
+                        <Trans>Edit</Trans>
+                      </Button>
+                    </>
                   )}
                   <Button
                     size="sm"
                     variant="ghost"
                     onPress={() => {
+                      setError(false);
                       void readBridge()
                         .memoryCommand({ action: "delete", id: entry.id })
                         .then(() => {

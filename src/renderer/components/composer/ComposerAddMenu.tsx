@@ -17,6 +17,7 @@ import type { Selection } from "@heroui/react";
 import { Dropdown, Label, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
+import { openMemorySettings } from "@/renderer/actions/panelActions";
 import { isChatSidebarSurface } from "@/renderer/clientSurface";
 import { Button } from "@/renderer/components/common/Button";
 import {
@@ -70,6 +71,8 @@ export function ComposerAddMenu(props: {
    * user can always reach management from the composer.
    */
   onManageMcpServers?: () => void;
+  /** Opens the Memory settings page from the "Memory" submenu. */
+  onManageMemory?: () => void;
   showFileOption?: boolean;
   onPickFiles: () => void;
   onOpenSideChat?: () => void;
@@ -113,6 +116,9 @@ export function ComposerAddMenu(props: {
   // sidebar has no settings destination, but still shows its server bindings.
   const canManageMcpServers = !isChatSidebarSurface();
   const onManageMcpServers = canManageMcpServers ? props.onManageMcpServers : undefined;
+  const onManageMemory = canManageMcpServers
+    ? (props.onManageMemory ?? openMemorySettings)
+    : undefined;
   const readOnly = props.readOnly === true;
   const pluginLabels = props.pluginLabels ?? EMPTY_PLUGIN_LABELS;
   const { t } = useLingui();
@@ -250,10 +256,7 @@ export function ComposerAddMenu(props: {
           {props.planControl.isSelected ? <Check className="size-4 shrink-0" aria-hidden /> : null}
         </button>
       ) : null}
-      <MemoryMenuButton
-        {...(props.threadId ? { threadId: props.threadId } : {})}
-        onOpen={() => setMobileView("memory")}
-      />
+      <MemoryMenuButton onOpen={() => setMobileView("memory")} />
       {experiment ? (
         <button
           type="button"
@@ -406,6 +409,8 @@ export function ComposerAddMenu(props: {
         ) : mobileView === "memory" ? (
           <MemoryMenuPanel
             {...(props.threadId ? { threadId: props.threadId } : {})}
+            isOpen={isOpen}
+            onManage={onManageMemory}
             onBack={() => setMobileView("root")}
             onClose={closeMenu}
           />
@@ -505,6 +510,8 @@ export function ComposerAddMenu(props: {
           ) : null}
           <MemoryDesktopSubmenu
             {...(props.threadId ? { threadId: props.threadId } : {})}
+            isOpen={isOpen}
+            onManage={onManageMemory}
             {...(stackSubmenus ? { stackClassName: stackedPopoverClassName } : {})}
             onClose={closeMenu}
           />
