@@ -119,6 +119,20 @@ async function fixture(
     prepare: async () => {},
     platforms: () => [platform],
     dispose: async () => {},
+    ensureIosHelper: async (
+      hub: Pick<DeviceHubHandle, "origin" | "token">,
+      udid: string,
+      signal: AbortSignal,
+    ) => {
+      const response = await fetch(`${hub.origin}/vendor/serve-sim/grid/api/start`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${hub.token}`, "content-type": "application/json" },
+        body: JSON.stringify({ udid }),
+        signal,
+      });
+      await response.arrayBuffer();
+      if (!response.ok) throw new Error("Fixture helper start failed");
+    },
     acquire: async (): Promise<DeviceHubHandle> => {
       const controller = new AbortController();
       let released = false;
@@ -747,6 +761,26 @@ describe("real authenticated preview HTTP/WS boundary with pinned-wire fake help
       (await f.request(`${f.root}/renew`, "POST", { version: 1, previewId: preview.id })).status,
     ).toBe(200);
     expect(f.driver.release).not.toHaveBeenCalled();
+  });
+
+  it("keeps a silent iOS input channel open past the media idle window", async () => {
+    const f = await fixture("ios", "control");
+    const preview = await f.open();
+    const grant = await f.ticket(preview, "ios");
+    // The helper speaks on the iOS input channel only when its config
+    // changes; a healthy socket must survive long silences (regression:
+    // the bridge idle-aborted it 30s after the initial config packet).
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const channel = await f.connect(preview, grant, "ios");
+      await vi.waitFor(() =>
+        expect(channel.messages.some((message) => message.data[0] === 0x82)).toBe(true),
+      );
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect(channel.ws.readyState).toBe(WebSocket.OPEN);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it.each(["oversized", "truncated"] as const)(

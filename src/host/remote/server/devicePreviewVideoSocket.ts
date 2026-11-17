@@ -8,6 +8,7 @@ import {
 } from "@/shared/devicePreview";
 import type { OwnedDevicePreview } from "@/host/devices/DevicePreviewSessions";
 import { DevicePreviewCredits } from "@/host/devices/DevicePreviewCredits";
+import { rawDataBytes } from "@/host/devices/DevicePreviewProtocol";
 import { DevicePreviewAvccGuard } from "@/shared/devicePreviewAvcc";
 import type { RemoteServerContext } from "./context";
 import { openIosPreviewVideo } from "./devicePreviewHttp";
@@ -137,11 +138,7 @@ export async function acceptDevicePreviewVideoSocket(
         try {
           preview.assert();
           if (binary) throw new Error("video channel refuses input");
-          const bytes = Array.isArray(data)
-            ? Buffer.concat(data)
-            : Buffer.isBuffer(data)
-              ? data
-              : Buffer.from(data);
+          const bytes = rawDataBytes(data);
           if (bytes.length > 512) throw new Error("invalid preview credit");
           credits.grant(devicePreviewCreditSchema.parse(JSON.parse(bytes.toString("utf8"))));
         } catch {

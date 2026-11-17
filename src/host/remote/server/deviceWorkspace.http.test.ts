@@ -46,7 +46,7 @@ async function setup(composed = true, scopes: RemoteAccessScope[] = ["session:re
           controls: {
             version: 1,
             bootId: "13455f6b-3b94-40c8-8913-a6839f2dfd1b",
-            actions: ["read", "appearance"],
+            actions: ["read", "appearance", "fold"],
           },
         },
       ],
@@ -58,6 +58,7 @@ async function setup(composed = true, scopes: RemoteAccessScope[] = ["session:re
       version: 1,
       appearance: "dark",
     })),
+    createDuo: vi.fn<NonNullable<DeviceDriver["createDuo"]>>(async () => {}),
     start: async () => {},
     release: async () => {},
     dispose: async () => {},
@@ -277,5 +278,126 @@ describe("device workspace authenticated routes and compatibility", () => {
     expect(response.status).toBe(204);
     expect(response.headers.get("access-control-allow-methods")?.split(/,\s*/u)).toContain("POST");
     expect(response.headers.get("access-control-allow-origin")).toBe("http://127.0.0.1:5173");
+  });
+});
+
+describe("device create-duo route and v1 additive compatibility", () => {
+  it("creates a Duo for an operate-scoped caller and refuses read-only callers", async () => {
+    const operate = await setup(true, ["session:read", "session:operate"]);
+    const created = await operate.request("/api/devices/duo", "POST");
+    expect(created.status).toBe(200);
+    expect(deviceInventorySchema.parse(await created.json()).version).toBe(1);
+    expect(operate.driver.createDuo).toHaveBeenCalledOnce();
+
+    const readonly = await setup(true, ["session:read"]);
+    const refused = await readonly.request("/api/devices/duo", "POST");
+    expect(refused.status).toBe(403);
+    expect(readonly.driver.createDuo).not.toHaveBeenCalled();
+  });
+
+  it("keeps pre-Duo v1 inventory payloads readable and lets old readers strip the additive fields", async () => {
+    const { z } = await import("zod");
+    // The pre-change v1 target shape: no foldable flag, no fold control.
+    const oldTargetSchema = z.object({
+      id: z.string(),
+      platform: z.enum(["ios", "android"]),
+      name: z.string(),
+      state: z.enum(["running", "stopped", "starting"]),
+      input: z.boolean(),
+      accessibility: z.boolean(),
+    });
+    const newPayload = {
+      version: 1,
+      generation: "13455f6b-3b94-40c8-8913-a6839f2dfd1b",
+      platforms: [
+        {
+          platform: "ios",
+          status: "ready",
+          foldableRuntimeAvailable: true,
+          foldableDeviceExists: true,
+        },
+      ],
+      devices: [
+        {
+          id: "ios:duo",
+          name: "iPhone Duo",
+          platform: "ios",
+          state: "running",
+          input: true,
+          accessibility: true,
+          foldable: true,
+        },
+      ],
+    };
+    const parsed = deviceInventorySchema.parse(newPayload);
+    expect(parsed.devices[0]!.foldable).toBe(true);
+    // An old reader strips the additive fields instead of failing.
+    expect(oldTargetSchema.parse(newPayload.devices[0])).toEqual({
+      id: "ios:duo",
+      name: "iPhone Duo",
+      platform: "ios",
+      state: "running",
+      input: true,
+      accessibility: true,
+    });
+    // And a pre-change payload without the new fields still parses today.
+    const { foldable: _dropped, ...oldDevice } = newPayload.devices[0]!;
+    expect(
+      deviceInventorySchema.parse({ ...newPayload, devices: [oldDevice] }).devices[0]!.foldable,
+    ).toBeUndefined();
+  });
+
+  it("strips the fold action for pre-current protocol peers so their closed enum still parses", async () => {
+    const { request, info, token } = await setup(true, ["session:read", "session:operate"]);
+    const current = deviceInventorySchema.parse(await (await request("/api/devices")).json());
+    expect(current.devices[0]!.controls?.actions).toContain("fold");
+    const legacyResponse = await fetch(new URL("/api/devices", info.httpBaseUrl), {
+      headers: {
+        authorization: `Bearer ${token}`,
+        [REMOTE_PROTOCOL_VERSION_HEADER]: "13",
+      },
+    });
+    expect(legacyResponse.status).toBe(200);
+    const legacy = (await legacyResponse.json()) as {
+      devices: { controls?: { actions: string[] } }[];
+    };
+    expect(legacy.devices[0]!.controls?.actions).toEqual(["read", "appearance"]);
+    // The pre-change closed enum (no "fold") accepts the stripped payload.
+    const { z } = await import("zod");
+    const oldActions = z.array(z.enum(["read", "appearance", "powerOff"]));
+    expect(oldActions.parse(legacy.devices[0]!.controls?.actions)).toEqual(["read", "appearance"]);
+  });
+
+  it("gates session adoption on operate scope for control leases only", async () => {
+    const viewer = await setup(true, ["session:read"]);
+    // No agent lease: adoption is a harmless null.
+    const none = await viewer.request("/api/threads/thread-1/devices/adopt", "POST");
+    expect(none.status).toBe(200);
+    expect(await none.json()).toEqual({ session: null });
+    // A control-mode agent lease cannot be adopted by a viewer, and the
+    // refused adoption leaves the lease intact for the agent.
+    await viewer.devices.attachForAgent("thread-1", "android:fixture", "control", () => {});
+    const refused = await viewer.request("/api/threads/thread-1/devices/adopt", "POST");
+    expect(refused.status).toBe(403);
+    expect(viewer.devices.agentSession("thread-1", true).session.device.id).toBe("android:fixture");
+    // A pre-current protocol caller is refused before any effect.
+    const stale = await fetch(
+      new URL("/api/threads/thread-1/devices/adopt", viewer.info.httpBaseUrl),
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${viewer.token}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: "13",
+        },
+      },
+    );
+    expect(stale.status).toBe(409);
+
+    const viewOnly = await setup(true, ["session:read"]);
+    await viewOnly.devices.attachForAgent("thread-1", "android:fixture", "view", () => {});
+    const adopted = await viewOnly.request("/api/threads/thread-1/devices/adopt", "POST");
+    expect(adopted.status).toBe(200);
+    expect((await adopted.json()).session?.device?.id).toBe("android:fixture");
   });
 });

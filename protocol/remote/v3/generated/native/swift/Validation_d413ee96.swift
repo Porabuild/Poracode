@@ -89,6 +89,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_73994aff28325b85 = RemoteSchema(type: "object", required: Set(["platform", "status"]), properties: ["diagnostic": RemoteSchemas.schema_d3abf2cfac530357, "foldableDeviceExists": RemoteSchemas.schema_feeb8bb50144d96d, "foldableRuntimeAvailable": RemoteSchemas.schema_feeb8bb50144d96d, "platform": RemoteSchemas.schema_61e54b5f6751c7a6, "status": RemoteSchemas.schema_9ab386636c31e53c], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_739ef5b32c1ac983 = RemoteSchema(type: "array", items: RemoteSchemas.schema_cac7783fa7c0ea01, unknownPolicy: .strip)
 }
 
@@ -214,6 +218,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_77f2cf560a042976 = RemoteSchema(type: "object", required: Set(["agentKind", "model"]), properties: ["agentKind": RemoteSchemas.schema_8e43cad70cd70de7, "contextSize": RemoteSchemas.schema_7d62681c6488867d, "effort": RemoteSchemas.schema_7d62681c6488867d, "fast": RemoteSchemas.schema_feeb8bb50144d96d, "model": RemoteSchemas.schema_97d85a5eaee82b97], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_7818cad2506123cf = RemoteSchema(type: "array", maxItems: 128, items: RemoteSchemas.schema_dc77588f48189c8c, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

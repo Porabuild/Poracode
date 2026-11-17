@@ -33,6 +33,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_5017198f5c40bd9f = RemoteSchema(type: "object", required: Set(["version"]), properties: ["activeDisplay": RemoteSchemas.schema_cb9be2057e5078df, "appearance": RemoteSchemas.schema_9ea58f9bfc61ade7, "fontScale": RemoteSchemas.schema_debc0ac62b48b9e2, "hingeAngle": RemoteSchemas.schema_a1221059eae7f5c4, "networkEnabled": RemoteSchemas.schema_feeb8bb50144d96d, "reduceMotion": RemoteSchemas.schema_feeb8bb50144d96d, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_501fb9017953ee89 = RemoteSchema(type: "object", properties: ["account": RemoteSchemas.schema_197c2b8c01d7f4ed], additionalAllowed: true, unknownPolicy: .strip)
 }
 

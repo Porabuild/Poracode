@@ -4517,6 +4517,7 @@ msgstr "Close workflows"
 msgid "Close workflows panel"
 msgstr "Close workflows panel"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -5854,6 +5855,10 @@ msgstr "Create file"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "Create fork"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "Create iPhone Duo"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -8879,6 +8884,15 @@ msgstr "Focus the in-app browser address bar"
 msgid "Focus window"
 msgstr "Focus window"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "Fold controls"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "Foldable"
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
@@ -8909,6 +8923,10 @@ msgstr "Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds.
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Folder that holds this project's worktrees. Reset to use the global setting."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "Folding is unavailable on this host."
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -9463,6 +9481,10 @@ msgstr "Guide stops"
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Guide writer"
 msgstr "Guide writer"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "Half open"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
@@ -10205,6 +10227,10 @@ msgstr "Initial retry delay in seconds"
 msgid "Initialize Repository"
 msgstr "Initialize Repository"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "Inner display"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "Input"
@@ -10258,8 +10284,8 @@ msgid "Inspect"
 msgstr "Inspect"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "Inspect and control the simulator or emulator attached to this thread."
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "Inspect and control the simulator or emulator attached to this thread."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10686,6 +10712,10 @@ msgstr "iPhone 15 Pro"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "iPhone Duo is unavailable on this host."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
@@ -14034,6 +14064,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "Only your own comments on this pull request can be edited."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -14489,6 +14520,10 @@ msgstr "Open view only"
 msgid "Open with control"
 msgstr "Open with control"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14634,6 +14669,10 @@ msgstr "Outdated"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "Outdated: the pull request changed after this was drafted."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "Outer display"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"

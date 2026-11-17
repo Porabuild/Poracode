@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { spawn, type ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { stat } from "node:fs/promises";
+import { stat, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { PassThrough } from "node:stream";
 import {
@@ -10,9 +10,15 @@ import {
   deviceControlCapabilitiesSchema,
   deviceTargetSchema,
 } from "@/shared/deviceWorkspace";
-import { NativeDeviceDriver } from "./NativeDeviceDriver";
+import { IPHONE_DUO_DEVICE_TYPE, NativeDeviceDriver } from "./NativeDeviceDriver";
 import { runAndroidDeviceControl } from "./nativeDeviceControls";
-import { findDeviceTool, launchDeviceProcess, runDeviceCommand } from "./deviceProcess";
+import {
+  DeviceWorkspaceError,
+  findDeviceTool,
+  launchDeviceProcess,
+  runDeviceCommand,
+} from "./deviceProcess";
+import type { DeviceFoldHelperHandle, DeviceFoldRuntime } from "./deviceFold";
 
 vi.mock("node:child_process", async (original) => ({
   ...(await original<typeof import("node:child_process")>()),
@@ -584,5 +590,313 @@ describe("human emulator controls", () => {
       signal,
     );
     await driver.dispose();
+  });
+});
+
+describe("iPhone Duo foldable support", () => {
+  const duoUdid = "5a975076-a203-4843-941f-fecb8ec66d38";
+  const phoneUdid = "5468f955-91e6-4629-9b19-998164332157";
+  const duoRuntime = "com.apple.CoreSimulator.SimRuntime.iOS-27-2-iPhone19-4";
+
+  function duoFixture(
+    options: {
+      qualified?: boolean;
+      duoDevice?: boolean;
+      duoRuntime?: boolean;
+      foldFails?: boolean;
+      displayLagReads?: number;
+    } = {},
+  ) {
+    Object.defineProperty(process, "platform", { ...originalPlatform, value: "darwin" });
+    const state = { booted: true, angle: 180, displayReadsSinceFold: Number.POSITIVE_INFINITY };
+    const setHingeAngle = vi.fn<(angle: number, active: AbortSignal) => Promise<void>>(
+      async (angle) => {
+        if (options.foldFails)
+          throw new DeviceWorkspaceError("device_fold_failed", "helper refused", 503);
+        state.angle = angle;
+        state.displayReadsSinceFold = 0;
+      },
+    );
+    const helper = {
+      readConfig: vi.fn<DeviceFoldHelperHandle["readConfig"]>(async () => ({
+        width: 2007,
+        height: 2853,
+        screenId: 3,
+        supportsHingeAngle: true,
+        hingeAngle: state.angle,
+      })),
+      setHingeAngle,
+      release: vi.fn<() => Promise<void>>(async () => {}),
+    };
+    const foldRuntime: DeviceFoldRuntime = {
+      prepare: async () => {},
+      qualified: () => options.qualified ?? true,
+      acquireHelper: vi.fn<DeviceFoldRuntime["acquireHelper"]>(async () => helper),
+    };
+    vi.mocked(runDeviceCommand).mockImplementation(async (_file, args) => {
+      if (args[0] === "devicectl") {
+        // Simulate the lit panel lagging the hinge: the first reads after a
+        // fold still report the outer panel active.
+        state.displayReadsSinceFold += 1;
+        const innerActive = state.displayReadsSinceFold > (options.displayLagReads ?? 0);
+        return Buffer.from(
+          JSON.stringify({
+            result: {
+              displays: [
+                {
+                  displayId: 1,
+                  active: !innerActive,
+                  primary: true,
+                  nativeSize: [1398, 2034],
+                  pointScale: 3,
+                  currentOrientation: "rot0",
+                },
+                {
+                  displayId: 3,
+                  active: innerActive,
+                  primary: false,
+                  nativeSize: [2007, 2853],
+                  pointScale: 3,
+                  currentOrientation: "rot90",
+                },
+              ],
+            },
+          }),
+        );
+      }
+      if (args[0] === "simctl" && args[1] === "list" && args[2] === "runtimes")
+        return Buffer.from(
+          JSON.stringify({
+            runtimes: [
+              {
+                identifier: "com.apple.CoreSimulator.SimRuntime.iOS-27-2",
+                isAvailable: true,
+                supportedDeviceTypes: [
+                  { identifier: "com.apple.CoreSimulator.SimDeviceType.iPhone-17" },
+                ],
+              },
+              ...((options.duoRuntime ?? true)
+                ? [
+                    {
+                      identifier: duoRuntime,
+                      isAvailable: true,
+                      supportedDeviceTypes: [{ identifier: IPHONE_DUO_DEVICE_TYPE }],
+                    },
+                  ]
+                : []),
+            ],
+          }),
+        );
+      if (args[0] === "simctl" && args[1] === "create") return Buffer.from(`${duoUdid}\n`);
+      if (args[0] === "simctl" && args[1] === "io") {
+        await writeFile(args.at(-1)!, Buffer.from("png-fixture"));
+        return Buffer.from("");
+      }
+      if (args[0] === "simctl")
+        return Buffer.from(
+          JSON.stringify({
+            devices: {
+              [duoRuntime]: [
+                ...((options.duoDevice ?? true)
+                  ? [
+                      {
+                        udid: duoUdid,
+                        name: "iPhone Duo",
+                        state: state.booted ? "Booted" : "Shutdown",
+                        deviceTypeIdentifier: IPHONE_DUO_DEVICE_TYPE,
+                      },
+                    ]
+                  : []),
+                {
+                  udid: phoneUdid,
+                  name: "Fixture iPhone",
+                  state: "Booted",
+                  deviceTypeIdentifier: "com.apple.CoreSimulator.SimDeviceType.iPhone-17",
+                },
+              ],
+            },
+          }),
+        );
+      return Buffer.from("");
+    });
+    const driver = new NativeDeviceDriver(foldRuntime);
+    return {
+      driver,
+      state,
+      setHingeAngle,
+      helper,
+      foldRuntime,
+      signal: new AbortController().signal,
+    };
+  }
+
+  it("marks only the Duo type foldable and advertises fold controls for a running foldable on a qualified host", async () => {
+    const { driver, signal } = duoFixture();
+    try {
+      const inventory = await driver.discover(signal);
+      const duo = inventory.devices.find((device) => device.id === `ios:${duoUdid}`)!;
+      const phone = inventory.devices.find((device) => device.id === `ios:${phoneUdid}`)!;
+      expect(duo.foldable).toBe(true);
+      expect(duo.controls?.actions).toEqual(["read", "fold"]);
+      expect(duo.controls?.bootId).toMatch(/^[0-9a-f-]{36}$/u);
+      expect(phone.foldable).toBeUndefined();
+      expect(phone.controls).toBeUndefined();
+      expect(inventory.platforms.find((entry) => entry.platform === "ios")).toMatchObject({
+        foldableRuntimeAvailable: true,
+        foldableDeviceExists: true,
+      });
+    } finally {
+      await driver.dispose();
+    }
+  });
+
+  it("never advertises fold controls on an unqualified host", async () => {
+    const { driver, signal } = duoFixture({ qualified: false });
+    try {
+      const inventory = await driver.discover(signal);
+      const duo = inventory.devices.find((device) => device.id === `ios:${duoUdid}`)!;
+      expect(duo.foldable).toBe(true);
+      expect(duo.controls).toBeUndefined();
+    } finally {
+      await driver.dispose();
+    }
+  });
+
+  it("mints a new bootId after the foldable is observed stopped and booted again", async () => {
+    const { driver, state, signal } = duoFixture();
+    try {
+      const first = (await driver.discover(signal)).devices.find(
+        (device) => device.id === `ios:${duoUdid}`,
+      )!.controls!.bootId;
+      state.booted = false;
+      const stopped = (await driver.discover(signal)).devices.find(
+        (device) => device.id === `ios:${duoUdid}`,
+      )!;
+      expect(stopped.state).toBe("stopped");
+      expect(stopped.controls).toBeUndefined();
+      state.booted = true;
+      const second = (await driver.discover(signal)).devices.find(
+        (device) => device.id === `ios:${duoUdid}`,
+      )!.controls!.bootId;
+      expect(second).not.toBe(first);
+    } finally {
+      await driver.dispose();
+    }
+  });
+
+  it("dispatches the exact hinge angle, reads back state, and surfaces helper refusal as a typed error", async () => {
+    const ok = duoFixture();
+    try {
+      const inventory = await ok.driver.discover(ok.signal);
+      const bootId = inventory.devices.find((device) => device.id === `ios:${duoUdid}`)!.controls!
+        .bootId;
+      await expect(
+        ok.driver.control(`ios:${duoUdid}`, { type: "read" }, bootId, ok.signal),
+      ).resolves.toEqual({ version: 1, hingeAngle: 180, activeDisplay: "inner" });
+      await expect(
+        ok.driver.control(`ios:${duoUdid}`, { type: "fold", angle: 90 }, bootId, ok.signal),
+      ).resolves.toEqual({ version: 1, hingeAngle: 90, activeDisplay: "inner" });
+      expect(ok.setHingeAngle).toHaveBeenCalledExactlyOnceWith(90, ok.signal);
+      // Read and fold must acquire the helper under the advertised boot
+      // identity so they share live preview's pooled hub generation.
+      expect(ok.foldRuntime.acquireHelper).toHaveBeenCalledWith(duoUdid, bootId, ok.signal);
+    } finally {
+      await ok.driver.dispose();
+    }
+    // The lit panel lags the hinge on real hardware; the fold result must
+    // wait for the panel switch instead of reporting the pre-fold panel.
+    const lagging = duoFixture({ displayLagReads: 2 });
+    try {
+      const inventory = await lagging.driver.discover(lagging.signal);
+      const bootId = inventory.devices.find((device) => device.id === `ios:${duoUdid}`)!.controls!
+        .bootId;
+      await expect(
+        lagging.driver.control(
+          `ios:${duoUdid}`,
+          { type: "fold", angle: 180 },
+          bootId,
+          lagging.signal,
+        ),
+      ).resolves.toEqual({ version: 1, hingeAngle: 180, activeDisplay: "inner" });
+    } finally {
+      await lagging.driver.dispose();
+    }
+    const failing = duoFixture({ foldFails: true });
+    try {
+      const inventory = await failing.driver.discover(failing.signal);
+      const bootId = inventory.devices.find((device) => device.id === `ios:${duoUdid}`)!.controls!
+        .bootId;
+      await expect(
+        failing.driver.control(
+          `ios:${duoUdid}`,
+          { type: "fold", angle: 0 },
+          bootId,
+          failing.signal,
+        ),
+      ).rejects.toMatchObject({ code: "device_fold_failed" });
+      expect(failing.helper.release).toHaveBeenCalled();
+    } finally {
+      await failing.driver.dispose();
+    }
+  });
+
+  it("captures the active display with rotated point dimensions for foldables only", async () => {
+    const { driver, signal } = duoFixture();
+    try {
+      await driver.discover(signal);
+      const capture = await driver.capture(`ios:${duoUdid}`, signal);
+      expect(capture.inputWidth).toBe(951);
+      expect(capture.inputHeight).toBe(669);
+      const shot = vi
+        .mocked(runDeviceCommand)
+        .mock.calls.filter((call) => call[1][1] === "io")
+        .at(-1)!;
+      expect(shot[1]).toContain("--display=3");
+    } finally {
+      await driver.dispose();
+    }
+    vi.mocked(findDeviceTool).mockImplementation(async (name) =>
+      name === "idb" || name === "idb_companion" ? null : name,
+    );
+    const plain = duoFixture();
+    try {
+      await plain.driver.discover(plain.signal);
+      await plain.driver.capture(`ios:${phoneUdid}`, plain.signal);
+      const shot = vi
+        .mocked(runDeviceCommand)
+        .mock.calls.filter((call) => call[1][1] === "io")
+        .at(-1)!;
+      expect(shot[1].some((arg) => arg.startsWith("--display="))).toBe(false);
+    } finally {
+      await plain.driver.dispose();
+    }
+  });
+
+  it("refuses Duo creation without a Duo-capable runtime and uses the exact simctl create argv when one exists", async () => {
+    const missing = duoFixture({ duoDevice: false, duoRuntime: false });
+    try {
+      await missing.driver.discover(missing.signal);
+      await expect(missing.driver.createDuo(missing.signal)).rejects.toMatchObject({
+        code: "duo_runtime_unavailable",
+      });
+      await expect(missing.driver.createDuo(missing.signal)).rejects.toThrow(
+        "Xcode Settings > Components",
+      );
+    } finally {
+      await missing.driver.dispose();
+    }
+    const ready = duoFixture({ duoDevice: false });
+    try {
+      await ready.driver.discover(ready.signal);
+      await ready.driver.createDuo(ready.signal);
+      expect(runDeviceCommand).toHaveBeenCalledWith(
+        "/usr/bin/xcrun",
+        ["simctl", "create", "iPhone Duo", IPHONE_DUO_DEVICE_TYPE, duoRuntime],
+        ready.signal,
+        60_000,
+      );
+    } finally {
+      await ready.driver.dispose();
+    }
   });
 });

@@ -109,6 +109,28 @@ describe("device workspace host authority", () => {
     await expect(attach({ agentAccess: "control" })).rejects.toMatchObject({ status: 403 });
   });
 
+  it("adopts an agent-opened lease for the requesting client only", async () => {
+    const { service } = await fixture();
+    expect(service.adoptAgentSession("thread-1", "client-9", () => {})).toBeNull();
+    const opened = await service.attachForAgent("thread-1", device.id, "control", () => {});
+    await expect(service.frame("thread-1", "client-9", opened.id)).rejects.toMatchObject({
+      code: "device_session_expired",
+    });
+    const authorize = vi.fn<(control: boolean) => void>(() => {});
+    const adopted = service.adoptAgentSession("thread-1", "client-9", authorize);
+    expect(adopted?.id).toBe(opened.id);
+    expect(authorize).toHaveBeenCalledWith(true);
+    await expect(service.frame("thread-1", "client-9", opened.id)).resolves.toMatchObject({
+      mimeType: "image/jpeg",
+    });
+    expect(service.agentSession("thread-1", true).session.id).toBe(opened.id);
+    expect(service.adoptAgentSession("thread-1", "client-10", () => {})).toBeNull();
+    await service.detach("thread-1", "client-9", opened.id);
+    expect(() => service.agentSession("thread-1")).toThrow(
+      "Attach a device to this thread with the desired access mode.",
+    );
+  });
+
   it("binds opaque leases to principal, thread, and host generation", async () => {
     const { service, attach, driver } = await fixture();
     const session = await attach({ access: "control" });
@@ -345,4 +367,125 @@ it("retires all device grants after explicit power off, but ordinary detach neve
   const next = await attach({ access: "control" });
   await service.detach("thread-1", "client-1", next.id);
   expect(driver.control).toHaveBeenCalledOnce();
+});
+
+describe("agent-opened foldable leases", () => {
+  const duoId = "ios:duo-fixture";
+  const otherId = "ios:other-fixture";
+  function foldableFixture(now: () => number = Date.now) {
+    const state = { booted: false, created: false };
+    const controls = {
+      version: 1 as const,
+      bootId: "13455f6b-3b94-40c8-8913-a6839f2dfd1b",
+      actions: ["read", "fold"] as NonNullable<DeviceTarget["controls"]>["actions"],
+    };
+    const driver = {
+      discover: vi.fn<DeviceDriver["discover"]>(async () => ({
+        platforms: [
+          {
+            platform: "ios" as const,
+            status: "ready" as const,
+            foldableRuntimeAvailable: true,
+            foldableDeviceExists: state.created,
+          },
+        ],
+        devices: [
+          {
+            id: duoId,
+            name: "iPhone Duo",
+            platform: "ios" as const,
+            state: state.booted ? ("running" as const) : ("stopped" as const),
+            input: true,
+            accessibility: true,
+            foldable: true,
+            // Fold is advertised only once the device is running.
+            ...(state.booted ? { controls } : {}),
+          },
+          {
+            id: otherId,
+            name: "Other",
+            platform: "ios" as const,
+            state: "running" as const,
+            input: true,
+            accessibility: true,
+          },
+        ],
+      })),
+      capture: vi.fn<DeviceDriver["capture"]>(async () => ({ png: Buffer.from("png") })),
+      inspect: vi.fn<DeviceDriver["inspect"]>(async () => ({
+        version: 1 as const,
+        format: "ios-idb-json" as const,
+        text: "{}",
+      })),
+      control: vi.fn<NonNullable<DeviceDriver["control"]>>(async () => ({
+        version: 1 as const,
+        hingeAngle: 180,
+        activeDisplay: "inner" as const,
+      })),
+      createDuo: vi.fn<NonNullable<DeviceDriver["createDuo"]>>(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        state.created = true;
+      }),
+      input: vi.fn<DeviceDriver["input"]>(async () => {}),
+      start: vi.fn<DeviceDriver["start"]>(async () => {
+        state.booted = true;
+      }),
+      release: vi.fn<DeviceDriver["release"]>(async () => {}),
+      dispose: vi.fn<DeviceDriver["dispose"]>(async () => {}),
+    };
+    const service = new DeviceWorkspaceService(() => true, driver, now);
+    services.push(service);
+    return { service, driver, state };
+  }
+
+  it("refreshes the lease snapshot after starting a stopped foldable so fold works", async () => {
+    const { service, driver } = foldableFixture();
+    const opened = await service.attachForAgent("thread-1", duoId, "control", () => {});
+    expect(driver.start).toHaveBeenCalledOnce();
+    expect(opened.device.controls?.actions).toContain("fold");
+    const agent = service.agentSession("thread-1", true);
+    await service.action("thread-1", agent.principal, agent.session.id, {
+      kind: "fold",
+      angle: 180,
+    });
+    expect(driver.control).toHaveBeenCalledWith(
+      duoId,
+      { type: "fold", angle: 180 },
+      "13455f6b-3b94-40c8-8913-a6839f2dfd1b",
+      expect.any(AbortSignal),
+      expect.any(Function),
+    );
+  });
+
+  it("reuses the adopted lease on agent re-open and replaces it for another device", async () => {
+    const { service } = foldableFixture();
+    const opened = await service.attachForAgent("thread-1", duoId, "control", () => {});
+    expect(service.adoptAgentSession("thread-1", "client-9", () => {})?.id).toBe(opened.id);
+    const reopened = await service.attachForAgent("thread-1", duoId, "control", () => {});
+    expect(reopened.id).toBe(opened.id);
+    const other = await service.attachForAgent("thread-1", otherId, "control", () => {});
+    expect(other.device.id).toBe(otherId);
+    // Exactly one agent lease remains addressable.
+    expect(service.agentSession("thread-1", true).session.id).toBe(other.id);
+  });
+
+  it("renews the lease on agent activity so agent-only sessions outlive one TTL", async () => {
+    let now = 200_000;
+    const { service } = foldableFixture(() => now);
+    await service.attachForAgent("thread-1", duoId, "control", () => {});
+    now += 59_000;
+    expect(service.agentSession("thread-1", true).session.device.id).toBe(duoId);
+    now += 59_000;
+    expect(service.agentSession("thread-1", true).session.device.id).toBe(duoId);
+    now += 61_000;
+    expect(() => service.agentSession("thread-1", true)).toThrow(
+      "Attach a device to this thread with the desired access mode.",
+    );
+  });
+
+  it("single-flights concurrent Create Duo calls", async () => {
+    const { service, driver } = foldableFixture();
+    await Promise.all([service.createDuo(() => {}), service.createDuo(() => {})]);
+    expect(driver.createDuo).toHaveBeenCalledOnce();
+  });
 });

@@ -5,7 +5,6 @@ import {
   type DevicePreview,
   type DevicePreviewStart,
 } from "@/shared/devicePreview";
-import { readBoundedResponseBody } from "@/shared/http";
 import type { DeviceSession } from "@/shared/deviceWorkspace";
 import type { DeviceStreamTarget } from "./NativeDeviceDriver";
 import type { DeviceHubRuntime, DeviceHubHandle } from "./DeviceHubRuntime";
@@ -175,20 +174,7 @@ export class DevicePreviewSessions {
       if (authority.session.device.platform === "ios") {
         // Internal helper setup only: NativeDeviceDriver verified this exact
         // UDID is already booted. The public facade exposes no grid/boot API.
-        const response = await fetch(`${hub.origin}/vendor/serve-sim/grid/api/start`, {
-          method: "POST",
-          headers: { authorization: `Bearer ${hub.token}`, "content-type": "application/json" },
-          body: JSON.stringify({ udid: target.clientDeviceId }),
-          signal: AbortSignal.any([combined, AbortSignal.timeout(30_000)]),
-          redirect: "error",
-        });
-        await readBoundedResponseBody(response, 128 * 1024);
-        if (!response.ok)
-          throw new DeviceWorkspaceError(
-            "device_preview_unavailable",
-            "The simulator preview helper could not start.",
-            503,
-          );
+        await this.runtime.ensureIosHelper(hub, target.clientDeviceId, combined);
       }
       check();
       const current = await this.resolveTarget(threadId, principal, sessionId, combined);

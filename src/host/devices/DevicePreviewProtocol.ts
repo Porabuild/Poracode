@@ -1,7 +1,17 @@
+import type { RawData } from "ws";
 import { z } from "zod";
 import { DEVICE_PREVIEW_MAX_INPUT_BYTES } from "@/shared/devicePreview";
 import type { DeviceTarget } from "@/shared/deviceWorkspace";
 import { DeviceWorkspaceError } from "./deviceProcess";
+
+/** Normalize a ws message payload to a single Buffer. */
+export function rawDataBytes(data: RawData): Buffer {
+  return Buffer.isBuffer(data)
+    ? data
+    : Array.isArray(data)
+      ? Buffer.concat(data)
+      : Buffer.from(data);
+}
 
 const unit = z.number().finite().min(0).max(1);
 const phase = z.enum(["begin", "move", "end"]);

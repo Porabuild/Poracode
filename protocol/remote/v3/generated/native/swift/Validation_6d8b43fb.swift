@@ -5,10 +5,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_9040d7586304950d = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_9d4f8a22a3e1fa05, RemoteSchemas.schema_0b5555e2ca059ee2, RemoteSchemas.schema_72a4809a8d48dab8, RemoteSchemas.schema_feff20c88bde0c4c, RemoteSchemas.schema_ca98effeead73f13, RemoteSchemas.schema_596b826e9125183e, RemoteSchemas.schema_dfbf83bd7409c8d7, RemoteSchemas.schema_861b7e521ad93c4b, RemoteSchemas.schema_3935a65be87f52c2, RemoteSchemas.schema_14f3c332d545bff0, RemoteSchemas.schema_fd4fd2eb416ae002], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_904af6fabc0dbf35 = RemoteSchema(type: "object", required: Set(["id"]), properties: ["id": RemoteSchemas.schema_85c1db78d5c7dc29, "team": RemoteSchemas.schema_feeb8bb50144d96d], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -185,6 +181,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_96593ec86640027a = RemoteSchema(type: "object", required: Set(["access", "agentAccess", "device", "expiresAt", "generation", "id", "threadId", "version"]), properties: ["access": RemoteSchemas.schema_9ca4aec6d46ade2e, "agentAccess": RemoteSchemas.schema_e6bc2fd97be6dec8, "device": RemoteSchemas.schema_dc77588f48189c8c, "expiresAt": RemoteSchemas.schema_80c415b6e27c6ebd, "generation": RemoteSchemas.schema_d855999aed5e6438, "id": RemoteSchemas.schema_d855999aed5e6438, "threadId": RemoteSchemas.schema_36fea325bf1aca70, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_965bd4463b1b7307 = RemoteSchema(type: "object", required: Set(["run"]), properties: ["mtimeMs": RemoteSchemas.schema_f696f11685898ba7, "run": RemoteSchemas.schema_74659b54c1ae64b8], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -206,10 +206,6 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_9780f521bc1dee38 = RemoteSchema(type: "string", literals: [.string("thread-events"), .string("thread-bytes"), .string("global-events"), .string("global-bytes"), .string("oversize"), .string("age"), .string("degraded"), .string("rebase-dropped"), .string("shutdown"), .string("unclean-epoch")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_97a2308a409b73af = RemoteSchema(type: "object", required: Set(["platform", "status"]), properties: ["diagnostic": RemoteSchemas.schema_d3abf2cfac530357, "platform": RemoteSchemas.schema_61e54b5f6751c7a6, "status": RemoteSchemas.schema_9ab386636c31e53c], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

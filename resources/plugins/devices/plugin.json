@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "devices",
   "version": "1.0.0",
-  "description": "Use the iOS Simulators and Android Emulators attached to the current thread in Poracode.",
+  "description": "Open and use iOS Simulators (including the foldable iPhone Duo) and Android Emulators in the current thread's Poracode panel.",
   "author": { "name": "Poracode", "url": "https://poracode.com" },
   "homepage": "https://poracode.com",
   "license": "Apache-2.0",
@@ -20,7 +20,7 @@
       "skills": {
         "device-control": {
           "name": "Devices",
-          "description": "Inspect and control the simulator or emulator attached to this thread."
+          "description": "Open, inspect, and control simulators and emulators in this thread's panel, including folding an iPhone Duo."
         }
       }
     }

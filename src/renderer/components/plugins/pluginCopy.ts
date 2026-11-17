@@ -63,7 +63,7 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
         break;
       case "devices":
         name = t`Devices`;
-        description = t`Inspect and control the simulator or emulator attached to this thread.`;
+        description = t`Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel.`;
         break;
       case "browser-tools":
         name = t`Browser`;
@@ -131,7 +131,7 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
           return {
             id: skill.folder,
             name: t`Devices`,
-            description: t`Inspect and control the simulator or emulator attached to this thread.`,
+            description: t`Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel.`,
           };
         case "browser-tools:browser-control":
           return {

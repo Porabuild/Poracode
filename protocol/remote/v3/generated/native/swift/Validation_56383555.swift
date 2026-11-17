@@ -285,10 +285,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_8971fe1e2b13c08e = RemoteSchema(type: "object", required: Set(["version"]), properties: ["appearance": RemoteSchemas.schema_9ea58f9bfc61ade7, "fontScale": RemoteSchemas.schema_debc0ac62b48b9e2, "networkEnabled": RemoteSchemas.schema_feeb8bb50144d96d, "reduceMotion": RemoteSchemas.schema_feeb8bb50144d96d, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_89a32138dca165c4 = RemoteSchema(type: "object", required: Set(["authorizationUrl", "flowId", "status"]), properties: ["authorizationUrl": RemoteSchemas.schema_36fea325bf1aca70, "flowId": RemoteSchemas.schema_36fea325bf1aca70, "status": RemoteSchemas.schema_bd96f28e94e5dff9], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -414,6 +410,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_8e43cad70cd70de7 = RemoteSchema(type: "string", minLength: 1, maxLength: 128, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_8e506395c11c14c3 = RemoteSchema(type: "object", required: Set(["devices", "generation", "platforms", "version"]), properties: ["devices": RemoteSchemas.schema_7818cad2506123cf, "generation": RemoteSchemas.schema_d855999aed5e6438, "platforms": RemoteSchemas.schema_486e485d6ecc8507, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

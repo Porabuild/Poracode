@@ -4508,6 +4508,7 @@ msgstr "İş akışlarını kapat"
 msgid "Close workflows panel"
 msgstr "İş akışları panelini kapat"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListMenuSections.tsx
@@ -5845,6 +5846,10 @@ msgstr "Dosya oluştur"
 #: src/renderer/components/thread/ThreadForkDialog.tsx
 msgid "Create fork"
 msgstr "Dal oluştur"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Create iPhone Duo"
+msgstr "iPhone Duo oluştur"
 
 #: src/renderer/components/common/BranchSelector/parts/BranchFooterActions.tsx
 msgid "Create new branch"
@@ -8870,6 +8875,15 @@ msgstr "Uygulama içi tarayıcı adres çubuğuna odakla"
 msgid "Focus window"
 msgstr "Pencereyi öne getir"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Fold controls"
+msgstr "Katlama kontrolleri"
+
+#: src/renderer/components/devices/DeviceListItem.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Foldable"
+msgstr "Katlanabilir"
+
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
@@ -8900,6 +8914,10 @@ msgstr "Tüm çalışma ağaçlarını barındıran klasör. İpucu: buradaki bi
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectWorktreeLocation.tsx
 msgid "Folder that holds this project's worktrees. Reset to use the global setting."
 msgstr "Bu projenin çalışma ağaçlarını barındıran klasör. Genel ayarı kullanmak için sıfırlayın."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Folding is unavailable on this host."
+msgstr "Katlama bu ana bilgisayarda kullanılamıyor."
 
 #. placeholder {0}: "@poracode"
 #. placeholder {0}: "@serg_vecher"
@@ -9454,6 +9472,10 @@ msgstr "Rehber adımları"
 #: src/renderer/views/PullRequestsOverlay/guide/PrReviewGuideTab.tsx
 msgid "Guide writer"
 msgstr "Rehber yazarı"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Half open"
+msgstr "Yarı açık"
 
 #: src/renderer/components/crew/CrewMemberRow.tsx
 msgid "Hand off to another lead…"
@@ -10196,6 +10218,10 @@ msgstr "Saniye cinsinden ilk yeniden deneme gecikmesi"
 msgid "Initialize Repository"
 msgstr "Depoyu Başlat"
 
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Inner display"
+msgstr "İç ekran"
+
 #: src/renderer/views/ProfileOverlay/parts/CostHistory.tsx
 msgid "Input"
 msgstr "Girdi"
@@ -10249,8 +10275,8 @@ msgid "Inspect"
 msgstr "İncele"
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Inspect and control the simulator or emulator attached to this thread."
-msgstr "Bu sohbete bağlı simülatörü veya emülatörü inceleyin ve kontrol edin."
+#~ msgid "Inspect and control the simulator or emulator attached to this thread."
+#~ msgstr "Bu sohbete bağlı simülatörü veya emülatörü inceleyin ve kontrol edin."
 
 #: src/renderer/components/thread/ThreadView.tsx
 msgid "Inspect canonical runtime items"
@@ -10677,6 +10703,10 @@ msgstr "iPhone 15 Pro"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone 15 Pro Max"
 msgstr "iPhone 15 Pro Max"
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "iPhone Duo is unavailable on this host."
+msgstr "iPhone Duo bu ana bilgisayarda kullanılamıyor."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserDeviceToolbar.tsx
 msgid "iPhone SE"
@@ -14025,6 +14055,7 @@ msgid "Only your own comments on this pull request can be edited."
 msgstr "Bu çekme isteğinde yalnızca kendi yorumlarınızı düzenleyebilirsiniz."
 
 #: src/renderer/commands/CommandPalette.tsx
+#: src/renderer/components/devices/DeviceWorkspace.tsx
 #: src/renderer/components/newsLine/useAnnouncementItems.tsx
 #: src/renderer/components/thread/ThreadUsageBubble.tsx
 #: src/renderer/notifications.ts
@@ -14480,6 +14511,10 @@ msgstr "Yalnızca görüntüleme olarak aç"
 msgid "Open with control"
 msgstr "Kontrol ile aç"
 
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Open, inspect, and control iOS Simulators (including foldable iPhone Duo) and Android Emulators in the panel."
+msgstr "Panelde iOS Simülatörlerini (katlanabilir iPhone Duo dahil) ve Android Emülatörlerini açın, inceleyin ve kontrol edin."
+
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
@@ -14625,6 +14660,10 @@ msgstr "Güncel değil"
 #: src/renderer/views/PullRequestsOverlay/changes/inlineComments.tsx
 msgid "Outdated: the pull request changed after this was drafted."
 msgstr "Güncel değil: çekme isteği bu taslak oluşturulduktan sonra değişti."
+
+#: src/renderer/components/devices/DeviceWorkspace.tsx
+msgid "Outer display"
+msgstr "Dış ekran"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Outlook"

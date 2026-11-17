@@ -65,13 +65,13 @@ data class RoutethreadU2DTransferU2DCommandResponseU2DOptionU2D3_37c5f21648(
 @Serializable
 data class RoutethreadU2DTransferU2DCommandResponseU2DOptionU2D4_174bab0c7c(
     @SerialName("data") val data: String,
-    @SerialName("kind") val kind: RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D1U2DType_6f5fd1f783,
+    @SerialName("kind") val kind: RoutedeviceU2DActionRequestU2DOptionU2D7U2DControlU2DOptionU2D1U2DType_6f5fd1f783,
     @SerialName("offset") val offset: Long,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("data", "String", true, false, null, null, null, 5592408, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("kind", "RoutedeviceU2DActionRequestU2DOptionU2D6U2DControlU2DOptionU2D1U2DType_6f5fd1f783", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RoutedeviceU2DActionRequestU2DOptionU2D7U2DControlU2DOptionU2D1U2DType_6f5fd1f783", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("offset", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
         ), listOf())
     }

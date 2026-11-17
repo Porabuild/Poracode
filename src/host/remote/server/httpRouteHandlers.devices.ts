@@ -1,4 +1,14 @@
-import { deviceHumanActionSchema, deviceAttachSchema } from "@/shared/deviceWorkspace";
+import {
+  deviceHumanActionSchema,
+  deviceAttachSchema,
+  type DeviceInventory,
+  type DeviceSession,
+  type DeviceTarget,
+} from "@/shared/deviceWorkspace";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { DeviceWorkspaceError } from "@/host/devices/deviceProcess";
 import { RemoteHttpError } from "../auth";
 import { writeJson } from "./httpResponses";
@@ -11,7 +21,9 @@ import { readJsonBody } from "./requestBody";
 
 type DeviceRouteId =
   | "device-inventory"
+  | "device-create-duo"
   | "device-attach"
+  | "device-adopt-session"
   | "device-frame"
   | "device-inspect"
   | "device-action"
@@ -43,9 +55,41 @@ export async function deviceRequest(
   }
 }
 
+// "fold" joined the closed control-action enum in the current protocol.
+// Inventory/attach stay readable by older paired clients, whose enum would
+// reject the whole payload, so non-current peers get the same payload with
+// the unknown action removed (their fold controls simply never appear).
+function stripFoldForPeer(call: HttpRouteCall, target: DeviceTarget): DeviceTarget {
+  if (call.req.headers[REMOTE_PROTOCOL_VERSION_HEADER] === REMOTE_PROTOCOL_VERSION_HEADER_VALUE)
+    return target;
+  if (!target.controls?.actions.includes("fold")) return target;
+  return {
+    ...target,
+    controls: {
+      ...target.controls,
+      actions: target.controls.actions.filter((action) => action !== "fold"),
+    },
+  };
+}
+
 export const DEVICE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, DeviceRouteId> = {
   "device-inventory": (call) =>
-    deviceRequest(call, (signal) => call.ctx.options.deviceWorkspace!.discover(signal)),
+    deviceRequest(call, async (signal): Promise<DeviceInventory> => {
+      const inventory = await call.ctx.options.deviceWorkspace!.discover(signal);
+      return {
+        ...inventory,
+        devices: inventory.devices.map((device) => stripFoldForPeer(call, device)),
+      };
+    }),
+  "device-create-duo": (call) =>
+    deviceRequest(call, async () => {
+      const principal = call.session!.sessionId;
+      const authorize = () => {
+        call.ctx.auth.authenticateSession(principal, ["session:read", "session:operate"]);
+      };
+      authorize();
+      return call.ctx.options.deviceWorkspace!.createDuo(authorize);
+    }),
   "device-attach": (call) =>
     deviceRequest(call, async () => {
       const body = deviceAttachSchema.parse(await readJsonBody(call.req));
@@ -59,12 +103,32 @@ export const DEVICE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, DeviceRouteId> =
         auth.authenticateSession(principal, scopes);
       };
       authorize();
-      return call.ctx.options.deviceWorkspace!.attach(
+      const session: DeviceSession = await call.ctx.options.deviceWorkspace!.attach(
         requirePathParam(call.params, "threadId"),
         principal,
         body,
         authorize,
       );
+      return { ...session, device: stripFoldForPeer(call, session.device) };
+    }),
+  "device-adopt-session": (call) =>
+    deviceRequest(call, async () => {
+      const { auth } = call.ctx;
+      const principal = call.session!.sessionId;
+      const authorize = (control: boolean) => {
+        auth.authenticateSession(
+          principal,
+          control ? ["session:read", "session:operate"] : ["session:read"],
+        );
+      };
+      authorize(false);
+      return {
+        session: call.ctx.options.deviceWorkspace!.adoptAgentSession(
+          requirePathParam(call.params, "threadId"),
+          principal,
+          authorize,
+        ),
+      };
     }),
   "device-frame": (call) =>
     deviceRequest(call, (signal) => {

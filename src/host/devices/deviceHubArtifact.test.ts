@@ -143,6 +143,66 @@ describe("clean desktop device Hub packaging", () => {
     expect(f.stage).not.toHaveBeenCalled();
   });
 
+  it("prepares the ios-only macOS target without fetching or staging a scrcpy server", async () => {
+    const f = await packagingFixture();
+    f.run.mockImplementation((_command, args) =>
+      args[0] === "-p" ? JSON.stringify({ platform: "darwin", arch: "arm64", abi: "149" }) : "",
+    );
+    const stage = vi.fn<
+      (options: Record<string, unknown>) => Promise<{ qualifiedPlatforms: string[] }>
+    >(async () => ({ qualifiedPlatforms: ["ios"] }));
+    await expect(
+      hubStaging.preparePackagedDeviceHub(
+        f.root,
+        { platform: "mac", arches: ["arm64"] },
+        { platform: "darwin", arch: "arm64", run: f.run, fetch: f.fetch, stage },
+      ),
+    ).resolves.toMatchObject({ qualifiedPlatforms: ["ios"] });
+    expect(f.fetch).not.toHaveBeenCalled();
+    expect(stage).toHaveBeenCalledWith(expect.objectContaining({ runtimeAbi: "149" }));
+    expect(stage.mock.calls[0]?.[0]).not.toHaveProperty("scrcpyServer");
+  });
+
+  it("demands the scrcpy server only when the current target qualifies android", async () => {
+    const qualified =
+      DEVICE_HUB_QUALIFIED_TARGETS.find(
+        (entry) =>
+          entry.platform === process.platform &&
+          entry.arch === process.arch &&
+          entry.runtimeAbi === "149",
+      )?.platforms ?? [];
+    const scratch = await mkdtemp(join(tmpdir(), "poracode-hub-prepare-"));
+    roots.push(scratch);
+    const source = join(scratch, "source");
+    // Reach the scrcpy gate with the committed frozen lock and a minimal hub
+    // package; staging then fails later at the native-module pin.
+    await mkdir(join(source, "node_modules", "expo-device-hub"), { recursive: true });
+    await writeFile(
+      join(source, DEVICE_HUB_LOCKFILE),
+      await readFile(
+        new URL("../../../scripts/device-hub-runtime/package-lock.json", import.meta.url),
+      ),
+    );
+    await writeFile(
+      join(source, "node_modules", "expo-device-hub", "package.json"),
+      JSON.stringify({ name: "expo-device-hub", version: DEVICE_HUB_VERSION }),
+    );
+    const attempt = hubStaging.prepareDeviceHub({
+      source,
+      output: join(scratch, "out"),
+      scratch,
+      runtimeAbi: "149",
+    } as Parameters<typeof hubStaging.prepareDeviceHub>[0]);
+    const error: unknown = await attempt.then(
+      () => null,
+      (reason: unknown) => reason,
+    );
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message.includes("--scrcpy-server must name")).toBe(
+      qualified.includes("android"),
+    );
+  });
+
   it("checks the installed Electron ABI before installing or qualifying a helper", async () => {
     const f = await packagingFixture("150");
     await expect(
@@ -314,15 +374,17 @@ describe("versioned device Hub artifact admission", () => {
     }
   });
 
-  it("qualifies only the captured Windows x64 Electron ABI and no Mac or iOS target", () => {
+  it("qualifies only the captured Windows x64 and macOS arm64 Electron ABI targets", () => {
     expect(DEVICE_HUB_QUALIFIED_TARGETS).toEqual([
       { platform: "win32", arch: "x64", runtimeAbi: "149", platforms: ["android"] },
+      { platform: "darwin", arch: "arm64", runtimeAbi: "149", platforms: ["ios"] },
     ]);
     for (const target of [
       { platform: "win32", arch: "arm64", runtimeAbi: "149" },
       { platform: "win32", arch: "x64", runtimeAbi: "148" },
       { platform: "win32", arch: "x64", runtimeAbi: "150" },
-      { platform: "darwin", arch: "arm64", runtimeAbi: "149" },
+      { platform: "darwin", arch: "arm64", runtimeAbi: "148" },
+      { platform: "darwin", arch: "arm64", runtimeAbi: "150" },
       { platform: "darwin", arch: "x64", runtimeAbi: "149" },
       { platform: "linux", arch: "x64", runtimeAbi: "149" },
     ]) {
@@ -362,8 +424,8 @@ describe("versioned device Hub artifact admission", () => {
     const f = await fixture();
     const path = join(f.root, "win32-x64", "manifest.json");
     for (const delta of [
-      { adapterVersion: 0 },
-      { adapterVersion: 2 },
+      { adapterVersion: 1 },
+      { adapterVersion: DEVICE_HUB_CLIENT_ADAPTER_VERSION + 1 },
       { hubVersion: "0.15.2" },
       { clientVersion: "1.4.0" },
       { clientPatchSha256: "a".repeat(64) },
@@ -413,6 +475,71 @@ describe("versioned device Hub artifact admission", () => {
     f.manifest.files.push(f.manifest.files[0]!);
     await f.save();
     expect(await readDeviceHubArtifact(f.root, f.signal, f.target)).toBeNull();
+  });
+
+  it("admits an ios-only darwin artifact without a scrcpy file and rejects wrong ABI/platform", async () => {
+    const root = await mkdtemp(join(tmpdir(), "poracode-hub-darwin-test-"));
+    roots.push(root);
+    const files = [
+      DEVICE_HUB_ENTRY,
+      DEVICE_HUB_BOOTSTRAP,
+      DEVICE_HUB_LOCKFILE,
+      DEVICE_HUB_NATIVE_MODULE_PATH,
+      DEVICE_HUB_NATIVE_RECEIPT_PATH,
+    ];
+    for (const file of files) {
+      const path = join(root, "darwin-arm64", file);
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(
+        path,
+        file === DEVICE_HUB_NATIVE_RECEIPT_PATH
+          ? `${JSON.stringify(DEVICE_HUB_NATIVE_PATCH_RECEIPT)}\n`
+          : "fixture",
+      );
+    }
+    const manifest: DeviceHubArtifactManifest = {
+      version: DEVICE_HUB_ARTIFACT_VERSION,
+      adapterVersion: DEVICE_HUB_CLIENT_ADAPTER_VERSION,
+      hubVersion: DEVICE_HUB_VERSION,
+      clientVersion: DEVICE_HUB_CLIENT_VERSION,
+      sourceCommit: DEVICE_HUB_SOURCE_COMMIT,
+      packageIntegrity: DEVICE_HUB_PACKAGE_INTEGRITY,
+      clientIntegrity: DEVICE_HUB_CLIENT_INTEGRITY,
+      clientPatchSha256: DEVICE_HUB_CLIENT_PATCH_SHA256,
+      scrcpyVersion: DEVICE_HUB_SCRCPY_VERSION,
+      scrcpySha256: DEVICE_HUB_SCRCPY_SHA256,
+      platform: "darwin",
+      arch: "arm64",
+      runtimeAbi: "149",
+      qualifiedPlatforms: ["ios"],
+      entry: DEVICE_HUB_ENTRY,
+      files: files.map((path) => ({
+        path,
+        sha256: createHash("sha256")
+          .update(
+            path === DEVICE_HUB_NATIVE_RECEIPT_PATH
+              ? `${JSON.stringify(DEVICE_HUB_NATIVE_PATCH_RECEIPT)}\n`
+              : "fixture",
+          )
+          .digest("hex"),
+      })),
+    };
+    await writeFile(join(root, "darwin-arm64", "manifest.json"), JSON.stringify(manifest));
+    const signal = new AbortController().signal;
+    const target = {
+      platform: "darwin" as NodeJS.Platform,
+      arch: "arm64" as NodeJS.Architecture,
+      runtimeAbi: "149",
+    };
+    const artifact = await readDeviceHubArtifact(root, signal, target);
+    expect(artifact?.manifest.qualifiedPlatforms).toEqual(["ios"]);
+    expect(await readDeviceHubArtifact(root, signal, { ...target, runtimeAbi: "150" })).toBeNull();
+    expect(
+      await readDeviceHubArtifact(root, signal, {
+        ...target,
+        platform: "win32" as NodeJS.Platform,
+      }),
+    ).toBeNull();
   });
 
   it("honors cancellation rather than treating it as an unavailable package", async () => {
