@@ -156,6 +156,7 @@ export function MemoryCatalogDialog(props: {
             <div className="flex items-center gap-2">
               <Input
                 aria-label={t`Add a memory`}
+                size="sm"
                 className="min-w-0 flex-1"
                 value={draft}
                 placeholder={t`Always use bun`}
@@ -198,6 +199,7 @@ export function MemoryCatalogDialog(props: {
                         <Input
                           ref={editInputRef}
                           aria-label={t`Edit`}
+                          size="sm"
                           data-overlay-escape-owner=""
                           className="w-full"
                           value={editDraft}
