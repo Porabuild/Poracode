@@ -6,7 +6,7 @@ import {
   DEVICE_PREVIEW_WINDOW_URL,
 } from "@/shared/devicePreviewWindow";
 import type { ConnectionStatus } from "@expo/hub-client";
-import { Button, Dropdown, Input, Label, Modal, Tooltip } from "@heroui/react";
+import { Button, Dropdown, Input, Label, Modal, Slider, Tooltip } from "@heroui/react";
 import {
   ArrowLeft,
   ArrowUp,
@@ -23,6 +23,7 @@ import {
   Layers,
   MousePointer2,
   PanelsTopLeft,
+  Plus,
   Power,
   RefreshCw,
   SlidersHorizontal,
@@ -44,6 +45,7 @@ import type {
 import { RemoteClientError } from "@/shared/remote/client";
 import { supportsDeviceLivePreview } from "@/shared/remote/clientDevicePreview";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import {
   panelHeaderIconButtonClass,
@@ -60,6 +62,7 @@ import { DeviceTools } from "./DeviceTools";
 import { DevicePreviewStage } from "./DevicePreviewStage";
 import { DeviceDetachedWindow } from "./DeviceDetachedWindow";
 import { DeviceListItem, type DeviceListAction } from "./DeviceListItem";
+import { FoldClosedIcon, FoldHalfOpenIcon, FoldOpenIcon } from "./FoldIcons";
 
 function isDevicesSurfaceActive(panel: ReturnType<typeof usePanelStore.getState>): boolean {
   return panel.rightPanelTab === "devices" || panel.rightPanelSplit?.tab === "devices";
@@ -90,6 +93,8 @@ export function DeviceWorkspace({
   /** A stopped device the user asked to open; attach once the start poll sees it running. */
   const pendingOpenRef = useRef<{ id: string; access: "view" | "control" } | null>(null);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const adoptingRef = useRef(false);
   const [errorMessage, setError] = useState<string | null>(null);
   const [frame, setFrame] = useState<DeviceFrame | null>(null);
   const [inspection, setInspection] = useState<string | null>(null);
@@ -103,6 +108,10 @@ export function DeviceWorkspace({
   const [detachedWindow, setDetachedWindow] = useState<Window | null>(null);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [controlState, setControlState] = useState<DeviceControlState | null>(null);
+  const [foldingAngle, setFoldingAngle] = useState<number | null>(null);
+  const [dragAngle, setDragAngle] = useState<number | null>(null);
+  const [sliderTooltipOpen, setSliderTooltipOpen] = useState(false);
+  const controlStateRef = useRef<DeviceControlState | null>(null);
   const [confirmPowerOff, setConfirmPowerOff] = useState(false);
   const [contentHost] = useState(() => document.createElement("div"));
   const [panelBody, setPanelBody] = useState<HTMLDivElement | null>(null);
@@ -176,6 +185,7 @@ export function DeviceWorkspace({
     const id = Symbol();
     operationRef.current = id;
     const isCurrent = () => mounted.current && operationRef.current === id;
+    busyRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -183,7 +193,10 @@ export function DeviceWorkspace({
     } catch (error) {
       if (isCurrent()) report(error);
     } finally {
-      if (isCurrent()) setBusy(false);
+      if (isCurrent()) {
+        busyRef.current = false;
+        setBusy(false);
+      }
     }
   }
   async function detach() {
@@ -195,17 +208,62 @@ export function DeviceWorkspace({
     setFrame(null);
     setInspection(null);
     setToolsOpen(false);
+    controlStateRef.current = null;
     setControlState(null);
+    setFoldingAngle(null);
+    setDragAngle(null);
     setConfirmPowerOff(false);
     setLiveClientStatus("idle");
     setLivePressButton(null);
     if (current && release) await release(current.id);
   }
+  // A device the agent opened for this thread (open_device) is adopted into
+  // the panel: the host rebinds that lease to this client, so the panel
+  // renders and can detach the very session the agent tools act on.
+  async function adoptAgentSession() {
+    if (adoptingRef.current || busyRef.current || sessionRef.current) return;
+    adoptingRef.current = true;
+    try {
+      const adopted = await withThreadDeviceClient(threadId, async (client, id) => ({
+        client,
+        threadId: id,
+        session: await client.adoptDeviceSession(id),
+      }));
+      const next = adopted.session;
+      if (!next || !mounted.current) return;
+      const release = (sessionId: string) =>
+        adopted.client.detachDevice(adopted.threadId, sessionId);
+      if (sessionRef.current) {
+        // The user attached a device while adoption was in flight; their
+        // explicit choice wins over surfacing the agent's lease.
+        await release(next.id);
+        return;
+      }
+      sessionRef.current = next;
+      detachSessionRef.current = release;
+      setSnapshotMode(false);
+      setSession(next);
+    } catch {
+      // Silent poll: an older host without the adopt route (or a transient
+      // failure) simply leaves the device list as it is.
+    } finally {
+      adoptingRef.current = false;
+    }
+  }
   const refreshFromEffect = useEffectEvent((signal: AbortSignal) => refresh(signal));
   const reportFromEffect = useEffectEvent((cause: unknown) => report(cause));
+  const adoptFromEffect = useEffectEvent(() => adoptAgentSession());
 
   useEffect(() => {
     mounted.current = true;
+    const preAdopted = usePanelStore.getState().consumePendingAdoptedDeviceSession(threadId);
+    if (preAdopted && !sessionRef.current) {
+      sessionRef.current = preAdopted;
+      detachSessionRef.current = (sessionId) =>
+        withThreadDeviceClient(threadId, (client, id) => client.detachDevice(id, sessionId));
+      setSnapshotMode(false);
+      setSession(preAdopted);
+    }
     const abort = new AbortController();
     void refreshFromEffect(abort.signal).catch((error: unknown) => {
       if (!abort.signal.aborted) reportFromEffect(error);
@@ -302,6 +360,23 @@ export function DeviceWorkspace({
     };
   }, [inventory, paused, visible, session]);
 
+  // While the list is showing, pick up a device the agent opened for this
+  // thread — on mount and on the same 2s cadence as the starting poll.
+  useEffect(() => {
+    if (session || paused || !visible) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      await adoptFromEffect();
+      if (!cancelled) timer = setTimeout(() => void poll(), 2000);
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [session, paused, visible]);
+
   // A click on a stopped device boots it through the start lease; this opens
   // the preview as soon as the running poll observes the device.
   const openPendingFromEffect = useEffectEvent(
@@ -395,6 +470,12 @@ export function DeviceWorkspace({
       openDevice(target, isCurrent, action === "open-control" ? "control" : "view"),
     );
   }
+  function createDuo() {
+    void perform(async (isCurrent) => {
+      const next = await withThreadDeviceClient(threadId, (client) => client.createDuoDevice());
+      if (isCurrent()) setInventory(next);
+    });
+  }
   async function send(action: DeviceAction) {
     const current = sessionRef.current;
     if (!current) return;
@@ -405,32 +486,92 @@ export function DeviceWorkspace({
   function applyControl(action: DeviceControl) {
     const current = sessionRef.current;
     if (!current || current.access !== "control" || !visible || busy) return;
+    if (action.type === "fold") setFoldingAngle(action.angle);
     void perform(async (isCurrent) => {
-      const result = await withThreadDeviceClient(threadId, async (client, id) => {
-        const response = await client.deviceAction(id, current.id, {
-          kind: "control",
-          version: 1,
-          control: action,
-        });
-        if (
-          action.type !== "powerOff" &&
-          action.type !== "read" &&
-          current.device.controls?.actions.includes("read")
-        )
-          return client.deviceAction(id, current.id, {
+      try {
+        const result = await withThreadDeviceClient(threadId, async (client, id) => {
+          const response = await client.deviceAction(id, current.id, {
             kind: "control",
             version: 1,
-            control: { type: "read" },
+            control: action,
           });
-        return response;
-      });
-      if (!isCurrent() || sessionRef.current?.id !== current.id) return;
-      if (action.type === "powerOff") {
-        await detach();
-        await refresh(undefined, isCurrent);
-      } else if (result.controls) setControlState(result.controls);
+          if (
+            action.type !== "powerOff" &&
+            action.type !== "read" &&
+            current.device.controls?.actions.includes("read")
+          )
+            return client.deviceAction(id, current.id, {
+              kind: "control",
+              version: 1,
+              control: { type: "read" },
+            });
+          return response;
+        });
+        if (!isCurrent() || sessionRef.current?.id !== current.id) return;
+        if (action.type === "powerOff") {
+          await detach();
+          await refresh(undefined, isCurrent);
+        } else if (result.controls) {
+          controlStateRef.current = result.controls;
+          setControlState(result.controls);
+        }
+        if (action.type === "fold" && !wantsLive) {
+          // Drop stale snapshot pixels so the next snapshot poll captures the new display.
+          setFrame(null);
+        }
+      } finally {
+        if (action.type === "fold" && mounted.current) setFoldingAngle(null);
+      }
     });
   }
+  const poseReadSessionIdRef = useRef<string | null>(null);
+  // Poll the hinge pose quietly while a fold-capable session is shown: the
+  // agent can fold the shared session at any time, and a one-shot read left
+  // the pose label stale (or, on a transient failure, empty forever with an
+  // unexplained error banner). Background reads never surface errors.
+  const readPoseFromEffect = useEffectEvent(() => {
+    const current = sessionRef.current;
+    if (!current || poseReadSessionIdRef.current === current.id) return;
+    poseReadSessionIdRef.current = current.id;
+    void withThreadDeviceClient(threadId, (client, id) =>
+      client.deviceAction(id, current.id, {
+        kind: "control",
+        version: 1,
+        control: { type: "read" },
+      }),
+    )
+      .then((result) => {
+        if (!result.controls || sessionRef.current?.id !== current.id) return;
+        const controls = result.controls;
+        const previous = controlStateRef.current;
+        const displaySwitched = Boolean(
+          previous?.activeDisplay &&
+          controls.activeDisplay &&
+          previous.activeDisplay !== controls.activeDisplay,
+        );
+        // A read that could not reach the hinge helper omits hingeAngle;
+        // keep the last known angle instead of blanking the pose label.
+        const next =
+          controls.hingeAngle === undefined && previous?.hingeAngle !== undefined
+            ? { ...controls, hingeAngle: previous.hingeAngle }
+            : controls;
+        controlStateRef.current = next;
+        setControlState(next);
+        if (displaySwitched && !wantsLive) setFrame(null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (poseReadSessionIdRef.current === current.id) poseReadSessionIdRef.current = null;
+      });
+  });
+  useEffect(() => {
+    if (!session || !visible || session.access !== "control") return;
+    const actions = session.device.controls?.actions;
+    if (!actions?.includes("fold") || !actions.includes("read")) return;
+    readPoseFromEffect();
+    const timer = setInterval(readPoseFromEffect, 5_000);
+    return () => clearInterval(timer);
+  }, [session, visible]);
   function captureScreenshot() {
     if (!session) return;
     const activeSession = session;
@@ -475,6 +616,41 @@ export function DeviceWorkspace({
     Boolean(live.state) &&
     effectiveLiveClientStatus === "streaming" &&
     effectiveLivePressButton !== null;
+  const foldAdvertised = session?.device.controls?.actions.includes("fold") ?? false;
+  // Folding needs a control session like the other device controls, but not
+  // the input surface (idb) that taps and keys ride on.
+  const canFold = visible && session?.access === "control" && !busy;
+  const hingeAngle = controlState?.hingeAngle;
+  const effectiveHingeAngle = dragAngle ?? foldingAngle ?? hingeAngle;
+  const foldPoseLabel =
+    effectiveHingeAngle === undefined
+      ? null
+      : effectiveHingeAngle === 0
+        ? t`Closed`
+        : effectiveHingeAngle === 90
+          ? t`Half open`
+          : effectiveHingeAngle === 180
+            ? t`Open`
+            : `${effectiveHingeAngle}°`;
+  const foldDisplayLabel =
+    controlState?.activeDisplay === "inner"
+      ? t`Inner display`
+      : controlState?.activeDisplay === "outer"
+        ? t`Outer display`
+        : null;
+  const foldPose = foldPoseLabel
+    ? foldDisplayLabel
+      ? `${foldPoseLabel} · ${foldDisplayLabel}`
+      : foldPoseLabel
+    : foldDisplayLabel;
+  const foldButtons = [
+    { angle: 0, label: t`Closed`, Icon: FoldClosedIcon },
+    { angle: 90, label: t`Half open`, Icon: FoldHalfOpenIcon },
+    { angle: 180, label: t`Open`, Icon: FoldOpenIcon },
+  ] as const;
+  const iosPlatform = inventory?.platforms.find((entry) => entry.platform === "ios");
+  const canCreateDuo =
+    iosPlatform?.foldableRuntimeAvailable === true && iosPlatform.foldableDeviceExists === false;
 
   const streamStatus = !session
     ? null
@@ -798,7 +974,9 @@ export function DeviceWorkspace({
                       >
                         <p>
                           {entry.status === "ready"
-                            ? t`A device failed to start.`
+                            ? entry.foldableRuntimeAvailable === false
+                              ? t`iPhone Duo is unavailable on this host.`
+                              : t`A device failed to start.`
                             : statusLabels[entry.status]}
                         </p>
                         {entry.diagnostic ? (
@@ -812,7 +990,25 @@ export function DeviceWorkspace({
                       </div>
                     );
                   })}
-                  {inventory.devices.length === 0 ? (
+                  {canCreateDuo ? (
+                    <SidebarButton
+                      className="poracode-sidebar-thread-row"
+                      size="xs"
+                      isDisabled={busy}
+                      icon={<Plus className="size-3.5 shrink-0 text-muted" />}
+                      label={
+                        <span className="flex flex-col gap-0.5">
+                          <span className="block truncate">{t`Create iPhone Duo`}</span>
+                          <span className="block truncate text-[11px] text-muted">
+                            {`iOS · ${t`Foldable`}`}
+                          </span>
+                        </span>
+                      }
+                      tooltip={t`Create iPhone Duo`}
+                      onPress={createDuo}
+                    />
+                  ) : null}
+                  {inventory.devices.length === 0 && !canCreateDuo ? (
                     <p className="py-4 text-center text-foreground-muted">
                       <Trans>No simulators or emulators found.</Trans>
                     </p>
@@ -847,6 +1043,11 @@ export function DeviceWorkspace({
                       state={live.state}
                       control={canInput}
                       framed={framed || depth}
+                      foldable={Boolean(session.device.foldable)}
+                      activeDisplay={controlState?.activeDisplay}
+                      hingeAngle={effectiveHingeAngle}
+                      dragging={dragAngle !== null}
+                      folding={foldingAngle !== null}
                       onStatusChange={setLiveClientStatus}
                       onLivePressButtonChange={(pressButton) =>
                         setLivePressButton(() => pressButton)
@@ -969,6 +1170,81 @@ export function DeviceWorkspace({
                     </Button>
                   </div>
                 </div>
+              ) : null}
+
+              {foldAdvertised ? (
+                <div
+                  role="group"
+                  aria-label={t`Fold controls`}
+                  data-testid="device-controls-fold"
+                  data-pose={foldPose ?? undefined}
+                  className="flex items-center gap-3"
+                >
+                  <div className="flex items-center gap-1.5">
+                    {foldButtons.map(({ angle, label, Icon }) => (
+                      <Tooltip key={angle}>
+                        <Tooltip.Trigger tabIndex={-1} role="none">
+                          <Button
+                            size="sm"
+                            isIconOnly
+                            variant={effectiveHingeAngle === angle ? "secondary" : "ghost"}
+                            aria-label={label}
+                            aria-pressed={effectiveHingeAngle === angle}
+                            isDisabled={!canFold}
+                            onPress={() => applyControl({ type: "fold", angle })}
+                          >
+                            <Icon className="size-4" />
+                          </Button>
+                        </Tooltip.Trigger>
+                        <Tooltip.Content>
+                          {effectiveHingeAngle === angle && foldPose ? foldPose : label}
+                        </Tooltip.Content>
+                      </Tooltip>
+                    ))}
+                  </div>
+                  <Tooltip
+                    delay={0}
+                    isOpen={canFold && (dragAngle !== null || sliderTooltipOpen)}
+                    onOpenChange={setSliderTooltipOpen}
+                  >
+                    <Tooltip.Trigger tabIndex={-1} role="none" className="w-28 shrink-0">
+                      <Slider
+                        aria-label={t`Hinge angle`}
+                        aria-valuetext={foldPose ?? undefined}
+                        data-testid="device-fold-slider"
+                        className="w-full"
+                        isDisabled={!canFold}
+                        minValue={0}
+                        maxValue={180}
+                        step={1}
+                        value={effectiveHingeAngle ?? 0}
+                        onChange={(value) =>
+                          setDragAngle(Array.isArray(value) ? (value[0] ?? 0) : value)
+                        }
+                        onChangeEnd={(value) => {
+                          const next = Array.isArray(value) ? (value[0] ?? 0) : value;
+                          setDragAngle(null);
+                          applyControl({ type: "fold", angle: next });
+                        }}
+                      >
+                        <Slider.Track className="h-1.5 rounded-full border-x-[0.4375rem] border-x-transparent bg-foreground/15 data-[fill-start=true]:border-s-foreground/35 data-[fill-end=true]:border-e-foreground/35">
+                          <Slider.Fill className="bg-foreground/35" />
+                          <Slider.Thumb className="size-3.5 rounded-full border-0 bg-foreground/75 shadow-sm after:size-2 after:rounded-full after:bg-background" />
+                        </Slider.Track>
+                      </Slider>
+                    </Tooltip.Trigger>
+                    <Tooltip.Content>{foldPose ?? t`Hinge angle`}</Tooltip.Content>
+                  </Tooltip>
+                  {foldPose ? (
+                    <span data-testid="device-fold-pose" aria-live="polite" className="sr-only">
+                      {foldPose}
+                    </span>
+                  ) : null}
+                </div>
+              ) : session?.device.foldable ? (
+                <p data-testid="device-fold-unavailable" className="text-[11px] text-muted">
+                  <Trans>Folding is unavailable on this host.</Trans>
+                </p>
               ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-1.5">

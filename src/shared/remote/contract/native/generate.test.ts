@@ -106,23 +106,27 @@ describe("remote v3 native binding generator", () => {
         // Optional period activity snapshots (`recent`) on ProfileCoreStats and ProfileTokenStats
         // add five structural types and move only the source hash while keeping older hosts valid.
         // Hex completion waiting adds two structural types and one Swift shard.
-        sourceHash: "sha256:f70b234db720367a33363312d141fa5636a76aa789ee0102f8d4cb44617f1c49",
-        manifestHash: "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3",
+        // The additive device-create-duo route and optional foldable fields
+        // regenerate both authority hashes and the native mirrors.
+        // The additive device-adopt-session route (renderer adoption of an
+        // agent-opened lease) does the same.
+        sourceHash: "sha256:dea293c0371c68f146817c37bafb757a2549811cd70d3761df04e45471423f04",
+        manifestHash: "sha256:eb340b611a44d8ed977b61c2f327ca9ce32ca733d02b2c5f25d26d1b03dae48c",
         counts: {
-          routes: 121,
+          routes: 123,
           procedures: 179,
           voidProcedureResults: 66,
           jsonProcedureResults: 113,
           webSocketClientVariants: 11,
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
-          schemaRoots: 579,
-          structuralTypes: 1367,
+          schemaRoots: 582,
+          structuralTypes: 1373,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.
-          swiftFiles: 150,
-          kotlinFiles: 127,
+          swiftFiles: 152,
+          kotlinFiles: 128,
           stateMachines: 5,
         },
       });
@@ -396,7 +400,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(579);
+        expect(adapters).toHaveLength(582);
         expect(
           adapters
             .map((adapter) => adapter.id)

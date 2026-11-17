@@ -25,6 +25,7 @@ import {
   type DevicePreviewStart,
   type DevicePreviewTicketRequest,
 } from "@/shared/devicePreview";
+import { createDeviceFoldRuntime } from "./deviceFold";
 import { DeviceHubRuntime } from "./DeviceHubRuntime";
 import { DevicePreviewSessions } from "./DevicePreviewSessions";
 import { DevicePreviewTickets } from "./DevicePreviewTickets";
@@ -42,6 +43,12 @@ interface Lease {
   authorize: () => void;
   abort: AbortController;
   frames: Map<string, FrameGeometry>;
+  // Leases the agent itself opened (open_device) renew on agent activity;
+  // a user-issued grant is never extended by the agent using it.
+  agentOwned?: boolean;
+  // Held false while attachForAgent is booting a stopped device so the
+  // renderer cannot adopt a pre-boot snapshot without fold capabilities.
+  initializing?: boolean;
 }
 
 /** Host authority shared by HTTP clients and authenticated agent MCP callers.
@@ -67,6 +74,8 @@ export class DeviceWorkspaceService {
     previewRuntime: DeviceHubRuntime | null = null,
   ) {
     this.previewTickets = new DevicePreviewTickets(now);
+    // Fold execution shares the live-preview hub runtime when one exists.
+    if (previewRuntime) driver.bindFoldRuntime?.(createDeviceFoldRuntime(previewRuntime));
     this.previews = previewRuntime
       ? new DevicePreviewSessions(
           previewRuntime,
@@ -453,9 +462,13 @@ export class DeviceWorkspaceService {
       lease,
       async (activeSignal) => {
         this.lease(threadId, principal, id, true);
-        if (action.kind === "control") {
+        if (action.kind === "control" || action.kind === "fold") {
+          const control =
+            action.kind === "fold"
+              ? ({ type: "fold", angle: action.angle } as const)
+              : action.control;
           const capability = lease.session.device.controls;
-          if (!capability?.actions.includes(action.control.type) || !this.driver.control)
+          if (!capability?.actions.includes(control.type) || !this.driver.control)
             throw new DeviceWorkspaceError(
               "device_control_unavailable",
               "Refresh and attach to a host that supports this control.",
@@ -463,7 +476,7 @@ export class DeviceWorkspaceService {
             );
           return this.driver.control(
             lease.session.device.id,
-            action.control,
+            control,
             capability.bootId,
             activeSignal,
             () => {
@@ -528,6 +541,10 @@ export class DeviceWorkspaceService {
       );
     const lease = leases[0]!;
     this.lease(threadId, lease.principal, lease.session.id, control);
+    // Agent tool calls renew leases the agent itself opened: without it an
+    // agent-only session (no renderer preview renewing it) expired after
+    // one TTL. User-issued grants keep their own expiry.
+    if (lease.agentOwned) lease.session.expiresAt = this.now() + DEVICE_LEASE_TTL_MS;
     if (control && lease.session.agentAccess !== "control")
       throw new DeviceWorkspaceError(
         "device_agent_denied",
@@ -535,6 +552,158 @@ export class DeviceWorkspaceService {
         403,
       );
     return { principal: lease.principal, session: { ...lease.session } };
+  }
+
+  // Agent-initiated attach (open_device). The caller is authorized by the MCP
+  // layer (plugin + thread proof) before this runs; the lease itself reuses
+  // the UI attach path so busy/limit/expiry semantics stay single-sourced.
+  // The synthetic per-thread principal keeps the lease addressable by
+  // agentSession and by the renderer session routes.
+  async attachForAgent(
+    threadId: string,
+    deviceId: string,
+    access: "view" | "control",
+    authorize: () => void,
+  ): Promise<DeviceSession> {
+    this.assertThread(threadId);
+    authorize();
+    const principal = `agent:${threadId}`;
+    const inventory = await this.discover();
+    const device = inventory.devices.find((entry) => entry.id === deviceId);
+    if (!device)
+      throw new DeviceWorkspaceError(
+        "device_unavailable",
+        "Unknown device. Call list_devices and pass a device id from its result.",
+      );
+    // Match the thread's agent lease regardless of its current principal:
+    // renderer adoption rebinds the principal, and keying on `agent:` alone
+    // would either collide with the adopted lease (device_busy) or create a
+    // second agent lease that agentSession then refuses as ambiguous.
+    const threadAgentLeases = [...this.leases.values()].filter(
+      (lease) =>
+        lease.session.threadId === threadId &&
+        lease.session.agentAccess !== "none" &&
+        lease.session.expiresAt > this.now() &&
+        !lease.abort.signal.aborted,
+    );
+    const existing = threadAgentLeases.find(
+      (lease) =>
+        lease.session.device.id === deviceId &&
+        (lease.session.access === "control" || access === "view"),
+    );
+    if (!existing)
+      for (const lease of threadAgentLeases)
+        await this.detach(threadId, lease.principal, lease.session.id);
+    const session =
+      existing?.session ??
+      (await this.attach(
+        threadId,
+        principal,
+        {
+          version: DEVICE_WORKSPACE_VERSION,
+          generation: this.generation,
+          deviceId,
+          access,
+          agentAccess: access,
+        },
+        authorize,
+      ));
+    const lease = this.leases.get(session.id);
+    // Only a lease created by this call becomes agent-owned; reusing a
+    // user-issued grant must not convert it into an agent-renewable one.
+    if (lease && !existing) lease.agentOwned = true;
+    const needsStart = device.state === "stopped" && access === "control" && Boolean(lease);
+    if (lease && needsStart) lease.initializing = true;
+    try {
+      if (needsStart && lease) {
+        authorize();
+        await this.action(
+          threadId,
+          lease.principal,
+          session.id,
+          { kind: "start" },
+          undefined,
+          authorize,
+        );
+      }
+      if (lease) {
+        // The session snapshot predates the start above (and any earlier boot):
+        // capabilities such as fold are only advertised for running devices,
+        // so refresh the snapshot from live inventory before returning.
+        const fresh = (await this.discover()).devices.find((entry) => entry.id === deviceId);
+        if (fresh) lease.session.device = { ...fresh };
+        lease.session.expiresAt = this.now() + DEVICE_LEASE_TTL_MS;
+        return { ...lease.session };
+      }
+      return { ...session };
+    } catch (error) {
+      if (lease && !existing)
+        await this.detach(threadId, lease.principal, session.id).catch(() => undefined);
+      throw error;
+    } finally {
+      if (lease) lease.initializing = false;
+    }
+  }
+
+  // Renderer adoption of an agent-opened lease: rebind the synthetic agent
+  // principal to the requesting client so the panel renders (and can detach)
+  // the very session agent tools use. Only the thread's own `agent:` lease is
+  // adoptable; another client's lease is never transferred.
+  adoptAgentSession(
+    threadId: string,
+    principal: string,
+    authorize: (control: boolean) => void,
+  ): DeviceSession | null {
+    this.assertThread(threadId);
+    this.lifetime.signal.throwIfAborted();
+    authorize(false);
+    const lease = [...this.leases.values()].find(
+      (entry) =>
+        entry.principal === `agent:${threadId}` &&
+        entry.session.threadId === threadId &&
+        !entry.initializing &&
+        entry.session.expiresAt > this.now() &&
+        !entry.abort.signal.aborted,
+    );
+    if (!lease) return null;
+    try {
+      lease.authorize();
+    } catch {
+      return null;
+    }
+    const control = lease.session.access === "control";
+    authorize(control);
+    lease.principal = principal;
+    lease.authorize = () => authorize(control);
+    lease.session.expiresAt = this.now() + DEVICE_LEASE_TTL_MS;
+    return { ...lease.session };
+  }
+
+  private createDuoFlight: Promise<DeviceInventory> | null = null;
+
+  async createDuo(authorize: () => void): Promise<DeviceInventory> {
+    authorize();
+    if (!this.driver.createDuo)
+      throw new DeviceWorkspaceError(
+        "duo_unavailable",
+        "This host cannot create iPhone Duo simulators.",
+        501,
+      );
+    // Single-flight: concurrent creates (double click, two clients) must not
+    // each pass the driver's existence check and create duplicate devices.
+    this.createDuoFlight ??= (async () => {
+      try {
+        const inventory = await this.discover();
+        const ios = inventory.platforms.find((entry) => entry.platform === "ios");
+        if (ios?.foldableDeviceExists) return inventory;
+        authorize();
+        await this.driver.createDuo!(this.lifetime.signal);
+        return this.discover();
+      } finally {
+        this.createDuoFlight = null;
+      }
+    })();
+    return this.createDuoFlight;
   }
 
   async detach(threadId: string, principal: string, id: string): Promise<void> {

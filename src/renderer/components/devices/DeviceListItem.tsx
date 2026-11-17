@@ -34,7 +34,9 @@ export function DeviceListItem(props: {
         <span className="flex flex-col gap-0.5">
           <span className="block truncate">{device.name}</span>
           <span className="block truncate text-[11px] text-muted">
-            {device.platform === "ios" ? "iOS" : "Android"} · {stateLabel}
+            {`${device.platform === "ios" ? "iOS" : "Android"} · ${stateLabel}${
+              device.foldable ? ` · ${t`Foldable`}` : ""
+            }`}
           </span>
         </span>
       }

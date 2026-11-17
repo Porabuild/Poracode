@@ -337,11 +337,19 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DActionU2ERequest: RemoteRootCodec<RoutedeviceU2DActionRequest_c37d7c3aee> = .init(id: "route.device-action.request", schema: RemoteSchemas.schema_c37d7c3aee05c236)
+  static let routeU2EDeviceU2DActionU2ERequest: RemoteRootCodec<RoutedeviceU2DActionRequest_1ce842fc32> = .init(id: "route.device-action.request", schema: RemoteSchemas.schema_1ce842fc32f1e21f)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DActionU2EResponse: RemoteRootCodec<RoutedeviceU2DActionResponse_64ba4037c0> = .init(id: "route.device-action.response", schema: RemoteSchemas.schema_64ba4037c0af9670)
+  static let routeU2EDeviceU2DActionU2EResponse: RemoteRootCodec<RoutedeviceU2DActionResponse_58bec5fa6d> = .init(id: "route.device-action.response", schema: RemoteSchemas.schema_58bec5fa6d822c6e)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EDeviceU2DAdoptU2DSessionU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.device-adopt-session.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EDeviceU2DAdoptU2DSessionU2EResponse: RemoteRootCodec<RoutedeviceU2DAdoptU2DSessionResponse_1ce2b8f166> = .init(id: "route.device-adopt-session.response", schema: RemoteSchemas.schema_1ce2b8f166790746)
 }
 
 public extension RemoteRootCodecs {
@@ -353,7 +361,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DAttachU2EResponse: RemoteRootCodec<RoutedeviceU2DAttachResponse_11e04e93bd> = .init(id: "route.device-attach.response", schema: RemoteSchemas.schema_11e04e93bdeaf95b)
+  static let routeU2EDeviceU2DAttachU2EResponse: RemoteRootCodec<RoutedeviceU2DAdoptU2DSessionResponseU2DSessionU2DOptionU2D1_96593ec866> = .init(id: "route.device-attach.response", schema: RemoteSchemas.schema_96593ec86640027a)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EDeviceU2DCreateU2DDuoU2EResponse: RemoteRootCodec<RoutedeviceU2DCreateU2DDuoResponse_8e506395c1> = .init(id: "route.device-create-duo.response", schema: RemoteSchemas.schema_8e506395c11c14c3)
 }
 
 public extension RemoteRootCodecs {
@@ -381,7 +393,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EDeviceU2DInventoryU2EResponse: RemoteRootCodec<RoutedeviceU2DInventoryResponse_32a902996b> = .init(id: "route.device-inventory.response", schema: RemoteSchemas.schema_32a902996bba88be)
+  static let routeU2EDeviceU2DInventoryU2EResponse: RemoteRootCodec<RoutedeviceU2DCreateU2DDuoResponse_8e506395c1> = .init(id: "route.device-inventory.response", schema: RemoteSchemas.schema_8e506395c11c14c3)
 }
 
 public extension RemoteRootCodecs {

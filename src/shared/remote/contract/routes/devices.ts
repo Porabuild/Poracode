@@ -1,5 +1,6 @@
 import {
   deviceActionResultSchema,
+  deviceAdoptedSessionSchema,
   deviceHumanActionSchema,
   deviceAttachSchema,
   deviceFrameSchema,
@@ -25,6 +26,17 @@ export const deviceRoutes: readonly RemoteHttpRouteContract[] = [
     response: { wireKind: "json", status: 200, jsonSchema: deviceInventorySchema },
   }),
   defineRoute({
+    id: "device-create-duo",
+    method: "POST",
+    requiresCurrentProtocol: true,
+    path: "/api/devices/duo",
+    auth: "bearer",
+    scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
+    request: { bodyKind: "empty" },
+    response: { wireKind: "json", status: 200, jsonSchema: deviceInventorySchema },
+  }),
+  defineRoute({
     id: "device-attach",
     method: "POST",
     path: "/api/threads/{threadId}/devices",
@@ -33,6 +45,17 @@ export const deviceRoutes: readonly RemoteHttpRouteContract[] = [
     audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: deviceAttachSchema },
     response: { wireKind: "json", status: 200, jsonSchema: deviceSessionSchema },
+  }),
+  defineRoute({
+    id: "device-adopt-session",
+    method: "POST",
+    requiresCurrentProtocol: true,
+    path: "/api/threads/{threadId}/devices/adopt",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: auditEvent("mutate"),
+    request: { bodyKind: "empty" },
+    response: { wireKind: "json", status: 200, jsonSchema: deviceAdoptedSessionSchema },
   }),
   defineRoute({
     id: "device-frame",

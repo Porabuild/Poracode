@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   type ConnectionStatus,
   DeviceClientProvider,
@@ -8,16 +8,27 @@ import {
   useDeviceScreenClient,
 } from "@expo/hub-client";
 import { useLingui } from "@lingui/react/macro";
+import { FoldableBookOverlay, useAnimatedHingeAngle } from "./FoldableBookOverlay";
 import type { DeviceLivePreviewState } from "./useDeviceLivePreview";
 
 function Screen({
   control,
   framed = false,
+  foldable = false,
+  activeDisplay,
+  hingeAngle,
+  dragging = false,
+  folding = false,
   onStatusChange,
   onLivePressButtonChange,
 }: {
   control: boolean;
   framed?: boolean;
+  foldable?: boolean;
+  activeDisplay?: "outer" | "inner" | undefined;
+  hingeAngle?: number | undefined;
+  dragging?: boolean;
+  folding?: boolean;
   onStatusChange?: (status: ConnectionStatus) => void;
   onLivePressButtonChange?: (pressButton: ((button: "recents") => void) | null) => void;
 }) {
@@ -61,32 +72,57 @@ function Screen({
         : client.status === "connecting"
           ? t`Connecting to the device…`
           : t`Waiting for the device…`;
+  const containerRef = useRef<HTMLDivElement>(null);
   const size = displayScreen(client.screen);
   const width = size?.width ?? 9;
   const height = size?.height ?? 16;
+  const animatedAngle = useAnimatedHingeAngle(hingeAngle, dragging);
+  const bookOpen =
+    foldable &&
+    activeDisplay === "inner" &&
+    animatedAngle !== undefined &&
+    animatedAngle > 0 &&
+    animatedAngle < 180 &&
+    client.status === "streaming";
   return (
     <div
+      ref={containerRef}
       data-testid="device-live-preview"
       data-frame={framed ? "framed" : "flat"}
-      className={`relative max-h-full w-full max-w-full overflow-hidden bg-black [&_[role=application]:focus-visible]:ring-2 [&_[role=application]:focus-visible]:ring-inset [&_[role=application]:focus-visible]:ring-accent ${
-        framed ? "rounded-[18px] border-2 border-white/15 p-1 shadow-sm" : "rounded-lg"
+      data-hinge-angle={hingeAngle}
+      data-folding={folding ? "true" : undefined}
+      className={`relative max-h-full w-full max-w-full transition-[max-width,aspect-ratio] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none [&_[role=application]:focus-visible]:ring-2 [&_[role=application]:focus-visible]:ring-inset [&_[role=application]:focus-visible]:ring-accent ${
+        bookOpen
+          ? "overflow-visible bg-transparent"
+          : framed
+            ? "overflow-hidden rounded-[18px] border-2 border-white/15 bg-black p-1 shadow-sm"
+            : "overflow-hidden rounded-lg bg-black"
       }`}
       style={{
         aspectRatio: `${width}/${height}`,
         maxWidth: `min(100%, calc(100cqh * ${width} / ${height}))`,
       }}
     >
-      <DeviceScreen
-        client={gated}
-        interactive={control}
-        ariaLabel={
-          control
-            ? t`Interactive device preview. Tab moves to the next control; Escape closes the workspace.`
-            : t`Live device preview, view only`
-        }
-        statusLabel={status}
-        borderRadius={framed ? 14 : 8}
-      />
+      <div className={bookOpen ? "h-full w-full opacity-0" : "h-full w-full"}>
+        <DeviceScreen
+          client={gated}
+          interactive={control}
+          ariaLabel={
+            control
+              ? t`Interactive device preview. Tab moves to the next control; Escape closes the workspace.`
+              : t`Live device preview, view only`
+          }
+          statusLabel={status}
+          borderRadius={framed ? 14 : 8}
+        />
+      </div>
+      {bookOpen ? (
+        <FoldableBookOverlay
+          sourceContainerRef={containerRef}
+          angle={animatedAngle}
+          orientation={client.screen?.orientation}
+        />
+      ) : null}
     </div>
   );
 }
@@ -95,12 +131,22 @@ export function LiveDevicePreview({
   state,
   control,
   framed = false,
+  foldable = false,
+  activeDisplay,
+  hingeAngle,
+  dragging = false,
+  folding = false,
   onStatusChange,
   onLivePressButtonChange,
 }: {
   state: DeviceLivePreviewState;
   control: boolean;
   framed?: boolean;
+  foldable?: boolean;
+  activeDisplay?: "outer" | "inner" | undefined;
+  hingeAngle?: number | undefined;
+  dragging?: boolean;
+  folding?: boolean;
   onStatusChange?: (status: ConnectionStatus) => void;
   onLivePressButtonChange?: (pressButton: ((button: "recents") => void) | null) => void;
 }) {
@@ -114,12 +160,17 @@ export function LiveDevicePreview({
         streamMode: "h264",
         token: null,
         transport: state.transport,
-        inputEnabled: control,
+        inputEnabled: state.preview.access === "control",
       }}
     >
       <Screen
         control={control}
         framed={framed}
+        foldable={foldable}
+        activeDisplay={activeDisplay}
+        hingeAngle={hingeAngle}
+        dragging={dragging}
+        folding={folding}
         {...(onStatusChange ? { onStatusChange } : {})}
         {...(onLivePressButtonChange ? { onLivePressButtonChange } : {})}
       />

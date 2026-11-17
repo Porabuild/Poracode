@@ -145,5 +145,9 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_a1221059eae7f5c4 = RemoteSchema(type: "integer", minimum: 0.0, maximum: 180.0, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_a13200e46be7a2e6 = RemoteSchema(type: "string", minLength: 1, maxLength: 255, pattern: "^(?!-)(?:[^\\s@/:]+@)?[^\\s@/:]+$", unknownPolicy: .strip, semanticIds: ["string.trim"], transformIds: ["string.trim"])
 }

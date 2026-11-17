@@ -1195,9 +1195,27 @@
     },
     {
       "auth": "bearer",
+      "id": "device-create-duo",
+      "method": "POST",
+      "path": "/api/devices/duo",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "device-attach",
       "method": "POST",
       "path": "/api/threads/{threadId}/devices",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "device-adopt-session",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/devices/adopt",
       "scopes": [
         "session:read"
       ]

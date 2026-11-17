@@ -229,3 +229,98 @@ describe("device tool plugin access and caller proof", () => {
     expect(driver.input).toHaveBeenCalledOnce();
   });
 });
+
+describe("open_device agent attach", () => {
+  it("attaches and starts a stopped device for the caller's thread only, and dispatches fold", async () => {
+    const driver: DeviceDriver = {
+      discover: async () => ({
+        platforms: [{ platform: "ios", status: "ready" }],
+        devices: [
+          {
+            id: "ios:duo",
+            name: "iPhone Duo",
+            platform: "ios",
+            state: "stopped",
+            input: true,
+            accessibility: true,
+            foldable: true,
+            controls: {
+              version: 1,
+              bootId: "13455f6b-3b94-40c8-8913-a6839f2dfd1b",
+              actions: ["read", "fold"],
+            },
+          },
+        ],
+      }),
+      start: vi.fn<DeviceDriver["start"]>(async () => {}),
+      capture: vi.fn<DeviceDriver["capture"]>(),
+      inspect: vi.fn<DeviceDriver["inspect"]>(),
+      input: vi.fn<DeviceDriver["input"]>(async () => {}),
+      control: vi.fn<NonNullable<DeviceDriver["control"]>>(async () => ({
+        version: 1,
+        hingeAngle: 90,
+        activeDisplay: "inner",
+      })),
+      release: async () => {},
+      dispose: async () => {},
+    };
+    const devices = new DeviceWorkspaceService(() => true, driver);
+    stops.push(() => devices.dispose());
+    let settings = normalizeSharedSettings({});
+    const ctxFor = (threadId: string) =>
+      ({
+        identity: {
+          threadId,
+          deviceProof: deviceThreadProof(
+            devices.supervisorExtraEnv()[DEVICE_WORKSPACE_AGENT_KEY_ENV]!,
+            threadId,
+          ),
+        },
+        getThread: () => ({ id: threadId, config: {} }),
+        deviceWorkspace: devices,
+        settings: { read: () => settings },
+      }) as unknown as AppControlsToolContext;
+
+    const session = (await deviceTools.handlers.open_device!(
+      { deviceId: "ios:duo" },
+      ctxFor("thread-A"),
+    )) as { id: string; access: string; device: { id: string } };
+    expect(session.device.id).toBe("ios:duo");
+    expect(session.access).toBe("control");
+    expect(driver.start).toHaveBeenCalledExactlyOnceWith("ios:duo", expect.any(AbortSignal));
+    expect(devices.agentSession("thread-A", true).session.id).toBe(session.id);
+    expect(() => devices.agentSession("thread-B", true)).toThrow("Attach a device");
+
+    const folded = (await deviceTools.handlers.control_device!(
+      { kind: "fold", angle: 90 },
+      ctxFor("thread-A"),
+    )) as { delivered: boolean; controls?: { hingeAngle?: number } };
+    expect(folded.delivered).toBe(true);
+    expect(folded.controls?.hingeAngle).toBe(90);
+    expect(driver.control).toHaveBeenCalledWith(
+      "ios:duo",
+      { type: "fold", angle: 90 },
+      "13455f6b-3b94-40c8-8913-a6839f2dfd1b",
+      expect.any(AbortSignal),
+      expect.any(Function),
+    );
+
+    await expect(
+      deviceTools.handlers.open_device!({ deviceId: "ios:missing" }, ctxFor("thread-A")),
+    ).rejects.toThrow("Unknown device");
+
+    settings = normalizeSharedSettings({
+      installedPlugins: {
+        devices: {
+          version: "1.0.0",
+          enabled: false,
+          disabledSkillIds: [],
+          disabledMcpServerNames: [],
+        },
+      },
+    });
+    await expect(
+      deviceTools.handlers.open_device!({ deviceId: "ios:duo" }, ctxFor("thread-A")),
+    ).rejects.toThrow("Devices plugin is disabled");
+  });
+});

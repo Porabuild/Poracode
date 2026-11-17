@@ -88,19 +88,25 @@ export async function prepareDeviceHub(options) {
   if (hub.name !== "expo-device-hub" || hub.version !== DEVICE_HUB_VERSION)
     throw new Error("The installed Hub differs from its pinned toolchain.");
   const patch = await readFile(
-    join(repoRoot, "patches", `@expo__hub-client@${DEVICE_HUB_CLIENT_VERSION}.patch`),
+    join(repoRoot, "patches", `@expo%2Fhub-client@${DEVICE_HUB_CLIENT_VERSION}.patch`),
   );
   if (sha256(patch) !== DEVICE_HUB_CLIENT_PATCH_SHA256)
     throw new Error("The public-client adaptation pin is stale.");
-  const scrcpy = await readFile(resolve(options.scrcpyServer));
-  if (scrcpy.length > 1024 * 1024 || sha256(scrcpy) !== DEVICE_HUB_SCRCPY_SHA256)
-    throw new Error("The scrcpy v4.0 server differs from its published SHA-256.");
   const qualifiedPlatforms = [
     ...(DEVICE_HUB_QUALIFIED_TARGETS.find(
       (target) =>
         target.platform === platform && target.arch === arch && target.runtimeAbi === runtimeAbi,
     )?.platforms ?? []),
   ];
+  // The scrcpy server only backs Android emulation. Targets that do not
+  // qualify android neither need nor stage it; android targets keep the
+  // pinned integrity check below.
+  const needsScrcpy = qualifiedPlatforms.includes("android");
+  if (needsScrcpy && !options.scrcpyServer)
+    throw new Error("--scrcpy-server must name the pre-fetched official pinned v4.0 asset.");
+  const scrcpy = options.scrcpyServer ? await readFile(resolve(options.scrcpyServer)) : null;
+  if (scrcpy && (scrcpy.length > 1024 * 1024 || sha256(scrcpy) !== DEVICE_HUB_SCRCPY_SHA256))
+    throw new Error("The scrcpy v4.0 server differs from its published SHA-256.");
   const scratch = resolve(options.scratch ?? join(repoRoot, ".tmp"));
   await mkdir(scratch, { recursive: true });
   const stage = await mkdtemp(join(scratch, "device-hub-stage-"));
@@ -174,7 +180,8 @@ export async function prepareDeviceHub(options) {
   // copy prevents serve-emu's lazy network download during a preview.
   const previousScrcpy = files.findIndex((file) => file.path === DEVICE_HUB_SCRCPY_PATH);
   if (previousScrcpy !== -1) files.splice(previousScrcpy, 1);
-  await write(DEVICE_HUB_SCRCPY_PATH, scrcpy);
+  if (scrcpy) await write(DEVICE_HUB_SCRCPY_PATH, scrcpy);
+  else await rm(join(stage, DEVICE_HUB_SCRCPY_PATH), { force: true });
   await write(
     DEVICE_HUB_BOOTSTRAP,
     await readFile(join(repoRoot, "resources", "device-hub", DEVICE_HUB_BOOTSTRAP)),
@@ -217,11 +224,10 @@ export async function prepareDeviceHub(options) {
     // It can be replaced atomically, but is no longer admitted by the host.
     if (previousManifest.version !== 1 && previousManifest.version !== DEVICE_HUB_ARTIFACT_VERSION)
       throw new Error("Refusing to replace an unknown Hub artifact version.");
-    const current = deviceHubArtifactSchema.parse({
-      ...previousManifest,
-      version: DEVICE_HUB_ARTIFACT_VERSION,
-    });
-    if (current.platform !== platform || current.arch !== arch)
+    // The previous artifact is being replaced, not admitted: check only its
+    // identity fields. A full schema parse would refuse exactly the stale
+    // pins (adapter version, client patch) that a restage exists to rotate.
+    if (previousManifest.platform !== platform || previousManifest.arch !== arch)
       throw new Error("The existing artifact target differs.");
     previous = join(scratch, `device-hub-previous-${randomUUID()}`);
     await rename(target, previous);
@@ -302,32 +308,39 @@ export async function preparePackagedDeviceHub(stageRoot, target, dependencies =
       timeout: 120000,
     });
 
-    const fetch = dependencies.fetch ?? globalThis.fetch;
-    const response = await fetch(
-      `https://github.com/Genymobile/scrcpy/releases/download/v${DEVICE_HUB_SCRCPY_VERSION}/scrcpy-server-v${DEVICE_HUB_SCRCPY_VERSION}`,
-      { signal: AbortSignal.timeout(30000) },
-    );
-    if (!response.ok || !response.body) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new Error("Unable to fetch the pinned scrcpy server.");
-    }
-    const reader = response.body.getReader();
-    const chunks = [];
-    let bytes = 0;
-    try {
-      while (true) {
-        const next = await reader.read();
-        if (next.done) break;
-        bytes += next.value.byteLength;
-        if (bytes > 1024 * 1024)
-          throw new Error("The pinned scrcpy server exceeds its size limit.");
-        chunks.push(next.value);
+    // Only android-qualified targets fetch and stage the scrcpy server.
+    const needsScrcpy = candidates
+      .filter((entry) => entry.runtimeAbi === identity.abi)
+      .some((entry) => entry.platforms.includes("android"));
+    let scrcpyServer;
+    if (needsScrcpy) {
+      const fetch = dependencies.fetch ?? globalThis.fetch;
+      const response = await fetch(
+        `https://github.com/Genymobile/scrcpy/releases/download/v${DEVICE_HUB_SCRCPY_VERSION}/scrcpy-server-v${DEVICE_HUB_SCRCPY_VERSION}`,
+        { signal: AbortSignal.timeout(30000) },
+      );
+      if (!response.ok || !response.body) {
+        await response.body?.cancel().catch(() => undefined);
+        throw new Error("Unable to fetch the pinned scrcpy server.");
       }
-    } finally {
-      await reader.cancel().catch(() => undefined);
+      const reader = response.body.getReader();
+      const chunks = [];
+      let bytes = 0;
+      try {
+        while (true) {
+          const next = await reader.read();
+          if (next.done) break;
+          bytes += next.value.byteLength;
+          if (bytes > 1024 * 1024)
+            throw new Error("The pinned scrcpy server exceeds its size limit.");
+          chunks.push(next.value);
+        }
+      } finally {
+        await reader.cancel().catch(() => undefined);
+      }
+      scrcpyServer = join(source, `scrcpy-server-v${DEVICE_HUB_SCRCPY_VERSION}`);
+      await writeFile(scrcpyServer, Buffer.concat(chunks));
     }
-    const scrcpyServer = join(source, `scrcpy-server-v${DEVICE_HUB_SCRCPY_VERSION}`);
-    await writeFile(scrcpyServer, Buffer.concat(chunks));
     const output = join(stageRoot, "resources", "device-hub");
     // Discard only the stage's copied generated cache, never checkout artifacts.
     await rm(output, { recursive: true, force: true, maxRetries: 8, retryDelay: 50 });
@@ -335,7 +348,7 @@ export async function preparePackagedDeviceHub(stageRoot, target, dependencies =
     return await stage({
       source,
       output,
-      scrcpyServer,
+      ...(scrcpyServer ? { scrcpyServer } : {}),
       runtimeAbi: identity.abi,
       scratch: join(source, ".tmp"),
     });
@@ -361,8 +374,7 @@ async function main() {
       );
     options[name] = value;
   }
-  if (!options.scrcpyServer)
-    throw new Error("--scrcpy-server must name the pre-fetched official pinned v4.0 asset.");
+  // prepareDeviceHub requires --scrcpy-server only for android-qualified targets.
   const result = await prepareDeviceHub(options);
   console.log(
     `[device-hub] staged ${result.target}; qualified: ${result.qualifiedPlatforms.join(", ") || "none"}`,

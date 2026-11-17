@@ -15,7 +15,10 @@ const point = z.number().finite().min(0).max(1);
 export const devicePlatformSchema = z.enum(["ios", "android"]);
 // Human-only tools v1 is negotiated per running emulator and pinned to its boot.
 // Legacy workspace v1 and agent input remain valid; old readers strip controls,
-// while old action readers reject the new discriminator before any effect.
+// while old action readers reject the new discriminator before any effect. The
+// "fold" action joins this enum within v1: device-action requires the current
+// protocol, and inventory/attach strip "fold" for non-current peers (see
+// httpRouteHandlers.devices) so their closed enum still parses — no bump.
 export const DEVICE_CONTROLS_VERSION = 1 as const;
 export const deviceControlTypeSchema = z.enum([
   "read",
@@ -29,7 +32,9 @@ export const deviceControlTypeSchema = z.enum([
   "openUrl",
   "launchApp",
   "powerOff",
+  "fold",
 ]);
+export const deviceHingeAngleSchema = z.int().min(0).max(180);
 export const devicePermissionSchema = z.enum([
   "camera",
   "microphone",
@@ -86,6 +91,7 @@ export const deviceControlSchema = z.discriminatedUnion("type", [
   }),
   z.strictObject({ type: z.literal("launchApp"), applicationId }),
   z.strictObject({ type: z.literal("powerOff") }),
+  z.strictObject({ type: z.literal("fold"), angle: deviceHingeAngleSchema }),
 ]);
 export type DeviceControl = z.infer<typeof deviceControlSchema>;
 export const deviceControlStateSchema = z.object({
@@ -94,6 +100,8 @@ export const deviceControlStateSchema = z.object({
   fontScale: z.number().finite().positive().max(10).optional(),
   reduceMotion: z.boolean().optional(),
   networkEnabled: z.boolean().optional(),
+  hingeAngle: deviceHingeAngleSchema.optional(),
+  activeDisplay: z.enum(["outer", "inner"]).optional(),
 });
 export type DeviceControlState = z.infer<typeof deviceControlStateSchema>;
 
@@ -105,6 +113,9 @@ export const deviceTargetSchema = z.object({
   input: z.boolean(),
   accessibility: z.boolean(),
   controls: deviceControlCapabilitiesSchema.optional(),
+  // Additive: true when the host identified a foldable form factor. Old
+  // readers strip it; fold capability itself is advertised via controls.
+  foldable: z.boolean().optional(),
 });
 export type DeviceTarget = z.infer<typeof deviceTargetSchema>;
 
@@ -124,6 +135,9 @@ export const deviceInventorySchema = z.object({
           "unavailable",
         ]),
         diagnostic: z.string().max(2000).optional(),
+        // Structured foldable (iPhone Duo) create-flow state for the panel.
+        foldableRuntimeAvailable: z.boolean().optional(),
+        foldableDeviceExists: z.boolean().optional(),
       }),
     )
     .max(2),
@@ -150,6 +164,11 @@ export const deviceSessionSchema = z.object({
   expiresAt: z.number(),
 });
 export type DeviceSession = z.infer<typeof deviceSessionSchema>;
+// Adopting an agent-opened lease returns no session when the thread has none.
+export const deviceAdoptedSessionSchema = z.object({
+  session: deviceSessionSchema.nullable(),
+});
+export type DeviceAdoptedSession = z.infer<typeof deviceAdoptedSessionSchema>;
 
 export const deviceFrameSchema = z.object({
   version: z.literal(DEVICE_WORKSPACE_VERSION),
@@ -186,6 +205,9 @@ export type DeviceInput = z.infer<typeof deviceInputSchema>;
 export const deviceActionSchema = z.discriminatedUnion("kind", [
   ...deviceInputSchema.options,
   z.strictObject({ kind: z.literal("start") }),
+  // Fold is posture input, the same risk class as agent tap/key input. It is
+  // still dispatched only through an advertised control capability and boot.
+  z.strictObject({ kind: z.literal("fold"), angle: deviceHingeAngleSchema }),
 ]);
 export type DeviceAction = z.infer<typeof deviceActionSchema>;
 // Keep deviceActionSchema closed for existing agent grants. Human tools are

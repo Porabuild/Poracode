@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,6 +15,7 @@ import type {
 } from "@/shared/deviceWorkspace";
 import { deviceControlTypeSchema, deviceControlSchema } from "@/shared/deviceWorkspace";
 import { runAndroidDeviceControl } from "./nativeDeviceControls";
+import type { DeviceFoldRuntime } from "./deviceFold";
 import {
   DeviceWorkspaceError,
   findDeviceTool,
@@ -51,10 +53,14 @@ export interface DeviceDriver {
     signal: AbortSignal,
     authorize?: () => void,
   ): Promise<DeviceControlState | undefined>;
+  createDuo?(signal: AbortSignal): Promise<void>;
+  bindFoldRuntime?(runtime: DeviceFoldRuntime): void;
   release(deviceId: string): Promise<void>;
   dispose(): Promise<void>;
 }
 type NativeTarget = { target: DeviceTarget; nativeId: string; serial?: string };
+// The only foldable CoreSimulator device type today (iPhone19,4, iOS 27.1+).
+export const IPHONE_DUO_DEVICE_TYPE = "com.apple.CoreSimulator.SimDeviceType.iPhone-Duo";
 const simctlDevicesSchema = z.object({
   devices: z.record(
     z.string(),
@@ -64,10 +70,44 @@ const simctlDevicesSchema = z.object({
         name: z.string(),
         state: z.string(),
         isAvailable: z.boolean().optional(),
+        deviceTypeIdentifier: z.string().optional(),
       }),
     ),
   ),
 });
+const simctlRuntimesSchema = z.object({
+  runtimes: z.array(
+    z.object({
+      identifier: z.string(),
+      isAvailable: z.boolean().optional(),
+      supportedDeviceTypes: z.array(z.object({ identifier: z.string() })).optional(),
+    }),
+  ),
+});
+// `xcrun devicectl device info displays --json-output -` is the one read-back
+// source for which Duo panel is lit; display ids are always read, never assumed.
+const devicectlDisplaysSchema = z.object({
+  result: z.object({
+    displays: z.array(
+      z.object({
+        displayId: z.int().min(0),
+        active: z.boolean(),
+        primary: z.boolean().optional(),
+        nativeSize: z.tuple([z.number().positive(), z.number().positive()]),
+        pointScale: z.number().positive(),
+        currentOrientation: z.string().optional(),
+      }),
+    ),
+  }),
+});
+interface FoldableDisplays {
+  outerId: number;
+  innerId: number;
+  activeId: number;
+  activeDisplay: "outer" | "inner";
+  pointWidth: number;
+  pointHeight: number;
+}
 const idbScreenSchema = z.object({
   screen_dimensions: z.object({
     width_points: z.number().positive(),
@@ -88,6 +128,36 @@ export class NativeDeviceDriver implements DeviceDriver {
   private disposed = false;
   private readonly starting = new Map<string, ChildProcess>();
   private readonly startFailures = new Map<string, string>();
+  // iOS has no boot-id source, so a foldable's control boot identity is
+  // minted per observed boot and dropped once the device is seen stopped.
+  private readonly iosBootIds = new Map<string, string>();
+  // The hinge helper only learns the angle after a fold is sent through it;
+  // a fresh hub generation's config omits hingeAngle entirely. Remember the
+  // last angle this driver folded to so pose reads stay accurate.
+  private readonly foldAngles = new Map<string, number>();
+  // Installed runtimes change only through Xcode, so the Duo-runtime probe
+  // is memoized per driver lifetime instead of spawning simctl per discover.
+  private duoRuntimeCache: { value: string | null } | null = null;
+
+  constructor(private foldRuntime: DeviceFoldRuntime | null = null) {}
+
+  bindFoldRuntime(runtime: DeviceFoldRuntime): void {
+    this.foldRuntime ??= runtime;
+  }
+
+  private iosBootId(udid: string, booted: boolean): string | undefined {
+    if (!booted) {
+      this.iosBootIds.delete(udid);
+      this.foldAngles.delete(udid);
+      return undefined;
+    }
+    let bootId = this.iosBootIds.get(udid);
+    if (!bootId) {
+      bootId = randomUUID();
+      this.iosBootIds.set(udid, bootId);
+    }
+    return bootId;
+  }
 
   async discover(signal: AbortSignal): Promise<Omit<DeviceInventory, "version" | "generation">> {
     const platforms: DeviceInventory["platforms"] = [];
@@ -168,7 +238,10 @@ export class NativeDeviceDriver implements DeviceDriver {
                     controls: {
                       version: 1 as const,
                       bootId,
-                      actions: deviceControlTypeSchema.options,
+                      // Fold is an iOS foldable posture control, not adb-backed.
+                      actions: deviceControlTypeSchema.options.filter(
+                        (action) => action !== "fold",
+                      ),
                     },
                   }
                 : {}),
@@ -213,26 +286,63 @@ export class NativeDeviceDriver implements DeviceDriver {
             "/usr/local/bin/idb_companion",
           ]),
         ]);
+        // Fold controls ride the live-preview helper, so they are advertised
+        // only for a running foldable on a hub-qualified host.
+        let foldQualified = false;
+        if (this.foldRuntime) {
+          await this.foldRuntime.prepare().catch(() => undefined);
+          foldQualified = this.foldRuntime.qualified();
+        }
+        const duoRuntimeId = await this.duoCapableRuntime(signal).catch(() => undefined);
+        let foldableDeviceExists = false;
         for (const [runtime, devices] of Object.entries(list.devices))
           for (const device of devices) {
             if (!runtime.includes(".iOS-")) continue;
             if (device.isAvailable === false || targets.size >= 128) continue;
             const id = `ios:${device.udid}`;
+            const foldable = device.deviceTypeIdentifier === IPHONE_DUO_DEVICE_TYPE;
+            if (foldable) foldableDeviceExists = true;
+            const running = device.state === "Booted";
+            const bootId = foldable ? this.iosBootId(device.udid, running) : undefined;
             targets.set(id, {
               nativeId: device.udid,
               target: {
                 id,
                 name: device.name,
                 platform: "ios",
-                state: device.state === "Booted" ? "running" : "stopped",
+                state: running ? "running" : "stopped",
                 input: Boolean(this.idb && this.companion),
                 accessibility: Boolean(this.idb && this.companion),
+                ...(foldable ? { foldable: true } : {}),
+                ...(foldable && running && foldQualified && bootId
+                  ? {
+                      controls: {
+                        version: 1 as const,
+                        bootId,
+                        actions: deviceControlTypeSchema.options.filter(
+                          (action) => action === "read" || action === "fold",
+                        ),
+                      },
+                    }
+                  : {}),
               },
             });
           }
         platforms.push({
           platform: "ios",
           status: this.idb && this.companion ? "ready" : "missing_idb",
+          ...(duoRuntimeId === null
+            ? {
+                diagnostic:
+                  "iPhone Duo needs Xcode 27.1 or newer with its own iOS runtime, installed from Xcode Settings > Components.",
+              }
+            : {}),
+          ...(duoRuntimeId !== undefined
+            ? {
+                foldableRuntimeAvailable: duoRuntimeId !== null,
+                foldableDeviceExists,
+              }
+            : {}),
         });
       } catch (error) {
         platforms.push({
@@ -257,6 +367,95 @@ export class NativeDeviceDriver implements DeviceDriver {
         "Refresh the device list and attach again.",
       );
     return target;
+  }
+
+  // The Duo needs its own runtime: the general iOS runtime cannot create one.
+  // Resolves to the runtime identifier, null when enumeration succeeded but
+  // none is Duo-capable; throws when enumeration itself fails.
+  private async duoCapableRuntime(signal: AbortSignal): Promise<string | null> {
+    if (process.platform !== "darwin") return null;
+    if (this.duoRuntimeCache) return this.duoRuntimeCache.value;
+    const parsed = simctlRuntimesSchema.parse(
+      JSON.parse(
+        (
+          await runDeviceCommand("/usr/bin/xcrun", ["simctl", "list", "runtimes", "--json"], signal)
+        ).toString(),
+      ),
+    );
+    const value =
+      parsed.runtimes.find(
+        (runtime) =>
+          runtime.isAvailable !== false &&
+          runtime.identifier.includes(".iOS-") &&
+          runtime.supportedDeviceTypes?.some((type) => type.identifier === IPHONE_DUO_DEVICE_TYPE),
+      )?.identifier ?? null;
+    this.duoRuntimeCache = { value };
+    return value;
+  }
+
+  private async foldableDisplaysFor(udid: string, signal: AbortSignal): Promise<FoldableDisplays> {
+    const parsed = devicectlDisplaysSchema.parse(
+      JSON.parse(
+        (
+          await runDeviceCommand(
+            "/usr/bin/xcrun",
+            ["devicectl", "device", "info", "displays", "--device", udid, "--json-output", "-"],
+            signal,
+          )
+        ).toString(),
+      ),
+    );
+    const displays = parsed.result.displays;
+    const outer = displays.find((display) => display.primary === true) ?? displays[0];
+    const inner = displays.find((display) => display !== outer);
+    const active = displays.find((display) => display.active);
+    if (!outer || !inner || !active)
+      throw new DeviceWorkspaceError(
+        "device_fold_failed",
+        "The foldable displays could not be read back.",
+        503,
+      );
+    let pointWidth = active.nativeSize[0] / active.pointScale;
+    let pointHeight = active.nativeSize[1] / active.pointScale;
+    // simctl screenshots come back in the active panel's current orientation,
+    // so the paired point space rotates with it (idb describe keeps reporting
+    // the outer panel and cannot be used here).
+    if (active.currentOrientation === "rot90" || active.currentOrientation === "rot270")
+      [pointWidth, pointHeight] = [pointHeight, pointWidth];
+    return {
+      outerId: outer.displayId,
+      innerId: inner.displayId,
+      activeId: active.displayId,
+      activeDisplay: active.displayId === outer.displayId ? "outer" : "inner",
+      pointWidth,
+      pointHeight,
+    };
+  }
+
+  async createDuo(signal: AbortSignal): Promise<void> {
+    if (process.platform !== "darwin")
+      throw new DeviceWorkspaceError(
+        "duo_unavailable",
+        "iPhone Duo simulators require a macOS host with Xcode 27.1 or newer.",
+        501,
+      );
+    if ([...this.targets.values()].some((entry) => entry.target.foldable)) return;
+    // Re-probe: the user may have installed the runtime since the memoized
+    // probe ran, and Create is the moment that must see it.
+    this.duoRuntimeCache = null;
+    const runtimeId = await this.duoCapableRuntime(signal).catch(() => null);
+    if (!runtimeId)
+      throw new DeviceWorkspaceError(
+        "duo_runtime_unavailable",
+        "No iPhone Duo runtime is installed. Install the iPhone Duo iOS runtime in Xcode Settings > Components, then try again.",
+        400,
+      );
+    await runDeviceCommand(
+      "/usr/bin/xcrun",
+      ["simctl", "create", "iPhone Duo", IPHONE_DUO_DEVICE_TYPE, runtimeId],
+      signal,
+      60_000,
+    );
   }
   private async android(
     id: string,
@@ -324,12 +523,19 @@ export class NativeDeviceDriver implements DeviceDriver {
           device.state === "Booted" &&
           device.isAvailable !== false,
       );
-    if (!running)
+    if (!running) {
+      if (entry.target.foldable) this.iosBootId(entry.nativeId, false);
       throw new DeviceWorkspaceError(
         "device_not_running",
         "Start the simulator before opening a live preview.",
       );
-    return { clientDeviceId: entry.nativeId, ...(this.adb ? { adbPath: this.adb } : {}) };
+    }
+    const bootId = entry.target.foldable ? this.iosBootId(entry.nativeId, true) : undefined;
+    return {
+      clientDeviceId: entry.nativeId,
+      ...(bootId ? { bootId } : {}),
+      ...(this.adb ? { adbPath: this.adb } : {}),
+    };
   }
 
   async start(id: string, signal: AbortSignal): Promise<void> {
@@ -376,6 +582,8 @@ export class NativeDeviceDriver implements DeviceDriver {
     authorize?: () => void,
   ): Promise<DeviceControlState | undefined> {
     const control = deviceControlSchema.parse(input);
+    if (this.target(id).target.platform === "ios")
+      return this.iosControl(id, control, bootId, signal, authorize);
     if (this.target(id).target.platform !== "android")
       throw new DeviceWorkspaceError(
         "device_control_unavailable",
@@ -394,6 +602,116 @@ export class NativeDeviceDriver implements DeviceDriver {
     }, control);
   }
 
+  private async iosControl(
+    id: string,
+    control: DeviceControl,
+    bootId: string,
+    signal: AbortSignal,
+    authorize?: () => void,
+  ): Promise<DeviceControlState> {
+    const entry = this.target(id);
+    if (!entry.target.foldable || !this.foldRuntime)
+      throw new DeviceWorkspaceError(
+        "device_control_unavailable",
+        "Additional controls are not qualified for this platform.",
+        501,
+      );
+    if (control.type !== "read" && control.type !== "fold")
+      throw new DeviceWorkspaceError(
+        "device_control_unavailable",
+        "That control is not available for this device.",
+        501,
+      );
+    authorize?.();
+    const current = await this.streamTarget(id, signal);
+    if (current.bootId !== bootId)
+      throw new DeviceWorkspaceError(
+        "device_identity_changed",
+        "The simulator restarted. Refresh and attach again.",
+      );
+    authorize?.();
+    if (control.type === "read") return this.iosFoldState(entry.nativeId, bootId, signal);
+    const helper = await this.foldRuntime.acquireHelper(entry.nativeId, bootId, signal);
+    try {
+      await helper.setHingeAngle(control.angle, signal);
+      // The hinge settles over seconds; poll the helper config until it
+      // reports the requested angle instead of assuming the fold landed.
+      const deadline = Date.now() + 15_000;
+      let hingeAngle: number | undefined;
+      for (;;) {
+        // A config read can fail while the helper is still coming up; the
+        // hinge ack already confirmed the fold, so treat that as unknown
+        // angle instead of failing a fold that physically landed.
+        const config = await helper.readConfig(signal).catch(() => {
+          signal.throwIfAborted();
+          return undefined;
+        });
+        hingeAngle = config?.hingeAngle;
+        if (hingeAngle === undefined || hingeAngle === control.angle) break;
+        if (Date.now() >= deadline)
+          throw new DeviceWorkspaceError(
+            "device_fold_failed",
+            "The fold did not settle. Capture a fresh frame and retry.",
+            503,
+          );
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        signal.throwIfAborted();
+      }
+      // The lit panel switches after the hinge reports its angle, so poll
+      // displays too; reporting the pre-fold panel misleads callers. On
+      // timeout report the actual panel — the fold itself has landed.
+      const expectedDisplay = control.angle === 0 ? "outer" : control.angle >= 45 ? "inner" : null;
+      const displayDeadline = Date.now() + 15_000;
+      let displays = await this.foldableDisplaysFor(entry.nativeId, signal);
+      if (expectedDisplay !== null) {
+        while (displays.activeDisplay !== expectedDisplay && Date.now() < displayDeadline) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          signal.throwIfAborted();
+          displays = await this.foldableDisplaysFor(entry.nativeId, signal);
+        }
+      }
+      const settledAngle = hingeAngle ?? control.angle;
+      this.foldAngles.set(entry.nativeId, settledAngle);
+      return {
+        version: 1,
+        hingeAngle: settledAngle,
+        activeDisplay: displays.activeDisplay,
+      };
+    } finally {
+      await helper.release();
+    }
+  }
+
+  private async iosFoldState(
+    udid: string,
+    bootId: string,
+    signal: AbortSignal,
+  ): Promise<DeviceControlState> {
+    const displays = await this.foldableDisplaysFor(udid, signal);
+    let hingeAngle: number | undefined;
+    // Only query an already-active helper on pose reads so snapshot mode does
+    // not spawn and immediately tear down a fresh hub process every 5 seconds.
+    if (this.foldRuntime && (this.foldRuntime.hasActiveHelper?.(udid, bootId) ?? true)) {
+      const helper = await this.foldRuntime.acquireHelper(udid, bootId, signal);
+      try {
+        hingeAngle = (await helper.readConfig(signal)).hingeAngle;
+      } catch {
+        signal.throwIfAborted();
+        // Read-back of the lit panel still succeeds without the helper.
+        hingeAngle = undefined;
+      } finally {
+        await helper.release();
+      }
+    }
+    if (hingeAngle !== undefined) this.foldAngles.set(udid, hingeAngle);
+    const knownAngle = hingeAngle ?? this.foldAngles.get(udid);
+    return {
+      version: 1,
+      ...(knownAngle !== undefined ? { hingeAngle: knownAngle } : {}),
+      activeDisplay: displays.activeDisplay,
+    };
+  }
+
   async capture(id: string, signal: AbortSignal): Promise<DeviceCapture> {
     const entry = this.target(id);
     if (entry.target.platform === "android")
@@ -401,13 +719,27 @@ export class NativeDeviceDriver implements DeviceDriver {
     const root = await mkdtemp(join(tmpdir(), "poracode-device-shot-"));
     try {
       const path = join(root, "screen.png");
+      // Foldables light one panel at a time; the dark panel captures black.
+      const displays = entry.target.foldable
+        ? await this.foldableDisplaysFor(entry.nativeId, signal)
+        : undefined;
       await runDeviceCommand(
         "/usr/bin/xcrun",
-        ["simctl", "io", entry.nativeId, "screenshot", "--type=png", path],
+        [
+          "simctl",
+          "io",
+          entry.nativeId,
+          "screenshot",
+          "--type=png",
+          ...(displays ? [`--display=${displays.activeId}`] : []),
+          path,
+        ],
         signal,
       );
       const png = await readFile(path);
       if (!entry.target.input) return { png };
+      if (displays)
+        return { png, inputWidth: displays.pointWidth, inputHeight: displays.pointHeight };
       const screen = idbScreenSchema.parse(
         JSON.parse((await this.ios(id, ["describe", "--json"], signal)).toString()),
       ).screen_dimensions;

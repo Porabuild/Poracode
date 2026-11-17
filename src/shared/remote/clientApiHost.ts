@@ -82,6 +82,7 @@ import {
 } from "@/shared/contracts";
 import { RemoteClientDevicePreviewApi } from "./clientDevicePreview";
 import {
+  deviceAdoptedSessionSchema,
   deviceInventorySchema,
   deviceSessionSchema,
   deviceFrameSchema,
@@ -116,6 +117,24 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       }),
       "device session",
     );
+  }
+  async createDuoDevice() {
+    return parseResponse(
+      deviceInventorySchema,
+      await this.requestJson("/api/devices/duo", { method: "POST", mutation: true }),
+      "device inventory",
+    );
+  }
+  async adoptDeviceSession(threadId: string) {
+    const result = parseResponse(
+      deviceAdoptedSessionSchema,
+      await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/devices/adopt`, {
+        method: "POST",
+        mutation: true,
+      }),
+      "device session",
+    );
+    return result.session;
   }
   async deviceFrame(threadId: string, sessionId: string, signal?: AbortSignal) {
     return parseResponse(
