@@ -108,7 +108,8 @@ describe("HexVoiceService", () => {
       "parakeet_v3",
       expect.objectContaining({ language: "en" }),
     );
-    expect(host.close).toHaveBeenCalled();
+    expect(host.create).toHaveBeenCalledTimes(1);
+    expect(host.close).not.toHaveBeenCalled();
   });
 
   it("returns unavailable and not_ready without accepting an unverified model", async () => {
@@ -359,6 +360,7 @@ describe("HexVoiceService", () => {
     ).resolves.toEqual({ kind: "error", code: "busy" });
     finishList();
     await expect(listing).resolves.toMatchObject({ kind: "catalog" });
+    await service.dispose();
 
     let closeHelper!: () => void;
     const closePromise = new Promise<void>((resolve) => {
@@ -366,6 +368,19 @@ describe("HexVoiceService", () => {
     });
     const closingHost = fakeHost();
     closingHost.close.mockImplementation(() => closePromise);
+    closingHost.client.models.prepare.mockImplementation(
+      (_model, options) =>
+        new Promise((_, reject) => {
+          const { signal } = options as { signal: AbortSignal };
+          signal.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            {
+              once: true,
+            },
+          );
+        }),
+    );
     service = new HexVoiceService({
       executable: () => "/usr/bin/hex",
       create: closingHost.create,
@@ -376,12 +391,7 @@ describe("HexVoiceService", () => {
       model: "parakeet_v3",
       language: "en",
     });
-    await vi.waitFor(async () => {
-      await expect(service.handle({ action: "status", id })).resolves.toMatchObject({
-        kind: "job",
-        job: { phase: "done" },
-      });
-    });
+    await vi.waitFor(() => expect(closingHost.client.models.prepare).toHaveBeenCalledTimes(1));
     let cancelled = false;
     const cancelling = service.handle({ action: "cancel", id }).then((result) => {
       cancelled = true;
@@ -389,7 +399,6 @@ describe("HexVoiceService", () => {
     });
     await Promise.resolve();
     expect(cancelled).toBe(false);
-    finishList(); // Resolving the already-finished catalog gate is harmless.
     closeHelper();
     await expect(cancelling).resolves.toEqual({ kind: "cancelled" });
     expect(cancelled).toBe(true);
@@ -415,8 +424,7 @@ describe("HexVoiceService", () => {
     };
     service = new HexVoiceService({ installer: installer as never });
     const removing = service.handle({ action: "remove_engine" });
-    await Promise.resolve();
-    expect(installer.removeManagedEngine).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(installer.removeManagedEngine).toHaveBeenCalledTimes(1));
     await expect(service.handle({ action: "list", language: "en" })).resolves.toEqual({
       kind: "error",
       code: "busy",
@@ -437,6 +445,282 @@ describe("HexVoiceService", () => {
       kind: "error",
       code: "unavailable",
     });
+  });
+
+  it("cancels installation even while a warm helper is still closing", async () => {
+    let closeHelper!: () => void;
+    const host = fakeHost();
+    host.close.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          closeHelper = resolve;
+        }),
+    );
+    const installer = {
+      startInstall: vi.fn<() => void>(),
+      cancelInstall: vi.fn<() => Promise<void>>(async () => {}),
+      isInstalling: false,
+      snapshot: () => ({
+        state: "missing",
+        source: null,
+        version: null,
+        availableVersion: "3.1.1",
+        downloadBytes: null,
+      }),
+    };
+    service = new HexVoiceService({
+      executable: () => "/usr/bin/hex",
+      create: host.create,
+      installer: installer as never,
+    });
+    await service.handle({ action: "list", language: "en" });
+    const installing = service.handle({ action: "install" });
+    await vi.waitFor(() => expect(host.close).toHaveBeenCalledTimes(1));
+    const cancelling = service.handle({ action: "cancel_install" });
+    closeHelper();
+    await installing;
+    await cancelling;
+    expect(installer.startInstall).toHaveBeenCalledTimes(1);
+    expect(installer.cancelInstall.mock.invocationCallOrder[0]).toBeGreaterThan(
+      installer.startInstall.mock.invocationCallOrder[0]!,
+    );
+    expect(host.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("preloads during capture and reuses one helper across completed recordings", async () => {
+    const host = fakeHost();
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await service.handle({ action: "list", language: "en" });
+    for (const jobId of [id, secondId]) {
+      await service.handle({ action: "begin", id: jobId, model: "parakeet_v3", language: "en" });
+      expect(host.client.models.prepare).toHaveBeenCalledWith(
+        "parakeet_v3",
+        expect.objectContaining({ language: "en" }),
+      );
+      await service.handle({
+        action: "append",
+        id: jobId,
+        offset: 0,
+        audioBase64: bytesBase64(wav()),
+      });
+      await service.handle({ action: "finish", id: jobId });
+      await vi.waitFor(async () => {
+        await expect(service.handle({ action: "status", id: jobId })).resolves.toMatchObject({
+          kind: "job",
+          job: { phase: "done", transcript: "native words" },
+        });
+      });
+      await service.handle({ action: "cancel", id: jobId });
+      expect(host.close).not.toHaveBeenCalled();
+    }
+    expect(host.create).toHaveBeenCalledTimes(1);
+    expect(host.client.models.list).toHaveBeenCalledTimes(3);
+    await service.dispose();
+    expect(host.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("joins in-flight warmup when a short recording finishes", async () => {
+    let finishPreparation!: () => void;
+    const host = fakeHost();
+    host.client.models.prepare.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishPreparation = resolve;
+        }),
+    );
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await service.handle({ action: "begin", id, model: "parakeet_v3", language: "en" });
+    await service.handle({ action: "append", id, offset: 0, audioBase64: bytesBase64(wav()) });
+    await expect(service.handle({ action: "finish", id })).resolves.toMatchObject({
+      kind: "job",
+      job: { phase: "loading" },
+    });
+    expect(host.client.transcribe).not.toHaveBeenCalled();
+    finishPreparation();
+    await vi.waitFor(() => expect(host.client.transcribe).toHaveBeenCalledTimes(1));
+    expect(host.client.models.prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it("expires an idle helper without unloading an active five-minute capture", async () => {
+    vi.useFakeTimers();
+    const host = fakeHost();
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await service.handle({ action: "list", language: "en" });
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(host.close).toHaveBeenCalledTimes(1);
+    await service.handle({ action: "list", language: "en" });
+    expect(host.create).toHaveBeenCalledTimes(2);
+    await service.handle({ action: "begin", id, model: "parakeet_v3", language: "en" });
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(host.close).toHaveBeenCalledTimes(1);
+    await expect(
+      service.handle({ action: "append", id, offset: 0, audioBase64: bytesBase64(wav()) }),
+    ).resolves.toMatchObject({ kind: "job", job: { phase: "uploading" } });
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    expect(host.close).toHaveBeenCalledTimes(2);
+    await expect(service.handle({ action: "status", id })).resolves.toEqual({
+      kind: "error",
+      code: "timeout",
+    });
+  });
+
+  it("allows preparation throughout a valid capture and bounds it again after finish", async () => {
+    vi.useFakeTimers();
+    let finishPreparation!: () => void;
+    const host = fakeHost();
+    host.client.models.prepare.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishPreparation = resolve;
+        }),
+    );
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await service.handle({ action: "begin", id, model: "parakeet_v3", language: "en" });
+    await vi.advanceTimersByTimeAsync(4 * 60_000);
+    await expect(
+      service.handle({ action: "append", id, offset: 0, audioBase64: bytesBase64(wav()) }),
+    ).resolves.toMatchObject({ kind: "job" });
+    await service.handle({ action: "finish", id });
+    finishPreparation();
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(service.handle({ action: "status", id })).resolves.toMatchObject({
+      kind: "job",
+      job: { phase: "done" },
+    });
+
+    await service.handle({ action: "begin", id: secondId, model: "parakeet_v3", language: "en" });
+    await service.handle({
+      action: "append",
+      id: secondId,
+      offset: 0,
+      audioBase64: bytesBase64(wav()),
+    });
+    await service.handle({ action: "finish", id: secondId });
+    await vi.advanceTimersByTimeAsync(3 * 60_000);
+    finishPreparation();
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(service.handle({ action: "status", id: secondId })).resolves.toEqual({
+      kind: "error",
+      code: "timeout",
+    });
+    expect(host.client.transcribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes a failed helper and starts fresh for the next request", async () => {
+    const host = fakeHost();
+    host.client.models.prepare.mockRejectedValueOnce(new Error("engine exited"));
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await service.handle({ action: "begin", id, model: "parakeet_v3", language: "en" });
+    await vi.waitFor(() => expect(host.close).toHaveBeenCalledTimes(1));
+    await service.handle({ action: "cancel", id });
+    await expect(
+      service.handle({ action: "begin", id: secondId, model: "parakeet_v3", language: "en" }),
+    ).resolves.toMatchObject({ kind: "job" });
+    expect(host.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("preserves the capture timeout when native warmup rejects after shutdown", async () => {
+    vi.useFakeTimers();
+    let rejectPreparation!: (error: Error) => void;
+    const host = fakeHost();
+    host.client.models.prepare.mockImplementation(
+      () =>
+        new Promise<void>((_, reject) => {
+          rejectPreparation = reject;
+        }),
+    );
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await service.handle({ action: "begin", id, model: "parakeet_v3", language: "en" });
+    await vi.advanceTimersByTimeAsync(6 * 60_000);
+    await expect(service.handle({ action: "status", id })).resolves.toEqual({
+      kind: "error",
+      code: "timeout",
+    });
+    rejectPreparation(new DOMException("aborted", "AbortError"));
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(service.handle({ action: "status", id })).resolves.toEqual({
+      kind: "error",
+      code: "timeout",
+    });
+  });
+
+  it("returns a completed transcript to a waiting client as soon as native inference settles", async () => {
+    let complete!: (result: { transcript: string; durationMs: number }) => void;
+    const host = fakeHost();
+    host.client.transcribe.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await expect(
+      service.handle({ action: "begin", id, model: "parakeet_v3", language: "en" }),
+    ).resolves.toMatchObject({ kind: "job", job: { supportsWait: true } });
+    await service.handle({ action: "append", id, offset: 0, audioBase64: bytesBase64(wav()) });
+    await service.handle({ action: "finish", id });
+    await vi.waitFor(() => expect(host.client.transcribe).toHaveBeenCalledTimes(1));
+    let returned = false;
+    const waiting = service.handle({ action: "wait", id }).then((response) => {
+      returned = true;
+      return response;
+    });
+    await Promise.resolve();
+    expect(returned).toBe(false);
+    complete({ transcript: "native completion", durationMs: 1 });
+    await expect(waiting).resolves.toMatchObject({
+      kind: "job",
+      job: { phase: "done", transcript: "native completion" },
+    });
+    expect(host.close).not.toHaveBeenCalled();
+  });
+
+  it("bounds a completion wait and refuses unknown owner credentials", async () => {
+    vi.useFakeTimers();
+    let complete!: () => void;
+    const host = fakeHost();
+    host.client.models.prepare.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          complete = resolve;
+        }),
+    );
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await service.handle({ action: "prepare", id, model: "parakeet_v3", language: "en" });
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(service.handle({ action: "wait", id: secondId })).resolves.toEqual({
+      kind: "error",
+      code: "invalid_request",
+    });
+    const waiting = service.handle({ action: "wait", id });
+    await vi.advanceTimersByTimeAsync(1_000);
+    await expect(waiting).resolves.toMatchObject({ kind: "job", job: { phase: "preparing" } });
+    complete();
+    await vi.advanceTimersByTimeAsync(0);
+  });
+
+  it("settles a completion wait when its owner cancels inference", async () => {
+    const host = fakeHost();
+    host.client.transcribe.mockImplementation(
+      (options) =>
+        new Promise((_, reject) => {
+          const { signal } = options as { signal: AbortSignal };
+          signal.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    service = new HexVoiceService({ executable: () => "/usr/bin/hex", create: host.create });
+    await service.handle({ action: "begin", id, model: "parakeet_v3", language: "en" });
+    await service.handle({ action: "append", id, offset: 0, audioBase64: bytesBase64(wav()) });
+    await service.handle({ action: "finish", id });
+    await vi.waitFor(() => expect(host.client.transcribe).toHaveBeenCalledTimes(1));
+    const waiting = service.handle({ action: "wait", id });
+    await service.handle({ action: "cancel", id });
+    await expect(waiting).resolves.toEqual({ kind: "error", code: "cancelled" });
+    expect(host.close).toHaveBeenCalledTimes(1);
   });
 
   it("maps known SDK protocol and nested permission errors safely", async () => {

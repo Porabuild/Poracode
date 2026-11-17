@@ -4,6 +4,7 @@ import type { CreateOptions, HexHost, ModelId, ModelInfo, ModelProgress } from "
 import { hexCatalogFetch } from "./hexCatalogFetch";
 import {
   HEX_VOICE_MAX_AUDIO_BYTES,
+  HEX_VOICE_MAX_SECONDS,
   hexVoiceRequestSchema,
   hexVoiceResponseSchema,
   type HexVoicePreparation,
@@ -22,7 +23,8 @@ import {
 } from "./HexEngineInstaller";
 
 const STARTUP_TIMEOUT_MS = 15_000;
-const UPLOAD_IDLE_TIMEOUT_MS = 60_000;
+const UPLOAD_IDLE_TIMEOUT_MS = (HEX_VOICE_MAX_SECONDS + 60) * 1_000;
+const HOST_IDLE_TIMEOUT_MS = 5 * 60_000;
 const PREPARATION_TIMEOUT_MS = 20 * 60_000;
 const INFERENCE_TIMEOUT_MS = 3 * 60_000;
 const RETENTION_MS = 60_000;
@@ -51,6 +53,9 @@ interface VoiceJob {
   progress?: number;
   transcript?: string;
   audio?: Uint8Array;
+  readonly chunks: Uint8Array[];
+  modelId?: ModelId;
+  preparation?: Promise<void>;
   expectedOffset: number;
   host?: HexHostLike;
   idleTimer?: ReturnType<typeof setTimeout>;
@@ -88,18 +93,8 @@ function toModel(model: ModelInfo): HexVoiceModel {
 }
 
 function decodeBase64(value: string): Uint8Array | undefined {
-  try {
-    const binary = atob(value);
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    let canonical = "";
-    for (let index = 0; index < bytes.length; index += 0x8000) {
-      canonical += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
-    }
-    if (btoa(canonical) !== value) return undefined;
-    return bytes;
-  } catch {
-    return undefined;
-  }
+  const bytes = Buffer.from(value, "base64");
+  return bytes.toString("base64") === value ? bytes : undefined;
 }
 
 function validWav(audio: Uint8Array): boolean {
@@ -134,7 +129,11 @@ export class HexVoiceService {
   private readonly pathExecutable: () => string | undefined;
   private readonly installer: HexEngineInstaller | undefined;
   private readonly now: () => number;
-  private removalOperation: Promise<void> | undefined;
+  private engineOperation: Promise<void> | undefined;
+  private host: HexHostLike | undefined;
+  private hostExecutable: string | undefined;
+  private hostIdleTimer: ReturnType<typeof setTimeout> | undefined;
+  private closingHost: Promise<void> = Promise.resolve();
   private readonly jobs = new Map<string, VoiceJob>();
   private readonly pending = new Map<AbortController, Promise<HexVoiceResponse>>();
   private latestPreparation: HexVoicePreparation | null = null;
@@ -171,7 +170,7 @@ export class HexVoiceService {
         case "setup":
           return this.setup();
         case "install":
-          return this.install();
+          return await this.install();
         case "cancel_install":
           return await this.cancelInstall();
         case "remove_engine":
@@ -188,6 +187,8 @@ export class HexVoiceService {
           return await this.finish(request.id);
         case "status":
           return this.status(request.id);
+        case "wait":
+          return await this.wait(request.id);
         case "cancel":
           return await this.cancel(request.id);
       }
@@ -211,11 +212,14 @@ export class HexVoiceService {
       ...(active?.operation ? [active.operation] : []),
       ...(active ? [active.settled] : []),
       ...(cancelInstall ? [cancelInstall] : []),
-      ...(this.removalOperation ? [this.removalOperation] : []),
+      ...(active?.preparation ? [active.preparation] : []),
+      ...(this.engineOperation ? [this.engineOperation] : []),
     ]);
+    await this.closeHost();
     for (const job of this.jobs.values()) {
       if (job.retentionTimer) clearTimeout(job.retentionTimer);
       delete job.audio;
+      job.chunks.length = 0;
     }
     this.jobs.clear();
     this.active = undefined;
@@ -314,22 +318,30 @@ export class HexVoiceService {
 
   private hasActiveOperation(): boolean {
     return Boolean(
-      this.active || this.pending.size > 0 || this.installer?.isInstalling || this.removalOperation,
+      this.active || this.pending.size > 0 || this.installer?.isInstalling || this.engineOperation,
     );
   }
 
-  private install(): HexVoiceResponse {
+  private async install(): Promise<HexVoiceResponse> {
     if (this.hasActiveOperation()) return this.result({ kind: "error", code: "busy" });
     if (!this.installer) return this.result({ kind: "error", code: "unsupported" });
+    const installation = Promise.resolve().then(async () => {
+      await this.closeHost();
+      if (!this.disposed) this.installer!.startInstall();
+    });
+    this.engineOperation = installation;
     try {
-      this.installer.startInstall();
+      await installation;
       return this.setup();
     } catch (error) {
       return this.result({ kind: "error", code: this.errorCode(error) });
+    } finally {
+      if (this.engineOperation === installation) this.engineOperation = undefined;
     }
   }
 
   private async cancelInstall(): Promise<HexVoiceResponse> {
+    await this.engineOperation;
     await this.installer?.cancelInstall();
     return this.setup();
   }
@@ -337,15 +349,18 @@ export class HexVoiceService {
   private async removeEngine(): Promise<HexVoiceResponse> {
     if (this.hasActiveOperation()) return this.result({ kind: "error", code: "busy" });
     if (!this.installer) return this.result({ kind: "error", code: "unsupported" });
-    const removal = Promise.resolve().then(() => this.installer!.removeManagedEngine());
-    this.removalOperation = removal;
+    const removal = Promise.resolve().then(async () => {
+      await this.closeHost();
+      await this.installer!.removeManagedEngine();
+    });
+    this.engineOperation = removal;
     try {
       await removal;
       return this.setup();
     } catch (error) {
       return this.result({ kind: "error", code: this.errorCode(error) });
     } finally {
-      if (this.removalOperation === removal) this.removalOperation = undefined;
+      if (this.engineOperation === removal) this.engineOperation = undefined;
     }
   }
 
@@ -366,11 +381,40 @@ export class HexVoiceService {
 
   private async createHost(signal: AbortSignal): Promise<HexHostLike> {
     const executable = this.ensureAvailable();
-    return this.create({
+    if (this.hostIdleTimer) clearTimeout(this.hostIdleTimer);
+    if (this.host && this.hostExecutable === executable) return this.host;
+    await this.closeHost();
+    if (signal.aborted || this.disposed) {
+      throw Object.assign(new Error("cancelled"), { name: "AbortError" });
+    }
+    const host = await this.create({
       command: [executable, "service", "--embedded"],
       signal,
       startupTimeoutMs: STARTUP_TIMEOUT_MS,
     });
+    if (signal.aborted || this.disposed) {
+      await host.close();
+      throw Object.assign(new Error("cancelled"), { name: "AbortError" });
+    }
+    this.host = host;
+    this.hostExecutable = executable;
+    return host;
+  }
+
+  private closeHost(host = this.host): Promise<void> {
+    if (this.hostIdleTimer) clearTimeout(this.hostIdleTimer);
+    if (host && this.host === host) {
+      this.host = undefined;
+      this.hostExecutable = undefined;
+      this.closingHost = host.close().catch(() => {});
+    }
+    return this.closingHost;
+  }
+
+  private releaseHost(): void {
+    if (!this.host || this.disposed) return;
+    this.hostIdleTimer = setTimeout(() => void this.closeHost(), HOST_IDLE_TIMEOUT_MS);
+    this.hostIdleTimer.unref?.();
   }
 
   private async list(language: string): Promise<HexVoiceResponse> {
@@ -405,6 +449,7 @@ export class HexVoiceService {
       );
       return this.result({ kind: "catalog", models: models.map(toModel) });
     } catch (error) {
+      await this.closeHost(host);
       if (controller.signal.aborted) {
         return this.result({ kind: "error", code: "timeout" });
       }
@@ -413,7 +458,7 @@ export class HexVoiceService {
         code: this.errorCode(error) === "failed" ? "unavailable" : this.errorCode(error),
       });
     } finally {
-      await host?.close().catch(() => {});
+      this.releaseHost();
     }
   }
 
@@ -437,6 +482,7 @@ export class HexVoiceService {
       kind,
       phase: "uploading",
       expectedOffset: 0,
+      chunks: [],
       retainedUntil: 0,
       cancelRequested: false,
       timedOut: false,
@@ -467,6 +513,7 @@ export class HexVoiceService {
       job: {
         id: job.id,
         phase: job.phase,
+        supportsWait: true,
         ...(job.progress === undefined ? {} : { progress: job.progress }),
         ...(job.transcript === undefined ? {} : { transcript: job.transcript }),
       },
@@ -501,6 +548,11 @@ export class HexVoiceService {
       job.host = host;
       const selected = await this.selectModel(job);
       if (!selected.installed || !selected.verified) throw new VoiceError("not_ready");
+      job.modelId = selected.id;
+      // Start loading while the client records; finish joins the same operation.
+      job.preparation = this.prepareModel(job, UPLOAD_IDLE_TIMEOUT_MS + INFERENCE_TIMEOUT_MS).catch(
+        (error) => this.failJob(job, this.codeForJob(error, "failed")),
+      );
     } catch (error) {
       await this.failJob(job, this.codeForJob(error, "unavailable"));
     }
@@ -532,18 +584,9 @@ export class HexVoiceService {
       }
       job.host = host;
       const selected = await this.selectModel(job);
+      job.modelId = selected.id;
       job.progress = 0;
-      await this.withTimeout(
-        () =>
-          job.host!.client.models.prepare(selected.id, {
-            language: job.language,
-            signal: job.controller.signal,
-            onProgress: (progress) => this.applyProgress(job, progress),
-          }),
-        job.controller,
-        PREPARATION_TIMEOUT_MS,
-        job,
-      );
+      await this.prepareModel(job, PREPARATION_TIMEOUT_MS);
       const ready = await this.selectModel(job);
       if (!ready.installed || !ready.verified) throw new VoiceError("not_ready");
       job.progress = 100;
@@ -568,11 +611,7 @@ export class HexVoiceService {
     ) {
       return this.result({ kind: "error", code: "invalid_request" });
     }
-    const existing = job.audio ?? new Uint8Array(0);
-    const combined = new Uint8Array(existing.length + chunk.length);
-    combined.set(existing);
-    combined.set(chunk, existing.length);
-    job.audio = combined;
+    job.chunks.push(chunk);
     job.expectedOffset += chunk.length;
     job.progress = Math.min(99, Math.floor((job.expectedOffset / HEX_VOICE_MAX_AUDIO_BYTES) * 100));
     this.startIdleTimer(job);
@@ -581,15 +620,12 @@ export class HexVoiceService {
 
   private async finish(id: string): Promise<HexVoiceResponse> {
     const job = this.jobs.get(id);
-    if (
-      !job ||
-      this.active !== job ||
-      job.phase !== "uploading" ||
-      !job.audio ||
-      !validWav(job.audio)
-    ) {
+    if (!job || this.active !== job || job.phase !== "uploading" || job.expectedOffset === 0) {
       return this.result({ kind: "error", code: "invalid_request" });
     }
+    job.audio = Buffer.concat(job.chunks, job.expectedOffset);
+    if (!validWav(job.audio)) return this.result({ kind: "error", code: "invalid_request" });
+    job.chunks.length = 0;
     if (job.idleTimer) clearTimeout(job.idleTimer);
     job.phase = "loading";
     job.progress = 0;
@@ -599,26 +635,15 @@ export class HexVoiceService {
 
   private async runTranscription(job: VoiceJob): Promise<void> {
     try {
-      const selected = await this.selectModel(job);
-      if (!selected.installed || !selected.verified) throw new VoiceError("not_ready");
-      await this.withTimeout(
-        () =>
-          job.host!.client.models.prepare(selected.id, {
-            language: job.language,
-            signal: job.controller.signal,
-            onProgress: (progress) => this.applyProgress(job, progress),
-          }),
-        job.controller,
-        INFERENCE_TIMEOUT_MS,
-        job,
-      );
+      await this.withTimeout(() => job.preparation!, job.controller, INFERENCE_TIMEOUT_MS, job);
+      if (job.cleanupStarted) return;
       job.phase = "transcribing";
       delete job.progress;
       const result = await this.withTimeout(
         () =>
           job.host!.client.transcribe({
             audio: { data: job.audio!, contentType: "audio/wav" },
-            model: selected.id,
+            model: job.modelId!,
             language: job.language,
             signal: job.controller.signal,
           }),
@@ -632,6 +657,20 @@ export class HexVoiceService {
     } catch (error) {
       await this.failJob(job, this.codeForJob(error, "failed"));
     }
+  }
+
+  private prepareModel(job: VoiceJob, timeoutMs: number): Promise<void> {
+    return this.withTimeout(
+      () =>
+        job.host!.client.models.prepare(job.modelId!, {
+          language: job.language,
+          signal: job.controller.signal,
+          onProgress: (progress) => this.applyProgress(job, progress),
+        }),
+      job.controller,
+      timeoutMs,
+      job,
+    );
   }
 
   private async selectModel(job: VoiceJob): Promise<ModelInfo & { id: ModelId }> {
@@ -672,6 +711,23 @@ export class HexVoiceService {
     return this.jobResponse(job);
   }
 
+  private async wait(id: string): Promise<HexVoiceResponse> {
+    const job = this.jobs.get(id);
+    if (!job || job.phase === "uploading" || job.cleanupStarted) return this.status(id);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        job.settled,
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, 1_000);
+        }),
+      ]);
+      return this.status(id);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
   private async cancel(id: string): Promise<HexVoiceResponse> {
     const job = this.jobs.get(id);
     if (!job) return this.result({ kind: "error", code: "invalid_request" });
@@ -685,6 +741,7 @@ export class HexVoiceService {
     const operation = job.operation;
     if (!operation || job.phase === "uploading") await this.failJob(job, "cancelled");
     if (operation) await operation;
+    await job.preparation;
     await job.settled;
     return this.result({ kind: "cancelled" });
   }
@@ -704,6 +761,7 @@ export class HexVoiceService {
   }
 
   private async failJob(job: VoiceJob, error: HexVoiceErrorCode): Promise<void> {
+    if (job.cleanupStarted) return job.settled;
     job.error = error;
     this.updatePreparation(job);
     await this.closeJob(job);
@@ -714,12 +772,14 @@ export class HexVoiceService {
     job.cleanupStarted = true;
     if (job.idleTimer) clearTimeout(job.idleTimer);
     try {
-      await job.host?.close();
+      if (job.error || this.disposed) await this.closeHost(job.host);
+      else this.releaseHost();
     } catch {
       // A failed close must not keep a rejected job permanently busy.
     } finally {
       delete job.host;
       delete job.audio;
+      job.chunks.length = 0;
       if (this.active === job) this.active = undefined;
       job.retainedUntil = this.now() + RETENTION_MS;
       job.retentionTimer = setTimeout(() => this.evict(job), RETENTION_MS);
@@ -733,6 +793,7 @@ export class HexVoiceService {
     if (this.jobs.get(job.id) === job) this.jobs.delete(job.id);
     if (this.latestPreparation?.id === job.id) this.latestPreparation = null;
     delete job.audio;
+    job.chunks.length = 0;
   }
 
   private codeForJob(error: unknown, fallback: HexVoiceErrorCode): HexVoiceErrorCode {
