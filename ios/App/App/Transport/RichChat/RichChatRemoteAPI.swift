@@ -163,9 +163,8 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
     threadID: String,
     targetEntryCount: Int?
   ) async throws -> RemoteThreadSnapshot {
-    let outcome = try await json.boundedThreadHistory(
+    let outcome = try await json.interactiveThreadHistory(
       threadId: threadID,
-      completedTurnsLimit: RemoteBoundedReads.defaultCompletedTurnsLimit,
       targetTimelineEntryCount: targetEntryCount
     )
     switch outcome {

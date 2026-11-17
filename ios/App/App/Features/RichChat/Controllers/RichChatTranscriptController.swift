@@ -219,7 +219,7 @@ final class RichChatTranscriptController {
     isBackgrounded = false
   }
 
-  func loadHistory(targetEntryCount: Int? = 40) async {
+  func loadHistory(targetEntryCount: Int? = RemoteBoundedReads.interactiveTargetTimelineEntryCount) async {
     guard let target = state.target, let access = state.access else { return }
     if let failure = access.controllerGate(.sessionRead) {
       state.loadState = .failed(failure)

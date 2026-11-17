@@ -38,6 +38,8 @@ enum RemoteBoundedReads {
   static let defaultCompletedTurnsLimit = 200
   static let defaultHistoryItemsLimit = 500
   static let defaultTargetTimelineEntryCount = 40
+  /// Match the PWA's first viewport; explicit older-page reads keep 40.
+  static let interactiveTargetTimelineEntryCount = 20
 
   /// Bounded work per inventory/paint segment. A segment yields control back
   /// to the session (and the event loop) after this many pages.

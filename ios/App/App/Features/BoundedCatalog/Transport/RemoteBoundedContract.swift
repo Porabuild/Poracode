@@ -119,7 +119,10 @@ extension GeneratedRemoteV3Contract {
     targetTimelineEntryCount: Int?,
     maxBytes: Int,
     maxDecodeBytes: Int,
-    notices: Bool
+    notices: Bool,
+    historyCache: Bool = false,
+    historyRevision: String? = nil,
+    omitScrollback: Bool = false
   ) throws -> [URLQueryItem] {
     var object: [String: Any] = [
       "completedTurnsLimit": completedTurnsLimit,
@@ -132,11 +135,14 @@ extension GeneratedRemoteV3Contract {
       object["targetTimelineEntryCount"] = targetTimelineEntryCount
     }
     if notices { object["notices"] = "v1" }
+    if historyCache { object["historyCache"] = "v1" }
+    if let historyRevision { object["historyRevision"] = historyRevision }
+    if omitScrollback { object["omitScrollback"] = true }
     return try queryItems(
       object, codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery,
       boundary: "bounded thread history query",
       order: [
-        "notices", "reads", "runtimePage", "completedTurnsLimit", "targetTimelineEntryCount",
+        "historyCache", "historyRevision", "notices", "reads", "runtimePage", "completedTurnsLimit", "targetTimelineEntryCount", "omitScrollback",
         "maxBytes", "maxDecodeBytes",
       ]
     )

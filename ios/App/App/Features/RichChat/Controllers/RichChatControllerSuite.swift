@@ -212,7 +212,9 @@ final class RichChatControllerSuite {
     )
   }
 
-  func refreshAuthoritativeHistory(targetEntryCount: Int? = 40) async {
+  /// Match the remote PWA's first visible viewport; older paging keeps its
+  /// normal window and explicit user control.
+  func refreshAuthoritativeHistory(targetEntryCount: Int? = RemoteBoundedReads.interactiveTargetTimelineEntryCount) async {
     guard let target = transcript.state.target else { return }
     await transcript.loadHistory(targetEntryCount: targetEntryCount)
     // A retired read may finish after selection or connectivity changed.

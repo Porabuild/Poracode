@@ -5,6 +5,7 @@ extension AppSession {
         if state.phase == .localStoreInconsistent {
             await pairing.clearInconsistentLocalStorage()
             ForgeReviewDiskCache.purgeAll()
+            await NativeRecentHistoryCache.shared.purgeAll()
             return
         }
         if let id = state.selectedConnectionId, !state.hosts.isEmpty {
@@ -13,6 +14,7 @@ extension AppSession {
         }
         await pairing.unpair()
         ForgeReviewDiskCache.purgeAll()
+        await NativeRecentHistoryCache.shared.purgeAll()
     }
 
     func switchHost(_ connectionId: ClientConnectionID) async {
@@ -100,6 +102,7 @@ extension AppSession {
         }
         ForgeReviewDiskCache.purgeAll()
         await cancelStaleSessionWork(invalidateSocket: false)
+        await NativeRecentHistoryCache.shared.purgeAll()
         await sessionPool.forget(.host(connectionId))
         EnvironmentConnectionRegistry.shared.remove(connectionId: connectionId)
         if let removedRecord, removedRecord.isDirectConnection {

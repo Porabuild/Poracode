@@ -468,11 +468,15 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
     /// report the roster, and retained live metadata must be preserved.
     var backgroundTasks: [JSONValue]? = nil
     var backgroundTasksPresent: Bool = false
+    /// App projection of validated cache metadata. The generated root codec
+    /// owns its wire schema; only durable fields may be reused on a match.
+    var historyCache: JSONValue? = nil
+    var historyProjection: String? = nil
 
     private enum CodingKeys: String, CodingKey {
         case snapshotSeq, thread, runtimeItems, runtimeNextCursor, completedTurns
         case contextUsage, terminalScrollback, updatedAt, followUpQueue
-        case completedTurnsNextCursor, reads, runtimeNotice, backgroundTasks
+        case completedTurnsNextCursor, reads, runtimeNotice, backgroundTasks, historyCache, historyProjection
     }
 
     init(
@@ -490,7 +494,9 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         reads: String? = nil,
         runtimeNotice: RemoteHistoryNotice? = nil,
         backgroundTasks: [JSONValue]? = nil,
-        backgroundTasksPresent: Bool = false
+        backgroundTasksPresent: Bool = false,
+        historyCache: JSONValue? = nil,
+        historyProjection: String? = nil
     ) {
         self.snapshotSeq = snapshotSeq
         self.thread = thread
@@ -507,6 +513,8 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         self.runtimeNotice = runtimeNotice
         self.backgroundTasks = backgroundTasks
         self.backgroundTasksPresent = backgroundTasksPresent
+        self.historyCache = historyCache
+        self.historyProjection = historyProjection
     }
 
     init(from decoder: Decoder) throws {
@@ -531,6 +539,8 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         )
         reads = try container.decodeIfPresent(String.self, forKey: .reads)
         runtimeNotice = try container.decodeIfPresent(RemoteHistoryNotice.self, forKey: .runtimeNotice)
+        historyCache = try container.decodeIfPresent(JSONValue.self, forKey: .historyCache)
+        historyProjection = try container.decodeIfPresent(String.self, forKey: .historyProjection)
         if container.contains(.backgroundTasks) {
             backgroundTasksPresent = true
             backgroundTasks = try container.decodeIfPresent([JSONValue].self, forKey: .backgroundTasks)
