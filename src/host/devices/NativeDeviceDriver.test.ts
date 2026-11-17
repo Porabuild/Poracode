@@ -606,6 +606,7 @@ describe("iPhone Duo foldable support", () => {
       foldFails?: boolean;
       displayLagReads?: number;
       helperKnowsAngle?: boolean;
+      hasActiveHelper?: boolean;
     } = {},
   ) {
     Object.defineProperty(process, "platform", { ...originalPlatform, value: "darwin" });
@@ -634,6 +635,9 @@ describe("iPhone Duo foldable support", () => {
     const foldRuntime: DeviceFoldRuntime = {
       prepare: async () => {},
       qualified: () => options.qualified ?? true,
+      ...(options.hasActiveHelper !== undefined
+        ? { hasActiveHelper: () => options.hasActiveHelper! }
+        : {}),
       acquireHelper: vi.fn<DeviceFoldRuntime["acquireHelper"]>(async () => helper),
     };
     vi.mocked(runDeviceCommand).mockImplementation(async (_file, args) => {
@@ -922,6 +926,33 @@ describe("iPhone Duo foldable support", () => {
       );
     } finally {
       await ready.driver.dispose();
+    }
+  });
+
+  it("skips spawning a helper on pose read when no hub generation is active", async () => {
+    const inactive = duoFixture({ hasActiveHelper: false });
+    try {
+      const inventory = await inactive.driver.discover(inactive.signal);
+      const bootId = inventory.devices.find((device) => device.id === `ios:${duoUdid}`)!.controls!
+        .bootId;
+      await expect(
+        inactive.driver.control(`ios:${duoUdid}`, { type: "read" }, bootId, inactive.signal),
+      ).resolves.toEqual({ version: 1, activeDisplay: "inner" });
+      expect(inactive.foldRuntime.acquireHelper).not.toHaveBeenCalled();
+
+      await inactive.driver.control(
+        `ios:${duoUdid}`,
+        { type: "fold", angle: 90 },
+        bootId,
+        inactive.signal,
+      );
+      expect(inactive.foldRuntime.acquireHelper).toHaveBeenCalledTimes(1);
+      await expect(
+        inactive.driver.control(`ios:${duoUdid}`, { type: "read" }, bootId, inactive.signal),
+      ).resolves.toEqual({ version: 1, hingeAngle: 90, activeDisplay: "inner" });
+      expect(inactive.foldRuntime.acquireHelper).toHaveBeenCalledTimes(1);
+    } finally {
+      await inactive.driver.dispose();
     }
   });
 });

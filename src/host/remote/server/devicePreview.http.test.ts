@@ -316,6 +316,7 @@ async function fixture(
     stream: () => stream,
     streamClosed: () => streamClosed,
     helperSocketCount: () => sockets.clients.size,
+    helperSockets: () => [...sockets.clients],
     rotate: async () => {
       const refreshed = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
         method: "POST",
@@ -802,4 +803,49 @@ describe("real authenticated preview HTTP/WS boundary with pinned-wire fake help
       expect(f.driver.release).not.toHaveBeenCalled();
     },
   );
+
+  it("rotates epoch and forwards updated iOS geometry on fold without dropping the socket", async () => {
+    const f = await fixture("ios", "control");
+    const preview = await f.open();
+    const channel = await f.connect(preview, await f.ticket(preview, "ios"), "ios");
+    await vi.waitFor(() =>
+      expect(channel.messages.some((message) => message.data[0] === 0x82)).toBe(true),
+    );
+    const firstEpoch = JSON.parse(channel.messages[0]!.data.toString()).epoch as string;
+    const helperSocket = f.helperSockets()[0]!;
+    helperSocket.send(
+      Buffer.concat([
+        Buffer.from([0x82]),
+        Buffer.from(
+          JSON.stringify({ width: 2007, height: 2853, orientation: "landscape_left", screenId: 3 }),
+        ),
+      ]),
+    );
+    await vi.waitFor(() =>
+      expect(
+        channel.messages.filter((message) => {
+          try {
+            return JSON.parse(message.data.toString("utf8")).type === "device-preview-geometry";
+          } catch {
+            return false;
+          }
+        }).length,
+      ).toBe(2),
+    );
+    expect(channel.ws.readyState).toBe(WebSocket.OPEN);
+    // Input carrying the pre-fold epoch must still be rejected.
+    const closed = new Promise<void>((resolve) => channel.ws.once("close", resolve));
+    channel.ws.send(
+      JSON.stringify({
+        version: 1,
+        epoch: firstEpoch,
+        binary: true,
+        data: Buffer.concat([Buffer.from([0x04]), Buffer.from('{"button":"home"}')]).toString(
+          "base64",
+        ),
+      }),
+    );
+    await closed;
+    expect(f.input).toHaveLength(0);
+  });
 });

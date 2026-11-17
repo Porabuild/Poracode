@@ -46,6 +46,9 @@ interface Lease {
   // Leases the agent itself opened (open_device) renew on agent activity;
   // a user-issued grant is never extended by the agent using it.
   agentOwned?: boolean;
+  // Held false while attachForAgent is booting a stopped device so the
+  // renderer cannot adopt a pre-boot snapshot without fold capabilities.
+  initializing?: boolean;
 }
 
 /** Host authority shared by HTTP clients and authenticated agent MCP callers.
@@ -459,9 +462,13 @@ export class DeviceWorkspaceService {
       lease,
       async (activeSignal) => {
         this.lease(threadId, principal, id, true);
-        if (action.kind === "control") {
+        if (action.kind === "control" || action.kind === "fold") {
+          const control =
+            action.kind === "fold"
+              ? ({ type: "fold", angle: action.angle } as const)
+              : action.control;
           const capability = lease.session.device.controls;
-          if (!capability?.actions.includes(action.control.type) || !this.driver.control)
+          if (!capability?.actions.includes(control.type) || !this.driver.control)
             throw new DeviceWorkspaceError(
               "device_control_unavailable",
               "Refresh and attach to a host that supports this control.",
@@ -469,7 +476,7 @@ export class DeviceWorkspaceService {
             );
           return this.driver.control(
             lease.session.device.id,
-            action.control,
+            control,
             capability.bootId,
             activeSignal,
             () => {
@@ -481,25 +488,6 @@ export class DeviceWorkspaceService {
         if (action.kind === "start") {
           await this.driver.start(lease.session.device.id, activeSignal);
           return undefined;
-        }
-        if (action.kind === "fold") {
-          const capability = lease.session.device.controls;
-          if (!capability?.actions.includes("fold") || !this.driver.control)
-            throw new DeviceWorkspaceError(
-              "device_control_unavailable",
-              "Refresh and attach to a host that supports this control.",
-              501,
-            );
-          return this.driver.control(
-            lease.session.device.id,
-            { type: "fold", angle: action.angle },
-            capability.bootId,
-            activeSignal,
-            () => {
-              authorize?.();
-              this.lease(threadId, principal, id, true);
-            },
-          );
         }
         if (!lease.session.device.input)
           throw new DeviceWorkspaceError(
@@ -624,27 +612,37 @@ export class DeviceWorkspaceService {
     // Only a lease created by this call becomes agent-owned; reusing a
     // user-issued grant must not convert it into an agent-renewable one.
     if (lease && !existing) lease.agentOwned = true;
-    if (device.state === "stopped" && access === "control" && lease) {
-      authorize();
-      await this.action(
-        threadId,
-        lease.principal,
-        session.id,
-        { kind: "start" },
-        undefined,
-        authorize,
-      );
+    const needsStart = device.state === "stopped" && access === "control" && Boolean(lease);
+    if (lease && needsStart) lease.initializing = true;
+    try {
+      if (needsStart && lease) {
+        authorize();
+        await this.action(
+          threadId,
+          lease.principal,
+          session.id,
+          { kind: "start" },
+          undefined,
+          authorize,
+        );
+      }
+      if (lease) {
+        // The session snapshot predates the start above (and any earlier boot):
+        // capabilities such as fold are only advertised for running devices,
+        // so refresh the snapshot from live inventory before returning.
+        const fresh = (await this.discover()).devices.find((entry) => entry.id === deviceId);
+        if (fresh) lease.session.device = { ...fresh };
+        lease.session.expiresAt = this.now() + DEVICE_LEASE_TTL_MS;
+        return { ...lease.session };
+      }
+      return { ...session };
+    } catch (error) {
+      if (lease && !existing)
+        await this.detach(threadId, lease.principal, session.id).catch(() => undefined);
+      throw error;
+    } finally {
+      if (lease) lease.initializing = false;
     }
-    if (lease) {
-      // The session snapshot predates the start above (and any earlier boot):
-      // capabilities such as fold are only advertised for running devices,
-      // so refresh the snapshot from live inventory before returning.
-      const fresh = (await this.discover()).devices.find((entry) => entry.id === deviceId);
-      if (fresh) lease.session.device = { ...fresh };
-      lease.session.expiresAt = this.now() + DEVICE_LEASE_TTL_MS;
-      return { ...lease.session };
-    }
-    return { ...session };
   }
 
   // Renderer adoption of an agent-opened lease: rebind the synthetic agent
@@ -663,6 +661,7 @@ export class DeviceWorkspaceService {
       (entry) =>
         entry.principal === `agent:${threadId}` &&
         entry.session.threadId === threadId &&
+        !entry.initializing &&
         entry.session.expiresAt > this.now() &&
         !entry.abort.signal.aborted,
     );

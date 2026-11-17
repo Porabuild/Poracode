@@ -22,6 +22,7 @@ import { CompactThreadHeader } from "@/renderer/components/thread/CompactThreadH
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { useAgentDevicePanelAutoOpen } from "@/renderer/components/devices/useAgentDevicePanelAutoOpen";
 
 const DeferredMainRightPanel = lazy(() =>
   import("@/renderer/views/MainView/parts/MainRightPanel").then((module) => ({
@@ -53,6 +54,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((state) => state.mobileUtilityPage);
   const activeMobileUtilityPage = compactLayout ? mobileUtilityPage : null;
+  useAgentDevicePanelAutoOpen(!compactLayout && activeMobileUtilityPage === null);
   const compactHome = view.kind === "home" && activeMobileUtilityPage === null;
   const compactThread = useAppStore((state) => {
     if (!compactLayout || state.view.kind !== "thread") return undefined;

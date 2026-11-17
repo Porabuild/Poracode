@@ -109,7 +109,7 @@ describe("remote v3 native binding generator", () => {
         // regenerate both authority hashes and the native mirrors.
         // The additive device-adopt-session route (renderer adoption of an
         // agent-opened lease) does the same.
-        sourceHash: "sha256:4419c351e27cc12c86fd7d4753dae89291a79afd7fb2ebaf5ec5c0649fce463e",
+        sourceHash: "sha256:4cd6b9d58fff6c54fae6fa056c77a8ffb88874ebf47d58be2db00a4951801de3",
         manifestHash: "sha256:eb340b611a44d8ed977b61c2f327ca9ce32ca733d02b2c5f25d26d1b03dae48c",
         counts: {
           routes: 123,

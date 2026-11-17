@@ -5,6 +5,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { DeviceSession } from "@/shared/deviceWorkspace";
 import { RemoteClientError } from "@/shared/remote/client";
 import { DeviceWorkspace } from "./DeviceWorkspace";
+import { useAgentDevicePanelAutoOpen } from "./useAgentDevicePanelAutoOpen";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { PANEL_EXIT_DURATION_MS } from "@/renderer/components/layout/panelMotion";
@@ -1298,7 +1299,7 @@ describe("device workspace UI", () => {
     expect(mocks.deviceAction).not.toHaveBeenCalled();
   });
 
-  it("reopens the live preview after a fold changes its geometry", async () => {
+  it("keeps the live preview connected across folds without tearing down the stream", async () => {
     setupDuo();
     mocks.environment.mockResolvedValue({
       capabilities: {
@@ -1325,7 +1326,10 @@ describe("device workspace UI", () => {
     );
     expect(mocks.openDevicePreview).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
-    await waitFor(() => expect(mocks.openDevicePreview).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByTestId("device-fold-pose").textContent).toBe("Open · Inner display"),
+    );
+    expect(mocks.openDevicePreview).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole("button", { name: "Fixture live input" })).toBeTruthy();
     expect(screen.queryByTestId("device-live-error")).toBeNull();
   });
@@ -1419,5 +1423,101 @@ describe("device workspace UI", () => {
       expect(mocks.detachDevice).toHaveBeenCalledWith("host-thread", "agent-lease-1"),
     );
     expect(await screen.findByRole("button", { name: "Refresh devices" })).toBeTruthy();
+  });
+
+  it("updates pose when an external fold switches the active display without tearing down live preview", async () => {
+    const duo = setupDuo();
+    mocks.environment.mockResolvedValue({
+      capabilities: {
+        deviceWorkspace: { versions: [1], livePreview: { versions: [1], modes: ["h264"] } },
+      },
+    });
+    let previews = 0;
+    mocks.openDevicePreview.mockImplementation(async () => ({
+      version: 1,
+      id: `preview-${++previews}`,
+      sessionId: "lease-1",
+      generation,
+      platform: "ios",
+      clientDeviceId: "ios-duo-fixture",
+      access: "control",
+      mode: "h264",
+      expiresAt: Date.now() + 60000,
+    }));
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      render(<Workspace />);
+      await attachControl();
+      await waitFor(() => expect(mocks.openDevicePreview).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(screen.getByTestId("device-fold-pose").textContent).toBe("Closed · Outer display"),
+      );
+      duo.setHingeAngle(180);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(screen.getByTestId("device-fold-pose").textContent).toBe("Open · Inner display");
+    expect(mocks.openDevicePreview).toHaveBeenCalledTimes(1);
+  });
+
+  it("auto-opens the Devices panel and adopts the session when a working thread opens a device", async () => {
+    setupDuo();
+    const agentSession: DeviceSession = {
+      version: 1,
+      id: "agent-auto-1",
+      generation,
+      threadId: "host-thread",
+      device: {
+        ...duoDevice,
+        controls: { ...duoDevice.controls, actions: [...duoDevice.controls.actions] },
+      },
+      access: "control",
+      agentAccess: "control",
+      expiresAt: Date.now() + 60000,
+    };
+    mocks.adoptDeviceSession.mockResolvedValue(agentSession);
+    useAppStore.setState({
+      view: { kind: "thread", panes: ["local-thread"] },
+      focusedPaneId: "local-thread",
+      threads: [
+        {
+          id: "local-thread",
+          projectId: "proj-1",
+          title: "Test",
+          agentKind: "claude",
+          status: "working",
+          createdAt: 1,
+          updatedAt: 1,
+        } as never,
+      ],
+    });
+    usePanelStore.setState({
+      deviceWorkspaceThreadId: null,
+      rightPanelTab: "git",
+      pendingAdoptedDeviceSession: null,
+    });
+    function Harness() {
+      const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null);
+      useAgentDevicePanelAutoOpen(true);
+      const openThread = usePanelStore((s) => s.deviceWorkspaceThreadId);
+      return (
+        <div>
+          <div ref={setActionsTarget} />
+          {openThread ? (
+            <DeviceWorkspace threadId={openThread} visible actionsTarget={actionsTarget} />
+          ) : null}
+        </div>
+      );
+    }
+    render(<Harness />);
+    await waitFor(() =>
+      expect(usePanelStore.getState().deviceWorkspaceThreadId).toBe("local-thread"),
+    );
+    expect(usePanelStore.getState().rightPanelTab).toBe("devices");
+    expect(await screen.findByRole("button", { name: "Detach" })).toBeTruthy();
+    expect(await screen.findByTestId("device-controls-fold")).toBeTruthy();
   });
 });

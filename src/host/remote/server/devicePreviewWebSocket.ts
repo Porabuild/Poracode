@@ -151,7 +151,7 @@ export async function handleDevicePreviewUpgrade(
       let resetAt = 0;
       let geometry = initial ? JSON.stringify(initial.size) : null;
       let announcedVideoSession = false;
-      const epoch = randomUUID();
+      let epoch = randomUUID();
       const input = new DevicePreviewInputState(preview.descriptor.platform);
       const mediaAbort = new AbortController();
       const credits = new DevicePreviewCredits(mediaAbort.signal);
@@ -343,8 +343,22 @@ export async function handleDevicePreviewUpgrade(
                   orientation: config.orientation,
                 });
                 if (geometry !== null && geometry !== next) {
-                  abort();
-                  return;
+                  // Release any active presses on the old surface and rotate
+                  // epoch in-place so fold/orientation transitions keep the
+                  // live stream and input channel open without a reconnect lag.
+                  if (helper.readyState === WebSocket.OPEN) {
+                    for (const packet of input.release())
+                      helper.send(packet, { binary: Buffer.isBuffer(packet) }, () => undefined);
+                  }
+                  epoch = randomUUID();
+                  queueMedia(
+                    JSON.stringify({
+                      type: "device-preview-geometry",
+                      version: DEVICE_PREVIEW_VERSION,
+                      epoch,
+                    }),
+                    false,
+                  );
                 }
                 geometry = next;
                 queueMedia(

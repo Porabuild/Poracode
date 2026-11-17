@@ -488,4 +488,66 @@ describe("agent-opened foldable leases", () => {
     await Promise.all([service.createDuo(() => {}), service.createDuo(() => {})]);
     expect(driver.createDuo).toHaveBeenCalledOnce();
   });
+
+  it("withholds agent lease adoption until start finishes and detaches if start fails", async () => {
+    let booted = false;
+    const startGate = Promise.withResolvers<void>();
+    let failStart = false;
+    const driver: DeviceDriver = {
+      discover: async () => ({
+        platforms: [{ platform: "ios", status: "ready" }],
+        devices: [
+          {
+            id: duoId,
+            name: "iPhone Duo",
+            platform: "ios",
+            state: booted ? "running" : "stopped",
+            input: true,
+            accessibility: true,
+            foldable: true,
+            ...(booted
+              ? {
+                  controls: {
+                    version: 1 as const,
+                    bootId: "13455f6b-3b94-40c8-8913-a6839f2dfd1b",
+                    actions: ["read" as const, "fold" as const],
+                  },
+                }
+              : {}),
+          },
+        ],
+      }),
+      start: vi.fn<DeviceDriver["start"]>(async () => {
+        await startGate.promise;
+        if (failStart) throw new Error("boot failed");
+        booted = true;
+      }),
+      capture: vi.fn<DeviceDriver["capture"]>(),
+      inspect: vi.fn<DeviceDriver["inspect"]>(),
+      input: vi.fn<DeviceDriver["input"]>(),
+      release: async () => {},
+      dispose: async () => {},
+    };
+    const service = new DeviceWorkspaceService(() => true, driver);
+    try {
+      const opening = service.attachForAgent("thread-1", duoId, "control", () => {});
+      await vi.waitFor(() => expect(driver.start).toHaveBeenCalledOnce());
+      expect(service.adoptAgentSession("thread-1", "client-1", () => {})).toBeNull();
+      startGate.resolve();
+      const opened = await opening;
+      expect(opened.device.state).toBe("running");
+      expect(opened.device.controls?.actions).toEqual(["read", "fold"]);
+      expect(service.adoptAgentSession("thread-1", "client-1", () => {})?.id).toBe(opened.id);
+      await service.detach("thread-1", "client-1", opened.id);
+
+      booted = false;
+      failStart = true;
+      await expect(service.attachForAgent("thread-2", duoId, "control", () => {})).rejects.toThrow(
+        "boot failed",
+      );
+      expect(service.adoptAgentSession("thread-2", "client-2", () => {})).toBeNull();
+    } finally {
+      await service.dispose();
+    }
+  });
 });

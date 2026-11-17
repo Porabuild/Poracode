@@ -97,6 +97,14 @@ export class DeviceHubRuntime {
     return this.artifact?.manifest.qualifiedPlatforms.slice() ?? [];
   }
 
+  hasActiveGeneration(
+    platform: DeviceTarget["platform"],
+    target: Pick<DeviceStreamTarget, "clientDeviceId" | "bootId">,
+  ): boolean {
+    const key = JSON.stringify([platform, target.clientDeviceId, target.bootId ?? null]);
+    return this.generations.has(key);
+  }
+
   // Shared serve-sim helper start for one booted UDID. Live preview and the
   // fold channel hold independent acquire() references to the same pooled
   // hub generation, so starting the helper is deduplicated per generation

@@ -400,4 +400,31 @@ describe("device create-duo route and v1 additive compatibility", () => {
     expect(adopted.status).toBe(200);
     expect((await adopted.json()).session?.device?.id).toBe("android:fixture");
   });
+
+  it("renews a human lease on device-action so repeated folds do not expire the session", async () => {
+    const { request, devices } = await setup(true, ["session:read", "session:operate"]);
+    const inventory = deviceInventorySchema.parse(await (await request("/api/devices")).json());
+    const attached = await request("/api/threads/thread-1/devices", "POST", {
+      version: 1,
+      generation: inventory.generation,
+      deviceId: "android:fixture",
+      access: "control",
+      agentAccess: "control",
+    });
+    const session = deviceSessionSchema.parse(await attached.json());
+    const renewSpy = vi.spyOn(devices, "renew");
+    const folded = await request(`/api/threads/thread-1/devices/${session.id}/actions`, "POST", {
+      kind: "fold",
+      angle: 180,
+    });
+    expect(folded.status).toBe(200);
+    expect(renewSpy).toHaveBeenCalledTimes(1);
+    const grant = devices.agentSession("thread-1", true);
+    await devices.action("thread-1", grant.principal, grant.session.id, {
+      kind: "key",
+      key: "home",
+    });
+    // Agent activity does not extend a user-issued grant.
+    expect(renewSpy).toHaveBeenCalledTimes(1);
+  });
 });

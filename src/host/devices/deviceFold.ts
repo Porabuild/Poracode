@@ -36,6 +36,7 @@ export interface DeviceFoldHelperHandle {
 export interface DeviceFoldRuntime {
   prepare(): Promise<void>;
   qualified(): boolean;
+  hasActiveHelper?(udid: string, bootId: string): boolean;
   acquireHelper(udid: string, bootId: string, signal: AbortSignal): Promise<DeviceFoldHelperHandle>;
 }
 
@@ -157,6 +158,8 @@ export function createDeviceFoldRuntime(runtime: DeviceHubRuntime): DeviceFoldRu
   return {
     prepare: () => runtime.prepare(),
     qualified: () => runtime.platforms().includes("ios"),
+    hasActiveHelper: (udid, bootId) =>
+      runtime.hasActiveGeneration("ios", { clientDeviceId: udid, bootId }),
     acquireHelper: async (udid, bootId, signal) => {
       // The bootId must travel with the acquire: DeviceHubRuntime pools hub
       // generations by device+boot, and live preview acquires with the boot

@@ -154,13 +154,17 @@ export const DEVICE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, DeviceRouteId> =
   "device-action": (call) =>
     deviceRequest(call, async (signal) => {
       const body = deviceHumanActionSchema.parse(await readJsonBody(call.req));
+      const threadId = requirePathParam(call.params, "threadId");
+      const sessionId = requirePathParam(call.params, "sessionId");
       const controls = await call.ctx.options.deviceWorkspace!.action(
-        requirePathParam(call.params, "threadId"),
+        threadId,
         call.session!.sessionId,
-        requirePathParam(call.params, "sessionId"),
+        sessionId,
         body,
         signal,
       );
+      if (body.kind !== "control" || body.control.type !== "powerOff")
+        call.ctx.options.deviceWorkspace!.renew(threadId, call.session!.sessionId, sessionId);
       return { version: 1, delivered: true, ...(controls ? { controls } : {}) };
     }),
   "device-detach": (call) =>

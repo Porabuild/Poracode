@@ -687,7 +687,9 @@ export class NativeDeviceDriver implements DeviceDriver {
   ): Promise<DeviceControlState> {
     const displays = await this.foldableDisplaysFor(udid, signal);
     let hingeAngle: number | undefined;
-    if (this.foldRuntime) {
+    // Only query an already-active helper on pose reads so snapshot mode does
+    // not spawn and immediately tear down a fresh hub process every 5 seconds.
+    if (this.foldRuntime && (this.foldRuntime.hasActiveHelper?.(udid, bootId) ?? true)) {
       const helper = await this.foldRuntime.acquireHelper(udid, bootId, signal);
       try {
         hingeAngle = (await helper.readConfig(signal)).hingeAngle;

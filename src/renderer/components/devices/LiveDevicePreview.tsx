@@ -13,11 +13,17 @@ import type { DeviceLivePreviewState } from "./useDeviceLivePreview";
 function Screen({
   control,
   framed = false,
+  foldable = false,
+  hingeAngle,
+  folding = false,
   onStatusChange,
   onLivePressButtonChange,
 }: {
   control: boolean;
   framed?: boolean;
+  foldable?: boolean;
+  hingeAngle?: number | undefined;
+  folding?: boolean;
   onStatusChange?: (status: ConnectionStatus) => void;
   onLivePressButtonChange?: (pressButton: ((button: "recents") => void) | null) => void;
 }) {
@@ -64,16 +70,24 @@ function Screen({
   const size = displayScreen(client.screen);
   const width = size?.width ?? 9;
   const height = size?.height ?? 16;
+  const halfOpen = foldable && hingeAngle !== undefined && hingeAngle > 0 && hingeAngle < 180;
   return (
     <div
       data-testid="device-live-preview"
       data-frame={framed ? "framed" : "flat"}
-      className={`relative max-h-full w-full max-w-full overflow-hidden bg-black [&_[role=application]:focus-visible]:ring-2 [&_[role=application]:focus-visible]:ring-inset [&_[role=application]:focus-visible]:ring-accent ${
+      data-hinge-angle={hingeAngle}
+      data-folding={folding ? "true" : undefined}
+      className={`relative max-h-full w-full max-w-full overflow-hidden bg-black transition-[max-width,aspect-ratio,transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none [&_[role=application]:focus-visible]:ring-2 [&_[role=application]:focus-visible]:ring-inset [&_[role=application]:focus-visible]:ring-accent ${
         framed ? "rounded-[18px] border-2 border-white/15 p-1 shadow-sm" : "rounded-lg"
       }`}
       style={{
         aspectRatio: `${width}/${height}`,
         maxWidth: `min(100%, calc(100cqh * ${width} / ${height}))`,
+        transform: halfOpen
+          ? "perspective(1200px) scaleX(0.95) scaleY(0.985)"
+          : folding
+            ? "perspective(1200px) scale(0.97)"
+            : "perspective(1200px) scale(1)",
       }}
     >
       <DeviceScreen
@@ -87,6 +101,19 @@ function Screen({
         statusLabel={status}
         borderRadius={framed ? 14 : 8}
       />
+      {foldable ? (
+        <div
+          aria-hidden="true"
+          data-testid="device-fold-crease"
+          className={`pointer-events-none absolute inset-y-0 left-1/2 w-8 -translate-x-1/2 transition-opacity duration-300 motion-reduce:transition-none ${
+            halfOpen || folding ? "opacity-100" : "opacity-0"
+          }`}
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.22) 45%, rgba(255,255,255,0.16) 50%, rgba(0,0,0,0.26) 55%, transparent 100%)",
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -95,12 +122,18 @@ export function LiveDevicePreview({
   state,
   control,
   framed = false,
+  foldable = false,
+  hingeAngle,
+  folding = false,
   onStatusChange,
   onLivePressButtonChange,
 }: {
   state: DeviceLivePreviewState;
   control: boolean;
   framed?: boolean;
+  foldable?: boolean;
+  hingeAngle?: number | undefined;
+  folding?: boolean;
   onStatusChange?: (status: ConnectionStatus) => void;
   onLivePressButtonChange?: (pressButton: ((button: "recents") => void) | null) => void;
 }) {
@@ -114,12 +147,15 @@ export function LiveDevicePreview({
         streamMode: "h264",
         token: null,
         transport: state.transport,
-        inputEnabled: control,
+        inputEnabled: state.preview.access === "control",
       }}
     >
       <Screen
         control={control}
         framed={framed}
+        foldable={foldable}
+        hingeAngle={hingeAngle}
+        folding={folding}
         {...(onStatusChange ? { onStatusChange } : {})}
         {...(onLivePressButtonChange ? { onLivePressButtonChange } : {})}
       />
