@@ -2611,6 +2611,7 @@ describe("sdkCanonicalMapping — tool use", () => {
           name: "Edit",
           path: "src/renderer/components/composer/MentionInput.tsx",
           changeKind: "edit",
+          diffSummary: { added: 1, removed: 1 },
           args,
         },
       },
@@ -2646,6 +2647,7 @@ describe("sdkCanonicalMapping — tool use", () => {
           name: "Edit",
           path: "src/renderer/components/composer/MentionInput.tsx",
           changeKind: "edit",
+          diffSummary: { added: 1, removed: 1 },
           args,
           result: "Edit applied.",
         },
@@ -2823,6 +2825,57 @@ describe("sdkCanonicalMapping — tool use", () => {
         changeKind: "create",
         diffSummary: { added: 2, removed: 0 },
       },
+    });
+  });
+
+  it("populates diffSummary for Claude Edit and MultiEdit file_change payloads", () => {
+    const state = createClaudeMapperState("thread-1");
+    const editStarted = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 0,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_edit",
+          name: "Edit",
+          input: {
+            file_path: "src/app.ts",
+            old_string: "const a = 1;\nconst b = 2;\n",
+            new_string: "const a = 1;\nconst b = 3;\nconst c = 4;\n",
+          },
+        },
+      }),
+      state,
+    );
+    expect(editStarted[0]).toMatchObject({
+      type: "item.started",
+      itemType: "file_change",
+      payload: { diffSummary: { added: 2, removed: 1 } },
+    });
+
+    const multiStarted = mapClaudeSdkMessage(
+      streamEvent({
+        type: "content_block_start",
+        index: 1,
+        content_block: {
+          type: "tool_use",
+          id: "toolu_multi",
+          name: "MultiEdit",
+          input: {
+            file_path: "src/app.ts",
+            edits: [
+              { old_string: "x", new_string: "y" },
+              { old_string: "m\n", new_string: "m\nn\n" },
+            ],
+          },
+        },
+      }),
+      state,
+    );
+    expect(multiStarted[0]).toMatchObject({
+      type: "item.started",
+      itemType: "file_change",
+      payload: { diffSummary: { added: 2, removed: 1 } },
     });
   });
 

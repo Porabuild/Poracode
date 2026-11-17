@@ -17,8 +17,8 @@ import { ChatRowMetaSeparator } from "./chatRow";
 import { CommandOutputViewport } from "./CommandOutputViewport";
 import { ToolCallSections, type ToolCallSection } from "./ToolCallSections";
 import {
-  extractAcpAddedFileText,
   extractAcpArgsPart,
+  extractAcpCreateContent,
   extractAcpDiffResultPart,
   extractAcpResultPart,
   readAcpContentEditTexts,
@@ -68,7 +68,8 @@ export const FileChange = memo(function FileChange({ item: source }: FileChangeP
   if (!payload || !header) return null;
 
   // Body-only extraction — collapsed remounts only need the cached header.
-  const argContent = isExpanded && header.hasArgContent ? extractCreateContent(payload) : undefined;
+  const argContent =
+    isExpanded && header.hasArgContent ? extractAcpCreateContent(payload) : undefined;
   const diffText =
     isExpanded && header.hasDiffText ? extractAcpDiffResultPart(payload)?.text : undefined;
   const contentEdit = isExpanded ? readAcpContentEditTexts(payload) : undefined;
@@ -154,25 +155,6 @@ export const FileChange = memo(function FileChange({ item: source }: FileChangeP
     </ChatItemAccordion>
   );
 });
-
-function extractCreateContent(payload: unknown): string | undefined {
-  if (!payload || typeof payload !== "object") return undefined;
-  const path = readPayloadString(payload, "path");
-  if (path) {
-    const patchContent = extractAcpAddedFileText(payload, path);
-    if (patchContent !== undefined) return patchContent;
-  }
-  const args = (payload as Record<string, unknown>).args;
-  if (!args || typeof args !== "object" || Array.isArray(args)) return undefined;
-  const content = (args as Record<string, unknown>).content;
-  return typeof content === "string" && content.length > 0 ? content : undefined;
-}
-
-function readPayloadString(payload: unknown, key: string): string | undefined {
-  if (!payload || typeof payload !== "object") return undefined;
-  const value = (payload as Record<string, unknown>)[key];
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
 
 export function formatKindVerb(kind: FileChangePayload["changeKind"]): string {
   switch (kind) {

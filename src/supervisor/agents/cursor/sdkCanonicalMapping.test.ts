@@ -701,6 +701,77 @@ describe("Cursor SDK canonical mapping — tool lifecycle and payloads", () => {
     );
   });
 
+  it("extracts diffSummary for Cursor SDK edit without diffString, multi-edit, write, and omits on error", () => {
+    const state = createCursorSdkMapperState("thread-1");
+    const linesOnly = mapCursorSdkInteractionUpdate(
+      {
+        type: "tool-call-completed",
+        callId: "edit-lines-only",
+        modelCallId: "model-1",
+        toolCall: {
+          type: "edit",
+          args: { path: "src/shared/settings.ts", oldText: "a\n", newText: "b\n" },
+          result: { status: "success", value: { linesAdded: 4, linesRemoved: 2 } },
+        },
+      },
+      state,
+    );
+    expect(linesOnly).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        payload: expect.objectContaining({
+          status: "success",
+          diffSummary: { added: 4, removed: 2 },
+        }),
+      }),
+    );
+
+    const writeEvents = mapCursorSdkInteractionUpdate(
+      {
+        type: "tool-call-completed",
+        callId: "write-1",
+        modelCallId: "model-1",
+        toolCall: {
+          type: "write",
+          args: { path: "src/new.ts", fileText: "export const a = 1;\nexport const b = 2;\n" },
+          result: {
+            status: "success",
+            value: { path: "src/new.ts", linesCreated: 2, fileSize: 40 },
+          },
+        },
+      },
+      state,
+    );
+    expect(writeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.completed",
+        payload: expect.objectContaining({
+          changeKind: "create",
+          diffSummary: { added: 2, removed: 0 },
+        }),
+      }),
+    );
+
+    const errorEvents = mapCursorSdkInteractionUpdate(
+      {
+        type: "tool-call-completed",
+        callId: "edit-err",
+        modelCallId: "model-1",
+        toolCall: {
+          type: "edit",
+          args: { path: "src/shared/settings.ts", oldText: "a\n", newText: "b\n" },
+          result: { status: "error", error: { message: "Edit failed" } },
+        },
+      },
+      state,
+    );
+    const completedError = errorEvents.find((event) => event.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(completedError?.payload?.status).toBe("error");
+    expect(completedError?.payload?.diffSummary).toBeUndefined();
+  });
+
   it("normalizes updateTodos and createPlan into canonical plan steps", () => {
     const todos = createCursorSdkMapperState("thread-1");
     const todoEvents = mapCursorSdkInteractionUpdate(

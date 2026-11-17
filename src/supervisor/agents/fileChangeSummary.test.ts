@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readStringField } from "./fileChangeSummary";
+import { readDiffSummary, readFileChangePath, readStringField } from "./fileChangeSummary";
 
 /**
  * Pins the single cross-provider `readStringField` semantic. Historically each
@@ -40,5 +40,55 @@ describe("readStringField", () => {
     expect(readStringField({ command: "  git commit -m 'x'  " }, "command")).toBe(
       "git commit -m 'x'",
     );
+  });
+});
+
+describe("readDiffSummary", () => {
+  it("reads Cursor SDK EditSuccess linesAdded/linesRemoved when diffString is absent", () => {
+    expect(readDiffSummary({ linesAdded: 4, linesRemoved: 2 })).toEqual({ added: 4, removed: 2 });
+    expect(readDiffSummary({ linesAdded: 3 })).toEqual({ added: 3, removed: 0 });
+    expect(readDiffSummary({ linesRemoved: 5 })).toEqual({ added: 0, removed: 5 });
+    expect(readDiffSummary({ linesAdded: -1, linesRemoved: 2 })).toBeUndefined();
+  });
+
+  it("reads Cursor SDK WriteSuccess linesCreated and WriteArgs fileText", () => {
+    expect(readDiffSummary({ path: "src/a.ts", linesCreated: 7, fileSize: 120 })).toEqual({
+      added: 7,
+      removed: 0,
+    });
+    expect(readDiffSummary({ path: "src/a.ts", fileText: "line 1\nline 2\n" })).toEqual({
+      added: 2,
+      removed: 0,
+    });
+  });
+
+  it("computes exact line stats for replacement edits, multi-edits, and patchContent", () => {
+    expect(
+      readDiffSummary({
+        path: "src/a.ts",
+        oldText: "keep\nold\n",
+        newText: "keep\nnew\nextra\n",
+      }),
+    ).toEqual({ added: 2, removed: 1 });
+    expect(
+      readDiffSummary({
+        path: "src/a.ts",
+        edits: [
+          { oldText: "a\n", newText: "b\n" },
+          { old_string: "c\n", new_string: "c\nd\n" },
+        ],
+      }),
+    ).toEqual({ added: 2, removed: 1 });
+    expect(
+      readDiffSummary({
+        path: "src/a.ts",
+        patchContent: "*** Begin Patch\n*** Update File: src/a.ts\n@@\n-old\n+new\n*** End Patch",
+      }),
+    ).toEqual({ added: 1, removed: 1 });
+    expect(
+      readFileChangePath({
+        patchContent: "*** Begin Patch\n*** Update File: src/a.ts\n@@\n-old\n+new\n*** End Patch",
+      }),
+    ).toBe("src/a.ts");
   });
 });

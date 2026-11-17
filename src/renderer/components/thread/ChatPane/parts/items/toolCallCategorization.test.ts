@@ -173,6 +173,57 @@ describe("segmentToolGroupRows", () => {
       },
     ]);
   });
+
+  it("keeps edit totals in both the group header and same-file runs for legacy Cursor SDK payloads without diffSummary", () => {
+    const legacyEditWithCounts: RuntimeChatItem = {
+      id: "s1",
+      type: "file_change",
+      state: "completed",
+      payload: {
+        name: "edit",
+        path: "src/shared/settings.ts",
+        changeKind: "edit",
+        status: "success",
+        args: { path: "src/shared/settings.ts" },
+        result: { linesAdded: 10, linesRemoved: 4 },
+      },
+      streams: {},
+    };
+    const legacyEditWithDiffString: RuntimeChatItem = {
+      id: "s2",
+      type: "file_change",
+      state: "completed",
+      payload: {
+        name: "edit",
+        path: "src/shared/settings.ts",
+        changeKind: "edit",
+        status: "success",
+        args: { path: "src/shared/settings.ts" },
+        result: { diffString: "@@ -1 +1,2 @@\n-a\n+b\n+c\n" },
+      },
+      streams: {},
+    };
+    const items = [
+      makeFileChange("m1", "src/shared/memory.ts", { added: 13, removed: 6 }),
+      legacyEditWithCounts,
+      legacyEditWithDiffString,
+    ];
+    expect(summarizeToolCalls(items)).toEqual([
+      expect.objectContaining({
+        category: "edited",
+        count: 3,
+        diffSummary: { added: 25, removed: 11 },
+      }),
+    ]);
+    expect(segmentToolGroupRows(items)[1]).toMatchObject({
+      kind: "same-file-edits",
+      summary: {
+        count: 2,
+        path: "src/shared/settings.ts",
+        diffSummary: { added: 12, removed: 5 },
+      },
+    });
+  });
 });
 
 describe("categorizeToolName", () => {

@@ -59,6 +59,7 @@ export function classifyCursorSdkTool(toolName: string): CanonicalItemType {
   if (
     name === "write" ||
     name === "edit" ||
+    name === "multiedit" ||
     name === "delete" ||
     name.includes("patch") ||
     name.includes("replace")
@@ -94,8 +95,9 @@ export function cursorSdkToolPayload(tool: CursorSdkToolItem): Record<string, un
 
   if (tool.itemType === "file_change") {
     const path = readFileChangePath(args, result) ?? "";
-    const diffText = readStringField(result, "diffString", "diff", "patch");
-    const diffSummary = readDiffSummary(args, result, diffText);
+    const diffText = readStringField(result, "diffString", "diff", "unifiedDiff", "patch");
+    const diffSummary =
+      tool.status === "error" ? undefined : readDiffSummary(result, diffText, args);
     const changeKind = classifyCursorFileChangeKind(tool, args, result, diffText);
     return {
       name: tool.name,
