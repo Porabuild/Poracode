@@ -16,7 +16,7 @@ export const functionalAreas = [
     title: "Opt-in memory capture, recall, settings, and environment sync",
     patterns: [
       /^src\/host\/memory\//,
-      /memory(Store|DeleteHook|Sync|Settings|AddMenu|SkillSuggestions|ModelChoice)/i,
+      /memory(Store|DeleteHook|Sync|Settings|CatalogDialog|AddMenu|SkillSuggestions|ModelChoice)/i,
     ],
     automated: ["baseline", "settings"],
     manual: ["changed-surface", "ipc-roundtrip", "provider-live", "remote-client"],

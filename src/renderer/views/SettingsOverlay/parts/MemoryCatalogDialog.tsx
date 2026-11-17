@@ -1,0 +1,279 @@
+import { useEffect, useRef, useState } from "react";
+import { Modal } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import { readBridge } from "@/renderer/bridge";
+import { Button } from "@/renderer/components/common";
+import { syncMemoryAcrossEnvironments } from "@/renderer/state/memorySync";
+import type { MemoryEntry } from "@/shared/memory";
+
+function readCatalog(projectId: string | undefined) {
+  return readBridge().memoryCommand({ action: "list", ...(projectId ? { projectId } : {}) });
+}
+
+export function MemoryCatalogDialog(props: {
+  projectId?: string;
+  onChanged: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const { t } = useLingui();
+  const [entries, setEntries] = useState<MemoryEntry[] | undefined>();
+  const [draft, setDraft] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ id: string; editing: boolean } | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [error, setError] = useState(false);
+  const editInputRef = useRef<HTMLInputElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const editingId = editTarget?.editing ? editTarget.id : null;
+
+  useEffect(() => {
+    let active = true;
+    void readCatalog(props.projectId).then(
+      (next) => {
+        if (active) setEntries(next as MemoryEntry[]);
+      },
+      () => {
+        if (active) setError(true);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [props.projectId]);
+
+  useEffect(() => {
+    if (editTarget?.editing) editInputRef.current?.focus();
+    else if (editTarget) editButtonRef.current?.focus();
+  }, [editTarget]);
+
+  function finishEditing() {
+    setEditTarget((current) => (current ? { ...current, editing: false } : null));
+  }
+
+  async function refreshCatalog() {
+    const [next] = await Promise.all([readCatalog(props.projectId), props.onChanged()]);
+    setEntries(next as MemoryEntry[]);
+  }
+
+  async function refreshAfterChange() {
+    await refreshCatalog();
+    void syncMemoryAcrossEnvironments()
+      .then((result) => (result.changed ? refreshCatalog() : undefined))
+      .catch(() => setError(true));
+  }
+
+  function addDraftMemory() {
+    const summary = draft.trim();
+    if (summary.length === 0 || adding) return;
+    setAdding(true);
+    setError(false);
+    void readBridge()
+      .memoryCommand({
+        action: "save",
+        entry: {
+          scope: props.projectId ? "project" : "global",
+          ...(props.projectId ? { projectId: props.projectId } : {}),
+          category: "user",
+          summary,
+          body: summary,
+          polarity: "positive",
+          pinned: false,
+        },
+      })
+      .then(() => {
+        setDraft((current) => (current === draft ? "" : current));
+        return refreshAfterChange();
+      })
+      .catch(() => setError(true))
+      .finally(() => setAdding(false));
+  }
+
+  function togglePin(entry: MemoryEntry) {
+    setError(false);
+    void readBridge()
+      .memoryCommand({
+        action: "save",
+        entry: {
+          id: entry.id,
+          scope: entry.scope,
+          projectId: entry.projectId,
+          category: entry.category,
+          summary: entry.summary,
+          body: entry.body,
+          polarity: entry.polarity,
+          pinned: !entry.pinned,
+          quote: entry.quote,
+        },
+      })
+      .then(refreshAfterChange)
+      .catch(() => setError(true));
+  }
+
+  function saveEdit(entry: MemoryEntry) {
+    const summary = editDraft.trim();
+    if (summary.length === 0) return;
+    setError(false);
+    void readBridge()
+      .memoryCommand({
+        action: "save",
+        entry: {
+          id: entry.id,
+          scope: entry.scope,
+          projectId: entry.projectId,
+          category: entry.category,
+          summary,
+          body: entry.body === entry.summary ? summary : entry.body,
+          polarity: entry.polarity,
+          pinned: entry.pinned,
+          quote: entry.quote,
+        },
+      })
+      .then(() => {
+        finishEditing();
+        return refreshAfterChange();
+      })
+      .catch(() => setError(true));
+  }
+
+  return (
+    <Modal.Backdrop isOpen onOpenChange={(open) => !open && props.onClose()}>
+      <Modal.Container placement="center" scroll="inside" size="lg">
+        <Modal.Dialog className="sm:max-w-2xl">
+          <Modal.CloseTrigger />
+          <Modal.Header>
+            <Modal.Heading>
+              <Trans>Memories</Trans>
+            </Modal.Heading>
+          </Modal.Header>
+          <Modal.Body className="space-y-3 p-4">
+            {error && (
+              <p className="text-xs text-danger" role="alert">
+                <Trans>Couldn't load memory.</Trans>
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <input
+                aria-label={t`Add a memory`}
+                className="min-w-0 flex-1 rounded-lg border border-[var(--hairline)] bg-transparent px-3 py-2 text-sm"
+                value={draft}
+                placeholder={t`Always use bun`}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addDraftMemory();
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                variant="tertiary"
+                isDisabled={adding || draft.trim().length === 0}
+                onPress={addDraftMemory}
+              >
+                <Trans>Add</Trans>
+              </Button>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+              {entries === undefined ? (
+                error ? null : (
+                  <p className="px-3 py-4 text-sm text-muted" role="status">
+                    <Trans>Loading…</Trans>
+                  </p>
+                )
+              ) : entries.length === 0 ? (
+                <p className="px-3 py-4 text-sm text-muted">
+                  <Trans>No memories yet.</Trans>
+                </p>
+              ) : (
+                entries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex flex-col gap-2 border-b border-[var(--hairline)] px-3 py-2 last:border-b-0 sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0 flex-1">
+                      {editingId === entry.id ? (
+                        <input
+                          ref={editInputRef}
+                          aria-label={t`Edit`}
+                          data-overlay-escape-owner=""
+                          className="w-full rounded-lg border border-[var(--hairline)] bg-transparent px-2 py-1 text-sm"
+                          value={editDraft}
+                          onChange={(event) => setEditDraft(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              saveEdit(entry);
+                            } else if (event.key === "Escape") {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              finishEditing();
+                            }
+                          }}
+                        />
+                      ) : (
+                        <p className="text-sm break-words text-foreground">{entry.summary}</p>
+                      )}
+                      <p className="truncate text-xs text-muted">
+                        {entry.category} · {entry.scope}
+                        {entry.pinned ? ` · ${t`Pinned`}` : ""}
+                        {entry.lockedByUser ? ` · ${t`Edited by you`}` : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-wrap items-center gap-1">
+                      {editingId === entry.id ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="tertiary"
+                            isDisabled={editDraft.trim().length === 0}
+                            onPress={() => saveEdit(entry)}
+                          >
+                            <Trans>Save</Trans>
+                          </Button>
+                          <Button size="sm" variant="ghost" onPress={finishEditing}>
+                            <Trans>Cancel</Trans>
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button size="sm" variant="ghost" onPress={() => togglePin(entry)}>
+                            {entry.pinned ? <Trans>Unpin</Trans> : <Trans>Pin to top</Trans>}
+                          </Button>
+                          <Button
+                            ref={editTarget?.id === entry.id ? editButtonRef : undefined}
+                            size="sm"
+                            variant="ghost"
+                            onPress={() => {
+                              setEditTarget({ id: entry.id, editing: true });
+                              setEditDraft(entry.summary);
+                            }}
+                          >
+                            <Trans>Edit</Trans>
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onPress={() => {
+                          setError(false);
+                          void readBridge()
+                            .memoryCommand({ action: "delete", id: entry.id })
+                            .then(refreshAfterChange)
+                            .catch(() => setError(true));
+                        }}
+                      >
+                        <Trans>Delete</Trans>
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Modal.Body>
+        </Modal.Dialog>
+      </Modal.Container>
+    </Modal.Backdrop>
+  );
+}

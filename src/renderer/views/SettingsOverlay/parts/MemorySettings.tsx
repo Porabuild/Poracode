@@ -12,11 +12,11 @@ import type {
   MemoryCaptureTiming,
   MemoryDeletePolicy,
   MemoryDreamCadence,
-  MemoryEntry,
   MemoryStatus,
 } from "@/shared/memory";
 import { pickMemoryModel, type MemoryModelCandidate } from "@/shared/memoryModelChoice";
 import type { ProviderModelMenuProvider } from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
+import { MemoryCatalogDialog } from "./MemoryCatalogDialog";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 
 function memoryModelCandidates(
@@ -113,11 +113,7 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
   const childDisabled = !memory.enabled;
   const childRowClass = childDisabled ? "opacity-55 transition-opacity" : "transition-opacity";
   const [status, setStatus] = useState<MemoryStatus | undefined>();
-  const [entries, setEntries] = useState<MemoryEntry[]>([]);
-  const [draft, setDraft] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState("");
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [dreaming, setDreaming] = useState(false);
   const [undoing, setUndoing] = useState(false);
@@ -133,14 +129,6 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
       })
       .then((next) => {
         if (active) setStatus(next as MemoryStatus);
-      })
-      .catch(() => {
-        if (active) setError(true);
-      });
-    void readBridge()
-      .memoryCommand({ action: "list", ...(props.projectId ? { projectId: props.projectId } : {}) })
-      .then((next) => {
-        if (active) setEntries(next as MemoryEntry[]);
       })
       .catch(() => {
         if (active) setError(true);
@@ -168,102 +156,17 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
     { id: "manual", label: t`Manual only` },
   ];
 
-  async function reload() {
-    const [nextStatus, nextEntries] = await Promise.all([
-      readBridge().memoryCommand({
-        action: "status",
-        ...(props.projectId ? { projectId: props.projectId } : {}),
-      }),
-      readBridge().memoryCommand({
-        action: "list",
-        ...(props.projectId ? { projectId: props.projectId } : {}),
-      }),
-    ]);
+  async function reloadStatus() {
+    const nextStatus = await readBridge().memoryCommand({
+      action: "status",
+      ...(props.projectId ? { projectId: props.projectId } : {}),
+    });
     setStatus(nextStatus as MemoryStatus);
-    setEntries(nextEntries as MemoryEntry[]);
   }
 
   function syncAfterChange() {
     void syncMemoryAcrossEnvironments()
-      .then((result) => (result.changed ? reload() : undefined))
-      .catch(() => setError(true));
-  }
-
-  function addDraftMemory() {
-    const summary = draft.trim();
-    if (summary.length === 0 || adding) return;
-    setAdding(true);
-    setError(false);
-    void readBridge()
-      .memoryCommand({
-        action: "save",
-        entry: {
-          scope: props.projectId ? "project" : "global",
-          ...(props.projectId ? { projectId: props.projectId } : {}),
-          category: "user",
-          summary,
-          body: summary,
-          polarity: "positive",
-          pinned: false,
-        },
-      })
-      .then(() => {
-        setDraft((current) => (current === draft ? "" : current));
-        syncAfterChange();
-        return reload();
-      })
-      .catch(() => setError(true))
-      .finally(() => setAdding(false));
-  }
-
-  function togglePin(entry: MemoryEntry) {
-    setError(false);
-    void readBridge()
-      .memoryCommand({
-        action: "save",
-        entry: {
-          id: entry.id,
-          scope: entry.scope,
-          projectId: entry.projectId,
-          category: entry.category,
-          summary: entry.summary,
-          body: entry.body,
-          polarity: entry.polarity,
-          pinned: !entry.pinned,
-          quote: entry.quote,
-        },
-      })
-      .then(() => {
-        syncAfterChange();
-        return reload();
-      })
-      .catch(() => setError(true));
-  }
-
-  function saveEdit(entry: MemoryEntry) {
-    const summary = editDraft.trim();
-    if (summary.length === 0) return;
-    setError(false);
-    void readBridge()
-      .memoryCommand({
-        action: "save",
-        entry: {
-          id: entry.id,
-          scope: entry.scope,
-          projectId: entry.projectId,
-          category: entry.category,
-          summary,
-          body: entry.body === entry.summary ? summary : entry.body,
-          polarity: entry.polarity,
-          pinned: entry.pinned,
-          quote: entry.quote,
-        },
-      })
-      .then(() => {
-        setEditingId(null);
-        syncAfterChange();
-        return reload();
-      })
+      .then((result) => (result.changed ? reloadStatus() : undefined))
       .catch(() => setError(true));
   }
 
@@ -542,12 +445,12 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
         </p>
       ) : (
         <section className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-foreground">
-              <Trans>Memories</Trans>
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Button size="sm" variant="secondary" onPress={() => setCatalogOpen(true)}>
+              <Trans>Manage memories</Trans>
+            </Button>
             {!props.projectId ? (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {status?.lastDreamRunId ? (
                   <Button
                     size="sm"
@@ -562,7 +465,7 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
                         .memoryCommand({ action: "undo", runId })
                         .then(() => {
                           syncAfterChange();
-                          return reload();
+                          return reloadStatus();
                         })
                         .catch(() => setError(true))
                         .finally(() => setUndoing(false));
@@ -579,7 +482,7 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
                     setSyncing(true);
                     setError(false);
                     void syncMemoryAcrossEnvironments({ force: true })
-                      .then(() => reload())
+                      .then(() => reloadStatus())
                       .catch(() => setError(true))
                       .finally(() => setSyncing(false));
                   }}
@@ -597,7 +500,7 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
                       .memoryCommand({ action: "dream" })
                       .then(() => {
                         syncAfterChange();
-                        return reload();
+                        return reloadStatus();
                       })
                       .catch(() => setError(true))
                       .finally(() => setDreaming(false));
@@ -619,117 +522,15 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
               <Trans>Couldn't load memory.</Trans>
             </p>
           ) : null}
-          <div className="flex items-center gap-2">
-            <input
-              aria-label={t`Add a memory`}
-              className="min-w-0 flex-1 rounded-lg border border-[var(--hairline)] bg-transparent px-3 py-2 text-sm"
-              value={draft}
-              placeholder={t`Always use bun`}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  addDraftMemory();
-                }
-              }}
+
+          {catalogOpen && (
+            <MemoryCatalogDialog
+              key={props.projectId}
+              {...(props.projectId ? { projectId: props.projectId } : {})}
+              onChanged={reloadStatus}
+              onClose={() => setCatalogOpen(false)}
             />
-            <Button
-              size="sm"
-              variant="tertiary"
-              isDisabled={adding || draft.trim().length === 0}
-              onPress={addDraftMemory}
-            >
-              <Trans>Add</Trans>
-            </Button>
-          </div>
-          <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
-            {entries.length === 0 ? (
-              <p className="px-3 py-4 text-sm text-muted">
-                <Trans>No memories yet.</Trans>
-              </p>
-            ) : (
-              entries.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="flex items-center gap-2 border-b border-[var(--hairline)] px-3 py-2 last:border-b-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    {editingId === entry.id ? (
-                      <input
-                        aria-label={t`Edit`}
-                        className="w-full rounded-lg border border-[var(--hairline)] bg-transparent px-2 py-1 text-sm"
-                        value={editDraft}
-                        onChange={(event) => setEditDraft(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            saveEdit(entry);
-                          } else if (event.key === "Escape") {
-                            event.preventDefault();
-                            setEditingId(null);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <p className="truncate text-sm text-foreground">{entry.summary}</p>
-                    )}
-                    <p className="truncate text-xs text-muted">
-                      {entry.category} · {entry.scope}
-                      {entry.pinned ? ` · ${t`Pinned`}` : ""}
-                      {entry.lockedByUser ? ` · ${t`Edited by you`}` : ""}
-                    </p>
-                  </div>
-                  {editingId === entry.id ? (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="tertiary"
-                        isDisabled={editDraft.trim().length === 0}
-                        onPress={() => saveEdit(entry)}
-                      >
-                        <Trans>Save</Trans>
-                      </Button>
-                      <Button size="sm" variant="ghost" onPress={() => setEditingId(null)}>
-                        <Trans>Cancel</Trans>
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button size="sm" variant="ghost" onPress={() => togglePin(entry)}>
-                        {entry.pinned ? <Trans>Unpin</Trans> : <Trans>Pin to top</Trans>}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onPress={() => {
-                          setEditingId(entry.id);
-                          setEditDraft(entry.summary);
-                        }}
-                      >
-                        <Trans>Edit</Trans>
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onPress={() => {
-                      setError(false);
-                      void readBridge()
-                        .memoryCommand({ action: "delete", id: entry.id })
-                        .then(() => {
-                          syncAfterChange();
-                          return reload();
-                        })
-                        .catch(() => setError(true));
-                    }}
-                  >
-                    <Trans>Delete</Trans>
-                  </Button>
-                </div>
-              ))
-            )}
-          </div>
+          )}
         </section>
       )}
     </SettingsPage>

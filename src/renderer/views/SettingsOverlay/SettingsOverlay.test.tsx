@@ -1,9 +1,10 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import type { PoracodeBridge } from "@/shared/ipc";
+import { defaultMemorySettings, type MemoryCommandPayload } from "@/shared/memory";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 
@@ -20,6 +21,15 @@ const appState = {
 
 const bridgeState = {
   remote: false,
+  memoryCommand: vi.fn<(command: MemoryCommandPayload) => Promise<unknown>>(async (command) =>
+    command.action === "list" ? [] : undefined,
+  ),
+};
+
+const sharedSettingsState = {
+  disabledAgents: [] as string[],
+  hiddenModels: {},
+  memory: defaultMemorySettings,
 };
 
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
@@ -32,8 +42,8 @@ vi.mock("@/renderer/state/appStore", () => ({
 }));
 
 vi.mock("@/renderer/state/sharedSettingsStore", () => ({
-  useSharedSettings: (selector: (state: { disabledAgents: string[] }) => unknown) =>
-    selector({ disabledAgents: [] }),
+  useSharedSettings: (selector: (state: typeof sharedSettingsState) => unknown) =>
+    selector(sharedSettingsState),
 }));
 
 vi.mock("@/renderer/components/layout/PageLayout", () => ({
@@ -57,7 +67,13 @@ vi.mock("@/renderer/components/layout/PageLayout", () => ({
 }));
 
 vi.mock("@/renderer/components/common", () => ({
+  Button: (props: { children: ReactNode; onPress?: () => void; ref?: Ref<HTMLButtonElement> }) => (
+    <button type="button" onClick={props.onPress} ref={props.ref}>
+      {props.children}
+    </button>
+  ),
   PixelLoader: () => <span />,
+  ToggleSwitch: () => <span />,
   TuxIcon: () => <span />,
   Select: () => <span data-testid="machine-select" />,
   SidebarButton: (props: {
@@ -94,6 +110,7 @@ vi.mock("@/renderer/bridge", () => ({
   isWindows: () => false,
   readBridge: () => ({
     openExternal: vi.fn<() => Promise<void>>(async () => undefined),
+    memoryCommand: bridgeState.memoryCommand,
   }),
 }));
 
@@ -242,10 +259,42 @@ describe("SettingsOverlay", () => {
     appState.projects = [];
     appState.openSchedules.mockReset();
     bridgeState.remote = false;
+    bridgeState.memoryCommand.mockClear();
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useSettingsHostStore.setState({ desktopId: null });
     __resetBrowserBridgeForTest();
     usePanelStore.setState({ settingsSection: null, settingsAnchor: null });
+  });
+
+  it("opens memory list management in a dialog and loads entries only when opened", async () => {
+    usePanelStore.getState().openSettingsSection("memory");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Dream now" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Add a memory" })).toBeNull();
+    expect(bridgeState.memoryCommand).not.toHaveBeenCalledWith({ action: "list" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
+    const dialog = await screen.findByRole("dialog", { name: "Memories" });
+    expect(within(dialog).getByRole("textbox", { name: "Add a memory" })).toBeInTheDocument();
+    expect(await within(dialog).findByText("No memories yet.")).toBeInTheDocument();
+    expect(bridgeState.memoryCommand).toHaveBeenCalledWith({ action: "list" });
+  });
+
+  it("focuses the memory editor and returns focus to its row when editing is cancelled", async () => {
+    bridgeState.memoryCommand
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce([{ id: "memory-1", scope: "global", summary: "Always use bun" }]);
+    usePanelStore.getState().openSettingsSection("memory");
+    render(<SettingsOverlay onClose={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Memories" });
+    fireEvent.click(await within(dialog).findByRole("button", { name: "Edit" }));
+    const editor = within(dialog).getByRole("textbox", { name: "Edit" });
+    expect(editor).toHaveFocus();
+    fireEvent.keyDown(editor, { key: "Escape" });
+    expect(within(dialog).getByRole("button", { name: "Edit" })).toHaveFocus();
   });
 
   it("scrolls to an initially requested setting anchor and consumes the request", async () => {
