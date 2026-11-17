@@ -50,6 +50,7 @@ function snapshot(
     snapshotSeq?: number;
     remoteServerId?: string;
     status?: Thread["status"];
+    attention?: Thread["attention"];
     presentationMode?: Thread["presentationMode"];
     runtimeItems?: RemoteThreadSnapshot["runtimeItems"];
     contextUsage?: RemoteThreadSnapshot["contextUsage"];
@@ -61,6 +62,7 @@ function snapshot(
       ...thread,
       ...(overrides.remoteServerId ? { remoteServerId: overrides.remoteServerId } : {}),
       ...(overrides.status ? { status: overrides.status } : {}),
+      ...(overrides.attention ? { attention: overrides.attention } : {}),
       ...(overrides.presentationMode ? { presentationMode: overrides.presentationMode } : {}),
     },
     runtimeItems: overrides.runtimeItems ?? [],
@@ -218,37 +220,103 @@ describe("remote thread stale-snapshot arbitration", () => {
     expect(useAppStore.getState().runtimeOpenTurnByThread[thread.id]).toBe(false);
   });
 
-  it("still re-seeds an open request from persisted items on a fresh awaiting-user snapshot", () => {
+  it.each([
+    { status: "needs_approval", attention: "none" },
+    { status: "working", attention: "needs_reply" },
+    { status: "idle", attention: "needs_reply" },
+    { status: "finished", attention: "needs_reply" },
+    { status: "working", attention: "needs_approval" },
+  ] as const)(
+    "re-seeds an open request from a fresh $status/$attention snapshot",
+    ({ status, attention }) => {
+      useAppStore.setState({
+        threads: [{ ...remoteThread, status: "working" }],
+      });
+
+      applyThreadSnapshot(
+        snapshot(undefined, {
+          snapshotSeq: 10,
+          remoteServerId: "desktop-1",
+          status,
+          attention,
+          runtimeItems: [
+            {
+              id: "pending_request:req-1",
+              type: "pending_request",
+              state: "started",
+              payload: {
+                requestId: "req-1",
+                requestType: "tool_user_input",
+                payload: { summary: "Which framework?" },
+              },
+              streams: {},
+            },
+          ],
+        }),
+        { fromServer: true, lastSeenEventSeq: 10 },
+      );
+
+      expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([
+        expect.objectContaining({ requestId: "req-1", threadId: thread.id }),
+      ]);
+    },
+  );
+
+  it("keeps a live question when a current snapshot still needs a reply while working", () => {
     useAppStore.setState({
-      threads: [{ ...remoteThread, status: "working" }],
+      threads: [remoteThread],
+      runtimeRequestsByThread: { [thread.id]: [openRequest] },
     });
 
     applyThreadSnapshot(
       snapshot(undefined, {
         snapshotSeq: 10,
         remoteServerId: "desktop-1",
-        status: "needs_approval",
+        status: "working",
+        attention: "needs_reply",
+        presentationMode: "gui",
+      }),
+      { fromServer: true, lastSeenEventSeq: 10 },
+    );
+
+    expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([openRequest]);
+  });
+
+  it.each(["error", "inactive", "launching"] as const)(
+    "clears stale questions when a fresh %s snapshot retains reply attention",
+    (status) => {
+      useAppStore.setState({
+        threads: [remoteThread],
+        runtimeRequestsByThread: { [thread.id]: [openRequest] },
+      });
+      const incoming = snapshot(undefined, {
+        snapshotSeq: 10,
+        remoteServerId: "desktop-1",
+        status,
+        attention: "needs_reply",
+        presentationMode: "gui",
         runtimeItems: [
           {
             id: "pending_request:req-1",
             type: "pending_request",
             state: "started",
             payload: {
-              requestId: "req-1",
-              requestType: "tool_user_input",
-              payload: { summary: "Which framework?" },
+              requestId: openRequest.requestId,
+              requestType: openRequest.requestType,
+              payload: openRequest.payload,
             },
             streams: {},
           },
         ],
-      }),
-      { fromServer: true, lastSeenEventSeq: 10 },
-    );
+      });
 
-    expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([
-      expect.objectContaining({ requestId: "req-1", threadId: thread.id }),
-    ]);
-  });
+      applyThreadSnapshot(incoming, { fromServer: true, lastSeenEventSeq: 10 });
+      expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([]);
+
+      applyThreadSnapshot(incoming, { fromServer: true, lastSeenEventSeq: 10 });
+      expect(useAppStore.getState().runtimeRequestsByThread[thread.id]).toEqual([]);
+    },
+  );
 });
 
 describe("host history metadata identity", () => {

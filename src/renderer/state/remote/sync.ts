@@ -1,6 +1,7 @@
 import { historyContentOmissions } from "../historyDelivery";
 import { noteHistoryDeliveryGap } from "../historyResumeRegistry";
 import { isThreadTurnActive, type Thread } from "@/shared/contracts";
+import { threadAttentionStatus } from "@/shared/threadAttention";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
@@ -538,8 +539,8 @@ function syncRuntimeRequestsFromSnapshot(
 ): void {
   if (snapshotIsStaleForThread(snapshot, lastSeenEventSeq)) return;
   const threadId = snapshot.thread.id;
-  const awaitingUser =
-    snapshot.thread.status === "needs_approval" || snapshot.thread.status === "needs_reply";
+  const status = threadAttentionStatus(snapshot.thread.status, snapshot.thread.attention);
+  const awaitingUser = status === "needs_approval" || status === "needs_reply";
   useAppStore.setState((current) => {
     const open = current.runtimeRequestsByThread[threadId] ?? [];
     if (!awaitingUser) {
