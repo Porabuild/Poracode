@@ -26,7 +26,8 @@ struct ProjectWorkspaceSplitView<Sidebar: View, Detail: View>: View {
             detail
               .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                  Button(AdvancedOperationsStrings.close, systemImage: "xmark") {
+                  PoracodeToolbarIconButton(title: AdvancedOperationsStrings.close,
+                    systemImage: "xmark", color: .primary) {
                     preferredCompactColumn = .sidebar
                   }
                   .accessibilityIdentifier("native-e2e.project-workspace.close-detail")

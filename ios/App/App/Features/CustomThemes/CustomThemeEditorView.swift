@@ -75,7 +75,6 @@ struct CustomThemeEditorView: View {
             .accessibilityIdentifier("native-e2e.theme.save")
         }
       }
-      .poracodeUseKeyboardLayoutGuide()
     }
     .poracodeFormSheetSizing()
     .presentationDetents([.large])

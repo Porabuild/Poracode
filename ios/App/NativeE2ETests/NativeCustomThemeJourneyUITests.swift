@@ -2,6 +2,55 @@ import UIKit
 import XCTest
 
 extension NativeFamilyJourneyUITests {
+  func testCustomThemeActiveFieldStaysVisibleWhenTheEditorRotates() async throws {
+    try await prepareCustomThemeJourney()
+    try openCustomThemes()
+    app.buttons["native-e2e.theme.create"].tap()
+    let name = app.textFields["native-e2e.theme.name"]
+    replaceThemeField(name, with: "RetainedThemeName")
+    let save = app.buttons["native-e2e.theme.save"]
+
+    for orientation: UIDeviceOrientation in [.landscapeLeft, .portrait] {
+      XCUIDevice.shared.orientation = orientation
+      try await poll { orientation == .portrait
+        ? self.app.frame.height > self.app.frame.width
+        : self.app.frame.width > self.app.frame.height }
+      let list = try themeEditorList(containing: name)
+      try await poll {
+        self.app.keyboards.firstMatch.exists
+          && self.app.navigationBars.matching(identifier: "Custom theme").containing(.button, identifier: "Cancel").count == 1
+          && self.themeEditorViewport(list).contains(name.frame)
+      }
+      XCTAssertEqual(name.value as? String, "RetainedThemeName")
+      XCTAssertTrue(app.keyboards.firstMatch.exists)
+      let viewport = themeEditorViewport(try themeEditorList(containing: name))
+      let geometry = XCTAttachment(string: "viewport=\(viewport), name=\(name.frame), save=\(save.frame), keyboard=\(app.keyboards.firstMatch.frame)")
+      geometry.name = "focused-name-geometry-\(orientation.rawValue)"; geometry.lifetime = .keepAlways; add(geometry)
+      customThemeLayout("focused-name-\(orientation.rawValue)")
+      XCTAssertTrue(viewport.contains(name.frame), "Rotation must keep the complete focused name above chrome")
+      XCTAssertLessThanOrEqual(save.frame.maxY, app.keyboards.firstMatch.frame.minY)
+      XCTAssertTrue(name.isHittable)
+    }
+
+    let background = app.textFields["native-e2e.theme.hex.light.bg"]
+    try revealThemeElement(background)
+    replaceThemeField(background, with: "#abcdef")
+    XCUIDevice.shared.orientation = .landscapeLeft
+    try await poll { self.app.frame.width > self.app.frame.height }
+    let list = try themeEditorList(containing: background)
+    try await poll {
+      self.app.keyboards.firstMatch.exists
+        && self.app.navigationBars.matching(identifier: "Custom theme").containing(.button, identifier: "Cancel").count == 1
+        && self.themeEditorViewport(list).contains(background.frame)
+    }
+    XCTAssertEqual(background.value as? String, "#abcdef")
+    XCTAssertTrue(app.keyboards.firstMatch.exists)
+    XCTAssertTrue(themeEditorViewport(try themeEditorList(containing: background)).contains(background.frame),
+      "Rotation must also keep the active color field visible")
+    customThemeProof("focused-color-landscape")
+    app.navigationBars["Custom theme"].buttons["Cancel"].tap()
+  }
+
   func testCustomThemePortableFileExportsAndImportsThroughNativeFiles() async throws {
     try await prepareCustomThemeJourney()
     try openCustomThemes()
@@ -140,7 +189,15 @@ extension NativeFamilyJourneyUITests {
 
   private func openCustomThemes() throws {
     try openNativeSettings()
-    app.buttons["native-e2e.settings.appearance"].tap()
+    let appearance = app.buttons["native-e2e.settings.appearance"]
+    if !appearance.exists || !appearance.isHittable {
+      let index = try XCTUnwrap(app.collectionViews.allElementsBoundByIndex.enumerated().first { _, list in
+        list.buttons["native-e2e.settings.profile"].exists || list.buttons["native-e2e.settings.appearance"].exists
+      }?.offset)
+      let list = app.collectionViews.element(boundBy: index)
+      for _ in 0..<6 where !appearance.exists || !appearance.isHittable { list.swipeUp() }
+    }
+    XCTAssertTrue(appearance.exists); XCTAssertTrue(appearance.isHittable); appearance.tap()
     let custom = app.buttons["native-e2e.settings.custom-themes"]
     XCTAssertTrue(custom.waitForExistence(timeout: 10)); custom.tap()
     XCTAssertTrue(app.buttons["native-e2e.theme.create"].waitForExistence(timeout: 10))
@@ -152,21 +209,9 @@ extension NativeFamilyJourneyUITests {
   }
 
   private func revealThemeElement(_ element: XCUIElement) throws {
-    let index = try XCTUnwrap(app.collectionViews.allElementsBoundByIndex.enumerated().first { _, list in
-      list.textFields["native-e2e.theme.name"].exists || list.textFields[element.identifier].exists
-    }?.offset)
-    let list = app.collectionViews.element(boundBy: index)
-    func visibleViewport() -> CGRect {
-      var viewport = list.frame.intersection(app.frame)
-      if app.keyboards.firstMatch.exists {
-        viewport.size.height = min(viewport.maxY, app.keyboards.firstMatch.frame.minY) - viewport.minY
-      }
-      let save = app.buttons["native-e2e.theme.save"]
-      if save.exists { viewport.size.height = min(viewport.maxY, save.frame.minY - 8) - viewport.minY }
-      return viewport
-    }
-    for _ in 0..<6 where !element.isHittable || !visibleViewport().contains(element.frame) {
-      let viewport = visibleViewport()
+    let list = try themeEditorList(containing: element)
+    for _ in 0..<6 where !element.isHittable || !themeEditorViewport(list).contains(element.frame) {
+      let viewport = themeEditorViewport(list)
       XCTAssertGreaterThan(viewport.height, 60)
       let origin = list.coordinate(withNormalizedOffset: .zero)
       let down = !element.frame.isEmpty && element.frame.minY < viewport.minY
@@ -178,7 +223,32 @@ extension NativeFamilyJourneyUITests {
     }
     if !element.isHittable { customThemeLayout("unreachable-hex") }
     XCTAssertTrue(element.isHittable)
-    XCTAssertTrue(visibleViewport().contains(element.frame), "The full editor must be above the keyboard and floating actions")
+    XCTAssertTrue(themeEditorViewport(list).contains(element.frame), "The full editor must be above the keyboard and floating actions")
+  }
+
+  private func themeEditorList(containing element: XCUIElement) throws -> XCUIElement {
+    let index = try XCTUnwrap(app.collectionViews.allElementsBoundByIndex.enumerated().first { _, list in
+      list.textFields["native-e2e.theme.name"].exists || list.textFields[element.identifier].exists
+    }?.offset)
+    return app.collectionViews.element(boundBy: index)
+  }
+
+  private func themeEditorViewport(_ list: XCUIElement) -> CGRect {
+    var viewport = list.frame.intersection(app.frame)
+    let bars = app.navigationBars.matching(identifier: "Custom theme").containing(.button, identifier: "Cancel")
+    XCTAssertEqual(bars.count, 1, "Use the editor's cancellation bar, not the gallery's same-titled bar")
+    let bar = bars.element.frame
+    if bar.width > bar.height, bar.intersects(viewport) {
+      let bottom = viewport.maxY
+      viewport.origin.y = max(viewport.minY, bar.maxY)
+      viewport.size.height = max(0, bottom - viewport.minY)
+    }
+    if app.keyboards.firstMatch.exists {
+      viewport.size.height = min(viewport.maxY, app.keyboards.firstMatch.frame.minY) - viewport.minY
+    }
+    let save = app.buttons["native-e2e.theme.save"]
+    if save.exists { viewport.size.height = min(viewport.maxY, save.frame.minY - 8) - viewport.minY }
+    return viewport
   }
 
   /// These are short, single-line native fields. Tap beyond the displayed
