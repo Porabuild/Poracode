@@ -34,6 +34,7 @@ struct ProjectWorkspaceSplitView<Sidebar: View, Detail: View>: View {
               }
           }
           .poracodePageSheetSizing()
+          .modifier(PoracodeRetainNavigationWhilePresented())
         }
     } else if horizontalSizeClass == .compact {
       compactStack

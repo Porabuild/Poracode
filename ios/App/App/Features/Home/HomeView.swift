@@ -24,6 +24,7 @@ struct HomeView: View {
   @State private var isRestoringSheetHost = false
   @State private var sheetDestination: HomeSheetDestination?
   @State private var navigationSelection = HomeNavigationSelection()
+  @State private var navigationRetention = PoracodeNavigationRetention()
   private var openingThreadID: String? { navigationSelection.openingID }
   @State private var selectedProjectIDs = Set<String>()
   @AppStorage(HomeWorkspacePreferences.storageKey) private var workspaceStorage = ""
@@ -103,7 +104,8 @@ struct HomeView: View {
         preferredSidebarWidth: preferredSidebarWidth,
         keyboardUnobstructedHeight: PoracodeKeyboardViewport.height(keyboardUnobstructedSize, matching: proxy.size),
         accessibilitySize: dynamicTypeSize.isAccessibilitySize,
-        retainingMode: session.sideChats.entries.values.contains { $0.isPresented && $0.voice.request != nil }
+        retainingMode: navigationRetention.isActive
+          || session.sideChats.entries.values.contains { $0.isPresented && $0.voice.request != nil }
           ? currentLayout.mode : nil
       )
       adaptiveRoot(layout: layout)
@@ -173,6 +175,7 @@ struct HomeView: View {
     }
     .sheet(item: $sheetDestination, onDismiss: restoreSheetHost) { destination in
       sizedSheetContent(for: destination)
+        .modifier(PoracodeRetainNavigationWhilePresented())
         .nativeCommands(identity: "home-sheet:\(destination.id)", priority: 1000, blocksParentActions: true)
     }
     .confirmationDialog(
@@ -211,6 +214,7 @@ struct HomeView: View {
     }
     .animation(.snappy(duration: 0.25), value: remoteNotifications.banner?.id)
     .environment(\.homeWorkspace, workspaceContext)
+    .environment(\.poracodeNavigationRetention, navigationRetention)
     .modifier(WorkflowViewerPresentationHost())
     .modifier(ComposerVoiceHost(session: session))
     .environment(\.homeWorkspaceSelection, $storedWorkspaceID)

@@ -585,6 +585,7 @@
 		RS1000000000000000000003 /* RichChatResumePlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000003 /* RichChatResumePlanTests.swift */; };
 		RS1000000000000000000005 /* RichChatResumeRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */; };
 		HA1000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HA2000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift */; };
+		4522CA2F95714E8726053883 /* PoracodeNavigationRetentionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F91B8B9544C5F4C1CB8175 /* PoracodeNavigationRetentionTests.swift */; };
 		DG1000000000000000000001 /* ThreadDetailTitleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DH1000000000000000000001 /* ThreadDetailTitleView.swift */; };
 		DK1000000000000000000001 /* ThreadWorkspaceBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DL1000000000000000000001 /* ThreadWorkspaceBar.swift */; };
 		A100000000000000000000F1 /* ThreadLifecycle.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000F1 /* ThreadLifecycle.xcstrings */; };
@@ -863,6 +864,7 @@
 		271F18C2DCF1369FD4B00129 /* SessionImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BC9D7928422BC6E046926F1 /* SessionImportTests.swift */; };
 		7C25A596BD73F156B596DEEE /* HomeQuickComposeStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C4BA3E5202415222CF21AE1 /* HomeQuickComposeStateTests.swift */; };
 		D262F8F45F4FD817FD5AE5E8 /* PoracodeKeyboardAvoidance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81BDB4A61CD7748F079AAD0A /* PoracodeKeyboardAvoidance.swift */; };
+		D3801A5F487E4071B392C4D1 /* PoracodeNavigationRetention.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F42544DB1A08B48289FBE0 /* PoracodeNavigationRetention.swift */; };
 		D24582F22E291AF3B4C30B84 /* ModelSelectionBinding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC69DBFD519CF666F7366B1 /* ModelSelectionBinding.swift */; };
 		4E1F4985E898F80454650AC6 /* ModelSelectionMutation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F9ACF6A0F55113A12A555E8 /* ModelSelectionMutation.swift */; };
 		15C199BC0AE2D5ECA0C54742 /* ThreadConfigurationConversions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71CA340A1A8E5DF185F6E795 /* ThreadConfigurationConversions.swift */; };
@@ -1565,6 +1567,7 @@
 		RS2000000000000000000003 /* RichChatResumePlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatResumePlanTests.swift; sourceTree = "<group>"; };
 		RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatResumeRecoveryTests.swift; sourceTree = "<group>"; };
 		HA2000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeAdaptiveLayoutPolicyTests.swift; sourceTree = "<group>"; };
+		D8F91B8B9544C5F4C1CB8175 /* PoracodeNavigationRetentionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeNavigationRetentionTests.swift; sourceTree = "<group>"; };
 		DH1000000000000000000001 /* ThreadDetailTitleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadDetailTitleView.swift; sourceTree = "<group>"; };
 		DL1000000000000000000001 /* ThreadWorkspaceBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadWorkspaceBar.swift; sourceTree = "<group>"; };
 		B100000000000000000000F1 /* ThreadLifecycle.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ThreadLifecycle.xcstrings; sourceTree = "<group>"; };
@@ -1843,6 +1846,7 @@
 		7BC9D7928422BC6E046926F1 /* SessionImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionImportTests.swift; sourceTree = "<group>"; };
 		4C4BA3E5202415222CF21AE1 /* HomeQuickComposeStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeQuickComposeStateTests.swift; sourceTree = "<group>"; };
 		81BDB4A61CD7748F079AAD0A /* PoracodeKeyboardAvoidance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeKeyboardAvoidance.swift; sourceTree = "<group>"; };
+		00F42544DB1A08B48289FBE0 /* PoracodeNavigationRetention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeNavigationRetention.swift; sourceTree = "<group>"; };
 		7FC69DBFD519CF666F7366B1 /* ModelSelectionBinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelectionBinding.swift; sourceTree = "<group>"; };
 		5F9ACF6A0F55113A12A555E8 /* ModelSelectionMutation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelSelectionMutation.swift; sourceTree = "<group>"; };
 		71CA340A1A8E5DF185F6E795 /* ThreadConfigurationConversions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadConfigurationConversions.swift; sourceTree = "<group>"; };
@@ -2899,6 +2903,7 @@
 				5FF1DFD19544F0B7F441406D /* NativeInputFocus.swift */,
 				PG1000000000000000000001 /* PoracodeGlass.swift */,
 				81BDB4A61CD7748F079AAD0A /* PoracodeKeyboardAvoidance.swift */,
+				00F42544DB1A08B48289FBE0 /* PoracodeNavigationRetention.swift */,
 				PG1000000000000000000002 /* PoracodeGlassTabs.swift */,
 				PG1000000000000000000003 /* PoracodeButtonStyles.swift */,
 				TR1000000000000000000001 /* ThreadRowComponents.swift */,
@@ -3264,6 +3269,7 @@
 				RS2000000000000000000003 /* RichChatResumePlanTests.swift */,
 				RS2000000000000000000005 /* RichChatResumeRecoveryTests.swift */,
 				HA2000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift */,
+				D8F91B8B9544C5F4C1CB8175 /* PoracodeNavigationRetentionTests.swift */,
 				467EA1F48F6E909C75C48FEE /* HomeWorkspacePreferencesTests.swift */,
 			);
 			path = AppTests;
@@ -4075,6 +4081,7 @@
 				D229809955058C18E76001B1 /* NativeInputFocus.swift in Sources */,
 				PG2000000000000000000001 /* PoracodeGlass.swift in Sources */,
 				D262F8F45F4FD817FD5AE5E8 /* PoracodeKeyboardAvoidance.swift in Sources */,
+				D3801A5F487E4071B392C4D1 /* PoracodeNavigationRetention.swift in Sources */,
 				PG2000000000000000000002 /* PoracodeGlassTabs.swift in Sources */,
 				PG2000000000000000000003 /* PoracodeButtonStyles.swift in Sources */,
 				TR2000000000000000000001 /* ThreadRowComponents.swift in Sources */,
@@ -4628,6 +4635,7 @@
 				RS1000000000000000000003 /* RichChatResumePlanTests.swift in Sources */,
 				RS1000000000000000000005 /* RichChatResumeRecoveryTests.swift in Sources */,
 				HA1000000000000000000004 /* HomeAdaptiveLayoutPolicyTests.swift in Sources */,
+				4522CA2F95714E8726053883 /* PoracodeNavigationRetentionTests.swift in Sources */,
 				8ACBA9CEA1C74BB392A7F60C /* HomeWorkspacePreferencesTests.swift in Sources */,
 				7D77E6248CF346589B5B6BB3 /* RemoteIntegrationsContractTests.swift in Sources */,
 				73A5C647171A44118C1AB358 /* RemoteIntegrationsControllerTests.swift in Sources */,
