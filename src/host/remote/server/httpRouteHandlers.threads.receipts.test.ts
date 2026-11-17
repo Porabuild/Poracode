@@ -6,7 +6,11 @@ import {
   REMOTE_PROTOCOL_VERSION_HEADER,
   REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
 } from "@/shared/remote";
-import type { Project } from "@/shared/contracts";
+import {
+  sendThreadInputPayloadSchema,
+  setPendingSteerPayloadSchema,
+  type Project,
+} from "@/shared/contracts";
 import {
   remoteMutationMayHaveCommitted,
   RemoteClientError,
@@ -15,6 +19,7 @@ import {
 import { ThreadLaunchFailedRefusalError } from "@/shared/threadLaunchRefusal";
 import { ThreadSessionAbsenceRefusalError } from "@/shared/threadSessionRefusal";
 import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
+import { createFollowUpQueueHarness } from "@/supervisor/runtime/threadSessionManager.followUpQueueTestHarness";
 import {
   closeDatabase,
   dbGetThread,
@@ -33,6 +38,8 @@ import {
 } from "../RemoteAccessServer";
 
 const servers: RemoteAccessServer[] = [];
+
+vi.mock("node-pty", () => ({ spawn: vi.fn<() => never>() }));
 
 async function exchangePairingUrl(pairingUrl: string): Promise<string> {
   const credential = new URLSearchParams(new URL(pairingUrl).hash.slice(1)).get("token");
@@ -126,6 +133,45 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
         ...body,
       }),
     });
+
+  it.each(["sendThreadInput", "setPendingSteer"] as const)(
+    "%s confirms host acceptance over HTTP before the provider acknowledges steering",
+    async (procedure) => {
+      const harness = createFollowUpQueueHarness();
+      const { manager, session, steerTurn } = harness;
+      const providerAdmission = Promise.withResolvers<void>();
+      session.status = "working";
+      steerTurn.mockReturnValueOnce(providerAdmission.promise);
+      callSupervisor.mockImplementation(async (method, payload) => {
+        if (method === "sendThreadInput")
+          await manager.sendThreadInput(sendThreadInputPayloadSchema.parse(payload));
+        else if (method === "setPendingSteer")
+          await manager.setPendingSteer(setPendingSteerPayloadSchema.parse(payload));
+        return undefined as never;
+      });
+      const client = new RemoteDesktopClient(info.httpBaseUrl, token, undefined, {
+        requestTimeoutMs: 2_000,
+      });
+      const input = {
+        threadId: session.threadId,
+        prompt: "already retained by the host",
+        config: session.config,
+        userMessageItemId: "retained-steer",
+      };
+      try {
+        await expect(client[procedure](input)).resolves.toBeUndefined();
+        expect(receiptRow(input.userMessageItemId)?.state).toBe(
+          procedure === "sendThreadInput" ? "completed" : undefined,
+        );
+        if (procedure === "sendThreadInput") await client.sendThreadInput(input);
+        expect(steerTurn).toHaveBeenCalledOnce();
+      } finally {
+        providerAdmission.resolve();
+        harness.finish();
+        await manager.dispose();
+      }
+    },
+  );
 
   it("binds the principal and body digest, replays its own result, and conflicts on reuse", async () => {
     const commandId = "send-cmd-1";

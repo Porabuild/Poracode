@@ -380,6 +380,7 @@ export class SteerCoordinator {
     session: SessionRuntime,
     payload: SetPendingSteerPayload & { displaySegments?: PromptSegment[] },
     options?: SteerSubmissionOptions,
+    onAccepted?: () => void,
   ): Promise<void> {
     if (session.presentationMode !== "gui") {
       throw new Error("Pending steer is only supported for GUI-presentation threads.");
@@ -424,11 +425,12 @@ export class SteerCoordinator {
     if (session.status === "working" && session.structuredSession.steerTurn) {
       const admission = options?.awaitReplacement ? createPendingSteerAdmission() : undefined;
       if (!admission) {
-        // Ordinary composer steering still needs to retain the caller's
-        // direct-input reservation through provider admission. Some adapters
-        // await remote-session setup and settings synchronization before they
-        // can decide whether to steer or fall back to a fresh turn.
-        await this.steerStructuredTurn(session, turn);
+        // Accept the retained message independently of the provider's eventual
+        // acknowledgement; the caller still holds its direct-input reservation.
+        // Existing wire payloads and response shapes remain valid.
+        const steer = this.steerStructuredTurn(session, turn);
+        onAccepted?.();
+        await steer;
         return;
       }
       const steer = this.steerStructuredTurn(session, turn);

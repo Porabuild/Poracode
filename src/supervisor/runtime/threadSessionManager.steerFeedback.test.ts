@@ -26,6 +26,40 @@ function enqueue(harness: Harness, event: RuntimeEvent): void {
 }
 
 describe("native steer feedback", () => {
+  it.each(["setPendingSteer", "sendThreadInput"] as const)(
+    "%s reports a provider failure on the thread after acknowledging the retained message",
+    async (submit) => {
+      const harness = createFollowUpQueueHarness();
+      const { manager, session, steerTurn } = harness;
+      const providerAdmission = Promise.withResolvers<void>();
+      session.status = "working";
+      steerTurn.mockReturnValueOnce(providerAdmission.promise);
+      try {
+        await manager[submit]({
+          threadId: session.threadId,
+          prompt: "retained input",
+          config: session.config,
+        });
+        providerAdmission.reject(new Error("provider rejected retained steer"));
+        await vi.waitFor(() =>
+          expect(harness.emit).toHaveBeenCalledWith(
+            expect.objectContaining({
+              type: "thread-state",
+              threadId: session.threadId,
+              status: "error",
+              errorMessage: "provider rejected retained steer",
+            }),
+          ),
+        );
+        expect(steerTurn).toHaveBeenCalledOnce();
+      } finally {
+        providerAdmission.resolve();
+        harness.finish();
+        await manager.dispose();
+      }
+    },
+  );
+
   it("publishes ordinary feedback immediately behind buffered events without releasing child history", async () => {
     const harness = createFollowUpQueueHarness();
     const { session, manager, steerTurn } = harness;

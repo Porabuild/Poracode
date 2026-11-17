@@ -1344,7 +1344,16 @@ export class ThreadSessionManager {
     return false;
   }
 
-  async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
+  sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
+    const accepted = Promise.withResolvers<void>();
+    const delivery = this.sendThreadInputUntilAdmitted(payload, accepted.resolve);
+    return Promise.race([delivery, accepted.promise]);
+  }
+
+  private async sendThreadInputUntilAdmitted(
+    payload: SendThreadInputPayload,
+    onAccepted: () => void,
+  ): Promise<void> {
     this.executionControl.assertUnowned(payload.threadId);
     const directInput = this.followUpQueue.beginDirectInput(payload.threadId);
     try {
@@ -1410,7 +1419,7 @@ export class ThreadSessionManager {
         ? formatTurnClientContext(payload.clientContext)
         : undefined;
       if (!this.isCurrentSession(session)) {
-        return this.sendThreadInput(payload);
+        return this.sendThreadInputUntilAdmitted(payload, onAccepted);
       }
       this.executionControl.assertUnowned(payload.threadId);
       if (session.status !== "inactive" && session.structuredSession) {
@@ -1461,7 +1470,11 @@ export class ThreadSessionManager {
           // back to the interrupt-drain pending-steer path.
           directInput.markStarted(session);
           if (session.structuredSession.steerTurn) {
-            await this.steerCoordinator.steerStructuredTurn(session, turn);
+            const steer = this.steerCoordinator.steerStructuredTurn(session, turn);
+            // The host owns delivery now. Keep its FIFO reservation until the
+            // provider acknowledges, without holding the client's send open.
+            onAccepted();
+            await steer;
             return;
           }
           this.steerCoordinator.stagePendingSteer(session, turn);
@@ -1910,9 +1923,19 @@ export class ThreadSessionManager {
    * renderer calls this when submit-while-working happens on a GUI thread.
    * Drain is automatic on cancelled-stopReason via `maybeDrainPendingSteer`.
    */
-  async setPendingSteer(
+  setPendingSteer(
     payload: SetPendingSteerPayload,
     options?: SteerSubmissionOptions,
+  ): Promise<void> {
+    const accepted = Promise.withResolvers<void>();
+    const delivery = this.setPendingSteerUntilAdmitted(payload, options, accepted.resolve);
+    return Promise.race([delivery, accepted.promise]);
+  }
+
+  private async setPendingSteerUntilAdmitted(
+    payload: SetPendingSteerPayload,
+    options: SteerSubmissionOptions | undefined,
+    onAccepted: () => void,
   ): Promise<void> {
     this.executionControl.assertUnowned(payload.threadId);
     const directInput = this.followUpQueue.beginDirectInput(payload.threadId);
@@ -1950,7 +1973,7 @@ export class ThreadSessionManager {
       // both the map identity and the lock before touching the old session.
       await this.waitForPendingStart(payload.threadId);
       if (!this.isCurrentSession(session) || this.startLocks.has(payload.threadId)) {
-        return this.setPendingSteer(payload, options);
+        return this.setPendingSteerUntilAdmitted(payload, options, onAccepted);
       }
       this.executionControl.assertUnowned(payload.threadId);
 
@@ -1972,6 +1995,7 @@ export class ThreadSessionManager {
           ...(payload.segments ? { displaySegments: payload.segments } : {}),
         },
         options,
+        onAccepted,
       );
     } catch (error) {
       // An old session can reject after a replacement is already current.

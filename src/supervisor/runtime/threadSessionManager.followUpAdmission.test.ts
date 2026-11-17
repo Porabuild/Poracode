@@ -245,58 +245,61 @@ it("keeps the FIFO behind steer preparation that crosses the old turn boundary",
   }
 });
 
-it("holds the FIFO behind asynchronous native steer admission", async () => {
-  const { manager, session, startTurn, steerTurn, finish } = createHarness();
-  const queue = followUpQueueFor(manager);
-  const providerAdmission = Promise.withResolvers<void>();
-  steerTurn.mockReturnValueOnce(providerAdmission.promise);
-  session.status = "working";
-  runtimeTurnEvent(queue, session, {
-    type: "turn.started",
-    threadId: session.threadId,
-    turnId: "old-turn",
-  });
-  await manager.queueThreadFollowUp({
-    threadId: session.threadId,
-    prompt: "fifo item",
-    config: session.config,
-  });
-
-  try {
-    const steering = manager.setPendingSteer({
-      threadId: session.threadId,
-      prompt: "native steer",
-      config: session.config,
-    });
-    await vi.waitFor(() => expect(steerTurn).toHaveBeenCalledOnce());
-    let settled = false;
-    void steering.then(() => {
-      settled = true;
-    });
-    await flushMicrotasks();
-    expect(settled).toBe(false);
-
+it.each(["setPendingSteer", "sendThreadInput"] as const)(
+  "%s acknowledges host ownership while holding the FIFO behind native steer admission",
+  async (submit) => {
+    const { manager, session, startTurn, steerTurn, finish } = createHarness();
+    const queue = followUpQueueFor(manager);
+    const providerAdmission = Promise.withResolvers<void>();
+    steerTurn.mockReturnValueOnce(providerAdmission.promise);
+    session.status = "working";
     runtimeTurnEvent(queue, session, {
-      type: "turn.completed",
+      type: "turn.started",
       threadId: session.threadId,
       turnId: "old-turn",
-      state: "completed",
     });
-    session.status = "idle";
-    queue.onStructuredUpdate(session, "idle");
-    await flushMicrotasks();
-    expect(startTurn).not.toHaveBeenCalled();
+    await manager.queueThreadFollowUp({
+      threadId: session.threadId,
+      prompt: "fifo item",
+      config: session.config,
+    });
 
-    providerAdmission.resolve();
-    await steering;
-    await vi.waitFor(() => expect(startTurn).toHaveBeenCalledTimes(1));
-    expect(startTurn.mock.calls[0]?.[0]).toBe("fifo item");
-  } finally {
-    providerAdmission.resolve();
-    finish();
-    await manager.dispose();
-  }
-});
+    try {
+      const steering = manager[submit]({
+        threadId: session.threadId,
+        prompt: "native steer",
+        config: session.config,
+      });
+      await vi.waitFor(() => expect(steerTurn).toHaveBeenCalledOnce());
+      let settled = false;
+      void steering.then(() => {
+        settled = true;
+      });
+      await flushMicrotasks();
+      expect(settled).toBe(true);
+
+      runtimeTurnEvent(queue, session, {
+        type: "turn.completed",
+        threadId: session.threadId,
+        turnId: "old-turn",
+        state: "completed",
+      });
+      session.status = "idle";
+      queue.onStructuredUpdate(session, "idle");
+      await flushMicrotasks();
+      expect(startTurn).not.toHaveBeenCalled();
+
+      providerAdmission.resolve();
+      await steering;
+      await vi.waitFor(() => expect(startTurn).toHaveBeenCalledTimes(1));
+      expect(startTurn.mock.calls[0]?.[0]).toBe("fifo item");
+    } finally {
+      providerAdmission.resolve();
+      finish();
+      await manager.dispose();
+    }
+  },
+);
 
 it("keeps the FIFO behind a fallback start while canonical admission is delayed", async () => {
   const { manager, session, startTurn, finish } = createHarness();
