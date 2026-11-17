@@ -137,35 +137,36 @@ export const memoryStatusSchema = z.object({
 });
 export type MemoryStatus = z.infer<typeof memoryStatusSchema>;
 
+const memoryListCommandSchema = z.object({
+  action: z.literal("list"),
+  projectId: z.string().min(1).optional(),
+});
+const memorySaveEntrySchema = memoryEntrySchema
+  .pick({
+    scope: true,
+    category: true,
+    summary: true,
+    body: true,
+    polarity: true,
+    pinned: true,
+  })
+  .extend({
+    id: z.string().min(1).optional(),
+    projectId: z.string().min(1).nullable().optional(),
+    repoKey: z.string().min(1).nullable().optional(),
+    quote: z.string().nullable().optional(),
+  });
+const memoryDeleteCommandSchema = z.object({ action: z.literal("delete"), id: z.string().min(1) });
+
 export const memoryCommandPayloadSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("status"),
     threadId: z.string().min(1).optional(),
     projectId: z.string().min(1).optional(),
   }),
-  z.object({
-    action: z.literal("list"),
-    projectId: z.string().min(1).optional(),
-  }),
-  z.object({
-    action: z.literal("save"),
-    entry: memoryEntrySchema
-      .pick({
-        scope: true,
-        category: true,
-        summary: true,
-        body: true,
-        polarity: true,
-        pinned: true,
-      })
-      .extend({
-        id: z.string().min(1).optional(),
-        projectId: z.string().min(1).nullable().optional(),
-        repoKey: z.string().min(1).nullable().optional(),
-        quote: z.string().nullable().optional(),
-      }),
-  }),
-  z.object({ action: z.literal("delete"), id: z.string().min(1) }),
+  memoryListCommandSchema,
+  z.object({ action: z.literal("save"), entry: memorySaveEntrySchema }),
+  memoryDeleteCommandSchema,
   z.object({
     action: z.literal("thread-mode"),
     threadId: z.string().min(1),
@@ -196,6 +197,28 @@ export const memoryCommandPayloadSchema = z.discriminatedUnion("action", [
   }),
 ]);
 export type MemoryCommandPayload = z.infer<typeof memoryCommandPayloadSchema>;
+
+export const REMOTE_MEMORY_CATALOG_VERSION = 1 as const;
+
+/** Additive remote catalog v1. Repository binding is resolved by the owning host. */
+export const remoteMemoryCatalogCommandSchema = z.discriminatedUnion("action", [
+  memoryListCommandSchema.extend({ action: z.literal("status") }).strict(),
+  memoryListCommandSchema.strict(),
+  z.strictObject({
+    action: z.literal("save"),
+    entry: memorySaveEntrySchema.omit({ repoKey: true }).strict(),
+  }),
+  memoryDeleteCommandSchema.extend({ projectId: z.string().min(1).optional() }).strict(),
+]);
+export type RemoteMemoryCatalogCommand = z.infer<typeof remoteMemoryCatalogCommandSchema>;
+
+export const remoteMemoryCatalogResultSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("status"), result: memoryStatusSchema }),
+  z.object({ action: z.literal("list"), result: z.array(memoryEntrySchema) }),
+  z.object({ action: z.literal("save"), result: memoryEntrySchema }),
+  z.object({ action: z.literal("delete"), result: z.object({ ok: z.literal(true) }) }),
+]);
+export type RemoteMemoryCatalogResult = z.infer<typeof remoteMemoryCatalogResultSchema>;
 
 export const generateMemoryTextPayloadSchema = z.object({
   projectLocation: projectLocationSchema,

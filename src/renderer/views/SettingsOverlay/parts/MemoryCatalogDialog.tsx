@@ -1,16 +1,22 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Check, Pencil, Pin, PinOff, Trash2, X, type LucideIcon } from "lucide-react";
-import { readBridge } from "@/renderer/bridge";
+import { Check, Ellipsis, Pencil, Pin, PinOff, Trash2, X, type LucideIcon } from "lucide-react";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { Button, type ButtonProps } from "@/renderer/components/common";
+import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { Input } from "@/renderer/components/common/Input";
-import { sidebarRowClass } from "@/renderer/components/common/SidebarButton";
+import { SidebarButton, sidebarRowClass } from "@/renderer/components/common/SidebarButton";
+import { useLongPress } from "@/renderer/hooks/useLongPress";
+import { runMemoryCatalogCommand } from "@/renderer/state/memoryCatalog";
 import { syncMemoryAcrossEnvironments } from "@/renderer/state/memorySync";
 import type { MemoryEntry } from "@/shared/memory";
 
-function readCatalog(projectId: string | undefined) {
-  return readBridge().memoryCommand({ action: "list", ...(projectId ? { projectId } : {}) });
+function readCatalog(connectionKey: string | undefined, projectId: string | undefined) {
+  return runMemoryCatalogCommand(connectionKey, {
+    action: "list",
+    ...(projectId ? { projectId } : {}),
+  });
 }
 
 function MemoryActionButton({
@@ -35,12 +41,157 @@ function MemoryActionButton({
   );
 }
 
+function MemoryCatalogRow({
+  entry,
+  compact,
+  actionRef,
+  inputRef,
+  editor,
+  onPin,
+  onEdit,
+  onDelete,
+}: {
+  entry: MemoryEntry;
+  compact: boolean;
+  actionRef?: Ref<HTMLButtonElement> | undefined;
+  inputRef?: Ref<HTMLInputElement> | undefined;
+  editor?:
+    | {
+        value: string;
+        onChange: (value: string) => void;
+        onSave: () => void;
+        onCancel: () => void;
+      }
+    | undefined;
+  onPin: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { t } = useLingui();
+  const rowRef = useRef<HTMLLIElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const hasMore = compact && !editor;
+  if (!hasMore && menuOpen) setMenuOpen(false);
+  const pinLabel = entry.pinned ? t`Unpin` : t`Pin to top`;
+  const PinIcon = entry.pinned ? PinOff : Pin;
+
+  function openMenu() {
+    rowRef.current?.querySelector("button")?.focus();
+    setMenuOpen(true);
+  }
+
+  const longPress = useLongPress(hasMore ? openMenu : null);
+
+  function selectAction(action: () => void) {
+    setMenuOpen(false);
+    action();
+  }
+
+  return (
+    <li ref={rowRef} className={sidebarRowClass()} {...longPress}>
+      <div className="min-w-0 flex-1">
+        {editor ? (
+          <Input
+            ref={inputRef}
+            aria-label={t`Edit`}
+            size="sm"
+            data-overlay-escape-owner=""
+            className="w-full"
+            value={editor.value}
+            onChange={(event) => editor.onChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                editor.onSave();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                editor.onCancel();
+              }
+            }}
+          />
+        ) : (
+          <p className="truncate text-sm font-medium text-foreground" title={entry.summary}>
+            {entry.summary}
+          </p>
+        )}
+        <p className="truncate text-[11px] text-muted">
+          {entry.category} · {entry.scope}
+          {entry.pinned ? ` · ${t`Pinned`}` : ""}
+          {entry.lockedByUser ? ` · ${t`Edited by you`}` : ""}
+        </p>
+      </div>
+      {hasMore ? (
+        <Button
+          ref={actionRef}
+          size="sm"
+          variant="ghost"
+          isIconOnly
+          aria-label={t`Memory actions`}
+          aria-expanded={menuOpen}
+          aria-haspopup="dialog"
+          onPress={openMenu}
+        >
+          <Ellipsis className="size-3.5" aria-hidden="true" />
+        </Button>
+      ) : (
+        <div className="flex shrink-0 items-center gap-1">
+          {editor ? (
+            <>
+              <MemoryActionButton
+                icon={Check}
+                label={t`Save`}
+                variant="tertiary"
+                isDisabled={editor.value.trim().length === 0}
+                onPress={editor.onSave}
+              />
+              <MemoryActionButton icon={X} label={t`Cancel`} onPress={editor.onCancel} />
+            </>
+          ) : (
+            <>
+              <MemoryActionButton icon={PinIcon} label={pinLabel} onPress={onPin} />
+              <MemoryActionButton ref={actionRef} icon={Pencil} label={t`Edit`} onPress={onEdit} />
+            </>
+          )}
+          {!compact && <MemoryActionButton icon={Trash2} label={t`Delete`} onPress={onDelete} />}
+        </div>
+      )}
+      {hasMore && menuOpen && (
+        <BottomSheet label={t`Memory actions`} onClose={() => setMenuOpen(false)}>
+          <div className="m-sheet-head">
+            <span className="min-w-0 truncate">{entry.summary}</span>
+          </div>
+          <div className="m-sheet-list">
+            <SidebarButton
+              icon={<PinIcon className="size-4" />}
+              label={pinLabel}
+              onPress={() => selectAction(onPin)}
+            />
+            <SidebarButton
+              icon={<Pencil className="size-4" />}
+              label={t`Edit`}
+              onPress={() => selectAction(onEdit)}
+            />
+            <SidebarButton
+              icon={<Trash2 className="size-4 text-danger" />}
+              label={<span className="text-danger">{t`Delete`}</span>}
+              onPress={() => selectAction(onDelete)}
+            />
+          </div>
+        </BottomSheet>
+      )}
+    </li>
+  );
+}
+
 export function MemoryCatalogDialog(props: {
+  connectionKey: string | undefined;
   projectId?: string;
   onChanged: () => Promise<void>;
   onClose: () => void;
 }) {
   const { t } = useLingui();
+  const compact = useCompactLayout();
   const [entries, setEntries] = useState<MemoryEntry[] | undefined>();
   const [draft, setDraft] = useState("");
   const [adding, setAdding] = useState(false);
@@ -53,7 +204,7 @@ export function MemoryCatalogDialog(props: {
 
   useEffect(() => {
     let active = true;
-    void readCatalog(props.projectId).then(
+    void readCatalog(props.connectionKey, props.projectId).then(
       (next) => {
         if (active) setEntries(next as MemoryEntry[]);
       },
@@ -64,7 +215,7 @@ export function MemoryCatalogDialog(props: {
     return () => {
       active = false;
     };
-  }, [props.projectId]);
+  }, [props.connectionKey, props.projectId]);
 
   useEffect(() => {
     if (editTarget?.editing) editInputRef.current?.focus();
@@ -76,12 +227,16 @@ export function MemoryCatalogDialog(props: {
   }
 
   async function refreshCatalog() {
-    const [next] = await Promise.all([readCatalog(props.projectId), props.onChanged()]);
+    const [next] = await Promise.all([
+      readCatalog(props.connectionKey, props.projectId),
+      props.onChanged(),
+    ]);
     setEntries(next as MemoryEntry[]);
   }
 
   async function refreshAfterChange() {
     await refreshCatalog();
+    if (props.connectionKey !== undefined) return;
     void syncMemoryAcrossEnvironments()
       .then((result) => (result.changed ? refreshCatalog() : undefined))
       .catch(() => setError(true));
@@ -92,19 +247,18 @@ export function MemoryCatalogDialog(props: {
     if (summary.length === 0 || adding) return;
     setAdding(true);
     setError(false);
-    void readBridge()
-      .memoryCommand({
-        action: "save",
-        entry: {
-          scope: props.projectId ? "project" : "global",
-          ...(props.projectId ? { projectId: props.projectId } : {}),
-          category: "user",
-          summary,
-          body: summary,
-          polarity: "positive",
-          pinned: false,
-        },
-      })
+    void runMemoryCatalogCommand(props.connectionKey, {
+      action: "save",
+      entry: {
+        scope: props.projectId ? "project" : "global",
+        ...(props.projectId ? { projectId: props.projectId } : {}),
+        category: "user",
+        summary,
+        body: summary,
+        polarity: "positive",
+        pinned: false,
+      },
+    })
       .then(() => {
         setDraft((current) => (current === draft ? "" : current));
         return refreshAfterChange();
@@ -115,21 +269,20 @@ export function MemoryCatalogDialog(props: {
 
   function togglePin(entry: MemoryEntry) {
     setError(false);
-    void readBridge()
-      .memoryCommand({
-        action: "save",
-        entry: {
-          id: entry.id,
-          scope: entry.scope,
-          projectId: entry.projectId,
-          category: entry.category,
-          summary: entry.summary,
-          body: entry.body,
-          polarity: entry.polarity,
-          pinned: !entry.pinned,
-          quote: entry.quote,
-        },
-      })
+    void runMemoryCatalogCommand(props.connectionKey, {
+      action: "save",
+      entry: {
+        id: entry.id,
+        scope: entry.scope,
+        projectId: entry.projectId,
+        category: entry.category,
+        summary: entry.summary,
+        body: entry.body,
+        polarity: entry.polarity,
+        pinned: !entry.pinned,
+        quote: entry.quote,
+      },
+    })
       .then(refreshAfterChange)
       .catch(() => setError(true));
   }
@@ -138,21 +291,20 @@ export function MemoryCatalogDialog(props: {
     const summary = editDraft.trim();
     if (summary.length === 0) return;
     setError(false);
-    void readBridge()
-      .memoryCommand({
-        action: "save",
-        entry: {
-          id: entry.id,
-          scope: entry.scope,
-          projectId: entry.projectId,
-          category: entry.category,
-          summary,
-          body: entry.body === entry.summary ? summary : entry.body,
-          polarity: entry.polarity,
-          pinned: entry.pinned,
-          quote: entry.quote,
-        },
-      })
+    void runMemoryCatalogCommand(props.connectionKey, {
+      action: "save",
+      entry: {
+        id: entry.id,
+        scope: entry.scope,
+        projectId: entry.projectId,
+        category: entry.category,
+        summary,
+        body: entry.body === entry.summary ? summary : entry.body,
+        polarity: entry.polarity,
+        pinned: entry.pinned,
+        quote: entry.quote,
+      },
+    })
       .then(() => {
         finishEditing();
         return refreshAfterChange();
@@ -213,85 +365,38 @@ export function MemoryCatalogDialog(props: {
             ) : (
               <ul className="space-y-0.5">
                 {entries.map((entry) => (
-                  <li key={entry.id} className={sidebarRowClass()}>
-                    <div className="min-w-0 flex-1">
-                      {editingId === entry.id ? (
-                        <Input
-                          ref={editInputRef}
-                          aria-label={t`Edit`}
-                          size="sm"
-                          data-overlay-escape-owner=""
-                          className="w-full"
-                          value={editDraft}
-                          onChange={(event) => setEditDraft(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              saveEdit(entry);
-                            } else if (event.key === "Escape") {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              finishEditing();
-                            }
-                          }}
-                        />
-                      ) : (
-                        <p
-                          className="truncate text-sm font-medium text-foreground"
-                          title={entry.summary}
-                        >
-                          {entry.summary}
-                        </p>
-                      )}
-                      <p className="truncate text-[11px] text-muted">
-                        {entry.category} · {entry.scope}
-                        {entry.pinned ? ` · ${t`Pinned`}` : ""}
-                        {entry.lockedByUser ? ` · ${t`Edited by you`}` : ""}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      {editingId === entry.id ? (
-                        <>
-                          <MemoryActionButton
-                            icon={Check}
-                            label={t`Save`}
-                            variant="tertiary"
-                            isDisabled={editDraft.trim().length === 0}
-                            onPress={() => saveEdit(entry)}
-                          />
-                          <MemoryActionButton icon={X} label={t`Cancel`} onPress={finishEditing} />
-                        </>
-                      ) : (
-                        <>
-                          <MemoryActionButton
-                            icon={entry.pinned ? PinOff : Pin}
-                            label={entry.pinned ? t`Unpin` : t`Pin to top`}
-                            onPress={() => togglePin(entry)}
-                          />
-                          <MemoryActionButton
-                            ref={editTarget?.id === entry.id ? editButtonRef : undefined}
-                            icon={Pencil}
-                            label={t`Edit`}
-                            onPress={() => {
-                              setEditTarget({ id: entry.id, editing: true });
-                              setEditDraft(entry.summary);
-                            }}
-                          />
-                        </>
-                      )}
-                      <MemoryActionButton
-                        icon={Trash2}
-                        label={t`Delete`}
-                        onPress={() => {
-                          setError(false);
-                          void readBridge()
-                            .memoryCommand({ action: "delete", id: entry.id })
-                            .then(refreshAfterChange)
-                            .catch(() => setError(true));
-                        }}
-                      />
-                    </div>
-                  </li>
+                  <MemoryCatalogRow
+                    key={entry.id}
+                    entry={entry}
+                    compact={compact}
+                    actionRef={editTarget?.id === entry.id ? editButtonRef : undefined}
+                    inputRef={editingId === entry.id ? editInputRef : undefined}
+                    editor={
+                      editingId === entry.id
+                        ? {
+                            value: editDraft,
+                            onChange: setEditDraft,
+                            onSave: () => saveEdit(entry),
+                            onCancel: finishEditing,
+                          }
+                        : undefined
+                    }
+                    onPin={() => togglePin(entry)}
+                    onEdit={() => {
+                      setEditTarget({ id: entry.id, editing: true });
+                      setEditDraft(entry.summary);
+                    }}
+                    onDelete={() => {
+                      setError(false);
+                      void runMemoryCatalogCommand(props.connectionKey, {
+                        action: "delete",
+                        id: entry.id,
+                        ...(props.projectId ? { projectId: props.projectId } : {}),
+                      })
+                        .then(refreshAfterChange)
+                        .catch(() => setError(true));
+                    }}
+                  />
                 ))}
               </ul>
             )}

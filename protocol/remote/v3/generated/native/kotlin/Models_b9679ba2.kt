@@ -6,6 +6,21 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RoutemetricsResponseU2DRemote_99cf08bb5d(
+    @SerialName("activeWebSocketClients") val activeWebSocketClients: Long,
+    @SerialName("eventBufferEntries") val eventBufferEntries: Long,
+    @SerialName("lastEventSeq") val lastEventSeq: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("activeWebSocketClients", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("eventBufferEntries", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("lastEventSeq", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RoutemetricsResponse_e9b9e3e75f(
     @SerialName("hostResourceAdmission") val hostResourceAdmission: RemoteField<RoutemetricsResponseU2DHostResourceAdmission_dffaae3821> = RemoteField.Missing,
     @SerialName("process") val process: RoutemetricsResponseU2DProcess_9f6e05a566,

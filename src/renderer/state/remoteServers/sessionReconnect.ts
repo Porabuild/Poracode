@@ -8,6 +8,7 @@ import { toast } from "@heroui/react";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
 import { RemoteClientError } from "@/shared/remote/client";
 import { REMOTE_BROWSER_FORWARD_VERSION } from "@/shared/remote/protocol";
+import { REMOTE_MEMORY_CATALOG_VERSION } from "@/shared/memory";
 import {
   environmentAdvertisesRuntimeHistoryNotices,
   forgetRuntimeHistoryNoticesCapability,
@@ -369,6 +370,10 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         browserForwardAvailable:
           environment.capabilities?.browserForward?.versions.includes(
             REMOTE_BROWSER_FORWARD_VERSION,
+          ) ?? false,
+        memoryCatalogAvailable:
+          environment.capabilities?.memoryCatalog?.versions.includes(
+            REMOTE_MEMORY_CATALOG_VERSION,
           ) ?? false,
         ...(environment.platform ? { platform: environment.platform } : {}),
         ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),

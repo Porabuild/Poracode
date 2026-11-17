@@ -12200,8 +12200,13 @@ msgid "Memory"
 msgstr "메모리"
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Memory actions"
 msgstr "메모리 작업"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory catalog management is unavailable on this connection."
+msgstr "이 연결에서는 메모리 카탈로그를 관리할 수 없습니다."
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
@@ -21494,8 +21499,8 @@ msgid "The MCP server is invalid."
 msgstr "MCP 서버가 올바르지 않습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
-msgid "The memory catalog is edited on the desktop that owns this host."
-msgstr "메모리 목록은 이 호스트를 가진 데스크톱에서 편집합니다."
+#~ msgid "The memory catalog is edited on the desktop that owns this host."
+#~ msgstr "메모리 목록은 이 호스트를 가진 데스크톱에서 편집합니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The move expired. Start it again."

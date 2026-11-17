@@ -73,6 +73,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_3cbfa576c37bf99e = RemoteSchema(type: "object", required: Set(["body", "category", "pinned", "polarity", "scope", "summary"]), properties: ["body": RemoteSchemas.schema_bf0b727f7b1c6d07, "category": RemoteSchemas.schema_e3c6a49a61116efe, "id": RemoteSchemas.schema_36fea325bf1aca70, "pinned": RemoteSchemas.schema_feeb8bb50144d96d, "polarity": RemoteSchemas.schema_6c042b493abd3ee5, "projectId": RemoteSchemas.schema_df704162f3d15808, "quote": RemoteSchemas.schema_2d0b6ec9f2b2decf, "scope": RemoteSchemas.schema_ac6ea0fc110d7efb, "summary": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: false, unknownPolicy: .reject)
+}
+
+public extension RemoteSchemas {
   static let schema_3cc2bb39a7445b48 = RemoteSchema(type: "array", minItems: 1, items: RemoteSchemas.schema_a02c812507215fb8, unknownPolicy: .strip)
 }
 
@@ -158,6 +162,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_3f5bcd72f92b6f9f = RemoteSchema(type: "string", literals: [.string("browser-watch")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_3fc597689b262069 = RemoteSchema(type: "object", required: Set(["action", "entry"]), properties: ["action": RemoteSchemas.schema_a2bcbae622b18cea, "entry": RemoteSchemas.schema_3cbfa576c37bf99e], additionalAllowed: false, unknownPolicy: .reject)
 }
 
 public extension RemoteSchemas {

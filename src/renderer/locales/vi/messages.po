@@ -12200,8 +12200,13 @@ msgid "Memory"
 msgstr "Bộ nhớ"
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
+#: src/renderer/views/SettingsOverlay/parts/MemoryCatalogDialog.tsx
 msgid "Memory actions"
 msgstr "Thao tác bộ nhớ"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Memory catalog management is unavailable on this connection."
+msgstr "Không thể quản lý danh mục ký ức trên kết nối này."
 
 #: src/renderer/components/composer/MemoryAddMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
@@ -21494,8 +21499,8 @@ msgid "The MCP server is invalid."
 msgstr "Máy chủ MCP không hợp lệ."
 
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
-msgid "The memory catalog is edited on the desktop that owns this host."
-msgstr "Danh mục bộ nhớ được sửa trên máy tính sở hữu máy chủ này."
+#~ msgid "The memory catalog is edited on the desktop that owns this host."
+#~ msgstr "Danh mục bộ nhớ được sửa trên máy tính sở hữu máy chủ này."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The move expired. Start it again."

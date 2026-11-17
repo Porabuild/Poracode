@@ -333,6 +333,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_61b9b3b3c244a2ad = RemoteSchema(type: "object", required: Set(["captureTiming", "enabled", "entryCount", "lastDreamAt", "lastDreamSummary", "learning", "pendingCandidates", "suggestionCount", "syncEnabled", "threadMode"]), properties: ["captureTiming": RemoteSchemas.schema_21aabfa8248a23b3, "enabled": RemoteSchemas.schema_feeb8bb50144d96d, "entryCount": RemoteSchemas.schema_56aa0e45cbdce0d0, "lastDreamAt": RemoteSchemas.schema_2d0b6ec9f2b2decf, "lastDreamCounts": RemoteSchemas.schema_4fbe9bf7e2323309, "lastDreamRunId": RemoteSchemas.schema_2d0b6ec9f2b2decf, "lastDreamSummary": RemoteSchemas.schema_2d0b6ec9f2b2decf, "learning": RemoteSchemas.schema_feeb8bb50144d96d, "pendingCandidates": RemoteSchemas.schema_56aa0e45cbdce0d0, "suggestionCount": RemoteSchemas.schema_56aa0e45cbdce0d0, "syncEnabled": RemoteSchemas.schema_feeb8bb50144d96d, "threadMode": RemoteSchemas.schema_7d35bc9ac5ba82b5], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_61e54b5f6751c7a6 = RemoteSchema(type: "string", literals: [.string("ios"), .string("android")], unknownPolicy: .strip)
 }
 
@@ -358,6 +362,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_626f8596f7256857 = RemoteSchema(type: "object", required: Set(["id"]), properties: ["archived": RemoteSchemas.schema_feeb8bb50144d96d, "id": RemoteSchemas.schema_d855999aed5e6438, "unread": RemoteSchemas.schema_feeb8bb50144d96d], additionalAllowed: true, unknownPolicy: .strip, semanticIds: ["schedule.run-state"])
+}
+
+public extension RemoteSchemas {
+  static let schema_62b62e61531c0036 = RemoteSchema(type: "object", required: Set(["action"]), properties: ["action": RemoteSchemas.schema_79cc8fd8772975d2, "projectId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: false, unknownPolicy: .reject)
 }
 
 public extension RemoteSchemas {
@@ -413,6 +421,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_649f2dd010d75dad = RemoteSchema(type: "object", required: Set(["action"]), properties: ["action": RemoteSchemas.schema_862e6a81a05c9f92, "projectId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: false, unknownPolicy: .reject)
+}
+
+public extension RemoteSchemas {
   static let schema_64dd00a3a569fc23 = RemoteSchema(type: "object", required: Set(["worktreeLocation"]), properties: ["reapplyStashCommit": RemoteSchemas.schema_bb2e0e6d90c93ccf, "worktreeLocation": RemoteSchemas.schema_080f9cc154af9e27], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -434,16 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_65e6698fa7640db4 = RemoteSchema(type: "object", properties: ["gui": RemoteSchemas.schema_38b68e422d630291, "terminal": RemoteSchemas.schema_38b68e422d630291], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_66021940878f3abc = RemoteSchema(type: "object", required: Set(["kind", "scope", "serverId"]), properties: ["kind": RemoteSchemas.schema_3d1908a6bccf4864, "scope": RemoteSchemas.schema_dc99757951407418, "serverId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_6602e9e9c3006d18 = RemoteSchema(type: "object", required: Set(["commit", "current", "isRemote", "name"]), properties: ["commit": RemoteSchemas.schema_bf0b727f7b1c6d07, "current": RemoteSchemas.schema_feeb8bb50144d96d, "isRemote": RemoteSchemas.schema_feeb8bb50144d96d, "name": RemoteSchemas.schema_bf0b727f7b1c6d07, "remote": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_66504fdb436f3b0e = RemoteSchema(type: "object", required: Set(["kind", "path"]), properties: ["kind": RemoteSchemas.schema_5465dd986b32b774, "path": RemoteSchemas.schema_bd85a52dd25effae, "remoteServerId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }

@@ -272,7 +272,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   updateCrossagentMemoryEntryTags: "local-shell: this device's memory catalog",
   removeCrossagentMemoryEntry: "local-shell: this device's memory catalog",
   memoryCommand:
-    "local-shell: this host's local memory catalog; cross-host sync uses POST /api/memory/sync",
+    "local-shell: privileged local memory commands. Remote catalog and sync use their own HTTP routes",
   generateMemoryText:
     "local-shell: host-owned background capture/dream one-shot generation on this machine",
 

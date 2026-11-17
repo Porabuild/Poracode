@@ -6,6 +6,7 @@ import { parsePairingCertFingerprint, parsePairingUrlParts } from "@/shared/remo
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { msg } from "@lingui/core/macro";
 import { filterKnownRemoteAccessScopes, REMOTE_OPERATOR_SCOPES } from "@/shared/remote";
+import { REMOTE_MEMORY_CATALOG_VERSION } from "@/shared/memory";
 import { i18n } from "@/renderer/i18n/i18n";
 import { readBridge } from "@/renderer/bridge";
 import {
@@ -274,6 +275,9 @@ export function createPairingActions(deps: PairingActionDeps) {
         environment.capabilities?.browserForward?.versions.includes(
           REMOTE_BROWSER_FORWARD_VERSION,
         ) ?? false,
+      memoryCatalogAvailable:
+        environment.capabilities?.memoryCatalog?.versions.includes(REMOTE_MEMORY_CATALOG_VERSION) ??
+        false,
       ...(environment.platform ? { platform: environment.platform } : {}),
       ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
       transport: input.transport,

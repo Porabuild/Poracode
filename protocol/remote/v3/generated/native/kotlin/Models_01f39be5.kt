@@ -70,19 +70,14 @@ data class RouteschedulesU2DCommandRequestU2DOptionU2D2_455b16a806(
 }
 
 @Serializable
-enum class RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d {
-    @SerialName("delete") DELETE,
-}
-
-@Serializable
 data class RouteschedulesU2DCommandRequestU2DOptionU2D3_e7cab2d2c0(
     @SerialName("id") val id: String,
-    @SerialName("kind") val kind: RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d,
+    @SerialName("kind") val kind: RoutememoryU2DCatalogRequestU2DOptionU2D4U2DAction_4d5989d27d,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("id", "String", true, false, null, null, null, null, null, null, "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", "uuid", listOf()),
-            RemoteFieldDescriptor("kind", "RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RoutememoryU2DCatalogRequestU2DOptionU2D4U2DAction_4d5989d27d", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

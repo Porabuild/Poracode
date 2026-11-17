@@ -177,6 +177,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_28f26b87e53ebaef = RemoteSchema(type: "string", literals: [.string("learn"), .string("recall"), .string("incognito")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_290453f28a433311 = RemoteSchema(type: "object", required: Set(["kind", "tabId", "url"]), properties: ["kind": RemoteSchemas.schema_9063020a6c5ad8b3, "tabId": RemoteSchemas.schema_36fea325bf1aca70, "url": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 

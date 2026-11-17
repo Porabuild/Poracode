@@ -6,7 +6,13 @@ import { Button, ProviderModelMenu, Select, ToggleSwitch } from "@/renderer/comp
 import { buildProviderModelMenuProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { getProviderUtilityRank } from "@/renderer/components/providers/providerManifest";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useAppStore } from "@/renderer/state/appStore";
+import { runMemoryCatalogCommand } from "@/renderer/state/memoryCatalog";
 import { syncMemoryAcrossEnvironments } from "@/renderer/state/memorySync";
+import { isProjectedRemoteEntityId, remoteOwner } from "@/renderer/state/remoteProjection";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useSettingsHostServer, useSettingsHostStore } from "@/renderer/state/settingsHostStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type {
   MemoryCaptureTiming,
@@ -86,7 +92,58 @@ function MemoryModelPicker(props: {
   );
 }
 
-export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings?: () => void }) {
+type MemorySettingsProps = { projectId?: string; onOpenGlobalSettings?: () => void };
+
+export function MemorySettings(props: MemorySettingsProps) {
+  const project = useAppStore((state) =>
+    state.projects.find((item) => item.id === props.projectId),
+  );
+  const owner = remoteOwner(project);
+  const projectHost = useRemoteServersStore((state) =>
+    state.servers.find((server) => remoteConnectionKey(server) === owner?.desktopId),
+  );
+  const settingsHost = useSettingsHostServer();
+  const remoteSession = isRemoteSession();
+  const remote =
+    remoteSession ||
+    Boolean(project?.remoteServerId) ||
+    isProjectedRemoteEntityId(props.projectId ?? "", "project");
+  const server = remote ? (props.projectId ? projectHost : settingsHost) : undefined;
+  const connectionKey = server && remoteConnectionKey(server);
+  const ownerProjectId = remote ? owner?.remoteId : props.projectId;
+  const canManage =
+    !remote || Boolean(server?.memoryCatalogAvailable && server.scopes.includes("session:operate"));
+  const scopeKey = JSON.stringify([
+    remote,
+    props.projectId,
+    connectionKey,
+    server?.desktopId,
+    server?.endpoint,
+    server?.recentHistoryCacheId,
+    ownerProjectId,
+  ]);
+  return (
+    <MemorySettingsView
+      key={scopeKey}
+      {...props}
+      remote={remote}
+      remoteSession={remoteSession}
+      canManage={canManage}
+      connectionKey={connectionKey}
+      ownerProjectId={ownerProjectId}
+    />
+  );
+}
+
+function MemorySettingsView(
+  props: MemorySettingsProps & {
+    remote: boolean;
+    remoteSession: boolean;
+    canManage: boolean;
+    connectionKey: string | undefined;
+    ownerProjectId: string | undefined;
+  },
+) {
   const { t } = useLingui();
   const memory = useSharedSettings((state) => state.memory);
   const disabledAgents = useSharedSettings((state) => state.disabledAgents);
@@ -109,7 +166,7 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
     const raw = oneShotAgents.find((agent) => agent.kind === provider.kind);
     return raw ? { ...provider, capabilities: raw.capabilities } : provider;
   });
-  const remote = isRemoteSession();
+  const { remote, canManage, connectionKey, ownerProjectId } = props;
   const childDisabled = !memory.enabled;
   const childRowClass = childDisabled ? "opacity-55 transition-opacity" : "transition-opacity";
   const [status, setStatus] = useState<MemoryStatus | undefined>();
@@ -120,13 +177,12 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (remote) return;
+    if (!canManage) return;
     let active = true;
-    void readBridge()
-      .memoryCommand({
-        action: "status",
-        ...(props.projectId ? { projectId: props.projectId } : {}),
-      })
+    void runMemoryCatalogCommand(connectionKey, {
+      action: "status",
+      ...(ownerProjectId ? { projectId: ownerProjectId } : {}),
+    })
       .then((next) => {
         if (active) setStatus(next as MemoryStatus);
       })
@@ -136,7 +192,7 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
     return () => {
       active = false;
     };
-  }, [props.projectId, remote]);
+  }, [canManage, connectionKey, ownerProjectId]);
 
   const timingOptions = [
     { id: "settle-2m", label: t`After the turn settles (2 min)` },
@@ -157,9 +213,9 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
   ];
 
   async function reloadStatus() {
-    const nextStatus = await readBridge().memoryCommand({
+    const nextStatus = await runMemoryCatalogCommand(connectionKey, {
       action: "status",
-      ...(props.projectId ? { projectId: props.projectId } : {}),
+      ...(ownerProjectId ? { projectId: ownerProjectId } : {}),
     });
     setStatus(nextStatus as MemoryStatus);
   }
@@ -182,9 +238,18 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
       }
     >
       {props.onOpenGlobalSettings ? (
-        <Button size="sm" variant="tertiary" onPress={props.onOpenGlobalSettings}>
-          <Trans>Memory settings</Trans>
-        </Button>
+        !remote || (props.remoteSession && connectionKey) ? (
+          <Button
+            size="sm"
+            variant="tertiary"
+            onPress={() => {
+              if (connectionKey) useSettingsHostStore.getState().choose(connectionKey);
+              props.onOpenGlobalSettings?.();
+            }}
+          >
+            <Trans>Memory settings</Trans>
+          </Button>
+        ) : null
       ) : (
         <>
           <SettingRow
@@ -439,9 +504,9 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
           </SettingRow>
         </>
       )}
-      {remote ? (
+      {!canManage ? (
         <p className="text-xs text-muted">
-          <Trans>The memory catalog is edited on the desktop that owns this host.</Trans>
+          <Trans>Memory catalog management is unavailable on this connection.</Trans>
         </p>
       ) : (
         <section className="space-y-2">
@@ -449,7 +514,7 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
             <Button size="sm" variant="secondary" onPress={() => setCatalogOpen(true)}>
               <Trans>Manage memories</Trans>
             </Button>
-            {!props.projectId ? (
+            {!props.projectId && !remote ? (
               <div className="flex flex-wrap items-center gap-2">
                 {status?.lastDreamRunId ? (
                   <Button
@@ -525,8 +590,8 @@ export function MemorySettings(props: { projectId?: string; onOpenGlobalSettings
 
           {catalogOpen && (
             <MemoryCatalogDialog
-              key={props.projectId}
-              {...(props.projectId ? { projectId: props.projectId } : {})}
+              connectionKey={connectionKey}
+              {...(ownerProjectId ? { projectId: ownerProjectId } : {})}
               onChanged={reloadStatus}
               onClose={() => setCatalogOpen(false)}
             />

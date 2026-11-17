@@ -65,6 +65,7 @@ const MANIFEST_ROUTE_IDS = [
   "mcp-settings-read",
   "mcp-settings-command",
   "mcp-settings-operation",
+  "memory-catalog",
   "memory-sync",
   "schedules-read",
   "schedules-command",

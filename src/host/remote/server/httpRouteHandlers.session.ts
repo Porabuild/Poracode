@@ -20,8 +20,16 @@ import {
   remoteMcpSettingsOperationSchema,
 } from "@/shared/remote/contract/routeSchemas";
 import { dbGetProject, dbGetProjectNotes, dbSetProjectNotes } from "@/host/db";
+import { dbGetMemoryEntry } from "@/host/db/memoryStore";
+import { listScopedMemoryEntriesForProject } from "@/host/memory/apply";
 import { handleMemoryCommand } from "@/host/memory/runtime";
-import { memorySyncResponseSchema, memorySyncStateSchema } from "@/shared/memory";
+import { isHomeProjectId } from "@/shared/homeScope";
+import {
+  memorySyncResponseSchema,
+  memorySyncStateSchema,
+  remoteMemoryCatalogCommandSchema,
+  remoteMemoryCatalogResultSchema,
+} from "@/shared/memory";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -78,6 +86,7 @@ type SessionRouteId =
   | "mcp-settings-read"
   | "mcp-settings-command"
   | "mcp-settings-operation"
+  | "memory-catalog"
   | "memory-sync";
 
 /** Session-group HTTP route handlers (contract `sessionRoutes`). */
@@ -380,6 +389,48 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
         return;
       }
     }
+  },
+
+  "memory-catalog": async ({ req, res }) => {
+    const command = remoteMemoryCatalogCommandSchema.parse(await readJsonBody(req));
+    const projectId =
+      command.action === "save"
+        ? command.entry.projectId
+        : "projectId" in command
+          ? command.projectId
+          : undefined;
+    if (projectId && !dbGetProject(projectId)) {
+      throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+    }
+    if (command.action === "save") {
+      const { entry } = command;
+      const current = entry.id ? dbGetMemoryEntry(entry.id) : undefined;
+      if (entry.id && !current) {
+        throw new RemoteHttpError("memory_not_found", "Memory not found.", 404);
+      }
+      if (current && (current.scope !== entry.scope || current.projectId !== (projectId ?? null))) {
+        throw new RemoteHttpError("memory_scope_conflict", "The memory scope has changed.", 409);
+      }
+      if (
+        (entry.scope === "global" && (projectId || entry.category === "project")) ||
+        (entry.scope === "project" && !current && (!projectId || isHomeProjectId(projectId)))
+      ) {
+        throw new RemoteHttpError("invalid_memory_scope", "Choose a valid memory scope.", 400);
+      }
+    }
+    if (
+      command.action === "delete" &&
+      projectId &&
+      dbGetMemoryEntry(command.id) &&
+      !listScopedMemoryEntriesForProject(projectId).some((entry) => entry.id === command.id)
+    ) {
+      throw new RemoteHttpError("memory_not_found", "Memory not found.", 404);
+    }
+    const result = remoteMemoryCatalogResultSchema.parse({
+      action: command.action,
+      result: await handleMemoryCommand(command),
+    });
+    writeJson(res, 200, result);
   },
 
   "memory-sync": async ({ req, res }) => {

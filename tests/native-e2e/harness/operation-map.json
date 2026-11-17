@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 14,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:17373a6461600ea990d24ab9aeadc684ca95c7b69ffeab785ea16ed26ac0aea9",
-  "keyCount": 359,
+  "manifestHash": "sha256:f9ad30fe3f7a3ef84e2b0e8cb79c9b75a58f1c60854b204f33ff12ff9a19e7e4",
+  "keyCount": 360,
   "counts": {
-    "route": 124,
+    "route": 125,
     "procedure": 179,
     "ws-client": 11,
     "ws-server": 12,
@@ -1037,6 +1037,10 @@
     "route:mcp-settings-read": {
       "kind": "route",
       "id": "mcp-settings-read"
+    },
+    "route:memory-catalog": {
+      "kind": "route",
+      "id": "memory-catalog"
     },
     "route:memory-sync": {
       "kind": "route",

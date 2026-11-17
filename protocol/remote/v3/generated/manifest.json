@@ -624,6 +624,15 @@
     },
     {
       "auth": "bearer",
+      "id": "memory-catalog",
+      "method": "POST",
+      "path": "/api/memory/catalog",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "memory-sync",
       "method": "POST",
       "path": "/api/memory/sync",

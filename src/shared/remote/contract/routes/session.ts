@@ -3,7 +3,12 @@ import {
   conversationSearchPageSchema,
   conversationSearchQuerySchema,
 } from "../../../conversationSearch";
-import { memorySyncResponseSchema, memorySyncStateSchema } from "../../../memory";
+import {
+  memorySyncResponseSchema,
+  memorySyncStateSchema,
+  remoteMemoryCatalogCommandSchema,
+  remoteMemoryCatalogResultSchema,
+} from "../../../memory";
 
 import { defineRoute } from "../helpers";
 import { auditEvent, noAudit } from "../../auditKinds";
@@ -463,6 +468,21 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
       wireKind: "json",
       status: 200,
       jsonSchema: remoteMcpSettingsOperationResultSchema,
+    },
+  }),
+  defineRoute({
+    id: "memory-catalog",
+    requiresCurrentProtocol: true,
+    method: "POST",
+    path: "/api/memory/catalog",
+    auth: "bearer",
+    scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
+    request: { bodyKind: "json", jsonSchema: remoteMemoryCatalogCommandSchema },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: remoteMemoryCatalogResultSchema,
     },
   }),
   defineRoute({

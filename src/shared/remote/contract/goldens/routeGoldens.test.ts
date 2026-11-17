@@ -38,9 +38,9 @@ const PATH_SCOPED_BODIES = {
 } as const;
 
 describe("remote HTTP route goldens", () => {
-  it("covers exactly 124 unique routes", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(124);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(124);
+  it("covers exactly 125 unique routes", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(125);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(125);
   });
 
   it("carries optional Memory settings on the settings routes", () => {

@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 14
     const val bindingFormatVersion = 2
     const val generatorVersion = 7
-    const val sourceHash = "sha256:103810e43d7d7253ef5768f1f8799ff35e63066eeee863ad78af14929266570a"
-    const val manifestHash = "sha256:c77ded8053e44afa1792ddf07f3d229c964ea77b121277fb54b39febaab33334"
+    const val sourceHash = "sha256:ab496ba0e3caa8f4b82c9ac7ec0850e6363b744887c3e541ff2b098a8b9279b9"
+    const val manifestHash = "sha256:b344d1b59078a545149fd8f2ff0e8416da8b99eb0464bfb98006661e67907712"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -44,14 +44,14 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("device-preview-open", "POST", "/api/threads/{threadId}/devices/{sessionId}/preview/v1", "bearer", listOf("session:read"), "json", "json", 200, "RoutedeviceU2DPreviewU2DOpenRequest_5eca20bab2", "RoutedeviceU2DPreviewU2DOpenResponse_42293281b6", listOf()),
         RemoteRouteDescriptor("device-preview-renew", "POST", "/api/threads/{threadId}/devices/{sessionId}/preview/v1/renew", "bearer", listOf("session:read"), "json", "json", 200, "RoutedeviceU2DPreviewU2DCloseRequest_8bcac1a204", "RoutedeviceU2DPreviewU2DOpenResponse_42293281b6", listOf()),
         RemoteRouteDescriptor("device-preview-websocket-ticket", "POST", "/api/threads/{threadId}/devices/{sessionId}/preview/v1/websocket-ticket", "bearer", listOf("session:read"), "json", "json", 200, "RoutedeviceU2DPreviewU2DWebsocketU2DTicketRequest_291e0a286e", "RoutedeviceU2DPreviewU2DWebsocketU2DTicketResponse_ddfb574eab", listOf()),
-        RemoteRouteDescriptor("environment", "GET", "/.well-known/poracode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_fddbefe96f", listOf()),
+        RemoteRouteDescriptor("environment", "GET", "/.well-known/poracode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_b663d07542", listOf()),
         RemoteRouteDescriptor("environment-adopt-legacy", "POST", "/api/environments/{environmentId}/adopt-legacy", "bearer", listOf("projects:manage", "session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DAdoptU2DLegacyRequest_399c72fc19", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-connect", "POST", "/api/environments/{environmentId}/connect", "bearer", listOf("session:operate", "ports:forward"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-create", "POST", "/api/environments", "bearer", listOf("projects:manage", "session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DCreateRequest_ccc27289c7", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-delete", "POST", "/api/environments/{environmentId}/delete", "bearer", listOf("projects:manage", "session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DDeleteRequest_939b432562", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("environment-disconnect", "POST", "/api/environments/{environmentId}/disconnect", "bearer", listOf("session:operate", "ports:forward"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-get", "GET", "/api/environments/{environmentId}", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
-        RemoteRouteDescriptor("environment-legacy", "GET", "/.well-known/lightcode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_fddbefe96f", listOf()),
+        RemoteRouteDescriptor("environment-legacy", "GET", "/.well-known/lightcode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_b663d07542", listOf()),
         RemoteRouteDescriptor("environment-list", "GET", "/api/environments", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DListResponse_700ee4302b", listOf()),
         RemoteRouteDescriptor("environment-media-release", "POST", "/api/environments/{environmentId}/media-release", "bearer", listOf("session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RoutedeviceU2DDetachResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("environment-media-renew", "POST", "/api/environments/{environmentId}/media-renew", "bearer", listOf("session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151", listOf()),
@@ -79,6 +79,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("mcp-settings-command", "POST", "/api/settings/mcp-servers/command", "bearer", listOf("projects:manage"), "json", "json", 200, "RoutemcpU2DSettingsU2DCommandRequest_f92ad486ec", "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", listOf()),
         RemoteRouteDescriptor("mcp-settings-operation", "POST", "/api/settings/mcp-servers/operation", "bearer", listOf("projects:manage"), "json", "json", 200, "RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb", "RoutemcpU2DSettingsU2DOperationResponse_20b48750f1", listOf()),
         RemoteRouteDescriptor("mcp-settings-read", "GET", "/api/settings/mcp-servers", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", listOf()),
+        RemoteRouteDescriptor("memory-catalog", "POST", "/api/memory/catalog", "bearer", listOf("session:operate"), "json", "json", 200, "RoutememoryU2DCatalogRequest_0eb986e669", "RoutememoryU2DCatalogResponse_d2a9e452ab", listOf()),
         RemoteRouteDescriptor("memory-sync", "POST", "/api/memory/sync", "bearer", listOf("session:operate"), "json", "json", 200, "RoutememoryU2DSyncRequest_e391f3a6d9", "RoutememoryU2DSyncResponse_ac0baafa13", listOf()),
         RemoteRouteDescriptor("metrics", "GET", "/metrics", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RoutemetricsResponse_e9b9e3e75f", listOf()),
         RemoteRouteDescriptor("port-enter", "POST", "/api/ports/enter", "bearer", listOf("ports:forward"), "json", "json", 200, "RouteportU2DEnterRequest_4067ad04bf", "RouteportU2DEnterResponse_72ce7899de", listOf()),

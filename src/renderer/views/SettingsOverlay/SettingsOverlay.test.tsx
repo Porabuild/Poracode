@@ -4,7 +4,13 @@ import type { ReactNode, Ref } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import type { PoracodeBridge } from "@/shared/ipc";
-import { defaultMemorySettings, type MemoryCommandPayload } from "@/shared/memory";
+import {
+  defaultMemorySettings,
+  type MemoryCommandPayload,
+  type RemoteMemoryCatalogCommand,
+} from "@/shared/memory";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { MemorySettings } from "./parts/MemorySettings";
 import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 
@@ -295,6 +301,80 @@ describe("SettingsOverlay", () => {
     expect(editor).toHaveFocus();
     fireEvent.keyDown(editor, { key: "Escape" });
     expect(within(dialog).getByRole("button", { name: "Edit" })).toHaveFocus();
+  });
+
+  it("manages a projected project's catalog on its owning connection", async () => {
+    const projectId = "remote:owner-b:project:project-b";
+    appState.projects = [
+      {
+        id: projectId,
+        remoteServerId: "owner-b",
+        remoteId: "project-b",
+        name: "Remote project",
+        location: { kind: "posix", path: "/remote/project" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    ];
+    const ownerConnections: string[] = [];
+    const memoryCatalog = vi.fn<(command: RemoteMemoryCatalogCommand) => Promise<unknown>>(
+      async (command) => ({
+        action: command.action,
+        result: command.action === "list" ? [] : undefined,
+      }),
+    );
+    const client = { memoryCatalog } as unknown as RemoteDesktopClient;
+    const previousWithClient = useRemoteServersStore.getState().withClient;
+    useRemoteServersStore.setState({
+      servers: ["owner-a", "owner-b"].map((id) => ({
+        desktopId: id,
+        label: id,
+        endpoint: `https://${id}.test`,
+        accessToken: "fixture",
+        scopes: ["session:operate"],
+        memoryCatalogAvailable: true,
+      })),
+      withClient: async (connectionKey, invoke) => {
+        ownerConnections.push(connectionKey);
+        return invoke(client);
+      },
+    });
+    try {
+      render(<MemorySettings projectId={projectId} />);
+      fireEvent.click(screen.getByRole("button", { name: "Manage memories" }));
+      const dialog = await screen.findByRole("dialog", { name: "Memories" });
+      expect(await within(dialog).findByText("No memories yet.")).toBeInTheDocument();
+      expect(ownerConnections).toEqual(["owner-b", "owner-b"]);
+      expect(memoryCatalog).toHaveBeenNthCalledWith(1, {
+        action: "status",
+        projectId: "project-b",
+      });
+      expect(memoryCatalog).toHaveBeenNthCalledWith(2, { action: "list", projectId: "project-b" });
+      expect(bridgeState.memoryCommand).not.toHaveBeenCalled();
+    } finally {
+      useRemoteServersStore.setState({ withClient: previousWithClient });
+    }
+  });
+
+  it("keeps catalog commands off a connection whose older host omitted the capability", () => {
+    bridgeState.remote = true;
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "legacy-host",
+          label: "Legacy host",
+          endpoint: "https://legacy.example.test",
+          accessToken: "fixture",
+          scopes: ["session:operate"],
+        },
+      ],
+      runtime: { "legacy-host": { status: "online", projects: [], threads: [] } },
+    });
+    render(<MemorySettings />);
+    expect(screen.queryByRole("button", { name: "Manage memories" })).toBeNull();
+    expect(
+      screen.getByText("Memory catalog management is unavailable on this connection."),
+    ).toBeInTheDocument();
+    expect(bridgeState.memoryCommand).not.toHaveBeenCalled();
   });
 
   it("scrolls to an initially requested setting anchor and consumes the request", async () => {

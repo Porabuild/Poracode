@@ -353,7 +353,10 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     archiveScope,
   );
   const showMobileDesktopPicker =
-    compactLayout && remoteSession && selectedDesktop !== undefined && mobileScreen === "desktop";
+    compactLayout &&
+    remoteSession &&
+    selectedDesktop !== undefined &&
+    (mobileScreen === "desktop" || (mobileScreen === "detail" && activeSection === "memory"));
   const openSchedules = useAppStore((state) => state.openSchedules);
   const detailTitle = (() => {
     if (activeSection === "agentsGeneral") return t`Agents`;

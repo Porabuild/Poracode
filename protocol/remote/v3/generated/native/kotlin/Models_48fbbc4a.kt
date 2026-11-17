@@ -18,11 +18,11 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D14_a93ba7bf23(
 
 @Serializable
 data class RoutethreadU2DCommandRequestU2DOptionU2D15_370ff0ec0a(
-    @SerialName("kind") val kind: RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d,
+    @SerialName("kind") val kind: RoutememoryU2DCatalogRequestU2DOptionU2D4U2DAction_4d5989d27d,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("kind", "RoutememoryU2DCatalogRequestU2DOptionU2D4U2DAction_4d5989d27d", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

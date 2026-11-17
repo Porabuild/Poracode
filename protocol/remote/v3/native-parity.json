@@ -1458,6 +1458,32 @@
         }
       },
       {
+        "id": "memory-catalog",
+        "scopes": ["session:operate"],
+        "batch": "settings-integrations",
+        "note": "Authenticated host catalog management in the shared desktop and browser/PWA renderer. Native client adoption is planned.",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
         "id": "memory-sync",
         "scopes": ["session:operate"],
         "batch": "settings-integrations",

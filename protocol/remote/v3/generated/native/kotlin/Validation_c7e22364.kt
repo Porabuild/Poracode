@@ -77,6 +77,10 @@ internal val schema_3c702b70b3eb4220: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("ios"), JsonPrimitive("ios-video"), JsonPrimitive("android")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_3cbfa576c37bf99e: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("body", "category", "pinned", "polarity", "scope", "summary"), properties = mapOf("body" to schema_bf0b727f7b1c6d07, "category" to schema_e3c6a49a61116efe, "id" to schema_36fea325bf1aca70, "pinned" to schema_feeb8bb50144d96d, "polarity" to schema_6c042b493abd3ee5, "projectId" to schema_df704162f3d15808, "quote" to schema_2d0b6ec9f2b2decf, "scope" to schema_ac6ea0fc110d7efb, "summary" to schema_36fea325bf1aca70), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
+}
+
 internal val schema_3cc2bb39a7445b48: RemoteSchema by lazy {
     RemoteSchema(type = "array", minItems = 1, items = schema_a02c812507215fb8, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -163,6 +167,10 @@ internal val schema_3f58316dbb160752: RemoteSchema by lazy {
 
 internal val schema_3f5bcd72f92b6f9f: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("browser-watch")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_3fc597689b262069: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("action", "entry"), properties = mapOf("action" to schema_a2bcbae622b18cea, "entry" to schema_3cbfa576c37bf99e), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
 }
 
 internal val schema_402930e3e48d3bdd: RemoteSchema by lazy {
