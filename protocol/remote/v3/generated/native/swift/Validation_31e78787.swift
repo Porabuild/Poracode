@@ -153,6 +153,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_20dba249c220a52b = RemoteSchema(type: "string", literals: [.string("wait")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_2127b6212a816df5 = RemoteSchema(type: "string", literals: [.string("error"), .string("restart")], unknownPolicy: .strip)
 }
 

@@ -217,6 +217,10 @@ internal val schema_ced7436778cf748d: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("fromCache", "windows", "wsl"), properties = mapOf("fromCache" to schema_feeb8bb50144d96d, "windows" to schema_dcbbf4179ce1e9a4, "wsl" to schema_dcbbf4179ce1e9a4), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_cf78c688ea7d3e66: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("action", "id"), properties = mapOf("action" to schema_20dba249c220a52b, "id" to schema_d855999aed5e6438), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_cf7eae9345350df4: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("running"), JsonPrimitive("idle"), JsonPrimitive("error")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -243,6 +247,10 @@ internal val schema_d0ecd43b5f1b261a: RemoteSchema by lazy {
 
 internal val schema_d0fa817300598095: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_c30da54b853babca, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_d129d1b0ee9ecb9f: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("job", "kind"), properties = mapOf("job" to schema_e8296209cb9a16ca, "kind" to schema_c297cb4b3fffa0b1), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_d12ea655163290cc: RemoteSchema by lazy {
@@ -439,12 +447,4 @@ internal val schema_d855999aed5e6438: RemoteSchema by lazy {
 
 internal val schema_d864f91b7c2dcff0: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("admitted", "cancellations", "long", "queueFullRefusals", "short", "waitTimeoutRefusals"), properties = mapOf("admitted" to schema_56aa0e45cbdce0d0, "cancellations" to schema_56aa0e45cbdce0d0, "checkout" to schema_164937b9a51028fa, "environments" to schema_2f4c1755c2d3a402, "long" to schema_164937b9a51028fa, "queueFullRefusals" to schema_56aa0e45cbdce0d0, "short" to schema_164937b9a51028fa, "slowFetches" to schema_56aa0e45cbdce0d0, "waitTimeoutRefusals" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_d8768c073f68fc35: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("pong")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_d8ae5c3a60a788cd: RemoteSchema by lazy {
-    RemoteSchema(type = "object", additionalSchema = schema_a20681cb358b7044, propertyNames = schema_bf0b727f7b1c6d07, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

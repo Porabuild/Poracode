@@ -16541,8 +16541,8 @@ msgid "Recording"
 msgstr "Ghi âm"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
-msgid "Recording stops automatically at five minutes."
-msgstr "Quá trình ghi tự động dừng sau năm phút."
+#~ msgid "Recording stops automatically at five minutes."
+#~ msgstr "Quá trình ghi tự động dừng sau năm phút."
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Recording will stop in less than fifteen seconds."

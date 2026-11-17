@@ -1,21 +1,21 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public enum ProcedurehexVoiceResult_46060d35e2: Codable, Sendable {
+public enum ProcedurehexVoiceResult_49ffdcc76e: Codable, Sendable {
   case option1(ProcedurehexVoiceResultU2DOptionU2D1_1a747af71d)
   case option2(ProcedurehexVoiceResultU2DOptionU2D2_a04ed36706)
-  case option3(ProcedurehexVoiceResultU2DOptionU2D3_e6b4674777)
+  case option3(ProcedurehexVoiceResultU2DOptionU2D3_d129d1b0ee)
   case option4(ProcedurehexVoiceResultU2DOptionU2D4_fc3e1f61a4)
   case option5(ProcedurehexVoiceResultU2DOptionU2D5_812ec408f3)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, ProcedurehexVoiceResult_46060d35e2)] = []
+    var matches: [(Int, ProcedurehexVoiceResult_49ffdcc76e)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("setup")]), let value = try? container.decode(ProcedurehexVoiceResultU2DOptionU2D1_1a747af71d.self) {
       matches.append((1, .option1(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("catalog")]), let value = try? container.decode(ProcedurehexVoiceResultU2DOptionU2D2_a04ed36706.self) {
       matches.append((2, .option2(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("job")]), let value = try? container.decode(ProcedurehexVoiceResultU2DOptionU2D3_e6b4674777.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("job")]), let value = try? container.decode(ProcedurehexVoiceResultU2DOptionU2D3_d129d1b0ee.self) {
       matches.append((3, .option3(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("cancelled")]), let value = try? container.decode(ProcedurehexVoiceResultU2DOptionU2D4_fc3e1f61a4.self) {
@@ -25,8 +25,8 @@ public enum ProcedurehexVoiceResult_46060d35e2: Codable, Sendable {
       matches.append((5, .option5(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched ProcedurehexVoiceResult_46060d35e2" : "Ambiguous union ProcedurehexVoiceResult_46060d35e2 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(ProcedurehexVoiceResult_46060d35e2.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched ProcedurehexVoiceResult_49ffdcc76e" : "Ambiguous union ProcedurehexVoiceResult_49ffdcc76e matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(ProcedurehexVoiceResult_49ffdcc76e.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }

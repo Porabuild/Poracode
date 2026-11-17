@@ -6,6 +6,13 @@ import type {
 import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
 /**
+ * Version 7 adds `InitializeResult.sdkVersion` (reported from both discovered
+ * and explicit-entry manifests) so the host knows whether the loaded SDK uses
+ * inclusive `inputTokens` (`@cursor/sdk` 1.1.0–1.4.0+: `totalTokens = input +
+ * output`, instead of adding cache reads/writes a second time). A stale staged
+ * helper must fail the handshake rather than omit `sdkVersion` and miscount
+ * cached turn usage.
+ *
  * Version 6 adds the `summarize` RPC and the additive
  * `InitializeResult.supportsSummarize` capability flag (feature-detected on
  * the real agent handle, present on `@cursor/sdk` 1.2.0+). A stale staged
@@ -37,7 +44,7 @@ import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSuppor
  * gets it re-staged from current source (the SSH runtime bundle re-installs
  * whenever the built worker bytes change).
  */
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 6;
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 7;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;
@@ -176,6 +183,8 @@ export interface CursorSdkWorkerInitializeResult {
   recoveredExisting?: boolean;
   /** The agent handle exposes `summarize()` (`@cursor/sdk` 1.2.0+). */
   supportsSummarize?: boolean;
+  /** Installed `@cursor/sdk` version when known from the package manifest. */
+  sdkVersion?: string;
 }
 
 export interface CursorSdkWorkerStartInput {
@@ -187,6 +196,11 @@ export interface CursorSdkWorkerStartResult {
   runId: string;
 }
 
+/**
+ * Local-run steering outcomes forwarded across the worker boundary.
+ * `@cursor/sdk` 1.4.0 widened `SteerAckOutcome` with `{ outcome: "queued"; run?: Run }`
+ * for cloud runs; local `LocalRun.steer` continues returning only these two strings.
+ */
 export type CursorSdkWorkerSteerResult = "complete_delivered" | "revert_to_followup";
 
 export interface CursorSdkWorkerAgentMessage {

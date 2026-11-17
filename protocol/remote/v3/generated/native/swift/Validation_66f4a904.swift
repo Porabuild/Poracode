@@ -37,10 +37,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_46060d35e2ab13d1 = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_1a747af71da81871, RemoteSchemas.schema_a04ed367065645a0, RemoteSchemas.schema_e6b4674777255816, RemoteSchemas.schema_fc3e1f61a45e621e, RemoteSchemas.schema_812ec408f30828f2], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_464dbc5abe96a4c9 = RemoteSchema(type: "object", required: Set(["account", "forge", "host", "repository", "version"]), properties: ["account": RemoteSchemas.schema_c2bb40b82b330cd4, "forge": RemoteSchemas.schema_eaed3cfbf46d5d81, "host": RemoteSchemas.schema_2365fa95161a3294, "repository": RemoteSchemas.schema_36fea325bf1aca70, "version": RemoteSchemas.schema_7f9f5a0d72de0d9a], additionalAllowed: false, unknownPolicy: .reject, semanticIds: ["forge.watch.scope-identity"])
 }
 
@@ -178,6 +174,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_49f72e8cc565067e = RemoteSchema(type: "string", literals: [.string("set-worktree")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_49ffdcc76ea977dd = RemoteSchema(unionKind: "oneOf", options: [RemoteSchemas.schema_1a747af71da81871, RemoteSchemas.schema_a04ed367065645a0, RemoteSchemas.schema_d129d1b0ee9ecb9f, RemoteSchemas.schema_fc3e1f61a45e621e, RemoteSchemas.schema_812ec408f30828f2], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

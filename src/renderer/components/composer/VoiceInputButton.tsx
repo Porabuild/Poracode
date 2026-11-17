@@ -1,9 +1,17 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { recordFeatureSignal } from "@/renderer/state/featureUsageStore";
 import { Mic, Square, X } from "lucide-react";
 import { toast, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button, PixelLoader } from "@/renderer/components/common";
+import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { formatVoiceError, showVoiceCaptureError } from "./voiceError";
 import {
@@ -17,7 +25,11 @@ import {
 } from "@/renderer/speech/dictation";
 import { HEX_VOICE_MAX_SECONDS } from "@/shared/contracts/hexVoice";
 import type { VoiceTranscriptionProgress } from "@/renderer/speech/voiceTranscriptionWorker";
-import { createHexVoiceSession, HexVoiceError } from "@/renderer/speech/hexVoice";
+import {
+  createHexVoiceSession,
+  HexVoiceError,
+  type HexVoiceSession,
+} from "@/renderer/speech/hexVoice";
 import type { HexVoiceJob } from "@/shared/contracts/hexVoice";
 import { VoiceInputFeedback, type VoiceInputFailure } from "./VoiceInputFeedback";
 
@@ -58,6 +70,22 @@ function createAudioContext(): AudioContext {
   return new AudioContextCtor();
 }
 
+function stopAudioCapture(captureRef: RefObject<AudioCapture | null>): AudioCapture | null {
+  const capture = captureRef.current;
+  if (!capture) return null;
+  captureRef.current = null;
+  capture.processor.onaudioprocess = null;
+  capture.processor.disconnect();
+  capture.source.disconnect();
+  capture.stream.getTracks().forEach((track) => track.stop());
+  void capture.context.close();
+  return capture;
+}
+
+function currentTimestampMs(): number {
+  return performance.now();
+}
+
 export interface VoiceInputHandle {
   /**
    * Start recording — or stop it if already recording — mirroring a press of
@@ -96,26 +124,17 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
     const captureRef = useRef<AudioCapture | null>(null);
     const disposedRef = useRef(false);
     const transcriptionAbortRef = useRef<AbortController | null>(null);
-
-    function stopCapture(): AudioCapture | null {
-      const capture = captureRef.current;
-      if (!capture) return null;
-      captureRef.current = null;
-      capture.processor.onaudioprocess = null;
-      capture.processor.disconnect();
-      capture.source.disconnect();
-      capture.stream.getTracks().forEach((track) => track.stop());
-      void capture.context.close();
-      return capture;
-    }
+    const hexSessionRef = useRef<HexVoiceSession | null>(null);
 
     useEffect(() => {
       disposedRef.current = false;
       return () => {
         disposedRef.current = true;
         transcriptionAbortRef.current?.abort();
+        void hexSessionRef.current?.cancel();
+        hexSessionRef.current = null;
         retryRef.current = null;
-        stopCapture();
+        stopAudioCapture(captureRef);
       };
     }, []);
 
@@ -155,9 +174,11 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
 
     async function transcribeSamples(samples: Float32Array, options: DictationOptions) {
       if (samples.length === 0) {
+        void options.hexSession?.cancel();
         toast.danger(t`No speech detected.`);
         onTranscriptCancel?.();
         setState("idle");
+        setHoverOpen(false);
         return;
       }
 
@@ -197,6 +218,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
         transcriptionAbortRef.current = null;
         if (!disposedRef.current) {
           setState("idle");
+          setHoverOpen(false);
         }
       }
     }
@@ -213,6 +235,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
       }
 
       setState("starting");
+      setHoverOpen(false);
       setFailure(null);
       retryRef.current = null;
       setElapsed(0);
@@ -234,12 +257,10 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
         context = createAudioContext();
         if (options.backend === "hex") {
           options.hexSession = createHexVoiceSession();
-          await options.hexSession.checkReady(
-            options.hexModel,
-            options.language,
-            startingAbort.signal,
-          );
+          hexSessionRef.current = options.hexSession;
+          await options.hexSession.begin(options.hexModel, options.language, startingAbort.signal);
           if (disposedRef.current || startingAbort.signal.aborted) {
+            await options.hexSession.cancel();
             void context.close();
             return;
           }
@@ -308,7 +329,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
           context,
           chunks,
           heardSpeech: false,
-          lastSpeechAt: performance.now(),
+          lastSpeechAt: currentTimestampMs(),
           processor,
           source,
           stream,
@@ -319,9 +340,11 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
       } catch (error) {
         stream?.getTracks().forEach((track) => track.stop());
         void context?.close();
+        await options.hexSession?.cancel();
         transcriptionAbortRef.current = null;
         if (!disposedRef.current) {
           setState("idle");
+          setHoverOpen(false);
           if (error instanceof HexVoiceError)
             setFailure({ message: error.message, canRetry: false });
           else showVoiceCaptureError(error);
@@ -330,7 +353,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
     }
 
     function stopRecording() {
-      const capture = stopCapture();
+      const capture = stopAudioCapture(captureRef);
       if (!capture) return;
       const samples = prepareVoiceAudio(capture.chunks, capture.context.sampleRate);
       void transcribeSamples(samples, capture.options);
@@ -368,8 +391,13 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
     // closure rather than rebuilding the handle each render, so `toggle` always
     // sees current state and audio settings without a stale-deps footgun.
     const togglePressRef = useRef(togglePress);
-    togglePressRef.current = togglePress;
+    useEffect(() => {
+      togglePressRef.current = togglePress;
+    });
     useImperativeHandle(ref, () => ({ toggle: () => togglePressRef.current() }), []);
+
+    const [hoverOpen, setHoverOpen] = useState(false);
+    const hasActiveStatus = state !== "idle";
 
     const downloadLabel =
       downloadProgress && isTranscribing
@@ -395,56 +423,33 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
               : t`Transcribing voice`
             : t`Start voice input`);
     const label = unavailable && unavailableHint !== undefined ? unavailableHint : stateLabel;
+    const elapsedText = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`;
+    const nearMaxDuration =
+      isRecording && activeBackend === "hex" && elapsed >= HEX_VOICE_MAX_SECONDS - 15;
+    const tooltipContent = isRecording ? (
+      <span className="flex flex-col gap-0.5">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-1.5 animate-pulse rounded-full bg-danger" aria-hidden="true" />
+          <span>{t`Recording`}</span>
+          <span className={`font-medium tabular-nums ${nearMaxDuration ? "text-danger" : ""}`}>
+            {elapsedText}
+          </span>
+        </span>
+        {nearMaxDuration && (
+          <span className="text-[11px] text-danger">
+            <Trans>Recording will stop in less than fifteen seconds.</Trans>
+          </span>
+        )}
+      </span>
+    ) : canCancel ? (
+      phaseLabel
+    ) : (
+      label
+    );
 
     return (
-      <span className="inline-flex min-w-0 items-center gap-1">
-        <Tooltip delay={300}>
-          <Button
-            isIconOnly
-            aria-label={label}
-            className={`poracode-composer-menu min-w-9 px-2 ${isRecording ? "text-danger" : ""}`}
-            isDisabled={pressDisabled}
-            onPress={togglePress}
-            size="sm"
-            variant="ghost"
-          >
-            {canCancel ? (
-              <X className="size-4" />
-            ) : isStarting || isTranscribing ? (
-              <PixelLoader size="xs" />
-            ) : isRecording ? (
-              <Square className="size-3.5 fill-current" />
-            ) : (
-              <Mic className="size-4" />
-            )}
-          </Button>
-          <Tooltip.Content placement="top">
-            {canCancel ? `${phaseLabel} · ${label}` : label}
-          </Tooltip.Content>
-        </Tooltip>
-        {isRecording && (
-          <span
-            className={`text-[11px] tabular-nums ${activeBackend === "hex" && elapsed >= HEX_VOICE_MAX_SECONDS - 15 ? "text-danger" : "text-muted"}`}
-            title={
-              activeBackend === "hex"
-                ? t`Recording stops automatically at five minutes.`
-                : t`Recording`
-            }
-          >
-            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
-            {activeBackend === "hex" && elapsed >= HEX_VOICE_MAX_SECONDS - 15 && (
-              <span role="status" className="sr-only">
-                <Trans>Recording will stop in less than fifteen seconds.</Trans>
-              </span>
-            )}
-          </span>
-        )}
-        {canCancel && (
-          <span role="status" className="max-w-28 truncate text-[11px] text-muted">
-            {phaseLabel}
-          </span>
-        )}
-        {failure && (
+      <span className="inline-flex shrink-0 items-center">
+        {failure && state === "idle" ? (
           <VoiceInputFeedback
             failure={failure}
             isDisabled={isDisabled || state !== "idle"}
@@ -460,6 +465,59 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
               void transcribeSamples(retained.samples, retained.options);
             }}
           />
+        ) : (
+          <Tooltip
+            delay={300}
+            isOpen={hasActiveStatus || hoverOpen}
+            onOpenChange={(open) => {
+              if (!hasActiveStatus) setHoverOpen(open);
+            }}
+          >
+            <Tooltip.Trigger tabIndex={-1} role="none" className="inline-flex">
+              <Button
+                isIconOnly
+                aria-label={label}
+                className={`group poracode-composer-menu min-w-9 px-2 ${isRecording ? "text-danger" : ""}`}
+                isDisabled={pressDisabled}
+                onPress={togglePress}
+                size="sm"
+                variant="ghost"
+              >
+                {isRecording ? (
+                  <span className="poracode-voice-recording relative inline-flex items-center justify-center">
+                    <span className="poracode-voice-recording__ring" aria-hidden="true" />
+                    <Square className="poracode-voice-recording__icon relative size-3.5 fill-current" />
+                  </span>
+                ) : canCancel ? (
+                  <span className="relative inline-flex items-center justify-center">
+                    <PixelLoader
+                      size="xs"
+                      className="transition-opacity duration-150 group-hover:opacity-0 group-focus-visible:opacity-0"
+                    />
+                    <X
+                      aria-hidden="true"
+                      className="absolute size-4 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+                    />
+                  </span>
+                ) : isStarting || isTranscribing ? (
+                  <PixelLoader size="xs" />
+                ) : (
+                  <Mic className="size-4" />
+                )}
+              </Button>
+            </Tooltip.Trigger>
+            <Tooltip.Content
+              placement="top"
+              className={`${floatingGlassSurfaceClass} pointer-events-none rounded-4xl px-2.5 py-1.5 text-xs font-normal`}
+            >
+              {tooltipContent}
+            </Tooltip.Content>
+          </Tooltip>
+        )}
+        {nearMaxDuration && (
+          <span role="status" className="sr-only">
+            <Trans>Recording will stop in less than fifteen seconds.</Trans>
+          </span>
         )}
       </span>
     );

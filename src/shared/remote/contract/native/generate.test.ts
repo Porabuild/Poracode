@@ -105,11 +105,12 @@ describe("remote v3 native binding generator", () => {
         // Remote agent management exposes ACP install/remove/auth/logout/account resolution.
         // Optional period activity snapshots (`recent`) on ProfileCoreStats and ProfileTokenStats
         // add five structural types and move only the source hash while keeping older hosts valid.
+        // Hex completion waiting adds two structural types and one Swift shard.
         // The additive device-create-duo route and optional foldable fields
         // regenerate both authority hashes and the native mirrors.
         // The additive device-adopt-session route (renderer adoption of an
         // agent-opened lease) does the same.
-        sourceHash: "sha256:4cd6b9d58fff6c54fae6fa056c77a8ffb88874ebf47d58be2db00a4951801de3",
+        sourceHash: "sha256:dea293c0371c68f146817c37bafb757a2549811cd70d3761df04e45471423f04",
         manifestHash: "sha256:eb340b611a44d8ed977b61c2f327ca9ce32ca733d02b2c5f25d26d1b03dae48c",
         counts: {
           routes: 123,
@@ -120,7 +121,7 @@ describe("remote v3 native binding generator", () => {
           // 11 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 12,
           schemaRoots: 582,
-          structuralTypes: 1371,
+          structuralTypes: 1373,
           semanticValidators: 25,
           // Content-defined shards (emitterCommon.shardDeclarations) average
           // ~200 lines, so a contract change rewrites only nearby files.

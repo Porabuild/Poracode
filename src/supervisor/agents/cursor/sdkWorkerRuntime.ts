@@ -213,9 +213,14 @@ export class CursorSdkWorkerRuntime {
     let imported: unknown;
     if (discovery.entryPath) {
       validateExplicitEntry(discovery);
-      rejectUnsupportedExplicitEntry(await readExplicitEntrySdkVersion(discovery));
+      const explicitVersion = await readExplicitEntrySdkVersion(discovery);
+      rejectUnsupportedExplicitEntry(explicitVersion);
       anchorProcessArgvAtSdk(discovery.entryPath);
       imported = await this.importModule(pathToFileURL(discovery.entryPath).href);
+      this.sdkMetadata = {
+        sdkVersion: explicitVersion ?? "unknown",
+        source: "explicit-entry",
+      };
     } else {
       const result = await loadCursorSdk(
         {
