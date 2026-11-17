@@ -749,13 +749,26 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       if (get().hostUpdateRestarts[connectionKey] !== undefined) return;
       const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
       const status = get().hostUpdates[connectionKey]?.status;
-      if (!server || status?.type !== "downloaded") {
-        await withClient(connectionKey, (client) => client.installHostUpdate());
-        return;
-      }
-
       const reconnectGeneration = remoteHostUpdateReconnectSeq(connectionKey);
-      await withClient(connectionKey, (client) => client.installHostUpdate());
+      try {
+        await withClient(connectionKey, (client) => client.installHostUpdate());
+      } catch (error) {
+        if (
+          error instanceof RemoteClientError &&
+          error.code === "host_update_not_ready" &&
+          remoteHostUpdateReconnectSeq(connectionKey) === reconnectGeneration
+        ) {
+          // The host rejection is authoritative; fence polls that still report
+          // the old download so they cannot bring back the install action.
+          setRemoteHostUpdateRequestSeq(connectionKey, nextRemoteHostUpdateSequence());
+          set((state) => {
+            const { [connectionKey]: _stale, ...hostUpdates } = state.hostUpdates;
+            return { hostUpdates };
+          });
+        }
+        throw error;
+      }
+      if (!server || status?.type !== "downloaded") return;
       if (remoteHostUpdateReconnectSeq(connectionKey) !== reconnectGeneration) {
         return;
       }
