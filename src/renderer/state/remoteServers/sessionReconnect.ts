@@ -159,9 +159,8 @@ export function closeAllRemoteServerEventSockets(): void {
 
 /** Coalesced per-connection reconnect passes so one offline host never stalls others. */
 interface InFlightConnectionAttempt {
-  promise: Promise<void>;
-  force: boolean;
-  forceRequested: boolean;
+  readonly promise: Promise<void>;
+  readonly force: boolean;
 }
 let hydrationInFlight: Promise<void> | null = null;
 const connectInFlightByKey = new Map<string, InFlightConnectionAttempt>();
@@ -505,10 +504,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     forceTransportReconnect: boolean,
   ): Promise<void> => {
     const existing = connectInFlightByKey.get(connectionKey);
-    if (existing) {
-      if (forceTransportReconnect && !existing.force) {
-        existing.forceRequested = true;
-      }
+    if (existing && (!forceTransportReconnect || existing.force)) {
       return existing.promise;
     }
     const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
@@ -518,40 +514,29 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     if (!forceTransportReconnect && isLiveConnection(server)) {
       return Promise.resolve();
     }
+    const seq = (connectSeqByKey.get(connectionKey) ?? 0) + 1;
+    connectSeqByKey.set(connectionKey, seq);
+    if (forceTransportReconnect) {
+      // Requests from before the network change can linger until their deadlines.
+      // Fence their snapshots before starting the replacement connection.
+      invalidateRemoteServerRefresh(connectionKey);
+      closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
+    }
+    setServersConnecting([server]);
     const attempt: InFlightConnectionAttempt = {
-      promise: Promise.resolve(),
       force: forceTransportReconnect,
-      forceRequested: false,
-    };
-    const run = (async () => {
-      while (true) {
-        const currentForce = attempt.force;
-        const current = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
-        if (!current || get().hostUpdateRestarts[connectionKey] !== undefined) break;
-        if (!currentForce && isLiveConnection(current)) break;
-        const seq = (connectSeqByKey.get(connectionKey) ?? 0) + 1;
-        connectSeqByKey.set(connectionKey, seq);
-        if (currentForce) {
-          closeRemoteServerEventSocket(connectionKey, { preserveReplayState: true });
+      promise: connectServer(
+        server,
+        () => connectSeqByKey.get(connectionKey) === seq,
+        forceTransportReconnect ? { resyncInterestedThreads: true } : undefined,
+      ).finally(() => {
+        if (connectInFlightByKey.get(connectionKey) === attempt) {
+          connectInFlightByKey.delete(connectionKey);
         }
-        setServersConnecting([current]);
-        await connectServer(
-          current,
-          () => connectSeqByKey.get(connectionKey) === seq,
-          currentForce ? { resyncInterestedThreads: true } : undefined,
-        );
-        if (!attempt.forceRequested) break;
-        attempt.forceRequested = false;
-        attempt.force = true;
-      }
-    })().finally(() => {
-      if (connectInFlightByKey.get(connectionKey) === attempt) {
-        connectInFlightByKey.delete(connectionKey);
-      }
-    });
-    attempt.promise = run;
+      }),
+    };
     connectInFlightByKey.set(connectionKey, attempt);
-    return run;
+    return attempt.promise;
   };
 
   return {
