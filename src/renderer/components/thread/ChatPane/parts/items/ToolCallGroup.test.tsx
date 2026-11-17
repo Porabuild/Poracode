@@ -1109,9 +1109,42 @@ describe("ToolCallGroup", () => {
     expect(viewport.querySelectorAll(":scope > div")).toHaveLength(2);
     const runRow = screen.getByRole("button", { name: /2 edits:/i });
     expect(within(runRow).getByText("foo.ts")).toBeInTheDocument();
+    expect(runRow.querySelector("svg.lucide-pencil")).toHaveClass(
+      "shrink-0",
+      "text-[color:var(--muted)]",
+    );
     expect(within(runRow).getByText("+9")).toHaveClass("text-success");
     expect(within(runRow).getByText("-5")).toHaveClass("text-danger");
     expect(screen.getByText("Read file one")).toBeInTheDocument();
+  });
+
+  it("renders every tool-call row icon inside a mixed group with muted tone", () => {
+    const threadId = "thread-1";
+    const items = [
+      makeReasoningItem("thought-1", "Reviewing edits."),
+      makeToolItem("read-1", "Read file one"),
+      makeFileChangeItem("edit-single", { added: 1, removed: 0 }, "src/one.ts"),
+      makeFileChangeItem("edit-run-1", { added: 2, removed: 1 }, "src/two.ts"),
+      makeFileChangeItem("edit-run-2", { added: 3, removed: 0 }, "src/two.ts"),
+    ];
+    seedThread(threadId, items);
+
+    const view = renderToolCallGroup(
+      threadId,
+      items.map((item) => item.id),
+    );
+
+    const viewport = getViewport(view.container);
+    const leadingIcons = [
+      viewport.querySelector("svg.lucide-brain"),
+      viewport.querySelector("svg.lucide-eye"),
+      viewport.querySelector("svg.lucide-file-pen"),
+      viewport.querySelector("svg.lucide-pencil"),
+    ];
+    for (const icon of leadingIcons) {
+      expect(icon).not.toBeNull();
+      expect(icon).toHaveClass("size-3", "shrink-0", "text-[color:var(--muted)]");
+    }
   });
 
   it("merges only the consecutive same-file pair in a multi-file edit run", () => {

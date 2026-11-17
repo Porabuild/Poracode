@@ -423,7 +423,7 @@ function SameFileEditGroupTitle({ summary }: { summary: SameFileEditGroupSummary
   return (
     <>
       <span className="flex shrink-0 items-center gap-1">
-        <Pencil className="size-3" />
+        <Pencil className="size-3 shrink-0 text-[color:var(--muted)]" />
         <code className="font-mono tabular-nums [word-spacing:-0.25em] !text-[color:var(--muted)]">
           <AnimatedNumber value={summary.count} />{" "}
           <Plural value={summary.count} one="edit" other="edits" />:
