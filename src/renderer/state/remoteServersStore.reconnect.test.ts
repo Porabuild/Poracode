@@ -456,6 +456,54 @@ describe("useRemoteServersStore reconnect recovery", () => {
     expect(useGitStore.getState().statuses[projectId]?.behind).toBe(1);
   });
 
+  it("reconnects after a network change while startup requests are still pending", async () => {
+    const stalled = Promise.withResolvers<never>();
+    const healthyClient = makeClient();
+    const environment = vi
+      .fn<RemoteDesktopClient["environment"]>(healthyClient.environment)
+      .mockImplementationOnce(() => stalled.promise);
+    const boundedShellSnapshot = vi
+      .fn<RemoteDesktopClient["boundedShellSnapshot"]>(healthyClient.boundedShellSnapshot)
+      .mockImplementationOnce(() => stalled.promise);
+    const socketFactory = vi.fn<() => RemoteSocketLike>(() => ({ ...makeSocket(), readyState: 1 }));
+    const client = makeClient({ environment, boundedShellSnapshot });
+    const store = useRemoteServersStore.getState();
+    store.setClientFactory(() => client);
+    store.setSocketFactory(socketFactory);
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://d1.test/",
+          accessToken: "tok-1",
+          scopes: ["session:read"],
+        },
+      ],
+    });
+
+    const startup = store.connectAll();
+    try {
+      await vi.waitFor(() => {
+        expect(environment).toHaveBeenCalledTimes(1);
+        expect(boundedShellSnapshot).toHaveBeenCalledTimes(1);
+      });
+      const recovery = store.connectAll({ forceTransportReconnect: true });
+      const duplicate = store.connectAll({ forceTransportReconnect: true });
+      await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledTimes(1));
+      await Promise.all([recovery, duplicate]);
+      expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+    } finally {
+      stalled.reject(new RemoteClientError("Timed out", 0, "timeout"));
+      await startup;
+    }
+
+    expect(environment).toHaveBeenCalledTimes(2);
+    expect(boundedShellSnapshot).toHaveBeenCalledTimes(2);
+    expect(socketFactory).toHaveBeenCalledTimes(1);
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+  });
+
   it("keeps an online server independent of a hanging offline server across verify and connectAll", async () => {
     const offlineGate = Promise.withResolvers<never>();
     const onlineSockets: Array<RemoteSocketLike & { send?: (data: string) => void }> = [];
