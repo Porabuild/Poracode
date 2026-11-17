@@ -8,6 +8,239 @@ import {
 } from "./canonicalMapping";
 
 describe("Muse MSP canonical mapping", () => {
+  it("keeps unknown native activities renderable with their output", () => {
+    expect(
+      mapMuseMspItem(
+        createMuseMspItemMapperState("thread-1"),
+        {
+          itemId: "event-1",
+          kind: "futureActivity",
+          status: "completed",
+          fallbackText: "Native activity",
+          text: "Observed output",
+        },
+        "completed",
+      )[0],
+    ).toMatchObject({
+      itemType: "dynamic_tool_call",
+      payload: {
+        name: "futureActivity",
+        title: "Native activity",
+        status: "success",
+        result: "Observed output",
+      },
+    });
+  });
+
+  it("updates a retained item when a late completion follows foreground settlement", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    mapMuseMspItem(
+      state,
+      { itemId: "tool-late", kind: "toolCall", tool: "powershell", status: "inProgress" },
+      "started",
+    );
+    completeOpenMuseMspItems(state);
+    expect(
+      mapMuseMspItem(
+        state,
+        {
+          itemId: "tool-late",
+          kind: "toolCall",
+          tool: "powershell",
+          status: "cancelled",
+          failureReason: "Stopped",
+        },
+        "completed",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "tool-late",
+        payload: expect.objectContaining({ status: "error", result: "Stopped" }),
+      }),
+      expect.objectContaining({ type: "item.completed", itemId: "tool-late" }),
+    ]);
+  });
+
+  it("keeps native workflow state and results independent of foreground completion", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    const workflow = {
+      itemId: "workflow-1",
+      kind: "workflow",
+      status: "inProgress",
+      entryId: "Fixture workflow",
+      fallbackText: "Workflow: Fixture workflow",
+      children: [{ childId: "child-1", attempt: 1, status: "running" }],
+      stopAvailable: true,
+    };
+    expect(mapMuseMspItem(state, workflow, "started")[0]).toMatchObject({
+      itemType: "tool_call",
+      payload: { name: "workflow", isSubAgent: true, status: "running", subAgentStatus: "running" },
+    });
+    expect(completeOpenMuseMspItems(state)).toEqual([]);
+    expect(mapMuseMspItem(state, { ...workflow, revision: 2 }, "started")[0]).toMatchObject({
+      type: "item.updated",
+    });
+    const events = mapMuseMspItem(
+      state,
+      {
+        ...workflow,
+        status: "completed",
+        durationMs: 3433,
+        stopAvailable: false,
+        finalSummary: '{"result":"WORKFLOW_CHILD_OK"}',
+        children: [{ childId: "child-1", attempt: 1, status: "terminal", terminal: "completed" }],
+      },
+      "completed",
+    );
+    expect(events[0]).toMatchObject({
+      type: "item.updated",
+      payload: {
+        status: "success",
+        subAgentStatus: "completed",
+        progress: { durationMs: 3433 },
+        result: {
+          summary: { result: "WORKFLOW_CHILD_OK" },
+          stopAvailable: false,
+          children: [{ childId: "child-1", terminal: "completed" }],
+        },
+      },
+    });
+    expect(events.at(-1)).toMatchObject({ type: "item.completed", itemId: "workflow-1" });
+  });
+
+  it("settles detached work on session disposal", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    mapMuseMspItem(
+      state,
+      { itemId: "workflow-1", kind: "workflow", status: "inProgress" },
+      "started",
+    );
+    expect(completeOpenMuseMspItems(state, true)).toEqual([
+      expect.objectContaining({
+        type: "item.updated",
+        payload: { status: "error", subAgentStatus: "cancelled" },
+      }),
+      expect.objectContaining({ type: "item.completed", itemId: "workflow-1" }),
+    ]);
+  });
+
+  it.each(["subagent_cancel", "work_stop", "workflow"])(
+    "surfaces a native %s rejection as an error",
+    (tool) => {
+      expect(
+        mapMuseMspItem(
+          createMuseMspItemMapperState("thread-1"),
+          {
+            itemId: "rejected",
+            kind: "toolCall",
+            tool,
+            status: "completed",
+            visibleOutput: '{"status":"rejected","reason":"not_stoppable"}',
+          },
+          "completed",
+        )[0],
+      ).toMatchObject({
+        payload: { status: "error", result: '{"status":"rejected","reason":"not_stoppable"}' },
+      });
+    },
+  );
+
+  it.each([
+    ["powershell", "execute"],
+    ["powershell_input", "execute"],
+    ["web_search", "search"],
+    ["web_fetch", "fetch"],
+  ])("classifies the native %s tool as %s", (tool, kind) => {
+    expect(
+      mapMuseMspItem(
+        createMuseMspItemMapperState("thread-1"),
+        {
+          itemId: `tool-${tool}`,
+          kind: "toolCall",
+          tool,
+          status: "completed",
+          args: "{}",
+        },
+        "completed",
+      )[0],
+    ).toMatchObject({ itemType: "tool_call", payload: { name: tool, kind, status: "success" } });
+  });
+
+  it("maps user shell output and preserves nonzero exit status", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    const events = mapMuseMspItem(
+      state,
+      {
+        itemId: "shell-1",
+        kind: "userShell",
+        status: "completed",
+        commandText: "git status",
+        visibleOutput: "fatal: not a git repository",
+        exitCode: 128,
+        durationMs: 10,
+      },
+      "completed",
+    );
+    expect(events).toEqual([
+      expect.objectContaining({
+        itemType: "command_execution",
+        payload: { command: "git status", status: "error", exitCode: 128, durationMs: 10 },
+      }),
+      expect.objectContaining({
+        type: "content.delta",
+        stream: "command_output",
+        delta: "fatal: not a git repository",
+      }),
+      expect.objectContaining({ type: "item.completed" }),
+    ]);
+  });
+
+  it("preserves native tool labels and failure details", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    for (const [status, title] of [
+      ["inProgress", "Generating image"],
+      ["completed", "Generated image"],
+      ["rejected", "Image generation"],
+    ]) {
+      const event = mapMuseMspItem(
+        state,
+        {
+          itemId: `image-${status}`,
+          kind: "toolCall",
+          tool: "generate_image",
+          status,
+          displayLabel: {
+            active: "Generating image",
+            done: "Generated image",
+            neutral: "Image generation",
+          },
+          ...(status === "rejected" ? { failureReason: "Permission denied" } : {}),
+        },
+        status === "inProgress" ? "started" : "completed",
+      )[0];
+      expect(event).toMatchObject({
+        payload: {
+          title,
+          ...(status === "rejected" ? { result: "Permission denied", status: "error" } : {}),
+        },
+      });
+    }
+    expect(
+      mapMuseMspItem(
+        state,
+        {
+          itemId: "bash",
+          kind: "toolCall",
+          tool: "bash",
+          status: "completed",
+          bashTitle: "Check files",
+        },
+        "completed",
+      )[0],
+    ).toMatchObject({ payload: { title: "Check files" } });
+  });
+
   it("streams and completes assistant messages", () => {
     const state = createMuseMspItemMapperState("thread-1");
     expect(
@@ -429,7 +662,7 @@ describe("Muse MSP subagent tool mapping", () => {
     });
   });
 
-  it("renders companion calls as resumes of the spawned agent", () => {
+  it("keeps a wait query separate from the spawned agent run", () => {
     const state = createMuseMspItemMapperState("thread-1");
     mapMuseMspItem(state, spawnItem, "started");
     const [started] = mapMuseMspItem(state, waitItem, "started");
@@ -437,10 +670,9 @@ describe("Muse MSP subagent tool mapping", () => {
       type: "item.started",
       payload: expect.objectContaining({
         name: "subagent_wait",
-        isSubAgent: true,
-        isSubAgentResume: true,
-        subAgentType: "reviewer",
-        subAgentStatus: "running",
+        isSubAgent: false,
+        isSubAgentResume: false,
+        kind: "read",
       }),
     });
   });
@@ -496,7 +728,7 @@ describe("Muse MSP subagent tool mapping", () => {
       state,
       {
         ...waitItem,
-        tool: "subagent_read_result",
+        tool: "subagent_send_message",
         args: JSON.stringify({ subagent_id: "subagent-1" }),
       },
       "started",
@@ -525,6 +757,7 @@ describe("Muse MSP subagent tool mapping", () => {
       state,
       {
         ...waitItem,
+        tool: "subagent_send_message",
         args: { subagent_id: "subagent-1" },
       },
       "started",

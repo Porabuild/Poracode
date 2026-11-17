@@ -23,6 +23,10 @@ export function museSubagentResultStatus(errorKind: unknown): "completed" | "fai
   return errorKind === "cancelled" ? "cancelled" : errorKind ? "failed" : "completed";
 }
 
+export function isMuseSubagentRun(name: string | undefined): boolean {
+  return name === "subagent_spawn" || name === "subagent_send_message";
+}
+
 /** Normalize native tool identities without teaching shared UI Muse's argument names. */
 export function museSubagentPayload(
   subagents: Map<string, MuseSubagentIdentity>,
@@ -32,6 +36,9 @@ export function museSubagentPayload(
   status: ToolCallPayload["status"],
 ): Partial<ToolCallPayload> {
   if (!name.startsWith("subagent_")) return {};
+  if (!isMuseSubagentRun(name)) {
+    return { isSubAgent: false, isSubAgentResume: false };
+  }
   const spawning = name === "subagent_spawn";
   // Spawn assigns the id in its result, while companion calls take it as an arg.
   const agentId = museSubagentId(args) ?? (spawning ? museSubagentId(result) : undefined);

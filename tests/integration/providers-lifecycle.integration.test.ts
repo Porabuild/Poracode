@@ -12,7 +12,8 @@ import type {
   ThreadConfig,
 } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { AgentAdapter } from "@/supervisor/agents/base";
+import { readSessionFileText, type AgentAdapter } from "@/supervisor/agents/base";
+import { resolveMuseSessionLogPath } from "@/supervisor/agents/muse/sessionFiles";
 import { createAgentRegistry } from "@/supervisor/agents/registry";
 import { SupervisorRuntime } from "@/supervisor/supervisorRuntime";
 import {
@@ -610,6 +611,26 @@ describe("provider lifecycle: create → unload → resume → initial message v
         // the conversation to disk. Without this Claude (and most CLI
         // providers) reject resume with "no conversation found".
         await waitForTurnComplete(ctx.runtime, threadId, PROMPT_TOKEN, TURN_COMPLETE_TIMEOUT_MS);
+
+        // Muse can paint a draft, then stay quiet while startup finishes. Do
+        // not unload until that prompt is actually retained by the provider.
+        const museLogPath =
+          kind === "muse" && sessionRef.providerSessionId
+            ? await resolveMuseSessionLogPath(projectLocation, sessionRef.providerSessionId)
+            : undefined;
+        await expect
+          .poll(
+            async () =>
+              kind !== "muse" ||
+              (museLogPath !== undefined &&
+                (await readSessionFileText(projectLocation, museLogPath))?.includes(
+                  PROMPT_TOKEN,
+                ) === true),
+            {
+              timeout: TURN_COMPLETE_TIMEOUT_MS,
+            },
+          )
+          .toBe(true);
 
         // Unload — close the live thread, leaving the discovered sessionRef
         // as the resume handle.
