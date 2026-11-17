@@ -14,8 +14,9 @@ function threadLearns(mode: MemoryThreadMode | null | undefined): boolean {
 
 function withThreadMode(current: MemoryStatus | undefined, mode: MemoryThreadMode): MemoryStatus {
   return {
-    enabled: current?.enabled ?? true,
+    enabled: current?.enabled ?? false,
     learning: current?.learning ?? true,
+    syncEnabled: current?.syncEnabled ?? true,
     captureTiming: current?.captureTiming ?? "settle-2m",
     pendingCandidates: current?.pendingCandidates ?? 0,
     entryCount: current?.entryCount ?? 0,

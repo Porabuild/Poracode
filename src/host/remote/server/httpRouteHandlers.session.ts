@@ -20,6 +20,8 @@ import {
   remoteMcpSettingsOperationSchema,
 } from "@/shared/remote/contract/routeSchemas";
 import { dbGetProject, dbGetProjectNotes, dbSetProjectNotes } from "@/host/db";
+import { handleMemoryCommand } from "@/host/memory/runtime";
+import { memorySyncResponseSchema, memorySyncStateSchema } from "@/shared/memory";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -75,7 +77,8 @@ type SessionRouteId =
   | "settings-write"
   | "mcp-settings-read"
   | "mcp-settings-command"
-  | "mcp-settings-operation";
+  | "mcp-settings-operation"
+  | "memory-sync";
 
 /** Session-group HTTP route handlers (contract `sessionRoutes`). */
 export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId> = {
@@ -377,5 +380,13 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
         return;
       }
     }
+  },
+
+  "memory-sync": async ({ req, res }) => {
+    const state = memorySyncStateSchema.parse(await readJsonBody(req));
+    const result = memorySyncResponseSchema.parse(
+      await handleMemoryCommand({ action: "sync-merge", state }),
+    );
+    writeJson(res, 200, result);
   },
 };

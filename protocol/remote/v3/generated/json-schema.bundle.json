@@ -31992,6 +31992,11 @@
               },
               "type": "array"
             },
+            "utilityRank": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
             "workflowLabel": {
               "minLength": 1,
               "type": "string"
@@ -40515,6 +40520,11 @@
                 "x-poracode-unknownFields": "strip"
               },
               "type": "array"
+            },
+            "utilityRank": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
             },
             "workflowLabel": {
               "minLength": 1,
@@ -51424,6 +51434,436 @@
       },
       "required": [
         "servers"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.memory-sync.request": {
+      "$defs": {
+        "__schema0": {
+          "enum": [
+            "global",
+            "project"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "entries": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "archived": {
+                "type": "boolean"
+              },
+              "body": {
+                "type": "string"
+              },
+              "category": {
+                "enum": [
+                  "user",
+                  "feedback",
+                  "project",
+                  "reference"
+                ],
+                "type": "string"
+              },
+              "confidence": {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              "createdAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "lastUsedAt": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lockedByUser": {
+                "type": "boolean"
+              },
+              "pinned": {
+                "type": "boolean"
+              },
+              "polarity": {
+                "enum": [
+                  "positive",
+                  "negative",
+                  "fact"
+                ],
+                "type": "string"
+              },
+              "projectId": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "quote": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "repoKey": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "scope": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "source": {
+                "enum": [
+                  "learned",
+                  "user",
+                  "import",
+                  "dream"
+                ],
+                "type": "string"
+              },
+              "summary": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "updatedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "usageCount": {
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "id",
+              "scope",
+              "projectId",
+              "category",
+              "summary",
+              "body",
+              "confidence",
+              "polarity",
+              "quote",
+              "lockedByUser",
+              "pinned",
+              "archived",
+              "usageCount",
+              "lastUsedAt",
+              "createdAt",
+              "updatedAt",
+              "source"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        },
+        "tombstones": {
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "deletedAt": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "projectId": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "repoKey": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "scope": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "required": [
+              "id",
+              "scope",
+              "projectId",
+              "deletedAt"
+            ],
+            "type": "object",
+            "x-poracode-unknownFields": "strip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "entries",
+        "tombstones"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.memory-sync.response": {
+      "$defs": {
+        "__schema0": {
+          "enum": [
+            "global",
+            "project"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "state": {
+          "additionalProperties": true,
+          "properties": {
+            "entries": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "archived": {
+                    "type": "boolean"
+                  },
+                  "body": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "enum": [
+                      "user",
+                      "feedback",
+                      "project",
+                      "reference"
+                    ],
+                    "type": "string"
+                  },
+                  "confidence": {
+                    "maximum": 1,
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "createdAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "lastUsedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "lockedByUser": {
+                    "type": "boolean"
+                  },
+                  "pinned": {
+                    "type": "boolean"
+                  },
+                  "polarity": {
+                    "enum": [
+                      "positive",
+                      "negative",
+                      "fact"
+                    ],
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "quote": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repoKey": {
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "scope": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "source": {
+                    "enum": [
+                      "learned",
+                      "user",
+                      "import",
+                      "dream"
+                    ],
+                    "type": "string"
+                  },
+                  "summary": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "usageCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "id",
+                  "scope",
+                  "projectId",
+                  "category",
+                  "summary",
+                  "body",
+                  "confidence",
+                  "polarity",
+                  "quote",
+                  "lockedByUser",
+                  "pinned",
+                  "archived",
+                  "usageCount",
+                  "lastUsedAt",
+                  "createdAt",
+                  "updatedAt",
+                  "source"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            },
+            "tombstones": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "deletedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "repoKey": {
+                    "anyOf": [
+                      {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "scope": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                },
+                "required": [
+                  "id",
+                  "scope",
+                  "projectId",
+                  "deletedAt"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "entries",
+            "tombstones"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "synced": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "synced",
+        "state"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -81534,13 +81974,13 @@
     "jsonProcedureResults": 113,
     "procedures": 179,
     "replayableEventTypes": 17,
-    "routes": 121,
+    "routes": 122,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 66,
     "webSocketClientMessages": 11,
     "webSocketServerMessages": 12
   },
-  "manifestHash": "sha256:c3dbd655e58ea677b33db3f8c1cd7694632810feda05ab8c91415ecbf2bb03e3",
+  "manifestHash": "sha256:a37dd28dab3224e0f0d21dcfb84bee0103a0dd08e3a01cfd23f304e2e2bb5221",
   "protocolVersion": 14,
-  "sourceHash": "sha256:95c61030df1c62beff0f434e61059ec710d6533b4e1b688499e0c2164a0921a4"
+  "sourceHash": "sha256:b1cb84520565813d9b5177faa0a06faf76181902e3365086acea65911bef701d"
 }

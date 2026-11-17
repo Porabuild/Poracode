@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
-import { DATABASE_MIGRATIONS } from "./migrations";
+import { DATABASE_MIGRATIONS, LATEST_SCHEMA_VERSION } from "./migrations";
 import { dbGetThread, dbMarkLiveThreadsInactive } from "./projectsThreads";
 import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
 import {
@@ -39,7 +39,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
       DATABASE_MIGRATIONS.filter((migration) => migration.version > 68).map(
         (migration) => migration.version,
       ),
-    ).toEqual([69, 70, 71, 72, 73, 74, 75]);
+    ).toEqual([69, 70, 71, 72, 73, 74, 75, 76, 77]);
     old.close();
     initDatabase(path);
     return before;
@@ -53,7 +53,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
     expect(dbGetThread("thread-2")).not.toHaveProperty("interruptedTurn");
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "75" });
+    ).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
   });
 
   it("marks only turns still running at boot as cut off by the restart", () => {
@@ -119,7 +119,7 @@ describe.skipIf(!sqliteAvailable)("cut-off turn marker schema70", () => {
     );
     expect(
       getSqlite().prepare("SELECT value FROM app_state WHERE key='schema_version'").get(),
-    ).toEqual({ value: "75" });
+    ).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
   });
 
   it("keeps an earlier failure across a restart", () => {

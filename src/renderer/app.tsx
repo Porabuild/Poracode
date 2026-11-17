@@ -64,6 +64,7 @@ import { installThreadWindowTracking } from "@/renderer/state/threadWindowTracki
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
+import { installMemoryEnvironmentAutoSync } from "@/renderer/state/memorySync";
 import { UserMessageActionsSheet } from "@/renderer/components/thread/ChatPane/UserMessageActionsSheet";
 import { isBrowserClientRuntime, readElectronHostBridge } from "@/renderer/clientRuntime";
 
@@ -492,7 +493,9 @@ function MainApp() {
       productAnalyticsStarted = true;
       captureAppStarted();
     }
+    const uninstallMemorySync = chatSidebarSurface ? undefined : installMemoryEnvironmentAutoSync();
     return () => {
+      uninstallMemorySync?.();
       void flushProductAnalytics();
     };
   }, [initialLoading]);

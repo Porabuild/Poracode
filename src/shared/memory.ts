@@ -5,7 +5,7 @@ import { modelSelectionSchema } from "./selectionBinding.schemas";
 /**
  * Poracode memory document. Settings live in the shared settings file
  * (unknown fields are preserved by older builds; missing `memory` fills these
- * defaults). Memory rows live in SQLite migration 76, which older builds
+ * defaults). Memory rows live in SQLite migration 77, which older builds
  * refuse because the schema version moved forward. No settings-document
  * version bump: old readers keep the object and new readers default it.
  */
@@ -19,8 +19,9 @@ export const memoryDreamCadenceSchema = z.enum(["daily", "3d", "weekly", "manual
 export type MemoryDreamCadence = z.infer<typeof memoryDreamCadenceSchema>;
 
 export const memorySettingsSchema = z.object({
-  enabled: z.boolean().default(true),
+  enabled: z.boolean().default(false),
   learning: z.boolean().default(true),
+  syncEnabled: z.boolean().default(true),
   captureTiming: memoryCaptureTimingSchema.default("settle-2m"),
   captureCustomMinutes: z.number().int().min(1).max(240).default(10),
   deletePolicy: memoryDeletePolicySchema.default("spool"),
@@ -59,6 +60,7 @@ export const memoryEntrySchema = z.object({
   id: z.string().min(1),
   scope: memoryScopeSchema,
   projectId: z.string().min(1).nullable(),
+  repoKey: z.string().min(1).nullable().optional(),
   category: memoryCategorySchema,
   summary: z.string().min(1),
   body: z.string(),
@@ -91,9 +93,31 @@ export const memorySkillSuggestionSchema = z.object({
 });
 export type MemorySkillSuggestion = z.infer<typeof memorySkillSuggestionSchema>;
 
+export const memoryTombstoneSchema = z.object({
+  id: z.string().min(1),
+  scope: memoryScopeSchema,
+  projectId: z.string().min(1).nullable(),
+  repoKey: z.string().min(1).nullable().optional(),
+  deletedAt: z.string().min(1),
+});
+export type MemoryTombstone = z.infer<typeof memoryTombstoneSchema>;
+
+export const memorySyncStateSchema = z.object({
+  entries: z.array(memoryEntrySchema),
+  tombstones: z.array(memoryTombstoneSchema),
+});
+export type MemorySyncState = z.infer<typeof memorySyncStateSchema>;
+
+export const memorySyncResponseSchema = z.object({
+  synced: z.boolean(),
+  state: memorySyncStateSchema,
+});
+export type MemorySyncResponse = z.infer<typeof memorySyncResponseSchema>;
+
 export const memoryStatusSchema = z.object({
   enabled: z.boolean(),
   learning: z.boolean(),
+  syncEnabled: z.boolean(),
   captureTiming: memoryCaptureTimingSchema,
   pendingCandidates: z.number().int().nonnegative(),
   entryCount: z.number().int().nonnegative(),
@@ -129,6 +153,7 @@ export const memoryCommandPayloadSchema = z.discriminatedUnion("action", [
       .extend({
         id: z.string().min(1).optional(),
         projectId: z.string().min(1).nullable().optional(),
+        repoKey: z.string().min(1).nullable().optional(),
         quote: z.string().nullable().optional(),
       }),
   }),
@@ -151,6 +176,15 @@ export const memoryCommandPayloadSchema = z.discriminatedUnion("action", [
     scope: memoryScopeSchema.optional(),
     availability: z.enum(["shared", "poracode"]).optional(),
     projectId: z.string().min(1).nullable().optional(),
+  }),
+  z.object({
+    action: z.literal("sync-export"),
+    projectRepoKeys: z.record(z.string(), z.string()).optional(),
+  }),
+  z.object({
+    action: z.literal("sync-merge"),
+    state: memorySyncStateSchema,
+    projectRepoKeys: z.record(z.string(), z.string()).optional(),
   }),
 ]);
 export type MemoryCommandPayload = z.infer<typeof memoryCommandPayloadSchema>;

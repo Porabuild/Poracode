@@ -345,6 +345,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DSyncU2ERequest: RemoteRootCodec<RoutememoryU2DSyncRequest_e391f3a6d9> = .init(id: "route.memory-sync.request", schema: RemoteSchemas.schema_e391f3a6d93daf46)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EMemoryU2DSyncU2EResponse: RemoteRootCodec<RoutememoryU2DSyncResponse_ac0baafa13> = .init(id: "route.memory-sync.response", schema: RemoteSchemas.schema_ac0baafa13683390)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EMetricsU2EResponse: RemoteRootCodec<RoutemetricsResponse_e9b9e3e75f> = .init(id: "route.metrics.response", schema: RemoteSchemas.schema_e9b9e3e75ffe2b01)
 }
 

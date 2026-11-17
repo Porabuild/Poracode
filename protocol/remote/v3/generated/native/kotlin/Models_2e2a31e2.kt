@@ -64,6 +64,119 @@ sealed interface RoutemcpU2DSettingsU2DOperationResponse_20b48750f1 {
 }
 
 @Serializable
+enum class RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DCategory_e3c6a49a61 {
+    @SerialName("user") USER,
+    @SerialName("feedback") FEEDBACK,
+    @SerialName("project") PROJECT,
+    @SerialName("reference") REFERENCE,
+}
+
+@Serializable
+enum class RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DPolarity_6c042b493a {
+    @SerialName("positive") POSITIVE,
+    @SerialName("negative") NEGATIVE,
+    @SerialName("fact") FACT,
+}
+
+@Serializable
+enum class RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DSource_c3be644314 {
+    @SerialName("learned") LEARNED,
+    @SerialName("user") USER,
+    @SerialName("import") IMPORT,
+    @SerialName("dream") DREAM,
+}
+
+@Serializable
+data class RoutememoryU2DSyncRequestU2DEntriesU2DItem_ae014c623e(
+    @SerialName("archived") val archived: Boolean,
+    @SerialName("body") val body: ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b,
+    @SerialName("category") val category: RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DCategory_e3c6a49a61,
+    @SerialName("confidence") val confidence: Double,
+    @SerialName("createdAt") val createdAt: String,
+    @SerialName("id") val id: String,
+    @SerialName("lastUsedAt") val lastUsedAt: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
+    @SerialName("lockedByUser") val lockedByUser: Boolean,
+    @SerialName("pinned") val pinned: Boolean,
+    @SerialName("polarity") val polarity: RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DPolarity_6c042b493a,
+    @SerialName("projectId") val projectId: RemoteField<String>,
+    @SerialName("quote") val quote: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b>,
+    @SerialName("repoKey") val repoKey: RemoteField<String> = RemoteField.Missing,
+    @SerialName("scope") val scope: ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11,
+    @SerialName("source") val source: RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DSource_c3be644314,
+    @SerialName("summary") val summary: String,
+    @SerialName("updatedAt") val updatedAt: String,
+    @SerialName("usageCount") val usageCount: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("archived", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("body", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("category", "RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DCategory_e3c6a49a61", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("confidence", "Double", true, false, 0.0, 1.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("createdAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("lastUsedAt", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("lockedByUser", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("pinned", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("polarity", "RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DPolarity_6c042b493a", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectId", "String", true, true, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("quote", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("repoKey", "String", false, true, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("scope", "ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("source", "RoutememoryU2DSyncRequestU2DEntriesU2DItemU2DSource_c3be644314", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("summary", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("updatedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("usageCount", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutememoryU2DSyncRequestU2DTombstonesU2DItem_29dd431b6b(
+    @SerialName("deletedAt") val deletedAt: String,
+    @SerialName("id") val id: String,
+    @SerialName("projectId") val projectId: RemoteField<String>,
+    @SerialName("repoKey") val repoKey: RemoteField<String> = RemoteField.Missing,
+    @SerialName("scope") val scope: ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("deletedAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("projectId", "String", true, true, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("repoKey", "String", false, true, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("scope", "ProcedureeditQueuedThreadFollowUpRequestU2DSegmentsU2DItemU2DOptionU2D5U2DScope_ac6ea0fc11", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutememoryU2DSyncRequest_e391f3a6d9(
+    @SerialName("entries") val entries: List<RoutememoryU2DSyncRequestU2DEntriesU2DItem_ae014c623e>,
+    @SerialName("tombstones") val tombstones: List<RoutememoryU2DSyncRequestU2DTombstonesU2DItem_29dd431b6b>,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("entries", "List<RoutememoryU2DSyncRequestU2DEntriesU2DItem_ae014c623e>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("tombstones", "List<RoutememoryU2DSyncRequestU2DTombstonesU2DItem_29dd431b6b>", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutememoryU2DSyncResponse_ac0baafa13(
+    @SerialName("state") val state: RoutememoryU2DSyncRequest_e391f3a6d9,
+    @SerialName("synced") val synced: Boolean,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("state", "RoutememoryU2DSyncRequest_e391f3a6d9", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("synced", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RoutemetricsResponseU2DHostResourceAdmissionU2DGitProcessesU2DCheckout_164937b9a5(
     @SerialName("active") val active: Long,
     @SerialName("executionMs") val executionMs: RemoteField<Double> = RemoteField.Missing,

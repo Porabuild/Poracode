@@ -5,7 +5,7 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-typealias ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariants_87faafcac2 = Map<String, ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariantsU2DValue_3f2f053441>
+typealias ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariants_5376f6dc7a = Map<String, ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariantsU2DValue_00f4768be2>
 
 typealias ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DSessionRuntimeRoutingU2DPrefixes_b84e449d1a = Map<String, String>
 
@@ -85,12 +85,12 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdate_892eceb
 }
 
 @Serializable
-data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d(
+data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f(
     @SerialName("acpSessionEstablished") val acpSessionEstablished: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("authLogoutSupported") val authLogoutSupported: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("authMethods") val authMethods: RemoteField<List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthMethodsU2DItem_9dee5b4966>> = RemoteField.Missing,
     @SerialName("authState") val authState: ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthState_2363c4dd0a,
-    @SerialName("capabilities") val capabilities: ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DCapabilities_d4c662966d,
+    @SerialName("capabilities") val capabilities: ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DCapabilities_de2055b6e4,
     @SerialName("envDistro") val envDistro: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
     @SerialName("envKind") val envKind: RemoteField<ProcedureauthenticateAcpAgentRequestU2DEnvKind_9eed5c4959> = RemoteField.Missing,
     @SerialName("executablePath") val executablePath: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
@@ -104,7 +104,7 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d(
     @SerialName("presentationAuthStates") val presentationAuthStates: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DPresentationAuthStates_678d084ee2> = RemoteField.Missing,
     @SerialName("presentationAuthUsesProviderLogin") val presentationAuthUsesProviderLogin: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DPresentationAuthUsesProviderLogin_473e9b7f47> = RemoteField.Missing,
     @SerialName("providerMetadata") val providerMetadata: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DProviderMetadata_197c2b8c01> = RemoteField.Missing,
-    @SerialName("runtimeVariants") val runtimeVariants: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariants_87faafcac2> = RemoteField.Missing,
+    @SerialName("runtimeVariants") val runtimeVariants: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariants_5376f6dc7a> = RemoteField.Missing,
     @SerialName("sessionRuntimeRouting") val sessionRuntimeRouting: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DSessionRuntimeRouting_d221b1853e> = RemoteField.Missing,
     @SerialName("update") val update: RemoteField<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdate_892eceb2ac> = RemoteField.Missing,
     @SerialName("version") val version: RemoteField<ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b> = RemoteField.Missing,
@@ -115,7 +115,7 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d(
             RemoteFieldDescriptor("authLogoutSupported", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("authMethods", "List<ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthMethodsU2DItem_9dee5b4966>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("authState", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DAuthState_2363c4dd0a", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("capabilities", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DCapabilities_d4c662966d", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("capabilities", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DCapabilities_de2055b6e4", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("envDistro", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("envKind", "ProcedureauthenticateAcpAgentRequestU2DEnvKind_9eed5c4959", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("executablePath", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),
@@ -129,7 +129,7 @@ data class ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d(
             RemoteFieldDescriptor("presentationAuthStates", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DPresentationAuthStates_678d084ee2", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("presentationAuthUsesProviderLogin", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DPresentationAuthUsesProviderLogin_473e9b7f47", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("providerMetadata", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DProviderMetadata_197c2b8c01", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("runtimeVariants", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariants_87faafcac2", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeVariants", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DRuntimeVariants_5376f6dc7a", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("sessionRuntimeRouting", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DSessionRuntimeRouting_d221b1853e", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("update", "ProcedurerefreshAgentStatusesResultU2DWindowsU2DItemU2DUpdate_892eceb2ac", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("version", "ProcedurebeginMcpServerOauthRequestU2DServerU2DTransportU2DOptionU2D1U2DArgsU2DItem_bf0b727f7b", false, false, null, null, null, null, null, null, null, null, listOf()),

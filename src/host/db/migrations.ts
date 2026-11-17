@@ -1255,6 +1255,26 @@ export const DATABASE_MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 77,
+    name: "memory cross-env sync",
+    // Additive column and tombstone table for cross-environment memory sync.
+    rollback: "rollback-compatible",
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "memory_entries", "repo_key", "TEXT");
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_memory_entries_repo
+          ON memory_entries (scope, repo_key, archived);
+        CREATE TABLE IF NOT EXISTS memory_tombstones (
+          id TEXT PRIMARY KEY,
+          scope TEXT NOT NULL,
+          project_id TEXT,
+          repo_key TEXT,
+          deleted_at TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 // Worktree link reconciliation refreshes existing path/branch columns from Git;
@@ -1455,9 +1475,18 @@ const REQUIRED_COLUMNS = {
     "candidate_json",
     "state",
   ],
-  memory_entries: ["id", "scope", "summary", "confidence", "locked_by_user", "archived"],
+  memory_entries: [
+    "id",
+    "scope",
+    "repo_key",
+    "summary",
+    "confidence",
+    "locked_by_user",
+    "archived",
+  ],
   memory_capture_spool: ["id", "thread_id", "text"],
   memory_thread_state: ["thread_id", "mode", "last_item_position"],
+  memory_tombstones: ["id", "scope", "deleted_at"],
   projects: [
     "id",
     "name",

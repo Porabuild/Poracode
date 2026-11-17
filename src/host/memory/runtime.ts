@@ -54,6 +54,8 @@ import {
   transcriptFromItems,
 } from "./logic";
 import { readMemorySettings } from "./settingsReader";
+import { readMemoryRepoKey } from "./repoKeyReader";
+import { exportMemorySyncState, mergeMemorySyncState } from "./sync";
 
 export interface MemoryModelCaller {
   complete(input: {
@@ -75,7 +77,7 @@ export function getMemoryModelCaller(): MemoryModelCaller | undefined {
 
 export function spoolThreadBeforeDelete(threadId: string): void {
   const settings = readMemorySettings();
-  if (!settings.learning || settings.deletePolicy !== "spool") return;
+  if (!settings.enabled || !settings.learning || settings.deletePolicy !== "spool") return;
   const thread = dbGetThread(threadId);
   if (thread?.parentThreadId) return;
   const state = dbGetMemoryThreadState(threadId);
@@ -104,10 +106,9 @@ export function launchMemoryInstructions(
     const mode = dbGetMemoryThreadState(threadId).mode;
     if (mode === "incognito") return undefined;
   }
-  const entries = dbListScopedMemoryEntries(
-    projectId,
-    projectId ? isHomeProjectId(projectId) : true,
-  );
+  const isHome = projectId ? isHomeProjectId(projectId) : true;
+  const repoKey = !isHome ? readMemoryRepoKey(projectId) : null;
+  const entries = dbListScopedMemoryEntries(projectId, isHome, repoKey);
   return renderMemoryPrompt(entries, settings, Date.now());
 }
 
@@ -117,15 +118,21 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
   switch (command.action) {
     case "status":
       return memoryStatus(command.threadId, command.projectId);
-    case "list":
-      return command.projectId
-        ? dbListScopedMemoryEntries(command.projectId, isHomeProjectId(command.projectId))
-        : dbListMemoryEntries();
+    case "list": {
+      if (!command.projectId) return dbListMemoryEntries();
+      const isHome = isHomeProjectId(command.projectId);
+      return dbListScopedMemoryEntries(
+        command.projectId,
+        isHome,
+        !isHome ? readMemoryRepoKey(command.projectId) : null,
+      );
+    }
     case "save": {
       const entry = userMemoryEntry({
         ...(command.entry.id ? { id: command.entry.id } : {}),
         scope: command.entry.scope,
         projectId: command.entry.projectId ?? null,
+        repoKey: command.entry.repoKey ?? null,
         category: command.entry.category,
         summary: command.entry.summary,
         body: command.entry.body,
@@ -139,7 +146,7 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
       return entry;
     }
     case "delete":
-      dbDeleteMemoryEntry(command.id);
+      dbDeleteMemoryEntry(command.id, now, true);
       return { ok: true };
     case "thread-mode":
       dbSetMemoryThreadState({ threadId: command.threadId, mode: command.mode, updatedAt: now });
@@ -152,6 +159,16 @@ export async function handleMemoryCommand(payload: MemoryCommandPayload): Promis
       return dbListMemorySuggestions(command.projectId);
     case "suggestion":
       return decideSuggestion(command, now);
+    case "sync-export":
+      return exportMemorySyncState(command.projectRepoKeys);
+    case "sync-merge": {
+      const settings = readMemorySettings();
+      if (!settings.enabled || !settings.syncEnabled) {
+        return { synced: false, changed: false, state: { entries: [], tombstones: [] } };
+      }
+      const merged = mergeMemorySyncState(command.state, command.projectRepoKeys);
+      return { synced: true, ...merged };
+    }
     default:
       return { ok: false };
   }
@@ -161,12 +178,15 @@ function memoryStatus(threadId: string | undefined, projectId: string | undefine
   const settings = readMemorySettings();
   const dream = dbLatestMemoryDream();
   const mode: MemoryThreadMode | null = threadId ? dbGetMemoryThreadState(threadId).mode : null;
+  const isHome = projectId ? isHomeProjectId(projectId) : true;
   const entryCount = projectId
-    ? dbListScopedMemoryEntries(projectId, isHomeProjectId(projectId)).length
+    ? dbListScopedMemoryEntries(projectId, isHome, !isHome ? readMemoryRepoKey(projectId) : null)
+        .length
     : dbCountMemoryEntries();
   return {
     enabled: settings.enabled,
     learning: settings.learning,
+    syncEnabled: settings.syncEnabled,
     captureTiming: settings.captureTiming,
     pendingCandidates: dbCountPendingCandidates(),
     entryCount,
@@ -245,7 +265,7 @@ function undoDream(runId: string): { ok: boolean } {
   for (const id of snapshot.createdIds ?? []) {
     const current = dbGetMemoryEntry(id);
     if (changedAfterDream(current?.updatedAt, current?.lockedByUser)) continue;
-    dbDeleteMemoryEntry(id);
+    dbDeleteMemoryEntry(id, run.startedAt, false);
   }
   for (const entry of snapshot.restore ?? []) {
     const current = dbGetMemoryEntry(entry.id);
@@ -340,6 +360,7 @@ export async function runMemoryCapturePass(
 
 async function captureOnce(nowMs: number): Promise<{ captured: number; spooled: number }> {
   const settings = readMemorySettings();
+  if (!settings.enabled || !settings.learning) return { captured: 0, spooled: 0 };
   let captured = 0;
   let spooled = 0;
   for (const spool of dbListMemorySpool()) {
@@ -447,7 +468,12 @@ export function memorySearch(query: string, projectId?: string): MemoryEntry[] {
   if (!readMemorySettings().enabled) return [];
   const needle = query.trim().toLowerCase();
   if (!needle) return [];
-  const rows = dbListScopedMemoryEntries(projectId, projectId ? isHomeProjectId(projectId) : true);
+  const isHome = projectId ? isHomeProjectId(projectId) : true;
+  const rows = dbListScopedMemoryEntries(
+    projectId,
+    isHome,
+    !isHome ? readMemoryRepoKey(projectId) : null,
+  );
   const matches = rows.filter((entry) =>
     `${entry.summary}\n${entry.body}\n${entry.quote ?? ""}`.toLowerCase().includes(needle),
   );

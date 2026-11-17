@@ -47,7 +47,8 @@ import type { SupervisorClient } from "@/host/supervisor/SupervisorClient";
 import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
 import type { PrData, PrDetails, PrWatch, RemoteThreadCommand } from "@/shared/contracts";
 import { isThreadTurnActive } from "@/shared/contracts";
-import type { GitStatePatch } from "@/shared/gitState";
+import { gitProjectKey, type GitStatePatch } from "@/shared/gitState";
+import { repoIdentityKey } from "@/shared/repoIdentity";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { RemoteForgeActivityEvent } from "@/shared/remote/protocol/forgeActivity";
 import type { SharedSettings } from "@/shared/settings";
@@ -61,6 +62,7 @@ import {
   runMemoryCapturePass,
   setMemoryModelCaller,
 } from "@/host/memory/runtime";
+import { setMemoryRepoKeyReader } from "@/host/memory/repoKeyReader";
 import { setMemorySettingsReader } from "@/host/memory/settingsReader";
 import { defaultMemorySettings, memoryDreamIntervalMs } from "@/shared/memory";
 import { pickMemoryModel, type MemoryModelCandidate } from "@/shared/memoryModelChoice";
@@ -404,6 +406,13 @@ export class BackendDurableServices {
     setMemorySettingsReader(
       () => this.options.getSharedSettings()?.memory ?? defaultMemorySettings,
     );
+    setMemoryRepoKeyReader((projectId) =>
+      repoIdentityKey(
+        this.gitStateService.getSnapshot().projects[
+          gitProjectKey({ hostId: this.options.hostId, projectId })
+        ]?.status?.remoteInfo,
+      ),
+    );
     installMemoryDeleteHook();
     setMemoryModelCaller({
       complete: (input) => this.completeMemoryPrompt(input),
@@ -518,7 +527,8 @@ export class BackendDurableServices {
   private async maybeDream(): Promise<void> {
     const settings = this.options.getSharedSettings()?.memory ?? defaultMemorySettings;
     const interval = memoryDreamIntervalMs(settings);
-    if (!settings.learning || !interval || dbCountPendingCandidates() === 0) return;
+    if (!settings.enabled || !settings.learning || !interval || dbCountPendingCandidates() === 0)
+      return;
     const last = dbMemoryMeta("lastDreamAt");
     if (last && Date.now() - Date.parse(last) < interval) return;
     await handleMemoryCommand({ action: "dream" });

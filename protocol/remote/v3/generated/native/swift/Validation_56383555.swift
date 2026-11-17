@@ -65,6 +65,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_829800d9c06a4277 = RemoteSchema(type: "array", items: RemoteSchemas.schema_ae014c623e1c5229, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_829c74ec0aec2226 = RemoteSchema(type: "string", literals: [.string("desktop-event")], unknownPolicy: .strip)
 }
 
@@ -237,14 +241,6 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
-  static let schema_87cc7463d001a1f6 = RemoteSchema(type: "array", items: RemoteSchemas.schema_a90ac5c30d57dabd, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_87faafcac22d1111 = RemoteSchema(type: "object", additionalSchema: RemoteSchemas.schema_3f2f0534414961a0, propertyNames: RemoteSchemas.schema_36fea325bf1aca70, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_883b3b8a6153aa17 = RemoteSchema(type: "string", literals: [.string("read-error"), .string("missing-file"), .string("too-large"), .string("missing-frontmatter"), .string("missing-name"), .string("invalid-name"), .string("name-mismatch"), .string("missing-description"), .string("description-too-long")], unknownPolicy: .strip)
 }
 
@@ -354,6 +350,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_8c2e2b2a66e23748 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_a563addb78b46707, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_8c4b8eeb107b4505 = RemoteSchema(type: "object", required: Set(["fromCache", "windows", "wsl"]), properties: ["fromCache": RemoteSchemas.schema_feeb8bb50144d96d, "windows": RemoteSchemas.schema_ab2f04d4aed80f8d, "wsl": RemoteSchemas.schema_ab2f04d4aed80f8d], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

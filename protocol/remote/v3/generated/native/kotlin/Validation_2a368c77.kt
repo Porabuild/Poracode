@@ -29,6 +29,10 @@ internal val schema_52fb827fec8a0504: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_5cddec4454f9cd6a, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_5376f6dc7a23015e: RemoteSchema by lazy {
+    RemoteSchema(type = "object", additionalSchema = schema_00f4768be29103a9, propertyNames = schema_36fea325bf1aca70, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_53996e5a27a5b0c4: RemoteSchema by lazy {
     RemoteSchema(type = "string", pattern = "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$", format = "uuid", unknownPolicy = RemoteUnknownFieldPolicy.STRIP, transformIds = listOf("push.routing.client-connection-id.lowercase"))
 }

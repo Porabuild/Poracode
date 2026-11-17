@@ -19225,6 +19225,11 @@ msgstr "共有"
 #~ msgid "Share another profile's isolated login"
 #~ msgstr "他のプロファイルの分離ログインを共有"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "グローバルメモと関連付けたプロジェクトメモをペア済み端末や WSL と共有します。関連付けられていないフォルダーは分離されます。"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "アクティビティを共有"
@@ -20689,9 +20694,18 @@ msgstr "同期（リベース）"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "同期 ↓{behind}↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "環境間で同期"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "同期に失敗しました:{detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "今すぐ同期"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"

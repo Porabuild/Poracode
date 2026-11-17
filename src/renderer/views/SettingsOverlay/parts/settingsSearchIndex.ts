@@ -643,6 +643,13 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     description: msg`Ask sessions not to write a separate provider memory on top of this one.`,
     keywords: "memory native provider suppress duplicate",
   },
+  {
+    section: "memory",
+    anchor: "memory.syncEnabled",
+    title: msg`Sync across environments`,
+    description: msg`Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate.`,
+    keywords: "memory sync environments wsl paired host ssh cross-machine",
+  },
 
   // Skills
   {

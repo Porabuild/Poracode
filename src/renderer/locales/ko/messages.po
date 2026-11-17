@@ -19227,6 +19227,11 @@ msgstr "공유"
 #~ msgid "Share another profile's isolated login"
 #~ msgstr "다른 프로필의 격리 로그인 공유"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "전역 메모와 연결된 프로젝트 메모를 페어링된 컴퓨터 및 WSL과 공유합니다. 연결되지 않은 폴더는 분리된 상태로 유지됩니다."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "활동 공유하기"
@@ -20691,9 +20696,18 @@ msgstr "동기화(리베이스)"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "동기화 ↓{behind}↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "환경 간 동기화"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "동기화 실패: {detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "지금 동기화"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"

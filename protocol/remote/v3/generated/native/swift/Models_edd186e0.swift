@@ -1,14 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public struct ProcedurerefreshAgentStatusesResult_ced7436778: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedurerefreshAgentStatusesResult_8c4b8eeb10: Codable, Sendable, RemoteModelMetadata {
   public var fromCache: Bool
-  public var windows: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]
-  public var wsl: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]
+  public var windows: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f]
+  public var wsl: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "fromCache", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "windows", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "wsl", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "windows", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "wsl", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {

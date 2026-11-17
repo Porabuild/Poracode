@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, getSqlite, initDatabase } from "@/host/db/connection";
 import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
 import { nativeBindingEnv } from "@/host/db/runtimeItems.testFixtures";
+import { setMemoryRepoKeyReader } from "./repoKeyReader";
 import { setMemorySettingsReader } from "./settingsReader";
 import {
   handleMemoryCommand,
@@ -42,7 +43,8 @@ describe("memory store", () => {
     if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
     dir = mkdtempSync(join(tmpdir(), "poracode-memory-"));
     initDatabase(join(dir, "state.sqlite"));
-    setMemorySettingsReader(() => defaultMemorySettings);
+    setMemorySettingsReader(() => ({ ...defaultMemorySettings, enabled: true }));
+    setMemoryRepoKeyReader(undefined);
     installMemoryDeleteHook();
     dbUpsertProject(
       {
@@ -249,5 +251,154 @@ describe("memory store", () => {
     expect(memorySearch("ledger", "project-1")).toHaveLength(1);
     expect(memorySearch("ledger", "project-2")).toHaveLength(0);
     expect(memorySearch("ledger", undefined)).toHaveLength(0);
+  });
+
+  it("stays opt-in by default (no capture, spool, or injection when disabled)", async () => {
+    setMemorySettingsReader(() => defaultMemorySettings);
+    expect(defaultMemorySettings.enabled).toBe(false);
+    dbUpsertThread(thread("thread-off"), 0);
+    getSqlite()
+      .prepare(
+        `INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state, payload)
+         VALUES ('thread-off', 'item-1', 0, 'user_message', 'completed', ?)`,
+      )
+      .run(JSON.stringify({ text: "Always use bun" }));
+
+    expect(await runMemoryCapturePass()).toEqual({ captured: 0, spooled: 0 });
+    const { dbDeleteThread } = await import("@/host/db/projectsThreads");
+    dbDeleteThread("thread-off");
+    expect(getSqlite().prepare("SELECT text FROM memory_capture_spool").all()).toEqual([]);
+    expect(launchMemoryInstructions("thread-off", "project-1")).toBeUndefined();
+  });
+
+  it("shares project memories across environments with the same repoKey while syncing tombstones", async () => {
+    dbUpsertProject(
+      {
+        id: "project-wsl",
+        name: "Test WSL",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/me/test",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\me\\test",
+        },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      1,
+    );
+    dbUpsertProject(
+      {
+        id: "project-unrelated",
+        name: "Other",
+        location: { kind: "posix", path: "/tmp/other" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      2,
+    );
+    setMemoryRepoKeyReader((projectId) =>
+      projectId === "project-1" || projectId === "project-wsl" ? "github.com/acme/repo" : null,
+    );
+
+    const saved = (await handleMemoryCommand({
+      action: "save",
+      entry: {
+        scope: "project",
+        projectId: "project-1",
+        category: "project",
+        summary: "Uses bun test runner",
+        body: "Uses bun test runner",
+        polarity: "fact",
+        pinned: false,
+      },
+    })) as { id: string; repoKey?: string | null };
+    expect(saved.repoKey).toBe("github.com/acme/repo");
+
+    // Local Windows + WSL environments sharing the same verified repoKey share project memories.
+    expect(launchMemoryInstructions(undefined, "project-wsl")).toContain("Uses bun test runner");
+    expect(launchMemoryInstructions(undefined, "project-unrelated")).toBeUndefined();
+
+    // Unlinked local project memories never leave this host during sync-export.
+    await handleMemoryCommand({
+      action: "save",
+      entry: {
+        scope: "project",
+        projectId: "project-unrelated",
+        category: "project",
+        summary: "Unlinked local secret convention",
+        body: "Unlinked local secret convention",
+        polarity: "fact",
+        pinned: false,
+      },
+    });
+    const exported = (await handleMemoryCommand({ action: "sync-export" })) as {
+      entries: Array<{ summary: string; id: string }>;
+      tombstones: unknown[];
+    };
+    expect(exported.entries.map((entry) => entry.summary)).toEqual(["Uses bun test runner"]);
+
+    // Incoming global + peer project entries merge, and tombstones delete stale entries.
+    const merged = (await handleMemoryCommand({
+      action: "sync-merge",
+      state: {
+        entries: [
+          {
+            id: "peer-global-1",
+            scope: "global",
+            projectId: null,
+            repoKey: null,
+            category: "user",
+            summary: "Prefer short answers",
+            body: "Prefer short answers",
+            confidence: 0.9,
+            polarity: "positive",
+            quote: null,
+            lockedByUser: false,
+            pinned: false,
+            archived: false,
+            usageCount: 0,
+            lastUsedAt: null,
+            createdAt: "2026-11-17T00:00:00.000Z",
+            updatedAt: "2026-11-17T00:00:00.000Z",
+            source: "user",
+          },
+          {
+            id: "peer-proj-1",
+            scope: "project",
+            projectId: "remote-id-123",
+            repoKey: "github.com/acme/repo",
+            category: "project",
+            summary: "Linux CI uses Ubuntu 24",
+            body: "Linux CI uses Ubuntu 24",
+            confidence: 0.9,
+            polarity: "fact",
+            quote: null,
+            lockedByUser: false,
+            pinned: false,
+            archived: false,
+            usageCount: 0,
+            lastUsedAt: null,
+            createdAt: "2026-11-17T00:00:00.000Z",
+            updatedAt: "2026-11-17T00:00:00.000Z",
+            source: "learned",
+          },
+        ],
+        tombstones: [
+          {
+            id: saved.id,
+            scope: "project",
+            projectId: null,
+            repoKey: "github.com/acme/repo",
+            deletedAt: "2099-01-01T00:00:00.000Z",
+          },
+        ],
+      },
+    })) as { synced: boolean; changed: boolean };
+
+    expect(merged.synced).toBe(true);
+    expect(merged.changed).toBe(true);
+    const wslPrompt = launchMemoryInstructions(undefined, "project-wsl");
+    expect(wslPrompt).toContain("Prefer short answers");
+    expect(wslPrompt).toContain("Linux CI uses Ubuntu 24");
+    expect(wslPrompt).not.toContain("Uses bun test runner");
   });
 });

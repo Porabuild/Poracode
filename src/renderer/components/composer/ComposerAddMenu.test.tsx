@@ -826,6 +826,7 @@ describe("ComposerAddMenu", () => {
 const memoryStatusFixture: MemoryStatus = {
   enabled: true,
   learning: true,
+  syncEnabled: true,
   captureTiming: "settle-2m",
   pendingCandidates: 0,
   entryCount: 4,

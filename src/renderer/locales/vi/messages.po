@@ -19227,6 +19227,11 @@ msgstr "Chia sẻ"
 #~ msgid "Share another profile's isolated login"
 #~ msgstr "Dùng chung đăng nhập riêng của hồ sơ khác"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "Chia sẻ ghi chú chung và ghi chú dự án đã liên kết với các máy đã ghép nối và WSL. Thư mục chưa liên kết vẫn tách riêng."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Chia sẻ hoạt động của bạn"
@@ -20691,9 +20696,18 @@ msgstr "Đồng bộ hóa (Rebase)"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "Đồng bộ hóa ↓{behind} ↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "Đồng bộ giữa các môi trường"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "Đồng bộ hóa không thành công: {detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "Đồng bộ ngay"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"

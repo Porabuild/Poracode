@@ -19227,6 +19227,11 @@ msgstr "Поделиться"
 #~ msgid "Share another profile's isolated login"
 #~ msgstr "Использовать изолированный вход другого профиля"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "Обмен глобальными заметками и заметками связанных проектов между сопряжёнными компьютерами и WSL. Несвязанные папки остаются отдельно."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Поделитесь своей активностью"
@@ -20691,9 +20696,18 @@ msgstr "Синхронизировать (rebase)"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "Синхронизировать ↓{behind} ↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "Синхронизация между средами"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "Сбой синхронизации: {detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "Синхронизировать"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"

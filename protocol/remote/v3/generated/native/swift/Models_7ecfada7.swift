@@ -315,17 +315,17 @@ public struct RouteagentU2DStatusesQuery_b09b259cd2: Codable, Sendable, RemoteMo
   }
 }
 
-public struct RouteagentU2DStatusesResponse_68b4b3341e: Codable, Sendable, RemoteModelMetadata {
+public struct RouteagentU2DStatusesResponse_0170ad7cfc: Codable, Sendable, RemoteModelMetadata {
   public var detecting: RemoteField<Bool> = .missing
   public var updatedAt: String
-  public var windows: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]
-  public var wsl: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]
+  public var windows: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f]
+  public var wsl: [ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "detecting", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "updatedAt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "windows", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "wsl", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_a90ac5c30d]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "windows", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "wsl", typeName: "[ProcedurerefreshAgentStatusesResultU2DWindowsU2DItem_def077222f]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {

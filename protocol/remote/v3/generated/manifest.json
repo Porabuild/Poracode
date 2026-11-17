@@ -624,6 +624,15 @@
     },
     {
       "auth": "bearer",
+      "id": "memory-sync",
+      "method": "POST",
+      "path": "/api/memory/sync",
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "schedules-read",
       "method": "GET",
       "path": "/api/schedules",

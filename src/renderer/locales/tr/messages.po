@@ -19227,6 +19227,11 @@ msgstr "Paylaş"
 #~ msgid "Share another profile's isolated login"
 #~ msgstr "Başka bir profilin yalıtılmış girişini paylaş"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "Genel ve bağlı proje notlarını eşleştirilmiş bilgisayarlar ve WSL ile paylaşın. Bağlı olmayan klasörler ayrı kalır."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Etkinliğinizi paylaşın"
@@ -20691,9 +20696,18 @@ msgstr "Senkronizasyon (Yeniden Temelleme)"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "Senkronizasyon ↓{behind} ↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "Ortamlar arasında eşitle"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "Senkronizasyon başarısız oldu: {detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "Şimdi eşitle"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"

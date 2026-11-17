@@ -201,6 +201,10 @@ internal val schema_29b52750e42441f8: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_7e8114c3dda52277, schema_b305c5dcc2d06cc2, schema_f6a941e10f9feb27, schema_38c5e1151393f6bd, schema_3c594c99571d82f9), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_29dd431b6bfc4cee: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("deletedAt", "id", "projectId", "scope"), properties = mapOf("deletedAt" to schema_36fea325bf1aca70, "id" to schema_36fea325bf1aca70, "projectId" to schema_df704162f3d15808, "repoKey" to schema_df704162f3d15808, "scope" to schema_ac6ea0fc110d7efb), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_29fba8fe9f5724e0: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("auth", "p256dh"), properties = mapOf("auth" to schema_36fea325bf1aca70, "p256dh" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

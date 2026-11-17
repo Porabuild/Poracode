@@ -6,6 +6,7 @@ import { Button, ProviderModelMenu, Select, ToggleSwitch } from "@/renderer/comp
 import { buildProviderModelMenuProviders } from "@/renderer/components/thread/buildModelPickerControls";
 import { getProviderUtilityRank } from "@/renderer/components/providers/providerManifest";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { syncMemoryAcrossEnvironments } from "@/renderer/state/memorySync";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type {
   MemoryCaptureTiming,
@@ -147,7 +148,10 @@ export function MemorySettings(props: { projectId?: string }) {
 
   async function reload() {
     const [nextStatus, nextEntries] = await Promise.all([
-      readBridge().memoryCommand({ action: "status" }),
+      readBridge().memoryCommand({
+        action: "status",
+        ...(props.projectId ? { projectId: props.projectId } : {}),
+      }),
       readBridge().memoryCommand({
         action: "list",
         ...(props.projectId ? { projectId: props.projectId } : {}),
@@ -155,6 +159,12 @@ export function MemorySettings(props: { projectId?: string }) {
     ]);
     setStatus(nextStatus as MemoryStatus);
     setEntries(nextEntries as MemoryEntry[]);
+  }
+
+  function syncAfterChange() {
+    void syncMemoryAcrossEnvironments().then((result) => {
+      if (result.changed) void reload();
+    });
   }
 
   function saveEdit(entry: MemoryEntry) {
@@ -177,6 +187,7 @@ export function MemorySettings(props: { projectId?: string }) {
       })
       .then(() => {
         setEditingId(null);
+        syncAfterChange();
         return reload();
       })
       .catch(() => setError(true));
@@ -391,6 +402,24 @@ export function MemorySettings(props: { projectId?: string }) {
           }
         />
       </SettingRow>
+      <SettingRow
+        anchorId="memory.syncEnabled"
+        title={t`Sync across environments`}
+        description={
+          <Trans>
+            Share global and linked-project notes with paired computers and WSL. Unlinked folders
+            stay separate.
+          </Trans>
+        }
+      >
+        <ToggleSwitch
+          aria-label={t`Sync across environments`}
+          isSelected={memory.syncEnabled}
+          onChange={(selected) =>
+            startTransition(() => setMemorySettings({ syncEnabled: selected }))
+          }
+        />
+      </SettingRow>
       {remote ? (
         <p className="text-xs text-muted">
           <Trans>The memory catalog is edited on the desktop that owns this host.</Trans>
@@ -401,18 +430,34 @@ export function MemorySettings(props: { projectId?: string }) {
             <p className="text-sm font-medium text-foreground">
               <Trans>Memories</Trans>
             </p>
-            <Button
-              size="sm"
-              variant="tertiary"
-              onPress={() => {
-                void readBridge()
-                  .memoryCommand({ action: "dream" })
-                  .then(() => reload())
-                  .catch(() => setError(true));
-              }}
-            >
-              <Trans>Dream now</Trans>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => {
+                  void syncMemoryAcrossEnvironments({ force: true })
+                    .then(() => reload())
+                    .catch(() => setError(true));
+                }}
+              >
+                <Trans>Sync now</Trans>
+              </Button>
+              <Button
+                size="sm"
+                variant="tertiary"
+                onPress={() => {
+                  void readBridge()
+                    .memoryCommand({ action: "dream" })
+                    .then(() => {
+                      syncAfterChange();
+                      return reload();
+                    })
+                    .catch(() => setError(true));
+                }}
+              >
+                <Trans>Dream now</Trans>
+              </Button>
+            </div>
           </div>
           {status ? (
             <p className="text-xs text-muted">
@@ -453,7 +498,10 @@ export function MemorySettings(props: { projectId?: string }) {
                       pinned: false,
                     },
                   })
-                  .then(() => reload())
+                  .then(() => {
+                    syncAfterChange();
+                    return reload();
+                  })
                   .catch(() => setError(true));
               }}
             >
@@ -514,7 +562,10 @@ export function MemorySettings(props: { projectId?: string }) {
                     onPress={() => {
                       void readBridge()
                         .memoryCommand({ action: "delete", id: entry.id })
-                        .then(() => reload())
+                        .then(() => {
+                          syncAfterChange();
+                          return reload();
+                        })
                         .catch(() => setError(true));
                     }}
                   >

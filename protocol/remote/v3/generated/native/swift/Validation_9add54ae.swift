@@ -25,6 +25,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_00f4768be29103a9 = RemoteSchema(type: "object", required: Set(["authState", "authUsesProviderLogin", "capabilities", "installed", "presentationMode"]), properties: ["authLogoutSupported": RemoteSchemas.schema_feeb8bb50144d96d, "authMethods": RemoteSchemas.schema_cd0a57f27ae4fccb, "authState": RemoteSchemas.schema_2363c4dd0a78ce9d, "authUsesProviderLogin": RemoteSchemas.schema_feeb8bb50144d96d, "capabilities": RemoteSchemas.schema_de2055b6e4e71688, "installationSource": RemoteSchemas.schema_36fea325bf1aca70, "installed": RemoteSchemas.schema_feeb8bb50144d96d, "loginCommand": RemoteSchemas.schema_36fea325bf1aca70, "loginCommandDisplay": RemoteSchemas.schema_36fea325bf1aca70, "preferTerminalLogin": RemoteSchemas.schema_feeb8bb50144d96d, "presentationMode": RemoteSchemas.schema_6508684ba659826b, "providerMetadata": RemoteSchemas.schema_197c2b8c01d7f4ed, "version": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_010485e0a27ea254 = RemoteSchema(type: "object", required: Set(["kind", "path"]), properties: ["kind": RemoteSchemas.schema_5465dd986b32b774, "path": RemoteSchemas.schema_36fea325bf1aca70, "remoteServerId": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -38,6 +42,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_014d2dfae880067a = RemoteSchema(type: "object", required: Set(["agentFinished", "agentId", "location", "threadId", "transcriptDir"]), properties: ["agentFinished": RemoteSchemas.schema_feeb8bb50144d96d, "agentId": RemoteSchemas.schema_36fea325bf1aca70, "location": RemoteSchemas.schema_080f9cc154af9e27, "threadId": RemoteSchemas.schema_36fea325bf1aca70, "transcriptDir": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_0170ad7cfc4d502b = RemoteSchema(type: "object", required: Set(["updatedAt", "windows", "wsl"]), properties: ["detecting": RemoteSchemas.schema_feeb8bb50144d96d, "updatedAt": RemoteSchemas.schema_36fea325bf1aca70, "windows": RemoteSchemas.schema_6b6133f7ff53b2a8, "wsl": RemoteSchemas.schema_6b6133f7ff53b2a8], additionalAllowed: true, unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {

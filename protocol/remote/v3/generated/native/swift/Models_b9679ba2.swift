@@ -1,5 +1,23 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct RoutemetricsResponseU2DRemote_99cf08bb5d: Codable, Sendable, RemoteModelMetadata {
+  public var activeWebSocketClients: Int64
+  public var eventBufferEntries: Int64
+  public var lastEventSeq: Int64
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "activeWebSocketClients", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "eventBufferEntries", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "lastEventSeq", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case activeWebSocketClients = "activeWebSocketClients"
+    case eventBufferEntries = "eventBufferEntries"
+    case lastEventSeq = "lastEventSeq"
+  }
+}
+
 public struct RoutemetricsResponse_e9b9e3e75f: Codable, Sendable, RemoteModelMetadata {
   public var hostResourceAdmission: RemoteField<RoutemetricsResponseU2DHostResourceAdmission_dffaae3821> = .missing
   public var process: RoutemetricsResponseU2DProcess_9f6e05a566

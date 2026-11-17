@@ -19226,6 +19226,11 @@ msgstr "分享"
 #~ msgid "Share another profile's isolated login"
 #~ msgstr "共享其他配置文件的独立登录"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Share global and linked-project notes with paired computers and WSL. Unlinked folders stay separate."
+msgstr "与已配对电脑和 WSL 共享全局及关联项目笔记。未关联文件夹保持隔离。"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "分享你的活动"
@@ -20690,9 +20695,18 @@ msgstr "同步（变基）"
 msgid "Sync ↓{behind} ↑{ahead}"
 msgstr "同步 ↓{behind} ↑{ahead}"
 
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Sync across environments"
+msgstr "跨环境同步"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Sync failed: {detail}"
 msgstr "同步失败：{detail}"
+
+#: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
+msgid "Sync now"
+msgstr "立即同步"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "Sync options"

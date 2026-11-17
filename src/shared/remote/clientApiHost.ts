@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { memorySyncResponseSchema, type MemorySyncResponse, type MemorySyncState } from "../memory";
 import { agentVisionResponseSchema, type AgentVision } from "../agentVision";
 import {
   remoteHostDescribeSchema,
@@ -447,6 +448,14 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       "settings",
     );
     return result.settings;
+  }
+
+  async memorySync(state: MemorySyncState): Promise<MemorySyncResponse> {
+    return parseResponse(
+      memorySyncResponseSchema,
+      await this.requestJson("/api/memory/sync", { method: "POST", body: state }),
+      "memory sync",
+    );
   }
 
   async uploadAttachment(input: {

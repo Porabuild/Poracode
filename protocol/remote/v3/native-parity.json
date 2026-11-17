@@ -1458,6 +1458,32 @@
         }
       },
       {
+        "id": "memory-sync",
+        "scopes": ["session:operate"],
+        "batch": "settings-integrations",
+        "note": "Cross-environment memory merge endpoint used by paired desktop hosts; native client adoption is planned.",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
         "id": "schedules-read",
         "scopes": ["session:read"],
         "batch": "settings-integrations",

@@ -293,8 +293,8 @@ val RemoteRootCodecs.procedureU2EReadThreadBackgroundTasksU2EResult: RemoteRootC
 val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2ERequest: RemoteRootCodec<ProcedurerefreshAgentStatusesRequest_0cf7156720>
     get() = RemoteRootCodec("procedure.refreshAgentStatuses.request", serializer<ProcedurerefreshAgentStatusesRequest_0cf7156720>(), schema_0cf71567208700d7)
 
-val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_ced7436778>
-    get() = RemoteRootCodec("procedure.refreshAgentStatuses.result", serializer<ProcedurerefreshAgentStatusesResult_ced7436778>(), schema_ced7436778cf748d)
+val RemoteRootCodecs.procedureU2ERefreshAgentStatusesU2EResult: RemoteRootCodec<ProcedurerefreshAgentStatusesResult_8c4b8eeb10>
+    get() = RemoteRootCodec("procedure.refreshAgentStatuses.result", serializer<ProcedurerefreshAgentStatusesResult_8c4b8eeb10>(), schema_8c4b8eeb107b4505)
 
 val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60>
     get() = RemoteRootCodec("procedure.refreshProviderUsage.request", serializer<ProceduregetProviderUsageRequest_f2b9759b60>(), schema_f2b9759b60404656)
@@ -446,5 +446,5 @@ val RemoteRootCodecs.routeU2EAgentU2DSlashU2DCommandsU2EResponse: RemoteRootCode
 val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EQuery: RemoteRootCodec<RouteagentU2DStatusesQuery_b09b259cd2>
     get() = RemoteRootCodec("route.agent-statuses.query", serializer<RouteagentU2DStatusesQuery_b09b259cd2>(), schema_b09b259cd2bbc25d)
 
-val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_68b4b3341e>
-    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_68b4b3341e>(), schema_68b4b3341e5ced85)
+val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_0170ad7cfc>
+    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_0170ad7cfc>(), schema_0170ad7cfc4d502b)

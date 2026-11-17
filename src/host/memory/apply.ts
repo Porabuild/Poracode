@@ -14,6 +14,7 @@ import {
   type MemoryCandidateRow,
 } from "@/host/db/memoryStore";
 import { conflictsWith, scoreObservation, skillDraft, statementKey } from "./logic";
+import { readMemoryRepoKey } from "./repoKeyReader";
 
 export interface AppliedMemory {
   saved: number;
@@ -117,10 +118,12 @@ function entryFromObservation(
   confidence: number,
   now: string,
 ): MemoryEntry {
+  const repoKey = scope === "project" ? (current?.repoKey ?? readMemoryRepoKey(projectId)) : null;
   return {
     id: current?.id ?? randomUUID(),
     scope,
     projectId,
+    ...(repoKey ? { repoKey } : {}),
     category: observation.category,
     summary: observation.statement,
     body: observation.quote ?? observation.statement,
@@ -295,6 +298,7 @@ export function userMemoryEntry(input: {
   id?: string;
   scope: MemoryEntry["scope"];
   projectId: string | null;
+  repoKey?: string | null;
   category: MemoryEntry["category"];
   summary: string;
   body: string;
@@ -304,10 +308,16 @@ export function userMemoryEntry(input: {
   now: string;
 }): MemoryEntry {
   const current = input.id ? dbGetMemoryEntry(input.id) : undefined;
+  const projectId = input.scope === "project" ? input.projectId : null;
+  const repoKey =
+    input.scope === "project"
+      ? (input.repoKey ?? current?.repoKey ?? readMemoryRepoKey(projectId))
+      : null;
   return {
     id: current?.id ?? input.id ?? randomUUID(),
     scope: input.scope,
-    projectId: input.scope === "project" ? input.projectId : null,
+    projectId,
+    ...(repoKey ? { repoKey } : {}),
     category: input.category,
     summary: input.summary.trim(),
     body: input.body,

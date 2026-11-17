@@ -6,6 +6,7 @@ import type {
   MemoryScope,
   MemorySkillSuggestion,
   MemoryThreadMode,
+  MemoryTombstone,
 } from "@/shared/memory";
 import { getSqlite } from "@/host/db/connection";
 import type { TranscriptItem } from "@/host/memory/logic";
@@ -14,6 +15,7 @@ interface EntryRow {
   id: string;
   scope: MemoryScope;
   project_id: string | null;
+  repo_key: string | null;
   category: MemoryCategory;
   summary: string;
   body: string;
@@ -35,6 +37,7 @@ function mapEntry(row: EntryRow): MemoryEntry {
     id: row.id,
     scope: row.scope,
     projectId: row.project_id,
+    repoKey: row.repo_key ?? null,
     category: row.category,
     summary: row.summary,
     body: row.body,
@@ -52,16 +55,18 @@ function mapEntry(row: EntryRow): MemoryEntry {
   };
 }
 
-export function dbListMemoryEntries(projectId?: string): MemoryEntry[] {
+export function dbListMemoryEntries(projectId?: string, repoKey?: string | null): MemoryEntry[] {
   const rows = (
     projectId
       ? getSqlite()
           .prepare(
             `SELECT * FROM memory_entries
-             WHERE archived = 0 AND (scope = 'global' OR (scope = 'project' AND project_id = ?))
+             WHERE archived = 0 AND (
+               scope = 'global' OR (scope = 'project' AND (project_id = ? OR (? IS NOT NULL AND repo_key = ?)))
+             )
              ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
           )
-          .all(projectId)
+          .all(projectId, repoKey ?? null, repoKey ?? null)
       : getSqlite()
           .prepare(
             `SELECT * FROM memory_entries WHERE archived = 0
@@ -72,20 +77,33 @@ export function dbListMemoryEntries(projectId?: string): MemoryEntry[] {
   return rows.map(mapEntry);
 }
 
+export function dbListAllMemoryEntriesForSync(): MemoryEntry[] {
+  const rows = getSqlite()
+    .prepare(
+      `SELECT * FROM memory_entries
+       ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
+    )
+    .all() as EntryRow[];
+  return rows.map(mapEntry);
+}
+
 /** Strict runtime scope: global notes only unless a non-Home project is active. */
 export function dbListScopedMemoryEntries(
   projectId?: string | null,
   includeHome = false,
+  repoKey?: string | null,
 ): MemoryEntry[] {
   const rows = (
     projectId && !includeHome
       ? getSqlite()
           .prepare(
             `SELECT * FROM memory_entries
-             WHERE archived = 0 AND (scope = 'global' OR (scope = 'project' AND project_id = ?))
+             WHERE archived = 0 AND (
+               scope = 'global' OR (scope = 'project' AND (project_id = ? OR (? IS NOT NULL AND repo_key = ?)))
+             )
              ORDER BY pinned DESC, confidence DESC, updated_at DESC`,
           )
-          .all(projectId)
+          .all(projectId, repoKey ?? null, repoKey ?? null)
       : getSqlite()
           .prepare(
             `SELECT * FROM memory_entries
@@ -105,18 +123,20 @@ export function dbGetMemoryEntry(id: string): MemoryEntry | undefined {
 }
 
 export function dbUpsertMemoryEntry(entry: MemoryEntry): void {
-  getSqlite()
+  const sqlite = getSqlite();
+  sqlite
     .prepare(
       `INSERT INTO memory_entries (
-         id, scope, project_id, category, summary, body, confidence, polarity, quote,
+         id, scope, project_id, repo_key, category, summary, body, confidence, polarity, quote,
          locked_by_user, pinned, archived, usage_count, last_used_at, created_at, updated_at, source
        ) VALUES (
-         @id, @scope, @projectId, @category, @summary, @body, @confidence, @polarity, @quote,
+         @id, @scope, @projectId, @repoKey, @category, @summary, @body, @confidence, @polarity, @quote,
          @lockedByUser, @pinned, @archived, @usageCount, @lastUsedAt, @createdAt, @updatedAt, @source
        )
        ON CONFLICT(id) DO UPDATE SET
          scope = excluded.scope,
          project_id = excluded.project_id,
+         repo_key = COALESCE(excluded.repo_key, memory_entries.repo_key),
          category = excluded.category,
          summary = excluded.summary,
          body = excluded.body,
@@ -133,18 +153,81 @@ export function dbUpsertMemoryEntry(entry: MemoryEntry): void {
     )
     .run({
       ...entry,
+      repoKey: entry.repoKey ?? null,
       lockedByUser: entry.lockedByUser ? 1 : 0,
       pinned: entry.pinned ? 1 : 0,
       archived: entry.archived ? 1 : 0,
     });
+  sqlite
+    .prepare("DELETE FROM memory_tombstones WHERE id = ? AND deleted_at <= ?")
+    .run(entry.id, entry.updatedAt);
 }
 
 export function dbDeleteMemorySuggestion(id: string): void {
   getSqlite().prepare("DELETE FROM memory_skill_suggestions WHERE id = ?").run(id);
 }
 
-export function dbDeleteMemoryEntry(id: string): void {
-  getSqlite().prepare("DELETE FROM memory_entries WHERE id = ?").run(id);
+export function dbDeleteMemoryEntry(
+  id: string,
+  deletedAt = new Date().toISOString(),
+  recordTombstone = true,
+): void {
+  const sqlite = getSqlite();
+  if (recordTombstone) {
+    const existing = dbGetMemoryEntry(id);
+    if (existing) {
+      dbUpsertMemoryTombstone({
+        id: existing.id,
+        scope: existing.scope,
+        projectId: existing.projectId,
+        repoKey: existing.repoKey ?? null,
+        deletedAt,
+      });
+    }
+  }
+  sqlite.prepare("DELETE FROM memory_entries WHERE id = ?").run(id);
+}
+
+export function dbListMemoryTombstones(): MemoryTombstone[] {
+  const rows = getSqlite()
+    .prepare("SELECT id, scope, project_id, repo_key, deleted_at FROM memory_tombstones")
+    .all() as Array<{
+    id: string;
+    scope: MemoryScope;
+    project_id: string | null;
+    repo_key: string | null;
+    deleted_at: string;
+  }>;
+  return rows.map((row) => ({
+    id: row.id,
+    scope: row.scope,
+    projectId: row.project_id,
+    repoKey: row.repo_key ?? null,
+    deletedAt: row.deleted_at,
+  }));
+}
+
+export function dbUpsertMemoryTombstone(tombstone: MemoryTombstone): void {
+  getSqlite()
+    .prepare(
+      `INSERT INTO memory_tombstones (id, scope, project_id, repo_key, deleted_at)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         scope = excluded.scope,
+         project_id = excluded.project_id,
+         repo_key = COALESCE(excluded.repo_key, memory_tombstones.repo_key),
+         deleted_at = CASE
+           WHEN excluded.deleted_at > memory_tombstones.deleted_at THEN excluded.deleted_at
+           ELSE memory_tombstones.deleted_at
+         END`,
+    )
+    .run(
+      tombstone.id,
+      tombstone.scope,
+      tombstone.projectId,
+      tombstone.repoKey ?? null,
+      tombstone.deletedAt,
+    );
 }
 
 export function dbTouchMemoryUsage(id: string, at: string): void {
