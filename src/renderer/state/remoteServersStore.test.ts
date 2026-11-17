@@ -1442,6 +1442,48 @@ describe("useRemoteServersStore", () => {
     expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
   });
 
+  it.each([
+    ["host_update_not_ready", true],
+    ["install_failed", false],
+  ] as const)("invalidates a stale offer only for %s", async (code, clearsOffer) => {
+    const stale = deferred<Awaited<ReturnType<RemoteDesktopClient["hostUpdateState"]>>>();
+    const error = new RemoteClientError("Install rejected", 409, code);
+    const installHostUpdate = vi.fn<RemoteDesktopClient["installHostUpdate"]>(async () => {
+      throw error;
+    });
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          hostUpdateState: () => stale.promise,
+          installHostUpdate,
+        }),
+      ),
+    );
+    await useRemoteServersStore.getState().pairServer({
+      endpoint: "192.168.1.9:38987",
+      token: "lc_pair_x",
+    });
+    const offer = {
+      currentVersion: "1.0",
+      status: { type: "downloaded", version: "1.1" } as const,
+    };
+    useRemoteServersStore.setState({ hostUpdates: { d1: offer } });
+    const staleRequest = useRemoteServersStore.getState().getHostUpdateState("d1");
+
+    await expect(useRemoteServersStore.getState().installHostUpdate("d1")).rejects.toBe(error);
+
+    expect(useRemoteServersStore.getState().hostUpdates.d1).toEqual(
+      clearsOffer ? undefined : offer,
+    );
+    expect(useRemoteServersStore.getState().hostUpdateRestarts.d1).toBeUndefined();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+    stale.resolve(offer);
+    await staleRequest;
+    expect(useRemoteServersStore.getState().hostUpdates.d1).toEqual(
+      clearsOffer ? undefined : offer,
+    );
+  });
+
   it("installs without tracking a restart when no downloaded update is recorded", async () => {
     const installHostUpdate = vi.fn<RemoteDesktopClient["installHostUpdate"]>(async () => {});
     useRemoteServersStore
