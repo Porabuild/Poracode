@@ -86,6 +86,19 @@ import Observation
 
   var canReadAdvisory: Bool { canRead }
 
+  /// Full canonical output is fetched only for a visible expanded row. Reuse
+  /// the conversation's read fence without retaining another transcript cache.
+  func readHistoryItem(_ source: RichRuntimeItem) async throws -> RichRuntimeItem {
+    guard source.detailsDeferred else { return source }
+    let value = try await readAdvisoryValue { gateway, target in
+      try await gateway.loadRichHistoryItem(target: target, itemID: source.id)
+    }
+    guard value.id == source.id, value.type == source.type, value.detailsDeferred != true else {
+      throw RichChatGatewayError.invalidResponse
+    }
+    return try RichChatRemoteModelBridge.item(value)
+  }
+
   /// Result bodies share the conversation's read authority, without displacing
   /// the small heading cache or retaining another copy of canonical output.
   func readBodyAdvisory(_ request: RichRuntimeItemHeadingRequest) async throws -> RichResolvedToolBodyRecord? {

@@ -40,6 +40,10 @@ private struct RichToolCodeTextView: UIViewRepresentable {
   func makeUIView(context: Context) -> UITextView {
     let view = UITextView()
     view.isEditable = false; view.isSelectable = true; view.isScrollEnabled = true
+    // A log is one selectable field. UIKit's paragraph container repeatedly
+    // compares the full attributed string while enumerating thousands of
+    // lines for accessibility, blocking the main thread on large outputs.
+    view.isAccessibilityElement = true
     view.backgroundColor = .clear
     view.textContainerInset = .init(top: 10, left: 8, bottom: 10, right: 8)
     view.font = UIFontMetrics(forTextStyle: .caption1).scaledFont(for:
@@ -50,7 +54,10 @@ private struct RichToolCodeTextView: UIViewRepresentable {
   func updateUIView(_ view: UITextView, context: Context) {
     let changedSection = view.accessibilityIdentifier != identifier
     view.accessibilityIdentifier = identifier
-    if view.text != text { view.text = text }
+    if view.text != text {
+      view.text = text
+      view.accessibilityValue = text
+    }
     if changedSection { view.setContentOffset(.zero, animated: false) }
   }
   func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {

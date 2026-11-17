@@ -3,6 +3,38 @@ import SwiftUI
 @testable import App
 
 @MainActor final class ToolPresentationTests: XCTestCase {
+  func testLargeCodeViewportKeepsCompleteSelectableTextInABoundedViewport() async throws {
+    let text = "FULL MULTILINE OUTPUT\n" + String(repeating: "Complete retained command output.\n", count: 6000) + "END OF COMPLETE OUTPUT"
+    let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+    let prior = scene.windows.first(where: \.isKeyWindow)
+    let window = UIWindow(windowScene: scene)
+    let host = UIHostingController(rootView: RichToolCodeBlock(text: text, identifier: "large-code-probe").frame(width: 700))
+    window.rootViewController = host; window.makeKeyAndVisible()
+    defer { window.isHidden = true; window.rootViewController = nil; prior?.makeKey() }
+    host.view.layoutIfNeeded()
+    for _ in 0..<10 { await Task.yield() }
+    host.view.layoutIfNeeded()
+    func textView(_ view: UIView) -> UITextView? {
+      if let text = view as? UITextView { return text }
+      return view.subviews.lazy.compactMap(textView).first
+    }
+    let viewport = try XCTUnwrap(textView(host.view))
+    XCTAssertEqual(viewport.text, text)
+    XCTAssertTrue(viewport.isSelectable); XCTAssertTrue(viewport.isScrollEnabled)
+    XCTAssertFalse(viewport.isEditable)
+    XCTAssertTrue(viewport.isAccessibilityElement)
+    XCTAssertEqual(viewport.accessibilityValue, text)
+    XCTAssertLessThanOrEqual(viewport.bounds.height, 340)
+    let start = ContinuousClock.now
+    let valueCount = viewport.accessibilityValue?.utf16.count ?? 0
+    let duration = start.duration(to: .now).components
+    let report: [String: Any] = ["textUTF16": text.utf16.count,
+      "isAccessibilityElement": viewport.isAccessibilityElement, "usesTextKit2": viewport.textLayoutManager != nil,
+      "accessibilityValueUTF16": valueCount, "accessibilityValueReadMs": Double(duration.seconds) * 1000 + Double(duration.attoseconds) / 1e15]
+    let proof = XCTAttachment(data: try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]), uniformTypeIdentifier: "public.json")
+    proof.name = "large-code-viewport-accessibility-probe"; proof.lifetime = .keepAlways; add(proof)
+  }
+
   func testWorkflowViewerProjectionIsOnDemandAndUsesItsOwnVersionAndArgumentDigest() throws {
     let descriptor = try XCTUnwrap(catalog().itemTypes["tool_call"])
     let projection = try XCTUnwrap(descriptor.workflowViewProjection)
@@ -49,6 +81,63 @@ import SwiftUI
     do { _ = try await retired.value; XCTFail("A retired advisory reply must be refused") }
     catch is CancellationError { }
     cache.deactivate()
+  }
+
+  func testDeferredHistoryBodiesUseTheConversationFenceWithoutFetchingCompleteRowsAgain() async throws {
+    let gateway = HeadingGateway(), controller = RichRuntimeItemHeadingController(gateway: gateway)
+    let access = RichChatSessionAccess(lease: .init(connectionID: ClientConnectionID(), generation: 1),
+      isOnline: true, isReady: true, capabilities: [.sessionRead])
+    controller.activate(access: access, threadID: "thread")
+    var source = RichRuntimeItem(id: "body", type: "command_execution", state: .completed,
+      payload: nil, streams: [:], parentItemID: nil)
+    let alreadyComplete = try await controller.readHistoryItem(source)
+    XCTAssertEqual(alreadyComplete, source)
+    let unopened = await gateway.detailCount()
+    XCTAssertEqual(unopened, 0)
+    source.detailsDeferred = true
+    let read = Task { try await controller.readHistoryItem(source) }
+    await waitForDetailCalls(gateway, count: 1)
+    let full = PersistedRuntimeItem(id: "body", type: "command_execution", state: "completed",
+      payload: nil, streams: ["command_output": "Complete output"], parentItemId: nil)
+    await gateway.completeDetail(0, item: full)
+    let restored = try await read.value
+    XCTAssertEqual(restored.streams["command_output"], "Complete output")
+    XCTAssertFalse(restored.detailsDeferred)
+
+    let retired = Task { try await controller.readHistoryItem(source) }
+    await waitForDetailCalls(gateway, count: 2)
+    controller.enterBackground()
+    await gateway.completeDetail(1, item: full)
+    do { _ = try await retired.value; XCTFail("Backgrounding must retire the pending body") }
+    catch is CancellationError { }
+    controller.activate(access: access, threadID: "thread")
+    let wrongScope = Task { try await controller.readHistoryItem(source) }
+    await waitForDetailCalls(gateway, count: 3)
+    controller.activate(access: .init(lease: .init(connectionID: ClientConnectionID(), generation: 1),
+      isOnline: true, isReady: true, capabilities: [.sessionRead]), threadID: "thread")
+    await gateway.completeDetail(2, item: full)
+    do { _ = try await wrongScope.value; XCTFail("The same item ID on a different host must not accept the old body") }
+    catch is CancellationError { }
+    controller.deactivate()
+  }
+
+  func testDeferredHistoryBodiesRejectWrongTypesAndUnresolvedReplies() async throws {
+    let gateway = HeadingGateway(), controller = RichRuntimeItemHeadingController(gateway: gateway)
+    controller.activate(access: .init(lease: .init(connectionID: ClientConnectionID(), generation: 1),
+      isOnline: true, isReady: true, capabilities: [.sessionRead]), threadID: "thread")
+    let source = RichRuntimeItem(id: "body", type: "file_change", state: .completed,
+      payload: nil, streams: [:], parentItemID: nil, detailsDeferred: true)
+    for (index, reply) in [
+      PersistedRuntimeItem(id: "body", type: "command_execution", state: "completed", payload: nil, streams: [:], parentItemId: nil),
+      PersistedRuntimeItem(id: "body", type: "file_change", state: "completed", payload: nil, streams: [:], parentItemId: nil, detailsDeferred: true),
+    ].enumerated() {
+      let read = Task { try await controller.readHistoryItem(source) }
+      await waitForDetailCalls(gateway, count: index + 1)
+      await gateway.completeDetail(index, item: reply)
+      do { _ = try await read.value; XCTFail("A deferred or differently typed reply is not a complete canonical body") }
+      catch RichChatGatewayError.invalidResponse { }
+    }
+    controller.deactivate()
   }
 
   func testWorkflowProjectionUsesAdvertisedConditionsAndKeepsCanonicalAndMCPRowsOut() throws {
@@ -254,6 +343,11 @@ import SwiftUI
     XCTFail("Heading batch was not dispatched")
   }
 
+  private func waitForDetailCalls(_ gateway: HeadingGateway, count: Int) async {
+    for _ in 0..<200 { if await gateway.detailCount() >= count { return }; await Task.yield() }
+    XCTFail("History detail was not dispatched")
+  }
+
   private func catalog() throws -> RichToolPresentationCatalog {
     try XCTUnwrap(RichToolPresentationCatalog(ProjectFixtureLoader.decode(JSONValue.self,
       named: "client-tool-presentation-catalog.json")))
@@ -351,6 +445,30 @@ import SwiftUI
     XCTAssertNil(lines[3].oldLineNumber)
   }
 
+  func testLargeDiffProjectionRetainsAllRowsAcrossNewInputs() {
+    let first = "diff --git a/x.swift b/x.swift\n--- a/x.swift\n+++ b/x.swift\n@@ -1 +1 @@\n-old\n+new\n" + String(repeating: " context\n", count: 6000)
+    let view = NativeUnifiedDiffView(diff: first)
+    XCTAssertEqual(view.lineCount, NativeUnifiedDiffLine.parse(first).count)
+    XCTAssertEqual(view.lineCount, 6007)
+    let replacement = NativeUnifiedDiffView(diff: "diff --git a/y b/y\n+replacement")
+    XCTAssertEqual(replacement.lineCount, 2)
+    XCTAssertEqual(view.lineCount, 6007, "A new patch must not mutate another view's projection")
+  }
+
+  func testMalformedHunkStartsRemainDisplayableWithoutInventingLineNumbers() {
+    for header in ["@@ - + @@", "@@ -, +, @@", "@@ -999999999999999999999999 +1 @@"] {
+      let lines = NativeUnifiedDiffLine.parse(header + "\n context")
+      XCTAssertEqual(lines.count, 2)
+      XCTAssertNil(lines.last?.oldLineNumber)
+      XCTAssertNil(lines.last?.newLineNumber)
+    }
+    let mixed = NativeUnifiedDiffLine.parse("@@ -1 +1 @@\n a\n@@ - + @@\n b")
+    XCTAssertEqual(mixed[1].newLineNumber, 1)
+    XCTAssertNil(mixed.last?.oldLineNumber)
+    XCTAssertNil(mixed.last?.newLineNumber)
+    XCTAssertNil(mixed.last?.annotationTarget)
+  }
+
   func testCatalogPreservesCanonicalImagesOutsideItsAdditionalMediaPaths() throws {
     let presentation = try XCTUnwrap(catalog().itemTypes["tool_call"])
     let reference: RichJSON = .object(["__poracodeImageRef": .object([
@@ -392,6 +510,14 @@ import SwiftUI
 private actor HeadingGateway: RichChatHistoryGateway {
   private var calls: [[RichRuntimeItemHeadingRequest]] = []
   private var pending: [Int: CheckedContinuation<[RichRuntimeItemHeadingRecord], Error>] = [:]
+  private var detailCalls: [String] = []
+  private var pendingDetails: [Int: CheckedContinuation<PersistedRuntimeItem, Error>] = [:]
+  func detailCount() -> Int { detailCalls.count }
+  func completeDetail(_ index: Int, item: PersistedRuntimeItem) { pendingDetails.removeValue(forKey: index)?.resume(returning: item) }
+  func loadRichHistoryItem(target: RichChatThreadTarget, itemID: String) async throws -> PersistedRuntimeItem {
+    let index = detailCalls.count; detailCalls.append(itemID)
+    return try await withCheckedThrowingContinuation { pendingDetails[index] = $0 }
+  }
   func count() -> Int { calls.count }
   func batch(_ index: Int) -> [RichRuntimeItemHeadingRequest] { calls[index] }
   func complete(_ index: Int, records: [RichRuntimeItemHeadingRecord]) { pending.removeValue(forKey: index)?.resume(returning: records) }

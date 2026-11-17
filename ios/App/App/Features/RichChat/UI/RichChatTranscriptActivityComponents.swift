@@ -93,10 +93,15 @@ struct RichChatActivityRow: View {
   let duration: String?
   let isWorking: Bool
   var disclosureID: String? = nil
+  var expandedBinding: Binding<Bool>? = nil
+  var detailsAvailable = false
+  var accessibilityID: String? = nil
 
   @State private var localExpanded = false
   @Environment(\.transcriptDisclosures) private var disclosures
-  private var expansion: Binding<Bool> { TranscriptDisclosureContext.binding(disclosures, id: disclosureID, fallback: $localExpanded) }
+  private var expansion: Binding<Bool> {
+    expandedBinding ?? TranscriptDisclosureContext.binding(disclosures, id: disclosureID, fallback: $localExpanded)
+  }
   private var expanded: Bool { expansion.wrappedValue }
 
   var body: some View {
@@ -122,17 +127,21 @@ struct RichChatActivityRow: View {
               .controlSize(.mini)
               .tint(.secondary)
           }
-          if !text.isEmpty {
+          if detailsAvailable || !text.isEmpty {
             Image(systemName: "chevron.down")
               .font(.system(size: 9, weight: .semibold))
               .foregroundStyle(.tertiary)
               .rotationEffect(.degrees(expanded ? 180 : 0))
+              .accessibilityHidden(true)
           }
         }
         .poracodeChatText(.metadata)
         .richChatActivityHeaderLayout()
       }
       .buttonStyle(.plain)
+      .accessibilityIdentifier(accessibilityID ?? "native-e2e.activity-row")
+      .accessibilityValue(detailsAvailable || !text.isEmpty
+        ? (expanded ? ToolPresentationStrings.expanded : ToolPresentationStrings.collapsed) : "")
 
       if expanded && !text.isEmpty {
         Text(RichChatAttributedText.presentation(text))
@@ -150,7 +159,7 @@ struct RichChatActivityRow: View {
   }
 
   private func toggleExpanded() {
-    guard !text.isEmpty else { return }
+    guard detailsAvailable || !text.isEmpty else { return }
     withAnimation(.snappy(duration: 0.22)) { expansion.wrappedValue = !expanded }
   }
 }

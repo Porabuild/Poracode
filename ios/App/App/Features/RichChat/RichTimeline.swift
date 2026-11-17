@@ -257,7 +257,12 @@ enum RichTimeline {
   static func epochMilliseconds(_ text: String) -> Int64? {
     let parser = ISO8601DateFormatter()
     parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    guard let date = parser.date(from: text) else { return nil }
+    var date = parser.date(from: text)
+    if date == nil {
+      parser.formatOptions = [.withInternetDateTime]
+      date = parser.date(from: text)
+    }
+    guard let date else { return nil }
     return Int64((date.timeIntervalSince1970 * 1_000).rounded())
   }
 }

@@ -83,10 +83,11 @@ final class NativeRecentHistoryTests: XCTestCase {
     host.heldPaths = ["/api/threads/t1/history"]
     let task = Task { try await client.interactiveThreadHistory(threadId: "t1", targetTimelineEntryCount: 20) }
     let deadline = ContinuousClock.now.advanced(by: .seconds(2))
-    while host.requestCount("/api/threads/t1/history") == 0, ContinuousClock.now < deadline {
+    while host.heldResponseCount == 0, ContinuousClock.now < deadline {
       try await Task.sleep(for: .milliseconds(5))
     }
     XCTAssertEqual(host.requestCount("/api/threads/t1/history"), 1)
+    XCTAssertEqual(host.heldResponseCount, 1)
     await client.setAccessToken("replacement-grant")
     host.releaseWalks()
     do { _ = try await task.value; XCTFail("The retired grant's response must not reach a new authorization") }
@@ -231,6 +232,102 @@ final class NativeRecentHistoryTests: XCTestCase {
     }
   }
 
+  func testOnlyInteractiveHistoryAndOlderPagesRequestCompactDetails() async throws {
+    let client = try await makeClient()
+    let api = GeneratedRichChatRemoteAPI(json: client)
+    _ = try await api.richHistory(threadID: "t1", targetEntryCount: 20)
+    let initial = try XCTUnwrap(host.requests(matching: "/api/threads/t1/history").last)
+    XCTAssertEqual(initial.query["projection"], "details-v1")
+    XCTAssertEqual(initial.query["deferBodies"], "file_change")
+    _ = try await api.richHistoryPage(threadID: "t1", beforePosition: 41, limit: 20, targetEntryCount: 20)
+    let older = try XCTUnwrap(host.requests(matching: "/api/threads/t1/history/items").last)
+    XCTAssertEqual(older.query["projection"], "details-v1")
+    XCTAssertEqual(older.query["deferBodies"], "file_change")
+    _ = try await client.boundedThreadHistory(threadId: "t1")
+    XCTAssertNil(host.requests(matching: "/api/threads/t1/history").last?.query["projection"])
+    _ = try await client.boundedHistoryItems(threadId: "t1")
+    XCTAssertNil(host.requests(matching: "/api/threads/t1/history/items").last?.query["projection"])
+  }
+
+  func testDeferredFlagSurvivesValidatedDiskCacheAndOldFullTailsRemainReadable() async throws {
+    host.toolType = "command_execution"; host.ignoresProjection = true
+    let client = try await makeClient()
+    let complete = try await read(client)
+    XCTAssertNil(complete.runtimeItems.first?.detailsDeferred)
+    XCTAssertEqual(complete.runtimeItems.first?.streams["command_output"], host.toolOutput)
+    await cache.flushPendingWrites()
+    // Same v1 disk format from before deferred-body support remains valid.
+    let oldCache = NativeRecentHistoryCache(directory: directory)
+    let oldClient = try await makeClient(historyCache: oldCache)
+    let oldRestored = try await read(oldClient)
+    XCTAssertEqual(oldRestored.runtimeItems, complete.runtimeItems)
+    host.ignoresProjection = false
+    let compact = try await read(oldClient)
+    XCTAssertEqual(compact.runtimeItems.first?.detailsDeferred, true)
+    XCTAssertTrue(compact.runtimeItems.first?.streams.isEmpty == true)
+    XCTAssertNotEqual(compact.historyCache?["revision"], complete.historyCache?["revision"])
+    await oldCache.flushPendingWrites()
+    let restarted = NativeRecentHistoryCache(directory: directory)
+    let restored = try await read(makeClient(historyCache: restarted))
+    XCTAssertEqual(restored.runtimeItems, compact.runtimeItems)
+    XCTAssertEqual(try RichChatRemoteModelBridge.item(XCTUnwrap(restored.runtimeItems.first)).detailsDeferred, true)
+    var invalid = try XCTUnwrap(NativeRecentHistoryTail(snapshot: compact))
+    invalid.runtimeItems[0].detailsDeferred = false
+    XCTAssertFalse(invalid.isValid)
+    await restarted.flushPendingWrites()
+    host.declared = false; host.ignoresProjection = true
+    let legacy = try await read(makeClient(token: "legacy-tool-grant"))
+    XCTAssertNil(legacy.runtimeItems.first?.detailsDeferred)
+    XCTAssertEqual(legacy.runtimeItems.first?.streams["command_output"], host.toolOutput)
+    XCTAssertEqual(host.requestCount("/api/threads/t1/history/items/deferred"), 0)
+  }
+
+  func testItemDetailReturnsTheCompleteCanonicalBodyAndRejectsMalformedOrWrongItems() async throws {
+    host.toolType = "command_execution"
+    let client = try await makeClient()
+    let compact = try await read(client)
+    XCTAssertEqual(compact.runtimeItems.first?.detailsDeferred, true)
+    XCTAssertEqual(host.requestCount("/api/threads/t1/history/items/deferred"), 0)
+    let complete = try await client.threadHistoryItem(threadID: "t1", itemID: "deferred")
+    XCTAssertNil(complete.detailsDeferred)
+    XCTAssertEqual(complete.streams["command_output"], host.toolOutput)
+    let request = try XCTUnwrap(host.requests(matching: "/api/threads/t1/history/items/deferred").last)
+    XCTAssertEqual(request.query["notices"], "v1")
+    XCTAssertEqual(request.query["maxBytes"], String(RemoteBoundedReads.defaultMaxWireBytes))
+    host.detailOverride = ["id": "wrong", "type": "command_execution", "state": "completed", "streams": [:]]
+    do { _ = try await client.threadHistoryItem(threadID: "t1", itemID: "deferred"); XCTFail("Wrong identity must fail") }
+    catch let error as RemoteClientError { XCTAssertEqual(error.code, "invalid_response") }
+    host.detailOverride = ["id": "deferred", "type": "command_execution", "state": "completed", "streams": ["command_output": 7]]
+    do { _ = try await client.threadHistoryItem(threadID: "t1", itemID: "deferred"); XCTFail("Malformed canonical detail must fail") }
+    catch let error as RemoteClientError { XCTAssertEqual(error.code, "invalid_response") }
+    XCTAssertThrowsError(try GeneratedRemoteV3Contract.historyItemRequest(threadID: "", itemID: "deferred"))
+    let escaped = try GeneratedRemoteV3Contract.historyItemRequest(threadID: "t/one", itemID: "a?b")
+    XCTAssertTrue(escaped.path.contains("t%2Fone")); XCTAssertTrue(escaped.path.hasSuffix("a%3Fb"))
+  }
+
+  func testItemDetailRetiresResponsesAfterChildOrParentGrantRotation() async throws {
+    host.toolType = "command_execution"
+    let client = try await makeClient()
+    host.heldPaths = ["/api/threads/t1/history/items/deferred"]
+    let task = Task { try await client.threadHistoryItem(threadID: "t1", itemID: "deferred") }
+    let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+    while host.heldResponseCount == 0, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(5))
+    }
+    XCTAssertEqual(host.requestCount("/api/threads/t1/history/items/deferred"), 1)
+    XCTAssertEqual(host.heldResponseCount, 1)
+    await client.setAccessToken("replacement"); host.releaseWalks(); host.heldPaths.removeAll()
+    do { _ = try await task.value; XCTFail("A retired child grant cannot publish a detail") }
+    catch is CancellationError { }
+    let parent = AdmissionRotatingParentGrant()
+    let environment = RemoteEnvironmentContext(environmentId: "environment-a", expectedChildDesktopId: nil,
+      parentAuthorizationToken: { await parent.token() }, mintParentWebSocketTicket: { "unused" })
+    do {
+      _ = try await makeClient(environment: environment).threadHistoryItem(threadID: "t1", itemID: "deferred")
+      XCTFail("A retired parent grant cannot publish a detail")
+    } catch is CancellationError { }
+  }
+
   func testValidatedOpenReducesWireBytesWithoutPaintingAnUnvalidatedCandidate() async throws {
     host.message = String(repeating: "Controlled recent transcript. ", count: 10_000)
     var coldTimes: [Double] = [], warmTimes: [Double] = []
@@ -293,11 +390,22 @@ private final class ValidatedHistoryHost: BoundedCatalogHostFixture, @unchecked 
   var revision = "hc1.original", message = "Original reply", title = "Original title", status = "idle"
   var sequence = 10, forceUnchanged = false
   var refusals = 0, refusalStatus = 503, refusalCode = "persistence_busy"
+  var toolType: String?, ignoresProjection = false
+  var detailOverride: [String: Any]?
+  let toolOutput = "Complete command output.\n" + String(repeating: "native history content\n", count: 10_000) + "END OF COMPLETE OUTPUT"
+  private var completeTool: [String: Any] {
+    ["id": "deferred", "type": toolType ?? "command_execution", "state": "completed",
+      "payload": ["command": "node review-layout.js"], "streams": ["command_output": toolOutput]]
+  }
   private let byteLock = NSLock()
   private var byteCounts: [Int] = []
   var responseByteCounts: [Int] { byteLock.lock(); defer { byteLock.unlock() }; return byteCounts }
 
   override func respond(to request: BoundedCatalogURLProtocol.Request) -> Response {
+    if request.path == "/api/threads/t1/history/items/deferred",
+      let encoded = try? JSONSerialization.data(withJSONObject: ["item": detailOverride ?? completeTool]) {
+      return Response(status: 200, body: encoded)
+    }
     if request.path == "/api/threads/t1/history", refusals > 0 {
       refusals -= 1
       let body: [String: Any] = ["error": ["code": refusalCode, "message": "Controlled history refusal"]]
@@ -308,15 +416,23 @@ private final class ValidatedHistoryHost: BoundedCatalogHostFixture, @unchecked 
       var body = (try? JSONSerialization.jsonObject(with: response.body)) as? [String: Any],
       var thread = body["thread"] as? [String: Any] else { return response }
     let acceptsCache = declared && request.query["historyCache"] == "v1"
-    let unchanged = acceptsCache && (forceUnchanged || request.query["historyRevision"] == revision)
+    let compact = toolType != nil && !ignoresProjection && request.query["projection"] == "details-v1"
+    let wireRevision = compact ? revision + ".compact" : revision
+    let unchanged = acceptsCache && (forceUnchanged || request.query["historyRevision"] == wireRevision)
     thread["title"] = title; thread["status"] = status; body["thread"] = thread
     body["snapshotSeq"] = sequence; body["followUpQueue"] = NSNull(); body["backgroundTasks"] = []
     body["runtimeItems"] = unchanged ? [] : [["id": "reply", "type": "assistant_message", "state": "completed", "payload": ["text": message], "streams": [:]]]
+    if toolType != nil, !unchanged {
+      var tool = completeTool
+      if compact { tool["streams"] = [String: String](); tool["detailsDeferred"] = true }
+      body["runtimeItems"] = [tool]
+    }
+    if compact { body["historyProjection"] = "details-v1" }
     body["completedTurns"] = unchanged ? [] : [["startedAt": "2026-11-17T00:00:00Z", "endedAt": "2026-11-17T00:00:02Z", "anchorItemId": "reply"]]
     body["runtimeNextCursor"] = unchanged ? NSNull() : 41
     body["completedTurnsNextCursor"] = unchanged ? NSNull() : "ct1.eyJpIjozMX0"
     body["contextUsage"] = unchanged ? NSNull() : ["usedTokens": 25, "maxTokens": 100]
-    if acceptsCache { body["historyCache"] = ["revision": revision, "unchanged": unchanged] }
+    if acceptsCache { body["historyCache"] = ["revision": wireRevision, "unchanged": unchanged] }
     guard let encoded = try? JSONSerialization.data(withJSONObject: body) else { return response }
     byteLock.lock(); byteCounts.append(encoded.count); byteLock.unlock()
     return Response(status: 200, body: encoded)

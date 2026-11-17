@@ -433,6 +433,8 @@ struct PersistedRuntimeItem: Codable, Sendable, Identifiable, Hashable {
     var payload: JSONValue?
     var streams: [String: String]
     var parentItemId: String?
+    /// Only opt-in history projections omit bodies; live events stay complete.
+    var detailsDeferred: Bool? = nil
 
     /// Best-effort text for transcript rows (canonical streams + payload content blocks).
     var displayText: String {

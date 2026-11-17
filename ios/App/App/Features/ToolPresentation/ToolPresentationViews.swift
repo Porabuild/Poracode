@@ -16,17 +16,42 @@ struct RichToolActivityItemView: View {
   let fallbackText: String
   let mediaController: RichChatMediaController
   @Environment(\.toolPresentationCatalog) private var catalog
+  @Environment(\.transcriptDisclosures) private var disclosures
+  @State private var localExpanded = false
+  private var expansion: Binding<Bool> {
+    TranscriptDisclosureContext.binding(disclosures, id: "item:\(item.id)", fallback: $localExpanded)
+  }
   var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      if let presentation = catalog?.itemTypes[item.type] {
-        RichChatPresentedTool(item: item, presentation: presentation, mediaController: mediaController)
-      } else {
-        RichChatActivityRow(title: RichChatPresentation.typeLabel(for: item), text: fallbackText,
-          icon: .init(category: RichChatActivityGroupSummary.category(for: item)), duration: nil,
-          isWorking: item.state != .completed, disclosureID: "item:\(item.id)")
+    RichDeferredHistoryItemRead(item: item, expanded: expansion.wrappedValue) { displayed in
+      VStack(alignment: .leading, spacing: 4) {
+        if let presentation = catalog?.itemTypes[item.type] {
+          RichChatPresentedTool(item: displayed, presentation: presentation, mediaController: mediaController,
+            expansion: expansion)
+        } else {
+          RichChatActivityRow(title: RichChatPresentation.typeLabel(for: item),
+            text: item.detailsDeferred ? "" : fallbackText,
+            icon: .init(category: RichChatActivityGroupSummary.category(for: item)), duration: nil,
+            isWorking: displayed.state != .completed, disclosureID: "item:\(item.id)",
+            expandedBinding: expansion, detailsAvailable: item.detailsDeferred,
+            accessibilityID: "native-e2e.tool-details.\(item.id)")
+          if expansion.wrappedValue, item.detailsDeferred, !displayed.detailsDeferred {
+            RichToolCodeBlock(text: Self.fullFallback(displayed),
+              identifier: "native-e2e.history-details.fallback.\(item.id)")
+              .padding(.leading, 16)
+          }
+        }
+        ForEach(RichChatVideoPresentation.videos(for: displayed)) { video in RichChatInlineVideo(video: video) }
       }
-      ForEach(RichChatVideoPresentation.videos(for: item)) { video in RichChatInlineVideo(video: video) }
     }
+  }
+
+  /// If the optional presentation catalog is unavailable, a deferred body
+  /// must still expose every returned field, not just its compact header.
+  private static func fullFallback(_ item: RichRuntimeItem) -> String {
+    guard !item.detailsDeferred else { return "" }
+    let value = RichJSON.object(["payload": item.payload ?? .null,
+      "streams": .object(item.streams.mapValues(RichJSON.string))])
+    return RichToolTextProjection.json(value)
   }
 }
 
@@ -34,8 +59,7 @@ struct RichChatPresentedTool: View {
   let item: RichRuntimeItem
   let presentation: RichToolPresentation
   let mediaController: RichChatMediaController
-  @State private var localExpanded = false
-  @Environment(\.transcriptDisclosures) private var disclosures
+  let expansion: Binding<Bool>
   @Environment(\.runtimeItemHeadings) private var headings
   @Environment(\.runtimeItemHeadingSnapshot) private var snapshot
   @Environment(\.workflowViewerContext) private var viewerContext
@@ -47,14 +71,11 @@ struct RichChatPresentedTool: View {
   private var failed: Bool {
     item.state == .completed && (heading?.failed == true || item.payload?.objectValue?["status"]?.stringValue == "error")
   }
-  private var expansion: Binding<Bool> {
-    TranscriptDisclosureContext.binding(disclosures, id: "item:\(item.id)", fallback: $localExpanded)
-  }
   private var expanded: Bool { expansion.wrappedValue }
 
   private var images: [RichImagePresentation] { RichToolMediaProjection.images(presentation, item: item) }
   private func detailsAvailable(for body: RichResolvedToolBody?) -> Bool {
-    if !images.isEmpty { return true }
+    if item.detailsDeferred || !images.isEmpty { return true }
     guard body?.replacesCanonicalSections == true else { return !presentation.sections.isEmpty }
     guard viewerContext?.owner != nil, viewerPresenter != nil else { return false }
     return WorkflowRunReference(metadata: item.payload?.objectValue?["workflow"]) != nil
@@ -153,6 +174,7 @@ private struct RichToolSectionView: View {
   let section: RichToolSection
   let part: RichToolTextPart
   let index: Int
+  @ScaledMetric(relativeTo: .caption) private var diffTextLineHeight: CGFloat = 15
 
   var body: some View {
     if !part.text.isEmpty {
@@ -164,8 +186,8 @@ private struct RichToolSectionView: View {
         if section.kind == .markdown && part.language == "plain" {
           RichChatMarkdownView(source: section.prefix + part.text)
         } else if part.language == "diff" {
-          ScrollView { NativeUnifiedDiffView(diff: part.text) }
-            .frame(maxHeight: 340)
+          let patch = NativeUnifiedDiffView(diff: part.text)
+          patch.frame(height: min(340, max(44, 16 + CGFloat(patch.lineCount) * (diffTextLineHeight + 6))))
             .accessibilityIdentifier("native-e2e.tool-section.\(item.id).\(index)")
         } else {
           RichToolCodeBlock(text: section.prefix + part.text,

@@ -5,6 +5,9 @@ import Foundation
 /// unknown future records are retained, never rewritten by an older app.
 actor NativeRecentHistoryCache {
   static let shared = NativeRecentHistoryCache()
+  // Optional deferred-body markers retain v1 compatibility: host revisions
+  // bind the projection, so an older full-history reader cannot validate a
+  // compact tail. Existing complete v1 records remain readable after upgrade.
   static let formatVersion = 1
   static let maximumTailBytes = 2 * 1_024 * 1_024
   static let maximumTotalBytes = 8 * maximumTailBytes

@@ -56,6 +56,7 @@ struct RichRuntimeItem: Sendable, Equatable, Identifiable {
   var payload: RichJSON?
   var streams: [String: String]
   let parentItemID: String?
+  var detailsDeferred = false
 }
 
 enum RichPayloadPatch: Sendable, Equatable {

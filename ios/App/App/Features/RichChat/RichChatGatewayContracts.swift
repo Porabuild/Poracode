@@ -41,6 +41,7 @@ enum RichChatGatewayError: Error, Equatable, Sendable {
 }
 
 protocol RichChatHistoryGateway: Sendable {
+  func loadRichHistoryItem(target: RichChatThreadTarget, itemID: String) async throws -> PersistedRuntimeItem
   func loadRichRuntimeToolBodies(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord]
   func loadRichRuntimeItemHeadings(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord]
   func loadRichHistory(
@@ -90,6 +91,9 @@ protocol RichChatHistoryGateway: Sendable {
 }
 
 extension RichChatHistoryGateway {
+  func loadRichHistoryItem(target _: RichChatThreadTarget, itemID _: String) async throws -> PersistedRuntimeItem {
+    throw RichChatGatewayError.unavailable
+  }
   func loadRichRuntimeToolBodies(target _: RichChatThreadTarget, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
     throw RichChatGatewayError.unavailable
   }

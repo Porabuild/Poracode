@@ -36,9 +36,10 @@ struct NativeUnifiedDiffLine: Identifiable, Equatable {
       .map { offset, rawLine in
         let text = String(rawLine)
         let kind = classify(text)
-        if kind == .hunk, let starts = hunkStarts(text) {
-          oldLine = starts.old
-          newLine = starts.new
+        if kind == .hunk {
+          let starts = hunkStarts(text)
+          oldLine = starts?.old
+          newLine = starts?.new
         }
 
         let line = NativeUnifiedDiffLine(
@@ -77,8 +78,9 @@ struct NativeUnifiedDiffLine: Identifiable, Equatable {
   }
 
   private static func start(from field: Substring, prefix: Character) -> Int64? {
-    guard field.first == prefix else { return nil }
-    return Int64(field.dropFirst().split(separator: ",", maxSplits: 1)[0])
+    guard field.first == prefix,
+      let number = field.dropFirst().split(separator: ",", maxSplits: 1).first else { return nil }
+    return Int64(number)
   }
 }
 
@@ -101,15 +103,29 @@ private struct NativeDiffAnnotationTarget: Identifiable {
 struct NativeUnifiedDiffView: View {
   @Environment(\.colorScheme) private var colorScheme
 
-  let diff: String
   var filePath: String? = nil
   var annotationContext: NativeDiffAnnotationContext? = nil
 
   @State private var annotationTarget: NativeDiffAnnotationTarget?
 
-  private var lines: [NativeUnifiedDiffLine] {
-    NativeUnifiedDiffLine.parse(diff)
+  private let lines: [NativeUnifiedDiffLine]
+  private let inferredFilePath: String?
+
+  init(diff: String, filePath: String? = nil, annotationContext: NativeDiffAnnotationContext? = nil) {
+    self.filePath = filePath
+    self.annotationContext = annotationContext
+    // Syntax lookup runs for every visible row. Keep the input projection
+    // immutable instead of reparsing the complete patch from each lookup.
+    let parsed = NativeUnifiedDiffLine.parse(diff)
+    lines = parsed
+    inferredFilePath = parsed.lazy.compactMap { line -> String? in
+      guard line.text.hasPrefix("+++ ") else { return nil }
+      let path = String(line.text.dropFirst(4))
+      return path.hasPrefix("b/") ? String(path.dropFirst(2)) : path
+    }.first
   }
+
+  var lineCount: Int { lines.count }
 
   private var syntaxLanguage: String? {
     NativeDiffSyntaxLanguage.resolve(path: filePath ?? inferredFilePath)
@@ -186,14 +202,6 @@ struct NativeUnifiedDiffView: View {
       staged: context.staged,
       enqueue: context.enqueue
     )
-  }
-
-  private var inferredFilePath: String? {
-    lines.lazy.compactMap { line -> String? in
-      guard line.text.hasPrefix("+++ ") else { return nil }
-      let path = String(line.text.dropFirst(4))
-      return path.hasPrefix("b/") ? String(path.dropFirst(2)) : path
-    }.first
   }
 
   private func highlightedText(_ line: NativeUnifiedDiffLine) -> Text {

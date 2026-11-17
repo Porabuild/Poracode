@@ -25,7 +25,8 @@ struct NativeRecentHistoryTail: Codable, Sendable, Equatable {
   var isValid: Bool {
     !revision.isEmpty && revision.utf16.count <= 160
       && runtimeItems.count <= 8_193
-      && runtimeItems.allSatisfy { !$0.id.isEmpty && !$0.type.isEmpty && ["started", "updated", "completed"].contains($0.state) }
+      && runtimeItems.allSatisfy { !$0.id.isEmpty && !$0.type.isEmpty && ["started", "updated", "completed"].contains($0.state)
+        && $0.detailsDeferred != false }
       && (runtimeNextCursor.map { $0 >= 0 } ?? true)
       && (completedTurnsNextCursor.map { RemoteBoundedCursorPayload.decodeCompletedTurnIndex($0) != nil } ?? true)
       && (historyProjection == nil || historyProjection == "details-v1")

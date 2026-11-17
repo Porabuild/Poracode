@@ -122,7 +122,8 @@ extension GeneratedRemoteV3Contract {
     notices: Bool,
     historyCache: Bool = false,
     historyRevision: String? = nil,
-    omitScrollback: Bool = false
+    omitScrollback: Bool = false,
+    compactDetails: Bool = false
   ) throws -> [URLQueryItem] {
     var object: [String: Any] = [
       "completedTurnsLimit": completedTurnsLimit,
@@ -138,11 +139,12 @@ extension GeneratedRemoteV3Contract {
     if historyCache { object["historyCache"] = "v1" }
     if let historyRevision { object["historyRevision"] = historyRevision }
     if omitScrollback { object["omitScrollback"] = true }
+    if compactDetails { object["projection"] = "details-v1"; object["deferBodies"] = "file_change" }
     return try queryItems(
       object, codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery,
       boundary: "bounded thread history query",
       order: [
-        "historyCache", "historyRevision", "notices", "reads", "runtimePage", "completedTurnsLimit", "targetTimelineEntryCount", "omitScrollback",
+        "historyCache", "historyRevision", "projection", "deferBodies", "notices", "reads", "runtimePage", "completedTurnsLimit", "targetTimelineEntryCount", "omitScrollback",
         "maxBytes", "maxDecodeBytes",
       ]
     )
@@ -154,7 +156,8 @@ extension GeneratedRemoteV3Contract {
     targetTimelineEntryCount: Int?,
     maxBytes: Int,
     maxDecodeBytes: Int,
-    notices: Bool
+    notices: Bool,
+    compactDetails: Bool = false
   ) throws -> [URLQueryItem] {
     var object: [String: Any] = [
       "limit": limit,
@@ -167,11 +170,12 @@ extension GeneratedRemoteV3Contract {
       object["targetTimelineEntryCount"] = targetTimelineEntryCount
     }
     if notices { object["notices"] = "v1" }
+    if compactDetails { object["projection"] = "details-v1"; object["deferBodies"] = "file_change" }
     return try queryItems(
       object, codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EQuery,
       boundary: "bounded history items query",
       order: [
-        "notices", "reads", "limit", "beforePosition", "targetTimelineEntryCount",
+        "projection", "deferBodies", "notices", "reads", "limit", "beforePosition", "targetTimelineEntryCount",
         "maxBytes", "maxDecodeBytes",
       ]
     )
@@ -220,6 +224,27 @@ extension GeneratedRemoteV3Contract {
   }
 
   // MARK: - Responses
+
+  static func historyItemRequest(threadID: String, itemID: String) throws -> (path: String, query: [URLQueryItem]) {
+    let canonical = try canonicalData(try jsonObjectData(["threadId": threadID, "itemId": itemID]),
+      codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemU2EPath, boundary: "history item path")
+    let object = try canonicalObject(canonical)
+    guard case .string(let thread)? = object["threadId"], case .string(let item)? = object["itemId"] else {
+      throw RemoteClientError.invalidResponse("Invalid history item identity.")
+    }
+    let query = try queryItems(["notices": "v1", "maxBytes": RemoteBoundedReads.defaultMaxWireBytes,
+      "maxDecodeBytes": RemoteBoundedReads.defaultMaxDecodeBytes],
+      codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemU2EQuery, boundary: "history item query",
+      order: ["notices", "maxBytes", "maxDecodeBytes"])
+    return ("/api/threads/\(RemoteAPIClient.encodePathSegment(thread))/history/items/\(RemoteAPIClient.encodePathSegment(item))", query)
+  }
+
+  static func historyItemResponse(_ data: Data) throws -> PersistedRuntimeItem {
+    struct Envelope: Decodable { let item: PersistedRuntimeItem }
+    let canonical = try canonicalData(data, codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemU2EResponse,
+      boundary: "history item response")
+    return try JSONDecoding.decode(Envelope.self, from: canonical).item
+  }
 
   static func boundedShellSnapshotResponse(_ data: Data) throws -> Data {
     try canonicalData(

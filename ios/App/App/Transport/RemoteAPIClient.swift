@@ -125,13 +125,13 @@ actor RemoteAPIClient: PushRemoteAPI {
         let cacheGeneration: UInt64?
     }
 
-    func beginRecentHistoryRead(threadID: String) async throws -> RecentHistoryReadContext {
+    func beginRecentHistoryRead(threadID: String, includeCandidate: Bool = true) async throws -> RecentHistoryReadContext {
         let epoch = recentHistoryEpoch
         let namespace = await recentHistoryNamespace()
         try Task.checkCancellation()
         guard epoch == recentHistoryEpoch else { throw CancellationError() }
         let candidate: NativeRecentHistoryCache.Candidate?
-        if let namespace { candidate = await recentHistoryCache.candidate(namespace: namespace, threadID: threadID) }
+        if includeCandidate, let namespace { candidate = await recentHistoryCache.candidate(namespace: namespace, threadID: threadID) }
         else { candidate = nil }
         try Task.checkCancellation()
         guard epoch == recentHistoryEpoch else { throw CancellationError() }

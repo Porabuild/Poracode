@@ -200,6 +200,11 @@ class BoundedCatalogHostFixture: @unchecked Sendable {
   var heldPaths: Set<String> = []
   private var heldResumers: [() -> Void] = []
 
+  var heldResponseCount: Int {
+    lock.lock(); defer { lock.unlock() }
+    return heldResumers.count
+  }
+
   func hold(_ resume: @escaping () -> Void) {
     lock.lock()
     heldResumers.append(resume)

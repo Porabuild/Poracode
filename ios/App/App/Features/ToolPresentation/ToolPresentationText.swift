@@ -86,7 +86,7 @@ enum RichToolTextProjection {
     }
   }
 
-  private static func json(_ value: RichJSON) -> String {
+  static func json(_ value: RichJSON) -> String {
     var text = ""
     appendJSON(value, level: 0, to: &text)
     return text

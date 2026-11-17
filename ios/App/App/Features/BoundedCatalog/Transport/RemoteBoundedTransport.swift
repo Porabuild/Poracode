@@ -231,7 +231,7 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
           maxBytes: RemoteBoundedReads.defaultMaxWireBytes,
           maxDecodeBytes: RemoteBoundedReads.defaultMaxDecodeBytes,
           historyCache: context.namespace != nil, historyRevision: context.candidate?.revision,
-          omitScrollback: terminalCursorSyncV2Advertised)
+          omitScrollback: terminalCursorSyncV2Advertised, compactDetails: true)
         break
       } catch {
         try Task.checkCancellation()
@@ -267,7 +267,8 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
 
   private func readBoundedThreadHistory(
     threadId: String, completedTurnsLimit: Int, targetTimelineEntryCount: Int?, maxBytes: Int, maxDecodeBytes: Int,
-    historyCache: Bool = false, historyRevision: String? = nil, omitScrollback: Bool = false
+    historyCache: Bool = false, historyRevision: String? = nil, omitScrollback: Bool = false,
+    compactDetails: Bool = false
   ) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryPage, RemoteThreadSnapshot> {
     let validatedThreadId = try GeneratedRemoteV3Contract.threadHistoryPath(threadId: threadId)
     let query = try GeneratedRemoteV3Contract.boundedThreadHistoryQuery(
@@ -276,7 +277,7 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
       maxBytes: maxBytes,
       maxDecodeBytes: maxDecodeBytes,
       notices: effectiveNoticesDeclaration,
-      historyCache: historyCache, historyRevision: historyRevision, omitScrollback: omitScrollback
+      historyCache: historyCache, historyRevision: historyRevision, omitScrollback: omitScrollback, compactDetails: compactDetails
     )
     let path = "/api/threads/\(Self.encodePathSegment(validatedThreadId))/history"
     let data = try await boundedRequestData(path: path, queryItems: query)
@@ -311,6 +312,27 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
     maxBytes: Int = RemoteBoundedReads.defaultMaxWireBytes,
     maxDecodeBytes: Int = RemoteBoundedReads.defaultMaxDecodeBytes
   ) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryItemsPage, RemoteRuntimeItemsPage> {
+    try await readBoundedHistoryItems(threadId: threadId, beforePosition: beforePosition, limit: limit,
+      targetTimelineEntryCount: targetTimelineEntryCount, maxBytes: maxBytes, maxDecodeBytes: maxDecodeBytes,
+      compactDetails: false)
+  }
+
+  func interactiveHistoryItems(threadId: String, beforePosition: Int?, limit: Int,
+    targetTimelineEntryCount: Int?) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryItemsPage, RemoteRuntimeItemsPage> {
+    try await readBoundedHistoryItems(threadId: threadId, beforePosition: beforePosition, limit: limit,
+      targetTimelineEntryCount: targetTimelineEntryCount, maxBytes: RemoteBoundedReads.defaultMaxWireBytes,
+      maxDecodeBytes: RemoteBoundedReads.defaultMaxDecodeBytes, compactDetails: true)
+  }
+
+  private func readBoundedHistoryItems(
+    threadId: String,
+    beforePosition: Int? = nil,
+    limit: Int = RemoteBoundedReads.defaultHistoryItemsLimit,
+    targetTimelineEntryCount: Int? = RemoteBoundedReads.defaultTargetTimelineEntryCount,
+    maxBytes: Int = RemoteBoundedReads.defaultMaxWireBytes,
+    maxDecodeBytes: Int = RemoteBoundedReads.defaultMaxDecodeBytes,
+    compactDetails: Bool = false
+  ) async throws -> RemoteBoundedReadOutcome<RemoteBoundedHistoryItemsPage, RemoteRuntimeItemsPage> {
     let validatedThreadId = try GeneratedRemoteV3Contract.historyItemsPath(threadId: threadId)
     let query = try GeneratedRemoteV3Contract.boundedHistoryItemsQuery(
       beforePosition: beforePosition,
@@ -318,7 +340,8 @@ extension RemoteAPIClient: SessionBoundedReadAPI {
       targetTimelineEntryCount: targetTimelineEntryCount,
       maxBytes: maxBytes,
       maxDecodeBytes: maxDecodeBytes,
-      notices: effectiveNoticesDeclaration
+      notices: effectiveNoticesDeclaration,
+      compactDetails: compactDetails
     )
     let path = "/api/threads/\(Self.encodePathSegment(validatedThreadId))/history/items"
     let data = try await boundedRequestData(path: path, queryItems: query)

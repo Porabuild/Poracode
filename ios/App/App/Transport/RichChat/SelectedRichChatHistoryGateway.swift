@@ -1,6 +1,11 @@
 import Foundation
 
 extension SelectedRichChatSessionGateway: RichChatHistoryGateway {
+  func loadRichHistoryItem(target: RichChatThreadTarget, itemID: String) async throws -> PersistedRuntimeItem {
+    try await executeRead(target: target, capability: .sessionRead) { api in
+      try await api.richHistoryItem(threadID: target.threadID, itemID: itemID)
+    }
+  }
   func loadRichRuntimeToolBodies(target: RichChatThreadTarget, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
     try await executeRead(target: target, capability: .sessionRead) { api in
       try await api.richRuntimeToolBodies(threadID: target.threadID, requests: requests)

@@ -1,6 +1,9 @@
 import Foundation
 
 extension RichChatRemoteAPI {
+  func richHistoryItem(threadID _: String, itemID _: String) async throws -> PersistedRuntimeItem {
+    throw RichChatTransportFailure.rawTransportUnavailable
+  }
   func richRuntimeToolBodies(threadID _: String, requests _: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord] {
     throw RichChatTransportFailure.rawTransportUnavailable
   }
@@ -21,6 +24,7 @@ extension RichChatRemoteAPI {
 }
 
 protocol RichChatRemoteAPI: Sendable {
+  func richHistoryItem(threadID: String, itemID: String) async throws -> PersistedRuntimeItem
   func richRuntimeToolBodies(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichResolvedToolBodyRecord]
   func richRuntimeItemHeadings(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord]
   func richControlMcpApp(payload: [String: RichJSON]) async throws -> RichJSON
@@ -123,6 +127,10 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
   private let json: RemoteAPIClient
   private let raw: (any RichChatRawHTTPExecuting)?
 
+  func richHistoryItem(threadID: String, itemID: String) async throws -> PersistedRuntimeItem {
+    try await json.threadHistoryItem(threadID: threadID, itemID: itemID)
+  }
+
   func richRuntimeItemHeadings(threadID: String, requests: [RichRuntimeItemHeadingRequest]) async throws -> [RichRuntimeItemHeadingRecord] {
     let data = try await runtimeItemPresentationData(threadID: threadID, requests: requests)
     return try GeneratedRemoteV3Contract.runtimeItemHeadingResponse(data, expectedVersion: requests.first?.version ?? 1)
@@ -181,7 +189,7 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
     limit: Int,
     targetEntryCount: Int?
   ) async throws -> RemoteRuntimeItemsPage {
-    let outcome = try await json.boundedHistoryItems(
+    let outcome = try await json.interactiveHistoryItems(
       threadId: threadID,
       beforePosition: beforePosition,
       limit: limit,
