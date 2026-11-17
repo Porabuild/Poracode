@@ -64,7 +64,7 @@ final class RichChatThreadPageState {
 
   func activate() async {
     guard let access = session.currentRichChatAccess else { return }
-    guard !isAuxiliary || access.lease.connectionID == owningConnectionID else {
+    guard access.lease.connectionID == owningConnectionID else {
       session.detachRichChatSuite(suite)
       return
     }
@@ -92,7 +92,8 @@ final class RichChatThreadPageState {
     }
     if access.controllerGate(.sessionRead) != nil, suite.transcript.state.transcript != nil { return }
     await suite.refreshAuthoritativeHistory()
-    if !Task.isCancelled, suite.scope.target == nil, let latestAccess = session.currentRichChatAccess {
+    if !Task.isCancelled, suite.scope.target == nil, let latestAccess = session.currentRichChatAccess,
+      latestAccess.lease.connectionID == owningConnectionID {
       suite.select(access: latestAccess, threadID: threadID)
       session.attachRichChatSuite(suite, auxiliary: isAuxiliary, owner: isAuxiliary ? presentationOwner : nil)
       await suite.refreshAuthoritativeHistory()
@@ -104,6 +105,7 @@ final class RichChatThreadPageState {
   }
 
   func refreshProviderUsage() async {
+    guard ownsSelection else { providerUsageController.activate(nil); return }
     let lease = session.currentSettingsHostSelection?.lease
     providerUsageController.activate(lease)
     guard lease != nil else { return }
@@ -117,7 +119,7 @@ final class RichChatThreadPageState {
   }
 
   func updateAccess() {
-    guard let access = session.currentRichChatAccess else {
+    guard ownsSelection, let access = session.currentRichChatAccess else {
       suite.deselect()
       return
     }
@@ -135,7 +137,7 @@ final class RichChatThreadPageState {
   }
 
   func handleScenePhase(_ phase: ScenePhase) {
-    guard let access = session.currentRichChatAccess else { return }
+    guard ownsSelection, let access = session.currentRichChatAccess else { return }
     if phase == .background {
       suite.enterBackground()
       Task { await suite.terminal.suspendTransport() }
@@ -163,7 +165,7 @@ final class RichChatThreadPageState {
   }
 
   var thread: RemoteThread? {
-    session.richChatThread(id: threadID)
+    ownsSelection ? session.richChatThread(id: threadID) : nil
   }
 
   var project: RemoteProject? {
@@ -177,7 +179,7 @@ final class RichChatThreadPageState {
   }
 
   var projectLocation: ProjectLocation? {
-    session.richChatProjectLocation(threadID: threadID)
+    ownsSelection ? session.richChatProjectLocation(threadID: threadID) : nil
   }
 
   var activeConfiguration: ThreadConfig {
@@ -236,13 +238,13 @@ final class RichChatThreadPageState {
   }
 
   var canOperate: Bool {
-    (!isAuxiliary || session.selectedConnectionId == owningConnectionID)
+    ownsSelection
       && hasOperateAccess && !suite.requiresAuthoritativeRefresh
       && suite.conversation.state.activeMutation != .unload
   }
 
   var canOperateTerminal: Bool {
-    session.currentRichChatAccess?.controllerGate(.terminalOperate) == nil
+    ownsSelection && session.currentRichChatAccess.map { $0.controllerGate(.terminalOperate) == nil } == true
   }
 
   var canCloseThread: Bool {
@@ -253,12 +255,16 @@ final class RichChatThreadPageState {
   }
 
   var canResolveRequests: Bool {
-    session.currentRichChatAccess?.controllerGate(.requestsResolve) == nil
+    ownsSelection && session.currentRichChatAccess.map { $0.controllerGate(.requestsResolve) == nil } == true
       && !suite.requiresAuthoritativeRefresh
   }
 
   private var hasOperateAccess: Bool {
-    session.currentRichChatAccess?.controllerGate(.sessionOperate) == nil
+    ownsSelection && session.currentRichChatAccess.map { $0.controllerGate(.sessionOperate) == nil } == true
+  }
+
+  private var ownsSelection: Bool {
+    owningConnectionID != nil && session.selectedConnectionId == owningConnectionID
   }
 
   private func activateGitInterest() {

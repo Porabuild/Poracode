@@ -216,6 +216,7 @@
 		A10000000000000000000010 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000010 /* HomeView.swift */; };
 		A10000000000000000000011 /* ProjectThreadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* ProjectThreadsView.swift */; };
 		A1000000000000000000011F /* HomeThreadListPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011F /* HomeThreadListPresentation.swift */; };
+		C6F5B1DF86C0488DBB0FF101 /* HomeNavigationSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F5B1DF86C0488DBB0FF102 /* HomeNavigationSelection.swift */; };
 		A10000000000000000000120 /* HomeThreadListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000120 /* HomeThreadListView.swift */; };
 		HL1000000000000000000001 /* HomeThreadListComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = HL2000000000000000000001 /* HomeThreadListComponents.swift */; };
 		A10000000000000000000121 /* HomeQuickComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000121 /* HomeQuickComposeView.swift */; };
@@ -273,6 +274,7 @@
 		A10000000000000000000025 /* SessionDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000025 /* SessionDependencies.swift */; };
 		A10000000000000000000026 /* SessionOperationOwner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000026 /* SessionOperationOwner.swift */; };
 		A10000000000000000000027 /* AppSessionCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000027 /* AppSessionCompositionTests.swift */; };
+		C6F5B1DF86C0488DBB0FF103 /* HomeNavigationSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6F5B1DF86C0488DBB0FF104 /* HomeNavigationSelectionTests.swift */; };
 		A10000000000000000000028 /* SessionCredentialRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000028 /* SessionCredentialRepository.swift */; };
 		A10000000000000000000029 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000029 /* SessionState.swift */; };
 		A1000000000000000000002A /* PairingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000002A /* PairingCoordinator.swift */; };
@@ -1187,6 +1189,7 @@
 		B10000000000000000000010 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		B10000000000000000000011 /* ProjectThreadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectThreadsView.swift; sourceTree = "<group>"; };
 		B1000000000000000000011F /* HomeThreadListPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeThreadListPresentation.swift; sourceTree = "<group>"; };
+		C6F5B1DF86C0488DBB0FF102 /* HomeNavigationSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeNavigationSelection.swift; sourceTree = "<group>"; };
 		B10000000000000000000120 /* HomeThreadListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeThreadListView.swift; sourceTree = "<group>"; };
 		HL2000000000000000000001 /* HomeThreadListComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components/HomeThreadListComponents.swift; sourceTree = "<group>"; };
 		B10000000000000000000121 /* HomeQuickComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/HomeQuickComposeView.swift; sourceTree = "<group>"; };
@@ -1246,6 +1249,7 @@
 		B10000000000000000000025 /* SessionDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDependencies.swift; sourceTree = "<group>"; };
 		B10000000000000000000026 /* SessionOperationOwner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionOperationOwner.swift; sourceTree = "<group>"; };
 		B10000000000000000000027 /* AppSessionCompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionCompositionTests.swift; sourceTree = "<group>"; };
+		C6F5B1DF86C0488DBB0FF104 /* HomeNavigationSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeNavigationSelectionTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000028 /* SessionCredentialRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCredentialRepository.swift; sourceTree = "<group>"; };
 		B10000000000000000000029 /* SessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionState.swift; sourceTree = "<group>"; };
 		B1000000000000000000002A /* PairingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingCoordinator.swift; sourceTree = "<group>"; };
@@ -2901,6 +2905,7 @@
 				AE1000000000000000001 /* HomeStrings.swift */,
 				AE1000000000000000002 /* HomeSheetDestination.swift */,
 				B1000000000000000000011F /* HomeThreadListPresentation.swift */,
+				C6F5B1DF86C0488DBB0FF102 /* HomeNavigationSelection.swift */,
 				B10000000000000000000120 /* HomeThreadListView.swift */,
 				HL2000000000000000000001 /* HomeThreadListComponents.swift */,
 				D42000000000000000000002 /* HomeThreadLifecycleCoordinator.swift */,
@@ -3091,6 +3096,7 @@
 				B10000000000000000000021 /* ResyncCoordinatorTests.swift */,
 				B10000000000000000000024 /* SessionCoordinatorsTests.swift */,
 				B10000000000000000000027 /* AppSessionCompositionTests.swift */,
+				C6F5B1DF86C0488DBB0FF104 /* HomeNavigationSelectionTests.swift */,
 				B1000000000000000000002F /* SessionCredentialRepositoryTests.swift */,
 				B1000000000000000000003D /* SessionPendingClearTests.swift */,
 				B10000000000000000000036 /* KeychainSavePolicyTests.swift */,
@@ -4051,6 +4057,7 @@
 				A10000000000000000000010 /* HomeView.swift in Sources */,
 				A10000000000000000000011 /* ProjectThreadsView.swift in Sources */,
 				A1000000000000000000011F /* HomeThreadListPresentation.swift in Sources */,
+				C6F5B1DF86C0488DBB0FF101 /* HomeNavigationSelection.swift in Sources */,
 				A10000000000000000000120 /* HomeThreadListView.swift in Sources */,
 				HL1000000000000000000001 /* HomeThreadListComponents.swift in Sources */,
 				D41000000000000000000002 /* HomeThreadLifecycleCoordinator.swift in Sources */,
@@ -4597,6 +4604,7 @@
 				A10000000000000000000021 /* ResyncCoordinatorTests.swift in Sources */,
 				A10000000000000000000024 /* SessionCoordinatorsTests.swift in Sources */,
 				A10000000000000000000027 /* AppSessionCompositionTests.swift in Sources */,
+				C6F5B1DF86C0488DBB0FF103 /* HomeNavigationSelectionTests.swift in Sources */,
 				A1000000000000000000002F /* SessionCredentialRepositoryTests.swift in Sources */,
 				A1000000000000000000003D /* SessionPendingClearTests.swift in Sources */,
 				A10000000000000000000036 /* KeychainSavePolicyTests.swift in Sources */,

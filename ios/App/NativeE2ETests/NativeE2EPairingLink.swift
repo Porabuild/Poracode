@@ -71,9 +71,11 @@ enum PairingLinkEntry {
       let paste = app.menuItems["Paste"]
       if paste.waitForExistence(timeout: 5) {
         paste.tap()
+      } else {
+        field.tap()
       }
-      // Dismiss the edit menu; `Connect` is unreachable behind it.
-      app.navigationBars.firstMatch.tap()
+      // Paste dismisses its edit menu. Tapping an arbitrary navigation bar
+      // here can hit the presenting Connections screen behind an add sheet.
     }
     let entered = fieldValue(field)
     guard entered == expected else {
@@ -82,6 +84,10 @@ enum PairingLinkEntry {
 
     let submit = app.buttons["native-e2e.pair.submit"]
     XCTAssertTrue(submit.waitForExistence(timeout: 5))
+    if !submit.isHittable {
+      let form = app.scrollViews.containing(.button, identifier: "native-e2e.pair.submit").firstMatch
+      for _ in 0..<3 where !submit.isHittable && form.exists { form.swipeUp() }
+    }
     XCTAssertTrue(submit.isHittable, "Connect must remain visible after entering a pairing link")
     submit.tap()
   }
@@ -94,7 +100,7 @@ enum PairingLinkEntry {
     in app: XCUIApplication,
     timeout: TimeInterval = 10
   ) -> XCUIElement {
-    let field = app.textFields["native-e2e.pairing-link"]
+    let field = linkField(in: app)
     if field.waitForExistence(timeout: timeout) { return field }
     let expander = app.buttons["native-e2e.pair.manual"]
     if expander.waitForExistence(timeout: 5) {
@@ -115,7 +121,7 @@ enum PairingLinkEntry {
     guard submit.exists else {
       return "the pairing screen is gone, but Home never appeared"
     }
-    let characters = fieldValue(app.textFields["native-e2e.pairing-link"]).count
+    let characters = fieldValue(linkField(in: app)).count
     return """
       still on the pairing screen with \(characters) character(s) in the link field and \
       Connect \(submit.isEnabled ? "enabled, so no pairing request was made" : "disabled, so a pairing is in flight")
@@ -134,6 +140,13 @@ enum PairingLinkEntry {
       field.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)).tap()
       field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: remaining.count))
     }
+  }
+
+  private static func linkField(in app: XCUIApplication) -> XCUIElement {
+    app.descendants(matching: .any).matching(NSPredicate(
+      format: "identifier == %@ AND (elementType == %d OR elementType == %d)",
+      "native-e2e.pairing-link", XCUIElement.ElementType.textField.rawValue, XCUIElement.ElementType.textView.rawValue
+    )).firstMatch
   }
 
   private static func fieldValue(_ field: XCUIElement) -> String {

@@ -35,6 +35,7 @@ struct RichChatThreadComposerSurface: View {
   var openSideChat: (() -> Void)?
   var sideQuestion: ((String) async -> Bool)?
   var crewContext: RichChatCrewComposerContext?
+  var isConnectingHost = false
 
   var body: some View {
     RichChatComposerView(
@@ -71,7 +72,8 @@ struct RichChatThreadComposerSurface: View {
       openSideChat: openSideChat,
       sideQuestion: sideQuestion,
       crewContext: crewContext,
-      controlsDestination: $state.composerControlDestination
+      controlsDestination: $state.composerControlDestination,
+      isConnectingHost: isConnectingHost
     )
   }
 

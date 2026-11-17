@@ -156,6 +156,7 @@ struct HomeSplitDetailEmptyView: View {
               .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("native-e2e.home-project.\(option.id)")
 
             Button {
               startTaskInProject(option)

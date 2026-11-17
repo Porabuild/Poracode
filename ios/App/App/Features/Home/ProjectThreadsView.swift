@@ -40,7 +40,10 @@ struct ProjectThreadsView: View {
 
   var body: some View {
     Group {
-      if threads.isEmpty {
+      if threads.isEmpty, session.phase == .connecting {
+        LoadingStateView(message: ProjectWorkspaceStrings.connecting)
+          .accessibilityIdentifier("native-e2e.project-connecting")
+      } else if threads.isEmpty {
         EmptyStateView(
           title: HomeStrings.emptyThreadsTitle,
           systemImage: "bubble.left.and.bubble.right",

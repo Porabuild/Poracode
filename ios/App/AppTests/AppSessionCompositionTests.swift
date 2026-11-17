@@ -77,6 +77,11 @@ final class FakeRemoteAPI: SessionRemoteAPI {
   }
 
   private(set) var environmentCalls = 0
+  private(set) var observedDesktopIDs: [String] = []
+
+  func observeEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) async {
+    observedDesktopIDs.append(descriptor.desktopId)
+  }
 
   func environment() async throws -> RemoteEnvironmentDescriptor {
     environmentCalls += 1

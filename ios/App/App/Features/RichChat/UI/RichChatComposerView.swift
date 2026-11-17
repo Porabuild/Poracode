@@ -44,6 +44,7 @@ struct RichChatComposerView: View {
   var sideQuestion: ((String) async -> Bool)?
   var crewContext: RichChatCrewComposerContext?
   var controlsDestination: Binding<RichChatComposerControlsPresentation?>?
+  var isConnectingHost = false
 
   @State private var importing = false
   @State var transferringSideQuestion = false
@@ -73,7 +74,10 @@ struct RichChatComposerView: View {
         composerRow
       } else {
         PoracodeStatusBubble {
-          Label(RichChatStrings.readOnly, systemImage: "lock")
+          Label(
+            isConnectingHost ? HostStrings.statusConnecting : RichChatStrings.readOnly,
+            systemImage: isConnectingHost ? "network" : "lock"
+          )
             .font(.footnote)
             .foregroundStyle(.secondary)
         }

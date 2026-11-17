@@ -66,6 +66,7 @@ struct AddHostSheet: View {
           .controlSize(.large)
           .disabled(isSubmitting)
           .accessibilityLabel(HostStrings.addHostAccessibility)
+          .accessibilityIdentifier("native-e2e.pair.submit")
         }
         .padding(20)
         .poracodeReadableWidth(560)
@@ -103,6 +104,7 @@ struct AddHostSheet: View {
         .poracodeGlassBackground()
         .focused($focusedField, equals: .link)
         .accessibilityLabel(HostStrings.pairingLink)
+        .accessibilityIdentifier("native-e2e.pairing-link")
     }
   }
 

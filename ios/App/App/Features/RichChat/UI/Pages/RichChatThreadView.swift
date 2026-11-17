@@ -238,11 +238,16 @@ struct RichChatThreadView: View {
     ) {
       EmptyView()
     } transcript: {
-      RichTerminalView(
-        controller: suite.terminal,
-        terminalID: threadID,
-        canOperate: pageState.canOperateTerminal
-      )
+      if session.phase == .connecting {
+        LoadingStateView(message: ProjectWorkspaceStrings.connecting)
+          .accessibilityIdentifier("native-e2e.thread-connecting")
+      } else {
+        RichTerminalView(
+          controller: suite.terminal,
+          terminalID: threadID,
+          canOperate: pageState.canOperateTerminal
+        )
+      }
     } sidebar: {
       inspector
     } compactDock: {
@@ -280,7 +285,8 @@ struct RichChatThreadView: View {
       onInsertIntoComposer: pageState.insertIntoComposerDraft, resumeContext: composerResume,
       openSideChat: offersSideChat ? { openSideChat() } : nil,
       sideQuestion: offersSideChat ? { await openSideQuestion($0) } : nil,
-      crewContext: richCrewContext
+      crewContext: richCrewContext,
+      isConnectingHost: session.phase == .connecting
     )
   }
 
@@ -294,7 +300,8 @@ struct RichChatThreadView: View {
       canOperate: canOperate, retry: { Task { await suite.refreshAuthoritativeHistory() } },
       requestFork: forkRequest, forkBoundaryItemID: forkBoundaryID,
       fallbackCompletedTurn: RichChatTurnTiming.completedFallback(thread: thread),
-      askInSideChat: offersSideChat ? { addMessageToSideChat($0) } : nil
+      askInSideChat: offersSideChat ? { addMessageToSideChat($0) } : nil,
+      isConnectingHost: session.phase == .connecting
     )
   }
 

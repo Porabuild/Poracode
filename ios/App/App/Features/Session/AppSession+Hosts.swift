@@ -18,8 +18,29 @@ extension AppSession {
     }
 
     func switchHost(_ connectionId: ClientConnectionID) async {
-        guard connectionId != state.selectedConnectionId else { return }
+        await switchHost(connectionId, selectionInstalled: nil)
+    }
+
+    /// Navigation can present after durable identity, credentials and cached
+    /// metadata are installed. Awaiting this method still waits for connection
+    /// work, preserving the contract used by settings and notification routes.
+    func switchHost(
+        _ connectionId: ClientConnectionID,
+        selectionInstalled: (@MainActor (ClientConnectionID) -> Void)?
+    ) async {
+        let pending = state.pendingHostSelection
+        let supersedesOtherHost = pending.map {
+            $0.connectionID != connectionId && state.operationOwner.isCurrent($0.ownerEpoch)
+        } ?? false
+        if connectionId == state.selectedConnectionId, !supersedesOtherHost {
+            selectionInstalled?(connectionId)
+            return
+        }
         let began = state.operationOwner.begin(.switchHost)
+        state.pendingHostSelection = .init(connectionID: connectionId, ownerEpoch: began.epoch)
+        defer {
+            if state.pendingHostSelection?.ownerEpoch == began.epoch { state.pendingHostSelection = nil }
+        }
         do {
             let activated = try await deps.hostCatalog.activate(
                 id: began.operationId,
@@ -49,7 +70,8 @@ extension AppSession {
         await applyCatalogSelection(
             preferred: connectionId,
             generation: began.workGeneration,
-            ownerEpoch: began.epoch
+            ownerEpoch: began.epoch,
+            selectionInstalled: selectionInstalled
         )
     }
 
@@ -244,7 +266,12 @@ extension AppSession {
                   state.operationOwner.isCurrentOperation(began.operationId),
                   state.workGeneration == gen
             else { return }
-            let snapshot = try await deps.hostCatalog.snapshot()
+            let snapshot = try await deps.hostCatalog.presentationSnapshot()
+            guard state.operationOwner.isCurrentOperation(began.operationId),
+                  state.workGeneration == gen,
+                  state.selectedConnectionId == connectionId, state.api === api
+            else { return }
+            if let ownerEpoch, !state.operationOwner.isCurrent(ownerEpoch) { return }
             applyCatalogSnapshot(snapshot)
             if connectionId == state.selectedConnectionId,
                let updated = snapshot.document.host(id: connectionId)
@@ -318,48 +345,59 @@ extension AppSession {
     func applyCatalogSelection(
         preferred: ClientConnectionID,
         generation gen: Int,
-        ownerEpoch: Int
+        ownerEpoch: Int,
+        selectionInstalled: (@MainActor (ClientConnectionID) -> Void)? = nil
     ) async {
         guard state.operationOwner.isCurrent(ownerEpoch), state.workGeneration == gen else {
             return
         }
         let snapshot: HostCatalogSnapshot
         do {
-            snapshot = try await deps.hostCatalog.snapshot()
+            snapshot = try await deps.hostCatalog.presentationSnapshot()
         } catch {
             return
         }
         guard state.operationOwner.isCurrent(ownerEpoch), state.workGeneration == gen else {
             return
         }
+        // Publishing the new host while retaining the previous .ready phase
+        // would briefly authorize its new lease against the previous client.
+        state.phase = .connecting
         applyCatalogSnapshot(snapshot)
         guard let record = snapshot.document.host(id: preferred) ?? snapshot.selected else {
             return
         }
-        guard let token = try? await deps.hostCatalog.token(for: record.connectionId),
-              !token.isEmpty
+        let storedToken = try? await deps.hostCatalog.presentationToken(for: record.connectionId)
+        guard state.operationOwner.isCurrent(ownerEpoch), state.workGeneration == gen else {
+            return
+        }
+        guard let token = storedToken, !token.isEmpty
         else {
             state.phase = .localStoreInconsistent
             state.globalError =
                 "Stored host credentials are unreadable. Remove this desktop and pair again."
             return
         }
-        guard state.operationOwner.isCurrent(ownerEpoch), state.workGeneration == gen else {
-            return
-        }
         sessionPool.installCache(.host(record.connectionId))
         state.selectedConnectionId = record.connectionId
+        state.socketState = state.hostSocketStates[record.connectionId] ?? .idle
         state.profile = record.asProfile()
         state.accessToken = token
-        state.api = deps.makeAPI(record.httpBaseURL, token)
+        let api = deps.makeAPI(record.httpBaseURL, token)
+        state.api = api
+        selectionInstalled?(record.connectionId)
         // Same-authority preflight on the client the socket will use: a host
         // switch must declare capability-negotiated reads/upgrades on its
         // FIRST socket, exactly like a fresh pairing. A failed read leaves the
         // authority unknown (the Online descriptor reconciles).
         reconcileAttemptedSocketID = nil
-        if let descriptor = try? await state.api?.environment() {
+        if let descriptor = try? await api.environment() {
+            guard state.operationOwner.isCurrent(ownerEpoch), state.workGeneration == gen,
+                  state.selectedConnectionId == record.connectionId, state.api === api else { return }
             await noteEnvironmentCapabilities(descriptor)
         }
+        guard state.operationOwner.isCurrent(ownerEpoch), state.workGeneration == gen,
+              state.selectedConnectionId == record.connectionId, state.api === api else { return }
         state.bootstrapCompleted = true
         if state.liveLifecycle.isInBackground {
             state.phase = .connecting

@@ -498,13 +498,13 @@ final class AppSession {
         let notices = descriptor.advertisesRuntimeHistoryNotices
         await api.observeEnvironmentCapabilities(descriptor)
         await api.declareRuntimeHistoryNotices(notices)
+        guard state.selectedConnectionId == presentationOwner,
+              state.workGeneration == presentationGeneration, state.api === api else { return }
         state.runtimeHistoryNoticesDeclared = notices
         state.threadForksSupported = descriptor.capabilities?.threadForks?.versions.contains(1) == true
         state.conversationSnapshotsSupported = descriptor.advertisesConversationSnapshots
         state.catalogMutationsSupported = descriptor.capabilities?.catalogMutations?.versions.contains(1) == true
-        if state.selectedConnectionId == presentationOwner && state.workGeneration == presentationGeneration {
-            state.toolPresentationCatalog = RichToolPresentationCatalog(descriptor.toolPresentation)
-        }
+        state.toolPresentationCatalog = RichToolPresentationCatalog(descriptor.toolPresentation)
     }
 
     /// Declares the bounded catalog-change signal intent from the current

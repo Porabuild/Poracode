@@ -18,6 +18,7 @@ struct RichChatTranscriptSurface: View {
   var forkBoundaryItemID: String? = nil
   var fallbackCompletedTurn: RichCompletedTurn? = nil
   var askInSideChat: ((String) -> Void)? = nil
+  var isConnectingHost = false
 
   var body: some View {
     VStack(spacing: 0) {
@@ -37,38 +38,43 @@ struct RichChatTranscriptSurface: View {
 
   @ViewBuilder
   private var content: some View {
-    switch controller.state.loadState {
-    case .idle, .loading:
-      LoadingStateView(message: RichChatStrings.loadingTranscript)
-    case .empty:
-      ContentUnavailableView {
-        Label(RichChatStrings.emptyTranscript, systemImage: "text.bubble")
-      } description: {
-        Text(RichChatStrings.emptyTranscriptMessage)
+    if isConnectingHost {
+      LoadingStateView(message: ProjectWorkspaceStrings.connecting)
+        .accessibilityIdentifier("native-e2e.thread-connecting")
+    } else {
+      switch controller.state.loadState {
+      case .idle, .loading:
+        LoadingStateView(message: RichChatStrings.loadingTranscript)
+      case .empty:
+        ContentUnavailableView {
+          Label(RichChatStrings.emptyTranscript, systemImage: "text.bubble")
+        } description: {
+          Text(RichChatStrings.emptyTranscriptMessage)
+        }
+      case .failed(let failure):
+        ErrorStateView(
+          message: RichChatStrings.failure(failure),
+          retryTitle: RichChatStrings.retry,
+          retry: retry
+        )
+      case .loaded:
+        RichChatTimelineView(
+          controller: controller,
+          mediaController: mediaController,
+          conversation: conversation,
+          checkpointController: checkpointController,
+          projectLocation: projectLocation,
+          config: config,
+          sharedTreeThreadCount: sharedTreeThreadCount,
+          allowsCheckpointRevert: allowsCheckpointRevert,
+          canOperate: canOperate,
+          isRefreshing: false,
+          requestFork: requestFork,
+          forkBoundaryItemID: forkBoundaryItemID,
+          fallbackCompletedTurn: fallbackCompletedTurn,
+          askInSideChat: askInSideChat
+        )
       }
-    case .failed(let failure):
-      ErrorStateView(
-        message: RichChatStrings.failure(failure),
-        retryTitle: RichChatStrings.retry,
-        retry: retry
-      )
-    case .loaded:
-      RichChatTimelineView(
-        controller: controller,
-        mediaController: mediaController,
-        conversation: conversation,
-        checkpointController: checkpointController,
-        projectLocation: projectLocation,
-        config: config,
-        sharedTreeThreadCount: sharedTreeThreadCount,
-        allowsCheckpointRevert: allowsCheckpointRevert,
-        canOperate: canOperate,
-        isRefreshing: false,
-        requestFork: requestFork,
-        forkBoundaryItemID: forkBoundaryItemID,
-        fallbackCompletedTurn: fallbackCompletedTurn,
-        askInSideChat: askInSideChat
-      )
     }
   }
 }

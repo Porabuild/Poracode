@@ -139,6 +139,7 @@ struct HostSwitcherView: View {
                 Label(HostStrings.addHost, systemImage: "plus")
             }
             .accessibilityLabel(HostStrings.addHostAccessibility)
+            .accessibilityIdentifier("native-e2e.connections.add")
         }
     }
 

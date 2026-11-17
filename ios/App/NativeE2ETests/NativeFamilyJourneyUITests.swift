@@ -114,6 +114,129 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     try await waitForJournal(hostID: "primary", operationID: "route:thread-steer-set", count: 1)
   }
 
+  func testCrossHostNavigationPresentsBeforeHandshakeAndIgnoresLateHostResponses() async throws {
+    try XCTSkipUnless(ProcessInfo.processInfo.environment["NATIVE_E2E_HOST_NAVIGATION"] == "1",
+      "This journey requires the two-host delayed-handshake QA peer.")
+    XCUIDevice.shared.orientation = UIDevice.current.userInterfaceIdiom == .pad ? .landscapeLeft : .portrait
+    _ = try await control(path: "/v1/reset", method: "POST")
+    _ = try await control(path: "/v1/scenario/actions", method: "POST", body: ["type": "seed-multihost-collision"])
+    try await pairUntilHome()
+    if !homeMoreButton.isHittable, app.buttons["native-e2e.sidebar-toggle"].exists {
+      app.buttons["native-e2e.sidebar-toggle"].tap()
+    }
+    homeMoreButton.tap()
+    app.buttons["native-e2e.more.connections"].tap()
+    let addConnection = app.buttons["native-e2e.connections.add"]
+    XCTAssertTrue(addConnection.waitForExistence(timeout: 10)); addConnection.tap()
+    let secondary = try await pairingURL(hostID: "collision-b")
+    try PairingLinkEntry.enter(secondary, into: app)
+    try await poll { !self.app.buttons["native-e2e.pair.submit"].exists }
+    let back = app.navigationBars["Connections"].buttons["More"]
+    if back.exists { back.tap() }
+    let done = app.buttons["native-e2e.more.close"]
+    XCTAssertTrue(done.waitForExistence(timeout: 10)); done.tap()
+    if UIDevice.current.userInterfaceIdiom == .pad {
+      let project = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@",
+        "native-e2e.home-project.", "Empty Navigation Project A")).firstMatch
+      XCTAssertTrue(project.waitForExistence(timeout: 10))
+      _ = try await control(path: "/v1/navigation/hold-a", method: "POST")
+      project.tap()
+      let pendingProject = app.descendants(matching: .any).matching(identifier: "native-e2e.project-connecting").firstMatch
+      XCTAssertTrue(pendingProject.waitForExistence(timeout: 5))
+      XCTAssertFalse(app.staticTexts["No conversations yet"].exists)
+      let proof = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+      proof.name = "host-project-before-handshake"; proof.lifetime = .keepAlways; add(proof)
+      _ = try await control(path: "/v1/navigation/release-a", method: "POST")
+      XCTAssertTrue(app.staticTexts["No conversations yet"].waitForExistence(timeout: 15))
+    }
+    let current = navigationHostThread(label: "Native E2E Collision Host B")
+    revealNavigationThread(current)
+    XCTAssertTrue(current.waitForExistence(timeout: 10)); current.tap()
+    XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 15))
+    let baseline = try await control(path: "/v1/navigation/state")
+    _ = try await control(path: "/v1/navigation/hold-a", method: "POST")
+    let a = navigationHostThread(label: "Navigation Host A")
+    revealNavigationThread(a)
+    XCTAssertTrue(a.waitForExistence(timeout: 10)); a.tap()
+    let connecting = app.descendants(matching: .any).matching(identifier: "native-e2e.thread-connecting").firstMatch
+    XCTAssertTrue(connecting.waitForExistence(timeout: 5), "The destination must appear while its environment response is held")
+    let title = app.buttons["native-e2e.thread-status"].firstMatch
+    XCTAssertTrue(title.label.contains("Navigation Host A"))
+    XCTAssertFalse(app.staticTexts["Fixture response"].exists)
+    XCTAssertFalse(app.staticTexts["This session is read-only."].exists)
+    let held = try await control(path: "/v1/navigation/state")
+    XCTAssertGreaterThan(held["heldEnvironmentCount"] as? Int ?? 0, 0)
+    XCTAssertEqual(held["aHistoryReads"] as? Int, baseline["aHistoryReads"] as? Int)
+    // Requests queued for B before the host changed may still finish. Once
+    // A is installed, repeated navigation must not read from either host
+    // until A's handshake authorizes its history reads.
+    revealNavigationThread(a)
+    a.tap()
+    XCTAssertTrue(connecting.waitForExistence(timeout: 5))
+    let repeated = try await control(path: "/v1/navigation/state")
+    XCTAssertEqual(repeated["aHistoryReads"] as? Int, held["aHistoryReads"] as? Int)
+    XCTAssertEqual(repeated["bHistoryReads"] as? Int, held["bHistoryReads"] as? Int)
+    let early = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    early.name = "host-navigation-before-handshake"; early.lifetime = .keepAlways; add(early)
+    let b = navigationHostThread(label: "Native E2E Collision Host B")
+    revealNavigationThread(b)
+    XCTAssertTrue(b.waitForExistence(timeout: 10)); b.tap()
+    XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 15))
+    _ = try await control(path: "/v1/navigation/release-a", method: "POST")
+    try await poll {
+      let state = try await self.control(path: "/v1/navigation/state")
+      return state["heldEnvironmentCount"] as? Int == 0
+        && (state["aEnvironmentResponses"] as? Int ?? 0) > (held["aEnvironmentResponses"] as? Int ?? 0)
+    }
+    XCTAssertTrue(title.label.contains("Native E2E Collision Host B"))
+    XCTAssertFalse(connecting.exists)
+    let final = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    final.name = "host-navigation-latest-selection"; final.lifetime = .keepAlways; add(final)
+    _ = try await control(path: "/v1/navigation/hold-a", method: "POST")
+    let terminal = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@",
+      "native-e2e.thread.", "Navigation terminal")).firstMatch
+    revealNavigationThread(terminal)
+    XCTAssertTrue(terminal.waitForExistence(timeout: 10)); terminal.tap()
+    XCTAssertTrue(connecting.waitForExistence(timeout: 5))
+    XCTAssertFalse(app.staticTexts["Disconnected"].exists)
+    let terminalProof = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    terminalProof.name = "host-terminal-before-handshake"; terminalProof.lifetime = .keepAlways; add(terminalProof)
+    _ = try await control(path: "/v1/navigation/release-a", method: "POST")
+    XCTAssertTrue(app.buttons["native-e2e.terminal.send"].waitForExistence(timeout: 15))
+    XCTAssertTrue(app.staticTexts["Connected"].waitForExistence(timeout: 10))
+    XCTAssertFalse(connecting.exists)
+    revealNavigationThread(b)
+    XCTAssertTrue(b.waitForExistence(timeout: 10)); b.tap()
+    XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 15))
+    _ = try await control(path: "/v1/navigation/hold-a", method: "POST")
+    revealNavigationThread(a)
+    XCTAssertTrue(a.waitForExistence(timeout: 10)); a.tap()
+    XCTAssertTrue(connecting.waitForExistence(timeout: 5))
+    _ = try await control(path: "/v1/navigation/release-a", method: "POST")
+    XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 15),
+      "A successful handshake must reload the early-presented GUI transcript")
+    XCTAssertTrue(title.label.contains("Navigation Host A"))
+    XCTAssertFalse(connecting.exists)
+    let ready = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+    ready.name = "host-navigation-connected-transcript"; ready.lifetime = .keepAlways; add(ready)
+  }
+
+  private func navigationHostThread(label: String) -> XCUIElement {
+    app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@ AND label CONTAINS %@",
+      "native-e2e.thread.", label, "Fixture thread")).firstMatch
+  }
+
+  private func revealNavigationThread(_ row: XCUIElement) {
+    if row.exists, row.isHittable { return }
+    let sidebar = app.buttons["native-e2e.sidebar-toggle"].firstMatch
+    if sidebar.exists, sidebar.isHittable {
+      sidebar.tap()
+    } else {
+      let back = app.navigationBars.buttons.element(boundBy: 0)
+      if back.exists, back.isHittable { back.tap() }
+    }
+  }
+
   func testImportSettingsListsAndImportsCLITranscriptWithoutStartingProvider() async throws {
     try XCTSkipIf(peerMode == .real, "This journey uses the WireLab's synthetic CLI session store.")
     _ = try await control(path: "/v1/reset", method: "POST")

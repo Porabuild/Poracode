@@ -23,7 +23,8 @@ struct HomeView: View {
   @State private var sheetReturnConnectionID: ClientConnectionID?
   @State private var isRestoringSheetHost = false
   @State private var sheetDestination: HomeSheetDestination?
-  @State private var openingThreadID: String?
+  @State private var navigationSelection = HomeNavigationSelection()
+  private var openingThreadID: String? { navigationSelection.openingID }
   @State private var selectedProjectIDs = Set<String>()
   @AppStorage(HomeWorkspacePreferences.storageKey) private var workspaceStorage = ""
   @SceneStorage(HomeWorkspacePreferences.selectionKey) private var storedWorkspaceID = ""
@@ -123,6 +124,7 @@ struct HomeView: View {
         }
         .onChange(of: path.count) { _, count in
           if !layout.isSplit && count == 0 && !composerExpanded {
+            navigationSelection.invalidate()
             selectedThread = nil
             selectedProject = nil
           }
@@ -132,6 +134,9 @@ struct HomeView: View {
         }
         .onChange(of: session.selectedConnectionId) { _, connectionID in
           if sheetDestination != nil || isRestoringSheetHost { return }
+          if let connectionID,
+            selectedThread?.id.decode()?.connectionId == connectionID
+              || selectedProject?.id.decode()?.connectionId == connectionID { return }
           path = NavigationPath()
           detailPath = NavigationPath()
           if selectedThread?.id.decode()?.connectionId != connectionID {
@@ -142,6 +147,7 @@ struct HomeView: View {
           }
         }
     }
+    .onDisappear { navigationSelection.invalidate() }
     .ignoresSafeArea(.keyboard, edges: .bottom)
     .poracodeObserveKeyboardUnobstructedSize { keyboardUnobstructedSize = $0 }
     .onChange(of: workspaceInputs, initial: true) { _, inputs in
@@ -761,22 +767,12 @@ struct HomeView: View {
   }
 
   private func open(_ item: UnifiedThreadListItem, isSplit: Bool? = nil) {
-    guard openingThreadID == nil else { return }
     sheetReturnConnectionID = nil
     dismissComposer(animated: false)
     dismissOverlaySidebar()
-    openingThreadID = item.id
-    Task {
-      if session.selectedConnectionId != item.connectionID {
-        await session.switchHost(item.connectionID)
-      }
-      defer { openingThreadID = nil }
-      guard session.selectedConnectionId == item.connectionID else { return }
+    openDestination(openingID: item.id, connectionID: item.connectionID) {
       let route = ThreadRoute(
-        id: CompositeRemoteID(
-          connectionId: item.connectionID,
-          remoteId: item.thread.id
-        ),
+        id: CompositeRemoteID(connectionId: item.connectionID, remoteId: item.thread.id),
         title: item.thread.title
       )
       presentThread(route, isSplit: isSplit ?? currentLayout.isSplit)
@@ -807,23 +803,27 @@ struct HomeView: View {
     projectID: String,
     isSplit: Bool
   ) {
-    guard openingThreadID == nil else { return }
     dismissComposer(animated: false)
     dismissOverlaySidebar()
-    openingThreadID = openingID
+    openDestination(openingID: openingID, connectionID: connectionID) {
+      presentProject(ProjectRoute(id: CompositeRemoteID(connectionId: connectionID, remoteId: projectID)), isSplit: isSplit)
+    }
+  }
+
+  private func openDestination(
+    openingID: String,
+    connectionID: ClientConnectionID,
+    present: @escaping @MainActor () -> Void
+  ) {
+    let navigation = navigationSelection
+    let ticket = navigation.begin(openingID)
     Task {
-      if session.selectedConnectionId != connectionID {
-        await session.switchHost(connectionID)
-      }
-      defer { openingThreadID = nil }
-      guard session.selectedConnectionId == connectionID else { return }
-      let route = ProjectRoute(
-        id: CompositeRemoteID(
-          connectionId: connectionID,
-          remoteId: projectID
-        )
-      )
-      presentProject(route, isSplit: isSplit)
+      guard navigation.isCurrent(ticket) else { return }
+      await session.switchHost(connectionID, selectionInstalled: { installed in
+        guard !Task.isCancelled, installed == connectionID, navigation.accept(ticket) else { return }
+        present()
+      })
+      navigation.finish(ticket)
     }
   }
 
@@ -877,6 +877,7 @@ struct HomeView: View {
       event.route.clientConnectionId == session.selectedConnectionId
     else { return }
     lastNotificationEventId = event.id
+    navigationSelection.invalidate()
     sheetReturnConnectionID = nil
     sheetDestination = nil
     composerExpanded = false
@@ -893,6 +894,7 @@ struct HomeView: View {
   }
 
   private func openSidebarSheet(_ destination: HomeSheetDestination) {
+    navigationSelection.invalidate()
     sheetReturnConnectionID = selectedThread?.id.decode()?.connectionId ?? selectedProject?.id.decode()?.connectionId
     dismissOverlaySidebar(animated: false)
     sheetDestination = destination
@@ -937,22 +939,29 @@ struct HomeView: View {
     }) ?? projectFilterOptions.first(where: { $0.project.id != RemoteProject.homeScopeID }) : nil
     let targetProjectID = initialProjectID ?? preferred?.project.id
     let targetConnectionID = connectionID ?? preferred?.connectionID
+    let navigation = navigationSelection
+    let ticket = navigation.begin("composer")
     dismissOverlaySidebar(animated: false)
-    if let connectionID = targetConnectionID, session.selectedConnectionId != connectionID {
+    if let connectionID = targetConnectionID,
+      session.selectedConnectionId != connectionID || session.state.pendingHostSelection != nil {
       Task {
+        guard navigation.isCurrent(ticket) else { return }
         await session.switchHost(connectionID)
-        guard session.selectedConnectionId == connectionID, session.canOperate else { return }
-        composerInitialProjectID = targetProjectID
-        if let targetProjectID { quickComposeStore.state(for: homeComposeContext, session: session).projectID = targetProjectID }
-        withAnimation(.snappy(duration: 0.25)) {
-          composerExpanded = true
-        }
+        guard navigation.isCurrent(ticket), session.selectedConnectionId == connectionID,
+          session.canOperate else { navigation.finish(ticket); return }
+        _ = navigation.accept(ticket)
+        presentSplitComposer(projectID: targetProjectID)
       }
       return
     }
-    guard session.canOperate else { return }
-    composerInitialProjectID = targetProjectID
-    if let targetProjectID { quickComposeStore.state(for: homeComposeContext, session: session).projectID = targetProjectID }
+    guard session.canOperate else { navigation.finish(ticket); return }
+    _ = navigation.accept(ticket)
+    presentSplitComposer(projectID: targetProjectID)
+  }
+
+  private func presentSplitComposer(projectID: String?) {
+    composerInitialProjectID = projectID
+    if let projectID { quickComposeStore.state(for: homeComposeContext, session: session).projectID = projectID }
     withAnimation(.snappy(duration: 0.25)) {
       composerExpanded = true
     }
