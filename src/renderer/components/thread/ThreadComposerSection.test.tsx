@@ -4517,7 +4517,7 @@ describe("ThreadComposerSection", () => {
     expect(details).toHaveTextContent("Dangerous command");
     expect(details).toHaveTextContent("Bash");
     const allow = screen.getByRole("button", { name: "Allow" });
-    expect(details).not.toContainElement(allow);
+    expect(details).toContainElement(allow);
     expect(allow).toHaveClass("button--tertiary");
     expect(screen.getByRole("button", { name: "Deny" })).toHaveClass("button--ghost");
   });
