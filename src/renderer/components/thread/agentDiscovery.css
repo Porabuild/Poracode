@@ -229,6 +229,11 @@ html[data-coarse-input] .agent-discovery-card__refresh {
   border-radius: 999px;
 }
 
+.agent-discovery-indicator--remote {
+  gap: 8px;
+  padding: 8px 12px;
+}
+
 @keyframes agent-discovery-radar-in {
   0% {
     opacity: 0;

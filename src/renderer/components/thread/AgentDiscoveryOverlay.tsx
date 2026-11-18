@@ -40,7 +40,7 @@ export function AgentDiscoveryOverlay() {
         <div
           key={id}
           role="status"
-          className="agent-discovery-indicator max-w-[calc(100vw-2.5rem)] px-3 py-2 text-sm"
+          className="agent-discovery-indicator agent-discovery-indicator--remote max-w-[calc(100vw-2.5rem)] text-sm"
         >
           <Radar aria-hidden="true" className="size-4 shrink-0 text-accent" />
           <span aria-hidden="true" className="agent-discovery-screen__activity shrink-0" />
