@@ -313,6 +313,8 @@ export interface CreateStructuredSessionInput {
   /** User-approved roots on the same execution host; immutable for this runtime. */
   additionalDirectories?: readonly ProjectLocation[];
   config: ThreadConfig;
+  /** The caller keeps the launch approval policy for the lifetime of this session. */
+  fixedApprovalPolicy?: true;
   agentSettings?: Record<string, boolean | string>;
   env?: Record<string, string>;
   /**

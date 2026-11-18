@@ -152,6 +152,54 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  # These suites need the same Swift toolchain, but no simulator build.
+  # Give AppTests their own job budget so a slow Swift build cannot consume it.
+  ios_swift_contracts:
+    name: iOS portable Swift contract suites
+    needs: changes
+    if: ${{ needs.changes.outputs.ios == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Select Xcode 26.6
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.6"
+
+      - name: Run portable Swift contract suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/poracode-swift-contracts"
+          suites=(PortForwarding BrowserMirror GitHubOperations AdvancedOperations)
+          pids=()
+          for suite in "${suites[@]}"; do
+            echo "Starting $suite"
+            swift test --package-path "ios/App/AppTests/$suite" \
+              --scratch-path "$RUNNER_TEMP/poracode-swift-contracts/$suite" --jobs 1 \
+              > "$RUNNER_TEMP/poracode-swift-contracts/$suite.log" 2>&1 &
+            pids+=("$!")
+          done
+          status=0
+          for index in "${!suites[@]}"; do
+            suite="${suites[$index]}"
+            if ! wait "${pids[$index]}"; then status=1; fi
+            cat "$RUNNER_TEMP/poracode-swift-contracts/$suite.log"
+          done
+          exit "$status"
+
+      - name: Upload Swift contract evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-swift-contracts-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/poracode-swift-contracts/*.log
+          if-no-files-found: warn
+          retention-days: 7
+
   ios:
     name: iOS SwiftUI build and AppTests
     needs: changes
@@ -183,28 +231,6 @@ jobs:
             awk -v version="$deployment_target" 'BEGIN { exit !(version + 0 >= 17) }'
           done
 
-      - name: Run portable Swift contract suites
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/poracode-swift-contracts"
-          suites=(PortForwarding BrowserMirror GitHubOperations AdvancedOperations)
-          pids=()
-          for suite in "${suites[@]}"; do
-            echo "Starting $suite"
-            swift test --package-path "ios/App/AppTests/$suite" \
-              --scratch-path "$RUNNER_TEMP/poracode-swift-contracts/$suite" --jobs 1 \
-              > "$RUNNER_TEMP/poracode-swift-contracts/$suite.log" 2>&1 &
-            pids+=("$!")
-          done
-          status=0
-          for index in "${!suites[@]}"; do
-            suite="${suites[$index]}"
-            if ! wait "${pids[$index]}"; then status=1; fi
-            cat "$RUNNER_TEMP/poracode-swift-contracts/$suite.log"
-          done
-          exit "$status"
-
       - name: Build iOS tests for Simulator
         working-directory: ios/App
         run: |
@@ -231,9 +257,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-native-ci-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/AppTests.xcresult
-            ${{ runner.temp }}/poracode-swift-contracts/*.log
+          path: ${{ runner.temp }}/AppTests.xcresult
           if-no-files-found: warn
           retention-days: 7
 
@@ -771,6 +795,7 @@ jobs:
       - android_api34_runtime
       - android_api37_runtime
       - ios
+      - ios_swift_contracts
       - ios_ui
       - native_e2e_foundation
       - server_install_qualification
@@ -797,6 +822,7 @@ jobs:
             android_api34_runtime: process.env.ANDROID_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",
             android_api37_runtime: process.env.ANDROID_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",
             ios: process.env.IOS_REQUIRED === "true",
+            ios_swift_contracts: process.env.IOS_REQUIRED === "true",
             ios_ui: process.env.IOS_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",
             native_e2e_foundation: process.env.SHARED_REQUIRED === "true",
             server_install_qualification: process.env.SHARED_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",

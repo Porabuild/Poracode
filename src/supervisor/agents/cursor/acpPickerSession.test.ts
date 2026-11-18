@@ -15,7 +15,7 @@ describe("Cursor ACP picker session integration", () => {
   it.each([
     {
       name: "a fresh GUI thread",
-      overrides: {},
+      overrides: { config: { model: "grok-4.6", effort: "xhigh", approvalPolicy: "never" } },
       args: ["--model", "grok-4.6", "acp"],
     },
     {
@@ -52,6 +52,41 @@ describe("Cursor ACP picker session integration", () => {
         input.projectLocation,
         input.threadId,
         expect.objectContaining({ clientCapabilitiesMeta: { parameterizedModelPicker: true } }),
+      );
+    },
+  );
+
+  it.each([
+    { sessionRef: undefined, args: ["--model", "grok-4.6", "--force", "acp"] },
+    {
+      sessionRef: {
+        providerSessionId: "existing-acp-crossagent",
+        discoveredAt: "2026-09-28T00:00:00.000Z",
+      },
+      args: ["--force", "acp"],
+    },
+  ])(
+    "uses Cursor's native approval mode for a full-access worker ($args)",
+    async ({ sessionRef, args }) => {
+      const create = vi
+        .spyOn(AcpStructuredSession, "create")
+        .mockReturnValue({} as AcpStructuredSession);
+      const input: CreateStructuredSessionInput = {
+        threadId: "cursor-crossagent",
+        projectLocation: { kind: "posix", path: "/repo" },
+        presentationMode: "gui",
+        fixedApprovalPolicy: true,
+        config: { model: "grok-4.6", approvalPolicy: "never" },
+        ...(sessionRef ? { sessionRef } : {}),
+      };
+
+      await createCursorAdapter().createStructuredSession?.(input);
+
+      expect(create).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ args }),
+        input.projectLocation,
+        input.threadId,
+        expect.objectContaining({ behavior: { disableSyntheticPermissionAutoApproval: true } }),
       );
     },
   );

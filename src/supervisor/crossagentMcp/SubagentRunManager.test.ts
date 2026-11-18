@@ -1614,6 +1614,7 @@ describe("SubagentRunManager", () => {
     expect(childInput.config.fast).toBe(true);
     expect(childInput.config.approvalPolicy).toBe("never");
     expect(childInput.config.sandboxMode).toBe("danger-full-access");
+    expect(childInput.fixedApprovalPolicy).toBe(true);
     expect(childInput.presentationMode).toBe("gui");
     expect(h.mcpTargets).toEqual(["codex"]);
     expect(childInput).not.toHaveProperty("crossagentMcp");

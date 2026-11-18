@@ -285,6 +285,7 @@ export interface AgentStatusServiceOptions {
   settingsPath: string;
   statusCachePath: string;
   emit(event: SupervisorEvent): void;
+  onStartupDetectionComplete?: (statuses: DetectionResults) => void;
   /** Repair recorded WSL installations only when detection actually probes their distro. */
   prepareWslEnvironment?: (distro: string) => Promise<void>;
 }
@@ -838,10 +839,12 @@ export class AgentStatusService {
       this.startupDetectionWslDistros.add(distro);
     }
     const detectionWslDistros = [...this.startupDetectionWslDistros];
-    void this.queueFullDetection(detectionWslDistros).catch((error) => {
-      if (error instanceof AgentDiscoveryCancelledError) return;
-      console.error("[supervisor] background agent detection failed", error);
-    });
+    void this.queueFullDetection(detectionWslDistros)
+      .then((statuses) => this.options.onStartupDetectionComplete?.(statuses))
+      .catch((error) => {
+        if (error instanceof AgentDiscoveryCancelledError) return;
+        console.error("[supervisor] background agent detection failed", error);
+      });
   }
 
   private statusTarget(adapter: AgentAdapter, env: RefreshAgentScopeEnv): AgentStatusTarget {

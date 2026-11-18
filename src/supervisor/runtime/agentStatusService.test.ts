@@ -22,6 +22,7 @@ import {
   AgentStatusService,
   detectWslAgentStatuses,
   parseWslRegistryDistributionNames,
+  type AgentStatusServiceOptions,
 } from "./agentStatusService";
 
 const tempDirs: string[] = [];
@@ -78,7 +79,10 @@ function makeAdapter(
   } as unknown as AgentAdapter;
 }
 
-function makeService(detectInstall: AgentAdapter["detectInstall"]): {
+function makeService(
+  detectInstall: AgentAdapter["detectInstall"],
+  onStartupDetectionComplete?: AgentStatusServiceOptions["onStartupDetectionComplete"],
+): {
   service: AgentStatusService;
   statusCachePath: string;
 } {
@@ -92,6 +96,7 @@ function makeService(detectInstall: AgentAdapter["detectInstall"]): {
       settingsPath: join(dir, "settings.json"),
       statusCachePath,
       emit: vi.fn<(event: SupervisorEvent) => void>(),
+      ...(onStartupDetectionComplete ? { onStartupDetectionComplete } : {}),
     }),
     statusCachePath,
   };
@@ -137,15 +142,23 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
   });
 
   it("runs automatic startup detection only once across status reads", async () => {
-    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
-    const { service, statusCachePath } = makeService(detectInstall);
+    const probe = Promise.withResolvers<AgentStatus>();
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockReturnValue(probe.promise);
+    const onStartupDetectionComplete =
+      vi.fn<NonNullable<AgentStatusServiceOptions["onStartupDetectionComplete"]>>();
+    const { service, statusCachePath } = makeService(detectInstall, onStartupDetectionComplete);
 
     const first = await service.getAgentStatuses({ wslDistros: [] });
 
-    expect(first.fromCache).toBe(false);
+    expect(first).toEqual({ windows: [], wsl: [], fromCache: false });
+    expect(onStartupDetectionComplete).not.toHaveBeenCalled();
+    probe.resolve(makeStatus());
     await vi.waitFor(() => {
       expect(detectInstall).toHaveBeenCalledTimes(1);
       expect(existsSync(statusCachePath)).toBe(true);
+      expect(onStartupDetectionComplete).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ windows: [expect.objectContaining(makeStatus())], wsl: [] }),
+      );
     });
 
     const second = await service.getAgentStatuses({ wslDistros: [] });
@@ -153,6 +166,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
 
     expect(second.fromCache).toBe(true);
     expect(detectInstall).toHaveBeenCalledTimes(1);
+    expect(onStartupDetectionComplete).toHaveBeenCalledOnce();
   });
 
   it.each(["startup", "update", "rediscover"])(
