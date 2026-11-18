@@ -286,21 +286,32 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
       }
       await prepareAgentLocationEnvironment(input.projectLocation);
       const model = input.config.model === "default" ? "auto" : input.config.model;
+      // Cursor ACP reports Agent/Plan/Ask separately from tool approvals. Its
+      // launcher reads --force once, so use it for a fixed full-access policy.
+      const force = input.fixedApprovalPolicy === true && input.config.approvalPolicy === "never";
       const command = buildCursorAgentCommand(input.projectLocation, [
         ...(!input.sessionRef && input.presentationMode === "gui" && model
           ? ["--model", model]
           : []),
+        ...(force ? ["--force"] : []),
         "acp",
       ]);
       const acpEnv = mergeSpawnEnv(input.baseSpawnEnv, profileKeyEnv);
-      return createAcpStructuredSession(command, {
+      const acpInput = {
         ...input,
         ...(acpEnv ? { baseSpawnEnv: acpEnv } : {}),
         loadSessionErrorRewriter: rewriteCursorLoadSessionError,
         acpSessionUpdateTransform: transformCursorAcpSessionUpdate,
         acpExtensionNotificationHandler: handleCursorAcpExtensionNotification,
         acpClientCapabilitiesMeta: CURSOR_ACP_CLIENT_CAPABILITIES_META,
-      });
+      };
+      if (force) {
+        // Cursor may still request approval when its team disallows Run Everything.
+        return createAcpStructuredSession(command, acpInput, {
+          behavior: { disableSyntheticPermissionAutoApproval: true },
+        });
+      }
+      return createAcpStructuredSession(command, acpInput);
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
