@@ -102,6 +102,12 @@ describe("createCodexAdapter updates", () => {
     });
   });
 
+  it("verifies the launcher still starts after an update", () => {
+    // The npm launcher resolves its native binary from an optional platform
+    // package that an update can silently drop, leaving `codex` unable to run.
+    expect(adapter.postUpdateHealthArgs).toEqual(["--version"]);
+  });
+
   it.each(["posix", "wsl"] as const)("keeps the built-in updater on %s", (envKind) => {
     expect(resolveUpdateCommand(adapter, status, { envKind })).toEqual({
       binary: "codex",

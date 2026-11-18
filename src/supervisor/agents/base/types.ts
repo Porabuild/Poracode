@@ -1090,6 +1090,18 @@ export interface AgentUpdater {
    * status probes.
    */
   buildUpdateCommand?(ctx: AgentEnvContext, status: AgentStatus): AgentUpdaterCommand | undefined;
+  /**
+   * Arguments that start the installed binary and exit 0 only when the install
+   * is usable (typically `["--version"]`). After a package-manager update that
+   * reported success, the supervisor runs them against the detected executable.
+   * A failure means the package manager left a broken install (for example a
+   * launcher whose optional native dependency was silently skipped), so the same
+   * update command is re-run once to repair it before the update is reported.
+   *
+   * Declare it for CLIs that ship as a thin launcher plus a platform package.
+   * Not part of the wire contract: it never reaches clients.
+   */
+  readonly postUpdateHealthArgs?: readonly string[];
 }
 
 export interface AgentCliHookPluginSupport {

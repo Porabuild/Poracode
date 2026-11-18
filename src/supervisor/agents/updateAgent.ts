@@ -12,7 +12,7 @@ import {
   resolveSharedUpdateCommand,
 } from "@/shared/agents/updateResolver";
 import type { AgentAdapter, AgentEnvContext, AgentUpdaterCommand } from "./base";
-import { detectProbeLocation, readAgentCommandOutput } from "./base";
+import { decodePowerShellClixml, detectProbeLocation, readAgentCommandOutput } from "./base";
 import { AGENT_UPDATE_COMMAND_TIMEOUT_MS } from "@/shared/agents/updatePolicy";
 import { runSerializedAgentUpdate, runSerializedUpdateCommand } from "./updateSerialization";
 import { resolveUpdateInstallPath } from "./updateInstallPath";
@@ -91,6 +91,85 @@ export async function runUpdateCommand(
   });
 }
 
+const POST_UPDATE_HEALTH_TIMEOUT_MS = 30_000;
+/** Upper bound for each log excerpt in a health-check failure, keeping the whole message well under `trimOutput`'s cap. */
+const DETAIL_MAX_CHARS = 1_200;
+
+/**
+ * Confirm the updated CLI still starts when the adapter declares
+ * `postUpdateHealthArgs`. A package manager can exit 0 while leaving a launcher
+ * whose optional native dependency was skipped, so an update that "succeeded"
+ * is only reported once the binary runs. A failing check re-runs the update
+ * command that just succeeded once (a plain re-run installs the missing piece);
+ * a self-updater is not re-run, since it owns its own install.
+ */
+async function verifyUpdatedInstall(
+  adapter: AgentAdapter,
+  status: AgentStatus,
+  envContext: AgentEnvContext,
+  applied: AgentUpdaterCommand,
+  result: UpdateAgentBinaryResult,
+  waitDeadline: number,
+): Promise<UpdateAgentBinaryResult> {
+  const healthArgs = adapter.postUpdateHealthArgs;
+  const executable = status.executablePath;
+  if (!result.ok || !healthArgs?.length || !executable) return result;
+
+  const location = detectProbeLocation(envContext);
+  const checkHealth = () =>
+    readAgentCommandOutput(location, executable, [...healthArgs], {
+      timeoutMs: POST_UPDATE_HEALTH_TIMEOUT_MS,
+    });
+
+  let health = await checkHealth();
+  if (health.ok) return result;
+
+  let repairNote: string | undefined;
+  if (applied.strategy !== "built-in") {
+    const rerun = `Re-running ${formatUpdateCommandLine(applied)}`;
+    try {
+      const repair = await runUpdateCommand(applied, envContext, applied, waitDeadline);
+      if (repair.ok) {
+        health = await checkHealth();
+        if (health.ok) return { ...result, ...(repair.output ? { output: repair.output } : {}) };
+        repairNote = `${rerun} did not repair it.`;
+      } else {
+        repairNote = `${rerun} failed:\n${trimOutput(repair.output.trim() || "(no output)", DETAIL_MAX_CHARS)}`;
+      }
+    } catch (error) {
+      // The queue deadline can lapse during a long first command; keep the diagnosis.
+      repairNote = `${rerun} could not run: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  }
+
+  const diagnostics = decodePowerShellClixml(
+    [health.stderr, health.stdout].filter((text) => text.trim().length > 0).join("\n"),
+  ).trim();
+  // Renderers show only the start of `output`: lead with the reason, not the path,
+  // and bound each detail block so a long log can never push the lead out.
+  return {
+    ok: false,
+    strategy: applied.strategy,
+    output: [
+      `The update finished but the installed CLI does not start: ${summarizeFailure(diagnostics)}`,
+      ...(repairNote ? [repairNote] : []),
+      `${[executable, ...healthArgs].join(" ")} printed:`,
+      trimOutput(diagnostics || "(no output)", DETAIL_MAX_CHARS),
+    ].join("\n"),
+  };
+}
+
+/** The first line that names an error, else the first line: launcher stack traces open with source-line noise. */
+function summarizeFailure(text: string): string {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+  const line =
+    lines.find((candidate) => /^[a-z]*error\b/i.test(candidate)) ?? lines[0] ?? "(no output)";
+  return line.length > 160 ? `${line.slice(0, 157)}...` : line;
+}
+
 export function buildUnsupportedResult(): UpdateAgentBinaryResult {
   return {
     ok: false,
@@ -150,23 +229,25 @@ export async function runUpdateCommandWithFallback(
     return await runSerializedAgentUpdate(
       status,
       envContext,
-      async (waitDeadline) => {
+      async (waitDeadline): Promise<UpdateAgentBinaryResult> => {
         const result = await runUpdateCommand(
           command,
           envContext,
           installedManager ?? command,
           waitDeadline,
         );
+        const verify = (applied: AgentUpdaterCommand, outcome: UpdateAgentBinaryResult) =>
+          verifyUpdatedInstall(adapter, status, envContext, applied, outcome, waitDeadline);
         const needsFallback =
           command.strategy === "built-in" &&
           (!result.ok ||
             (options?.verifyBuiltInSuccess ? !(await options.verifyBuiltInSuccess()) : false));
         if (!needsFallback) {
-          return {
+          return verify(command, {
             ok: result.ok,
             strategy: command.strategy,
             ...(result.output ? { output: result.output } : {}),
-          };
+          });
         }
 
         if (!fallback || fallback.strategy === "built-in") {
@@ -178,7 +259,7 @@ export async function runUpdateCommandWithFallback(
         }
 
         const fallbackResult = await runUpdateCommand(fallback, envContext, fallback, waitDeadline);
-        return {
+        return verify(fallback, {
           ok: fallbackResult.ok,
           strategy: fallback.strategy,
           ...(fallbackResult.ok
@@ -193,7 +274,7 @@ export async function runUpdateCommandWithFallback(
                   fallbackResult.output,
                 ),
               }),
-        };
+        });
       },
       installPath,
     );
