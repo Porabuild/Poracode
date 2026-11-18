@@ -1,12 +1,18 @@
 import "../../../opencode/packages/tui/test/preload";
+import { createRequire } from "node:module";
 import { expect, test } from "bun:test";
-import { createMockMouse, createTestRenderer } from "@opentui/core/testing";
 import { render } from "@opentui/solid";
 import { resolveThemeDocument } from "@opencode/theme/tui";
 import { getPoracodeTheme, parseTheme } from "../../../opencode/packages/tui/src/theme";
 import type { Plugin } from "@opencode/plugin/tui";
 import type { Adapter } from "../../adapter";
 import { ComposerMetadata } from ".";
+
+// Load the real test renderer without re-entering OpenTUI's virtual runtime
+// module while its asynchronous factory is resolving the same package.
+const { createMockMouse, createTestRenderer } = (await import(
+  createRequire(import.meta.url).resolve("@opentui/core/testing")
+)) as typeof import("@opentui/core/testing");
 
 test("the chip row shows model, approval, and git changes — not the host metadata", async () => {
   const output = await createTestRenderer({ width: 100, height: 10 });
