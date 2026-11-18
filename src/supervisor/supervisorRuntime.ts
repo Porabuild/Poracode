@@ -337,6 +337,8 @@ export class SupervisorRuntime {
       settingsPath: this.settingsPath,
       statusCachePath: paths.statusCachePath,
       emit,
+      onStartupDetectionComplete: (statuses) =>
+        this.agentRegistryService.scheduleFirstClassAcpAutoInstall(statuses),
       prepareWslEnvironment: (distro) =>
         this.agentRegistryService.prepareWslRegistryInstallations(distro),
     });
