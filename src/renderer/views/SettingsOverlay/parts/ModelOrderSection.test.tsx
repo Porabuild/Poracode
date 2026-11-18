@@ -246,7 +246,11 @@ import { registerCombinedRuntimeUpdates } from "@/renderer/components/providers/
 import "@/renderer/components/providers/cursor";
 import { reserveCursorSdkPackage } from "@/renderer/components/providers/cursor/sdkPackageOperation";
 import { resetAcpRegistryListingCache } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
-import { ModelOrderSection } from "./ModelOrderSection";
+import { ModelOrderSection as ModelOrderSectionView } from "./ModelOrderSection";
+
+function ModelOrderSection() {
+  return <ModelOrderSectionView onOpenAgentSettings={() => undefined} />;
+}
 
 /** Lingui descriptors without the macro, so extraction never sees test-only ids. */
 function runtimeLabel(id: string): MessageDescriptor {
@@ -349,6 +353,20 @@ describe("ModelOrderSection provider updates", () => {
 
     expect(await screen.findByText("v1.2.3")).toBeTruthy();
     expect(screen.getByText("—")).toBeTruthy();
+  });
+
+  it("opens the selected machine's provider profile from its name", () => {
+    const profile = cursorWorkStatus();
+    selectRemoteMachine({ ...remoteStatuses(), windows: [profile] });
+    const onOpenAgentSettings = vi.fn<(kind: string) => void>();
+    render(<ModelOrderSectionView onOpenAgentSettings={onOpenAgentSettings} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reorder Cursor work" }));
+    expect(onOpenAgentSettings).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cursor work" }));
+    expect(onOpenAgentSettings).toHaveBeenCalledExactlyOnceWith("cursor:work");
+    expect(useMachineSelectionStore.getState().selectedMachineId).toBe(REMOTE_MACHINE_ID);
   });
 
   it("offers and verifies the Cursor Work SDK update on Windows without a project", async () => {

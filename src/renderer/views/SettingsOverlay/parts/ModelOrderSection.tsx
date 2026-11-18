@@ -53,8 +53,9 @@ function SortableProviderRow(props: {
   update: ProviderUpdateEntry;
   isBulkUpdating: boolean;
   onUpdate: (kind: string) => void;
+  onOpenAgentSettings: (kind: string) => void;
 }) {
-  const { agent, index, update, isBulkUpdating, onUpdate } = props;
+  const { agent, index, update, isBulkUpdating, onUpdate, onOpenAgentSettings } = props;
   const { t } = useLingui();
   const { ref, handleRef, isDragging } = useSortable({
     id: `provider-order:${agent.kind}`,
@@ -97,7 +98,14 @@ function SortableProviderRow(props: {
         fallbackLabel={agent.label}
         className="size-3.5 shrink-0"
       />
-      <span className="truncate text-foreground">{agent.label}</span>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="-mx-1 h-7 min-w-0 px-1 py-0 text-xs font-normal text-foreground hover:underline"
+        onPress={() => onOpenAgentSettings(agent.kind)}
+      >
+        <span className="truncate">{agent.label}</span>
+      </Button>
       <span
         className="ml-auto min-w-0 max-w-[45%] truncate tabular-nums text-muted/60"
         title={runtimeSummary}
@@ -176,7 +184,7 @@ function SortableProviderRow(props: {
   );
 }
 
-export function ModelOrderSection() {
+export function ModelOrderSection(props: { onOpenAgentSettings: (kind: string) => void }) {
   const { t } = useLingui();
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
   const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
@@ -362,6 +370,7 @@ export function ModelOrderSection() {
               update={updates.entryFor(agent.kind)}
               isBulkUpdating={updates.isUpdatingAll}
               onUpdate={updates.updateKind}
+              onOpenAgentSettings={props.onOpenAgentSettings}
             />
           ))}
         </div>
