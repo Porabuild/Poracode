@@ -173,9 +173,12 @@ function resolveAttempt(
       model.startsWith(`${candidate.id}:`)
     );
   })?.label;
+  const normalizedSubProviderLabel = subProviderLabel?.trim().toLowerCase();
   const selectionLabel = [
     adapter.label,
-    ...(subProviderLabel && subProviderLabel.toLowerCase() !== adapter.label.toLowerCase()
+    ...(subProviderLabel &&
+    normalizedSubProviderLabel !== adapter.label.trim().toLowerCase() &&
+    normalizedSubProviderLabel !== modelLabel.trim().toLowerCase()
       ? [subProviderLabel]
       : []),
     modelLabel,

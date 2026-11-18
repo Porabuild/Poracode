@@ -86,6 +86,48 @@ export function runtimeItemState(state: string): PersistedRuntimeItem["state"] {
   return state === "completed" || state === "updated" ? state : "started";
 }
 
+/** Clean up unambiguous legacy Crossagent labels on transcript reads. */
+export function projectSavedCrossagentRoute<T extends PersistedRuntimeItem>(item: T): T {
+  const { payload } = item;
+  if (
+    item.type !== "tool_call" ||
+    !item.id.startsWith("sub:") ||
+    !payload ||
+    typeof payload !== "object"
+  ) {
+    return item;
+  }
+  const { isCrossagent, name } = payload as Partial<ToolCallPayload>;
+  if (isCrossagent !== true || typeof name !== "string") return item;
+
+  const taskSeparator = " — ";
+  const taskEnd = name.lastIndexOf(taskSeparator);
+  const routeStart = taskEnd < 0 ? 0 : taskEnd + taskSeparator.length;
+  const separator = " · ";
+  const [provider, group, model, modifier, fast, ...rest] = name.slice(routeStart).split(separator);
+  // Without a group, the fourth field can only be Fast. Shorter labels may
+  // have a model and effort with the same text, so leave them as saved.
+  if (
+    !group ||
+    group !== model ||
+    !modifier ||
+    rest.length > 0 ||
+    (fast === undefined ? modifier === "Fast" : fast !== "Fast")
+  ) {
+    return item;
+  }
+
+  return {
+    ...item,
+    payload: {
+      ...payload,
+      name:
+        name.slice(0, routeStart) +
+        [provider, model, modifier, ...(fast ? [fast] : [])].join(separator),
+    },
+  };
+}
+
 /** Pure row-to-item mapping; the caller supplies assembled stream tails. */
 export function mapRuntimeItemRow(
   row: RuntimeTimelineItemRow,

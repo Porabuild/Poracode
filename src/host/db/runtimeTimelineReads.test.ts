@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase, initDatabase } from "./connection";
 import { dbReadThreadHistoryPagePhase1, dbReadThreadHistoryPhase2 } from "./historyReads";
 import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
-import { dbGetThreadRuntimeItemsPage, dbReplaceThreadRuntimeItems } from "./runtimeItems";
+import {
+  dbGetThreadRuntimeItemsPage,
+  dbReadThreadRuntimeItems,
+  dbReplaceThreadRuntimeItems,
+} from "./runtimeItems";
 import { classifyRuntimeTimelineEntry, selectRuntimePageRows } from "./runtimeTimelineReads";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "./runtimeItems.testFixtures";
 
@@ -53,6 +57,25 @@ function fixtureItems(): ItemFixture[] {
       }
     }
     if (index === 10) {
+      items.push({
+        id: "sub:old-crossagent",
+        type: "tool_call",
+        state: "completed",
+        payload: {
+          name: "Design variants — Devin · Claude Fable 5.2 · Claude Fable 5.2 · High",
+          isCrossagent: true,
+          status: "success",
+          progress: { stepCount: 10 },
+        },
+        streams: {},
+      });
+      items.push({
+        id: "sub:matching-effort",
+        type: "tool_call",
+        state: "completed",
+        payload: { name: "Provider · High · High · Fast", isCrossagent: true },
+        streams: {},
+      });
       items.push({
         id: "subagent",
         type: "tool_call",
@@ -159,6 +182,30 @@ describe.skipIf(!sqliteAvailable)("runtimeTimelineReads equivalence", () => {
       );
       expect([...materialized].reverse()).toEqual(legacy.items);
     }
+  });
+
+  it("shows the model once when reopening a saved Crossagent with a repeated group label", async () => {
+    const itemId = "sub:old-crossagent";
+    const page = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 500);
+    const item = page.items.find((entry) => entry.id === itemId);
+    expect(item?.payload).toEqual({
+      name: "Design variants — Devin · Claude Fable 5.2 · High",
+      isCrossagent: true,
+      status: "success",
+      progress: { stepCount: 10 },
+    });
+    expect(dbReadThreadHistoryPhase2("thread-1", [itemId])).toEqual([item]);
+    expect(dbReadThreadHistoryPhase2("thread-1", [itemId], { compactDetails: true })).toEqual([
+      item,
+    ]);
+    expect(
+      dbReadThreadRuntimeItems("thread-1").find((entry) => entry.id === itemId)?.payload,
+    ).toMatchObject({
+      name: "Design variants — Devin · Claude Fable 5.2 · Claude Fable 5.2 · High",
+    });
+    expect(page.items.find((entry) => entry.id === "sub:matching-effort")?.payload).toMatchObject({
+      name: "Provider · High · High · Fast",
+    });
   });
 
   it("keeps the shared classification probes lazy and type-scoped", () => {
