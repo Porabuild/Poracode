@@ -1,4 +1,11 @@
 import { z } from "zod";
+import type { McpServer } from "../contracts/mcpServer";
+import {
+  remoteMcpSettingsOperationResultSchema,
+  remoteMcpSettingsReadResultSchema,
+  type RemoteMcpSettingsCommand,
+  type RemoteMcpSettingsOperation,
+} from "./contract/routeSchemas";
 import {
   memorySyncResponseSchema,
   remoteMemoryCatalogResultSchema,
@@ -474,6 +481,40 @@ export abstract class RemoteClientHostApi extends RemoteClientDevicePreviewApi {
       "settings",
     );
     return result.settings;
+  }
+
+  async mcpServers(): Promise<McpServer[]> {
+    const result = parseResponse(
+      remoteMcpSettingsReadResultSchema,
+      await this.requestJson("/api/settings/mcp-servers"),
+      "MCP settings",
+    );
+    return result.servers;
+  }
+
+  async commandMcpServers(command: RemoteMcpSettingsCommand): Promise<McpServer[]> {
+    const result = parseResponse(
+      remoteMcpSettingsReadResultSchema,
+      await this.requestJson("/api/settings/mcp-servers/command", {
+        method: "POST",
+        body: command,
+      }),
+      "MCP settings command",
+    );
+    return result.servers;
+  }
+
+  async operateMcpServer(operation: RemoteMcpSettingsOperation) {
+    const result = parseResponse(
+      remoteMcpSettingsOperationResultSchema,
+      await this.requestJson("/api/settings/mcp-servers/operation", {
+        method: "POST",
+        body: operation,
+      }),
+      "MCP settings operation",
+    );
+    if (result.kind !== operation.kind) throw new Error("MCP operation response mismatch.");
+    return result;
   }
 
   async memoryCatalog(command: RemoteMemoryCatalogCommand): Promise<RemoteMemoryCatalogResult> {

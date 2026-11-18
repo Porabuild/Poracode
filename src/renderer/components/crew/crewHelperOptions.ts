@@ -1,3 +1,5 @@
+import { parseMachineKey } from "@/shared/machines";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { useEffect, useState } from "react";
 import {
   filterCrossagentCapabilities,
@@ -164,16 +166,25 @@ function sameRoutingInputs(left: readonly unknown[], right: readonly unknown[]):
   );
 }
 
-export function useCrewHelperOptions(): CrewHelperOptions {
-  const statuses = useAgentStatusesStore((state) => state.agentStatuses);
+export function useCrewHelperOptions(machineKey?: string): CrewHelperOptions {
+  const nativeStatuses = useAgentStatusesStore((state) => state.agentStatuses);
   const wslStatuses = useAgentStatusesStore((state) => state.wslAgentStatuses);
+  const machine = machineKey ? parseMachineKey(machineKey) : undefined;
+  const host = machine?.host === "remote" ? machine.desktopId : undefined;
+  const distro = machine?.env.kind === "wsl" ? machine.env.distro : undefined;
+  const pools = useHostAgentStatusPools(host);
+  const statuses = distro
+    ? pools.wsl.filter((status) => status.envDistro === distro)
+    : host
+      ? pools.windows
+      : nativeStatuses;
   const disabledAgents = useSharedSettings((state) => state.disabledAgents);
   const hiddenModels = useSharedSettings((state) => state.hiddenModels);
   const crossagentPausedProviders = useSharedSettings((state) => state.crossagentPausedProviders);
   const crossagentHiddenModels = useSharedSettings((state) => state.crossagentHiddenModels);
-  const remote = isRemoteSession();
+  const remote = isRemoteSession() || host !== undefined || distro !== undefined;
   const routingInputs = [
-    statuses,
+    nativeStatuses,
     wslStatuses,
     disabledAgents,
     hiddenModels,
@@ -213,7 +224,7 @@ export function useCrewHelperOptions(): CrewHelperOptions {
       : EMPTY_CROSSAGENT_ROUTING;
   return buildCrewHelperOptions({
     statuses,
-    labelStatuses: [...statuses, ...wslStatuses],
+    labelStatuses: machine ? statuses : [...statuses, ...wslStatuses],
     settings: { disabledAgents, hiddenModels, crossagentPausedProviders, crossagentHiddenModels },
     ...(!remote && routing ? { routing } : {}),
   });

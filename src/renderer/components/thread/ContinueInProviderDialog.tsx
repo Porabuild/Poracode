@@ -111,6 +111,8 @@ import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { useAppStore } from "@/renderer/state/appStore";
 import { hostRunsOnThisMachine } from "@/renderer/state/hostLocality";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
+import { machineKeyForLocation } from "@/shared/machines";
 import {
   buildTranscriptContext,
   handoffTranscriptBudget,
@@ -184,9 +186,15 @@ export function ContinueInProviderDialog(props: {
   // project's last-used one.
   const providerConfigs = useSharedSettings((s) => s.providerConfigs);
   const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
-  const savedCrews = useSharedSettings((s) => s.crews);
-  const upsertCrew = useSharedSettings((s) => s.upsertCrew);
-  const helperOptions = useCrewHelperOptions();
+  const threadProject = useAppStore((s) =>
+    s.projects.find((project) => project.id === thread.projectId),
+  );
+  const crewMachineKey = machineKeyForLocation({
+    ...(threadProject?.location ?? { kind: "native" }),
+    ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}),
+  });
+  const { crews: savedCrews, upsertCrew } = useCrewLibrary(crewMachineKey);
+  const helperOptions = useCrewHelperOptions(crewMachineKey);
 
   // Whether this thread's sessions get the app-controls `read_thread` tool —
   // the transcript-reading path a handoff hands to the incoming provider in
@@ -487,6 +495,7 @@ export function ContinueInProviderDialog(props: {
     control.kind === "provider-model"
       ? {
           ...control,
+          machineKey: crewMachineKey,
           onChange: (next: Parameters<typeof control.onChange>[0]) => {
             if (targetCrew && !sourceCrew) commitTargetCrew(undefined);
             control.onChange(next);
@@ -542,9 +551,6 @@ export function ContinueInProviderDialog(props: {
   const disabledBuiltInMcpServers = useSharedSettings((s) => s.disabledBuiltInMcpServers);
   const userCustomMcpServers = useSharedSettings((s) => s.mcpServers);
   const providerMcpSettings = useSharedSettings((s) => s.agentSettings[selectedKind]);
-  const threadProject = useAppStore((s) =>
-    s.projects.find((project) => project.id === thread.projectId),
-  );
   useResidentProjectMcpServers(threadProject);
   const projectCustomMcpServers = threadProject?.mcpServers;
 

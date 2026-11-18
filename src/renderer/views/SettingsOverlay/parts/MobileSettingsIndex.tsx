@@ -6,6 +6,7 @@ import {
   Bot,
   CalendarClock,
   ChevronRight,
+  Cable,
   CircleUserRound,
   Gauge,
   GitFork,
@@ -108,6 +109,13 @@ export function MobileSettingsIndex(props: {
         label: t`Memory`,
         hint: t`Shared notes across providers`,
         onPress: () => props.onOpenSection("memory"),
+      },
+      {
+        key: "mcpServers",
+        icon: Cable,
+        label: t`MCP Servers`,
+        hint: t`Configured MCP servers`,
+        onPress: () => props.onOpenSection("mcpServers"),
       },
       {
         key: "agentsGeneral",

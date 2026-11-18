@@ -59,16 +59,34 @@ public struct ProcedureupdateAgentBinaryResult_0d863fe350: Codable, Sendable, Re
   }
 }
 
-public struct ProcedurewaitMcpServerOauthRequest_e9df8b4f3d: Codable, Sendable, RemoteModelMetadata {
+public struct ProcedurewaitMcpServerOauthRequestU2DCallback_53db4bb96e: Codable, Sendable, RemoteModelMetadata {
+  public var serverUrl: String
+  public var url: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "serverUrl", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "url", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 8192, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case serverUrl = "serverUrl"
+    case url = "url"
+  }
+}
+
+public struct ProcedurewaitMcpServerOauthRequest_58cefff26a: Codable, Sendable, RemoteModelMetadata {
+  public var callback: RemoteField<ProcedurewaitMcpServerOauthRequestU2DCallback_53db4bb96e> = .missing
   public var flowId: String
   public var projectLocation: RemoteField<ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "callback", typeName: "ProcedurewaitMcpServerOauthRequestU2DCallback_53db4bb96e", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "flowId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projectLocation", typeName: "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case callback = "callback"
     case flowId = "flowId"
     case projectLocation = "projectLocation"
   }

@@ -2,6 +2,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { BuiltInMcpServerId, McpServer } from "@/shared/contracts";
 import { McpProjectSettingsPicker } from "@/renderer/components/mcp/McpProjectSettingsPicker";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
+import { RemoteMcpServersManager } from "@/renderer/components/mcp/RemoteMcpServersManager";
 import { sharedSettingsServerPersistence } from "@/renderer/components/mcp/mcpServersMutation";
 import { useLocalizedPluginCatalog } from "@/renderer/components/plugins/pluginCopy";
 import { resolveProjectIdForView } from "@/renderer/actions/currentProject";
@@ -13,12 +14,73 @@ import { loadAuthoritativeProjectMcpServers } from "@/renderer/state/projectSett
 import { useResidentProjectMcpServers } from "@/renderer/state/projectSettings/useResidentProjectMcpServers";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { isRemoteSession } from "@/renderer/bridge";
 import { isHomeProject } from "@/shared/homeScope";
 import { Button } from "@/renderer/components/common/Button";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { CrossagentRoutingSection } from "./CrossagentRoutingSection";
 
-export function McpServersSettings() {
+export function McpServersSettings(props: { connectionKey?: string; local?: boolean }) {
+  const { t } = useLingui();
+  const { connectionKey, local = !isRemoteSession() } = props;
+  const projects = useAppStore((state) => state.projects);
+  const hostProjects = connectionKey
+    ? projects.filter(
+        (project) => !isHomeProject(project) && remoteOwner(project)?.desktopId === connectionKey,
+      )
+    : [];
+  return (
+    <SettingsPage
+      title={t`MCP Servers`}
+      description={t`Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings.`}
+      bodyClassName="space-y-5"
+    >
+      {connectionKey ? (
+        <>
+          <ProjectMcpPicker
+            projects={hostProjects.map(({ id, name, location, icon }) => ({
+              id,
+              name,
+              location,
+              ...(icon ? { icon } : {}),
+            }))}
+          />
+          <div data-settings-anchor="mcpServers.manage">
+            <RemoteMcpServersManager connectionKey={connectionKey} projects={hostProjects} />
+          </div>
+        </>
+      ) : local ? (
+        <LocalMcpServersSettings />
+      ) : (
+        <p className="text-sm text-muted" role="status">{t`Offline`}</p>
+      )}
+    </SettingsPage>
+  );
+}
+
+function ProjectMcpPicker(props: {
+  projects: Parameters<typeof McpProjectSettingsPicker>[0]["projects"];
+}) {
+  const { t } = useLingui();
+  return (
+    <SettingRow
+      anchorId="mcpServers.projects"
+      title={t`Project MCP servers`}
+      description={t`Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope.`}
+    >
+      <McpProjectSettingsPicker
+        projects={props.projects}
+        onOpen={(projectId) => {
+          usePanelStore.getState().closeSettings();
+          openProjectSettings(projectId, "mcp");
+        }}
+      />
+    </SettingRow>
+  );
+}
+
+function LocalMcpServersSettings() {
   const { t } = useLingui();
   const servers = useSharedSettings((state) => state.mcpServers);
   const disabledBuiltIns = useSharedSettings((state) => state.disabledBuiltInMcpServers);
@@ -28,7 +90,7 @@ export function McpServersSettings() {
   const workspaceProject = useAppStore((state) => {
     const projectId = resolveProjectIdForView(state.view, state.threads, state.focusedPaneId);
     const project = state.projects.find((item) => item.id === projectId);
-    return isHomeProject(project) ? undefined : project;
+    return isHomeProject(project) || remoteOwner(project) ? undefined : project;
   });
   const projects = useAppStore((state) => state.projects);
   // Catalog rows don't carry private MCP settings; open this page's workspace
@@ -36,7 +98,7 @@ export function McpServersSettings() {
   useResidentProjectMcpServers(workspaceProject);
   const isReachable = useReachableProjectFilter();
   const importProjects = projects
-    .filter((project) => !isHomeProject(project) && isReachable(project))
+    .filter((project) => !isHomeProject(project) && !remoteOwner(project) && isReachable(project))
     .map((project) => ({
       id: project.id,
       name: project.name,
@@ -62,24 +124,8 @@ export function McpServersSettings() {
   );
 
   return (
-    <SettingsPage
-      title={t`MCP Servers`}
-      description={t`Manage the MCP server configurations Poracode adds when starting supported agents. Workspace servers can be configured in each project's settings.`}
-      bodyClassName="space-y-5"
-    >
-      <SettingRow
-        anchorId="mcpServers.projects"
-        title={t`Project MCP servers`}
-        description={t`Servers in a project's settings apply only to that project and override global servers with the same name. To move a global server, edit it and change its scope.`}
-      >
-        <McpProjectSettingsPicker
-          projects={importProjects}
-          onOpen={(projectId) => {
-            usePanelStore.getState().closeSettings();
-            openProjectSettings(projectId, "mcp");
-          }}
-        />
-      </SettingRow>
+    <>
+      <ProjectMcpPicker projects={importProjects} />
       <div data-settings-anchor="mcpServers.manage">
         <McpServersManager
           key={workspaceProject?.id ?? "user-only"}
@@ -135,6 +181,6 @@ export function McpServersSettings() {
           }}
         />
       </div>
-    </SettingsPage>
+    </>
   );
 }

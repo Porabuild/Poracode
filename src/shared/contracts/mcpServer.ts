@@ -430,7 +430,15 @@ export const mcpOauthBeginResultSchema = z.discriminatedUnion("status", [
 ]);
 export type McpOauthBeginResult = z.infer<typeof mcpOauthBeginResultSchema>;
 
-export const mcpOauthWaitPayloadSchema = mcpOauthOwnerSchema.extend({ flowId: z.string().min(1) });
+export const mcpOauthWaitPayloadSchema = mcpOauthOwnerSchema.extend({
+  flowId: z.string().min(1),
+  callback: z
+    .object({
+      url: z.string().min(1).max(8192),
+      serverUrl: z.string().min(1),
+    })
+    .optional(),
+});
 export type McpOauthWaitPayload = z.infer<typeof mcpOauthWaitPayloadSchema>;
 
 export const mcpOauthWaitResultSchema = z.discriminatedUnion("status", [

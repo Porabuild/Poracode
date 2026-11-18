@@ -48,12 +48,27 @@ data class ProcedureupdateAgentBinaryResult_0d863fe350(
 }
 
 @Serializable
-data class ProcedurewaitMcpServerOauthRequest_e9df8b4f3d(
+data class ProcedurewaitMcpServerOauthRequestU2DCallback_53db4bb96e(
+    @SerialName("serverUrl") val serverUrl: String,
+    @SerialName("url") val url: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("serverUrl", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("url", "String", true, false, null, null, 1, 8192, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedurewaitMcpServerOauthRequest_58cefff26a(
+    @SerialName("callback") val callback: RemoteField<ProcedurewaitMcpServerOauthRequestU2DCallback_53db4bb96e> = RemoteField.Missing,
     @SerialName("flowId") val flowId: String,
     @SerialName("projectLocation") val projectLocation: RemoteField<ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("callback", "ProcedurewaitMcpServerOauthRequestU2DCallback_53db4bb96e", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("flowId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("projectLocation", "ProcedurebeginMcpServerOauthRequestU2DProjectLocation_080f9cc154", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())

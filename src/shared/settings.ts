@@ -753,6 +753,7 @@ export const sharedSettingsSchema = z.object({
   workspaces: workspaceListSchema,
   /** Additive field: older settings files omit it and normalize to an empty list. */
   crews: z.array(savedCrewSchema).max(MAX_SAVED_CREWS).default([]),
+  wslCrews: z.record(z.string().min(1), z.array(savedCrewSchema).max(MAX_SAVED_CREWS)).default({}),
   /** User-starred (provider, presentation, model) entries surfaced at the top of the model picker. */
   favoriteModels: z.array(modelPickerEntrySchema),
   /**
@@ -983,6 +984,7 @@ export const defaultSharedSettings: SharedSettings = {
   remotePushRedactContent: false,
   workspaces: [],
   crews: [],
+  wslCrews: {},
   favoriteModels: [],
   recentModels: [],
   agentSelectionUsage: [],
@@ -1854,6 +1856,12 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       ...normalized,
       machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       crews: normalizeSavedCrews(parsed.data.crews),
+      wslCrews: Object.fromEntries(
+        Object.entries(normalized.wslCrews).map(([distro, crews]) => [
+          distro,
+          normalizeSavedCrews(crews),
+        ]),
+      ),
       memory: normalizeObjectFromSchema(
         memorySettingsSchema.shape,
         defaultMemorySettings,

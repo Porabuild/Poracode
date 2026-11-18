@@ -3,13 +3,17 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { DEFAULT_SEARCH_EXCLUDE } from "@/shared/searchExclude";
 import { SearchExcludeBody } from "./SearchExcludeBody";
 import { SettingsPage } from "./SettingsForm";
+import { useScopedHostSettings, type SettingsHostTarget } from "./useScopedHostSettings";
 
-export function SearchSettings() {
+export function SearchSettings(props: SettingsHostTarget) {
   const { t } = useLingui();
   const useIgnoreFiles = useSharedSettings((s) => s.searchUseIgnoreFiles);
   const setUseIgnoreFiles = useSharedSettings((s) => s.setSearchUseIgnoreFiles);
   const exclude = useSharedSettings((s) => s.searchExclude);
   const setExclude = useSharedSettings((s) => s.setSearchExclude);
+  const host = useScopedHostSettings(props);
+  const scopedIgnore = host.remote ? host.settings?.searchUseIgnoreFiles : useIgnoreFiles;
+  const scopedExclude = host.remote ? host.settings?.searchExclude : exclude;
 
   return (
     <SettingsPage
@@ -21,20 +25,30 @@ export function SearchSettings() {
         </Trans>
       }
     >
-      <SearchExcludeBody
-        useIgnoreFilesAnchorId="search.useIgnoreFiles"
-        excludePatternsAnchorId="search.excludePatterns"
-        useIgnoreFiles={useIgnoreFiles}
-        useIgnoreFilesNote={
-          <Trans>
-            When enabled, search respects <code>.gitignore</code> entries.
-          </Trans>
-        }
-        onUseIgnoreFilesChange={setUseIgnoreFiles}
-        baseline={DEFAULT_SEARCH_EXCLUDE}
-        value={exclude}
-        onValueChange={setExclude}
-      />
+      {scopedIgnore !== undefined && scopedExclude !== undefined ? (
+        <SearchExcludeBody
+          useIgnoreFilesAnchorId="search.useIgnoreFiles"
+          excludePatternsAnchorId="search.excludePatterns"
+          useIgnoreFiles={scopedIgnore}
+          useIgnoreFilesNote={
+            <Trans>
+              When enabled, search respects <code>.gitignore</code> entries.
+            </Trans>
+          }
+          onUseIgnoreFilesChange={(next) =>
+            host.remote ? host.update({ searchUseIgnoreFiles: next }) : setUseIgnoreFiles(next)
+          }
+          baseline={DEFAULT_SEARCH_EXCLUDE}
+          value={scopedExclude}
+          onValueChange={(next) =>
+            host.remote ? host.update({ searchExclude: next }) : setExclude(next)
+          }
+        />
+      ) : (
+        <p role="status">
+          <Trans>Settings unavailable</Trans>
+        </p>
+      )}
     </SettingsPage>
   );
 }

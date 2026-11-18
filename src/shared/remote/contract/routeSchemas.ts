@@ -202,6 +202,13 @@ export const remoteMcpSettingsOperationSchema = z.discriminatedUnion("kind", [
     flowId: z.string().min(1),
   }),
   z.object({
+    kind: z.literal("oauth-complete"),
+    scope: remoteMcpSettingsScopeSchema,
+    serverId: z.string().min(1),
+    flowId: z.string().min(1),
+    callbackUrl: z.string().min(1).max(8192),
+  }),
+  z.object({
     kind: z.literal("oauth-clear"),
     scope: remoteMcpSettingsScopeSchema,
     serverId: z.string().min(1),
@@ -216,6 +223,7 @@ export const remoteMcpSettingsOperationResultSchema = z.discriminatedUnion("kind
   }),
   z.object({ kind: z.literal("oauth-begin"), result: mcpOauthBeginResultSchema }),
   z.object({ kind: z.literal("oauth-wait"), result: mcpOauthWaitResultSchema }),
+  z.object({ kind: z.literal("oauth-complete"), result: mcpOauthWaitResultSchema }),
   z.object({ kind: z.literal("oauth-clear") }),
 ]);
 
@@ -347,6 +355,9 @@ const remoteSettingsWireBaseSchema = sharedSettingsSchema.pick(
 export const remoteSettingsWireSchema = remoteSettingsWireBaseSchema.extend({
   usage: sharedSettingsSchema.shape.usage.optional(),
   crews: sharedSettingsSchema.shape.crews.removeDefault().optional(),
+  wslCrews: sharedSettingsSchema.shape.wslCrews.removeDefault().optional(),
+  autoArchiveDoneAfterDays: sharedSettingsSchema.shape.autoArchiveDoneAfterDays.optional(),
+  prCreateMode: sharedSettingsSchema.shape.prCreateMode.optional(),
   followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
   searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
   searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),

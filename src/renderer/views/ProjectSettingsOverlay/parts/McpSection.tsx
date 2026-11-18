@@ -1,9 +1,11 @@
 import { useLingui } from "@lingui/react/macro";
-import type { McpServer } from "@/shared/contracts";
+import type { McpServer, Project } from "@/shared/contracts";
 import { saveProjectMcpServers } from "@/renderer/actions/projectActions";
 import { McpServersManager } from "@/renderer/components/mcp/McpServersManager";
+import { RemoteMcpServersManager } from "@/renderer/components/mcp/RemoteMcpServersManager";
 import { sharedSettingsServerPersistence } from "@/renderer/components/mcp/mcpServersMutation";
 import { useAppStore } from "@/renderer/state/appStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { loadAuthoritativeProjectMcpServers } from "@/renderer/state/projectSettings/projectSettingsLoader";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isHomeProject } from "@/shared/homeScope";
@@ -16,10 +18,35 @@ export function McpSection(props: { projectId: string }) {
     state.projects.find((item) => item.id === props.projectId),
   );
   const projects = useAppStore((state) => state.projects);
-  const userServers = useSharedSettings((state) => state.mcpServers);
-
   if (!project) return null;
 
+  const owner = remoteOwner(project);
+  return (
+    <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
+      <SettingsPage
+        title={t`MCP Servers`}
+        description={t`Workspace MCP servers override user servers with the same name and are added only when agents start in this project.`}
+        bodyClassName="space-y-5"
+      >
+        <ProjectScopeHeading projectId={project.id} scope="environment" />
+        {owner ? (
+          <RemoteMcpServersManager
+            connectionKey={owner.desktopId}
+            workspace={project}
+            projects={projects.filter(
+              (item) => !isHomeProject(item) && remoteOwner(item)?.desktopId === owner.desktopId,
+            )}
+          />
+        ) : (
+          <LocalProjectMcpServers key={project.id} project={project} projects={projects} />
+        )}
+      </SettingsPage>
+    </div>
+  );
+}
+
+function LocalProjectMcpServers({ project, projects }: { project: Project; projects: Project[] }) {
+  const userServers = useSharedSettings((state) => state.mcpServers);
   const importProjects = projects
     .filter((item) => item.remoteServerId === project.remoteServerId)
     .filter((item) => !isHomeProject(item))
@@ -38,37 +65,28 @@ export function McpSection(props: { projectId: string }) {
     }));
 
   return (
-    <div className={PROJECT_SETTINGS_SCROLL_CLASS}>
-      <SettingsPage
-        title={t`MCP Servers`}
-        description={t`Workspace MCP servers override user servers with the same name and are added only when agents start in this project.`}
-        bodyClassName="space-y-5"
-      >
-        <ProjectScopeHeading projectId={project.id} scope="environment" />
-        <McpServersManager
-          sources={{
-            user: {
-              servers: userServers,
-              // The Global list reads and commits against the hydrated
-              // shared-settings store with an awaitable bridge flush — never
-              // against the render-time projection, and never before the
-              // owner settings have hydrated.
-              ...sharedSettingsServerPersistence(),
-            },
-            workspace: {
-              servers: project.mcpServers ?? [],
-              projectId: project.id,
-              projectLocation: project.location,
-              projectName: project.name,
-              ...(project.icon ? { projectIcon: project.icon } : {}),
-              loadServers: () => loadAuthoritativeProjectMcpServers(project.id),
-              saveServers: (servers) => saveProjectMcpServers(project.id, servers),
-            },
-          }}
-          importProjects={importProjects}
-          defaultScope="workspace"
-        />
-      </SettingsPage>
-    </div>
+    <McpServersManager
+      sources={{
+        user: {
+          servers: userServers,
+          // The Global list reads and commits against the hydrated
+          // shared-settings store with an awaitable bridge flush — never
+          // against the render-time projection, and never before the
+          // owner settings have hydrated.
+          ...sharedSettingsServerPersistence(),
+        },
+        workspace: {
+          servers: project.mcpServers ?? [],
+          projectId: project.id,
+          projectLocation: project.location,
+          projectName: project.name,
+          ...(project.icon ? { projectIcon: project.icon } : {}),
+          loadServers: () => loadAuthoritativeProjectMcpServers(project.id),
+          saveServers: (servers) => saveProjectMcpServers(project.id, servers),
+        },
+      }}
+      importProjects={importProjects}
+      defaultScope="workspace"
+    />
   );
 }

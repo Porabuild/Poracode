@@ -26,6 +26,9 @@ const additiveRemoteSettingsKeys = new Set<keyof RemoteSettings>([
   "searchUseIgnoreFiles",
   "searchExclude",
   "crews",
+  "wslCrews",
+  "autoArchiveDoneAfterDays",
+  "prCreateMode",
   "memory",
 ]);
 // Monotonic id of the most recent push. Only its resolution may write back to
@@ -49,14 +52,26 @@ export function applyDesktopSettings(settings: RemoteSettings): void {
   // before that edit; let the push response win instead of flip-flopping.
   if (pendingPushes > 0) return;
   desktopSettings = settings;
-  const { usage, searchUseIgnoreFiles, searchExclude, crews, memory, ...requiredSettings } =
-    settings;
+  const {
+    usage,
+    searchUseIgnoreFiles,
+    searchExclude,
+    crews,
+    wslCrews,
+    autoArchiveDoneAfterDays,
+    prCreateMode,
+    memory,
+    ...requiredSettings
+  } = settings;
   applyExternalSharedSettings({
     ...requiredSettings,
     ...(usage !== undefined ? { usage } : {}),
     ...(searchUseIgnoreFiles !== undefined ? { searchUseIgnoreFiles } : {}),
     ...(searchExclude !== undefined ? { searchExclude } : {}),
     ...(crews !== undefined ? { crews } : {}),
+    ...(wslCrews !== undefined ? { wslCrews } : {}),
+    ...(autoArchiveDoneAfterDays !== undefined ? { autoArchiveDoneAfterDays } : {}),
+    ...(prCreateMode !== undefined ? { prCreateMode } : {}),
     ...(memory !== undefined ? { memory } : {}),
   });
 }

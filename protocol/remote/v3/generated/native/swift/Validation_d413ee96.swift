@@ -265,6 +265,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_7a17f4196c2e709e = RemoteSchema(type: "string", literals: [.string("oauth-complete")], unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_7a20e2f82d6f16d6 = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_ee6af1c3c62ad32f, RemoteSchemas.schema_b7c373d0981a5441], unknownPolicy: .strip)
 }
 

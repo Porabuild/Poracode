@@ -96,7 +96,7 @@ export function PrSection(props: {
     isBlocked,
     blockReason,
     canBypass,
-  } = usePrMergeReadiness(prKey, cacheKey);
+  } = usePrMergeReadiness(prKey, cacheKey, projectId);
   const requestedDetailsKey = useRef<string | undefined>(undefined);
   const [bypass, setBypass] = useState(false);
 

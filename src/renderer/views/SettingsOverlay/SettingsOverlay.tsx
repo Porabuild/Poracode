@@ -7,10 +7,12 @@ import { isRemoteSession } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { useMachines } from "@/renderer/state/machines";
+import { useMachines, type MachineDescriptor } from "@/renderer/state/machines";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
 import { FloatingScopeBar } from "@/renderer/components/machineScope/FloatingScopeBar";
+import { MachineSelect } from "@/renderer/components/machineScope/MachineSelect";
+import { LOCAL_NATIVE_MACHINE_KEY, machineKey } from "@/shared/machines";
 import { agentStatusNeedsAuthAttention } from "@/shared/agentSelection";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
@@ -69,6 +71,7 @@ const DESKTOP_MOBILE_SECTIONS = new Set<SettingsSection>([
   "memory",
   "agentsGeneral",
   "archived",
+  "mcpServers",
 ]);
 
 const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
@@ -78,12 +81,8 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   audio: () => <AudioSettings />,
   appearance: () => <AppearanceSettings />,
   terminal: () => <TerminalSettings />,
-  threads: () => <ThreadSettings />,
-  git: () => <GitSettings />,
-  worktrees: () => <WorktreeSettings />,
   notifications: () => <NotificationSettings />,
   ai: () => <AISettings />,
-  search: () => <SearchSettings />,
   remoteAccess: () => <RemoteAccessSettings />,
   remoteServers: () => <RemoteServersSettings />,
   shortcuts: () => <ShortcutsSettings />,
@@ -91,9 +90,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   agentsGeneral: () => <AgentsGeneralSettings />,
   skills: () => <SkillsSettings />,
   memory: () => <MemorySettings />,
-  mcpServers: () => <McpServersSettings />,
   plugins: () => <PluginsSettings />,
-  crews: () => <CrewsSettings />,
   browser: () => <BrowserSettings />,
   usage: () => <UsageSettings />,
   import: () => <ImportSettings />,
@@ -104,15 +101,12 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
 
 const MACHINE_BACKED_SECTIONS = new Set<SettingsSection>([
   "profile",
-  "git",
-  "worktrees",
   "agents",
   "agentsGeneral",
   "acpRegistry",
   "ai",
   "skills",
   "memory",
-  "mcpServers",
   "usage",
   "import",
 ]);
@@ -125,9 +119,7 @@ const HOST_SCOPED_SECTIONS = new Set<SettingsSection>([
   "ai",
   "skills",
   "memory",
-  "mcpServers",
   "usage",
-  "crews",
   "import",
 ]);
 
@@ -136,6 +128,7 @@ function renderSection(
   onSectionChange: (section: SettingsSection) => void,
   onOpenDesktopSettings: (desktopId: string) => void,
   archiveScope: ArchivedThreadsScopeProps,
+  mcpMachine: MachineDescriptor | undefined,
 ): ReactNode {
   let section: ReactNode;
   if (activeSection === "acpRegistry") {
@@ -151,6 +144,36 @@ function renderSection(
     );
   } else if (activeSection === "archived") {
     section = <ArchivedThreadsSettings {...archiveScope} />;
+  } else if (activeSection === "mcpServers") {
+    section = (
+      <McpServersSettings
+        local={mcpMachine?.kind === "local" && !isRemoteSession()}
+        {...(mcpMachine?.desktopId ? { connectionKey: mcpMachine.desktopId } : {})}
+      />
+    );
+  } else if (
+    activeSection === "git" ||
+    activeSection === "worktrees" ||
+    activeSection === "search" ||
+    activeSection === "threads"
+  ) {
+    const target = mcpMachine?.desktopId
+      ? { connectionKey: mcpMachine.desktopId }
+      : { unavailable: mcpMachine?.kind !== "local" || isRemoteSession() };
+    const Page =
+      activeSection === "git"
+        ? GitSettings
+        : activeSection === "worktrees"
+          ? WorktreeSettings
+          : activeSection === "search"
+            ? SearchSettings
+            : ThreadSettings;
+    section = <Page key={mcpMachine?.id} {...target} />;
+  } else if (activeSection === "crews") {
+    const key = mcpMachine?.desktopId
+      ? machineKey({ host: "remote", desktopId: mcpMachine.desktopId, env: mcpMachine.ref.env })
+      : (mcpMachine?.id ?? "unavailable");
+    section = <CrewsSettings key={key} machineKey={key} />;
   } else if (activeSection === "remoteServers") {
     section = <RemoteServersSettings onOpenDesktopSettings={onOpenDesktopSettings} />;
   } else {
@@ -209,6 +232,8 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   );
   const [mobileDesktopParent, setMobileDesktopParent] = useState<"root" | "connections">("root");
   const [archiveMachineId, setArchiveMachineId] = useState(LOCAL_ARCHIVE_MACHINE_ID);
+  const [mcpMachineId, setMcpMachineId] = useState(LOCAL_NATIVE_MACHINE_KEY);
+  const [crewsMachineId, setCrewsMachineId] = useState(LOCAL_NATIVE_MACHINE_KEY);
   const archiveScope = { machineId: archiveMachineId, onMachineChange: setArchiveMachineId };
   const firstServer = useRemoteServersStore((state) => state.servers[0]);
   const chooseSettingsHost = useSettingsHostStore((state) => state.choose);
@@ -321,6 +346,20 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     activeSection === "agentsGeneral" ||
     activeSection === "acpRegistry" ||
     activeSection.startsWith("agents:");
+  const machines = useMachines();
+  const hosts = machines.filter((machine) => machine.ref.env.kind === "native");
+  const crewScope = activeSection === "crews";
+  const scopedMachines = crewScope ? machines : hosts;
+  const scopedMachineId = crewScope ? crewsMachineId : mcpMachineId;
+  const mcpMachine = scopedMachines.find((machine) => machine.id === scopedMachineId);
+  const showMcpHostBar =
+    (activeSection === "mcpServers" ||
+      crewScope ||
+      activeSection === "git" ||
+      activeSection === "worktrees" ||
+      activeSection === "search" ||
+      activeSection === "threads") &&
+    (scopedMachines.length > 1 || (scopedMachines.length === 1 && !mcpMachine));
   const scopeBar =
     activeSection === "archived" ? (
       <FloatingScopeBar>
@@ -328,6 +367,14 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       </FloatingScopeBar>
     ) : isMachineScopedSection ? (
       <AgentsMachineBar />
+    ) : showMcpHostBar ? (
+      <FloatingScopeBar>
+        <MachineSelect
+          machines={scopedMachines}
+          value={scopedMachineId}
+          onChange={(machine) => (crewScope ? setCrewsMachineId : setMcpMachineId)(machine.id)}
+        />
+      </FloatingScopeBar>
     ) : remoteSession && HOST_SCOPED_SECTIONS.has(activeSection) ? (
       <SettingsHostBar />
     ) : !remoteSession && activeSection === "usage" ? (
@@ -336,12 +383,9 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   // Mirrors the bars' own render condition: a floating pill only appears once
   // there is a second machine (or host) to pick, and only then does the scroll
   // area need to reserve room so its last rows are not covered by it.
-  const machines = useMachines();
   const showsScopeBar =
     scopeBar !== null &&
-    (isMachineScopedSection
-      ? machines.length > 1
-      : machines.filter((machine) => machine.ref.env.kind === "native").length > 1);
+    (isMachineScopedSection ? machines.length > 1 : showMcpHostBar || hosts.length > 1);
   const section = renderSection(
     activeSection,
     (nextSection) => navigateToSection(nextSection, undefined, mobileDetailParent),
@@ -351,6 +395,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
       setMobileScreen("desktop");
     },
     archiveScope,
+    mcpMachine,
   );
   const showMobileDesktopPicker =
     compactLayout &&

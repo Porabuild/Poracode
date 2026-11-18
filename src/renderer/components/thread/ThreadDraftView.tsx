@@ -21,6 +21,7 @@ import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
 import type { DraftContent } from "@/renderer/state/slices/types";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -354,9 +355,9 @@ export function ThreadDraftView(props: {
   const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
-  const savedCrews = useSharedSettings((s) => s.crews);
-  const upsertCrew = useSharedSettings((s) => s.upsertCrew);
-  const helperOptions = useCrewHelperOptions();
+  const crewMachineKey = machineKeyForLocation(project.location);
+  const { crews: savedCrews, upsertCrew } = useCrewLibrary(crewMachineKey);
+  const helperOptions = useCrewHelperOptions(crewMachineKey);
   const sharedSettingsHydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
   const newsLineEnabled = useSharedSettings((s) => s.newsLineEnabled);
   const draftVisit = useAppStore((s) => s.draftVisit);
@@ -448,7 +449,7 @@ export function ThreadDraftView(props: {
     };
   });
   const [draftCrew, setDraftCrew] = useState<ThreadCrewBinding | undefined>(() =>
-    draftCrewFromConfig(lastDraftConfig?.crew, useSharedSettings.getState().crews),
+    draftCrewFromConfig(lastDraftConfig?.crew, savedCrews),
   );
   const [draftCrewExplicitlyCleared, setDraftCrewExplicitlyCleared] = useState(
     () => lastDraftConfig?.crew === null,
@@ -1705,7 +1706,7 @@ export function ThreadDraftView(props: {
       includeWorkflowsToggle: true,
       capabilities: filteredCaps,
       presentationMode,
-      machineKey: machineKeyForLocation(project.location),
+      machineKey: crewMachineKey,
       onProviderModelChange: (next) =>
         latestProviderModelChangeRef.current(next, draftCrew ? { crew: null } : undefined),
       onConfigPatch: (patch, origin) => latestConfigPatchRef.current(patch, origin),
@@ -1722,7 +1723,7 @@ export function ThreadDraftView(props: {
     thinking,
     workflows,
     presentationMode,
-    project.location,
+    crewMachineKey,
     draftCrew,
   ]);
 

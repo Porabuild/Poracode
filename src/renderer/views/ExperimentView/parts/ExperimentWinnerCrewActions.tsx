@@ -8,7 +8,8 @@ import {
   saveAsNewCrew,
 } from "@/renderer/components/crew/crewComposerModel";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
+import { machineKeyForLocation } from "@/shared/machines";
 import { crewBindingFromSavedCrew, threadCrewBinding } from "@/shared/crew";
 import type { Project, Thread } from "@/shared/contracts";
 
@@ -17,8 +18,9 @@ export function ExperimentWinnerCrewActions(props: {
   winnerThread: Thread | undefined;
 }) {
   const { t } = useLingui();
-  const crews = useSharedSettings((state) => state.crews);
-  const upsertCrew = useSharedSettings((state) => state.upsertCrew);
+  const { crews, upsertCrew } = useCrewLibrary(
+    machineKeyForLocation(props.project?.location ?? { kind: "native" }),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [name, setName] = useState("");
   const project = props.project;
