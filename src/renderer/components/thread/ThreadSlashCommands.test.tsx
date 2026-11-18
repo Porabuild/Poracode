@@ -1489,10 +1489,12 @@ describe("ThreadSlashCommands", () => {
       expect(saved?.segments).toEqual([{ kind: "text", content: "Recover this submitted intent" }]);
       expect(saved?.attachments).toHaveLength(1);
 
-      // Reconnect and remount: the editor text and attachment bar restore as
-      // separate carriers, with no duplicated attachment token.
+      // Reconnect while the rejected launch can still be settling. The editor
+      // and attachment bar restore separately once its recovery is ready.
       const restored = renderComposer();
-      expect(screen.getByRole("textbox").textContent).toBe("Recover this submitted intent");
+      await waitFor(() =>
+        expect(screen.getByRole("textbox").textContent).toBe("Recover this submitted intent"),
+      );
       expect(await screen.findAllByAltText("Image 1.png")).toHaveLength(1);
       expect(useAppStore.getState().draftContents[draftProject.id]?.segments).toEqual([
         { kind: "text", content: "Recover this submitted intent" },
