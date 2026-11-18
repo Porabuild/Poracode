@@ -87,7 +87,6 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   remoteServers: () => <RemoteServersSettings />,
   shortcuts: () => <ShortcutsSettings />,
   agents: () => <AgentSettingsEmpty />,
-  agentsGeneral: () => <AgentsGeneralSettings />,
   skills: () => <SkillsSettings />,
   memory: () => <MemorySettings />,
   plugins: () => <PluginsSettings />,
@@ -134,6 +133,10 @@ function renderSection(
   if (activeSection === "acpRegistry") {
     section = (
       <AcpRegistrySettings onOpenAgentSettings={(kind) => onSectionChange(`agents:${kind}`)} />
+    );
+  } else if (activeSection === "agentsGeneral") {
+    section = (
+      <AgentsGeneralSettings onOpenAgentSettings={(kind) => onSectionChange(`agents:${kind}`)} />
     );
   } else if (activeSection.startsWith("agents:")) {
     section = (

@@ -8,7 +8,11 @@ import {
   useAgentStatusesStore,
 } from "@/renderer/state/agentStatusesStore";
 import { AgentDiscoveryOverlay } from "@/renderer/components/thread/AgentDiscoveryOverlay";
-import { AgentsGeneralSettings } from "./AgentsGeneralSettings";
+import { AgentsGeneralSettings as AgentsGeneralSettingsView } from "./AgentsGeneralSettings";
+
+function AgentsGeneralSettings() {
+  return <AgentsGeneralSettingsView onOpenAgentSettings={() => undefined} />;
+}
 
 const mocks = vi.hoisted(() => ({
   rediscover: vi.fn<(distros: string[]) => Promise<unknown>>(),

@@ -11,7 +11,7 @@ import { ModelOrderSection } from "./ModelOrderSection";
 import { ModelVisibilitySection } from "./ModelVisibilitySection";
 import { SettingsPage } from "./SettingsForm";
 
-export function AgentsGeneralSettings() {
+export function AgentsGeneralSettings(props: { onOpenAgentSettings: (kind: string) => void }) {
   const { t } = useLingui();
   const machine = useSelectedMachine();
   const host = agentManagementHostForMachine(machine);
@@ -50,7 +50,7 @@ export function AgentsGeneralSettings() {
       }
     >
       <ModelVisibilitySection />
-      <ModelOrderSection />
+      <ModelOrderSection onOpenAgentSettings={props.onOpenAgentSettings} />
     </SettingsPage>
   );
 }
