@@ -141,6 +141,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@opentui/core@0.8.4": "patches/@opentui%2Fcore@0.8.4.patch",
+  },
   "catalog": {
     "@opentui/core": "0.8.4",
     "@opentui/keymap": "0.8.4",

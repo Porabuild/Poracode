@@ -152,6 +152,22 @@ describe("FileIndexService", () => {
       expect(filePaths).toEqual(["src/main.ts"]);
     });
 
+    it("honors ordered exclude exceptions without reusing an index for a different order", async () => {
+      mockGit(() => "src/keep.ts\nsrc/omit.ts\nsrc/file.md\n");
+      const search = async (excludePatterns: string[]) => {
+        const result = await service.searchProjectFiles({
+          projectLocation: location,
+          query: "",
+          limit: 50,
+          searchConfig: { useIgnoreFiles: true, excludePatterns },
+        });
+        return result.entries.filter((entry) => entry.type === "file").map((entry) => entry.path);
+      };
+
+      expect(await search(["**/*.ts", "!src/keep.ts"])).toEqual(["src/file.md", "src/keep.ts"]);
+      expect(await search(["!src/keep.ts", "**/*.ts"])).toEqual(["src/file.md"]);
+    });
+
     it("drops --exclude-standard when useIgnoreFiles is false", async () => {
       let observedArgs: string[] = [];
       mockExecFile.mockImplementation(

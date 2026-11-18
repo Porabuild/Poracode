@@ -411,7 +411,7 @@ describe("poracode-git-helper parity & fallback", () => {
     },
   );
 
-  it("routes negated exclude globs to micromatch while keeping character classes native", () => {
+  it("routes negated exclude globs to the JavaScript glob matcher while keeping character classes native", () => {
     expect(areSearchExcludePatternsNativeCompatible(["!**/*.md"])).toBe(false);
     expect(areSearchExcludePatternsNativeCompatible(["!!**/*.md"])).toBe(false);
     expect(areSearchExcludePatternsNativeCompatible(["**/[!a]*.ts"])).toBe(true);

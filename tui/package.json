@@ -46,5 +46,8 @@
     "solid-js": "1.9.18",
     "string-width": "8.3.0",
     "zod": "4.6.7"
+  },
+  "patchedDependencies": {
+    "@opentui/core@0.8.4": "patches/@opentui%2Fcore@0.8.4.patch"
   }
 }
