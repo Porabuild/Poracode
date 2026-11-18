@@ -346,14 +346,14 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     },
   );
 
-  it("drops the on-disk status cache before an explicit full refresh", async () => {
+  it("keeps serving the last-known inventory while rewriting the disk cache during a full refresh", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue({
       ...makeStatus(),
       capabilities: { ...capabilities, models: [{ id: "stale", label: "Stale" }] },
     });
     const { service, statusCachePath } = makeService(detectInstall);
 
-    await service.refreshAgentStatuses({ wslDistros: [] });
+    await service.refreshAgentStatuses({ wslDistros: ["Ubuntu"] });
     expect(existsSync(statusCachePath)).toBe(true);
 
     expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
@@ -363,7 +363,12 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     detectInstall.mockClear();
     detectInstall.mockImplementation(async () => {
       expect(existsSync(statusCachePath)).toBe(false);
-      expect(service.getCachedCapabilities("codex")).toBeUndefined();
+      expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
+        "stale",
+      ]);
+      // A second client or a reconnect can read the same inventory mid-refresh.
+      const response = await service.getAgentStatuses({ wslDistros: [] });
+      expect(response.windows[0]?.capabilities.models.map((model) => model.id)).toEqual(["stale"]);
       return {
         ...makeStatus(),
         capabilities: {
@@ -378,8 +383,10 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledTimes(1);
     const cached = JSON.parse(readFileSync(statusCachePath, "utf8")) as {
       windows: AgentStatus[];
+      wsl: AgentStatus[];
     };
     expect(cached.windows[0]?.capabilities.models.map((model) => model.id)).toEqual(["fresh"]);
+    expect(cached.wsl[0]?.capabilities.models.map((model) => model.id)).toEqual(["stale"]);
     expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
       "fresh",
     ]);

@@ -518,11 +518,14 @@ export class AgentStatusService {
     if (payload.scope) {
       return this.runScopedDetection(wslDistros, payload.scope);
     }
-    // Full Settings refresh must not keep serving the previous sweep. Drop the
-    // on-disk status file first so `getAgentStatuses` / `getCachedCapabilities`
-    // cannot return stale models while the new probe runs, then rewrite it.
+    // Retire the previous sweep and its disk cache, but keep the last accepted
+    // inventory visible to clients until each target has a fresh observation.
+    const lastKnown = this.readAcceptedStatuses();
     const retained = this.publication.invalidate(
       [...this.scopedDetectionJobs].map((job) => job.ticket),
+      [...lastKnown.windows, ...lastKnown.wsl].filter((status) =>
+        this.options.adapters.has(status.kind),
+      ),
     );
     for (const job of this.scopedDetectionJobs) job.ticket = retained.get(job.ticket) ?? job.ticket;
     this.clearDiskCache();

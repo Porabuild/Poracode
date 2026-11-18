@@ -1091,7 +1091,12 @@ export interface AgentUpdater {
    * inspection. Heavy work (network, version comparison) lives in detect /
    * status probes.
    */
-  buildUpdateCommand?(ctx: AgentEnvContext, status: AgentStatus): AgentUpdaterCommand | undefined;
+  buildUpdateCommand?(
+    ctx: AgentEnvContext,
+    status: AgentStatus,
+    /** Resolved installation target, when the launcher is a symlink. */
+    installPath?: string,
+  ): AgentUpdaterCommand | undefined;
   /**
    * Arguments that start the installed binary and exit 0 only when the install
    * is usable (typically `["--version"]`). After a package-manager update that
