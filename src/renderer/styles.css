@@ -3924,6 +3924,20 @@ html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-ch
   -webkit-backdrop-filter: var(--floating-chrome-backdrop);
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
 }
+
+.poracode-floating-chrome--clear {
+  --floating-chrome-backdrop: none;
+  -webkit-backdrop-filter: var(--floating-chrome-backdrop);
+  backdrop-filter: var(--floating-chrome-backdrop);
+}
+
+@media not (prefers-reduced-transparency: reduce) {
+  .poracode-floating-chrome--clear {
+    --floating-chrome-surface: color-mix(in oklab, var(--composer-surface) 25%, transparent);
+    --floating-chrome-backdrop: blur(3px);
+  }
+}
+
 .poracode-floating-chrome--active {
   background-color: var(--floating-chrome-active-surface);
 }
