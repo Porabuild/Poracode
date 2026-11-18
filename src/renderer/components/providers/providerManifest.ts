@@ -1,4 +1,5 @@
 import type { MessageDescriptor } from "@lingui/core";
+import type { SplitHtmlVisualFileReferences } from "../thread/ChatPane/parts/items/htmlVisualFileReference";
 import {
   baseAgentKind,
   type AgentCapability,
@@ -52,6 +53,8 @@ export interface RendererProviderManifest {
    * it. Shared chat code applies this blindly; the provider owns the format.
    */
   formatTranscriptMarkdown?: (text: string) => string;
+  /** Decode provider-authored references to workspace HTML previews in assistant text. */
+  splitHtmlVisualFileReferences?: SplitHtmlVisualFileReferences;
 }
 
 const manifestModules = import.meta.glob<RendererProviderManifest>("./*/manifest.ts", {
