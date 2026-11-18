@@ -238,6 +238,7 @@ export class SubagentAttemptRunner {
             threadId: resources.childThreadId,
             projectLocation,
             config,
+            fixedApprovalPolicy: true,
             presentationMode: "gui",
             ...(this.host.readHostDiagnostics
               ? {
