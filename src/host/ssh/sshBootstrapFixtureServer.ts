@@ -83,7 +83,29 @@ if (lifetimeGuard) {
 const leasePath = process.env.PORACODE_FIXTURE_LEASE_PATH;
 const port = Number(process.env.PORACODE_REMOTE_ACCESS_PORT || "0");
 const protocol = Number(process.env.PORACODE_FIXTURE_PROTOCOL || "12");
-if (leasePath && fs.existsSync(leasePath)) {
+// The real owner's data-root lease is a process-lifetime kernel lock: it is
+// held exactly while the owner lives, and any exit — graceful shutdown, a
+// crash, SIGKILL — releases it at once. A lease file cannot borrow that
+// guarantee, so it records its holder pid and only counts as held while that
+// pid is still alive. A crashed holder therefore stops blocking new owners,
+// like the kernel lock it stands in for.
+function leaseHolderLives() {
+  if (!leasePath || !fs.existsSync(leasePath)) return false;
+  let holderPid = 0;
+  try {
+    holderPid = Number(fs.readFileSync(leasePath, "utf8").trim());
+  } catch {
+    return false;
+  }
+  if (!Number.isSafeInteger(holderPid) || holderPid <= 0) return false;
+  try {
+    process.kill(holderPid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+if (leaseHolderLives()) {
   process.stderr.write("Poracode already owns " + (process.env.PORACODE_BASE_DIR || "") + ".host-v1.\n");
   process.exit(3);
 }
@@ -125,10 +147,21 @@ function stop() {
 }
 process.on("SIGTERM", stop);
 process.on("SIGINT", stop);
-setTimeout(() => {
-  server.listen(port, "127.0.0.1", () => {
+// The listener binds as soon as the process starts. The launcher probes a
+// port and hands it to this fixture; leaving it unbound for a whole boot
+// delay invites another process on a busy host to claim it in between, which
+// crashes this fixture on listen. START_DELAY models a slow owner boot, so
+// only readiness publication — the status file and the started log line —
+// waits for it.
+server.on("error", (error) => {
+  process.stderr.write("Poracode fixture could not listen on " + port + ": " + error.code + "\n");
+  if (leasePath) { try { fs.unlinkSync(leasePath); } catch {} }
+  process.exit(3);
+});
+server.listen(port, "127.0.0.1", () => {
+  setTimeout(() => {
     if (statusFile) fs.writeFileSync(statusFile, JSON.stringify({ generation, port }));
     log("started pid=" + process.pid + " port=" + port);
-  });
-}, startDelay);
+  }, startDelay);
+});
 `;
