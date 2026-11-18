@@ -90,7 +90,7 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
   // Reserve room for both readable metadata and a visibly stronger primary label.
   const readablePanel = contrastRatio(fg, tintedPanel) >= 9 ? tintedPanel : surface;
   const panel = mode === "dark" ? mixHex("#000000", readablePanel, 0.05) : readablePanel;
-  const field = mode === "dark" ? mixHex(fg, surface, 0.09) : mixHex("#ffffff", surface, 0.65);
+  const field = mixHex(fg, surface, mode === "dark" ? 0.09 : 0.11);
   const composer = spec.composer ?? field;
 
   // Check metadata against its reading surfaces and hints against their actual fields.
@@ -123,8 +123,7 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--surface-tertiary": mix(surface, 85, fg),
     // Floating chrome (modals, menus, popovers). In dark themes it drops to
     // just above the surface so fields (mixed toward fg, below) read as raised
-    // cards on it; in light themes it dims below the surface, where the
-    // barely-lighter field fill already reads as a card.
+    // cards on it; light overlays stay pale while editable fields step toward the dark foreground.
     "--overlay": mode === "light" ? mix(surface, 93, fg) : mix(surface, 98, fg),
     "--muted": muted.hex,
     "--scrollbar": fade(muted.hex, 60),
@@ -136,8 +135,7 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--default": mix(surface, mode === "light" ? 82 : 86, fg),
     "--accent": accent,
     "--accent-foreground": accentFg,
-    // Fields sit a step lighter than the surface/overlay (below) so they read
-    // as raised cards on panels and floating chrome in both modes.
+    // Editable fields are lighter than read-only panels in dark mode and darker in light mode.
     "--field-background": field,
     "--field-foreground": fg,
     "--field-placeholder": placeholder,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyAppTheme } from "./applyAppTheme";
-import { contrastRatio, mixHex, toHex } from "./colorMath";
+import { contrastRatio, mixHex, parseHex, relativeLuminance, toHex } from "./colorMath";
 import { APP_THEME_PRESETS, DEFAULT_THEME_ID, getThemePreset } from "./themePresets";
 import { MANAGED_THEME_VARS } from "./themeTokens";
 
@@ -77,6 +77,17 @@ describe("theme presets", () => {
         );
         expect(missing).toEqual([]);
         expect(variant["--sidebar-row-active-override"]).toBe("");
+      }
+    }
+  });
+
+  it("places editable fills toward the foreground relative to read-only surfaces", () => {
+    for (const preset of APP_THEME_PRESETS) {
+      for (const mode of ["light", "dark"] as const) {
+        const vars = preset[mode];
+        const field = relativeLuminance(parseHex(vars["--field-background"]!));
+        const panel = relativeLuminance(parseHex(vars["--content-surface-fill"]!));
+        expect(mode === "light" ? panel - field : field - panel).toBeGreaterThan(0);
       }
     }
   });
