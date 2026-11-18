@@ -74,7 +74,7 @@ describe("native visual fit to width", () => {
     );
     const content = result.container.querySelector<HTMLElement>("[data-native-visual-zoom]")!;
     expect(content.style.width).toBe("348px");
-    expect(Number(content.style.zoom)).toBe(200 / 348);
+    expect(content).toHaveStyle({ zoom: String(200 / 348) });
     result.rerender(
       <NativeVisualViewport
         zoom={125}

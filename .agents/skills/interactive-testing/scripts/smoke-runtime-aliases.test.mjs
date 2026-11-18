@@ -285,10 +285,10 @@ void test("ordinary undeclared roots remain supported without a root manifest", 
   });
 });
 
-void test("actual streamdown-marked npm alias resolves a fully copied installed Marked17 package", async () => {
+void test("actual streamdown-marked npm alias resolves a fully copied installed Marked package", async () => {
   const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
   const manifest = JSON.parse(await readFile(join(repoRoot, "package.json")));
-  assert.equal(manifest.dependencies["streamdown-marked"], "npm:marked@17.0.6");
+  assert.equal(manifest.dependencies["streamdown-marked"], "npm:marked@18.2.0");
   await fixture(async (f) => {
     const source = createRequire(join(repoRoot, "package.json")).resolve("streamdown-marked");
     assert.equal(
@@ -303,7 +303,7 @@ void test("actual streamdown-marked npm alias resolves a fully copied installed 
       await readFile(join(f.appRoot, "node_modules/streamdown-marked/package.json")),
     );
     assert.equal(packageManifest.name, "marked");
-    assert.equal(packageManifest.version, "17.0.6");
+    assert.equal(packageManifest.version, "18.2.0");
     assert.ok((await hashTree(f.appRoot)).files > 0);
   });
 });

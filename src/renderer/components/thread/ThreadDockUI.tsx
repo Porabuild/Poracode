@@ -29,7 +29,7 @@ export function ThreadDockSection({
   // sections carry the bordered strip chrome.
   const baseClass =
     placement === "composer"
-      ? "flex flex-col border-b border-[color:var(--border)] bg-transparent text-xs"
+      ? "flex flex-col border-b border-[var(--hairline-soft)] bg-transparent text-xs"
       : collapsed
         ? "flex flex-col rounded-none border-0 bg-[var(--content-background)] text-xs"
         : "flex h-full min-h-0 flex-col rounded-none border-0 bg-[var(--content-background)] text-xs";

@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { DiffFile, DiffView } from "@git-diff-view/react";
 import { Trans } from "@lingui/react/macro";
@@ -95,7 +96,7 @@ export function SingleFileDiff(props: {
       )}
       {diffFile && (
         <div className="space-y-4">
-          <div className="rounded border border-border">
+          <ContentSurface>
             {annotationTarget ? (
               <DiffAnnotationView
                 diffFile={diffFile}
@@ -119,7 +120,7 @@ export function SingleFileDiff(props: {
                 diffViewWrap={false}
               />
             )}
-          </div>
+          </ContentSurface>
         </div>
       )}
     </div>

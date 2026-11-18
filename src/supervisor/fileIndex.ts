@@ -1,4 +1,3 @@
-import micromatch from "micromatch";
 import type {
   FileEntry,
   ProjectLocation,
@@ -7,6 +6,7 @@ import type {
   SearchProjectFilesResult,
 } from "@/shared/contracts";
 import { execGit, getLocationIdentity } from "./git";
+import { compileOrderedGlobMatcher, expandDirectoryGlobs } from "./fileGlobs";
 import { GIT_DEFAULT_TIMEOUT } from "./git/exec";
 import { admitGitProcess } from "./git/gitProcessAdmission";
 import {
@@ -178,9 +178,8 @@ export class FileIndexService {
       .map((p) => p.replace(/\\/g, "/"));
 
     if (config.excludePatterns.length > 0) {
-      filePaths = micromatch.not(filePaths, expandDirPatterns(config.excludePatterns), {
-        dot: true,
-      });
+      const exclude = compileOrderedGlobMatcher(expandDirectoryGlobs(config.excludePatterns));
+      filePaths = [...new Set(filePaths)].filter((filePath) => !exclude(filePath));
     }
 
     if (filePaths.length > MAX_INDEX_SIZE) {
@@ -250,22 +249,5 @@ export class FileIndexService {
 }
 
 function cacheKeyForConfig(config: SearchConfigPayload): string {
-  const sorted = [...config.excludePatterns].sort().join(",");
-  return `${config.useIgnoreFiles ? "i" : "n"}:${sorted}`;
-}
-
-/**
- * VS Code's `search.exclude` treats a directory pattern like `**\/node_modules`
- * as also matching everything beneath it. micromatch does not, so we expand
- * `P` into `[P, P/**]` unless the pattern already ends in a wildcard segment.
- */
-function expandDirPatterns(patterns: string[]): string[] {
-  const out: string[] = [];
-  for (const p of patterns) {
-    out.push(p);
-    if (!/(\/\*\*|\*)$/.test(p)) {
-      out.push(`${p}/**`);
-    }
-  }
-  return out;
+  return JSON.stringify([config.useIgnoreFiles, config.excludePatterns]);
 }

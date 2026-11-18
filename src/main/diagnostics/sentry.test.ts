@@ -7,6 +7,7 @@ import type { NodeClient as SentryNodeClient } from "@sentry/node";
 
 const electronMock = vi.hoisted(() => ({
   app: {
+    whenReady: () => Promise.resolve(),
     getAppPath: () => ".",
     getName: () => "Poracode",
     getPath: vi.fn<() => string>(),
@@ -228,6 +229,14 @@ describe("main Sentry event admission", () => {
       );
       const sentryOptions = sentryMock.init.mock.calls.at(-1)?.[0];
       expect(sentryOptions).toBeDefined();
+      expect(sentryOptions!.dataCollection).toMatchObject({
+        userInfo: false,
+        cookies: false,
+        httpHeaders: false,
+        httpBodies: [],
+        genAI: { inputs: false, outputs: false },
+        mcp: { inputs: false, outputs: false },
+      });
       const beforeSend = sentryOptions!.beforeSend;
       const minidumpFactory = electronRequire(
         "./integrations/sentry-minidump/index.js",
@@ -262,10 +271,10 @@ describe("main Sentry event admission", () => {
       const { NodeClient } = electronRequire("@sentry/node");
       const sentryClient = new NodeClient(clientOptions) as SentryNodeClient;
       client = sentryClient;
+      sentryClient.init();
       await sentryCore.withScope(async (scope) => {
         scope.update(sentryOptions!.initialScope as Parameters<typeof scope.update>[0]);
         scope.setClient(sentryClient);
-        sentryClient.init();
 
         minidumpIntegration!.setup(sentryClient);
         await initialMinidumpLoaded;

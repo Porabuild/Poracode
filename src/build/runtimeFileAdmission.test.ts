@@ -25,7 +25,7 @@ let archiveModule: string;
 describe.skipIf(process.platform === "win32")("runtime file admission", () => {
   beforeAll(async () => {
     helperRoot = await mkdtemp(join(tmpdir(), "poracode-file-admission-helper-"));
-    const bundles = await build({
+    const { bundles } = await build({
       config: false,
       cwd: resolve(import.meta.dirname, "../.."),
       entry: { runtimeBundle: "src/main/ssh/runtimeBundle.ts" },

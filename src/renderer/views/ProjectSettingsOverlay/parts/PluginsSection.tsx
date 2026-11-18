@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isHomeProject } from "@/shared/homeScope";
 import {
@@ -83,7 +84,7 @@ export function PluginsSection(props: { projectId: string }) {
             </Trans>
           </p>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+          <ContentSurface className="overflow-hidden">
             {rows.map(({ entry, globalEnabled }) => {
               const name = entry.plugin.name;
               const choice: PluginChoice = Object.hasOwn(overrides, name)
@@ -94,7 +95,7 @@ export function PluginsSection(props: { projectId: string }) {
               return (
                 <div
                   key={name}
-                  className="settings-row flex items-center gap-3 border-b border-[var(--hairline)] px-4 py-3 last:border-b-0"
+                  className="settings-row flex items-center gap-3 border-b border-[var(--hairline-soft)] px-4 py-3 last:border-b-0"
                 >
                   <PluginIcon
                     pluginId={name}
@@ -128,7 +129,7 @@ export function PluginsSection(props: { projectId: string }) {
                 </div>
               );
             })}
-          </div>
+          </ContentSurface>
         )}
       </SettingsPage>
     </div>

@@ -462,7 +462,7 @@ describe("ThreadImagesDock", () => {
       );
       expect(img.className).not.toContain("group-hover:scale");
     }
-    expect(tiles[0]).toHaveClass("h-24", "w-40", "rounded-xl");
+    for (const tile of tiles) expect(tile).toHaveClass("h-24", "w-40", "content-surface");
     expect(tiles[0]!.querySelector("span[aria-hidden='true']")).toHaveClass(
       "group-hover:bg-foreground/10",
     );

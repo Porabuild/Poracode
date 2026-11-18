@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Disclosure, Skeleton } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -17,14 +18,14 @@ function CostHistorySkeleton() {
         </div>
         <Skeleton className="h-9 w-full rounded-xl bg-foreground/10 @min-[480px]:w-52" />
       </div>
-      <div className="grid gap-6 rounded-xl border border-border/60 bg-surface-secondary/20 p-4 @min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @min-[640px]:p-5">
-        <div className="flex min-w-0 flex-col gap-4 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-border/40 @min-[640px]:pr-6">
+      <ContentSurface className="grid gap-6 p-4 @min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @min-[640px]:p-5">
+        <div className="flex min-w-0 flex-col gap-4 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-[var(--hairline-soft)] @min-[640px]:pr-6">
           <div className="space-y-2">
             <Skeleton className="h-3.5 w-32 rounded bg-foreground/10" />
             <Skeleton className="h-10 w-36 rounded-lg bg-foreground/10" />
             <Skeleton className="h-3 w-40 rounded bg-foreground/10" />
           </div>
-          <div className="space-y-2 border-t border-border/40 pt-3">
+          <div className="space-y-2 border-t border-[var(--hairline-soft)] pt-3">
             <Skeleton className="h-3 w-28 rounded bg-foreground/10" />
             <Skeleton className="h-4 w-20 rounded bg-foreground/10" />
           </div>
@@ -36,18 +37,15 @@ function CostHistorySkeleton() {
           </div>
           <Skeleton className="h-40 w-full rounded-lg bg-foreground/10 @min-[480px]:h-48" />
         </div>
-      </div>
+      </ContentSurface>
       <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-44 rounded bg-foreground/10" />
         <div className="grid grid-cols-2 gap-3 @min-[480px]:grid-cols-3 @min-[880px]:grid-cols-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-lg border border-border/50 bg-surface-secondary/20 px-3 py-2.5"
-            >
+            <ContentSurface key={i} className="px-3 py-2.5">
               <Skeleton className="h-3 w-16 rounded bg-foreground/10" />
               <Skeleton className="mt-2 h-6 w-20 rounded bg-foreground/10" />
-            </div>
+            </ContentSurface>
           ))}
         </div>
       </div>
@@ -55,11 +53,11 @@ function CostHistorySkeleton() {
         <Skeleton className="h-4 w-24 rounded bg-foreground/10" />
         <div className="grid gap-3 @min-[480px]:grid-cols-2 @min-[800px]:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-border/50 bg-surface-secondary/15 p-3">
+            <ContentSurface key={i} className="p-3">
               <Skeleton className="h-4 w-24 rounded bg-foreground/10" />
               <Skeleton className="mt-3 h-5 w-20 rounded bg-foreground/10" />
               <Skeleton className="mt-2 h-3 w-28 rounded bg-foreground/10" />
-            </div>
+            </ContentSurface>
           ))}
         </div>
       </div>
@@ -203,9 +201,9 @@ export function CostHistory({
           )}
         </div>
       </div>
-      <div className="grid gap-6 rounded-xl border border-border/60 bg-surface-secondary/20 p-4 @min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @min-[640px]:p-5">
+      <ContentSurface className="grid gap-6 p-4 @min-[640px]:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] @min-[640px]:p-5">
         <section
-          className="flex min-w-0 flex-col gap-4 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-border/40 @min-[640px]:pr-6"
+          className="flex min-w-0 flex-col gap-4 @min-[640px]:justify-between @min-[640px]:border-r @min-[640px]:border-[var(--hairline-soft)] @min-[640px]:pr-6"
           aria-label={t`Costs`}
         >
           <div>
@@ -228,7 +226,7 @@ export function CostHistory({
               </span>
             </p>
           </div>
-          <dl className="border-t border-border/40 pt-3 text-xs">
+          <dl className="border-t border-[var(--hairline-soft)] pt-3 text-xs">
             <dt className="text-muted">
               {activeBasis === "estimate" ? (
                 <>
@@ -263,7 +261,7 @@ export function CostHistory({
           </div>
           <CostTrend points={points} currency={currency} locale={locale} />
         </section>
-      </div>
+      </ContentSurface>
       <section className="flex flex-col gap-3" aria-label={t`Recorded token categories`}>
         <h2 className="text-sm font-semibold">
           <Trans>Recorded token categories</Trans>
@@ -280,10 +278,7 @@ export function CostHistory({
             [t`Output`, totals.categorizedTokens > 0 ? totals.categories.output : undefined],
             [t`Unpriced tokens`, totals.unpricedTokens],
           ].map(([label, value]) => (
-            <div
-              key={label}
-              className="min-w-0 rounded-lg border border-border/50 bg-surface-secondary/20 px-3 py-2.5"
-            >
+            <ContentSurface key={label} className="min-w-0 px-3 py-2.5">
               <dt className="text-[11px] text-muted">{label}</dt>
               <dd
                 className="mt-1 break-words text-lg font-semibold tabular-nums"
@@ -291,7 +286,7 @@ export function CostHistory({
               >
                 {typeof value === "number" ? value.toLocaleString(locale) : unknown}
               </dd>
-            </div>
+            </ContentSurface>
           ))}
         </dl>
         <p className="text-[11px] leading-relaxed text-muted">
@@ -317,10 +312,7 @@ export function CostHistory({
         {sortedProviders.length ? (
           <ul className="grid gap-3 @min-[480px]:grid-cols-2 @min-[800px]:grid-cols-3">
             {sortedProviders.map((entry) => (
-              <li
-                key={entry.key}
-                className="min-w-0 rounded-lg border border-border/50 bg-surface-secondary/15 p-3"
-              >
+              <li key={entry.key} className="min-w-0 content-surface p-3">
                 <div className="flex items-start gap-2 text-sm">
                   <span aria-hidden>
                     <ProviderIcon
@@ -364,19 +356,19 @@ export function CostHistory({
             className="w-full min-w-0 @min-[480px]:w-44"
           />
         </div>
-        <div
+        <ContentSurface
           role="region"
           aria-label={rowHeading}
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard focus enables native scrolling
           tabIndex={0}
-          className="max-h-[480px] overflow-y-auto rounded-lg border border-border/50 px-3 outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
+          className="max-h-[480px] overflow-y-auto px-3 outline-none focus-visible:ring-2 focus-visible:ring-focus/50"
         >
           <table className="block w-full text-left text-xs @min-[640px]:table">
             <caption className="sr-only">
               {rowHeading} · {basisCaption}
             </caption>
             <thead className="sr-only text-muted @min-[640px]:not-sr-only @min-[640px]:table-header-group">
-              <tr className="border-b border-border/50">
+              <tr className="border-b border-[var(--hairline-soft)]">
                 <th
                   scope="col"
                   className="bg-background/95 py-3 pr-5 font-medium backdrop-blur-xs @min-[640px]:sticky @min-[640px]:top-0 @min-[640px]:z-10"
@@ -407,7 +399,7 @@ export function CostHistory({
               {rows.map((entry) => (
                 <tr
                   key={entry.key}
-                  className="grid grid-cols-2 gap-x-4 gap-y-2 border-b border-border/40 py-3 last:border-0 @min-[640px]:table-row @min-[640px]:py-0"
+                  className="grid grid-cols-2 gap-x-4 gap-y-2 border-b border-[var(--hairline-soft)] py-3 last:border-0 @min-[640px]:table-row @min-[640px]:py-0"
                 >
                   <th
                     scope="row"
@@ -457,12 +449,12 @@ export function CostHistory({
               )}
             </tbody>
           </table>
-        </div>
+        </ContentSurface>
         <p className="text-[11px] leading-relaxed text-muted">
           <Trans>Unpriced tokens have neither a provider-reported cost nor an API estimate.</Trans>
         </p>
       </section>
-      <div className="flex flex-col gap-2 border-t border-border/40 pt-4 text-[11px] leading-relaxed text-muted">
+      <div className="flex flex-col gap-2 border-t border-[var(--hairline-soft)] pt-4 text-[11px] leading-relaxed text-muted">
         <dl className="flex flex-wrap gap-x-2 font-medium text-foreground">
           <dt>
             <Trans>Subscription bill</Trans>
@@ -476,7 +468,7 @@ export function CostHistory({
           </Trans>
         </p>
       </div>
-      <Disclosure className="border-t border-border/40 pt-4">
+      <Disclosure className="border-t border-[var(--hairline-soft)] pt-4">
         <Disclosure.Heading>
           <Disclosure.Trigger className="flex w-full items-center justify-between gap-3 text-left text-sm font-semibold">
             <Trans>Pricing provenance</Trans>

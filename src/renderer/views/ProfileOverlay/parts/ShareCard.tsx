@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { forwardRef } from "react";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -43,10 +44,7 @@ export const ShareCard = forwardRef<
   const heatmap = metric === "tokens" && tokens?.available ? tokens.tokenHeatmap : promptHeatmap;
 
   return (
-    <div
-      ref={ref}
-      className="flex w-[600px] flex-col gap-5 rounded-2xl border border-border bg-surface p-6"
-    >
+    <ContentSurface ref={ref} className="flex w-[600px] flex-col gap-5 p-6">
       <div className="flex items-center gap-3">
         <div
           className="flex size-12 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-white"
@@ -74,7 +72,7 @@ export const ShareCard = forwardRef<
 
       <ActivityHeatmap heatmap={heatmap} />
 
-      <div className="grid grid-cols-4 gap-2 border-t border-separator pt-4">
+      <div className="grid grid-cols-4 gap-2 border-t border-[var(--hairline-soft)] pt-4">
         <Stat value={lifetime} label={window === "all" ? t`lifetime tokens` : t`total tokens`} />
         <Stat value={peak} label={t`peak day`} />
         <Stat value={formatDaysLabel(totals.currentStreakDays, t)} label={t`current streak`} />
@@ -84,6 +82,6 @@ export const ShareCard = forwardRef<
       <div className="flex items-center justify-center pt-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted/60">
         Poracode
       </div>
-    </div>
+    </ContentSurface>
   );
 });

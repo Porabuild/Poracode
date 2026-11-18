@@ -114,10 +114,7 @@ export function PluginCatalogDetail(props: {
         </div>
       </div>
 
-      <section
-        aria-label={t`Plugin source`}
-        className="rounded-2xl border border-[var(--hairline-soft)] bg-surface-secondary/30 p-3.5 text-xs"
-      >
+      <section aria-label={t`Plugin source`} className="content-surface p-3.5 text-xs">
         <h2 className="text-xs font-semibold text-foreground">
           <Trans>Plugin source</Trans>
         </h2>

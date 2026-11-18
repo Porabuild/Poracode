@@ -2,7 +2,7 @@
 name = "poracode-mcp-relay"
 # helperVersion reported by the hello handshake. Bump on any behavior change so
 # stale staged binaries are detectable (see .agents/docs/versioning.md).
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.98"
 license = "Apache-2.0"
@@ -23,7 +23,7 @@ serde_json = { version = "1", features = ["preserve_order", "raw_value"] }
 # Plain HTTP only: default-features drops TLS and compression. Loopback MCP
 # endpoints are http:, and the relay must never route through a proxy, so TLS
 # and proxy support stay out of the binary entirely.
-ureq = { version = "=3.5.0", default-features = false }
+ureq = { version = "=3.5.1", default-features = false }
 base64 = "0.23"
 
 [target.'cfg(unix)'.dependencies]

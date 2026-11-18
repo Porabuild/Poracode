@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Modal, Separator } from "@heroui/react";
@@ -169,8 +170,8 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
             </p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
-            <ul className="divide-y divide-[var(--hairline)]">
+          <ContentSurface className="overflow-hidden">
+            <ul className="divide-y divide-[var(--hairline-soft)]">
               {crews.map((crew) => (
                 <li
                   key={crew.id}
@@ -269,7 +270,7 @@ export function CrewsSettings({ machineKey }: { machineKey?: string }) {
                 </li>
               ))}
             </ul>
-          </div>
+          </ContentSurface>
         )}
       </div>
       {editingCrew ? (
@@ -365,7 +366,7 @@ function CrewEditorModal(props: {
               />
               <p className="mt-1 text-[11px] text-muted">{t`New crews start as Crew only.`}</p>
             </div>
-            <div className="overflow-hidden rounded-xl border border-[var(--hairline)] px-1.5 py-1">
+            <ContentSurface className="overflow-hidden px-1.5 py-1">
               <CrewMemberRow
                 model={model}
                 selection={crew.lead}
@@ -423,7 +424,7 @@ function CrewEditorModal(props: {
                 <Plus className="size-3.5" />
                 <Trans>Add role</Trans>
               </Button>
-            </div>
+            </ContentSurface>
             <p className="text-[11px] text-muted">
               <Trans>
                 If a role's agent is unavailable, its fallbacks run. Crew first may also use the

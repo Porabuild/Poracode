@@ -93,7 +93,7 @@ export function UsageProviderCard(props: {
                 aria-label={t`${label} API key`}
                 autoComplete="off"
                 spellCheck={false}
-                className="min-w-0 flex-1 rounded-lg border border-[color:var(--separator)] bg-background px-2 py-1 text-xs text-foreground outline-none focus-visible:focus-ring"
+                className="min-w-0 flex-1 rounded-lg form-field px-2 py-1 placeholder:text-field-placeholder text-xs text-foreground outline-none"
               />
               <button
                 type="submit"

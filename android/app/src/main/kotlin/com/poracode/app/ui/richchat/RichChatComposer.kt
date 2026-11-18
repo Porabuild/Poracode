@@ -357,7 +357,7 @@ fun RichChatComposer(
                     .fillMaxWidth()
                     .clip(cardShape)
                     .background(colors.composerSurface)
-                    .border(1.dp, colors.hairlineStrong, cardShape)
+                    .border(1.dp, colors.hairlineSoft, cardShape)
                     .padding(
                         start = 8.dp,
                         end = if (compact) 4.dp else 8.dp,

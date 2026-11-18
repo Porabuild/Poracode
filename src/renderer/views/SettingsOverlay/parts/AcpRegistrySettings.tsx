@@ -1040,10 +1040,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
     };
 
     return (
-      <Card
-        key={`native-${agent.id}`}
-        className="w-full rounded-lg bg-surface-secondary shadow-none border border-border p-4"
-      >
+      <Card key={`native-${agent.id}`} className="w-full p-4">
         <div className="flex items-start gap-4">
           <ProviderIcon
             kind={agent.id}
@@ -1231,10 +1228,7 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
     const loginProject = machineProject;
 
     return (
-      <Card
-        key={agent.id}
-        className="w-full rounded-lg bg-surface-secondary shadow-none border border-border p-4"
-      >
+      <Card key={agent.id} className="w-full p-4">
         <div className="flex items-start gap-4">
           <AgentIcon
             agent={agent}

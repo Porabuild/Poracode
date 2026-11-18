@@ -83,8 +83,8 @@ describe("TerminalFontPicker", () => {
     const { input, onChange } = setup("");
     fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
     const list = await screen.findByRole("listbox");
-    const popup = list.closest('[data-slot="combo-box-popover"]');
-    expect(popup).toHaveStyle({ width: "var(--trigger-width)" });
+    const popup = list.closest<HTMLElement>('[data-slot="combo-box-popover"]');
+    expect(popup?.style.width).toBe("var(--trigger-width)");
     expect(popup).toHaveClass("max-w-[calc(100vw-16px)]");
     expect(list).toHaveClass("poracode-menu");
     expect(list).not.toHaveClass("max-h-60");

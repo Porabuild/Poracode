@@ -28,6 +28,15 @@ describe("parseCopyPatterns", () => {
 });
 
 describe("matchIgnoredCopyEntries", () => {
+  it("matches a collapsed directory and its descendants with a trailing globstar", () => {
+    expect(
+      matchIgnoredCopyEntries(
+        ["nested/private/", "nested/private/data.json", "unrelated/"],
+        ["./**/private/**"],
+      ),
+    ).toEqual(["nested/private/", "nested/private/data.json"]);
+  });
+
   it("matches files with gitignore-style wildcards", () => {
     expect(matchIgnoredCopyEntries([".env.local", "node_modules/"], [".env.*"])).toEqual([
       ".env.local",

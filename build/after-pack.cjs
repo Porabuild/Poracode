@@ -12,6 +12,7 @@ const {
   chmodSync,
   readFileSync,
   readdirSync,
+  renameSync,
   writeFileSync,
   rmSync,
 } = require("node:fs");
@@ -286,6 +287,17 @@ function assertComputerUseHelper(resourcesDir, electronPlatformName, archName) {
   console.log(`[afterPack] verified computer-use helper for ${target.directory}`);
 }
 
+// Electron looks up this Windows Error Reporting DLL by the executable's basename.
+function stageWindowsCrashHelper(appOutDir, productFilename) {
+  const source = join(appOutDir, "electron_wer.dll");
+  const target = join(appOutDir, `${productFilename}_wer.dll`);
+  if (source !== target && existsSync(source)) renameSync(source, target);
+  const helper = statSync(target, { throwIfNoEntry: false });
+  if (!helper?.isFile() || helper.size === 0) {
+    throw new Error(`[afterPack] Windows crash helper missing or empty: ${target}`);
+  }
+}
+
 module.exports = async function afterPack(context) {
   const resourcesDir = findResourcesDir(context.appOutDir, context.electronPlatformName);
   if (!resourcesDir) {
@@ -315,6 +327,9 @@ module.exports = async function afterPack(context) {
   // Throws if a required native binary is missing or mis-packed, so a broken
   // app can never be packaged or published.
   assertNativeBinaries(resourcesDir, context.electronPlatformName, context.arch);
+  if (context.electronPlatformName === "win32") {
+    stageWindowsCrashHelper(context.appOutDir, context.packager.appInfo.productFilename);
+  }
   if (allowMissingComputerUseHelper()) {
     console.warn(
       "[afterPack] PORACODE_ALLOW_MISSING_COMPUTER_USE_HELPER is set; skipping the computer-use helper assertion",

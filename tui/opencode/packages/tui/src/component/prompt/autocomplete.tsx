@@ -549,8 +549,11 @@ export function Autocomplete(props: {
       return [...nonFileOptions, ...fileOptions]
     }
 
+    const needle = stripFileLineRange(searchValue)
+    if (!needle) return fileOptions.slice(0, 10)
+
     const fuzziedNonFiles = fuzzysort
-      .go(stripFileLineRange(searchValue), nonFileOptions, {
+      .go(needle, nonFileOptions, {
         keys: [
           (obj) => stripFileLineRange((obj.value ?? obj.display).trimEnd()),
           // Match description for slash commands only; for "@" it surfaced unrelated items.

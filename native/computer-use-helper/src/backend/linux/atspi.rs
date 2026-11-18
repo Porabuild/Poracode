@@ -8,6 +8,7 @@ use atspi::proxy::component::ComponentProxy;
 use atspi::proxy::editable_text::EditableTextProxy;
 use atspi::proxy::text::TextProxy;
 use atspi::proxy::value::ValueProxy;
+use atspi::zbus;
 use atspi::{CoordType, Interface, ObjectRefOwned, ScrollType, State, StateSet};
 use zbus::names::BusName;
 use zbus::proxy::CacheProperties;

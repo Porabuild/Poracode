@@ -341,6 +341,23 @@ export function initDatabase(
     throw error;
   }
 
+  // These secondary indexes speed up startup maintenance. They are optional
+  // for readers and older owners, so the stored schema version stays valid.
+  try {
+    sqlite.transaction(() => {
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_usage_events_ts ON usage_events (ts);
+        CREATE INDEX IF NOT EXISTS idx_runtime_items_tool_calls
+          ON thread_runtime_items (thread_id) WHERE type = 'tool_call';
+        -- Walk hashes without scanning the image bytes in the WITHOUT ROWID table.
+        CREATE INDEX IF NOT EXISTS idx_runtime_inline_image_blob_hash
+          ON runtime_inline_image_blobs (blob_hash);
+      `);
+    })();
+  } catch (error) {
+    console.warn("[db] could not build startup maintenance indexes:", error);
+  }
+
   // Bound the durable usage log: drop events older than the retention window so
   // a long-lived install can't accumulate unboundedly (aggregation reads scan
   // this table). Runs once per startup; cheap on a bounded table. Migration and

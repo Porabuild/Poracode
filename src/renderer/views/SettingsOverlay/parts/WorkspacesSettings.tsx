@@ -77,7 +77,7 @@ export function WorkspacesSettings() {
         </Button>
       }
     >
-      <Surface variant="secondary" className="divide-y divide-[var(--hairline)] rounded-xl">
+      <Surface variant="secondary" className="content-surface-group">
         {workspaces.map((workspace) => (
           <div key={workspace.id} className="flex items-center gap-3 px-4 py-3">
             <WorkspaceIcon icon={workspace.icon} className="size-4 shrink-0 text-muted" />
@@ -150,7 +150,7 @@ export function WorkspacesSettings() {
           <Trans>No projects yet.</Trans>
         </p>
       ) : (
-        <Surface variant="secondary" className="divide-y divide-[var(--hairline)] rounded-xl">
+        <Surface variant="secondary" className="content-surface-group">
           {projects.map((project) => (
             <div key={project.id} className="flex items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">

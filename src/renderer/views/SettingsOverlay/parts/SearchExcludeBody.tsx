@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { type ReactNode, startTransition, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Lock, Trash2 } from "lucide-react";
@@ -121,13 +122,13 @@ function ExcludeList(props: { rows: Row[]; onRemove: (pattern: string) => void }
   const { t } = useLingui();
   if (props.rows.length === 0) {
     return (
-      <div className="rounded border border-[var(--hairline)] bg-surface/40 px-2.5 py-1 text-xs text-muted">
+      <ContentSurface className="px-2.5 py-1 text-xs text-muted">
         <Trans>No patterns.</Trans>
-      </div>
+      </ContentSurface>
     );
   }
   return (
-    <div className="max-h-[280px] divide-y divide-[var(--hairline)] overflow-y-auto rounded border border-[var(--hairline)] bg-surface/40">
+    <ContentSurface variant="group" className="max-h-[280px] overflow-y-auto">
       {props.rows.map((row) => {
         const pattern = row.pattern;
         return (
@@ -160,7 +161,7 @@ function ExcludeList(props: { rows: Row[]; onRemove: (pattern: string) => void }
           </div>
         );
       })}
-    </div>
+    </ContentSurface>
   );
 }
 

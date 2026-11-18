@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useState } from "react";
@@ -31,10 +32,7 @@ export function PluginServiceAccounts({
         <Trans>Account changes apply to new threads.</Trans>
       </p>
       {services.map((service) => (
-        <div
-          key={service.name}
-          className="space-y-2.5 rounded-2xl border border-[var(--hairline-soft)] p-2.5"
-        >
+        <ContentSurface key={service.name} className="space-y-2.5 p-2.5">
           <h3 className="text-[13px] font-medium text-foreground">{service.name}</h3>
           {!oauth.isRemoteServer(service.name) ? (
             <p className="text-xs text-muted">
@@ -119,7 +117,7 @@ export function PluginServiceAccounts({
               </div>
             </>
           )}
-        </div>
+        </ContentSurface>
       ))}
       {oauth.canCancel ? (
         <Button size="sm" variant="ghost" onPress={() => void oauth.cancel()}>

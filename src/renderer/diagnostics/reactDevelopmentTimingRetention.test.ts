@@ -7,11 +7,11 @@ interface NativeTimingResult {
   retainedPropertyStringUnits: number;
   domChars: number;
   foreignControlEntries: number;
-  foreignSameNameEntries: number;
   observedComponentEntries: number;
+  foreignSameNameEntries: number;
 }
 
-function runNativeReact(mode: string, environment = "development"): NativeTimingResult {
+function runNativeReact(environment: string, mode = "render"): NativeTimingResult {
   const fixture = resolve(process.cwd(), "tests/fixtures/reactDevelopmentTimingRetention.mjs");
   return JSON.parse(
     execFileSync(process.execPath, [fixture, mode], {
@@ -24,36 +24,32 @@ function runNativeReact(mode: string, environment = "development"): NativeTiming
 }
 
 describe("React development timing retention", () => {
-  it("releases native full-prop snapshots while preserving the rendered window and foreign timings", () => {
-    const baseline = runNativeReact("baseline");
-    const cleaned = runNativeReact("cleanup");
-    expect(baseline.componentEntries).toBe(239);
-    expect(baseline.retainedPropertyStringUnits).toBeGreaterThan(10_000_000);
-    expect(cleaned.componentEntries).toBe(0);
-    expect(cleaned.retainedPropertyStringUnits).toBe(0);
-    expect(cleaned.domChars).toBe(baseline.domChars);
-    expect(cleaned.domChars).toBe(8192);
-    expect(cleaned.foreignControlEntries).toBe(1);
-    expect(cleaned.observedComponentEntries).toBe(239);
+  it.each([
+    ["development", 239],
+    ["production", 0],
+  ] as const)("releases prop snapshots after %s renders", (environment, observedEntries) => {
+    const result = runNativeReact(environment);
+    // React 19.3 clears each component measure after notifying observers.
+    expect(result.observedComponentEntries).toBe(observedEntries);
+    expect(result.componentEntries).toBe(0);
+    expect(result.retainedPropertyStringUnits).toBe(0);
+    expect(result.domChars).toBe(8192);
+    expect(result.foreignControlEntries).toBe(1);
   });
 
-  it("preserves a foreign timing that shares a React component name", () => {
-    const result = runNativeReact("collision");
-    expect(result.componentEntries).toBe(239);
+  it("preserves a foreign timing recorded after a component emits a same-name measure", () => {
+    const result = runNativeReact("development", "collision");
+    expect(result.observedComponentEntries).toBe(239);
+    expect(result.componentEntries).toBe(0);
     expect(result.foreignSameNameEntries).toBe(1);
     expect(result.foreignControlEntries).toBe(1);
   });
 
-  it("disconnects idempotently so a disposed observer does not clear later entries", () => {
-    const result = runNativeReact("dispose");
-    expect(result.componentEntries).toBe(3);
-    expect(result.foreignControlEntries).toBe(1);
-  });
-
-  it("confirms production React does not emit the development prop snapshots", () => {
-    const result = runNativeReact("baseline", "production");
-    expect(result.componentEntries).toBe(0);
+  it("continues to release prop snapshots when a renderer root is replaced", () => {
+    const result = runNativeReact("development", "remount");
+    expect(result.observedComponentEntries).toBe(242);
     expect(result.retainedPropertyStringUnits).toBe(0);
+    expect(result.componentEntries).toBe(0);
     expect(result.domChars).toBe(8192);
     expect(result.foreignControlEntries).toBe(1);
   });

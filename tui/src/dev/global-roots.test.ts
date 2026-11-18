@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -39,7 +39,7 @@ test("PORACODE_TUI_HOME isolates the global OpenCode roots", () => {
       cache: path.join(home, "cache"),
       config: path.join(home, "config"),
       state: path.join(home, "state"),
-      tmp: path.join(home, "tmp"),
+      tmp: realpathSync(path.join(home, "tmp")),
     });
   } finally {
     rmSync(home, { recursive: true, force: true });

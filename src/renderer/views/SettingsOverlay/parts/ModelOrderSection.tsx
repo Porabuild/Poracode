@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { DragDropProvider, type DragEndEvent } from "@dnd-kit/react";
 import { isSortable, useSortable } from "@dnd-kit/react/sortable";
 import { Button } from "@heroui/react";
@@ -75,9 +76,10 @@ function SortableProviderRow(props: {
   const updateLabel = update.targetVersion ? `v${update.targetVersion}` : "";
 
   return (
-    <div
+    <ContentSurface
+      variant="row"
       ref={ref}
-      className={`flex h-9 shrink-0 items-center gap-2 rounded border border-border bg-surface px-2 text-xs ${
+      className={`flex h-9 shrink-0 items-center gap-2 px-2 text-xs ${
         isDragging ? "opacity-40" : ""
       }`}
     >
@@ -170,7 +172,7 @@ function SortableProviderRow(props: {
           )}
         </Button>
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }
 

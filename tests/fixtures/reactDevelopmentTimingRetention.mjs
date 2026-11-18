@@ -1,6 +1,5 @@
 import { performance, PerformanceObserver } from "node:perf_hooks";
 import { JSDOM } from "jsdom";
-import { installReactDevelopmentTimingRetention } from "../../src/renderer/diagnostics/reactDevelopmentTimingRetention.ts";
 
 const mode = process.argv[2];
 const dom = new JSDOM('<div id="root"></div>', { url: "http://127.0.0.1/" });
@@ -18,13 +17,10 @@ const tick = () => new Promise((resolve) => setImmediate(resolve));
 function RawTextBoundary({ text }) {
   return React.createElement("div", null, text.slice(-8192));
 }
-const root = createRoot(document.getElementById("root"));
+const container = document.getElementById("root");
+let root = createRoot(container);
 performance.clearMeasures();
 performance.measure("foreign-control", { start: 0, detail: { owner: "fixture" } });
-if (mode === "collision") {
-  performance.measure(name, { start: 0, detail: { owner: "foreign-same-name" } });
-}
-let stop;
 let observedComponentEntries = 0;
 const witness = new PerformanceObserver((list) => {
   observedComponentEntries += list
@@ -34,11 +30,6 @@ const witness = new PerformanceObserver((list) => {
     ).length;
 });
 witness.observe({ type: "measure" });
-if (mode === "cleanup" || mode === "collision" || mode === "dispose") {
-  stop = installReactDevelopmentTimingRetention();
-  if (stop !== installReactDevelopmentTimingRetention())
-    throw new Error("installer not idempotent");
-}
 let text = "";
 for (let index = 0; index < 240; index++) {
   text += "x".repeat(255) + "\n";
@@ -47,11 +38,16 @@ for (let index = 0; index < 240; index++) {
 }
 await tick();
 await tick();
-if (mode === "dispose") {
-  stop();
-  stop();
-  for (let index = 0; index < 3; index++) {
-    text += "after-disconnect";
+if (mode === "collision") {
+  // A consumer can record its own measure under the component name after React
+  // emits it. Earlier component notifications must not discard that entry.
+  performance.measure(name, { start: 0, detail: { owner: "foreign-same-name" } });
+  await tick();
+} else if (mode === "remount") {
+  root.unmount();
+  root = createRoot(container);
+  for (let index = 0; index < 4; index++) {
+    text += "after-remount";
     flushSync(() => root.render(React.createElement(RawTextBoundary, { text })));
   }
   await tick();
@@ -61,7 +57,6 @@ const components = entries.filter(
   (entry) => entry.name === name && entry.detail?.devtools?.track === "Components ⚛",
 );
 const output = {
-  mode,
   componentEntries: components.length,
   retainedPropertyStringUnits: components.reduce(
     (total, entry) =>
@@ -76,7 +71,6 @@ const output = {
   observedComponentEntries,
 };
 console.log(JSON.stringify(output));
-stop?.();
 witness.disconnect();
 root.unmount();
 performance.clearMeasures();

@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { startTransition } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ToggleSwitch } from "@/renderer/components/common";
@@ -36,7 +37,7 @@ export function UsageDisplaySettings(props: { showHostNote?: boolean }) {
         ) : null}
       </div>
 
-      <div className="divide-y divide-[var(--hairline)] rounded-2xl border border-[color:var(--separator)] bg-surface">
+      <ContentSurface variant="group">
         <SettingRow
           anchorId="usage.showInSidebar"
           className="px-4 py-3"
@@ -93,7 +94,7 @@ export function UsageDisplaySettings(props: { showHostNote?: boolean }) {
             }}
           />
         </SettingRow>
-      </div>
+      </ContentSurface>
     </section>
   );
 }

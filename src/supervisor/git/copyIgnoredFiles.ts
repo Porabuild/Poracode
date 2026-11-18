@@ -1,10 +1,10 @@
 import { cp, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import micromatch from "micromatch";
 import type { ProjectLocation } from "@/shared/contracts";
 import { getProjectFsPath } from "@/shared/wsl";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { execGit } from "./exec";
+import { compileGlobMatcher } from "../fileGlobs";
 
 /**
  * Filter `git ls-files --others --ignored --directory` entries (relative
@@ -14,12 +14,8 @@ import { execGit } from "./exec";
 export function matchIgnoredCopyEntries(entries: string[], patterns: string[]): string[] {
   const normalizedPatterns = patterns.map((pattern) => pattern.replace(/\/+$/, "")).filter(Boolean);
   if (normalizedPatterns.length === 0) return [];
-  return entries.filter((entry) =>
-    micromatch.isMatch(entry.replace(/\/+$/, ""), normalizedPatterns, {
-      dot: true,
-      matchBase: true,
-    }),
-  );
+  const matches = compileGlobMatcher(normalizedPatterns, true);
+  return entries.filter((entry) => matches(entry.replace(/\/+$/, "")));
 }
 
 /**

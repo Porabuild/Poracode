@@ -149,7 +149,7 @@ function DownloadRow({ downloadId }: { downloadId: string }) {
   const indeterminate = progress === null && download.state === "progressing";
 
   return (
-    <article className="rounded-xl border border-border bg-surface p-3 shadow-sm">
+    <article className="content-surface p-3">
       <div className="flex items-start gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-surface-tertiary text-muted">
           <File className="size-4.5" />

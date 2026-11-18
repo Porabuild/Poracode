@@ -88,7 +88,7 @@ internal fun SettingsSection(
     Column(
         modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(PoracodeRadius.card))
+            .clip(RoundedCornerShape(PoracodeRadius.contentSurface))
             .background(PoracodeTheme.colors.listRow)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -116,7 +116,7 @@ internal fun SettingsCard(
     Column(
         modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(PoracodeRadius.card))
+            .clip(RoundedCornerShape(PoracodeRadius.contentSurface))
             .background(PoracodeTheme.colors.listRow)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),

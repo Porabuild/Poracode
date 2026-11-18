@@ -24,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.InputMode
+import androidx.compose.ui.platform.LocalInputModeManager
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
@@ -195,10 +197,11 @@ private fun PoracodeFieldDecoration(
     val colors = PoracodeTheme.colors
     val focused by interactionSource.collectIsFocusedAsState()
     val fieldShape = shape ?: RoundedCornerShape(PoracodeRadius.field)
-    val borderColor = when {
-        isError -> colors.danger
-        focused -> colors.foreground.copy(alpha = 0.45f)
-        else -> colors.fieldBorder
+    val keyboardNavigation = LocalInputModeManager.current.inputMode == InputMode.Keyboard
+    val indicator = when {
+        isError -> Modifier.border(2.dp, colors.danger, fieldShape)
+        focused -> Modifier.border(1.dp, colors.foreground.copy(alpha = if (keyboardNavigation) 0.67f else 0.12f), fieldShape)
+        else -> Modifier
     }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (label != null) {
@@ -213,7 +216,7 @@ private fun PoracodeFieldDecoration(
                 .heightIn(min = PoracodeMetrics.tapTarget)
                 .clip(fieldShape)
                 .background(colors.fieldBackground)
-                .border(1.dp, borderColor, fieldShape)
+                .then(indicator)
                 .alpha(if (enabled) 1f else 0.6f)
                 .padding(start = if (leadingIcon != null) 8.dp else 12.dp, end = if (trailingIcon != null) 4.dp else 12.dp),
             verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top,

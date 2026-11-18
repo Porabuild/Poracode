@@ -484,7 +484,7 @@ describe("AcpRegistrySettings", () => {
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const codexCard = (await screen.findByText(/First-class Codex CLI integration/u)).closest(
-      ".rounded-lg",
+      '[data-slot="card"]',
     );
     expect(codexCard).toBeTruthy();
     expect(within(codexCard as HTMLElement).getByText("Detected")).toBeInTheDocument();
@@ -508,7 +508,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const codexCard = screen.getByText(/First-class Codex CLI integration/u).closest(".rounded-lg");
+    const codexCard = screen
+      .getByText(/First-class Codex CLI integration/u)
+      .closest('[data-slot="card"]');
     expect(codexCard).toBeTruthy();
 
     fireEvent.click(within(codexCard as HTMLElement).getByRole("button", { name: "Install" }));
@@ -526,7 +528,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
+    const cursorCard = screen
+      .getByText(/First-class Cursor integration/u)
+      .closest('[data-slot="card"]');
     expect(cursorCard).toBeTruthy();
 
     fireEvent.click(within(cursorCard as HTMLElement).getByRole("button", { name: "Install" }));
@@ -552,7 +556,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
+    const cursorCard = screen
+      .getByText(/First-class Cursor integration/u)
+      .closest('[data-slot="card"]');
     expect(cursorCard).toBeTruthy();
     expect(within(cursorCard as HTMLElement).getByText(/ACP v2026\.07\.23/u)).toBeInTheDocument();
     expect(
@@ -599,7 +605,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
+    const cursorCard = screen
+      .getByText(/First-class Cursor integration/u)
+      .closest('[data-slot="card"]');
     expect(cursorCard).toBeTruthy();
     expect(
       within(cursorCard as HTMLElement).getByText(/SDK v1\.0\.31 \(project managed\)/u),
@@ -628,7 +636,7 @@ describe("AcpRegistrySettings", () => {
     await screen.findByRole("heading", { name: "Agent Registry" });
     const antigravityCard = screen
       .getByText(/First-class Antigravity integration/u)
-      .closest(".rounded-lg");
+      .closest('[data-slot="card"]');
     expect(antigravityCard).toBeTruthy();
 
     fireEvent.click(
@@ -671,7 +679,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     expect(card).toBeTruthy();
     await chooseCardInstall(card as HTMLElement, "Install ACP");
 
@@ -703,7 +713,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     expect(card).toBeTruthy();
     expect(within(card as HTMLElement).getByText("agy CLI").parentElement).toHaveTextContent(
       "agy CLIv1.2.0",
@@ -730,7 +742,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     expect(card).toBeTruthy();
     expect(within(card as HTMLElement).getByText("agy CLI").parentElement).toHaveTextContent(
       "agy CLINot installed",
@@ -777,7 +791,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     expect(card).toBeTruthy();
     expect(within(card as HTMLElement).queryByRole("button", { name: "Update" })).toBeNull();
     fireEvent.click(
@@ -825,7 +841,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     fireEvent.click(await within(card as HTMLElement).findByRole("button", { name: "Update" }));
 
     await waitFor(() => {
@@ -881,7 +899,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     await within(card as HTMLElement).findByText("agy CLI");
     const runtimeRows = within(card as HTMLElement).getAllByRole("listitem");
     expect(runtimeRows[0]).toHaveTextContent("agy CLIv1.2.0 → v1.3.0");
@@ -918,7 +938,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     await within(card as HTMLElement).findByText("Antigravity ACP");
     expect(within(card as HTMLElement).queryByRole("button", { name: "Update" })).toBeNull();
 
@@ -933,7 +955,7 @@ describe("AcpRegistrySettings", () => {
     const refreshedCard = await waitFor(() => {
       const nextCard = screen
         .getByText(/First-class Antigravity integration/u)
-        .closest(".rounded-lg");
+        .closest('[data-slot="card"]');
       expect(
         within(nextCard as HTMLElement).getByRole("button", { name: "Update" }),
       ).toBeInTheDocument();
@@ -956,7 +978,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     fireEvent.click(await within(card as HTMLElement).findByRole("button", { name: "Update" }));
 
     expect(await screen.findByText("Chat detection failed")).toBeInTheDocument();
@@ -974,7 +998,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     fireEvent.click(await within(card as HTMLElement).findByRole("button", { name: "Update" }));
 
     expect(await screen.findByText("Unable to refresh Antigravity status.")).toBeInTheDocument();
@@ -1044,7 +1070,9 @@ describe("AcpRegistrySettings", () => {
     selectMachine("local/wsl:Ubuntu");
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     await chooseCardInstall(card as HTMLElement, "Install Antigravity");
     const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
       | { project?: Project; onCommandComplete: (code: number) => void }
@@ -1070,7 +1098,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
+    const card = screen
+      .getByText(/First-class Antigravity integration/u)
+      .closest('[data-slot="card"]');
     await chooseCardInstall(card as HTMLElement, "Install Antigravity");
     const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
       | { onCommandComplete: (code: number) => void }
@@ -1096,7 +1126,7 @@ describe("AcpRegistrySettings", () => {
     ];
 
     for (const expected of cases) {
-      const card = screen.getByText(expected.pattern).closest(".rounded-lg");
+      const card = screen.getByText(expected.pattern).closest('[data-slot="card"]');
       expect(card).toBeTruthy();
 
       fireEvent.click(within(card as HTMLElement).getByRole("button", { name: "Install" }));
@@ -1129,7 +1159,7 @@ describe("AcpRegistrySettings", () => {
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const grokCard = (await screen.findByText(/First-class Grok Build CLI integration/u)).closest(
-      ".rounded-lg",
+      '[data-slot="card"]',
     );
     expect(grokCard).toBeTruthy();
     expect(within(grokCard as HTMLElement).queryByText(/Windows is not supported/u)).toBeNull();
@@ -1162,7 +1192,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const museCard = screen.getByText(/First-class Muse Code integration/u).closest(".rounded-lg");
+    const museCard = screen
+      .getByText(/First-class Muse Code integration/u)
+      .closest('[data-slot="card"]');
     expect(museCard).toBeTruthy();
     fireEvent.click(within(museCard as HTMLElement).getByRole("button", { name: "Install" }));
 
@@ -1316,7 +1348,7 @@ describe("AcpRegistrySettings", () => {
       }),
     );
 
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
     fireEvent.click(within(glmCard as HTMLElement).getByRole("button", { name: "Install" }));
 
@@ -1342,7 +1374,7 @@ describe("AcpRegistrySettings", () => {
     const view = render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
 
     fireEvent.click(within(glmCard as HTMLElement).getByRole("button", { name: "Install" }));
@@ -1355,7 +1387,7 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const remountedCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const remountedCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(remountedCard).toBeTruthy();
     expect(
       within(remountedCard as HTMLElement).getByRole("button", { name: "Delete" }),
@@ -1381,7 +1413,7 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
 
     fireEvent.click(within(glmCard as HTMLElement).getByRole("button", { name: "Delete" }));
@@ -1409,7 +1441,9 @@ describe("AcpRegistrySettings", () => {
     selectMachine("local/wsl:Ubuntu");
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const codexCard = screen.getByText(/First-class Codex CLI integration/u).closest(".rounded-lg");
+    const codexCard = screen
+      .getByText(/First-class Codex CLI integration/u)
+      .closest('[data-slot="card"]');
     expect(codexCard).toBeTruthy();
 
     fireEvent.click(within(codexCard as HTMLElement).getByRole("button", { name: "Install" }));
@@ -1451,7 +1485,7 @@ describe("AcpRegistrySettings", () => {
     await screen.findByRole("heading", { name: "Agent Registry" });
     const localCodexCard = screen
       .getByText(/First-class Codex CLI integration/u)
-      .closest(".rounded-lg");
+      .closest('[data-slot="card"]');
     expect(localCodexCard).toBeTruthy();
     expect(within(localCodexCard as HTMLElement).queryByText("Detected")).toBeNull();
     expect(
@@ -1462,7 +1496,7 @@ describe("AcpRegistrySettings", () => {
 
     const wslCodexCard = screen
       .getByText(/First-class Codex CLI integration/u)
-      .closest(".rounded-lg");
+      .closest('[data-slot="card"]');
     expect(wslCodexCard).toBeTruthy();
     expect(within(wslCodexCard as HTMLElement).getByText("Detected")).toBeInTheDocument();
     expect(
@@ -1488,7 +1522,9 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const cursorCard = screen.getByText(/First-class Cursor integration/u).closest(".rounded-lg");
+    const cursorCard = screen
+      .getByText(/First-class Cursor integration/u)
+      .closest('[data-slot="card"]');
     expect(cursorCard).toBeTruthy();
     expect(within(cursorCard as HTMLElement).getByText("Detected")).toBeInTheDocument();
     expect(screen.queryByText("Cursor through ACP")).not.toBeInTheDocument();
@@ -1496,7 +1532,7 @@ describe("AcpRegistrySettings", () => {
     selectMachine("local/wsl:Ubuntu");
     const wslCursorCard = screen
       .getByText(/First-class Cursor integration/u)
-      .closest(".rounded-lg");
+      .closest('[data-slot="card"]');
     expect(wslCursorCard).toBeTruthy();
     expect(within(wslCursorCard as HTMLElement).getByText("Detected")).toBeInTheDocument();
     expect(screen.queryByText("Cursor through ACP")).not.toBeInTheDocument();
@@ -1513,7 +1549,7 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
     expect(within(glmCard as HTMLElement).queryByText("Detected")).toBeNull();
     expect(
@@ -1548,7 +1584,9 @@ describe("AcpRegistrySettings", () => {
     selectMachine("local/wsl:Ubuntu");
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const codexCard = screen.getByText(/First-class Codex CLI integration/u).closest(".rounded-lg");
+    const codexCard = screen
+      .getByText(/First-class Codex CLI integration/u)
+      .closest('[data-slot="card"]');
     expect(codexCard).toBeTruthy();
 
     fireEvent.click(within(codexCard as HTMLElement).getByRole("button", { name: "Login" }));
@@ -1579,7 +1617,7 @@ describe("AcpRegistrySettings", () => {
     await screen.findByRole("heading", { name: "Agent Registry" });
     const grokCard = screen
       .getByText(/First-class Grok Build CLI integration/u)
-      .closest(".rounded-lg");
+      .closest('[data-slot="card"]');
     expect(grokCard).toBeTruthy();
 
     fireEvent.click(within(grokCard as HTMLElement).getByRole("button", { name: "Login" }));
@@ -1615,7 +1653,7 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
 
     fireEvent.click(within(glmCard as HTMLElement).getByRole("button", { name: "Login" }));
@@ -1651,7 +1689,7 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
     expect(within(glmCard as HTMLElement).queryByRole("button", { name: "Login" })).toBeNull();
   });
@@ -1670,7 +1708,7 @@ describe("AcpRegistrySettings", () => {
     await screen.findByRole("heading", { name: "Agent Registry" });
     const factoryCard = screen
       .getByText(/First-class Factory Droid integration/u)
-      .closest(".rounded-lg");
+      .closest('[data-slot="card"]');
     expect(factoryCard).toBeTruthy();
 
     fireEvent.click(within(factoryCard as HTMLElement).getByRole("button", { name: "Login" }));
@@ -1704,7 +1742,7 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
     const updateButton = within(glmCard as HTMLElement).getByRole("button", {
       name: /Update to v1\.1\.3/u,
@@ -1732,7 +1770,7 @@ describe("AcpRegistrySettings", () => {
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
     expect(
       within(glmCard as HTMLElement).queryByRole("button", { name: /Update to v/u }),
@@ -1772,7 +1810,7 @@ describe("AcpRegistrySettings", () => {
     selectMachine("local/wsl:Ubuntu");
 
     await screen.findByRole("heading", { name: "Agent Registry" });
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg");
+    const glmCard = screen.getByText("GLM through ACP").closest('[data-slot="card"]');
     expect(glmCard).toBeTruthy();
 
     await act(async () => {
@@ -1856,12 +1894,16 @@ describe("AcpRegistrySettings", () => {
     await screen.findByRole("heading", { name: "Agent Registry" });
 
     // Native machine sees the Windows install as deletable.
-    const localGlmCard = screen.getByText("GLM through ACP").closest(".rounded-lg") as HTMLElement;
+    const localGlmCard = screen
+      .getByText("GLM through ACP")
+      .closest('[data-slot="card"]') as HTMLElement;
     expect(within(localGlmCard).getByRole("button", { name: "Delete" })).toBeInTheDocument();
 
     // Switching to WSL Ubuntu offers installing there instead of mirroring the Windows install.
     selectMachine("local/wsl:Ubuntu");
-    const wslGlmCard = screen.getByText("GLM through ACP").closest(".rounded-lg") as HTMLElement;
+    const wslGlmCard = screen
+      .getByText("GLM through ACP")
+      .closest('[data-slot="card"]') as HTMLElement;
     expect(within(wslGlmCard).queryByRole("button", { name: "Delete" })).toBeNull();
     fireEvent.click(within(wslGlmCard).getByRole("button", { name: "Install" }));
 
@@ -1956,7 +1998,7 @@ describe("AcpRegistrySettings", () => {
 
     const codexCard = screen
       .getByText(/First-class Codex CLI integration/u)
-      .closest(".rounded-lg") as HTMLElement;
+      .closest('[data-slot="card"]') as HTMLElement;
     expect(within(codexCard).getByText("Detected")).toBeInTheDocument();
     expect(within(codexCard).getByText("v0.140.0")).toBeInTheDocument();
 
@@ -1964,7 +2006,7 @@ describe("AcpRegistrySettings", () => {
     // remote machine's platform (Linux bash, not local macOS Homebrew) and host.
     const claudeCard = screen
       .getByText(/First-class Claude Code integration/u)
-      .closest(".rounded-lg") as HTMLElement;
+      .closest('[data-slot="card"]') as HTMLElement;
     expect(await within(claudeCard).findByText("v2.0.0")).toBeInTheDocument();
     fireEvent.click(within(claudeCard).getByRole("button", { name: "Install" }));
     const installInput = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
@@ -1992,7 +2034,9 @@ describe("AcpRegistrySettings", () => {
     );
 
     // Outdated generic ACP agent on remote shows remote Update, Login, and Delete.
-    const glmCard = screen.getByText("GLM through ACP").closest(".rounded-lg") as HTMLElement;
+    const glmCard = screen
+      .getByText("GLM through ACP")
+      .closest('[data-slot="card"]') as HTMLElement;
     expect(within(glmCard).getByText("v1.0.0")).toBeInTheDocument();
 
     await act(async () => {
@@ -2016,7 +2060,7 @@ describe("AcpRegistrySettings", () => {
     expect(bridge.updateAcpRegistryAgent).not.toHaveBeenCalled();
 
     const refreshedGlmCard = (await screen.findByText("GLM through ACP")).closest(
-      ".rounded-lg",
+      '[data-slot="card"]',
     ) as HTMLElement;
     fireEvent.click(await within(refreshedGlmCard).findByRole("button", { name: "Delete" }));
     await waitFor(() =>
@@ -2089,7 +2133,7 @@ describe("AcpRegistrySettings", () => {
     selectMachine("remote:conn-1/wsl:Ubuntu");
 
     const glmCard = (await screen.findByText("GLM through ACP")).closest(
-      ".rounded-lg",
+      '[data-slot="card"]',
     ) as HTMLElement;
     fireEvent.click(within(glmCard).getByRole("button", { name: "Install" }));
 
@@ -2144,7 +2188,7 @@ describe("AcpRegistrySettings", () => {
     expect(screen.getByRole("button", { name: "Refresh registry" })).toBeDisabled();
     const claudeCard = screen
       .getByText(/First-class Claude Code integration/u)
-      .closest(".rounded-lg") as HTMLElement;
+      .closest('[data-slot="card"]') as HTMLElement;
     expect(within(claudeCard).getByRole("button", { name: "Install" })).toBeDisabled();
     expect(remoteClientMock.callRemoteProcedure).not.toHaveBeenCalled();
   });

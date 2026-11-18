@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState, type ReactNode } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useSortable } from "@dnd-kit/react/sortable";
@@ -172,12 +173,10 @@ export function UsageProviderCardView(props: {
   const Chevron = collapsed ? ChevronRight : ChevronDown;
 
   return (
-    <div
+    <ContentSurface
       ref={ref}
       data-usage-provider-id={id}
-      className={`rounded-2xl border border-[color:var(--separator)] bg-surface ${
-        isDragging ? "opacity-40" : ""
-      }`}
+      className={isDragging ? "opacity-40" : ""}
     >
       <div
         className={
@@ -277,7 +276,7 @@ export function UsageProviderCardView(props: {
       ) : null}
 
       {!collapsed ? (
-        <div className="space-y-2 border-t border-[color:var(--separator)] px-3 py-2.5">
+        <div className="space-y-2 border-t border-[var(--hairline-soft)] px-3 py-2.5">
           {hasUsage && snapshot ? (
             <>
               {snapshot.windows.length > 0 ? (
@@ -303,7 +302,7 @@ export function UsageProviderCardView(props: {
           ) : null}
         </div>
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }
 
@@ -317,7 +316,7 @@ export function UsageCreditsRow(props: {
   return (
     <div
       className={`flex items-center justify-between gap-3 ${
-        props.showSeparator ? "border-t border-[color:var(--separator)] pt-2" : ""
+        props.showSeparator ? "border-t border-[var(--hairline-soft)] pt-2" : ""
       }`}
     >
       <span className="text-xs text-muted">{credits.label ?? t`Credits`}</span>

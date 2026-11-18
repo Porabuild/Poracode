@@ -3,6 +3,7 @@ export * from "./BranchSelector/BranchSelector";
 export * from "./Button";
 export * from "./Card";
 export * from "./ConfirmDialog";
+export * from "./ContentSurface";
 export * from "./ContextMenu";
 export * from "./DiffStat";
 export * from "./EffortContextMenu";

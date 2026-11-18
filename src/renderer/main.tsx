@@ -4,7 +4,6 @@ import "./uiAnimationActivity";
 import { readBridge } from "./bridge";
 import { hasElectronHostBridge } from "./clientRuntime";
 import { captureRendererException, initializeRendererSentry } from "./diagnostics/sentry";
-import { installReactDevelopmentTimingRetention } from "./diagnostics/reactDevelopmentTimingRetention";
 import { getAppName } from "@/shared/appName";
 import {
   createRendererCrashReport,
@@ -19,6 +18,7 @@ import {
   isIgnorableWindowError,
 } from "./rendererGlobalErrors";
 import { reloadForStaleBuild } from "./staleBuildRecovery";
+import { installKeyboardFieldFocus } from "./theme/keyboardFieldFocus";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
 import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
 
@@ -30,9 +30,6 @@ function logRendererBootstrap(message: string): void {
 logRendererBootstrap("main module evaluated");
 
 if (import.meta.env.DEV) {
-  const stopDevelopmentTimingRetention = installReactDevelopmentTimingRetention();
-  import.meta.hot?.dispose(stopDevelopmentTimingRetention);
-
   const warn = console.warn.bind(console);
   console.warn = (...args: unknown[]) => {
     const head = args[0];
@@ -52,6 +49,8 @@ if (import.meta.env.DEV) {
 
 document.title = getAppName(readBridge().channel, import.meta.env.DEV);
 initializeRendererSentry();
+const removeKeyboardFieldFocus = installKeyboardFieldFocus();
+import.meta.hot?.dispose(removeKeyboardFieldFocus);
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "poracode" in window ? readBridge().platform : "unknown";

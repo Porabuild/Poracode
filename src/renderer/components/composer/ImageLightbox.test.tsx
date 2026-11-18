@@ -156,11 +156,11 @@ describe("lightbox gestural zoom", () => {
 
     fireEvent.doubleClick(image, { clientX: 100, clientY: 75 });
     expect(screen.getByText("200%")).toBeInTheDocument();
-    expect(image.style.transform).toBe("translate3d(100px, 75px, 0) scale(2)");
+    expect(image).toHaveStyle({ transform: "translate3d(100px, 75px, 0) scale(2)" });
 
     fireEvent.doubleClick(image, { clientX: 100, clientY: 75 });
     expect(screen.getByText("100%")).toBeInTheDocument();
-    expect(image.style.transform).toBe("translate3d(0px, 0px, 0) scale(1)");
+    expect(image).toHaveStyle({ transform: "translate3d(0px, 0px, 0) scale(1)" });
   });
 
   it("zooms only ctrl+wheel, anchors at the pointer, and leaves plain wheel alone", () => {
@@ -261,7 +261,7 @@ describe("lightbox gestural zoom", () => {
       });
     });
     expect(screen.getByText("200%")).toBeInTheDocument();
-    expect(image.style.transform).toBe("translate3d(0px, 0px, 0) scale(2)");
+    expect(image).toHaveStyle({ transform: "translate3d(0px, 0px, 0) scale(2)" });
 
     act(() => {
       fireEvent.pointerMove(image, {
@@ -278,7 +278,7 @@ describe("lightbox gestural zoom", () => {
       });
     });
     expect(screen.getByText("100%")).toBeInTheDocument();
-    expect(image.style.transform).toBe("translate3d(0px, 0px, 0) scale(1)");
+    expect(image).toHaveStyle({ transform: "translate3d(0px, 0px, 0) scale(1)" });
   });
 
   it("translates a pinch midpoint and continues with the remaining pointer", () => {
@@ -324,7 +324,7 @@ describe("lightbox gestural zoom", () => {
       });
     });
     expect(screen.getByText("200%")).toBeInTheDocument();
-    expect(image.style.transform).toBe("translate3d(20px, 0px, 0) scale(2)");
+    expect(image).toHaveStyle({ transform: "translate3d(20px, 0px, 0) scale(2)" });
 
     fireEvent.pointerUp(image, { pointerId: 2, pointerType: "touch" });
     fireEvent.pointerMove(image, {
@@ -333,7 +333,7 @@ describe("lightbox gestural zoom", () => {
       clientX: 150,
       clientY: 160,
     });
-    expect(image.style.transform).toBe("translate3d(50px, 10px, 0) scale(2)");
+    expect(image).toHaveStyle({ transform: "translate3d(50px, 10px, 0) scale(2)" });
   });
 
   it("cancels pointers and ignores their later moves", () => {
@@ -1231,7 +1231,7 @@ describe("progressive image preview", () => {
       ]),
     );
     fireEvent.pointerMove(image, { clientX: 50, clientY: 25 });
-    expect(image.style.transform).toBe("translate3d(50px, 25px, 0) scale(1.5)");
+    expect(image).toHaveStyle({ transform: "translate3d(50px, 25px, 0) scale(1.5)" });
   });
 });
 

@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useRef, useState } from "react";
 import { Button, Modal, Tooltip, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -182,7 +183,7 @@ export function BrowserPasswordsPage() {
                   </div>
                 </div>
               ) : (
-                <div className="mt-2 divide-y divide-border/60">
+                <div className="mt-2 divide-y divide-[var(--hairline-soft)]">
                   {visibleIds.map((credentialId) => (
                     <BrowserPasswordRow
                       key={credentialId}
@@ -196,7 +197,7 @@ export function BrowserPasswordsPage() {
             </section>
           ) : (
             <section className="mt-5 grid gap-3 @xl:grid-cols-2">
-              <div className="rounded-xl border border-border bg-surface p-4">
+              <ContentSurface className="p-4">
                 <span className="flex size-9 items-center justify-center rounded-lg bg-surface-tertiary text-muted">
                   <ImportIcon className="size-4" />
                 </span>
@@ -214,8 +215,8 @@ export function BrowserPasswordsPage() {
                 >
                   <Trans>Import cookies and passwords</Trans>
                 </Button>
-              </div>
-              <div className="rounded-xl border border-border bg-surface p-4">
+              </ContentSurface>
+              <ContentSurface className="p-4">
                 <span className="flex size-9 items-center justify-center rounded-lg bg-surface-tertiary text-muted">
                   <ShieldCheck className="size-4" />
                 </span>
@@ -228,7 +229,7 @@ export function BrowserPasswordsPage() {
                     are requested only when you reveal, copy, or edit them.
                   </Trans>
                 </p>
-              </div>
+              </ContentSurface>
             </section>
           )}
         </div>

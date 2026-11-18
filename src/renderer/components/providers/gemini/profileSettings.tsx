@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
@@ -164,7 +165,7 @@ function GeminiProfileEditor(props: {
       </div>
 
       {props.invalidConfig ? (
-        <div className="flex items-start gap-2 rounded-xl border border-border/15 bg-surface-secondary/30 px-3 py-2">
+        <ContentSurface variant="row" className="flex items-start gap-2 px-3 py-2">
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
           <p className="text-xs text-muted">
             <Trans>
@@ -172,7 +173,7 @@ function GeminiProfileEditor(props: {
               holds.
             </Trans>
           </p>
-        </div>
+        </ContentSurface>
       ) : null}
 
       <section className="grid grid-cols-1 gap-2 sm:grid-cols-2">

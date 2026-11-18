@@ -71,8 +71,8 @@ describe("Streamdown block-only splitter compatibility", () => {
     };
     const appRequire = createRequire(import.meta.url);
     const streamdownRequire = createRequire(realpathSync("node_modules/streamdown/package.json"));
-    expect(streamdownPackage.version).toBe("2.6.0");
-    expect(markedPackage.version).toBe("17.0.6");
+    expect(streamdownPackage.version).toBe("2.7.1");
+    expect(markedPackage.version).toBe("18.2.0");
     expect(realpathSync(appRequire.resolve("streamdown-marked"))).toBe(
       realpathSync(streamdownRequire.resolve("marked")),
     );
@@ -115,7 +115,7 @@ describe("Streamdown block-only splitter compatibility", () => {
     expect(splitStreamdownMarkdownBlocks(text)).toEqual([text]);
   });
 
-  it("keeps the block pass but removes only its unused final inline-token drain", () => {
+  it("uses the same block pass as Streamdown without draining inline tokens", () => {
     const blockPass = vi.spyOn(Lexer.prototype, "blockTokens");
     const inlinePass = vi.spyOn(Lexer.prototype, "inlineTokens");
     const text =
@@ -124,7 +124,7 @@ describe("Streamdown block-only splitter compatibility", () => {
       const expected = parseMarkdownIntoBlocks(text);
       const oracleBlockCalls = blockPass.mock.calls.length;
       expect(oracleBlockCalls).toBeGreaterThan(0);
-      expect(inlinePass.mock.calls.length).toBeGreaterThan(0);
+      expect(inlinePass).not.toHaveBeenCalled();
       blockPass.mockClear();
       inlinePass.mockClear();
 
@@ -141,13 +141,10 @@ describe("Streamdown block-only splitter compatibility", () => {
     const text = "**rich** " + "x".repeat(STREAMDOWN_BLOCK_ONLY_LIMIT_CHARS - 9 + offset);
     expect(text.length).toBe(STREAMDOWN_BLOCK_ONLY_LIMIT_CHARS + offset);
     const expected = parseMarkdownIntoBlocks(text);
-    const inlinePass = vi.spyOn(Lexer.prototype, "inlineTokens");
-    try {
-      expect(splitStreamdownMarkdownBlocks(text)).toEqual(expected);
-      expect(inlinePass.mock.calls.length > 0).toBe(offset >= 0);
-    } finally {
-      inlinePass.mockRestore();
-    }
+    const blocks = splitStreamdownMarkdownBlocks(text);
+    expect(blocks).toEqual(expected);
+    // Streamdown reuses its last parse on an exact hit. Small parses stay local.
+    expect(blocks === expected).toBe(offset >= 0);
   });
 
   it("falls back to the untouched oracle for large syntax-heavy inputs", () => {
@@ -181,8 +178,8 @@ describe("Streamdown block-only splitter compatibility", () => {
     expect(text.length).toBe(16_385);
     const inlinePass = vi.spyOn(Lexer.prototype, "inlineTokens");
     try {
-      expect(() => parseMarkdownIntoBlocks(text)).toThrowError(RangeError);
-      expect(inlinePass.mock.calls.length).toBeGreaterThan(0);
+      expect(parseMarkdownIntoBlocks(text).join("")).toBe(text);
+      expect(inlinePass).not.toHaveBeenCalled();
       inlinePass.mockClear();
       expect(splitStreamdownMarkdownBlocks(text).join("")).toBe(text.replace(/\r\n|\r/g, "\n"));
       expect(inlinePass).not.toHaveBeenCalled();

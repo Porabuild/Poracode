@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useRef, useState, type ReactNode } from "react";
 import { Input, Modal, Tooltip, toast } from "@heroui/react";
 import {
@@ -509,7 +510,7 @@ export function McpServersManager(props: {
                 </p>
               </Modal.Header>
               <Modal.Body className="max-h-[min(32rem,65vh)] p-0">
-                <ul className="divide-y divide-[var(--hairline)]">
+                <ul className="divide-y divide-[var(--hairline-soft)]">
                   {toolList.tools.map((tool, index) => {
                     const enabled = !toolList.disabledTools.includes(tool);
                     return (
@@ -627,7 +628,7 @@ export function McpServersManager(props: {
       {visibleServers.length > 0 ? (
         <section className="space-y-2">
           <SectionHeading title={t`Configured MCP servers`} count={visibleServers.length} />
-          <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+          <ContentSurface className="overflow-hidden">
             {visibleServers.map(({ scope, source, server }) => {
               const probes = scope === "user" ? userProbes : workspaceProbes;
               const oauth = scope === "user" ? userOauth : workspaceOauth;
@@ -723,7 +724,7 @@ export function McpServersManager(props: {
                 />
               );
             })}
-          </div>
+          </ContentSurface>
         </section>
       ) : sources.every(({ source }) => source.servers.length === 0) && !normalizedQuery ? (
         <div className="rounded-xl border border-dashed border-[var(--hairline-strong)] px-4 py-7 text-center">
@@ -764,7 +765,7 @@ export function McpServersManager(props: {
             </p>
           </div>
           {visibleBuiltIns.length > 0 ? (
-            <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+            <ContentSurface className="overflow-hidden">
               {visibleBuiltIns.map((server) => (
                 <BuiltInServerRow
                   key={server.id}
@@ -796,7 +797,7 @@ export function McpServersManager(props: {
                     : {})}
                 />
               ))}
-            </div>
+            </ContentSurface>
           ) : null}
         </section>
       ) : null}
@@ -846,7 +847,7 @@ function ConfiguredServerRow(props: {
     !props.oauth.authenticated &&
     props.probeState.status === "auth-required";
   return (
-    <div className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline)] px-3 py-2.5 last:border-b-0">
+    <div className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline-soft)] px-3 py-2.5 last:border-b-0">
       <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-muted">
         <Settings2 className="size-4" />
       </div>
@@ -1061,7 +1062,7 @@ function BuiltInServerRow(props: {
   return (
     <div
       data-built-in-mcp-server={props.server.id}
-      className="border-b border-[var(--hairline)] last:border-b-0"
+      className="border-b border-[var(--hairline-soft)] last:border-b-0"
     >
       <div className="flex min-h-16 items-center gap-3 px-3 py-2.5">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--hairline)] text-muted">

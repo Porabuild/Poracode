@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Download, ArrowLeft, Monitor, Apple, Terminal, Moon, AlertTriangle } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import Link from "next/link";
+import { AnimatedPage } from "@/components/AnimatedPage";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { localizedPath } from "@/lib/i18n/config";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
@@ -84,7 +85,10 @@ export function NightlyContent({ release }: { release: ReleaseInfo }) {
   const [footerBefore, footerAfter] = t("nightly.footer").split("{prereleases}");
 
   return (
-    <div lang={locale} className="relative min-h-screen overflow-x-hidden bg-black text-white">
+    <AnimatedPage
+      lang={locale}
+      className="relative min-h-screen overflow-x-hidden bg-black text-white"
+    >
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,_rgba(251,191,36,0.08)_0%,_transparent_100%)]" />
 
@@ -107,7 +111,7 @@ export function NightlyContent({ release }: { release: ReleaseInfo }) {
 
       {/* Content */}
       <main className="relative z-10 max-w-3xl mx-auto px-8 py-12">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
@@ -152,12 +156,12 @@ export function NightlyContent({ release }: { release: ReleaseInfo }) {
               {warningAfter}
             </p>
           </div>
-        </motion.div>
+        </m.div>
 
         {hasBuild ? (
           <div className="space-y-10">
             {PLATFORMS.map((platform, i) => (
-              <motion.div
+              <m.div
                 key={platform.os}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -189,11 +193,11 @@ export function NightlyContent({ release }: { release: ReleaseInfo }) {
                     </a>
                   ))}
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
         ) : (
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
@@ -211,10 +215,10 @@ export function NightlyContent({ release }: { release: ReleaseInfo }) {
               </a>
               {noBuildAfter}
             </p>
-          </motion.div>
+          </m.div>
         )}
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.5 }}
@@ -232,8 +236,8 @@ export function NightlyContent({ release }: { release: ReleaseInfo }) {
             </a>
             {footerAfter}
           </p>
-        </motion.div>
+        </m.div>
       </main>
-    </div>
+    </AnimatedPage>
   );
 }

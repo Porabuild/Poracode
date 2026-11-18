@@ -208,7 +208,7 @@ internal fun HomeQuickComposeInputCard(
             .fillMaxWidth()
             .clip(cardShape)
             .background(colors.composerSurface)
-            .border(1.dp, colors.hairlineStrong, cardShape)
+            .border(1.dp, colors.hairlineSoft, cardShape)
             .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

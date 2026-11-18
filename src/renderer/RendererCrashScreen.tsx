@@ -189,7 +189,7 @@ export function RendererCrashScreen(props: RendererCrashScreenProps) {
             </Button>
           </div>
         </header>
-        <section className="min-h-0 flex-1 overflow-auto rounded-md border border-border bg-default-50 p-4">
+        <section className="min-h-0 flex-1 overflow-auto content-surface p-4">
           <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-5 text-foreground">
             {diagnostics}
           </pre>

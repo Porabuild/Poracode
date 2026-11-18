@@ -1,8 +1,9 @@
 "use client";
 
 import { ArrowLeft, ArrowUp, Download, Hash, Plus, Wrench } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import Link from "next/link";
+import { AnimatedPage } from "@/components/AnimatedPage";
 import {
   CHANGELOG,
   formatReleaseDate,
@@ -37,7 +38,7 @@ function ReleaseSection({ release, index }: { release: ChangelogRelease; index: 
   })).filter((group) => group.items.length > 0);
 
   return (
-    <motion.section
+    <m.section
       id={slug}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -91,7 +92,7 @@ function ReleaseSection({ release, index }: { release: ChangelogRelease; index: 
           );
         })}
       </div>
-    </motion.section>
+    </m.section>
   );
 }
 
@@ -102,7 +103,7 @@ export function ChangelogContent() {
   // `-hidden`: hidden would make it a scroll container and break the sticky
   // release nav.
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-black text-white">
+    <AnimatedPage className="relative min-h-screen overflow-x-clip bg-black text-white">
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,_rgba(255,255,255,0.05)_0%,_transparent_100%)]" />
 
@@ -129,7 +130,7 @@ export function ChangelogContent() {
         <ChangelogNav activeSlug={activeSlug} />
 
         <div className="mx-auto w-full max-w-3xl lg:max-w-none">
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
@@ -138,7 +139,7 @@ export function ChangelogContent() {
               {t("nav.changelog")}
             </h1>
             <p className="text-gray-400 mb-12 text-lg">{t("changelog.subtitle")}</p>
-          </motion.div>
+          </m.div>
 
           <div>
             {CHANGELOG.map((release, index) => (
@@ -146,7 +147,7 @@ export function ChangelogContent() {
             ))}
           </div>
 
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, delay: 0.5 }}
@@ -161,9 +162,9 @@ export function ChangelogContent() {
             >
               {t("changelog.footer.link")} →
             </a>
-          </motion.div>
+          </m.div>
         </div>
       </main>
-    </div>
+    </AnimatedPage>
   );
 }
