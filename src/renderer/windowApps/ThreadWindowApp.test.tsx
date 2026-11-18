@@ -214,7 +214,7 @@ describe("ThreadWindowApp", () => {
     for (const prompt of ["First prompt", "Second prompt"]) {
       typePrompt(prompt);
       const send = screen.getByRole("button", { name: "Send" });
-      expect(send).toBeEnabled();
+      await waitFor(() => expect(send).toBeEnabled());
       fireEvent.click(send);
       await waitFor(() =>
         expect(mocks.submit).toHaveBeenLastCalledWith(
@@ -243,7 +243,7 @@ describe("ThreadWindowApp", () => {
       expect(useAppStore.getState().threads[0]?.status).toBe("idle");
     }
     typePrompt("Third prompt");
-    expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
     expect(mocks.submit).toHaveBeenCalledTimes(2);
     reducer.clear();
   });
@@ -302,7 +302,7 @@ describe("ThreadWindowApp", () => {
     });
     await screen.findByRole("textbox");
     typePrompt("Continue after opening");
-    expect(screen.getByRole("button", { name: "Send" })).toBeEnabled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
     expect(mocks.reopen).not.toHaveBeenCalled();
   });
 });

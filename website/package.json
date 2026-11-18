@@ -14,23 +14,23 @@
   "dependencies": {
     "@heroui/react": "3.2.7",
     "@heroui/styles": "3.2.7",
-    "@upstash/redis": "^1.39.0",
+    "@upstash/redis": "^1.41.0",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/blob": "^2.8.2",
-    "@vercel/speed-insights": "^2.0.0",
-    "lucide-react": "1.41.0",
-    "motion": "13.2.0",
-    "next": "16.4.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "tailwindcss": "4.3.3",
-    "web-push": "3.6.7"
+    "@vercel/blob": "^2.9.0",
+    "@vercel/speed-insights": "^2.1.0",
+    "lucide-react": "1.71.0",
+    "motion": "14.12.0",
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "tailwindcss": "4.3.5",
+    "web-push": "4.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.3.3",
-    "@types/node": "26.4.1",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.7",
+    "@tailwindcss/postcss": "4.3.5",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@types/web-push": "3.6.4",
     "cross-env": "^10.1.0",
     "typescript": "^7.0.2"
@@ -38,5 +38,5 @@
   "engines": {
     "node": "26.x"
   },
-  "packageManager": "bun@1.4.3-canary.20261021.1"
+  "packageManager": "bun@1.4.4-canary.20261109.1"
 }

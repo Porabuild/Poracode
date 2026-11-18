@@ -85,17 +85,15 @@ fn capture_wgc(hwnd: HWND, window: &WindowInfo) -> Result<Frame> {
         }
     }
     let _winrt = WinRtGuard;
-    let item = wgc::new_item_from_hwnd(hwnd)
-        .map_err(|error| HelperError::capture_failed(format!("Create WGC item: {error}")))?;
-    let mut settings = wgc::WgcSettings {
-        pixel_format: wgc::PixelFormat::BGRA8,
-        frame_queue_length: 1,
-        ..Default::default()
-    };
+    let mut builder = wgc::Wgc::new_from_hwnd(hwnd)
+        .map_err(|error| HelperError::capture_failed(format!("Create WGC item: {error}")))?
+        .pixel_format(wgc::PixelFormat::BGRA8)
+        .frame_queue_length(1);
     if wgc::is_cursor_configurable().unwrap_or(false) {
-        settings.capture_cursor = Some(false);
+        builder = builder.capture_cursor(false);
     }
-    let mut capture = wgc::Wgc::new(item, settings)
+    let mut capture = builder
+        .build()
         .map_err(|error| HelperError::capture_failed(format!("Start WGC: {error}")))?;
     let frame = capture
         .next()
@@ -112,7 +110,7 @@ fn capture_wgc(hwnd: HWND, window: &WindowInfo) -> Result<Frame> {
         ));
     }
     let pixels = frame
-        .read_pixels(None)
+        .pixels()
         .map_err(|error| HelperError::capture_failed(format!("Copy WGC pixels: {error}")))?;
     align_wgc_frame(window, Frame::new(width, height, pixels)?)
 }

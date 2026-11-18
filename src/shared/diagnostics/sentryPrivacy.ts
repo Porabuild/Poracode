@@ -1,6 +1,23 @@
 import { DIAGNOSTIC_BREADCRUMB_CATEGORY, isStableDiagnosticToken } from "./sentryPolicy";
 import { ERROR_CAUSE_TAG_KEYS, isErrorCauseTag } from "./errorCause";
 
+// The v11 SDK collects request and tool payloads by default. Poracode sends only
+// the diagnostic fields admitted by sanitizeSentryEvent.
+export const sentryDataCollection = {
+  userInfo: false,
+  cookies: false,
+  httpHeaders: false,
+  httpBodies: [],
+  urlQueryParams: false,
+  graphQL: { document: false, variables: false },
+  genAI: { inputs: false, outputs: false },
+  mcp: { inputs: false, outputs: false },
+  databaseQueryData: false,
+  queues: false,
+  stackFrameVariables: false,
+  frameContextLines: 0,
+};
+
 export const PORACODE_DIAGNOSTIC_TAG_KEYS = [
   ...ERROR_CAUSE_TAG_KEYS,
   "poracode.app_version",

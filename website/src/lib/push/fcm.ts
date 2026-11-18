@@ -74,6 +74,7 @@ export function buildFcmMessage(req: AndroidPushRequest): FcmMessage {
       : undefined;
   return {
     message: {
+      // FCM accepts both installation IDs and legacy registration tokens in this field during migration.
       token: req.token,
       notification: { title, body },
       ...(data ? { data } : {}),

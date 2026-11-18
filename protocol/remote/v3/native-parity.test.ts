@@ -666,10 +666,10 @@ describe("remote v3 native parity planning ledger", () => {
       }
     }
     for (const claim of plannedClaims) {
-      assertLedger(
-        PLANNED_ABSENCE_TOKENS[claim.id]?.some((rule) => rule.platform === claim.platform) === true,
+      expect(
+        PLANNED_ABSENCE_TOKENS[claim.id]?.some((rule) => rule.platform === claim.platform),
         `planned entry ${claim.id} (${claim.platform}) needs absence tokens in PLANNED_ABSENCE_TOKENS`,
-      );
+      ).toBe(true);
     }
 
     // And each declared token must really be absent from the native tree.
@@ -690,14 +690,16 @@ describe("remote v3 native parity planning ledger", () => {
       ios: walk(join(repositoryRoot, "ios/App/App")),
       android: walk(join(repositoryRoot, "android/app/src/main/kotlin")),
     };
-    for (const rules of Object.values(PLANNED_ABSENCE_TOKENS)) {
-      for (const rule of rules) {
-        for (const path of trees[rule.platform]) {
-          const contents = readFileSync(path, "utf8");
-          expect(
-            contents.includes(rule.token),
-            `${rule.platform} implements ${rule.token} in ${path} while the ledger entry is still planned — flip the disposition with evidence`,
-          ).toBe(false);
+    const absenceRules = Object.values(PLANNED_ABSENCE_TOKENS).flat();
+    for (const platform of ["ios", "android"] as const) {
+      const rules = absenceRules.filter((rule) => rule.platform === platform);
+      for (const path of trees[platform]) {
+        const contents = readFileSync(path, "utf8");
+        for (const { token } of rules) {
+          assertLedger(
+            !contents.includes(token),
+            `${platform} implements ${token} in ${path} while the ledger entry is still planned — flip the disposition with evidence`,
+          );
         }
       }
     }

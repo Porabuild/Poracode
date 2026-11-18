@@ -1,4 +1,4 @@
-import webPush, { WebPushError, type PushSubscription } from "web-push";
+import { sendNotification, WebPushError, type PushSubscription } from "web-push";
 import type { WebPushConfig } from "./config";
 import type { WebPushRequest } from "./validate";
 
@@ -16,7 +16,7 @@ export async function sendToWebPush(
   request: WebPushRequest,
 ): Promise<WebPushResult> {
   try {
-    const response = await webPush.sendNotification(
+    const response = await sendNotification(
       request.subscription as PushSubscription,
       JSON.stringify(request.payload),
       {
