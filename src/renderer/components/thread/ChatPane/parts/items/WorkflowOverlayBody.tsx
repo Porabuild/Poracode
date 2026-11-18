@@ -161,7 +161,7 @@ function WorkflowToolbar({
   });
 
   return (
-    <div className="shrink-0 border-b border-[color:var(--border)]">
+    <div className="shrink-0 border-b border-[var(--hairline-soft)]">
       <div className="flex min-w-0 items-center gap-2 px-3 py-1">
         {phaseTabs.length > 0 && activeTitle ? (
           <LightballTabs
@@ -212,7 +212,7 @@ function AgentsColumn({
 }) {
   const { t } = useLingui();
   return (
-    <div className="min-h-0 overflow-y-auto border-r border-[color:var(--border)] [scrollbar-gutter:stable]">
+    <div className="min-h-0 overflow-y-auto border-r border-[var(--hairline-soft)] [scrollbar-gutter:stable]">
       {agents.length === 0 ? (
         <p className="px-3 py-3 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
           {loading ? t`Loading…` : emptyHint}
@@ -349,7 +349,7 @@ function AgentDetailFallback({ agent }: { agent: WorkflowAgent }) {
           <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
             <Trans>Prompt</Trans>
           </h3>
-          <pre className="whitespace-pre-wrap break-words rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+          <pre className="whitespace-pre-wrap break-words content-surface px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
             {agent.promptPreview}
           </pre>
         </section>
@@ -359,7 +359,7 @@ function AgentDetailFallback({ agent }: { agent: WorkflowAgent }) {
           <h3 className="pb-1 text-[length:var(--lc-chat-font-size-meta)] font-medium text-foreground">
             <Trans>Outcome</Trans>
           </h3>
-          <pre className="whitespace-pre-wrap break-words rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+          <pre className="whitespace-pre-wrap break-words content-surface px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
             {agent.resultPreview}
           </pre>
         </section>
@@ -373,7 +373,7 @@ function AgentDetailFallback({ agent }: { agent: WorkflowAgent }) {
             {agent.chat.map((entry, index) => (
               <li
                 key={`${index}-${entry.timestamp ?? ""}-${entry.title ?? entry.role}`}
-                className="rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5"
+                className="content-surface px-2 py-1.5"
               >
                 <div className="flex min-w-0 items-baseline gap-2 pb-1 text-[length:var(--lc-chat-font-size-meta)] text-foreground-muted">
                   <span className="shrink-0 font-medium capitalize">{entry.role}</span>

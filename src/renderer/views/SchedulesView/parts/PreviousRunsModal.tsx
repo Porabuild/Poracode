@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useState } from "react";
 import { Button, Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -91,7 +92,7 @@ function RunRow({
     // The linked thread was deleted: nothing to navigate to (openRunThread
     // guards anyway), so render a muted, non-interactive row.
     return (
-      <div className="block h-auto w-full rounded-none border-b border-[var(--hairline)] px-3 py-2.5 text-left opacity-60 last:border-b-0">
+      <div className="block h-auto w-full rounded-none border-b border-[var(--hairline-soft)] px-3 py-2.5 text-left opacity-60 last:border-b-0">
         <div className="flex items-center justify-between gap-2.5">{trailing}</div>
         {errorLine}
         {summaryLine}
@@ -103,7 +104,7 @@ function RunRow({
     <Button
       variant="ghost"
       onPress={() => (onViewRun ? onViewRun(run) : onOpen(run.threadId))}
-      className="block h-auto w-full rounded-none border-b border-[var(--hairline)] px-3 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-default-100/60 focus-visible:bg-default-100/60"
+      className="block h-auto w-full rounded-none border-b border-[var(--hairline-soft)] px-3 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-default-100/60 focus-visible:bg-default-100/60"
     >
       <div className="flex items-center gap-2.5">
         {thread ? <ThreadProviderIcon thread={thread} className="size-3.5 shrink-0" /> : null}
@@ -202,7 +203,7 @@ export function PreviousRunsModal({
                 <Trans>No runs yet.</Trans>
               </p>
             ) : (
-              <div className="overflow-hidden rounded-lg border border-[var(--hairline)]">
+              <ContentSurface className="overflow-hidden">
                 {runs.map((run) => (
                   <RunRow
                     key={run.id}
@@ -221,7 +222,7 @@ export function PreviousRunsModal({
                     resolveThreadId={resolveThreadId}
                   />
                 ))}
-              </div>
+              </ContentSurface>
             )}
           </Modal.Body>
         </Modal.Dialog>

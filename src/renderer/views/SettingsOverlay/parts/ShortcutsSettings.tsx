@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { toast } from "@heroui/react";
@@ -229,9 +230,9 @@ export function ShortcutsSettings() {
           </div>
         </div>
       ) : (
-        <div className="rounded-md border border-[color:var(--border)] px-4 py-8 text-center text-sm text-muted">
+        <ContentSurface className="px-4 py-8 text-center text-sm text-muted">
           <Trans>No shortcuts found</Trans>
-        </div>
+        </ContentSurface>
       )}
     </SettingsPage>
   );
@@ -250,11 +251,11 @@ function ShortcutSectionView(props: {
       <h2 className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
         {sectionLabel}
       </h2>
-      <div className="overflow-hidden rounded-md border border-[color:var(--border)]">
+      <ContentSurface variant="group" className="overflow-hidden">
         {section.rows.map((row) => (
           <ShortcutRowView key={row.id} editor={editor} row={row} sectionLabel={sectionLabel} />
         ))}
-      </div>
+      </ContentSurface>
     </section>
   );
 }
@@ -268,7 +269,7 @@ function ShortcutRowView(props: { editor: EditorApi; row: ShortcutRow; sectionLa
       ? row.description
       : null;
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-[color:var(--border)] px-3 py-1.5 last:border-b-0">
+    <div className="flex items-center justify-between gap-3 px-3 py-1.5">
       <div className="flex min-w-0 items-baseline gap-2">
         <span className="truncate text-[13px] font-medium text-foreground">{row.title}</span>
         {subtitle ? <span className="truncate text-[11px] text-muted">{subtitle}</span> : null}

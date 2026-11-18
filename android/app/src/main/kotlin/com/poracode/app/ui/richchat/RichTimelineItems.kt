@@ -71,6 +71,7 @@ import com.poracode.app.ui.theme.GeistMono
 import com.poracode.app.ui.theme.LocalChatTextSizeSp
 import com.poracode.app.ui.theme.PoracodeIcons
 import com.poracode.app.ui.theme.PoracodeTextStyles
+import com.poracode.app.ui.theme.PoracodeRadius
 import com.poracode.app.ui.theme.PoracodeTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -145,7 +146,7 @@ internal fun RichTimelineItem(
     }
 }
 
-/** User prompt bubble (`composer-surface` fill, hairline border), as in the PWA transcript. */
+/** User prompts and structured answers share the compact transcript surface. */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun RichUserBubble(
@@ -155,13 +156,13 @@ private fun RichUserBubble(
     onLongPress: () -> Unit,
 ) {
     val colors = PoracodeTheme.colors
-    val shape = RoundedCornerShape(10.dp)
+    val shape = RoundedCornerShape(PoracodeRadius.contentSurface)
     Column(
         Modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(colors.surfaceSecondary)
-            .border(1.dp, colors.hairline, shape)
+            .background(colors.listRow)
+            .border(1.dp, colors.hairlineSoft, shape)
             .combinedClickable(
                 onClickLabel = null,
                 onLongClickLabel = stringResource(R.string.thread_lifecycle_actions),

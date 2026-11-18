@@ -700,7 +700,7 @@ export function GitReviewSidebar(props: {
                         <input
                           id="git-add-remote-name"
                           aria-label={t`Remote name`}
-                          className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
+                          className="h-8 rounded-md form-field px-2 text-xs text-foreground outline-none transition-colors placeholder:text-field-placeholder"
                           value={remoteName}
                           onChange={(event) => setRemoteName(event.target.value)}
                         />
@@ -715,7 +715,7 @@ export function GitReviewSidebar(props: {
                         <input
                           id="git-add-remote-url"
                           aria-label={t`Remote URL`}
-                          className="h-8 rounded-md border border-[color:var(--border)] bg-surface px-2 text-xs text-foreground outline-none transition-colors placeholder:text-muted/50 focus:border-foreground/40"
+                          className="h-8 rounded-md form-field px-2 text-xs text-foreground outline-none transition-colors placeholder:text-field-placeholder"
                           placeholder="git@github.com:owner/repo.git"
                           value={remoteUrl}
                           onChange={(event) => setRemoteUrl(event.target.value)}

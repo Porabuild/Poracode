@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Button, Input, Label, TextField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -51,7 +52,7 @@ export function ModelProviderEditor({
     (provider !== undefined || !custom || /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(parsed.data.id)) &&
     (!custom || (parsed.data.baseURL.length > 0 && parsed.data.modelIds.length > 0));
   return (
-    <div className="space-y-3 rounded-lg border border-border/20 p-3">
+    <ContentSurface className="space-y-3 p-3">
       {!provider ? (
         <Select
           label={t`Provider`}
@@ -147,6 +148,6 @@ export function ModelProviderEditor({
           <Trans>Save</Trans>
         </Button>
       </div>
-    </div>
+    </ContentSurface>
   );
 }

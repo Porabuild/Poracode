@@ -25,11 +25,11 @@ data class PoracodeColors(
     val surfaceTertiary: Color,
     /** Menus, dialogs, and popovers (`--overlay`). */
     val overlay: Color,
-    /** Resting surface of list rows and cards (`--m-list-row-surface`). */
+    /** Read-only content, including list rows, cards and user prompts (`--content-surface-fill`). */
     val listRow: Color,
     /** Floating circle buttons and the bottom pill (`--m-glass-surface`). */
     val glass: Color,
-    /** Composer card and user message bubble (`--composer-surface`). */
+    /** Editable composer (`--composer-surface`). */
     val composerSurface: Color,
     /** Neutral control fill for secondary buttons, chips, and toggles (`--default`). */
     val default: Color,
@@ -60,7 +60,9 @@ data class PoracodeColors(
     val floatingShadow: Color,
     /** Scrim behind sheets and the focused composer. */
     val scrim: Color,
-)
+) {
+    val hairlineSoft: Color get() = foreground.copy(alpha = 0.03f)
+}
 
 // The default palette is generated from the PWA theme source of truth by
 // scripts/generate-android-themes.ts (see PoracodeThemePresets.kt). Keeping these

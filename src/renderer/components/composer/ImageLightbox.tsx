@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 /* oxlint-disable jsx-a11y/media-has-caption -- Agent-provided video files have no caption track in the resource contract. */
 import { isClientDraftAsset } from "@/renderer/state/composerDrafts/clientDraftDatabase";
 import { readDraftAsset } from "@/renderer/state/composerDrafts/readDraftAsset";
@@ -565,7 +566,7 @@ function LightboxVideoPlayer({ item }: { item: LightboxImage }) {
 
   if (unavailable) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-secondary px-4 py-3 text-sm text-muted">
+      <ContentSurface className="flex flex-col items-center gap-2 px-4 py-3 text-sm text-muted">
         <span role="status">
           <Trans>This media preview is unavailable.</Trans>
         </span>
@@ -579,7 +580,7 @@ function LightboxVideoPlayer({ item }: { item: LightboxImage }) {
         >
           <Trans>Retry</Trans>
         </Button>
-      </div>
+      </ContentSurface>
     );
   }
 

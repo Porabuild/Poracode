@@ -283,7 +283,7 @@ export function PluginDetail(props: {
           variant="tertiary"
           isDisabled={!canTryNow || trying}
           isPending={trying}
-          className="mt-4 flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-secondary !px-3.5 !py-2.5 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
+          className="mt-4 flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden content-surface-row !px-3.5 !py-2.5 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
           onPress={() => void runRendererAction(tryActionKey, tryNow)}
         >
           <span className="shrink-0 text-muted">
@@ -318,7 +318,7 @@ export function PluginDetail(props: {
       ) : null}
 
       {plugin.poracode.communityMaintained ? (
-        <p className="mt-4 rounded-lg border border-[var(--hairline)] px-3 py-2 text-xs text-muted">
+        <p className="mt-4 content-surface-row px-3 py-2 text-xs text-muted">
           <Trans>
             The server this plugin launches is maintained by a third party, not by the service it
             connects to. Review the source before enabling it.

@@ -217,6 +217,7 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
   /// Plain state, not `@FocusState`: the editor is a UIKit text view, so no
   /// SwiftUI view is bound to a focus state. The text view owns first responder.
   @State private var focused = false
+  @Environment(\.poracodePalette) private var palette
   @State private var expandedHasFocused = false
   @AppStorage(PoracodeChatTextSize.storageKey) private var storedTextSize = PoracodeChatTextSize.defaultValue
 
@@ -244,7 +245,7 @@ struct RichChatAdaptiveComposer<Summary: View, Toolbar: View, Trailing: View>: V
             } label: {
               Text(hasPrompt ? text : placeholder)
                 .poracodeChatText(.body)
-                .foregroundStyle(hasPrompt ? .primary : .secondary)
+                .foregroundStyle(hasPrompt ? palette.foreground : palette.fieldPlaceholder)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 4)
@@ -318,7 +319,6 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     let label = UILabel()
     label.text = placeholder
     label.font = view.font
-    label.textColor = .placeholderText
     label.isAccessibilityElement = false
     label.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(label)
@@ -339,6 +339,8 @@ struct RichChatComposerTextInput: UIViewRepresentable {
     let font = UIFontMetrics(forTextStyle: .body).scaledFont(for: .systemFont(ofSize: pointSize))
     if view.font != font { view.font = font }
     context.coordinator.placeholder?.font = font
+    view.textColor = UIColor(context.environment.poracodePalette.foreground)
+    context.coordinator.placeholder?.textColor = UIColor(context.environment.poracodePalette.fieldPlaceholder)
     context.coordinator.placeholder?.text = placeholder
     if view.text != text { view.text = text }
     context.coordinator.placeholder?.isHidden = !text.isEmpty

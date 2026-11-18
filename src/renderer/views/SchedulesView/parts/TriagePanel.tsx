@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Button, Chip, Input, TextField, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -81,7 +82,7 @@ function TriageRunRow(props: {
 
   return (
     <div
-      className={`flex items-start gap-2 border-b border-[var(--hairline)] px-3 py-3 last:border-b-0 ${unread ? "bg-default-100/40" : ""}`}
+      className={`flex items-start gap-2 border-b border-[var(--hairline-soft)] px-3 py-3 last:border-b-0 ${unread ? "bg-default-100/40" : ""}`}
     >
       <Button
         variant="ghost"
@@ -249,7 +250,7 @@ export function TriagePanel(props: TriagePanelProps) {
           <Loader2 className="size-5 animate-spin" aria-label={t`Loading results`} />
         </div>
       ) : visibleRuns.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+        <ContentSurface className="overflow-hidden">
           {visibleRuns.map((run) => (
             <TriageRunRow
               key={run.id}
@@ -267,7 +268,7 @@ export function TriagePanel(props: TriagePanelProps) {
               onCancel={() => void cancelRun(run)}
             />
           ))}
-        </div>
+        </ContentSurface>
       ) : (
         <div className="flex flex-col items-center gap-2 py-14 text-center text-muted">
           {filter === "unread" ? (

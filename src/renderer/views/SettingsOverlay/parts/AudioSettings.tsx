@@ -438,7 +438,7 @@ function AudioGroup({
 }) {
   return (
     <section className="space-y-4" aria-label={title}>
-      <div className="border-b border-border pb-3">
+      <div className="border-b border-[var(--hairline-soft)] pb-3">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         <p className="mt-1 text-xs text-muted">{description}</p>
       </div>
@@ -456,7 +456,7 @@ function DictationTest() {
       id="audio.testDictation"
       data-settings-anchor="audio.testDictation"
       aria-label={t`Test dictation`}
-      className="scroll-mt-4 space-y-3 rounded-xl border border-border p-4"
+      className="scroll-mt-4 space-y-3 content-surface p-4"
     >
       <div className="flex items-center justify-between gap-3">
         <div>

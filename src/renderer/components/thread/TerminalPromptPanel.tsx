@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Button } from "../common/Button";
 
 interface TerminalPromptOption {
@@ -17,7 +18,7 @@ export function TerminalPromptPanel(props: {
   const { prompt, onSelect } = props;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[color:var(--border)] bg-[color:color-mix(in_oklab,var(--surface)_94%,transparent)] px-4 py-3">
+    <ContentSurface className="flex flex-wrap items-center gap-2 px-4 py-3">
       {prompt.title ? (
         <span className="mr-1 text-sm font-medium text-foreground">{prompt.title}</span>
       ) : null}
@@ -32,6 +33,6 @@ export function TerminalPromptPanel(props: {
           {option.label}
         </Button>
       ))}
-    </div>
+    </ContentSurface>
   );
 }

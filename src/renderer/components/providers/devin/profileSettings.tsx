@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Button, Disclosure, toast } from "@heroui/react";
 import { CircleAlert, LogIn, TriangleAlert } from "lucide-react";
@@ -429,7 +430,7 @@ function DevinProfileEditor(props: {
   if (props.view.status === "unsupported-format") {
     return (
       <div className="space-y-3 border-t border-border/10 pt-4">
-        <div className="flex items-start gap-2 rounded-xl border border-border/15 bg-surface-secondary/30 px-3 py-2">
+        <ContentSurface variant="row" className="flex items-start gap-2 px-3 py-2">
           <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
           <div className="min-w-0 text-sm">
             <p className="font-medium text-foreground">
@@ -443,7 +444,7 @@ function DevinProfileEditor(props: {
               </Trans>
             </p>
           </div>
-        </div>
+        </ContentSurface>
       </div>
     );
   }
@@ -473,7 +474,7 @@ function DevinProfileEditor(props: {
       </div>
 
       {props.view.status === "invalid" ? (
-        <div className="flex items-start gap-2 rounded-xl border border-border/15 bg-surface-secondary/30 px-3 py-2">
+        <ContentSurface variant="row" className="flex items-start gap-2 px-3 py-2">
           <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
           <p className="text-xs text-muted">
             <Trans>
@@ -481,7 +482,7 @@ function DevinProfileEditor(props: {
               them with what this form holds.
             </Trans>
           </p>
-        </div>
+        </ContentSurface>
       ) : null}
 
       {/* Profile basics */}

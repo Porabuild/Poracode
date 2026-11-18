@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import type { ReactNode } from "react";
 import { RadioGroup, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -173,7 +174,7 @@ export function CursorProviderSettings(props: {
             </Trans>
           </p>
         </div>
-        <div className="rounded-lg border border-border/40 bg-surface-secondary/35">
+        <ContentSurface>
           <div className="px-3 py-2">
             <p className="text-xs text-muted">
               {statusLine(sdkInstallState.sdkInstalled, sdkAuthState, "sdk", sdkAccountEmail)}
@@ -183,7 +184,7 @@ export function CursorProviderSettings(props: {
             ) : null}
           </div>
           <div className="space-y-1.5 border-t border-border/10 px-3 py-2">{sdkSetup}</div>
-        </div>
+        </ContentSurface>
       </div>
     );
   }

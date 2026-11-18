@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { toast } from "@heroui/react";
@@ -137,7 +138,7 @@ export function CrossagentRoutingSection() {
           </Trans>
         </p>
         {routing.ranked.length > 0 ? (
-          <div className="max-h-80 overflow-y-auto rounded-lg border border-border">
+          <ContentSurface className="max-h-80 overflow-y-auto">
             {routing.ranked.map((entry) => {
               const subProviderLabel = subProviderLabelFor(entry);
               return (
@@ -148,7 +149,7 @@ export function CrossagentRoutingSection() {
                 />
               );
             })}
-          </div>
+          </ContentSurface>
         ) : null}
         {skippedProviderNames.length > 0 ? (
           <p className="text-xs text-muted">
@@ -173,7 +174,7 @@ export function CrossagentRoutingSection() {
                 </Trans>
               </p>
             </div>
-            <div className="overflow-hidden rounded-lg border border-border">
+            <ContentSurface className="overflow-hidden">
               {crossagentRoutingOverrides.map((override) => {
                 const key = override.tags.join(" ");
                 const routeDetail = [
@@ -189,7 +190,7 @@ export function CrossagentRoutingSection() {
                 return (
                   <div
                     key={key}
-                    className="flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0"
+                    className="flex items-center gap-3 border-b border-[var(--hairline-soft)] px-3 py-2 last:border-b-0"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs text-foreground">{tagLabel}</p>
@@ -213,7 +214,7 @@ export function CrossagentRoutingSection() {
                   </div>
                 );
               })}
-            </div>
+            </ContentSurface>
           </div>
         ) : null}
       </section>

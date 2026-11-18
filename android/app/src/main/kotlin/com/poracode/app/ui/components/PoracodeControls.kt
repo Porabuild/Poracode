@@ -237,7 +237,7 @@ fun PoracodeListRow(
     val haptics = LocalHapticFeedback.current
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val shape = RoundedCornerShape(PoracodeRadius.row)
+    val shape = RoundedCornerShape(PoracodeRadius.contentSurface)
     val clickable = if (onClick != null || onLongClick != null) {
         Modifier.combinedClickable(
             interactionSource = interaction,

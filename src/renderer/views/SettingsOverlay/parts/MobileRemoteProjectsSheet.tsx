@@ -55,7 +55,7 @@ function MobileAddProjectSheet(props: {
   const folderButton = (value: string, label: string, target: typeof pickerTarget) => (
     <button
       type="button"
-      className="flex min-h-11 w-full items-center gap-2 rounded-2xl border border-default-200 bg-default-50 px-3 text-left text-xs"
+      className="flex min-h-11 w-full items-center gap-2 content-surface-row px-3 text-left text-xs"
       aria-label={label}
       onClick={() => setPickerTarget(target)}
     >

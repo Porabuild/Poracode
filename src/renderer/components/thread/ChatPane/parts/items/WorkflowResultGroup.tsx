@@ -79,7 +79,7 @@ export const WorkflowResultGroup = memo(function WorkflowResultGroup({
 
 function WorkflowJsonResult({ json }: { json: string }) {
   return (
-    <pre className="w-full min-w-0 overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+    <pre className="w-full min-w-0 overflow-x-auto whitespace-pre-wrap break-words content-surface px-2 py-1.5 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
       {json}
     </pre>
   );
@@ -207,7 +207,7 @@ function ResultFieldRow({ fieldKey, value }: { fieldKey: string; value: unknown 
 function ResultJsonBlock({ value, compact = false }: { value: unknown; compact?: boolean }) {
   const text = typeof value === "string" ? value : safeStringify(value, compact ? undefined : 2);
   return (
-    <pre className="whitespace-pre-wrap break-words rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
+    <pre className="whitespace-pre-wrap break-words content-surface px-2 py-1 font-mono text-[length:var(--lc-chat-font-size-meta)] text-foreground/90">
       {text}
     </pre>
   );

@@ -258,7 +258,7 @@ private fun SettingsUsageCard(
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(PoracodeRadius.card))
+            .clip(RoundedCornerShape(PoracodeRadius.contentSurface))
             .background(colors.listRow)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),

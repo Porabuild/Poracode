@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useState } from "react";
 import { Input, Tooltip, toast } from "@heroui/react";
 import { Box, ChevronDown, Download, Plus, RefreshCw, Search, Store, Trash2 } from "lucide-react";
@@ -514,7 +515,7 @@ function SkillSection(props: {
           </span>
         ) : null}
       </div>
-      <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+      <ContentSurface className="overflow-hidden">
         {props.skills.map((skill) => (
           <SkillRow
             key={skill.id}
@@ -526,7 +527,7 @@ function SkillSection(props: {
             onDelete={props.onDelete}
           />
         ))}
-      </div>
+      </ContentSurface>
     </section>
   );
 }
@@ -575,7 +576,7 @@ function SkillRow(props: {
     : undefined;
 
   return (
-    <div className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline)] px-3 py-2 last:border-b-0">
+    <div className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline-soft)] px-3 py-2 last:border-b-0">
       <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[var(--hairline)] bg-surface-secondary text-muted">
         <Box className="size-4" />
       </div>

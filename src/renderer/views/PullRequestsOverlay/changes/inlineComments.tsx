@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Button, TextArea } from "@heroui/react";
 import { Sparkles } from "lucide-react";
@@ -189,10 +190,7 @@ export function DraftCard(props: {
 export function ThreadCard(props: { thread: PrReviewThread; onAsk?: (target: AskTarget) => void }) {
   const { thread, onAsk } = props;
   return (
-    <div
-      className="rounded-lg border border-border bg-[var(--content-background)] font-sans"
-      data-testid="review-thread"
-    >
+    <ContentSurface className="font-sans" data-testid="review-thread">
       <div className="flex items-center gap-2 px-3 pt-2 text-[11px] text-muted">
         <span>{thread.isResolved ? <Trans>Resolved</Trans> : <Trans>Unresolved</Trans>}</span>
         {thread.isOutdated ? (
@@ -233,7 +231,7 @@ export function ThreadCard(props: { thread: PrReviewThread; onAsk?: (target: Ask
           />
         </div>
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }
 
