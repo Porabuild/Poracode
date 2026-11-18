@@ -166,7 +166,14 @@ it.each(["cancelled", "uncertain"] as const)(
     const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
     try {
       const launch = Promise.withResolvers<"cancelled">();
-      const onStart = vi.fn<() => Promise<"cancelled">>(() => launch.promise);
+      const onStart = vi.fn<ComponentProps<typeof ThreadDraftComposerArea>["onStart"]>(
+        async ({ clientSubmissionId }) => {
+          const result = await launch.promise;
+          // startThreadFromDraft settles the receipt before returning a cancellation.
+          await draftSubmission.settleClientSubmission(clientSubmissionId, "failed");
+          return result;
+        },
+      );
       const first = form(onStart);
       fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
       await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
@@ -186,6 +193,11 @@ it.each(["cancelled", "uncertain"] as const)(
       );
       expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
       expect(screen.getByText("notes.txt")).toBeVisible();
+      const expectedStates = outcome === "cancelled" ? [] : ["uncertain"];
+      await waitFor(async () => {
+        const records = await listClientSubmissions();
+        expect(records.map(({ state }) => state)).toEqual(expectedStates);
+      });
       await waitFor(() =>
         expect(screen.queryByRole("button", { name: "Restore a copy" }) !== null).toBe(
           outcome === "uncertain",
