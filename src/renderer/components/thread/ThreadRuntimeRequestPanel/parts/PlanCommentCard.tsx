@@ -4,7 +4,7 @@ import { Pencil, X } from "lucide-react";
 import { chatPromptSurfaceClass } from "../../ChatPane/parts/items/chatMessageSurface";
 
 /**
- * A posted plan comment. Shares the chat user-message surface (tertiary fill,
+ * A posted plan comment. Shares the chat user-message surface (row fill,
  * soft hairline, rounded) because it is the user's own words; actions appear on
  * hover or keyboard focus like the user-message action strip.
  */
@@ -27,7 +27,7 @@ export function PlanComment(props: {
       <div className="mt-0.5 pr-12 text-[13px] leading-snug whitespace-pre-wrap [overflow-wrap:anywhere]">
         {props.text}
       </div>
-      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-surface-tertiary opacity-0 transition-opacity group-hover/comment:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 rounded-full bg-[var(--content-surface-fill)] opacity-0 transition-opacity group-hover/comment:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
         <Button
           size="sm"
           variant="ghost"

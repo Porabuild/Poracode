@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { startTransition, useDeferredValue, useEffect, useState, type ReactNode } from "react";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { Disclosure, NumberField, Tooltip } from "@heroui/react";
@@ -183,7 +184,7 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
         <h3 className="text-xs font-semibold text-foreground/80">
           <Trans>Refresh</Trans>
         </h3>
-        <div className="rounded-2xl border border-[color:var(--separator)] bg-surface">
+        <ContentSurface>
           <SettingRow
             anchorId="usage.autoRefreshMinutes"
             className="px-4 py-3"
@@ -223,7 +224,7 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
               </NumberField.Group>
             </NumberField>
           </SettingRow>
-        </div>
+        </ContentSurface>
       </section>
 
       <section className="space-y-2 pt-1">
@@ -245,11 +246,11 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
         </div>
 
         {trackedProviders.length === 0 ? (
-          <div className="rounded-2xl border border-[color:var(--separator)] bg-surface px-4 py-4 text-xs text-muted">
+          <ContentSurface className="px-4 py-4 text-xs text-muted">
             <Trans>
               No providers are being tracked. Enable providers below to monitor quotas and cost.
             </Trans>
-          </div>
+          </ContentSurface>
         ) : (
           <div className="space-y-2">
             {trackedProviders.map((p) => (
@@ -262,7 +263,7 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
           <Disclosure
             isExpanded={moreExpanded}
             onExpandedChange={setMoreExpanded}
-            className="rounded-2xl border border-[color:var(--separator)] bg-surface"
+            className="content-surface"
           >
             <Disclosure.Heading>
               <Disclosure.Trigger className="flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--row-hover)]">
@@ -281,9 +282,9 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
               </Disclosure.Trigger>
             </Disclosure.Heading>
             <Disclosure.Content>
-              <Disclosure.Body className="border-t border-[var(--hairline)] p-0">
+              <Disclosure.Body className="border-t border-[var(--hairline-soft)] p-0">
                 {showUntrackedSearch ? (
-                  <div className="flex items-center gap-2 border-b border-[var(--hairline)] px-4 py-2">
+                  <div className="flex items-center gap-2 border-b border-[var(--hairline-soft)] px-4 py-2">
                     <Search className="size-3.5 shrink-0 text-muted" />
                     <input
                       aria-label={t`Search more providers`}
@@ -309,7 +310,7 @@ function CurrentHostUsageSettings(props: { selector: ReactNode }) {
                     <Trans>No providers found</Trans>
                   </p>
                 ) : (
-                  <div className="divide-y divide-[var(--hairline)]">
+                  <div className="divide-y divide-[var(--hairline-soft)]">
                     {filteredUntracked.map((p) => {
                       const label = p.label;
                       return (

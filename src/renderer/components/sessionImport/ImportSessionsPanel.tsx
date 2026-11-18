@@ -259,7 +259,7 @@ export function ImportSessionsPanel() {
           const alreadyImported = findImportedThreadId(session, threads) !== undefined;
           const heading = session.title ?? (session.preview || session.providerSessionId);
           return (
-            <li key={session.id} className="rounded border border-border/10 px-2 py-1.5">
+            <li key={session.id} className="content-surface-row px-2 py-1.5">
               <Checkbox
                 aria-label={heading}
                 className="w-full"

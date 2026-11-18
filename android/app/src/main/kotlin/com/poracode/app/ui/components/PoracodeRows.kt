@@ -88,7 +88,7 @@ fun PoracodeNavRow(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = if (subtitle == null) PoracodeMetrics.tapTarget else 52.dp)
-            .clip(RoundedCornerShape(PoracodeRadius.row))
+            .clip(RoundedCornerShape(PoracodeRadius.contentSurface))
             .background(
                 if (pressed) colors.rowActive.compositeOver(colors.listRow) else colors.listRow,
             )

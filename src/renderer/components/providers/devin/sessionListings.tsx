@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { PixelLoader } from "@/renderer/components/common";
 
@@ -86,12 +87,12 @@ export function DevinRuleEntry(props: { entry: DevinRuleEntryView }) {
     entry.scope === "global" ? t`Global` : entry.scope === "project" ? t`Project` : undefined;
   const trigger = entry.trigger === "always_on" ? t`Always applied` : undefined;
   return (
-    <div className="min-w-0 rounded-lg border border-border/50 p-3">
+    <ContentSurface className="min-w-0 p-3">
       <p className="text-sm font-medium text-foreground">{entry.name}</p>
       <p className="mt-1 break-words text-xs text-muted">{entry.path}</p>
       {scope || trigger ? (
         <p className="mt-2 text-xs text-muted">{[scope, trigger].filter(Boolean).join(" · ")}</p>
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }

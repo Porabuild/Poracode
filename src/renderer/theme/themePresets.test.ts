@@ -102,6 +102,9 @@ describe("theme presets", () => {
         const muted = v["--muted"]!;
         const fg = v["--foreground"]!;
         const checks: [string, string, string, number][] = [
+          ["muted/panel", muted, v["--content-surface-fill"]!, BG_FLOOR],
+          ["placeholder/field", v["--field-placeholder"]!, v["--field-background"]!, BG_FLOOR],
+          ["placeholder/composer", v["--field-placeholder"]!, v["--composer-surface"]!, BG_FLOOR],
           ["muted/bg", muted, bg, BG_FLOOR],
           ["muted/surface", muted, surface, PANEL_FLOOR],
           ["muted/sidebar", muted, sidebar, PANEL_FLOOR],

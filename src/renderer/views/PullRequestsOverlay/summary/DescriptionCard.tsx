@@ -43,11 +43,8 @@ export function DescriptionCard() {
   }
 
   return (
-    <section
-      aria-label={t`Description`}
-      className="overflow-hidden rounded-2xl border border-[color:var(--border)] bg-surface-tertiary/30"
-    >
-      <div className="flex items-center justify-between gap-2 border-b border-[color:var(--border)] bg-foreground/[0.03] px-3 py-1.5">
+    <section aria-label={t`Description`} className="overflow-hidden content-surface">
+      <div className="flex items-center justify-between gap-2 border-b border-[var(--hairline-soft)] bg-foreground/[0.03] px-3 py-1.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
           <Trans>Description</Trans>
         </h3>

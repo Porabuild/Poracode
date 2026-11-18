@@ -116,7 +116,7 @@ fun PortForwardScreen(
                                 .fillMaxWidth()
                                 .background(
                                     colors.danger.copy(alpha = 0.12f),
-                                    RoundedCornerShape(PoracodeRadius.row),
+                                    RoundedCornerShape(PoracodeRadius.contentSurface),
                                 )
                                 .padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,

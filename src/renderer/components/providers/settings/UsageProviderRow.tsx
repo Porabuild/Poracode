@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { startTransition, useState, type FormEvent } from "react";
 import { Tooltip } from "@heroui/react";
 import { ChevronDown, ChevronRight, LogIn, LogOut, RefreshCw } from "lucide-react";
@@ -77,7 +78,7 @@ function UsageCadenceField(props: { id: string; label: string }) {
           if (e.key === "Enter") e.currentTarget.blur();
           else if (e.key === "Escape") setDraft(null);
         }}
-        className="w-[28px] shrink-0 bg-transparent p-0 text-right text-xs tabular-nums text-muted outline-none transition-colors hover:text-foreground focus:text-foreground placeholder:text-muted/40"
+        className="w-[28px] shrink-0 bg-transparent p-0 text-right text-xs tabular-nums text-muted outline-none transition-colors hover:text-foreground focus:text-foreground placeholder:text-field-placeholder"
       />
       <Trans comment="Unit suffix: minutes">min</Trans>
     </span>
@@ -117,7 +118,7 @@ function UsageProviderCredentialStrip(props: {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-[var(--hairline)] px-3.5 py-2">
+    <div className="flex flex-wrap items-center gap-2 border-t border-[var(--hairline-soft)] px-3.5 py-2">
       {canBrowserSignIn && !optionalBrowserSignIn ? (
         <Button
           size="sm"
@@ -139,7 +140,7 @@ function UsageProviderCredentialStrip(props: {
             aria-label={t`${label} API key`}
             autoComplete="off"
             spellCheck={false}
-            className="min-w-0 flex-1 rounded-lg border border-[color:var(--separator)] bg-background px-2.5 py-1 text-xs text-foreground outline-none focus-visible:focus-ring @xl:max-w-[260px]"
+            className="min-w-0 flex-1 rounded-lg form-field px-2.5 py-1 placeholder:text-field-placeholder text-xs text-foreground outline-none @xl:max-w-[260px]"
           />
           <Button
             size="sm"
@@ -195,7 +196,7 @@ export function UsageProviderRow(props: { id: string; label: string }) {
       : undefined;
 
   return (
-    <div className="rounded-2xl border border-[color:var(--separator)] bg-surface">
+    <ContentSurface>
       <div className="settings-row @container flex min-h-[52px] flex-wrap items-center gap-x-2.5 gap-y-2 px-3.5 py-2.5">
         <div className="settings-row__text flex min-w-[10rem] flex-1 items-center gap-2.5">
           <ProviderUsageCircle kind={id} windows={snapshot?.windows} size={26} />
@@ -330,7 +331,7 @@ export function UsageProviderRow(props: { id: string; label: string }) {
       </div>
 
       {hasUsage && expanded && snapshot ? (
-        <div className="space-y-2 border-t border-[var(--hairline)] px-3.5 py-2.5">
+        <div className="space-y-2 border-t border-[var(--hairline-soft)] px-3.5 py-2.5">
           {snapshot.windows.length > 0 ? (
             <UsageWindowBars windows={snapshot.windows} showReset={!usesSharedWindowReset(id)} />
           ) : null}
@@ -355,6 +356,6 @@ export function UsageProviderRow(props: { id: string; label: string }) {
         handleSignIn={handleSignIn}
         handleSubmitApiKey={handleSubmitApiKey}
       />
-    </div>
+    </ContentSurface>
   );
 }

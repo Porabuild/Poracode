@@ -31,14 +31,30 @@ Match the canonical dialog look — do not restyle. Reference: `CreatePrModal`, 
 
 Three modes: light, dark, system. Resolved via the `useResolvedAppearance()` hook in `components/ui/provider.tsx`. Theme is applied as a class on the root element and synced to Electron window chrome via IPC. The xterm.js terminal theme reads CSS variables for background/foreground/cursor colors.
 
+### Content surfaces
+
+Use **Soft hairline** for in-flow cards, framed content, and lists throughout the renderer. Its 8px corners, flat, theme-derived fill, and 1px edge at 3% foreground are shared by Electron, web, and compact PWA.
+
+| Content                 | Use                                                                         | Examples                                                     |
+| ----------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Card or bounded section | `ContentSurface`, or the default HeroUI `Card` for compound content         | Provider usage, dictation test, profile totals, tool results |
+| Standalone compact row  | `<ContentSurface variant="row">`                                            | User messages, agent order, profile highlights               |
+| Group of rows           | `<ContentSurface variant="group">` around sibling rows with shared dividers | Workspaces, search exclusions, shortcut categories           |
+
+Panels, grouped lists, read-only output, and sent messages share `--content-surface-fill`. Rows differ in layout only. Use `--field-background` for editable text and `--field-placeholder` for its hint. The composer uses that field fill by default and honors an explicitly configured composer color. Standalone editable fields share a flat fill. Light forms use an even resting hairline. Pointer and initial focus use a faint 1px inset outline. Tab navigation increases its contrast at the same width, and increased-contrast mode uses a 2px outline. Use the shared Input, TextArea, or Select, or apply `form-field` to a raw field or its visible wrapper.
+
+Import `ContentSurface` from `components/common/ContentSurface`. It renders a div and forwards its DOM props, including refs. For an existing semantic element, a HeroUI Surface with a variant context, or an interactive root such as Disclosure, put `content-surface`, `content-surface-row`, or `content-surface-group` directly on that element. Set padding, overflow and layout at the call site. Keep keyboard focus rings, selection, drag feedback, and semantic status colors on their existing controls. Loading placeholders use the same frame as loaded content. Floating chrome, text fields and unframed settings rows have their own treatments.
+
 ### Radius and hairline scale
 
 `src/renderer/styles.css` sets a sharp global `--radius: 0.125rem` (2px), and HeroUI derives the Tailwind `rounded-xs`…`rounded-4xl` scale from it, so those classes render much smaller than Tailwind's defaults: `rounded-xl` = 3px, `rounded-2xl` = 4px, `rounded-3xl` = 6px, `rounded-4xl` = 8px. Pick radii by matching the existing surface, not by the class name:
 
-- **Floating panels** (composer shell, `FindBar`, thread side tool rail): `rounded-4xl` / `var(--radius-4xl)`. Floating controls over content share the `floatingGlassSurfaceClass` material (`components/layout/floatingGlass.ts`). Small floating pills, selectors, and icon buttons (composer bubbles, the usage host picker) build on `floatingBubblePillClass` / `floatingBubbleIconClass` plus `floatingBubbleActiveClass` from the same file and add only padding, tone, and placement; don't hand-roll border, background, or shadow for a new bubble.
+- **Floating panels** (`FindBar`, thread side tool rail): `rounded-4xl` / `var(--radius-4xl)`. Floating controls over content share the `floatingGlassSurfaceClass` material (`components/layout/floatingGlass.ts`). Small floating pills, selectors, and icon buttons (composer bubbles, the usage host picker) build on `floatingBubblePillClass` / `floatingBubbleIconClass` plus `floatingBubbleActiveClass` from the same file and add only padding, tone, and placement; don't hand-roll border, background, or shadow for a new bubble.
 - **Buttons inside them:** `rounded-3xl`, the HeroUI `Button` default.
 
-Hairline borders are foreground mixes: `--hairline-soft` (3%, barely visible: the tool rail edge, quiet cards), `--hairline` (9%, default dividers), `--hairline-strong` (15%, primary inputs such as the composer).
+The desktop composer uses the content frame at rest and the stronger hairline while focused. Quick Composer and compact floating docks retain their own geometry.
+
+Hairline borders are foreground mixes: `--hairline-soft` (3%, barely visible: the tool rail edge, quiet cards), `--hairline` (9%, default dividers), `--hairline-strong` (15%, focused composer and emphasized controls).
 
 ## Layout
 

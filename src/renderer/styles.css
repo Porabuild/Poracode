@@ -16,6 +16,23 @@
 
 :root {
   --poracode-modal-radius: 0.7rem;
+  --content-surface-radius: 8px;
+}
+
+@layer components {
+  .content-surface,
+  .content-surface-row,
+  .content-surface-group,
+  .card--default {
+    border: 1px solid var(--hairline-soft);
+    border-radius: var(--content-surface-radius);
+    background-color: var(--content-surface-fill);
+    box-shadow: none;
+  }
+
+  .content-surface-group {
+    @apply divide-y divide-[var(--hairline-soft)];
+  }
 }
 
 .modal__dialog:not(.modal__dialog--cover):not(.modal__dialog--full),
@@ -1012,19 +1029,41 @@ html[data-app-unfocused] .poracode-welcome-ring::after {
   --button-bg-pressed: var(--button-bg-hover);
 }
 
-/* Commit-message field. HeroUI's secondary textarea fills with --default, which
-   in light themes (--default L0.86) sits ~1.1:1 on the near-white git panel — the
-   field reads as part of the background. Derived the same way as .button--tertiary
-   above (darken --content-background toward black, foreground-independent), stepped
-   slightly stronger so the input reads as recessed relative to the button. Dark
-   themes separate cleanly with the stock fill, so this is light only; the
-   placeholder is derived from the recessed fill to keep its contrast.
-   Scoped to this field only (variant="secondary" + .lc-commit-message). */
-:where(.light, [data-theme="light"]) .lc-commit-message.textarea--secondary {
-  --textarea-bg: color-mix(in oklab, var(--content-background) 87%, #000);
-  --textarea-bg-hover: color-mix(in oklab, var(--content-background) 84%, #000);
-  --textarea-bg-focus: var(--textarea-bg);
-  --field-placeholder: color-mix(in oklab, var(--textarea-bg) 68%, var(--foreground));
+/* Secondary text fields share the editable fill, including on panels and in dialogs.
+   Keep this in the component layer so explicit inline/transparent controls still win. */
+@layer components {
+  :is(.input, .textarea, .select__trigger, .input-group, .form-field) {
+    --field-hover: var(--field-background);
+    --field-focus: var(--field-background);
+  }
+
+  .form-field {
+    background-color: var(--field-background);
+  }
+
+  .input-group--secondary {
+    --input-group-bg: var(--field-background);
+    --input-group-bg-hover: var(--field-background);
+    --input-group-bg-focus: var(--field-background);
+  }
+
+  .select--secondary .select__trigger {
+    --select-trigger-bg: var(--field-background);
+    --select-trigger-bg-hover: var(--field-background);
+    --select-trigger-bg-focus: var(--field-background);
+  }
+
+  .input--secondary {
+    --input-bg: var(--field-background);
+    --input-bg-hover: var(--field-hover);
+    --input-bg-focus: var(--field-focus);
+  }
+
+  .textarea--secondary {
+    --textarea-bg: var(--field-background);
+    --textarea-bg-hover: var(--field-hover);
+    --textarea-bg-focus: var(--field-focus);
+  }
 }
 
 /* HeroUI sets `.tooltip__trigger { display: inline-block }`, which inherits
@@ -1315,14 +1354,15 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
   border-color: var(--primary);
 }
 
-/* HeroUI switch off-state track: HeroUI fills it with --default, which sits
-   ~1:1 on the page in light themes — an off toggle reads as empty background.
-   Step the track toward --foreground so it reads as a control and the white
-   thumb stays distinct (~1.8:1 in light, ~2.8:1 in dark). The checked track
-   (--switch-control-bg-checked = accent) and the hover/pressed derivations are
-   untouched — they still flow from this base. */
+/* Unchecked tracks use neutral fills. Selected tracks use the theme accent. */
 .switch {
   --switch-control-bg: color-mix(in oklab, var(--surface) 70%, var(--foreground));
+}
+
+/* Keep the white thumb distinguishable from its unchecked track in light themes. */
+:is(.light, [data-theme="light"]) .switch {
+  --switch-control-bg: color-mix(in srgb, var(--surface) 40%, var(--foreground));
+  --switch-control-bg-hover: color-mix(in srgb, var(--surface) 35%, var(--foreground));
 }
 
 /* Switches and sliders are continuous controls, so their geometry stays pill-
@@ -1399,6 +1439,8 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
     --sidebar-row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
     --hairline: color-mix(in oklab, var(--foreground) 9%, transparent);
+    --form-field-focus: color-mix(in srgb, var(--foreground) 12%, transparent);
+    --overlay-muted: color-mix(in srgb, var(--muted) 75%, var(--foreground));
     --hairline-soft: color-mix(in oklab, var(--foreground) 3%, transparent);
     --hairline-strong: color-mix(in oklab, var(--foreground) 15%, transparent);
   }
@@ -1443,8 +1485,9 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --project-icon-blue: oklch(0.53 0.16 255);
     --project-icon-violet: oklch(0.53 0.19 292);
     --project-icon-pink: oklch(0.56 0.19 345);
-    --field-background: oklch(0.975 0.002 286);
-    --field-placeholder: oklch(0.55 0.01 286);
+    --content-surface-fill: #ececee;
+    --field-background: #fdfdfe;
+    --field-placeholder: #6d6d6f;
     --field-border: oklch(0.84 0.006 286 / 0.7);
     --segment: oklch(0.975 0.002 286);
     --border: oklch(0.84 0.006 286 / 0.7);
@@ -1454,7 +1497,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --sidebar-background: oklch(0.945 0.004 286);
     --content-background: oklch(0.975 0.003 286);
     --window-header-background: var(--sidebar-background);
-    --composer-surface: oklch(0.982 0.002 286);
+    --composer-surface: var(--field-background);
   }
 
   .dark,
@@ -1469,8 +1512,6 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --foreground: #fafafa;
     --surface: #0e0e14;
     --surface-secondary: #1a1a1e;
-    /* Matches --composer-surface so chat bubbles (user message) and the
-       composer read as one surface. */
     --surface-tertiary: #17171d;
     /* Floating chrome (modals, menus, popovers, tooltips) sits just above the
        panel surfaces. Fields/controls are lighter than this, so they read as
@@ -1496,8 +1537,9 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
     --project-icon-blue: oklch(0.7 0.14 255);
     --project-icon-violet: oklch(0.71 0.16 292);
     --project-icon-pink: oklch(0.74 0.16 345);
-    --field-background: #18181b;
-    --field-placeholder: #6b6b7b;
+    --content-surface-fill: #1b1b20;
+    --field-background: #232329;
+    --field-placeholder: #939396;
     --field-border: oklch(0.34 0.006 286 / 0.85);
     --segment: #2e2f33;
     --border: oklch(0.31 0.006 286 / 0.9);
@@ -1515,7 +1557,7 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
        color (higher alpha = less transparent) than the light default above. */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 65%, transparent);
     --window-header-background: var(--sidebar-background);
-    --composer-surface: #17171d;
+    --composer-surface: var(--field-background);
   }
 
   * {
@@ -1574,14 +1616,59 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
   outline: none;
 }
 
-/* Remove focus rings from inputs and textareas */
-input:focus,
-input:focus-visible,
-textarea:focus,
-textarea:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
-  --tw-ring-shadow: 0 0 #0000 !important;
+/* In light forms a filled field can be almost white on white. Give it one
+   even hairline. Embedded transparent editors keep their parent's frame. */
+:where(.light, [data-theme="light"])
+  :is(.input, .textarea, .select__trigger, .input-group, .form-field):not(
+    :focus-within,
+    .bg-transparent,
+    .poracode-composer-editor,
+    .poracode-composer-editor *,
+    [data-invalid="true"],
+    [aria-invalid="true"]
+  ) {
+  outline: 1px solid var(--hairline);
+  outline-offset: -1px;
+}
+
+html[data-keyboard-navigation] {
+  --form-field-focus: color-mix(in srgb, var(--foreground) 67%, var(--field-background));
+}
+
+/* One inset cue on the visible field. Invalid controls retain their semantic ring. */
+:is(.input, .textarea, .select__trigger):focus,
+.select__trigger[data-focus-visible="true"],
+:is(.input-group, .form-field):focus-within {
+  outline: 1px solid var(--form-field-focus);
+  outline-offset: -1px;
+}
+
+:is(.input, .textarea, .select__trigger, .input-group, .form-field):not(
+  :autofill,
+  [aria-invalid="true"],
+  [data-invalid="true"],
+  [data-invalid="true"] *,
+  [aria-invalid="true"] *
+),
+.form-field > textarea:focus-visible {
+  box-shadow: none;
+}
+
+.form-field > textarea:focus-visible {
+  outline: none;
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  :is(.input, .textarea, .select__trigger):focus,
+  .select__trigger[data-focus-visible="true"],
+  :is(.input-group, .form-field):focus-within {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+}
+
+:is(.modal__dialog, .alert-dialog__dialog) {
+  --muted: var(--overlay-muted);
 }
 
 button,
@@ -1716,7 +1803,7 @@ html[data-window-kind="quickComposer"] #root {
 }
 
 .quick-composer-control-surface {
-  border: 1px solid color-mix(in oklab, var(--hairline-strong) 72%, transparent);
+  border: 1px solid var(--hairline-soft);
   border-radius: 1.9rem;
   background: color-mix(in oklab, var(--composer-surface) 98%, transparent);
   box-shadow:
@@ -1744,7 +1831,7 @@ html[data-window-kind="quickComposer"] #root {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  border: 1px solid var(--hairline-strong);
+  border: 1px solid var(--hairline-soft);
   border-radius: 1.55rem;
   background: color-mix(in oklab, var(--composer-surface) 97%, transparent);
   box-shadow: 0 8px 22px -12px rgb(0 0 0 / 0.72);
@@ -1789,8 +1876,7 @@ html[data-compact-layout] {
   --m-page-header-safe-zone: calc(var(--m-header-height) + env(safe-area-inset-top));
   --m-header-content-gap: 12px;
   --m-list-row-border: none;
-  --m-list-row-radius: 0.625rem;
-  --m-list-row-surface: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --m-list-row-surface: var(--content-surface-fill);
   --m-floating-control-height: var(--m-tap-min);
   --m-floating-control-line-height: calc(var(--m-floating-control-height) - 2px);
   --m-floating-control-gap: 0.625rem;
@@ -1832,7 +1918,6 @@ html[data-compact-layout] .poracode-menu-action {
 html[data-compact-layout][data-theme="dark"][data-theme-preset="default"] {
   --background: #000;
   --content-background: #000;
-  --m-list-row-surface: #1c1c1e;
   --m-glass-surface: #1c1c1e;
   --m-glass-card-surface: #1c1c1e;
 }
@@ -1998,7 +2083,6 @@ html[data-compact-layout] .m-terminal-tab--add {
 }
 
 html[data-compact-layout][data-theme="light"] {
-  --m-list-row-surface: #fff;
   --m-floating-control-shadow: 0 2px 8px rgb(15 23 42 / 0.06);
 }
 
@@ -2282,7 +2366,7 @@ html[data-compact-layout] .poracode-sidebar-worktree-row {
   gap: 0.625rem;
   margin-bottom: 0.375rem;
   border: var(--m-list-row-border);
-  border-radius: var(--m-list-row-radius);
+  border-radius: var(--content-surface-radius);
   background: var(--m-list-row-surface);
   padding: 0.5rem 0.625rem;
   cursor: pointer;
@@ -2572,7 +2656,7 @@ html[data-compact-layout]
   width: calc(100% - 0.25rem);
   min-height: var(--m-tap-min);
   margin: 0 0.125rem 0.25rem;
-  border-radius: var(--m-list-row-radius);
+  border-radius: var(--content-surface-radius);
   background: var(--m-list-row-surface);
   padding-block: 0.5rem;
   padding-right: 0.625rem;
@@ -3066,7 +3150,7 @@ html[data-compact-layout] .poracode-mobile-pair-connect.button--primary {
   align-items: center;
   gap: 0.625rem;
   border: none;
-  border-radius: var(--m-list-row-radius, 0.625rem);
+  border-radius: var(--content-surface-radius);
   background: transparent;
   padding: 0.5rem 0.625rem;
   font-size: 0.8125rem;
@@ -3127,7 +3211,7 @@ html[data-compact-layout] .poracode-mobile-pair-connect.button--primary {
     --m-list-row-border,
     1px solid color-mix(in oklab, var(--foreground) 8%, transparent)
   );
-  border-radius: var(--m-list-row-radius, 1.25rem);
+  border-radius: var(--content-surface-radius);
   background: var(
     --m-list-row-surface,
     color-mix(
@@ -3425,7 +3509,7 @@ html[data-compact-layout] .poracode-mobile-browser-chrome .poracode-browser-tab-
   justify-content: flex-start;
   gap: 0.625rem;
   border: var(--m-list-row-border, 1px solid var(--hairline, var(--border)));
-  border-radius: var(--m-list-row-radius, 0.625rem);
+  border-radius: var(--content-surface-radius);
   background: var(--m-list-row-surface, var(--surface, var(--content-background)));
   padding: 0.5rem 0.625rem;
   color: inherit;
@@ -3533,7 +3617,7 @@ html[data-compact-layout] .poracode-mobile-browser-chrome .poracode-browser-tab-
 
 .m-project-actions__card {
   border: var(--m-list-row-border, 1px solid var(--hairline));
-  border-radius: var(--m-list-row-radius, 1.25rem);
+  border-radius: var(--content-surface-radius);
   background: var(--m-list-row-surface, var(--surface));
   padding: 0.625rem;
 }
@@ -3850,7 +3934,6 @@ html[data-platform="win32"][data-theme="dark"] {
   --floating-chrome-backdrop: blur(10px) saturate(130%);
 }
 html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-chrome {
-  border-color: color-mix(in oklab, var(--foreground) 8%, transparent);
   background-image: none;
   backdrop-filter: var(--floating-chrome-backdrop);
   -webkit-backdrop-filter: var(--floating-chrome-backdrop);
@@ -4566,10 +4649,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-composer-shell {
   position: relative;
-  /* Foreground-derived hairline (not --border) so the primary input stays
-     clearly outlined in every theme, including low-contrast light palettes. */
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--radius-4xl);
+  /* The common content frame owns the resting edge and radius. */
   background: var(--composer-surface);
   transition: border-color 0.15s ease;
 }
@@ -4675,7 +4755,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-composer-shell--draft:focus-within .poracode-composer-border-glow {
-  opacity: 0.7;
+  opacity: 0.15;
   transition: opacity 0.3s ease;
 }
 
@@ -4751,7 +4831,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 }
 
 .poracode-composer-shell:focus-within {
-  border-color: color-mix(in oklab, var(--focus) 70%, transparent);
+  border-color: var(--hairline-strong);
   outline: none !important;
   box-shadow: none !important;
   --tw-ring-shadow: 0 0 #0000 !important;
@@ -4761,6 +4841,13 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-composer-shell--draft:focus-within {
   border-color: transparent;
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  .poracode-composer-shell:focus-within {
+    outline: 2px solid var(--focus) !important;
+    outline-offset: 2px;
+  }
 }
 
 .poracode-model-menu-listbox:focus-visible,
@@ -5105,7 +5192,7 @@ html[data-app-unfocused] .poracode-provider-icon--finished {
 
 .poracode-mention-input:empty::before {
   content: attr(data-placeholder);
-  color: var(--muted);
+  color: var(--field-placeholder);
   pointer-events: none;
 }
 
@@ -5517,15 +5604,6 @@ button.poracode-thread-mention-chip:active {
 
 .poracode-image-card {
   contain: layout paint;
-  box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.1),
-    0 3px 10px rgb(0 0 0 / 0.14);
-}
-
-:where(.dark, [data-theme="dark"]) .poracode-image-card {
-  box-shadow:
-    0 1px 3px rgb(0 0 0 / 0.3),
-    0 8px 24px rgb(0 0 0 / 0.5);
 }
 
 .poracode-image-action-toolbar {
@@ -6992,6 +7070,7 @@ html:not([data-touch-device]) .m-compose-scrim {
 }
 
 .m-compose-bubble {
+  --m-glass-surface: color-mix(in oklab, var(--composer-surface) var(--m-glass-alpha), transparent);
   /* Anchors the collapsed tap overlay. */
   position: relative;
   box-sizing: border-box;
@@ -6999,7 +7078,7 @@ html:not([data-touch-device]) .m-compose-scrim {
   /* The collapsed content is exactly one compact control line + the border;
      capping right at it keeps the collapse animation from overshooting. */
   max-height: var(--m-floating-control-height);
-  border: 1px solid var(--hairline, var(--border));
+  border: 1px solid var(--hairline-soft);
   border-radius: var(--m-floating-control-radius);
   background: var(--m-glass-surface);
   backdrop-filter: blur(12px);
@@ -7014,7 +7093,7 @@ html:not([data-touch-device]) .m-compose-scrim {
 /* Keep compact composers quieter than the expanded card, then recover their
    separation from the page with depth instead of outline. */
 :is(.m-compose-dock, .m-thread-compose-dock):not([data-expanded]) .m-compose-bubble {
-  border-color: color-mix(in oklab, var(--foreground) 5%, transparent);
+  border-color: var(--hairline-soft);
   box-shadow:
     0 2px 8px rgb(0 0 0 / 0.28),
     0 12px 32px rgb(0 0 0 / 0.32);
@@ -7488,7 +7567,7 @@ html[data-compact-layout]
 /* One composer language across screens: compact matches the home bubble's
    pill (hairline, radius, translucent surface, shadow)… */
 html[data-compact-layout] .poracode-composer-shell {
-  border-color: var(--hairline, var(--border));
+  border-color: var(--hairline-soft);
   transition:
     border-radius 0.2s cubic-bezier(0.32, 0.72, 0, 1),
     background-color 0.2s ease,
@@ -7538,7 +7617,7 @@ html[data-compact-layout]
   .m-thread-compose-dock[data-expanded]:not([data-collapsing])
   .poracode-composer-shell
   .poracode-composer-border-glow {
-  opacity: 0.7;
+  opacity: 0.15;
 }
 
 html[data-compact-layout]
@@ -7884,8 +7963,8 @@ html[data-compact-layout]
   .m-compose-dock[data-expanded]:not([data-collapsing])
   .m-compose-bubble
   .poracode-composer-shell {
-  border: 1px solid var(--hairline, var(--border));
-  border-radius: var(--radius-4xl);
+  border: 1px solid var(--hairline-soft);
+  border-radius: var(--content-surface-radius);
   background: var(--composer-surface);
 }
 

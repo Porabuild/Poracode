@@ -50,7 +50,7 @@ const SshConnectionForm = lazy(() =>
 );
 
 const INPUT_CLASS =
-  "w-full !rounded-xl border border-default-200 bg-default-50 px-2.5 py-1.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted/50 focus:border-default-400";
+  "w-full !rounded-xl form-field px-2.5 py-1.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-field-placeholder";
 
 /** "http://172.16.21.25:49152/" → "172.16.21.25:49152". */
 function endpointHost(endpoint: string): string {

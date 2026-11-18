@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, ButtonGroup, Dropdown, Input, Label, TextField } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
@@ -519,14 +520,14 @@ export function SchedulesView(
         <p className="text-xs font-medium text-muted">
           <Trans>Suggestions</Trans>
         </p>
-        <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+        <ContentSurface className="overflow-hidden">
           {availablePresets.map((preset) => (
             <button
               key={preset.id}
               type="button"
               disabled={busy || agents.length === 0}
               onClick={() => void createPreset(preset.draft)}
-              className="group flex w-full items-center gap-3 border-b border-[var(--hairline)] px-3 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-default-100/60 focus-visible:bg-default-100/60 disabled:opacity-50"
+              className="group flex w-full items-center gap-3 border-b border-[var(--hairline-soft)] px-3 py-2.5 text-left outline-none transition-colors last:border-b-0 hover:bg-default-100/60 focus-visible:bg-default-100/60 disabled:opacity-50"
             >
               <CalendarClock className="size-4 shrink-0 text-muted" />
               <div className="min-w-0 flex-1">
@@ -539,7 +540,7 @@ export function SchedulesView(
               <Plus className="size-4 shrink-0 text-muted opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100" />
             </button>
           ))}
-        </div>
+        </ContentSurface>
       </div>
     ) : null;
 
@@ -824,7 +825,7 @@ export function SchedulesView(
                 </p>
               </div>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-[var(--hairline)]">
+              <ContentSurface className="overflow-hidden">
                 {visibleTasks.map((task) => (
                   <ScheduleRow
                     key={task.id}
@@ -838,7 +839,7 @@ export function SchedulesView(
                     onShowRuns={(target) => setRunsTaskId(target.id)}
                   />
                 ))}
-              </div>
+              </ContentSurface>
             )}
 
             {hiddenByWorkspaceCount > 0 ? (

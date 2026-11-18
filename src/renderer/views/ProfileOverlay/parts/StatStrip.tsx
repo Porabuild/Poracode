@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import type { ReactNode } from "react";
 import { Skeleton } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
@@ -17,7 +18,7 @@ function ValueSkeleton() {
  */
 function Tile(props: { value: ReactNode; label: string; sub?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-1 bg-surface-secondary px-3 py-4">
+    <div className="flex flex-col items-center justify-center gap-1 bg-[var(--content-surface-fill)] px-3 py-4">
       <div className="flex h-7 items-center text-xl font-semibold tabular-nums text-foreground">
         {props.value}
       </div>
@@ -78,7 +79,7 @@ export function StatStrip(props: {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-3 lg:grid-cols-5">
+      <ContentSurface className="grid grid-cols-2 gap-px overflow-hidden bg-[var(--hairline-soft)] sm:grid-cols-3 lg:grid-cols-5">
         <Tile value={lifetime} label={window === "all" ? t`Lifetime tokens` : t`Total tokens`} />
         <Tile
           value={peak}
@@ -115,7 +116,7 @@ export function StatStrip(props: {
           }
           label={t`Longest streak`}
         />
-      </div>
+      </ContentSurface>
       {tokens && tokens.unavailableProviders.length > 0 ? (
         <p className="text-center text-[10px] text-muted/60">
           <Trans>Token usage unavailable for: {unavailableLabels}</Trans>

@@ -153,7 +153,7 @@ export function FileDiffCard(props: {
       <>
         {placed.unplacedThreads.length + placed.unplacedDrafts.length > 0 ? (
           <div
-            className="flex flex-col gap-2 border-b border-border px-3 py-2"
+            className="flex flex-col gap-2 border-b border-[var(--hairline-soft)] px-3 py-2"
             data-testid="unplaced-comments"
           >
             <span className="text-[11px] text-muted">
@@ -243,9 +243,9 @@ export function FileDiffCard(props: {
       }}
       data-diff-path={path}
       aria-label={path}
-      className="rounded border border-border"
+      className="content-surface"
     >
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-[var(--content-background)] px-3 py-1.5 text-xs">
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--hairline-soft)] bg-[var(--content-background)] px-3 py-1.5 text-xs">
         <button
           type="button"
           aria-expanded={!collapsed}

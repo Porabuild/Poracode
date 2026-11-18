@@ -342,10 +342,7 @@ function SetupStep({
   children?: ReactNode;
 }) {
   return (
-    <section
-      aria-label={title}
-      className="flex flex-col gap-2 rounded-xl border border-border bg-surface-secondary/30 p-3"
-    >
+    <section aria-label={title} className="flex flex-col gap-2 content-surface p-3">
       <div className="flex min-h-8 items-center gap-3">
         <StepBadge number={number} complete={complete} />
         <h3 className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{title}</h3>

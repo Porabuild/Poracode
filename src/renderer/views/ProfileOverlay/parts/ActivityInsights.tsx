@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { Button, Chip, Skeleton } from "@heroui/react";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -56,7 +57,7 @@ function PulseCard(props: {
   badge?: { label: string; tone: "neutral" | "positive" | "negative" | "accent" | "warning" };
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-border/60 bg-surface-secondary/35 px-3.5 py-3">
+    <ContentSurface className="flex min-w-0 flex-col gap-1.5 px-3.5 py-3">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium text-muted">{props.label}</span>
         {props.badge ? (
@@ -69,7 +70,7 @@ function PulseCard(props: {
         {props.value}
       </div>
       <div className="truncate text-xs text-muted">{props.sub}</div>
-    </div>
+    </ContentSurface>
   );
 }
 
@@ -92,23 +93,20 @@ export function ActivityInsights(props: {
         <h2 className="text-sm font-semibold text-foreground">{t`Activity insights`}</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex flex-col gap-2 rounded-xl border border-border/60 bg-surface-secondary/35 px-3.5 py-3"
-            >
+            <ContentSurface key={i} className="flex flex-col gap-2 px-3.5 py-3">
               <Skeleton className="h-3 w-20 rounded bg-foreground/10" />
               <Skeleton className="h-6 w-24 rounded bg-foreground/10" />
               <Skeleton className="h-3.5 w-32 rounded bg-foreground/10" />
-            </div>
+            </ContentSurface>
           ))}
         </div>
         <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
-          <div className="divide-y divide-separator">
+          <div className="divide-y divide-[var(--hairline-soft)]">
             {Array.from({ length: 7 }).map((_, i) => (
               <SkeletonRow key={i} />
             ))}
           </div>
-          <div className="divide-y divide-separator">
+          <div className="divide-y divide-[var(--hairline-soft)]">
             {Array.from({ length: 6 }).map((_, i) => (
               <SkeletonRow key={i} />
             ))}
@@ -290,10 +288,11 @@ export function ActivityInsights(props: {
                 iconClass: "size-3.5 shrink-0 text-warning",
               });
               return (
-                <div
+                <ContentSurface
+                  variant="row"
                   key={fact.id}
                   data-profile-insight={fact.id}
-                  className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-surface-secondary/25 px-3 py-2.5 text-xs text-muted"
+                  className="flex items-center gap-2.5 px-3 py-2.5 text-xs text-muted"
                 >
                   {rendered.icon}
                   <span className="min-w-0 flex-1 leading-snug">{rendered.content}</span>
@@ -307,7 +306,7 @@ export function ActivityInsights(props: {
                       {rendered.badge.label}
                     </Chip>
                   ) : null}
-                </div>
+                </ContentSurface>
               );
             })}
           </div>
@@ -338,7 +337,7 @@ export function ActivityInsights(props: {
 
       <div className="grid grid-cols-1 gap-x-10 sm:grid-cols-2">
         {groups.map((group) => (
-          <div key={group.key} className="divide-y divide-separator">
+          <div key={group.key} className="divide-y divide-[var(--hairline-soft)]">
             {group.rows.map((row) => (
               <Row key={row.label} label={row.label} value={row.value} />
             ))}

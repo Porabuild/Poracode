@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { type DiffFile, highlighter } from "@git-diff-view/react";
 import { Plural, Trans } from "@lingui/react/macro";
@@ -132,7 +133,7 @@ export function DiffSection(props: {
   }, [renderBody, contentDiffFile, collapsed, rawMode, contentKey, entry.rawDiff]);
 
   return (
-    <div ref={sectionRef} data-diff-key={entryKey(entry)} className="rounded border border-border">
+    <ContentSurface ref={sectionRef} data-diff-key={entryKey(entry)}>
       <FileHeader
         entry={entry}
         collapsed={collapsed}
@@ -193,6 +194,6 @@ export function DiffSection(props: {
           ) : null}
         </div>
       )}
-    </div>
+    </ContentSurface>
   );
 }

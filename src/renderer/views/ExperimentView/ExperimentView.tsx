@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Tooltip } from "@heroui/react";
@@ -313,7 +314,7 @@ export function ExperimentView(props: { experimentId: string }) {
             </div>
           ) : null}
 
-          <div className="divide-y divide-[var(--hairline)] overflow-hidden rounded-xl border border-[var(--hairline)] bg-surface-secondary/30">
+          <ContentSurface variant="group" className="overflow-hidden">
             {candidates.map((candidate, index) => {
               const candidateAgent = projectAgents.find(
                 (agent) => agent.kind === candidate.agentKind,
@@ -348,7 +349,7 @@ export function ExperimentView(props: { experimentId: string }) {
                 />
               );
             })}
-          </div>
+          </ContentSurface>
           {decided && winnerThread ? (
             <ExperimentWinnerCrewActions project={project} winnerThread={winnerThread} />
           ) : null}

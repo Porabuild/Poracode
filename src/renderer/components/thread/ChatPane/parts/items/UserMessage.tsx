@@ -332,7 +332,7 @@ export const UserMessage = memo(function UserMessage({
       {!compact ? (
         // The strip's height is one text line, so its centered buttons line up
         // with a single-row message instead of hanging below it.
-        <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex h-[calc(var(--lc-chat-font-size)*1.375)] items-center gap-0.5 rounded-full bg-surface-tertiary pl-1 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
+        <div className="poracode-message-action-strip absolute right-2 top-2 z-10 flex h-[calc(var(--lc-chat-font-size)*1.375)] items-center gap-0.5 rounded-full bg-[var(--content-surface-fill)] pl-1 opacity-0 transition-opacity group-hover/checkpoint:opacity-100 focus-within:opacity-100">
           {sentAt !== undefined ? (
             <time
               dateTime={new Date(sentAt).toISOString()}

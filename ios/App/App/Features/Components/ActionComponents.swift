@@ -121,7 +121,7 @@ struct PoracodeComposerBar<Leading: View, Content: View, Trailing: View>: View {
         .frame(width: trailingWidth, height: 40)
     }
     .padding(2)
-    .poracodeNativeComposerSurface(in: Capsule(), borderOpacity: 0.1, borderWidth: 0.5, interactive: true)
+    .poracodeNativeComposerSurface(in: Capsule(), interactive: true)
   }
 }
 
@@ -140,7 +140,7 @@ struct PoracodeExpandedComposerSurface<Editor: View, Toolbar: View>: View {
     }
     .padding(.horizontal, 10)
     .padding(.vertical, 8)
-    .poracodeNativeComposerSurface(in: shape, borderOpacity: 0.2, borderWidth: 0.75)
+    .poracodeNativeComposerSurface(in: shape)
   }
 
   private var shape: RoundedRectangle {
@@ -154,20 +154,11 @@ extension View {
   /// expanded editors stay non-interactive because a UIKit text view sits
   /// inside. The material fallback keeps its stroke and owns the drop shadow.
   /// Composer controls must not add Liquid Glass on top of this surface.
-  @ViewBuilder
   func poracodeNativeComposerSurface<S: InsettableShape>(
     in shape: S,
-    borderOpacity: Double = 0.1,
-    borderWidth: CGFloat = 0.5,
     interactive: Bool = false
   ) -> some View {
-    if #available(iOS 26.0, *) {
-      glassEffect(.regular.interactive(interactive), in: shape)
-    } else {
-      background(.regularMaterial, in: shape)
-        .overlay(shape.stroke(Color.primary.opacity(borderOpacity), lineWidth: borderWidth))
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
-    }
+    modifier(NativeComposerMaterial(shape: shape, interactive: interactive))
   }
 
   /// Native Liquid Glass for floating bubbles on iOS 26, with a material
@@ -203,5 +194,23 @@ struct PoracodeCompactControlGroup<Content: View>: View {
     }
     .padding(2)
     .poracodeNativeBubbleSurface(in: Capsule(), interactive: true)
+  }
+}
+
+private struct NativeComposerMaterial<S: InsettableShape>: ViewModifier {
+  let shape: S
+  let interactive: Bool
+  @Environment(\.poracodePalette) private var palette
+
+  func body(content: Content) -> some View {
+    let fill = palette.inputSurface
+    if #available(iOS 26.0, *) {
+      content.background(fill.opacity(0.65), in: shape)
+        .glassEffect(.regular.interactive(interactive), in: shape)
+    } else {
+      content.background(fill, in: shape)
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.03), lineWidth: 1))
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
+    }
   }
 }

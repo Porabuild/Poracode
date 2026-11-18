@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
@@ -55,7 +56,7 @@ export function ExperimentWinnerCrewActions(props: {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--hairline)] px-3 py-2">
+    <ContentSurface variant="row" className="flex flex-wrap items-center gap-2 px-3 py-2">
       <Button size="sm" variant="secondary" onPress={() => applyToProject()}>
         {t`Use ${crewName} in this project`}
       </Button>
@@ -97,6 +98,6 @@ export function ExperimentWinnerCrewActions(props: {
           </Button>
         )
       ) : null}
-    </div>
+    </ContentSurface>
   );
 }

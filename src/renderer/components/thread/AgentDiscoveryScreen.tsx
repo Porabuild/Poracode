@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Button } from "@heroui/react";
 import { Check, EyeOff, RefreshCw, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
@@ -354,7 +355,7 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                     aria-live="polite"
                     className={discoveryGridItemClass(index, groups.length, scanning)}
                   >
-                    <div className="agent-discovery-row">
+                    <ContentSurface className="agent-discovery-row">
                       <div className="flex items-center gap-3">
                         <ProviderIcon
                           kind={group.kind}
@@ -447,7 +448,7 @@ export function AgentDiscoveryScreen(props: { onHide: () => void; onCancel: () =
                           })}
                         </ul>
                       ) : null}
-                    </div>
+                    </ContentSurface>
                   </li>
                 );
               })}

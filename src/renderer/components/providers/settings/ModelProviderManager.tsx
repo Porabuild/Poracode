@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -110,9 +111,10 @@ export function ModelProviderManager({
         </p>
       ) : null}
       {data?.providers.map((provider) => (
-        <div
+        <ContentSurface
+          variant="row"
           key={provider.id}
-          className="flex items-center justify-between gap-3 rounded-lg border border-border/10 p-3"
+          className="flex items-center justify-between gap-3 p-3"
         >
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{provider.name}</p>
@@ -141,7 +143,7 @@ export function ModelProviderManager({
               <Trans>Remove</Trans>
             </Button>
           </div>
-        </div>
+        </ContentSurface>
       ))}
       {editing && data ? (
         <ModelProviderEditor

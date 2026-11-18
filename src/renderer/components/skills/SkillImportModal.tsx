@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useId, useState } from "react";
 import { Checkbox, Modal, toast } from "@heroui/react";
 import { ChevronDown, ChevronRight } from "lucide-react";
@@ -292,10 +293,7 @@ export function SkillImportModal(props: SkillImportModalProps) {
               </div>
             ) : null}
 
-            <div
-              id={groupsId}
-              className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--hairline)]"
-            >
+            <ContentSurface id={groupsId} className="min-h-0 flex-1 overflow-y-auto">
               {candidates.length === 0 ? (
                 <div className="flex h-full min-h-40 items-center justify-center px-4 text-center text-xs text-muted">
                   <Trans>No external skills were found in this scope.</Trans>
@@ -307,7 +305,10 @@ export function SkillImportModal(props: SkillImportModalProps) {
                   const scopeLabel = first.scopeLabel === "Global" ? t`Global` : first.scopeLabel;
                   const childListId = `${groupsId}-${key.replace(/[^a-z0-9_-]/giu, "-")}`;
                   return (
-                    <div key={key} className="border-b border-[var(--hairline)] last:border-b-0">
+                    <div
+                      key={key}
+                      className="border-b border-[var(--hairline-soft)] last:border-b-0"
+                    >
                       <div className="flex min-h-11 items-center gap-2 px-3 py-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex min-w-0 items-baseline gap-2">
@@ -398,7 +399,7 @@ export function SkillImportModal(props: SkillImportModalProps) {
                   );
                 })
               )}
-            </div>
+            </ContentSurface>
             {candidates.some((skill) => importStateFor(skill) === "conflict") ? (
               <Checkbox isSelected={replaceConflicts} onChange={setReplaceConflicts}>
                 <Checkbox.Content>
