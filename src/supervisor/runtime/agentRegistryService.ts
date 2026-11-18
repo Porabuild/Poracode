@@ -670,7 +670,14 @@ export class AgentRegistryService {
             },
           })
         : await runUpdateCommandWithFallback(adapter, status, envContext);
-    if (result.ok) {
+    // A failed update of an adapter that verifies its install may still have
+    // changed it on disk (a launcher that no longer starts), and the result does
+    // not say which failure it was, so re-detect instead of serving the status
+    // from before the update.
+    const installMayHaveChanged =
+      result.ok ||
+      (adapter.postUpdateHealthArgs !== undefined && result.strategy !== "unsupported");
+    if (installMayHaveChanged) {
       // Drop the cached executable path so the next detection probe runs a
       // fresh `command -v` / `where.exe`. Without this we keep returning the
       // old path; for most package managers the path doesn't change after

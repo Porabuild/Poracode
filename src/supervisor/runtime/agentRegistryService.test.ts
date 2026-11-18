@@ -360,6 +360,77 @@ describe("AgentRegistryService.updateAgentBinary", () => {
     });
     expect(listWslDistros).not.toHaveBeenCalled();
   });
+
+  describe("when the update fails after the package manager ran", () => {
+    const status: AgentStatus = {
+      kind: "launcher",
+      label: "Launcher",
+      installed: true,
+      version: "1.0.0",
+      executablePath: "C:\\Users\\test\\AppData\\Roaming\\npm\\launcher.cmd",
+      authState: "authenticated",
+      capabilities,
+      envKind: "windows",
+    };
+
+    async function updateWithFailure(adapterOverrides: Partial<AgentAdapter>) {
+      const adapter = {
+        kind: "launcher",
+        label: "Launcher",
+        capabilities,
+        detectInstall: vi.fn<AgentAdapter["detectInstall"]>(),
+        buildLaunchArgv: vi.fn<AgentAdapter["buildLaunchArgv"]>(),
+        buildResumeArgv: vi.fn<AgentAdapter["buildResumeArgv"]>(),
+        createInitialSessionRef: vi.fn<AgentAdapter["createInitialSessionRef"]>(() => undefined),
+        ...adapterOverrides,
+      } as unknown as AgentAdapter;
+      const refreshAgentStatuses = vi
+        .fn<AgentStatusService["refreshAgentStatuses"]>()
+        .mockResolvedValue({ windows: [status], wsl: [], fromCache: false });
+      const service = new AgentRegistryService({
+        adapters: new Map([["launcher", adapter]]),
+        settingsPath: "C:\\data\\settings.json",
+        settingsWriter: fileSettingsWriter("C:\\data\\settings.json"),
+        baseDir: "C:\\data",
+        acpIconsDir: "C:\\data\\icons",
+        sharedSettingsCache: {
+          invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
+        } as unknown as SupervisorSharedSettingsCache,
+        getAgentStatusService: () =>
+          ({
+            reconcileAgentRegistry: vi.fn<(kinds: readonly string[]) => void>(),
+            refreshAgentStatuses,
+            getAgentStatuses: vi.fn<AgentStatusService["getAgentStatuses"]>(),
+            listWslDistros: vi.fn<AgentStatusService["listWslDistros"]>(),
+          }) as unknown as AgentStatusService,
+        getActiveWslProjectDistros: () => [],
+        closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
+      });
+      runUpdateCommandWithFallbackMock.mockResolvedValue({
+        ok: false,
+        strategy: "npm-global",
+        output: "The update finished but the installed CLI does not start",
+      });
+      await service.updateAgentBinary({ agentKind: "launcher", envKind: "windows" });
+      return refreshAgentStatuses;
+    }
+
+    it("re-detects an adapter that verifies its install, since the install changed on disk", async () => {
+      const refreshAgentStatuses = await updateWithFailure({ postUpdateHealthArgs: ["--version"] });
+
+      expect(refreshAgentStatuses).toHaveBeenCalledTimes(2);
+      expect(refreshAgentStatuses).toHaveBeenLastCalledWith({
+        wslDistros: [],
+        scope: { agentKinds: ["launcher"] },
+      });
+    });
+
+    it("keeps the status untouched for an adapter that does not verify its install", async () => {
+      const refreshAgentStatuses = await updateWithFailure({});
+
+      expect(refreshAgentStatuses).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 describe("AgentRegistryService.getLatestAgentVersion", () => {
