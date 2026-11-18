@@ -966,6 +966,23 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
     );
   });
 
+  it("does not reinstall a target claimed by another discovery while the first target installs", async () => {
+    const { refreshAgentStatuses, service } = createService();
+    const nativeInstall = Promise.withResolvers<[]>();
+    acpRegistryMocks.installAcpRegistryAgent.mockReturnValueOnce(nativeInstall.promise);
+    const native = antigravityStatus({ cli: true, acp: false });
+    const wsl = { ...native, envKind: "wsl" as const, envDistro: "Ubuntu" };
+
+    service.scheduleFirstClassAcpAutoInstall({ windows: [native], wsl: [wsl] });
+    await vi.waitFor(() => expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledOnce());
+    service.scheduleFirstClassAcpAutoInstall({ windows: [], wsl: [wsl] });
+    await vi.waitFor(() => expect(refreshAgentStatuses).toHaveBeenCalledOnce());
+
+    nativeInstall.resolve([]);
+    await vi.waitFor(() => expect(refreshAgentStatuses).toHaveBeenCalledTimes(2));
+    expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
+  });
+
   it("retries a failed auto-install after the base backoff, one attempt per sweep", async () => {
     vi.useFakeTimers();
     try {
