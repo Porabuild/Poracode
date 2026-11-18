@@ -13,6 +13,7 @@ import type {
   McpAppReference,
 } from "../contracts/mcpApps";
 import { readMcpAppResourceContent } from "../mcpAppResources";
+import { MAX_INLINE_VISUAL_BYTES } from "../inlineVisuals";
 import {
   MCP_APP_SANDBOX_PATH,
   MCP_APP_SANDBOX_HTML,
@@ -20,6 +21,28 @@ import {
   readMcpAppCsp,
   type McpAppCsp,
 } from "../mcpAppSandbox";
+
+// An opaque document has no cookie jar or IndexedDB access. Some app libraries
+// assume a cookie read returns an empty string and probe for IndexedDB before
+// opening it. Expose those empty/unavailable states inside the app document.
+const OPAQUE_STORAGE_BOOTSTRAP = `<script>
+if (self.origin === "null") {
+  Object.defineProperty(document, "cookie", { configurable: true, get: () => "", set: () => {} });
+  Object.defineProperty(window, "indexedDB", { configurable: true, value: undefined });
+}
+</script>`;
+
+function prepareMcpAppDocument(html: string): string {
+  // Keep the original doctype and any explicit html/head attributes. A
+  // fragment's bootstrap script is placed in the head by the HTML parser.
+  const document = html.replace(
+    /^(?:\s|<!--[^]*?-->|<!doctype\s[^>]*>|<(?:html|head)(?:\s(?:[^"'><]|"[^"]*"|'[^']*')*)?>)*/iu,
+    (prefix) => prefix + OPAQUE_STORAGE_BOOTSTRAP,
+  );
+  // The v1 proxy still accepts the original byte limit, including for apps
+  // already at that limit.
+  return new TextEncoder().encode(document).length <= MAX_INLINE_VISUAL_BYTES ? document : html;
+}
 
 /** Both opaque origin and the exact proxy window are required for every message. */
 export class McpAppFrameTransport implements Transport {
@@ -180,7 +203,7 @@ export async function mountMcpApp(options: McpAppViewOptions): Promise<AppBridge
     },
     { hostContext: options.context },
   );
-  const transport = new McpAppFrameTransport(options.frame, resource.text);
+  const transport = new McpAppFrameTransport(options.frame, prepareMcpAppDocument(resource.text));
   let initialized = false;
   const timeout = window.setTimeout(() => options.onUnavailable(), 15_000);
   const close = () => {
