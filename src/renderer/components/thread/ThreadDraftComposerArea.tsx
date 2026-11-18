@@ -106,7 +106,14 @@ import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import {
   readClientSubmission,
   claimClientSubmission,
+  subscribeClientDraftSubmissions,
 } from "@/renderer/state/composerDrafts/clientDraftDatabase";
+import {
+  activeProjectDraftLaunch,
+  isActiveProjectDraftLaunch,
+  isCurrentProjectDraftCheckpoint,
+  retainActiveProjectDraftLaunch,
+} from "@/renderer/state/composerDrafts/activeProjectDraftLaunches";
 import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDrafts";
 
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -474,11 +481,13 @@ export function ThreadDraftComposerArea(props: {
     restoreAttachments: attachments.restore,
     saveDraftContent,
   };
-  const initialDraftRef = useRef(
-    props.isolatedDraft
+  const [initialDraft] = useState(() => ({
+    content: props.isolatedDraft
       ? props.isolatedDraft.initialContent
-      : useAppStore.getState().draftContents[props.project.id],
-  );
+      : useAppStore.getState().draftContents[projectId],
+    deferred: props.isolatedDraft ? undefined : activeProjectDraftLaunch(projectId),
+  }));
+  const deferredDraftRef = useRef(initialDraft.deferred);
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     props.project.location,
     props.selectedAgent.kind,
@@ -1030,6 +1039,7 @@ export function ThreadDraftComposerArea(props: {
     };
     submissionInFlightRef.current = true;
     let submission: DraftSubmission | undefined;
+    let releaseActiveLaunch: (() => void) | undefined;
     try {
       if (props.isolatedDraft) {
         submittedRef.current = true;
@@ -1069,6 +1079,7 @@ export function ThreadDraftComposerArea(props: {
       submittedRef.current = true;
       const launch = () => Promise.resolve(props.onStart(launchInput));
       if (submission) {
+        releaseActiveLaunch = retainActiveProjectDraftLaunch(submission.id, submission.checkpoint);
         const outcome = await dispatchDraftSubmission(submission, launch);
         const record = await readClientSubmission(submission.id);
         if (outcome === "accepted" || record?.state === "accepted") {
@@ -1104,6 +1115,7 @@ export function ThreadDraftComposerArea(props: {
       }
       if (voiceThreadId) throw error;
     } finally {
+      releaseActiveLaunch?.();
       submissionInFlightRef.current = false;
     }
   }
@@ -1208,21 +1220,35 @@ export function ThreadDraftComposerArea(props: {
   }
 
   useLayoutEffect(() => {
-    const saved = initialDraftRef.current;
-    if (!saved) {
+    const restore = (saved: DraftContent | undefined) => {
+      restoringDraftRef.current = true;
+      if (saved?.segments.length) {
+        mentionRef.current?.restoreFromSegments(saved.segments);
+        latestSegmentsRef.current = saved.segments;
+      }
+      if (saved?.attachments.length) attachments.restore(saved.attachments);
       restoringDraftRef.current = false;
+      if (saved) checkpointDraft();
+    };
+    const deferred = deferredDraftRef.current;
+    if (!deferred) {
+      restore(initialDraft.content);
       return;
     }
-    if (saved.segments.length > 0) {
-      mentionRef.current?.restoreFromSegments(saved.segments);
-      latestSegmentsRef.current = saved.segments;
-    }
-    if (saved.attachments.length > 0) {
-      attachments.restore(saved.attachments);
-    }
     restoringDraftRef.current = false;
-    checkpointDraft();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time mount restore
+    const resume = () => {
+      if (isActiveProjectDraftLaunch(deferred.id)) return;
+      unsubscribe();
+      deferredDraftRef.current = undefined;
+      // Acknowledgement removes this revision. New edits have a newer revision.
+      if (isCurrentProjectDraftCheckpoint(deferred.checkpoint)) {
+        restore(deferred.checkpoint.content);
+      }
+    };
+    const unsubscribe = subscribeClientDraftSubmissions(resume);
+    resume();
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time mount restore and its deferred completion
   }, []);
 
   // A pending selection from "New thread in worktree" targets an existing
@@ -1349,7 +1375,15 @@ export function ThreadDraftComposerArea(props: {
       return;
     }
     if (isDraftContentNonEmpty(content)) saveDraftContent(props.project.id, content);
-    else if (!submittedRef.current) clearDraftContent(props.project.id);
+    else if (
+      !submittedRef.current &&
+      !(
+        deferredDraftRef.current &&
+        isCurrentProjectDraftCheckpoint(deferredDraftRef.current.checkpoint)
+      )
+    ) {
+      clearDraftContent(props.project.id);
+    }
   }
 
   function preserveUnacceptedProjectDraft(

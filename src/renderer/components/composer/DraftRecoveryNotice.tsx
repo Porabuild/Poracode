@@ -9,6 +9,7 @@ import { toast } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
 import { useAppStore } from "@/renderer/state/appStore";
+import { isActiveProjectDraftLaunch } from "@/renderer/state/composerDrafts/activeProjectDraftLaunches";
 import { composerDraftStorage, type DraftKind } from "@/renderer/state/composerDraftStorage";
 import {
   discardClientSubmission,
@@ -45,8 +46,10 @@ export function DraftRecoveryNotice(props: {
     const refresh = () => {
       const generation = ++refreshGeneration;
       const identity = composerDraftStorage()?.currentIdentity(props.kind, props.ownerId);
+      const recoverableLaunch = (candidate: ClientDraftSubmission) =>
+        isUncertainProjectLaunch(candidate) && !isActiveProjectDraftLaunch(candidate.id);
       const visibleProjectRecord = (candidate: ClientDraftSubmission) =>
-        candidate.target === "local-checkpoint" || isUncertainProjectLaunch(candidate);
+        candidate.target === "local-checkpoint" || recoverableLaunch(candidate);
       const list = (predicate?: (candidate: ClientDraftSubmission) => boolean) =>
         listClientSubmissionsForDraft(scope, identity?.draftId, predicate);
       // Each indexed lookup returns its first matching record. Look up launches
@@ -55,7 +58,7 @@ export function DraftRecoveryNotice(props: {
         props.kind === "project"
           ? Promise.all([
               list((candidate) => candidate.target === "local-checkpoint"),
-              list(isUncertainProjectLaunch),
+              list(recoverableLaunch),
             ]).then(([checkpoints, launches]) => [...checkpoints, ...launches])
           : list();
       void pendingRecords

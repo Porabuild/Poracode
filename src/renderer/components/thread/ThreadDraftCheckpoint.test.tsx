@@ -27,10 +27,12 @@ vi.mock("@/renderer/bridge", () => ({
 vi.mock("./ThreadComposer", () => ({
   ThreadComposer: (props: {
     inputContent: ReactNode;
+    attachmentBar: ReactNode;
     onSubmit(): void;
     submitDisabled: boolean;
   }) => (
     <div>
+      {props.attachmentBar}
       {props.inputContent}
       <button type="button" disabled={props.submitDisabled} onClick={props.onSubmit}>
         Send fixture
@@ -121,6 +123,80 @@ it("restores text and attachments without inventing a new draft revision", async
   expect(composerDraftStorage()!.currentIdentity("project", project.id)).toEqual(before);
   second.unmount();
 });
+
+it.each([false, true])(
+  "leaves a reopened draft free of the submitted prompt during launch (new edit: %s)",
+  async (edit) => {
+    const launch = Promise.withResolvers<"accepted">();
+    const onStart = vi.fn<() => Promise<"accepted">>(() => launch.promise);
+    const first = form(onStart);
+    expect(screen.getByText("notes.txt")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+    await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+    first.unmount();
+    const reopened = form(onStart);
+    await act(async () => {
+      expect(await listClientSubmissions()).toEqual([
+        expect.objectContaining({ state: "dispatching" }),
+      ]);
+    });
+    const editor = screen.getByRole("textbox");
+    expect(editor).not.toHaveTextContent("Preserve this prompt");
+    expect(screen.queryByText("notes.txt")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+    if (edit) {
+      editor.textContent = "Next draft";
+      fireEvent.input(editor);
+    }
+
+    await act(async () => launch.resolve("accepted"));
+    await waitFor(async () => expect(await listClientSubmissions()).toEqual([]));
+    expect(editor).toHaveTextContent(edit ? "Next draft" : /^$/);
+    expect(screen.queryByRole("button", { name: "Restore a copy" })).toBeNull();
+    reopened.unmount();
+    expect(useAppStore.getState().draftContents[project.id]).toEqual(
+      edit ? { segments: [{ kind: "text", content: "Next draft" }], attachments: [] } : undefined,
+    );
+  },
+);
+
+it.each(["cancelled", "uncertain"] as const)(
+  "restores the deferred draft when the launch ends as %s",
+  async (outcome) => {
+    const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
+    try {
+      const launch = Promise.withResolvers<"cancelled">();
+      const onStart = vi.fn<() => Promise<"cancelled">>(() => launch.promise);
+      const first = form(onStart);
+      fireEvent.click(screen.getByRole("button", { name: "Send fixture" }));
+      await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+      first.unmount();
+      const reopened = form(onStart);
+      expect(screen.getByRole("textbox")).not.toHaveTextContent("Preserve this prompt");
+
+      await act(async () => {
+        if (outcome === "cancelled") launch.resolve(outcome);
+        else
+          launch.reject(
+            new RemoteClientError("Unknown delivery", 409, "command_outcome_uncertain"),
+          );
+      });
+      await waitFor(() =>
+        expect(screen.getByRole("textbox")).toHaveTextContent("Preserve this prompt"),
+      );
+      expect(useAppStore.getState().draftContents[project.id]).toEqual(draft);
+      expect(screen.getByText("notes.txt")).toBeVisible();
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: "Restore a copy" }) !== null).toBe(
+          outcome === "uncertain",
+        ),
+      );
+      reopened.unmount();
+    } finally {
+      report.mockRestore();
+    }
+  },
+);
 
 it("keeps an uncertain draft launch visible and blocks retry until its saved copy is discarded", async () => {
   const report = vi.spyOn(toast, "danger").mockReturnValue("test-toast");
