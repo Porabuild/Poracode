@@ -48,7 +48,7 @@ private fun HomeFailureBanner(error: String?) {
         modifier = Modifier
             .padding(horizontal = PoracodeMetrics.pageInline, vertical = 4.dp)
             .fillMaxWidth()
-            .background(colors.danger.copy(alpha = 0.12f), RoundedCornerShape(PoracodeRadius.row))
+            .background(colors.danger.copy(alpha = 0.12f), RoundedCornerShape(PoracodeRadius.contentSurface))
             .padding(horizontal = 10.dp, vertical = 8.dp)
             .clearAndSetSemantics { contentDescription = errorDescription },
         horizontalArrangement = Arrangement.spacedBy(8.dp),

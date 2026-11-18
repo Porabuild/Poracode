@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useRef } from "react";
 import { ChevronRight, X } from "lucide-react";
 import { Button } from "@heroui/react";
@@ -43,11 +44,11 @@ export function NewsHighlightCard(props: {
   }, [onClose]);
 
   return (
-    <div
+    <ContentSurface
       ref={cardRef}
       role="group"
       aria-label={t`Release note`}
-      className="mt-1.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 text-[12.5px] text-muted"
+      className="mt-1.5 px-3.5 py-3 text-[12.5px] text-muted"
       data-news-highlight-card={highlight.id}
     >
       <div className="mb-1.5 flex items-center gap-2 text-foreground">
@@ -94,6 +95,6 @@ export function NewsHighlightCard(props: {
           </Button>
         ) : null}
       </div>
-    </div>
+    </ContentSurface>
   );
 }

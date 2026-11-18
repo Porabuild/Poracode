@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useId, useState } from "react";
 import { Button, Modal, NumberField, Slider, Tooltip } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -63,9 +64,9 @@ export function NativeVisual(props: NativeVisualProps) {
             ? t`This visual is too large. Showing source only.`
             : t`Invalid visual specification. Showing source only.`;
   return (
-    <div
+    <ContentSurface
       data-poracode-native-source="true"
-      className="not-prose my-2 min-w-0 overflow-hidden rounded-[1rem] border border-[var(--hairline)] bg-surface/50"
+      className="not-prose my-2 min-w-0 overflow-hidden"
     >
       <div className="flex min-h-10 items-center gap-2 border-b border-border px-3 py-1">
         <Code2 className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
@@ -80,7 +81,7 @@ export function NativeVisual(props: NativeVisualProps) {
       <div className="max-h-[70vh] overflow-auto p-3">
         <VisualSource text={props.source} lang="json" isStreaming={props.isStreaming} />
       </div>
-    </div>
+    </ContentSurface>
   );
 }
 
@@ -289,7 +290,10 @@ function NativeVisualSurface({
             <p className="text-sm leading-relaxed text-muted">{spec.description}</p>
           ) : null}
           {spec.inputs.length ? (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-4 rounded-[0.875rem] bg-surface-secondary/40 p-3">
+            <ContentSurface
+              variant="row"
+              className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-4 p-3"
+            >
               {spec.inputs.map((input) => (
                 <NativeVisualInputControl
                   key={input.id}
@@ -298,7 +302,7 @@ function NativeVisualSurface({
                   onChange={(value) => changeInput(input, value)}
                 />
               ))}
-            </div>
+            </ContentSurface>
           ) : null}
           <NativeVisualBlocks
             blocks={spec.blocks}
@@ -313,9 +317,9 @@ function NativeVisualSurface({
     );
   }
   return (
-    <div
+    <ContentSurface
       data-poracode-native-visual="true"
-      className="not-prose @container my-2 min-w-0 overflow-hidden rounded-[1rem] border border-[var(--hairline)] bg-surface/50 text-foreground"
+      className="not-prose @container my-2 min-w-0 overflow-hidden text-foreground"
     >
       <div className="flex flex-wrap items-center gap-x-1 border-b border-[var(--hairline)] px-2 py-1 @min-[480px]:px-3">
         <div className="flex min-w-0 basis-full items-center gap-2 py-1.5 @min-[640px]:flex-1 @min-[640px]:basis-auto">
@@ -351,7 +355,7 @@ function NativeVisualSurface({
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
-    </div>
+    </ContentSurface>
   );
 }
 

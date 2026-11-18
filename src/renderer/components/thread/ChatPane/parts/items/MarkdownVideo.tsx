@@ -37,7 +37,7 @@ function VideoDocument({ src, name, mimeType }: ChatVideoSource) {
   const unavailable = !valid || (webUrl ? failedUrl === url : failed || failedUrl === url);
   return (
     <span
-      className="not-prose my-2 inline-flex w-full max-w-xl flex-col gap-1 overflow-hidden rounded-lg border border-border bg-surface-secondary align-top"
+      className="not-prose my-2 inline-flex w-full max-w-xl flex-col gap-1 overflow-hidden content-surface align-top"
       data-testid="chat-video"
     >
       {url && !unavailable ? (

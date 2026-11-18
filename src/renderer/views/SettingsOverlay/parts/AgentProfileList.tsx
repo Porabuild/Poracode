@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -218,9 +219,10 @@ export function AgentProfileList(props: {
           const kind = agentProfileKind(support.driver, instance.id);
           const isPending = pendingKind === kind || removingKind === kind;
           return (
-            <div
+            <ContentSurface
+              variant="row"
               key={instance.id}
-              className="flex items-center gap-3 rounded-xl border border-border/15 bg-surface-secondary/30 px-3 py-2"
+              className="flex items-center gap-3 px-3 py-2"
             >
               <button
                 type="button"
@@ -259,12 +261,12 @@ export function AgentProfileList(props: {
                   <Trash2 className="size-3.5" />
                 </Button>
               </div>
-            </div>
+            </ContentSurface>
           );
         })}
 
         {isAdding ? (
-          <div className="rounded-xl border border-border/15 bg-surface-secondary/30 p-3">
+          <ContentSurface className="p-3">
             <div
               className={`grid items-center gap-2 ${support.field ? "grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]"}`}
             >
@@ -330,7 +332,7 @@ export function AgentProfileList(props: {
                 <Trans>A profile with this name already exists.</Trans>
               </p>
             ) : null}
-          </div>
+          </ContentSurface>
         ) : null}
       </div>
 

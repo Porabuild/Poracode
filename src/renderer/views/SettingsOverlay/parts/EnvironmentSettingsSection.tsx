@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button, Input, Modal, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -52,7 +53,7 @@ import {
  */
 
 const INPUT_CLASS =
-  "w-full !rounded-xl border border-default-200 bg-default-50 px-2.5 py-1.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-muted/50 focus:border-default-400";
+  "w-full !rounded-xl form-field px-2.5 py-1.5 text-sm text-foreground shadow-none outline-none transition-colors placeholder:text-field-placeholder";
 
 interface EnvironmentDraft {
   label: string;
@@ -497,7 +498,7 @@ function EnvironmentListEntry(props: {
     );
   }
   return (
-    <details className="rounded-xl border border-[var(--hairline)] px-3 py-2">
+    <details className="content-surface px-3 py-2">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-sm">
         <Cloud className="size-4 shrink-0 text-muted" />
         <span className="min-w-0 flex-1 truncate text-foreground">{environment.label}</span>
@@ -624,7 +625,7 @@ export function EnvironmentSettingsSection(props: {
       ) : null}
 
       {creating && props.compact !== true ? (
-        <div className="rounded-xl border border-[var(--hairline)] p-3">
+        <ContentSurface className="p-3">
           <EnvironmentForm
             initial={EMPTY_DRAFT}
             submitLabel={t`Create`}
@@ -632,7 +633,7 @@ export function EnvironmentSettingsSection(props: {
             onSubmit={create}
             onCancel={() => setCreating(false)}
           />
-        </div>
+        </ContentSurface>
       ) : null}
       {creating && props.compact === true ? (
         <BottomSheet label={t`New environment`} onClose={() => setCreating(false)}>

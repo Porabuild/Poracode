@@ -57,8 +57,8 @@ function ThemeCard(props: {
       type="button"
       onClick={onSelect}
       aria-pressed={selected}
-      className={`group flex flex-col gap-2 rounded-lg border p-2 text-left transition-colors ${
-        selected ? "border-accent ring-1 ring-accent" : "border-border hover:border-muted"
+      className={`content-surface group flex flex-col gap-2 p-2 text-left transition-colors ${
+        selected ? "border-accent ring-1 ring-accent" : "hover:border-[var(--hairline)]"
       }`}
     >
       <div className="overflow-hidden rounded-md border border-border/50" style={vars}>

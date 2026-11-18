@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AlertTriangle, Download, RefreshCw, RotateCcw } from "lucide-react";
@@ -38,7 +39,7 @@ export function StartupRecoveryScreen(props: StartupRecoveryScreenProps) {
 
   return (
     <main className="flex h-screen w-screen items-center justify-center bg-background px-6 text-foreground">
-      <section className="w-full max-w-lg rounded-xl border border-border bg-default-50 p-6 shadow-lg">
+      <section className="w-full max-w-lg content-surface p-6">
         <div className="flex items-start gap-4">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
             <AlertTriangle className="size-5" />
@@ -57,8 +58,9 @@ export function StartupRecoveryScreen(props: StartupRecoveryScreenProps) {
         </div>
 
         {phase === "downloading" ? (
-          <div
-            className="mt-5 rounded-lg border border-border bg-background p-3"
+          <ContentSurface
+            variant="row"
+            className="mt-5 p-3"
             role="progressbar"
             aria-label={t`Downloading update`}
             aria-valuemin={0}
@@ -82,7 +84,7 @@ export function StartupRecoveryScreen(props: StartupRecoveryScreenProps) {
                 style={determinate ? { width: `${percent}%` } : undefined}
               />
             </div>
-          </div>
+          </ContentSurface>
         ) : null}
 
         {phase === "error" && errorMessage ? (

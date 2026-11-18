@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { Button, Checkbox, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { evaluateNativeVisualValue } from "@/shared/nativeVisuals";
@@ -83,7 +84,7 @@ export function NativeVisualBlocks({
             aria-live="polite"
           >
             {block.items.map((item, index) => (
-              <div key={index} className="rounded-[0.875rem] bg-surface-secondary/40 p-3">
+              <ContentSurface variant="row" key={index} className="p-3">
                 <dt className="text-xs text-muted">{item.label}</dt>
                 <dd className="mt-1 break-words text-xl font-semibold tracking-tight tabular-nums @min-[480px]:text-2xl">
                   {formatNativeVisualNumber(
@@ -93,7 +94,7 @@ export function NativeVisualBlocks({
                     t`Unavailable`,
                   )}
                 </dd>
-              </div>
+              </ContentSurface>
             ))}
           </dl>
         ) : block.type === "text" ? (
@@ -101,7 +102,7 @@ export function NativeVisualBlocks({
             {block.text}
           </p>
         ) : block.type === "checklist" ? (
-          <div className="space-y-3 rounded-[0.875rem] bg-surface-secondary/40 p-3">
+          <ContentSurface variant="row" className="space-y-3 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span role="status" className="text-xs text-muted tabular-nums">
                 {t`Completed: ${block.items.filter((item) => checked.get(`${path}/${item.id}`) ?? item.checked ?? false).length} / ${block.items.length}`}
@@ -139,7 +140,7 @@ export function NativeVisualBlocks({
                 );
               })}
             </div>
-          </div>
+          </ContentSurface>
         ) : block.type === "diagram" ? (
           <NativeVisualDiagram block={block} />
         ) : (

@@ -15,7 +15,7 @@
  */
 
 import type { ThemePalette } from "@/shared/customThemes";
-import { deriveMutedColor, mixHex } from "./colorMath";
+import { contrastRatio, deriveMutedColor, mixHex } from "./colorMath";
 
 export type ThemeVariantVars = Record<string, string>;
 
@@ -39,8 +39,6 @@ const MUTED_BG_FLOOR = 4.5;
 const MUTED_PANEL_FLOOR = 4.0;
 const MUTED_MIN_FRACTION = 0.3;
 const MUTED_MAX_FRACTION = 0.85;
-/** Placeholder text sits this much dimmer (toward bg) than muted. */
-const PLACEHOLDER_DROP = 0.14;
 
 /**
  * Every CSS custom property this module sets on the document root. Switching to
@@ -52,6 +50,7 @@ export const MANAGED_THEME_VARS = [
   "--foreground",
   "--surface",
   "--surface-secondary",
+  "--content-surface-fill",
   "--surface-tertiary",
   "--overlay",
   "--muted",
@@ -85,35 +84,46 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
   const { bg, surface, fg, accent, accentFg, border } = spec;
   const sidebar = spec.sidebar ?? surface;
   const content = spec.content ?? bg;
+  // Encoded sRGB, also used by the native transcript. Identical content roles
+  // need an opaque fill even on translucent sidebars and compact layouts.
+  const tintedPanel = mixHex(fg, surface, 0.06);
+  // Reserve room for both readable metadata and a visibly stronger primary label.
+  const readablePanel = contrastRatio(fg, tintedPanel) >= 9 ? tintedPanel : surface;
+  const panel = mode === "dark" ? mixHex("#000000", readablePanel, 0.05) : readablePanel;
+  const field = mixHex(fg, surface, mode === "dark" ? 0.09 : 0.11);
+  const composer = spec.composer ?? field;
 
-  // Derive readable secondary text from fg→bg with a contrast floor. Placeholder
-  // sits a step dimmer than muted; the scrollbar is a translucent muted.
+  // Check metadata against its reading surfaces and hints against their actual fields.
   const muted = deriveMutedColor(
     fg,
     [
       { color: bg, floor: MUTED_BG_FLOOR },
       { color: content, floor: MUTED_BG_FLOOR },
       { color: surface, floor: MUTED_PANEL_FLOOR },
+      { color: panel, floor: MUTED_BG_FLOOR },
       { color: sidebar, floor: MUTED_PANEL_FLOOR },
     ],
     { minFraction: MUTED_MIN_FRACTION, maxFraction: MUTED_MAX_FRACTION },
   );
-  const placeholder = mixHex(
+  const placeholder = deriveMutedColor(
     fg,
-    bg,
-    Math.max(MUTED_MIN_FRACTION, muted.fraction - PLACEHOLDER_DROP),
-  );
+    [
+      { color: field, floor: 5 },
+      { color: composer, floor: 5 },
+    ],
+    { minFraction: MUTED_MIN_FRACTION, maxFraction: 1 },
+  ).hex;
 
   return {
     "--background": bg,
     "--foreground": fg,
     "--surface": surface,
+    "--content-surface-fill": panel,
     "--surface-secondary": mix(surface, 92, fg),
     "--surface-tertiary": mix(surface, 85, fg),
     // Floating chrome (modals, menus, popovers). In dark themes it drops to
     // just above the surface so fields (mixed toward fg, below) read as raised
-    // cards on it; in light themes it dims below the surface, where the
-    // barely-lighter field fill already reads as a card.
+    // cards on it; light overlays stay pale while editable fields step toward the dark foreground.
     "--overlay": mode === "light" ? mix(surface, 93, fg) : mix(surface, 98, fg),
     "--muted": muted.hex,
     "--scrollbar": fade(muted.hex, 60),
@@ -125,9 +135,8 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--default": mix(surface, mode === "light" ? 82 : 86, fg),
     "--accent": accent,
     "--accent-foreground": accentFg,
-    // Fields sit a step lighter than the surface/overlay (below) so they read
-    // as raised cards on panels and floating chrome in both modes.
-    "--field-background": mix(surface, 95, fg),
+    // Editable fields are lighter than read-only panels in dark mode and darker in light mode.
+    "--field-background": field,
     "--field-foreground": fg,
     "--field-placeholder": placeholder,
     "--field-border": fade(border, 70),
@@ -142,6 +151,6 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     // Explicit authored fills also take precedence over the glass-sidebar wash.
     "--sidebar-row-active-override": spec.sidebarRowActive ?? "",
     "--content-background": content,
-    "--composer-surface": spec.composer ?? mix(surface, 90, fg),
+    "--composer-surface": composer,
   };
 }

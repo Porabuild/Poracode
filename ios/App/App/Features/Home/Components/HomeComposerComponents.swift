@@ -28,6 +28,7 @@ struct HomeComposerSurface<Content: View>: View {
 }
 
 struct HomeComposerCompactSurface<Trailing: View>: View {
+  @Environment(\.poracodePalette) private var palette
   let prompt: String
   let hasContent: Bool
   let isEnabled: Bool
@@ -38,7 +39,7 @@ struct HomeComposerCompactSurface<Trailing: View>: View {
     HStack(spacing: 8) {
       Button(action: expand) {
         Text(prompt)
-          .foregroundStyle(hasContent ? .primary : .secondary)
+          .foregroundStyle(hasContent ? palette.foreground : palette.fieldPlaceholder)
           .lineLimit(1)
           .frame(maxWidth: .infinity, alignment: .leading)
       }

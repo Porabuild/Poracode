@@ -100,7 +100,7 @@ function ExcerptButton(props: { body: string; label: string; onPress: () => void
       type="button"
       aria-label={props.label}
       onClick={props.onPress}
-      className="w-full cursor-pointer whitespace-pre-line rounded-xl border border-[color:var(--border)] bg-surface-tertiary/30 px-3 py-2 text-left text-xs text-foreground/90 transition-colors hover:bg-surface-tertiary/60"
+      className="w-full cursor-pointer whitespace-pre-line content-surface-row px-3 py-2 text-left text-xs text-foreground/90 transition-colors hover:bg-surface-tertiary/60"
     >
       {text}
     </button>
@@ -144,7 +144,7 @@ export function TimelineEntryRow(props: { entry: PrTimelineEntry }) {
               nav.setCommitScope(commit.oid);
               nav.setTab("changes");
             }}
-            className="flex w-full min-w-0 cursor-pointer items-baseline gap-2 rounded-xl border border-[color:var(--border)] bg-surface-tertiary/30 px-3 py-2 text-left text-xs transition-colors hover:bg-surface-tertiary/60"
+            className="flex w-full min-w-0 cursor-pointer items-baseline gap-2 content-surface-row px-3 py-2 text-left text-xs transition-colors hover:bg-surface-tertiary/60"
           >
             <span className="min-w-0 flex-1 truncate text-foreground">{headline}</span>
             <code className="shrink-0 font-mono text-[11px] text-muted">{sha}</code>

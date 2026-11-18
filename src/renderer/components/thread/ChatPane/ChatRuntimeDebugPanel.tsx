@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useMemo, useState } from "react";
 import { Disclosure } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -42,7 +43,7 @@ function RuntimeItemDebug(props: { index: number; item: RuntimeChatItem }) {
   const heading = `#${index + 1} ${item.type} · ${item.state} · ${shortenId(item.id)}`;
 
   return (
-    <Disclosure className="border-b border-[color:var(--border)] bg-[var(--composer-surface)] text-[length:var(--lc-chat-font-size-meta)] last:border-b-0">
+    <Disclosure className="border-b border-[var(--hairline-soft)] bg-transparent text-[length:var(--lc-chat-font-size-meta)] last:border-b-0">
       <Disclosure.Heading className="px-2 py-0.5">
         <Disclosure.Trigger className="flex w-full min-w-0 items-center gap-2 text-left">
           <code className="min-w-0 flex-1 truncate font-mono text-foreground">{heading}</code>
@@ -50,7 +51,7 @@ function RuntimeItemDebug(props: { index: number; item: RuntimeChatItem }) {
         </Disclosure.Trigger>
       </Disclosure.Heading>
       <Disclosure.Content>
-        <Disclosure.Body className="space-y-2 border-t border-[color:var(--border)] px-2 py-1.5">
+        <Disclosure.Body className="space-y-2 border-t border-[var(--hairline-soft)] px-2 py-1.5">
           <div>
             <p className="mb-0.5 text-[0.85em] font-medium uppercase tracking-wide text-[color:var(--muted)]">
               id
@@ -94,7 +95,7 @@ function OpenRequestDebug(props: { index: number; request: OpenRuntimeRequest })
   const heading = `Request · ${request.requestType} · ${shortenId(request.requestId)}`;
 
   return (
-    <Disclosure className="border-b border-dashed border-[color:var(--border)] bg-[var(--composer-surface)] text-[length:var(--lc-chat-font-size-meta)] last:border-b-0">
+    <Disclosure className="border-b border-dashed border-[color:var(--border)] bg-transparent text-[length:var(--lc-chat-font-size-meta)] last:border-b-0">
       <Disclosure.Heading className="px-2 py-0.5">
         <Disclosure.Trigger className="flex w-full min-w-0 items-center gap-2 text-left">
           <code className="min-w-0 flex-1 truncate font-mono text-foreground">{heading}</code>
@@ -102,7 +103,7 @@ function OpenRequestDebug(props: { index: number; request: OpenRuntimeRequest })
         </Disclosure.Trigger>
       </Disclosure.Heading>
       <Disclosure.Content>
-        <Disclosure.Body className="space-y-1.5 border-t border-[color:var(--border)] px-2 py-1.5">
+        <Disclosure.Body className="space-y-1.5 border-t border-[var(--hairline-soft)] px-2 py-1.5">
           <p className="text-[0.85em] text-[color:var(--muted)]">
             <Trans>
               Opened {request.receivedAt} (#{index + 1})
@@ -150,7 +151,7 @@ export function ChatRuntimeDebugPanel({ threadId }: ChatRuntimeDebugPanelProps) 
       <div className="shrink-0">
         <input
           type="text"
-          className="w-full rounded-md border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-sm text-foreground placeholder:text-muted outline-none focus:border-[color:var(--focus,var(--border))]"
+          className="w-full rounded-md form-field px-2 py-1 text-sm text-foreground placeholder:text-field-placeholder outline-none"
           placeholder={t`Search runtime items…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -163,7 +164,7 @@ export function ChatRuntimeDebugPanel({ threadId }: ChatRuntimeDebugPanelProps) 
           </p>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-[color:var(--border)] [scrollbar-gutter:stable]">
+      <ContentSurface className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
         {totalCount === 0 ? (
           <p className="p-2 text-[color:var(--muted)]">
             <Trans>No runtime items yet for this thread.</Trans>
@@ -177,14 +178,14 @@ export function ChatRuntimeDebugPanel({ threadId }: ChatRuntimeDebugPanelProps) 
           <RuntimeItemDebug key={item.id} index={items.indexOf(item)} item={item} />
         ))}
         {filteredRequests.length > 0 ? (
-          <p className="border-t border-[color:var(--border)] bg-foreground/5 px-2 py-0.5 text-[0.85em] font-medium uppercase tracking-wide text-[color:var(--muted)]">
+          <p className="border-t border-[var(--hairline-soft)] bg-foreground/5 px-2 py-0.5 text-[0.85em] font-medium uppercase tracking-wide text-[color:var(--muted)]">
             <Trans>Open requests</Trans>
           </p>
         ) : null}
         {filteredRequests.map((req) => (
           <OpenRequestDebug key={req.requestId} index={requests.indexOf(req)} request={req} />
         ))}
-      </div>
+      </ContentSurface>
     </div>
   );
 }

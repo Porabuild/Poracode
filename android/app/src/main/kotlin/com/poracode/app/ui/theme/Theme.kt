@@ -17,12 +17,11 @@ import androidx.compose.ui.unit.dp
 
 val LocalChatTextSizeSp = staticCompositionLocalOf { 14 }
 
-/** Corner radii shared with the compact PWA (`--m-list-row-radius`, sheets, menus). */
+/** Corner radii shared with the compact PWA (`--content-surface-radius`, sheets, menus). */
 object PoracodeRadius {
     val small = 6.dp
     val field = 10.dp
-    val row = 10.dp
-    val card = 12.dp
+    val contentSurface = 8.dp
     val sheet = 16.dp
     val composer = 22.dp
 }
@@ -53,8 +52,8 @@ object PoracodeTheme {
 private val PoracodeShapes = Shapes(
     extraSmall = RoundedCornerShape(PoracodeRadius.small),
     small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(PoracodeRadius.row),
-    large = RoundedCornerShape(PoracodeRadius.card),
+    medium = RoundedCornerShape(PoracodeRadius.contentSurface),
+    large = RoundedCornerShape(PoracodeRadius.contentSurface),
     extraLarge = RoundedCornerShape(PoracodeRadius.sheet),
 )
 

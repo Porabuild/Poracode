@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { memo } from "react";
 import { AlertDialog, Checkbox, Tooltip } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
@@ -88,9 +89,9 @@ export const RevertCheckpointDialog = memo(function RevertCheckpointDialog(props
           </AlertDialog.Header>
           <AlertDialog.Body>
             {!props.canRestoreFiles ? (
-              <div className="rounded-lg border border-border bg-surface-container/70 px-2.5 py-2 text-xs leading-5 text-muted">
+              <ContentSurface variant="row" className="px-2.5 py-2 text-xs leading-5 text-muted">
                 <Trans>No file checkpoint is stored for this message.</Trans>
-              </div>
+              </ContentSurface>
             ) : null}
             {props.checkpointGuard.hasSharedTree ? (
               <div className="mt-2 rounded-lg border border-warning-soft-foreground/20 bg-warning-soft/60 px-2.5 py-2 text-xs leading-5 text-warning-soft-foreground">

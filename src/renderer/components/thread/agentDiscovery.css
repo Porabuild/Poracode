@@ -128,18 +128,13 @@ html[data-app-unfocused] .agent-discovery-radar__scanner {
     visibility 0s;
 }
 
-/* A found agent's card: compact translucent glass tile with an unframed
+/* A found agent's card: in-flow content surface with an unframed
    provider icon, name + status hierarchy, and a hover-revealed refresh action.
    Lives inside the grid-item wrapper so FLIP slot slides never clobber the
    card's own entrance transform. Every column shares the same reveal. */
 .agent-discovery-row {
   position: relative;
   padding: 12px 14px;
-  border: 1px solid color-mix(in oklab, var(--border) 48%, transparent);
-  border-radius: 1rem;
-  background: color-mix(in oklab, var(--surface-secondary) 52%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent);
-  backdrop-filter: blur(12px);
   transition:
     border-color 180ms ease-out,
     background-color 180ms ease-out;
@@ -148,8 +143,8 @@ html[data-app-unfocused] .agent-discovery-radar__scanner {
 }
 
 .agent-discovery-row:hover {
-  border-color: color-mix(in oklab, var(--border) 82%, transparent);
-  background: color-mix(in oklab, var(--surface-secondary) 72%, transparent);
+  border-color: var(--hairline);
+  background-color: var(--surface-secondary);
 }
 
 .agent-discovery-card__refresh {

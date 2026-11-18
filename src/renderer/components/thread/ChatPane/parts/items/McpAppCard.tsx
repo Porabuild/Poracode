@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { AppWindow, Code2 } from "lucide-react";
@@ -115,11 +116,11 @@ export function McpAppCard({ app, threadId, html, title, input, result }: McpApp
 
   if (!endpoint || state === "unavailable") return <InlineVisual html={html} title={title} />;
   return (
-    <div
+    <ContentSurface
       data-poracode-mcp-app="true"
-      className="not-prose my-2 flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-background text-foreground"
+      className="not-prose my-2 flex min-w-0 flex-col overflow-hidden text-foreground"
     >
-      <div className="flex min-h-10 shrink-0 items-center gap-2 border-b border-border px-3 py-1">
+      <div className="flex min-h-10 shrink-0 items-center gap-2 border-b border-[var(--hairline-soft)] px-3 py-1">
         <AppWindow className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
         <span className="min-w-0 flex-1 truncate text-xs font-medium" title={title}>
           {title}
@@ -149,10 +150,10 @@ export function McpAppCard({ app, threadId, html, title, input, result }: McpApp
         style={{ height }}
       />
       {showSource && (
-        <div className="max-h-[70vh] overflow-auto border-t border-border p-3">
+        <div className="max-h-[70vh] overflow-auto border-t border-[var(--hairline-soft)] p-3">
           <VisualSource text={html} lang="html" />
         </div>
       )}
-    </div>
+    </ContentSurface>
   );
 }

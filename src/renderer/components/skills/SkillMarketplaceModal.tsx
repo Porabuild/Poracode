@@ -1,3 +1,4 @@
+import { ContentSurface } from "@/renderer/components/common/ContentSurface";
 import { useDeferredValue, useEffect, useState } from "react";
 import { Input, Modal, toast } from "@heroui/react";
 import { Download, Search, Star, TrendingUp } from "lucide-react";
@@ -234,14 +235,14 @@ export function SkillMarketplaceModal(props: {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-3 gap-2 rounded-xl border border-[var(--hairline)] bg-surface-secondary p-3 text-center">
+                <ContentSurface className="grid grid-cols-3 gap-2 p-3 text-center">
                   <Metric value={formatNumber(currentCatalog.total)} label={t`Skills`} />
                   <Metric value={formatNumber(sources.length)} label={t`Sources`} />
                   <Metric
                     value={formatNumber(metricTotal)}
                     label={marketplace === "skills-sh" ? t`Total installs` : t`GitHub stars`}
                   />
-                </div>
+                </ContentSurface>
                 <div className="flex items-center gap-2">
                   <div className="relative min-w-0 flex-1">
                     <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2 text-muted" />
@@ -286,7 +287,7 @@ export function SkillMarketplaceModal(props: {
                     </Trans>
                   </span>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-[var(--hairline)]">
+                <ContentSurface className="min-h-0 flex-1 overflow-y-auto">
                   {displayedSkills.length === 0 ? (
                     <div className="flex h-full min-h-48 items-center justify-center px-6 text-center text-sm text-muted">
                       <Trans>No marketplace skills match these filters.</Trans>
@@ -297,7 +298,7 @@ export function SkillMarketplaceModal(props: {
                       return (
                         <div
                           key={`${skill.marketplace}:${skill.id}`}
-                          className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline)] px-3 py-2 last:border-b-0"
+                          className="flex min-h-16 items-center gap-3 border-b border-[var(--hairline-soft)] px-3 py-2 last:border-b-0"
                         >
                           <div className="w-9 shrink-0 text-center text-xs font-medium text-muted">
                             #{skill.rank}
@@ -361,7 +362,7 @@ export function SkillMarketplaceModal(props: {
                       );
                     })
                   )}
-                </div>
+                </ContentSurface>
               </>
             )}
           </Modal.Body>

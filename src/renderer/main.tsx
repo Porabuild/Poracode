@@ -18,6 +18,7 @@ import {
   isIgnorableWindowError,
 } from "./rendererGlobalErrors";
 import { reloadForStaleBuild } from "./staleBuildRecovery";
+import { installKeyboardFieldFocus } from "./theme/keyboardFieldFocus";
 import { bootstrapAppThemeFromCache } from "./theme/applyAppTheme";
 import { bootstrapAppLocaleFromCache } from "./i18n/i18n";
 
@@ -48,6 +49,8 @@ if (import.meta.env.DEV) {
 
 document.title = getAppName(readBridge().channel, import.meta.env.DEV);
 initializeRendererSentry();
+const removeKeyboardFieldFocus = installKeyboardFieldFocus();
+import.meta.hot?.dispose(removeKeyboardFieldFocus);
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "poracode" in window ? readBridge().platform : "unknown";

@@ -35,7 +35,7 @@ export function QuestionAnswerCard({
         {questions.map((entry, index) => (
           <div
             key={`${entry.header}-${index}`}
-            className={`min-w-0 space-y-1 ${index > 0 ? "border-t border-[color:var(--border)] pt-2" : ""}`}
+            className={`min-w-0 space-y-1 ${index > 0 ? "border-t border-[var(--hairline-soft)] pt-2" : ""}`}
           >
             {/* Providers without a distinct header (Kimi) repeat the question as
                 the header; render it once instead of duplicating the same line. */}
