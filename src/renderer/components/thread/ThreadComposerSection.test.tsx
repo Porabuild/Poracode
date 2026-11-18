@@ -2587,7 +2587,10 @@ describe("ThreadComposerSection", () => {
 
     unmount();
 
-    expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+    // Delivery can finish after unmount. Its durable acknowledgment clears the draft.
+    await waitFor(() =>
+      expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined(),
+    );
   });
 
   describe("prompt recall", () => {

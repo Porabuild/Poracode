@@ -1,0 +1,32 @@
+diff --git a/packages/tui/src/util/fuzzy-search.ts b/packages/tui/src/util/fuzzy-search.ts
+new file mode 100644
+index 0000000..e4a00a2
+--- /dev/null
++++ b/packages/tui/src/util/fuzzy-search.ts
+@@ -0,0 +1,26 @@
++import { go, snapshot, type Options, type Result } from "fuzzysort"
++import { createMemo, type Accessor } from "solid-js"
++
++/** Picker viewports scroll through every match. Only autocomplete limits its result set. */
++export const allPickerMatches = { limit: 0, threshold: 0 } as const
++
++export function createPickerFilter<K extends string, T extends Partial<Record<K, string>>>(
++  entries: Accessor<T[]>,
++  query: Accessor<string>,
++  keys: readonly K[],
++  options?: () => Pick<Options<readonly Result[]>, "scoreFn" | "threshold">,
++): Accessor<T[]> {
++  const searching = createMemo(() => query().length > 0)
++  const fields = keys.map((_, i) => (row: { values: (string | undefined)[] }) => row.values[i])
++  const index = createMemo(() => {
++    if (!searching()) return
++    // Fuzzysort prepares keys lazily. Read store fields here so a rename invalidates the index.
++    const rows = entries().map((entry) => ({ entry, values: keys.map((key) => entry[key]) }))
++    return snapshot(rows, { keys: fields })
++  })
++  return createMemo(() => {
++    const targets = index()
++    if (!targets) return entries()
++    return go(query(), targets, { ...allPickerMatches, ...options?.() }).map((match) => match.obj.entry)
++  })
++}

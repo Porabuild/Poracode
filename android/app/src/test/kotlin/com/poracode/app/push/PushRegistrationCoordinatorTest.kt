@@ -56,16 +56,21 @@ class PushRegistrationCoordinatorTest {
     }
 
     @Test
-    fun tokenRotationReregistersEveryEligibleHost() = runBlocking {
+    fun installationIdReplacesThePersistedLegacyTokenAndRepeatedCallbacksAreIdempotent() = runBlocking {
         val fixture = fixture("rotate", listOf(1))
+        val legacyToken = "legacy:APA91b-token"
+        val installationId = "c123456789012345678901"
         fixture.coordinator.onForeground()
-        fixture.coordinator.onToken("fcm-a")
+        fixture.coordinator.onToken(legacyToken)
         fixture.coordinator.reconcile()
         fixture.coordinator.reconcile()
         assertEquals(1, fixture.gateway.registered.size)
-        fixture.coordinator.onToken("fcm-b")
+        fixture.coordinator.onToken(installationId)
         fixture.coordinator.reconcile()
-        assertEquals(listOf("fcm-a", "fcm-b"), fixture.gateway.registered.map { it.deviceToken })
+        fixture.coordinator.onToken(installationId)
+        fixture.coordinator.reconcile()
+        assertEquals(listOf(legacyToken, installationId), fixture.gateway.registered.map { it.deviceToken })
+        assertEquals(listOf(deviceId, deviceId), fixture.gateway.registered.map { it.deviceId })
     }
 
     @Test

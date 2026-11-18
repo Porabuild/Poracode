@@ -35,7 +35,7 @@ export function isNativeGitHelperActive(): boolean {
 
 /**
  * Returns `false` if any exclude pattern uses negation, brace expansion or bash extglobs
- * (`{a,b}`, `!(foo)`, `+(bar)`, `\` escapes) that require `micromatch`. Standard
+ * (`{a,b}`, `!(foo)`, `+(bar)`, `\` escapes) that require the JavaScript glob matcher. Standard
  * globs (`*`, `**`, `?`, `[abc]`, `[!abc]`) are handled natively in Rust.
  */
 export function areSearchExcludePatternsNativeCompatible(patterns: readonly string[]): boolean {

@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { onTestFinished, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeBrowserMetadataCacheForTest,
   createBrowserMetadataCache,
@@ -634,12 +634,16 @@ describe("browser metadata cache", () => {
   it.each([true, false])(
     "does not strongly retain a retired projected catalog after quota degradation (WeakRef: %s)",
     async (hasWeakRef) => {
-      const reportError = vi.fn<(operation: string, error: unknown) => void>();
-      // Vitest's spies themselves use WeakRef; create them before testing the
-      // cache's fallback in an environment without it.
-      const putSpy = vi.spyOn(IDBObjectStore.prototype, "put");
+      // Vitest uses WeakRef when a spy records a call. Use ordinary counters
+      // so the cache and its IndexedDB writes run with WeakRef truly absent.
+      let reportedErrors = 0;
       if (!hasWeakRef) vi.stubGlobal("WeakRef", undefined);
-      const { cache, maps } = cacheWithTrackedMaps({ reportError, maxRecordBytes: 2048 });
+      const { cache, maps } = cacheWithTrackedMaps({
+        reportError: () => {
+          reportedErrors += 1;
+        },
+        maxRecordBytes: 2048,
+      });
       const retired = snapshot("thread-38");
       retired.state.threads = Array.from({ length: 40 }, (_, index) => ({
         id: `thread-${index}`,
@@ -656,17 +660,22 @@ describe("browser metadata cache", () => {
       await expect(cache.read(APP_STORE)).resolves.toBe(retired);
       expect(stronglyReaches(maps, retired.state)).toBe(true);
 
-      putSpy.mockClear();
-      putSpy.mockImplementation(() => {
-        throw new DOMException("quota", "QuotaExceededError");
+      const originalPut = IDBObjectStore.prototype.put;
+      onTestFinished(() => {
+        IDBObjectStore.prototype.put = originalPut;
       });
+      let quotaAttempts = 0;
+      IDBObjectStore.prototype.put = () => {
+        quotaAttempts += 1;
+        throw new DOMException("quota", "QuotaExceededError");
+      };
       await cache.write(APP_STORE, snapshot("compact-1"));
       const latest = snapshot("compact-2");
       await cache.write(APP_STORE, latest);
 
       await expect(cache.read(APP_STORE)).resolves.toBe(latest);
-      expect(putSpy).toHaveBeenCalledTimes(1);
-      expect(reportError).toHaveBeenCalledTimes(1);
+      expect(quotaAttempts).toBe(1);
+      expect(reportedErrors).toBe(1);
       expect(await readRawBrowserMetadataRecordForTest(APP_STORE)).toEqual(record);
       expect(stronglyReaches(maps, latest.state)).toBe(true);
       expect(stronglyReaches(maps, retired.state)).toBe(false);

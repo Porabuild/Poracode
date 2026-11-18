@@ -2,7 +2,11 @@ import { app } from "electron";
 import { join } from "node:path";
 import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEventLedger";
 import type { PoracodeChannel } from "@/shared/channel";
-import type { PoracodeDiagnosticTags, SentryEventLike } from "@/shared/diagnostics/sentryPrivacy";
+import {
+  sentryDataCollection,
+  type PoracodeDiagnosticTags,
+  type SentryEventLike,
+} from "@/shared/diagnostics/sentryPrivacy";
 import {
   readBuildSentryDsn,
   readBuildSentryEnvironment,
@@ -105,8 +109,9 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     dsn,
     release: `poracode@${options.appVersion}`,
     environment: readSentryEnvironment(options),
-    sendDefaultPii: false,
-    enableLogs: false,
+    dataCollection: sentryDataCollection,
+    beforeSendLog: () => null,
+    beforeSendMetric: () => null,
     attachScreenshot: false,
     maxBreadcrumbs: 0,
     normalizeDepth: 4,

@@ -1,9 +1,11 @@
 package com.poracode.app
 
 import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.w3c.dom.Element
 
 class AndroidMultihostConfigTest {
     @Test
@@ -16,20 +18,20 @@ class AndroidMultihostConfigTest {
             "compileSdk = 37",
             "minSdk = 34",
             "targetSdk = 37",
-            "version \"2.4.10\"",
-            "compose-bom:2026.08.00",
+            "version \"2.4.21\"",
+            "compose-bom:2026.09.00",
             "adaptive:1.3.0",
             "lifecycle-runtime-ktx:2.11.0",
-            "core-ktx:1.19.0",
+            "core-ktx:1.19.1",
             "kotlinx-coroutines-android:1.11.0",
-            "kotlinx-serialization-json:1.11.0",
-            "firebase-bom:34.16.0",
+            "kotlinx-serialization-json:1.13.0",
+            "firebase-bom:35.2.0",
             "com.google.firebase:firebase-messaging",
             "FIREBASE_PUSH_CONFIGURED",
         ).forEach { expected -> assertTrue("Missing $expected", app.contains(expected)) }
-        assertTrue(root.contains("version \"9.3.1\""))
-        assertTrue(root.contains("com.google.gms.google-services\") version \"4.5.0\""))
-        assertTrue(wrapper.contains("gradle-9.5.1-all.zip"))
+        assertTrue(root.contains("version \"9.5.1\""))
+        assertTrue(root.contains("com.google.gms.google-services\") version \"4.6.0\""))
+        assertTrue(wrapper.contains("gradle-9.6.1-all.zip"))
         assertTrue(manifest.contains("android.permission.ACCESS_LOCAL_NETWORK"))
         assertTrue(manifest.contains("android.permission.POST_NOTIFICATIONS"))
         assertTrue(manifest.contains("PoracodeFirebaseMessagingService"))
@@ -37,6 +39,17 @@ class AndroidMultihostConfigTest {
         assertTrue(app.contains("val firebaseConfigured = googleServicesConfig.isFile"))
         assertTrue(app.contains("if (firebaseConfigured)"))
         assertTrue(projectFile(".gitignore").readText().contains("app/google-services.json"))
+    }
+
+    @Test
+    fun applicationEnablesFirebaseInstallationIdRegistration() {
+        val manifest = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+            .parse(projectFile("app/src/main/AndroidManifest.xml"))
+        val metadata = manifest.getElementsByTagName("meta-data")
+        val registration = (0 until metadata.length).map { metadata.item(it) as Element }
+            .single { it.getAttribute("android:name") == "firebase_messaging_installation_id_enabled" }
+        assertEquals("application", registration.parentNode.nodeName)
+        assertEquals("true", registration.getAttribute("android:value"))
     }
 
     @Test

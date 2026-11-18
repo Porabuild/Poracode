@@ -3,7 +3,7 @@ import { useLocal } from "../context/local"
 import { DialogSelect } from "../ui/dialog-select"
 import { useDialog } from "../ui/dialog"
 import { DialogVariant } from "./dialog-variant"
-import * as fuzzysort from "fuzzysort"
+import { createPickerFilter } from "../util/fuzzy-search"
 import { useConnected } from "./use-connected"
 import { useData } from "../context/data"
 import { modelPreferenceKey } from "../model-preference"
@@ -17,7 +17,7 @@ export function DialogModel(props: { providerID?: string }) {
   const dialog = useDialog()
   const location = useLocation()
   const [query, setQuery] = createSignal("")
-  const favoritePriority = new Set(local.model.favorite().map(modelPreferenceKey))
+  const favoritePriority = createMemo(() => new Set(local.model.favorite().map(modelPreferenceKey)))
 
   const connected = useConnected()
   const providers = createMemo(
@@ -27,9 +27,9 @@ export function DialogModel(props: { providerID?: string }) {
 
   const showExtra = createMemo(() => connected() && !props.providerID)
 
-  const options = createMemo(() => {
-    const needle = query().trim()
-    const showSections = showExtra() && needle.length === 0
+  const showFavoriteSections = createMemo(() => showExtra() && query().trim().length === 0)
+  const groups = createMemo(() => {
+    const showSections = showFavoriteSections()
     const favorites = connected() ? local.model.favorite() : []
     const recents = local.model.recent()
 
@@ -103,16 +103,13 @@ export function DialogModel(props: { providerID?: string }) {
       connected(),
     )
 
-    if (needle) {
-      return prioritizeFavorites(
-        sortModelOptions(
-          fuzzysort.go(needle, modelOptions, { keys: ["title", "category"] }).map((item) => item.obj),
-          false,
-        ),
-        favoritePriority,
-      )
-    }
+    return { favoriteOptions, recentOptions, modelOptions }
+  })
 
+  const matchingModels = createPickerFilter(() => groups().modelOptions, () => query().trim(), ["title", "category"])
+  const options = createMemo(() => {
+    if (query().trim()) return prioritizeFavorites(sortModelOptions(matchingModels(), false), favoritePriority())
+    const { favoriteOptions, recentOptions, modelOptions } = groups()
     return [...favoriteOptions, ...recentOptions, ...modelOptions]
   })
 

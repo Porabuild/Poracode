@@ -6,11 +6,7 @@ const CHAR_WIDTH = 8;
 
 vi.mock("@chenglou/pretext", () => ({
   prepare: (text: string) => ({ text, length: text.length }),
-  layout: (prepared: { text: string }, maxWidth: number) => {
-    const totalWidth = prepared.text.length * CHAR_WIDTH;
-    const lineCount = Math.max(1, Math.ceil(totalWidth / Math.max(1, maxWidth)));
-    return { lineCount, height: lineCount * 16 };
-  },
+  measureNaturalWidth: (prepared: { text: string }) => prepared.text.length * CHAR_WIDTH,
 }));
 
 class MockResizeObserver {
@@ -95,6 +91,24 @@ describe("PathDisplay", () => {
     expect(container.textContent).toContain("…");
     expect(container.textContent?.startsWith("db.ts")).toBe(true);
     expect(container.textContent?.indexOf("…")).toBeGreaterThan(0);
+  });
+
+  it.each(["👩‍💻", "e\u0301", "🇲🇹"])(
+    "preserves a whole %s at the truncation boundary",
+    (grapheme) => {
+      const { container } = render(<PathDisplay path={`long/directory/${grapheme}z/file`} />);
+      const width = 40 + 4 + ("…" + grapheme + "z").length * CHAR_WIDTH;
+      fireWidths(width, 40);
+      expect(container.textContent).toBe("file…" + grapheme + "z");
+      fireWidths(width - CHAR_WIDTH, 40);
+      expect(container.textContent).toBe("file");
+    },
+  );
+
+  it("hides a directory whose only glyph exceeds the available width", () => {
+    const { container } = render(<PathDisplay path="界/file" />);
+    fireWidths(45, 40);
+    expect(container.textContent).toBe("file");
   });
 
   it("drops the directory when only a 1-char tail would fit (no '…_' noise)", () => {

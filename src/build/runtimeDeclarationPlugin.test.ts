@@ -177,7 +177,7 @@ it("shares a fresh declaration across a finite batch of actual builds", async ()
         ["backendHost", "supervisor"].map(async (name) => {
           const entryPath =
             name === "backendHost" ? "src/backend/index.ts" : "src/supervisor/index.ts";
-          const bundles = await build({
+          const { bundles } = await build({
             config: false,
             cwd: root,
             entry: { [name]: entryPath },
@@ -257,7 +257,7 @@ it.each(["completion.mjs", "desktopBundle.mjs", "installPaths.mjs", "artifact.mj
       `export {value} from '../../packages/poracode-cli/lib/${file}';`,
     );
     const compile = async () => {
-      const bundles = await build({
+      const { bundles } = await build({
         config: false,
         cwd: root,
         entry: { supervisor: "src/supervisor/index.ts" },
@@ -416,7 +416,7 @@ export default ['backendHost','supervisor'].map(name=>{const entryPath=name==='b
     await stopWatcher();
     for (const name of ["backendHost", "supervisor"] as const) {
       const entryPath = name === "backendHost" ? "src/backend/index.ts" : "src/supervisor/index.ts";
-      const bundles = await build({
+      const { bundles } = await build({
         config: false,
         cwd: root,
         entry: { [name]: entryPath },

@@ -225,7 +225,7 @@ void test("CLI resources precede declarations and generated-worker resources fol
         }
         await fs.mkdir(outDir,{recursive:true});
         await fs.writeFile(path.join(outDir,"mcpProbeWorker.mjs"),"built");
-        return [{chunks:[],async [Symbol.asyncDispose](){}}];
+        return {bundles:[{chunks:[],async [Symbol.asyncDispose](){}}]};
       }
     `,
     );

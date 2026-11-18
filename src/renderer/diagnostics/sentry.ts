@@ -4,6 +4,7 @@ import { buildErrorCauseTags } from "@/shared/diagnostics/errorCause";
 import {
   buildRuntimeDiagnosticTags,
   sanitizeSentryEvent,
+  sentryDataCollection,
   type PoracodeDiagnosticTags,
   type PoracodeRuntimeDiagnosticContext,
   type SentryEventLike,
@@ -99,8 +100,9 @@ export function initializeRendererSentry(): boolean {
   }
 
   Sentry.init({
-    sendDefaultPii: false,
-    enableLogs: false,
+    dataCollection: sentryDataCollection,
+    beforeSendLog: () => null,
+    beforeSendMetric: () => null,
     maxBreadcrumbs: 0,
     normalizeDepth: 4,
     tracesSampleRate: 0,

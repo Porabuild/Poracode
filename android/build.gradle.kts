@@ -13,8 +13,8 @@ buildscript {
 
 // Root build file — plugin versions are resolved via pluginManagement in settings.gradle.kts.
 plugins {
-    id("com.android.application") version "9.3.1" apply false
-    id("com.google.gms.google-services") version "4.5.0" apply false
+    id("com.android.application") version "9.5.1" apply false
+    id("com.google.gms.google-services") version "4.6.0" apply false
 }
 
 // Pin the command-line Apply Changes implementation explicitly. Gradle owns

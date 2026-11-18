@@ -1,7 +1,9 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { layout, prepare } from "@chenglou/pretext";
+import { measureNaturalWidth, prepare } from "@chenglou/pretext";
 import { splitPath } from "@/shared/pathUtils";
 import { StartTruncatedText } from "./StartTruncatedText";
+
+const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 interface PathDisplayProps {
   path: string;
@@ -76,17 +78,7 @@ function MeasuredPathDisplay({
   const FIT_SLACK = 4;
   const dirAvailable = Math.max(0, containerWidth - fixedWidth - FIT_SLACK);
   const dirDisplay =
-    dir && font && containerWidth > 0
-      ? fitDirHeadEllipsis(dir, font, dirAvailable)
-      : { suffix: dir, truncated: false };
-  // A truncated directory only earns its space if a meaningful tail survives:
-  // a leading "…" plus a single character (e.g. "…_") is pure noise, so require
-  // at least a couple of real characters before showing it. When the directory
-  // can't clear that bar the basename takes the whole row (truncating with a
-  // trailing ellipsis rather than hard-clipping, which read as vanishing).
-  const MIN_DIR_TAIL = 2;
-  const showDir =
-    dir.length > 0 && (!dirDisplay.truncated || dirDisplay.suffix.length >= MIN_DIR_TAIL);
+    dir && font && containerWidth > 0 ? fitDirHeadEllipsis(dir, font, dirAvailable) : dir;
 
   return (
     <span
@@ -111,12 +103,13 @@ function MeasuredPathDisplay({
         </span>
         {trailing}
       </span>
-      {showDir && (
-        <span className={`ml-1 min-w-0 shrink-0 ${dirClassName}`}>
-          {dirDisplay.truncated && "…"}
-          {dirDisplay.suffix}
-        </span>
-      )}
+      {dirDisplay &&
+        (font ? (
+          <span className={`ml-1 min-w-0 shrink-0 ${dirClassName}`}>{dirDisplay}</span>
+        ) : (
+          // Font variants can leave the computed shorthand empty. Let CSS use the actual face.
+          <StartTruncatedText className={`ml-1 ${dirClassName}`}>{dirDisplay}</StartTruncatedText>
+        ))}
     </span>
   );
 }
@@ -146,29 +139,25 @@ function CssPathDisplay({
   );
 }
 
-function fitDirHeadEllipsis(
-  dir: string,
-  font: string,
-  width: number,
-): { suffix: string; truncated: boolean } {
-  if (width <= 0) return { suffix: "", truncated: true };
+function fitDirHeadEllipsis(dir: string, font: string, width: number): string {
+  if (width <= 0) return "";
+  const fits = (text: string) => measureNaturalWidth(prepare(text, font)) <= width;
+  if (fits(dir)) return dir;
 
-  const full = layout(prepare(dir, font), width, 16);
-  if (full.lineCount <= 1) return { suffix: dir, truncated: false };
-
-  let lo = 0;
-  let hi = dir.length;
-  let best = 0;
+  // Keep at least two whole graphemes after the ellipsis.
+  const starts = Array.from(graphemes.segment(dir), (part) => part.index);
+  let lo = 1;
+  let hi = starts.length - 2;
+  let best = "";
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    const candidate = "…" + dir.slice(dir.length - mid);
-    const { lineCount } = layout(prepare(candidate, font), width, 16);
-    if (lineCount <= 1) {
-      best = mid;
-      lo = mid + 1;
-    } else {
+    const candidate = "…" + dir.slice(starts[mid]);
+    if (fits(candidate)) {
+      best = candidate;
       hi = mid - 1;
+    } else {
+      lo = mid + 1;
     }
   }
-  return { suffix: dir.slice(dir.length - best), truncated: true };
+  return best;
 }

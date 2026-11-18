@@ -138,7 +138,7 @@ describe("thinkingAnimator", () => {
     );
     expect(vi.getTimerCount()).toBe(1);
     vi.advanceTimersByTime(50);
-    expect(view.getByTestId("icon").style.transform).toBe("translate3d(-31.2497%, 0, 0)");
+    expect(view.getByTestId("icon")).toHaveStyle({ transform: "translate3d(-31.2497%, 0, 0)" });
     expect(parseFloat(view.getByTestId("shimmer").style.backgroundPositionX)).toBeCloseTo(-4.5, 1);
     view.unmount();
     expect(vi.getTimerCount()).toBe(0);
@@ -154,10 +154,11 @@ describe("thinkingAnimator", () => {
       </>,
     );
     vi.advanceTimersByTime(50);
-    expect(view.getAllByTestId("icon").map((el) => el.style.transform)).toEqual([
-      "translate3d(0.0000%, 0, 0)",
-      "translate3d(0.0000%, 0, 0)",
-    ]);
+    const icons = view.getAllByTestId("icon");
+    expect(icons).toHaveLength(2);
+    for (const icon of icons) {
+      expect(icon).toHaveStyle({ transform: "translate3d(0.0000%, 0, 0)" });
+    }
   });
 
   it("reschedules the shared cadence on blur and focus", () => {
@@ -197,7 +198,7 @@ describe("thinkingAnimator", () => {
     expect(view.getByTestId("icon").style.transform).toBe(initial);
     document.documentElement.removeAttribute("data-app-hidden");
     document.dispatchEvent(new Event("visibilitychange"));
-    expect(view.getByTestId("icon").style.transform).toBe("translate3d(0.0000%, 0, 0)");
+    expect(view.getByTestId("icon")).toHaveStyle({ transform: "translate3d(0.0000%, 0, 0)" });
     expect(vi.getTimerCount()).toBe(1);
     view.unmount();
     window.dispatchEvent(new Event("focus"));
@@ -241,7 +242,7 @@ describe("thinkingAnimator", () => {
     expect(vi.getTimerCount()).toBe(0);
     vi.advanceTimersByTime(700);
     notify(icon, true);
-    expect(icon.style.transform).toBe("translate3d(0.0000%, 0, 0)");
+    expect(icon).toHaveStyle({ transform: "translate3d(0.0000%, 0, 0)" });
     expect(vi.getTimerCount()).toBe(1);
     view.unmount();
     expect(unobserve).toHaveBeenCalledTimes(2);
@@ -263,11 +264,11 @@ describe("thinkingAnimator", () => {
     Object.defineProperty(query, "matches", { value: true });
     query.dispatchEvent(new Event("change"));
     expect(vi.getTimerCount()).toBe(0);
-    expect(view.getByTestId("icon").style.transform).toBe("translate3d(-33.3330%, 0, 0)");
+    expect(view.getByTestId("icon")).toHaveStyle({ transform: "translate3d(-33.3330%, 0, 0)" });
     vi.advanceTimersByTime(300);
     Object.defineProperty(query, "matches", { value: false });
     query.dispatchEvent(new Event("change"));
-    expect(view.getByTestId("icon").style.transform).toBe("translate3d(0.0000%, 0, 0)");
+    expect(view.getByTestId("icon")).toHaveStyle({ transform: "translate3d(0.0000%, 0, 0)" });
     expect(vi.getTimerCount()).toBe(1);
   });
 

@@ -421,7 +421,7 @@ export function Session(props: {
   // Renderable positions are still stale at that point; read the computed layout instead.
   let held: { node: Renderable; top: number } | undefined
   const layoutTop = (node: Renderable): number =>
-    node === scroll.content || !node.parent ? 0 : node.getComputedLayout().top + layoutTop(node.parent)
+    node === scroll || !node.parent ? 0 : node.getComputedLayout().top + layoutTop(node.parent)
   const holdAnchor = () => {
     if (held && !held.node.isDestroyed) scroll.scrollTo(layoutTop(held.node) - held.top)
   }

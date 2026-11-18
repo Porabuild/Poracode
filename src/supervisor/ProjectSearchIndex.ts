@@ -1,5 +1,4 @@
 import { readdir } from "node:fs/promises";
-import micromatch from "micromatch";
 import type {
   ProjectLocation,
   ProjectTreeEntry,
@@ -9,6 +8,7 @@ import type {
 } from "@/shared/contracts";
 import { getProjectFsPath } from "@/shared/wsl";
 import { execGit, getLocationIdentity } from "./git";
+import { compileGlobMatcher, expandDirectoryGlobs } from "./fileGlobs";
 import { GIT_DEFAULT_TIMEOUT } from "./git/exec";
 import { admitGitProcess } from "./git/gitProcessAdmission";
 import {
@@ -52,7 +52,7 @@ function cacheKeyForSearchConfig(config: SearchConfigPayload): string {
  * - `ignoreNames`: simple `**\/<name>` (or `**\/<name>/**`) patterns that we
  *   can prune at walk time by skipping the dirent name. Big perf win for
  *   `node_modules`-shaped trees.
- * - `residualPatterns`: anything more complex; applied via micromatch after
+ * - `residualPatterns`: anything more complex; matched in JavaScript after
  *   the index is built.
  */
 function partitionExcludePatterns(patterns: string[]): {
@@ -67,15 +67,6 @@ function partitionExcludePatterns(patterns: string[]): {
     else residualPatterns.push(p);
   }
   return { ignoreNames, residualPatterns };
-}
-
-function expandDirPatterns(patterns: string[]): string[] {
-  const out: string[] = [];
-  for (const p of patterns) {
-    out.push(p);
-    if (!/(\/\*\*|\*)$/.test(p)) out.push(`${p}/**`);
-  }
-  return out;
 }
 
 /**
@@ -236,8 +227,8 @@ export class ProjectSearchIndex {
     }
 
     if (residualPatterns.length === 0) return raw;
-    const filterPatterns = expandDirPatterns(residualPatterns);
-    return raw.filter((entry) => !micromatch.isMatch(entry.path, filterPatterns, { dot: true }));
+    const exclude = compileGlobMatcher(expandDirectoryGlobs(residualPatterns));
+    return raw.filter((entry) => !exclude(entry.path));
   }
 
   /**

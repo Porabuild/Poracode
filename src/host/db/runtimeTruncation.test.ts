@@ -145,19 +145,25 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
     seedItems(["checkpoint"]);
     await dbFlushThreadRuntimeWrites("thread-1");
     const sqlite = getSqlite();
-    const insertItem = sqlite.prepare(
-      "INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state) VALUES ('thread-1', ?, ?, 'assistant_message', 'completed')",
-    );
-    const insertTurn = sqlite.prepare(
-      "INSERT INTO thread_completed_turns (thread_id, idx, started_at, ended_at, anchor_item_id) VALUES ('thread-1', ?, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:01.000Z', ?)",
-    );
     const tailCount = 40_000;
     sqlite.transaction(() => {
-      for (let index = 0; index < tailCount; index += 1) {
-        const itemId = `large-${index}`;
-        insertItem.run(itemId, index + 1);
-        insertTurn.run(index, itemId);
-      }
+      sqlite
+        .prepare(
+          `WITH RECURSIVE tail(idx) AS (
+             VALUES (0)
+             UNION ALL SELECT idx + 1 FROM tail WHERE idx + 1 < ?
+           )
+           INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state)
+           SELECT 'thread-1', 'large-' || idx, idx + 1, 'assistant_message', 'completed'
+           FROM tail`,
+        )
+        .run(tailCount);
+      // Each turn anchors to its tail item. Position zero is the checkpoint.
+      sqlite.exec(
+        `INSERT INTO thread_completed_turns (thread_id, idx, started_at, ended_at, anchor_item_id)
+         SELECT thread_id, position - 1, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:01.000Z', item_id
+         FROM thread_runtime_items WHERE thread_id = 'thread-1' AND position > 0`,
+      );
     })();
     const result = dbTruncateThreadRuntimeAfter("thread-1", "checkpoint");
     expect(result.truncated).toBe(true);

@@ -4,6 +4,7 @@ import { createPersistentSentryEventLimiter } from "@/host/diagnostics/sentryEve
 import { poracodeBaseDirFromEnv, resolvePoracodePaths } from "@/shared/poracodePaths";
 import {
   prepareSentryEvent,
+  sentryDataCollection,
   type PoracodeDiagnosticTags,
   type SentryEventLike,
 } from "@/shared/diagnostics/sentryPrivacy";
@@ -271,8 +272,9 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
     dsn,
     release: `poracode@${options.appVersion}`,
     environment: readSentryEnvironment(options),
-    sendDefaultPii: false,
-    enableLogs: false,
+    dataCollection: sentryDataCollection,
+    beforeSendLog: () => null,
+    beforeSendMetric: () => null,
     defaultIntegrations: false,
     maxBreadcrumbs: 20,
     normalizeDepth: 4,

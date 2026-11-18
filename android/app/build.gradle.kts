@@ -4,8 +4,8 @@ plugins {
     id("com.android.application")
     id("com.google.gms.google-services") apply false
     // Kotlin is built into AGP 9; these compiler plugins still need an explicit id.
-    id("org.jetbrains.kotlin.plugin.compose") version "2.4.10"
-    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.10"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.21"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.21"
 }
 
 val googleServicesConfig = layout.projectDirectory.file("google-services.json").asFile
@@ -113,7 +113,7 @@ android {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
@@ -129,56 +129,56 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
-    implementation("androidx.core:core-ktx:1.19.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.core:core-splashscreen:1.2.0")
-    implementation("androidx.datastore:datastore-preferences:1.2.1")
+    implementation("androidx.datastore:datastore-preferences:1.3.0")
 
     // Session-driven screens + adaptive master/detail (no Navigation graph for this slice).
     // Navigation 3 is stable, but simple state navigation matches the iOS client and keeps deps minimal.
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
 
-    implementation("com.squareup.okhttp3:okhttp:5.4.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
 
     // Floating-chrome backdrop blur matching the PWA backdrop-filter and iOS
     // Liquid Glass. Pinned to the newest stable at least 7 days old that is
-    // compatible with Compose BOM 2026.08.00 / minSdk 34 (2.0.1, ~2026-09-30).
-    implementation("dev.chrisbanes.haze:haze:2.0.1")
-    implementation("dev.chrisbanes.haze:haze-blur:2.0.1")
+    // compatible with Compose BOM 2026.09.00 and minSdk 34.
+    implementation("dev.chrisbanes.haze:haze:2.1.0")
+    implementation("dev.chrisbanes.haze:haze-blur:2.1.0")
 
     // Pairing QR scanner. The bundled ML Kit barcode model is used deliberately:
     // the Play-Services variant would fail on devices/emulators without Play Services.
-    implementation("androidx.camera:camera-core:1.6.1")
-    implementation("androidx.camera:camera-camera2:1.6.1")
-    implementation("androidx.camera:camera-lifecycle:1.6.1")
-    implementation("androidx.camera:camera-view:1.6.1")
+    implementation("androidx.camera:camera-core:1.6.2")
+    implementation("androidx.camera:camera-camera2:1.6.2")
+    implementation("androidx.camera:camera-lifecycle:1.6.2")
+    implementation("androidx.camera:camera-view:1.6.2")
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
-    implementation(platform("com.google.firebase:firebase-bom:34.16.0"))
+    implementation(platform("com.google.firebase:firebase-bom:35.2.0"))
     implementation("com.google.firebase:firebase-messaging")
     // FCM's Play Services edge still requests Fragment 1.1.0; Activity Result APIs require 1.3+.
-    implementation("androidx.fragment:fragment:1.8.9")
+    implementation("androidx.fragment:fragment:1.9.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
-    testImplementation("com.squareup.okhttp3:mockwebserver:5.4.0")
-    testImplementation("com.squareup.okhttp3:okhttp-tls:5.4.0")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
-    testImplementation("org.json:json:20250517")
+    testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
+    testImplementation("com.squareup.okhttp3:okhttp-tls:5.5.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
+    testImplementation("org.json:json:20260814")
 
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test:rules:1.7.0")
     androidTestImplementation("androidx.test:core-ktx:1.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
-    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.0")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("com.squareup.okhttp3:mockwebserver:5.4.0")
-    androidTestImplementation("com.squareup.okhttp3:okhttp-tls:5.4.0")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
+    androidTestImplementation("com.squareup.okhttp3:okhttp-tls:5.5.1")
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     androidTestUtil("androidx.test:orchestrator:1.6.1")
 }

@@ -51,33 +51,36 @@ describe("native push routing", () => {
     expect(serialized).not.toContain("accessToken");
   });
 
-  it("delivers every Android routing field as an FCM data string", () => {
-    const routing = pushPayloadRouting(routeA, "thread-1")!;
-    const payload = buildAndroidStatusPayload({
-      title: "Title",
-      body: "Finished",
-      threadId: "thread-1",
-      routing,
-    });
-    const parsed = parsePushRequest({
-      platform: "android",
-      token: "fcm-token",
-      pushType: "alert",
-      payload,
-      collapseId: "pc1.example",
-    });
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok || parsed.value.platform !== "android") throw new Error("expected Android");
-    expect(buildFcmMessage(parsed.value).message.data).toEqual({
-      version: "1",
-      clientConnectionId: routeA.clientConnectionId,
-      desktopId: "shared-desktop",
-      threadId: "thread-1",
-    });
-    expect(buildFcmMessage(parsed.value).message.android.notification.channel_id).toBe(
-      "poracode_attention_v1",
-    );
-  });
+  it.each(["legacy:APA91b-token", "c123456789012345678901"])(
+    "preserves the FCM target %s and Android routing data",
+    (target) => {
+      const routing = pushPayloadRouting(routeA, "thread-1")!;
+      const payload = buildAndroidStatusPayload({
+        title: "Title",
+        body: "Finished",
+        threadId: "thread-1",
+        routing,
+      });
+      const parsed = parsePushRequest({
+        platform: "android",
+        token: target,
+        pushType: "alert",
+        payload,
+        collapseId: "pc1.example",
+      });
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok || parsed.value.platform !== "android") throw new Error("expected Android");
+      const { message } = buildFcmMessage(parsed.value);
+      expect(message.token).toBe(target);
+      expect(message.data).toEqual({
+        version: "1",
+        clientConnectionId: routeA.clientConnectionId,
+        desktopId: "shared-desktop",
+        threadId: "thread-1",
+      });
+      expect(message.android.notification.channel_id).toBe("poracode_attention_v1");
+    },
+  );
 
   it("selects the quiet status channel only for silent Android updates", () => {
     const build = (silent: boolean) => {

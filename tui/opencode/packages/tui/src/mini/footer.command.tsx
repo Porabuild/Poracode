@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { TextAttributes, type InputRenderable, type KeyEvent } from "@opentui/core"
 import { useKeyboard, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
-import fuzzysort from "fuzzysort"
+import { createPickerFilter } from "../util/fuzzy-search"
 import { createEffect, createMemo, createSignal, type Accessor } from "solid-js"
 import { Keymap } from "../context/keymap"
 import { Config } from "../config"
@@ -129,17 +129,6 @@ function subagentStatusLabel(status: FooterSubagentTab["status"]) {
   return "running"
 }
 
-function match<T extends PanelEntry>(query: string, entries: T[]) {
-  const text = query.trim()
-  if (!text) {
-    return entries
-  }
-
-  return fuzzysort
-    .go(text, entries, { keys: ["display", "category", "description", "keywords"] })
-    .map((item) => item.obj)
-}
-
 function createSearchablePanelController<T extends PanelEntry>(input: {
   entries: Accessor<T[]>
   limit: number
@@ -159,7 +148,7 @@ function createSearchablePanelController<T extends PanelEntry>(input: {
   })
   let field: InputRenderable | undefined
   const [query, setQuery] = createSignal("")
-  const items = createMemo<T[]>(() => match(query(), input.entries()))
+  const items = createPickerFilter(input.entries, () => query().trim(), ["display", "category", "description", "keywords"])
   const menu = createFooterMenuState({ count: () => items().length, limit: () => layout().limit })
   const selected = () => items()[menu.selected()]
 

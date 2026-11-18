@@ -102,7 +102,7 @@ impl Portal {
     async fn ensure_session(&mut self) -> Result<&ActiveSession> {
         if self.active.is_none() {
             let restore_token = self.read_restore_token();
-            let connection = zbus::Connection::session()
+            let connection = ashpd::zbus::Connection::session()
                 .await
                 .map_err(|error| portal_error("connect to the session bus", error))?;
             let remote_desktop = RemoteDesktop::with_connection(connection.clone())
@@ -119,7 +119,7 @@ impl Portal {
                 .select_devices(
                     &session,
                     SelectDevicesOptions::default()
-                        .set_devices(DeviceType::Keyboard | DeviceType::Pointer)
+                        .set_devices(DeviceType::KEYBOARD | DeviceType::POINTER)
                         .set_persist_mode(PersistMode::ExplicitlyRevoked)
                         .set_restore_token(restore_token.as_deref()),
                 )
@@ -129,8 +129,8 @@ impl Portal {
                 .select_sources(
                     &session,
                     SelectSourcesOptions::default()
-                        .set_cursor_mode(CursorMode::Hidden)
-                        .set_sources(Some(SourceType::Monitor.into()))
+                        .set_cursor_mode(CursorMode::HIDDEN)
+                        .set_sources(Some(SourceType::MONITOR))
                         .set_multiple(true)
                         .set_persist_mode(PersistMode::ExplicitlyRevoked)
                         .set_restore_token(restore_token.as_deref()),
@@ -143,8 +143,8 @@ impl Portal {
                 .map_err(|error| portal_error("start a session", error))?
                 .response()
                 .map_err(|error| portal_error("authorize a session", error))?;
-            if !selected.devices().contains(DeviceType::Keyboard)
-                || !selected.devices().contains(DeviceType::Pointer)
+            if !selected.devices().contains(DeviceType::KEYBOARD)
+                || !selected.devices().contains(DeviceType::POINTER)
             {
                 return Err(HelperError::permission_denied(
                     "The Wayland portal did not grant both keyboard and pointer access.",

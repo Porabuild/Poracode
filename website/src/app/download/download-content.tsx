@@ -1,8 +1,9 @@
 "use client";
 
 import { Download, ArrowLeft, Monitor, Apple, Terminal, Moon, Puzzle } from "lucide-react";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import Link from "next/link";
+import { AnimatedPage } from "@/components/AnimatedPage";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { localizedPath } from "@/lib/i18n/config";
 import { downloadUrlFor, type ReleaseInfo } from "@/lib/releases";
@@ -53,7 +54,10 @@ export function DownloadContent({
   const extensionStores = extensionStoreLinks();
 
   return (
-    <div lang={locale} className="relative min-h-screen overflow-x-hidden bg-black text-white">
+    <AnimatedPage
+      lang={locale}
+      className="relative min-h-screen overflow-x-hidden bg-black text-white"
+    >
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,_rgba(255,255,255,0.05)_0%,_transparent_100%)]" />
 
@@ -77,7 +81,7 @@ export function DownloadContent({
 
       {/* Content */}
       <main className="relative z-10 max-w-3xl mx-auto px-8 py-12">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
@@ -87,11 +91,11 @@ export function DownloadContent({
             {versionSuffix}
           </h1>
           <p className="text-gray-400 mb-12 text-lg">{t("download.subtitle")}</p>
-        </motion.div>
+        </m.div>
 
         <div className="space-y-10">
           {PLATFORMS.map((platform, i) => (
-            <motion.div
+            <m.div
               key={platform.os}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -123,10 +127,10 @@ export function DownloadContent({
                   </a>
                 ))}
               </div>
-            </motion.div>
+            </m.div>
           ))}
           {release.cliInstaller ? (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 * (PLATFORMS.length + 1) }}
@@ -149,10 +153,10 @@ export function DownloadContent({
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </m.div>
           ) : null}
           {extensionStores.length > 0 ? (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 * (PLATFORMS.length + 2) }}
@@ -190,11 +194,11 @@ export function DownloadContent({
                   </a>
                 ))}
               </div>
-            </motion.div>
+            </m.div>
           ) : null}
         </div>
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.5 }}
@@ -212,8 +216,8 @@ export function DownloadContent({
             </a>
             {footerAfter}
           </p>
-        </motion.div>
+        </m.div>
       </main>
-    </div>
+    </AnimatedPage>
   );
 }
