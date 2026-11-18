@@ -161,6 +161,27 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it("shows a model once when its group has the same label", () => {
+    const model = "claude-fable-5-2-high";
+    const h = makeHarness({
+      providerLabel: "Devin",
+      models: [{ id: model, label: "Claude Fable 5.2" }],
+      subProviders: [{ id: "fable", label: "Claude Fable 5.2" }],
+      modelSubProvider: { [model]: "fable" },
+    });
+    h.manager.spawn(PARENT, {
+      agent: "codex",
+      name: "Design variants",
+      prompt: "Propose variants",
+      model,
+      effort: "high",
+    });
+    const started = h.appended.find((entry) => entry.event.type === "item.started");
+    expect(started?.event).toMatchObject({
+      payload: { name: "Design variants — Devin · Claude Fable 5.2 · High" },
+    });
+  });
+
   it("re-tags child events: parentItemId → tile, itemIds prefixed with runId", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });

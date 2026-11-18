@@ -11,6 +11,7 @@ import { dbGetThreadTerminalScrollback } from "./terminalScrollback";
 import {
   LEGACY_RUNTIME_PAGE_LIMIT,
   LEGACY_RUNTIME_PAGE_TARGET_ENTRIES,
+  projectSavedCrossagentRoute,
 } from "./runtimeTimelineReads";
 import { assertLegacyHistoryWithinReservation } from "../remote/server/legacyReadPrecheck";
 export function readCommittedRuntimeSnapshot(
@@ -40,7 +41,8 @@ export function readCommittedRuntimeSnapshot(
       : null;
     return {
       runtimePage,
-      runtimeItems: runtimePage?.items ?? dbReadThreadRuntimeItems(threadId),
+      runtimeItems:
+        runtimePage?.items ?? dbReadThreadRuntimeItems(threadId).map(projectSavedCrossagentRoute),
       latestGoal: runtimePage ? dbReadLatestThreadGoalItem(threadId) : null,
       completedTurns: dbGetThreadCompletedTurns(threadId),
       contextUsage: dbGetThreadContextUsage(threadId),

@@ -26,6 +26,7 @@ import {
   classifyRuntimeTimelineEntry,
   mapRuntimeItemRows,
   placeholders,
+  projectSavedCrossagentRoute,
   runtimeItemState,
   selectRuntimePageRows,
   type RuntimeTimelineItemRow,
@@ -242,7 +243,7 @@ export function fenceRefusalError(
 export function dbGetThreadRuntimeItems(threadId: string): Promise<PersistedRuntimeItem[]> {
   return readThreadWithFence(threadId, () =>
     readDatabaseAsync("runtimeItems", [threadId], () => dbReadThreadRuntimeItems(threadId)),
-  );
+  ).then((items) => items.map(projectSavedCrossagentRoute));
 }
 
 /** Synchronous committed-prefix read. Only call behind a held fence. */
@@ -606,7 +607,9 @@ function readRuntimeItemsPageInSnapshot(
       limit,
     });
     return {
-      items: mapRuntimeItemRows(sqlite, threadId, [...page.rows].reverse()),
+      items: mapRuntimeItemRows(sqlite, threadId, [...page.rows].reverse()).map(
+        projectSavedCrossagentRoute,
+      ),
       nextCursor: page.hasMore ? (page.rows.at(-1)?.position ?? null) : null,
     };
   }
@@ -620,7 +623,9 @@ function readRuntimeItemsPageInSnapshot(
     targetTimelineEntryCount,
   });
   return {
-    items: mapRuntimeItemRows(sqlite, threadId, [...page.rows].reverse()),
+    items: mapRuntimeItemRows(sqlite, threadId, [...page.rows].reverse()).map(
+      projectSavedCrossagentRoute,
+    ),
     nextCursor: page.hasMore ? (page.rows.at(-1)?.position ?? null) : null,
   };
 }
