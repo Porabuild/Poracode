@@ -6,17 +6,18 @@ import { ArrowUpCircle, Clock, GripVertical, RotateCcw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { PixelLoader, ToggleSwitch } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderModelPickerRank } from "@/renderer/components/providers/providerManifest";
+import { agentManagementHostForMachine } from "@/renderer/components/providers/settings/agentManagementHost";
 import {
   useProviderUpdates,
   type ProviderUpdateEntry,
 } from "../../../components/providers/settings/useProviderUpdates";
 import { machineIdForStatus, useMachines, useSelectedMachine } from "@/renderer/state/machines";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { localMachineKey } from "@/shared/machines";
 import { effectiveProviderOrder } from "@/shared/machineSettings";
 
 function resolveDisplayedKinds(
@@ -186,8 +187,6 @@ function SortableProviderRow(props: {
 
 export function ModelOrderSection(props: { onOpenAgentSettings: (kind: string) => void }) {
   const { t } = useLingui();
-  const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
-  const wslAgentStatuses = useAgentStatusesStore((s) => s.wslAgentStatuses);
   const providerOrder = useSharedSettings((s) => s.providerOrder);
   const machineScopeModes = useSharedSettings((s) => s.machineScopeModes);
   const machineSettings = useSharedSettings((s) => s.machineSettings);
@@ -198,9 +197,8 @@ export function ModelOrderSection(props: { onOpenAgentSettings: (kind: string) =
 
   const machines = useMachines();
   const selectedMachine = useSelectedMachine();
-  const isRemoteMachine = selectedMachine.ref.host === "remote";
-  const remoteRuntime = useRemoteServersStore((s) =>
-    selectedMachine.desktopId ? s.runtime[selectedMachine.desktopId] : undefined,
+  const pools = useHostAgentStatusPools(
+    agentManagementHostForMachine(selectedMachine).connectionKey,
   );
   const orderLocked = machineScopeModes.providerOrder === "synced";
   const activeOrder = effectiveProviderOrder(
@@ -208,22 +206,11 @@ export function ModelOrderSection(props: { onOpenAgentSettings: (kind: string) =
     selectedMachine.id,
   );
 
-  // The list shows the selected machine's providers: local machines filter the
-  // local status stores by machine; remote machines read the paired host's
-  // already-collected statuses.
-  const installedAgents = isRemoteMachine
-    ? getSettingsInstalledAgents(
-        selectedMachine.ref.env.kind === "native"
-          ? (remoteRuntime?.agentStatuses?.windows ?? [])
-          : [],
-        (remoteRuntime?.agentStatuses?.wsl ?? []).filter(
-          (a) => a.envDistro === selectedMachine.wslDistro,
-        ),
-      )
-    : getSettingsInstalledAgents(
-        agentStatuses.filter((a) => machineIdForStatus(a) === selectedMachine.id),
-        wslAgentStatuses.filter((a) => machineIdForStatus(a) === selectedMachine.id),
-      );
+  const machineEnvId = localMachineKey(selectedMachine.ref.env);
+  const installedAgents = getSettingsInstalledAgents(
+    pools.windows.filter((status) => machineIdForStatus(status) === machineEnvId),
+    pools.wsl.filter((status) => machineIdForStatus(status) === machineEnvId),
+  );
   const displayedKinds = resolveDisplayedKinds(installedAgents, activeOrder);
   const byKind = new Map(installedAgents.map((a) => [a.kind, a]));
   const orderedAgents = displayedKinds

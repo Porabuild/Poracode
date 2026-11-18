@@ -1,3 +1,4 @@
+import { isAbsolute } from "node:path";
 import type { AgentCapability, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
@@ -90,6 +91,25 @@ export function createCommandCodeAdapter(): AgentAdapter {
     // Settings registry card can read `adapter.update`. Mirrors every other
     // native adapter; without it the not-installed card shows no version.
     ...(commandCodeDetectionSpec.update ? { update: commandCodeDetectionSpec.update } : {}),
+    buildUpdateCommand(ctx, _status, installPath) {
+      if (ctx.envKind !== "posix" || !installPath || !isAbsolute(installPath)) return undefined;
+      // The self-updater uses `npm prefix -g`, which can point at a different
+      // Node installation when the detected launcher links into an older prefix.
+      const packageDir = installPath.lastIndexOf("/lib/node_modules/command-code/");
+      if (packageDir < 0) return undefined;
+      return {
+        binary: "npm",
+        args: [
+          "install",
+          "-g",
+          "command-code@latest",
+          "--prefix",
+          installPath.slice(0, packageDir) || "/",
+        ],
+        strategy: "npm-global",
+      };
+    },
+    postUpdateHealthArgs: ["--version"],
     get capabilities() {
       return capabilities;
     },

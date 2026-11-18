@@ -559,7 +559,6 @@ describe("ModelOrderSection provider updates", () => {
     // connection as any paired machine.
     session.remote = true;
     const statuses = remoteStatuses("1.2.3");
-    statusesState.agentStatuses = statuses.windows;
     const bridgeCall = vi.fn<(procedure: string, payload: unknown) => Promise<unknown>>(
       async (procedure) => {
         if (procedure === "getLatestAgentVersion") return { version: "1.3.0" };

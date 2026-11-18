@@ -3,6 +3,29 @@ import { agentEnvForStatus, agentEnvKey, type AgentEnv } from "@/shared/machines
 import { readBridge } from "@/renderer/bridge";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
+import { create } from "zustand";
+
+// Paired hosts report a completed inventory through the refresh RPC. Track
+// pending requests here so the indicator also follows the user out of Settings.
+export const useRemoteAgentRefreshes = create<ReadonlyMap<string, string>>(() => new Map());
+
+export async function refreshRemoteAgentDiscovery(
+  machineId: string,
+  label: string,
+  refresh: () => Promise<unknown>,
+): Promise<void> {
+  if (useRemoteAgentRefreshes.getState().has(machineId)) return;
+  useRemoteAgentRefreshes.setState((current) => new Map(current).set(machineId, label), true);
+  try {
+    await refresh();
+  } finally {
+    useRemoteAgentRefreshes.setState((current) => {
+      const next = new Map(current);
+      next.delete(machineId);
+      return next;
+    }, true);
+  }
+}
 
 // The scan belongs to the app, so leaving Settings cannot discard its result.
 // A cancelled run must not hydrate over a newer refresh.
@@ -26,12 +49,17 @@ export async function refreshAgentDiscovery(
     .refreshAgentStatuses(wslDistros)
     .then((response) => {
       if (run !== current) return;
-      useAgentStatusesStore.setState({
+      useAgentStatusesStore.setState((state) => ({
         agentStatuses: response.windows,
-        wslAgentStatuses: response.wsl,
+        wslAgentStatuses: [
+          ...state.wslAgentStatuses.filter(
+            (status) => !wslDistros.includes(status.envDistro ?? ""),
+          ),
+          ...response.wsl,
+        ],
         windowsLoaded: true,
         wslLoaded: true,
-      });
+      }));
     })
     .catch((error: unknown) => {
       if (run === current) throw error;

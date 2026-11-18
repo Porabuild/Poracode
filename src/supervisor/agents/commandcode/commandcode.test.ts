@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import * as fsPromises from "node:fs/promises";
 import * as os from "node:os";
 import { join } from "node:path";
@@ -28,6 +28,8 @@ import {
   snapshotCommandCodePreSpawnSessions,
 } from "./sessionFiles";
 import { detectCommandCodeTerminalStatus } from "./terminal";
+import { runUpdateCommandWithFallback } from "../updateAgent";
+import * as base from "../base";
 
 vi.mock("node:fs/promises", async (importOriginal) => ({
   ...(await importOriginal<typeof import("node:fs/promises")>()),
@@ -236,6 +238,61 @@ describe("createCommandCodeAdapter", () => {
     const adapter = createCommandCodeAdapter();
     expect(adapter.update?.npm).toBe("command-code");
   });
+
+  it.skipIf(process.platform === "win32")(
+    "updates the npm prefix behind a POSIX launcher symlink",
+    async () => {
+      const root = mkdtempSync(join(os.tmpdir(), "commandcode-update-"));
+      const command = vi.spyOn(base, "readAgentCommandOutput").mockResolvedValue({
+        ok: true,
+        stdout: "1.91.1",
+        stderr: "",
+      });
+      try {
+        const prefix = join(root, "fnm installation");
+        const packageDir = join(prefix, "lib/node_modules/command-code/dist");
+        mkdirSync(packageDir, { recursive: true });
+        const target = join(packageDir, "index.mjs");
+        writeFileSync(target, "");
+        const launcher = join(root, "command-code");
+        symlinkSync(target, launcher);
+        const adapter = createCommandCodeAdapter();
+
+        await expect(
+          runUpdateCommandWithFallback(
+            adapter,
+            {
+              kind: adapter.kind,
+              label: adapter.label,
+              executablePath: launcher,
+              installed: true,
+              version: "1.88.5",
+              authState: "unknown",
+              capabilities: adapter.capabilities,
+            },
+            { envKind: "posix" },
+          ),
+        ).resolves.toMatchObject({ ok: true, strategy: "npm-global" });
+        expect(command).toHaveBeenNthCalledWith(
+          1,
+          expect.anything(),
+          "npm",
+          ["install", "-g", "command-code@latest", "--prefix", await fsPromises.realpath(prefix)],
+          expect.anything(),
+        );
+        expect(command).toHaveBeenNthCalledWith(
+          2,
+          expect.anything(),
+          launcher,
+          ["--version"],
+          expect.objectContaining({ env: { COMMANDCODE_SKIP_UPDATES: "1" } }),
+        );
+      } finally {
+        command.mockRestore();
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("launches without a sessionRef so the runtime discovers the real id", async () => {
     // The synthetic ref is gone: returning no ref is what lets the runtime's

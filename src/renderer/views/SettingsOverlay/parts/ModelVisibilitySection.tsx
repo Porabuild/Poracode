@@ -1,5 +1,6 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
+import { agentManagementHostForMachine } from "@/renderer/components/providers/settings/agentManagementHost";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { machineIdForStatus, useSelectedMachine } from "@/renderer/state/machines";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
@@ -22,9 +23,9 @@ const RUNTIME_SLOTS_BY_BASE_KIND: ReadonlyMap<string, NativeAgentRuntimeSlots> =
 export function ModelVisibilitySection() {
   const { t } = useLingui();
   const selectedMachine = useSelectedMachine();
-  const machineHost =
-    selectedMachine.ref.host === "remote" ? selectedMachine.ref.desktopId : undefined;
-  const pools = useHostAgentStatusPools(machineHost);
+  const pools = useHostAgentStatusPools(
+    agentManagementHostForMachine(selectedMachine).connectionKey,
+  );
   const hiddenModels = useSharedSettings((s) => s.hiddenModels);
   const activeOrder = useSharedSettings((s) => effectiveProviderOrder(s, selectedMachine.id));
   const setHiddenModels = useSharedSettings((s) => s.setHiddenModels);

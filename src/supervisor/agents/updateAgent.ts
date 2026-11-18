@@ -21,7 +21,7 @@ import { resolveUpdateInstallPath } from "./updateInstallPath";
  * Resolve the update command for `(adapter, env, status)`.
  *
  * Priority:
- *   1. `adapter.buildUpdateCommand` — adapter-supplied built-in updater
+ *   1. `adapter.buildUpdateCommand` — adapter-supplied updater
  *      override. Kept as an escape hatch even though the shared resolver also
  *      knows about the common `claude update` / `opencode upgrade` flows.
  *   2. The shared resolver's strategy chain (built-in → brew/winget → pnpm /
@@ -32,9 +32,9 @@ export function resolveUpdateCommand(
   adapter: AgentAdapter,
   status: AgentStatus,
   envContext: AgentEnvContext,
-  options?: { skipBuiltIn?: boolean },
+  options?: { skipBuiltIn?: boolean; installPath?: string | undefined },
 ): AgentUpdaterCommand | undefined {
-  const fromAdapter = adapter.buildUpdateCommand?.(envContext, status);
+  const fromAdapter = adapter.buildUpdateCommand?.(envContext, status, options?.installPath);
   if (fromAdapter && !(options?.skipBuiltIn && fromAdapter.strategy === "built-in")) {
     return fromAdapter;
   }
@@ -119,6 +119,7 @@ async function verifyUpdatedInstall(
   const checkHealth = () =>
     readAgentCommandOutput(location, executable, [...healthArgs], {
       timeoutMs: POST_UPDATE_HEALTH_TIMEOUT_MS,
+      ...(adapter.baseSpawnEnv ? { env: adapter.baseSpawnEnv } : {}),
     });
 
   let health = await checkHealth();
@@ -184,13 +185,13 @@ export async function runUpdateCommandWithFallback(
   envContext: AgentEnvContext,
   options?: { verifyBuiltInSuccess?: () => Promise<boolean> },
 ): Promise<UpdateAgentBinaryResult> {
-  let command = resolveUpdateCommand(adapter, status, envContext);
-  if (!command) return buildUnsupportedResult();
   const installPath = await resolveUpdateInstallPath(status.executablePath, envContext);
+  let command = resolveUpdateCommand(adapter, status, envContext, { installPath });
+  if (!command) return buildUnsupportedResult();
 
   let fallback =
     command.strategy === "built-in"
-      ? resolveUpdateCommand(adapter, status, envContext, { skipBuiltIn: true })
+      ? resolveUpdateCommand(adapter, status, envContext, { skipBuiltIn: true, installPath })
       : undefined;
   if (
     envContext.envKind === "windows" &&
