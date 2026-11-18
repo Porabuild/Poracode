@@ -13,19 +13,21 @@ import { agentEnvForStatus, agentEnvKey } from "@/shared/machines";
  */
 interface CursorSdkPackageOperationStore {
   pendingEnvKeys: ReadonlySet<string>;
-  begin: (envKey: string) => void;
+  begin: (envKey: string) => boolean;
   end: (envKey: string) => void;
 }
 
-export const useCursorSdkPackageOperations = create<CursorSdkPackageOperationStore>((set) => ({
+export const useCursorSdkPackageOperations = create<CursorSdkPackageOperationStore>((set, get) => ({
   pendingEnvKeys: new Set<string>(),
-  begin: (envKey) =>
+  begin: (envKey) => {
+    if (get().pendingEnvKeys.has(envKey)) return false;
     set((state) => {
-      if (state.pendingEnvKeys.has(envKey)) return state;
       const pendingEnvKeys = new Set(state.pendingEnvKeys);
       pendingEnvKeys.add(envKey);
       return { pendingEnvKeys };
-    }),
+    });
+    return true;
+  },
   end: (envKey) =>
     set((state) => {
       if (!state.pendingEnvKeys.has(envKey)) return state;
@@ -36,6 +38,16 @@ export const useCursorSdkPackageOperations = create<CursorSdkPackageOperationSto
 }));
 
 /** Environment bucket for the shared operation state; statuses without an env land in "native". */
-export function cursorSdkPackageEnvKey(status: AgentStatus | undefined): string {
-  return status ? agentEnvKey(agentEnvForStatus(status)) : agentEnvKey({ kind: "native" });
+export function cursorSdkPackageEnvKey(status: AgentStatus | undefined, hostKey?: string): string {
+  const env = agentEnvKey(status ? agentEnvForStatus(status) : { kind: "native" });
+  return hostKey && hostKey !== "local" ? `${hostKey}\0${env}` : env;
+}
+
+export function reserveCursorSdkPackage(
+  status: AgentStatus | undefined,
+  hostKey?: string,
+): (() => void) | undefined {
+  const envKey = cursorSdkPackageEnvKey(status, hostKey);
+  const operations = useCursorSdkPackageOperations.getState();
+  return operations.begin(envKey) ? () => operations.end(envKey) : undefined;
 }

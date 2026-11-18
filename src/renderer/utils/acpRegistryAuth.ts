@@ -162,6 +162,7 @@ export function findProjectForMachine(
   projects: readonly Project[],
   isLocalWindows: boolean,
   machineStatuses: readonly AgentStatus[] = [],
+  options: { allowHomeWithoutProject?: boolean } = {},
 ): Project | undefined {
   if (machine.ref.host === "remote") {
     const desktopId = machine.ref.desktopId;
@@ -232,7 +233,7 @@ export function findProjectForMachine(
   if (isLocalWindows) {
     const existing = localProjects.find((project) => project.location.kind === "windows");
     if (existing) return existing;
-    if (projects.length > 0) {
+    if (projects.length > 0 || options.allowHomeWithoutProject) {
       return {
         id: "__machine__:windows",
         name: "Windows",
@@ -246,7 +247,7 @@ export function findProjectForMachine(
 
   const existingPosix = localProjects.find((project) => project.location.kind === "posix");
   if (existingPosix) return existingPosix;
-  if (projects.length > 0) {
+  if (projects.length > 0 || options.allowHomeWithoutProject) {
     return {
       id: "__machine__:posix",
       name: machine.label,

@@ -1423,6 +1423,7 @@ msgstr "账户"
 msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
 msgstr "账户属于此插件和服务。账户标签由你自行设置；服务可能不会提供已验证的身份。提供商登录与此相互独立。"
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -1602,6 +1603,7 @@ msgid "Add a project before signing in."
 msgstr "登录前添加项目。"
 
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 msgid "Add a project before updating an agent."
 msgstr "请先添加项目，再更新智能体。"
 
@@ -6373,6 +6375,7 @@ msgstr "Cursor 配置文件名称"
 msgid "Cursor profile renamed."
 msgstr "已重命名 Cursor 配置文件。"
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Cursor SDK"
@@ -23437,6 +23440,7 @@ msgstr "无法更新{0}。"
 msgid "Unable to update {agentLabel}."
 msgstr "无法更新{agentLabel}。"
 
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Unable to update {updateLabel}."
 msgstr "无法更新{updateLabel}。"

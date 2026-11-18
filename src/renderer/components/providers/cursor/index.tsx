@@ -15,9 +15,15 @@ import {
   cursorRuntimeInstallState,
   cursorSdkUpdateCommand,
 } from "./runtimeInstall";
+import { reserveCursorSdkPackage } from "./sdkPackageOperation";
 import { fullAccessToggle, planWorkToggle } from "../composerControlBuilders";
 import { registerProviderIcon } from "../ProviderIcon";
-import { registerComposerControls, registerComposerRuntimeUpdate } from "../providerComposer";
+import {
+  registerCombinedRuntimeUpdates,
+  registerComposerControls,
+  registerComposerRuntimeUpdate,
+  type CombinedRuntimeUpdate,
+} from "../providerComposer";
 import { registerGuiSlashCommands } from "../providerSlashCommands";
 import {
   buildStandardGuiSlashCommands,
@@ -28,6 +34,11 @@ import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
 
 const PROVIDER_KIND = providerManifest.kind;
+const sdkPackageQuery = {
+  name: CURSOR_SDK_PACKAGE_NAME,
+  minVersion: CURSOR_SDK_MIN_SUPPORTED_VERSION,
+  maxExclusiveMajor: CURSOR_SDK_MAX_EXCLUSIVE_MAJOR,
+};
 
 registerProviderIcon(PROVIDER_KIND, CursorIcon);
 // The SDK runtime reports only feature-detected session commands (`/summarize`
@@ -53,15 +64,50 @@ registerComposerRuntimeUpdate(PROVIDER_KIND, ({ agentStatus, project }) => {
       ? {
           commandForVersion: (version: string) =>
             cursorSdkUpdateCommand(agentStatus, project, version),
-          npmPackage: {
-            name: CURSOR_SDK_PACKAGE_NAME,
-            minVersion: CURSOR_SDK_MIN_SUPPORTED_VERSION,
-            maxExclusiveMajor: CURSOR_SDK_MAX_EXCLUSIVE_MAJOR,
-          },
+          npmPackage: sdkPackageQuery,
+          reservePackage: (hostKey) => reserveCursorSdkPackage(agentStatus, hostKey),
         }
       : {}),
   };
 });
+registerCombinedRuntimeUpdates(
+  PROVIDER_KIND,
+  ({ agentStatus }) => {
+    const runtime = cursorRuntimeInstallState(agentStatus);
+    const acpVersion =
+      runtime.acpVersion ?? (agentStatus.runtimeVariants ? undefined : agentStatus.version);
+    const updates: CombinedRuntimeUpdate[] = [
+      {
+        id: "sdk",
+        label: msg`Cursor SDK`,
+        installed: runtime.sdkInstalled,
+        ...(runtime.sdkVersion ? { installedVersion: runtime.sdkVersion } : {}),
+        channel: {
+          kind: "npm-package",
+          query: sdkPackageQuery,
+          ...(canUpdateCursorSdk(agentStatus)
+            ? {
+                commandForVersion: (project, version) =>
+                  cursorSdkUpdateCommand(agentStatus, project, version),
+                reservePackage: (hostKey) => reserveCursorSdkPackage(agentStatus, hostKey),
+              }
+            : {}),
+        },
+      },
+    ];
+    if (agentStatus.kind === PROVIDER_KIND && runtime.acpInstalled) {
+      updates.unshift({
+        id: "acp",
+        label: msg`ACP`,
+        installed: true,
+        ...(acpVersion ? { installedVersion: acpVersion } : {}),
+        channel: { kind: "agent-binary" },
+      });
+    }
+    return updates;
+  },
+  "provider-list",
+);
 // `composer-2.5-fast` is Cursor's own default — the cheaper "fast" request tier,
 // as quick as plain composer-2.5 at equivalent quality on these utility tasks.
 // Cursor's other models are pricier GPT/Claude pass-throughs, so stay on Composer.

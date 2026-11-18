@@ -7,6 +7,7 @@ import { readBridge } from "@/renderer/bridge";
 import { Input, PixelLoader } from "@/renderer/components/common";
 import {
   cursorSdkPackageEnvKey,
+  reserveCursorSdkPackage,
   useCursorSdkPackageOperations,
 } from "@/renderer/components/providers/cursor/sdkPackageOperation";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -98,13 +99,14 @@ function SdkPackageRow(props: {
   const { t } = useLingui();
   const projects = useAppStore((state) => state.projects);
   const { status } = props;
-  const envKey = cursorSdkPackageEnvKey(status);
+  const project = findProjectForStatus(status, projects);
+  const hostKey = project?.remoteServerId ?? project?.location.remoteServerId;
+  const envKey = cursorSdkPackageEnvKey(status, hostKey);
   const pending = useCursorSdkPackageOperations((state) => state.pendingEnvKeys.has(envKey));
   const [latestSupportedVersion, setLatestSupportedVersion] = useState<string | undefined>(
     undefined,
   );
   const installState = cursorRuntimeInstallState(status);
-  const project = findProjectForStatus(status, projects);
 
   // The install source only says the package *can* be updated in place. Probe
   // npm for the newest release inside the supported range so the button appears
@@ -156,7 +158,8 @@ function SdkPackageRow(props: {
       toast.danger(t`Unable to update Cursor SDK.`);
       return;
     }
-    useCursorSdkPackageOperations.getState().begin(envKey);
+    const releasePackage = reserveCursorSdkPackage(status, hostKey);
+    if (!releasePackage) return;
     const opened = runAgentInstallCommand({
       label: purpose === "update" ? t`Update Cursor SDK` : t`Install Cursor SDK`,
       command:
@@ -167,7 +170,7 @@ function SdkPackageRow(props: {
       ...(project ? { project } : {}),
       onCommandComplete: (exitCode) => {
         if (exitCode !== 0) {
-          useCursorSdkPackageOperations.getState().end(envKey);
+          releasePackage();
           return;
         }
         const previousVersion = installState.sdkVersion;
@@ -190,10 +193,10 @@ function SdkPackageRow(props: {
             }
           })
           .catch((error) => toast.danger(friendlyError(error)))
-          .finally(() => useCursorSdkPackageOperations.getState().end(envKey));
+          .finally(releasePackage);
       },
     });
-    if (!opened) useCursorSdkPackageOperations.getState().end(envKey);
+    if (!opened) releasePackage();
   };
 
   return (

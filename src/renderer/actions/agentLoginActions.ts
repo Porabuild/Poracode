@@ -252,12 +252,16 @@ export function runAgentInstallCommand(input: {
       fireOnce(exitCode);
       if (exitCode === 0) {
         // Let the user read the final success line before the overlay slides away.
-        window.setTimeout(() => useLoginTerminalStore.getState().close(), 1200);
+        window.setTimeout(() => {
+          if (useLoginTerminalStore.getState().active?.shellId === shellId)
+            useLoginTerminalStore.getState().close();
+        }, 1200);
       } else {
         useLoginTerminalStore.getState().markFailed(shellId, exitCode);
       }
     },
     project.remoteServerId,
+    { reportMissingCompletion: true },
   );
 
   useLoginTerminalStore.getState().open({
@@ -281,6 +285,7 @@ export function runAgentInstallCommand(input: {
   }).catch((error) => {
     stopWatching();
     fireOnce(-1);
+    if (useLoginTerminalStore.getState().active?.shellId !== shellId) return;
     toast.danger(
       error instanceof Error ? error.message : i18n._(msg`Unable to install ${input.label}.`),
     );
@@ -482,23 +487,26 @@ function watchCommandCompletion(
   token: string,
   onCommandComplete: (exitCode: number) => void,
   remoteServerId?: string,
+  options: { reportMissingCompletion?: boolean } = {},
 ): () => void {
   const parser = new CommandCompletionParser(completionMarker(token));
   let done = false;
   let unsubscribe: () => void = () => undefined;
-  const timeout = window.setTimeout(() => {
+  const finish = (exitCode?: number) => {
     if (done) return;
     done = true;
+    window.clearTimeout(timeout);
     unsubscribe();
-  }, 10 * 60_000);
+    if (exitCode !== undefined || options.reportMissingCompletion) {
+      onCommandComplete(exitCode ?? -1);
+    }
+  };
+  const timeout = window.setTimeout(() => finish(), 10 * 60_000);
   const consume = (output: string, replace = false) => {
     if (done) return;
     const exitCode = replace ? parser.replace(output) : parser.push(output);
     if (exitCode === null) return;
-    done = true;
-    window.clearTimeout(timeout);
-    unsubscribe();
-    onCommandComplete(exitCode);
+    finish(exitCode);
   };
   unsubscribe = watchRoutedTerminal(
     shellId,
@@ -506,12 +514,7 @@ function watchCommandCompletion(
       onOutput: (output) => consume(output),
       onSnapshot: (snapshot) => consume(snapshot.data, true),
       onReset: () => parser.reset(),
-      onExited: () => {
-        if (done) return;
-        done = true;
-        window.clearTimeout(timeout);
-        unsubscribe();
-      },
+      onExited: () => finish(),
     },
     remoteServerId,
   );
