@@ -41,6 +41,7 @@ import { parsePrReviewThreads, PR_REVIEW_THREADS_QUERY } from "./githubReviewThr
 import { withPrMetadata } from "./githubPrMetadata";
 import { GitHubPrMetadataCommands } from "./githubPrMetadataCommands";
 import { getGitHubViewedFiles, setGitHubFileViewed } from "./githubViewedFiles";
+import { loadProjectDirenv } from "./githubProjectEnvironment";
 import { msg as sharedMsg } from "@/shared/messages";
 import { parseGitRemoteFetchLine } from "@/shared/forgeRemote";
 
@@ -279,9 +280,12 @@ export function classifyError(error: unknown, operation: string): Error {
   return new Error(`gh ${operation} failed: ${msg}`, { cause: error });
 }
 
+type GhScope = "project" | "runtime";
+
 interface RunGhOptions {
   /** Extra env (e.g. `GH_TOKEN`) merged into the gh invocation. */
   env?: Record<string, string>;
+  scope?: GhScope;
   maxBufferBytes?: number;
   timeoutMs?: number;
 }
@@ -296,14 +300,13 @@ function isMachineReadableGhCommand(args: readonly string[]): boolean {
 }
 
 /**
- * `gh` gives GH_REPO precedence over the repository at cwd. Project-scoped
- * operations must never inherit that process-wide override, or a command can
- * be sent to an unrelated repository.
+ * `gh` gives GH_REPO precedence over the repository at cwd. Strip overrides
+ * inherited from either the host process or its login shell.
  */
-function projectGhEnvironment(overrides?: Record<string, string>): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { ...process.env };
+function projectGhEnvironment(shellEnv?: Record<string, string>): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, ...shellEnv };
   delete env.GH_REPO;
-  return { ...env, ...overrides };
+  return env;
 }
 
 function accountGhEnvironment(
@@ -408,22 +411,31 @@ async function runGh(
   // commands must run directly so login-shell startup output cannot corrupt JSON,
   // but they still need the PATH captured from that shell first.
   const scopedPosix = location.kind === "posix" && options?.env !== undefined;
-  if ((machineReadable || scopedPosix) && location.kind === "posix") {
+  const projectPosix = location.kind === "posix" && options?.scope !== "runtime";
+  if (location.kind === "posix" && (machineReadable || scopedPosix || projectPosix)) {
     await primeProjectShellEnv(location.path);
   }
-  const spec = buildAgentCommand(location, "gh", args, undefined, options?.env);
-  const cwd = spec.cwd ?? location.path;
-  const { stdout } = await execFileAsync(
-    machineReadable || scopedPosix ? "gh" : spec.command,
-    machineReadable || scopedPosix ? args : spec.args,
-    {
-      windowsHide: true,
-      timeout: timeoutMs,
-      ...(cwd ? { cwd } : {}),
-      ...(options?.maxBufferBytes ? { maxBuffer: options.maxBufferBytes } : {}),
-      env: projectGhEnvironment({ ...spec.env, ...options?.env }),
-    },
+  const spec = buildAgentCommand(
+    location,
+    "gh",
+    args,
+    undefined,
+    projectPosix ? undefined : options?.env,
   );
+  const cwd = spec.cwd ?? location.path;
+  const baseEnv = projectGhEnvironment(spec.env);
+  const projectEnv = projectPosix ? await loadProjectDirenv(cwd, baseEnv) : undefined;
+  const env = projectEnv ?? baseEnv;
+  // Only a repository selected by Poracode may override the Git repository at cwd.
+  if (projectEnv) delete projectEnv.GH_REPO;
+  const direct = machineReadable || scopedPosix || projectEnv !== undefined;
+  const { stdout } = await execFileAsync(direct ? "gh" : spec.command, direct ? args : spec.args, {
+    windowsHide: true,
+    timeout: timeoutMs,
+    ...(cwd ? { cwd } : {}),
+    ...(options?.maxBufferBytes ? { maxBuffer: options.maxBufferBytes } : {}),
+    env: { ...env, ...options?.env },
+  });
   return stdout;
 }
 
@@ -834,9 +846,16 @@ export class GitHubService {
    * "sign in / paste a URL" state. gh exits non-zero when any account's token
    * is invalid yet still prints the others to stdout, so we parse that too.
    */
-  async listAccounts(location: ProjectLocation): Promise<GhListAccountsResult> {
+  listAccounts(location: ProjectLocation): Promise<GhListAccountsResult> {
+    return this.readAccounts(location, "runtime");
+  }
+
+  private async readAccounts(
+    location: ProjectLocation,
+    scope: GhScope,
+  ): Promise<GhListAccountsResult> {
     try {
-      const stdout = await this.runGh(location, ["auth", "status"]);
+      const stdout = await this.runGh(location, ["auth", "status"], { scope });
       return { accounts: parseGhAuthAccounts(stdout) };
     } catch (err) {
       return { accounts: parseGhAuthAccounts(extractStdout(err)) };
@@ -852,17 +871,15 @@ export class GitHubService {
   private async getAccountToken(
     location: ProjectLocation,
     account: GitHubAccountRef,
+    scope: GhScope = "project",
   ): Promise<string> {
     let token = "";
     try {
-      const stdout = await this.runGh(location, [
-        "auth",
-        "token",
-        "--hostname",
-        account.host,
-        "--user",
-        account.login,
-      ]);
+      const stdout = await this.runGh(
+        location,
+        ["auth", "token", "--hostname", account.host, "--user", account.login],
+        { scope },
+      );
       token = stdout.trim();
     } catch {
       token = "";
@@ -935,7 +952,7 @@ export class GitHubService {
     location: ProjectLocation,
   ): Promise<{ env?: Record<string, string>; account?: GitHubAccountRef }> {
     const key = locationKey(location);
-    const { accounts } = await this.listAccounts(location);
+    const { accounts } = await this.readAccounts(location, "project");
     if (accounts.length < 2) {
       this.actionsAccountCache.set(key, null);
       return {};
@@ -1007,7 +1024,7 @@ export class GitHubService {
     location: ProjectLocation,
     account: GitHubAccountRef,
   ): Promise<GhListReposResult> {
-    const token = await this.getAccountToken(location, account);
+    const token = await this.getAccountToken(location, account, "runtime");
     const env = { GH_TOKEN: token };
     try {
       const repos: GitHubRepoSummary[] = [];
@@ -1016,7 +1033,7 @@ export class GitHubService {
         const path =
           `user/repos?per_page=${GH_REPO_PAGE_SIZE}` +
           `&affiliation=owner,collaborator,organization_member&sort=pushed&page=${page}`;
-        const stdout = await this.runGh(location, ["api", path], { env });
+        const stdout = await this.runGh(location, ["api", path], { env, scope: "runtime" });
         const items = JSON.parse(stdout);
         if (!Array.isArray(items) || items.length === 0) break;
         for (const item of items) {
@@ -1041,11 +1058,12 @@ export class GitHubService {
     nameWithOwner: string,
     account: GitHubAccountRef,
   ): Promise<CloneRepoResult> {
-    const token = await this.getAccountToken(parent, account);
+    const token = await this.getAccountToken(parent, account, "runtime");
     try {
       await this.runGh(parent, ["repo", "clone", nameWithOwner, name], {
         timeoutMs: GH_CLONE_TIMEOUT,
         env: { GH_TOKEN: token },
+        scope: "runtime",
       });
       return { path: resolveClonedProjectPath(parent, name) };
     } catch (err) {

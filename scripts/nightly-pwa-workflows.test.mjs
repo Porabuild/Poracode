@@ -113,6 +113,7 @@ void test("native qualification preserves every existing contract, build, and fo
     "android_api37_runtime",
     "changes",
     "ios",
+    "ios_swift_contracts",
     "ios_ui",
     "native_e2e_foundation",
     "remote_v3_contract",
@@ -128,6 +129,7 @@ void test("native qualification preserves every existing contract, build, and fo
       android_api34_runtime: android && full,
       android_api37_runtime: android && full,
       ios,
+      ios_swift_contracts: ios,
       ios_ui: ios && full,
       native_e2e_foundation: shared,
       server_install_qualification: shared && full,
@@ -168,11 +170,20 @@ void test("native qualification preserves every existing contract, build, and fo
   );
   assert.equal(evaluate({ android: undefined, ios: false, shared: false, full: false }), 1);
   assert.equal(evaluate({ android: false, ios: false, shared: false, full: undefined }), 1);
+  const iosScope = { android: false, ios: true, shared: false, full: false };
+  for (const result of ["failure", "cancelled", "skipped"]) {
+    assert.equal(evaluate(iosScope, { ios_swift_contracts: result }), 1);
+    assert.equal(evaluate(iosScope, { ios: result }), 1);
+  }
 });
 
 void test("each portable Swift contract suite is required, isolated, and fails closed", async () => {
   const { jobs } = await load("native-ci");
-  const step = jobs.ios.steps.find((item) => item.name === "Run portable Swift contract suites");
+  const contracts = jobs.ios_swift_contracts;
+  assert.equal(contracts.needs, "changes");
+  assert.equal(jobs.ios.needs, "changes");
+  assert.equal(contracts.if, jobs.ios.if);
+  const step = contracts.steps.find((item) => item.name === "Run portable Swift contract suites");
   assert.ok(step);
   assert.equal(step.shell, "bash");
   assert.equal(step["continue-on-error"], undefined);
@@ -194,7 +205,7 @@ void test("each portable Swift contract suite is required, isolated, and fails c
       });
       assert.equal(result.status, failing === "not-a-suite" ? 0 : 1, result.stderr);
     }
-    const evidence = jobs.ios.steps.find((item) => item.name === "Upload iOS test evidence");
+    const evidence = contracts.steps.find((item) => item.name === "Upload Swift contract evidence");
     assert.ok(evidence.with.path.includes("poracode-swift-contracts/*.log"));
   } finally {
     await rm(temporary, { recursive: true, force: true });
