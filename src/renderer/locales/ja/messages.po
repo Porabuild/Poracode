@@ -1422,6 +1422,7 @@ msgstr "アカウント"
 msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
 msgstr "アカウントはこのプラグインとサービスに属します。名前は自分で設定するものであり、サービスから確認済みの本人情報が提供されない場合があります。プロバイダーへのログインとは別です。"
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -1601,6 +1602,7 @@ msgid "Add a project before signing in."
 msgstr "サインインする前にプロジェクトを追加してください。"
 
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 msgid "Add a project before updating an agent."
 msgstr "エージェントを更新する前にプロジェクトを追加してください。"
 
@@ -6372,6 +6374,7 @@ msgstr "Cursorプロファイル名"
 msgid "Cursor profile renamed."
 msgstr "Cursorプロファイルの名前を変更しました。"
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Cursor SDK"
@@ -23435,6 +23438,7 @@ msgstr "{0}を更新できません。"
 msgid "Unable to update {agentLabel}."
 msgstr "{agentLabel}を更新できません。"
 
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Unable to update {updateLabel}."
 msgstr "{updateLabel}を更新できません。"

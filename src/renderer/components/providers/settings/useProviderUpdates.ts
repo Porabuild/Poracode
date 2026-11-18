@@ -9,6 +9,7 @@ import {
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import { machineKey } from "@/shared/machines";
 import { localizeCatalogMessage } from "@/shared/messages";
+import { isWindows } from "@/renderer/bridge";
 import {
   loadAcpRegistryListing,
   useCombinedProviderRuntimeUpdates,
@@ -16,10 +17,12 @@ import {
 } from "@/renderer/components/providers/useCombinedProviderRuntimeUpdates";
 import { getCombinedRuntimeUpdates } from "@/renderer/components/providers/providerComposer";
 import { useHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
+import { useAppStore } from "@/renderer/state/appStore";
 import { machineIdForStatus, type MachineDescriptor } from "@/renderer/state/machines";
 import {
   currentWslDistros,
   envLabelForStatus,
+  findProjectForMachine,
   scopeEnvForStatus,
   statusUpdateScope,
 } from "@/renderer/utils/acpRegistryAuth";
@@ -89,7 +92,7 @@ function splitKinds(kindsKey: string): string[] {
 }
 
 function hasCombinedRuntimes(kind: string): boolean {
-  return getCombinedRuntimeUpdates(kind) !== undefined;
+  return getCombinedRuntimeUpdates(kind, "provider-list") !== undefined;
 }
 
 /**
@@ -111,7 +114,21 @@ export function useProviderUpdates(
   const pools = useHostAgentStatusPools(host.connectionKey);
   const machineEnvId = machineKey({ host: "local", env: machine.ref.env });
   const registryInstalled = useHostRegistryInstalledAgents(host);
-  const combinedUpdates = useCombinedProviderRuntimeUpdates(agents, {}, host);
+  const combinedUpdates = useCombinedProviderRuntimeUpdates(agents, {}, host, {
+    resolveProject: (status) =>
+      findProjectForMachine(
+        host.connectionKey
+          ? {
+              ...machine,
+              ref: { host: "remote", desktopId: host.connectionKey, env: machine.ref.env },
+            }
+          : machine,
+        useAppStore.getState().projects,
+        status.envKind === "windows" || (status.envKind === undefined && isWindows()),
+        [status],
+        { allowHomeWithoutProject: true },
+      ),
+  });
   const [latestByKind, setLatestByKind] = useState<Readonly<Record<string, string>>>({});
   const [registryLatestById, setRegistryLatestById] = useState<Readonly<Record<string, string>>>(
     {},
@@ -231,7 +248,7 @@ export function useProviderUpdates(
     if (statuses.length === 0) return EMPTY_ENTRY;
     const pendingUpdate = queue.pendingUpdates.get(hostScopedKey(host.key, kind));
     const pendingTargetVersion = pendingUpdate?.targetVersion;
-    if (hasCombinedRuntimes(kind) && !isAgentProfileKind(kind)) {
+    if (hasCombinedRuntimes(kind)) {
       return {
         installedVersion: newestVersionOf(statuses),
         environments: [],
@@ -347,7 +364,7 @@ export function useProviderUpdates(
   function updateKind(kind: string): void {
     const agent = agents.find((candidate) => candidate.kind === kind);
     const entry = entryFor(kind);
-    if (!agent || !hasUpdate(entry) || isAgentProfileKind(kind)) return;
+    if (!agent || !hasUpdate(entry)) return;
     queue.updateKind({ agent, targetVersion: entry.targetVersion, hostKey: host.key });
   }
 

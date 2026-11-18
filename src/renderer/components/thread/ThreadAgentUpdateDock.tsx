@@ -203,6 +203,10 @@ export function ThreadAgentUpdateDock(props: {
 
   async function handleUpdate() {
     if (!resolvedLatest || pendingUpdateKey !== undefined) return;
+    const releasePackage = runtimeUpdate?.reservePackage?.(
+      project.remoteServerId ?? project.location.remoteServerId,
+    );
+    if (runtimeUpdate?.reservePackage && !releasePackage) return;
     setPendingUpdateKey(updateTargetKey);
     onUpdatingChange?.(true);
     try {
@@ -271,6 +275,7 @@ export function ThreadAgentUpdateDock(props: {
         error instanceof Error ? error.message : t`Unable to update ${agentStatus.label}.`,
       );
     } finally {
+      releasePackage?.();
       setPendingUpdateKey(undefined);
       onUpdatingChange?.(false);
     }

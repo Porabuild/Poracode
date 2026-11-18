@@ -1423,6 +1423,7 @@ msgstr "Облікові записи"
 msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
 msgstr "Облікові записи належать цьому плагіну та сервісу. Назви задаєте ви; сервіс може не повідомляти підтверджену особу. Вхід до облікових записів провайдерів виконується окремо."
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -1602,6 +1603,7 @@ msgid "Add a project before signing in."
 msgstr "Додайте проєкт перед входом."
 
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 msgid "Add a project before updating an agent."
 msgstr "Додайте проєкт перед оновленням агента."
 
@@ -6373,6 +6375,7 @@ msgstr "Ім'я профілю Cursor"
 msgid "Cursor profile renamed."
 msgstr "Профіль Cursor перейменовано."
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Cursor SDK"
@@ -23437,6 +23440,7 @@ msgstr "Не вдалося оновити {0}."
 msgid "Unable to update {agentLabel}."
 msgstr "Не вдалося оновити {agentLabel}."
 
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Unable to update {updateLabel}."
 msgstr "Не вдалося оновити {updateLabel}."

@@ -1423,6 +1423,7 @@ msgstr "Konten"
 msgid "Accounts belong to this plugin and service. Account labels are yours; the service may not report a verified identity. Provider logins are separate."
 msgstr "Konten gehören zu diesem Plugin und Dienst. Du vergibst die Kontobezeichnungen selbst; der Dienst meldet möglicherweise keine verifizierte Identität. Anbieteranmeldungen sind davon getrennt."
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "ACP"
@@ -1602,6 +1603,7 @@ msgid "Add a project before signing in."
 msgstr "Fügen Sie ein Projekt hinzu, bevor Sie sich anmelden."
 
 #: src/renderer/actions/agentLoginActions.ts
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 msgid "Add a project before updating an agent."
 msgstr "Füge ein Projekt hinzu, bevor du einen Agenten aktualisierst."
 
@@ -6373,6 +6375,7 @@ msgstr "Name des Cursor-Profils"
 msgid "Cursor profile renamed."
 msgstr "Cursor-Profil umbenannt."
 
+#: src/renderer/components/providers/cursor/index.tsx
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "Cursor SDK"
@@ -23437,6 +23440,7 @@ msgstr "{0} kann nicht aktualisiert werden."
 msgid "Unable to update {agentLabel}."
 msgstr "{agentLabel} kann nicht aktualisiert werden."
 
+#: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Unable to update {updateLabel}."
 msgstr "{updateLabel} kann nicht aktualisiert werden."

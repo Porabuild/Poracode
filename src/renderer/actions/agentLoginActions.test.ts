@@ -276,6 +276,35 @@ describe("runAgentLoginCommand", () => {
     expect(loginTerminalStore.close).not.toHaveBeenCalled();
   });
 
+  it("keeps a second update open when the previous installer's close timer fires", () => {
+    runAgentInstallCommand({
+      label: "First agent",
+      command: "first-agent update",
+      project: posixProject,
+      purpose: "update",
+    });
+    const shellId = loginTerminalStore.active!.shellId;
+    const token = /poracode-login-complete=([^:]+):/u.exec(
+      writeScriptToShellMock.mock.calls[0]?.[1] ?? "",
+    )?.[1];
+    expect(token).toBeDefined();
+    emit({
+      type: "thread-output",
+      threadId: shellId,
+      data: `\u001B]777;poracode-login-complete=${token}:0\u0007`,
+      outputLength: 0,
+      terminalInstanceId: "gen-test",
+    });
+    runAgentInstallCommand({
+      label: "Second agent",
+      command: "second-agent update",
+      project: posixProject,
+      purpose: "update",
+    });
+    vi.advanceTimersByTime(1200);
+    expect(loginTerminalStore.close).not.toHaveBeenCalled();
+  });
+
   it("opens hard-wrapped WSL auth URLs in the native browser", () => {
     runAgentLoginCommand({
       label: "Grok",
@@ -681,6 +710,32 @@ describe("runAgentLoginCommand", () => {
       "windowsShellRuntime",
     );
   });
+
+  it.each(["exit", "timeout"] as const)(
+    "reports an installer %s without a completion marker as a failure",
+    (ending) => {
+      const onCommandComplete = vi.fn<(exitCode: number) => void>();
+      runAgentInstallCommand({
+        label: "SDK",
+        command: "sdk update",
+        project: posixProject,
+        purpose: "update",
+        onCommandComplete,
+      });
+      const shellId = loginTerminalStore.active!.shellId;
+
+      if (ending === "exit") {
+        emit({ type: "thread-exited", threadId: shellId, exitCode: 0 });
+      } else {
+        vi.advanceTimersByTime(10 * 60_000);
+      }
+
+      expect(onCommandComplete).toHaveBeenCalledExactlyOnceWith(-1);
+      expect(loginTerminalStore.markFailed).toHaveBeenCalledExactlyOnceWith(shellId, -1);
+      loginTerminalStore.active?.onForceClose?.();
+      expect(onCommandComplete).toHaveBeenCalledOnce();
+    },
+  );
 
   describe("completion marker recovery across snapshots", () => {
     function startRemoteLogin(): { shellId: string; token: string } {

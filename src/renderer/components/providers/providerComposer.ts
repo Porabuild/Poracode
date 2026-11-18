@@ -1,6 +1,7 @@
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import type { ComposerSelectionOrigin } from "@/renderer/components/thread/composerSelectionMutation";
 import type { MessageDescriptor } from "@lingui/core";
+import { isAgentProfileKind } from "@/shared/contracts";
 import type {
   AgentCapability,
   AgentStatus,
@@ -93,6 +94,8 @@ export interface ComposerRuntimeUpdate {
    * would leave an already-satisfying install unchanged.
    */
   commandForVersion?: (version: string) => string | undefined;
+  /** Reserve a shared installation until its command and status refresh finish. */
+  reservePackage?: (hostKey: string | undefined) => (() => void) | undefined;
 }
 
 type ComposerRuntimeUpdateResolver = (input: {
@@ -115,7 +118,14 @@ export function getComposerRuntimeUpdate(kind: string): ComposerRuntimeUpdateRes
 
 export type CombinedRuntimeUpdateChannel =
   | { kind: "agent-binary" }
-  | { kind: "acp-registry"; agentId: string };
+  | { kind: "acp-registry"; agentId: string }
+  | {
+      kind: "npm-package";
+      query: NpmPackageVersionQuery;
+      /** Omitted for installations managed outside the app's global update flow. */
+      commandForVersion?: (project: Project, version: string) => string | undefined;
+      reservePackage?: ComposerRuntimeUpdate["reservePackage"];
+    };
 
 export interface CombinedRuntimeUpdate {
   id: string;
@@ -130,6 +140,7 @@ type CombinedRuntimeUpdatesResolver = (input: {
 }) => readonly CombinedRuntimeUpdate[];
 
 const combinedRuntimeUpdatesRegistry = new Map<string, CombinedRuntimeUpdatesResolver>();
+const providerListRuntimeUpdatesRegistry = new Map<string, CombinedRuntimeUpdatesResolver>();
 
 /**
  * Registers independently versioned runtimes that one provider exposes as a
@@ -139,12 +150,25 @@ const combinedRuntimeUpdatesRegistry = new Map<string, CombinedRuntimeUpdatesRes
 export function registerCombinedRuntimeUpdates(
   kind: string,
   resolver: CombinedRuntimeUpdatesResolver,
+  /** The provider list can show all installed runtimes, regardless of the active chat runtime. */
+  surface?: "provider-list",
 ) {
-  combinedRuntimeUpdatesRegistry.set(kind, resolver);
+  const registry =
+    surface === "provider-list"
+      ? providerListRuntimeUpdatesRegistry
+      : combinedRuntimeUpdatesRegistry;
+  registry.set(kind, resolver);
 }
 
 export function getCombinedRuntimeUpdates(
   kind: string,
+  surface?: "provider-list",
 ): CombinedRuntimeUpdatesResolver | undefined {
+  if (surface === "provider-list") {
+    const resolver = lookupProviderRegistration(providerListRuntimeUpdatesRegistry, kind);
+    if (resolver) return resolver;
+    // Profiles opt in through a provider-list registration for their own runtime.
+    if (isAgentProfileKind(kind)) return undefined;
+  }
   return lookupProviderRegistration(combinedRuntimeUpdatesRegistry, kind);
 }
