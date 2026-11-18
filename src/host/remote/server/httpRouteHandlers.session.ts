@@ -326,7 +326,7 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
 
   "mcp-settings-command": async ({ ctx, req, res }) => {
     const command = remoteMcpSettingsCommandSchema.parse(await readJsonBody(req));
-    writeJson(res, 200, ctx.requireSettingsGateway().commandMcpServers(command));
+    writeJson(res, 200, await ctx.requireSettingsGateway().commandMcpServers(command));
   },
 
   "mcp-settings-operation": async ({ ctx, req, res }) => {
@@ -369,6 +369,27 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
           ...(resolved.projectLocation ? { projectLocation: resolved.projectLocation } : {}),
         });
         writeJson(res, 200, { kind: "oauth-wait", result });
+        return;
+      }
+      case "oauth-complete": {
+        const { server, projectLocation } = gateway.resolveServer(
+          operation.scope,
+          operation.serverId,
+        );
+        const serverUrl = mcpEndpointUrl(server);
+        if (!serverUrl) {
+          throw new RemoteHttpError(
+            "mcp_oauth_transport_unsupported",
+            "This MCP server does not support OAuth.",
+            400,
+          );
+        }
+        const result = await ctx.options.callSupervisor("waitMcpServerOauth", {
+          flowId: operation.flowId,
+          callback: { url: operation.callbackUrl, serverUrl },
+          ...(projectLocation ? { projectLocation } : {}),
+        });
+        writeJson(res, 200, { kind: "oauth-complete", result });
         return;
       }
       case "oauth-clear": {

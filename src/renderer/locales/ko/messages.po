@@ -1881,6 +1881,10 @@ msgstr "고급 설정"
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 또는 터널). 자동으로 설정하려면 비워 두세요."
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "After authorizing, copy the full URL from the browser address bar and paste it here, even if the page fails to load."
+msgstr "승인 후 페이지가 로드되지 않더라도 브라우저 주소창의 전체 URL을 복사해 여기에 붙여넣으세요."
+
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "After the turn settles (2 min)"
 msgstr "턴이 끝난 뒤 (2분)"
@@ -3433,6 +3437,10 @@ msgstr "저장 후 데스크톱에서 계산됨"
 msgid "Calendar"
 msgstr "캘린더"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "Callback URL"
+msgstr "콜백 URL"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Camera"
 msgstr "카메라"
@@ -3460,6 +3468,7 @@ msgstr "이 화면에서는 이 모델 설정을 사용할 수 없습니다"
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
@@ -5152,6 +5161,7 @@ msgstr "설정됨"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Configured MCP servers"
 msgstr "구성된 MCP 서버"
 
@@ -5293,6 +5303,7 @@ msgstr "연결 중..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -5318,6 +5329,9 @@ msgstr "연결 오류"
 #~ msgstr "연결 오류입니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/state/pairedHostSettings.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "연결에 실패했습니다."
@@ -5402,6 +5416,7 @@ msgstr "컨텍스트 창"
 msgid "Context windows"
 msgstr "컨텍스트 창"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "계속"
@@ -5748,6 +5763,8 @@ msgid "Could not read the thread context for side chat. Try again."
 msgstr "보조 채팅을 위한 스레드 컨텍스트를 읽을 수 없습니다. 다시 시도하세요."
 
 #. placeholder {0}: account.serverName
+#. placeholder {0}: server.name
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {0}."
 msgstr "{0}에 로그인할 수 없습니다."
@@ -8457,6 +8474,10 @@ msgstr "지수 백오프"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCP 서버 내보내기"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers without secrets"
+msgstr "비밀 정보 없이 MCP 서버 내보내기"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
@@ -11561,6 +11582,7 @@ msgstr "로드 중:"
 #: src/renderer/app.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -12196,6 +12218,7 @@ msgstr "MCP 서버"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "MCP Servers"
@@ -14175,8 +14198,10 @@ msgid "Official sources only"
 msgstr "공식 소스만"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Offline"
 msgstr "오프라인"
 
@@ -14510,6 +14535,7 @@ msgstr "이미지 {0}/{1} 열기"
 msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
@@ -16164,6 +16190,7 @@ msgstr "프로젝트 이름"
 msgid "Project no longer exists."
 msgstr "프로젝트가 더 이상 존재하지 않습니다."
 
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Project not found."
 msgstr "프로젝트를 찾을 수 없습니다."
@@ -17440,6 +17467,10 @@ msgstr "반복"
 msgid "Repeated workflows appear in Settings → Skills for you to edit and approve."
 msgstr "반복된 작업 흐름은 설정 → 스킬에 나타나며, 편집하고 승인할 수 있습니다."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Replace redacted values in the file before importing."
+msgstr "가져오기 전에 파일에서 가려진 값을 바꾸세요."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Report a bug or suggest an idea."
 msgstr "버그를 신고하거나 아이디어를 제안하세요."
@@ -17754,6 +17785,7 @@ msgstr "이 호스트에 보관된 사용량만 포함합니다."
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -18513,6 +18545,10 @@ msgstr "단축키 저장"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Save to {0}"
 msgstr "{0}에 저장"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Save your edits before moving this MCP server."
+msgstr "이 MCP 서버를 이동하기 전에 변경 사항을 저장하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #~ msgid "Saved API key"
@@ -19330,6 +19366,13 @@ msgstr "설정"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "설정을 아직 사용할 수 없어 변경 사항을 저장하지 못했습니다. 다시 시도해 주세요."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Settings unavailable"
+msgstr "설정을 사용할 수 없음"
+
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "설정"
@@ -19774,9 +19817,11 @@ msgstr "페어링된 데스크톱에서 로그인한 다음 이 상태를 새로
 msgid "Sign in required"
 msgstr "로그인이 필요합니다"
 
+#. placeholder {0}: props.name
 #. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "{0}에 로그인"
@@ -21550,6 +21595,7 @@ msgid "The matched message is no longer available."
 msgstr "일치하는 메시지를 더 이상 사용할 수 없습니다."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "MCP 서버 구성이 올바르지 않거나 예약된 이름을 사용합니다."
 
@@ -23873,6 +23919,10 @@ msgstr "대화를 분기하려면 호스트를 업데이트하세요."
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "숨겨진 컨텍스트로 보조 채팅을 사용하려면 원격 호스트를 업데이트하세요."
+
+#: src/renderer/state/crewLibrary.ts
+msgid "Update the remote server first."
+msgstr "먼저 원격 서버를 업데이트하세요."
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Update this host to import its sessions."

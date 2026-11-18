@@ -15,6 +15,7 @@ import type {
 import { readBridge } from "@/renderer/bridge";
 
 export type McpServerProbeState =
+  | { status: "idle" }
   | { status: "disabled" }
   | { status: "checking" }
   | { status: "connected"; toolCount: number; tools: string[] }
@@ -38,6 +39,7 @@ function startProbe(
   requestSequences: RefObject<Map<string, number>>,
   mounted: RefObject<boolean>,
   setStates: Dispatch<SetStateAction<Record<string, McpServerProbeState>>>,
+  remoteProbe?: (server: McpServer) => Promise<McpProbeResult>,
 ): void {
   const sequence = (requestSequences.current.get(server.id) ?? 0) + 1;
   requestSequences.current.set(server.id, sequence);
@@ -49,10 +51,9 @@ function startProbe(
 
   let request: Promise<McpProbeResult>;
   try {
-    request = readBridge().probeMcpServer({
-      server,
-      ...(projectLocation ? { projectLocation } : {}),
-    });
+    request = remoteProbe
+      ? remoteProbe(server)
+      : readBridge().probeMcpServer({ server, ...(projectLocation ? { projectLocation } : {}) });
   } catch {
     if (mounted.current && requestSequences.current.get(server.id) === sequence) {
       setStates((current) => ({
@@ -81,6 +82,7 @@ function startProbe(
 export function useMcpServerProbes(
   servers: McpServer[],
   projectLocation?: ProjectLocation,
+  remoteProbe?: (server: McpServer) => Promise<McpProbeResult>,
 ): {
   states: Record<string, McpServerProbeState>;
   probe: (server: McpServer) => void;
@@ -89,6 +91,7 @@ export function useMcpServerProbes(
   const fingerprints = useRef(new Map<string, string>());
   const requestSequences = useRef(new Map<string, number>());
   const mounted = useRef(true);
+  const autoProbe = remoteProbe === undefined;
 
   useEffect(() => {
     mounted.current = true;
@@ -121,7 +124,15 @@ export function useMcpServerProbes(
       nextFingerprints.set(server.id, fingerprint);
       if (fingerprints.current.get(server.id) === fingerprint) continue;
 
-      startProbe(server, projectLocation, requestSequences, mounted, setStates);
+      if (autoProbe) {
+        startProbe(server, projectLocation, requestSequences, mounted, setStates);
+      } else if (fingerprints.current.has(server.id)) {
+        requestSequences.current.set(server.id, (requestSequences.current.get(server.id) ?? 0) + 1);
+        setStates((current) => ({
+          ...current,
+          [server.id]: { status: server.enabled ? "idle" : "disabled" },
+        }));
+      }
     }
 
     for (const serverId of fingerprints.current.keys()) {
@@ -130,11 +141,11 @@ export function useMcpServerProbes(
       }
     }
     fingerprints.current = nextFingerprints;
-  }, [projectLocation, servers]);
+  }, [autoProbe, projectLocation, servers]);
 
   const probe = (server: McpServer) => {
     if (!server.enabled) return;
-    startProbe(server, projectLocation, requestSequences, mounted, setStates);
+    startProbe(server, projectLocation, requestSequences, mounted, setStates, remoteProbe);
   };
 
   return { states, probe };

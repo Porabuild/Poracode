@@ -1881,6 +1881,10 @@ msgstr "Ajustes avanzados"
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Anuncia una URL base personalizada, por ejemplo un proxy inverso o un túnel. Déjalo vacío para que sea automático."
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "After authorizing, copy the full URL from the browser address bar and paste it here, even if the page fails to load."
+msgstr "Tras autorizar, copia la URL completa de la barra de direcciones y pégala aquí, aunque la página no se cargue."
+
 #: src/renderer/views/SettingsOverlay/parts/MemorySettings.tsx
 msgid "After the turn settles (2 min)"
 msgstr "Cuando el turno se asienta (2 min)"
@@ -3433,6 +3437,10 @@ msgstr "Se calcula en el equipo después de guardar"
 msgid "Calendar"
 msgstr "Calendario"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+msgid "Callback URL"
+msgstr "URL de devolución de llamada"
+
 #: src/renderer/components/devices/DeviceTools.tsx
 msgid "Camera"
 msgstr "Cámara"
@@ -3460,6 +3468,7 @@ msgstr "No se puede usar esta selección de modelo en esta interfaz"
 #: src/renderer/components/common/FeedbackDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/plugins/PluginCatalogDetail.tsx
 #: src/renderer/components/providers/settings/ModelProviderEditor.tsx
 #: src/renderer/components/skills/MemorySkillSuggestions.tsx
@@ -5152,6 +5161,7 @@ msgstr "Configurado"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Configured MCP servers"
 msgstr "Servidores MCP configurados"
 
@@ -5293,6 +5303,7 @@ msgstr "Conectando..."
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/machineScope/MachineSelect.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/HostUsageView.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
@@ -5318,6 +5329,9 @@ msgstr "Error de conexión"
 #~ msgstr "Error de conexión."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
+#: src/renderer/state/pairedHostSettings.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "Error de conexión."
@@ -5402,6 +5416,7 @@ msgstr "Ventana de contexto"
 msgid "Context windows"
 msgstr "Ventanas de contexto"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/parts/QuestionFormActions.tsx
 msgid "Continue"
 msgstr "Continuar"
@@ -5748,6 +5763,8 @@ msgid "Could not read the thread context for side chat. Try again."
 msgstr "No se pudo leer el contexto del hilo para el chat paralelo. Inténtalo de nuevo."
 
 #. placeholder {0}: account.serverName
+#. placeholder {0}: server.name
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/usePluginOauth.ts
 msgid "Could not sign in to {0}."
 msgstr "No se pudo iniciar sesión en {0}."
@@ -8457,6 +8474,10 @@ msgstr "Espera exponencial"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "Exportar servidores MCP"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Export MCP servers without secrets"
+msgstr "Exportar servidores MCP sin secretos"
 
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Export theme"
@@ -11561,6 +11582,7 @@ msgstr "Cargando:"
 #: src/renderer/app.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/devices/DeviceWorkspace.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/providers/settings/ModelProviderManager.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useHistoryItemDetails.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
@@ -12196,6 +12218,7 @@ msgstr "Servidores MCP"
 #: src/renderer/views/ProjectSettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsNavigation.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "MCP Servers"
@@ -14175,8 +14198,10 @@ msgid "Official sources only"
 msgstr "Solo fuentes oficiales"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/views/ProfileOverlay/parts/ProfileHeader.tsx
 #: src/renderer/views/PullRequestsOverlay/list/PrListPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
 msgid "Offline"
 msgstr "Sin conexión"
 
@@ -14510,6 +14535,7 @@ msgstr "Abrir imagen {0} de {1}"
 msgid "Open image preview"
 msgstr "Abrir vista previa de la imagen"
 
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
@@ -16164,6 +16190,7 @@ msgstr "Nombre del proyecto"
 msgid "Project no longer exists."
 msgstr "El proyecto ya no existe."
 
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Project not found."
 msgstr "No se encontró el proyecto."
@@ -17440,6 +17467,10 @@ msgstr "Repetir"
 msgid "Repeated workflows appear in Settings → Skills for you to edit and approve."
 msgstr "Los flujos repetidos aparecen en Ajustes → Skills para que los edites y apruebes."
 
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Replace redacted values in the file before importing."
+msgstr "Reemplaza los valores ocultos en el archivo antes de importarlo."
+
 #: src/renderer/components/common/FeedbackDialog.tsx
 msgid "Report a bug or suggest an idea."
 msgstr "Informa de un error o propone una idea."
@@ -17754,6 +17785,7 @@ msgstr "Solo el uso conservado en este host."
 #: src/renderer/components/common/GithubPollingNotice.tsx
 #: src/renderer/components/composer/ImageLightbox.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/mcp/RemoteMcpServersManager.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
@@ -18513,6 +18545,10 @@ msgstr "Guardar atajo"
 #: src/renderer/components/crew/CrewRosterPanel.tsx
 msgid "Save to {0}"
 msgstr "Guardar en {0}"
+
+#: src/renderer/components/mcp/McpServersManager.tsx
+msgid "Save your edits before moving this MCP server."
+msgstr "Guarda los cambios antes de mover este servidor MCP."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #~ msgid "Saved API key"
@@ -19330,6 +19366,13 @@ msgstr "Ajustes"
 msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 msgstr "La configuración aún no está disponible, por lo que no se pudieron guardar tus cambios. Inténtalo de nuevo."
 
+#: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SearchSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
+msgid "Settings unavailable"
+msgstr "Ajustes no disponibles"
+
 #: src/renderer/actions/worktreeLaunchActions.ts
 msgid "setup"
 msgstr "configuración"
@@ -19774,9 +19817,11 @@ msgstr "Inicia sesión en el escritorio emparejado y luego actualiza este estado
 msgid "Sign in required"
 msgstr "Se requiere iniciar sesión"
 
+#. placeholder {0}: props.name
 #. placeholder {0}: signIn.name
 #. placeholder {0}: status.label
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/mcp/RemoteMcpOauthDialog.tsx
 #: src/renderer/components/providers/devin/profileSettings.tsx
 msgid "Sign in to {0}"
 msgstr "Iniciar sesión en {0}"
@@ -21550,6 +21595,7 @@ msgid "The matched message is no longer available."
 msgstr "El mensaje encontrado ya no está disponible."
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The MCP server configuration is invalid or uses a reserved name."
 msgstr "La configuración del servidor MCP no es válida o usa un nombre reservado."
 
@@ -23873,6 +23919,10 @@ msgstr "Actualiza el anfitrión para bifurcar conversaciones."
 #: src/renderer/components/thread/SideChat/sideChatActions.ts
 msgid "Update the remote host to use side chat with hidden context."
 msgstr "Actualiza el host remoto para usar el chat paralelo con contexto oculto."
+
+#: src/renderer/state/crewLibrary.ts
+msgid "Update the remote server first."
+msgstr "Actualiza primero el servidor remoto."
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Update this host to import its sessions."

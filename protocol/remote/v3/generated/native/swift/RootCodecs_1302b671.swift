@@ -233,7 +233,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EWaitMcpServerOauthU2ERequest: RemoteRootCodec<ProcedurewaitMcpServerOauthRequest_e9df8b4f3d> = .init(id: "procedure.waitMcpServerOauth.request", schema: RemoteSchemas.schema_e9df8b4f3dcc8aae)
+  static let procedureU2EWaitMcpServerOauthU2ERequest: RemoteRootCodec<ProcedurewaitMcpServerOauthRequest_58cefff26a> = .init(id: "procedure.waitMcpServerOauth.request", schema: RemoteSchemas.schema_58cefff26ad3774a)
 }
 
 public extension RemoteRootCodecs {

@@ -20,7 +20,8 @@ import {
 } from "@/renderer/components/providers/conflictResolver";
 import { agentWithCapabilities } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { i18n } from "@/renderer/i18n/i18n";
-import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { readHostAgentStatusPools } from "@/renderer/hooks/useHostAgentStatuses";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 export interface PrAutomationAgent {
@@ -63,23 +64,24 @@ export async function applyDefaultPrAutomation(input: {
   source?: ForgeRepository;
   worktreePath?: string | undefined;
 }): Promise<PrWatch | null> {
-  const settings = useSharedSettings.getState();
-  if (settings.prAutomationDefault === "off") return null;
   if (input.source?.capabilities.autoFix === false) return null;
-
-  const statuses = useAgentStatusesStore.getState();
-  const automation = resolvePrAutomationAgent(
-    input.project,
-    statuses.agentStatuses,
-    statuses.wslAgentStatuses,
-    settings,
-  );
-  if (!automation) {
-    toast.warning(i18n._(msg`Connect an agent before watching PRs.`));
-    return null;
-  }
-
   try {
+    const host = input.project.location.remoteServerId;
+    const settings = host
+      ? await useRemoteServersStore.getState().withClient(host, (client) => client.settings())
+      : useSharedSettings.getState();
+    if (settings.prAutomationDefault === "off") return null;
+    const statuses = readHostAgentStatusPools(host);
+    const automation = resolvePrAutomationAgent(
+      input.project,
+      statuses.windows,
+      statuses.wsl,
+      settings,
+    );
+    if (!automation) {
+      toast.warning(i18n._(msg`Connect an agent before watching PRs.`));
+      return null;
+    }
     const payload = {
       projectId: input.project.id,
       prNumber: input.prNumber,

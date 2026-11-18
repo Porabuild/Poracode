@@ -14,8 +14,9 @@ import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { useLocalizedOptions, worktreeStorageModeOptions } from "./settingsOptions";
 import { WorktreeBaseFolderField } from "./WorktreeBaseFolderField";
+import { useScopedHostSettings, type SettingsHostTarget } from "./useScopedHostSettings";
 
-export function WorktreeSettings() {
+export function WorktreeSettings(props: SettingsHostTarget) {
   const { t } = useLingui();
   const storageMode = useSharedSettings((s) => s.worktreeStorageMode);
   const setStorageMode = useSharedSettings((s) => s.setWorktreeStorageMode);
@@ -23,13 +24,16 @@ export function WorktreeSettings() {
   const setBasePath = useSharedSettings((s) => s.setWorktreeBasePath);
   const wslBasePath = useSharedSettings((s) => s.wslWorktreeBasePath);
   const setWslBasePath = useSharedSettings((s) => s.setWslWorktreeBasePath);
-  const selectedRemoteDesktopId = useRemoteServersStore((state) =>
+  const browserDesktopId = useRemoteServersStore((state) =>
     isBrowserClientRuntime()
       ? selectBrowserBridgeServer(state)
         ? remoteConnectionKey(selectBrowserBridgeServer(state)!)
         : undefined
       : undefined,
   );
+  const host = useScopedHostSettings(props);
+  const selectedRemoteDesktopId = props.connectionKey ?? browserDesktopId;
+  const mode = host.remote ? host.settings?.worktreeStorageMode : storageMode;
   const hasWslProject = useAppStore((s) =>
     Boolean(
       buildWslProjectDistrosKey(
@@ -40,7 +44,7 @@ export function WorktreeSettings() {
     ),
   );
 
-  const isGlobal = storageMode === "global";
+  const isGlobal = mode === "global";
   const modeOptions = useLocalizedOptions(worktreeStorageModeOptions);
 
   return (
@@ -48,19 +52,29 @@ export function WorktreeSettings() {
       title={t`Worktrees`}
       description={t`Where Poracode creates git worktrees for new branches. Changes apply to worktrees created from now on; existing worktrees stay where they are.`}
     >
-      <SettingRow
-        anchorId="worktrees.storageLocation"
-        title={t`Storage location`}
-        description={t`Use one global folder, or nest worktrees inside each project at .poracode/worktrees.`}
-      >
-        <Select
-          aria-label={t`Worktree storage location`}
-          className="w-[200px] shrink-0"
-          options={modeOptions}
-          value={storageMode}
-          onChange={(value) => startTransition(() => setStorageMode(value as WorktreeStorageMode))}
-        />
-      </SettingRow>
+      {mode === undefined ? (
+        <p role="status">{t`Settings unavailable`}</p>
+      ) : (
+        <SettingRow
+          anchorId="worktrees.storageLocation"
+          title={t`Storage location`}
+          description={t`Use one global folder, or nest worktrees inside each project at .poracode/worktrees.`}
+        >
+          <Select
+            aria-label={t`Worktree storage location`}
+            className="w-[200px] shrink-0"
+            options={modeOptions}
+            value={mode}
+            onChange={(value) =>
+              startTransition(() =>
+                host.remote
+                  ? host.update({ worktreeStorageMode: value as WorktreeStorageMode })
+                  : setStorageMode(value as WorktreeStorageMode),
+              )
+            }
+          />
+        </SettingRow>
+      )}
 
       {isGlobal ? (
         <SettingRow
@@ -70,8 +84,10 @@ export function WorktreeSettings() {
         >
           <WorktreeBaseFolderField
             isWsl={false}
-            value={basePath}
-            onChange={setBasePath}
+            value={host.remote ? (host.settings?.worktreeBasePath ?? "") : basePath}
+            onChange={(next) =>
+              host.remote ? host.update({ worktreeBasePath: next }) : setBasePath(next)
+            }
             {...(selectedRemoteDesktopId ? { remoteDesktopId: selectedRemoteDesktopId } : {})}
           />
         </SettingRow>
@@ -83,7 +99,14 @@ export function WorktreeSettings() {
           title={t`WSL base folder`}
           description={t`Worktree root for WSL projects (a Linux path).`}
         >
-          <WorktreeBaseFolderField isWsl value={wslBasePath} onChange={setWslBasePath} />
+          <WorktreeBaseFolderField
+            isWsl
+            value={host.remote ? (host.settings?.wslWorktreeBasePath ?? "") : wslBasePath}
+            onChange={(next) =>
+              host.remote ? host.update({ wslWorktreeBasePath: next }) : setWslBasePath(next)
+            }
+            {...(selectedRemoteDesktopId ? { remoteDesktopId: selectedRemoteDesktopId } : {})}
+          />
         </SettingRow>
       ) : null}
     </SettingsPage>

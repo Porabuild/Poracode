@@ -11,6 +11,7 @@ import {
 } from "@/renderer/state/threadDeletePreference";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
+import { useScopedHostSettings, type SettingsHostTarget } from "./useScopedHostSettings";
 import { ResourceAdmissionSettings } from "./ResourceAdmissionSettings";
 import {
   followUpBehaviorOptions,
@@ -18,7 +19,7 @@ import {
   useLocalizedOptions,
 } from "./settingsOptions";
 
-export function ThreadSettings() {
+export function ThreadSettings(props: SettingsHostTarget) {
   const { t } = useLingui();
   const staleThreadUnloadMinutes = useSharedSettings((state) => state.staleThreadUnloadMinutes);
   const setStaleThreadUnloadMinutes = useSharedSettings(
@@ -35,9 +36,15 @@ export function ThreadSettings() {
   const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
   const setFollowUpBehavior = useSharedSettings((state) => state.setFollowUpBehavior);
   const [confirmThreadDelete, setConfirmThreadDeleteState] = useState(shouldConfirmThreadDelete);
-  // Idle unloading and launch-time auto-archive run on the desktop; a remote
-  // session's copy of these values is never read, so hide the rows there.
-  const remote = isRemoteSession();
+  const host = useScopedHostSettings(props);
+  // Idle unloading is a local renderer lifecycle policy. Archiving is host housekeeping.
+  const remote = isRemoteSession() || host.remote;
+  const archiveDays = host.remote
+    ? host.settings?.autoArchiveDoneAfterDays
+    : remote
+      ? undefined
+      : autoArchiveDoneAfterDays;
+  const followUp = host.remote ? host.settings?.followUpBehavior : followUpBehavior;
 
   const followUpBehaviorOpts = useLocalizedOptions(followUpBehaviorOptions);
   const threadRemoveActionOpts = useLocalizedOptions(threadRemoveActionOptions);
@@ -45,28 +52,35 @@ export function ThreadSettings() {
 
   return (
     <SettingsPage title={t`Threads`}>
-      <SettingRow
-        anchorId="threads.followUpBehavior"
-        title={t`Follow-up behavior`}
-        description={
-          <Trans>
-            Choose whether chat messages sent while an agent is working steer the current response
-            or queue for the next response. {followUpShortcut} uses the opposite action.
-          </Trans>
-        }
-      >
-        <Select
-          aria-label={t`Follow-up behavior`}
-          className="w-[160px] shrink-0"
-          options={followUpBehaviorOpts}
-          value={followUpBehavior}
-          onChange={(value) => {
-            startTransition(() => {
-              setFollowUpBehavior(value as FollowUpBehavior);
-            });
-          }}
-        />
-      </SettingRow>
+      {followUp !== undefined ? (
+        <SettingRow
+          anchorId="threads.followUpBehavior"
+          title={t`Follow-up behavior`}
+          description={
+            <Trans>
+              Choose whether chat messages sent while an agent is working steer the current response
+              or queue for the next response. {followUpShortcut} uses the opposite action.
+            </Trans>
+          }
+        >
+          <Select
+            aria-label={t`Follow-up behavior`}
+            className="w-[160px] shrink-0"
+            options={followUpBehaviorOpts}
+            value={followUp}
+            onChange={(value) => {
+              startTransition(() => {
+                if (host.remote) host.update({ followUpBehavior: value as FollowUpBehavior });
+                else setFollowUpBehavior(value as FollowUpBehavior);
+              });
+            }}
+          />
+        </SettingRow>
+      ) : (
+        <p role="status">
+          <Trans>Settings unavailable</Trans>
+        </p>
+      )}
 
       {!remote && (
         <SettingRow
@@ -100,7 +114,7 @@ export function ThreadSettings() {
         </SettingRow>
       )}
 
-      {!remote && (
+      {archiveDays !== undefined && (
         <SettingRow
           anchorId="threads.autoArchiveDoneAfter"
           title={t`Auto-archive done threads after`}
@@ -117,11 +131,13 @@ export function ThreadSettings() {
             minValue={0}
             maxValue={3650}
             step={1}
-            value={autoArchiveDoneAfterDays}
+            value={archiveDays}
             onChange={(value) => {
               if (Number.isNaN(value)) return;
               startTransition(() => {
-                setAutoArchiveDoneAfterDays(Math.max(0, Math.floor(value)));
+                const next = Math.max(0, Math.floor(value));
+                if (host.remote) host.update({ autoArchiveDoneAfterDays: next });
+                else setAutoArchiveDoneAfterDays(next);
               });
             }}
           >

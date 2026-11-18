@@ -1,14 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
-  static let schema_ed8928e1a85aa112 = RemoteSchema(type: "string", literals: [.string("managed"), .string("external")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_edbbbb70d0bea172 = RemoteSchema(type: "object", properties: ["approvalPolicy": RemoteSchemas.schema_bf0b727f7b1c6d07, "preferDeclaredApprovalPolicy": RemoteSchemas.schema_feeb8bb50144d96d, "sandboxMode": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
   static let schema_edf7721bcc428be5 = RemoteSchema(type: "array", items: RemoteSchemas.schema_c65389518caf6991, unknownPolicy: .strip)
 }
 

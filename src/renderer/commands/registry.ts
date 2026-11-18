@@ -3,6 +3,8 @@ import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { threadCrewBinding } from "@/shared/crew";
+import { machineKeyForLocation } from "@/shared/machines";
+import { crewLibraryActions, readCrewLibrary } from "@/renderer/state/crewLibrary";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { isMarkdownFile } from "@/shared/pathUtils";
@@ -637,9 +639,10 @@ function toggleStarCurrent(): void {
 
   const settings = useSharedSettings.getState();
   const crewId = threadCrewBinding(draft)?.crewId;
-  const crew = settings.crews.find((entry) => entry.id === crewId);
+  const crewKey = machineKeyForLocation(active.project?.location ?? { kind: "native" });
+  const crew = readCrewLibrary(crewKey).find((entry) => entry.id === crewId);
   if (crew) {
-    settings.setCrewFavorite(crew.id, !crew.favorite);
+    crewLibraryActions(crewKey).setCrewFavorite(crew.id, !crew.favorite);
     toast.success(
       crew.favorite
         ? i18n._(msg`Crew removed from favorites`)

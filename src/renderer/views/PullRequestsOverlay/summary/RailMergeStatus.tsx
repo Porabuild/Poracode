@@ -7,7 +7,7 @@ import { RailSection } from "./RailSection";
 /** Read-only merge readiness; the merge action itself lives in the header. */
 export function RailMergeStatus() {
   const scope = usePrDetailScope();
-  const readiness = usePrMergeReadiness(scope.prKey, scope.cacheKey);
+  const readiness = usePrMergeReadiness(scope.prKey, scope.cacheKey, scope.projectId);
   return (
     <RailSection title={<Trans>Merge status</Trans>}>
       {readiness.statusLabel ? (

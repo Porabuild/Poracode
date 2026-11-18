@@ -62,6 +62,8 @@ import {
 import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { threadCrewBinding } from "@/shared/crew";
+import { LOCAL_NATIVE_MACHINE_KEY, machineKeyForLocation } from "@/shared/machines";
+import { crewLibraryActions, readCrewLibrary } from "@/renderer/state/crewLibrary";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
 import {
   isRemoteCommandOutcomeAuthoritativelyResolved,
@@ -131,6 +133,17 @@ async function performInitialThreadLaunchPending(
   const resumableSessionRef = providerSwitch ? undefined : thread.sessionRef;
   const presentation = thread.presentationMode ?? "terminal";
   const crewId = threadCrewBinding(thread.config)?.crewId;
+  const crewKey = machineKeyForLocation({
+    ...projectLocation,
+    ...(thread.remoteServerId ? { remoteServerId: thread.remoteServerId } : {}),
+  });
+  if (
+    crewId &&
+    crewKey !== LOCAL_NATIVE_MACHINE_KEY &&
+    readCrewLibrary(crewKey).some((crew) => crew.id === crewId)
+  ) {
+    crewLibraryActions(crewKey).setCrewLastUsedAt(crewId, Date.now());
+  }
   if (thread.config.model) {
     useSharedSettings
       .getState()
@@ -140,7 +153,7 @@ async function performInitialThreadLaunchPending(
         presentation,
         thread.config.effort,
         thread.config.fast,
-        crewId,
+        crewKey === LOCAL_NATIVE_MACHINE_KEY ? crewId : undefined,
       );
   }
 

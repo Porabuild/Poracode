@@ -356,11 +356,11 @@ val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DCommandU2ERequest: RemoteRootCodec
 val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DCommandU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DCommandResponse_e761211b82>
     get() = RemoteRootCodec("route.mcp-settings-command.response", serializer<RoutemcpU2DSettingsU2DCommandResponse_e761211b82>(), schema_e761211b82c40573)
 
-val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DOperationU2ERequest: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb>
-    get() = RemoteRootCodec("route.mcp-settings-operation.request", serializer<RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb>(), schema_e8fbf0f2cbb425a8)
+val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DOperationU2ERequest: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationRequest_f46bb4e323>
+    get() = RemoteRootCodec("route.mcp-settings-operation.request", serializer<RoutemcpU2DSettingsU2DOperationRequest_f46bb4e323>(), schema_f46bb4e32320dcce)
 
-val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DOperationU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationResponse_20b48750f1>
-    get() = RemoteRootCodec("route.mcp-settings-operation.response", serializer<RoutemcpU2DSettingsU2DOperationResponse_20b48750f1>(), schema_20b48750f1f97bcf)
+val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DOperationU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationResponse_4ba08f8592>
+    get() = RemoteRootCodec("route.mcp-settings-operation.response", serializer<RoutemcpU2DSettingsU2DOperationResponse_4ba08f8592>(), schema_4ba08f85926d047f)
 
 val RemoteRootCodecs.routeU2EMcpU2DSettingsU2DReadU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DCommandResponse_e761211b82>
     get() = RemoteRootCodec("route.mcp-settings-read.response", serializer<RoutemcpU2DSettingsU2DCommandResponse_e761211b82>(), schema_e761211b82c40573)

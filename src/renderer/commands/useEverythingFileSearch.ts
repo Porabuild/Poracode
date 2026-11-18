@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import type { Project, ProjectTreeEntry, SearchProjectTreePayload } from "@/shared/contracts";
 import { resolveSearchConfig } from "@/shared/searchExclude";
 import { readBridge } from "@/renderer/bridge";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 
 export const FILE_SEARCH_LIMIT = 200;
@@ -22,8 +22,9 @@ export function useEverythingFileSearch(input: {
   query: string;
   enabled: boolean;
 }) {
-  const globalUseIgnoreFiles = useSharedSettings((state) => state.searchUseIgnoreFiles);
-  const globalExclude = useSharedSettings((state) => state.searchExclude);
+  const host = input.project?.location.remoteServerId;
+  const globalUseIgnoreFiles = useHostSetting(host, "searchUseIgnoreFiles");
+  const globalExclude = useHostSetting(host, "searchExclude");
   const [completed, setCompleted] = useState<CompletedSearch | null>(null);
   const [attempt, setAttempt] = useState(0);
   const query = input.query.trim();

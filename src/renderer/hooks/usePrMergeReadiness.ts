@@ -10,7 +10,8 @@ import {
   usePrState,
 } from "@/renderer/state/gitSelectors";
 import { useGitStore } from "@/renderer/state/gitStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useAppStore } from "@/renderer/state/appStore";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import {
   describePrStatus,
   getPrStatusTone,
@@ -32,7 +33,11 @@ const BLOCK_REASON: Record<string, MessageDescriptor> = {
  * offers. Shared by the branch review section and the pull-request overlay so
  * both agree on blocking, soft blocking and admin bypass.
  */
-export function usePrMergeReadiness(prKey: string, cacheKey: string | undefined) {
+export function usePrMergeReadiness(
+  prKey: string,
+  cacheKey: string | undefined,
+  projectId?: string,
+) {
   const { t } = useLingui();
   const state = usePrState(prKey);
   const detailsSource = useGitStore((s) => (cacheKey ? s.prDetails[cacheKey]?.source : undefined));
@@ -43,7 +48,12 @@ export function usePrMergeReadiness(prKey: string, cacheKey: string | undefined)
   const reviewDecision = usePrReviewDecision(prKey);
   const mergeStateStatus = usePrMergeStateStatus(prKey);
   const mergeable = usePrMergeable(prKey);
-  const preferredMergeMethod = useSharedSettings((s) => s.prMergeMethod);
+  const host = useAppStore((s) =>
+    projectId
+      ? s.projects.find((project) => project.id === projectId)?.location.remoteServerId
+      : undefined,
+  );
+  const preferredMergeMethod = useHostSetting(host, "prMergeMethod");
   const preferredMethod = mergeMethods.includes(preferredMergeMethod)
     ? preferredMergeMethod
     : (mergeMethods[0] ?? preferredMergeMethod);

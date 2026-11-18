@@ -138,23 +138,13 @@ export function createDesktopRemoteAccessController(
 
   const mcpSettings = createRemoteMcpSettingsGateway({
     readSettings: () => readSharedSettingsFile(options.paths.settingsPath),
-    // Scoped CAS edit of the whole `mcpServers` field, derived from the
-    // freshest committed state; a surviving conflict is reported, never
-    // written over the concurrent writer (mirrors the headless composition).
-    writeGlobalServers: (mcpServers) => {
-      void options.settingsWrites
-        .editSettingsField("mcpServers", () => mcpServers)
-        .then((result) => {
-          if (result.status !== "committed") {
-            options.reportError(
-              new Error(`MCP server settings were not committed (${result.status}).`),
-              { "poracode.feature_area": "remote-access" },
-            );
-          }
-        })
-        .catch((error: unknown) =>
-          options.reportError(error, { "poracode.feature_area": "remote-access" }),
-        );
+    editGlobalServers: async (edit) => {
+      const result = await options.settingsWrites.editSettingsField("mcpServers", (current) =>
+        edit(current.mcpServers),
+      );
+      if (result.status !== "committed") {
+        throw new Error(`MCP server settings were not committed (${result.status}).`);
+      }
     },
     readProject: dbGetProject,
     writeProject: dbUpdateProject,

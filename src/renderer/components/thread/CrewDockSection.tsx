@@ -19,7 +19,8 @@ import { getRuntimeItemPayload } from "@/renderer/state/slices/runtimeEventSlice
 import { getRuntimeItemStoreSelector } from "./ChatPane/chatPaneSelectors";
 import { readSubAgentType } from "./ChatPane/parts/items/toolDisplay";
 import { AnimatedFraction } from "@/renderer/components/common/AnimatedNumber";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
+import { machineKeyForLocation } from "@/shared/machines";
 import { useThreadComposerControlStore } from "@/renderer/state/threadComposerControlStore";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
@@ -45,7 +46,15 @@ export function CrewDockSection(props: {
   const statuses = useAgentStatusesStore(
     useShallow((state) => [...state.agentStatuses, ...state.wslAgentStatuses]),
   );
-  const crews = useSharedSettings((state) => state.crews);
+  const location = useAppStore(
+    (s) => s.projects.find((project) => project.id === props.thread.projectId)?.location,
+  );
+  const { crews } = useCrewLibrary(
+    machineKeyForLocation({
+      ...(location ?? { kind: "native" }),
+      ...(props.thread.remoteServerId ? { remoteServerId: props.thread.remoteServerId } : {}),
+    }),
+  );
   const saved = savedCrewFor(props.binding, crews);
   const lead = leadSelectionOf(props.thread.agentKind, props.thread.config);
   const roleForRun = useAppStore(

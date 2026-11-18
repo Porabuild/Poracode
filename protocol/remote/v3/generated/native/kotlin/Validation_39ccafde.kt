@@ -49,6 +49,10 @@ internal val schema_2c6061a21fb7aee6: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("durationMs", "endX", "endY", "frameId", "kind", "x", "y"), properties = mapOf("durationMs" to schema_c5c5a6d768bddd81, "endX" to schema_5d4b39004bf5c532, "endY" to schema_5d4b39004bf5c532, "frameId" to schema_d855999aed5e6438, "kind" to schema_0cdfc047b0a2e1bb, "x" to schema_5d4b39004bf5c532, "y" to schema_5d4b39004bf5c532), additionalAllowed = false, unknownPolicy = RemoteUnknownFieldPolicy.REJECT)
 }
 
+internal val schema_2c6490416fcef343: RemoteSchema by lazy {
+    RemoteSchema(type = "string", minLength = 1, maxLength = 8192, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_2c671d62fd5c98a8: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("boolean")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

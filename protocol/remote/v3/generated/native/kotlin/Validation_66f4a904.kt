@@ -177,6 +177,10 @@ internal val schema_49834fb5a406b494: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("remove_engine")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_4986251e245712da: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("settings"), properties = mapOf("settings" to schema_bc197948930fab80), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_499c88c1c549e934: RemoteSchema by lazy {
     RemoteSchema(type = "number", literals = listOf(JsonPrimitive(0.0)), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -207,6 +211,10 @@ internal val schema_4a927b60e49ddae0: RemoteSchema by lazy {
 
 internal val schema_4b47ae3fc75a3ec0: RemoteSchema by lazy {
     RemoteSchema(type = "object", properties = mapOf("innerWindowId" to schema_36fea325bf1aca70, "outerWindowId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_4ba08f85926d047f: RemoteSchema by lazy {
+    RemoteSchema(unionKind = "oneOf", options = listOf(schema_bb3cd72cf9e1b0cc, schema_560a7abcaf51999f, schema_2798cb9d2dca7539, schema_f2e3da83f3088e10, schema_540340cca9e4216e, schema_3ac3526f6a2607f3), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_4c1171296b6868a1: RemoteSchema by lazy {

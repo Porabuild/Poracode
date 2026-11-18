@@ -609,7 +609,7 @@ export interface RemoteAccessServerOptions {
      * authority persists on its own queue); the route awaits the result. */
     update(patch: RemoteSettingsPatch): RemoteSettings | Promise<RemoteSettings>;
     readMcpServers(): { servers: McpServer[] };
-    commandMcpServers(command: RemoteMcpSettingsCommand): { servers: McpServer[] };
+    commandMcpServers(command: RemoteMcpSettingsCommand): Promise<{ servers: McpServer[] }>;
     resolveScope(scope: RemoteMcpSettingsScope): {
       servers: McpServer[];
       projectLocation?: ProjectLocation;

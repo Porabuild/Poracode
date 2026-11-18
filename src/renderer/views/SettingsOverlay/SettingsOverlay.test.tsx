@@ -81,7 +81,23 @@ vi.mock("@/renderer/components/common", () => ({
   PixelLoader: () => <span />,
   ToggleSwitch: () => <span />,
   TuxIcon: () => <span />,
-  Select: () => <span data-testid="machine-select" />,
+  Select: (props: {
+    options?: { id: string; label: string; isDisabled?: boolean }[];
+    onChange?: (id: string) => void;
+  }) => (
+    <span data-testid="machine-select">
+      {props.options?.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          disabled={option.isDisabled}
+          onClick={() => props.onChange?.(option.id)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </span>
+  ),
   SidebarButton: (props: {
     icon?: ReactNode;
     label: string;
@@ -183,6 +199,18 @@ vi.mock("./parts/UsageSettings", () => ({
 
 vi.mock("./parts/ArchivedThreadsSettings", () => ({
   ArchivedThreadsSettings: () => <div>Archived</div>,
+}));
+
+vi.mock("./parts/McpServersSettings", () => ({
+  McpServersSettings: ({ connectionKey, local }: { connectionKey?: string; local: boolean }) => (
+    <span>
+      {connectionKey
+        ? `MCP settings for ${connectionKey}`
+        : local
+          ? "Local MCP settings"
+          : "Offline MCP settings"}
+    </span>
+  ),
 }));
 
 vi.mock("./parts/AboutSettings", () => ({
@@ -554,6 +582,7 @@ describe("SettingsOverlay", () => {
       "SchedulesScheduled tasks on this desktop",
       "AI HelpersTitle, commit, and conflict models",
       "MemoryShared notes across providers",
+      "MCP ServersConfigured MCP servers",
       "AgentsEnabled agents, model visibility and order",
       "CrewsSaved crews for the model picker",
       "Archived ThreadsRestore or delete",
@@ -670,6 +699,33 @@ describe("SettingsOverlay", () => {
     expect(scrollArea).toHaveClass("pb-20");
     expect(scrollArea).not.toContainElement(screen.getByTestId("machine-select"));
     expect(screen.getByRole("main")).toContainElement(screen.getByTestId("machine-select"));
+  });
+
+  it("switches MCP settings to a paired host from the bottom machine selector", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "remote-id",
+          connectionId: "paired",
+          label: "Studio Mac",
+          endpoint: "https://mac.example.test",
+          accessToken: "token",
+          scopes: ["projects:manage"],
+        },
+      ],
+      runtime: { paired: { status: "online", projects: [], threads: [] } },
+    });
+    usePanelStore.getState().openSettingsSection("mcpServers");
+    render(<SettingsOverlay onClose={() => undefined} />);
+
+    const scrollArea = screen
+      .getByText("Local MCP settings")
+      .closest("[data-settings-scroll-area]");
+    const selector = screen.getByTestId("machine-select");
+    expect(scrollArea).toHaveClass("pb-20");
+    expect(scrollArea).not.toContainElement(selector);
+    fireEvent.click(within(selector).getByRole("button", { name: "Studio Mac" }));
+    expect(screen.getByText("MCP settings for paired")).toBeInTheDocument();
   });
 
   it("shows the floating machine selector for Agent Registry when multiple machines exist", () => {

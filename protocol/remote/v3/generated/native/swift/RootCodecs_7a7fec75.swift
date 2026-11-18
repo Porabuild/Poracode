@@ -333,11 +333,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EMcpU2DSettingsU2DOperationU2ERequest: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb> = .init(id: "route.mcp-settings-operation.request", schema: RemoteSchemas.schema_e8fbf0f2cbb425a8)
+  static let routeU2EMcpU2DSettingsU2DOperationU2ERequest: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationRequest_f46bb4e323> = .init(id: "route.mcp-settings-operation.request", schema: RemoteSchemas.schema_f46bb4e32320dcce)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EMcpU2DSettingsU2DOperationU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationResponse_20b48750f1> = .init(id: "route.mcp-settings-operation.response", schema: RemoteSchemas.schema_20b48750f1f97bcf)
+  static let routeU2EMcpU2DSettingsU2DOperationU2EResponse: RemoteRootCodec<RoutemcpU2DSettingsU2DOperationResponse_4ba08f8592> = .init(id: "route.mcp-settings-operation.response", schema: RemoteSchemas.schema_4ba08f85926d047f)
 }
 
 public extension RemoteRootCodecs {

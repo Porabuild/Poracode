@@ -7,7 +7,7 @@ import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useFileEditorStore, type FileEditorRootContext } from "@/renderer/state/fileEditorStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
 import { isMissingPathError, useProjectTreeReloads } from "./useProjectTreeReloads";
 
@@ -35,8 +35,8 @@ export function useProjectTree(props: {
   const [searchLoading, setSearchLoading] = useState(false);
   const [draft, setDraft] = useState<TreeDraftState | null>(null);
 
-  const globalUseIgnoreFiles = useSharedSettings((s) => s.searchUseIgnoreFiles);
-  const globalExclude = useSharedSettings((s) => s.searchExclude);
+  const globalUseIgnoreFiles = useHostSetting(remoteServerId, "searchUseIgnoreFiles");
+  const globalExclude = useHostSetting(remoteServerId, "searchExclude");
   const projectSearchSettings = useAppStore(
     (s) => s.projects.find((p) => p.id === props.rootContext.projectId)?.searchSettings,
   );

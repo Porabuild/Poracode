@@ -33,10 +33,12 @@ describe("shared settings crews", () => {
     };
     const normalized = normalizeSharedSettings(legacy);
     expect(normalized.crews).toEqual(legacy.crews);
+    expect(normalized.wslCrews).toEqual({});
     expect(normalized.recentModels).toEqual(legacy.recentModels);
     const current = {
       ...normalized,
       crews: [{ ...normalized.crews[0]!, favorite: true, lastUsedAt: 123 }],
+      wslCrews: { Ubuntu: [{ ...normalized.crews[0]!, name: "Ubuntu crew" }] },
       recentModels: [{ ...normalized.recentModels[0]!, lastUsedAt: 124 }],
     };
     expect(normalizeSharedSettings(JSON.parse(JSON.stringify(current)))).toEqual(current);

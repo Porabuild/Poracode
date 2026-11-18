@@ -46,9 +46,7 @@ export interface HeadlessSettingsComposition {
     read(): RemoteSettings;
     update(patch: RemoteSettingsPatch): Promise<RemoteSettings>;
     readMcpServers(): { servers: McpServer[] };
-    commandMcpServers(command: Parameters<RemoteMcpSettingsGateway["command"]>[0]): {
-      servers: McpServer[];
-    };
+    commandMcpServers: RemoteMcpSettingsGateway["command"];
   };
   /** Push-coordinator projection of the committed settings. */
   pushSettings(): { enabled: boolean; redactContent: boolean };
@@ -87,14 +85,13 @@ export async function composeHeadlessSettingsAuthority(
   const writes = new SettingsCompatWriter(authority);
   const mcpSettings = createRemoteMcpSettingsGateway({
     readSettings: options.readSettings,
-    writeGlobalServers: (mcpServers) => {
-      void writes
-        .editSettingsField("mcpServers", () => mcpServers)
-        .then((result) => {
-          if (result.status !== "committed")
-            report(new Error(`MCP server settings were not committed (${result.status}).`));
-        })
-        .catch(report);
+    editGlobalServers: async (edit) => {
+      const result = await writes.editSettingsField("mcpServers", (current) =>
+        edit(current.mcpServers),
+      );
+      if (result.status !== "committed") {
+        throw new Error(`MCP server settings were not committed (${result.status}).`);
+      }
     },
     readProject: options.readProject,
     writeProject: options.writeProject,

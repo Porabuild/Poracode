@@ -227,9 +227,27 @@ export class McpOAuthService {
     }
   }
 
-  async wait(payload: { flowId: string }): Promise<McpOauthWaitResult> {
+  async wait(payload: {
+    flowId: string;
+    callback?: { url: string; serverUrl: string } | undefined;
+  }): Promise<McpOauthWaitResult> {
     const flow = this.flows.get(payload.flowId);
     if (!flow) return { status: "error", message: "The sign-in flow is no longer active." };
+    if (payload.callback) {
+      const { serverUrl, url } = payload.callback;
+      const callback = URL.parse(url);
+      if (
+        flow.serverUrl !== serverUrl ||
+        flow.credentialKey !== serverUrl ||
+        !callback ||
+        callback.origin !== `http://127.0.0.1:${flow.port}` ||
+        callback.username ||
+        callback.password ||
+        !this.acceptCallback(flow, callback)
+      ) {
+        return { status: "error", message: "The callback does not match this sign-in flow." };
+      }
+    }
     const result = await flow.result;
     await this.joinFlow(flow);
     this.disposeFlow(flow);
@@ -575,13 +593,21 @@ export class McpOAuthService {
       res.writeHead(404).end();
       return;
     }
-    // An attacker on another local account cannot know the state value; a
-    // mismatched callback is ignored without consuming the pending flow.
-    if (url.searchParams.get("state") !== flow.state || flow.settled || flow.exchanging) {
-      res.writeHead(400, { "content-type": "text/html; charset=utf-8" });
-      res.end(CALLBACK_FAILURE_HTML);
-      return;
+    const respond = (ok: boolean, status = 200) => {
+      res.writeHead(status, { "content-type": "text/html; charset=utf-8" });
+      res.end(ok ? CALLBACK_SUCCESS_HTML : CALLBACK_FAILURE_HTML);
+    };
+    if (flow.settled || flow.exchanging || !this.acceptCallback(flow, url, respond)) {
+      respond(false, 400);
     }
+  }
+
+  private acceptCallback(flow: ActiveFlow, url: URL, respond?: (ok: boolean) => void): boolean {
+    // A mismatched callback never consumes a pending flow. Only exchange the
+    // code with the issuer discovered by this flow, never fetch the pasted URL.
+    if (url.pathname !== CALLBACK_PATH || url.searchParams.get("state") !== flow.state)
+      return false;
+    if (flow.settled || flow.exchanging) return true;
 
     const iss = url.searchParams.get("iss") ?? undefined;
     const metadata = flow.discoveryState?.authorizationServerMetadata;
@@ -594,20 +620,18 @@ export class McpOAuthService {
         issParameterSupported: metadata?.authorization_response_iss_parameter_supported === true,
       });
     } catch (error) {
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(CALLBACK_FAILURE_HTML);
+      respond?.(false);
       this.settleFlow(flow, {
         status: "error",
         message: sanitizeMessage(error, "Sign-in was denied."),
       });
-      return;
+      return true;
     }
 
     const oauthError = url.searchParams.get("error");
     const code = url.searchParams.get("code");
     if (oauthError !== null || !code) {
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      res.end(CALLBACK_FAILURE_HTML);
+      respond?.(false);
       this.settleFlow(flow, {
         status: "error",
         message: sanitizeMessage(
@@ -615,13 +639,13 @@ export class McpOAuthService {
           "Sign-in was denied.",
         ),
       });
-      return;
+      return true;
     }
 
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-    res.end(CALLBACK_SUCCESS_HTML);
     flow.exchanging = true;
+    respond?.(true);
     void this.trackFlow(flow, this.exchangeAuthorizationCode(flow, code, iss));
+    return true;
   }
 
   private async exchangeAuthorizationCode(

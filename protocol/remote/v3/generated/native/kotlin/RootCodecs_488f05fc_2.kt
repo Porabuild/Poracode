@@ -407,8 +407,8 @@ val RemoteRootCodecs.procedureU2EUpdateAgentBinaryU2ERequest: RemoteRootCodec<Pr
 val RemoteRootCodecs.procedureU2EUpdateAgentBinaryU2EResult: RemoteRootCodec<ProcedureupdateAgentBinaryResult_0d863fe350>
     get() = RemoteRootCodec("procedure.updateAgentBinary.result", serializer<ProcedureupdateAgentBinaryResult_0d863fe350>(), schema_0d863fe3501fe68f)
 
-val RemoteRootCodecs.procedureU2EWaitMcpServerOauthU2ERequest: RemoteRootCodec<ProcedurewaitMcpServerOauthRequest_e9df8b4f3d>
-    get() = RemoteRootCodec("procedure.waitMcpServerOauth.request", serializer<ProcedurewaitMcpServerOauthRequest_e9df8b4f3d>(), schema_e9df8b4f3dcc8aae)
+val RemoteRootCodecs.procedureU2EWaitMcpServerOauthU2ERequest: RemoteRootCodec<ProcedurewaitMcpServerOauthRequest_58cefff26a>
+    get() = RemoteRootCodec("procedure.waitMcpServerOauth.request", serializer<ProcedurewaitMcpServerOauthRequest_58cefff26a>(), schema_58cefff26ad3774a)
 
 val RemoteRootCodecs.procedureU2EWaitMcpServerOauthU2EResult: RemoteRootCodec<ProcedurewaitMcpServerOauthResult_51cc694dc5>
     get() = RemoteRootCodec("procedure.waitMcpServerOauth.result", serializer<ProcedurewaitMcpServerOauthResult_51cc694dc5>(), schema_51cc694dc5da9f2a)

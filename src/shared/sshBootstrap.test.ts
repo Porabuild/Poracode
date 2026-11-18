@@ -753,6 +753,63 @@ poracode_identity_write "$1"`,
     expect(identity.generation).toBe(GENERATION);
     expect(identity.port).toBe(String(first.result?.remotePort));
   }, 60_000);
+
+  it("starts a new owner when a crashed holder's lease records a dead pid", async () => {
+    const home = createHome();
+    writeRuntime(home, NEW_HASH);
+    // The real data-root lease is a process-lifetime kernel lock, so a crashed
+    // owner stops blocking new owners at once; a lease file naming a dead pid
+    // must not outlive its holder either.
+    const dead = await spawnDeadProcess();
+    writeFileSync(fixturePaths(home).leasePath, `${dead.pid}\n`);
+
+    const { result, error } = await runLaunch(home, launchArgs(NEW_HASH), {
+      PORACODE_FIXTURE_PROTOCOL: String(PORACODE_REMOTE_PROTOCOL_VERSION),
+    });
+
+    expect(error, "connect must not be blocked by a dead holder's lease").toBeUndefined();
+    expect(result).toMatchObject({ reusedOwner: false, ownerRuntimeHash: NEW_HASH });
+    expect(readLog(home).filter((line) => line.startsWith("started"))).toHaveLength(1);
+  }, 30_000);
+
+  it("reuses an orphaned booting owner whose starter never published identity", async () => {
+    const home = createHome();
+    const runtime = writeRuntime(home, NEW_HASH);
+    const port = reserveFixturePort();
+    // A starter that died between spawning its owner and publishing the
+    // identity leaves a booting owner holding the data-root lease with no
+    // record to reuse. The connect's own child dies on that lease, and
+    // bounded rediscovery must pick the orphan up once its status answers.
+    const orphan = spawnFixtureOwner(home, runtime, port, {
+      PORACODE_FIXTURE_START_DELAY_MS: "1200",
+      PORACODE_FIXTURE_PROTOCOL: String(PORACODE_REMOTE_PROTOCOL_VERSION),
+    });
+
+    const { result, error } = await runLaunch(home, launchArgs(NEW_HASH), {
+      PORACODE_FIXTURE_PROTOCOL: String(PORACODE_REMOTE_PROTOCOL_VERSION),
+    });
+
+    expect(error, "connect must rediscover the orphaned owner").toBeUndefined();
+    expect(result).toMatchObject({ remotePort: port, reusedOwner: true });
+    expect(readLog(home).filter((line) => line.startsWith("started"))).toHaveLength(1);
+    expect(orphan.exitCode).toBeNull();
+  }, 30_000);
+
+  it("still refuses owner-conflict when the lease holder is never discoverable", async () => {
+    const home = createHome();
+    writeRuntime(home, NEW_HASH);
+    const holder = spawnUnrelatedChild();
+    writeFileSync(fixturePaths(home).leasePath, `${holder.pid}\n`);
+
+    const { error } = await runLaunch(home, launchArgs(NEW_HASH), {
+      PORACODE_FIXTURE_PROTOCOL: String(PORACODE_REMOTE_PROTOCOL_VERSION),
+      PORACODE_REDISCOVER_WAIT_MS: "300",
+    });
+
+    expect(error).toBeInstanceOf(SshBootstrapRefusedError);
+    expect((error as SshBootstrapRefusedError).code).toBe("owner-conflict");
+    expect(holder.exitCode).toBeNull();
+  }, 30_000);
 });
 
 describe.runIf(process.platform !== "win32")("SSH explicit upgrade", () => {

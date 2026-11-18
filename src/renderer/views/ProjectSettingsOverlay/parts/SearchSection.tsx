@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { updateProjectSearchSettingsEverywhere } from "@/renderer/actions/projectGroupActions";
 import { useProject } from "@/renderer/state/useThread";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { DEFAULT_SEARCH_EXCLUDE } from "@/shared/searchExclude";
 import { SearchExcludeBody } from "@/renderer/views/SettingsOverlay/parts/SearchExcludeBody";
 import {
@@ -13,8 +13,9 @@ import {
 export function SearchSection(props: { projectId: string }) {
   const { t } = useLingui();
   const project = useProject(props.projectId);
-  const globalUseIgnoreFiles = useSharedSettings((s) => s.searchUseIgnoreFiles);
-  const globalExclude = useSharedSettings((s) => s.searchExclude);
+  const host = project?.location.remoteServerId;
+  const globalUseIgnoreFiles = useHostSetting(host, "searchUseIgnoreFiles");
+  const globalExclude = useHostSetting(host, "searchExclude");
 
   if (!project) return null;
 

@@ -7540,7 +7540,7 @@ describe("RemoteAccessServer", () => {
         read: () => stored,
         update,
         readMcpServers: () => ({ servers: [] }),
-        commandMcpServers: () => ({ servers: [] }),
+        commandMcpServers: async () => ({ servers: [] }),
         resolveScope: () => ({ servers: [] }),
         resolveServer: () => {
           throw new Error("not used");
@@ -7627,7 +7627,7 @@ describe("RemoteAccessServer", () => {
         read: () => stored,
         update,
         readMcpServers: () => ({ servers: [] }),
-        commandMcpServers: () => ({ servers: [] }),
+        commandMcpServers: async () => ({ servers: [] }),
         resolveScope: () => ({ servers: [] }),
         resolveServer: () => {
           throw new Error("not used");
@@ -7684,7 +7684,7 @@ describe("RemoteAccessServer", () => {
         read: () => stored,
         update: () => Promise.reject(new Error("disk on fire")),
         readMcpServers: () => ({ servers: [] }),
-        commandMcpServers: () => ({ servers: [] }),
+        commandMcpServers: async () => ({ servers: [] }),
         resolveScope: () => ({ servers: [] }),
         resolveServer: () => {
           throw new Error("not used");
@@ -7758,7 +7758,7 @@ describe("RemoteAccessServer", () => {
         read: () => stored,
         update: () => stored,
         readMcpServers: () => ({ servers: [] }),
-        commandMcpServers: () => ({ servers: [] }),
+        commandMcpServers: async () => ({ servers: [] }),
         resolveScope: () => ({ servers: [secretServer] }),
         resolveServer: () => ({ server: secretServer }),
       },

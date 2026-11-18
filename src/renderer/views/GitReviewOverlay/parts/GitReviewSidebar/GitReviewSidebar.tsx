@@ -10,11 +10,12 @@ import {
   PanelLeft,
   PanelLeftClose,
 } from "lucide-react";
-import { Button, ButtonGroup, Dropdown, Label, Modal, Separator } from "@heroui/react";
+import { Button, ButtonGroup, Dropdown, Label, Modal, Separator, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { GitBranchInfo, GitStatusResult, PrCreateMode, Project } from "@/shared/contracts";
 import { branchNameFromRemoteRef } from "@/shared/gitUtils";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
+import { friendlyError } from "@/shared/messages";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 import { gitReviewActionStoreKey } from "@/renderer/state/gitReviewActionStore";
@@ -31,6 +32,7 @@ import {
   useSourceBranch,
 } from "@/renderer/state/gitSelectors";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { editPairedHostSettings, usePairedHostSettings } from "@/renderer/state/pairedHostSettings";
 import { PixelLoader, SidebarButton } from "@/renderer/components/common";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { isPrActive } from "@/renderer/utils/prStatus";
@@ -126,7 +128,10 @@ export function GitReviewSidebar(props: {
   const commitGenProvider = useSharedSettings((s) =>
     isWsl ? s.wslCommitGenProvider : s.commitGenProvider,
   );
-  const prCreateMode = useSharedSettings((s) => s.prCreateMode);
+  const hostKey = project.location.remoteServerId;
+  const hostCreateMode = usePairedHostSettings(hostKey)?.settings?.prCreateMode;
+  const localCreateMode = useSharedSettings((s) => s.prCreateMode);
+  const prCreateMode = hostKey ? (hostCreateMode ?? "dialog") : localCreateMode;
   const setPrCreateMode = useSharedSettings((s) => s.setPrCreateMode);
   const commitDefaultAction = useSharedSettings((s) => s.commitDefaultAction);
   const setCommitDefaultAction = useSharedSettings((s) => s.setCommitDefaultAction);
@@ -302,7 +307,15 @@ export function GitReviewSidebar(props: {
   // it the sticky default (the same field the Git settings select drives).
   const selectPrMode = (prMode: PrCreateMode) => {
     if (actionPhase) return;
-    setPrCreateMode(prMode);
+    if (hostKey) {
+      if (hostCreateMode !== undefined) {
+        void editPairedHostSettings(hostKey, () => ({ prCreateMode: prMode })).catch(
+          (error: unknown) => toast.danger(friendlyError(error)),
+        );
+      }
+    } else {
+      setPrCreateMode(prMode);
+    }
     runPrMode(prMode);
   };
   const altPrMode: PrCreateMode = isAutoPrMode ? "dialog" : "auto";

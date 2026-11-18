@@ -2,7 +2,7 @@ import { useLingui } from "@lingui/react/macro";
 import type { WorktreeStorageMode } from "@/shared/contracts";
 import { updateProjectWorktreeLocation } from "@/renderer/actions/projectActions";
 import { useProject } from "@/renderer/state/useThread";
-import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { Select } from "@/renderer/components/common";
 import {
   DEFAULT_WORKTREE_PATH,
@@ -16,9 +16,10 @@ import {
 export function ProjectWorktreeLocation(props: { projectId: string }) {
   const { t } = useLingui();
   const project = useProject(props.projectId);
-  const globalMode = useSharedSettings((s) => s.worktreeStorageMode);
-  const globalNativeBase = useSharedSettings((s) => s.worktreeBasePath);
-  const globalWslBase = useSharedSettings((s) => s.wslWorktreeBasePath);
+  const host = project?.location.remoteServerId;
+  const globalMode = useHostSetting(host, "worktreeStorageMode");
+  const globalNativeBase = useHostSetting(host, "worktreeBasePath");
+  const globalWslBase = useHostSetting(host, "wslWorktreeBasePath");
   const options = useLocalizedOptions(projectWorktreeLocationOptions);
 
   if (!project) return null;

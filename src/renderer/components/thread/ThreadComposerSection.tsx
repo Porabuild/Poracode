@@ -96,6 +96,8 @@ import { ProviderSessionControls } from "../providers/providerSessionControls";
 import { useThreadInterrupt } from "./useThreadInterrupt";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { applyCrewComposerControls } from "@/renderer/components/crew/applyCrewComposerControls";
+import { useCrewLibrary } from "@/renderer/state/crewLibrary";
+import { useHostSetting } from "@/renderer/state/pairedHostSettings";
 import { CREW_ROLE_TEMPLATE_DESCRIPTORS } from "@/renderer/components/crew/crewRoleTemplates";
 import {
   crewPickerEntry,
@@ -671,9 +673,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   );
   const modelPreferences = useSharedSettings((s) => s.providerModelPreferences[thread.agentKind]);
   const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
-  const savedCrews = useSharedSettings((state) => state.crews);
-  const upsertCrew = useSharedSettings((state) => state.upsertCrew);
-  const helperOptions = useCrewHelperOptions();
+  const crewMachineKey = machineKeyForLocation(projectLocation);
+  const { crews: savedCrews, upsertCrew } = useCrewLibrary(crewMachineKey);
+  const helperOptions = useCrewHelperOptions(crewMachineKey);
   const binding = threadCrewBinding(thread.config);
   const lead = leadSelectionOf(thread.agentKind, thread.config);
   const canLeadCurrentCrew = Boolean(
@@ -693,7 +695,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     (config) => changeThreadConfig(thread.id, config),
     modelPreferences,
     (model, preference) => setProviderModelPreference(thread.agentKind, model, preference),
-    machineKeyForLocation(projectLocation),
+    crewMachineKey,
     (handlers) => {
       crewHandlers = handlers;
     },
@@ -851,7 +853,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !hasContent &&
     attachments.attachments.length === 0 &&
     !threadVoiceActive;
-  const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
+  const followUpBehavior = useHostSetting(remoteDesktopId, "followUpBehavior");
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath =
     !isConnecting && !usesTerminalPresentation && thread.status === "working";
